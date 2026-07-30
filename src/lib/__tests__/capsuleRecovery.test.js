@@ -38,7 +38,7 @@ beforeEach(() => {
 
 describe('recoverOne', () => {
   it('finalizes with an item of the ROLLED rarity, not the catalog default', async () => {
-    rpc.mockResolvedValue({ error: null });
+    rpc.mockResolvedValue({ data: null, error: null });
     const res = await recoverOne(row({ rolled_rarity: 'epic' }));
     expect(res.ok).toBe(true);
     const [, args] = rpc.mock.calls[0];
@@ -48,7 +48,7 @@ describe('recoverOne', () => {
   });
 
   it('carries the rolled variant through — a foil is worth 2-10x', async () => {
-    rpc.mockResolvedValue({ error: null });
+    rpc.mockResolvedValue({ data: null, error: null });
     await recoverOne(row({ rolled_variant: 'gold' }));
     expect(rpc.mock.calls[0][1].p_variant).toBe('gold');
   });
@@ -60,23 +60,40 @@ describe('recoverOne', () => {
   });
 
   it('reports a real failure as a failure', async () => {
-    rpc.mockResolvedValue({ error: { message: 'permission denied' } });
+    rpc.mockResolvedValue({ data: null, error: { message: 'permission denied' } });
     const res = await recoverOne(row());
     expect(res.ok).toBe(false);
     expect(res.skipped).toBeUndefined();
   });
 
   it('falls back to a sticker when the rolled category has no catalog entry', async () => {
-    rpc.mockResolvedValue({ error: null });
+    rpc.mockResolvedValue({ data: null, error: null });
     const res = await recoverOne(row({ rolled_category: 'nonsense' }));
     expect(res.ok).toBe(true);
     expect(rpc.mock.calls[0][1].p_item_id).toBeTruthy();
   });
 
-  it('skips rather than inventing an item when nothing matches at all', async () => {
+  // Contract changed in migration 267. This used to skip without calling the
+  // RPC when the client couldn't resolve an item locally — correct when the
+  // client's guess WAS the item being granted. Now the server derives the item
+  // from loot_catalog and this capsule's stored roll and ignores the arguments
+  // entirely, so a client that can't guess must not block recovery: a stranded
+  // capsule whose rolled_category this bundle doesn't recognise was previously
+  // unrecoverable forever.
+  it('still attempts recovery when nothing resolves locally — the server owns the item', async () => {
+    rpc.mockResolvedValue({ data: { item_id: 'stk_fire', item_name: 'On Fire', item_emoji: '\u{1F525}' }, error: null });
     const res = await recoverOne(row({ rolled_rarity: 'not-a-tier', rolled_category: 'nope' }));
-    expect(res).toEqual({ ok: false, skipped: true });
-    expect(rpc).not.toHaveBeenCalled();
+    expect(rpc).toHaveBeenCalled();
+    expect(res.ok).toBe(true);
+    // And it reports what the server granted, not the failed local guess.
+    expect(res.item.id).toBe('stk_fire');
+  });
+
+  it('reports the granted item over a mismatched local guess', async () => {
+    rpc.mockResolvedValue({ data: { item_id: 'stk_comet', item_name: 'Comet', item_emoji: '\u{1F4AB}' }, error: null });
+    const res = await recoverOne(row());
+    expect(res.ok).toBe(true);
+    expect(res.item.id).toBe('stk_comet');
   });
 });
 
@@ -95,7 +112,7 @@ describe('recoverStrandedCapsules', () => {
 
   it('recovers every stranded capsule', async () => {
     listStranded.mockResolvedValue([row({ id: 'a' }), row({ id: 'b' }), row({ id: 'c' })]);
-    rpc.mockResolvedValue({ error: null });
+    rpc.mockResolvedValue({ data: null, error: null });
     const res = await recoverStrandedCapsules('a@b.c');
     expect(res.recovered).toBe(3);
     expect(res.items).toHaveLength(3);

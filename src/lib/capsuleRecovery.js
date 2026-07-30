@@ -40,7 +40,7 @@
 
 import { supabase } from '@/api/supabaseClient';
 import * as capsules from '@/lib/data/capsules';
-import { resolveRolledItem } from '@/lib/lootRoll';
+import { resolveRolledItem, hydrateItemById } from '@/lib/lootRoll';
 
 /** Errors that mean "someone else already handled it" — not failures. */
 function isAlreadyClaimed(err) {
@@ -52,16 +52,20 @@ function isAlreadyClaimed(err) {
  * @returns {Promise<{ok: boolean, item?: object, skipped?: boolean}>}
  */
 export async function recoverOne(row) {
-  const item = resolveRolledItem(row.rolled_category, row.rolled_rarity);
-  if (!item) return { ok: false, skipped: true };
+  // The locally-resolved item is now only a fallback for the toast. Since
+  // migration 267 finalize_capsule_claim derives the item from loot_catalog
+  // and this capsule's stored roll, ignoring everything passed in — so what
+  // we report has to come from the RESPONSE, not from this guess, or the
+  // notification names an item the user didn't receive.
+  const guess = resolveRolledItem(row.rolled_category, row.rolled_rarity);
 
-  const { error } = await supabase.rpc('finalize_capsule_claim', {
+  const { data, error } = await supabase.rpc('finalize_capsule_claim', {
     p_capsule_id:  row.id,
-    p_item_id:     item.id,
-    p_item_name:   item.name,
-    p_item_emoji:  item.emoji ?? '',
+    p_item_id:     guess?.id ?? null,
+    p_item_name:   guess?.name ?? null,
+    p_item_emoji:  guess?.emoji ?? '',
     p_item_rarity: row.rolled_rarity,
-    p_item_type:   item.type ?? 'sticker',
+    p_item_type:   guess?.type ?? 'sticker',
     p_variant:     row.rolled_variant ?? null,
   });
 
@@ -70,7 +74,16 @@ export async function recoverOne(row) {
     console.warn('[capsuleRecovery] finalize failed for', row.id, error.message);
     return { ok: false };
   }
-  return { ok: true, item };
+
+  // Prefer the granted id, hydrated for its description / preview fields.
+  const granted = data?.item_id
+    ? (hydrateItemById(data.item_id, row.rolled_category) ?? {
+        id: data.item_id, name: data.item_name, emoji: data.item_emoji ?? '',
+        rarity: data.item_rarity, type: row.rolled_category ?? 'sticker',
+      })
+    : guess;
+  if (!granted) return { ok: true };
+  return { ok: true, item: granted };
 }
 
 /**

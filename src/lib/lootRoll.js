@@ -2,18 +2,53 @@
 //
 // Turning a server-side roll into a concrete catalog item.
 //
-// claim_capsule_loot (migration 028) decides the RARITY and the CATEGORY
-// server-side and persists both on the user_capsules row. Picking WHICH
-// item of that tier is the residual client-side step — safe, because
-// items within a tier are equivalent in value, unlike the tier itself.
+// As of migration 267 the SERVER picks the item too, from the loot_catalog
+// table, and returns its id. Nothing here decides what you win any more —
+// this module's job is now purely to rehydrate the returned id into the full
+// client-side catalog entry, because the database stores only id / name /
+// emoji / type / rarity while the UI also needs the description, the theme
+// preview colours and the frame CSS.
+//
+// `pickItemForRoll` and `buildCandidateMenu` are kept because the RPC
+// signature still accepts the candidate pool (inert) and the pre-267 legacy
+// path can still be reached on an un-migrated host. Prefer `hydrateItemById`
+// for anything the server has already decided.
 //
 // Lived inside CapsuleOpener.jsx until the recovery sweep needed it too;
 // importing a 1,100-line modal to resolve one item was not reasonable.
 
-import { getItemsByRarity } from '@/lib/lootCatalog';
-import { LOOT_THEMES } from '@/lib/lootThemes';
-import { LOOT_TITLES } from '@/lib/lootTitles';
-import { LOOT_FRAMES } from '@/lib/lootFrames';
+import { getItemsByRarity, getItemById } from '@/lib/lootCatalog';
+import { LOOT_THEMES, getLootThemeById } from '@/lib/lootThemes';
+import { LOOT_TITLES, getLootTitleById } from '@/lib/lootTitles';
+import { LOOT_FRAMES, getLootFrameById } from '@/lib/lootFrames';
+
+/**
+ * Rehydrate a server-granted item id into its full catalog entry.
+ *
+ * The id is authoritative — it came from loot_catalog. This only adds the
+ * presentation fields the database doesn't carry. Returns null when the id
+ * isn't in any client catalog, which happens if the SQL seed is ahead of the
+ * deployed bundle; callers fall back to the server's own name/emoji.
+ *
+ * @param {string} itemId
+ * @param {'sticker'|'theme'|'title'|'frame'} [category] narrows the lookup
+ */
+export function hydrateItemById(itemId, category) {
+  if (!itemId) return null;
+  const lookups = category === 'theme'  ? [getLootThemeById]
+                : category === 'title'  ? [getLootTitleById]
+                : category === 'frame'  ? [getLootFrameById]
+                : category === 'sticker' ? [getItemById]
+                // Unknown category — try everything rather than guess.
+                : [getItemById, getLootThemeById, getLootTitleById, getLootFrameById];
+  for (const fn of lookups) {
+    try {
+      const hit = fn(itemId);
+      if (hit) return hit;
+    } catch { /* a getter that doesn't like this id shouldn't break the reveal */ }
+  }
+  return null;
+}
 
 /**
  * @param {'sticker'|'theme'|'title'|'frame'} category

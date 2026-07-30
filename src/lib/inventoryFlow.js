@@ -129,7 +129,7 @@ export function useBagFlow() {
     // the roll and the grant are still separate calls.
     try {
       if (!capsuleId) throw new Error('missing_capsule_id');
-      const { error } = await supabase.rpc('finalize_capsule_claim', {
+      const { data, error } = await supabase.rpc('finalize_capsule_claim', {
         p_capsule_id:  capsuleId,
         p_item_id:     wonItem.id,
         p_item_name:   wonItem.name,
@@ -140,7 +140,12 @@ export function useBagFlow() {
       });
       if (error) throw error;
       refresh();
-      toast.success(`${wonItem.emoji} ${wonItem.name} added to your bag!`);
+      // Announce what the SERVER granted. Since migration 267 finalize
+      // derives the item from loot_catalog and ignores the arguments above,
+      // so naming wonItem here could credit an item the user didn't get.
+      const grantedEmoji = data?.item_emoji ?? wonItem.emoji;
+      const grantedName  = data?.item_name  ?? wonItem.name;
+      toast.success(`${grantedEmoji} ${grantedName} added to your bag!`);
     } catch (err) {
       console.error('[inventoryFlow] legacy capsule claim failed:', err);
       toast.error('Could not save item. Try again.');

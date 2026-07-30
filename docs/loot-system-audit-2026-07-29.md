@@ -133,20 +133,47 @@ and would silently become live if someone re-granted.
 
 ---
 
-## Recommended order
+## Status
 
-1. **L1** — revoke INSERT on `user_capsules` from `authenticated` and `anon`,
-   and drop the INSERT policy. One statement each, nothing legitimate breaks.
-2. **L4** — revoke TRUNCATE on both tables from both roles, same reasoning.
-3. **L2** — validate item identity server-side. The honest fix is a
-   `loot_catalog` table in SQL with `(item_id, name, emoji, type, rarity)` and
-   having the RPCs pick from it, which also removes the client candidate pool
-   entirely. That is the RuneLite/Nakama lesson again: the catalogue should
-   exist once, server-side.
-4. **L3** — move pity into a shared helper both roll paths call, or retire
-   `claim_capsule_loot` + `finalize_capsule_claim` now that
-   `open_capsule_atomic` supersedes them.
-5. **L5** — drop the dead policies while doing L1.
+| | Finding | State |
+|---|---|---|
+| L1 | Anyone could mint unlimited Elite Capsules | ✅ **fixed** — migration 266 |
+| L2 | Item identity was client-chosen on every path | ✅ **fixed** — migration 267 |
+| L3 | Pity existed on only one of the two roll paths | ✅ **fixed** — migration 267 |
+| L4 | TRUNCATE granted to `authenticated` / `anon` | ✅ **fixed** — migration 266 |
+| L5 | Dead policies on `user_inventory` | ✅ **fixed** — migration 266 |
 
-L1, L4 and L5 are grant-level and safe. L2 is the substantial piece of work.
-None of these are product decisions.
+### Correction the audit got wrong about L1
+
+The audit said L1 was "one statement, nothing legitimate breaks". Wrong —
+**three** client paths inserted into `user_capsules`, two of them real features
+(login and workout streak milestone capsules). A bare revoke would have stopped
+milestone capsules being granted at all, silently, because both sites swallow
+the error into a `console.warn`. Migration 266 adds a server-validated
+`grant_streak_capsule` first. The third path was an "admin sandbox" in
+`CoinShopModal` that keyed off the email local part, so `admin@anything.com`
+qualified — deleted rather than ported.
+
+### Note on the L2/L3 fix
+
+`loot_catalog` holds the 75-item drop pool, generated from the four client
+modules and asserted against them by
+`src/lib/__tests__/lootCatalogParity.test.js`. Both `open_capsule_atomic` and
+`finalize_capsule_claim` now derive the item from that table plus the capsule's
+own stored roll; every client-supplied item argument is accepted and ignored.
+Signatures are unchanged on purpose — capsule opening has a legacy fallback and
+a stranded-capsule recovery path, and changing arities would have broken
+recovery.
+
+`_roll_capsule_rarity` is now the single roller both open paths call, so pity is
+identical whichever runs. Same "exists once" rule migration 261 applied to the
+level curve.
+
+**A mistake worth recording:** the first cut of the seed included
+`BRANDED_ITEMS` — the 38 purchasable `flx_*` Daily Drop cosmetics — which would
+have quietly made them free capsule drops. `getItemsByRarity` is documented
+"stickers only for drops" and filters `ITEMS` alone, so branded items have never
+been loot. `CapsuleOpener` *does* fold them into the spinning reel for visual
+variety, which is what makes the two easy to conflate: **the reel is not the
+drop pool.** The parity test now asserts no `flx_*` or `cap_*` id is ever
+seeded.

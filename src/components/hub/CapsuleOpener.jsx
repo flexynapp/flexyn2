@@ -7,7 +7,7 @@ import { X, Sparkles, BookOpen } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { ITEMS, BRANDED_ITEMS, getItemsByRarity, VARIANTS } from '@/lib/lootCatalog';
 import { rarityTint } from '@/components/loot/RarityVisuals';
-import { pickItemForRoll, buildCandidateMenu } from '@/lib/lootRoll';
+import { pickItemForRoll, buildCandidateMenu, hydrateItemById } from '@/lib/lootRoll';
 import { LOOT_THEMES, getLootThemeById } from '@/lib/lootThemes';
 import { LOOT_FRAMES } from '@/lib/lootFrames';
 // LOOT_TITLES is still used by pickItemForRoll for title items.
@@ -323,10 +323,17 @@ async function rollOneCapsule(capsuleId) {
     if (!data) return null;
     const variant = (data.variant && VARIANTS && VARIANTS[data.variant]) ? data.variant : null;
     // Rehydrate the full catalog entry (description, theme preview, frame
-    // css) from the id the server granted; fall back to the server's own
-    // fields if the catalog has drifted.
-    const catalogItem = pickItemForRoll(data.category, data.rarity);
-    const base = (catalogItem && catalogItem.id === data.item_id)
+    // css) from the id the server granted, then fall back to the server's own
+    // fields if this bundle's catalog doesn't know the id.
+    //
+    // This used to call pickItemForRoll(category, rarity) — i.e. re-roll an
+    // item of the same tier locally — and only accept it if it happened to
+    // match data.item_id. Since migration 267 the server picks from
+    // loot_catalog, so a local re-roll almost never matches, and every theme
+    // and frame drop would have fallen through to the bare server fields and
+    // lost its preview colours and CSS. Look up by id instead.
+    const catalogItem = hydrateItemById(data.item_id, data.category);
+    const base = catalogItem
       ? catalogItem
       : { id: data.item_id, name: data.item_name, emoji: data.item_emoji,
           rarity: data.rarity, type: data.item_type };
