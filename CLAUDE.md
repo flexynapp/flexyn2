@@ -433,6 +433,14 @@ Conventions a contributor must not undo:
   purpose.** An UPDATE scoped to `submitted_by` would let a user flip
   their own `approved` flag and publish into the global catalog.
   Approval is service_role only.
+- **A `kind='gym'` training_space requires gym membership** (mig 270).
+  Mig 268 checked only `owner_id = auth.uid()`, which let any signed-in
+  user attach a space to any gym and inject entries onto its floor —
+  `listGymFloor` unions every space with that gym_id, so it rendered to
+  all members. Verified as a real exploit against production before
+  patching. When adding a policy here, test it by executing the attack
+  under `SET LOCAL role authenticated` + JWT claims; MCP/SQL-editor
+  queries run as `postgres` and bypass RLS entirely.
 
 **`gym_businesses.owner_id` is nullable ON PURPOSE — this is not drift.**
 Migration 137 explicitly ran `ALTER COLUMN owner_id DROP NOT NULL` so the

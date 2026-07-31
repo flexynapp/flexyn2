@@ -582,6 +582,49 @@ sorted, unique, positive, and consistent with its `maxLb`.
 
 ---
 
+## Live test on a real gym (2026-07-30) — found a security hole
+
+Ran the owner editor's exact statement sequence against production as the
+real owner of "Camp Quannapowitt", impersonating via `SET LOCAL role
+authenticated` + JWT claims so **RLS actually applied** (raw MCP SQL runs as
+`postgres` and bypasses it, which would have tested nothing). Every write
+was inside a transaction that was rolled back; production data is unchanged.
+
+**The happy path works.** getOrCreateGymSpace → findOrCreateModel →
+ensureSpaceEquipment → listOwnerFloor → removeSpaceEquipment, all six steps
+pass under RLS as the owner.
+
+**But migration 268 had a hole, and it was mine.** `training_spaces`' INSERT
+policy checked only `owner_id = auth.uid()` — nothing tied a `kind='gym'`
+space to the gym it names. So any authenticated user could:
+
+1. create a `kind='gym'` training_space pointing at ANY gym (ids aren't
+   secret; `gym_businesses` is world-readable to authenticated users), then
+2. insert `space_equipment` against it — that policy *does* check membership,
+   but is satisfied by owning the space, and they own the one they just made,
+3. and their row lands on the gym's floor, because `listGymFloor` unions
+   every space carrying that gym_id. That union is the design, not the bug.
+
+Confirmed by writing **"INJECTED BY A NON-MEMBER"** onto a real gym's floor
+as a real non-member. `label_override` is free text — the profanity trigger
+stops slurs, not spam or lies about what a gym owns.
+
+**Migration 270** gates gym-kind spaces on `is_gym_member_or_owner`, and puts
+the same check on UPDATE's WITH CHECK — without that the hole reopens one
+step later by creating a home space and converting it.
+
+Verified after: the exploit now fails with a policy violation, while a
+non-member's *home* space still works and the owner's full editor flow still
+works. Both controls matter — a fix that also broke those would have been
+worse than the bug.
+
+**Lesson for the RLS in this feature:** every policy was written and reviewed
+by reasoning about it, and the reasoning was wrong in a way no amount of
+re-reading caught. It took executing the attack as a real user. Phase 4's
+own checklist said "confirm the RLS policies with a real non-owner/non-member
+session, not by reading the SQL" — I wrote that instruction and then didn't
+follow it until now.
+
 ## Post-build audit (2026-07-30)
 
 A pass back over all six phases. Three defects found and fixed, two
