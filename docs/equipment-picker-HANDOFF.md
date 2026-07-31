@@ -14,7 +14,7 @@ Read `CLAUDE.md` first, then:
   every decision and every bug found, in order
 
 Branch **`equipment-picker`**, already fast-forwarded to `main`.
-Last commit: `6380d2f`. Working tree clean, `origin/main` in sync.
+Last commit: `23d1cbb`. Working tree clean, `origin/main` in sync.
 
 ## What the feature is
 
@@ -23,8 +23,11 @@ Inside an active workout, a dropdown next to each exercise title records the
 rather than "a row", or their own Bowflex 552s at home. Gyms describe their
 floor so members' pickers lead with real machines.
 
-**Phases 0–6 are complete and shipped.** Migrations 268, 269 and 270 are
-**applied to production** — do not hand Kegan SQL for them.
+**Phases 0–6 are complete and shipped.** Migrations 268 through 273 are all
+**applied to production** — do not hand Kegan SQL for them. 271 (one home
+space per owner), 272 (uploads bucket accepts video) and 273 (own-object
+SELECT so delete works) were added and applied on 2026-07-31; see the two
+sections below for what each was for.
 
 ## Non-negotiables (learned the hard way, don't relitigate)
 
@@ -69,30 +72,33 @@ floor so members' pickers lead with real machines.
 | `src/components/gyms/GymEquipmentTab.jsx` | Member-facing floor list, on GymHub |
 | `src/components/gyms/GymEquipmentEditor.jsx` | Owner's pill-grid editor, in GymEdit |
 | `supabase/migrations/268/269/270` | Schema, data fixes, security gate |
+| `supabase/migrations/271/272/273` | Home-space uniqueness, bucket MIME types, own-object SELECT |
 
 ## Open items, highest value first
 
-1. **The upload path — DB half now verified, browser half still open.**
-   Verified 2026-07-30 by executing the exact client statements against
-   production as `authenticated` (`SET LOCAL role` + JWT claims, each step a
-   separate statement, `ROLLBACK`), on a user with no existing home space:
-   all four writes and all three read-backs pass —
-   `training_spaces` INSERT → `equipment_models` INSERT (+ submitter can read
-   back its own unapproved row) → `space_equipment` INSERT →
-   `equipment_photos` INSERT → `photo_url` denormalize → `findModelPhoto` and
-   `listSpaceEquipment` both return the row.
-   Storage side: `uploads` is public (so `getPublicUrl` resolves), its INSERT
-   policy admits `uploads/<uid>/…` and **blocks another user's prefix (42501)**.
-   Note `INSERT … RETURNING` on `storage.objects` fails under RLS because mig
-   185 dropped the bucket's SELECT policy — that's expected, and `supabase-js`
-   doesn't use RETURNING there.
-   `src/lib/data/__tests__/equipment.test.js` (new, 21 tests) pins the client
-   half: statement sequence, payloads, the `.is(col, null)` identity filter,
-   `approved: false`, the 23505 re-read, and "don't steal an existing primary".
-   **Still unproven:** the real browser round trip — `compressImage` on a
-   camera capture, the multipart PUT, and the rendered thumbnail. Needs Kegan
-   to add one photo on a device. Sentry tags: `equipment.homeSpace`,
-   `equipment.attachPhoto`.
+1. ~~**The upload path has never run end-to-end.**~~ **DONE, 2026-07-31.**
+   Run through the real UI on the deployed site: opened the picker on Bench
+   Press, selected Rogue Ohio Bar, and injected a 1.8 MB camera-sized JPEG
+   into the actual `capture="environment"` input, so `compressImage` really
+   re-encoded (the file is deliberately over its 64 KB `minBytes` guard —
+   under that it short-circuits and the canvas path never runs). Upload
+   landed, the thumbnail rendered from the public URL, and all four rows
+   wrote: `training_spaces` home/"My gear" → `equipment_models`
+   rogue/barbell/**approved=false** → `space_equipment` with `photo_url` set
+   → `equipment_photos` **is_primary=true**. Test rows have been cleared.
+   Also verified independently at two lower layers, either of which is a
+   reusable recipe:
+   - **SQL under real RLS** — the exact client statements as `authenticated`
+     (`SET LOCAL role` + JWT claims, each step separate, `ROLLBACK`), on a
+     user with no home space. All four writes plus three read-backs pass.
+   - **The HTTP APIs** — a node probe signing in with `signInAnonymously()`
+     and driving Storage + PostgREST the way the app does. This is the layer
+     SQL cannot reach: a bucket MIME allowlist is enforced by the Storage
+     service, not the database.
+   `src/lib/data/__tests__/equipment.test.js` (24 tests) pins the client half:
+   statement sequence, payloads, the `.is(col, null)` identity filter,
+   `approved: false`, the 23505 re-reads, "don't steal an existing primary".
+   Sentry tags if it regresses: `equipment.homeSpace`, `equipment.attachPhoto`.
 2. **Native review of the translations.** ~3,000 machine-translated strings.
    `docs/i18n-review-brief.md` + two CSVs are ready for a human. The 12 HIGH
    rows matter most — `formcoach.betaDisclosure` tells users their camera
@@ -122,6 +128,48 @@ floor so members' pickers lead with real machines.
    deliberately ownerless demo seeds. Owner controls render for nobody on
    those, which is correct, not a bug.
 
+## Found while testing the picker — unrelated to it, all fixed 2026-07-31
+
+Chasing "my two device tests showed success toasts but wrote nothing" turned
+up three defects that had nothing to do with the equipment picker. Worth
+reading, because each was silent and each had been live for weeks.
+
+- **The app was not registering a service worker at all** (fixed in
+  `AppUpdatePrompt.jsx`). The dynamic `import('virtual:pwa-register')`
+  carried a `/* @vite-ignore */`, which tells Vite not to resolve the
+  specifier — so the virtual module was never bundled and at runtime the
+  browser tried to import a bare string that isn't a URL. It rejected, the
+  `.catch(() => null)` swallowed it, and `registerSW` was never called. Dead
+  since the file was created on 2026-05-23. Consequences: no precache, no
+  offline shell, no update prompt, and — because `usePushSubscription`
+  awaits `navigator.serviceWorker.ready`, which never resolves without a
+  registration — **push opt-in hung silently**, which is why production has
+  exactly one push subscription. Verified fixed on the live authenticated
+  page: the app fetches the pwa-register chunk, `/push-sw.js` controls the
+  page, and `ready` resolves.
+- **The `uploads` bucket rejected every video** (migration 272). Its
+  `allowed_mime_types` was images-only while `_uploadFile` accepts mp4 /
+  mov / webm, so Hub video posts and story videos had **never once
+  succeeded** — zero video objects and zero video `hub_posts` since the
+  project was created. The client also advertised 100 MB, which the Free
+  plan's 50 MB global cap makes impossible, so `VIDEO_MAX_BYTES` and four
+  pieces of copy came down to 50 MB rather than the bucket going up. Same
+  commit fixed `contentType: SAFE_MIMES[ext]`, which was `undefined` on the
+  video branch (`ext` is `''` for video; `VIDEO_MIMES` was declared and never
+  used) — so the "never trust client-supplied `file.type`" comment above it
+  wasn't true for videos.
+- **`remove()` deleted nothing and reported success** (migration 273).
+  Storage resolves a delete's targets with a SELECT first, and mig 185
+  dropped the bucket's only SELECT policy to stop enumeration. Measured as
+  the owning user: listing own prefix returned `[]` with two real objects in
+  it, `DELETE` returned 200 and `[]`, the object still served 200. Every
+  failed-after-upload cleanup in the app was orphaning its blob —
+  `HubChat.jsx` ×2, `HubComposer.jsx`, `stories.js`. Mig 273 adds a SELECT
+  policy scoped to the caller's own uid prefix, matching the DELETE/UPDATE
+  policies 185 left alone, so delete works and cross-user enumeration stays
+  closed (verified: own prefix visible, another user's returns 0, root
+  listing shows only your own folder).
+
 ## Things that will bite you
 
 - **`gym_businesses.owner_id` is nullable ON PURPOSE** (mig 137). Demo gyms
@@ -141,11 +189,40 @@ floor so members' pickers lead with real machines.
 - **Part files have inconsistent shapes** — nested `lang: {}` in most,
   top-level `const ru = {}` in part10, `missingKeys.es = {}` in part9. A
   patcher that assumes one shape silently does nothing.
+- **`equipment_models` is EMPTY in production and that is correct.** The "50
+  seed models" live in `SEED_MODELS` in `src/lib/equipmentCatalog.js`, a
+  client-side vocabulary — neither mig 268 nor 269 inserts a single row. The
+  table only ever fills from user submissions, as a dedupe target. The picker
+  lists Rogue and Eleiko bars off the bundled catalog while the table has
+  zero rows. Don't read `count(*) = 0` as missing seed data.
+- **A build hash from the device is worth more than any amount of
+  theorising.** Two "successful" device tests wrote nothing because the phone
+  was running `b4dd418` from 2026-05-21 — ten weeks stale, and a build in
+  which the picker does not exist. Every server-side check said the backend
+  was healthy, and it was. Settings → footer → tap the build label copies
+  build hash + date + UA. Ask for that FIRST when a device report and the
+  database disagree. The live hash is readable from the served bundle, so the
+  two can be compared directly.
+- **`storage.protect_delete()` is not an absolute block.** Deleting from
+  `storage.objects` raises `42501` with "Use the Storage API instead", but the
+  function only checks a session setting. `BEGIN; SET LOCAL
+  storage.allow_delete_query = 'true'; DELETE …; COMMIT;` works, and is the
+  only route when the object's owning user no longer exists (the prefix-scoped
+  policy means nobody else can delete it). Caveat: this removes the metadata
+  row, so the underlying blob may be orphaned in S3 — prefer the Storage API
+  whenever the owner can still authenticate.
+- **`AppUpdatePrompt` (and everything beside it in `App.jsx`'s main render)
+  does not mount when signed out.** Five early returns sit above it —
+  loading, `user_not_registered`, `auth_required` → `SignInToContinue` /
+  `Onboarding`, incomplete onboarding, and the stashed-token bail. Measuring
+  anything global (service worker, prompts) on the signed-out marketing or
+  onboarding screens will show it missing whether or not it is broken. I drew
+  a wrong conclusion from exactly this before catching it.
 
 ## How to verify anything here
 
 ```bash
-npm run test          # 2342 tests / 166 files, all green
+npm run test          # 2366 tests / 167 files, all green
 npx eslint src        # 0 errors
 npm run build
 node scripts/i18n-audit.mjs            # summary
@@ -154,6 +231,27 @@ node scripts/i18n-audit.mjs --partial  # the real i18n gaps
 
 There is **no local Postgres** (Docker isn't installed), so migrations can't
 be parsed offline — the first real parse happens on apply.
+
+**Three layers, and each catches what the one below cannot.** Every real bug
+this session was found by dropping to a layer the previous one couldn't see:
+
+1. **SQL as `authenticated`** (`SET LOCAL role` + JWT claims, separate
+   statements, `ROLLBACK`) — proves RLS. Cannot see PostgREST or Storage: a
+   bucket MIME allowlist is enforced by the Storage service, and mig 272's bug
+   was invisible from here.
+2. **A node probe** using the anon key from `.env.local` and
+   `supabase.auth.signInAnonymously()`, driving the real HTTP APIs. Proves the
+   service layer. Cannot see the browser: no `compressImage`, no file input.
+   Clean up whatever it writes, and note that `remove()` no-ops if mig 273 is
+   ever reverted.
+3. **The deployed site in the browser pane.** A file input can be driven
+   without a real file — build a `File` (canvas → `toBlob` for an image,
+   `MediaRecorder` on a canvas stream for a genuinely decodable video), assign
+   it via `DataTransfer` to `input.files`, and dispatch `change`. That is how
+   the picker's photo path was finally exercised.
+
+Sign in first (see the `App.jsx` early-return note above), and remember the
+browser pane's own tab may already hold a guest session.
 
 ## Working style Kegan expects
 
