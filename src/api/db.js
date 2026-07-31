@@ -925,7 +925,15 @@ async function _uploadFile({ file, bucket = 'uploads' }) {
     'video/mp4': 'mp4', 'video/quicktime': 'mov',
     'video/webm': 'webm', 'video/x-m4v': 'm4v',
   };
-  const VIDEO_MAX_BYTES = 100 * 1024 * 1024; // matches HubComposer's "up to 100 MB" copy
+  // 50 MB, because that is the ceiling the platform actually enforces:
+  // Supabase's GLOBAL file size limit caps every bucket, and on the Free
+  // plan it cannot exceed 50 MB (docs: storage/uploads/file-limits). The
+  // uploads bucket is already set to exactly that. This used to say 100 MB
+  // — double what could ever succeed — so an 80 MB clip passed the client
+  // check and was then rejected by Storage with a generic failure.
+  // If the project moves to Pro, raise the global limit, the bucket limit
+  // and this constant together, and the user-facing copy with them.
+  const VIDEO_MAX_BYTES = 50 * 1024 * 1024;
   // Derive extension from filename first, then fall back to MIME type so
   // files with no extension (camera captures on some Android PWA contexts,
   // canvas-exported blobs, etc.) still upload instead of throwing.
@@ -947,7 +955,7 @@ async function _uploadFile({ file, bucket = 'uploads' }) {
     throw err;
   }
   if (videoExt && file.size > VIDEO_MAX_BYTES) {
-    const err = new Error('Video is too large — max 100 MB.');
+    const err = new Error('Video is too large — max 50 MB.');
     err.code = 'FILE_TOO_LARGE';
     throw err;
   }
@@ -964,7 +972,13 @@ async function _uploadFile({ file, bucket = 'uploads' }) {
       upsert: false,
       // Pin to the safe MIME derived from extension, NOT the
       // client-supplied file.type which a tampered client can lie about.
-      contentType: SAFE_MIMES[ext],
+      //
+      // The video branch was NOT actually doing this: `ext` is '' for a
+      // video (it's held in videoExt), so this read SAFE_MIMES[''] →
+      // undefined, and supabase-js fell back to the File's own .type —
+      // exactly the client-supplied value the comment above says we don't
+      // trust. VIDEO_MIMES was declared for this and never referenced.
+      contentType: ext ? SAFE_MIMES[ext] : VIDEO_MIMES[videoExt],
     });
 
   if (uploadError) throw uploadError;

@@ -342,8 +342,8 @@ export default function HubComposer({ onClose }) {
   const handleVideoPick = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 100 * 1024 * 1024) {
-      toast.error('Video must be under 100 MB.');
+    if (file.size > 50 * 1024 * 1024) {
+      toast.error('Video must be under 50 MB.');
       return;
     }
     setVideoFile(file);
@@ -598,7 +598,7 @@ export default function HubComposer({ onClose }) {
         } else if (err?.code === 'FILE_TOO_LARGE') {
           toast.error(tFallback(
             'hub.composer.videoTooLarge',
-            'That video is too large — the limit is 100 MB.'
+            'That video is too large — the limit is 50 MB.'
           ));
         } else {
           toast.error(t('hub.composer.postError'));
@@ -857,7 +857,7 @@ export default function HubComposer({ onClose }) {
             kind="video"
             onClick={() => handlePick('video')}
             title="Share a Video"
-            subtitle="Upload a short workout clip (up to 100 MB)"
+            subtitle="Upload a short workout clip (up to 50 MB)"
           />
         </Section>
 
@@ -1303,7 +1303,7 @@ export default function HubComposer({ onClose }) {
         >
           <Film className="w-8 h-8 opacity-40" />
           <span>Tap to select a video</span>
-          <span className="text-[11px] opacity-60">MP4 / MOV · max 100 MB</span>
+          <span className="text-[11px] opacity-60">MP4 / MOV · max 50 MB</span>
         </button>
       )}
       <input

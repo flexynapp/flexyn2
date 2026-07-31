@@ -635,8 +635,8 @@ export default function StoriesRow({ onViewProfile } = {}) {
       toast.error(tFallback('stories.invalidFileType', 'Please select a photo or video.'));
       return;
     }
-    if (file.size > 100 * 1024 * 1024) {
-      toast.error(tFallback('stories.fileTooLarge', 'File must be under 100 MB.'));
+    if (file.size > 50 * 1024 * 1024) {
+      toast.error(tFallback('stories.fileTooLarge', 'File must be under 50 MB.'));
       return;
     }
     if (isVideo) {
