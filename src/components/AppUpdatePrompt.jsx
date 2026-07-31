@@ -43,18 +43,30 @@ export default function AppUpdatePrompt() {
     let cleanup = () => {};
     (async () => {
       try {
-        // Dynamic import so a missing module (test/SSR) doesn't crash
-        // the bundle. vite-plugin-pwa generates this at build time.
-        const mod = await import(/* @vite-ignore */ 'virtual:pwa-register/react').catch(() => null);
+        // Dynamic import so a missing module (test/SSR) doesn't crash the
+        // bundle — vite-plugin-pwa generates this one at build time.
+        //
+        // DO NOT add /* @vite-ignore */ here. It was on this import until
+        // 2026-07-31 and it silently disabled the service worker for the
+        // whole app: @vite-ignore tells Vite not to resolve the specifier,
+        // so the virtual module never gets bundled, and at runtime the
+        // browser tries to import the literal string "virtual:pwa-register"
+        // — which is not a URL. That rejects, the .catch below swallows it,
+        // and registerSW is never called. Verified against production:
+        // navigator.serviceWorker.getRegistrations() returned [] on a fully
+        // booted page, and import('virtual:pwa-register') in the console
+        // failed with "Failed to fetch dynamically imported module".
+        //
+        // The blast radius was bigger than a missed update prompt. No
+        // registration means no precache and no offline shell, and
+        // usePushSubscription awaits navigator.serviceWorker.ready, which
+        // never resolves without one — so push opt-in hung silently on
+        // every device that didn't already have a service worker from an
+        // older build.
+        const mod = await import('virtual:pwa-register').catch(() => null);
         if (!mod || cancelled) return;
-        const { useRegisterSW } = mod;
-        if (typeof useRegisterSW !== 'function') return;
-        // useRegisterSW is a hook — we can't call hooks here. Use the
-        // bare function (registerSW) instead by importing the non-hook
-        // module path.
-        const baseMod = await import(/* @vite-ignore */ 'virtual:pwa-register').catch(() => null);
-        if (!baseMod || cancelled) return;
-        const updateSW = baseMod.registerSW({
+        if (typeof mod.registerSW !== 'function') return;
+        const updateSW = mod.registerSW({
           onNeedRefresh() {
             if (cancelled) return;
             setNeedRefresh(true);
