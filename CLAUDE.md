@@ -144,9 +144,9 @@ chain:
 | `038_push_secrets_via_vault.sql` | Stores `app.send_push_secret` in the Vault rather than the postgres role. |
 | `supabase/functions/send-push/index.ts` | Edge Function — VAPID delivery, 410-Gone cleanup, dual auth (Bearer JWT or X-Send-Push-Secret). |
 
-**Deployment status — audited 2026-07-30.** Every step of the old
-"still missing" checklist is done except the last, and delivery is
-currently BROKEN on a misconfigured URL:
+**Deployment status — audited 2026-07-30, delivery fixed 2026-07-31.**
+Every step of the old "still missing" checklist is done, and the pipeline
+now delivers. The one remaining gap is that nothing is subscribed:
 
 | Step | State | Evidence |
 |---|---|---|
@@ -154,8 +154,9 @@ currently BROKEN on a misconfigured URL:
 | `VITE_VAPID_PUBLIC_KEY` in client build env | ✅ | listed in the Netlify resolved config; key present in the served JS |
 | `send-push` Edge Function deployed | ✅ | ACTIVE, version 17 |
 | `send_push_url` / `send_push_secret` in Vault | ✅ | both rows exist, created 2026-05-21 |
-| `pg_net`, fanout fn, trigger, `push_subscriptions` | ✅ | all present; 1 real subscription, 2 push-related crons |
-| **Actually delivering** | ❌ | see below |
+| `pg_net`, fanout fn, trigger, `push_subscriptions` | ✅ | all present; 2 push-related crons. Only the STATEMENT-level `trg_notifications_push_fanout_batch` is attached — `notify_push_fanout` (row-level) exists unattached, so fix both when changing either |
+| **Actually delivering** | ✅ | fixed by mig 274; verified `200 {"ok":true,…}` on 2026-07-31 |
+| Anyone subscribed to deliver TO | ❌ | 0 rows — see the end of this section |
 
 **The subscribe side was broken too — fixed 2026-07-31.** Separate from the
 delivery bug below, almost nobody could subscribe in the first place. Web
@@ -171,39 +172,61 @@ authenticated page (`ready` resolves, `/push-sw.js` controls the page).
 **This does not explain the 404 below** — that is a separate, still-open
 problem on the delivery side.
 
-**The open bug: `send_push_url` looks wrong.** The only HTTP call
-`pg_net` has on record from the fanout returned **404** (2026-07-26).
-Probing the endpoints directly, both correct forms return 401
-(function exists, auth required) and only a wrong slug returns 404:
+**RESOLVED 2026-07-31 (mig 274). Delivery is verified working.** A
+self-targeted notification produced `200` with
+`{"ok":true,"sent":0,"removed":1,"batch":1}` — trigger → Vault → pg_net →
+Edge Function, authenticated. A 200 rather than 401 also rules out the
+`send_push_secret` / `SEND_PUSH_TRIGGER_SECRET` mismatch that used to be
+undiagnosable from outside.
 
-```
-401  https://<ref>.functions.supabase.co/send-push
-401  https://<ref>.supabase.co/functions/v1/send-push
-404  https://<ref>.functions.supabase.co/send_push     ← underscore, wrong
-```
+**This section previously documented a wrong diagnosis. Both halves of it
+were false, and the retraction is worth keeping**, because the reasoning
+that produced it looks sound:
 
-So the trigger is firing and reaching Supabase, but the path stored in
-the Vault doesn't resolve. Every `net.http_post` caller in the applied
-migrations is push-related, so that 404 can't be attributed to another
-feature. Not confirmed by reading the secret — reading
-`vault.decrypted_secrets` is (correctly) blocked — so verify and fix with:
+- *"The fanout's one recorded HTTP call 404s, so `send_push_url` is
+  wrong."* The 404 was **not push**. `net._http_response` held one row,
+  404 at 2026-07-26 20:00:00, body `{"code":"NOT_FOUND","message":
+  "Requested function was not found"}`. Cron job 5 runs `0 20 * * 0` —
+  Sundays at 20:00 — posting to `/functions/v1/generateWeeklyDebriefs`,
+  2026-07-26 was a Sunday, and that function has never been deployed. It
+  is the Weekly Debriefs follow-up, firing weekly at a dead endpoint. The
+  old note ruled this out by arguing "every `net.http_post` caller in the
+  applied migrations is push-related" — **job 5 is a raw cron command, not
+  a migration function body**, so a grep over migrations could never see
+  it. Check `cron.job` as well as `pg_proc` before attributing an HTTP
+  call to a feature.
+- *"The Vault URL doesn't resolve."* It was correct all along —
+  `https://<ref>.functions.supabase.co/send-push`, the form that returns
+  401 — and it was **never read**, so `vault.update_secret()` would have
+  fixed nothing. (`vault.decrypted_secrets` IS readable as `postgres` via
+  MCP, contrary to the old note; that one query would have settled it.)
 
-```sql
-SELECT vault.update_secret(
-  (SELECT id FROM vault.secrets WHERE name = 'send_push_url'),
-  'https://<ref>.functions.supabase.co/send-push'
-);
-```
+**The actual defect was a silent revert.** Mig 080 taught the fanout to
+read `vault.decrypted_secrets`; migs 098 and 127 later redefined the same
+function from the pre-080 template and put
+`current_setting('app.send_push_url', true)` back. Managed Supabase blocks
+`ALTER DATABASE … SET` — the whole reason mig 038 moved these into the
+Vault — so both GUCs read NULL, the function hit its secrets-missing guard,
+and returned before dispatching. Push had **never sent a single request**.
 
-Then confirm with a self-targeted push from Settings and re-check
-`SELECT status_code, count(*) FROM net._http_response GROUP BY 1` — a 401
-there would instead mean `send_push_secret` doesn't match the function's
-`SEND_PUSH_TRIGGER_SECRET`, which is the other failure mode and is not
-distinguishable from outside.
+Two lessons, both cheap:
 
-Note the trigger is a deliberate no-op when the URL/secret are missing, so
-this class of failure is SILENT: in-app notification rows keep landing and
-nothing surfaces an error. `net._http_response` is the only place it shows.
+- **Read the INSTALLED function body, not the migration that created it.**
+  `pg_get_functiondef()` is the source of truth. A later migration
+  redefining a function from a stale template is invisible in the file
+  that "owns" the feature, and this had been live since mig 098.
+- **The guard is deliberately silent** (mig 034) so partial deploys don't
+  break notification inserts. In-app rows keep landing and nothing raises.
+  `net._http_response` is the only place it shows — and an *empty* table
+  there means "never dispatched", which reads identically to "never
+  triggered".
+
+Remaining, and NOT a push bug: `push_subscriptions` is currently **0**. The
+one subscription (2026-05-25) was 410 Gone and the Edge Function cleaned it
+up on that first successful call, which is correct behaviour. Nobody could
+create a replacement while the service worker was failing to register (see
+the section above), so re-opt-in from Settings is what proves end-to-end
+delivery to a device. Expect `sent: 1, removed: 0`.
 
 **Patterns for adding new push types:**
 
@@ -772,7 +795,13 @@ violations of this rule.
   client-only.
 - Weekly Debriefs migration 051 needs an Edge Function +
   `app.debrief_func_url` + `app.debrief_cron_secret` to actually
-  populate. Teammate owns that follow-up.
+  populate. Teammate owns that follow-up. **Note the cron is already
+  live and failing weekly**: `cron.job` id 5 runs `0 20 * * 0` and posts
+  to `/functions/v1/generateWeeklyDebriefs`, which has never been
+  deployed, so it 404s every Sunday at 20:00. Harmless, but it is the
+  only thing in `net._http_response` most weeks and it was misread once
+  as a push-delivery failure (see the Push notifications section).
+  Either ship the function or unschedule job 5.
 - i18n: discovery cards + ~21 Hub fallback keys still default to English
   on 8 of 15 languages. Needs a native-speaker pass. Also: the new
   `recap.*` keys used by `src/components/dashboard/WeeklyRecap.jsx`
@@ -809,17 +838,16 @@ violations of this rule.
   intentionally English (buildInfo.js, workoutGenerator.js AI
   prompts, HubProfile.jsx joined-month, WeeklyDebriefCard helper)
   stay as-is.
-- ~~Push pipeline is built but not deployed.~~ **No longer true** — it
-  IS deployed (VAPID keys, the `send-push` function, and the Vault
-  secrets are all in place). It is however not DELIVERING: the fanout's
-  one recorded HTTP call 404s, pointing at a bad `send_push_url`. This
-  is an open bug, not out of scope — details and the fix are in the
-  "Push notifications" section above. Note the *subscribe* side was
-  separately broken until 2026-07-31 (no service worker was being
-  registered, so opt-in hung), which is why there's only one
-  subscription to deliver to in the first place. Fixing delivery is
-  still worth doing, but re-check the subscription count first — the
-  sample size that produced the 404 was one device.
+- ~~Push pipeline is built but not deployed.~~ ~~It is however not
+  DELIVERING, on a bad `send_push_url`.~~ **Both obsolete.** It is
+  deployed AND delivering as of 2026-07-31 (mig 274) — verified with a
+  `200 {"ok":true,…}` from the Edge Function. The `send_push_url`
+  diagnosis was wrong; the 404 belonged to the weekly-debriefs cron. The
+  real causes were the fanout silently reverting to GUCs that managed
+  Supabase can never set, plus the service worker not registering so
+  nobody could subscribe. Both fixed. What's left is that
+  `push_subscriptions` is 0 — opt in from Settings on a device to prove
+  delivery end to end. Full account in the "Push notifications" section.
 - Competitive-feature pushes are wired:
   • Duels — `notify_duel_invite_for` / `_result_for` (mig 065)
   • Bounties — `notify_bounty_claim_for` / `_beaten_for` (mig 069)
