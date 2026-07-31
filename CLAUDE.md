@@ -795,13 +795,42 @@ violations of this rule.
   client-only.
 - Weekly Debriefs migration 051 needs an Edge Function +
   `app.debrief_func_url` + `app.debrief_cron_secret` to actually
-  populate. Teammate owns that follow-up. **Note the cron is already
-  live and failing weekly**: `cron.job` id 5 runs `0 20 * * 0` and posts
-  to `/functions/v1/generateWeeklyDebriefs`, which has never been
-  deployed, so it 404s every Sunday at 20:00. Harmless, but it is the
-  only thing in `net._http_response` most weeks and it was misread once
-  as a push-delivery failure (see the Push notifications section).
-  Either ship the function or unschedule job 5.
+  populate. Teammate owns that follow-up.
+
+  **The cron was unscheduled on 2026-07-31.** `cron.job` id 5
+  (`weekly-debrief-generator`, `0 20 * * 0`) posted to
+  `/functions/v1/generateWeeklyDebriefs`, which has never been deployed,
+  so it 404'd every Sunday at 20:00 for ten weeks. It never showed as a
+  failed job — `net.http_post` only queues, so the run always records
+  `succeeded` — and it was the only row in `net._http_response` most
+  weeks, which is exactly how it got misread as a push-delivery failure
+  (see the Push notifications section).
+
+  **When you re-add it, do NOT inline the key.** The old command carried
+  the project's `service_role` JWT in plaintext inside `cron.job.command`.
+  It was not leaked — `cron.job`'s RLS policy is `username =
+  CURRENT_USER` and the job was owned by `postgres`, so `anon` and
+  `authenticated` saw no rows despite holding SELECT, and the key appears
+  nowhere in the working tree or git history — but a service_role JWT
+  bypasses every RLS policy in the project, so it does not belong in a
+  table. Use the Vault, the way mig 038 does for push:
+
+  ```sql
+  SELECT cron.schedule('weekly-debrief-generator', '0 20 * * 0', $$
+    SELECT net.http_post(
+      url     := (SELECT decrypted_secret FROM vault.decrypted_secrets
+                   WHERE name = 'debrief_func_url'),
+      headers := jsonb_build_object(
+        'Content-Type', 'application/json',
+        'Authorization', 'Bearer ' || (SELECT decrypted_secret
+                                         FROM vault.decrypted_secrets
+                                        WHERE name = 'debrief_cron_secret')),
+      body    := '{}'::jsonb);
+  $$);
+  ```
+
+  Ship the Edge Function first — re-adding it before then just restores a
+  weekly 404.
 - i18n: discovery cards + ~21 Hub fallback keys still default to English
   on 8 of 15 languages. Needs a native-speaker pass. Also: the new
   `recap.*` keys used by `src/components/dashboard/WeeklyRecap.jsx`
