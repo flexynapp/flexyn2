@@ -92,13 +92,10 @@ describe('partial-gap ratchet', () => {
   // are oversights. The ceiling only ever moves down — lower it when you
   // close gaps so the improvement is locked in.
   //
-  // 82, not 80: `cardio.weather.checking` and `.outside` had tr/pl/nl
-  // translations but no English original, which made them ORPHANS —
-  // invisible to this count, and a raw key path waiting to happen the
-  // first time something called them. Giving them an English original
-  // moved them into this bucket. Two more partial gaps, three fewer
-  // landmines; the number went up because the problem got smaller.
-  const CEILING = 82;
+  // 59 after filling hub.comments (10 keys x 10 languages) and
+  // notifications (13 keys x 4 languages, plus 9 languages that were
+  // aliased to the English object outright).
+  const CEILING = 59;
 
   it(`has no more than ${CEILING} partial gaps`, () => {
     const partial = [...en].filter(k => {

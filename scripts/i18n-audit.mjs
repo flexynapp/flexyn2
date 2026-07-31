@@ -36,6 +36,14 @@ const args = process.argv.slice(2);
 const wantPartial = args.includes('--partial');
 const langArg = args.includes('--lang') ? args[args.indexOf('--lang') + 1] : null;
 
+function loadEntries(lang) {
+  const file = path.join(DIR, `${lang}.js`);
+  const o = {};
+  for (const m of fs.readFileSync(file, 'utf8')
+      .matchAll(/"((?:[^"\\]|\\.)+)":\s*"((?:[^"\\]|\\.)*)"/g)) o[m[1]] = m[2];
+  return o;
+}
+
 function loadKeys(lang) {
   const file = path.join(DIR, `${lang}.js`);
   if (!fs.existsSync(file)) {
@@ -122,7 +130,25 @@ for (const l of OTHERS) {
   console.log(`    ${l}: ${String(keys[l].size).padStart(5)}   missing ${String(miss).padStart(4)}   ${pct}%`);
 }
 
-console.log('\n=== C. gap shape ===');
+// A key can be PRESENT and still untranslated — holding the English
+// string verbatim. Key-presence coverage misses this entirely, which is
+// how `notifications` showed 100% coverage in nine languages while
+// displaying pure English (they were aliased to the English object).
+const entries = Object.fromEntries(LANGS.map(l => [l, loadEntries(l)]));
+const enVals = entries.en;
+const substantive = (v) => v && v.length > 3;
+console.log('\n=== C. present but holding the English string ===');
+console.log('    (invisible to coverage above — the key exists, the translation does not)');
+let englishTotal = 0;
+for (const l of OTHERS) {
+  const n = Object.keys(entries[l])
+    .filter(k => k in enVals && entries[l][k] === enVals[k] && substantive(enVals[k])).length;
+  englishTotal += n;
+  console.log(`    ${l}: ${n}`);
+}
+console.log(`    total: ${englishTotal}  (some are legitimate cognates — "Premium", "Standard")`);
+
+console.log('\n=== D. gap shape ===');
 console.log(`    ${gaps.size} keys have a gap somewhere`);
 console.log(`      ${englishOnly.length} missing in ALL 14  — English-only features, usually deliberate`);
 console.log(`      ${partial.length} partial            — run with --partial; these are the real bugs`);
