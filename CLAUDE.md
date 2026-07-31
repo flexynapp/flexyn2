@@ -465,6 +465,14 @@ no owner to be. That's correct behavior, not a bug.
   can't get native-quality translations for all 15 languages, ship
   English-only for the missing ones with a `TODO(i18n)` comment in the
   file head.
+  - **One deliberate exception exists**: `src/lib/i18n-equipment.js` (37
+    short UI labels, machine-translated 2026-07-30 with Kegan's sign-off,
+    on the reasoning that a reviewed-later label beats an English
+    fallback). It marks itself as MT, tracks outstanding languages in an
+    exported `REVIEW_PENDING`, and is guarded by
+    `src/lib/__tests__/i18nEquipment.test.js`. **This is not a precedent**
+    — don't machine-translate prose, onboarding, or marketing, and don't
+    add a second exception without asking.
 
 ## Testing
 
