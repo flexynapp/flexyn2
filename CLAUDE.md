@@ -157,6 +157,20 @@ currently BROKEN on a misconfigured URL:
 | `pg_net`, fanout fn, trigger, `push_subscriptions` | ✅ | all present; 1 real subscription, 2 push-related crons |
 | **Actually delivering** | ❌ | see below |
 
+**The subscribe side was broken too — fixed 2026-07-31.** Separate from the
+delivery bug below, almost nobody could subscribe in the first place. Web
+push needs a service worker registration, and the app wasn't registering
+one at all: the dynamic `import('virtual:pwa-register')` in
+`AppUpdatePrompt.jsx` carried a `/* @vite-ignore */`, so Vite never bundled
+the virtual module and the runtime import rejected into a `.catch(() =>
+null)`. `usePushSubscription` awaits `navigator.serviceWorker.ready`, which
+never resolves without a registration, so opt-in hung silently — no error,
+no toast, nothing in Sentry. That is the likely explanation for
+`push_subscriptions` holding exactly one row. Verified fixed on the live
+authenticated page (`ready` resolves, `/push-sw.js` controls the page).
+**This does not explain the 404 below** — that is a separate, still-open
+problem on the delivery side.
+
 **The open bug: `send_push_url` looks wrong.** The only HTTP call
 `pg_net` has on record from the fanout returned **404** (2026-07-26).
 Probing the endpoints directly, both correct forms return 401
@@ -388,7 +402,7 @@ All live in `src/lib/*Celebration.js`. Each is well-tested in
 `src/lib/__tests__/*Celebration.test.js`. **Don't add another celebration
 without giving it a distinct haptic + confetti signature.**
 
-## Equipment picker (migration 268, July 2026)
+## Equipment picker (migrations 268–273, July 2026)
 
 Lifters can record the SPECIFIC implement they're using — their gym's
 Hammer Strength row rather than "a row", or their own Bowflex 552s.
@@ -433,6 +447,20 @@ Conventions a contributor must not undo:
   purpose.** An UPDATE scoped to `submitted_by` would let a user flip
   their own `approved` flag and publish into the global catalog.
   Approval is service_role only.
+- **One home space per owner** (mig 271). `getOrCreateHomeSpace` is
+  read-then-insert, and `UNIQUE (owner_id, gym_id)` never constrained it
+  because `gym_id` is NULL for home spaces and NULLs are distinct. The
+  partial unique index closes it — but the index alone would have made
+  things worse, because the losing racer's INSERT now returns 23505 and
+  the old code reported it and returned null, turning a harmless
+  duplicate into a silently dropped photo. Both `getOrCreateHomeSpace`
+  and `getOrCreateGymSpace` re-read the winner on 23505. If you add
+  another get-or-create here, it needs the same branch.
+- **`equipment_models` is empty in production and that is correct.** The
+  50 "seed models" are `SEED_MODELS` in `equipmentCatalog.js`, a
+  client-side vocabulary; no migration inserts a row. The table fills
+  only from user submissions, as a dedupe target. Don't read
+  `count(*) = 0` as missing seed data.
 - **A `kind='gym'` training_space requires gym membership** (mig 270).
   Mig 268 checked only `owner_id = auth.uid()`, which let any signed-in
   user attach a space to any gym and inject entries onto its floor —
@@ -455,6 +483,88 @@ one, because it grants a real user edit rights over fake data.
 Consequence worth knowing: the equipment tab's owner controls (Confirm /
 "Listed by the gym") never render on a demo gym, because a demo gym has
 no owner to be. That's correct behavior, not a bug.
+
+## Storage — the `uploads` bucket
+
+Every user upload goes through `_uploadFile` in `src/api/db.js`, which
+defaults to the public `uploads` bucket and writes
+`<auth.uid()>/<timestamp>.<ext>`. That prefix is what every RLS policy on
+the bucket keys off, so don't change the path shape casually.
+
+- **The bucket's `allowed_mime_types` must agree with `SAFE_MIMES` +
+  `VIDEO_MIMES` in db.js.** They didn't until mig 272, and the result was
+  that Hub video posts and story videos had **never once succeeded** since
+  the project was created — Storage rejected them before writing, and the
+  UI showed a generic "couldn't post". When you teach `_uploadFile` a new
+  type, add it to the bucket in the same change or it will fail in exactly
+  this silent way.
+- **50 MB is a hard ceiling on the Free plan.** Supabase enforces a global
+  file-size limit above every bucket which cannot exceed 50 MB on Free, so
+  a per-bucket limit above that is fiction. `VIDEO_MAX_BYTES` and the
+  user-facing copy say 50 MB for that reason. Moving to Pro means raising
+  the global limit, the bucket, the constant, and the copy together.
+- **Pin `contentType` from the extension for videos too.** It read
+  `SAFE_MIMES[ext]`, and `ext` is `''` on the video branch (it lives in
+  `videoExt`), so it was `undefined` and supabase-js fell back to the
+  client-supplied `file.type` — the exact thing the comment there says we
+  don't trust.
+- **`remove()` needs a SELECT policy** (mig 273). Storage resolves a
+  delete's targets with a SELECT first. Mig 185 dropped the bucket's only
+  SELECT policy to stop enumeration, which silently broke deletion: the API
+  returns **200 with an empty array** and removes nothing. Every
+  failed-after-upload cleanup was orphaning its blob. Mig 273 restores a
+  SELECT scoped to the caller's own uid prefix — enumeration stays closed.
+  If you ever add a bucket policy, check `remove()` still deletes rather
+  than assuming a 200 means success.
+- **`storage.protect_delete()` blocks direct `DELETE FROM storage.objects`**
+  with `42501`. It only checks a session setting, so `BEGIN; SET LOCAL
+  storage.allow_delete_query = 'true'; DELETE …; COMMIT;` works. Use it only
+  when the owning user no longer exists — it removes the metadata row and
+  can orphan the blob. Prefer the Storage API.
+
+## Service worker / PWA
+
+- **Never put `/* @vite-ignore */` on the `virtual:pwa-register` import.**
+  It tells Vite not to resolve the specifier, so the module is never
+  bundled and the runtime import rejects on a bare string. It sat on that
+  import from 2026-05-23 until 2026-07-31 and disabled the service worker
+  entirely: no precache, no offline shell, no update prompt, and push
+  opt-in hanging forever on `navigator.serviceWorker.ready`. There is a
+  comment at the call site; leave it there.
+- **`AppUpdatePrompt` is the only thing that registers the worker**, and it
+  sits below five early returns in `App.jsx` (loading, `user_not_registered`,
+  `auth_required`, incomplete onboarding, stashed token). So nothing global
+  in that render — service worker, install prompt — mounts while signed
+  out. Measuring any of it on the marketing or onboarding screens shows it
+  missing whether or not it works.
+- **An installed PWA can be months behind `main`.** A device was found
+  running a ten-week-old build while every server-side check said the
+  backend was healthy — and the feature under test didn't exist in that
+  build. `buildInfo.js` exists for this: Settings → footer → tap the build
+  label copies hash + date + UA, and the live hash is readable straight out
+  of the served bundle. **Ask for the device build hash before theorising**
+  whenever a device report and the database disagree.
+
+## Verifying against production — three layers
+
+Each layer catches what the one below it cannot, and every real bug in the
+July 2026 equipment/storage work was found by dropping a layer:
+
+1. **SQL as `authenticated`** — `BEGIN; SET LOCAL role authenticated; SET
+   LOCAL request.jwt.claims = '{"sub":"<uuid>","role":"authenticated"}'; …
+   ROLLBACK;` with the client's statements issued **separately** (CTEs in
+   one statement can't see each other's writes, which gives a false
+   "blocked"). This is the only way to test RLS — raw MCP/SQL-editor
+   queries run as `postgres` and bypass it entirely. Blind to PostgREST and
+   Storage: a bucket MIME allowlist is enforced by the Storage service, not
+   the database.
+2. **A node probe** using the anon key from `.env.local` plus
+   `supabase.auth.signInAnonymously()`, driving the real HTTP APIs. Proves
+   the service layer. Clean up whatever it writes.
+3. **The deployed site in the browser pane.** A file input can be driven
+   without a real file: build a `File` (canvas → `toBlob` for an image,
+   `MediaRecorder` over `canvas.captureStream()` for a genuinely decodable
+   video), assign via `DataTransfer` to `input.files`, dispatch `change`.
 
 ## i18n discipline
 
@@ -494,9 +604,17 @@ no owner to be. That's correct behavior, not a bug.
   buffers. Filter the mock calls by a **unique signature** (e.g. the
   helper's distinctive origin coords) rather than asserting on exact
   call count.
+- Data-layer modules under `src/lib/data/` are worth testing directly, not
+  only through the components that call them. `equipment.js` looked covered
+  because `ImplementPicker.test.jsx` mocked `persistEquipmentPhoto` — but
+  the mock always returned null, so every step between the picker and the
+  database was untested. A mocked dependency is not coverage of that
+  dependency. See `src/lib/data/__tests__/equipment.test.js` for a
+  chainable-mock shape that asserts on the **sequence** of statements,
+  which is usually the part that's actually unproven.
 - `npm run test` — full suite. `npm run test:watch` — watch mode.
-  `npm run test:coverage` — V8 coverage. As of writing: **432/432 tests
-  passing across 30 files**.
+  `npm run test:coverage` — V8 coverage. As of 2026-07-31: **2366 tests
+  passing across 167 files**.
 
 ## Build guards (don't disable)
 
@@ -696,7 +814,12 @@ violations of this rule.
   secrets are all in place). It is however not DELIVERING: the fanout's
   one recorded HTTP call 404s, pointing at a bad `send_push_url`. This
   is an open bug, not out of scope — details and the fix are in the
-  "Push notifications" section above.
+  "Push notifications" section above. Note the *subscribe* side was
+  separately broken until 2026-07-31 (no service worker was being
+  registered, so opt-in hung), which is why there's only one
+  subscription to deliver to in the first place. Fixing delivery is
+  still worth doing, but re-check the subscription count first — the
+  sample size that produced the 404 was one device.
 - Competitive-feature pushes are wired:
   • Duels — `notify_duel_invite_for` / `_result_for` (mig 065)
   • Bounties — `notify_bounty_claim_for` / `_beaten_for` (mig 069)
