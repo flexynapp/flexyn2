@@ -435,7 +435,42 @@ round: a machine you have picked three times is a stronger signal than one
 that merely exists somewhere on the floor. The stale comment in
 `recentImplements.js` was corrected rather than left to mislead.
 
-### ⚠️ Pre-existing production finding — owner curation is inert today
+### ❌ RETRACTED — the finding below was a misdiagnosis (corrected 2026-07-30)
+
+**The ownerless gyms are deliberate, not drift. I got this wrong.**
+
+Migration 137 explicitly runs `ALTER COLUMN owner_id DROP NOT NULL`, with a
+header comment saying it does so "so these demo rows can exist without an
+auth.users row backing them," and documents the cleanup:
+`DELETE FROM gym_businesses WHERE owner_id IS NULL AND name LIKE 'Demo:%'`.
+`approve_gym_verification` (migs 136/150) always sets `owner_id` from the
+verification queue, so real gyms get real owners. Mig 135's NOT NULL wasn't
+violated — it was superseded by a later migration doing its job.
+
+I read mig 135, saw `NOT NULL`, saw nulls in production, and called it drift
+without checking whether a later migration had changed it. The nulls were the
+documented design.
+
+**There is no owner backfill to do, and doing one would be actively wrong** —
+assigning a real user to a demo gym grants them edit rights over fake data.
+
+Two real things did come out of re-checking, kept below:
+
+1. **One genuine orphan.** "Camp Quannapowitt" (Wakefield MA, `WKF2QPWT`) is
+   NOT demo-named, has no `verification_id`, no owner, and one member —
+   `sjoudrie@gmail.com`, who joined 96 seconds after the row was created. It
+   looks hand-inserted during development. It's the only gym on the platform
+   that a real person uses and nobody can edit.
+2. **The demo seed ran twice and duplicated.** 50 rows for 25 distinct names.
+   An earlier seed ran 2026-05-24 20:31 with `*FLX*` codes; mig 137 ran
+   2026-05-25 00:39 with `*DEMO` codes. `ON CONFLICT (flexyn_code) DO NOTHING`
+   couldn't dedupe them because the codes differ. The map shows 50 pins for 25
+   gyms. **Careful if cleaning up:** Sean's `Demo: Cambridge Strength Lab`
+   membership is attached to the OLDER (`CMB2FLXJ`) copy, and
+   `gym_members.gym_id` is `ON DELETE CASCADE` — deleting the older set would
+   silently take his membership with it.
+
+### Original (incorrect) finding, kept for the record
 
 Running the "verify RLS against real data" checkpoint surfaced a real
 problem that predates this work:

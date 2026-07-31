@@ -434,14 +434,19 @@ Conventions a contributor must not undo:
   their own `approved` flag and publish into the global catalog.
   Approval is service_role only.
 
-**Known blocker for owner curation:** all 51 gyms in production have
-`owner_id IS NULL`, and the live column is NULLABLE despite mig 135
-declaring it NOT NULL. So `is_gym_member_or_owner` never passes its
-owner branch, nobody can edit any gym, and the picker's owner controls
-render for nobody. Every row has `verification_id IS NULL` and
-`gym_verification_queue` is empty — these are all mig-137 demo seeds and
-no gym has ever been through `approve_gym_verification`. Needs an
-owner-backfill decision; see the Phase 4 section of the prompt doc.
+**`gym_businesses.owner_id` is nullable ON PURPOSE — this is not drift.**
+Migration 137 explicitly ran `ALTER COLUMN owner_id DROP NOT NULL` so the
+25 seeded `Demo:` gyms could exist without an `auth.users` row behind
+them, and documents the cleanup (`DELETE FROM gym_businesses WHERE
+owner_id IS NULL AND name LIKE 'Demo:%'`). Real gyms come from
+`approve_gym_verification`, which always sets `owner_id` from the
+verification queue. Don't "restore" the NOT NULL and don't backfill
+owners onto demo rows — an owned demo gym is worse than an ownerless
+one, because it grants a real user edit rights over fake data.
+
+Consequence worth knowing: the equipment tab's owner controls (Confirm /
+"Listed by the gym") never render on a demo gym, because a demo gym has
+no owner to be. That's correct behavior, not a bug.
 
 ## i18n discipline
 
