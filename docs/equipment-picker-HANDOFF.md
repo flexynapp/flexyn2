@@ -97,9 +97,24 @@ floor so members' pickers lead with real machines.
    `docs/i18n-review-brief.md` + two CSVs are ready for a human. The 12 HIGH
    rows matter most — `formcoach.betaDisclosure` tells users their camera
    images never leave the device. Claude cannot do this review; don't offer to.
-3. **`getOrCreateHomeSpace` can race** into two "My gear" spaces. Harmless
-   (reader takes the oldest); fixing it is a `UNIQUE (owner_id) WHERE kind =
-   'home'` index.
+3. ~~**`getOrCreateHomeSpace` can race** into two "My gear" spaces.~~ **DONE**
+   — migration 271, applied 2026-07-30. Verified by executing the race as
+   `authenticated`: the second home-space insert is blocked with 23505, the
+   first still succeeds, and gym-kind spaces are unaffected (the index is
+   partial on `kind = 'home'`).
+   The client half mattered more than the index: with it in place the losing
+   racer's INSERT returns 23505, and the old code reported it and returned
+   null — so the index alone would have converted a harmless duplicate into a
+   silently dropped photo. `getOrCreateHomeSpace` now re-reads the winner.
+   `getOrCreateGymSpace` got the same fix and that one was never hypothetical:
+   `UNIQUE (owner_id, gym_id)` has rejected the loser since mig 268, so two
+   quick contributions to a gym floor could already come back null in
+   production. Both paths covered in `equipment.test.js`.
+   Mig 271 deliberately does NOT merge pre-existing duplicates — deleting a
+   duplicate space cascades away its photos, re-parenting collides with
+   `UNIQUE (space_id, model_id)`, and choosing which photo set survives is a
+   human call. It creates the index only while zero duplicates exist and
+   otherwise warns with the count.
 4. **`equipment_models`' SELECT policy nests three levels of RLS** per row.
    Fine at 50 rows, wants a SECURITY DEFINER helper at thousands.
 5. **Phase 4's owner-curation is only exercised on one gym.** Camp
