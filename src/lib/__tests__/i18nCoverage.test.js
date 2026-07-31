@@ -92,11 +92,9 @@ describe('partial-gap ratchet', () => {
   // are oversights. The ceiling only ever moves down — lower it when you
   // close gaps so the improvement is locked in.
   //
-  // 55 after filling hub.comments, notifications, formcoach, regimens,
-  // discovery, gauntlet, marketplace and league. Six of those eight were
-  // the same root cause: whole language sets aliased to the English
-  // object, which reads as 100% key coverage while showing pure English.
-  // Grep for `: enKeys,` before assuming a namespace is done.
+  // 55 after clearing eleven namespaces. The enKeys-aliasing root cause
+  // is now gone entirely and guarded by the test below, so what remains
+  // here is ordinary partial coverage rather than that class of bug.
   const CEILING = 55;
 
   it(`has no more than ${CEILING} partial gaps`, () => {
@@ -116,5 +114,37 @@ describe('partial-gap ratchet', () => {
       const pct = covered / en.size;
       expect(pct, `${l} coverage fell to ${(pct * 100).toFixed(1)}%`).toBeGreaterThan(0.80);
     }
+  });
+});
+
+describe('no language may be aliased to the English object', () => {
+  // THE bug of this whole cleanup, found eight times across nine files.
+  // A part file that does `it: enKeys, ko: enKeys, …` reports 100% key
+  // coverage to any presence-based audit while rendering pure English to
+  // those users. notifications, formcoach, gauntlet, marketplace,
+  // discovery, league, generator, coach and share all shipped this way.
+  //
+  // The shortcut is understandable — it makes a namespace "complete"
+  // instantly — but it is indistinguishable from finished work unless
+  // you compare VALUES, which is why it survived so long. This test
+  // makes the shortcut fail loudly instead.
+  //
+  // If you genuinely want a language to fall back to English, delete the
+  // key from that language entirely. getTranslation already resolves
+  // `language -> en -> key`, so omission gives you the English fallback
+  // AND stays visible to the audit as a real gap.
+  it('no i18n part file maps a non-English locale to enKeys', () => {
+    const dir = 'src/lib';
+    const offenders = [];
+    for (const f of fs.readdirSync(dir).filter(x => /^i18n-.*\.js$/.test(x))) {
+      const src = fs.readFileSync(path.join(dir, f), 'utf8');
+      const hits = src.match(/\b(es|fr|de|pt|it|ja|ko|zh|ar|hi|ru|tr|pl|nl)\s*:\s*enKeys\b/g);
+      if (hits) offenders.push(`${f} (${hits.length}: ${hits.join(', ')})`);
+    }
+    expect(
+      offenders,
+      'A locale aliased to enKeys looks translated but renders English. ' +
+      'Either translate it, or omit the keys so the fallback is visible.'
+    ).toEqual([]);
   });
 });
