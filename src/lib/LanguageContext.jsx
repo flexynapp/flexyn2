@@ -112,8 +112,17 @@ export function LanguageProvider({ children }) {
   }, [language]);
 
   /**
-   * Translation with explicit fallback. If the key is missing in the current
-   * language (i18n returns the raw key), use the fallback string instead.
+   * Translation with explicit fallback.
+   *
+   * NOTE on when this actually matters: `getTranslation` resolves
+   * `language → en → the raw key`, so a key missing in the current
+   * language but present in `en` already renders ENGLISH, not a key path.
+   * (An earlier version of this comment said it "returns the raw key",
+   * which is only true when the key is missing from `en` as well.)
+   *
+   * So tFallback earns its keep for keys that aren't in ANY part file yet
+   * — new components shipping ahead of their translations. Its fallback is
+   * used when the key is missing everywhere.
    * Avoids the verbose `t(k) === k ? 'fallback' : t(k)` pattern across the
    * codebase. Use this when shipping new components that haven't had their
    * keys added to every language file yet.

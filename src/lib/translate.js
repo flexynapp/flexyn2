@@ -245,24 +245,93 @@ function chunkText(text, maxChars) {
   return chunks.filter(Boolean);
 }
 
+// Script ranges, kept separate so Japanese and Chinese can be told apart.
+const RE_KANA   = /[぀-ゟ゠-ヿ]/g;  // hiragana + katakana
+const RE_HAN    = /[一-鿿㐀-䶿]/g;  // CJK ideographs (both use these)
+const RE_HANGUL = /[가-힯ᄀ-ᇿ]/g;
+const RE_ARABIC = /[؀-ۿݐ-ݿ]/g;
+const RE_DEVA   = /[ऀ-ॿ]/g;
+const RE_CYRIL  = /[Ѐ-ӿ]/g;
+const RE_LATIN  = /[A-Za-zÀ-ɏ]/g;
+
+// Anything that carries no language signal: spaces, digits, punctuation,
+// emoji, @mentions and #hashtags are all script-neutral noise.
+const RE_NEUTRAL = /[\s\d\p{P}\p{S}]/gu;
+
+function count(text, re) {
+  return (text.match(re) || []).length;
+}
+
 /**
- * Heuristic: does this text look like it could already be in the target
- * language? Skips redundant Translate buttons when the post is in the
- * user's language. Cheap pure-JS check based on script class.
+ * Heuristic: is this text ALREADY in the target language, such that
+ * offering a Translate button would be pointless?
+ *
+ * Used to hide the button on Hub posts. Getting this wrong in the
+ * "hide" direction is much worse than in the "show" direction — a
+ * spurious button is a minor annoyance, a missing one means the user
+ * simply cannot read the post. So this is deliberately conservative and
+ * only claims "already translated" when the script clearly dominates.
+ *
+ * ── Two bugs this replaces ───────────────────────────────────────────
+ *
+ * 1. Japanese and Chinese were both matched on the shared CJK ideograph
+ *    block, so they shadowed each other: a Japanese user could not
+ *    translate a Chinese post, and a Chinese user could not translate a
+ *    Japanese one (Japanese prose nearly always contains kanji). They're
+ *    told apart properly now — kana means Japanese, and Chinese requires
+ *    Han WITHOUT kana or hangul.
+ *
+ * 2. A single character used to be enough: `/[一-龯]/.test(text)` is true
+ *    for "Great session 頑張った", which is 90% English, so the button
+ *    vanished for ja and zh readers. One Cyrillic word in an English post
+ *    did the same to Russian readers. Now the script has to account for
+ *    most of the actual letters.
  */
 export function isLikelyAlreadyInLanguage(text, lang) {
   if (!text || !lang) return false;
-  const SCRIPT_HINTS = {
-    ja: /[぀-ゟ゠-ヿ一-龯]/,
-    zh: /[一-龯]/,
-    ko: /[가-힯]/,
-    ar: /[؀-ۿ]/,
-    hi: /[ऀ-ॿ]/,
-    ru: /[Ѐ-ӿ]/,
-  };
-  const hint = SCRIPT_HINTS[lang];
-  if (hint) return hint.test(text);
-  // Latin-script targets — can't tell English from Spanish from French
-  // without a real LID model. Conservative: don't claim already-translated.
-  return false;
+
+  // Strip script-neutral characters before measuring, so an emoji-heavy
+  // or hashtag-heavy post isn't judged on punctuation.
+  const letters = String(text).replace(RE_NEUTRAL, '');
+  if (!letters) return false;
+
+  const kana   = count(letters, RE_KANA);
+  const han    = count(letters, RE_HAN);
+  const hangul = count(letters, RE_HANGUL);
+  const arabic = count(letters, RE_ARABIC);
+  const deva   = count(letters, RE_DEVA);
+  const cyril  = count(letters, RE_CYRIL);
+  const latin  = count(letters, RE_LATIN);
+  const total  = letters.length;
+
+  // The target script must carry most of the message, not just appear in
+  // it. Below this we show the button and let the user decide.
+  const DOMINANT = 0.5;
+  const ratio = (n) => n / total;
+
+  switch (lang) {
+    case 'ja':
+      // Kana is unique to Japanese and decisive. Kanji alone is not —
+      // that's what made Chinese posts look Japanese.
+      return kana > 0 && ratio(kana + han) >= DOMINANT;
+    case 'zh':
+      // Han with no kana and no hangul. Chinese has no syllabary, so any
+      // kana at all means the text is Japanese, not Chinese.
+      return kana === 0 && hangul === 0 && ratio(han) >= DOMINANT;
+    case 'ko':
+      // Korean mixes in hanja occasionally, so count both — but hangul
+      // must actually be present.
+      return hangul > 0 && ratio(hangul + han) >= DOMINANT;
+    case 'ar': return ratio(arabic) >= DOMINANT;
+    case 'hi': return ratio(deva)   >= DOMINANT;
+    case 'ru': return ratio(cyril)  >= DOMINANT;
+    default:
+      // Latin-script targets (en/es/fr/de/pt/it/tr/pl/nl). We can't tell
+      // English from Spanish without a real language-ID model, so never
+      // claim already-translated — EXCEPT when the text is clearly in a
+      // non-Latin script, where offering to translate INTO a Latin
+      // language is obviously useful and the button must stay.
+      void latin;
+      return false;
+  }
 }

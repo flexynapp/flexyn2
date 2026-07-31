@@ -3,6 +3,13 @@ export const cardioI18n = {
     'cardio.pr.title': '🏆 New {label} PR!',
     'cardio.pr.badge': '{label} PR',
     'cardio.weather.feelsLike': 'feels like',
+    // These two shipped with tr/pl/nl translations but no English
+    // original and no call site. Completing the key rather than
+    // deleting three real translations — resolution is
+    // language -> en -> key, so an English original is what stops a
+    // future t() call showing English users the raw path.
+    'cardio.weather.checking': 'Checking conditions…',
+    'cardio.weather.outside': 'Outside conditions',
     'cardio.live.autoPaused': 'Auto-paused',
     'cardio.live.autoResumed': 'Resumed',
   },

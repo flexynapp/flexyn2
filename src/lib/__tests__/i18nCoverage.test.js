@@ -1,0 +1,121 @@
+// App-wide i18n coverage guards.
+//
+// These lock the invariants that produce visible damage, and deliberately
+// do NOT assert 100% coverage — the app ships some features English-only
+// on purpose (see CLAUDE.md's out-of-scope list), so a "no gaps" test
+// would just get skipped past.
+//
+// The failure modes, worst first:
+//
+//   1. A key resolving to NOTHING. getTranslation falls back
+//      `language → en → the raw key`, so a key absent from `en` too
+//      renders its own path — "challenge.duration" on a button. This must
+//      stay at zero.
+//   2. A PARTIAL gap: translated in ten languages, missing in four. Shows
+//      as one English line inside an otherwise-translated screen. Tracked
+//      with a ratchet so it can shrink but not silently grow.
+//
+// `node scripts/i18n-audit.mjs` reports the same data in detail;
+// `--partial` lists exactly which keys and languages.
+
+import { describe, it, expect } from 'vitest';
+import fs from 'fs';
+import path from 'path';
+
+const LANGS = ['en','es','fr','de','pt','it','ja','ko','zh','ar','hi','ru','tr','pl','nl'];
+const OTHERS = LANGS.filter(l => l !== 'en');
+const DIR = 'src/lib/i18n-langs';
+
+const keys = Object.fromEntries(LANGS.map(l => [
+  l,
+  new Set([...fs.readFileSync(path.join(DIR, `${l}.js`), 'utf8').matchAll(/"([^"]+)":/g)].map(m => m[1])),
+]));
+const en = keys.en;
+
+/** Every bare `t('key')` in the app, with comments stripped. */
+function collectCallSites() {
+  const bare = new Map();
+  const safe = new Set();
+  (function walk(dir) {
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      const p = path.join(dir, e.name);
+      if (e.isDirectory()) {
+        if (!/__tests__|node_modules|i18n-langs/.test(e.name)) walk(p);
+        continue;
+      }
+      if (!/\.jsx?$/.test(e.name) || /^i18n-/.test(e.name)) continue;
+      const src = fs.readFileSync(p, 'utf8')
+        .replace(/\/\*[\s\S]*?\*\//g, '')
+        .replace(/^\s*\/\/.*$/gm, '');
+      for (const m of src.matchAll(/\btFallback\(\s*['"]([\w.]+)['"]\s*,/g)) safe.add(m[1]);
+      for (const m of src.matchAll(/\bt\(\s*['"]([\w.]+)['"]\s*\)(?!\s*(?:\|\||\?\?))/g)) {
+        if (!bare.has(m[1])) bare.set(m[1], new Set());
+        bare.get(m[1]).add(p.replace(/^src\//, ''));
+      }
+    }
+  })('src');
+  return { bare, safe };
+}
+
+describe('no key can render as a raw key path', () => {
+  it('every bare t() call resolves to something', () => {
+    const { bare, safe } = collectCallSites();
+    const unresolvable = [...bare.keys()]
+      .filter(k => !en.has(k) && !safe.has(k))
+      .map(k => `${k} (${[...bare.get(k)].join(', ')})`)
+      .sort();
+    // A bare t('x') with no English definition puts the literal string
+    // 'x' on screen. Either add it to a part file or switch the call to
+    // tFallback('x', 'English').
+    expect(unresolvable).toEqual([]);
+  });
+});
+
+describe('every language file is loadable and non-trivial', () => {
+  it.each(LANGS)('%s has a populated aggregate', (lang) => {
+    expect(keys[lang].size).toBeGreaterThan(1000);
+  });
+
+  it('no language has keys English lacks', () => {
+    // The reverse direction: a key only in `es` is dead weight nothing
+    // can reach, since every call site is written against the English set.
+    for (const l of OTHERS) {
+      const orphans = [...keys[l]].filter(k => !en.has(k));
+      expect(orphans, `${l} has keys absent from en: ${orphans.slice(0, 5).join(', ')}`).toEqual([]);
+    }
+  });
+});
+
+describe('partial-gap ratchet', () => {
+  // Keys translated in SOME languages but not others. Unlike an
+  // English-only feature (missing everywhere, usually deliberate), these
+  // are oversights. The ceiling only ever moves down — lower it when you
+  // close gaps so the improvement is locked in.
+  //
+  // 82, not 80: `cardio.weather.checking` and `.outside` had tr/pl/nl
+  // translations but no English original, which made them ORPHANS —
+  // invisible to this count, and a raw key path waiting to happen the
+  // first time something called them. Giving them an English original
+  // moved them into this bucket. Two more partial gaps, three fewer
+  // landmines; the number went up because the problem got smaller.
+  const CEILING = 82;
+
+  it(`has no more than ${CEILING} partial gaps`, () => {
+    const partial = [...en].filter(k => {
+      const missing = OTHERS.filter(l => !keys[l].has(k)).length;
+      return missing > 0 && missing < OTHERS.length;
+    });
+    expect(
+      partial.length,
+      `partial gaps went up. Run: node scripts/i18n-audit.mjs --partial`
+    ).toBeLessThanOrEqual(CEILING);
+  });
+
+  it('coverage does not regress below 80% in any language', () => {
+    for (const l of OTHERS) {
+      const covered = [...en].filter(k => keys[l].has(k)).length;
+      const pct = covered / en.size;
+      expect(pct, `${l} coverage fell to ${(pct * 100).toFixed(1)}%`).toBeGreaterThan(0.80);
+    }
+  });
+});

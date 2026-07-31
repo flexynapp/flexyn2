@@ -10,7 +10,27 @@ describe('isLikelyAlreadyInLanguage', () => {
   it('detects Japanese script for ja target', () => {
     expect(isLikelyAlreadyInLanguage('こんにちは', 'ja')).toBe(true);
     expect(isLikelyAlreadyInLanguage('カタカナ', 'ja')).toBe(true);
-    expect(isLikelyAlreadyInLanguage('日本語', 'ja')).toBe(true);
+  });
+
+  it('does NOT claim pure-kanji text is Japanese', () => {
+    // Changed deliberately — this used to assert true, and that
+    // assertion encoded the bug it was meant to protect.
+    //
+    // Kanji are the same Unicode block Chinese uses, so treating
+    // kanji-without-kana as Japanese meant every Chinese post looked
+    // Japanese, and a Japanese reader lost the Translate button on all
+    // of them. Requiring kana is what tells the two apart.
+    //
+    // The trade is real but heavily one-sided: a pure-kanji Japanese
+    // string (a compound noun or title, essentially never a whole post —
+    // natural prose carries particles like は/を/の) now shows a
+    // redundant Translate button. That's a shrug. The old behavior made
+    // Chinese posts unreadable to Japanese users, which is not.
+    expect(isLikelyAlreadyInLanguage('日本語', 'ja')).toBe(false);
+    // ...and the same string must not be claimed as Chinese-only either
+    // when kana are present elsewhere in the text.
+    expect(isLikelyAlreadyInLanguage('日本語のポスト', 'ja')).toBe(true);
+    expect(isLikelyAlreadyInLanguage('日本語のポスト', 'zh')).toBe(false);
   });
 
   it('detects Chinese (CJK) for zh target', () => {

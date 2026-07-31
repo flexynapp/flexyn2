@@ -54,6 +54,11 @@ export const hubI18n = {
     'hub.comments.replyPlaceholder': 'Add a reply…',
     'hub.comments.likeError': 'Could not save like',
     'hub.messages.title': 'Direct messages',
+    // Was translated into all 14 other languages but never given an
+    // English original, and no component calls it. Harmless while
+    // unused, but the first t() call would have shown English users the
+    // raw key path, since resolution is language -> en -> key.
+    'hub.messages.authNotReady': 'Still signing you in — try again in a moment.',
     'hub.messages.privateNote': 'Messages are private — only you and the recipient can read them.',
     'hub.messages.privateNote.short': 'Private',
     'hub.messages.empty.title': 'No messages yet',
