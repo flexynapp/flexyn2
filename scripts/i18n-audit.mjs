@@ -11,6 +11,14 @@
 // actually loads — run `node scripts/split-i18n.mjs` first if part files
 // changed. Reading the part files directly would miss the merge step.
 //
+// ── Related: src/lib/i18n-check.js ───────────────────────────────────
+// A DEV-only runtime checker already exists and covers the same two
+// passes (missing keys, English-identical values). This script is the
+// CLI/CI counterpart — it needs no browser and can gate a build. Where
+// they overlap they should agree, so the cognate exclusions below are
+// kept in sync with that file's ALLOW_IDENTICAL set. If you add an
+// intentional same-in-every-language key, add it in BOTH places.
+//
 // ── How to read the output ───────────────────────────────────────────
 //
 // A key missing in a language is NOT a crash. getTranslation() falls back
@@ -136,17 +144,25 @@ for (const l of OTHERS) {
 // displaying pure English (they were aliased to the English object).
 const entries = Object.fromEntries(LANGS.map(l => [l, loadEntries(l)]));
 const enVals = entries.en;
-const substantive = (v) => v && v.length > 3;
+// Mirrors i18n-check.js: a value with no letters (numbers, tokens,
+// punctuation) or the bare brand name is never a missing translation.
+// Keep this aligned with ALLOW_IDENTICAL in that file.
+const ALLOW_IDENTICAL = new Set(['app.name', 'levelBar.level']);
+const substantive = (v, k) =>
+  v && v.length > 3 && /\p{L}/u.test(v) && !/^\s*Flexyn\s*$/i.test(v) && !ALLOW_IDENTICAL.has(k);
 console.log('\n=== C. present but holding the English string ===');
 console.log('    (invisible to coverage above — the key exists, the translation does not)');
 let englishTotal = 0;
 for (const l of OTHERS) {
   const n = Object.keys(entries[l])
-    .filter(k => k in enVals && entries[l][k] === enVals[k] && substantive(enVals[k])).length;
+    .filter(k => k in enVals && entries[l][k] === enVals[k] && substantive(enVals[k], k)).length;
   englishTotal += n;
   console.log(`    ${l}: ${n}`);
 }
-console.log(`    total: ${englishTotal}  (some are legitimate cognates — "Premium", "Standard")`);
+console.log(`    total: ${englishTotal}`);
+console.log('    Many remaining ones are genuine cognates — "Premium", "Cardio",');
+console.log('    "Reps", French "Public", Dutch "Sets" — identical by coincidence,');
+console.log('    not untranslated. Check a sample before treating this as a backlog.');
 
 console.log('\n=== D. gap shape ===');
 console.log(`    ${gaps.size} keys have a gap somewhere`);
