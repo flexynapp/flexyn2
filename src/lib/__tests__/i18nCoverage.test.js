@@ -148,3 +148,53 @@ describe('no language may be aliased to the English object', () => {
     ).toEqual([]);
   });
 });
+
+describe('the i18n-check allow-lists stay honest', () => {
+  // src/lib/i18n-check.js suppresses "untranslated" warnings for two
+  // reasons: universal codes/units, and per-language cognates. Both are
+  // load-bearing — a checker that cries wolf gets ignored, and it was
+  // emitting 366 warnings before these were populated.
+  //
+  // But an allow-list is also the easiest place to hide a real gap, so
+  // these two tests bound it in both directions.
+  const src = fs.readFileSync(path.join('src/lib', 'i18n-check.js'), 'utf8');
+  const NON_LATIN = ['ja', 'ko', 'zh', 'ar', 'hi', 'ru'];
+
+  const perLang = {};
+  for (const m of src.matchAll(/^ {2}(es|fr|de|pt|it|tr|pl|nl|ja|ko|zh|ar|hi|ru): new Set\(\[([\s\S]*?)\]\),/gm)) {
+    perLang[m[1]] = [...m[2].matchAll(/'([\w.]+)'/g)].map(x => x[1]);
+  }
+
+  it('never allow-lists a cognate for a non-Latin-script language', () => {
+    // A Japanese, Korean, Chinese, Arabic, Hindi or Russian value that
+    // equals the English one cannot be a coincidence — different script.
+    // It is always an untranslated string, so it must always warn.
+    const bad = NON_LATIN.filter(l => perLang[l]?.length);
+    expect(
+      bad,
+      `cognate allow-list must not cover non-Latin scripts: ${bad.join(', ')}`
+    ).toEqual([]);
+  });
+
+  it('has no stale entries — every allow-listed cognate is still identical', () => {
+    // If a key gets translated later, its allow-list entry becomes dead
+    // weight that would silently suppress a future regression.
+    const stale = [];
+    for (const [lang, keys] of Object.entries(perLang)) {
+      const dict = Object.fromEntries(
+        [...fs.readFileSync(path.join(DIR, `${lang}.js`), 'utf8')
+          .matchAll(/"((?:[^"\\]|\\.)+)":\s*"((?:[^"\\]|\\.)*)"/g)].map(m => [m[1], m[2]])
+      );
+      const enDict = Object.fromEntries(
+        [...fs.readFileSync(path.join(DIR, 'en.js'), 'utf8')
+          .matchAll(/"((?:[^"\\]|\\.)+)":\s*"((?:[^"\\]|\\.)*)"/g)].map(m => [m[1], m[2]])
+      );
+      for (const k of keys) {
+        if (dict[k] !== undefined && enDict[k] !== undefined && dict[k] !== enDict[k]) {
+          stale.push(`${lang}:${k}`);
+        }
+      }
+    }
+    expect(stale, `remove these from ALLOW_IDENTICAL_BY_LANG: ${stale.join(', ')}`).toEqual([]);
+  });
+});
