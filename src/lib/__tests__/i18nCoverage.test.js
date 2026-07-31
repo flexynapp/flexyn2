@@ -92,10 +92,11 @@ describe('partial-gap ratchet', () => {
   // are oversights. The ceiling only ever moves down — lower it when you
   // close gaps so the improvement is locked in.
   //
-  // 59 after filling hub.comments (10 keys x 10 languages) and
-  // notifications (13 keys x 4 languages, plus 9 languages that were
-  // aliased to the English object outright).
-  const CEILING = 59;
+  // 58 after filling hub.comments, notifications, formcoach and
+  // regimens. Three of those four were the same root cause: whole
+  // language sets aliased to the English object, which reads as 100%
+  // key coverage while showing pure English.
+  const CEILING = 58;
 
   it(`has no more than ${CEILING} partial gaps`, () => {
     const partial = [...en].filter(k => {
