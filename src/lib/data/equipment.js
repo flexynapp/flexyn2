@@ -55,7 +55,22 @@ export async function getOrCreateHomeSpace(userId) {
       })
       .select('id, name, kind')
       .single();
-    if (writeErr) throw writeErr;
+    if (writeErr) {
+      // 23505 = migration 271's one-home-per-owner index caught a
+      // concurrent create. The other caller won; read its row rather
+      // than returning null, which would drop the photo being uploaded.
+      if (writeErr.code === '23505') {
+        const { data: raced } = await supabase
+          .from('training_spaces')
+          .select('id, name, kind')
+          .eq('owner_id', userId)
+          .eq('kind', 'home')
+          .order('created_at', { ascending: true })
+          .limit(1);
+        return raced?.[0] ?? null;
+      }
+      throw writeErr;
+    }
     return created;
   } catch (err) {
     reportError(err, { feature: 'equipment.homeSpace' });
@@ -280,7 +295,21 @@ export async function getOrCreateGymSpace(gymId, userId) {
       .insert({ owner_id: userId, kind: 'gym', gym_id: gymId })
       .select('id, name, kind, gym_id')
       .single();
-    if (writeErr) throw writeErr;
+    if (writeErr) {
+      // Same race as the home space, except this one has been live since
+      // mig 268 — UNIQUE (owner_id, gym_id) already rejects the loser.
+      // Two rapid contributions to a gym's floor could hit it.
+      if (writeErr.code === '23505') {
+        const { data: raced } = await supabase
+          .from('training_spaces')
+          .select('id, name, kind, gym_id')
+          .eq('owner_id', userId)
+          .eq('gym_id', gymId)
+          .limit(1);
+        return raced?.[0] ?? null;
+      }
+      throw writeErr;
+    }
     return created;
   } catch (err) {
     reportError(err, { feature: 'equipment.gymSpace' });

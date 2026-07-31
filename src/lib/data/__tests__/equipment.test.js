@@ -103,6 +103,20 @@ describe('getOrCreateHomeSpace', () => {
     expect(calls[0].filters).toContainEqual(['limit', 1]);
   });
 
+  it('re-reads the winner when mig 271 rejects a concurrent create', async () => {
+    // Without this the losing racer returns null and the photo being
+    // uploaded is silently dropped — the index would have turned a
+    // harmless duplicate into a lost upload.
+    stage(
+      { data: [] },                                          // read: miss
+      { error: { code: '23505' } },                          // insert: lost the race
+      { data: [{ id: 'space-winner', name: 'My gear', kind: 'home' }] },
+    );
+    const space = await eq.getOrCreateHomeSpace(USER);
+    expect(space.id).toBe('space-winner');
+    expect(reportError).not.toHaveBeenCalled();
+  });
+
   it('degrades to null rather than throwing', async () => {
     stage({ error: { message: 'nope' } });
     await expect(eq.getOrCreateHomeSpace(USER)).resolves.toBeNull();
@@ -112,6 +126,29 @@ describe('getOrCreateHomeSpace', () => {
   it('is a no-op without a user', async () => {
     await expect(eq.getOrCreateHomeSpace(null)).resolves.toBeNull();
     expect(calls).toHaveLength(0);
+  });
+});
+
+// ── getOrCreateGymSpace ──────────────────────────────────────────────
+
+describe('getOrCreateGymSpace', () => {
+  it('re-reads the winner when UNIQUE (owner_id, gym_id) rejects a race', async () => {
+    // This one is not new — mig 268 has enforced the pair since day one,
+    // so the loser has always been able to come back null.
+    stage(
+      { data: [] },
+      { error: { code: '23505' } },
+      { data: [{ id: 'gym-space-winner', kind: 'gym', gym_id: 'gym-1' }] },
+    );
+    const space = await eq.getOrCreateGymSpace('gym-1', USER);
+    expect(space.id).toBe('gym-space-winner');
+    expect(reportError).not.toHaveBeenCalled();
+  });
+
+  it('still degrades to null on a non-race failure', async () => {
+    stage({ data: [] }, { error: { code: '42501' } });
+    await expect(eq.getOrCreateGymSpace('gym-1', USER)).resolves.toBeNull();
+    expect(reportError).toHaveBeenCalledWith(expect.anything(), { feature: 'equipment.gymSpace' });
   });
 });
 
