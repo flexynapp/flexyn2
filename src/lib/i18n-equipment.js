@@ -395,7 +395,7 @@ export const equipmentI18n = {
     'gymEquip.add':                "添加器械",
     'gymEquip.added':              "已添加到健身房",
     'gymEquip.save':               "添加",
-    'gymEquip.remove':             "移除",
+    'gymEquip.remove':             "删除",
     'gymEquip.confirm':            "确认健身房有这台器械",
     'gymEquip.unconfirm':          "取消确认",
     'gymEquip.confirmed':          "已确认",
@@ -408,7 +408,7 @@ export const equipmentI18n = {
     'gymEquip.emptyOther':         "还没有人登记这家健身房的器械。",
     'gymEquip.addFailed':          "添加失败。",
     'gymEquip.verifyFailed':       "更新失败。",
-    'gymEquip.removeFailed':       "移除失败。",
+    'gymEquip.removeFailed':       "删除失败。",
   },
 
   ar: {
@@ -435,7 +435,7 @@ export const equipmentI18n = {
     'gymEquip.add':                "إضافة جهاز",
     'gymEquip.added':              "تمت الإضافة إلى النادي",
     'gymEquip.save':               "إضافة",
-    'gymEquip.remove':             "إزالة",
+    'gymEquip.remove':             "حذف",
     'gymEquip.confirm':            "تأكيد وجوده في النادي",
     'gymEquip.unconfirm':          "إلغاء التأكيد",
     'gymEquip.confirmed':          "مؤكَّد",
@@ -448,7 +448,7 @@ export const equipmentI18n = {
     'gymEquip.emptyOther':         "لم يسجّل أحد أجهزة هذا النادي بعد.",
     'gymEquip.addFailed':          "تعذّرت الإضافة.",
     'gymEquip.verifyFailed':       "تعذّر التحديث.",
-    'gymEquip.removeFailed':       "تعذّرت الإزالة.",
+    'gymEquip.removeFailed':       "تعذّر الحذف.",
   },
 
   hi: {
