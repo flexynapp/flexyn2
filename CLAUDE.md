@@ -793,9 +793,22 @@ violations of this rule.
   nothing reads/writes it.
 - Server-side profanity check is on `username` only; `bio` is still
   client-only.
-- Weekly Debriefs migration 051 needs an Edge Function +
-  `app.debrief_func_url` + `app.debrief_cron_secret` to actually
-  populate. Teammate owns that follow-up.
+- Weekly Debriefs. **The Edge Function is now DEPLOYED** (2026-07-31,
+  `generateWeeklyDebriefs`, version 1, `verify_jwt: false`). It had been
+  sitting written-but-undeployed in `supabase/functions/` — CLAUDE.md
+  described it as still needing to be built, which was stale. Verified
+  live: `POST` with no auth returns `401 {"error":"unauthorized"}`, `GET`
+  returns `405`, and the deployed source is a byte-for-byte match for the
+  repo file (456 lines, 22,531 bytes, identical SHA-256).
+
+  It is deployed but **inert**, and two things are still needed to make it
+  run: set `DEBRIEF_CRON_SECRET` as a function secret, then re-add the
+  cron (recipe below). `verify_jwt` is deliberately false because the cron
+  authenticates with `X-Cron-Secret`, which a gateway JWT check would
+  reject before the function's own auth gate runs — same posture as
+  `send-push`. `SEND_PUSH_TRIGGER_SECRET` and `ANTHROPIC_API_KEY` are
+  optional: without them it skips the push fan-out and falls back to the
+  rule-based insight.
 
   **The cron was unscheduled on 2026-07-31.** `cron.job` id 5
   (`weekly-debrief-generator`, `0 20 * * 0`) posted to
@@ -829,8 +842,9 @@ violations of this rule.
   $$);
   ```
 
-  Ship the Edge Function first — re-adding it before then just restores a
-  weekly 404.
+  The function is deployed now, so re-adding the cron no longer restores a
+  weekly 404 — but set `DEBRIEF_CRON_SECRET` first, or every run gets a
+  401 instead, which is just as silent.
 - i18n: discovery cards + ~21 Hub fallback keys still default to English
   on 8 of 15 languages. Needs a native-speaker pass. Also: the new
   `recap.*` keys used by `src/components/dashboard/WeeklyRecap.jsx`
