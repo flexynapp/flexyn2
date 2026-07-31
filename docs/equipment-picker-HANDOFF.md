@@ -72,12 +72,27 @@ floor so members' pickers lead with real machines.
 
 ## Open items, highest value first
 
-1. **The upload path has never run end-to-end.** Photo → Storage →
-   `equipment_photos` is built and unit-tested for failure handling, but no
-   real photo has gone through it. Sentry tags: `equipment.homeSpace`,
-   `equipment.attachPhoto`. **Do this by having Kegan add one photo**, or by
-   exercising it under `SET LOCAL role authenticated` the way mig 270 was
-   tested.
+1. **The upload path — DB half now verified, browser half still open.**
+   Verified 2026-07-30 by executing the exact client statements against
+   production as `authenticated` (`SET LOCAL role` + JWT claims, each step a
+   separate statement, `ROLLBACK`), on a user with no existing home space:
+   all four writes and all three read-backs pass —
+   `training_spaces` INSERT → `equipment_models` INSERT (+ submitter can read
+   back its own unapproved row) → `space_equipment` INSERT →
+   `equipment_photos` INSERT → `photo_url` denormalize → `findModelPhoto` and
+   `listSpaceEquipment` both return the row.
+   Storage side: `uploads` is public (so `getPublicUrl` resolves), its INSERT
+   policy admits `uploads/<uid>/…` and **blocks another user's prefix (42501)**.
+   Note `INSERT … RETURNING` on `storage.objects` fails under RLS because mig
+   185 dropped the bucket's SELECT policy — that's expected, and `supabase-js`
+   doesn't use RETURNING there.
+   `src/lib/data/__tests__/equipment.test.js` (new, 21 tests) pins the client
+   half: statement sequence, payloads, the `.is(col, null)` identity filter,
+   `approved: false`, the 23505 re-read, and "don't steal an existing primary".
+   **Still unproven:** the real browser round trip — `compressImage` on a
+   camera capture, the multipart PUT, and the rendered thumbnail. Needs Kegan
+   to add one photo on a device. Sentry tags: `equipment.homeSpace`,
+   `equipment.attachPhoto`.
 2. **Native review of the translations.** ~3,000 machine-translated strings.
    `docs/i18n-review-brief.md` + two CSVs are ready for a human. The 12 HIGH
    rows matter most — `formcoach.betaDisclosure` tells users their camera
