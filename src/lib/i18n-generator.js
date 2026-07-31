@@ -163,14 +163,14 @@ const arKeys = {
 };
 
 const hiKeys = {
-  'generator.title': 'वर्कआउट बनाएँ',
+  'generator.title': 'वर्कआउट बनाएं',
   'generator.cardSubtitle': 'AI आपके इतिहास से एक सेशन बनाता है',
   'generator.focus': 'फ़ोकस',
   'generator.duration': 'अवधि',
   'generator.equipment': 'उपकरण',
   'generator.skill': 'अनुभव',
-  'generator.generate': 'बनाएँ',
-  'generator.regenerate': 'फिर से बनाएँ',
+  'generator.generate': 'बनाएं',
+  'generator.regenerate': 'फिर से बनाएं',
   'generator.thinking': 'आपका वर्कआउट बन रहा है…',
   'generator.thinkingDesc': 'आपका ट्रेनिंग इतिहास पढ़ा जा रहा है।',
   'generator.use': 'यही लें',

@@ -1,17 +1,28 @@
-# Native review brief — equipment picker (ja / ko / zh / ar)
+# Native review brief — Flexyn i18n
 
-**For the reviewer:** you need ~10 minutes and no technical knowledge.
-Open [`i18n-review-ja-ko-zh-ar.csv`](./i18n-review-ja-ko-zh-ar.csv) in any
+**For the reviewer:** no technical knowledge needed. Open a CSV below in any
 spreadsheet, read your language's column, and put a better wording in
-`reviewer_correction` wherever it reads wrong. Leave the rest blank.
-You never need to touch code.
+`reviewer_correction` wherever it reads wrong. Leave the rest blank. You
+never need to touch code.
 
-**Status:** these 37 strings were machine-translated (LLM) on 2026-07-30 and
-have **not** been seen by a native speaker. Terminology was checked against
-industry sources and against Flexyn's existing translations, but that catches
-consistency, not naturalness.
+| File | Scope | Size |
+|---|---|---|
+| [`i18n-review-ja-ko-zh-ar.csv`](./i18n-review-ja-ko-zh-ar.csv) | Equipment picker, 4 languages | 37 keys, ~10 min |
+| [`i18n-review-notifications-formcoach.csv`](./i18n-review-notifications-formcoach.csv) | Notifications + Form Coach, all 15 languages | 97 keys, ~25 min |
+
+The second file has a `priority` column. **Start with the 12 HIGH rows** —
+they are the long sentences where a bad translation actually misleads
+someone, rather than just reading awkwardly.
+
+**Status:** every string in both files was machine-translated (LLM) on
+2026-07-30 and has **not** been seen by a native speaker. Terminology was
+checked against industry sources and against Flexyn's own existing
+translations — that catches consistency and caught several real errors, but
+it cannot catch naturalness, which is the whole reason this document exists.
 
 ---
+
+# Part 1 — Equipment picker (ja / ko / zh / ar)
 
 ## What the feature is
 
@@ -89,3 +100,59 @@ Hand the filled-in CSV back and the corrections go into
 exported `REVIEW_PENDING` array in that file — that's the record of what's
 still machine-only. `src/lib/__tests__/i18nEquipment.test.js` will catch a
 dropped key, a lost `{gym}`, or the two trust badges collapsing.
+
+
+---
+
+# Addendum — notifications & Form Coach
+
+## Why these two get their own review
+
+Everything else translated so far is labels and buttons, where a clumsy
+translation is merely clumsy. These two contain **sentences that carry
+meaning a user acts on**, which is a different risk:
+
+- **`formcoach.betaDisclosure`** is the privacy paragraph. It tells the user
+  their photo is analysed on-device with MoveNet and *never sent to a
+  server*. If a translation makes that ambiguous, someone declines a feature
+  they would have used — or worse, uses it believing something untrue about
+  where their camera images go. This is the single highest-stakes string in
+  the app's translated surface.
+- **`notifications.row.streak_break_warning.*`** and
+  **`quest_expiry_warning.*`** are time-pressure messages ("your streak ends
+  at midnight"). If the deadline reads as vague, the notification stops
+  working.
+- **`formcoach.partialDetectionMessage`** and the error strings set
+  expectations about result quality. Overstating confidence here is a
+  correctness problem, not a style one.
+
+## Checks already run (so you don't repeat them)
+
+- **Placeholders and emoji** verified per language: `{name}` `{tier}`
+  `{coins}` `{capsule}` `{quest}` `{remaining}` `{streak}` `{day}` `{label}`
+  `{count}`, plus the leading 🎁 🏆 🔥 ⏳ ⬆️ ⬇️ 👋 🪙 on row titles.
+- **Length** vs English on tight controls. Polish "Wszystkie" is 3× English
+  "All", but the tab is `flex-1` with no `truncate`, so it wraps rather than
+  clips. No clipping defects found.
+- **Corpus consistency** — word choices cross-checked against the same
+  English strings elsewhere in the app. This caught Chinese "Remove"
+  (移除 → 删除, the app uses 删除 twenty times) and Arabic (إزالة → حذف), plus
+  29 Hindi spellings where this file used the chandrabindu form (हटाएँ) and
+  the rest of the app uses the anusvara form (हटाएं).
+- **Gender agreement** checked where it differs from the app's other uses:
+  "All" is `Todas`/`Toutes`/`Tutte` here because it agrees with the feminine
+  *notificaciones* / *notifications* / *notifiche*, not with whatever noun the
+  app's other "All" refers to. Please confirm that reading.
+
+## What a reviewer should judge that no check can
+
+- Does the disclosure paragraph read as *reassuring and specific*, or as
+  legalese someone skips?
+- Do the streak warnings feel motivating rather than nagging? English
+  deliberately avoids scolding; several languages default to a sterner
+  register in imperatives.
+- Is the register consistent with the rest of the app — informal *tu/du/ты*
+  or formal? These strings assume informal throughout, matching the existing
+  corpus.
+- Are the capsule rarity words (Elite / Mystery / Premium / Standard) the
+  terms a gamer in your language would expect, or is a loanword better?
