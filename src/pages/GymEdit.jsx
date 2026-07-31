@@ -22,6 +22,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { supabase } from '@/api/supabaseClient';
 import EmptyState from '@/components/EmptyState';
 import { getGym } from '@/lib/data/gymBusinesses';
+import GymEquipmentEditor from '@/components/gyms/GymEquipmentEditor';
 
 export default function GymEdit() {
   const { id } = useParams();
@@ -408,6 +409,15 @@ export default function GymEdit() {
           value={form.amenities}
           onChange={(next) => setForm(f => ({ ...f, amenities: next }))}
         />
+
+        {/* Equipment — same pill-toggle shape as Amenities above, but it
+            writes straight to space_equipment rather than into `form`.
+            Equipment is rows in another table, not a column on this gym,
+            so there is nothing for Save to submit and each tap persists
+            on its own. Deliberately NOT folded into the form state: a
+            half-filled floor should survive the owner navigating away
+            without hitting Save. */}
+        <GymEquipmentEditor gymId={gym.id} ownerId={gym.owner_id} />
 
         {/* Photo gallery — multi-image uploader with reorder via
             drag handles in a later pass. v1 = add + remove. */}

@@ -42,7 +42,11 @@ describe('placeholders', () => {
     for (const l of LANGS) {
       for (const [k, v] of Object.entries(equipmentI18n[l])) {
         const tokens = String(v).match(/\{[a-z]+\}/gi) || [];
-        const allowed = k === 'implement.atGymNamed' ? ['{gym}'] : [];
+        const ALLOWED_PLACEHOLDERS = {
+          'implement.atGymNamed': ['{gym}'],
+          'gymEquipEditor.pending': ['{n}'],
+        };
+        const allowed = ALLOWED_PLACEHOLDERS[k] || [];
         for (const t of tokens) {
           expect(allowed, `${l}.${k} has an unsupported placeholder ${t}`).toContain(t);
         }

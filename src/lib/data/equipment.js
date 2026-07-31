@@ -366,6 +366,48 @@ export async function removeSpaceEquipment(equipmentId) {
   }
 }
 
+/**
+ * Just the GYM OWNER's own entries — the authoritative tier.
+ *
+ * The owner's editor manages only what the gym itself has listed.
+ * Member submissions are confirmed (or not) from the Hub tab instead,
+ * so an owner can't accidentally wipe a member's find by untoggling a
+ * type they thought they'd added.
+ */
+export async function listOwnerFloor(gymId, ownerId) {
+  if (!gymId || !ownerId) return [];
+  try {
+    const { data: spaces, error: sErr } = await supabase
+      .from('training_spaces')
+      .select('id')
+      .eq('gym_id', gymId)
+      .eq('owner_id', ownerId);
+    if (sErr) throw sErr;
+    if (!spaces?.length) return [];
+
+    const { data, error } = await supabase
+      .from('space_equipment')
+      .select('id, model_id, implement_type, label_override, quantity, photo_url')
+      .in('space_id', spaces.map(s => s.id));
+    if (error) throw error;
+    return data || [];
+  } catch (err) {
+    reportError(err, { feature: 'equipment.listOwnerFloor' });
+    return [];
+  }
+}
+
+/** How many member-submitted entries are awaiting the owner's confirmation. */
+export async function countPendingMemberEntries(gymId, ownerId) {
+  if (!gymId) return 0;
+  try {
+    const rows = await listGymFloor(gymId, ownerId);
+    return rows.filter(r => !r.fromOwnerSpace && !r.verified_by_owner).length;
+  } catch {
+    return 0;
+  }
+}
+
 /** Add an implement to a gym's floor, from the gym page or the picker. */
 export async function addToGymFloor({ gymId, userId, implement }) {
   if (!gymId || !userId || !implement?.implementType) return null;
