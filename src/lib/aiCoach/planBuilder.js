@@ -21,6 +21,9 @@ import { generateWorkout } from './workoutGenerator';
 import { buildTrainingModifiers, profileAge } from './trainingModifiers';
 import { runningTargets, fiveKSplits, formatPace, formatClock } from '@/lib/running/paces';
 import { weeklyRunningLoad } from '@/lib/running/fueling';
+import { getMaxRealisticSetsPerWorkout, sumWorkoutVolume } from '@/lib/workoutFatigue';
+import { CREW_WAR_WEIGHTS } from '@/lib/data/crewWars';
+import { formatNumber } from '@/lib/intl';
 
 // Default 5K baseline when the runner hasn't told us their time — a mid
 // recreational ~28:00. We flag it as an estimate and invite them to share
@@ -28,7 +31,11 @@ import { weeklyRunningLoad } from '@/lib/running/fueling';
 const DEFAULT_5K_SEC = 28 * 60;
 
 // ── Goal prompts shown on the generate-mode welcome ──────────────────────────
+// `war_points` leads the list on purpose: it's the only prompt tied to a
+// running competition (a rival week or a crew war), so it has to be reachable
+// without scrolling the horizontal strip or the welcome list.
 export const GENERATE_PROMPTS = [
+  { id: 'war_points',  text: 'Max points against my rival / crew war' },
   { id: 'faster_5k',   text: 'Train for a faster 5K' },
   { id: 'pr_bench',    text: 'Help me PR my bench press' },
   { id: 'build_muscle',text: 'Build muscle — upper body' },
@@ -57,7 +64,57 @@ const LIFT_TO_FOCUS = {
   'Pull-Up': 'pull',
 };
 
+// ── Competition mode ─────────────────────────────────────────────────────────
+//
+// "Score the most points this week" is a different question from any training
+// goal, because the scoring formula — not physiology — decides what the best
+// session looks like. Both live scoreboards pay for TONNAGE:
+//
+//   • Crew war   (mig 249 _crew_war_score, mirrored in lib/data/crewWars.js):
+//       floor(volume / 100) + sessions×50 + days_active×100,
+//       capped at 200,000 lb / 28 sessions / 7 days per member.
+//   • Gym rival  (mig 225 gym_rival_net_rating): round(volume / 100), no cap.
+//   • Cardio rival scores km × 20 and ignores lifting entirely — the reply
+//       says so rather than handing a runner a barbell session.
+//
+// So the point-maximal session is simply the most total weight×reps the user
+// can legitimately log in one sitting. The binding constraint is the
+// anti-cheat plausibility gate (workoutFatigue.detectImplausibleWorkout),
+// which rejects a save over the user's realistic set ceiling — so we size the
+// session to sit just under that ceiling instead of blindly maxing sets.
+const COMPETE_RE = /\b(crew\s*war|clan\s*war|war\s*(points|score)|rival|opponent|matchup|head\s*to\s*head|leader\s*board|leaderboard)\b|\b(max|maximum|most|more)\s+(points|score|tonnage)\b|\bout(score|lift)\b/;
+
+// duration → exercise count inside generateWorkout(). Mirrored here so we can
+// pick the shape whose total set count lands closest under the ceiling.
+const COMPETE_SHAPES = [
+  { durationMinutes: 90, exCount: 7 },
+  { durationMinutes: 60, exCount: 6 },
+  { durationMinutes: 45, exCount: 5 },
+  { durationMinutes: 30, exCount: 4 },
+];
+
+/**
+ * Largest (exercises × sets) session that still fits under this user's
+ * plausibility ceiling. Pure — takes the ceiling as a number.
+ */
+export function competeSessionShape(maxSets) {
+  const ceiling = Number.isFinite(maxSets) && maxSets > 0 ? maxSets : 25;
+  let best = null;
+  for (const shape of COMPETE_SHAPES) {
+    // generateWorkout clamps set count to 2..5, so that's the search space.
+    for (let setCount = 5; setCount >= 2; setCount--) {
+      const totalSets = shape.exCount * setCount;
+      if (totalSets > ceiling) continue;
+      if (!best || totalSets > best.totalSets) best = { ...shape, setCount, totalSets };
+      break; // largest set count that fits this shape — smaller ones can't beat it
+    }
+  }
+  // Ceiling below 8 sets (the floor of every shape) → smallest legal session.
+  return best || { durationMinutes: 30, exCount: 4, setCount: 2, totalSets: 8 };
+}
+
 const GOAL_LABEL = {
+  compete:   'out-score your rival',
   speed:     'run a faster',   // + event, e.g. "run a faster 5K"
   endurance: 'go the distance',
   strength:  'build strength',
@@ -104,7 +161,7 @@ function detectDuration(m) {
  * Parse a training goal from free text.
  * Returns a structured descriptor (pure — no I/O):
  *   {
- *     goal,          // one of: speed|endurance|strength|muscle|lose|mobility|general
+ *     goal,          // one of: compete|speed|endurance|strength|muscle|lose|mobility|general
  *     lift,          // canonical lift name for strength PRs, or null
  *     event,         // 5k|10k|half|marathon|null (cardio target)
  *     wantsPlan,     // true → weekly plan; false → single session
@@ -133,7 +190,11 @@ export function parseWorkoutGoal(message) {
 
   // ── Goal classification (order matters: most specific first) ──────────────
   let goal = 'general';
-  if (isRun && (faster || further || event)) {
+  if (COMPETE_RE.test(m)) {
+    // Checked first: "max points for my crew war" also trips the strength and
+    // muscle patterns, and scoring — not the training goal — drives this one.
+    goal = 'compete';
+  } else if (isRun && (faster || further || event)) {
     goal = faster && !further ? 'speed' : further ? 'endurance' : 'speed';
   } else if (/\bpr\b|personal record|personal best|1\s*rep max|\b1rm\b|max out|get stronger|build strength|stronger|increase my|add \d+\s*(lb|kg|pound)/.test(m) || (lift && /workout|session|plan|train/.test(m))) {
     goal = 'strength';
@@ -152,7 +213,8 @@ export function parseWorkoutGoal(message) {
   const isGoalOriented = goal !== 'general';
 
   let wantsPlan;
-  if (isCardio) wantsPlan = true;             // cardio goals are inherently multi-session
+  if (goal === 'compete') wantsPlan = false;  // points are scored per logged session, so ship one
+  else if (isCardio) wantsPlan = true;        // cardio goals are inherently multi-session
   else if (planCue) wantsPlan = true;
   else if (sessionCue) wantsPlan = false;
   else wantsPlan = isGoalOriented;            // "build muscle" → plan; "give me a workout" → session
@@ -384,6 +446,57 @@ function sessionReply({ workout }) {
   ].join('\n');
 }
 
+/**
+ * Competition-mode intro. States the actual scoring rules rather than vague
+ * hype, because the honest answer ("volume is the slow lever, showing up is
+ * the fast one") is the one that wins a crew war.
+ */
+function competeReply({ workout }) {
+  const volume = sumWorkoutVolume(workout.exercises);
+  const sets = (workout.exercises || []).reduce((n, ex) => n + (ex.sets?.length || 0), 0);
+  const { volumePerPoint, perSession, perDayActive, caps } = CREW_WAR_WEIGHTS;
+  const volPoints = Math.floor(volume / volumePerPoint);
+
+  // Tonnage is weight × reps, so an unloaded movement scores nothing at all.
+  // The generator still picks them (they're good training), so say it outright
+  // rather than let someone plank for zero points and wonder why.
+  const unloaded = (workout.exercises || [])
+    .filter(ex => (ex.sets || []).every(s => !(Number(s.weight) > 0)))
+    .map(ex => ex.name);
+
+  const lines = [
+    `Here's your point-max session ⚔️`,
+    '',
+    `${(workout.exercises || []).length} exercises · ${sets} working sets · ~${formatNum(volume)} lb of total tonnage. Both scoreboards pay by weight lifted, so this leads with the big compounds and runs slightly higher reps — tonnage is weight × reps, and an extra rep is worth more than an extra pound.`,
+    '',
+    // MessageBubble renders the reply as plain pre-wrapped text — no markdown
+    // pass — so these headings are bare labels rather than **bold**.
+    `WHAT IT'S WORTH`,
+    `• Crew war: ~${formatNum(volPoints + perSession + perDayActive)} pts — ${formatNum(volPoints)} from tonnage (1 pt per ${volumePerPoint} lb), +${perSession} for the session, +${perDayActive} for training today.`,
+    `• Gym rival: ~${formatNum(volPoints)} pts. Rival week is tonnage only — sessions and days don't count there.`,
+    '',
+    `THE BIGGER LEVER`,
+    `In a crew war, each distinct day you train is worth ${perDayActive} pts — you'd need ${formatNum(perDayActive * volumePerPoint)} lb of extra lifting to match one more day on the calendar. Repeat this session across all ${caps.daysActive} days of the war before you chase heavier numbers. Per-member scoring caps at ${formatNum(caps.volumeLbs)} lb, ${caps.sessions} sessions and ${caps.daysActive} days.`,
+    '',
+    `Sized to stay under your realistic set ceiling, so the log will save clean — the anti-cheat gate rejects sessions past it. Chasing a cardio rival instead? That one scores kilometres, not tonnage — ask me for a distance session.`,
+  ];
+
+  if (unloaded.length) {
+    lines.splice(-1, 0,
+      `Bodyweight movements score zero tonnage — ${unloaded.join(' and ')} ${unloaded.length === 1 ? 'is' : 'are'} in there for balance, not points. Wear a belt or vest and log the added weight if you want ${unloaded.length === 1 ? 'it' : 'them'} to count.`,
+      '',
+    );
+  }
+
+  return lines.join('\n');
+}
+
+// The rest of this module's copy is English-only, so the grouping separator
+// is too — formatNumber falls back to 'en' with no language passed.
+function formatNum(n) {
+  return formatNumber(Math.round(Number(n) || 0), undefined, { maximumFractionDigits: 0 });
+}
+
 // ── Main entry ────────────────────────────────────────────────────────────────
 
 /**
@@ -445,10 +558,23 @@ export async function buildCoachPlan({ user, message, profile = {}, excludeMuscl
   }
 
   // Single session
+  const compete = parsed.goal === 'compete';
+  // Point-max sessions are sized against the user's own plausibility ceiling
+  // so the workout they're handed is one the save gate will actually accept.
+  const shape = compete ? competeSessionShape(getMaxRealisticSetsPerWorkout(profile)) : null;
+
+  const baseModifiers = buildTrainingModifiers({
+    goal:          parsed.goal,
+    nutritionGoal: profile.nutrition_goal,
+    weeklyRateLbs: profile.weekly_rate_lbs,
+    age:           profileAge(profile),
+    restrictions:  Array.isArray(profile.dietary_restrictions) ? profile.dietary_restrictions : [],
+  });
+
   const workout = await generateWorkout({
     user,
     focus: parsed.focus,
-    durationMinutes: parsed.durationMinutes,
+    durationMinutes: shape ? shape.durationMinutes : parsed.durationMinutes,
     equipment: parsed.equipment,
     skillLevel: profile.skillLevel || 'intermediate',
     bodyweightLbs: Number(profile.weight_lbs) || 165,
@@ -467,13 +593,15 @@ export async function buildCoachPlan({ user, message, profile = {}, excludeMuscl
     // The chat path knows the parsed goal and the profile's diet direction;
     // it has no cycle context (that is opt-in and lives on the Coach screen),
     // so no phase is passed and none is assumed.
-    modifiers: buildTrainingModifiers({
-      goal:          parsed.goal,
-      nutritionGoal: profile.nutrition_goal,
-      weeklyRateLbs: profile.weekly_rate_lbs,
-      age:           profileAge(profile),
-      restrictions:  Array.isArray(profile.dietary_restrictions) ? profile.dietary_restrictions : [],
-    }),
+    //
+    // Competition mode overrides the volume knobs on top of that: sets are
+    // pinned to the shape that fits under the plausibility ceiling, and reps
+    // run two higher than standard because tonnage is weight × reps and the
+    // rep bump outweighs the ~10% load back-off it triggers on a lift whose
+    // history was heavier-and-shorter.
+    modifiers: compete
+      ? { ...baseModifiers, setsDelta: shape.setCount - 3, repDelta: baseModifiers.repDelta + 2 }
+      : baseModifiers,
   });
   const plan = {
     kind: 'session',
@@ -485,5 +613,5 @@ export async function buildCoachPlan({ user, message, profile = {}, excludeMuscl
     goal: parsed.goal,
     label: parsed.label,
   };
-  return { reply: sessionReply({ workout }), plan };
+  return { reply: compete ? competeReply({ workout }) : sessionReply({ workout }), plan };
 }

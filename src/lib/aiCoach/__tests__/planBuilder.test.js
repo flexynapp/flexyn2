@@ -9,7 +9,8 @@ vi.mock('@/api/db', () => ({
   },
 }));
 
-import { parseWorkoutGoal, buildCoachPlan, sessionToPlan, buildCardioSession, buildHiitSession, CARDIO_STYLES, GENERATE_PROMPTS } from '../planBuilder';
+import { parseWorkoutGoal, buildCoachPlan, sessionToPlan, buildCardioSession, buildHiitSession, CARDIO_STYLES, GENERATE_PROMPTS, competeSessionShape } from '../planBuilder';
+import { getMaxRealisticSetsPerWorkout, sumWorkoutVolume } from '@/lib/workoutFatigue';
 import { detectIntent, INTENTS } from '../intents';
 
 beforeEach(() => vi.clearAllMocks());
@@ -192,5 +193,80 @@ describe('GENERATE_PLAN intent routing', () => {
   it('exposes generate prompts', () => {
     expect(GENERATE_PROMPTS.length).toBeGreaterThan(0);
     expect(GENERATE_PROMPTS[0]).toHaveProperty('text');
+  });
+});
+
+describe('competition mode (rival / crew war point-max session)', () => {
+  it('leads the generate prompts with the war-points pill', () => {
+    // It must be reachable without scrolling the horizontal prompt strip.
+    expect(GENERATE_PROMPTS[0].id).toBe('war_points');
+  });
+
+  it('routes its own pill text to a point-max session', () => {
+    const { text } = GENERATE_PROMPTS[0];
+    expect(detectIntent(text).id).toBe(INTENTS.GENERATE_PLAN);
+    const p = parseWorkoutGoal(text);
+    expect(p.goal).toBe('compete');
+    expect(p.wantsPlan).toBe(false);   // points are scored per logged session
+    expect(p.focus).toBe('full_body');
+  });
+
+  it.each([
+    'most points for my crew war',
+    'what workout scores the most points against my rival',
+    'help me beat my rival this week',
+    'give me a workout to crush my crew war opponent',
+  ])('reads "%s" as compete', (msg) => {
+    expect(parseWorkoutGoal(msg).goal).toBe('compete');
+  });
+
+  it('does not hijack ordinary strength or muscle asks', () => {
+    expect(parseWorkoutGoal('I want to PR my bench press').goal).toBe('strength');
+    expect(parseWorkoutGoal('build muscle — upper body').goal).toBe('muscle');
+  });
+
+  it('sizes the session under the plausibility ceiling', () => {
+    // 25 sets is the default adult ceiling; 5×5 is the densest shape that fits.
+    const shape = competeSessionShape(25);
+    expect(shape.totalSets).toBeLessThanOrEqual(25);
+    expect(shape.totalSets).toBe(25);
+    // A smaller ceiling must produce a smaller session, never an over-cap one.
+    for (const ceiling of [21, 17, 12, 8, 5]) {
+      const s = competeSessionShape(ceiling);
+      expect(s.exCount * s.setCount).toBe(s.totalSets);
+      if (ceiling >= 8) expect(s.totalSets).toBeLessThanOrEqual(ceiling);
+      expect(s.setCount).toBeGreaterThanOrEqual(2);
+      expect(s.setCount).toBeLessThanOrEqual(5);
+    }
+  });
+
+  it('builds a session that the anti-cheat set ceiling would accept', async () => {
+    const profile = { weight_lbs: 190, gender: 'male', birthday: '1995-01-01' };
+    const { reply, plan } = await buildCoachPlan({
+      user: { email: 'a@b.c' },
+      message: GENERATE_PROMPTS[0].text,
+      profile,
+    });
+    expect(plan.kind).toBe('session');
+    expect(plan.goal).toBe('compete');
+
+    const totalSets = plan.workout.exercises.reduce((n, ex) => n + ex.sets.length, 0);
+    expect(totalSets).toBeLessThanOrEqual(getMaxRealisticSetsPerWorkout(profile));
+
+    // Tonnage is the scored quantity, so it has to be non-zero and quoted.
+    expect(sumWorkoutVolume(plan.workout.exercises)).toBeGreaterThan(0);
+    expect(reply).toMatch(/Crew war/);
+    expect(reply).toMatch(/Gym rival/);
+    expect(reply).toMatch(/cardio/i);   // cardio rivals score km, not tonnage
+  });
+
+  it('out-lifts the ordinary session it would otherwise have gotten', async () => {
+    const profile = { weight_lbs: 190, gender: 'male', birthday: '1995-01-01' };
+    const [war, plain] = await Promise.all([
+      buildCoachPlan({ user: { email: 'a@b.c' }, message: GENERATE_PROMPTS[0].text, profile }),
+      buildCoachPlan({ user: { email: 'a@b.c' }, message: 'give me a quick full-body workout today', profile }),
+    ]);
+    expect(sumWorkoutVolume(war.plan.workout.exercises))
+      .toBeGreaterThan(sumWorkoutVolume(plain.plan.workout.exercises));
   });
 });

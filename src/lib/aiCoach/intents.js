@@ -209,6 +209,16 @@ export function detectIntent(message) {
     /\bbulk(ing)?\s*up\b/,
   ]) if (re.test(m)) candidates.push({ id: INTENTS.GENERATE_PLAN, score: 12 });
 
+  // Competition mode — a session built to score the most rival / crew-war
+  // points. Scored above the generic plan patterns because "max points for my
+  // crew war" also reads as a plain strength ask, and the scoring-aware
+  // session (planBuilder's `compete` goal) is the better answer.
+  for (const re of [
+    /\b(max|maximum|most|more)\b[\s\S]{0,16}\b(points|score|tonnage)\b/,
+    /\b(rival|crew\s*war|clan\s*war|war)\b[\s\S]{0,24}\b(points|score|scoring|win|beat|crush)\b/,
+    /\b(beat|crush|out(score|lift)|dominate)\b[\s\S]{0,24}\b(rival|crew|opponent|matchup)\b/,
+  ]) if (re.test(m)) candidates.push({ id: INTENTS.GENERATE_PLAN, score: 14 });
+
   if (candidates.length === 0) {
     return { id: INTENTS.UNKNOWN, score: 0, params: { raw: message } };
   }
