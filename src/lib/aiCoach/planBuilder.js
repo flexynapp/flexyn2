@@ -392,6 +392,29 @@ export function sessionToPlan(workout) {
     label: 'train',
     // Carried through so the card can explain why the session was adjusted.
     coachNotes: workout.coachNotes || [],
+    evidence: workout.evidence || null,
+  };
+}
+
+/**
+ * The per-exercise half of the evidence panel, derived from the session as it
+ * currently stands rather than stored alongside it.
+ *
+ * Derived, not stored, because the session is editable: a stored list would go
+ * on citing "Bench Press — last hit 185 × 5" after the user swapped Bench Press
+ * out, and an evidence panel that describes a workout the user isn't looking at
+ * is worse than no panel at all. That's the exact failure this feature exists
+ * to prevent, so it must not be the one it commits.
+ */
+export function evidenceForExercises(exercises) {
+  const list = exercises || [];
+  const seededFromHistory = list
+    .filter((ex) => ex.seededFrom === 'history' && ex.historyTop)
+    .map((ex) => ({ name: ex.name, weight: ex.historyTop.weight, reps: ex.historyTop.reps }));
+  return {
+    seededFromHistory,
+    estimatedCount:  list.filter((ex) => ex.seededFrom === 'estimate').length,
+    bodyweightCount: list.filter((ex) => ex.seededFrom === 'bodyweight').length,
   };
 }
 
@@ -662,6 +685,12 @@ export async function buildCoachPlan({ user, message, profile = {}, excludeMuscl
     goal: parsed.goal,
     label: parsed.label,
     parsed, // see the 'plan' branch — powers the follow-up chips
+    // What the session was actually built from. Measured by generateWorkout,
+    // not reconstructed here — a count assembled at this layer would be a
+    // guess about someone else's work, which is the failure this is meant to
+    // prevent rather than commit.
+    evidence: workout.evidence || null,
+    coachNotes: workout.coachNotes || [],
   };
   return { reply: compete ? competeReply({ workout }) : sessionReply({ workout }), plan };
 }

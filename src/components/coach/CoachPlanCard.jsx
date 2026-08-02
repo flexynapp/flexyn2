@@ -29,10 +29,10 @@ import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import {
   Play, Save, Check, Loader2, Flame, ChevronRight,
-  Pencil, RefreshCw, X, Minus, Plus, CalendarClock,
+  Pencil, RefreshCw, X, Minus, Plus, CalendarClock, Info, ChevronDown,
 } from 'lucide-react';
 import StarterPlanView from '@/components/workout/StarterPlanView';
-import { withEditedWorkout } from '@/lib/aiCoach/planBuilder';
+import { withEditedWorkout, evidenceForExercises } from '@/lib/aiCoach/planBuilder';
 import {
   scheduleWorkout, daySlots, HOUR_SLOTS, formatHour, slotIsPast,
 } from '@/lib/data/scheduledWorkouts';
@@ -232,6 +232,10 @@ export default function CoachPlanCard({ plan, onSaveRegimen, onStartWorkout, onP
         </button>
       )}
 
+      {activePlan.evidence && (
+        <EvidencePanel evidence={activePlan.evidence} exercises={exercises} />
+      )}
+
       {schedulerOpen && (
         <SchedulePicker
           scheduling={scheduling}
@@ -303,6 +307,98 @@ export default function CoachPlanCard({ plan, onSaveRegimen, onStartWorkout, onP
         {saved ? 'Saved to Regimens' : 'Save as regimen'}
       </button>
     </motion.div>
+  );
+}
+
+// ── "What this is based on" ─────────────────────────────────────────────────
+//
+// The coach's own tagline is "Personalized advice from your data", and until
+// now it never showed which data. Dietvorst et al. (2015) documented algorithm
+// aversion: people abandon an algorithm permanently after seeing it err once,
+// far faster than they'd abandon a human making the same mistake. The
+// mitigation is transparency plus correctability — a suggested weight the user
+// can trace to a stale log reads as bad input they can fix; the same number
+// unexplained reads as a coach that doesn't know what it's doing.
+//
+// Collapsed by default. Someone who trusts the session should never have to
+// read this, and expanding it is the action of someone already suspicious —
+// which is precisely when the answer needs to be available.
+function EvidencePanel({ evidence, exercises }) {
+  const [open, setOpen] = useState(false);
+  const { seededFromHistory, estimatedCount, bodyweightCount } = evidenceForExercises(exercises);
+
+  // One line that is true at a glance, so the collapsed state still says
+  // something rather than just advertising a disclosure.
+  const summary = evidence.logsRead > 0
+    ? `${evidence.logsRead} logged session${evidence.logsRead === 1 ? '' : 's'}`
+      + (seededFromHistory.length ? ` · ${seededFromHistory.length} lift${seededFromHistory.length === 1 ? '' : 's'} from your history` : '')
+    : 'No logged sessions yet — weights are estimates';
+
+  return (
+    <div className="mt-2.5 rounded-xl border border-border bg-secondary/30 overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="w-full flex items-center gap-2 px-3 py-2 text-start"
+      >
+        <Info className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+        <span className="flex-1 min-w-0">
+          <span className="block text-[11px] font-semibold leading-tight">What this is based on</span>
+          <span className="block text-[10px] text-muted-foreground mt-0.5 truncate">{summary}</span>
+        </span>
+        <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {open && (
+        <div className="px-3 pb-2.5 space-y-2 text-[11px] leading-snug">
+          <Fact label="Your training log">
+            {evidence.logsRead > 0
+              ? `${evidence.logsRead} session${evidence.logsRead === 1 ? '' : 's'} in the last ${evidence.historyWindowDays} days`
+                + (evidence.latestLogDate ? `, most recent ${evidence.latestLogDate}` : '')
+              : `Nothing logged in the last ${evidence.historyWindowDays} days`}
+          </Fact>
+
+          {/* The checkable part. Naming the lift and the actual set means the
+              user can verify the claim against their own log instead of
+              taking "personalized" on faith. */}
+          {seededFromHistory.length > 0 && (
+            <Fact label="Weights from your own sets">
+              {seededFromHistory.map((s) => `${s.name} ${s.weight} lb × ${s.reps}`).join(' · ')}
+            </Fact>
+          )}
+
+          {estimatedCount > 0 && (
+            <Fact label="Estimated">
+              {estimatedCount} lift{estimatedCount === 1 ? '' : 's'} you haven't logged — sized from your
+              bodyweight ({evidence.bodyweightLbs} lb), experience ({evidence.skillLevel})
+              {evidence.demographics?.age ? ` and age (${evidence.demographics.age})` : ''}.
+              Adjust on your first set and the next session uses your real number.
+            </Fact>
+          )}
+
+          {bodyweightCount > 0 && (
+            <Fact label="Bodyweight">{bodyweightCount} movement{bodyweightCount === 1 ? '' : 's'} with no external load</Fact>
+          )}
+
+          <Fact label="Settings used">
+            {[evidence.equipment, `${evidence.skillLevel} level`].filter(Boolean).join(' · ')}
+          </Fact>
+
+          {evidence.excludedGroups?.length > 0 && (
+            <Fact label="Excluded for injury">{evidence.excludedGroups.join(', ')}</Fact>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Fact({ label, children }) {
+  return (
+    <p className="text-muted-foreground">
+      <span className="font-semibold text-foreground">{label}:</span> {children}
+    </p>
   );
 }
 

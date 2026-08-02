@@ -124,13 +124,26 @@ const MAX_ALTERNATIVES = 3;
 
 // ── Pull recent workout history for personalized weights ─────────────────────
 
+// Returns the per-lift top set AND a `_meta` record of what was actually read,
+// so the card can show the user which numbers came from their own training
+// rather than asserting an unbacked "personalized from your data". A count the
+// caller derived by guessing would be exactly the kind of claim this is meant
+// to replace. Non-enumerable so it can't be mistaken for a lift named "_meta"
+// by anything iterating the map.
+function _withMeta(map, meta) {
+  Object.defineProperty(map, '_meta', { value: meta, enumerable: false });
+  return map;
+}
+
 async function _historyByExercise(userEmail, days = 60) {
-  if (!userEmail) return {};
+  if (!userEmail) return _withMeta({}, { logsRead: 0, windowDays: days, latestDate: null });
   const since = subDays(new Date(), days);
   let logs = [];
   try {
     logs = await db.entities.WorkoutLog.filter({ created_by: userEmail }, '-date', 100);
-  } catch { return {}; }
+  } catch {
+    return _withMeta({}, { logsRead: 0, windowDays: days, latestDate: null });
+  }
   logs = (logs || []).filter(w => new Date(w.date) >= since);
 
   const map = {};
@@ -151,7 +164,12 @@ async function _historyByExercise(userEmail, days = 60) {
       }
     }
   }
-  return map;
+  // logs are already sorted '-date', so the first survivor is the most recent.
+  return _withMeta(map, {
+    logsRead: logs.length,
+    windowDays: days,
+    latestDate: logs[0]?.date || null,
+  });
 }
 
 // ── Bodyweight default starting weights (lbs) for compound lifts ─────────────
@@ -447,6 +465,13 @@ export async function generateWorkout({
       sets,
       restSec: Math.max(30, Math.min(240, baseRest + mods.restDeltaSec)),
       note,
+      // Where this weight came from, as structured data rather than only as
+      // the human-readable `note`. The evidence panel derives its summary from
+      // these, so a session that is later edited in the chat card — an
+      // exercise swapped or dropped — still describes itself accurately
+      // instead of citing a lift that is no longer in it.
+      seededFrom: histTop ? 'history' : (weight > 0 ? 'estimate' : 'bodyweight'),
+      historyTop: histTop ? { weight: histTop.weight, reps: histTop.reps } : null,
     };
   };
 
@@ -478,11 +503,46 @@ export async function generateWorkout({
     alternatives: alternativesFor(ex),
   }));
 
+  // ── What this session was actually built from ─────────────────────────────
+  //
+  // The coach's tagline claims "personalized advice from your data" and until
+  // now never showed which data. Dietvorst et al. (2015) documented algorithm
+  // aversion: people abandon an algorithm permanently after seeing it err once,
+  // far faster than they'd abandon a human. The mitigation is transparency plus
+  // correctability — a wrong number the user can trace to a stale log reads as
+  // bad input they can fix, where the same number unexplained reads as a coach
+  // that doesn't know what it's doing.
+  //
+  // Every field here is measured, never inferred. `seededFromHistory` lists the
+  // lifts whose weight came from a real logged set, with that set's numbers, so
+  // the claim is checkable against the user's own log rather than asserted.
+  const historyMeta = history._meta || { logsRead: 0, windowDays: 60, latestDate: null };
+
   return {
     title:            `${FOCUS_LABELS[focus] || 'Workout'} · ${durationMinutes} min`,
     focus,
     duration_minutes: durationMinutes,
     exercises,
+    evidence: {
+      logsRead:          historyMeta.logsRead,
+      historyWindowDays: historyMeta.windowDays,
+      latestLogDate:     historyMeta.latestDate,
+      // Everything below is an INPUT the user can go change, which is the
+      // other half of the point: the panel doubles as a list of the settings
+      // that produced this, so a wrong session has an obvious next action.
+      equipment,
+      skillLevel,
+      bodyweightLbs,
+      demographics: demographics
+        ? {
+            gender:        demographics.gender || null,
+            age:           demographics.age ?? null,
+            activityLevel: demographics.activityLevel || null,
+          }
+        : null,
+      excludedGroups: [...(excludeMuscleGroups || [])],
+      modifiersApplied: mods.applied || null,
+    },
     // Why this session looks the way it does. The UI renders these under the
     // workout so an adjustment is never silent — a user who suddenly gets a
     // lighter day can see it was the deficit, the phase, or their own check-in.
