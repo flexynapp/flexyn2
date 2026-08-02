@@ -52,10 +52,35 @@ function tabIndex(pathname) {
 // frame of polish traded for a guarantee that a page can never be mounted
 // twice. Don't reintroduce AnimatePresence here without a mount-count
 // check on a route change.
+// ── Why the enter animation is skipped on a hidden document ─────────────────
+//
+// The page's visibility is gated on this animation running: it mounts at
+// `opacity: 0` and only the animation brings it to 1. Framer drives that on
+// requestAnimationFrame, and rAF does not fire while `document.hidden` — so a
+// page that MOUNTS hidden sits at `opacity: 0` indefinitely. Its markup is
+// still laid out and still hit-tested, because opacity doesn't affect either.
+//
+// That's an invisible-but-interactive page, which is the bad half of both
+// states: a tap lands on a real control the user cannot see. It's reachable
+// whenever a route mounts in a background tab — "open in new tab" on a shared
+// link, a PWA restored into the background, an automated/offscreen browser.
+//
+// Passing `initial={false}` tells framer to start AT the animate values rather
+// than transition to them, so the page is simply visible with no enter
+// animation. Nothing changes for a normally-focused mount, which is every
+// mount a user actually watches: the polish is only skipped in the case where
+// by definition nobody is looking.
+function mountedHidden() {
+  return typeof document !== 'undefined' && document.hidden === true;
+}
+
 export default function AnimatedRoutes({ resetNonce = 0 }) {
   const location = useLocation();
   const previousPathRef = useRef(location.pathname);
   const [reducedMotion, setReducedMotion] = useState(false);
+  // Read once per mount. The motion.div is keyed, so it remounts per route and
+  // each page independently gets the right answer for its own mount.
+  const [hiddenAtMount] = useState(mountedHidden);
 
   useEffect(() => {
     const mq = window.matchMedia?.('(prefers-reduced-motion: reduce)');
@@ -91,7 +116,10 @@ export default function AnimatedRoutes({ resetNonce = 0 }) {
       // open sub-view back to the root. Different-tab navigation still
       // remounts via the pathname portion.
       key={`${location.pathname}#${resetNonce}`}
-      initial={{ opacity: 0, x: direction * slideOffset }}
+      // `false` = start at the animate values. See the note above: a hidden
+      // document never runs rAF, so animating in would leave the page
+      // invisible-but-tappable instead of just un-animated.
+      initial={hiddenAtMount ? false : { opacity: 0, x: direction * slideOffset }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.22, ease: [0.32, 0.72, 0, 1] }}
     >
