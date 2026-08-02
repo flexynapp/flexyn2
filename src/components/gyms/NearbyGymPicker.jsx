@@ -31,8 +31,19 @@ import { fetchOsmGymsNear, distanceKm } from '@/lib/osmGyms';
  * @param {(v:object|null)=>void} onChange
  * @param {boolean} [disabled]     freeze the list while a save is in flight
  * @param {string}  [emptyHint]    copy for "nothing mapped near you"
+ * @param {boolean} [deselectable] whether tapping the current pick clears
+ *                                 it. True for onboarding (the pick is
+ *                                 provisional and skippable); false where
+ *                                 a tap commits immediately, since there
+ *                                 "tap it again" must not mean "unset my
+ *                                 home gym".
+ * @param {string|null} [busyKey]  row key currently being saved — renders
+ *                                 a spinner on that row instead of a ✓
  */
-export default function NearbyGymPicker({ value, onChange, disabled = false, emptyHint }) {
+export default function NearbyGymPicker({
+  value, onChange, disabled = false, emptyHint,
+  deselectable = true, busyKey = null,
+}) {
   const [status, setStatus] = useState('locating'); // locating | ready | denied | failed
   const [rows, setRows] = useState([]);
   const [query, setQuery] = useState('');
@@ -146,10 +157,14 @@ export default function NearbyGymPicker({ value, onChange, disabled = false, emp
 
   const pick = (r) => {
     if (disabled) return;
-    if (isSelected(r)) { onChange(null); return; }
+    if (isSelected(r)) {
+      if (!deselectable) return;
+      onChange(null);
+      return;
+    }
     onChange(r.kind === 'db'
-      ? { gymId: r.gymId, name: r.name }
-      : { osm: r.osm, name: r.name });
+      ? { gymId: r.gymId, name: r.name, key: r.key }
+      : { osm: r.osm, name: r.name, key: r.key });
   };
 
   if (status === 'locating') {
@@ -282,7 +297,15 @@ export default function NearbyGymPicker({ value, onChange, disabled = false, emp
                   {r.memberCount > 0 ? ` · ${r.memberCount} on Flexyn` : ''}
                 </p>
               </div>
-              {sel && <span className="text-primary text-lg leading-none shrink-0">✓</span>}
+              {busyKey === r.key
+                ? (
+                  <span
+                    className="w-4 h-4 shrink-0 rounded-full border-2 border-primary border-t-transparent animate-spin"
+                    role="status"
+                    aria-label="Saving"
+                  />
+                )
+                : sel && <span className="text-primary text-lg leading-none shrink-0">✓</span>}
             </button>
           );
         })}

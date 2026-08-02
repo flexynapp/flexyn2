@@ -271,7 +271,19 @@ export default function GymMap() {
     setSettingHome(false);
     if (res.ok) {
       setHomeGymId(res.gymId);
-      toast.success(`${gym.name} is now your gym.`);
+      // The `action` is load-bearing: src/lib/toast.js suppresses every
+      // non-error toast that doesn't carry one, so a plain toast.success
+      // here renders nothing at all and a successful save looks
+      // identical to a no-op.
+      toast.success(`${gym.name} is now your gym.`, {
+        action: {
+          label: 'Undo',
+          onClick: async () => {
+            await setHomeGym(null);
+            setHomeGymId(null);
+          },
+        },
+      });
     } else {
       toast.error("Couldn't set your gym — try again.");
     }
@@ -285,7 +297,17 @@ export default function GymMap() {
     if (res.ok) {
       setHomeGymId(res.gymId);
       setSelectedOsm(null);
-      toast.success(`${osm.name} is now your gym.`);
+      // See adoptGym — a success toast without an action is silenced.
+      toast.success(`${osm.name} is now your gym.`, {
+        action: {
+          label: 'Undo',
+          onClick: async () => {
+            await setHomeGym(null);
+            setHomeGymId(null);
+            refreshRef.current?.();
+          },
+        },
+      });
       // The gym exists in gym_businesses now, so re-read the viewport to
       // swap its live OSM teardrop for a real community bubble.
       refreshRef.current?.();

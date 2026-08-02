@@ -588,6 +588,33 @@ the ONE that is theirs.
   Ranking a local gym floor by weight moved sorts it by bodyweight and
   training age and tells a beginner they're last, which is exactly the
   person this feature needs to keep. Don't "improve" it to volume.
+- **A success toast here MUST carry an `action`, or it renders nothing.**
+  `src/lib/toast.js` suppresses every non-error variant unless it has one
+  (the app-wide "errors only" policy). Both save paths originally called
+  a bare `toast.success(...)`, so a working save produced no feedback
+  whatsoever and looked identical to a dead button — which is most of
+  why this feature took four rounds to land. They now pass an Undo
+  action, which both satisfies the policy and is the right affordance for
+  a one-tap commit. Same trap applies to any new confirmation anywhere.
+- **Tapping a gym in the My Gym picker SAVES it — no confirm step.** It
+  was select-then-press-a-button, and the selected row's ✓ read as
+  "saved" when it only meant "highlighted", so a pick sat uncommitted
+  while everything looked done. `deselectable={false}` is passed there
+  precisely because, once a tap commits, tapping your current gym again
+  must not mean "unset my home gym". Onboarding keeps the deferred
+  two-step (it must not write before final save) and so keeps
+  `deselectable` at its default.
+- **Overpass is unreliable and its failure must never render as "no gyms
+  found".** Audited 2026-08-01 from a browser Origin: `overpass-api.de`
+  answers browser User-Agents with `406` and sends no CORS header, so it
+  can never succeed from the app (it was listed FIRST, and because
+  `Promise.any`'s AggregateError is call-ordered, every outage got
+  reported as its 406); `kumi.systems` was timing out on every request;
+  `private.coffee` managed 2/3. Mirrors are ordered by that measurement
+  and `pickError()` prefers an error from a mirror that could have
+  worked. The picker tracks the failure separately from an empty result —
+  "there are no gyms near you" is a claim about the world we may only
+  make when the lookup actually succeeded.
 - **Community aggregates are members-only.** `get_gym_community_progress`
   gates on `is_gym_member_or_owner` because it reports how many people
   train at a named physical address and when. Verified against

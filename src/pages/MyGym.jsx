@@ -210,15 +210,25 @@ export default function MyGym() {
 
   useEffect(() => { load(); }, [load]);
 
-  // Unlike onboarding — which holds the pick and writes it at final save
-  // so an abandoned signup leaves nothing behind — there is no later
-  // save step here. Write immediately, then reload into the real page.
-  const confirmPick = useCallback(async () => {
-    if (!pending || saving) return;
+  // Tapping a gym SAVES it. There is no confirm step.
+  //
+  // It used to be select-then-press-a-button, and the selected row got a
+  // ✓ — which reads as "saved" when it only meant "highlighted". That
+  // cost a real round trip: the pick sat uncommitted while everything
+  // looked done. One choice on a single-purpose screen doesn't need a
+  // two-step commit; mis-taps are recoverable via Undo below and the
+  // Change control on the loaded page.
+  //
+  // Unlike onboarding — which holds the pick until final save so an
+  // abandoned signup leaves no stray community gym behind — there is no
+  // later save step here, so this writes immediately.
+  const handlePick = useCallback(async (choice) => {
+    if (!choice || saving) return;
+    setPending(choice);
     setSaving(true);
-    const res = pending.osm
-      ? await setHomeGymFromOsm(pending.osm)
-      : await setHomeGym(pending.gymId);
+    const res = choice.osm
+      ? await setHomeGymFromOsm(choice.osm)
+      : await setHomeGym(choice.gymId);
     setSaving(false);
 
     if (!res.ok) {
@@ -229,15 +239,31 @@ export default function MyGym() {
         GYM_NOT_FOUND: "We couldn't find that gym any more.",
       }[res.error];
       toast.error(msg || "Couldn't set your gym — try again.");
+      setPending(null);
       return;
     }
 
-    toast.success(`${pending.name} is now your gym.`);
+    // The `action` is not decoration — src/lib/toast.js suppresses every
+    // non-error toast UNLESS it carries one. A plain toast.success here
+    // renders NOTHING, which is exactly how a working save came to look
+    // identical to a broken one. Undo is genuinely useful anyway now
+    // that a single tap commits.
+    toast.success(`${choice.name} is now your gym.`, {
+      action: {
+        label: 'Undo',
+        onClick: async () => {
+          await setHomeGym(null);
+          setPending(null);
+          load();
+        },
+      },
+    });
+
     setPending(null);
     // setHomeGym patched the profile cache, so resolveHomeGymId picks
     // the new id up on this reload without waiting for AuthContext.
     load();
-  }, [pending, saving, load]);
+  }, [saving, load]);
 
   // ── No home gym picked ────────────────────────────────────────────
   if (!loading && !homeGymId) {
@@ -269,31 +295,24 @@ export default function MyGym() {
           <p className="text-xs text-muted-foreground mb-4">
             {tFallback(
               'myGym.pickBody',
-              "Pick it below and you'll get a leaderboard with everyone else who trains there — plus a bubble on the Flexyn map. You can change it any time.",
+              "Tap it below and you'll get a leaderboard with everyone else who trains there — plus a bubble on the Flexyn map. You can change it any time.",
             )}
           </p>
 
+          {/* One tap commits — no confirm button. `deselectable={false}`
+              because with save-on-tap, tapping your current gym again
+              must not read as "unset my home gym". */}
           <NearbyGymPicker
             value={pending}
-            onChange={setPending}
+            onChange={handlePick}
             disabled={saving}
+            deselectable={false}
+            busyKey={saving ? pending?.key : null}
             emptyHint={tFallback(
               'myGym.pickEmptyHint',
               'Nothing is mapped within a few kilometres of you. Try the map instead — you can search anywhere in the country.',
             )}
           />
-
-          <Button
-            className="w-full mt-4"
-            disabled={!pending || saving}
-            onClick={confirmPick}
-          >
-            {saving
-              ? <Loader2 className="w-4 h-4 animate-spin" />
-              : pending
-                ? `$Set as my gym · ${pending.name}`
-                : 'Set as my gym'}
-          </Button>
 
           <button
             type="button"
