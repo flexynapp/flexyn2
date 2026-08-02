@@ -19,11 +19,41 @@
 // cap, and the outer AbortSignal cancels everything so a map pan or an
 // unmounting picker doesn't leave fetches running.
 
+// Mirror order matters, and this order is measured rather than guessed
+// (audited 2026-08-01 from a browser Origin with a browser User-Agent):
+//
+//   private.coffee   200 + `Access-Control-Allow-Origin: *`   most reliable
+//   kumi.systems     200 + CORS, but frequently times out
+//   overpass-api.de  406 Not Acceptable, and NO CORS header
+//
+// overpass-api.de rejects browser User-Agents outright — it answers curl
+// fine and 406s Chrome — and sends no CORS header even on the error, so
+// from the app it can never succeed. It stays last purely as a racer for
+// non-browser callers (tests, node probes) where it does work.
+//
+// It used to be FIRST, which had a second, sneakier cost: Promise.any's
+// AggregateError lists errors in call order, so every total failure was
+// reported as "OSM 406" — this mirror's error — no matter what actually
+// went wrong on the other two. See pickError below.
 const OVERPASS_MIRRORS = [
-  'https://overpass-api.de/api/interpreter',
-  'https://overpass.kumi.systems/api/interpreter',
   'https://overpass.private.coffee/api/interpreter',
+  'https://overpass.kumi.systems/api/interpreter',
+  'https://overpass-api.de/api/interpreter',
 ];
+
+/**
+ * Choose the most informative error out of a failed mirror race.
+ *
+ * Prefers a real HTTP/network failure from a mirror that *could* have
+ * worked over overpass-api.de's guaranteed 406, so the message a caller
+ * logs or shows describes the actual outage.
+ */
+function pickError(errors) {
+  const list = Array.isArray(errors) ? errors.filter(Boolean) : [];
+  if (list.length === 0) return new Error('Overpass unavailable');
+  const informative = list.find(e => !/406/.test(e?.message || ''));
+  return informative || list[0];
+}
 
 /** Zoom below which grey OSM pins are not fetched at all. */
 export const OSM_ZOOM_MIN = 5;
@@ -94,8 +124,7 @@ export async function fetchOsmGyms(bbox, { zoom = 13, signal } = {}) {
     }
   } catch (err) {
     if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
-    const inner = err?.errors?.[0] || err;
-    throw inner;
+    throw err?.errors ? pickError(err.errors) : err;
   }
 
   // Dedupe by osmId — a gym tagged BOTH leisure=fitness_centre AND

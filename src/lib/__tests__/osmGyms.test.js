@@ -115,3 +115,32 @@ describe('distanceKm', () => {
     expect(d).toBeLessThan(140);
   });
 });
+
+describe('mirror race error reporting', () => {
+  it('surfaces an informative error rather than the 406 mirror', async () => {
+    // overpass-api.de answers browser User-Agents with 406 and no CORS
+    // header, so from the app it ALWAYS fails. It is last in the mirror
+    // list, but Promise.any's AggregateError still carries its error —
+    // and reporting that one would describe every outage as "406"
+    // regardless of what actually broke.
+    globalThis.fetch = vi.fn(async (url) => {
+      if (String(url).includes('overpass-api.de')) throw new Error('OSM 406');
+      throw new Error('OSM 504 Gateway Timeout');
+    });
+
+    await expect(
+      fetchOsmGyms({ south: 39, west: -76, north: 42, east: -73 }),
+    ).rejects.toThrow('504');
+  });
+
+  it('tries the CORS-capable mirror first', async () => {
+    stageOverpass([]);
+    await fetchOsmGyms({ south: 39, west: -76, north: 42, east: -73 });
+    // private.coffee was the only mirror answering reliably from a
+    // browser origin when this was audited; overpass-api.de must not be
+    // the first request the app makes.
+    const first = String(globalThis.fetch.mock.calls[0][0]);
+    expect(first).toContain('private.coffee');
+    expect(first).not.toContain('overpass-api.de');
+  });
+});

@@ -58,15 +58,15 @@ function CommunityProgress({ progress, tFallback }) {
           {tFallback('myGym.communityProgress', 'Community progress')}
         </p>
         <span className="ms-auto text-[10px] text-muted-foreground">
-          {tFallback('myGym.last7', 'Last 7 days')}
+          Last 7 days
         </span>
       </div>
 
       <div className="flex items-baseline gap-1.5 mb-1">
         <span className="font-heading text-2xl font-bold tabular-nums">{activeMembers}</span>
         <span className="text-sm text-muted-foreground">
-          {tFallback('myGym.ofMembersTrained', 'of')} {memberCount}{' '}
-          {tFallback('myGym.trainedThisWeek', 'members trained this week')}
+          of {memberCount} 
+          members trained this week
         </span>
       </div>
 
@@ -86,14 +86,14 @@ function CommunityProgress({ progress, tFallback }) {
 
       <div className="grid grid-cols-3 gap-2">
         {[
-          { icon: Dumbbell, value: workoutCount, label: tFallback('myGym.sessions', 'sessions') },
-          { icon: CalendarCheck, value: activeDays, label: tFallback('myGym.gymDays', 'gym days') },
+          { icon: Dumbbell, value: workoutCount, label: 'sessions' },
+          { icon: CalendarCheck, value: activeDays, label: 'gym days' },
           {
             icon: Trophy,
             value: totalVolume >= 1000
               ? `${Math.round(totalVolume / 1000)}k`
               : Math.round(totalVolume),
-            label: tFallback('myGym.volumeLbs', 'lbs moved'),
+            label: 'lbs moved',
           },
         ].map(({ icon: Icon, value, label }) => (
           <div key={label} className="rounded-xl bg-secondary/50 px-2 py-2 text-center">
@@ -108,7 +108,7 @@ function CommunityProgress({ progress, tFallback }) {
 }
 
 // ── Leaderboard row ─────────────────────────────────────────────────
-function BoardRow({ entry, isMe, maxDays, delay, tFallback }) {
+function BoardRow({ entry, isMe, maxDays, delay }) {
   const rank = Number(entry.rank);
   const days = Number(entry.value) || 0;
   const pct = maxDays > 0 ? Math.min(100, (days / maxDays) * 100) : 0;
@@ -142,10 +142,10 @@ function BoardRow({ entry, isMe, maxDays, delay, tFallback }) {
 
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold truncate">
-          {entry.username || tFallback('myGym.member', 'Member')}
+          {entry.username || 'Member'}
           {isMe && (
             <span className="ms-1.5 text-[10px] font-bold text-primary">
-              {tFallback('myGym.you', 'YOU')}
+              YOU
             </span>
           )}
         </p>
@@ -162,7 +162,7 @@ function BoardRow({ entry, isMe, maxDays, delay, tFallback }) {
       <div className="text-end shrink-0">
         <p className="font-heading font-bold text-sm tabular-nums leading-none">{days}</p>
         <p className="text-[10px] text-muted-foreground">
-          {days === 1 ? tFallback('myGym.day', 'day') : tFallback('myGym.days', 'days')}
+          {days === 1 ? 'day' : 'days'}
         </p>
       </div>
     </motion.div>
@@ -291,8 +291,8 @@ export default function MyGym() {
             {saving
               ? <Loader2 className="w-4 h-4 animate-spin" />
               : pending
-                ? `${tFallback('myGym.setAs', 'Set as my gym')} · ${pending.name}`
-                : tFallback('myGym.setAs', 'Set as my gym')}
+                ? `$Set as my gym · ${pending.name}`
+                : 'Set as my gym'}
           </Button>
 
           <button
@@ -300,7 +300,7 @@ export default function MyGym() {
             onClick={() => navigate('/gym-map')}
             className="w-full mt-2 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
-            {tFallback('myGym.browseMap', 'Browse the map instead')}
+            Browse the map instead
           </button>
         </div>
       </motion.div>
@@ -363,7 +363,7 @@ export default function MyGym() {
           className="gap-1.5 shrink-0"
         >
           <Pencil className="w-3.5 h-3.5" />
-          {tFallback('myGym.change', 'Change')}
+          Change
         </Button>
       </div>
 
@@ -390,7 +390,7 @@ export default function MyGym() {
             <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
               <Users className="w-3 h-3" />
               <span className="tabular-nums">{gym.member_count ?? 0}</span>
-              {' '}{tFallback('myGym.onFlexyn', 'on Flexyn')}
+               on Flexyn
             </p>
           </div>
           <ArrowRight className="w-4 h-4 text-muted-foreground shrink-0" />
@@ -441,7 +441,6 @@ export default function MyGym() {
                 isMe={entry.user_id === user?.id}
                 maxDays={maxDays}
                 delay={i * 0.03}
-                tFallback={tFallback}
               />
             ))}
           </div>

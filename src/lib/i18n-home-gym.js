@@ -33,20 +33,8 @@ export default {
 
     'myGym.title': 'My Gym',
     'myGym.subtitle': 'Your home gym and the people who train there.',
-    'myGym.change': 'Change',
-    'myGym.onFlexyn': 'on Flexyn',
-    'myGym.member': 'Member',
-    'myGym.you': 'YOU',
-    'myGym.day': 'day',
-    'myGym.days': 'days',
 
     'myGym.communityProgress': 'Community progress',
-    'myGym.last7': 'Last 7 days',
-    'myGym.ofMembersTrained': 'of',
-    'myGym.trainedThisWeek': 'members trained this week',
-    'myGym.sessions': 'sessions',
-    'myGym.gymDays': 'gym days',
-    'myGym.volumeLbs': 'lbs moved',
 
     'myGym.leaderboard': 'Gym leaderboard',
     'myGym.rankedBy': 'Days trained · last 7 days',
@@ -64,8 +52,6 @@ export default {
       "Pick it below and you'll get a leaderboard with everyone else who trains there — plus a bubble on the Flexyn map. You can change it any time.",
     'myGym.pickEmptyHint':
       'Nothing is mapped within a few kilometres of you. Try the map instead — you can search anywhere in the country.',
-    'myGym.setAs': 'Set as my gym',
-    'myGym.browseMap': 'Browse the map instead',
 
     'myGym.goneTitle': 'That gym is no longer listed',
     'myGym.goneBody':

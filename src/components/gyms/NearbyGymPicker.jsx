@@ -36,29 +36,52 @@ export default function NearbyGymPicker({ value, onChange, disabled = false, emp
   const [status, setStatus] = useState('locating'); // locating | ready | denied | failed
   const [rows, setRows] = useState([]);
   const [query, setQuery] = useState('');
+  // Did the OpenStreetMap half fail, as opposed to returning nothing?
+  //
+  // These are NOT the same thing and conflating them is what shipped a
+  // bug: the catch below used to swallow the error, leaving rows empty,
+  // and the empty branch then told the user "No gyms found nearby" —
+  // a confident false statement, with no retry offered. Overpass is
+  // genuinely unreliable (audited 2026-08-01: one mirror 406s browsers
+  // outright and sends no CORS header, another was timing out on every
+  // request), so this path is hit for real, not theoretically.
+  const [osmFailed, setOsmFailed] = useState(false);
+  // Widen on demand. The default box is only ~11 km N-S by ~8 km E-W,
+  // which is a reasonable "my gym" radius in a city and too small in a
+  // suburb.
+  const [radiusDeg, setRadiusDeg] = useState(0.05);
 
-  const load = useCallback(() => {
+  // `radius` is always passed explicitly. It deliberately has no default
+  // reading radiusDeg: this callback has empty deps (it must stay stable
+  // or the mount effect re-fires), so a default would capture the FIRST
+  // radius forever and silently ignore every widen.
+  const load = useCallback((radius) => {
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
       setStatus('denied');
       return undefined;
     }
     setStatus('locating');
+    setOsmFailed(false);
     const ac = new AbortController();
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         const lat = pos.coords.latitude;
         const lng = pos.coords.longitude;
         try {
-          // Both sources in parallel, each catching its own failure.
-          // Overpass is the slow, rate-limited one and must never be
-          // able to hide the Flexyn gyms by failing the pair.
+          // Both sources in parallel, each catching its own failure, so
+          // Overpass being down can never hide the Flexyn gyms — but the
+          // OSM failure is now RECORDED rather than discarded.
           const [flexyn, osm] = await Promise.all([
             getGymsInBbox({
-              minLat: lat - 0.06, maxLat: lat + 0.06,
-              minLng: lng - 0.06, maxLng: lng + 0.06,
+              minLat: lat - (radius + 0.01), maxLat: lat + (radius + 0.01),
+              minLng: lng - (radius + 0.01), maxLng: lng + (radius + 0.01),
               limit: 40,
             }).catch(() => []),
-            fetchOsmGymsNear(lat, lng, { signal: ac.signal }).catch(() => []),
+            fetchOsmGymsNear(lat, lng, { radiusDeg: radius, signal: ac.signal })
+              .catch((e) => {
+                if (e?.name !== 'AbortError') setOsmFailed(true);
+                return [];
+              }),
           ]);
 
           const dbRows = (flexyn || []).map(g => ({
@@ -101,7 +124,15 @@ export default function NearbyGymPicker({ value, onChange, disabled = false, emp
     return () => ac.abort();
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  // Mount-only: `load` closes over radiusDeg, and listing it here would
+  // re-fetch on every widen in addition to the explicit call.
+  useEffect(() => { load(0.05); }, [load]);
+
+  const widen = () => {
+    const next = Math.min(0.25, radiusDeg * 3);
+    setRadiusDeg(next);
+    load(next);
+  };
 
   const q = query.trim().toLowerCase();
   const visible = (q
@@ -152,19 +183,66 @@ export default function NearbyGymPicker({ value, onChange, disabled = false, emp
     );
   }
 
+  // Nothing to show. Two very different reasons, and saying the wrong
+  // one is the bug this branch exists to prevent: "there are no gyms
+  // near you" is a claim about the world, and we only get to make it
+  // when the lookup actually succeeded.
   if (rows.length === 0) {
+    const lookupBroke = osmFailed;
     return (
       <div className="rounded-2xl border border-border bg-card p-4 text-center">
-        <p className="text-sm font-semibold mb-1">No gyms found nearby</p>
-        <p className="text-xs text-muted-foreground">
-          {emptyHint || 'Nothing is mapped within a few kilometres of you. You can pick your gym from the map instead.'}
+        <p className="text-sm font-semibold mb-1">
+          {lookupBroke ? "Couldn't search for gyms" : 'No gyms found nearby'}
         </p>
+        <p className="text-xs text-muted-foreground mb-3">
+          {lookupBroke
+            ? "The gym directory (OpenStreetMap) didn't respond, so we couldn't check what's around you. It's usually brief — try again."
+            : (emptyHint || 'Nothing is mapped within a few kilometres of you.')}
+        </p>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => load(radiusDeg)}
+            className="flex-1 py-2 rounded-xl text-sm font-bold border border-border bg-secondary hover:border-primary/40 transition-all"
+          >
+            Try again
+          </button>
+          {radiusDeg < 0.25 && (
+            <button
+              type="button"
+              onClick={widen}
+              className="flex-1 py-2 rounded-xl text-sm font-bold border border-border bg-secondary hover:border-primary/40 transition-all"
+            >
+              Search wider
+            </button>
+          )}
+        </div>
       </div>
     );
   }
 
   return (
     <>
+      {/* We have SOME rows but the OSM half failed, so the list is
+          missing every unregistered gym — which is most of them. Saying
+          so is what stops a user concluding their gym isn't on Flexyn
+          and giving up. */}
+      {osmFailed && (
+        <div className="mb-3 rounded-xl border border-border bg-secondary/50 px-3 py-2">
+          <p className="text-[11px] text-muted-foreground">
+            Some nearby gyms couldn't be loaded — the OpenStreetMap directory
+            didn't respond.{' '}
+            <button
+              type="button"
+              onClick={() => load(radiusDeg)}
+              className="font-semibold text-primary underline underline-offset-2"
+            >
+              Retry
+            </button>
+          </p>
+        </div>
+      )}
+
       <input
         value={query}
         onChange={(e) => setQuery(e.target.value)}
@@ -213,6 +291,20 @@ export default function NearbyGymPicker({ value, onChange, disabled = false, emp
         <p className="text-xs text-muted-foreground text-center py-6">
           No nearby gym matches “{query}”.
         </p>
+      )}
+
+      {/* Always reachable, not just on the empty state — the most common
+          "my gym isn't here" cause is a radius that's too small, and a
+          user who can see a list has no other way to widen it. */}
+      {radiusDeg < 0.25 && (
+        <button
+          type="button"
+          onClick={widen}
+          disabled={disabled}
+          className="w-full mt-3 py-2 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+        >
+          Don't see your gym? Search a wider area
+        </button>
       )}
     </>
   );
