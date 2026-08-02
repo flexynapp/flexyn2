@@ -493,6 +493,69 @@ Conventions a contributor must not undo:
   under `SET LOCAL role authenticated` + JWT claims; MCP/SQL-editor
   queries run as `postgres` and bypass RLS entirely.
 
+## Home gym / "My Gym" (migration 275, Aug 2026)
+
+Beta testers wanted to declare the gym they actually train at, see it on
+the locator map, and race the people who train there. `gym_members` was
+already the "belongs to N gyms" junction; `user_profiles.home_gym_id` is
+the ONE that is theirs.
+
+- **The map now has three tiers, and shape carries the meaning.** Purple
+  bubble = verified business (`source='owner'`). Grey bubble =
+  `source='community'`, a real gym with real members and a real
+  leaderboard that nobody has claimed. Grey teardrop = a live
+  OpenStreetMap result nobody has picked yet, fetched from Overpass and
+  never persisted. Grey is shared between the last two on purpose (both
+  mean "unclaimed"); the bubble-vs-teardrop distinction is what says
+  "has a community".
+- **Picking an OSM gym PROMOTES it.** Almost no real gym has registered
+  a business account, so `set_home_gym_from_osm` creates a persistent
+  `source='community'` row from the OSM feature. Everyone who later
+  picks that gym must land on the SAME row or one gym floor gets two
+  leaderboards — that's enforced by the partial unique index
+  `gym_businesses_osm_uniq (osm_type, osm_id) WHERE osm_id IS NOT NULL`,
+  not by client discipline.
+- **`ON CONFLICT` against a PARTIAL index must repeat the predicate.**
+  `ON CONFLICT (osm_type, osm_id) DO NOTHING` raises `42P10` — Postgres
+  only matches a partial index when the clause carries its `WHERE`. This
+  shipped broken through a migration-executes-cleanly check and was only
+  caught by calling the RPC as a real authenticated user. **Verifying
+  that a migration runs is not verifying that its functions work.**
+- **Key on `(osm_type, osm_id)`, never `osm_id` alone.** OSM ids are
+  unique only within a type, so `node/123` and `way/123` are different
+  places. The client carries `osmType` through `fetchOsmGyms` for this
+  reason; dropping it merges two unrelated gyms into one row.
+- **Overpass lookup lives in `src/lib/osmGyms.js`, not `GymMap.jsx`.**
+  GymMap statically imports maplibre-gl, so importing anything from it
+  drags the whole map engine into the onboarding chunk — vite.config
+  keeps maplibre out of `vendor-misc` precisely so it stays lazy. The
+  onboarding picker and the map share this module instead.
+- **`owner_id` stays NULL on a community gym.** Same reasoning as demo
+  gyms below: nobody proved they own the place, so nobody gets owner
+  controls. `created_by_user_id` records who promoted it and grants
+  nothing — it exists so the 20-gym anti-spam cap has something to count.
+  A real owner claims the gym later through the verification queue.
+- **Onboarding holds the pick and applies it at final save.** The
+  `home_gym` step writes nothing; `handleRevealNext` calls the RPC with
+  the other side effects. Abandoning onboarding halfway therefore leaves
+  no community gym and no membership behind for a user who never
+  finished signing up.
+- **Never read `user.home_gym_id` from AuthContext alone** — use
+  `resolveHomeGymId()` (context → profile cache → one query). Onboarding
+  attaches the gym AFTER its `checkUserAuth()`, and a pick made on
+  another device never touches this tab's context, so the context value
+  is legitimately stale in both cases. Reading only it renders "you
+  haven't picked a gym yet" at someone who picked one a minute ago.
+- **The board ranks by consistency, not volume** — `active days in the
+  last 7`, reusing `get_gym_consistency_leaderboard` (mig 150/158).
+  Ranking a local gym floor by weight moved sorts it by bodyweight and
+  training age and tells a beginner they're last, which is exactly the
+  person this feature needs to keep. Don't "improve" it to volume.
+- **Community aggregates are members-only.** `get_gym_community_progress`
+  gates on `is_gym_member_or_owner` because it reports how many people
+  train at a named physical address and when. Verified against
+  production that a non-member gets `42501`.
+
 **`gym_businesses.owner_id` is nullable ON PURPOSE — this is not drift.**
 Migration 137 explicitly ran `ALTER COLUMN owner_id DROP NOT NULL` so the
 25 seeded `Demo:` gyms could exist without an `auth.users` row behind

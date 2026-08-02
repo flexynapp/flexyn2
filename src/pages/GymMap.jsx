@@ -15,6 +15,9 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { getGymsInBbox } from '@/lib/data/gymBusinesses';
+import { fetchOsmGyms, OSM_ZOOM_MIN } from '@/lib/osmGyms';
+import { setHomeGym, setHomeGymFromOsm } from '@/lib/data/homeGym';
+import { toast } from '@/lib/toast';
 import GymLeaderboard from '@/components/gyms/GymLeaderboard';
 import { useAuth } from '@/lib/AuthContext';
 
@@ -22,7 +25,6 @@ import { useAuth } from '@/lib/AuthContext';
 const US_CENTER        = [-98.5795, 39.8283];
 const US_ZOOM          = 3.6;
 const MOVE_DEBOUNCE_MS = 400;
-const OSM_ZOOM_MIN     = 5;
 
 const MAPTILER_KEY = import.meta.env?.VITE_MAPTILER_KEY || '';
 const STYLE_URL    = MAPTILER_KEY
@@ -69,6 +71,53 @@ function buildFlexynPin({ gym, compact, onClick, signal }) {
   // tear down together when the marker (or the parent map) unmounts.
   // Without this, removed markers' closures kept onClick + the gym
   // object pinned in memory after the map cleared.
+  const opts = signal ? { signal } : undefined;
+  el.addEventListener('mouseenter', () => { inner.style.transform = 'scale(1.2)'; }, opts);
+  el.addEventListener('mouseleave', () => { inner.style.transform = 'scale(1)'; }, opts);
+  el.addEventListener('click', e => { e.stopPropagation(); onClick(gym); }, opts);
+  return el;
+}
+
+// Community gym bubble (migration 275) — a gym somebody declared as
+// their home gym during onboarding, promoted from an OpenStreetMap
+// entry. Same bubble SHAPE as a Flexyn business pin because it is a real
+// place with real members and a real leaderboard, but grey rather than
+// purple because nobody has proven they own it.
+//
+// The three map tiers read at a glance:
+//   purple bubble  — verified Flexyn business
+//   grey bubble    — community gym, members train here (this one)
+//   grey teardrop  — an OSM gym nobody has picked yet
+//
+// Grey is shared with the OSM teardrop deliberately: both mean
+// "unclaimed". Shape is what separates "has a community" from "just
+// exists on a map".
+function buildCommunityPin({ gym, compact, onClick, signal }) {
+  const el = document.createElement('button');
+  el.type = 'button';
+  el.title = gym.name;
+  const sz = compact ? 18 : 30;
+  Object.assign(el.style, {
+    width: `${sz}px`, height: `${sz}px`,
+    background: 'none', border: 'none', padding: '0',
+    cursor: 'pointer', display: 'block',
+  });
+  // Inner wrapper carries the hover transform — MapLibre owns the outer
+  // element's transform (see buildFlexynPin).
+  const inner = document.createElement('div');
+  Object.assign(inner.style, {
+    width: '100%', height: '100%', borderRadius: '50%',
+    background: 'linear-gradient(135deg,#9ca3af,#6b7280)',
+    border: '2.5px solid #fff',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    color: '#fff', fontSize: `${compact ? 9 : 11}px`, fontWeight: '700',
+    boxShadow: '0 3px 10px rgba(0,0,0,0.28)',
+    transition: 'transform 120ms ease-out',
+    transform: 'scale(1)',
+    willChange: 'transform',
+  });
+  inner.textContent = compact ? '' : (gym.member_count > 0 ? String(gym.member_count) : '🏋');
+  el.appendChild(inner);
   const opts = signal ? { signal } : undefined;
   el.addEventListener('mouseenter', () => { inner.style.transform = 'scale(1.2)'; }, opts);
   el.addEventListener('mouseleave', () => { inner.style.transform = 'scale(1)'; }, opts);
@@ -163,113 +212,10 @@ function buildOsmPin({ gym, onClick, signal }) {
 
 // ── OSM fetcher ────────────────────────────────────────────────────────
 //
-// Overpass-api.de is the most popular Overpass mirror and is rate-limited
-// + occasionally returns 504 Gateway Timeout. When it does, the previous
-// code threw and the catch in the caller silently logged — the grey
-// pins simply never appeared. That was the user-reported "I used to see
-// grey gym pins, now I don't" symptom.
-//
-// We now try multiple mirrors in order and return the first success.
-// kumi.systems is community-run and historically the most reliable
-// secondary; overpass.private.coffee is a CF-fronted mirror.
-const OVERPASS_MIRRORS = [
-  'https://overpass-api.de/api/interpreter',
-  'https://overpass.kumi.systems/api/interpreter',
-  'https://overpass.private.coffee/api/interpreter',
-];
-
-async function fetchOsmGyms(bounds, zoom, signal) {
-  const s   = bounds.getSouth().toFixed(4);
-  const w   = bounds.getWest().toFixed(4);
-  const n   = bounds.getNorth().toFixed(4);
-  const e   = bounds.getEast().toFixed(4);
-  const cap = zoom >= 11 ? 2500 : zoom >= 7 ? 1000 : 500;
-  const includeOutdoor = zoom >= 13;
-  const q   =
-    `[out:json][timeout:25];(` +
-    `node["leisure"="fitness_centre"](${s},${w},${n},${e});` +
-    `way["leisure"="fitness_centre"](${s},${w},${n},${e});` +
-    `node["amenity"="gym"](${s},${w},${n},${e});` +
-    `way["amenity"="gym"](${s},${w},${n},${e});` +
-    `node["sport"="fitness"]["leisure"!="fitness_station"](${s},${w},${n},${e});` +
-    `way["sport"="fitness"]["leisure"!="fitness_station"](${s},${w},${n},${e});` +
-    `node["leisure"="sports_centre"]["sport"~"fitness"](${s},${w},${n},${e});` +
-    `way["leisure"="sports_centre"]["sport"~"fitness"](${s},${w},${n},${e});` +
-    (includeOutdoor
-      ? `node["leisure"="fitness_station"](${s},${w},${n},${e});`
-      : '') +
-    `);out center ${cap};`;
-
-  // Fire all mirrors in PARALLEL — first success wins via Promise.any.
-  // Previous sequential approach took 36s worst-case before reporting
-  // failure (12s × 3 mirrors). Parallel + Promise.any returns as soon
-  // as the FASTEST mirror responds with valid JSON — typically 1-3s.
-  // Each individual fetch gets a hard 20s cap and propagates the
-  // outer abort signal, so map pan/zoom still cancels immediately.
-  // We also collect every controller so we can abort the LOSING
-  // mirrors once Promise.any resolves — without this, two extra full
-  // Overpass responses keep downloading in the background after the
-  // first success, wasting the user's bandwidth on every fetch.
-  // Wave 56 (GymMap audit) caught this.
-  const ctrls = [];
-  const tryMirror = async (mirror) => {
-    // Combined per-mirror AbortController: aborts on 20s timeout AND
-    // when the outer signal aborts.
-    const ctrl = new AbortController();
-    ctrls.push(ctrl);
-    const timer = setTimeout(() => ctrl.abort('timeout'), 20_000);
-    const forwardAbort = () => ctrl.abort('outer-aborted');
-    if (signal?.aborted) { clearTimeout(timer); throw new DOMException('Aborted', 'AbortError'); }
-    signal?.addEventListener?.('abort', forwardAbort);
-    try {
-      const res = await fetch(
-        `${mirror}?data=${encodeURIComponent(q)}`,
-        { signal: ctrl.signal },
-      );
-      if (!res.ok) throw new Error(`OSM ${res.status}`);
-      return await res.json();
-    } finally {
-      clearTimeout(timer);
-      signal?.removeEventListener?.('abort', forwardAbort);
-    }
-  };
-
-  let json;
-  try {
-    json = await Promise.any(OVERPASS_MIRRORS.map(tryMirror));
-    // First mirror won — abort the losers so they stop downloading.
-    // Each ctrl.abort() is a no-op if the controller already settled.
-    for (const c of ctrls) {
-      try { c.abort('won'); } catch { /* ignore */ }
-    }
-  } catch (err) {
-    // Promise.any throws AggregateError when ALL mirrors fail. If the
-    // OUTER signal aborted, surface AbortError to the caller so the
-    // catch path can distinguish "user moved" from "all servers down."
-    if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
-    // Otherwise propagate the first underlying error for the toast.
-    const inner = err?.errors?.[0] || err;
-    throw inner;
-  }
-
-  // Dedupe by `osmId` — a single gym tagged with BOTH
-  // leisure=fitness_centre AND amenity=gym (common pattern) would
-  // otherwise render as two overlapping pins.
-  const seenIds = new Set();
-  return (json.elements || []).map(el => ({
-    osmId:   el.id,
-    name:    el.tags?.name || 'Gym',
-    lat:     el.type === 'node' ? el.lat : el.center?.lat,
-    lon:     el.type === 'node' ? el.lon : el.center?.lon,
-    brand:   el.tags?.brand   || null,
-    website: el.tags?.website || null,
-  })).filter(g => {
-    if (!g.lat || !g.lon) return false;
-    if (seenIds.has(g.osmId)) return false;
-    seenIds.add(g.osmId);
-    return true;
-  });
-}
+// Moved to src/lib/osmGyms.js so the onboarding gym picker can share it
+// without importing this page (and with it, all of maplibre-gl). The
+// mirror-racing / abort behaviour is unchanged — see that file for why
+// it races rather than falls back sequentially.
 
 // ── Component ──────────────────────────────────────────────────────────
 export default function GymMap() {
@@ -302,6 +248,55 @@ export default function GymMap() {
   // moveend auto-debounce + acts as a manual retry when the previous
   // auto-fetch silently failed (rate-limit, transient timeout).
   const [hasMovedSinceFetch, setHasMovedSinceFetch] = useState(false);
+
+  // Home gym (mig 275). Tracked locally as well as on the profile so the
+  // card flips to "My gym ✓" the moment the RPC returns — AuthContext
+  // snapshots the profile and won't reflect the write until it reloads.
+  const [homeGymId, setHomeGymId] = useState(user?.home_gym_id || null);
+  const [settingHome, setSettingHome] = useState(false);
+
+  useEffect(() => {
+    if (user?.home_gym_id) setHomeGymId(user.home_gym_id);
+  }, [user?.home_gym_id]);
+
+  const isHome = useCallback(
+    (gymId) => !!gymId && homeGymId === gymId,
+    [homeGymId],
+  );
+
+  const adoptGym = useCallback(async (gym) => {
+    if (!gym?.id || settingHome) return;
+    setSettingHome(true);
+    const res = await setHomeGym(gym.id);
+    setSettingHome(false);
+    if (res.ok) {
+      setHomeGymId(res.gymId);
+      toast.success(`${gym.name} is now your gym.`);
+    } else {
+      toast.error("Couldn't set your gym — try again.");
+    }
+  }, [settingHome]);
+
+  const adoptOsmGym = useCallback(async (osm) => {
+    if (!osm?.osmId || settingHome) return;
+    setSettingHome(true);
+    const res = await setHomeGymFromOsm(osm);
+    setSettingHome(false);
+    if (res.ok) {
+      setHomeGymId(res.gymId);
+      setSelectedOsm(null);
+      toast.success(`${osm.name} is now your gym.`);
+      // The gym exists in gym_businesses now, so re-read the viewport to
+      // swap its live OSM teardrop for a real community bubble.
+      refreshRef.current?.();
+    } else {
+      const msg = {
+        NAME_REJECTED: "That gym's name can't be added automatically.",
+        CREATE_LIMIT: "You've added a lot of gyms already — pick an existing one.",
+      }[res.error];
+      toast.error(msg || "Couldn't set your gym — try again.");
+    }
+  }, [settingHome]);
 
   // Keep refreshRef pointing at the latest closure every render.
   // No dep array — cheap ref assignment, runs after every render.
@@ -337,7 +332,16 @@ export default function GymMap() {
       setOsmLoading(true);
       setOsmError(null);
       try {
-        const dots = await fetchOsmGyms(b, zoom, ctrl.signal);
+        // fetchOsmGyms now takes plain numbers rather than a MapLibre
+        // LngLatBounds, so callers without a map (the onboarding gym
+        // picker) can use it too.
+        const dots = await fetchOsmGyms(
+          {
+            south: b.getSouth(), west: b.getWest(),
+            north: b.getNorth(), east: b.getEast(),
+          },
+          { zoom, signal: ctrl.signal },
+        );
         if (!ctrl.signal.aborted) {
           setOsmGyms(dots);
           setOsmError(null);
@@ -485,7 +489,9 @@ export default function GymMap() {
       const special = SPECIAL_PIN_CODES.has(g.flexyn_code);
       const el      = special
         ? buildOrangePin({ gym: g, onClick: setSelected, signal: ac.signal })
-        : buildFlexynPin({ gym: g, compact, onClick: setSelected, signal: ac.signal });
+        : g.source === 'community'
+          ? buildCommunityPin({ gym: g, compact, onClick: setSelected, signal: ac.signal })
+          : buildFlexynPin({ gym: g, compact, onClick: setSelected, signal: ac.signal });
       const marker  = new maplibregl.Marker({ element: el, anchor: special ? 'bottom' : 'center' })
         .setLngLat([g.longitude, g.latitude])
         .addTo(map);
@@ -502,8 +508,24 @@ export default function GymMap() {
     osmMarkersRef.current.forEach(m => { try { m.remove(); } catch { /* ignore */ } });
     osmMarkersRef.current = [];
 
+    // Suppress the live Overpass teardrop for any gym already promoted
+    // to a community gym (mig 275). Both layers describe the same
+    // physical place — the database row came FROM this OSM feature — so
+    // without this the promoted gym renders twice: a grey community
+    // bubble from `gyms` and a grey OSM teardrop from `osmGyms`, metres
+    // apart, only one of which is tappable into a leaderboard.
+    //
+    // Keyed on type/id together because OSM ids are only unique within a
+    // type; node/123 and way/123 are different places.
+    const claimed = new Set(
+      gyms
+        .filter(g => g.osm_id != null)
+        .map(g => `${g.osm_type || 'node'}/${g.osm_id}`),
+    );
+
     const ac = new AbortController();
     for (const g of osmGyms) {
+      if (claimed.has(`${g.osmType || 'node'}/${g.osmId}`)) continue;
       const el     = buildOsmPin({ gym: g, onClick: setSelectedOsm, signal: ac.signal });
       const marker = new maplibregl.Marker({ element: el, anchor: 'bottom' })
         .setLngLat([g.lon, g.lat])
@@ -511,7 +533,7 @@ export default function GymMap() {
       osmMarkersRef.current.push(marker);
     }
     return () => { ac.abort(); };
-  }, [osmGyms]);
+  }, [osmGyms, gyms]);
 
   // ── Search fly-to ──────────────────────────────────────────────────────
   const flyToMatch = useCallback(() => {
@@ -732,8 +754,12 @@ export default function GymMap() {
                 <X className="w-3.5 h-3.5" />
               </button>
               <div className="flex items-start gap-3 mb-3 pe-6">
-                <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                  <Building2 className="w-5 h-5 text-primary" />
+                <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${
+                  selected.source === 'community' ? 'bg-muted' : 'bg-primary/10'
+                }`}>
+                  <Building2 className={`w-5 h-5 ${
+                    selected.source === 'community' ? 'text-muted-foreground' : 'text-primary'
+                  }`} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-heading font-bold text-base truncate">{selected.name}</p>
@@ -743,11 +769,32 @@ export default function GymMap() {
                   <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
                     <Users className="w-3 h-3" />{selected.member_count ?? 0} members
                   </p>
+                  {/* A grey bubble is a real gym with a real leaderboard
+                      but no verified owner. Saying so here is what stops
+                      it reading as a half-broken business listing. */}
+                  {selected.source === 'community' && (
+                    <span className="inline-flex items-center gap-1 mt-1.5 rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                      Community gym · added by members
+                    </span>
+                  )}
                 </div>
               </div>
-              <Button className="w-full" onClick={() => navigate(`/gym/${selected.id}`)}>
-                View Hub
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  variant={isHome(selected.id) ? 'secondary' : 'default'}
+                  className="flex-1"
+                  disabled={settingHome || isHome(selected.id)}
+                  onClick={() => adoptGym(selected)}
+                >
+                  {settingHome
+                    ? <Loader2 className="w-4 h-4 animate-spin" />
+                    : isHome(selected.id) ? 'My gym ✓' : 'Set as my gym'}
+                </Button>
+                <Button variant="outline" className="flex-1"
+                  onClick={() => navigate(`/gym/${selected.id}`)}>
+                  View Hub
+                </Button>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
@@ -782,9 +829,23 @@ export default function GymMap() {
                   )}
                 </div>
               </div>
+              {/* Picking an unlisted gym is the common case — almost no
+                  real gym has registered a business account — so "set as
+                  my gym" is the primary action here and registering the
+                  business is the secondary one. Choosing it promotes this
+                  OSM entry into a community gym (mig 275). */}
+              <Button
+                className="w-full mb-2"
+                disabled={settingHome}
+                onClick={() => adoptOsmGym(selectedOsm)}
+              >
+                {settingHome
+                  ? <Loader2 className="w-4 h-4 animate-spin" />
+                  : 'Set as my gym'}
+              </Button>
               <Button variant="outline" className="w-full"
                 onClick={() => { setSelectedOsm(null); navigate('/register-gym'); }}>
-                Add this gym to Flexyn 🚀
+                I own this gym — register it 🚀
               </Button>
             </motion.div>
           )}

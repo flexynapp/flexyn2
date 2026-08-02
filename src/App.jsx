@@ -127,6 +127,7 @@ const AdminReports = lazy(() => import('./pages/AdminReports'));
 const TradeHistory = lazy(() => import('./pages/TradeHistory'));
 const RegisterGym  = lazy(() => import('./pages/RegisterGym'));
 const MyGyms       = lazy(() => import('./pages/MyGyms'));
+const MyGym        = lazy(() => import('./pages/MyGym'));
 const GymHub       = lazy(() => import('./pages/GymHub'));
 const GymMap       = lazy(() => import('./pages/GymMap'));
 const AdminGyms    = lazy(() => import('./pages/AdminGyms'));
@@ -379,6 +380,7 @@ const AuthenticatedApp = () => {
           <Route path="/corporate" element={<ErrorBoundary label="CorporatePortal"><Suspense fallback={<PageLoader />}><CorporatePortal /></Suspense></ErrorBoundary>} />
           <Route path="/register-gym" element={<ErrorBoundary label="RegisterGym"><Suspense fallback={<PageLoader />}><RegisterGym /></Suspense></ErrorBoundary>} />
           <Route path="/my-gyms"      element={<ErrorBoundary label="MyGyms"><Suspense fallback={<PageLoader />}><MyGyms /></Suspense></ErrorBoundary>} />
+          <Route path="/my-gym"       element={<ErrorBoundary label="MyGym"><Suspense fallback={<PageLoader />}><MyGym /></Suspense></ErrorBoundary>} />
           <Route path="/gym/:id"      element={<ErrorBoundary label="GymHub"><Suspense fallback={<PageLoader />}><GymHub /></Suspense></ErrorBoundary>} />
           <Route path="/gym-map"      element={<ErrorBoundary label="GymMap"><Suspense fallback={<PageLoader />}><GymMap /></Suspense></ErrorBoundary>} />
           <Route path="/admin/gyms"   element={<ErrorBoundary label="AdminGyms"><Suspense fallback={<PageLoader />}><AdminGyms /></Suspense></ErrorBoundary>} />

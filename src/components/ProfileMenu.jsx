@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { db } from '@/api/db';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/lib/AuthContext';
-import { LogOut, User, Trash2, Settings, ChevronRight, ArrowLeft, X, ShoppingBag, UserCircle, Book, Trophy, ShieldAlert, Building2 } from 'lucide-react';
+import { LogOut, User, Trash2, Settings, ChevronRight, ArrowLeft, X, ShoppingBag, UserCircle, Book, Trophy, ShieldAlert, Building2, Dumbbell } from 'lucide-react';
 import { clearFirstLaunch } from '@/lib/firstLaunch';
 import { requestOpenBag } from '@/lib/inventoryFlow';
 import * as capsules from '@/lib/data/capsules';
@@ -466,6 +466,25 @@ export default function ProfileMenu({ compact = false } = {}) {
                         )}
                         <ChevronRight className="w-4 h-4 text-muted-foreground" />
                       </div>
+                    </button>
+                    {/* My Gym (singular) — the ONE gym the user trains
+                        at, picked in onboarding. Sits above My Gyms
+                        because it's the daily-use surface: their floor's
+                        leaderboard and community progress. My Gyms
+                        (plural) below is the management list of every
+                        gym they've ever joined. */}
+                    <button
+                      onClick={() => {
+                        setOpen(false);
+                        navigate('/my-gym');
+                      }}
+                      className="w-full flex items-center justify-between px-4 py-3 text-sm hover:bg-secondary transition-colors border-t border-border"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Dumbbell className="w-4 h-4 text-orange-500" />
+                        {tFallback('profile.myGym', 'My Gym')}
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-muted-foreground" />
                     </button>
                     {/* My Gyms — entry point into the gym business
                         ecosystem. Lands the user on their joined-gyms
