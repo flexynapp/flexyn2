@@ -104,6 +104,13 @@ AS $$
    WHERE id = p_user_id;
 $$;
 
+-- Takes an arbitrary user id and reports that user's local wall clock, so it
+-- must not be on the API surface. Only the cron function calls it, and that
+-- runs as the owner. See the EXECUTE note in section 7.
+REVOKE ALL ON FUNCTION public.user_local_now(UUID) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.user_local_now(UUID) FROM anon;
+REVOKE ALL ON FUNCTION public.user_local_now(UUID) FROM authenticated;
+
 -- ── 4. Create a schedule ────────────────────────────────────────────────────
 
 CREATE OR REPLACE FUNCTION public.schedule_workout(
@@ -169,6 +176,8 @@ BEGIN
 END;
 $$;
 
+REVOKE ALL ON FUNCTION public.schedule_workout(DATE, SMALLINT, TEXT, JSONB) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.schedule_workout(DATE, SMALLINT, TEXT, JSONB) FROM anon;
 GRANT EXECUTE ON FUNCTION public.schedule_workout(DATE, SMALLINT, TEXT, JSONB) TO authenticated;
 
 -- ── 5. The reminder cron ────────────────────────────────────────────────────
@@ -244,7 +253,22 @@ $$;
 -- Quiet hours (migration 098) still apply, and a user-chosen training hour is
 -- very unlikely to land inside them.
 
--- ── 6. Schedule it ──────────────────────────────────────────────────────────
+-- ── 7. Keep the actuator off the API surface ────────────────────────────────
+--
+-- Postgres grants EXECUTE on a new function to PUBLIC by default, and every
+-- public-schema function is reachable over PostgREST at /rest/v1/rpc/<name>.
+-- Without this, ANY caller — including anon — could POST to
+-- /rest/v1/rpc/fire_scheduled_workout_reminders and force every user's due
+-- reminders to fire early, or repeatedly sweep pending rows into 'missed'. It
+-- is SECURITY DEFINER, so it would run with owner rights while doing it.
+--
+-- Caught by the Supabase security advisor after this migration first landed;
+-- the cron itself is unaffected because pg_cron runs the job as its owner.
+REVOKE ALL ON FUNCTION public.fire_scheduled_workout_reminders() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.fire_scheduled_workout_reminders() FROM anon;
+REVOKE ALL ON FUNCTION public.fire_scheduled_workout_reminders() FROM authenticated;
+
+-- ── 8. Schedule it ──────────────────────────────────────────────────────────
 
 DO $$
 BEGIN

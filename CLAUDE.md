@@ -524,6 +524,18 @@ follow-through, so a session can now be pinned to a day and an hour and
   `schedule_workout()`, which derives `user_id` and `user_email` from
   `auth.uid()`. An INSERT policy would let someone attach a schedule to
   another user, and `user_email` is what the push fan-out delivers to.
+- **A new function is EXECUTE-able by PUBLIC until you revoke it, and
+  every public-schema function is a PostgREST endpoint.** `REVOKE` on
+  `fire_scheduled_workout_reminders` is load-bearing: without it any
+  caller, including `anon`, could POST to
+  `/rest/v1/rpc/fire_scheduled_workout_reminders` and fire every user's
+  due reminders early or sweep pending rows into `missed`, running
+  SECURITY DEFINER while doing it. The cron is unaffected — pg_cron runs
+  the job as its owner. Caught by the security advisor, not by testing
+  the feature, which worked perfectly throughout. **Run `get_advisors`
+  after adding any SECURITY DEFINER function**; 17 functions in this
+  project currently carry the same lint and most are benign helpers, so
+  the signal to look for is a function with side effects.
 - **`workout_reminder` is deliberately absent from
   `notification_type_category`.** Unmapped types always deliver (mig 083),
   which is right here: the user asked for THIS reminder at THIS hour, so
