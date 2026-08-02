@@ -97,10 +97,14 @@ const COMPETE_SHAPES = [
  * Largest (exercises × sets) session that still fits under this user's
  * plausibility ceiling. Pure — takes the ceiling as a number.
  */
-export function competeSessionShape(maxSets) {
+export function competeSessionShape(maxSets, preferredDuration = null) {
   const ceiling = Number.isFinite(maxSets) && maxSets > 0 ? maxSets : 25;
+  // When the user names a length, that wins over point-maximizing: "45 minutes"
+  // is a constraint on their evening, not a suggestion. We still pack that slot
+  // as densely as the ceiling allows.
+  const shapes = COMPETE_SHAPES.filter(s => s.durationMinutes === preferredDuration);
   let best = null;
-  for (const shape of COMPETE_SHAPES) {
+  for (const shape of (shapes.length ? shapes : COMPETE_SHAPES)) {
     // generateWorkout clamps set count to 2..5, so that's the search space.
     for (let setCount = 5; setCount >= 2; setCount--) {
       const totalSets = shape.exCount * setCount;
@@ -144,18 +148,23 @@ function detectEquipment(m) {
   return 'gym';
 }
 
+// Returns null when the message says nothing about length, so callers can tell
+// "the user asked for 45" apart from "45 is our default". Competition mode
+// needs that distinction: it sizes the session itself unless told otherwise.
 function detectDuration(m) {
+  if (/90\s*min|1\.5\s*(hr|hour)|hour and a half/.test(m)) return 90;
   const hr = /(\ban?\b\s*hour|1\s*(hr|hour)|60\s*min)/.test(m);
   if (hr) return 60;
-  if (/90\s*min|1\.5\s*(hr|hour)|hour and a half/.test(m)) return 90;
   const min = m.match(/(\d{2,3})\s*(min|minute)/);
   if (min) {
     const n = Number(min[1]);
     return [30, 45, 60, 90].reduce((a, b) => (Math.abs(b - n) < Math.abs(a - n) ? b : a), 45);
   }
   if (/quick|short|express/.test(m)) return 30;
-  return 45;
+  return null;
 }
+
+const DEFAULT_DURATION_MIN = 45;
 
 /**
  * Parse a training goal from free text.
@@ -211,6 +220,7 @@ export function parseWorkoutGoal(message) {
   const sessionCue = /\btoday\b|right now|\bnow\b|this (morning|afternoon|evening)|(a|one|me a|quick|single)\s+(workout|session)|workout (today|now|for today)|just (a|one)/.test(m);
   const isCardio = goal === 'speed' || goal === 'endurance';
   const isGoalOriented = goal !== 'general';
+  const statedDuration = detectDuration(m);
 
   let wantsPlan;
   if (goal === 'compete') wantsPlan = false;  // points are scored per logged session, so ship one
@@ -239,7 +249,8 @@ export function parseWorkoutGoal(message) {
     event: event || (isCardio ? 'general' : null),
     wantsPlan,
     equipment: detectEquipment(m),
-    durationMinutes: detectDuration(m),
+    durationMinutes: statedDuration ?? DEFAULT_DURATION_MIN,
+    durationStated: statedDuration != null,
     focus: lift ? (LIFT_TO_FOCUS[lift] || 'full_body') : sessionFocusForGoal(goal),
     label,
     current5kSec,
@@ -469,16 +480,14 @@ function competeReply({ workout }) {
     '',
     `${(workout.exercises || []).length} exercises · ${sets} working sets · ~${formatNum(volume)} lb of total tonnage. Both scoreboards pay by weight lifted, so this leads with the big compounds and runs slightly higher reps — tonnage is weight × reps, and an extra rep is worth more than an extra pound.`,
     '',
-    // MessageBubble renders the reply as plain pre-wrapped text — no markdown
-    // pass — so these headings are bare labels rather than **bold**.
-    `WHAT IT'S WORTH`,
+    `**What it's worth**`,
     `• Crew war: ~${formatNum(volPoints + perSession + perDayActive)} pts — ${formatNum(volPoints)} from tonnage (1 pt per ${volumePerPoint} lb), +${perSession} for the session, +${perDayActive} for training today.`,
     `• Gym rival: ~${formatNum(volPoints)} pts. Rival week is tonnage only — sessions and days don't count there.`,
     '',
-    `THE BIGGER LEVER`,
+    `**The bigger lever**`,
     `In a crew war, each distinct day you train is worth ${perDayActive} pts — you'd need ${formatNum(perDayActive * volumePerPoint)} lb of extra lifting to match one more day on the calendar. Repeat this session across all ${caps.daysActive} days of the war before you chase heavier numbers. Per-member scoring caps at ${formatNum(caps.volumeLbs)} lb, ${caps.sessions} sessions and ${caps.daysActive} days.`,
     '',
-    `Sized to stay under your realistic set ceiling, so the log will save clean — the anti-cheat gate rejects sessions past it. Chasing a cardio rival instead? That one scores kilometres, not tonnage — ask me for a distance session.`,
+    `Sized to stay under your realistic set ceiling, so the log will save clean — the anti-cheat gate rejects sessions past it. Chasing a **cardio** rival instead? That one scores kilometres, not tonnage — ask me for a distance session.`,
   ];
 
   if (unloaded.length) {
@@ -542,6 +551,11 @@ export async function buildCoachPlan({ user, message, profile = {}, excludeMuscl
       workout: null,
       goal: parsed.goal,
       label: parsed.label,
+      // The descriptor that produced this, so the chat can offer follow-ups
+      // ("just today's workout") that re-send the same request with one field
+      // changed. Each message is parsed on its own, so the context has to
+      // travel with the plan or the follow-up loses it.
+      parsed,
       fuel: fuel.runDays > 0 ? fuel : null,
     };
     // Running targets power the goal-splits line in the reply. If the runner
@@ -561,7 +575,12 @@ export async function buildCoachPlan({ user, message, profile = {}, excludeMuscl
   const compete = parsed.goal === 'compete';
   // Point-max sessions are sized against the user's own plausibility ceiling
   // so the workout they're handed is one the save gate will actually accept.
-  const shape = compete ? competeSessionShape(getMaxRealisticSetsPerWorkout(profile)) : null;
+  const shape = compete
+    ? competeSessionShape(
+        getMaxRealisticSetsPerWorkout(profile),
+        parsed.durationStated ? parsed.durationMinutes : null,
+      )
+    : null;
 
   const baseModifiers = buildTrainingModifiers({
     goal:          parsed.goal,
@@ -612,6 +631,7 @@ export async function buildCoachPlan({ user, message, profile = {}, excludeMuscl
     workout,
     goal: parsed.goal,
     label: parsed.label,
+    parsed, // see the 'plan' branch — powers the follow-up chips
   };
   return { reply: compete ? competeReply({ workout }) : sessionReply({ workout }), plan };
 }

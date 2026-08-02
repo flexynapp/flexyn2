@@ -4,7 +4,7 @@
 // user (avoids a DB migration for v1). New messages call askCoach() which
 // returns a personalized reply based on the user's actual data.
 
-import React, { useEffect, useLayoutEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Send, Sparkles, Loader2, Trash2, Mic, MicOff, ChevronLeft, ChevronRight } from 'lucide-react';
 import ChatViewportFrame from '@/components/ChatViewportFrame';
@@ -16,6 +16,8 @@ import { useQuery } from '@tanstack/react-query';
 import { db } from '@/api/db';
 import { listActiveInjuries, getExcludedMuscleGroups } from '@/lib/data/injuries';
 import { GENERATE_PROMPTS } from '@/lib/aiCoach/planBuilder';
+import { parseBoldSegments } from '@/lib/aiCoach/markdownLite';
+import { followUpsFor } from '@/lib/aiCoach/followUps';
 import CoachPlanCard from '@/components/coach/CoachPlanCard';
 import { toast } from '@/lib/toast';
 import {
@@ -188,13 +190,18 @@ export default function CoachChat({ mode, onSaveRegimen, onStartWorkout }) {
     if (stickToBottomRef.current) scrollToBottom(true);
   }, [messages.length, thinking, scrollToBottom]);
 
-  const handleSend = async (textOverride) => {
+  // `displayAs` lets a follow-up chip send the full re-stated request while the
+  // transcript shows what the user actually tapped. Without it the thread fills
+  // with machine-shaped sentences ("give me a workout for today — max points for
+  // my crew war, 90 minutes, dumbbells only") that nobody typed and that read as
+  // the app talking to itself.
+  const handleSend = async (textOverride, displayAs) => {
     const text = (textOverride ?? draft).trim();
     if (!text || thinking) return;
     setDraft('');
     stickToBottomRef.current = true;
 
-    const userMsg = { role: 'user', text, ts: Date.now() };
+    const userMsg = { role: 'user', text: displayAs || text, ts: Date.now() };
     setMessages(prev => [...prev, userMsg]);
     setThinking(true);
 
@@ -246,6 +253,17 @@ export default function CoachChat({ mode, onSaveRegimen, onStartWorkout }) {
   }, []);
 
   const isEmpty = messages.length === 0;
+
+  const basePrompts = generateMode ? GENERATE_PROMPTS : SUGGESTED_PROMPTS;
+  // Derived from the LAST plan in the thread, not the last message: a user who
+  // asks a follow-up question after a workout should still see the chips for
+  // that workout rather than lose them to an unrelated answer.
+  const followUps = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i]?.plan) return followUpsFor(messages[i].plan);
+    }
+    return [];
+  }, [messages]);
 
   return (
     <ChatViewportFrame className="flex flex-col" minHeight={380}>
@@ -313,10 +331,16 @@ export default function CoachChat({ mode, onSaveRegimen, onStartWorkout }) {
 
       {/* Persistent suggested prompts — once the chat has started the
           welcome card is gone, so keep the prompts reachable as a
-          horizontally-scrollable strip with arrow controls. */}
+          horizontally-scrollable strip with arrow controls.
+
+          Follow-ups for the plan the coach just built lead the strip, because
+          right after a workout lands "45 min" and "Dumbbells only" are what
+          the user actually wants; "Train for a faster 5K" is not. The static
+          prompts stay behind them so nothing that used to be reachable stops
+          being reachable. */}
       {!isEmpty && (
         <PromptStrip
-          prompts={generateMode ? GENERATE_PROMPTS : SUGGESTED_PROMPTS}
+          prompts={[...followUps, ...basePrompts.filter(p => !followUps.some(f => f.id === p.id))]}
           onPick={handleSend}
           disabled={thinking}
         />
@@ -414,7 +438,15 @@ function MessageBubble({ m }) {
             : 'bg-secondary text-foreground rounded-bl-sm'
         }`}
       >
-        {m.text}
+        {/* The coach writes **bold** for the headline of each reply. Rendered
+            as raw text those markers were pure noise on the one line that
+            most needed to stand out. User messages are echoed verbatim — they
+            are the user's own words, not our copy. */}
+        {isUser ? m.text : parseBoldSegments(m.text).map((seg, i) => (
+          seg.bold
+            ? <strong key={i} className="font-semibold">{seg.text}</strong>
+            : <React.Fragment key={i}>{seg.text}</React.Fragment>
+        ))}
       </div>
     </motion.div>
   );
@@ -459,9 +491,17 @@ function PromptStrip({ prompts, onPick, disabled }) {
           <button
             key={p.id}
             type="button"
-            onClick={() => onPick(p.text)}
+            // A follow-up chip's label is a shorthand ("45 min") while `send`
+            // carries the full re-stated request, because each message is
+            // parsed with no memory of the last one. Static prompts have no
+            // `send` and are already complete sentences.
+            onClick={() => onPick(p.send ?? p.text, p.send ? p.text : undefined)}
             disabled={disabled}
-            className="shrink-0 whitespace-nowrap px-3 py-1.5 rounded-full bg-secondary/60 hover:bg-secondary border border-border/50 text-xs font-medium transition-colors disabled:opacity-50"
+            className={`shrink-0 whitespace-nowrap px-3 py-1.5 rounded-full border text-xs font-medium transition-colors disabled:opacity-50 ${
+              p.send
+                ? 'bg-primary/10 hover:bg-primary/20 border-primary/30 text-primary'
+                : 'bg-secondary/60 hover:bg-secondary border-border/50'
+            }`}
           >
             {p.text}
           </button>
