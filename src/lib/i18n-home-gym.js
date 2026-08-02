@@ -59,6 +59,14 @@ export default {
       'Choose the gym you train at to see a leaderboard with everyone else who trains there — and put your gym on the Flexyn map.',
     'myGym.emptyCta': 'Find my gym',
 
+    'myGym.pickTitle': 'Which gym do you train at?',
+    'myGym.pickBody':
+      "Pick it below and you'll get a leaderboard with everyone else who trains there — plus a bubble on the Flexyn map. You can change it any time.",
+    'myGym.pickEmptyHint':
+      'Nothing is mapped within a few kilometres of you. Try the map instead — you can search anywhere in the country.',
+    'myGym.setAs': 'Set as my gym',
+    'myGym.browseMap': 'Browse the map instead',
+
     'myGym.goneTitle': 'That gym is no longer listed',
     'myGym.goneBody':
       'The gym you picked is no longer active on Flexyn. Pick another from the map.',

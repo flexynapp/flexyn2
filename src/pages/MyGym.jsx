@@ -31,7 +31,10 @@ import EmptyState from '@/components/EmptyState';
 import { useLanguage } from '@/lib/LanguageContext';
 import {
   getHomeGym, getCommunityProgress, getGymConsistencyBoard, resolveHomeGymId,
+  setHomeGym, setHomeGymFromOsm,
 } from '@/lib/data/homeGym';
+import NearbyGymPicker from '@/components/gyms/NearbyGymPicker';
+import { toast } from '@/lib/toast';
 
 // ── Community progress ──────────────────────────────────────────────
 //
@@ -176,6 +179,11 @@ export default function MyGym() {
   const [progress, setProgress] = useState(null);
   const [loading, setLoading] = useState(true);
   const [homeGymId, setHomeGymId] = useState(null);
+  // Empty-state picker: `pending` is the highlighted row, committed by
+  // confirmPick. Kept separate from `homeGymId` so tapping a row never
+  // writes until the button is pressed.
+  const [pending, setPending] = useState(null);
+  const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -202,6 +210,35 @@ export default function MyGym() {
 
   useEffect(() => { load(); }, [load]);
 
+  // Unlike onboarding — which holds the pick and writes it at final save
+  // so an abandoned signup leaves nothing behind — there is no later
+  // save step here. Write immediately, then reload into the real page.
+  const confirmPick = useCallback(async () => {
+    if (!pending || saving) return;
+    setSaving(true);
+    const res = pending.osm
+      ? await setHomeGymFromOsm(pending.osm)
+      : await setHomeGym(pending.gymId);
+    setSaving(false);
+
+    if (!res.ok) {
+      const msg = {
+        NAME_REJECTED: "That gym's name can't be added automatically.",
+        CREATE_LIMIT: "You've added a lot of gyms already — pick an existing one.",
+        GYM_INACTIVE: 'That gym is no longer active on Flexyn.',
+        GYM_NOT_FOUND: "We couldn't find that gym any more.",
+      }[res.error];
+      toast.error(msg || "Couldn't set your gym — try again.");
+      return;
+    }
+
+    toast.success(`${pending.name} is now your gym.`);
+    setPending(null);
+    // setHomeGym patched the profile cache, so resolveHomeGymId picks
+    // the new id up on this reload without waiting for AuthContext.
+    load();
+  }, [pending, saving, load]);
+
   // ── No home gym picked ────────────────────────────────────────────
   if (!loading && !homeGymId) {
     return (
@@ -216,18 +253,56 @@ export default function MyGym() {
         <p className="text-sm text-muted-foreground mb-4">
           {tFallback('myGym.subtitle', 'Your home gym and the people who train there.')}
         </p>
-        <EmptyState
-          icon={Building2}
-          title={tFallback('myGym.emptyTitle', "You haven't picked a gym yet")}
-          body={tFallback(
-            'myGym.emptyBody',
-            "Choose the gym you train at to see a leaderboard with everyone else who trains there — and put your gym on the Flexyn map.",
-          )}
-          action={{
-            label: tFallback('myGym.emptyCta', 'Find my gym'),
-            onClick: () => navigate('/gym-map'),
-          }}
-        />
+        {/* Pick in place, rather than only pointing at the map.
+            Everyone who signed up before mig 275 shipped never sees the
+            onboarding gym step, so for them the map was the ONLY way to
+            set a home gym — and nothing on this screen said so. That is
+            the whole reason this prompt exists; don't reduce it back to
+            a link. */}
+        <div className="rounded-2xl border border-border bg-card p-4">
+          <div className="flex items-center gap-2 mb-1">
+            <MapPin className="w-4 h-4 text-primary shrink-0" />
+            <p className="font-heading font-bold text-base">
+              {tFallback('myGym.pickTitle', 'Which gym do you train at?')}
+            </p>
+          </div>
+          <p className="text-xs text-muted-foreground mb-4">
+            {tFallback(
+              'myGym.pickBody',
+              "Pick it below and you'll get a leaderboard with everyone else who trains there — plus a bubble on the Flexyn map. You can change it any time.",
+            )}
+          </p>
+
+          <NearbyGymPicker
+            value={pending}
+            onChange={setPending}
+            disabled={saving}
+            emptyHint={tFallback(
+              'myGym.pickEmptyHint',
+              'Nothing is mapped within a few kilometres of you. Try the map instead — you can search anywhere in the country.',
+            )}
+          />
+
+          <Button
+            className="w-full mt-4"
+            disabled={!pending || saving}
+            onClick={confirmPick}
+          >
+            {saving
+              ? <Loader2 className="w-4 h-4 animate-spin" />
+              : pending
+                ? `${tFallback('myGym.setAs', 'Set as my gym')} · ${pending.name}`
+                : tFallback('myGym.setAs', 'Set as my gym')}
+          </Button>
+
+          <button
+            type="button"
+            onClick={() => navigate('/gym-map')}
+            className="w-full mt-2 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            {tFallback('myGym.browseMap', 'Browse the map instead')}
+          </button>
+        </div>
       </motion.div>
     );
   }
