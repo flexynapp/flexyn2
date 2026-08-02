@@ -16,7 +16,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { getGymsInBbox } from '@/lib/data/gymBusinesses';
 import { fetchOsmGyms, OSM_ZOOM_MIN } from '@/lib/osmGyms';
-import { setHomeGym, setHomeGymFromOsm } from '@/lib/data/homeGym';
+import {
+  setHomeGym, setHomeGymFromOsm, resolveHomeGymId, getHomeGym,
+} from '@/lib/data/homeGym';
 import { toast } from '@/lib/toast';
 import GymLeaderboard from '@/components/gyms/GymLeaderboard';
 import { useAuth } from '@/lib/AuthContext';
@@ -42,7 +44,7 @@ const SPECIAL_PIN_CODES = new Set(['WKF2QPWT']);
 // the top-left corner of the map container (the reported bug).
 // All hover scaling is now applied to an INNER wrapper so the outer
 // transform stays MapLibre's exclusive property.
-function buildFlexynPin({ gym, compact, onClick, signal }) {
+function buildFlexynPin({ gym, compact, onClick, signal, isHome = false }) {
   const el = document.createElement('button');
   el.type  = 'button';
   el.title = gym.name;
@@ -67,6 +69,23 @@ function buildFlexynPin({ gym, compact, onClick, signal }) {
   });
   inner.textContent = compact ? '🏋' : (gym.member_count > 0 ? String(gym.member_count) : '🏋');
   el.appendChild(inner);
+  // The user's OWN gym gets a star. Colour alone can't carry this —
+  // grey already means two things here — and "which pin is mine?" was
+  // repeatedly answered wrong by eye.
+  if (isHome) {
+    const badge = document.createElement('div');
+    Object.assign(badge.style, {
+      position: 'absolute', top: '-6px', insetInlineEnd: '-6px',
+      width: '16px', height: '16px', borderRadius: '50%',
+      background: '#f59e0b', border: '2px solid #fff',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      fontSize: '9px', lineHeight: '1', color: '#fff',
+      boxShadow: '0 1px 3px rgba(0,0,0,0.35)', pointerEvents: 'none',
+    });
+    badge.textContent = '★';
+    el.style.position = 'relative';
+    el.appendChild(badge);
+  }
   // signal: an AbortSignal from the caller's effect so all listeners
   // tear down together when the marker (or the parent map) unmounts.
   // Without this, removed markers' closures kept onClick + the gym
@@ -92,7 +111,7 @@ function buildFlexynPin({ gym, compact, onClick, signal }) {
 // Grey is shared with the OSM teardrop deliberately: both mean
 // "unclaimed". Shape is what separates "has a community" from "just
 // exists on a map".
-function buildCommunityPin({ gym, compact, onClick, signal }) {
+function buildCommunityPin({ gym, compact, onClick, signal, isHome = false }) {
   const el = document.createElement('button');
   el.type = 'button';
   el.title = gym.name;
@@ -118,6 +137,23 @@ function buildCommunityPin({ gym, compact, onClick, signal }) {
   });
   inner.textContent = compact ? '' : (gym.member_count > 0 ? String(gym.member_count) : '🏋');
   el.appendChild(inner);
+  // The user's OWN gym gets a star. Colour alone can't carry this —
+  // grey already means two things here — and "which pin is mine?" was
+  // repeatedly answered wrong by eye.
+  if (isHome) {
+    const badge = document.createElement('div');
+    Object.assign(badge.style, {
+      position: 'absolute', top: '-6px', insetInlineEnd: '-6px',
+      width: '16px', height: '16px', borderRadius: '50%',
+      background: '#f59e0b', border: '2px solid #fff',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      fontSize: '9px', lineHeight: '1', color: '#fff',
+      boxShadow: '0 1px 3px rgba(0,0,0,0.35)', pointerEvents: 'none',
+    });
+    badge.textContent = '★';
+    el.style.position = 'relative';
+    el.appendChild(badge);
+  }
   const opts = signal ? { signal } : undefined;
   el.addEventListener('mouseenter', () => { inner.style.transform = 'scale(1.2)'; }, opts);
   el.addEventListener('mouseleave', () => { inner.style.transform = 'scale(1)'; }, opts);
@@ -253,10 +289,25 @@ export default function GymMap() {
   // card flips to "My gym ✓" the moment the RPC returns — AuthContext
   // snapshots the profile and won't reflect the write until it reloads.
   const [homeGymId, setHomeGymId] = useState(user?.home_gym_id || null);
+  const [homeGymName, setHomeGymName] = useState(null);
   const [settingHome, setSettingHome] = useState(false);
 
+  // Resolve from the profile, not from AuthContext alone — see
+  // resolveHomeGymId. The context snapshot is stale straight after a
+  // pick made in onboarding or on another device, and this chip is
+  // supposed to be the authoritative answer to "is my gym set?", so it
+  // must not be the thing repeating a stale null.
   useEffect(() => {
-    if (user?.home_gym_id) setHomeGymId(user.home_gym_id);
+    let cancelled = false;
+    (async () => {
+      const id = await resolveHomeGymId(user?.home_gym_id);
+      if (cancelled) return;
+      setHomeGymId(id);
+      if (!id) { setHomeGymName(null); return; }
+      const g = await getHomeGym(id);
+      if (!cancelled) setHomeGymName(g?.name || null);
+    })();
+    return () => { cancelled = true; };
   }, [user?.home_gym_id]);
 
   const isHome = useCallback(
@@ -271,6 +322,7 @@ export default function GymMap() {
     setSettingHome(false);
     if (res.ok) {
       setHomeGymId(res.gymId);
+      setHomeGymName(gym.name);
       // The `action` is load-bearing: src/lib/toast.js suppresses every
       // non-error toast that doesn't carry one, so a plain toast.success
       // here renders nothing at all and a successful save looks
@@ -281,6 +333,7 @@ export default function GymMap() {
           onClick: async () => {
             await setHomeGym(null);
             setHomeGymId(null);
+            setHomeGymName(null);
           },
         },
       });
@@ -297,6 +350,7 @@ export default function GymMap() {
     if (res.ok) {
       setHomeGymId(res.gymId);
       setSelectedOsm(null);
+      setHomeGymName(osm.name);
       // See adoptGym — a success toast without an action is silenced.
       toast.success(`${osm.name} is now your gym.`, {
         action: {
@@ -304,6 +358,7 @@ export default function GymMap() {
           onClick: async () => {
             await setHomeGym(null);
             setHomeGymId(null);
+            setHomeGymName(null);
             refreshRef.current?.();
           },
         },
@@ -512,15 +567,15 @@ export default function GymMap() {
       const el      = special
         ? buildOrangePin({ gym: g, onClick: setSelected, signal: ac.signal })
         : g.source === 'community'
-          ? buildCommunityPin({ gym: g, compact, onClick: setSelected, signal: ac.signal })
-          : buildFlexynPin({ gym: g, compact, onClick: setSelected, signal: ac.signal });
+          ? buildCommunityPin({ gym: g, compact, onClick: setSelected, signal: ac.signal, isHome: g.id === homeGymId })
+          : buildFlexynPin({ gym: g, compact, onClick: setSelected, signal: ac.signal, isHome: g.id === homeGymId });
       const marker  = new maplibregl.Marker({ element: el, anchor: special ? 'bottom' : 'center' })
         .setLngLat([g.longitude, g.latitude])
         .addTo(map);
       markersRef.current.push(marker);
     }
     return () => { ac.abort(); };
-  }, [gyms, currentZoom, search]);
+  }, [gyms, currentZoom, search, homeGymId]);
 
   // ── OSM pin rendering ──────────────────────────────────────────────────
   useEffect(() => {
@@ -718,6 +773,31 @@ export default function GymMap() {
               : <RefreshCw className="w-3.5 h-3.5" />}
             {osmLoading || loading ? 'Searching…' : 'Search this area'}
           </motion.button>
+        )}
+
+        {/* Home-gym status chip.
+            Grey means two different things on this map — a community gym
+            (bubble) and an unclaimed OpenStreetMap entry (teardrop) — and
+            at phone size that distinction is far too subtle to carry the
+            answer to "is my gym set?". Three separate times a grey pin
+            was read as a saved home gym when nothing had been written.
+            This chip states the fact outright, sourced from the profile
+            rather than inferred from what's on screen. */}
+        {!mapError && (
+          <div className="absolute bottom-32 start-3 z-10 max-w-[70%] px-3 py-1.5 rounded-full bg-card/90 backdrop-blur border border-border shadow-md text-xs font-medium flex items-center gap-1.5">
+            {homeGymId ? (
+              <>
+                <span className="text-amber-500 leading-none">★</span>
+                <span className="truncate">
+                  My gym: {homeGymName || 'set'}
+                </span>
+              </>
+            ) : (
+              <span className="text-muted-foreground">
+                No home gym set — tap a gym to set one
+              </span>
+            )}
+          </div>
         )}
 
         {/* Count pill */}
