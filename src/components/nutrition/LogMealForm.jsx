@@ -5,6 +5,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Plus, History, ImageIcon, Loader2, Repeat } from 'lucide-react';
+import NutrientIcon, { MealPlateIcon } from './NutrientIcon';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useAuth } from '@/lib/AuthContext';
 import { db } from '@/api/db';
@@ -76,10 +77,13 @@ function clampNutrient(key, raw) {
 function NutrientTile({ field, value, onChange, t }) {
   return (
     <div className={`${field.bgColor} rounded-lg p-3`}>
-      <p className="text-xs text-muted-foreground mb-1.5 truncate">
-        {t(field.labelKey)}
-        <span className="ms-1 opacity-60">({field.unit})</span>
-      </p>
+      <div className="flex items-center gap-1.5 mb-1.5 min-w-0">
+        <NutrientIcon nutrientKey={field.key} className={`w-3.5 h-3.5 shrink-0 ${field.textColor}`} />
+        <p className="text-xs text-muted-foreground truncate">
+          {t(field.labelKey)}
+          <span className="ms-1 opacity-60">({field.unit})</span>
+        </p>
+      </div>
       <Input
         type="number" inputMode="decimal"
         min="0"
@@ -219,7 +223,10 @@ export default function LogMealForm({ newEntry, setNewEntry, onPhotoAI, isRecogn
         onClick={() => setOpen(v => !v)}
         className="w-full flex items-center justify-between py-1"
       >
-        <h3 className="font-heading font-bold text-lg">{t('nutrition.logMealForm')}</h3>
+        <h3 className="font-heading font-bold text-lg flex items-center gap-2 min-w-0">
+          <MealPlateIcon className="w-5 h-5 shrink-0 text-primary" />
+          <span className="truncate">{t('nutrition.logMealForm')}</span>
+        </h3>
         <motion.span
           animate={{ rotate: open ? 45 : 0 }}
           transition={{ duration: 0.2 }}
@@ -363,7 +370,13 @@ export default function LogMealForm({ newEntry, setNewEntry, onPhotoAI, isRecogn
             {isRecognizing ? tFallback('nutrition.reading', 'Reading…') : tFallback('nutrition.photoAi', 'Photo-AI')}
           </Button>
           <Button onClick={handleLog} className="flex-1" disabled={isLogging}>
-            <Plus className="w-4 h-4 me-2" /> {t('nutrition.logMeal')}
+            {/* Plate + plus reads as "add a meal" at a glance — the plate
+                says what's being logged, the plus says it's an addition. */}
+            <span className="inline-flex items-center gap-0.5 me-1.5">
+              <MealPlateIcon className="w-4 h-4" />
+              <Plus className="w-3.5 h-3.5" strokeWidth={2.5} />
+            </span>
+            {t('nutrition.logMeal')}
           </Button>
         </div>
       )}

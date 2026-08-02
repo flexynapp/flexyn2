@@ -5,6 +5,7 @@ import { calculateDailyValues } from '@/lib/nutritionDefaults';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useSettings } from '@/lib/SettingsContext';
 import NutrientRing from './NutrientRing';
+import NutrientIcon from './NutrientIcon';
 
 const VITAMINS_MINERALS = [
   { key: 'iron_mg',         labelKey: 'nutrition.minerals.iron',      unit: 'mg',  color: 'from-red-300 to-red-500',         textColor: 'text-red-600',     bgColor: 'bg-red-50 dark:bg-red-950/20' },
@@ -81,7 +82,10 @@ export default function MineralsVitaminsBox({ entries = [], userProfile = {} }) 
               {nutrientRingView ? (
                 /* ── Ring view ── */
                 <div className={`${item.bgColor} rounded-lg p-3 h-full flex flex-col items-center text-center`}>
-                  <p className="text-xs text-muted-foreground mb-2 truncate w-full">{t(item.labelKey)}</p>
+                  <div className="flex items-center justify-center gap-1.5 mb-2 w-full min-w-0">
+                    <NutrientIcon nutrientKey={item.key} className={`w-3.5 h-3.5 shrink-0 ${item.textColor}`} />
+                    <p className="text-xs text-muted-foreground truncate">{t(item.labelKey)}</p>
+                  </div>
                   <div className={`relative ${item.textColor}`}>
                     <NutrientRing percent={percentOfDaily} size={52} />
                     <span
@@ -97,7 +101,10 @@ export default function MineralsVitaminsBox({ entries = [], userProfile = {} }) 
               ) : (
                 /* ── Bar view (default) ── */
                 <div className={`${item.bgColor} rounded-lg p-3 h-full`}>
-                  <p className="text-xs text-muted-foreground mb-1 truncate">{t(item.labelKey)}</p>
+                  <div className="flex items-center gap-1.5 mb-1 min-w-0">
+                    <NutrientIcon nutrientKey={item.key} className={`w-3.5 h-3.5 shrink-0 ${item.textColor}`} />
+                    <p className="text-xs text-muted-foreground truncate">{t(item.labelKey)}</p>
+                  </div>
                   <p className={`font-heading font-bold text-lg ${item.textColor}`}>
                     {actual.toFixed(0)}{item.unit}
                   </p>

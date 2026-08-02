@@ -5,6 +5,7 @@ import { calculateDailyValues } from '@/lib/nutritionDefaults';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useSettings } from '@/lib/SettingsContext';
 import NutrientRing from './NutrientRing';
+import NutrientIcon from './NutrientIcon';
 
 const MACROS = [
   { key: 'calories',       labelKey: 'nutrition.macros.calories',    unit: 'cal', color: 'from-orange-400 to-orange-600', textColor: 'text-orange-600', bgColor: 'bg-orange-50 dark:bg-orange-950/20' },
@@ -84,7 +85,10 @@ export default function MacroNutrientBox({ entries = [], userProfile = {} }) {
               {nutrientRingView ? (
                 /* ── Ring view ── */
                 <div className={`${macro.bgColor} rounded-lg p-3 h-full flex flex-col items-center text-center`}>
-                  <p className="text-xs text-muted-foreground mb-2 truncate w-full">{t(macro.labelKey)}</p>
+                  <div className="flex items-center justify-center gap-1.5 mb-2 w-full min-w-0">
+                    <NutrientIcon nutrientKey={macro.key} className={`w-3.5 h-3.5 shrink-0 ${macro.textColor}`} />
+                    <p className="text-xs text-muted-foreground truncate">{t(macro.labelKey)}</p>
+                  </div>
                   <div className={`relative ${macro.textColor}`}>
                     <NutrientRing percent={percentOfDaily} size={52} />
                     <span
@@ -100,7 +104,10 @@ export default function MacroNutrientBox({ entries = [], userProfile = {} }) {
               ) : (
                 /* ── Bar view (default) ── */
                 <div className={`${macro.bgColor} rounded-lg p-3 h-full`}>
-                  <p className="text-xs text-muted-foreground mb-1 truncate">{t(macro.labelKey)}</p>
+                  <div className="flex items-center gap-1.5 mb-1 min-w-0">
+                    <NutrientIcon nutrientKey={macro.key} className={`w-3.5 h-3.5 shrink-0 ${macro.textColor}`} />
+                    <p className="text-xs text-muted-foreground truncate">{t(macro.labelKey)}</p>
+                  </div>
                   <p className={`font-heading font-bold text-lg ${macro.textColor}`}>
                     {actual.toFixed(macro.key === 'calories' ? 0 : 1)}{macro.unit}
                   </p>
