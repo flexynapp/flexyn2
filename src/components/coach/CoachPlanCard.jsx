@@ -29,10 +29,14 @@ import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import {
   Play, Save, Check, Loader2, Flame, ChevronRight,
-  Pencil, RefreshCw, X, Minus, Plus,
+  Pencil, RefreshCw, X, Minus, Plus, CalendarClock,
 } from 'lucide-react';
 import StarterPlanView from '@/components/workout/StarterPlanView';
 import { withEditedWorkout } from '@/lib/aiCoach/planBuilder';
+import {
+  scheduleWorkout, daySlots, HOUR_SLOTS, formatHour, slotIsPast,
+} from '@/lib/data/scheduledWorkouts';
+import { reportError } from '@/lib/reportError';
 import { toast } from '@/lib/toast';
 
 // Matches generateWorkout's own clamp, so an edited session can't be handed to
@@ -45,6 +49,10 @@ export default function CoachPlanCard({ plan, onSaveRegimen, onStartWorkout, onP
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [schedulerOpen, setSchedulerOpen] = useState(false);
+  const [scheduling, setScheduling] = useState(false);
+  const [scheduledFor, setScheduledFor] = useState(null);
+  const [schedulerError, setSchedulerError] = useState(null);
   // Only used when no `onPlanChange` is supplied — then the card keeps its own
   // copy so edits still work, they just don't outlive the component.
   const [fallbackPlan, setFallbackPlan] = useState(null);
@@ -100,6 +108,33 @@ export default function CoachPlanCard({ plan, onSaveRegimen, onStartWorkout, onP
     const copy = exercises.slice();
     copy[i] = { ...current, sets: Array.from({ length: count }, () => ({ ...proto })) };
     applyEdit(copy);
+  };
+
+  // A session is schedulable; a weekly plan is not. A plan already IS a
+  // schedule — pinning "your 4-day week" to Thursday at 7am would be asking
+  // the user to commit to something the plan doesn't describe.
+  const schedulable = isSession && !!activePlan.workout?.exercises?.length;
+
+  const handleSchedule = async (date, hour) => {
+    setScheduling(true);
+    setSchedulerError(null);
+    try {
+      await scheduleWorkout({
+        date,
+        hour,
+        title: activePlan.title,
+        workout: activePlan.workout,
+      });
+      setScheduledFor(`${scheduleDayLabel(date)}, ${formatHour(hour)}`);
+      setSchedulerOpen(false);
+    } catch (err) {
+      // Inline rather than a toast: the user is looking at this card, and the
+      // recovery — pick a different slot — is right here.
+      setSchedulerError(err?.message || "Couldn't schedule that — try again.");
+      reportError(err, { feature: 'coach.schedule' });
+    } finally {
+      setScheduling(false);
+    }
   };
 
   const handleSave = async () => {
@@ -197,6 +232,14 @@ export default function CoachPlanCard({ plan, onSaveRegimen, onStartWorkout, onP
         </button>
       )}
 
+      {schedulerOpen && (
+        <SchedulePicker
+          scheduling={scheduling}
+          onCancel={() => setSchedulerOpen(false)}
+          onConfirm={handleSchedule}
+        />
+      )}
+
       <div className="mt-3 flex gap-2">
         {startable && (
           <button
@@ -208,29 +251,145 @@ export default function CoachPlanCard({ plan, onSaveRegimen, onStartWorkout, onP
             Start workout
           </button>
         )}
+        {/* Schedule outranks Save on a session, and that ordering is the whole
+            point of the feature: saving produces an artefact you have to
+            remember to come back to, scheduling produces a time. */}
+        {schedulable && (
+          <button
+            type="button"
+            onClick={() => { setSchedulerOpen((o) => !o); setSchedulerError(null); }}
+            aria-expanded={schedulerOpen}
+            disabled={scheduling}
+            className={[
+              'flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl font-semibold text-sm py-2.5 transition-colors',
+              scheduledFor
+                ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+                : 'bg-secondary text-foreground hover:bg-secondary/80 disabled:opacity-60',
+            ].join(' ')}
+          >
+            {scheduling ? <Loader2 className="w-4 h-4 animate-spin" />
+              : scheduledFor ? <Check className="w-4 h-4" />
+              : <CalendarClock className="w-4 h-4" />}
+            {scheduledFor || 'Schedule it'}
+          </button>
+        )}
+      </div>
+
+      {schedulerError && (
+        <p className="mt-2 text-[11px] text-destructive px-0.5">{schedulerError}</p>
+      )}
+
+      {/* Save stays reachable but stops competing for the primary slot: a
+          regimen is a template you repeat, which is a different intent from
+          "I am doing this on Thursday". */}
+      <button
+        type="button"
+        onClick={handleSave}
+        disabled={saving || saved}
+        className={[
+          'mt-2 w-full inline-flex items-center justify-center gap-1.5 rounded-xl text-[12px] font-semibold py-2 transition-colors',
+          saved
+            ? 'text-emerald-600 dark:text-emerald-400'
+            : 'text-muted-foreground hover:text-foreground disabled:opacity-60',
+        ].join(' ')}
+      >
+        {saving ? (
+          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+        ) : saved ? (
+          <Check className="w-3.5 h-3.5" />
+        ) : (
+          <Save className="w-3.5 h-3.5" />
+        )}
+        {saved ? 'Saved to Regimens' : 'Save as regimen'}
+      </button>
+    </motion.div>
+  );
+}
+
+/** The chosen day, read back the way it was offered ("Today", "Thu"). */
+function scheduleDayLabel(dateKey) {
+  return daySlots().find((d) => d.date === dateKey)?.label || dateKey;
+}
+
+// Day and hour as two rows of chips rather than a datetime input.
+//
+// The research this implements is about naming a slot, not a minute:
+// specifying WHEN and WHERE a behaviour will happen is what roughly doubles
+// follow-through, and "Thursday morning" satisfies that as well as "Thursday
+// 07:14" does. A native datetime picker on mobile also costs several taps and
+// a modal, which is a lot of friction to charge for a commitment the user is
+// only weakly committed to at this point.
+function SchedulePicker({ scheduling, onCancel, onConfirm }) {
+  const days = daySlots();
+  const [day, setDay] = useState(days[1].date);   // Tomorrow — the safest default
+  const [hour, setHour] = useState(HOUR_SLOTS[0].hour);
+
+  // A slot that has already passed today would fire its reminder immediately
+  // or get swept up as 'missed'. Offer it disabled rather than hiding it, so
+  // the row doesn't reflow as the day goes on.
+  const past = (h) => slotIsPast(day, h);
+  const chosenIsPast = past(hour);
+
+  return (
+    <div className="mt-2.5 rounded-xl border border-primary/25 bg-card p-3">
+      <p className="text-[11px] font-semibold text-muted-foreground mb-2">When are you doing this?</p>
+
+      <div className="flex gap-1.5 mb-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {days.map((d) => (
+          <Chip key={d.id} active={day === d.date} onClick={() => setDay(d.date)} label={d.label} />
+        ))}
+      </div>
+
+      <div className="flex gap-1.5 mb-3 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {HOUR_SLOTS.map((s) => (
+          <Chip
+            key={s.id}
+            active={hour === s.hour}
+            disabled={past(s.hour)}
+            onClick={() => setHour(s.hour)}
+            label={`${s.label} · ${formatHour(s.hour)}`}
+          />
+        ))}
+      </div>
+
+      <div className="flex gap-2">
         <button
           type="button"
-          onClick={handleSave}
-          disabled={saving || saved}
-          className={[
-            'inline-flex items-center justify-center gap-1.5 rounded-xl font-semibold text-sm py-2.5 transition-colors',
-            startable ? 'flex-1' : 'w-full',
-            saved
-              ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
-              : 'bg-secondary text-foreground hover:bg-secondary/80 disabled:opacity-60',
-          ].join(' ')}
+          onClick={onCancel}
+          className="rounded-lg px-3 py-2 text-[12px] font-semibold text-muted-foreground hover:text-foreground transition-colors"
         >
-          {saving ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : saved ? (
-            <Check className="w-4 h-4" />
-          ) : (
-            <Save className="w-4 h-4" />
-          )}
-          {saved ? 'Saved to Regimens' : 'Save as regimen'}
+          Cancel
+        </button>
+        <button
+          type="button"
+          onClick={() => onConfirm(day, hour)}
+          disabled={scheduling || chosenIsPast}
+          className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg bg-primary text-primary-foreground text-[12px] font-semibold py-2 transition-opacity active:opacity-80 disabled:opacity-50"
+        >
+          {scheduling ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CalendarClock className="w-3.5 h-3.5" />}
+          {chosenIsPast ? 'That time has passed' : `Remind me ${scheduleDayLabel(day).toLowerCase()} at ${formatHour(hour)}`}
         </button>
       </div>
-    </motion.div>
+    </div>
+  );
+}
+
+function Chip({ active, disabled, onClick, label }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-pressed={active}
+      className={[
+        'shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 text-[11px] font-semibold border transition-colors disabled:opacity-35',
+        active
+          ? 'bg-primary text-primary-foreground border-primary'
+          : 'bg-secondary/60 text-foreground border-border/50 hover:bg-secondary',
+      ].join(' ')}
+    >
+      {label}
+    </button>
   );
 }
 

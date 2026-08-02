@@ -4,6 +4,12 @@ import { MemoryRouter } from 'react-router-dom';
 import CoachPlanCard from '../coach/CoachPlanCard';
 
 vi.mock('@/lib/toast', () => ({ toast: { error: vi.fn() } }));
+vi.mock('@/lib/reportError', () => ({ reportError: vi.fn() }));
+const scheduleWorkoutMock = vi.fn(() => Promise.resolve('sched-1'));
+vi.mock('@/lib/data/scheduledWorkouts', async (importOriginal) => ({
+  ...(await importOriginal()),
+  scheduleWorkout: (...args) => scheduleWorkoutMock(...args),
+}));
 // StarterPlanView is the READ view; these tests are about the edit view.
 vi.mock('@/components/workout/StarterPlanView', () => ({
   default: ({ regimen }) => (
@@ -69,7 +75,12 @@ const enterEditMode = () => fireEvent.click(screen.getByRole('button', { name: /
 const rowFor = (name) => screen.getByText(name).closest('div').parentElement;
 
 beforeEach(() => vi.clearAllMocks());
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  // The scheduling tests pin the clock; leaking that into another file would
+  // make unrelated date assertions fail in whichever order vitest picks.
+  vi.useRealTimers();
+});
 
 describe('CoachPlanCard — editing a session in chat', () => {
   it('shows the read view until Edit is tapped', () => {
@@ -196,5 +207,85 @@ describe('CoachPlanCard — editing a session in chat', () => {
     enterEditMode();
     expect(within(rowFor('Bench Press')).getByText(/3 × 8 @ 135 lb · chest/)).toBeTruthy();
     expect(within(rowFor('Plank')).getByText(/3 × 14 · bodyweight · core/)).toBeTruthy();
+  });
+});
+
+describe('CoachPlanCard — scheduling a session', () => {
+  const openScheduler = () => fireEvent.click(screen.getByRole('button', { name: /schedule it/i }));
+
+  it('offers Schedule above Save on a session', () => {
+    renderCard();
+    // Both reachable, but only one is the primary commitment.
+    expect(screen.getByRole('button', { name: /schedule it/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /save as regimen/i })).toBeTruthy();
+  });
+
+  it('offers no scheduling on a weekly plan — a plan already is a schedule', () => {
+    const plan = { ...makePlan(), kind: 'plan', workout: null };
+    render(<MemoryRouter><CoachPlanCard plan={plan} /></MemoryRouter>);
+    expect(screen.queryByRole('button', { name: /schedule it/i })).toBeNull();
+  });
+
+  it('schedules the session for the chosen day and hour', async () => {
+    vi.setSystemTime(new Date(2026, 7, 5, 9, 0, 0)); // 9am, so every slot is open
+    const plan = makePlan();
+    renderCard();
+    openScheduler();
+    fireEvent.click(screen.getByRole('button', { name: 'Tomorrow' }));
+    fireEvent.click(screen.getByRole('button', { name: /Evening/ }));
+    fireEvent.click(screen.getByRole('button', { name: /remind me tomorrow at 6pm/i }));
+
+    await screen.findByRole('button', { name: /tomorrow, 6pm/i });
+    expect(scheduleWorkoutMock).toHaveBeenCalledWith({
+      date: '2026-08-06',
+      hour: 18,
+      title: plan.title,
+      // The whole session travels, so the reminder opens what was committed to.
+      workout: expect.objectContaining({ exercises: expect.any(Array) }),
+    });
+  });
+
+  it('schedules the EDITED session, not the one originally generated', async () => {
+    vi.setSystemTime(new Date(2026, 7, 5, 9, 0, 0));
+    const { rerenderWithLatest } = renderCard();
+    enterEditMode();
+    fireEvent.click(screen.getByRole('button', { name: /remove Plank/i }));
+    rerenderWithLatest();
+    fireEvent.click(screen.getByRole('button', { name: /finish editing/i }));
+
+    openScheduler();
+    fireEvent.click(screen.getByRole('button', { name: /remind me/i }));
+    await screen.findByRole('button', { name: /,\s*7am/i });
+    expect(scheduleWorkoutMock.mock.calls.at(-1)[0].workout.exercises.map(e => e.name))
+      .toEqual(['Bench Press']);
+  });
+
+  it('will not let you schedule a slot that has already passed today', () => {
+    vi.setSystemTime(new Date(2026, 7, 5, 19, 0, 0)); // 7pm
+    renderCard();
+    openScheduler();
+    fireEvent.click(screen.getByRole('button', { name: 'Today' }));
+    // Morning/Midday/Evening are gone; the confirm says so rather than firing
+    // a reminder that would be instantly overdue.
+    expect(screen.getByRole('button', { name: /Morning/ }).disabled).toBe(true);
+    expect(screen.getByRole('button', { name: /that time has passed/i }).disabled).toBe(true);
+  });
+
+  it('defaults to tomorrow, which is always a valid slot', () => {
+    vi.setSystemTime(new Date(2026, 7, 5, 23, 30, 0)); // nothing left today
+    renderCard();
+    openScheduler();
+    expect(screen.getByRole('button', { name: /remind me tomorrow at 7am/i }).disabled).toBe(false);
+  });
+
+  it('surfaces a failure inline, where the fix is', async () => {
+    vi.setSystemTime(new Date(2026, 7, 5, 9, 0, 0));
+    scheduleWorkoutMock.mockRejectedValueOnce(new Error('too many scheduled workouts'));
+    renderCard();
+    openScheduler();
+    fireEvent.click(screen.getByRole('button', { name: /remind me/i }));
+    expect(await screen.findByText(/too many scheduled workouts/i)).toBeTruthy();
+    // Still offering the action, because retrying is the recovery.
+    expect(screen.getByRole('button', { name: /schedule it/i })).toBeTruthy();
   });
 });

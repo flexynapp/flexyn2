@@ -1436,6 +1436,29 @@ export default function Workout() {
     return () => clearTimeout(t);
   }, []);
 
+  // A scheduled-workout reminder deep-links here as /workout?scheduled=<id>.
+  // The session was stored whole when it was scheduled, so this loads exactly
+  // what the user committed to rather than regenerating something similar —
+  // and a reminder that dropped you on an empty Workout page to go find the
+  // thing yourself would be most of a reminder that didn't work.
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get('scheduled');
+    if (!id) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { getScheduledWorkout } = await import('@/lib/data/scheduledWorkouts');
+        const row = await getScheduledWorkout(id);
+        if (cancelled || !row?.workout?.exercises?.length) return;
+        startFromGeneratedWorkout(row.workout);
+        // Strip the param so a refresh doesn't reload the session over
+        // whatever the user has since logged into the form.
+        window.history.replaceState({}, '', '/workout');
+      } catch { /* a missing or foreign row just leaves the page as-is */ }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
   const handleResumeSession = (sessionId) => {
     const session = resumeWorkout(sessionId);
     if (!session) return;

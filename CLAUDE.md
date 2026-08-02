@@ -493,6 +493,43 @@ Conventions a contributor must not undo:
   under `SET LOCAL role authenticated` + JWT claims; MCP/SQL-editor
   queries run as `postgres` and bypass RLS entirely.
 
+## Scheduled workouts (migration 276, Aug 2026)
+
+"Schedule it" on the AI Coach plan card. Saving to Regimens produces an
+artefact the user has to remember to return to; implementation-intention
+research (Gollwitzer) is clear that naming *when* roughly doubles
+follow-through, so a session can now be pinned to a day and an hour and
+`scheduled_workouts` + an hourly cron turns that into an actual trigger.
+
+- **Local date + local hour, never a timestamptz.** "Thursday at 7am"
+  means 7am wherever the user wakes up. An absolute instant would shift
+  the reminder for anyone who travels and would need rewriting on every
+  timezone change. `scheduled_date` / `scheduled_hour` are resolved
+  against `user_profiles.timezone_offset_minutes` at fire time, the same
+  way migration 035 does streak reminders.
+- **`public.user_local_now(uuid)` exists so the cron's WHERE clause stays
+  paste-safe** — one function call instead of a join, which keeps every
+  statement single-table with bare column names per the clipboard rule in
+  the Workflow section. Don't "simplify" it back into a join.
+- **The whole session is stored in `workout` JSONB**, not a regimen id.
+  What fires is what the user committed to, even if the generator's
+  catalog or their history has moved on. It's also what
+  `/workout?scheduled=<id>` loads, so the reminder lands you *in* the
+  session rather than on the Workout page to go find it.
+- **Anything more than 12h past its slot is marked `missed`, not
+  notified.** If the cron was down or an offset moved, a reminder for
+  yesterday morning arriving tonight reads as the app being broken and
+  can't be acted on.
+- **There is no client INSERT policy.** Rows are created only through
+  `schedule_workout()`, which derives `user_id` and `user_email` from
+  `auth.uid()`. An INSERT policy would let someone attach a schedule to
+  another user, and `user_email` is what the push fan-out delivers to.
+- **`workout_reminder` is deliberately absent from
+  `notification_type_category`.** Unmapped types always deliver (mig 083),
+  which is right here: the user asked for THIS reminder at THIS hour, so
+  muting the broad "engagement" category — which exists for nudges *we*
+  initiate — must not silence it. Quiet hours (mig 098) still apply.
+
 ## Home gym / "My Gym" (migration 275, Aug 2026)
 
 Beta testers wanted to declare the gym they actually train at, see it on
