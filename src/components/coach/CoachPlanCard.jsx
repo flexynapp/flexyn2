@@ -7,30 +7,106 @@
 //
 // Feedback is INLINE (a subtle "Saved ✓" state), not a toast — toasts are
 // suppressed app-wide except errors.
+//
+// ── Why the session is editable here ────────────────────────────────────────
+//
+// A generated workout is usually 90% right and 10% wrong in a way the user can
+// see instantly — a movement their shoulder won't take today, one lift too
+// many, a plank they have no interest in. The only options used to be accept
+// it wholesale or re-type the goal and hope the reroll went better, which
+// makes the coach something you submit to rather than something you work with.
+// Swap / drop / set-count cover the great majority of "nearly" without a round
+// trip through the model.
+//
+// The card owns no domain knowledge: swap candidates are precomputed by
+// generateWorkout (which has the catalog, the equipment and injury filters,
+// the user's history and their demographics) and re-deriving the plan's three
+// representations is planBuilder's `withEditedWorkout`. This file only decides
+// which option is showing.
 
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { Play, Save, Check, Loader2, Flame, ChevronRight } from 'lucide-react';
+import {
+  Play, Save, Check, Loader2, Flame, ChevronRight,
+  Pencil, RefreshCw, X, Minus, Plus,
+} from 'lucide-react';
 import StarterPlanView from '@/components/workout/StarterPlanView';
+import { withEditedWorkout } from '@/lib/aiCoach/planBuilder';
 import { toast } from '@/lib/toast';
 
-export default function CoachPlanCard({ plan, onSaveRegimen, onStartWorkout }) {
+// Matches generateWorkout's own clamp, so an edited session can't be handed to
+// the logger in a shape the generator would never have produced.
+const MIN_SETS = 1;
+const MAX_SETS = 5;
+
+export default function CoachPlanCard({ plan, onSaveRegimen, onStartWorkout, onPlanChange }) {
   const navigate = useNavigate();
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [editing, setEditing] = useState(false);
+  // Only used when no `onPlanChange` is supplied — then the card keeps its own
+  // copy so edits still work, they just don't outlive the component.
+  const [fallbackPlan, setFallbackPlan] = useState(null);
 
-  if (!plan) return null;
-  const isSession = plan.kind === 'session';
+  const activePlan = fallbackPlan ?? plan;
+
+  if (!activePlan) return null;
+  const isSession = activePlan.kind === 'session';
   // Cardio sessions have no strength-logger handoff (plan.workout is null) —
   // they're logged via the Cardio tracker, so only "Save as regimen" applies.
-  const startable = isSession && !!plan.workout && !!onStartWorkout;
+  const startable = isSession && !!activePlan.workout && !!onStartWorkout;
+  const editable = isSession && !!activePlan.workout?.exercises?.length;
+
+  const applyEdit = (exercises) => {
+    const next = withEditedWorkout(activePlan, { ...activePlan.workout, exercises });
+    // An edit invalidates a previous save — the regimen on file is the old
+    // session, so offering "Saved to Regimens" would be a lie about this one.
+    setSaved(false);
+    if (onPlanChange) onPlanChange(next);
+    else setFallbackPlan(next);
+  };
+
+  const exercises = activePlan.workout?.exercises || [];
+
+  // Rotate to the next candidate, pushing the outgoing exercise onto the back
+  // of the list. Cycling all the way round therefore returns the original —
+  // there is no separate undo to discover, and no way to strand yourself on a
+  // movement you didn't want.
+  const handleSwap = (i) => {
+    const current = exercises[i];
+    const [next, ...rest] = current.alternatives || [];
+    if (!next) return;
+    const copy = exercises.slice();
+    copy[i] = { ...next, alternatives: [...rest, { ...current, alternatives: [] }] };
+    applyEdit(copy);
+  };
+
+  // The last exercise can't be dropped: an empty session is not a thing to
+  // start or save, and the button that produced it would have to disable
+  // itself, which reads as a bug.
+  const handleRemove = (i) => {
+    if (exercises.length <= 1) return;
+    applyEdit(exercises.filter((_, idx) => idx !== i));
+  };
+
+  const handleSets = (i, delta) => {
+    const current = exercises[i];
+    const count = Math.max(MIN_SETS, Math.min(MAX_SETS, (current.sets?.length || 3) + delta));
+    if (count === current.sets?.length) return;
+    // Every working set of a generated exercise carries the same prescription,
+    // so a new one is a copy of the first rather than an invented weight.
+    const proto = current.sets?.[0] || { weight: 0, reps: 10 };
+    const copy = exercises.slice();
+    copy[i] = { ...current, sets: Array.from({ length: count }, () => ({ ...proto })) };
+    applyEdit(copy);
+  };
 
   const handleSave = async () => {
     if (saved || saving || !onSaveRegimen) return;
     setSaving(true);
     try {
-      await onSaveRegimen(plan.regimenPayload);
+      await onSaveRegimen(activePlan.regimenPayload);
       setSaved(true);
     } catch (err) {
       toast.error(`Couldn't save — ${err?.message || 'try again'}`);
@@ -45,25 +121,53 @@ export default function CoachPlanCard({ plan, onSaveRegimen, onStartWorkout }) {
       animate={{ opacity: 1, y: 0 }}
       className="mb-3 rounded-2xl border border-primary/25 bg-gradient-to-br from-primary/5 via-fuchsia-500/5 to-violet-500/10 p-3"
     >
-      <div className="mb-2.5 px-0.5">
-        <p className="font-heading font-bold text-[15px] leading-tight">{plan.title}</p>
-        {plan.subtitle && (
-          <p className="text-[11px] text-muted-foreground mt-0.5">{plan.subtitle}</p>
+      <div className="mb-2.5 px-0.5 flex items-start gap-2">
+        <div className="flex-1 min-w-0">
+          <p className="font-heading font-bold text-[15px] leading-tight">{activePlan.title}</p>
+          {activePlan.subtitle && (
+            <p className="text-[11px] text-muted-foreground mt-0.5">{activePlan.subtitle}</p>
+          )}
+        </div>
+        {editable && (
+          <button
+            type="button"
+            onClick={() => setEditing((e) => !e)}
+            aria-pressed={editing}
+            aria-label={editing ? 'Finish editing workout' : 'Edit workout'}
+            className={[
+              'shrink-0 inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold transition-colors',
+              editing
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-secondary/70 text-muted-foreground hover:text-foreground hover:bg-secondary',
+            ].join(' ')}
+          >
+            {editing ? <Check className="w-3.5 h-3.5" /> : <Pencil className="w-3.5 h-3.5" />}
+            {editing ? 'Done' : 'Edit'}
+          </button>
         )}
       </div>
 
-      <StarterPlanView
-        regimen={{ exercises: plan.exercises }}
-        cardioDefaultOpen
-        strengthDefaultOpen={isSession}
-      />
+      {editing ? (
+        <ExerciseEditor
+          exercises={exercises}
+          onSwap={handleSwap}
+          onRemove={handleRemove}
+          onSets={handleSets}
+        />
+      ) : (
+        <StarterPlanView
+          regimen={{ exercises: activePlan.exercises }}
+          cardioDefaultOpen
+          strengthDefaultOpen={isSession}
+        />
+      )}
 
       {/* Why this session was adjusted. An automatic change to someone's
           training — a set removed for a deficit, a lighter bar for a reported
           rough day — has to be legible, or the app just looks broken. */}
-      {Array.isArray(plan.coachNotes) && plan.coachNotes.length > 0 && (
+      {Array.isArray(activePlan.coachNotes) && activePlan.coachNotes.length > 0 && (
         <ul className="mt-2.5 space-y-1.5 rounded-xl border border-border bg-secondary/40 px-3 py-2.5">
-          {plan.coachNotes.map((note, i) => (
+          {activePlan.coachNotes.map((note, i) => (
             <li key={i} className="flex gap-2 text-[11px] text-muted-foreground leading-snug">
               <span aria-hidden="true" className="text-primary shrink-0">•</span>
               <span>{note}</span>
@@ -74,7 +178,7 @@ export default function CoachPlanCard({ plan, onSaveRegimen, onStartWorkout }) {
 
       {/* Training-load → nutrition: what this plan costs to fuel. Deep-links to
           the Nutrition Plans section to tune the diet plan around it. */}
-      {plan.fuel && plan.fuel.runDays > 0 && (
+      {activePlan.fuel && activePlan.fuel.runDays > 0 && (
         <button
           type="button"
           onClick={() => navigate('/nutrition?plans=1')}
@@ -86,7 +190,7 @@ export default function CoachPlanCard({ plan, onSaveRegimen, onStartWorkout }) {
           <span className="flex-1 min-w-0">
             <span className="block text-[13px] font-semibold leading-tight">Fuel your training</span>
             <span className="block text-[11px] text-muted-foreground mt-0.5">
-              ~+{plan.fuel.perRunDayKcal} kcal · +{plan.fuel.addCarbsG}g carbs on run days
+              ~+{activePlan.fuel.perRunDayKcal} kcal · +{activePlan.fuel.addCarbsG}g carbs on run days
             </span>
           </span>
           <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
@@ -97,7 +201,7 @@ export default function CoachPlanCard({ plan, onSaveRegimen, onStartWorkout }) {
         {startable && (
           <button
             type="button"
-            onClick={() => onStartWorkout(plan.workout)}
+            onClick={() => onStartWorkout(activePlan.workout)}
             className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm py-2.5 transition-opacity active:opacity-80"
           >
             <Play className="w-4 h-4" />
@@ -127,5 +231,84 @@ export default function CoachPlanCard({ plan, onSaveRegimen, onStartWorkout }) {
         </button>
       </div>
     </motion.div>
+  );
+}
+
+// The edit surface. Deliberately a flat list rather than the collapsible
+// StarterPlanView sections used for reading: while editing, everything you
+// might want to change has to be visible and one tap away, and a section that
+// can be collapsed can hide the exercise you came here to remove.
+function ExerciseEditor({ exercises, onSwap, onRemove, onSets }) {
+  return (
+    <div className="rounded-2xl border border-border bg-card divide-y divide-border overflow-hidden">
+      {exercises.map((ex, i) => {
+        const sets = ex.sets?.length || 0;
+        const reps = ex.sets?.[0]?.reps;
+        const weight = ex.sets?.[0]?.weight;
+        const canSwap = (ex.alternatives?.length || 0) > 0;
+        return (
+          <div key={`${ex.name}-${i}`} className="flex items-center gap-2 px-3 py-2.5">
+            <div className="flex-1 min-w-0">
+              <p className="text-[13px] font-semibold leading-tight truncate">{ex.name}</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5 tabular-nums">
+                {sets} × {reps ?? '—'}
+                {weight > 0 ? ` @ ${weight} lb` : ' · bodyweight'}
+                {ex.group ? ` · ${ex.group}` : ''}
+              </p>
+            </div>
+
+            {/* Set count. Stepper rather than a field: the useful range is
+                1–5 and a numeric keypad on a phone costs more taps than the
+                whole edit is worth. */}
+            <div className="flex items-center shrink-0 rounded-lg bg-secondary/60">
+              <button
+                type="button"
+                onClick={() => onSets(i, -1)}
+                disabled={sets <= MIN_SETS}
+                aria-label={`One less set of ${ex.name}`}
+                className="p-1.5 text-muted-foreground hover:text-foreground disabled:opacity-30 transition-colors"
+              >
+                <Minus className="w-3.5 h-3.5" />
+              </button>
+              <span className="text-[11px] font-bold tabular-nums w-3 text-center" aria-hidden="true">
+                {sets}
+              </span>
+              <button
+                type="button"
+                onClick={() => onSets(i, 1)}
+                disabled={sets >= MAX_SETS}
+                aria-label={`One more set of ${ex.name}`}
+                className="p-1.5 text-muted-foreground hover:text-foreground disabled:opacity-30 transition-colors"
+              >
+                <Plus className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => onSwap(i)}
+              disabled={!canSwap}
+              // Named rather than "Swap" alone: with several rows on screen a
+              // screen-reader user otherwise gets a column of identical buttons.
+              aria-label={`Swap ${ex.name} for another ${ex.group || 'exercise'}`}
+              title={canSwap ? `Swap for another ${ex.group || 'exercise'}` : 'No alternative available'}
+              className="shrink-0 p-1.5 rounded-lg bg-secondary/60 text-muted-foreground hover:text-foreground disabled:opacity-30 transition-colors"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onRemove(i)}
+              disabled={exercises.length <= 1}
+              aria-label={`Remove ${ex.name}`}
+              className="shrink-0 p-1.5 rounded-lg bg-secondary/60 text-muted-foreground hover:text-destructive disabled:opacity-30 transition-colors"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        );
+      })}
+    </div>
   );
 }

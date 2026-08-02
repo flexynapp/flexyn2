@@ -252,6 +252,13 @@ export default function CoachChat({ mode, onSaveRegimen, onStartWorkout }) {
     stickToBottomRef.current = distanceFromBottom < 80;
   }, []);
 
+  // Replace one message's plan in place. Indexed rather than keyed by id
+  // because messages have no ids — but the list is append-only within a turn,
+  // so an index is stable for as long as the card that holds it is mounted.
+  const handlePlanChange = useCallback((index, plan) => {
+    setMessages(prev => prev.map((m, i) => (i === index ? { ...m, plan } : m)));
+  }, []);
+
   const isEmpty = messages.length === 0;
 
   const basePrompts = generateMode ? GENERATE_PROMPTS : SUGGESTED_PROMPTS;
@@ -311,6 +318,11 @@ export default function CoachChat({ mode, onSaveRegimen, onStartWorkout }) {
                     plan={m.plan}
                     onSaveRegimen={onSaveRegimen}
                     onStartWorkout={onStartWorkout}
+                    // Edits live on the message, not inside the card, so they
+                    // survive a re-render and get persisted with the thread.
+                    // A workout the user tuned and then lost by scrolling
+                    // would be worse than not offering the edit at all.
+                    onPlanChange={(plan) => handlePlanChange(i, plan)}
                   />
                 )}
               </React.Fragment>

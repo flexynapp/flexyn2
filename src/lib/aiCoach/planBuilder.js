@@ -395,6 +395,36 @@ export function sessionToPlan(workout) {
   };
 }
 
+/**
+ * Re-derive a session plan after the user has edited its workout in the chat
+ * card (swapped an exercise, dropped one, changed a set count).
+ *
+ * Three representations of the same session travel on a plan — the view rows
+ * StarterPlanView renders, the payload Save-as-regimen persists, and the
+ * workout Start-workout hands to the logger. They are generated from the same
+ * source and must stay generated from the same source: an edit applied to only
+ * some of them is invisible until the user notices they started a workout that
+ * doesn't match the card they were reading.
+ *
+ * Everything that describes the REQUEST rather than its result — goal, label,
+ * the parsed descriptor behind the follow-up chips, the coach's notes about why
+ * the session looks like this — is carried through untouched. Dropping an
+ * exercise doesn't change what the user asked for.
+ *
+ * @param {object} plan     the original session plan
+ * @param {object} workout  the edited generateWorkout()-shaped session
+ */
+export function withEditedWorkout(plan, workout) {
+  return {
+    ...plan,
+    subtitle: `${(workout.exercises || []).length} exercises · ${workout.duration_minutes} min`,
+    exercises: sessionToView(workout),
+    regimenPayload: sessionToRegimenPayload(workout),
+    workout,
+    edited: true,
+  };
+}
+
 // A generateWorkout() session → regimens payload for Regimen.create.
 function sessionToRegimenPayload(workout) {
   const focusLabel = workout.focus ? `${workout.focus} ` : '';

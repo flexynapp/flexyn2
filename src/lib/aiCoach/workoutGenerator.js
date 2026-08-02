@@ -117,6 +117,11 @@ function _equipmentFilter(level) {
 
 const SKILL_TO_LEVEL = { beginner: 1, intermediate: 2, advanced: 3 };
 
+// Swap candidates offered per exercise. Three is enough to cycle through
+// without thinking; the whole session's worth of them also rides along in the
+// chat message that gets persisted to localStorage, so the list stays short.
+const MAX_ALTERNATIVES = 3;
+
 // ── Pull recent workout history for personalized weights ─────────────────────
 
 async function _historyByExercise(userEmail, days = 60) {
@@ -399,7 +404,14 @@ export async function generateWorkout({
   const mods = { ...IDENTITY_MODIFIERS, ...(modifiers || {}) };
   const scale = _demographicScale(demographics || {});
 
-  const exercises = chosen.map(ex => {
+  // One exercise, fully costed — sets, history-aware load, rest and the note
+  // explaining where the number came from. Factored out of the map below so a
+  // SWAP CANDIDATE gets byte-identical treatment to a chosen exercise: same
+  // history lookup, same demographic sizing, same modifier nudges. A candidate
+  // built by a second, similar-looking code path would drift from the session
+  // it's offered inside, and the drift would show up as a suspiciously heavy
+  // or light suggestion the moment someone used it.
+  const buildExercise = (ex) => {
     // Volume: the diet / feel nudge adds or removes a working set, floored at
     // 2 so a "rough day" session is still a real session rather than a token.
     const setCount = Math.max(2, Math.min(5, 3 + mods.setsDelta));
@@ -436,7 +448,35 @@ export async function generateWorkout({
       restSec: Math.max(30, Math.min(240, baseRest + mods.restDeltaSec)),
       note,
     };
-  });
+  };
+
+  // ── Swap candidates ───────────────────────────────────────────────────────
+  //
+  // Precomputed here rather than in the UI, because picking a replacement
+  // needs the catalog, the equipment and skill filters, the injury exclusions,
+  // the user's lift history and their demographics — all of which are in scope
+  // in this function and none of which belong in a chat card. The card just
+  // cycles through a list.
+  //
+  // Same muscle group only: swapping the leg movement for a curl silently
+  // changes what the session trains. Ordered so a compound offers compounds
+  // first (a swap should keep the session's character), then by whether the
+  // user has actually done the lift before, which is the same familiarity
+  // preference the primary selection pass uses.
+  const alternativesFor = (ex) => eligible
+    .filter(alt => alt.group === ex.group && !usedNames.has(alt.name))
+    .sort((a, b) => {
+      const shape = Number(b.compound === ex.compound) - Number(a.compound === ex.compound);
+      if (shape !== 0) return shape;
+      return Number(!!history[b.name.toLowerCase()]) - Number(!!history[a.name.toLowerCase()]);
+    })
+    .slice(0, MAX_ALTERNATIVES)
+    .map(buildExercise);
+
+  const exercises = chosen.map(ex => ({
+    ...buildExercise(ex),
+    alternatives: alternativesFor(ex),
+  }));
 
   return {
     title:            `${FOCUS_LABELS[focus] || 'Workout'} · ${durationMinutes} min`,
