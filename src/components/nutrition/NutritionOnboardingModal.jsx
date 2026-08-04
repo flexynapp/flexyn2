@@ -15,6 +15,8 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { DIETARY_RESTRICTIONS, ALLERGENS, ALLERGEN_IDS, parseCustomTerms, persistRestrictions } from '@/lib/nutritionPlans';
 import { nutritionOnboardedKey } from '@/lib/nutritionOnboardingGate';
+import { OnboardingCoachButton, OnboardingCoachSheet } from '@/components/onboarding/OnboardingCoach';
+import { NUTRITION_STEP_IDS } from '@/lib/aiCoach/onboardingCoach';
 
 const GOALS = [
   { id: 'lose',     icon: TrendingDown, color: 'text-blue-500',   bg: 'bg-blue-500/10',   titleKey: 'nutritionOnboarding.goal.lose.title',     descKey: 'nutritionOnboarding.goal.lose.desc' },
@@ -191,6 +193,30 @@ export default function NutritionOnboardingModal({ open, userProfile, onComplete
   const next = () => setStep(s => Math.min(s + 1, totalSteps - 1));
   const back = () => setStep(s => Math.max(s - 1, 0));
 
+  /* ── AI Coach ──────────────────────────────────────────────
+     Same coach as the initial onboarding flow, pointed at this step.
+     The draft it reads is deliberately narrow — the two weights are
+     what lets it suggest a target date that lands inside a
+     sustainable rate instead of just describing what one is.        */
+  const [coachOpen, setCoachOpen] = useState(false);
+  const coachStepId = NUTRITION_STEP_IDS[step];
+  const coachDraft = useMemo(() => ({
+    goal,
+    activity,
+    currentLbs: userProfile?.weight_lbs || null,
+    targetLbs,
+  }), [goal, activity, userProfile?.weight_lbs, targetLbs]);
+  const applyCoachSuggestion = (apply) => {
+    if (!apply || typeof apply.field !== 'string') return;
+    // Unknown fields are ignored rather than written blindly — a new
+    // suggestion type must not be able to poke an arbitrary key in here.
+    if (apply.field === 'goal') setGoal(apply.value);
+    else if (apply.field === 'activity') setActivity(apply.value);
+    else if (apply.field === 'targetDate') setTargetDate(apply.value);
+    else return;
+    setCoachOpen(false);
+  };
+
   const handleSubmit = async () => {
     if (!preview) return;
     setSaving(true);
@@ -292,6 +318,24 @@ export default function NutritionOnboardingModal({ open, userProfile, onComplete
           onClick={handleDismissWithoutCompleting}
           aria-label="Close"
           className="absolute end-0 top-0 z-20 w-12 h-12 bg-transparent touch-manipulation"
+        />
+
+        {/* Coach trigger, tucked in beside the close X. It sits at end-12
+            because the X owns the corner itself and its hit target is a
+            full 48px — overlapping them would make the coach button
+            occasionally dismiss the modal instead. */}
+        <OnboardingCoachButton
+          size="sm"
+          onClick={() => setCoachOpen(true)}
+          className="absolute end-12 top-2 z-30"
+        />
+
+        <OnboardingCoachSheet
+          open={coachOpen}
+          onClose={() => setCoachOpen(false)}
+          stepId={coachStepId}
+          draft={coachDraft}
+          onApply={applyCoachSuggestion}
         />
 
 

@@ -3,7 +3,7 @@
 // carousel, multi-select goals, experience level, stat scrubbers,
 // schedule picker, loading animation, and personalised reveal.
 
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { createContext, useContext, useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import SignInToContinue from './SignInToContinue';
 import FlexynLogo from '@/components/FlexynLogo';
@@ -26,6 +26,21 @@ import { isDuplicateUsernameError, isProfaneUsernameError } from '@/lib/onboardi
 import { todayLocalDateString } from '@/lib/dateUtils';
 import NearbyGymPicker from '@/components/gyms/NearbyGymPicker';
 import { setHomeGym, setHomeGymFromOsm } from '@/lib/data/homeGym';
+import { OnboardingCoachButton, OnboardingCoachSheet } from '@/components/onboarding/OnboardingCoach';
+import { hasCoachFor } from '@/lib/aiCoach/onboardingCoach';
+
+/* ═══════════════════════════════════════════════════════════════
+   COACH CONTEXT
+
+   Every form step renders the shared <StepHeader>, so that is the one
+   place the coach button has to be added — but StepHeader takes only
+   {step, total, onBack} and threading the step id, the draft and an
+   apply handler through eleven call sites would be eleven chances to
+   forget one. A context is read by StepHeader directly and none of the
+   step components change at all.
+═══════════════════════════════════════════════════════════════ */
+
+const OnboardingCoachContext = createContext(null);
 
 /* ═══════════════════════════════════════════════════════════════
    CONSTANTS
@@ -333,6 +348,8 @@ function StepHeader({ step, total, onBack }) {
   // the authenticated user back to goal. The button LOOKED broken.
   // Treating `onBack === null` as "no back" lets the parent step decide.
   const canBack = typeof onBack === 'function';
+  const coach = useContext(OnboardingCoachContext);
+  const showCoach = !!coach && hasCoachFor(coach.stepName);
   return (
     <div className="flex items-center gap-3 mb-7">
       {canBack ? (
@@ -354,6 +371,7 @@ function StepHeader({ step, total, onBack }) {
       <span className="font-mono text-[11px] font-semibold text-muted-foreground shrink-0 tracking-wider">
         {String(step).padStart(2, '0')}<span className="opacity-40">/{String(total).padStart(2, '0')}</span>
       </span>
+      {showCoach && <OnboardingCoachButton onClick={coach.open} />}
     </div>
   );
 }
@@ -2710,6 +2728,13 @@ function LoadingStep({ onDone }) {
    STEP 7: REVEAL
 ═══════════════════════════════════════════════════════════════ */
 
+/** Coach trigger for steps that don't render a StepHeader. */
+function RevealCoachButton() {
+  const coach = useContext(OnboardingCoachContext);
+  if (!coach || !hasCoachFor(coach.stepName)) return null;
+  return <OnboardingCoachButton onClick={coach.open} />;
+}
+
 function RevealStep({ data, onNext, saving = false, previewRegimen = null }) {
   const goalIds = Array.isArray(data.goal) ? data.goal : (data.goal ? [data.goal] : []);
   const primaryGoal = GOALS.find(g => g.id === goalIds[0]) || GOALS[0];
@@ -2727,8 +2752,12 @@ function RevealStep({ data, onNext, saving = false, previewRegimen = null }) {
       <Confetti pieces={28} />
       <div className="flex-1 overflow-y-auto pb-4 pt-2 pe-2">
         <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05, duration: 0.4 }}
-          className="mb-5">
+          className="mb-5 flex items-center justify-between gap-3">
           <FlexynLogo className="h-7" />
+          {/* Reveal has no StepHeader, so the coach button is placed
+              directly — "why this plan?" is the question people most
+              want answered before they commit to it. */}
+          <RevealCoachButton />
         </motion.div>
         <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
           className="font-mono text-[11px] font-bold tracking-[0.18em] text-primary uppercase mb-4">
@@ -3057,6 +3086,35 @@ export default function Onboarding() {
 
   const stepName = STEPS[stepIdx];
   const formStep = FORM_STEP_NAMES.indexOf(stepName) + 1; // 0 if not a form step
+
+  /* ── AI Coach ──────────────────────────────────────────────
+     The coach can answer about the current step, and where its answer
+     resolves to an actual choice it hands back an `apply` payload that
+     makes the selection here. Advice the user then has to go and
+     re-enter by hand is most of the way to being no help at all.
+     Unknown fields are ignored rather than written blindly — a new
+     suggestion type shipped in the pure module must not be able to
+     poke an arbitrary key into the profile draft.                    */
+  const [coachOpen, setCoachOpen] = useState(false);
+  const applyCoachSuggestion = useCallback((apply) => {
+    if (!apply || typeof apply.field !== 'string') return;
+    const { field, value } = apply;
+    if (field === 'goal') {
+      setData(d => ({ ...d, goal: Array.isArray(value) ? value : [value] }));
+    } else if (field === 'level') {
+      setData(d => ({ ...d, level: value }));
+    } else if (field === 'days') {
+      setData(d => ({ ...d, days: Array.isArray(value) ? value : d.days }));
+    } else {
+      return;
+    }
+    if (navigator.vibrate) navigator.vibrate(6);
+    setCoachOpen(false);
+  }, []);
+  const coachCtx = useMemo(
+    () => ({ stepName, open: () => setCoachOpen(true) }),
+    [stepName],
+  );
 
   const handleUsernameChange = (val) => {
     setData(d => ({ ...d, username: val }));
@@ -3475,8 +3533,21 @@ export default function Onboarding() {
     // pre-keyboard size — pushing the focused input behind the
     // keyboard. dvh shrinks with the keyboard so onboarding inputs
     // stay reachable.
+    <OnboardingCoachContext.Provider value={coachCtx}>
     <div className="fixed inset-0 bg-background overflow-hidden" style={{ height: '100dvh' }}>
       <Aurora />
+
+      {/* Mounted at the root rather than inside the step, so the sheet
+          survives the AnimatePresence step transition — applying a
+          suggestion that advances the step must not yank the panel out
+          from under the user mid-animation. */}
+      <OnboardingCoachSheet
+        open={coachOpen}
+        onClose={() => setCoachOpen(false)}
+        stepId={stepName}
+        draft={data}
+        onApply={applyCoachSuggestion}
+      />
 
       <div className="relative z-10 h-full flex items-start justify-center overflow-hidden">
         <div className="w-full max-w-[420px] h-full px-6 py-6 sm:py-10 flex flex-col">
@@ -3605,6 +3676,7 @@ export default function Onboarding() {
         </div>
       </div>
     </div>
+    </OnboardingCoachContext.Provider>
   );
 }
 

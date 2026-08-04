@@ -1,0 +1,637 @@
+// src/lib/aiCoach/onboardingCoach.js
+//
+// The AI Coach, for people who don't have any data yet.
+//
+// The main coach (coach.js → intents.js → responders.js) answers questions
+// ABOUT a training history: PRs, streaks, weak areas, "how was my week".
+// During onboarding none of that exists — the user hasn't logged a set and
+// in the initial flow doesn't even have a profile row yet — so every one of
+// those responders would answer with an empty-state apology. The questions
+// people actually have here are a different shape:
+//
+//   "which of these should I pick?"   "what does 16:8 mean?"
+//   "am I a beginner or returning?"   "is 2 lb a week too fast?"
+//
+// So this module answers per-STEP rather than per-intent. It knows what the
+// current step is asking, what the user has answered so far, and — the part
+// that makes it worth having — it can hand back an `apply` payload so the
+// answer becomes the selection instead of something the user has to go and
+// re-enter themselves.
+//
+// Pure: no I/O, no React, and NO `@/api/db` import (see CLAUDE.md, Profile
+// cache). Context flows in; the caller owns the draft and the writes.
+
+/* ═══════════════════════════════════════════════════════════════
+   STEP IDS
+   Namespaced because both flows have a step called "goal" and they
+   mean different things (training goal vs calorie goal).
+═══════════════════════════════════════════════════════════════ */
+
+export const OB = {
+  WELCOME:    'welcome',
+  GOAL:       'goal',
+  SHARPEN:    'sharpen',
+  EXPERIENCE: 'experience',
+  AGE:        'age',
+  HEIGHT:     'height',
+  WEIGHT:     'weight',
+  BASELINE:   'body_baseline',
+  DAYS:       'days',
+  ASSESSMENT: 'assessment',
+  INJURY:     'injury_history',
+  HOME_GYM:   'home_gym',
+  LOADING:    'loading',
+  REVEAL:     'reveal',
+};
+
+export const NUT = {
+  GOAL:         'nutrition_goal',
+  TARGET:       'nutrition_target',
+  ACTIVITY:     'nutrition_activity',
+  RESTRICTIONS: 'nutrition_restrictions',
+  ALLERGENS:    'nutrition_allergens',
+  PREVIEW:      'nutrition_preview',
+};
+
+/** Nutrition modal step index → step id. Its steps are numeric. */
+export const NUTRITION_STEP_IDS = [
+  NUT.GOAL, NUT.TARGET, NUT.ACTIVITY, NUT.RESTRICTIONS, NUT.ALLERGENS, NUT.PREVIEW,
+];
+
+/* ═══════════════════════════════════════════════════════════════
+   FREE-TEXT INFERENCE
+   Users describe themselves ("I sit at a desk all day and want to
+   drop 20 lbs") far more often than they ask a clean question, so
+   the describe-yourself path has to be first-class, not a fallback.
+═══════════════════════════════════════════════════════════════ */
+
+const GOAL_LABELS = {
+  strength:  'Build strength',
+  muscle:    'Add muscle',
+  lose:      'Lose fat',
+  speed:     'Run faster',
+  endurance: 'Run further',
+  mobility:  'Move better',
+};
+
+// Ordered: the first pattern that hits wins for that goal id, and a message
+// can match several goals (people genuinely want two or three).
+const GOAL_PATTERNS = [
+  ['lose',      /\b(lose|losing|drop|shed|cut|cutting|slim|leaner?|lean out|body ?fat|belly|tone|toned|weight loss)\b/],
+  ['muscle',    /\b(muscle|bigger|size|mass|hypertrophy|bulk|bulking|jacked|fill out|put on)\b/],
+  ['strength',  /\b(strong|stronger|strength|power|powerlift|heavy|heavier|1 ?rm|max out)\b/],
+  ['speed',     /\b(faster|speed|sprint|pace|mile time|5 ?k time|quicker)\b/],
+  ['endurance', /\b(endurance|distance|further|farther|longer|stamina|marathon|half|10 ?k|conditioning)\b/],
+  ['mobility',  /\b(mobility|mobile|flexib|stiff|tight|posture|longevity|pain[- ]free|range of motion)\b/],
+];
+
+/** Every training goal the message points at, most-confident first. */
+export function inferGoals(message) {
+  const m = String(message || '').toLowerCase();
+  return GOAL_PATTERNS.filter(([, re]) => re.test(m)).map(([id]) => id);
+}
+
+const LEVEL_LABELS = {
+  newbie:     'New',
+  returning:  'Returning',
+  consistent: 'Consistent',
+  advanced:   'Advanced',
+};
+
+/**
+ * Experience level from a description.
+ *
+ * `returning` is tested BEFORE `consistent` and `advanced` on purpose:
+ * "I lifted for three years but stopped in 2023" contains both "years" and
+ * "stopped", and the answer that serves that person is Returning — starting
+ * them at their old numbers is how people get hurt in week one.
+ */
+export function inferLevel(message) {
+  const m = String(message || '').toLowerCase();
+  if (/\b(coming back|came back|getting back|back (in)?to|returning|coming off|took [^.]{0,16}(break|time off)|been (a while|out)|used to|haven'?t (trained|lifted|worked out) (in|for)|after [^.]{0,16}(break|injury|layoff))\b/.test(m)) return 'returning';
+  if (/\b(never|no experience|complete beginner|total beginner|just start|starting out|first time|new to (this|lifting|the gym)|day one)\b/.test(m)) return 'newbie';
+  if (/\b(advanced|experienced|plateau|competitive|compete|coach(ed)?|\d{2,}\s*years|[3-9]\+?\s*years|many years|decade)\b/.test(m)) return 'advanced';
+  if (/\b(consistent|regularly|couple (of )?years|1-2 years|[6-9]\s*months|1[0-9]\s*months|a year|two years|2\s*years)\b/.test(m)) return 'consistent';
+  if (/\b([0-5]\s*months|few months|couple (of )?months|less than (6|six))\b/.test(m)) return 'newbie';
+  return null;
+}
+
+const ACTIVITY_LABELS = {
+  sedentary: 'Sedentary',
+  light:     'Lightly active',
+  moderate:  'Moderately active',
+  very:      'Very active',
+  extra:     'Extra active',
+};
+
+/** Daily-activity level from a description of the user's day. */
+export function inferActivity(message) {
+  const m = String(message || '').toLowerCase();
+  if (/\b(twice a day|2x (a )?day|two[- ]a[- ]days|athlete|physical job|labou?r|construction|training for a marathon)\b/.test(m)) return 'extra';
+  if (/\b(very active|6[- ]7|six|every day|daily|5[- ]6|nurse|server|on my feet all day|warehouse)\b/.test(m)) return 'very';
+  if (/\b(moderate|3[- ]5|three|four|few times a week|3x|4x)\b/.test(m)) return 'moderate';
+  if (/\b(light|1[- ]3|once or twice|twice a week|2x (a )?week|some walking|walk)\b/.test(m)) return 'light';
+  if (/\b(desk|office|sedentary|sit(ting)? (all day|at a desk)|barely|hardly|no exercise|not (very )?active|couch)\b/.test(m)) return 'sedentary';
+  return null;
+}
+
+const NUTRITION_GOAL_LABELS = { lose: 'Lose weight', maintain: 'Maintain weight', gain: 'Gain weight' };
+
+/** Calorie goal from a description. */
+export function inferNutritionGoal(message) {
+  const m = String(message || '').toLowerCase();
+  if (/\b(lose|losing|drop|shed|cut|cutting|deficit|slim|leaner?|weight loss|body ?fat)\b/.test(m)) return 'lose';
+  if (/\b(gain|gaining|bulk|bulking|surplus|put on|add weight|mass|bigger)\b/.test(m)) return 'gain';
+  if (/\b(maintain|maintenance|stay|same weight|recomp|hold)\b/.test(m)) return 'maintain';
+  return null;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   QUESTION SHAPE
+═══════════════════════════════════════════════════════════════ */
+
+const ASKS_RECOMMENDATION = /\b(which|what) (should|do|would|one)|how (many|much) (should|do)|recommend|suggest|help me (pick|choose|decide)|pick for me|choose for me|not sure|unsure|no idea|don'?t know|dunno|i'?m stuck|you (pick|choose|decide)|best for me\b/i;
+const ASKS_EXPLANATION    = /\b(what (is|are|does|do)|what'?s|explain|mean(s|ing)?|difference between|why (do|are) you|why does|how does|tell me about)\b/i;
+const ASKS_SKIP           = /\b(skip|do i have to|can i (skip|leave|come back)|is (this|it) (required|optional|necessary)|later)\b/i;
+
+/* ═══════════════════════════════════════════════════════════════
+   PER-STEP KNOWLEDGE
+
+   Each entry supplies:
+     intro(draft)    — the greeting shown when the sheet opens
+     prompts(draft)  — tappable starter questions
+     explain(draft)  — answer to "what does this mean / why ask"
+     recommend(draft, message) — { reply, apply? }
+     skip(draft)     — answer to "can I skip this"
+     free(message, draft) — step-specific handling of a description
+
+   `apply` is { field, value, label }. The host maps `field` onto its own
+   state; nothing here knows how the draft is stored.
+═══════════════════════════════════════════════════════════════ */
+
+const listGoals = (ids) => (ids || []).map(id => GOAL_LABELS[id]).filter(Boolean);
+
+function goalRecommendation(draft, message) {
+  const inferred = inferGoals(message);
+  if (inferred.length) {
+    const picked = inferred.slice(0, 3);
+    return {
+      reply: `That reads as **${listGoals(picked).join('** and **')}**. You can tick more than one — the plan blends them rather than picking a winner, so a strength + lose-fat combination keeps the bar heavy and takes the volume down instead of turning every session into cardio.`,
+      apply: { field: 'goal', value: picked, label: `Select ${listGoals(picked).join(' + ')}` },
+    };
+  }
+  return {
+    reply: [
+      'Pick by the outcome you want six months from now, not by what you think you should say:',
+      '',
+      '• **Build strength** — heavy compounds, low reps. Numbers on the bar go up.',
+      '• **Add muscle** — more sets in the 6–12 range. Size goes up.',
+      '• **Lose fat** — the training keeps your strength; the deficit does the fat loss.',
+      '• **Run faster** — intervals and tempo work.',
+      '• **Run further** — easy volume, built up gradually.',
+      '• **Move better** — mobility and range of motion.',
+      '',
+      'Tick as many as apply — the plan averages them. Four or more and progress on each one gets slow, which is the only reason to hold back.',
+      '',
+      "If you'd rather just tell me what you're after in your own words, do that and I'll set it for you.",
+    ].join('\n'),
+  };
+}
+
+function levelRecommendation(draft, message) {
+  const inferred = inferLevel(message);
+  if (inferred) {
+    const why = {
+      newbie:     "we start light and spend the first weeks on form, which is what makes the later jumps possible",
+      returning:  "we ramp gently — coming back at your old numbers is the single most common way people get hurt in week one",
+      consistent: "real progressive overload and periodization from the start",
+      advanced:   "specificity and training blocks, because the easy gains are already banked",
+    }[inferred];
+    return {
+      reply: `Sounds like **${LEVEL_LABELS[inferred]}** — ${why}.`,
+      apply: { field: 'level', value: inferred, label: `Select ${LEVEL_LABELS[inferred]}` },
+    };
+  }
+  return {
+    reply: [
+      'Go by what your body is used to right now, not by what you once managed:',
+      '',
+      '• **New** — under 6 months of lifting.',
+      '• **Returning** — you have trained before but have had a break.',
+      '• **Consistent** — 6–24 months of fairly regular training.',
+      '• **Advanced** — 2+ years, and your lifts are near a plateau.',
+      '',
+      "When you're between two, take the lower one. It only affects your starting loads, and starting lighter costs you about a week — starting too heavy can cost you a month.",
+      '',
+      'Tell me roughly how long you have been training and I will set it.',
+    ].join('\n'),
+  };
+}
+
+// Weekday indices match DaysStep (0 = Sunday).
+const DAY_SPREADS = {
+  2: [2, 5],           // Tue, Fri
+  3: [1, 3, 5],        // Mon, Wed, Fri
+  4: [1, 2, 4, 5],     // Mon, Tue, Thu, Fri
+  5: [1, 2, 3, 5, 6],  // Mon, Tue, Wed, Fri, Sat
+};
+const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+function daysRecommendation(draft) {
+  const level = draft?.level;
+  const goals = Array.isArray(draft?.goal) ? draft.goal : (draft?.goal ? [draft.goal] : []);
+  const count = level === 'advanced' ? 5 : level === 'consistent' ? 4 : 3;
+  const spread = DAY_SPREADS[count];
+  const runner = goals.includes('speed') || goals.includes('endurance');
+  const note = runner
+    ? ' Since you picked a running goal, these are the days the plan has something scheduled — easy runs can sit on the gaps without counting against recovery.'
+    : ' The rest days between sessions are doing real work; a muscle grows on the day off, not the day you trained it.';
+  return {
+    reply: `For **${LEVEL_LABELS[level] || 'where you are now'}**, ${count} days a week is the honest answer — enough to progress, few enough that a busy week doesn't break the streak. **${spread.map(i => DAY_NAMES[i]).join(', ')}** spreads them out.${note}\n\nPick whatever actually fits your week instead, though. The schedule you keep beats the schedule that's optimal.`,
+    apply: { field: 'days', value: spread, label: `Select ${spread.map(i => DAY_NAMES[i]).join(', ')}` },
+  };
+}
+
+/**
+ * A target date that lands the user's goal at a sustainable rate.
+ *
+ * Loss is capped at 1% of bodyweight per week (and 2 lb absolute), gain at
+ * 0.5 lb per week. Those are the rates where you keep muscle on the way down
+ * and don't add mostly fat on the way up, and they're the same clamps
+ * computePreview applies — so a date suggested here won't come back flagged
+ * "too aggressive" two steps later.
+ */
+export function suggestTargetDate({ currentLbs, targetLbs, today = new Date() }) {
+  const cur = Number(currentLbs);
+  const tgt = Number(targetLbs);
+  if (!Number.isFinite(cur) || !Number.isFinite(tgt) || cur <= 0 || tgt <= 0) return null;
+  const delta = tgt - cur;
+  if (Math.abs(delta) < 0.5) return null;
+  const perWeek = delta < 0
+    ? Math.min(cur * 0.01, 2)   // losing
+    : 0.5;                       // gaining
+  const weeks = Math.ceil(Math.abs(delta) / perWeek);
+  const date = new Date(today.getTime());
+  date.setDate(date.getDate() + weeks * 7);
+  return { weeks, perWeek: Math.round(perWeek * 100) / 100, date, delta };
+}
+
+function targetRecommendation(draft) {
+  const { currentLbs, targetLbs } = draft || {};
+  const s = suggestTargetDate({ currentLbs, targetLbs });
+  if (!s) {
+    return {
+      reply: [
+        'Put in the weight you want to reach and I will work out a date that gets you there without wrecking the process.',
+        '',
+        'The rates worth staying inside: about **1% of bodyweight per week** coming down, and about **0.5 lb per week** going up. Faster than that going down and you start losing muscle along with the fat; faster going up and most of what you add is fat.',
+      ].join('\n'),
+    };
+  }
+  const dir = s.delta < 0 ? 'down' : 'up';
+  const iso = `${s.date.getFullYear()}-${String(s.date.getMonth() + 1).padStart(2, '0')}-${String(s.date.getDate()).padStart(2, '0')}`;
+  return {
+    reply: `${Math.abs(Math.round(s.delta))} lb ${dir} at a sustainable **${s.perWeek} lb/week** is about **${s.weeks} weeks** — roughly ${s.date.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}.\n\nYou can set a nearer date, but the app will clamp the daily calories at a floor rather than take you somewhere unsafe, so a very aggressive date mostly just makes the projection wrong.`,
+    apply: { field: 'targetDate', value: iso, label: `Set target date to ${s.date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}` },
+  };
+}
+
+const GUIDES = {
+  /* ── Initial onboarding ───────────────────────────────────── */
+
+  [OB.WELCOME]: {
+    intro: () => "I'm your coach. I'll be here on every step — ask me what a question means, or just describe yourself and I'll fill it in.",
+    prompts: () => [
+      { id: 'what', text: 'What is this setup for?' },
+      { id: 'long', text: 'How long does it take?' },
+    ],
+    explain: () => "The next few questions set your starting loads, how many days a week you train, and what the plan optimizes for. It takes about two minutes, and nothing here is permanent — all of it is editable later from your profile.",
+  },
+
+  [OB.GOAL]: {
+    intro: () => "What are you actually here for? Tell me in your own words if it's easier — I'll turn it into the right picks.",
+    prompts: () => [
+      { id: 'which', text: 'Which goal should I pick?' },
+      { id: 'multi', text: 'Can I pick more than one?' },
+      { id: 'diff',  text: "What's the difference between strength and muscle?" },
+    ],
+    explain: () => "**Strength** is about the number on the bar — heavy, low reps. **Add muscle** is about size — more total sets in the 6–12 range. They overlap a lot, and picking both is completely normal; the plan blends them rather than choosing.\n\n**Lose fat** doesn't change your lifting much: the deficit does the fat loss, the training is what stops you losing muscle with it.",
+    recommend: goalRecommendation,
+    // Only claims the message when inference actually fires. Wiring
+    // `goalRecommendation` in directly would swallow every question on this
+    // step — it always returns a reply — so "what's the difference between
+    // strength and muscle" would get the generic list instead of the answer.
+    free: (message, draft) => (inferGoals(message).length ? goalRecommendation(draft, message) : null),
+  },
+
+  [OB.SHARPEN]: {
+    intro: (d) => `Narrowing down ${listGoals(d?.goal).join(' + ') || 'your goal'}. Pick what matters most — or ask me and I'll talk you through them.`,
+    prompts: () => [
+      { id: 'which', text: 'Which of these should I choose?' },
+      { id: 'why',   text: 'Why does this matter?' },
+    ],
+    explain: () => "This is the specific version of the goal you already picked. It decides things like whether your plan leans toward heavy triples or toward volume — a real difference in what you'll be doing on a Tuesday, so it's worth answering honestly rather than ambitiously.",
+    recommend: () => ({
+      reply: "Pick the one you'd actually be pleased about in three months. If two of them feel equally good, take the one that needs less equipment or less time — you'll do it more often, and frequency is what makes any of this work.",
+    }),
+  },
+
+  [OB.EXPERIENCE]: {
+    intro: () => "How much training does your body have behind it? This sets your starting weights, so honest beats optimistic here.",
+    prompts: () => [
+      { id: 'which', text: 'Which one am I?' },
+      { id: 'between', text: "I'm between two of these" },
+      { id: 'why', text: 'Why does this matter?' },
+    ],
+    explain: () => "It sets the loads you start at, and nothing else. Aim too high and your first sessions are too heavy to complete with good form; aim low and you spend one extra week ramping. When in doubt, go lower — the plan raises the weight as soon as you're finishing sets easily.",
+    recommend: levelRecommendation,
+    free: (message, draft) => (inferLevel(message) ? levelRecommendation(draft, message) : null),
+  },
+
+  [OB.AGE]: {
+    intro: () => "Age and a username. Ask me anything about why these are here.",
+    prompts: () => [
+      { id: 'why', text: 'Why do you need my age?' },
+      { id: 'name', text: 'Can I change my username later?' },
+    ],
+    explain: () => "Age feeds two things: your calorie maths later on, and a small adjustment to rest periods — recovery between sets genuinely takes longer as you get older, and the plan accounts for it rather than pretending otherwise. It isn't shown to anyone.\n\nYour username is the name other people see on leaderboards, and you can change it later in Profile.",
+  },
+
+  [OB.HEIGHT]: {
+    intro: () => "Height. Quick one.",
+    prompts: () => [{ id: 'why', text: 'Why do you need my height?' }],
+    explain: () => "Height and weight together give your BMR, which is what every calorie target in the Nutrition tab is built on. Without it those targets are a generic guess. Switch between ft/in and cm with the toggle.",
+  },
+
+  [OB.WEIGHT]: {
+    intro: () => "Your current weight — the starting point everything else is measured from.",
+    prompts: () => [
+      { id: 'why', text: 'Why do you need my weight?' },
+      { id: 'unsure', text: "I don't know it exactly" },
+    ],
+    explain: () => "Two jobs: your calorie targets, and your starting loads for bodyweight-relative lifts. A close estimate is fine — you can update it any time, and progress is tracked from wherever you actually start.",
+    free: (message) => (
+      /\b(don'?t know|not sure|unsure|no scale|estimate|roughly|about)\b/i.test(message)
+        ? { reply: "Estimate it. Being 5 lb out changes your calorie target by about 25 kcal — nothing you'd notice. Put your best guess in and correct it the first time you weigh yourself." }
+        : null
+    ),
+  },
+
+  [OB.BASELINE]: {
+    intro: () => "Optional measurements. Genuinely fine to skip — ask me if you want to know what they'd buy you.",
+    prompts: () => [
+      { id: 'skip', text: 'Can I skip this?' },
+      { id: 'why',  text: 'What are these used for?' },
+    ],
+    explain: () => "Waist, chest, hips and body fat give you a second way to see progress. That matters more than it sounds: during a recomp the scale can sit still for weeks while your waist drops, and without a tape measure that reads as 'nothing is happening' when something clearly is.",
+    skip: () => ({ reply: "Yes — skip it. Nothing downstream depends on these, and you can add them later from Progress. The one reason to do it now is that a baseline you never took is a comparison you can never make." }),
+  },
+
+  [OB.DAYS]: {
+    intro: (d) => `How many days a week can you realistically train?${d?.level ? " I've got a suggestion based on your experience level — ask." : ''}`,
+    prompts: () => [
+      { id: 'howmany', text: 'How many days should I train?' },
+      { id: 'best',    text: 'Which days are best?' },
+      { id: 'change',  text: 'Can I change this later?' },
+    ],
+    explain: () => "This sets how your plan is split. Three days is usually full-body; four or five moves to an upper/lower or push/pull split. Rest days aren't idle time — the adaptation happens on them.",
+    recommend: daysRecommendation,
+    free: (message, draft) => (
+      /\b(\d)\s*(days?|x|times)\b/i.test(message) ? daysRecommendation(draft) : null
+    ),
+  },
+
+  [OB.ASSESSMENT]: {
+    intro: () => "A few benchmarks. 'Not yet' is an answer, not a failure — it just tells me where to start you.",
+    prompts: () => [
+      { id: 'unsure', text: "I don't know if I can do these" },
+      { id: 'why',    text: 'What are these for?' },
+    ],
+    explain: () => "They're calibration, not a test. Each one is a rough marker of relative strength, and together they tell the plan whether to start you at the light end or the middle of the range for your experience level.",
+    recommend: () => ({ reply: "If you're not sure, answer 'not yet'. Underestimating costs you one easy session; overestimating puts a bar on your back that you can't complete, which is both a worse workout and the riskier mistake." }),
+  },
+
+  [OB.INJURY]: {
+    intro: () => "Anything currently injured or bothering you? This is the one step I'd really rather you didn't skip.",
+    prompts: () => [
+      { id: 'why',   text: 'Why does this matter?' },
+      { id: 'skip',  text: 'Can I skip this?' },
+      { id: 'old',   text: 'What about an old injury?' },
+    ],
+    explain: () => "Anything you log here gets pulled out of your plan, along with the muscles that work with it — flag a shoulder and the plan drops chest and triceps work too, because they load the same joint. Without it you'll be handed an Overhead Press on a shoulder that can't do one.",
+    skip: () => ({ reply: "You can, and nothing breaks. But this is the one step where skipping has a real cost: an injury the plan doesn't know about is an injury it will program straight through. If you have anything at all, thirty seconds here is worth it." }),
+    free: (message) => (
+      /\b(old|past|healed|used to|years ago|fine now|recovered)\b/i.test(message)
+        ? { reply: "If it's fully healed and doesn't bother you under load, leave it out — the exclusions are aggressive and you'd lose useful exercises for no reason. If it still talks to you on heavy days, log it as **Mild**. You can end it from Progress the moment it stops mattering." }
+        : null
+    ),
+  },
+
+  [OB.HOME_GYM]: {
+    intro: () => "Where do you train? Picking your gym puts you on its leaderboard with the people who actually train there.",
+    prompts: () => [
+      { id: 'why',    text: 'Why pick a gym?' },
+      { id: 'skip',   text: 'Can I skip this?' },
+      { id: 'nofind', text: "I can't find my gym" },
+    ],
+    explain: () => "It gives you the board for your gym — ranked by how many days a week people show up, not by how much they lift, so it's a board a beginner can actually place on. You can change it later from Profile → My Gym.",
+    skip: () => ({ reply: "Yes, freely. It's a social feature — nothing about your training plan depends on it, and you can pick one any time from Profile → My Gym." }),
+    free: (message) => (
+      /\b(can'?t find|not (there|listed|showing)|no results|missing|home gym|garage|my house)\b/i.test(message)
+        ? { reply: "Two things. If you train at home, skip this — it's for shared gyms. If it's a real gym that isn't listed, the lookup pulls from OpenStreetMap and sometimes just fails to answer; try again in a moment. Skipping now costs you nothing, and you can add it later from Profile → My Gym." }
+        : null
+    ),
+  },
+
+  [OB.LOADING]:  { intro: () => "Building your plan. One moment." },
+  [OB.REVEAL]:   {
+    intro: () => "Here's what I built. Ask me anything about it before you start.",
+    prompts: () => [
+      { id: 'why',    text: 'Why this plan?' },
+      { id: 'change', text: 'Can I change it later?' },
+    ],
+    explain: () => "It's built from your goals, your experience level and the days you gave me, with anything you flagged as injured taken out. Nothing is locked — every session is editable, and the plan adjusts on its own as your logged sets tell it more.",
+  },
+
+  /* ── Nutrition onboarding ─────────────────────────────────── */
+
+  [NUT.GOAL]: {
+    intro: () => "Losing, holding, or gaining? Describe what you're after and I'll set it.",
+    prompts: () => [
+      { id: 'which', text: 'Which goal should I pick?' },
+      { id: 'recomp', text: 'Can I lose fat and gain muscle?' },
+    ],
+    explain: () => "**Lose** puts you under maintenance, **Gain** puts you over, **Maintain** sits at it. The macros shift too — protein goes up in a deficit specifically to protect the muscle you already have.",
+    recommend: (draft, message) => {
+      const g = inferNutritionGoal(message);
+      if (g) {
+        return {
+          reply: `**${NUTRITION_GOAL_LABELS[g]}** it is.${g === 'lose' ? " Protein goes up while you're in a deficit — that's what keeps the weight you lose from including muscle." : g === 'gain' ? ' Slow is the whole trick here — a big surplus adds fat faster than it adds muscle.' : ' Maintenance is also the right pick if you want to recomp: same weight, better composition.'}`,
+          apply: { field: 'goal', value: g, label: `Select ${NUTRITION_GOAL_LABELS[g]}` },
+        };
+      }
+      return {
+        reply: "If you want to see a smaller number on the scale, pick **Lose**. If you're chasing size and strength and don't mind some weight coming with it, pick **Gain**. If you mostly want to look different at the same weight, pick **Maintain** — that's the recomp route, and it's the slowest of the three but the one you can hold indefinitely.",
+      };
+    },
+  },
+
+  [NUT.TARGET]: {
+    intro: () => "Target weight and a date. I can work out a date that's actually reachable — just ask.",
+    prompts: () => [
+      { id: 'date', text: 'What date should I set?' },
+      { id: 'fast', text: 'Is 2 lb a week too fast?' },
+      { id: 'safe', text: "What's a safe rate?" },
+    ],
+    explain: () => "The gap between where you are and where you want to be, divided by the weeks between now and your date, is your weekly rate — and that rate is what sets your daily calories. A closer date means a steeper deficit.",
+    recommend: targetRecommendation,
+    free: (message, draft) => (
+      /\b(too fast|safe|realistic|aggressive|how (fast|quick)|rate|per week|a week)\b/i.test(message)
+        ? {
+          reply: [
+            'The rates that hold up:',
+            '',
+            '• **Losing** — up to about 1% of bodyweight per week, and no more than 2 lb. Past that you start losing muscle with the fat, and the hunger makes it hard to stick to anyway.',
+            '• **Gaining** — about 0.5 lb per week. Faster and most of the extra is fat.',
+            '',
+            'Two pounds a week is fine at 250 lb and too fast at 140 lb — it depends on your bodyweight, which is exactly why the app works in percentages. Give me your target and I will suggest a date that lands inside those.',
+          ].join('\n'),
+        }
+        : null
+    ),
+  },
+
+  [NUT.ACTIVITY]: {
+    intro: () => "How active is a normal day for you? Describe it and I'll pick the level.",
+    prompts: () => [
+      { id: 'which', text: 'Which level am I?' },
+      { id: 'count', text: 'Does my workout count?' },
+    ],
+    explain: () => "This multiplies your BMR into a daily burn, and it's the single biggest lever on your calorie target — one level out is a few hundred calories a day. Count your whole day, not just the gym: a nurse on their feet for twelve hours out-burns a desk worker who lifts four times a week.",
+    recommend: (draft, message) => {
+      const a = inferActivity(message);
+      if (a) {
+        return {
+          reply: `That's **${ACTIVITY_LABELS[a]}**.${a === 'sedentary' ? " Don't feel bad about it — most people sit for work, and picking it honestly gets you a target that works rather than one that quietly stalls." : ''}`,
+          apply: { field: 'activity', value: a, label: `Select ${ACTIVITY_LABELS[a]}` },
+        };
+      }
+      return {
+        reply: "Roughly: **Sedentary** is a desk job with little else. **Lightly active** adds 1–3 sessions a week. **Moderately active** is 3–5. **Very active** is 6–7, or a job where you're on your feet. **Extra active** is manual labour or twice-a-day training.\n\nWhen you're between two, take the lower one. Overestimating your burn is the most common reason a deficit doesn't produce a loss.",
+      };
+    },
+  },
+
+  [NUT.RESTRICTIONS]: {
+    intro: () => "Anything you don't eat? This shapes what I suggest later on.",
+    prompts: () => [
+      { id: 'skip', text: 'Can I skip this?' },
+      { id: 'why',  text: 'What does this change?' },
+    ],
+    explain: () => "It filters every food suggestion in the app — meal ideas, the fuelling notes on your workout card, all of it. Set it here and you stop having to mentally discard half of what you're shown.",
+    skip: () => ({ reply: "Yes — it's optional and editable any time from the Nutrition tab. The only cost of skipping is that suggestions will occasionally name something you don't eat." }),
+  },
+
+  [NUT.ALLERGENS]: {
+    intro: () => "Allergens. Worth being thorough with this one.",
+    prompts: () => [
+      { id: 'why',    text: 'Why is this separate?' },
+      { id: 'custom', text: "My allergy isn't listed" },
+    ],
+    explain: () => "Allergens are kept separate from preferences because they're treated harder: nothing the coach suggests will name a food that hits one, and if a combination rules out everything it can name, it drops to plain macros rather than guessing at something.",
+    free: (message) => (
+      /\b(not listed|isn'?t (there|listed)|missing|custom|specific|only|other)\b/i.test(message)
+        ? { reply: "Type it into the custom field — free text works, and it's matched on the term you enter. Use the narrowest accurate word: 'shrimp' keeps the rest of the shellfish family available, where 'shellfish' takes all of it out." }
+        : null
+    ),
+  },
+
+  [NUT.PREVIEW]: {
+    intro: () => "Your targets. Ask me where any of these numbers came from.",
+    prompts: () => [
+      { id: 'how',     text: 'How were these calculated?' },
+      { id: 'protein', text: 'Why this much protein?' },
+      { id: 'change',  text: 'Can I change them later?' },
+    ],
+    explain: () => "Height, weight, age and sex give your BMR via Mifflin–St Jeor. Your activity level multiplies that into a daily burn. Your goal and date shift it up or down from there.\n\nProtein is set per pound of bodyweight — highest when you're cutting, because that's when the muscle is at risk. Fat gets a floor for hormone health, and carbs take whatever's left. All of it is editable later from Edit Goals.",
+  },
+};
+
+/* ═══════════════════════════════════════════════════════════════
+   PUBLIC API
+═══════════════════════════════════════════════════════════════ */
+
+const FALLBACK_INTRO = "Ask me anything about this step — or tell me about yourself and I'll fill it in.";
+
+/** Opening line when the coach sheet is opened on `stepId`. */
+export function introFor(stepId, draft = {}) {
+  const g = GUIDES[stepId];
+  if (!g || typeof g.intro !== 'function') return FALLBACK_INTRO;
+  return g.intro(draft);
+}
+
+/** Tappable starter questions for `stepId`. Never more than three. */
+export function promptsFor(stepId, draft = {}) {
+  const g = GUIDES[stepId];
+  if (!g || typeof g.prompts !== 'function') return [];
+  return g.prompts(draft).slice(0, 3);
+}
+
+/** True when this step has anything worth asking about. */
+export function hasCoachFor(stepId) {
+  return Boolean(GUIDES[stepId]);
+}
+
+/**
+ * Answer a question asked on `stepId`.
+ *
+ * Returns `{ reply, apply }` where `apply` — when present — is a
+ * `{ field, value, label }` the caller can turn into an actual selection.
+ * Never throws and never returns an empty reply: a coach button that
+ * sometimes produces nothing is worse than no coach button.
+ */
+export function answerOnboarding({ stepId, draft = {}, message }) {
+  const text = String(message || '').trim();
+  const guide = GUIDES[stepId];
+
+  if (!text) return { reply: introFor(stepId, draft) };
+  if (!guide) return { reply: FALLBACK_INTRO };
+
+  // Order matters. A step-specific free-text handler goes first because
+  // "I can't find my gym" and "is 2 lb a week too fast" both read as
+  // questions to the generic matchers but have a much better specific
+  // answer waiting for them.
+  //
+  // The one exception is a definition question, which has to reach
+  // `explain` first: "what's the difference between strength and muscle?"
+  // names two goals, so the goal step's inference matches it and would
+  // otherwise answer a question about terminology by silently selecting
+  // both of them.
+  const isDefinitionQuestion = ASKS_EXPLANATION.test(text) && typeof guide.explain === 'function';
+  if (!isDefinitionQuestion && typeof guide.free === 'function') {
+    const hit = guide.free(text, draft);
+    if (hit && hit.reply) return hit;
+  }
+
+  if (ASKS_SKIP.test(text) && typeof guide.skip === 'function') {
+    return guide.skip(draft, text);
+  }
+
+  if (ASKS_RECOMMENDATION.test(text) && typeof guide.recommend === 'function') {
+    return guide.recommend(draft, text);
+  }
+
+  if (ASKS_EXPLANATION.test(text) && typeof guide.explain === 'function') {
+    return { reply: guide.explain(draft) };
+  }
+
+  // Not obviously a question — most likely the user describing themselves.
+  // Try the recommender, which is where every inference lives.
+  if (typeof guide.recommend === 'function') {
+    const hit = guide.recommend(draft, text);
+    if (hit && hit.reply) return hit;
+  }
+
+  if (typeof guide.explain === 'function') return { reply: guide.explain(draft) };
+  return { reply: introFor(stepId, draft) };
+}
