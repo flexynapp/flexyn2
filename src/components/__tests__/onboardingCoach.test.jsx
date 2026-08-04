@@ -82,7 +82,8 @@ describe('OnboardingCoachSheet', () => {
     );
     ask('how many days should I train?');
     fireEvent.click(screen.getByRole('button', { name: /Select Mon, Wed, Fri/i }));
-    expect(onApply.mock.calls[0][0].value).toEqual([1, 3, 5]);
+    // Monday-first indices, matching Onboarding's WEEKDAYS.
+    expect(onApply.mock.calls[0][0].value).toEqual([0, 2, 4]);
   });
 
   // The conversation is about ONE question. Carrying "pick Build strength"

@@ -108,7 +108,12 @@ const LEVEL_LABELS = {
  */
 export function inferLevel(message) {
   const m = String(message || '').toLowerCase();
-  if (/\b(coming back|came back|getting back|back (in)?to|returning|coming off|took [^.]{0,16}(break|time off)|been (a while|out)|used to|haven'?t (trained|lifted|worked out) (in|for)|after [^.]{0,16}(break|injury|layoff))\b/.test(m)) return 'returning';
+  // Every way people say "I stopped for a while". The long-tail matters
+  // more than usual here because the alternative reading of the same
+  // sentence is `advanced` — "I lifted for 4 years but took 2 years off"
+  // contains "4 years", and answering Advanced to that person starts them
+  // at loads their body hasn't seen since before the break.
+  if (/\b(coming back|came back|getting back|back (in)?to|returning|coming off|took [^.]{0,24}off|took [^.]{0,24}break|\d+\s*(year|month|week)s?\s*off|(stopped|quit|paused)\s+(lifting|training|working out|going|for)|hiatus|been (a while|out|away|off)|out of the gym|used to|haven'?t (trained|lifted|worked out|been) (in|for)|after [^.]{0,24}(break|injury|layoff))\b/.test(m)) return 'returning';
   if (/\b(never|no experience|complete beginner|total beginner|just start|starting out|first time|new to (this|lifting|the gym)|day one)\b/.test(m)) return 'newbie';
   if (/\b(advanced|experienced|plateau|competitive|compete|coach(ed)?|\d{2,}\s*years|[3-9]\+?\s*years|many years|decade)\b/.test(m)) return 'advanced';
   if (/\b(consistent|regularly|couple (of )?years|1-2 years|[6-9]\s*months|1[0-9]\s*months|a year|two years|2\s*years)\b/.test(m)) return 'consistent';
@@ -228,14 +233,18 @@ function levelRecommendation(draft, message) {
   };
 }
 
-// Weekday indices match DaysStep (0 = Sunday).
+// Indices into Onboarding's WEEKDAYS, which is MONDAY-first: 0 = Mon, 6 = Sun.
+// Not the JS Date convention. Assuming Sunday-first here shipped a coach that
+// said "Mon, Wed, Fri" and then selected Tue, Thu, Sat — the reply and the
+// grid disagreed, which is worse than giving no suggestion at all. If these
+// ever move, DAY_NAMES below must move with them.
+const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const DAY_SPREADS = {
-  2: [2, 5],           // Tue, Fri
-  3: [1, 3, 5],        // Mon, Wed, Fri
-  4: [1, 2, 4, 5],     // Mon, Tue, Thu, Fri
-  5: [1, 2, 3, 5, 6],  // Mon, Tue, Wed, Fri, Sat
+  2: [1, 4],           // Tue, Fri
+  3: [0, 2, 4],        // Mon, Wed, Fri
+  4: [0, 1, 3, 4],     // Mon, Tue, Thu, Fri
+  5: [0, 1, 2, 4, 5],  // Mon, Tue, Wed, Fri, Sat
 };
-const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 function daysRecommendation(draft) {
   const level = draft?.level;

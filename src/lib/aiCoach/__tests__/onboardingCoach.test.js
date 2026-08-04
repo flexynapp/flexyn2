@@ -39,6 +39,23 @@ describe('inferLevel', () => {
     expect(inferLevel('coming back after 5 years of training')).toBe('returning');
   });
 
+  // Found by driving the real onboarding flow, not by the suite: the
+  // original pattern matched "took time off" but not "took 2 years off",
+  // so a four-year lifter two years out of the gym was answered Advanced.
+  // These are the phrasings people actually type.
+  it('reads every common way of saying "I stopped for a while"', () => {
+    for (const said of [
+      'I lifted seriously for about 4 years but took 2 years off',
+      'trained hard for 6 years, took a year off',
+      'was lifting 3 years then stopped training',
+      "I've been out of the gym for 18 months",
+      'took an 8 month hiatus after 5 years of lifting',
+      'been away from the gym a while',
+    ]) {
+      expect(inferLevel(said), said).toBe('returning');
+    }
+  });
+
   it('returns null when it cannot tell', () => {
     expect(inferLevel('which one should I pick')).toBeNull();
     expect(inferLevel('')).toBeNull();
@@ -144,6 +161,25 @@ describe('answerOnboarding', () => {
     });
     expect(r.apply.field).toBe('days');
     expect(r.apply.value).toHaveLength(5);
+  });
+
+  // The bug this pins: the indices were written Sunday-first while
+  // Onboarding's WEEKDAYS is Monday-first, so the coach said "Mon, Wed, Fri"
+  // and then selected Tue, Thu, Sat. A reply that disagrees with what it
+  // just did is worse than no suggestion. Caught by driving the real flow.
+  it('names exactly the days it selects, in a Monday-first week', () => {
+    const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    for (const level of ['newbie', 'returning', 'consistent', 'advanced']) {
+      const r = answerOnboarding({
+        stepId: OB.DAYS, draft: { level }, message: 'how many days should I train?',
+      });
+      const namedInLabel = r.apply.label.replace('Select ', '').split(', ');
+      const namedByIndex = r.apply.value.map(i => WEEKDAYS[i]);
+      expect(namedByIndex, level).toEqual(namedInLabel);
+      // …and the same names have to appear in the prose above the button.
+      expect(r.reply, level).toContain(namedInLabel.join(', '));
+      expect(r.apply.value.every(i => i >= 0 && i <= 6), level).toBe(true);
+    }
   });
 
   it('suggests a reachable target date from the two weights', () => {
