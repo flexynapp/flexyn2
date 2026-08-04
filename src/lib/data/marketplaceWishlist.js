@@ -19,14 +19,24 @@ export async function listMine(userId) {
   return data ?? [];
 }
 
-/** Add a listing to the wishlist. Idempotent (PK constraint). */
+/**
+ * Add a listing to the wishlist. Idempotent (PK constraint).
+ *
+ * `ignoreDuplicates: true` is required, not cosmetic: marketplace_wishlist
+ * has an INSERT policy but no UPDATE policy, so supabase-js's default
+ * merge-duplicates (`ON CONFLICT ... DO UPDATE`) failed with `42501 new row
+ * violates row-level security policy` whenever the listing was already
+ * saved — and this one THROWS. The conflict target IS the whole payload, so
+ * there is nothing to update on conflict; DO NOTHING is what "idempotent"
+ * meant here all along.
+ */
 export async function add(userId, listingId) {
   if (!userId || !listingId) throw new Error('userId + listingId required');
   const { error } = await supabase
     .from('marketplace_wishlist')
     .upsert(
       { user_id: userId, listing_id: listingId },
-      { onConflict: 'user_id,listing_id' },
+      { onConflict: 'user_id,listing_id', ignoreDuplicates: true },
     );
   if (error) throw error;
 }

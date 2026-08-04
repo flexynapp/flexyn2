@@ -44,13 +44,21 @@ describe('add', () => {
     await expect(add('u1', null)).rejects.toThrow();
   });
 
-  it('upserts with PK onConflict', async () => {
+  // `ignoreDuplicates` is not a detail — it is the whole fix. Without it
+  // supabase-js sends `resolution=merge-duplicates`, PostgREST emits
+  // `ON CONFLICT ... DO UPDATE`, and marketplace_wishlist has an INSERT
+  // policy but no UPDATE policy — so re-saving an already-saved listing
+  // failed with `42501 new row violates row-level security policy`, and
+  // `add` throws. Verified against the database as a real authenticated
+  // user. The conflict target IS the entire payload, so DO NOTHING is what
+  // "idempotent" meant here all along.
+  it('upserts with PK onConflict and DO NOTHING semantics', async () => {
     const upsert = vi.fn().mockResolvedValue({ error: null });
     fromSpy.mockReturnValue({ upsert });
     await add('u1', 'L1');
     expect(upsert).toHaveBeenCalledWith(
       { user_id: 'u1', listing_id: 'L1' },
-      { onConflict: 'user_id,listing_id' },
+      { onConflict: 'user_id,listing_id', ignoreDuplicates: true },
     );
   });
 

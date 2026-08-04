@@ -48,13 +48,20 @@ describe('muteUser', () => {
     await expect(muteUser({ id: 'u1' }, 'x@y.com')).rejects.toThrow();
   });
 
-  it('upserts the (muter_id, muted_email) tuple with onConflict', async () => {
+  // `ignoreDuplicates` is not a detail — it is the whole fix. Without it
+  // supabase-js sends `resolution=merge-duplicates`, PostgREST emits
+  // `ON CONFLICT ... DO UPDATE`, and user_mutes has an INSERT policy but no
+  // UPDATE policy — so re-muting an already-muted user failed with `42501
+  // new row violates row-level security policy`, and muteUser throws.
+  // Verified against the database as a real authenticated user. The only
+  // non-key column is the muter's own email, so there is nothing to merge.
+  it('upserts the (muter_id, muted_email) tuple with DO NOTHING semantics', async () => {
     const upsert = vi.fn().mockResolvedValue({ error: null });
     fromSpy.mockReturnValue({ upsert });
     await muteUser({ id: 'u1', email: 'u1@x.com' }, 'noisy@x.com');
     expect(upsert).toHaveBeenCalledWith(
       { muter_id: 'u1', muter_email: 'u1@x.com', muted_email: 'noisy@x.com' },
-      { onConflict: 'muter_id,muted_email' },
+      { onConflict: 'muter_id,muted_email', ignoreDuplicates: true },
     );
   });
 

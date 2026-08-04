@@ -384,22 +384,47 @@ export async function updateStoryDmsSettings(userId, storyDmsDisabled) {
   return true;
 }
 
-/** Mark a story viewed. Upsert is idempotent on the unique constraint. */
+/**
+ * Mark a story viewed. Idempotent on the unique constraint.
+ *
+ * `ignoreDuplicates: true` is load-bearing, not a tidy-up. Without it
+ * supabase-js sends `resolution=merge-duplicates`, which PostgREST turns
+ * into `ON CONFLICT ... DO UPDATE` — and story_views has an INSERT policy
+ * but no UPDATE policy, so the moment a row already exists the statement
+ * fails with `42501 new row violates row-level security policy`. Since the
+ * conflict target here IS the entire payload there is nothing to update
+ * anyway; DO NOTHING is both correct and permitted.
+ *
+ * The first view of a story always landed, so view tracking was never
+ * broken — but every re-view of an already-seen story raised, and this
+ * call discards its result, so it raised silently.
+ */
 export async function markStoryViewed(storyId, userId) {
   if (!storyId || !userId) return;
   await supabase
     .from('story_views')
-    .upsert({ story_id: storyId, viewer_id: userId }, { onConflict: 'story_id,viewer_id' });
+    .upsert(
+      { story_id: storyId, viewer_id: userId },
+      { onConflict: 'story_id,viewer_id', ignoreDuplicates: true },
+    );
 }
 
-/** Like a story. Upsert — calling twice is safe. */
+/**
+ * Like a story. Calling twice is safe.
+ *
+ * `ignoreDuplicates: true` for the same reason as markStoryViewed —
+ * story_likes has no UPDATE policy, so the merge-duplicates form failed
+ * with 42501 on a re-like and this returned false as though the like had
+ * been rejected. The only non-key column is the liker's own email, so
+ * there was never anything worth updating on conflict.
+ */
 export async function likeStory(storyId, user) {
   if (!storyId || !user?.id) return false;
   const { error } = await supabase
     .from('story_likes')
     .upsert(
       { story_id: storyId, liker_id: user.id, liker_email: user.email },
-      { onConflict: 'story_id,liker_id' }
+      { onConflict: 'story_id,liker_id', ignoreDuplicates: true }
     );
   if (error) { console.warn('[stories] like failed:', error); return false; }
   return true;

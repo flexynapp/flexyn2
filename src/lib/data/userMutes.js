@@ -24,14 +24,24 @@ export async function listMutes(userId) {
   return data ?? [];
 }
 
-/** Mute a user. */
+/**
+ * Mute a user. Idempotent.
+ *
+ * `ignoreDuplicates: true` is required, not cosmetic: user_mutes has an
+ * INSERT policy but no UPDATE policy, so supabase-js's default
+ * merge-duplicates (`ON CONFLICT ... DO UPDATE`) failed with `42501 new row
+ * violates row-level security policy` whenever the mute already existed —
+ * and this one THROWS, so re-muting an already-muted user surfaced as an
+ * error. The only non-key column is the muter's own email; there is nothing
+ * to update on conflict.
+ */
 export async function muteUser(user, email) {
   if (!user?.id || !user?.email || !email) throw new Error('user + email required');
   const { error } = await supabase
     .from('user_mutes')
     .upsert(
       { muter_id: user.id, muter_email: user.email, muted_email: email },
-      { onConflict: 'muter_id,muted_email' },
+      { onConflict: 'muter_id,muted_email', ignoreDuplicates: true },
     );
   if (error) throw error;
 }
