@@ -82,14 +82,35 @@ Deno.serve(async (req: Request) => {
     return json({ ok: false, error: 'UNAUTHORIZED' }, 401);
   }
 
-  // Per-user daily quota (migration 174 / 229). Fails OPEN on RPC error so a
-  // counter outage can't take the feature down; a clean cap-reached is 429.
+  // Per-user daily quota (migration 174 / 229 / 280). Fails OPEN on RPC error
+  // so a counter outage can't take the feature down; a clean cap-reached is 429.
+  //
+  // The consume stays BEFORE the work, because it is the atomic gate that
+  // stops someone firing fifty concurrent recognitions at the Anthropic
+  // budget. But the user must not pay for a scan we never delivered, so
+  // every failure path below refunds via `fail()`. `consumed` tracks whether
+  // we actually took one — on an RPC error we fall through without charging,
+  // and refunding then would mint a free scan.
+  let consumed = false;
   try {
     const { data: allowed, error: rlErr } = await client.rpc('consume_recognize_meal_quota');
     if (!rlErr && allowed === false) {
+      // Denied at the cap. Migration 280 makes this a no-op on the counter,
+      // so there is nothing to give back.
       return json({ ok: false, error: 'RATE_LIMIT' }, 429);
     }
-  } catch (_e) { /* fall through */ }
+    if (!rlErr) consumed = true;
+  } catch (_e) { /* fall through — nothing consumed */ }
+
+  // Every non-success exit after this point goes through fail(), which
+  // returns the scan first. A refund failure is swallowed: we would rather
+  // hand back the real error than mask it with a bookkeeping one.
+  const fail = async (obj: unknown, status = 200) => {
+    if (consumed) {
+      try { await client.rpc('refund_recognize_meal_quota'); } catch (_e) { /* best effort */ }
+    }
+    return json(obj, status);
+  };
 
   const ACCEPTED_MEDIA = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 
@@ -97,22 +118,22 @@ Deno.serve(async (req: Request) => {
   try {
     body = await req.json();
   } catch {
-    return json({ ok: false, error: 'INVALID_JSON' }, 400);
+    return await fail({ ok: false, error: 'INVALID_JSON' }, 400);
   }
   if (!body?.image_base64) {
-    return json({ ok: false, error: 'MISSING_IMAGE' }, 400);
+    return await fail({ ok: false, error: 'MISSING_IMAGE' }, 400);
   }
   if (body.image_base64.length > MAX_IMG_BYTES * 1.5) {
-    return json({ ok: false, error: 'IMAGE_TOO_LARGE' }, 413);
+    return await fail({ ok: false, error: 'IMAGE_TOO_LARGE' }, 413);
   }
   const mediaType = (body.media_type || 'image/jpeg').replace(/^data:/, '').split(';')[0];
   if (!ACCEPTED_MEDIA.includes(mediaType)) {
-    return json({ ok: false, error: 'UNSUPPORTED_MEDIA_TYPE' }, 415);
+    return await fail({ ok: false, error: 'UNSUPPORTED_MEDIA_TYPE' }, 415);
   }
 
   const apiKey = Deno.env.get('ANTHROPIC_API_KEY');
   if (!apiKey) {
-    return json({ ok: false, error: 'SERVER_MISCONFIGURED' }, 500);
+    return await fail({ ok: false, error: 'SERVER_MISCONFIGURED' }, 500);
   }
   let upstream: Response;
   try {
@@ -140,13 +161,13 @@ Deno.serve(async (req: Request) => {
       }),
     });
   } catch (_e) {
-    return json({ ok: false, error: 'API_ERROR' }, 502);
+    return await fail({ ok: false, error: 'API_ERROR' }, 502);
   }
   if (!upstream.ok) {
     if (upstream.status === 429) {
-      return json({ ok: false, error: 'RATE_LIMIT' }, 429);
+      return await fail({ ok: false, error: 'RATE_LIMIT' }, 429);
     }
-    return json({ ok: false, error: 'API_ERROR' }, 502);
+    return await fail({ ok: false, error: 'API_ERROR' }, 502);
   }
   const payload = (await upstream.json()) as AnthropicResponse;
   const text = payload?.content?.find((c) => c.type === 'text')?.text || '';
@@ -154,10 +175,10 @@ Deno.serve(async (req: Request) => {
   try {
     parsed = JSON.parse(text);
   } catch {
-    return json({ ok: false, error: 'PARSE_ERROR', raw: text }, 500);
+    return await fail({ ok: false, error: 'PARSE_ERROR', raw: text }, 500);
   }
   if (parsed?.not_food) {
-    return json({ ok: false, error: 'NOT_FOOD' });
+    return await fail({ ok: false, error: 'NOT_FOOD' });
   }
   return json({ ok: true, result: parsed });
 });
