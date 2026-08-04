@@ -10,6 +10,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from '@/lib/toast';
 import { reportError } from '@/lib/reportError';
 import { triggerHaptic } from '@/lib/haptic';
+import { initialsFor } from '@/lib/initials';
 import { User as UserIcon, FileText, X, Loader2, MapPin, Heart, Link2, Copy, ExternalLink, TrendingUp } from 'lucide-react';
 import ThemeSelector from '@/components/ThemeSelector';
 import { useAuth } from '@/lib/AuthContext';
@@ -869,9 +870,9 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
     ? `@${displayUsername}`
     : (isSelf ? t('hub.profile.anonymousSelf') : t('hub.profile.anonymousAthlete'));
 
-  const initials = displayUsername
-    ? displayUsername.slice(0, 2).toUpperCase()
-    : '?';
+  // Shared helper so this and the header avatar can't drift again. Passing
+  // only the username keeps this surface username-only, per the note above.
+  const initials = initialsFor({ username: displayUsername });
 
   // Theme scope — render the profile card in the profile owner's theme.
   // Reads BOTH the level-up theme and the loot theme; ThemedScope resolves

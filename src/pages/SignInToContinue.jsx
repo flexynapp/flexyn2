@@ -286,6 +286,16 @@ export default function SignInToContinue({
             <p className="text-micro text-muted-foreground/70 text-center leading-relaxed">
               Beta access — your data lives on this device until you link an email. Accounts may be reset at launch.
             </p>
+            {/* GDPR Art. 13 wants the notice available at the point of
+                collection, and both stores check that it is reachable
+                before sign-up — so these are plain <a> tags to the public
+                routes, not in-app links behind the auth gate. */}
+            <p className="text-[10px] text-muted-foreground/70 text-center leading-relaxed">
+              By continuing you agree to our{' '}
+              <a href="/terms" className="underline hover:text-foreground">Terms</a>
+              {' '}and{' '}
+              <a href="/privacy" className="underline hover:text-foreground">Privacy Policy</a>.
+            </p>
           </>
         )}
       </motion.div>

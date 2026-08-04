@@ -86,16 +86,26 @@ function NavTab({ item, isActive, isHubItem, hubBlue, hubPurple, hubHasNewFollow
                   hubPurple
                     // Kegan's purple tier — sits alongside sean's blue
                     // tier as a per-user nav-color override.
+                    // The per-user tiers follow the same rule as the default
+                    // below: the tier colour marks SELECTED, never resting.
                     ? (isActive
                         ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/40'
-                        : 'border-2 border-purple-600 text-purple-600 bg-purple-600/10')
+                        : 'border-2 border-border text-muted-foreground bg-muted/40')
                     : hubBlue
                       ? (isActive
                           ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/40'
-                          : 'border-2 border-blue-600 text-blue-600 bg-blue-600/10')
+                          : 'border-2 border-border text-muted-foreground bg-muted/40')
                       : (isActive
                           ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/40'
-                          : 'border-2 border-primary text-primary bg-primary/5')
+                          // Inactive Hub is a NEUTRAL ring, not an accent one.
+                          // It used to be border-primary/text-primary/bg-primary/5,
+                          // which meant the Hub icon sat in an orange ring on
+                          // every screen in the app — so on Workout (or any
+                          // other tab) two tabs read as selected at once. The
+                          // ring is what marks Hub as the elevated centre slot;
+                          // the accent is what marks the selected tab. Those
+                          // are different jobs and only one of them is stateful.
+                          : 'border-2 border-border text-muted-foreground bg-muted/40')
                 }`
               // Non-Hub tabs: an equal-height (h-9) centered icon slot so
               // every tab's label sits on the same baseline as Hub's.

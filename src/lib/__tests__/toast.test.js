@@ -27,9 +27,20 @@ describe('toast policy wrapper', () => {
     expect(sonnerToast.error).toHaveBeenCalledWith('Something broke', { description: 'x' });
   });
 
-  it('silences success toasts', () => {
+  // Reversed on 2026-08-04. Success is the confirmation class: under the
+  // old policy 271 of 283 non-error call sites carried no `action` and so
+  // rendered nothing, which made a successful save pixel-identical to a
+  // dead button. If the "subtle press/completion cues" ever ship and
+  // success goes back behind keepIfAction, flip this test with it.
+  it('forwards success toasts even without an action', () => {
     toast.success('Saved!');
-    expect(sonnerToast.success).not.toHaveBeenCalled();
+    expect(sonnerToast.success).toHaveBeenCalledWith('Saved!');
+  });
+
+  it('forwards a success toast that carries an action', () => {
+    const action = { label: 'Undo', onClick: () => {} };
+    toast.success('Saved!', { action });
+    expect(sonnerToast.success).toHaveBeenCalledWith('Saved!', { action });
   });
 
   it('silences info / message / warning toasts', () => {

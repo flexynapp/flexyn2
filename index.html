@@ -54,12 +54,16 @@
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
 
     <!-- Viewport -->
-    <!-- maximum-scale=1.0 + user-scalable=no kills the accidental pinch-
-         zoom on chat, the daily-quotes carousel, and the story editor.
-         Trade-off: removes the user's built-in zoom affordance — acceptable
-         per product, since the app's own gestures already include
-         pinch-to-zoom where it's useful (story text). -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <!-- DO NOT re-add maximum-scale / user-scalable=no. They were here to
+         kill accidental pinch-zoom on chat, the daily-quotes carousel and
+         the story editor, but disabling zoom globally is a WCAG 1.4.4
+         failure and a documented App Review accessibility flag. It also
+         compounds badly with our type scale: the app renders ~818 strings
+         at 9-11px, and a user who cannot read the smallest type also could
+         not zoom it. Suppress unwanted pinch on the specific surfaces with
+         `touch-action` instead — that is local, and it leaves the user's
+         own zoom affordance intact everywhere else. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 
     <!-- PWA. vite-plugin-pwa emits manifest.webmanifest; the old
          /manifest.json reference 404'd silently and broke the

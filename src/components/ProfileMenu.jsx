@@ -17,6 +17,7 @@ import SettingsPanel from './SettingsPanel';
 import AccountDeletedScreen from './AccountDeletedScreen';
 import { OPEN_ACHIEVEMENTS_EVENT } from '@/lib/achievementsFlow';
 import { isVerified } from '@/lib/verifiedUsers';
+import { initialsFor } from '@/lib/initials';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
 // DebriefVault + InjuryForm + AchievementsVault are modals that ONLY
@@ -283,9 +284,11 @@ export default function ProfileMenu({ compact = false } = {}) {
     return () => window.removeEventListener(OPEN_ACHIEVEMENTS_EVENT, handler);
   }, []);
 
-  const initials = user?.full_name
-    ? user.full_name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
-    : '?';
+  // Username-first, via the shared helper — this used to read full_name only,
+  // which meant the header avatar and the profile avatar 850px below it
+  // disagreed about the same user (AR here, RE there) and rendered the empty
+  // person icon for anyone without a full_name. See src/lib/initials.js.
+  const initials = initialsFor(user);
   const isVerifiedUser = isVerified(user?.username);
 
   if (accountDeleted) return <AccountDeletedScreen />;

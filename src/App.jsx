@@ -66,6 +66,7 @@ import DuelInviteLanding from './pages/DuelInviteLanding';
 import PublicProfile    from './pages/PublicProfile';
 import PublicGymLanding from './pages/PublicGymLanding';
 import CheckInPage      from './pages/CheckInPage';
+import { PrivacyPolicy, TermsOfService } from './pages/Legal';
 import { readPendingToken, clearPendingToken } from './lib/data/duelInvites';
 import { supabase } from '@/api/supabaseClient';
 
@@ -208,6 +209,23 @@ const AuthenticatedApp = () => {
       <Routes>
         <Route path="/p/gym/:id" element={<PublicGymLanding />} />
         <Route path="*" element={<PublicGymLanding />} />
+      </Routes>
+    );
+  }
+
+  // Legal surfaces: /privacy and /terms. Public on purpose and above the
+  // auth gate — an App Review reviewer, a Play Store listing and a GDPR
+  // Art. 13 notice all have to reach these without an account, and a policy
+  // that only renders once you have signed up is the same as no policy.
+  // Statically imported (not lazy) so they can never fail to load behind a
+  // chunk fetch on the one surface a reviewer is guaranteed to open.
+  if (typeof window !== 'undefined'
+      && (window.location.pathname === '/privacy' || window.location.pathname === '/terms')) {
+    return (
+      <Routes>
+        <Route path="/privacy" element={<PrivacyPolicy />} />
+        <Route path="/terms"   element={<TermsOfService />} />
+        <Route path="*"        element={<PrivacyPolicy />} />
       </Routes>
     );
   }

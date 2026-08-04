@@ -892,7 +892,7 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
       kicker: 'Feature of the Day',
       title: 'Duels',
       sub: 'Challenge a friend to a head-to-head workout. First to finish wins XP + bragging rights.',
-      cta: { label: 'Open a duel', to: '/workout' },
+      cta: { label: 'Open a duel', to: '/duels' },
     },
     {
       id: 'feature:stories',
@@ -947,12 +947,21 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
     return () => clearTimeout(t);
   }, [idx, paused, slides.length]);
 
-  const goTo = (i) => {
-    setIdx(i);
+  // Pause the rotation without moving the slide. Auto-rotate only paused
+  // when the user hit a dot or a chevron, so reaching for the slide's own CTA
+  // raced the timer: an automated click pass lost that race 133 times, and a
+  // thumb is slower than a clicker. Since this card is the largest tap target
+  // on the Dashboard, losing the race means tapping "Log a meal" when you
+  // aimed at "Open a duel". Touching the slide at all now holds it still.
+  const holdRotation = () => {
     setPaused(true);
     if (pauseTimerRef.current) clearTimeout(pauseTimerRef.current);
-    // Resume auto-rotate after 12s of no manual interaction.
     pauseTimerRef.current = setTimeout(() => setPaused(false), 12_000);
+  };
+
+  const goTo = (i) => {
+    setIdx(i);
+    holdRotation();
   };
   // Guard slides.length === 0 — `% 0` returns NaN, and `slides[NaN]`
   // is undefined which crashes the render path that reads slide.id.
@@ -1005,7 +1014,7 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
   // shared so the user can swipe between streak and milestones.
   if (slide.kind === 'streak') {
     return (
-      <div className="relative flex flex-col justify-between gap-5 min-w-0">
+      <div className="relative flex flex-col justify-between gap-5 min-w-0" onPointerDownCapture={holdRotation} onFocusCapture={holdRotation}>
         {/* Decorative icon — right-centre, translucent */}
         <Flame aria-hidden="true" className="absolute pointer-events-none select-none"
           style={{ width: 110, height: 110, opacity: 0.12, color: 'white', right: 8, top: 5, transform: 'none' }} />
@@ -1074,7 +1083,7 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
   if (slide.kind === 'feature') {
     const FeatureIcon = slide.icon || Sparkles;
     return (
-      <div className="relative flex flex-col justify-between gap-4 min-w-0">
+      <div className="relative flex flex-col justify-between gap-4 min-w-0" onPointerDownCapture={holdRotation} onFocusCapture={holdRotation}>
         <FeatureIcon aria-hidden="true" className="absolute pointer-events-none select-none"
           style={{ width: 110, height: 110, opacity: 0.11, color: 'white', right: 8, top: 5, transform: 'none' }} />
         {/* Purple overlay that tints the slideshow column without
@@ -1150,7 +1159,7 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
     : null;
 
   return (
-    <div className="relative flex flex-col justify-between gap-5 min-w-0">
+    <div className="relative flex flex-col justify-between gap-5 min-w-0" onPointerDownCapture={holdRotation} onFocusCapture={holdRotation}>
       {/* Contextual watermark — right-centre normally, but pinned to the
           top-right on slides that render a full-width ProgressBar so the
           bar doesn't visually slice through the icon (e.g. "This week").
