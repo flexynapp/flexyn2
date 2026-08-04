@@ -9,7 +9,11 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card } from '@/components/ui/card';
-import { Coins, Sparkles, CheckCircle2, ChevronUp, ChevronDown } from 'lucide-react';
+import {
+  Coins, Sparkles, CheckCircle2, ChevronUp, ChevronDown,
+  UtensilsCrossed, Droplet, Dumbbell, HeartPulse, Megaphone, Bike,
+  Camera, Flame, Trophy, Zap, Target,
+} from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { triggerHaptic } from '@/lib/haptic';
 import { useAuth } from '@/lib/AuthContext';
@@ -18,6 +22,18 @@ import * as quests from '@/lib/data/quests';
 import * as notifications from '@/lib/data/notifications';
 import { getQuestDefinition, QUEST_DIFFICULTY, questDestinationRoute } from '@/lib/questCatalog';
 import { reportError } from '@/lib/reportError';
+
+// questCatalog stores `icon` as a lucide export NAME so that module stays
+// free of React imports (it's also read by lib/data/quests.js and the
+// server-mirroring tests). Resolution happens here, at the only place that
+// renders a quest row. Explicit map rather than a dynamic lookup on the
+// lucide namespace so tree-shaking can still drop everything unused, and
+// so a typo in the catalog fails loudly in review rather than silently
+// rendering nothing.
+const QUEST_ICONS = {
+  UtensilsCrossed, Droplet, Dumbbell, HeartPulse, Megaphone, Bike,
+  Camera, Flame, Trophy, Zap, Target,
+};
 
 // Confetti burst when all of the day's quests are complete. Lazy-imports
 // canvas-confetti (its own chunk) and honors reduced-motion.
@@ -337,26 +353,46 @@ function QuestRow({ quest, onClaim, onGo, t, tFallback }) {
       } : undefined}
       className={`relative rounded-lg bg-card border border-border/50 p-3 overflow-hidden ${tappable ? 'cursor-pointer hover:border-border transition-colors' : ''}`}
     >
-      {/* Subtle progress bar fill in background */}
+      {/* Subtle progress bar fill in background.
+          `diffMeta.color` is a bare `var(--x)` reference, so alpha is
+          composed with hsl()'s slash syntax. It used to be a raw hex and
+          this appended '26' / '10' as hex alpha — that string concat
+          silently produces invalid CSS the moment the value stops being a
+          6-digit hex, which is exactly what happened when difficulty
+          colours moved onto tokens. */}
       <div
         className="absolute inset-0 transition-[width] duration-500"
         style={{
           width: `${progressPct}%`,
-          background: `linear-gradient(90deg, ${diffMeta.color}26, ${diffMeta.color}10)`,
+          background: `linear-gradient(90deg, hsl(${diffMeta.color} / 0.18), hsl(${diffMeta.color} / 0.06))`,
         }}
         aria-hidden="true"
       />
 
       <div className="relative flex items-center gap-3">
-        <div className="text-2xl shrink-0" aria-hidden="true">{def.icon}</div>
+        {/* Was a 24px emoji. The tile takes the difficulty accent, which
+            the emoji could never do — colour now carries "how hard is
+            this" on the icon as well as the pill. */}
+        <div
+          className="shrink-0 w-9 h-9 rounded-sm flex items-center justify-center"
+          style={{ backgroundColor: `hsl(${diffMeta.color})`, color: 'white' }}
+          aria-hidden="true"
+        >
+          {(() => {
+            const QuestIcon = QUEST_ICONS[def.icon] || Sparkles;
+            return <QuestIcon className="w-4 h-4" />;
+          })()}
+        </div>
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
             <p className="font-medium text-sm truncate">{label}</p>
-            <span
-              className="text-micro font-bold uppercase tracking-wider px-1.5 py-0.5 rounded"
-              style={{ background: `${diffMeta.color}22`, color: diffMeta.color }}
-            >
+            {/* Difficulty label is plain muted text. The solid icon tile to
+                the left already carries the difficulty colour, so tinting
+                this too was saying it twice — and `--destructive` measures
+                3.48:1 against the dark card, which fails AA for an 11px
+                label. Muted-foreground clears it at 5.4:1 in both themes. */}
+            <span className="text-micro font-bold uppercase tracking-wider text-muted-foreground shrink-0">
               {t(`quest.difficulty.${quest.difficulty}`)}
             </span>
           </div>

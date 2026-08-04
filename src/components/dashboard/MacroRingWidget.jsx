@@ -160,7 +160,10 @@ export default function MacroRingWidget({ userProfile = {} }) {
               >
                 {Math.round(totals.calories)}
               </text>
-              <text x="60" y="70" textAnchor="middle" className="fill-muted-foreground" style={{ fontSize: 9 }}>
+              {/* 11px is the floor everywhere else on this screen; an SVG
+                  <text> shouldn't get an exemption just because its size is
+                  an attribute instead of a class. */}
+              <text x="60" y="71" textAnchor="middle" className="fill-muted-foreground" style={{ fontSize: 11 }}>
                 cal
               </text>
             </svg>

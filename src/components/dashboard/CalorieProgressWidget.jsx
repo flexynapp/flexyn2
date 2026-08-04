@@ -156,7 +156,13 @@ export default function CalorieProgressWidget({ userProfile = {} }) {
             initial={{ width: 0 }}
             animate={{ width: `${pct}%` }}
             transition={{ duration: 0.6, ease: 'easeOut' }}
-            className={`h-full rounded-full ${overBudget ? 'bg-destructive' : pct > 85 ? 'bg-primary' : 'bg-primary'}`}
+            // Three states, three meanings. This was red / amber / orange;
+            // amber and orange both being brand-family collapsed the top
+            // two into the same bar once they moved onto tokens, so
+            // "closing in on your goal" looked identical to "plenty left".
+            // success -> primary -> destructive is a real ramp and stays
+            // inside the colour budget.
+            className={`h-full rounded-full ${overBudget ? 'bg-destructive' : pct > 85 ? 'bg-primary' : 'bg-success'}`}
           />
         </div>
         <div className="flex justify-between text-micro text-muted-foreground mb-3">

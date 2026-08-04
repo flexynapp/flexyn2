@@ -5,11 +5,19 @@
 // app is sticky. The flame becomes a status symbol users want to protect.
 //
 // Tier thresholds:
-//   1-6 days     standard 🔥, no decoration
-//   7-29 days    🔥 with orange glow halo
-//   30-99 days   🔥 with stronger glow + gold outline ring
-//   100-364 days 🔥 with pulsing animation + gold ring + sparkle overlay
-//   365+ days    rainbow gradient ring + persistent sparkles (anniversary)
+//   1-6 days     standard flame, no decoration
+//   7-29 days    flame with orange glow halo
+//   30-99 days   flame with stronger glow + gold outline ring
+//   100-364 days flame with pulsing animation + gold ring + sparkle overlay
+//   365+ days    brightest gold ring + persistent sparkles (anniversary)
+//
+// The flame was the 🔥 emoji. Streak-as-flame is the right metaphor (and
+// the reason this pattern works), but the emoji couldn't take the brand
+// colour, ignored the surrounding font weight, and rendered as a different
+// picture on every OS — Apple's, Google's and Samsung's flames don't even
+// share a silhouette, so the "status symbol" looked like a different symbol
+// per device. Lucide's Flame inherits currentColor, so it now goes gold
+// with the tier instead of being a fixed picture beside gold chrome.
 //
 // All animations respect prefers-reduced-motion. Component is purely
 // presentational — pass `days` and it does the rest. If `days <= 0` it
@@ -18,6 +26,7 @@
 
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
+import { Flame } from 'lucide-react';
 
 function tierForDays(days) {
   if (days >= 365) return 4;
@@ -58,8 +67,13 @@ export default function StreakFlame({ days = 0, size = 16, className = '' }) {
       : '1px solid rgba(251,191,36,0.7)',
     borderRadius: '50%',
     padding: '2px',
+    // The 365-day ring was gold -> pink -> blue -> gold. Pink and blue are
+    // outside the colour budget, and a rainbow on the app's rarest badge
+    // read as generic rather than special. It's the brand gold sweep now —
+    // the same gold as the hero CTA, which is what "this is the top tier"
+    // should look like here.
     background: tier >= 4
-      ? 'linear-gradient(135deg, #fbbf24, #f472b6, #60a5fa, #fbbf24) border-box'
+      ? 'linear-gradient(135deg, #fde68a, #fbbf24, #f59e0b, #fde68a) border-box'
       : 'transparent',
     backgroundClip: tier >= 4 ? 'padding-box, border-box' : undefined,
   } : {};
@@ -78,9 +92,10 @@ export default function StreakFlame({ days = 0, size = 16, className = '' }) {
       <motion.span
         animate={pulse}
         transition={pulse ? { duration: 2, repeat: Infinity, ease: 'easeInOut' } : undefined}
-        style={{ fontSize: size, lineHeight: 1, filter: glow ? `drop-shadow(${glow})` : undefined }}
+        className="inline-flex text-primary"
+        style={{ lineHeight: 1, filter: glow ? `drop-shadow(${glow})` : undefined }}
       >
-        🔥
+        <Flame width={size} height={size} strokeWidth={2.25} fill="currentColor" aria-hidden="true" />
       </motion.span>
       {tier >= 3 && !reducedMotion && (
         <>

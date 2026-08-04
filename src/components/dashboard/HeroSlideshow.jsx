@@ -786,16 +786,26 @@ function pickMode({ achievementSlides, pathSlides, profile, logs }) {
 // mesh AND its pagination dots, so a slide with no explicit `color`
 // still colours its dots to match. Shared by the color-reporting effect
 // and the dot render below.
+// This was nine entries, each a private HSL triplet — one hue per slide
+// (amber, emerald, purple, orange, cyan, blue, sky, rose, magenta). A
+// carousel where every slide repaints the chrome in its own colour is
+// the "every block gets its own accent" pattern on a timer, and it was
+// the single biggest source of hue sprawl left on the page.
+//
+// Now four entries keyed on the four budget tokens, holding `var(--x)`
+// rather than literals so `hsl(${accent})` and `hsl(${accent} / 0.25)`
+// both still work and the dots theme with everything else.
+//
+// This ALSO fixes a live bug: once the slide `iconBg` values were moved
+// onto tokens, the nine keys collapsed to four DUPLICATES in a JS object
+// literal, so the last one silently won. Every primary-accented slide
+// was resolving to '292 85% 62%' — the leftover magenta — which is why
+// the pagination dots rendered bright pink on an orange-brand app.
 const ICON_BG_TO_HSL = {
-  'bg-primary/20':   '45 95% 55%',
-  'bg-success/20': '160 80% 50%',
-  'bg-primary/20':  '270 85% 60%',
-  'bg-primary/20':  '25 90% 55%',
-  'bg-info/20':    '190 85% 55%',
-  'bg-info/20':    '220 85% 60%',
-  'bg-info/20':     '205 90% 58%',
-  'bg-destructive/20':    '345 85% 60%',
-  'bg-primary/20': '292 85% 62%',
+  'bg-primary/20':     'var(--primary)',
+  'bg-success/20':     'var(--success)',
+  'bg-info/20':        'var(--info)',
+  'bg-destructive/20': 'var(--destructive)',
 };
 
 const HeroSlideshow = forwardRef(function HeroSlideshow({
@@ -875,7 +885,9 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
       id: 'feature:duels',
       kind: 'feature',
       tier: 'day',
-      color: '270 85% 60%', // purple — duels feature accent
+      // Was a private purple. Feature slides use the brand accent — the
+      // slide is the feature, the hue doesn't need to be.
+      color: 'var(--primary)',
       icon: Swords,
       kicker: 'Feature of the Day',
       title: 'Duels',
@@ -886,7 +898,7 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
       id: 'feature:stories',
       kind: 'feature',
       tier: 'week',
-      color: '330 80% 60%', // pink — stories feature accent
+      color: 'var(--info)',
       icon: Camera,
       kicker: 'Feature of the Week',
       title: 'Stories',

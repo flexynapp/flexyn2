@@ -76,8 +76,12 @@ export default function LoginStreakBanner({ variant = 'default' }) {
             <AnimatedNumber value={streak} />
           </span>
           <span className={onHero ? 'text-white/75' : 'text-muted-foreground'}> {streak === 1 ? t('dashboard.dayStreak') : t('dashboard.daysStreak')}</span>
+          {/* On the hero the backdrop is the gold CTA gradient, where brand
+              orange has almost no separation — white is what the sibling
+              spans already use there. Off-hero it sits on a neutral card
+              and takes the brand accent. */}
           {isPersonalBest && (
-            <span className={`ms-1.5 text-micro font-bold uppercase tracking-wider ${onHero ? 'text-primary' : 'text-primary'}`}>
+            <span className={`ms-1.5 text-micro font-bold uppercase tracking-wider ${onHero ? 'text-white' : 'text-primary'}`}>
               {t('dashboard.best')}
             </span>
           )}

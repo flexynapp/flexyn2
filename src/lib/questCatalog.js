@@ -22,10 +22,19 @@
 // coin_reward on insert precisely so a crafted client can't mint. If you
 // change these, change migration 265's CASE too, or the server will keep
 // paying the old rate and this file will be a lie.
+// `color` was a hardcoded green / blue / purple triple. Blue and purple
+// are outside the app's colour budget (see the note in src/index.css) and
+// rendered as bright blue and purple difficulty pills on the Dashboard —
+// on an orange-brand app. They're CSS-var references now, so they theme
+// with everything else, and the ramp actually reads as escalating
+// difficulty: success -> primary -> destructive.
+//
+// Only DailyQuestsCard consumes `color`; the catalog tests assert on
+// coinReward, not colour.
 export const QUEST_DIFFICULTY = {
-  easy:   { coinReward: 8,  color: '#22c55e' }, // green
-  medium: { coinReward: 20, color: '#3b82f6' }, // blue
-  hard:   { coinReward: 50, color: '#a855f7' }, // purple
+  easy:   { coinReward: 8,  color: 'var(--success)' },
+  medium: { coinReward: 20, color: 'var(--primary)' },
+  hard:   { coinReward: 50, color: 'var(--destructive)' },
 };
 
 // Action types emitted by user actions. Quests subscribe to these.
@@ -48,6 +57,17 @@ export const ACTION_TYPES = {
  *
  * label / description support a {n} placeholder for `target` so a single
  * entry can cover several copy permutations (e.g. "Log 3 meals" / "Log 4 meals").
+ *
+ * `icon` is the NAME of a lucide-react export (e.g. 'Droplet'), not a
+ * component and not an emoji. It was an emoji (💧 🚴 🏆 …) rendered at
+ * text-2xl, which meant the quest rows couldn't take the accent colour,
+ * ignored font weight, and rendered differently on every OS. Keeping it a
+ * string keeps this module free of React imports — DailyQuestsCard owns
+ * the name -> component resolution — and keeps the existing
+ * `typeof q.icon === 'string'` catalog test honest.
+ *
+ * When adding a quest, use a name that already appears here if the concept
+ * matches; the Dashboard shares one icon vocabulary across cards.
  */
 export const QUEST_CATALOG = {
   // ── Easy (15 coins) ────────────────────────────────────────────────────────
@@ -57,7 +77,7 @@ export const QUEST_CATALOG = {
     actionType: ACTION_TYPES.MEAL_LOGGED,
     label: 'Log a meal',
     description: 'Track what you eat today.',
-    icon: '🍽️',
+    icon: 'UtensilsCrossed',
     enabled: true,
   },
   drink_water_4: {
@@ -66,7 +86,7 @@ export const QUEST_CATALOG = {
     actionType: ACTION_TYPES.WATER_LOGGED,
     label: 'Drink 4 glasses of water',
     description: 'Stay hydrated.',
-    icon: '💧',
+    icon: 'Droplet',
     enabled: true,
   },
   workout_15min: {
@@ -75,7 +95,7 @@ export const QUEST_CATALOG = {
     actionType: ACTION_TYPES.WORKOUT_MINUTES,
     label: 'Train for 15 minutes',
     description: 'Even a quick session counts.',
-    icon: '💪',
+    icon: 'Dumbbell',
     enabled: true,
   },
   cardio_10min: {
@@ -84,7 +104,7 @@ export const QUEST_CATALOG = {
     actionType: ACTION_TYPES.CARDIO_SECONDS,
     label: 'Get 10 min of cardio',
     description: 'Get the blood pumping.',
-    icon: '🏃',
+    icon: 'HeartPulse',
     enabled: true,
   },
   hub_post: {
@@ -93,7 +113,7 @@ export const QUEST_CATALOG = {
     actionType: ACTION_TYPES.HUB_POST,
     label: 'Share a post on Hub',
     description: 'Inspire someone.',
-    icon: '📣',
+    icon: 'Megaphone',
     enabled: true,
   },
 
@@ -104,7 +124,7 @@ export const QUEST_CATALOG = {
     actionType: ACTION_TYPES.WORKOUT_COMPLETED,
     label: 'Complete a workout',
     description: 'Finish and save a session.',
-    icon: '🏋️',
+    icon: 'Dumbbell',
     enabled: true,
   },
   cardio_30min: {
@@ -113,7 +133,7 @@ export const QUEST_CATALOG = {
     actionType: ACTION_TYPES.CARDIO_SECONDS,
     label: 'Get 30 min of cardio',
     description: 'A proper cardio session.',
-    icon: '🚴',
+    icon: 'Bike',
     enabled: true,
   },
   log_3_meals: {
@@ -122,7 +142,7 @@ export const QUEST_CATALOG = {
     actionType: ACTION_TYPES.MEAL_LOGGED,
     label: 'Log 3 meals',
     description: 'Track your full day.',
-    icon: '🥗',
+    icon: 'UtensilsCrossed',
     enabled: true,
   },
   drink_water_8: {
@@ -131,7 +151,7 @@ export const QUEST_CATALOG = {
     actionType: ACTION_TYPES.WATER_LOGGED,
     label: 'Drink 8 glasses of water',
     description: 'Hit the daily target.',
-    icon: '🥤',
+    icon: 'Droplet',
     enabled: true,
   },
   progress_photo: {
@@ -140,7 +160,7 @@ export const QUEST_CATALOG = {
     actionType: ACTION_TYPES.PROGRESS_PHOTO,
     label: 'Take a progress photo',
     description: 'Document the journey.',
-    icon: '📸',
+    icon: 'Camera',
     enabled: true,
   },
 
@@ -151,7 +171,7 @@ export const QUEST_CATALOG = {
     actionType: ACTION_TYPES.WORKOUT_MINUTES,
     label: 'Train for 45 minutes',
     description: 'A full quality session.',
-    icon: '🔥',
+    icon: 'Flame',
     enabled: true,
   },
   cardio_45min: {
@@ -160,7 +180,7 @@ export const QUEST_CATALOG = {
     actionType: ACTION_TYPES.CARDIO_SECONDS,
     label: 'Get 45 min of cardio',
     description: 'Endurance work.',
-    icon: '🏆',
+    icon: 'Trophy',
     enabled: true,
   },
   hit_pr: {
@@ -169,7 +189,7 @@ export const QUEST_CATALOG = {
     actionType: ACTION_TYPES.PR_ACHIEVED,
     label: 'Set a personal record',
     description: 'Beat your previous best.',
-    icon: '⚡',
+    icon: 'Zap',
     enabled: true,
   },
   goal_complete: {
@@ -178,7 +198,7 @@ export const QUEST_CATALOG = {
     actionType: ACTION_TYPES.GOAL_COMPLETED,
     label: 'Complete a goal',
     description: 'Cross the finish line.',
-    icon: '🎯',
+    icon: 'Target',
     enabled: true,
   },
 };
