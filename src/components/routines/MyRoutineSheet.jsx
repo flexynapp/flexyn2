@@ -54,7 +54,7 @@ export default function MyRoutineSheet({ open, onClose }) {
 
   const createNew = async (name, days) => {
     if (routines.length >= MAX_ROUTINES) {
-      toast.error(`You've hit the ${MAX_ROUTINES}-routine limit. Delete one to add another.`);
+      toast.error("You've hit the routine limit. Delete one to add another.");
       return;
     }
     setSaving(true);
@@ -167,7 +167,7 @@ export default function MyRoutineSheet({ open, onClose }) {
                             <div className="flex items-center gap-2">
                               <span className="font-heading font-bold text-sm truncate">{r.name}</span>
                               {r.is_active && (
-                                <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wide bg-primary/15 text-primary">Active</span>
+                                <span className="px-1.5 py-0.5 rounded-full text-micro font-bold uppercase tracking-wide bg-primary/15 text-primary">Active</span>
                               )}
                             </div>
                             <p className="text-xs text-muted-foreground mt-0.5">{dayCount} training day{dayCount === 1 ? '' : 's'}</p>
@@ -197,7 +197,7 @@ export default function MyRoutineSheet({ open, onClose }) {
                     <button key={t.name} onClick={() => createNew(t.name, t.days)} disabled={saving || routines.length >= MAX_ROUTINES}
                       className="rounded-2xl border border-border bg-card p-3 text-start hover:border-primary/50 transition-colors disabled:opacity-40">
                       <p className="font-heading font-bold text-sm">{t.name}</p>
-                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                      <p className="text-micro text-muted-foreground mt-0.5">
                         {t.days.filter(d => !d.isRest).length} day{t.days.filter(d => !d.isRest).length === 1 ? '' : 's'} · add your lifts
                       </p>
                     </button>
@@ -215,7 +215,7 @@ export default function MyRoutineSheet({ open, onClose }) {
                 maxLength={60}
                 className="w-full h-11 rounded-xl border border-border bg-secondary/50 px-3 font-heading font-bold text-foreground focus:outline-none focus:border-primary/50"
               />
-              <p className="text-[11px] text-muted-foreground px-1">Tap a day to name it and add your lifts.</p>
+              <p className="text-micro text-muted-foreground px-1">Tap a day to name it and add your lifts.</p>
 
               {/* Week */}
               {(draft?.days || []).map((day, idx) => {
@@ -225,8 +225,8 @@ export default function MyRoutineSheet({ open, onClose }) {
                   <div key={idx} className={`rounded-2xl border bg-card ${isOpen ? '' : 'overflow-hidden'} ${isToday ? 'border-primary/60' : 'border-border'}`}>
                     <button onClick={() => setExpandedDay(isOpen ? null : idx)} className="w-full flex items-center gap-3 p-3 text-start">
                       <div className="w-12 shrink-0">
-                        <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">{DAY_NAMES_FULL[idx].slice(0, 3)}</p>
-                        {isToday && <p className="text-[9px] font-bold text-primary">TODAY</p>}
+                        <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground">{DAY_NAMES_FULL[idx].slice(0, 3)}</p>
+                        {isToday && <p className="text-micro font-bold text-primary">TODAY</p>}
                       </div>
                       <div className="flex-1 min-w-0">
                         {day.isRest ? (
@@ -234,7 +234,7 @@ export default function MyRoutineSheet({ open, onClose }) {
                         ) : day.label || day.exercises.length ? (
                           <>
                             <p className="font-heading font-bold text-sm truncate">{day.label || 'Untitled day'}</p>
-                            <p className="text-[11px] text-muted-foreground">{day.exercises.length} exercise{day.exercises.length === 1 ? '' : 's'}</p>
+                            <p className="text-micro text-muted-foreground">{day.exercises.length} exercise{day.exercises.length === 1 ? '' : 's'}</p>
                           </>
                         ) : (
                           <span className="text-sm text-primary font-semibold flex items-center gap-1.5"><Plus className="w-3.5 h-3.5" /> Add a workout</span>

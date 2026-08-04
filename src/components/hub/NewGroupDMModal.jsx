@@ -62,7 +62,7 @@ export default function NewGroupDMModal({ open, onClose, onCreated }) {
     setSelected(curr => {
       if (curr.includes(email)) return curr.filter(e => e !== email);
       if (curr.length >= MAX_OTHERS) {
-        toast.error(`Max ${MAX_OTHERS} other people. Create a Crew for larger groups.`);
+        toast.error('That\'s the most people a group DM can hold. Create a Crew for larger groups.');
         return curr;
       }
       return [...curr, email];

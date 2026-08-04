@@ -180,7 +180,7 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
   }, []);
 
   const addText = useCallback(() => {
-    if (textCount >= MAX_TEXT) { toast.error(`Up to ${MAX_TEXT} text boxes.`); return; }
+    if (textCount >= MAX_TEXT) { toast.error('That\'s as many text boxes as one story can hold.'); return; }
     const id = uid();
     setOverlays(curr => [...curr, {
       id, kind: 'text', text: '', color: textColor, fontIdx: 0, boxed: false,
@@ -724,7 +724,7 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
                 <div className={`w-14 h-14 rounded-full flex items-center justify-center border-2 transition-colors ${overTrash ? 'bg-red-500 border-red-300 scale-110' : 'bg-black/60 border-white/30'}`}>
                   <Trash2 className={`w-6 h-6 ${overTrash ? 'text-white' : 'text-white/80'}`} />
                 </div>
-                <span className="text-[10px] text-white/70 font-semibold">drag here to delete</span>
+                <span className="text-micro text-white/70 font-semibold">drag here to delete</span>
               </motion.div>
             )}
           </AnimatePresence>
@@ -838,7 +838,7 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
                 <button key={em} onClick={() => addEmoji(em)} className="aspect-square rounded-lg hover:bg-white/10 active:bg-white/20 text-2xl flex items-center justify-center" aria-label={`Add ${em}`}>{em}</button>
               ))}
             </div>
-            <p className="text-white/45 text-[10px] text-center pb-1">Tap to add · drag to position · drag onto 🗑 to delete</p>
+            <p className="text-white/45 text-micro text-center pb-1">Tap to add · drag to position · drag onto 🗑 to delete</p>
           </motion.div>
         )}
       </AnimatePresence>

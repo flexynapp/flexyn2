@@ -227,7 +227,7 @@ function NutritionShortcutsCarousel({ onScan, onRecipes, onHistory, onPlans, onP
             <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: `hsl(${slide.color} / 0.14)` }}>
               <Icon className="w-4 h-4" style={{ color: `hsl(${slide.color})` }} />
             </div>
-            <span className="text-[11px] font-semibold tracking-[0.18em] uppercase text-muted-foreground">
+            <span className="text-micro font-semibold tracking-[0.18em] uppercase text-muted-foreground">
               {slide.kicker}
             </span>
           </div>
@@ -249,7 +249,7 @@ function NutritionShortcutsCarousel({ onScan, onRecipes, onHistory, onPlans, onP
               <button
                 type="button"
                 onClick={slide.onCta}
-                className="inline-flex items-center gap-1 mt-3 px-3 py-1.5 rounded-full backdrop-blur-sm text-[12px] font-semibold transition-opacity hover:opacity-80"
+                className="inline-flex items-center gap-1 mt-3 px-3 py-1.5 rounded-full backdrop-blur-sm text-caption font-semibold transition-opacity hover:opacity-80"
                 style={{ background: `hsl(${slide.color} / 0.15)`, color: `hsl(${slide.color})` }}
               >
                 {slide.ctaLabel}
@@ -1360,8 +1360,14 @@ export default function Nutrition() {
   const [bottleInputUnit, setBottleInputUnit] = useState('oz');
   const [bottleNickname, setBottleNickname] = useState('');
 
-  // Largest commercial bottle: 5-gallon jug = 640 oz
-  const MAX_BOTTLE_OZ = 640;
+  // A bottle may not be bigger than a whole day's water. This used to be a
+  // free-standing 640 (a 5-gallon jug) while WATER_DAILY_CAP_OZ was 200,
+  // so the modal invited you to create a bottle — and advertised "Max:
+  // 640 oz" — that the quick-add chip then refused forever, because its
+  // disabled test is `waterOz + bottle.oz > WATER_DAILY_CAP_OZ` and
+  // `0 + 640 > 200` is true at every water level. Deriving it from the cap
+  // means the two can't contradict each other again.
+  const MAX_BOTTLE_OZ = WATER_DAILY_CAP_OZ;
 
   const maxBottleInUnit = (unit) => {
     if (unit === 'ml') return `${fmt(Math.round(MAX_BOTTLE_OZ * 29.5735))} ml`;
@@ -1377,7 +1383,7 @@ export default function Nutrition() {
     }
     const convertedOz = displayToOz(amount, bottleInputUnit);
     if (convertedOz > MAX_BOTTLE_OZ) {
-      toast.error(`Max bottle size is ${maxBottleInUnit(bottleInputUnit)} (5-gallon jug).`);
+      toast.error(t('nutrition.toast.bottleTooBig') || 'That bottle is too big — try a smaller size.');
       return;
     }
     const nick = bottleNickname.trim();
@@ -1431,7 +1437,7 @@ export default function Nutrition() {
 
         {/* Row 1 — date + Scanner History on one line (aligned). */}
         <div className="flex items-center justify-between gap-4">
-          <p className="text-[10px] font-semibold tracking-[0.2em] uppercase text-muted-foreground">
+          <p className="text-micro font-semibold tracking-[0.2em] uppercase text-muted-foreground">
             {format(new Date(), 'EEEE, MMMM d')}
           </p>
           <button
@@ -1441,7 +1447,7 @@ export default function Nutrition() {
             <Clock className="w-3.5 h-3.5" />
             Scanner History
             {scanHistory.length > 0 && (
-              <span className="min-w-[16px] h-4 px-1 rounded-full bg-primary/15 text-primary text-[10px] font-bold flex items-center justify-center">
+              <span className="min-w-[16px] h-4 px-1 rounded-full bg-primary/15 text-primary text-micro font-bold flex items-center justify-center">
                 {scanHistory.length}
               </span>
             )}
@@ -1526,7 +1532,7 @@ export default function Nutrition() {
                       setScanHistory([]);
                       try { localStorage.removeItem(scanHistoryKey); } catch {}
                     }}
-                    className="text-[11px] text-muted-foreground hover:text-destructive transition-colors"
+                    className="text-micro text-muted-foreground hover:text-destructive transition-colors"
                   >
                     {tFallback('nutrition.clearAll', 'Clear all')}
                   </button>
@@ -1557,16 +1563,16 @@ export default function Nutrition() {
                           <p className="text-sm font-semibold leading-tight truncate">{item.name}</p>
                           <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                             {cal != null && (
-                              <span className="text-[11px] text-primary font-medium">{Math.round(cal)} cal</span>
+                              <span className="text-micro text-primary font-medium">{Math.round(cal)} cal</span>
                             )}
                             {pro != null && (
-                              <span className="text-[11px] text-muted-foreground">P {Math.round(pro)}g</span>
+                              <span className="text-micro text-muted-foreground">P {Math.round(pro)}g</span>
                             )}
                             {carb != null && (
-                              <span className="text-[11px] text-muted-foreground">C {Math.round(carb)}g</span>
+                              <span className="text-micro text-muted-foreground">C {Math.round(carb)}g</span>
                             )}
                             {fat != null && (
-                              <span className="text-[11px] text-muted-foreground">F {Math.round(fat)}g</span>
+                              <span className="text-micro text-muted-foreground">F {Math.round(fat)}g</span>
                             )}
                           </div>
                         </div>
@@ -1715,7 +1721,7 @@ export default function Nutrition() {
           style={{ background: 'linear-gradient(315deg, #ffd27a 0%, #fb9d38 32%, #f2700d 64%, #c2410c 100%)' }}
         >
           <ScanLine className="w-4 h-4" />
-          <span className="text-[10px] font-semibold">{tFallback('nutrition.scan', 'Scan')}</span>
+          <span className="text-micro font-semibold">{tFallback('nutrition.scan', 'Scan')}</span>
         </button>
 
         {/* Neutral shortcuts */}
@@ -1727,7 +1733,7 @@ export default function Nutrition() {
           <button key={label} type="button" onClick={action}
             className="flex-1 flex flex-col items-center gap-1 py-2.5 rounded-xl bg-secondary/60 border border-border/40 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
             <Icon className="w-4 h-4" />
-            <span className="text-[10px] font-semibold">{label}</span>
+            <span className="text-micro font-semibold">{label}</span>
           </button>
         ))}
 
@@ -1742,7 +1748,7 @@ export default function Nutrition() {
           {photoRecognizing
             ? <Loader2 className="w-4 h-4 animate-spin" />
             : <span className="text-base leading-none">📸</span>}
-          <span className="text-[10px] font-semibold">
+          <span className="text-micro font-semibold">
             {photoRecognizing ? tFallback('nutrition.reading', 'Reading…') : tFallback('nutrition.photoAi', 'Photo-AI')}
           </span>
         </button>
@@ -1759,7 +1765,7 @@ export default function Nutrition() {
           <button
             type="button"
             onClick={() => setShowCalorieCycling(true)}
-            className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+            className="flex items-center gap-1 text-micro font-medium text-muted-foreground hover:text-foreground transition-colors"
           >
             <Repeat className="w-3 h-3" />
             {userProfile?.calorie_cycling
@@ -1802,14 +1808,14 @@ export default function Nutrition() {
             {editMode && (
               <div className="flex items-center gap-2 mt-2 mb-1 px-1 cursor-grab active:cursor-grabbing">
                 <GripVertical className="w-4 h-4 text-primary/50" />
-                <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary/50">
+                <span className="text-micro font-bold uppercase tracking-[0.18em] text-primary/50">
                   {sectionLabel}
                 </span>
                 {isHidden && (
                   <button
                     type="button"
                     onClick={() => showWidget(rowId)}
-                    className="ms-auto flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold text-primary hover:bg-primary/10 transition-colors"
+                    className="ms-auto flex items-center gap-1 px-2 py-0.5 rounded-md text-micro font-bold text-primary hover:bg-primary/10 transition-colors"
                   >
                     <Eye className="w-3 h-3" /> Show
                   </button>
@@ -1946,12 +1952,18 @@ export default function Nutrition() {
                 className="text-xs md:text-sm bg-info hover:bg-info text-white"
                 onClick={() => guardSubmit(() => {
                   if (waterOz + 8 > WATER_DAILY_CAP_OZ) {
-                    toast.error(`Daily water limit reached (${ozToDisplay(WATER_DAILY_CAP_OZ)} ${waterUnit}). Stay safe!`);
+                    toast.error(t('nutrition.toast.waterCap') || "That's plenty of water for today. Stay safe!");
                     return;
                   }
                   saveMutation.mutate({ date, food_name: waterFoodName(8), calories: 0, created_by: user?.email, user_id: user?.id });
                 })}
-                disabled={saveMutation.isPending || waterOz + 8 > WATER_DAILY_CAP_OZ}
+                // Only the in-flight guard disables this. The cap is enforced
+                // inside onClick, which raises a toast naming the limit —
+                // and a disabled button never fires onClick, so gating on
+                // the cap here made that toast unreachable and left a dead
+                // control with no explanation. Let the tap through; let the
+                // copy do its job.
+                disabled={saveMutation.isPending}
               >
                 <Droplet className="w-4 h-4 me-1" /> <span className="hidden sm:inline">{getGlassLabel()}</span><span className="sm:hidden">Glass (8 oz)</span>
               </Button>
@@ -1969,12 +1981,16 @@ export default function Nutrition() {
                     size="sm"
                     onClick={() => guardSubmit(() => {
                       if (waterOz + bottle.oz > WATER_DAILY_CAP_OZ) {
-                        toast.error(`Daily water limit reached (${ozToDisplay(WATER_DAILY_CAP_OZ)} ${waterUnit}). Stay safe!`);
+                        toast.error(t('nutrition.toast.waterCap') || "That's plenty of water for today. Stay safe!");
                         return;
                       }
                       saveMutation.mutate({ date, food_name: waterFoodName(bottle.oz), calories: 0, created_by: user?.email, user_id: user?.id });
                     })}
-                    disabled={saveMutation.isPending || waterOz + bottle.oz > WATER_DAILY_CAP_OZ}
+                    // Same as the Glass chip above — the cap is enforced in
+                    // onClick with an explanatory toast, so disabling here
+                    // silenced it. This is the one that bit: a bottle
+                    // bigger than the daily cap was born permanently dead.
+                    disabled={saveMutation.isPending}
                     className="pe-8 text-xs"
                   >
                     <WaterBottleIcon className="w-3.5 h-3.5 me-1 text-info" /> {bottle.label}
@@ -2051,7 +2067,7 @@ export default function Nutrition() {
                 value={bottleInput}
                 onChange={e => setBottleInput(e.target.value)}
               />
-              <p className="text-xs text-muted-foreground mt-1">Max: {maxBottleInUnit(bottleInputUnit)}</p>
+              
             </div>
             <div>
               <span id="bottle-unit-label" className="text-sm font-medium mb-2 block">{t('nutrition.unit')}</span>
@@ -2097,7 +2113,7 @@ export default function Nutrition() {
             <button
               type="button"
               onClick={() => hideWidget('fasting')}
-              className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+              className="flex items-center gap-1 text-micro font-medium text-muted-foreground hover:text-foreground transition-colors"
             >
               <EyeOff className="w-3 h-3" /> Hide
             </button>
@@ -2313,7 +2329,7 @@ function WaterEntryGroups({ entries, ozToDisplay, waterUnit, onDelete }) {
           <Droplet className="w-3 h-3 text-info shrink-0" />
           <span className="font-medium text-info dark:text-info">{g.label}</span>
           {g.count > 1 && (
-            <span className="font-heading font-bold text-[10px] px-1.5 py-0.5 rounded-full bg-info/20 text-info dark:text-info">
+            <span className="font-heading font-bold text-micro px-1.5 py-0.5 rounded-full bg-info/20 text-info dark:text-info">
               ×{g.count}
             </span>
           )}

@@ -41,7 +41,7 @@ export default function CustomQuotesModal({ open, onClose }) {
       qc.invalidateQueries({ queryKey: ['customQuotes', user?.id] });
     },
     onError: (err) => {
-      if (err?.message === 'limit') toast.error(tFallback('quotes.limit', `You can have up to ${MAX_CUSTOM_QUOTES} custom quotes.`));
+      if (err?.message === 'limit') toast.error(tFallback('quotes.limit', 'You have all the custom quotes you can hold — delete one to add another.'));
       else if (err?.message === 'empty') toast.error(tFallback('quotes.empty', 'Write something first.'));
       else if (err?.message === 'profanity') toast.error(tFallback('quotes.profanity', 'That quote contains prohibited content — edit it and try again.'));
       else toast.error(tFallback('quotes.addFailed', 'Could not save — try again.'));

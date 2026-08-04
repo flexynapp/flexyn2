@@ -30,9 +30,12 @@ function PityBar({ label, value, max, color }) {
   return (
     <div>
       <div className="flex items-baseline justify-between gap-2 mb-0.5">
-        <span className="text-[11px] text-muted-foreground">{label}</span>
-        <span className="text-[10px] font-bold tabular-nums" style={{ color }}>
-          {remaining === 0 ? 'next one guaranteed' : `${remaining} to go`}
+        <span className="text-micro text-muted-foreground">{label}</span>
+        {/* The bar already shows how close you are. The exact count used to
+            be spelled out here ("12 to go"), which publishes the pity
+            threshold to the user — progress without the number. */}
+        <span className="text-micro font-bold" style={{ color }}>
+          {remaining === 0 ? 'next one guaranteed' : 'getting closer'}
         </span>
       </div>
       <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
@@ -77,7 +80,7 @@ export default function CapsuleStreak() {
     <div className="rounded-lg bg-secondary/50 border border-border px-3 py-2 flex flex-col gap-2">
       <div className="flex items-center gap-1.5">
         <History className="w-3 h-3 text-muted-foreground" aria-hidden="true" />
-        <span className="text-[11px] font-bold uppercase tracking-wide">Your progress</span>
+        <span className="text-micro font-bold uppercase tracking-wide">Your progress</span>
       </div>
 
       <PityBar
@@ -94,13 +97,13 @@ export default function CapsuleStreak() {
       />
 
       {pity.since_legendary >= (pity.soft_pity_from ?? Infinity) && (
-        <p className="text-[10px] font-semibold" style={{ color: legTint.color }}>
+        <p className="text-micro font-semibold" style={{ color: legTint.color }}>
           Legendary odds are climbing with every open from here.
         </p>
       )}
 
       {bestTint && (
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-micro text-muted-foreground">
           Best pull:{' '}
           <span className="font-bold" style={{ color: bestTint.color }}>{bestTint.label}</span>
           {best.opens > 0 && <> · {best.opens} opened</>}

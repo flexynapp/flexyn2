@@ -290,7 +290,7 @@ export default function GymEdit() {
       <div className="rounded-2xl border border-border bg-card p-4 space-y-4">
         {/* Cover */}
         <div>
-          <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Cover image</label>
+          <label className="block text-micro font-bold uppercase tracking-wider text-muted-foreground mb-1">Cover image</label>
           <div className="relative rounded-xl overflow-hidden bg-gradient-to-br from-primary/15 to-violet-500/15 aspect-[3/1] mb-2">
             {form.cover_url
               ? <img loading="lazy" src={form.cover_url} alt="" className="w-full h-full object-cover" />
@@ -305,7 +305,7 @@ export default function GymEdit() {
 
         {/* Logo */}
         <div>
-          <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Logo</label>
+          <label className="block text-micro font-bold uppercase tracking-wider text-muted-foreground mb-1">Logo</label>
           <div className="flex items-center gap-3">
             <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center overflow-hidden shrink-0">
               {form.logo_url
@@ -322,7 +322,7 @@ export default function GymEdit() {
 
         {/* Name */}
         <div>
-          <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Gym name *</label>
+          <label className="block text-micro font-bold uppercase tracking-wider text-muted-foreground mb-1">Gym name *</label>
           <Input
             value={form.name}
             onChange={(e) => setForm(f => ({ ...f, name: e.target.value.slice(0, 80) }))}
@@ -332,14 +332,14 @@ export default function GymEdit() {
 
         {/* Description */}
         <div>
-          <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Description</label>
+          <label className="block text-micro font-bold uppercase tracking-wider text-muted-foreground mb-1">Description</label>
           <Textarea
             value={form.description}
             onChange={(e) => setForm(f => ({ ...f, description: e.target.value.slice(0, 500) }))}
             placeholder="Tell members what makes your gym special…"
             rows={3}
           />
-          <p className="text-[10px] text-muted-foreground tabular-nums text-end mt-1">
+          <p className="text-micro text-muted-foreground tabular-nums text-end mt-1">
             {form.description.length}/500
           </p>
         </div>
@@ -347,7 +347,7 @@ export default function GymEdit() {
         {/* Contact */}
         <div className="grid grid-cols-2 gap-2">
           <div>
-            <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Phone</label>
+            <label className="block text-micro font-bold uppercase tracking-wider text-muted-foreground mb-1">Phone</label>
             <Input
               type="tel"
               inputMode="tel"
@@ -356,7 +356,7 @@ export default function GymEdit() {
             />
           </div>
           <div>
-            <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Website</label>
+            <label className="block text-micro font-bold uppercase tracking-wider text-muted-foreground mb-1">Website</label>
             <Input
               type="url"
               inputMode="url"
@@ -370,12 +370,12 @@ export default function GymEdit() {
         {/* Geo */}
         <div className="rounded-xl border border-dashed border-border p-3">
           <div className="flex items-center justify-between gap-2 mb-2">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Map pin</p>
+            <p className="text-micro font-bold uppercase tracking-wider text-muted-foreground">Map pin</p>
             <button
               type="button"
               onClick={captureLocation}
               disabled={geoLoading}
-              className="inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wide text-primary hover:bg-primary/10 px-2 py-1 rounded"
+              className="inline-flex items-center gap-1 text-micro font-bold uppercase tracking-wide text-primary hover:bg-primary/10 px-2 py-1 rounded"
             >
               {geoLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <MapPin className="w-3 h-3" />}
               Use my location
@@ -469,13 +469,13 @@ function HoursEditor({ value, onChange }) {
   return (
     <div className="rounded-xl border border-dashed border-border p-3">
       <div className="flex items-center justify-between mb-2">
-        <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+        <p className="text-micro font-bold uppercase tracking-wider text-muted-foreground">
           <Clock className="w-3 h-3 inline-block me-1" /> Hours
         </p>
         <button
           type="button"
           onClick={setAllSame}
-          className="text-[11px] font-bold uppercase tracking-wide text-primary hover:bg-primary/10 px-2 py-1 rounded"
+          className="text-micro font-bold uppercase tracking-wide text-primary hover:bg-primary/10 px-2 py-1 rounded"
         >
           Copy Mon → all days
         </button>
@@ -503,7 +503,7 @@ function HoursEditor({ value, onChange }) {
           );
         })}
       </div>
-      <p className="text-[10px] text-muted-foreground mt-2">
+      <p className="text-micro text-muted-foreground mt-2">
         Leave both fields blank to mark a day as closed.
       </p>
     </div>
@@ -521,7 +521,7 @@ function AmenitiesEditor({ value, onChange }) {
   };
   return (
     <div className="rounded-xl border border-dashed border-border p-3">
-      <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2">
+      <p className="text-micro font-bold uppercase tracking-wider text-muted-foreground mb-2">
         Amenities
       </p>
       <div className="flex flex-wrap gap-1.5">
@@ -533,7 +533,7 @@ function AmenitiesEditor({ value, onChange }) {
               key={slug}
               type="button"
               onClick={() => toggle(slug)}
-              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium border transition-colors ${
+              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-micro font-medium border transition-colors ${
                 isOn
                   ? 'bg-primary/15 text-primary border-primary/30'
                   : 'bg-secondary/60 text-muted-foreground border-border hover:bg-secondary'
@@ -558,7 +558,7 @@ function PhotoGalleryEditor({ gymId, value, onChange, uploading, setUploading, u
     e.target.value = '';
     if (!file) return;
     if ((value || []).length >= MAX_GALLERY_PHOTOS) {
-      toast.error(`Max ${MAX_GALLERY_PHOTOS} photos.`);
+      toast.error('Your gallery is full — remove a photo to add another.');
       return;
     }
     setUploading(true);
@@ -574,18 +574,18 @@ function PhotoGalleryEditor({ gymId, value, onChange, uploading, setUploading, u
   return (
     <div className="rounded-xl border border-dashed border-border p-3">
       <div className="flex items-center justify-between mb-2">
-        <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+        <p className="text-micro font-bold uppercase tracking-wider text-muted-foreground">
           <ImageIcon className="w-3 h-3 inline-block me-1" /> Photo gallery
         </p>
-        <label className="inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wide text-primary hover:bg-primary/10 px-2 py-1 rounded cursor-pointer">
+        <label className="inline-flex items-center gap-1 text-micro font-bold uppercase tracking-wide text-primary hover:bg-primary/10 px-2 py-1 rounded cursor-pointer">
           {uploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
           {uploading ? 'Uploading…' : 'Add photo'}
           <input type="file" accept="image/*" className="hidden" onChange={handlePick} disabled={uploading} />
         </label>
       </div>
       {(value || []).length === 0 ? (
-        <p className="text-[11px] text-muted-foreground">
-          Up to {MAX_GALLERY_PHOTOS} photos. Members see them as a swipeable rail on your hub page.
+        <p className="text-micro text-muted-foreground">
+          Members see them as a swipeable rail on your hub page.
         </p>
       ) : (
         <div className="grid grid-cols-3 gap-2">
