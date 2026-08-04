@@ -19,9 +19,9 @@ import { OnboardingCoachButton, OnboardingCoachSheet } from '@/components/onboar
 import { NUTRITION_STEP_IDS } from '@/lib/aiCoach/onboardingCoach';
 
 const GOALS = [
-  { id: 'lose',     icon: TrendingDown, color: 'text-blue-500',   bg: 'bg-blue-500/10',   titleKey: 'nutritionOnboarding.goal.lose.title',     descKey: 'nutritionOnboarding.goal.lose.desc' },
-  { id: 'maintain', icon: Minus,        color: 'text-emerald-500', bg: 'bg-emerald-500/10', titleKey: 'nutritionOnboarding.goal.maintain.title', descKey: 'nutritionOnboarding.goal.maintain.desc' },
-  { id: 'gain',     icon: TrendingUp,   color: 'text-orange-500',  bg: 'bg-orange-500/10',  titleKey: 'nutritionOnboarding.goal.gain.title',     descKey: 'nutritionOnboarding.goal.gain.desc' },
+  { id: 'lose',     icon: TrendingDown, color: 'text-info',   bg: 'bg-info/10',   titleKey: 'nutritionOnboarding.goal.lose.title',     descKey: 'nutritionOnboarding.goal.lose.desc' },
+  { id: 'maintain', icon: Minus,        color: 'text-success', bg: 'bg-success/10', titleKey: 'nutritionOnboarding.goal.maintain.title', descKey: 'nutritionOnboarding.goal.maintain.desc' },
+  { id: 'gain',     icon: TrendingUp,   color: 'text-primary',  bg: 'bg-primary/10',  titleKey: 'nutritionOnboarding.goal.gain.title',     descKey: 'nutritionOnboarding.goal.gain.desc' },
 ];
 
 const ACTIVITY_LEVELS = [
@@ -422,7 +422,7 @@ export default function NutritionOnboardingModal({ open, userProfile, onComplete
                 )}
 
                 {goal === 'maintain' && (
-                  <Card className="p-4 bg-emerald-500/5 border-emerald-500/20">
+                  <Card className="p-4 bg-success/5 border-success/20">
                     <p className="text-sm">{t('nutritionOnboarding.step.target.maintainBody')}</p>
                   </Card>
                 )}
@@ -514,7 +514,7 @@ export default function NutritionOnboardingModal({ open, userProfile, onComplete
                 transition={{ duration: 0.2 }}
               >
                 <h2 className="font-heading font-bold text-xl mb-1 flex items-center gap-2">
-                  <AlertTriangle className="w-5 h-5 text-rose-500" />
+                  <AlertTriangle className="w-5 h-5 text-destructive" />
                   Allergies &amp; Intolerances
                 </h2>
                 <p className="text-sm text-muted-foreground mb-1">
@@ -529,20 +529,20 @@ export default function NutritionOnboardingModal({ open, userProfile, onComplete
                         key={a.id}
                         onClick={() => toggleAllergen(a.id)}
                         whileTap={{ scale: 0.97 }}
-                        className={`flex items-center gap-2.5 p-3 rounded-xl border-2 text-start transition-colors ${selected ? 'border-rose-500 bg-rose-500/5' : 'border-border hover:border-rose-500/40'}`}
+                        className={`flex items-center gap-2.5 p-3 rounded-xl border-2 text-start transition-colors ${selected ? 'border-destructive bg-destructive/5' : 'border-border hover:border-destructive/40'}`}
                       >
                         <span className="text-xl leading-none shrink-0">{a.emoji}</span>
                         <div className="min-w-0 flex-1">
                           <p className="font-heading font-semibold text-xs leading-tight">{a.label}</p>
                           <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight">{a.desc}</p>
                         </div>
-                        {selected && <Check className="w-4 h-4 text-rose-500 shrink-0" />}
+                        {selected && <Check className="w-4 h-4 text-destructive shrink-0" />}
                       </motion.button>
                     );
                   })}
                 </div>
                 {allergens.length > 0 && (
-                  <p className="text-xs text-rose-500 font-medium mt-3 text-center">
+                  <p className="text-xs text-destructive font-medium mt-3 text-center">
                     {allergens.length} allergen{allergens.length === 1 ? '' : 's'} — guaranteed excluded from every plan
                   </p>
                 )}
@@ -557,13 +557,13 @@ export default function NutritionOnboardingModal({ open, userProfile, onComplete
                       onChange={(e) => setCustomInput(e.target.value)}
                       onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCustom(); } }}
                       placeholder="e.g. shrimp, cilantro, mushrooms"
-                      className="flex-1 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-rose-500/40"
+                      className="flex-1 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-destructive/40"
                     />
                     <button
                       type="button"
                       onClick={addCustom}
                       disabled={customInput.trim().length < 2}
-                      className="px-3 py-2 rounded-lg bg-rose-500 text-white text-sm font-semibold disabled:opacity-40 transition-opacity"
+                      className="px-3 py-2 rounded-lg bg-destructive text-white text-sm font-semibold disabled:opacity-40 transition-opacity"
                     >
                       Add
                     </button>
@@ -571,9 +571,9 @@ export default function NutritionOnboardingModal({ open, userProfile, onComplete
                   {customRestrictions.length > 0 && (
                     <div className="flex flex-wrap gap-1.5 mt-2.5">
                       {customRestrictions.map(term => (
-                        <span key={term} className="inline-flex items-center gap-1 pl-2.5 pr-1.5 py-1 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 text-xs font-medium">
+                        <span key={term} className="inline-flex items-center gap-1 pl-2.5 pr-1.5 py-1 rounded-full bg-destructive/10 text-destructive dark:text-destructive text-xs font-medium">
                           {term}
-                          <button type="button" onClick={() => removeCustom(term)} aria-label={`Remove ${term}`} className="w-4 h-4 rounded-full hover:bg-rose-500/20 flex items-center justify-center">
+                          <button type="button" onClick={() => removeCustom(term)} aria-label={`Remove ${term}`} className="w-4 h-4 rounded-full hover:bg-destructive/20 flex items-center justify-center">
                             <X className="w-3 h-3" />
                           </button>
                         </span>
@@ -595,10 +595,10 @@ export default function NutritionOnboardingModal({ open, userProfile, onComplete
                 <p className="text-sm text-muted-foreground mb-4">{t('nutritionOnboarding.step.preview.subtitle')}</p>
 
                 {preview.warning === 'tooAggressive' && (
-                  <Card className="p-3 mb-4 bg-amber-500/10 border-amber-500/30">
+                  <Card className="p-3 mb-4 bg-primary/10 border-primary/30">
                     <div className="flex gap-2">
-                      <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                      <p className="text-xs text-amber-700 dark:text-amber-400">
+                      <AlertTriangle className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                      <p className="text-xs text-primary dark:text-primary">
                         {t('nutritionOnboarding.warning.tooAggressive')}
                       </p>
                     </div>
@@ -606,22 +606,22 @@ export default function NutritionOnboardingModal({ open, userProfile, onComplete
                 )}
 
                 <div className="grid grid-cols-2 gap-3 mb-4">
-                  <Card className="p-3 bg-orange-500/5">
+                  <Card className="p-3 bg-primary/5">
                     <p className="text-xs text-muted-foreground">{t('nutrition.macros.calories')}</p>
-                    <p className="font-heading font-bold text-2xl text-orange-600">{preview.calories}</p>
+                    <p className="font-heading font-bold text-2xl text-primary">{preview.calories}</p>
                     <p className="text-[10px] text-muted-foreground">cal/day</p>
                   </Card>
-                  <Card className="p-3 bg-red-500/5">
+                  <Card className="p-3 bg-destructive/5">
                     <p className="text-xs text-muted-foreground">{t('nutrition.macros.protein')}</p>
-                    <p className="font-heading font-bold text-2xl text-red-600">{preview.protein_g}g</p>
+                    <p className="font-heading font-bold text-2xl text-destructive">{preview.protein_g}g</p>
                   </Card>
-                  <Card className="p-3 bg-blue-500/5">
+                  <Card className="p-3 bg-info/5">
                     <p className="text-xs text-muted-foreground">{t('nutrition.macros.carbs')}</p>
-                    <p className="font-heading font-bold text-2xl text-blue-600">{preview.carbs_g}g</p>
+                    <p className="font-heading font-bold text-2xl text-info">{preview.carbs_g}g</p>
                   </Card>
-                  <Card className="p-3 bg-yellow-500/5">
+                  <Card className="p-3 bg-primary/5">
                     <p className="text-xs text-muted-foreground">{t('nutrition.macros.fat')}</p>
-                    <p className="font-heading font-bold text-2xl text-yellow-600">{preview.fat_g}g</p>
+                    <p className="font-heading font-bold text-2xl text-primary">{preview.fat_g}g</p>
                   </Card>
                 </div>
 

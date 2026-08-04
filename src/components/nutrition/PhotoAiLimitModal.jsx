@@ -33,7 +33,7 @@ export default function PhotoAiLimitModal({ open, used = 3, cap = 3, purchasing 
           {/* Hero */}
           <div
             className="relative px-6 pt-7 pb-6 text-center text-white overflow-hidden"
-            style={{ background: 'linear-gradient(315deg, #c4b5fd 0%, #a78bfa 32%, #8b5cf6 64%, #6d28d9 100%)' }}
+            style={{ background: 'linear-gradient(315deg, hsl(var(--primary) / 0.82) 0%, hsl(var(--primary)) 55%, hsl(var(--primary) / 0.92) 100%)' }}
           >
             <button
               onClick={onClose}
@@ -78,7 +78,7 @@ export default function PhotoAiLimitModal({ open, used = 3, cap = 3, purchasing 
               onClick={onPurchase}
               disabled={purchasing}
               className="w-full rounded-xl px-4 py-3.5 text-white flex items-center gap-3 text-start shadow-sm active:scale-[0.99] transition-transform disabled:opacity-70"
-              style={{ background: 'linear-gradient(315deg, #a78bfa 0%, #8b5cf6 55%, #6d28d9 100%)' }}
+              style={{ background: 'linear-gradient(315deg, hsl(var(--primary) / 0.88) 0%, hsl(var(--primary)) 60%, hsl(var(--primary) / 0.95) 100%)' }}
             >
               <span className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center shrink-0">
                 {purchasing ? <Loader2 className="w-5 h-5 animate-spin" /> : <InfinityIcon className="w-5 h-5" />}

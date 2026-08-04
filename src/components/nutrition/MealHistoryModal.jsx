@@ -78,7 +78,7 @@ function DaySection({ dateStr, entries, onSelect }) {
           </span>
           <div className="flex items-center gap-1.5">
             <span className="flex items-center gap-1 text-xs text-muted-foreground font-medium">
-              <Flame className="w-3 h-3 text-orange-400" />
+              <Flame className="w-3 h-3 text-primary" />
               {Math.round(totals.calories)} cal
             </span>
             <span className="text-muted-foreground/40 text-xs">·</span>
@@ -87,9 +87,9 @@ function DaySection({ dateStr, entries, onSelect }) {
         </div>
         <div className="flex items-center gap-2">
           <div className="hidden sm:flex gap-1">
-            <MacroPill label="P" value={totals.protein} color="bg-blue-500/10 text-blue-600 dark:text-blue-400" />
-            <MacroPill label="C" value={totals.carbs}   color="bg-amber-500/10 text-amber-600 dark:text-amber-400" />
-            <MacroPill label="F" value={totals.fat}     color="bg-rose-500/10 text-rose-600 dark:text-rose-400" />
+            <MacroPill label="P" value={totals.protein} color="bg-info/10 text-info dark:text-info" />
+            <MacroPill label="C" value={totals.carbs}   color="bg-primary/10 text-primary dark:text-primary" />
+            <MacroPill label="F" value={totals.fat}     color="bg-destructive/10 text-destructive dark:text-destructive" />
           </div>
           {expanded
             ? <ChevronUp className="w-4 h-4 text-muted-foreground" />
@@ -126,13 +126,13 @@ function DaySection({ dateStr, entries, onSelect }) {
                     <p className="text-sm font-medium truncate">{entry.food_name}</p>
                     <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
                       {entry.protein_g > 0 && (
-                        <MacroPill label="P" value={entry.protein_g} color="bg-blue-500/10 text-blue-600 dark:text-blue-400" />
+                        <MacroPill label="P" value={entry.protein_g} color="bg-info/10 text-info dark:text-info" />
                       )}
                       {entry.carbs_g > 0 && (
-                        <MacroPill label="C" value={entry.carbs_g} color="bg-amber-500/10 text-amber-600 dark:text-amber-400" />
+                        <MacroPill label="C" value={entry.carbs_g} color="bg-primary/10 text-primary dark:text-primary" />
                       )}
                       {entry.fat_g > 0 && (
-                        <MacroPill label="F" value={entry.fat_g} color="bg-rose-500/10 text-rose-600 dark:text-rose-400" />
+                        <MacroPill label="F" value={entry.fat_g} color="bg-destructive/10 text-destructive dark:text-destructive" />
                       )}
                     </div>
                   </div>

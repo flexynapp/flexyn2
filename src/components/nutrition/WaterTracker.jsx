@@ -76,8 +76,14 @@ export default function WaterTracker({ waterOz = 0, userProfile = {}, waterUnit 
     : Math.round(ozToDisplay(dailyRecOz));
 
   // Water reads as blue, not the app's orange primary.
-  const ringColor = '#3b82f6';       // blue-500
-  const ringColorLight = '#60a5fa';  // blue-400
+  // Water reads cool. This is the same ring as HydrationRing on the
+  // Dashboard, which already draws from --info; leaving a private hex
+  // here meant the app's two water rings could drift apart on a theme
+  // change. Alpha is composed with hsl()'s slash syntax rather than
+  // appending hex digits, which stops working the moment the value
+  // isn't a 6-digit hex.
+  const ringColor = 'hsl(var(--info))';
+  const ringColorLight = 'hsl(var(--info) / 0.65)';
 
   // Compact ring dimensions
   const R = 30, SIZE = 72, circumference = 2 * Math.PI * R;
@@ -95,7 +101,7 @@ export default function WaterTracker({ waterOz = 0, userProfile = {}, waterUnit 
                 initial={{ opacity: 0.6, scale: 0.95 }} animate={{ opacity: 0, scale: 1.25 }} exit={{ opacity: 0 }}
                 transition={{ duration: 0.6, ease: 'easeOut' }}
                 className="absolute inset-0 rounded-full pointer-events-none"
-                style={{ background: `radial-gradient(circle, ${ringColor}33 0%, transparent 70%)` }}
+                style={{ background: `radial-gradient(circle, hsl(var(--info) / 0.2) 0%, transparent 70%)` }}
               />
             )}
           </AnimatePresence>
@@ -159,12 +165,12 @@ export default function WaterTracker({ waterOz = 0, userProfile = {}, waterUnit 
           <motion.div
             initial={{ opacity: 0, scale: 0.9, y: -6 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9 }}
             transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-            className="flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-green-500/10 border border-green-500/30"
+            className="flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-success/10 border border-success/30"
           >
             <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ duration: 0.8, repeat: Infinity }}>
-              <Check className="w-4 h-4 text-green-600" />
+              <Check className="w-4 h-4 text-success" />
             </motion.div>
-            <span className="text-sm font-semibold text-green-700 dark:text-green-400">
+            <span className="text-sm font-semibold text-success dark:text-success">
               {t('nutrition.water.goalReached')}
             </span>
           </motion.div>

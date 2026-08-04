@@ -47,24 +47,24 @@ const MEAL_SLOTS = [
 // Full nutrient set for manual meal entry — mirrors LogMealForm so the
 // planner can capture any nutrient, not just the four headline macros.
 const MANUAL_MACRO_FIELDS = [
-  { key: 'calories',       label: 'Calories',    unit: 'cal', color: 'text-orange-600' },
-  { key: 'protein_g',      label: 'Protein',     unit: 'g',    color: 'text-red-600' },
-  { key: 'carbs_g',        label: 'Carbs',       unit: 'g',    color: 'text-blue-600' },
-  { key: 'fat_g',          label: 'Fat',         unit: 'g',    color: 'text-yellow-600' },
-  { key: 'fiber_g',        label: 'Fiber',       unit: 'g',    color: 'text-green-600' },
-  { key: 'sugar_g',        label: 'Sugar',       unit: 'g',    color: 'text-purple-600' },
-  { key: 'sodium_mg',      label: 'Sodium',      unit: 'mg',   color: 'text-pink-600' },
-  { key: 'cholesterol_mg', label: 'Cholesterol', unit: 'mg',   color: 'text-cyan-600' },
+  { key: 'calories',       label: 'Calories',    unit: 'cal', color: 'text-primary' },
+  { key: 'protein_g',      label: 'Protein',     unit: 'g',    color: 'text-destructive' },
+  { key: 'carbs_g',        label: 'Carbs',       unit: 'g',    color: 'text-info' },
+  { key: 'fat_g',          label: 'Fat',         unit: 'g',    color: 'text-primary' },
+  { key: 'fiber_g',        label: 'Fiber',       unit: 'g',    color: 'text-success' },
+  { key: 'sugar_g',        label: 'Sugar',       unit: 'g',    color: 'text-primary' },
+  { key: 'sodium_mg',      label: 'Sodium',      unit: 'mg',   color: 'text-primary' },
+  { key: 'cholesterol_mg', label: 'Cholesterol', unit: 'mg',   color: 'text-info' },
 ];
 const MANUAL_MICRO_FIELDS = [
-  { key: 'iron_mg',         label: 'Iron',        unit: 'mg',  color: 'text-red-600' },
-  { key: 'magnesium_mg',    label: 'Magnesium',   unit: 'mg',  color: 'text-emerald-600' },
+  { key: 'iron_mg',         label: 'Iron',        unit: 'mg',  color: 'text-destructive' },
+  { key: 'magnesium_mg',    label: 'Magnesium',   unit: 'mg',  color: 'text-success' },
   { key: 'calcium_mg',      label: 'Calcium',     unit: 'mg',  color: 'text-slate-600' },
-  { key: 'potassium_mg',    label: 'Potassium',   unit: 'mg',  color: 'text-yellow-600' },
-  { key: 'vitamin_a_iu',    label: 'Vitamin A',   unit: 'IU',  color: 'text-orange-600' },
-  { key: 'vitamin_c_mg',    label: 'Vitamin C',   unit: 'mg',  color: 'text-rose-600' },
-  { key: 'vitamin_d_iu',    label: 'Vitamin D',   unit: 'IU',  color: 'text-amber-600' },
-  { key: 'vitamin_b12_mcg', label: 'Vitamin B12', unit: 'mcg', color: 'text-purple-600' },
+  { key: 'potassium_mg',    label: 'Potassium',   unit: 'mg',  color: 'text-primary' },
+  { key: 'vitamin_a_iu',    label: 'Vitamin A',   unit: 'IU',  color: 'text-primary' },
+  { key: 'vitamin_c_mg',    label: 'Vitamin C',   unit: 'mg',  color: 'text-destructive' },
+  { key: 'vitamin_d_iu',    label: 'Vitamin D',   unit: 'IU',  color: 'text-primary' },
+  { key: 'vitamin_b12_mcg', label: 'Vitamin B12', unit: 'mcg', color: 'text-primary' },
 ];
 const MANUAL_ALL_FIELDS = [...MANUAL_MACRO_FIELDS, ...MANUAL_MICRO_FIELDS];
 const emptyNutrients = () => MANUAL_ALL_FIELDS.reduce((acc, f) => { acc[f.key] = ''; return acc; }, {});
@@ -128,9 +128,9 @@ function RecipePickerModal({ open, recipes: recipeList, onPick, onClose }) {
 function AddMethodSheet({ open, mealLabel, onPhoto, onRecipe, onManual, onClose }) {
   if (!open) return null;
   const options = [
-    { key: 'photo',  label: 'Photo-AI', desc: 'Snap a photo of your plate', Icon: Camera,  onClick: onPhoto,  tint: 'text-violet-500 bg-violet-500/10' },
-    { key: 'recipe', label: 'Recipe',   desc: 'Pick from your saved recipes', Icon: ChefHat, onClick: onRecipe, tint: 'text-emerald-500 bg-emerald-500/10' },
-    { key: 'manual', label: 'Manual',   desc: 'Enter the macros by hand',   Icon: Pencil,  onClick: onManual, tint: 'text-sky-500 bg-sky-500/10' },
+    { key: 'photo',  label: 'Photo-AI', desc: 'Snap a photo of your plate', Icon: Camera,  onClick: onPhoto,  tint: 'text-primary bg-primary/10' },
+    { key: 'recipe', label: 'Recipe',   desc: 'Pick from your saved recipes', Icon: ChefHat, onClick: onRecipe, tint: 'text-success bg-success/10' },
+    { key: 'manual', label: 'Manual',   desc: 'Enter the macros by hand',   Icon: Pencil,  onClick: onManual, tint: 'text-info bg-info/10' },
   ];
   return (
     <motion.div
@@ -676,7 +676,7 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
                               }}
                               className={`w-full min-h-[58px] rounded-lg px-1.5 py-1.5 text-start text-[10px] font-medium transition-colors flex flex-col ${
                                 plan
-                                  ? 'bg-emerald-500/15 border border-emerald-500/30 text-foreground'
+                                  ? 'bg-success/15 border border-success/30 text-foreground'
                                   : 'bg-secondary/40 border border-dashed border-border text-muted-foreground hover:bg-secondary/60'
                               }`}
                             >
@@ -814,7 +814,7 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
                       onClick={handleCopyGrocery}
                       className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-secondary text-foreground font-semibold text-sm py-2.5 hover:bg-secondary/80 transition-colors"
                     >
-                      {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+                      {copied ? <Check className="w-4 h-4 text-success" /> : <Copy className="w-4 h-4" />}
                       {copied ? 'Copied' : 'Copy list'}
                     </button>
                   </div>

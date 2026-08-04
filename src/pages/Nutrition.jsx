@@ -87,7 +87,11 @@ function NutritionShortcutsCarousel({ onScan, onRecipes, onHistory, onPlans, onP
       id: 'scan',
       icon: ScanLine,
       emoji: '📷',
-      color: '20 95% 55%',
+      // Feature slides used a private five-hue rotation (orange, emerald,
+      // blue, purple, pink) — one hue per slide, the same pattern the
+      // Dashboard hero carried. The slide IS the feature; the hue said
+      // nothing the title didn't. All five now take the brand accent.
+      color: 'var(--primary)',
       kicker: 'Scan a barcode',
       title: 'Scan Food',
       tip: 'Snap any package and we autofill macros, calories, and serving size. Fastest way to log.',
@@ -98,7 +102,7 @@ function NutritionShortcutsCarousel({ onScan, onRecipes, onHistory, onPlans, onP
       id: 'recipes',
       icon: ChefHat,
       emoji: '🥘',
-      color: '160 80% 50%',
+      color: 'var(--primary)',
       kicker: 'Recipes',
       title: 'Recipes',
       tip: 'Build a recipe once, log it in one tap forever. Macros computed from your ingredient list.',
@@ -109,7 +113,7 @@ function NutritionShortcutsCarousel({ onScan, onRecipes, onHistory, onPlans, onP
       id: 'history',
       icon: History,
       emoji: '📖',
-      color: '220 85% 60%',
+      color: 'var(--primary)',
       kicker: 'Meal History',
       title: 'Meal History',
       tip: 'Every meal you\'ve logged. Search, filter, and re-log past meals in two taps.',
@@ -120,7 +124,7 @@ function NutritionShortcutsCarousel({ onScan, onRecipes, onHistory, onPlans, onP
       id: 'plans',
       icon: ListChecks,
       emoji: '📋',
-      color: '270 85% 60%',
+      color: 'var(--primary)',
       kicker: 'Nutrition Plans',
       title: 'Nutrition Plans',
       tip: 'Pre-built macro splits — cut, bulk, recomp, keto, maintenance. Apply one and your goals update.',
@@ -131,7 +135,7 @@ function NutritionShortcutsCarousel({ onScan, onRecipes, onHistory, onPlans, onP
       id: 'planner',
       icon: Calendar,
       emoji: '📅',
-      color: '330 80% 60%',
+      color: 'var(--primary)',
       kicker: 'Weekly Planner',
       title: 'Weekly Planner',
       tip: 'Drop meals into a 7-day grid. Hit your macro targets across the week, not just one day.',
@@ -1470,7 +1474,7 @@ export default function Nutrition() {
                   type="button"
                   onClick={handleSetAsDefault}
                   title="Save this layout as default for all new users"
-                  className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 transition-colors"
+                  className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold text-primary dark:text-primary hover:bg-primary/10 transition-colors"
                 >
                   <Save className="w-3 h-3" />
                   Set default
@@ -1553,7 +1557,7 @@ export default function Nutrition() {
                           <p className="text-sm font-semibold leading-tight truncate">{item.name}</p>
                           <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                             {cal != null && (
-                              <span className="text-[11px] text-orange-500 font-medium">{Math.round(cal)} cal</span>
+                              <span className="text-[11px] text-primary font-medium">{Math.round(cal)} cal</span>
                             )}
                             {pro != null && (
                               <span className="text-[11px] text-muted-foreground">P {Math.round(pro)}g</span>
@@ -1733,7 +1737,7 @@ export default function Nutrition() {
           onClick={openPhotoCapture}
           disabled={photoRecognizing}
           className="flex-1 flex flex-col items-center gap-1 py-2.5 rounded-xl text-white shadow-sm active:scale-95 transition-transform disabled:opacity-60 disabled:cursor-not-allowed"
-          style={{ background: 'linear-gradient(315deg, #c4b5fd 0%, #a78bfa 32%, #8b5cf6 64%, #6d28d9 100%)' }}
+          style={{ background: 'linear-gradient(315deg, hsl(var(--primary) / 0.82) 0%, hsl(var(--primary)) 55%, hsl(var(--primary) / 0.92) 100%)' }}
         >
           {photoRecognizing
             ? <Loader2 className="w-4 h-4 animate-spin" />
@@ -1907,7 +1911,7 @@ export default function Nutrition() {
             {/* HEADER ROW */}
             <div className="flex items-center justify-between">
               <h3 className="font-heading text-lg font-bold flex items-center gap-2 min-w-0">
-                <GlassWater className="w-5 h-5 shrink-0 text-blue-500" />
+                <GlassWater className="w-5 h-5 shrink-0 text-info" />
                 <span className="truncate">{t('nutrition.waterIntake')}</span>
               </h3>
               {/* Unit Toggle — radio-style group; aria-pressed lets screen
@@ -1920,7 +1924,7 @@ export default function Nutrition() {
                     aria-pressed={waterUnit === unit}
                     className={`px-3 py-1 text-xs font-medium transition-colors ${
                       waterUnit === unit
-                        ? 'bg-blue-500 text-white'
+                        ? 'bg-info text-white'
                         : 'text-muted-foreground hover:text-foreground'
                     }`}
                   >
@@ -1939,7 +1943,7 @@ export default function Nutrition() {
             <div className="flex flex-wrap gap-2 pt-2">
               {/* Add Glass Button — blue to match the water theme */}
               <Button
-                className="text-xs md:text-sm bg-blue-500 hover:bg-blue-600 text-white"
+                className="text-xs md:text-sm bg-info hover:bg-info text-white"
                 onClick={() => guardSubmit(() => {
                   if (waterOz + 8 > WATER_DAILY_CAP_OZ) {
                     toast.error(`Daily water limit reached (${ozToDisplay(WATER_DAILY_CAP_OZ)} ${waterUnit}). Stay safe!`);
@@ -1973,7 +1977,7 @@ export default function Nutrition() {
                     disabled={saveMutation.isPending || waterOz + bottle.oz > WATER_DAILY_CAP_OZ}
                     className="pe-8 text-xs"
                   >
-                    <WaterBottleIcon className="w-3.5 h-3.5 me-1 text-blue-500" /> {bottle.label}
+                    <WaterBottleIcon className="w-3.5 h-3.5 me-1 text-info" /> {bottle.label}
                   </Button>
                   <button
                     onClick={() => handleDeleteBottle(bottle.id)}
@@ -1998,7 +2002,7 @@ export default function Nutrition() {
             <div className="pt-4 border-t border-border">
               <div className="flex items-center justify-between mb-3">
                 <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-                  <Droplet className="w-3.5 h-3.5 shrink-0 text-blue-500" />
+                  <Droplet className="w-3.5 h-3.5 shrink-0 text-info" />
                   {t('nutrition.waterEntries')}
                 </p>
               </div>
@@ -2304,12 +2308,12 @@ function WaterEntryGroups({ entries, ozToDisplay, waterUnit, onDelete }) {
           initial={{ opacity: 0, scale: 0.85 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.85 }}
-          className="flex items-center gap-1.5 ps-2.5 pe-1.5 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-xs"
+          className="flex items-center gap-1.5 ps-2.5 pe-1.5 py-1 rounded-full bg-info/10 border border-info/20 text-xs"
         >
-          <Droplet className="w-3 h-3 text-blue-500 shrink-0" />
-          <span className="font-medium text-blue-700 dark:text-blue-300">{g.label}</span>
+          <Droplet className="w-3 h-3 text-info shrink-0" />
+          <span className="font-medium text-info dark:text-info">{g.label}</span>
           {g.count > 1 && (
-            <span className="font-heading font-bold text-[10px] px-1.5 py-0.5 rounded-full bg-blue-500/20 text-blue-600 dark:text-blue-400">
+            <span className="font-heading font-bold text-[10px] px-1.5 py-0.5 rounded-full bg-info/20 text-info dark:text-info">
               ×{g.count}
             </span>
           )}

@@ -36,9 +36,9 @@ function aggregate(entries, dateKeys) {
 function calTone(cal, goal) {
   if (!cal) return { bar: 'linear-gradient(180deg, hsl(215 16% 65% / 0.35), hsl(215 16% 55% / 0.25))', text: 'text-muted-foreground/50' };
   const ratio = goal > 0 ? cal / goal : 1;
-  if (ratio > 1.15) return { bar: 'linear-gradient(180deg, #fbbf24, #f59e0b)', text: 'text-amber-500' };   // over
-  if (ratio < 0.7)  return { bar: 'linear-gradient(180deg, #7dd3fc, #38bdf8)', text: 'text-sky-500' };     // well under
-  return { bar: 'linear-gradient(180deg, #34d399, #10b981)', text: 'text-emerald-500' };                   // on target
+  if (ratio > 1.15) return { bar: 'linear-gradient(180deg, hsl(var(--primary) / 0.85), hsl(var(--primary)))', text: 'text-primary' };   // over
+  if (ratio < 0.7)  return { bar: 'linear-gradient(180deg, hsl(var(--info) / 0.75), hsl(var(--info)))', text: 'text-info' };     // well under
+  return { bar: 'linear-gradient(180deg, hsl(var(--success) / 0.8), hsl(var(--success)))', text: 'text-success' };                   // on target
 }
 
 function Stat({ label, value, sub }) {

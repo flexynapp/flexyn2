@@ -109,7 +109,7 @@ export default function PhotoMealResultModal({ open, imageUrl, result, saving, o
   if (!open || !result) return null;
 
   const confidence = ['high', 'medium', 'low'].includes(result.confidence) ? result.confidence : null;
-  const confColor = confidence === 'high' ? 'bg-emerald-500' : confidence === 'low' ? 'bg-amber-500' : 'bg-sky-500';
+  const confColor = confidence === 'high' ? 'bg-success' : confidence === 'low' ? 'bg-primary' : 'bg-info';
   const setVal = (k, v) => setVals((p) => ({ ...p, [k]: v }));
 
   // Ingredients drive the core macros when present, so those tiles are read-only
@@ -249,11 +249,11 @@ export default function PhotoMealResultModal({ open, imageUrl, result, saving, o
               style={{ scrollbarWidth: 'none' }}
             >
               <div className="snap-center shrink-0 basis-full min-w-full px-4 pt-4">
-                <Tile big label="Calories" unit="" color="text-orange-500" editing={coreEditable} value={vals.calories} onChange={(v) => setVal('calories', v)} />
+                <Tile big label="Calories" unit="" color="text-primary" editing={coreEditable} value={vals.calories} onChange={(v) => setVal('calories', v)} />
                 <div className="mt-2 grid grid-cols-3 gap-2">
-                  <Tile label="Protein" unit="g" color="text-red-500"    editing={coreEditable} value={vals.protein_g} onChange={(v) => setVal('protein_g', v)} />
-                  <Tile label="Carbs"   unit="g" color="text-blue-500"   editing={coreEditable} value={vals.carbs_g}   onChange={(v) => setVal('carbs_g', v)} />
-                  <Tile label="Fat"     unit="g" color="text-yellow-500" editing={coreEditable} value={vals.fat_g}     onChange={(v) => setVal('fat_g', v)} />
+                  <Tile label="Protein" unit="g" color="text-destructive"    editing={coreEditable} value={vals.protein_g} onChange={(v) => setVal('protein_g', v)} />
+                  <Tile label="Carbs"   unit="g" color="text-info"   editing={coreEditable} value={vals.carbs_g}   onChange={(v) => setVal('carbs_g', v)} />
+                  <Tile label="Fat"     unit="g" color="text-primary" editing={coreEditable} value={vals.fat_g}     onChange={(v) => setVal('fat_g', v)} />
                 </div>
                 {editing && hasItems && (
                   <p className="mt-2 text-[10px] text-muted-foreground text-center">
@@ -264,9 +264,9 @@ export default function PhotoMealResultModal({ open, imageUrl, result, saving, o
               <div className="snap-center shrink-0 basis-full min-w-full px-4 pt-4">
                 <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground mb-2 text-center">More nutrients</p>
                 <div className="grid grid-cols-3 gap-2">
-                  <Tile label="Fiber"  unit="g"  color="text-emerald-500" editing={editing} value={vals.fiber_g}   onChange={(v) => setVal('fiber_g', v)} />
-                  <Tile label="Sugar"  unit="g"  color="text-pink-500"    editing={editing} value={vals.sugar_g}   onChange={(v) => setVal('sugar_g', v)} />
-                  <Tile label="Sodium" unit="mg" color="text-violet-500"  editing={editing} value={vals.sodium_mg} onChange={(v) => setVal('sodium_mg', v)} />
+                  <Tile label="Fiber"  unit="g"  color="text-success" editing={editing} value={vals.fiber_g}   onChange={(v) => setVal('fiber_g', v)} />
+                  <Tile label="Sugar"  unit="g"  color="text-primary"    editing={editing} value={vals.sugar_g}   onChange={(v) => setVal('sugar_g', v)} />
+                  <Tile label="Sodium" unit="mg" color="text-primary"  editing={editing} value={vals.sodium_mg} onChange={(v) => setVal('sodium_mg', v)} />
                 </div>
               </div>
             </div>
@@ -314,10 +314,10 @@ export default function PhotoMealResultModal({ open, imageUrl, result, saving, o
                         />
                         <div className="grid grid-cols-4 gap-1.5">
                           {[
-                            { k: 'calories',  lbl: 'Cal', color: 'text-orange-500' },
-                            { k: 'protein_g', lbl: 'P',   color: 'text-red-500' },
-                            { k: 'carbs_g',   lbl: 'C',   color: 'text-blue-500' },
-                            { k: 'fat_g',     lbl: 'F',   color: 'text-yellow-500' },
+                            { k: 'calories',  lbl: 'Cal', color: 'text-primary' },
+                            { k: 'protein_g', lbl: 'P',   color: 'text-destructive' },
+                            { k: 'carbs_g',   lbl: 'C',   color: 'text-info' },
+                            { k: 'fat_g',     lbl: 'F',   color: 'text-primary' },
                           ].map(({ k, lbl, color }) => (
                             <div key={k} className="flex flex-col items-center">
                               <label className={`text-[9px] font-bold uppercase tracking-wide ${color}`}>{lbl}</label>
@@ -350,7 +350,7 @@ export default function PhotoMealResultModal({ open, imageUrl, result, saving, o
                           {it.amount && <p className="text-[11px] text-muted-foreground">{it.amount}</p>}
                         </div>
                         <div className="text-end shrink-0">
-                          <p className="text-sm font-bold tabular-nums text-orange-500">{num(it.calories)}<span className="text-[10px] ms-0.5">cal</span></p>
+                          <p className="text-sm font-bold tabular-nums text-primary">{num(it.calories)}<span className="text-[10px] ms-0.5">cal</span></p>
                           <p className="text-[10px] text-muted-foreground tabular-nums">
                             {num(it.protein_g)}P · {num(it.carbs_g)}C · {num(it.fat_g)}F
                           </p>
