@@ -1,5 +1,26 @@
 // src/lib/data/inventory.js
 // Inventory data-access layer — backed by Supabase user_inventory.
+//
+// ── What a client may do to user_inventory ───────────────────────────────────
+// The table carries exactly two policies for `authenticated`:
+//
+//   SELECT  user_id = auth.uid()
+//   DELETE  user_id = auth.uid()
+//
+// There is no INSERT policy and no UPDATE policy, and that is deliberate —
+// the economy lockdown. Anything that CREATES an inventory row or changes
+// one goes through a SECURITY DEFINER RPC that validates server-side:
+//
+//   grant an item      → open_capsule_atomic       (mig 255)
+//   list an item       → create_marketplace_listing (mig 025)  ← sets is_listed
+//   unlist an item     → cancel_marketplace_listing (mig 078)  ← clears is_listed
+//   transfer on buy    → purchase_listing           (mig 025)  ← moves the row
+//
+// So DO NOT add an `addItem` or a `setListed` back to this module. Both used
+// to exist here, both issued a bare `.insert()` / `.update()`, and both could
+// only ever return `42501 permission denied for table user_inventory`. An
+// INSERT policy that would make `addItem` work is the same policy that lets
+// any client grant itself a mythic for free.
 
 import { supabase } from '@/api/supabaseClient';
 
@@ -15,32 +36,6 @@ export async function listItems(userEmail) {
     .order('acquired_at', { ascending: false });
   if (error) throw error;
   return data ?? [];
-}
-
-/**
- * Add an item to the user's inventory.
- * `item` must be a catalog item object (from lootCatalog.js).
- * Returns the inserted row.
- */
-export async function addItem(userId, userEmail, item, acquiredVia = 'capsule') {
-  if (!userId || !userEmail || !item) return null;
-  const { data, error } = await supabase
-    .from('user_inventory')
-    .insert({
-      user_id:     userId,
-      user_email:  userEmail,
-      item_id:     item.id,
-      item_name:   item.name,
-      item_emoji:  item.emoji,
-      item_rarity: item.rarity,
-      item_type:   item.type,
-      acquired_via: acquiredVia,
-      variant:     item.variant ?? null,
-    })
-    .select()
-    .maybeSingle();
-  if (error) throw error;
-  return data;
 }
 
 /**
@@ -131,16 +126,4 @@ export async function sellItem(inventoryId, userId, coinsToEarn) {
     .eq('id', userId);
   if (ue) throw ue;
   return newTotal;
-}
-
-/**
- * Mark an inventory item as listed (or unmark it).
- */
-export async function setListed(inventoryId, isListed) {
-  if (!inventoryId) return;
-  const { error } = await supabase
-    .from('user_inventory')
-    .update({ is_listed: isListed })
-    .eq('id', inventoryId);
-  if (error) throw error;
 }

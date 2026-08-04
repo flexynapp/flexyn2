@@ -761,7 +761,9 @@ export const LOOT_THEME_RARITY_ODDS = {
 
 /**
  * Roll a random loot theme item for a given capsule type.
- * Returns a theme item object (compatible with inventory.addItem) or null.
+ * Returns a theme item object in catalog shape, or null. The row is written
+ * server-side by open_capsule_atomic (mig 255) — there is no client insert
+ * path into user_inventory.
  */
 export function rollLootTheme(capsuleType = 'standard') {
   const themeChance = LOOT_THEME_CAPSULE_ODDS[capsuleType] ?? 0;

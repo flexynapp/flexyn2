@@ -102,9 +102,15 @@ export async function purchaseListing(listingId) {
  * the second one failed (network blip, tab close), the item was
  * orphaned — invisible in the user's bag AND can't be re-listed.
  *
- * Pre-078 hosts fall back to the legacy two-write path so the feature
- * doesn't break on stale deployments; the orphan-on-failure race is
- * the documented bug.
+ * The pre-078 fallback below only flips the LISTING row. It used to rely
+ * on the caller running `inventory.setListed(false)` afterwards to release
+ * the inventory row — but that call could never succeed (user_inventory
+ * has no client UPDATE policy), so it has been removed from the callers.
+ * On a host old enough to miss mig 078 a cancelled listing therefore
+ * leaves is_listed=true behind. That is strictly better than the old
+ * behaviour, where the same hosts ALSO showed the user an error toast on
+ * every successful cancel — and mig 078 is deployed here, so the fallback
+ * is unreachable in practice.
  */
 export async function cancelListing(listingId) {
   if (!listingId) return;
@@ -116,9 +122,9 @@ export async function cancelListing(listingId) {
     throw error;
   }
 
-  // Legacy fallback for pre-078 hosts. The caller (MarketplaceFeed
-  // handleCancel) still runs inventory.setListed(false) after this
-  // returns, so the two-write path is preserved on stale hosts.
+  // Legacy fallback for pre-078 hosts: flips the listing only. Releasing
+  // the inventory row is not possible from the client (no UPDATE policy),
+  // so on such a host the item keeps is_listed=true — see the note above.
   const { error: updateErr } = await supabase
     .from('marketplace_listings')
     .update({ status: 'cancelled' })

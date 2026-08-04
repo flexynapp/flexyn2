@@ -103,7 +103,9 @@ export default function ItemDetailSheet({
 
   const catalogItem = findCatalogItem(listing.item_id);
   const tint        = rarityTint(listing.item_rarity);
-  const isMine      = listing.seller_email === currentUser?.email;
+  // seller_user_id, not seller_email — see the note in ListingCard. A guest's
+  // seller_email is '' so the email comparison hid Cancel on their own listing.
+  const isMine      = !!currentUser?.id && listing.seller_user_id === currentUser.id;
   const isSale      = listing.listing_type === 'sale';
   const canAfford   = isSale && flexCoins >= (listing.asking_price ?? 0);
   const soldCount   = soldMap?.get(listing.item_id) || 0;

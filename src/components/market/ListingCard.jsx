@@ -24,7 +24,14 @@ export default function ListingCard({
   isSaved = false,
   onToggleSave,
 }) {
-  const isMine     = listing.seller_email === currentUser?.email;
+  // Key on seller_user_id, NOT seller_email. create_marketplace_listing
+  // (mig 025) stamps seller_email from auth.email(), which is '' for guest
+  // accounts — while the profile's email is the synthesized
+  // guest_<uid>@flexyn.guest. So an email comparison never matched for a
+  // guest: they saw a Buy button on their own listing (the server rejects
+  // self-purchase, so it just dead-ended) and had no way to cancel it.
+  // marketplace.listBySeller already keys on user_id for this exact reason.
+  const isMine     = !!currentUser?.id && listing.seller_user_id === currentUser.id;
   const isSale     = listing.listing_type === 'sale';
   const canAfford  = isSale && flexCoins >= (listing.asking_price ?? 0);
   const soldLabel  = itemSoldCounts.formatSoldCount(soldCount);

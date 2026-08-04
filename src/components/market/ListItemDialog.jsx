@@ -10,7 +10,6 @@ import { ShoppingBag, X, ChevronLeft, TrendingUp } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { reportError } from '@/lib/reportError';
 import * as marketplace from '@/lib/data/marketplace';
-import * as inventory from '@/lib/data/inventory';
 import { RARITY } from '@/lib/lootCatalog';
 import { displayName } from '@/lib/userDisplay';
 import { RarityBadge, RarityFrame, COIN } from '@/components/loot/RarityVisuals';
@@ -64,7 +63,15 @@ export default function ListItemDialog({ open, onClose, userItems, user, onSucce
         asking_price:     listingType === 'sale' ? parseInt(price, 10) : null,
         trade_for_rarity: listingType === 'trade' ? tradeRarity : null,
       });
-      await inventory.setListed(selectedItem.id, true);
+      // NO client-side is_listed write here. create_marketplace_listing
+      // (mig 025) already flipped it inside the same transaction that
+      // created the listing — and the client CAN'T write it anyway, since
+      // user_inventory has no UPDATE policy. The old `inventory.setListed`
+      // call threw 42501 every single time, which meant a listing that had
+      // genuinely succeeded fell into the catch below: the user got
+      // "Could not list item — try again", the dialog stayed open, and
+      // nothing refetched. Retrying then failed for real, because the item
+      // was already listed.
       await qc.invalidateQueries({ queryKey: ['marketplaceListings'] });
       await qc.invalidateQueries({ queryKey: ['userInventory', user.email] });
       toast.success('Listed. Good luck.');

@@ -223,7 +223,11 @@ export default function MarketplaceFeed() {
   const handleCancel = useCallback(async (listing) => {
     try {
       await marketplace.cancelListing(listing.id);
-      await inventory.setListed(listing.inventory_id, false);
+      // cancel_marketplace_listing (mig 078) clears is_listed in the same
+      // transaction. The client cannot write it — user_inventory has no
+      // UPDATE policy — so the old `inventory.setListed(false)` here threw
+      // 42501 on every cancel, dropping a successful cancel into the catch
+      // and telling the user it had failed.
       await qc.invalidateQueries({ queryKey: ['marketplaceListings'] });
       await qc.invalidateQueries({ queryKey: ['userInventory', user?.email] });
       toast.success('Pulled it back.');
