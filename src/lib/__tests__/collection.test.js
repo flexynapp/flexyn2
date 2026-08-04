@@ -9,7 +9,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   COLLECTION_TABS, RARITY_ORDER,
-  catalogFor, ownershipFrom, buildCollection, overallCompletion,
+  catalogFor, ownershipFrom, buildCollection, overallCompletion, rarityBreakdown,
 } from '../collection';
 import { ITEMS, BRANDED_ITEMS } from '../lootCatalog';
 
@@ -169,5 +169,43 @@ describe('overallCompletion', () => {
     const overall = overallCompletion(
       ownershipFrom([{ item_id: sticker.id }, { item_id: theme.id }]));
     expect(overall.owned).toBe(2);
+  });
+});
+
+describe('rarityBreakdown', () => {
+  const breakdown = () => rarityBreakdown(noOwnership);
+
+  it('totals per tier add up to the overall total', () => {
+    const summed = breakdown().reduce((n, b) => n + b.total, 0);
+    expect(summed).toBe(overallCompletion(noOwnership).total);
+  });
+
+  it('is ordered common → rarest, matching the grid', () => {
+    const order = breakdown().map(b => b.rarity);
+    expect(order).toEqual(RARITY_ORDER.filter(r => order.includes(r)));
+  });
+
+  // A tier with no items anywhere in the game would otherwise render as a
+  // permanently-empty segment the user can never fill.
+  it('omits tiers that have no items at all', () => {
+    for (const b of breakdown()) expect(b.total).toBeGreaterThan(0);
+  });
+
+  it('counts a tier across every tab, not just the first', () => {
+    const pick = (tab, rarity) => catalogFor(tab).find(i => i.rarity === rarity);
+    const sticker = pick('stickers', 'common');
+    const theme   = pick('themes', 'common');
+    expect(sticker && theme).toBeTruthy();
+
+    const owned = rarityBreakdown(
+      ownershipFrom([{ item_id: sticker.id }, { item_id: theme.id }]));
+    expect(owned.find(b => b.rarity === 'common').owned).toBe(2);
+  });
+
+  it('reports 0% rather than NaN when nothing is owned', () => {
+    for (const b of breakdown()) {
+      expect(b.owned).toBe(0);
+      expect(b.pct).toBe(0);
+    }
   });
 });

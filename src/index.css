@@ -2913,3 +2913,26 @@ html[data-theme-tier] {
 @keyframes bh-rise { from { transform: translateY(100%); } to { transform: translateY(0); } }
 @keyframes bh-fade { from { opacity: 0; } to { opacity: 1; } }
 
+
+/* ── Collection grid ─────────────────────────────────────────────────────────
+   A slow diagonal sheen for high-rarity slots you actually own. It runs
+   ONLY on epic+ owned cards — in a 113-slot grid a shimmer on everything
+   is noise, and the whole point is that the rare things you earned catch
+   the light and the common ones don't. Long cycle + long gap so it reads
+   as an occasional glint rather than a loading skeleton. */
+@keyframes coll-sheen {
+  0%, 62%  { transform: translateX(-140%) skewX(-18deg); }
+  86%, 100%{ transform: translateX(240%)  skewX(-18deg); }
+}
+.coll-sheen::after {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 42%;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.38), transparent);
+  animation: coll-sheen 4.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .coll-sheen::after { animation: none; opacity: 0; }
+}

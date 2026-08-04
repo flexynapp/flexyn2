@@ -159,3 +159,42 @@ export function overallCompletion(ownership) {
   }
   return { owned, total, pct: total === 0 ? 0 : Math.round((owned / total) * 100) };
 }
+
+/**
+ * Owned/total per rarity tier across EVERY tab.
+ *
+ * Drives the header's rarity spectrum. A single overall percentage says
+ * "you're 29% done" and nothing else; the same 29% made of a full common
+ * tier versus a scattering of legendaries are completely different
+ * collections, and only the breakdown shows which one you have — and
+ * therefore where the next thing worth chasing is.
+ *
+ * Tiers with no items in the game at all are omitted rather than rendered
+ * as permanently-empty segments.
+ */
+export function rarityBreakdown(ownership) {
+  const totals = new Map(); // rarity → { owned, total }
+
+  for (const tab of COLLECTION_TABS) {
+    for (const group of buildCollection(tab.id, ownership).groups) {
+      const acc = totals.get(group.rarity) ?? { owned: 0, total: 0 };
+      acc.owned += group.owned;
+      acc.total += group.total;
+      totals.set(group.rarity, acc);
+    }
+  }
+
+  return RARITY_ORDER
+    .filter(r => (totals.get(r)?.total ?? 0) > 0)
+    .map(r => {
+      const { owned, total } = totals.get(r);
+      return {
+        rarity: r,
+        label: RARITY[r]?.label ?? r,
+        color: RARITY[r]?.color ?? '#888',
+        owned,
+        total,
+        pct: Math.round((owned / total) * 100),
+      };
+    });
+}
