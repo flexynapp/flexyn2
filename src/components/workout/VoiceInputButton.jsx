@@ -100,7 +100,7 @@ export default function VoiceInputButton({ onParsed, lang = 'en-US', className =
       className={[
         'shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-md transition-colors',
         listening
-          ? 'bg-rose-500/15 text-rose-500'
+          ? 'bg-destructive/15 text-destructive'
           : 'bg-secondary/60 hover:bg-secondary text-muted-foreground hover:text-foreground',
         className,
       ].join(' ')}

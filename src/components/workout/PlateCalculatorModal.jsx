@@ -128,7 +128,7 @@ export default function PlateCalculatorModal({ open, onClose, initialWeightLbs =
                   <p className="font-heading font-black text-lg mb-2">{breakdownText}</p>
                   <PlateDiagram plates={perSide} barLbs={barLbs} />
                   {remainderLbs > 0.1 && (
-                    <p className="text-[11px] text-amber-500 mt-2">
+                    <p className="text-[11px] text-primary mt-2">
                       ~{formatWeightNumber(remainderLbs, weightUnit)} {weightUnit} short — no small enough plate.
                     </p>
                   )}

@@ -64,9 +64,9 @@ export default function PRProximityBar({ exerciseName, weight, reps, prIndex = {
 
   const styles = {
     warmup:  { bar: 'bg-muted-foreground/40', text: 'text-muted-foreground' },
-    close:   { bar: 'bg-orange-400',         text: 'text-orange-400' },
-    pr:      { bar: 'bg-amber-400',          text: 'text-amber-400' },
-    newpr:   { bar: 'bg-amber-400',          text: 'text-amber-400' },
+    close:   { bar: 'bg-primary',         text: 'text-primary' },
+    pr:      { bar: 'bg-primary',          text: 'text-primary' },
+    newpr:   { bar: 'bg-primary',          text: 'text-primary' },
   }[tier];
 
   return (

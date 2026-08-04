@@ -19,12 +19,12 @@ import { useRestTimer } from '@/lib/RestTimerContext';
 
 const TYPE_LABEL = { superset: 'Superset', circuit: 'Circuit' };
 const TYPE_COLOR  = {
-  superset: 'border-l-violet-500 bg-violet-500/5',
-  circuit:  'border-l-emerald-500 bg-emerald-500/5',
+  superset: 'border-l-violet-500 bg-primary/5',
+  circuit:  'border-l-emerald-500 bg-success/5',
 };
 const TYPE_BADGE  = {
-  superset: 'text-violet-500 bg-violet-500/10 border-violet-500/25',
-  circuit:  'text-emerald-500 bg-emerald-500/10 border-emerald-500/25',
+  superset: 'text-primary bg-primary/10 border-primary/25',
+  circuit:  'text-success bg-success/10 border-success/25',
 };
 
 export default function GroupBlock({ groupId, groupMeta = {}, exercises = [], onChange, userProfile = {} }) {
@@ -134,7 +134,7 @@ export default function GroupBlock({ groupId, groupMeta = {}, exercises = [], on
       </div>
 
       {roundsDone && (
-        <div className="px-3 py-2 text-xs font-semibold text-center text-emerald-500 border-t border-border/40">
+        <div className="px-3 py-2 text-xs font-semibold text-center text-success border-t border-border/40">
           Group complete ✓
         </div>
       )}

@@ -139,7 +139,7 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
   }, [isPRSet]);
 
   return (
-    <div className={['relative rounded-lg transition-colors', completed ? 'bg-emerald-500/[0.06]' : ''].join(' ')}>
+    <div className={['relative rounded-lg transition-colors', completed ? 'bg-success/[0.06]' : ''].join(' ')}>
     <div className={['flex items-center gap-2 transition-opacity', completed ? 'opacity-95' : ''].join(' ')}>
       <span className="text-xs text-muted-foreground w-6 text-center font-medium">{index + 1}</span>
       {/* Weight column gets extra flex weight — it houses the −/+ steppers plus
@@ -234,7 +234,7 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
           }}
           enterKeyHint="next"
           placeholder={isBodyweight ? `+ ${weightUnit}` : weightUnit}
-          className={`flex-1 min-w-0 h-9 text-center transition-shadow ${isPRSet ? 'ring-2 ring-amber-400/60 shadow-[0_0_12px_rgba(251,191,36,0.4)]' : ''}`}
+          className={`flex-1 min-w-0 h-9 text-center transition-shadow ${isPRSet ? 'ring-2 ring-primary/60 shadow-[0_0_12px_hsl(var(--primary)/0.4)]' : ''}`}
           aria-label={isBodyweight ? 'Added weight (bodyweight exercise)' : `Weight in ${weightUnit}`}
         />
         {(() => {
@@ -296,7 +296,7 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
           ref={repsRef}
           enterKeyHint="done"
           placeholder={t('common.reps')}
-          className={`h-9 text-center transition-shadow ${isPRSet ? 'ring-2 ring-amber-400/60 shadow-[0_0_12px_rgba(251,191,36,0.4)]' : ''}`}
+          className={`h-9 text-center transition-shadow ${isPRSet ? 'ring-2 ring-primary/60 shadow-[0_0_12px_hsl(var(--primary)/0.4)]' : ''}`}
         />
       </div>
       {/* Prominent "NEW PR" flash — slides in for ~2.5s on the
@@ -310,7 +310,7 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
           animate={{ x: 0, opacity: 1, scale: 1 }}
           exit={{ opacity: 0 }}
           transition={{ type: 'spring', stiffness: 380, damping: 18 }}
-          className="absolute -top-3 end-0 z-10 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-400 to-amber-500 text-amber-950 text-[10px] font-extrabold uppercase tracking-[0.15em] shadow-lg shadow-amber-500/30 pointer-events-none"
+          className="absolute -top-3 end-0 z-10 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gradient-to-r from-primary to-primary text-primary-foreground text-[10px] font-extrabold uppercase tracking-[0.15em] shadow-lg shadow-primary/30 pointer-events-none"
           aria-live="polite"
         >
           🎉 New PR
@@ -323,7 +323,7 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
           initial={{ scale: 0.4, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ type: 'spring', stiffness: 480, damping: 20 }}
-          className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-amber-400/15 text-amber-400 shrink-0"
+          className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary/15 text-primary shrink-0"
           aria-label="New PR pace"
           title="New PR pace"
         >
@@ -334,10 +334,10 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
           warmup/failed/feel/RPE controls live behind the ⋯ drawer. */}
       {!moreOpen && (set.is_warmup || set.is_failed || hasFeelData || hasEffortData) && (
         <div className="flex items-center gap-1 shrink-0">
-          {set.is_warmup && <TagDot className="bg-orange-500/15 text-orange-500"><Flame className="w-3 h-3" /></TagDot>}
-          {set.is_failed && <TagDot className="bg-red-500/15 text-red-500 text-[11px] font-extrabold">✗</TagDot>}
-          {hasFeelData && <TagDot className="bg-purple-500/15 text-purple-400 text-xs">{set.feel_emoji || <MessageCircle className="w-3 h-3" />}</TagDot>}
-          {hasEffortData && <TagDot className="bg-blue-500/15 text-blue-500 text-[10px] font-bold">{set.rpe != null ? set.rpe : set.rir}</TagDot>}
+          {set.is_warmup && <TagDot className="bg-primary/15 text-primary"><Flame className="w-3 h-3" /></TagDot>}
+          {set.is_failed && <TagDot className="bg-destructive/15 text-destructive text-[11px] font-extrabold">✗</TagDot>}
+          {hasFeelData && <TagDot className="bg-primary/15 text-primary text-xs">{set.feel_emoji || <MessageCircle className="w-3 h-3" />}</TagDot>}
+          {hasEffortData && <TagDot className="bg-info/15 text-info text-[10px] font-bold">{set.rpe != null ? set.rpe : set.rir}</TagDot>}
         </div>
       )}
       {/* ⋯ — secondary options drawer (warmup / failed / feel / RPE / delete) */}
@@ -362,8 +362,8 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
         className={[
           'h-9 w-9 rounded-xl flex items-center justify-center shrink-0 transition-all',
           completed
-            ? 'bg-emerald-500 text-white shadow-sm shadow-emerald-500/30'
-            : 'border-2 border-border text-muted-foreground/40 hover:border-emerald-500/50 hover:text-emerald-500',
+            ? 'bg-success text-white shadow-sm shadow-success/30'
+            : 'border-2 border-border text-muted-foreground/40 hover:border-success/50 hover:text-success',
         ].join(' ')}
       >
         <motion.span key={completed ? 'on' : 'off'} initial={{ scale: 0.4, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 500, damping: 17 }}>
@@ -384,15 +384,15 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
           style={{ overflow: 'hidden' }}
         >
           <div className="flex items-center gap-1.5 mt-2 ps-8 pe-1">
-            <TagButton active={!!set.is_warmup} onClick={() => onChange({ ...set, is_warmup: !set.is_warmup })} activeCls="bg-orange-500/15 text-orange-500" icon={<Flame className="w-3.5 h-3.5" />} label="Warmup" />
-            <TagButton active={!!set.is_failed} onClick={() => onChange({ ...set, is_failed: !set.is_failed })} activeCls="bg-red-500/15 text-red-500" icon={<span className="text-xs font-extrabold leading-none">✗</span>} label="Failed" />
-            <TagButton active={hasFeelData} onClick={() => setFeelOpen(o => !o)} activeCls="bg-purple-500/15 text-purple-400" icon={set.feel_emoji ? <span className="text-sm leading-none">{set.feel_emoji}</span> : <MessageCircle className="w-3.5 h-3.5" />} label="Feel" />
-            <TagButton active={hasEffortData} onClick={() => setEffortOpen(o => !o)} activeCls="bg-blue-500/15 text-blue-500" icon={<Gauge className="w-3.5 h-3.5" />} label="RPE" />
+            <TagButton active={!!set.is_warmup} onClick={() => onChange({ ...set, is_warmup: !set.is_warmup })} activeCls="bg-primary/15 text-primary" icon={<Flame className="w-3.5 h-3.5" />} label="Warmup" />
+            <TagButton active={!!set.is_failed} onClick={() => onChange({ ...set, is_failed: !set.is_failed })} activeCls="bg-destructive/15 text-destructive" icon={<span className="text-xs font-extrabold leading-none">✗</span>} label="Failed" />
+            <TagButton active={hasFeelData} onClick={() => setFeelOpen(o => !o)} activeCls="bg-primary/15 text-primary" icon={set.feel_emoji ? <span className="text-sm leading-none">{set.feel_emoji}</span> : <MessageCircle className="w-3.5 h-3.5" />} label="Feel" />
+            <TagButton active={hasEffortData} onClick={() => setEffortOpen(o => !o)} activeCls="bg-info/15 text-info" icon={<Gauge className="w-3.5 h-3.5" />} label="RPE" />
             <button
               type="button"
               onClick={onRemove}
               aria-label="Delete set"
-              className="h-8 w-8 ms-auto rounded-lg flex items-center justify-center text-muted-foreground/60 hover:text-red-500 hover:bg-red-500/10 transition-colors shrink-0"
+              className="h-8 w-8 ms-auto rounded-lg flex items-center justify-center text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0"
             >
               <Trash2 className="w-4 h-4" />
             </button>
@@ -424,7 +424,7 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
                   className={[
                     'flex-1 h-7 rounded-md text-xs font-bold transition-colors',
                     active
-                      ? 'bg-blue-500 text-white'
+                      ? 'bg-info text-white'
                       : 'bg-secondary/60 text-muted-foreground hover:bg-secondary hover:text-foreground',
                   ].join(' ')}
                 >
@@ -473,7 +473,7 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
                 onChange({ ...set, feel_emoji: set.feel_emoji === em ? null : em })
               }
               className={`text-base px-1 py-0.5 rounded transition-colors ${
-                set.feel_emoji === em ? 'bg-purple-500/20' : 'opacity-60 hover:opacity-100'
+                set.feel_emoji === em ? 'bg-primary/20' : 'opacity-60 hover:opacity-100'
               }`}
               aria-label={`Feel ${em}`}
               aria-pressed={set.feel_emoji === em}

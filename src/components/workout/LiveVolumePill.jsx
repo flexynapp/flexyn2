@@ -49,9 +49,9 @@ export default function LiveVolumePill({ exercises = [], includeBarWeight = fals
   const colorClass = isZero
     ? 'text-muted-foreground/60'
     : isHeavy
-      ? 'text-amber-400'
+      ? 'text-primary'
       : isMid
-        ? 'text-orange-400'
+        ? 'text-primary'
         : 'text-primary';
 
   return (

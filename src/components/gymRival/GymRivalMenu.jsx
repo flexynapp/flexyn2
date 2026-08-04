@@ -41,14 +41,14 @@ function fmtDuration(ms) {
   return `${m}m`;
 }
 
-function Avatar({ profile, size = 'w-20 h-20', ring = 'ring-rose-500/40' }) {
+function Avatar({ profile, size = 'w-20 h-20', ring = 'ring-primary/40' }) {
   const name = profile?.username || '';
   return profile?.avatar_url ? (
     <img loading="lazy" src={profile.avatar_url} alt={name}
       className={`${size} rounded-full object-cover ring-2 ${ring} shrink-0`} />
   ) : (
-    <div className={`${size} rounded-full bg-rose-500/20 ring-2 ${ring} flex items-center justify-center shrink-0`}>
-      <span className="text-2xl font-black text-rose-500">{name[0]?.toUpperCase() || '?'}</span>
+    <div className={`${size} rounded-full bg-primary/20 ring-2 ${ring} flex items-center justify-center shrink-0`}>
+      <span className="text-2xl font-black text-primary">{name[0]?.toUpperCase() || '?'}</span>
     </div>
   );
 }
@@ -56,11 +56,11 @@ function Avatar({ profile, size = 'w-20 h-20', ring = 'ring-rose-500/40' }) {
 function StatRow({ icon: Icon, label, userVal, rivalVal, userWins }) {
   return (
     <div className="flex items-center gap-2 py-2">
-      <span className={`flex-1 text-end text-sm font-bold tabular-nums ${userWins === true ? 'text-emerald-500' : 'text-foreground'}`}>{userVal}</span>
+      <span className={`flex-1 text-end text-sm font-bold tabular-nums ${userWins === true ? 'text-success' : 'text-foreground'}`}>{userVal}</span>
       <span className="flex items-center gap-1 w-28 justify-center text-[10px] font-bold uppercase tracking-wider text-muted-foreground shrink-0">
         <Icon className="w-3 h-3" /> {label}
       </span>
-      <span className={`flex-1 text-start text-sm font-bold tabular-nums ${userWins === false ? 'text-emerald-500' : 'text-foreground'}`}>{rivalVal}</span>
+      <span className={`flex-1 text-start text-sm font-bold tabular-nums ${userWins === false ? 'text-success' : 'text-foreground'}`}>{rivalVal}</span>
     </div>
   );
 }
@@ -181,7 +181,7 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
       >
         <div className="sticky top-0 z-10 flex items-center justify-between px-4 h-14 bg-background/90 backdrop-blur-md border-b border-border">
           <div className="flex items-center gap-2">
-            <Target className="w-4 h-4 text-rose-500" />
+            <Target className="w-4 h-4 text-primary" />
             <h2 className="font-heading font-black text-base">{assignment ? typeLabel : 'Rivals'}</h2>
           </div>
           <button onClick={onClose} aria-label="Close" className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-secondary transition-colors">
@@ -200,11 +200,11 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
                   transition={{ duration: 1.1, repeat: stage === 'searching' ? Infinity : 0 }}
                   className="relative mb-6"
                 >
-                  <div className="absolute inset-0 rounded-full blur-2xl bg-rose-500/30" />
+                  <div className="absolute inset-0 rounded-full blur-2xl bg-primary/30" />
                   <div className="relative">
                     {stage === 'searching' ? (
-                      <div className="w-24 h-24 rounded-full border-2 border-dashed border-rose-500/50 flex items-center justify-center">
-                        <Target className="w-10 h-10 text-rose-500" />
+                      <div className="w-24 h-24 rounded-full border-2 border-dashed border-primary/50 flex items-center justify-center">
+                        <Target className="w-10 h-10 text-primary" />
                       </div>
                     ) : (
                       <motion.div initial={{ filter: 'blur(14px)', scale: 0.8, opacity: 0.4 }} animate={{ filter: 'blur(0px)', scale: 1, opacity: 1 }} transition={{ duration: 1.1, ease: [0.22, 1, 0.36, 1] }}>
@@ -219,7 +219,7 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
                   </motion.p>
                 ) : (
                   <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}>
-                    <p className="text-[11px] font-black uppercase tracking-[0.2em] text-rose-500 mb-1">Your rival this week</p>
+                    <p className="text-[11px] font-black uppercase tracking-[0.2em] text-primary mb-1">Your rival this week</p>
                     <p className="font-heading font-black text-2xl">@{rival?.username || '—'}</p>
                     <p className="text-xs text-muted-foreground mt-1">Level {rival?.current_level ?? '—'}</p>
                   </motion.div>
@@ -228,9 +228,9 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
             ) : settledRecent ? (
               // ── Completed (settled) result ──────────────────────────
               <motion.div key="result" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="min-h-[50vh] flex flex-col items-center justify-center text-center">
-                <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 ${myResult === 'win' ? 'bg-emerald-500/10' : myResult === 'loss' ? 'bg-rose-500/10' : 'bg-secondary'}`}>
-                  {myResult === 'win' ? <Trophy className="w-8 h-8 text-emerald-500" />
-                    : myResult === 'loss' ? <Swords className="w-8 h-8 text-rose-500" />
+                <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 ${myResult === 'win' ? 'bg-success/10' : myResult === 'loss' ? 'bg-primary/10' : 'bg-secondary'}`}>
+                  {myResult === 'win' ? <Trophy className="w-8 h-8 text-success" />
+                    : myResult === 'loss' ? <Swords className="w-8 h-8 text-primary" />
                     : <Target className="w-8 h-8 text-muted-foreground" />}
                 </div>
                 <p className="font-heading font-black text-2xl">
@@ -245,13 +245,13 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
                 </p>
                 {myResult === 'win' && (
                   <div className="mt-5 flex items-center gap-4">
-                    <div className="text-center"><Trophy className="w-4 h-4 text-amber-500 mx-auto mb-1" /><p className="font-heading font-black text-base tabular-nums">{fmt(reward.xp)}</p><p className="text-[10px] text-muted-foreground">XP</p></div>
-                    <div className="text-center"><Coins className="w-4 h-4 text-amber-500 mx-auto mb-1" /><p className="font-heading font-black text-base tabular-nums">{fmt(reward.coins)}</p><p className="text-[10px] text-muted-foreground">Coins</p></div>
-                    <div className="text-center"><Package className="w-4 h-4 text-amber-500 mx-auto mb-1" /><p className="font-heading font-black text-base tabular-nums">{reward.capsules}</p><p className="text-[10px] text-muted-foreground">Capsules</p></div>
+                    <div className="text-center"><Trophy className="w-4 h-4 text-primary mx-auto mb-1" /><p className="font-heading font-black text-base tabular-nums">{fmt(reward.xp)}</p><p className="text-[10px] text-muted-foreground">XP</p></div>
+                    <div className="text-center"><Coins className="w-4 h-4 text-primary mx-auto mb-1" /><p className="font-heading font-black text-base tabular-nums">{fmt(reward.coins)}</p><p className="text-[10px] text-muted-foreground">Coins</p></div>
+                    <div className="text-center"><Package className="w-4 h-4 text-primary mx-auto mb-1" /><p className="font-heading font-black text-base tabular-nums">{reward.capsules}</p><p className="text-[10px] text-muted-foreground">Capsules</p></div>
                   </div>
                 )}
                 <button onClick={onReroll} disabled={rerolling}
-                  className="mt-7 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-rose-500 text-white text-sm font-bold hover:bg-rose-600 disabled:opacity-50 transition-colors">
+                  className="mt-7 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 disabled:opacity-50 transition-colors">
                   {rerolling ? <Loader2 className="w-4 h-4 animate-spin" /> : <Target className="w-4 h-4" />}
                   {rerolling ? 'Finding someone…' : 'Find a new rival'}
                 </button>
@@ -259,8 +259,8 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
             ) : voidThisWeek ? (
               // ── Void (AFK) ──────────────────────────────────────────
               <motion.div key="void" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="min-h-[50vh] flex flex-col items-center justify-center text-center">
-                <div className="w-14 h-14 rounded-full bg-amber-500/10 flex items-center justify-center mb-4">
-                  <AlertTriangle className="w-7 h-7 text-amber-500" />
+                <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+                  <AlertTriangle className="w-7 h-7 text-primary" />
                 </div>
                 <p className="font-heading font-black text-xl">Challenge voided</p>
                 <p className="text-sm text-muted-foreground mt-2 max-w-[32ch]">
@@ -276,27 +276,27 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
               <motion.div key="pending" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
                 <div className="flex items-stretch justify-between gap-3 mb-6">
                   <div className="flex-1 flex flex-col items-center text-center">
-                    <Avatar profile={me} ring="ring-emerald-500/40" />
+                    <Avatar profile={me} ring="ring-success/40" />
                     <p className="mt-2 text-sm font-black">You</p>
-                    <p className={`text-[10px] font-bold ${iConfirmed ? 'text-emerald-500' : 'text-muted-foreground'}`}>{iConfirmed ? '✓ Ready' : 'Not yet'}</p>
+                    <p className={`text-[10px] font-bold ${iConfirmed ? 'text-success' : 'text-muted-foreground'}`}>{iConfirmed ? '✓ Ready' : 'Not yet'}</p>
                   </div>
                   <div className="flex flex-col items-center justify-center shrink-0">
                     <span className="font-heading font-black text-lg text-muted-foreground">VS</span>
-                    <Swords className="w-4 h-4 text-rose-500 mt-1" />
+                    <Swords className="w-4 h-4 text-primary mt-1" />
                   </div>
                   <div className="flex-1 flex flex-col items-center text-center">
                     <Avatar profile={rival} />
                     <p className="mt-2 text-sm font-black truncate max-w-full">@{rival?.username || '—'}</p>
-                    <p className={`text-[10px] font-bold ${otherConfirmed ? 'text-emerald-500' : 'text-muted-foreground'}`}>{otherConfirmed ? '✓ Ready' : 'Not yet'}</p>
+                    <p className={`text-[10px] font-bold ${otherConfirmed ? 'text-success' : 'text-muted-foreground'}`}>{otherConfirmed ? '✓ Ready' : 'Not yet'}</p>
                   </div>
                 </div>
 
                 {/* Size up the matchup before accepting */}
                 <div className="rounded-2xl border border-border bg-card px-4 py-2 mb-4 divide-y divide-border/60">
                   <div className="flex items-center gap-2 pb-1">
-                    <span className="flex-1 text-end text-[10px] font-black uppercase tracking-wider text-emerald-500">You</span>
+                    <span className="flex-1 text-end text-[10px] font-black uppercase tracking-wider text-success">You</span>
                     <span className="w-28" />
-                    <span className="flex-1 text-start text-[10px] font-black uppercase tracking-wider text-rose-500 truncate">@{rival?.username || 'Rival'}</span>
+                    <span className="flex-1 text-start text-[10px] font-black uppercase tracking-wider text-primary truncate">@{rival?.username || 'Rival'}</span>
                   </div>
                   <StatRow icon={Award} label="Level" userVal={me?.current_level ?? '—'} rivalVal={rival?.current_level ?? '—'} userWins={cmp(me?.current_level, rival?.current_level)} />
                   <StatRow icon={Swords} label="W – L" userVal={`${myRecord?.wins ?? 0}–${myRecord?.losses ?? 0}`} rivalVal={`${rivalRecord?.wins ?? 0}–${rivalRecord?.losses ?? 0}`} userWins={cmp(winRate(myRecord), winRate(rivalRecord))} />
@@ -318,7 +318,7 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
                   <button
                     onClick={() => confirmMut.mutate()}
                     disabled={confirmMut.isPending}
-                    className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-rose-500 text-white font-black text-sm hover:bg-rose-600 active:scale-[0.98] transition-all disabled:opacity-60"
+                    className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-primary text-white font-black text-sm hover:bg-primary active:scale-[0.98] transition-all disabled:opacity-60"
                   >
                     {confirmMut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
                     Accept challenge
@@ -344,21 +344,21 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
               // ── Active — live comparison ────────────────────────────
               <motion.div key="compare" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
                 {afkMsLeft != null && afkMsLeft > 0 && (
-                  <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 px-3 py-2 mb-4 flex items-center gap-2">
-                    <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
-                    <p className="text-[11px] text-amber-700 dark:text-amber-400 font-semibold">Log a workout within {fmtDuration(afkMsLeft)} — both players must, or the match voids.</p>
+                  <div className="rounded-xl border border-primary/30 bg-primary/5 px-3 py-2 mb-4 flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 text-primary shrink-0" />
+                    <p className="text-[11px] text-primary dark:text-primary font-semibold">Log a workout within {fmtDuration(afkMsLeft)} — both players must, or the match voids.</p>
                   </div>
                 )}
 
                 <div className="flex items-stretch justify-between gap-3 mb-5">
                   <div className="flex-1 flex flex-col items-center text-center">
-                    <Avatar profile={me} ring="ring-emerald-500/40" />
+                    <Avatar profile={me} ring="ring-success/40" />
                     <p className="mt-2 text-sm font-black">You</p>
                     <p className="text-[10px] text-muted-foreground">Lv {me?.current_level ?? '—'}</p>
                   </div>
                   <div className="flex flex-col items-center justify-center shrink-0">
                     <span className="font-heading font-black text-lg text-muted-foreground">VS</span>
-                    <Swords className="w-4 h-4 text-rose-500 mt-1" />
+                    <Swords className="w-4 h-4 text-primary mt-1" />
                     <span className="mt-1 text-[10px] font-bold text-muted-foreground text-center tabular-nums whitespace-nowrap">{weekCountdown}</span>
                   </div>
                   <button type="button" onClick={() => rival?.id && navigate(`/hub?profile=${encodeURIComponent(rival.id)}`)} className="flex-1 flex flex-col items-center text-center">
@@ -371,22 +371,22 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
                 <div className="rounded-2xl border border-border bg-card p-4 mb-4">
                   <p className="text-center text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground mb-2">Net Rating</p>
                   <div className="flex items-center justify-center gap-4">
-                    <span className={`font-heading font-black text-4xl tabular-nums ${userLeads === true ? 'text-emerald-500' : 'text-foreground'}`}>{uNet != null ? fmt(uNet) : '—'}</span>
+                    <span className={`font-heading font-black text-4xl tabular-nums ${userLeads === true ? 'text-success' : 'text-foreground'}`}>{uNet != null ? fmt(uNet) : '—'}</span>
                     <span className="text-muted-foreground font-bold">—</span>
-                    <span className={`font-heading font-black text-4xl tabular-nums ${userLeads === false ? 'text-emerald-500' : 'text-foreground'}`}>{rNet != null ? fmt(rNet) : '—'}</span>
+                    <span className={`font-heading font-black text-4xl tabular-nums ${userLeads === false ? 'text-success' : 'text-foreground'}`}>{rNet != null ? fmt(rNet) : '—'}</span>
                   </div>
                   <p className="text-center text-xs font-bold mt-2">
                     {userLeads === null ? <span className="text-muted-foreground">Dead even — keep training.</span>
-                      : userLeads ? <span className="text-emerald-500">You're winning 🔥</span>
-                      : <span className="text-rose-500">You're behind — catch up!</span>}
+                      : userLeads ? <span className="text-success">You're winning 🔥</span>
+                      : <span className="text-primary">You're behind — catch up!</span>}
                   </p>
                 </div>
 
                 <div className="rounded-2xl border border-border bg-card px-4 py-2 mb-4 divide-y divide-border/60">
                   <div className="flex items-center gap-2 pb-1">
-                    <span className="flex-1 text-end text-[10px] font-black uppercase tracking-wider text-emerald-500">You</span>
+                    <span className="flex-1 text-end text-[10px] font-black uppercase tracking-wider text-success">You</span>
                     <span className="w-28" />
-                    <span className="flex-1 text-start text-[10px] font-black uppercase tracking-wider text-rose-500">Rival</span>
+                    <span className="flex-1 text-start text-[10px] font-black uppercase tracking-wider text-primary">Rival</span>
                   </div>
                   {isCardio ? (
                     <StatRow icon={Footprints} label="Distance" userVal={u ? dist(u.distanceMeters) : '—'} rivalVal={r ? dist(r.distanceMeters) : '—'} userWins={u && r ? (u.distanceMeters === r.distanceMeters ? null : u.distanceMeters > r.distanceMeters) : null} />
@@ -395,22 +395,22 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
                   )}
                 </div>
 
-                <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4 mb-5">
+                <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4 mb-5">
                   <div className="flex items-center gap-1.5 mb-3">
-                    <Trophy className="w-4 h-4 text-amber-500" />
-                    <p className="text-[11px] font-black uppercase tracking-wider text-amber-600 dark:text-amber-400">Winner's prize</p>
+                    <Trophy className="w-4 h-4 text-primary" />
+                    <p className="text-[11px] font-black uppercase tracking-wider text-primary dark:text-primary">Winner's prize</p>
                   </div>
                   <div className="grid grid-cols-3 gap-2 text-center">
-                    <div><Trophy className="w-4 h-4 text-amber-500 mx-auto mb-1" /><p className="font-heading font-black text-base tabular-nums">{fmt(reward.xp)}</p><p className="text-[10px] text-muted-foreground">XP</p></div>
-                    <div><Coins className="w-4 h-4 text-amber-500 mx-auto mb-1" /><p className="font-heading font-black text-base tabular-nums">{fmt(reward.coins)}</p><p className="text-[10px] text-muted-foreground">Coins</p></div>
-                    <div><Package className="w-4 h-4 text-amber-500 mx-auto mb-1" /><p className="font-heading font-black text-base tabular-nums">{reward.capsules}</p><p className="text-[10px] text-muted-foreground">Capsules</p></div>
+                    <div><Trophy className="w-4 h-4 text-primary mx-auto mb-1" /><p className="font-heading font-black text-base tabular-nums">{fmt(reward.xp)}</p><p className="text-[10px] text-muted-foreground">XP</p></div>
+                    <div><Coins className="w-4 h-4 text-primary mx-auto mb-1" /><p className="font-heading font-black text-base tabular-nums">{fmt(reward.coins)}</p><p className="text-[10px] text-muted-foreground">Coins</p></div>
+                    <div><Package className="w-4 h-4 text-primary mx-auto mb-1" /><p className="font-heading font-black text-base tabular-nums">{reward.capsules}</p><p className="text-[10px] text-muted-foreground">Capsules</p></div>
                   </div>
                   <p className="text-[10px] text-muted-foreground mt-3 text-center">Higher net rating when the week ends takes the prize.</p>
                 </div>
 
                 {/* Once live (both accepted) the match is locked — no
                     decline or reroll, only the duel challenge. */}
-                <button onClick={onChallenge} className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-rose-500 text-white font-black text-sm hover:bg-rose-600 active:scale-[0.98] transition-all">
+                <button onClick={onChallenge} className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-primary text-white font-black text-sm hover:bg-primary active:scale-[0.98] transition-all">
                   <Swords className="w-4 h-4" /> Challenge @{rival?.username || 'rival'} to a duel
                 </button>
               </motion.div>

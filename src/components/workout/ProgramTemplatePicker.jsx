@@ -43,9 +43,9 @@ function cloneSessionExercises(session) {
 
 function LevelBadge({ level }) {
   const palette = {
-    beginner:     { bg: 'bg-emerald-500/15', text: 'text-emerald-500' },
-    intermediate: { bg: 'bg-amber-500/15',   text: 'text-amber-500'   },
-    advanced:     { bg: 'bg-rose-500/15',    text: 'text-rose-500'    },
+    beginner:     { bg: 'bg-success/15', text: 'text-success' },
+    intermediate: { bg: 'bg-primary/15',   text: 'text-primary'   },
+    advanced:     { bg: 'bg-destructive/15',    text: 'text-destructive'    },
   }[level] || { bg: 'bg-secondary', text: 'text-muted-foreground' };
   return (
     <span className={`inline-block text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${palette.bg} ${palette.text}`}>

@@ -258,9 +258,9 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
   if (isComplete) {
     return (
       <motion.div initial={{ opacity: 0.6 }} animate={{ opacity: 1 }}>
-        <Card className="p-3 border border-emerald-500/25 bg-emerald-500/[0.06] shadow-none">
+        <Card className="p-3 border border-success/25 bg-success/[0.06] shadow-none">
           <div className="flex items-center gap-3">
-            <span className="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0">
+            <span className="w-8 h-8 rounded-full bg-success text-white flex items-center justify-center shrink-0">
               <Check className="w-4 h-4" strokeWidth={3} />
             </span>
             <div className="flex-1 min-w-0">
@@ -370,7 +370,7 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
           {progressionHint && (
             <p className={`mt-1 text-[10px] font-medium ${
               progressionHint.kind === 'bump'    ? 'text-primary' :
-              progressionHint.kind === 'hold'    ? 'text-amber-500' :
+              progressionHint.kind === 'hold'    ? 'text-primary' :
                                                    'text-muted-foreground'
             }`}>
               💡 {progressionHint.message}
@@ -445,7 +445,7 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
           className={[
             'mt-2 w-full inline-flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition-colors',
             allSetsDone
-              ? 'bg-emerald-500 text-white hover:bg-emerald-500/90'
+              ? 'bg-success text-white hover:bg-success/90'
               : 'border border-border text-foreground hover:bg-secondary',
           ].join(' ')}
         >

@@ -160,11 +160,11 @@ export default function InjuryBanner({ onOpenForm }) {
         initial={{ opacity: 0, y: -6 }}
         animate={{ opacity: 1, y: 0 }}
         onClick={onOpenForm}
-        className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-orange-500/10 border border-orange-500/25 hover:bg-orange-500/15 transition-colors"
+        className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-primary/10 border border-primary/25 hover:bg-primary/15 transition-colors"
       >
         <div className="flex items-center gap-2">
-          <ShieldAlert className="w-4 h-4 text-orange-500 shrink-0" />
-          <span className="text-sm font-medium text-orange-500">
+          <ShieldAlert className="w-4 h-4 text-primary shrink-0" />
+          <span className="text-sm font-medium text-primary">
             {distinctInjuries.length === 1
               ? `Recovery Mode — ${distinctInjuries[0].muscle_group}`
               : `Recovery Mode — ${distinctInjuries.length} active injuries`}

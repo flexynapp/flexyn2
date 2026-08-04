@@ -81,7 +81,7 @@ export default function GymRivalCard({ currentUserId }) {
 
   if (isLoading) {
     return (
-      <div className="rounded-2xl border border-rose-500/20 bg-rose-500/3 p-4 mb-4 animate-pulse">
+      <div className="rounded-2xl border border-primary/20 bg-primary/3 p-4 mb-4 animate-pulse">
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 rounded-full bg-secondary shrink-0" />
           <div className="flex-1 space-y-2"><div className="h-3 w-32 rounded bg-secondary" /><div className="h-2.5 w-20 rounded bg-secondary" /></div>
@@ -116,9 +116,9 @@ export default function GymRivalCard({ currentUserId }) {
     return (
       <>
         <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
-          className="rounded-2xl border border-dashed border-rose-500/20 bg-rose-500/3 p-5 mb-4 text-center">
-          <div className="w-10 h-10 rounded-full bg-rose-500/10 flex items-center justify-center mx-auto mb-3">
-            <Target className="w-5 h-5 text-rose-500" />
+          className="rounded-2xl border border-dashed border-primary/20 bg-primary/3 p-5 mb-4 text-center">
+          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
+            <Target className="w-5 h-5 text-primary" />
           </div>
           <p className="text-sm font-bold mb-1">{tFallback('gymRival.findTitle', 'Find Your Rival')}</p>
           <p className="text-xs text-muted-foreground mb-4">
@@ -126,13 +126,13 @@ export default function GymRivalCard({ currentUserId }) {
           </p>
           <div className="flex gap-2">
             <button onClick={() => rollMut.mutate('gym')} disabled={rollMut.isPending}
-              className="flex-1 inline-flex flex-col items-center gap-1 px-3 py-3 rounded-xl bg-rose-500 text-white text-sm font-bold hover:bg-rose-600 disabled:opacity-50 transition-colors">
+              className="flex-1 inline-flex flex-col items-center gap-1 px-3 py-3 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 disabled:opacity-50 transition-colors">
               <Dumbbell className="w-4 h-4" />
               Gym Rival
               <span className="text-[10px] font-medium opacity-80">Volume</span>
             </button>
             <button onClick={() => rollMut.mutate('cardio')} disabled={rollMut.isPending}
-              className="flex-1 inline-flex flex-col items-center gap-1 px-3 py-3 rounded-xl bg-rose-500 text-white text-sm font-bold hover:bg-rose-600 disabled:opacity-50 transition-colors">
+              className="flex-1 inline-flex flex-col items-center gap-1 px-3 py-3 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 disabled:opacity-50 transition-colors">
               <Footprints className="w-4 h-4" />
               Cardio Rival
               <span className="text-[10px] font-medium opacity-80">Distance</span>
@@ -152,12 +152,12 @@ export default function GymRivalCard({ currentUserId }) {
     return (
       <>
         <motion.button type="button" onClick={() => setMenuOpen(true)} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
-          className="w-full rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4 mb-4 flex items-center gap-3 text-start hover:bg-amber-500/10 transition-colors">
-          <div className="w-12 h-12 rounded-full bg-amber-500/10 flex items-center justify-center shrink-0">
-            <AlertTriangle className="w-6 h-6 text-amber-500" />
+          className="w-full rounded-2xl border border-primary/20 bg-primary/5 p-4 mb-4 flex items-center gap-3 text-start hover:bg-primary/10 transition-colors">
+          <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+            <AlertTriangle className="w-6 h-6 text-primary" />
           </div>
           <div className="flex-1 min-w-0">
-            <span className="text-[10px] font-black uppercase tracking-wider text-amber-600 dark:text-amber-400">Challenge voided</span>
+            <span className="text-[10px] font-black uppercase tracking-wider text-primary dark:text-primary">Challenge voided</span>
             <p className="text-sm font-bold mt-0.5">Someone went AFK — no rewards</p>
             <p className="text-xs text-muted-foreground flex items-center gap-1"><Clock className="w-3 h-3" /> Next roll in {(() => { const ms = msUntilNextWeekStart(); const d = Math.floor(ms / 86400000); const h = Math.floor((ms % 86400000) / 3600000); return d > 0 ? `${d}d ${h}h` : `${h}h`; })()}</p>
           </div>
@@ -175,12 +175,12 @@ export default function GymRivalCard({ currentUserId }) {
     return (
       <>
         <motion.button type="button" onClick={() => setMenuOpen(true)} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
-          className={`w-full rounded-2xl border p-4 mb-4 flex items-center gap-3 text-start transition-colors ${win ? 'border-emerald-500/25 bg-emerald-500/5 hover:bg-emerald-500/10' : 'border-border bg-secondary/30 hover:bg-secondary/50'}`}>
-          <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${win ? 'bg-emerald-500/10' : draw ? 'bg-secondary' : 'bg-rose-500/10'}`}>
-            {win ? <Trophy className="w-6 h-6 text-emerald-500" /> : draw ? <Target className="w-6 h-6 text-muted-foreground" /> : <Swords className="w-6 h-6 text-rose-500" />}
+          className={`w-full rounded-2xl border p-4 mb-4 flex items-center gap-3 text-start transition-colors ${win ? 'border-success/25 bg-success/5 hover:bg-success/10' : 'border-border bg-secondary/30 hover:bg-secondary/50'}`}>
+          <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${win ? 'bg-success/10' : draw ? 'bg-secondary' : 'bg-primary/10'}`}>
+            {win ? <Trophy className="w-6 h-6 text-success" /> : draw ? <Target className="w-6 h-6 text-muted-foreground" /> : <Swords className="w-6 h-6 text-primary" />}
           </div>
           <div className="flex-1 min-w-0">
-            <span className={`text-[10px] font-black uppercase tracking-wider ${win ? 'text-emerald-500' : 'text-muted-foreground'}`}>Last week's result</span>
+            <span className={`text-[10px] font-black uppercase tracking-wider ${win ? 'text-success' : 'text-muted-foreground'}`}>Last week's result</span>
             <p className="text-sm font-bold mt-0.5">{win ? 'You won! 🏆' : draw ? 'It was a draw' : `@${name || 'Your rival'} won`}</p>
             <p className="text-xs text-muted-foreground">Tap to see the result & roll again</p>
           </div>
@@ -202,18 +202,18 @@ export default function GymRivalCard({ currentUserId }) {
   return (
     <>
       <motion.button type="button" onClick={() => setMenuOpen(true)} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} whileTap={{ scale: 0.99 }}
-        className={`w-full rounded-2xl border p-4 mb-4 flex items-center gap-3 text-start transition-colors ${needsMyConfirm ? 'border-rose-500/50 bg-rose-500/8 hover:bg-rose-500/12' : 'border-rose-500/20 bg-rose-500/3 hover:bg-rose-500/5'}`}>
+        className={`w-full rounded-2xl border p-4 mb-4 flex items-center gap-3 text-start transition-colors ${needsMyConfirm ? 'border-primary/50 bg-primary/8 hover:bg-primary/12' : 'border-primary/20 bg-primary/3 hover:bg-primary/5'}`}>
         {profile?.avatar_url ? (
-          <img loading="lazy" src={profile.avatar_url} className="w-12 h-12 rounded-full object-cover shrink-0 ring-2 ring-rose-500/30" alt={name} />
+          <img loading="lazy" src={profile.avatar_url} className="w-12 h-12 rounded-full object-cover shrink-0 ring-2 ring-primary/30" alt={name} />
         ) : (
-          <div className="w-12 h-12 rounded-full bg-rose-500/20 ring-2 ring-rose-500/30 flex items-center justify-center shrink-0">
-            <span className="text-lg font-black text-rose-500">{name?.[0]?.toUpperCase() || '?'}</span>
+          <div className="w-12 h-12 rounded-full bg-primary/20 ring-2 ring-primary/30 flex items-center justify-center shrink-0">
+            <span className="text-lg font-black text-primary">{name?.[0]?.toUpperCase() || '?'}</span>
           </div>
         )}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
-            <Target className="w-3 h-3 text-rose-500" />
-            <span className="text-[10px] font-black uppercase tracking-wider text-rose-500">{label}</span>
+            <Target className="w-3 h-3 text-primary" />
+            <span className="text-[10px] font-black uppercase tracking-wider text-primary">{label}</span>
           </div>
           <p className="text-base font-black truncate mt-0.5">@{name || '—'}</p>
           <p className="text-xs text-muted-foreground">

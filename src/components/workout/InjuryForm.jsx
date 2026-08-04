@@ -18,21 +18,21 @@ import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 const MUSCLE_GROUPS = ['Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps', 'Legs', 'Glutes', 'Core'];
 
 const SEVERITY_OPTIONS = [
-  { id: 'mild',     label: 'Mild',     desc: 'Some soreness, can train around it',           color: 'text-yellow-500 border-yellow-500/30 bg-yellow-500/10' },
-  { id: 'moderate', label: 'Moderate', desc: 'Pain during movement, needs rest',              color: 'text-orange-500 border-orange-500/30 bg-orange-500/10' },
-  { id: 'serious',  label: 'Serious',  desc: 'Sharp pain or structural concern — avoid area', color: 'text-red-500 border-red-500/30 bg-red-500/10' },
+  { id: 'mild',     label: 'Mild',     desc: 'Some soreness, can train around it',           color: 'text-primary border-primary/30 bg-primary/10' },
+  { id: 'moderate', label: 'Moderate', desc: 'Pain during movement, needs rest',              color: 'text-primary border-primary/30 bg-primary/10' },
+  { id: 'serious',  label: 'Serious',  desc: 'Sharp pain or structural concern — avoid area', color: 'text-destructive border-destructive/30 bg-destructive/10' },
 ];
 
 const STATUS_ICON = {
-  active:     <AlertTriangle className="w-4 h-4 text-orange-500" />,
-  recovering: <Clock className="w-4 h-4 text-yellow-500" />,
-  cleared:    <CheckCircle2 className="w-4 h-4 text-emerald-500" />,
+  active:     <AlertTriangle className="w-4 h-4 text-primary" />,
+  recovering: <Clock className="w-4 h-4 text-primary" />,
+  cleared:    <CheckCircle2 className="w-4 h-4 text-success" />,
 };
 
 const STATUS_COLOR = {
-  active:     'text-orange-500',
-  recovering: 'text-yellow-500',
-  cleared:    'text-emerald-500',
+  active:     'text-primary',
+  recovering: 'text-primary',
+  cleared:    'text-success',
 };
 
 function InjuryCard({ injury, onClear, onExtend, onDelete }) {
@@ -70,7 +70,7 @@ function InjuryCard({ injury, onClear, onExtend, onDelete }) {
           </span>
         )}
         {injury.cleared_at && (
-          <span className="text-emerald-500">
+          <span className="text-success">
             Cleared {format(new Date(injury.cleared_at), 'MMM d')}
           </span>
         )}
@@ -81,7 +81,7 @@ function InjuryCard({ injury, onClear, onExtend, onDelete }) {
           <Button
             size="sm"
             variant="outline"
-            className="flex-1 text-xs h-8 text-emerald-600 border-emerald-600/30 hover:bg-emerald-600/10"
+            className="flex-1 text-xs h-8 text-success border-success/30 hover:bg-success/10"
             onClick={() => onClear(injury.id)}
           >
             <CheckCircle2 className="w-3 h-3 me-1" /> Clear injury
@@ -220,7 +220,7 @@ export default function InjuryForm({ onClose }) {
           {view === 'new' ? 'Back' : 'Close'}
         </button>
         <div className="flex items-center gap-1.5">
-          <ShieldAlert className="w-4 h-4 text-orange-500" />
+          <ShieldAlert className="w-4 h-4 text-primary" />
           <span className="font-heading font-bold text-base">
             {view === 'new' ? 'Log Injury' : 'Injury Log'}
           </span>

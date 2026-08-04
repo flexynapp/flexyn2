@@ -78,9 +78,9 @@ export default function CardioLogger({ exercise, onChange, gender }) {
     ].filter(Boolean).join(' · ');
     return (
       <motion.div initial={{ opacity: 0.6 }} animate={{ opacity: 1 }}>
-        <Card className="p-3 border border-emerald-500/25 bg-emerald-500/[0.06] shadow-none">
+        <Card className="p-3 border border-success/25 bg-success/[0.06] shadow-none">
           <div className="flex items-center gap-3 pe-6">
-            <span className="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0">
+            <span className="w-8 h-8 rounded-full bg-success text-white flex items-center justify-center shrink-0">
               <Check className="w-4 h-4" strokeWidth={3} />
             </span>
             <div className="flex-1 min-w-0">
@@ -102,7 +102,7 @@ export default function CardioLogger({ exercise, onChange, gender }) {
 
   // ── Full card ────────────────────────────────────────────────────────────
   return (
-    <Card className="p-4 pt-6 border border-blue-500/20 bg-blue-500/[0.03] shadow-sm">
+    <Card className="p-4 pt-6 border border-info/20 bg-info/[0.03] shadow-sm">
       {/* Activity switcher — extra top padding above so the reorder drag handle
           (top-center grip) has breathing room above the buttons. */}
       <div className="flex items-center gap-2 mb-3 pe-8">
@@ -164,7 +164,7 @@ export default function CardioLogger({ exercise, onChange, gender }) {
                   type="button"
                   onClick={() => removeSplit(i)}
                   aria-label="Remove split"
-                  className="h-8 w-8 rounded-lg flex items-center justify-center text-muted-foreground/60 hover:text-red-500 hover:bg-red-500/10 transition-colors shrink-0"
+                  className="h-8 w-8 rounded-lg flex items-center justify-center text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
@@ -201,7 +201,7 @@ export default function CardioLogger({ exercise, onChange, gender }) {
         disabled={!hasData}
         className={[
           'mt-3 w-full inline-flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition-colors',
-          hasData ? 'bg-emerald-500 text-white hover:bg-emerald-500/90' : 'border border-border text-muted-foreground/60',
+          hasData ? 'bg-success text-white hover:bg-success/90' : 'border border-border text-muted-foreground/60',
         ].join(' ')}
       >
         <Check className="w-4 h-4" strokeWidth={3} /> Complete cardio

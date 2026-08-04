@@ -306,7 +306,7 @@ export default function RegimensSection({ onStartRegimen }) {
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <h3 className="font-heading font-bold break-words leading-tight">{r.name}</h3>
                     {r.is_active && (
-                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-400/20 text-amber-600 dark:text-amber-300 border border-amber-400/30 shrink-0">
+                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-primary/20 text-primary dark:text-primary border border-primary/30 shrink-0">
                         <Zap className="w-2.5 h-2.5 fill-current" /> Active
                       </span>
                     )}
@@ -361,7 +361,7 @@ export default function RegimensSection({ onStartRegimen }) {
                     title={r.is_active ? 'Active plan (tap to deactivate)' : 'Set as active plan'}
                     onClick={() => toggleActive(r)}
                   >
-                    <Zap className={`w-4 h-4 ${r.is_active ? 'fill-amber-400 text-amber-400' : 'text-muted-foreground'}`} />
+                    <Zap className={`w-4 h-4 ${r.is_active ? 'fill-primary text-primary' : 'text-muted-foreground'}`} />
                   </Button>
                 </motion.div>
                 <motion.div whileHover={{ scale: 1.07 }} whileTap={{ scale: 0.93 }} transition={{ type: 'spring', stiffness: 420, damping: 18 }}>

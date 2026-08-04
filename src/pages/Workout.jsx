@@ -1766,26 +1766,26 @@ export default function Workout() {
 
   // Returns JSX for one grid row by ID. Defined here (inside component) so it
   // captures all state/handlers without prop-drilling. Used by both the static
-  // Position-based colour palette (top=red, bottom=yellow) so colours
-  // stay gradient-consistent regardless of which card occupies a slot.
-  const getCardPalette = (idx) => {
-    const P = [
-      { bg:'rgba(220,38,38,0.32) 0%,rgba(244,63,94,0.22) 100%',  cls:'border-rose-500/55 hover:border-rose-500/75 hover:shadow-[0_0_18px_rgba(239,68,68,0.32)]' },
-      { bg:'rgba(220,38,38,0.30) 0%,rgba(244,63,94,0.22) 100%',  cls:'border-rose-500/52 hover:border-rose-500/72 hover:shadow-[0_0_16px_rgba(239,68,68,0.30)]' },
-      { bg:'rgba(220,38,38,0.28) 0%,rgba(249,115,22,0.22) 100%', cls:'border-primary/52  hover:border-primary/72  hover:shadow-[0_0_16px_rgba(244,63,94,0.28)]'  },
-      { bg:'rgba(249,115,22,0.28) 0%,rgba(245,158,11,0.22) 100%',cls:'border-primary/50  hover:border-primary/70  hover:shadow-[0_0_16px_rgba(249,115,22,0.26)]' },
-      { bg:'rgba(249,115,22,0.28) 0%,rgba(251,146,60,0.20) 100%',cls:'border-primary/48  hover:border-primary/68  hover:shadow-[0_0_14px_rgba(249,115,22,0.24)]' },
-      { bg:'rgba(249,115,22,0.26) 0%,rgba(251,146,60,0.18) 100%',cls:'border-primary/45  hover:border-primary/65  hover:shadow-[0_0_14px_rgba(251,146,60,0.24)]' },
-      { bg:'rgba(234,179,8,0.28) 0%,rgba(251,191,36,0.18) 100%', cls:'border-yellow-500/50 hover:border-yellow-500/70 hover:shadow-[0_0_14px_rgba(234,179,8,0.26)]' },
-      { bg:'rgba(234,179,8,0.26) 0%,rgba(250,204,21,0.18) 100%', cls:'border-yellow-400/48 hover:border-yellow-400/68 hover:shadow-[0_0_14px_rgba(250,204,21,0.24)]' },
-      { bg:'rgba(234,179,8,0.28) 0%,rgba(251,191,36,0.18) 100%', cls:'border-yellow-500/48 hover:border-yellow-500/68 hover:shadow-[0_0_14px_rgba(234,179,8,0.26)]' },
-      { bg:'rgba(234,179,8,0.26) 0%,rgba(251,191,36,0.18) 100%', cls:'border-yellow-400/45 hover:border-yellow-400/65 hover:shadow-[0_0_14px_rgba(250,204,21,0.24)]' },
-      { bg:'rgba(234,179,8,0.30) 0%,rgba(251,191,36,0.20) 100%', cls:'border-yellow-500/55 hover:border-yellow-500/75 hover:shadow-[0_0_14px_rgba(234,179,8,0.26)]' },
-      { bg:'rgba(234,179,8,0.28) 0%,rgba(251,191,36,0.18) 100%', cls:'border-yellow-400/50 hover:border-yellow-400/70 hover:shadow-[0_0_14px_rgba(234,179,8,0.26)]' },
-    ];
-    const e = P[Math.min(Math.max(idx,0), P.length-1)];
-    return { background:`linear-gradient(135deg,${e.bg})`, borderClass: e.cls };
-  };
+  // Every tile in this grid gets the SAME surface.
+  //
+  // This used to be a 12-entry position-based gradient ramp — "top=red,
+  // bottom=yellow" — so each tile carried its own hue and a matching
+  // coloured glow. Two problems. It's the "every block gets its own
+  // colour" pattern that reads as generated, and because the ramp was
+  // keyed on POSITION rather than on the card, the colour encoded
+  // nothing at all: reordering the grid (which this page lets you do)
+  // repainted every tile. A user could not learn "Duels is the red one",
+  // because Duels was only red while it sat in slot two.
+  //
+  // The tiles are navigation. They separate by their icon and label; the
+  // brand accent lives on the icon, and the surface is the same card
+  // surface as the rest of the app. `idx` is kept in the signature so
+  // the call-sites don't change and so a future intentional per-card
+  // treatment has somewhere to go.
+  const getCardPalette = (/* idx */) => ({
+    background: 'hsl(var(--card))',
+    borderClass: 'border-border/60 hover:border-primary/40',
+  });
 
   // Renders a single grid card by ID. idx = position among non-nemesis cards
   // (drives colour palette so red stays at top, yellow at bottom).
@@ -1812,7 +1812,7 @@ export default function Workout() {
           onKeyDown={(e) => { if (e.key==='Enter'||e.key===' '){e.preventDefault();navigate('/coach?generate=1');} }}>
           <InfoBtn bid="generate" />
           <div className="flex flex-col items-center text-center gap-1.5">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-500 via-primary to-amber-400 flex items-center justify-center shrink-0 shadow-[0_2px_8px_rgba(239,68,68,0.3)]">
+            <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center shrink-0">
               <Sparkles className="w-5 h-5 text-white" />
             </div>
             <div>
@@ -1832,8 +1832,8 @@ export default function Workout() {
           onKeyDown={(e) => { if (e.key==='Enter'||e.key===' '){e.preventDefault();setStoreOpen(true);} }}>
           <InfoBtn bid="explore" />
           <div className="flex flex-col items-center text-center gap-1.5">
-            <div className="w-10 h-10 rounded-xl bg-rose-500/18 border border-rose-500/28 flex items-center justify-center shrink-0">
-              <Globe className="w-5 h-5 text-rose-500" />
+            <div className="w-10 h-10 rounded-xl bg-primary/15 border border-primary/25 flex items-center justify-center shrink-0">
+              <Globe className="w-5 h-5 text-primary" />
             </div>
             <div>
               <p className="font-heading font-bold text-sm leading-tight">Explore Regimens</p>
@@ -1852,13 +1852,13 @@ export default function Workout() {
           onKeyDown={(e) => { if (e.key==='Enter'||e.key===' '){e.preventDefault();navigate('/duels');} }}>
           <InfoBtn bid="duels" />
           <div className="flex flex-col items-center text-center gap-1.5">
-            <div className="w-10 h-10 rounded-xl bg-rose-500/18 border border-rose-500/28 flex items-center justify-center shrink-0">
-              <Swords className="w-5 h-5 text-rose-500" />
+            <div className="w-10 h-10 rounded-xl bg-primary/15 border border-primary/25 flex items-center justify-center shrink-0">
+              <Swords className="w-5 h-5 text-primary" />
             </div>
             <div>
               <div className="flex items-center justify-center gap-1.5 flex-wrap">
                 <p className="font-heading font-bold text-sm leading-tight">Duels</p>
-                {activeDuel && <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-rose-500/15 text-rose-500">Active</span>}
+                {activeDuel && <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-success/15 text-success">Active</span>}
               </div>
               <InfoText bid="duels" text="Challenge someone to a head-to-head workout battle." />
             </div>
@@ -1875,14 +1875,14 @@ export default function Workout() {
           onKeyDown={(e) => { if (e.key==='Enter'||e.key===' '){e.preventDefault();navigate('/bounties');} }}>
           <InfoBtn bid="bounties" />
           <div className="flex flex-col items-center text-center gap-1.5">
-            <div className="w-10 h-10 rounded-xl bg-amber-500/18 border border-amber-500/28 flex items-center justify-center shrink-0">
-              <Zap className="w-5 h-5 text-amber-500" />
+            <div className="w-10 h-10 rounded-xl bg-primary/18 border border-primary/28 flex items-center justify-center shrink-0">
+              <Zap className="w-5 h-5 text-primary" />
             </div>
             <div>
               <div className="flex items-center justify-center gap-1.5 flex-wrap">
                 <p className="font-heading font-bold text-sm leading-tight">Bounties</p>
-                {activeBountyClaim && <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600">Active</span>}
-                {!activeBountyClaim && activeBounties.length>0 && <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600">{activeBounties.length} open</span>}
+                {activeBountyClaim && <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-primary/15 text-primary">Active</span>}
+                {!activeBountyClaim && activeBounties.length>0 && <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-primary/15 text-primary">{activeBounties.length} open</span>}
               </div>
               <InfoText bid="bounties" text="Daily fitness challenges — complete them to earn Flex Coins." />
             </div>
@@ -1896,8 +1896,8 @@ export default function Workout() {
         <Card className={cardBase} style={{ background: pal.background }} onClick={() => setRegimensOpen(true)}>
           <InfoBtn bid="regimens" />
           <div className="flex flex-col items-center text-center gap-1.5">
-            <div className="w-10 h-10 rounded-xl bg-orange-500/18 border border-orange-500/28 flex items-center justify-center shrink-0">
-              <Dumbbell className="w-5 h-5 text-orange-500" />
+            <div className="w-10 h-10 rounded-xl bg-primary/18 border border-primary/28 flex items-center justify-center shrink-0">
+              <Dumbbell className="w-5 h-5 text-primary" />
             </div>
             <div>
               <p className="font-heading font-bold text-sm leading-tight">{t('workout.regimens')}</p>
@@ -1913,8 +1913,8 @@ export default function Workout() {
         <Card className={cardBase} style={{ background: pal.background }} onClick={() => setSavedWorkoutsOpen(true)}>
           <InfoBtn bid="saved" />
           <div className="flex flex-col items-center text-center gap-1.5">
-            <div className="w-10 h-10 rounded-xl bg-orange-400/18 border border-orange-400/28 flex items-center justify-center shrink-0">
-              <History className="w-5 h-5 text-orange-400" />
+            <div className="w-10 h-10 rounded-xl bg-primary/18 border border-primary/28 flex items-center justify-center shrink-0">
+              <History className="w-5 h-5 text-primary" />
             </div>
             <div>
               <p className="font-heading font-bold text-sm leading-tight">{tFallback('workout.allWorkouts','All Workouts')}</p>
@@ -1930,8 +1930,8 @@ export default function Workout() {
         <Card className={cardBase} style={{ background: pal.background }} onClick={() => setCardioOpen(true)}>
           <InfoBtn bid="cardio" />
           <div className="flex flex-col items-center text-center gap-1.5">
-            <div className="w-10 h-10 rounded-xl bg-yellow-500/18 border border-yellow-500/28 flex items-center justify-center shrink-0">
-              <Activity className="w-5 h-5 text-yellow-500" />
+            <div className="w-10 h-10 rounded-xl bg-primary/18 border border-primary/28 flex items-center justify-center shrink-0">
+              <Activity className="w-5 h-5 text-primary" />
             </div>
             <div>
               <p className="font-heading font-bold text-sm leading-tight">{t('cardio.title')}</p>
@@ -1947,8 +1947,8 @@ export default function Workout() {
         <Card className={cardBase} style={{ background: pal.background }} onClick={() => setGoalsModalOpen(true)}>
           <InfoBtn bid="goals" />
           <div className="flex flex-col items-center text-center gap-1.5">
-            <div className="w-10 h-10 rounded-xl bg-yellow-400/18 border border-yellow-400/28 flex items-center justify-center shrink-0">
-              <Target className="w-5 h-5 text-yellow-500" />
+            <div className="w-10 h-10 rounded-xl bg-primary/18 border border-primary/28 flex items-center justify-center shrink-0">
+              <Target className="w-5 h-5 text-primary" />
             </div>
             <div>
               <p className="font-heading font-bold text-sm leading-tight">{t('workout.goals')}</p>
@@ -1988,14 +1988,14 @@ export default function Workout() {
           onKeyDown={(e) => { if (e.key==='Enter'||e.key===' '){e.preventDefault();navigate('/gauntlet');} }}>
           <InfoBtn bid="gauntlet" />
           <div className="flex flex-col items-center text-center gap-1.5">
-            <div className="w-10 h-10 rounded-xl bg-yellow-500/18 border border-amber-500/28 flex items-center justify-center shrink-0">
-              <Trophy className="w-5 h-5 text-amber-400" />
+            <div className="w-10 h-10 rounded-xl bg-primary/18 border border-primary/28 flex items-center justify-center shrink-0">
+              <Trophy className="w-5 h-5 text-primary" />
             </div>
             <div>
               <div className="flex items-center justify-center gap-1.5 flex-wrap">
                 <p className="font-heading font-bold text-sm leading-tight">Gauntlet</p>
-                {gauntletProgress?.path_completed && <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-500">Done</span>}
-                {!gauntletProgress?.path_completed && gauntletProgress && <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-yellow-500/15 text-yellow-500">#{gauntletProgress.current_challenge_sequence}</span>}
+                {gauntletProgress?.path_completed && <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-primary/15 text-primary">Done</span>}
+                {!gauntletProgress?.path_completed && gauntletProgress && <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-primary/15 text-primary">#{gauntletProgress.current_challenge_sequence}</span>}
               </div>
               <InfoText bid="gauntlet" text="Complete 10 epic challenges to earn prizes and climb the leaderboard." />
             </div>
@@ -2016,8 +2016,8 @@ export default function Workout() {
           onKeyDown={(e) => { if (e.key==='Enter'||e.key===' '){e.preventDefault();navigate('/hub',{state:{openCrewWars:true}});} }}>
           <InfoBtn bid="crew" />
           <div className="flex flex-col items-center text-center gap-1.5">
-            <div className="w-10 h-10 rounded-xl bg-yellow-500/22 border border-yellow-500/35 flex items-center justify-center shrink-0">
-              <Shield className="w-5 h-5 text-yellow-500" />
+            <div className="w-10 h-10 rounded-xl bg-primary/22 border border-primary/35 flex items-center justify-center shrink-0">
+              <Shield className="w-5 h-5 text-primary" />
             </div>
             <div>
               <p className="font-heading font-bold text-sm leading-tight">Crew Wars</p>
@@ -2193,8 +2193,8 @@ export default function Workout() {
             onClick={() => setTodayExpanded(v => !v)}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border transition-colors ${
               todayExpanded
-                ? 'bg-orange-500/15 border-orange-500/50 text-orange-500'
-                : 'bg-orange-500/8 border-orange-400/35 text-orange-400 hover:bg-orange-500/14 hover:border-orange-400/55'
+                ? 'bg-primary/15 border-primary/50 text-primary'
+                : 'bg-primary/8 border-primary/35 text-primary hover:bg-primary/14 hover:border-primary/55'
             }`}
           >
             <CalendarDays className="w-3 h-3" />
@@ -2204,18 +2204,18 @@ export default function Workout() {
           <div className="flex items-center gap-1.5">
             {activeDuel && (
               <button type="button" onClick={() => navigate('/duels')}
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-rose-500/10 border border-rose-500/25 text-rose-400 text-[10px] font-semibold hover:bg-rose-500/18 transition-colors">
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-destructive/10 border border-destructive/25 text-destructive text-[10px] font-semibold hover:bg-destructive/18 transition-colors">
                 <Swords className="w-3 h-3" />
                 <span>Duel</span>
-                <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse ms-0.5" />
+                <span className="w-1.5 h-1.5 rounded-full bg-destructive animate-pulse ms-0.5" />
               </button>
             )}
             {activeBountyClaim && (
               <button type="button" onClick={() => navigate('/bounties')}
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/25 text-amber-400 text-[10px] font-semibold hover:bg-amber-500/18 transition-colors">
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-primary/10 border border-primary/25 text-primary text-[10px] font-semibold hover:bg-primary/18 transition-colors">
                 <Zap className="w-3 h-3" />
                 <span>Bounty</span>
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse ms-0.5" />
+                <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse ms-0.5" />
               </button>
             )}
             {/* Subtle grid-customize button — active state when editing */}
@@ -2334,7 +2334,7 @@ export default function Workout() {
                             <span className="font-heading font-black text-3xl md:text-4xl leading-none block tracking-tight min-h-[2em]">{t('workout.freestyle')}</span>
                             <span className="text-[13px] text-white/50 mt-2.5 block max-w-[36ch] leading-relaxed min-h-[3.25em]">{t('workout.freestyleDesc')}</span>
                             <span className="inline-flex items-center gap-1 mt-3 px-2.5 py-1 rounded-full bg-white/8 border border-white/10 text-[10px] font-semibold text-white/60 tracking-wide uppercase">
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />Ready to go
+                              <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />Ready to go
                             </span>
                           </div>
                           <div className="shrink-0">
@@ -2360,13 +2360,13 @@ export default function Workout() {
                             style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(167,139,250,0.08) 50%, transparent 100%)' }}
                             animate={{ x: ['-60%', '220%'] }} transition={{ duration: 3.5, repeat: Infinity, repeatDelay: 2.5, ease: 'easeInOut', delay: 1.2 }} />
                         </div>
-                        <div className="absolute top-0 start-8 end-8 h-px bg-gradient-to-r from-transparent via-violet-300/30 to-transparent pointer-events-none" />
+                        <div className="absolute top-0 start-8 end-8 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent pointer-events-none" />
                         <div className="relative flex items-center justify-between gap-4 p-6 md:p-8">
                           <div className="min-w-0">
-                            <span className="block text-[10px] font-bold tracking-[0.25em] uppercase text-violet-400/80 mb-2">CHALLENGE YOURSELF</span>
+                            <span className="block text-[10px] font-bold tracking-[0.25em] uppercase text-primary/80 mb-2">CHALLENGE YOURSELF</span>
                             <span className="font-heading font-black text-3xl md:text-4xl leading-none block tracking-tight min-h-[2em]">The Gauntlet</span>
                             <span className="text-[13px] text-white/50 mt-2.5 block max-w-[36ch] leading-relaxed min-h-[3.25em]">10 challenges. One path. Prove what you are made of.</span>
-                            <span className="inline-flex items-center gap-1 mt-3 px-2.5 py-1 rounded-full bg-violet-500/15 border border-violet-400/20 text-[10px] font-semibold text-violet-300/80 tracking-wide uppercase">
+                            <span className="inline-flex items-center gap-1 mt-3 px-2.5 py-1 rounded-full bg-primary/15 border border-primary/20 text-[10px] font-semibold text-primary/80 tracking-wide uppercase">
                               {gauntletProgress?.path_completed ? 'Completed' : gauntletProgress ? `Challenge #${gauntletProgress.current_challenge_sequence}` : 'Start now'}
                             </span>
                           </div>
@@ -2393,14 +2393,14 @@ export default function Workout() {
                             style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(52,211,153,0.07) 50%, transparent 100%)' }}
                             animate={{ x: ['-60%', '220%'] }} transition={{ duration: 3.5, repeat: Infinity, repeatDelay: 2.5, ease: 'easeInOut', delay: 0.6 }} />
                         </div>
-                        <div className="absolute top-0 start-8 end-8 h-px bg-gradient-to-r from-transparent via-emerald-300/25 to-transparent pointer-events-none" />
+                        <div className="absolute top-0 start-8 end-8 h-px bg-gradient-to-r from-transparent via-success/25 to-transparent pointer-events-none" />
                         <div className="relative flex items-center justify-between gap-4 p-6 md:p-8">
                           <div className="min-w-0">
-                            <span className="block text-[10px] font-bold tracking-[0.25em] uppercase text-emerald-400/80 mb-2">CREW BATTLES</span>
+                            <span className="block text-[10px] font-bold tracking-[0.25em] uppercase text-success/80 mb-2">CREW BATTLES</span>
                             <span className="font-heading font-black text-3xl md:text-4xl leading-none block tracking-tight min-h-[2em]">Crew Wars</span>
                             <span className="text-[13px] text-white/50 mt-2.5 block max-w-[36ch] leading-relaxed min-h-[3.25em]">Rally your crew. Crush rivals. Dominate the leaderboard.</span>
-                            <span className="inline-flex items-center gap-1 mt-3 px-2.5 py-1 rounded-full bg-emerald-500/15 border border-emerald-400/20 text-[10px] font-semibold text-emerald-300/80 tracking-wide uppercase">
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />Join the fight
+                            <span className="inline-flex items-center gap-1 mt-3 px-2.5 py-1 rounded-full bg-success/15 border border-success/20 text-[10px] font-semibold text-success/80 tracking-wide uppercase">
+                              <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />Join the fight
                             </span>
                           </div>
                           <div className="shrink-0">
@@ -2535,7 +2535,7 @@ export default function Workout() {
                           else toast.error('Could not save default layout.');
                         }}
                         title="Save this layout as default for all new users"
-                        className="px-2.5 py-1 rounded-lg bg-amber-500/15 border border-amber-500/40 text-amber-600 dark:text-amber-400 text-[10px] font-bold hover:bg-amber-500/25 transition-colors"
+                        className="px-2.5 py-1 rounded-lg bg-primary/15 border border-primary/40 text-primary dark:text-primary text-[10px] font-bold hover:bg-primary/25 transition-colors"
                       >
                         Set default
                       </button>
@@ -2612,13 +2612,13 @@ export default function Workout() {
                     transition={{ type: 'spring', stiffness: 380, damping: 20 }}
                   >
                     <Card
-                      className="p-4 border-orange-400/40 bg-orange-400/5 cursor-pointer hover:bg-orange-400/10 transition-colors"
+                      className="p-4 border-primary/40 bg-primary/5 cursor-pointer hover:bg-primary/10 transition-colors"
                       onClick={() => handleResumeSession(session.id)}
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-xl bg-orange-400/20 flex items-center justify-center shrink-0">
-                            <Pause className="w-4 h-4 text-orange-400" />
+                          <div className="w-9 h-9 rounded-xl bg-primary/20 flex items-center justify-center shrink-0">
+                            <Pause className="w-4 h-4 text-primary" />
                           </div>
                           <div>
                             <p className="font-heading font-bold text-sm">
@@ -2636,7 +2636,7 @@ export default function Workout() {
                           >
                             {t('workout.discard')}
                           </Button>
-                          <Button size="sm" className="bg-orange-400 hover:bg-orange-500 text-white text-xs">
+                          <Button size="sm" className="bg-primary hover:bg-primary text-white text-xs">
                             {t('workout.resumeLabel')}
                           </Button>
                         </div>
@@ -2921,7 +2921,7 @@ export default function Workout() {
             type="button"
             onClick={() => setCardioMenuOpen(o => !o)}
             aria-expanded={cardioMenuOpen}
-            className="w-full flex items-center justify-center gap-2 py-2 rounded-lg border border-dashed border-blue-500/40 text-sm font-semibold text-blue-600 dark:text-blue-400 hover:bg-blue-500/10 transition-colors"
+            className="w-full flex items-center justify-center gap-2 py-2 rounded-lg border border-dashed border-info/40 text-sm font-semibold text-info dark:text-info hover:bg-info/10 transition-colors"
           >
             <Plus className="w-4 h-4" /> {tFallback('workout.addCardio', 'Cardio')}
             <span className="text-base leading-none">
@@ -2966,7 +2966,7 @@ export default function Workout() {
             type="button"
             onClick={() => setFormCoachOpen(true)}
             aria-label={tFallback('formcoach.title', 'Form Coach')}
-            className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg border border-yellow-400/40 text-sm font-semibold text-yellow-600 dark:text-yellow-400 hover:bg-yellow-400/10 transition-colors"
+            className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg border border-primary/40 text-sm font-semibold text-primary dark:text-primary hover:bg-primary/10 transition-colors"
           >
             <Camera className="w-4 h-4" />
             {tFallback('formcoach.title', 'Form Coach')}

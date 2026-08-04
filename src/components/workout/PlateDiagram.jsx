@@ -17,6 +17,14 @@ import React from 'react';
 // White-on-white was invisible in light-mode cards (audit B-7) — the
 // 20/15/10 lb plates disappeared against bg-card. Switched to a muted
 // slate that reads in both themes.
+//
+// EXEMPT FROM THE COLOUR BUDGET — do not "fix" these to tokens. Red 55,
+// blue 45, yellow 35 and green 25 are the standard pound-plate colour
+// code you see on a real rack; the colour IS the weight. Recolouring
+// them to --primary / --success / --info would make the plate
+// calculator show a lifter plates that don't match what they're about
+// to load. Same reasoning as the league tier ramp: this is data
+// encoding, not decoration. The greys below are ours and are fair game.
 const PLATE_STYLE = {
   55:  { color: '#dc2626', h: 56 }, // red
   45:  { color: '#2563eb', h: 56 }, // blue
