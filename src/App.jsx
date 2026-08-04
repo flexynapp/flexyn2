@@ -67,6 +67,8 @@ import PublicProfile    from './pages/PublicProfile';
 import PublicGymLanding from './pages/PublicGymLanding';
 import CheckInPage      from './pages/CheckInPage';
 import { PrivacyPolicy, TermsOfService } from './pages/Legal';
+import ComingSoon from './pages/ComingSoon';
+import { isEnabled } from '@/lib/featureFlags';
 import { readPendingToken, clearPendingToken } from './lib/data/duelInvites';
 import { supabase } from '@/api/supabaseClient';
 
@@ -393,9 +395,24 @@ const AuthenticatedApp = () => {
           <Route path="/notifications" element={<ErrorBoundary label="Notifications"><Suspense fallback={<PageLoader />}><Notifications /></Suspense></ErrorBoundary>} />
           <Route path="/admin/reports" element={<ErrorBoundary label="AdminReports"><Suspense fallback={<PageLoader />}><AdminReports /></Suspense></ErrorBoundary>} />
           <Route path="/market/trades" element={<ErrorBoundary label="TradeHistory"><Suspense fallback={<PageLoader />}><TradeHistory /></Suspense></ErrorBoundary>} />
-          <Route path="/trainer/studio" element={<ErrorBoundary label="TrainerStudio"><Suspense fallback={<PageLoader />}><TrainerStudio /></Suspense></ErrorBoundary>} />
-          <Route path="/trainer/market" element={<ErrorBoundary label="TrainerMarket"><Suspense fallback={<PageLoader />}><TrainerMarket /></Suspense></ErrorBoundary>} />
-          <Route path="/corporate" element={<ErrorBoundary label="CorporatePortal"><Suspense fallback={<PageLoader />}><CorporatePortal /></Suspense></ErrorBoundary>} />
+          <Route path="/trainer/studio" element={
+            // Flagged off — the buy path invokes an Edge Function that has
+            // never been deployed, and the payment story has to clear Apple
+            // 3.1.1 before this surface can be reachable. See featureFlags.js.
+            isEnabled('trainerMarketplace')
+              ? <ErrorBoundary label="TrainerStudio"><Suspense fallback={<PageLoader />}><TrainerStudio /></Suspense></ErrorBoundary>
+              : <ComingSoon title="Creator Studio" blurb="Packaging and selling your own programs is coming. Your regimens are safe in the meantime." />
+          } />
+          <Route path="/trainer/market" element={
+            isEnabled('trainerMarketplace')
+              ? <ErrorBoundary label="TrainerMarket"><Suspense fallback={<PageLoader />}><TrainerMarket /></Suspense></ErrorBoundary>
+              : <ComingSoon title="Trainer Programs" blurb="Premium regimens from certified creators are on the way." />
+          } />
+          <Route path="/corporate" element={
+            isEnabled('corporatePortal')
+              ? <ErrorBoundary label="CorporatePortal"><Suspense fallback={<PageLoader />}><CorporatePortal /></Suspense></ErrorBoundary>
+              : <ComingSoon title="Corporate Wellness" blurb="Team challenges and company leaderboards are still being built." />
+          } />
           <Route path="/register-gym" element={<ErrorBoundary label="RegisterGym"><Suspense fallback={<PageLoader />}><RegisterGym /></Suspense></ErrorBoundary>} />
           <Route path="/my-gyms"      element={<ErrorBoundary label="MyGyms"><Suspense fallback={<PageLoader />}><MyGyms /></Suspense></ErrorBoundary>} />
           <Route path="/my-gym"       element={<ErrorBoundary label="MyGym"><Suspense fallback={<PageLoader />}><MyGym /></Suspense></ErrorBoundary>} />

@@ -18,6 +18,7 @@ import AccountDeletedScreen from './AccountDeletedScreen';
 import { OPEN_ACHIEVEMENTS_EVENT } from '@/lib/achievementsFlow';
 import { isVerified } from '@/lib/verifiedUsers';
 import { initialsFor } from '@/lib/initials';
+import { isEnabled } from '@/lib/featureFlags';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
 // DebriefVault + InjuryForm + AchievementsVault are modals that ONLY
@@ -512,6 +513,12 @@ export default function ProfileMenu({ compact = false } = {}) {
                       </div>
                       <ChevronRight className="w-4 h-4 text-muted-foreground" />
                     </button>
+                    {/* Corporate Wellness is flagged off (featureFlags.js) —
+                        the surface is half-built and `organizations` has no
+                        rows. Hiding the entry point matters as much as gating
+                        the route: a menu item that lands on "Coming soon"
+                        reads as a broken link rather than a deliberate hold. */}
+                    {isEnabled('corporatePortal') && (
                     <button
                       onClick={() => {
                         setOpen(false);
@@ -525,6 +532,7 @@ export default function ProfileMenu({ compact = false } = {}) {
                       </div>
                       <ChevronRight className="w-4 h-4 text-muted-foreground" />
                     </button>
+                    )}
                     <button
                       onClick={() => {
                         setOpen(false);

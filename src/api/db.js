@@ -613,249 +613,73 @@ async function _invokeDeleteAccount() {
     err.code = 'NO_SESSION';
     throw err;
   }
-  const email = user.email;
 
-  // 1. Regimens — use the tombstone-aware purge so public templates that
-  //    other users have copied don't leave dangling original_template_id
-  //    references in the clones. Private/uncopied regimens are deleted.
-  try {
-    const { purgeForUser: purgeRegimens } = await import('@/lib/data/regimens');
-    await purgeRegimens(email);
-  } catch (err) {
-    console.warn('[delete] regimen purge failed:', err);
-  }
-
-  // 2. All other user-owned rows. EVERY new table added since this
-  //    function was first written MUST be added here too — the audit
-  //    found multiple tables (loot, marketplace, leagues, notifications,
-  //    sticker reactions, reports, daily quests) that were silently
-  //    leaving orphan rows containing user-identifying data.
+  // Deletion is a SERVER action and cannot be done from here.
   //
-  // Tables are split into two groups:
-  //   - `tables_with_created_by`: rows owned via created_by (email) AND user_id
-  //   - `tables_with_user_id_only`: rows owned via user_id only (newer tables)
-  // We delete both filter variants where applicable so we don't miss rows
-  // that were inserted before the column-sync triggers were in place.
-  const tables_with_created_by = [
-    'workout_logs', 'cardio_logs', 'goals', 'nutrition_logs',
-    'body_metrics', 'achievements', 'workout_templates',
-    'hub_posts', 'hub_comments', 'hub_comment_likes', 'hub_reactions',
-    'hub_messages',
-  ];
-  // user_id-owned tables across every migration up to 141. ADD ANY
-  // NEW USER-OWNED TABLE HERE WHEN ITS MIGRATION LANDS — see
-  // _audit_schema_drift.sql for a query that lists user_id columns
-  // present in the schema.
-  const tables_with_user_id_only = [
-    'user_inventory',           // loot owned
-    'user_capsules',            // earned capsules
-    'league_members',           // league standings
-    'notifications',            // inbox
-    'post_sticker_reactions',   // sticker reactions on posts
-    'user_daily_quests',        // daily quest history
-    // ── Wellness / tracking (mig 095, 096, 128)
-    // NOTE: hydration_logs, recovery_scores, fitness_assessments,
-    // body_metrics_measurements DO NOT exist as separate tables.
-    // - fitness_assessment is a JSONB column on user_profiles (mig 129)
-    // - mig 133 added body-measurement COLUMNS to body_metrics
-    // - hydration and recovery never shipped as tables
-    // The user_profiles row is cleared below via auth.updateMe, so the
-    // JSONB column's data is wiped there. body_metrics rows are cleared
-    // by the `tables_with_created_by` block above.
-    'sleep_logs',
-    'mood_logs',
-    'cycle_logs',
-    // ── Crews & competition (mig 130, 132)
-    'crew_message_reactions',
-    'monthly_league_members',
-    // ── Injuries (mig 052) — was already covered via user_id; explicit here
-    'injury_logs',
-    // ── Gym ecosystem (mig 135, 138, 139)
-    'gym_members',
-    'gym_event_rsvps',
-    'gym_feed_post_reactions',
-    // ── Push subscriptions (mig 033)
-    'push_subscriptions',
-    // ── Trainer tier (mig 143) — buyer's purchase receipts. Listings
-    // (trainer_id) are handled in pii_tables below.
-    'trainer_purchases',
-    // ── Corporate wellness (mig 146) — the user's org memberships.
-    // Owned organizations (owner_id) are handled in pii_tables.
-    'organization_members',
-  ];
-
-  // PII-bearing tables where the user is the author/creator/owner.
-  // Each row contains identifying data (email, phone, address, body).
-  // We delete by user_id AND by the email-bearing column.
+  // This function used to be a ~250-line client-side cascade over a
+  // hand-maintained array of table names, ending in an auth.updateMe() that
+  // nulled profile columns and stamped account_reset_at. Three things were
+  // wrong with that, and none of them were fixable in the client:
   //
-  // IMPORTANT: every entry here MUST use the actual column names from
-  // the table's CREATE TABLE migration. The previous bug — surfaced as
-  // "Deletion incomplete (user_mutes.user_id, user_blocks.user_id…)" —
-  // was caused by adding user_mutes/user_blocks to the user_id list
-  // when their actual columns are muter_id / blocker_id. Future
-  // additions: grep the migration for `CREATE TABLE` and use the
-  // literal column name, not what the convention "should be."
-  const pii_tables = [
-    // [table, idCol, emailCol]
-    ['gym_feed_posts',    'author_id',  'author_email'],
-    ['gym_feed_comments', 'author_id',  'author_email'],
-    ['gym_events',        'created_by', null],
-    ['gym_verification_queue', 'owner_id', null],
-    ['gym_businesses',    'owner_id',   null],
-    // Trainer tier (mig 143) — the user's own listings as a creator.
-    ['trainer_listings',  'trainer_id', null],
-    // Corporate wellness (mig 146) — organizations the user owns.
-    ['organizations',     'owner_id',   null],
-    // Mutes (mig 107) — column is `muter_id`, not user_id. Also clears
-    // the muter_email-keyed lookup for parity with the email side of
-    // other PII tables.
-    ['user_mutes',        'muter_id',   'muter_email'],
-    // Blocks (mig 106) — column is `blocker_id`, not user_id.
-    ['user_blocks',       'blocker_id', 'blocker_email'],
-  ];
-
-  // Run all deletes; collect any per-row failures. We previously used
-  // Promise.allSettled and ignored failures wholesale; that masked
-  // partial deletions (audit B-2/B-5). Now we report any non-empty
-  // failure list back to the caller.
-  const ops = [
-    ...tables_with_created_by.map(t => ({ name: t + '.created_by', p: supabase.from(t).delete().eq('created_by', email) })),
-    ...tables_with_created_by.map(t => ({ name: t + '.user_id',    p: supabase.from(t).delete().eq('user_id', user.id) })),
-    ...tables_with_user_id_only.map(t => ({ name: t + '.user_id',  p: supabase.from(t).delete().eq('user_id', user.id) })),
-    ...pii_tables.flatMap(([t, idCol, emailCol]) => {
-      const ops = [{ name: `${t}.${idCol}`, p: supabase.from(t).delete().eq(idCol, user.id) }];
-      if (emailCol) ops.push({ name: `${t}.${emailCol}`, p: supabase.from(t).delete().eq(emailCol, email) });
-      return ops;
-    }),
-    { name: 'marketplace_listings.seller_user_id', p: supabase.from('marketplace_listings').delete().eq('seller_user_id', user.id) },
-    { name: 'marketplace_listings.seller_email',   p: supabase.from('marketplace_listings').delete().eq('seller_email', email) },
-    { name: 'hub_reports.reporter_user_id',        p: supabase.from('hub_reports').delete().eq('reporter_user_id', user.id) },
-    { name: 'hub_reports.reporter_email',          p: supabase.from('hub_reports').delete().eq('reporter_email', email) },
-    { name: 'hub_posts.author_email',              p: supabase.from('hub_posts').delete().eq('author_email', email) },
-    { name: 'hub_follows.both',                    p: supabase.from('hub_follows').delete().or(`follower_email.eq.${email},followee_email.eq.${email}`) },
-    { name: 'hub_conversations.participant_emails', p: supabase.from('hub_conversations').delete().contains('participant_emails', [email]) },
-  ];
-
-  const results = await Promise.allSettled(ops.map(o => o.p));
-  const failures = [];
-  // Codes we tolerate as "environment skew" rather than real deletion
-  // failures. The user's data isn't at these tables anyway, so the
-  // delete is functionally a no-op — but we don't want to scare them
-  // with "Deletion incomplete" for what is essentially a stale config.
-  //   42P01    — relation does not exist (table missing on this host)
-  //   42703    — column does not exist (code/schema mismatch, e.g. the
-  //              user_mutes.user_id bug that surfaced before this audit)
-  //   PGRST204 — column not found in PostgREST schema cache
-  //   PGRST205 — table not in PostgREST cache
-  // Everything else (RLS reject 42501, FK violation 23503, network) is
-  // a real failure that the user must know about.
-  const SCHEMA_SKEW_CODES = new Set(['42P01', '42703', 'PGRST204', 'PGRST205']);
-  results.forEach((r, i) => {
-    if (r.status === 'rejected') {
-      failures.push({ table: ops[i].name, error: r.reason?.message || String(r.reason) });
-    } else if (r.value?.error) {
-      const code = r.value.error.code;
-      if (SCHEMA_SKEW_CODES.has(code)) {
-        // Loud warning so devs catch the mismatch in development, but
-        // don't surface to the user.
-        console.warn(`[deleteAccount] schema skew on ${ops[i].name} (${code}): ${r.value.error.message}`);
-      } else {
-        failures.push({ table: ops[i].name, error: r.value.error.message, code });
-      }
-    }
+  //   1. It never deleted auth.users, because a client cannot. The identity
+  //      survived, so a magic link to the same address re-entered the
+  //      "deleted" account. What shipped was a reset wearing a deletion's UI.
+  //   2. The hand-maintained list had drifted by 54 user-owned tables —
+  //      journal_entries, weekly_debriefs, status_notes, meal_plans and
+  //      others were never touched. That drift is structural: nothing fails
+  //      when a new migration forgets to update the array.
+  //   3. Uploaded blobs (avatars, progress photos) were never removed.
+  //
+  // The replacement is the `delete-account` Edge Function, which runs under
+  // the service role and derives what to purge from the schema itself rather
+  // than from a list. See supabase/functions/delete-account/index.ts and
+  // migration 281 for the ordering, which is not arbitrary.
+  //
+  // There is deliberately NO fallback to the old cascade. Falling back would
+  // mean telling someone their account was deleted when it was reset — which
+  // is the exact defect being fixed, and worse than an honest failure.
+  const { data, error } = await supabase.functions.invoke('delete-account', {
+    body: {},
   });
 
-  // 3. Reset every cumulative / denormalized field on the user_profiles row
-  //    AND clear every onboarding-collected field so a fresh start is truly
-  //    fresh. Username goes to null to release the handle (it's nullable
-  //    in the schema; the App.jsx re-onboarding gate handles null too).
-  //
-  // Privileged columns (XP / coins / streaks / leaderboard totals /
-  // league tier — everything the mig 142/173 trigger rejects from direct
-  // client writes with 42501) are zeroed via the reset_my_profile_stats
-  // RPC. On pre-173 hosts the RPC is missing (42883) — there the trigger
-  // doesn't exist either, so we fall back to carrying those fields in
-  // the updateMe payload like before.
-  let privilegedStatsHandled = false;
-  try {
-    const { error: resetErr } = await supabase.rpc('reset_my_profile_stats');
-    if (!resetErr) {
-      privilegedStatsHandled = true;
-    } else if (resetErr.code !== '42883' && resetErr.code !== '42P01') {
-      // 173+ host but the reset genuinely failed — report it like any
-      // other partial-deletion failure. Don't retry via updateMe: the
-      // trigger would reject those fields with 42501 anyway.
-      failures.push({ table: 'user_profiles.reset_my_profile_stats', error: resetErr.message, code: resetErr.code });
-      privilegedStatsHandled = true;
-    }
-  } catch (err) {
-    failures.push({ table: 'user_profiles.reset_my_profile_stats', error: err?.message || String(err) });
-    privilegedStatsHandled = true;
-  }
-
-  // Use auth.updateMe (NOT direct supabase.update) so the column-stripping
-  // retry handles fields that might not exist on the schema yet — older
-  // environments missing some of the newer columns (e.g. loot_theme_id
-  // pre-021, milestone_capsules_awarded pre-022) won't block the reset.
-  await auth.updateMe({
-    // Identity
-    username:               null,
-    bio:                    '',
-    avatar_url:             null,
-    // Open cumulative counters (not in the 142/173 privileged blocklist)
-    achievements_unlocked_count: 0,
-    // Privileged counters — pre-173 hosts only (see above)
-    ...(privilegedStatsHandled ? {} : {
-      total_xp:               0,
-      flex_coins:             0,
-      milestone_capsules_awarded:  0,
-      total_volume_lbs:       0,
-      total_distance_meters:  0,
-      login_streak:           0,
-      workout_streak:         0,
-      longest_workout_streak: 0,
-      league_tier:            'bronze',
-    }),
-    // Equipped cosmetics (loot — clear so the next account starts blank)
-    loot_theme_id:          null,
-    equipped_title_id:      null,
-    equipped_frame_id:      null,
-    preferred_theme:        null,
-    // Onboarding profile fields
-    gender:                 null,
-    birthday:               null,
-    age:                    null,
-    height_inches:          null,
-    height_cm:              null,
-    height_unit:            null,
-    weight_lbs:             null,
-    weight_kg:              null,
-    weight_unit:            null,
-    fitness_level:          null,
-    fitness_goals:          null,
-    fitness_goals_arr:      null,
-    training_days:          null,
-    preferred_workout_time: null,
-    country_code:           null,
-    state_code:             null,
-    // Onboarding gate
-    onboarding_complete:    false,
-    onboarding_completed:   false,
-    onboarding_completed_at: null,
-    // Defensive reset timestamp — filterAfterReset uses this to hide
-    // any row that survived the cascade (RLS denial, network error, etc.)
-    // from rendering on the post-reset account.
-    account_reset_at:       new Date().toISOString(),
-  });
-
-  _clearProfile();
-
-  if (failures.length > 0) {
-    const err = new Error(`Partial deletion — ${failures.length} table(s) failed`);
-    err.failures = failures;
-    err.partial = true;
+  if (error) {
+    // A 404 here means the function has not been deployed yet. Say so
+    // plainly rather than letting it read as a transient network blip.
+    const err = new Error(
+      'Account deletion is temporarily unavailable. Nothing was changed — '
+      + 'please contact support so we can complete it for you.'
+    );
+    err.cause = error;
+    err.code = 'DELETE_FN_UNAVAILABLE';
     throw err;
   }
+
+  if (data && data.ok === false) {
+    const err = new Error(data.message || 'Delete failed');
+    err.code = data.error;
+    throw err;
+  }
+
+  // The purge reports per-target failures without aborting — a table that
+  // could not be swept must not stop the identity being deleted. Surface it
+  // as a partial so the user is told rather than reassured.
+  const purgeErrors = data?.report?.purge?.errors || [];
+  const storageError = data?.report?.storage?.error;
+  if (purgeErrors.length > 0 || storageError) {
+    _clearProfile();
+    const err = new Error(
+      `Account deleted, but ${purgeErrors.length + (storageError ? 1 : 0)} item(s) `
+      + 'could not be fully removed'
+    );
+    err.partial = true;
+    err.failures = [
+      ...purgeErrors.map(e => ({ table: e.target, error: e.error, code: e.code })),
+      ...(storageError ? [{ table: 'storage.uploads', error: storageError }] : []),
+    ];
+    throw err;
+  }
+
+  _clearProfile();
   return { success: true };
 }
 
