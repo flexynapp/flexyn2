@@ -9,67 +9,31 @@ import { safeSelect } from '@/api/safeSelect';
 // Internal helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Whitelist tier values. A typo or upstream bug switching the tier
-// would otherwise insert as-is and silently grant the wrong loot
-// tier. Throwing forces the caller to fix the bug instead of
-// shipping a corrupted capsule row.
-const VALID_CAPSULE_TYPES = new Set(['standard', 'premium', 'elite']);
+// NOTE: there is deliberately no `_grantCapsule` helper here any more.
+//
+// `user_capsules` has no INSERT policy for `authenticated` — every capsule
+// is created by a SECURITY DEFINER RPC (grant_level_up_rewards mig 070,
+// grant_achievement_milestones, grant_streak_capsule, claim_daily_chest,
+// claim_referral, and now grant_welcome_capsule / grant_first_workout_capsule
+// from mig 277). The helper that used to live here did a bare
+// `.from('user_capsules').insert(...)` and returned 42501 on every call, so
+// the two grants built on it had never once landed. An INSERT policy that
+// would have "fixed" it is the same policy that lets any client mint itself
+// an elite capsule, so the fix was to move the grants server-side.
+//
+// If you need a new capsule grant, add an RPC — don't reintroduce a client
+// insert here.
 
-/** Insert a single capsule row. */
-async function _grantCapsule(userId, userEmail, capsuleType) {
-  if (!VALID_CAPSULE_TYPES.has(capsuleType)) {
-    throw new Error(`[capsules] invalid capsule_type: "${capsuleType}"`);
-  }
-  const { error } = await supabase
-    .from('user_capsules')
-    .insert({ user_id: userId, user_email: userEmail, capsule_type: capsuleType });
-  if (error) throw error;
-}
-
-/** Add flex_coins delta to the user's profile.
- *
- * Atomic path uses `increment_flex_coins` RPC (migration 030). Falls back
- * to non-atomic read-modify-write only when the RPC isn't available.
- * The previous comment said "to avoid race conditions" but the
- * implementation BELOW the comment was the racy version — that's now
- * actually fixed.
- */
-async function _addFlexCoins(userId, amount) {
-  if (!amount || amount <= 0) return;
-
-  try {
-    const { error } = await supabase.rpc('increment_flex_coins', { p_delta: amount });
-    if (!error) return;
-    if (error.code !== '42883' && error.code !== '42P01') {
-      // Transient / real failure on a host that HAS the RPC. Don't fall
-      // back to read-modify-write: mig 142/173 rejects direct flex_coins
-      // writes with 42501, and the RMW raced concurrent grants anyway.
-      console.warn('[capsules] increment_flex_coins failed (coins not granted):', error);
-      return;
-    }
-  } catch (err) {
-    if (err?.code !== '42883' && err?.code !== '42P01') {
-      console.warn('[capsules] increment_flex_coins threw (coins not granted):', err);
-      return;
-    }
-  }
-
-  // Legacy non-atomic fallback for pre-migration-030 hosts (those also
-  // predate the 142/173 trigger, so the direct write is allowed there).
-  const { data: profile, error: readErr } = await supabase
-    .from('user_profiles')
-    .select('flex_coins')
-    .eq('id', userId)
-    .maybeSingle();
-  if (readErr) throw readErr;
-
-  const current = profile?.flex_coins ?? 0;
-  const { error: updateErr } = await supabase
-    .from('user_profiles')
-    .update({ flex_coins: current + amount })
-    .eq('id', userId);
-  if (updateErr) throw updateErr;
-}
+// `_addFlexCoins` used to live here. Its only caller was
+// grantForFirstWorkout, which now credits coins inside
+// grant_first_workout_capsule (mig 277) in the same transaction as the
+// capsule — so a partial grant is no longer representable. Every other coin
+// grant in this module already went through its own RPC.
+//
+// Its legacy branch also wrote flex_coins directly, which migrations 142/173
+// reject with 42501 and migration 264's ledger trigger can clamp. Nothing in
+// the client should be computing a coin balance; take the number the server
+// returns.
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Public API
@@ -301,47 +265,32 @@ export async function countCapsules(userEmail) {
 export async function grantForFirstWorkout(userId, userEmail) {
   if (!userId || !userEmail) return false;
 
-  // Read the flag — if already true, we've granted before. Defensive:
-  // missing column / missing row should be treated as "not yet."
-  const { data: profile } = await supabase
-    .from('user_profiles')
-    .select('first_workout_capsule_granted')
-    .eq('id', userId)
-    .maybeSingle();
-  if (profile?.first_workout_capsule_granted === true) return false;
+  // Atomic + idempotent via grant_first_workout_capsule (mig 277). The
+  // capsule, the 75 coins and the idempotency flag now land in ONE
+  // transaction, server-side.
+  //
+  // What this replaces: a read-the-flag / insert-capsule / add-coins /
+  // write-the-flag sequence of four independent client calls. The capsule
+  // insert in the middle of it returned 42501 on EVERY call — user_inventory
+  // and user_capsules both lost their client INSERT policy in the economy
+  // lockdown — so this reward had never once been granted. The caller in
+  // Workout.jsx is fire-and-forget with a `.catch()`, so it failed silently.
+  //
+  // The old sequence was also non-atomic: a failure between the grant and the
+  // flag write re-granted on the next call, indefinitely. That's now
+  // impossible — the flag moves in the same transaction as the capsule.
+  const { data, error } = await supabase.rpc('grant_first_workout_capsule');
+  if (error) throw error;
+  if (!data?.granted) return false;
 
-  await Promise.all([
-    _grantCapsule(userId, userEmail, 'premium'),
-    _addFlexCoins(userId, 75),
-  ]);
-
-  // Mark the flag so this never grants twice. The previous try/catch
-  // was useless: supabase.from().update() returns { data, error }, it
-  // does NOT throw, so the catch never fired and ANY write failure
-  // (RLS denial, network, schema column missing) was swallowed
-  // completely. That broke idempotency — the next first-workout call
-  // would re-read the flag (still false because the write didn't
-  // land), re-grant the premium capsule + 75 coins, indefinitely.
-  // Now check error explicitly, distinguish the schema-drift codes
-  // we want to tolerate from real failures.
-  const { error: flagErr } = await supabase
-    .from('user_profiles')
-    .update({ first_workout_capsule_granted: true })
-    .eq('id', userId);
-  if (flagErr && flagErr.code !== '42703' && flagErr.code !== 'PGRST204') {
-    // Real failure — flag never persisted. Surface to Sentry so we
-    // can see the duplication-risk pattern. We still return true
-    // (the capsule + coins DID land), but the operator will know
-    // a retry may double-grant.
-    console.warn('[capsules] first_workout flag write failed:', flagErr);
-  } else {
-    // Keep the cached profile in step so a re-read this session sees the
-    // flag set. NOTE: the flex_coins write above is deliberately NOT
-    // patched — migration 142 rejects direct client writes to it, and
-    // migration 264's ledger trigger can clamp a credit, so any
-    // client-side number would be a guess.
-    patchProfile({ first_workout_capsule_granted: true });
-  }
+  // Keep the cached profile in step so a re-read this session sees the flag.
+  // flex_coins is deliberately NOT patched from a client-computed number —
+  // but the RPC returns the post-credit balance the SERVER wrote, which is
+  // exactly the case profileCache is safe to take (see CLAUDE.md).
+  patchProfile({
+    first_workout_capsule_granted: true,
+    ...(typeof data.new_balance === 'number' ? { flex_coins: data.new_balance } : {}),
+  });
 
   try {
     window.dispatchEvent(
@@ -366,9 +315,15 @@ export async function grantForFirstWorkout(userId, userEmail) {
  */
 export async function grantWelcomeCapsule(userId, userEmail) {
   if (!userId || !userEmail) return false;
-  const existing = await countCapsules(userEmail);
-  if (existing > 0) return false; // already has capsules — nothing to do
-  await _grantCapsule(userId, userEmail, 'standard');
+
+  // Atomic + idempotent via grant_welcome_capsule (mig 277), which applies
+  // the same rule the client used to — grant only when the user has no
+  // capsules at all — but under a row lock, so two tabs opening at once
+  // can't both pass the check. The client insert this replaces returned
+  // 42501 on every call, so no user had ever actually received it.
+  const { data, error } = await supabase.rpc('grant_welcome_capsule');
+  if (error) throw error;
+  if (!data?.granted) return false;
   // Dispatch the global capsule-granted event so LevelUpManager (or
   // anything else listening) can surface a toast / badge / celebration.
   // The 'welcome' source distinguishes this from achievement-milestone
