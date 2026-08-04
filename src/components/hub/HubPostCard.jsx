@@ -125,26 +125,27 @@ function CrownBadge({ size = 14 }) {
   );
 }
 // ── Post-type accent border ───────────────────────────────────────────────────
-// Returns a Tailwind class for a subtle left-border accent per content type.
-// Applied to the card's article element so every post type is visually distinct
-// at a glance even before the activity block renders.
-function getPostTypeAccent(post) {
-  const type = post.linked_entity_type || post.post_type;
-  if (!type || type === 'status') return '';
-  const map = {
-    workout:        'border-l-4 border-l-violet-500/60',
-    cardio:         'border-l-4 border-l-green-500/60',
-    meal:           'border-l-4 border-l-orange-500/60',
-    goal_completed: 'border-l-4 border-l-primary/60',
-    goal:           'border-l-4 border-l-primary/60',
-    achievement:    'border-l-4 border-l-amber-500/60',
-    regimen:        'border-l-4 border-l-indigo-500/60',
-    stats:          'border-l-4 border-l-blue-500/60',
-    video:          'border-l-4 border-l-red-500/60',
-    repost:         'border-l-4 border-l-primary/30',
-    poll:           'border-l-4 border-l-pink-500/60',
-  };
-  return map[type] || '';
+// Post-type accent — deliberately returns nothing now.
+//
+// This used to be eleven `border-l-4` stripes, one hue per post type
+// (violet workout, green cardio, orange meal, amber achievement, indigo
+// regimen, blue stats, red video, pink poll…). The 4px coloured left
+// border is the single most-cited tell of AI-generated UI — more
+// reliable than any other visual signature — and this was it, in
+// eleven colours, on the most-scrolled surface in the app.
+//
+// It also didn't earn its keep. Every one of these post types already
+// renders its own activity block immediately below the header: a
+// workout post shows sets, a meal post shows macros, a poll shows
+// options. The stripe restated in colour what the card says in content
+// two lines later, and it spent eight off-budget hues doing it.
+//
+// Kept as a function returning '' rather than ripped out at the
+// call-sites, so the diamond-glow branch below keeps its shape and a
+// future per-type treatment (an icon in the header, say) has an obvious
+// home. If you add one, don't make it a coloured edge.
+function getPostTypeAccent(/* post */) {
+  return '';
 }
 
 // ── Feature 24: Poll Card ────────────────────────────────────────────────────
@@ -828,7 +829,7 @@ function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
             className="absolute z-30 pointer-events-none"
             style={{ left: heartAnim.x - 16, top: heartAnim.y - 16 }}
           >
-            <Heart className="w-8 h-8 fill-red-500 text-red-500 drop-shadow-lg" />
+            <Heart className="w-8 h-8 fill-destructive text-destructive drop-shadow-lg" />
           </motion.div>
         )}
       </AnimatePresence>
@@ -1046,7 +1047,7 @@ function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
 
       {/* Scheduled badge — only shown when publish_at is in the future */}
       {post.publish_at && new Date(post.publish_at) > new Date() && (
-        <div className="px-3 pb-1 flex items-center gap-1.5 text-xs text-amber-500/80">
+        <div className="px-3 pb-1 flex items-center gap-1.5 text-xs text-primary/80">
           <Clock className="w-3 h-3" />
           <span>{tFallback('hub.post.scheduledFor', 'Scheduled')}: {new Date(post.publish_at).toLocaleString()}</span>
         </div>

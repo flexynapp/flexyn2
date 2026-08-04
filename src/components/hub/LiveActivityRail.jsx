@@ -33,11 +33,11 @@ function ActiveAvatar({ user, onClick }) {
         {/* Pulsing emerald ring outside the avatar — the "live" tell. */}
         <span
           aria-hidden="true"
-          className="absolute -inset-0.5 rounded-full bg-emerald-500/40 animate-ping"
+          className="absolute -inset-0.5 rounded-full bg-success/40 animate-ping"
         />
         <span
           aria-hidden="true"
-          className="absolute -inset-0.5 rounded-full ring-2 ring-emerald-500"
+          className="absolute -inset-0.5 rounded-full ring-2 ring-success"
         />
         {user.avatar_url ? (
           <img
@@ -55,7 +55,7 @@ function ActiveAvatar({ user, onClick }) {
             unambiguous "online" signal at small sizes. */}
         <span
           aria-hidden="true"
-          className="absolute bottom-0 end-0 w-3 h-3 rounded-full bg-emerald-500 ring-2 ring-background"
+          className="absolute bottom-0 end-0 w-3 h-3 rounded-full bg-success ring-2 ring-background"
         />
       </div>
       <span className="text-[10px] font-medium text-foreground truncate w-full text-center group-hover:text-primary transition-colors">
@@ -92,10 +92,10 @@ export default function LiveActivityRail() {
       >
         <div className="flex items-center gap-1.5 mb-2 px-1">
           <span className="relative flex w-2 h-2">
-            <span className="absolute inline-flex w-full h-full rounded-full bg-emerald-500 opacity-75 animate-ping" />
-            <span className="relative inline-flex w-2 h-2 rounded-full bg-emerald-500" />
+            <span className="absolute inline-flex w-full h-full rounded-full bg-success opacity-75 animate-ping" />
+            <span className="relative inline-flex w-2 h-2 rounded-full bg-success" />
           </span>
-          <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-500">
+          <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-success">
             {tFallback('liveActivity.title', 'Live now')}
           </span>
           <span className="text-[10px] text-muted-foreground">

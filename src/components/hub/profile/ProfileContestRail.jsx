@@ -108,7 +108,7 @@ export default function ProfileContestRail({
       {league && (
         <Pill
           icon={Trophy}
-          iconClass="text-amber-300"
+          iconClass="text-primary"
           onClick={onOpenLeague}
           label={tf('profile.hero.leagueA11y', 'League placement: {r} of {t}')
             .replace('{r}', String(league.rank)).replace('{t}', String(league.total))}
@@ -125,7 +125,7 @@ export default function ProfileContestRail({
       {rival && (
         <Pill
           icon={Swords}
-          iconClass="text-rose-300"
+          iconClass="text-primary"
           onClick={onOpenRival}
           ahead={rival.mine > rival.theirs}
           label={tf('profile.hero.rivalA11y', 'Rival: you {a}, them {b}')
@@ -138,7 +138,7 @@ export default function ProfileContestRail({
       {war && (
         <Pill
           icon={Shield}
-          iconClass="text-sky-300"
+          iconClass="text-primary"
           onClick={onOpenWar}
           ahead={war.mine > war.theirs}
           label={tf('profile.hero.warA11y', 'Crew war: your crew {a}, theirs {b}')

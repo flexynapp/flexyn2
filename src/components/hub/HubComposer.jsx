@@ -961,7 +961,7 @@ export default function HubComposer({ onClose }) {
   const renderMealCompose = () => (
     <div className="flex-1 flex flex-col px-4 pt-4 pb-4">
       <div className="mb-3 flex items-center gap-2 text-xs text-muted-foreground">
-        <Apple className="w-3.5 h-3.5 text-green-500" />
+        <Apple className="w-3.5 h-3.5 text-success" />
         Share a meal with your community
       </div>
 
@@ -979,10 +979,10 @@ export default function HubComposer({ onClose }) {
       <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">Macros (optional)</label>
       <div className="grid grid-cols-4 gap-2 mb-3">
         {[
-          { key: 'calories',  label: 'Calories', unit: 'cal', color: 'text-orange-600' },
-          { key: 'protein_g', label: 'Protein',  unit: 'g',    color: 'text-red-600' },
-          { key: 'carbs_g',   label: 'Carbs',    unit: 'g',    color: 'text-blue-600' },
-          { key: 'fat_g',     label: 'Fat',      unit: 'g',    color: 'text-yellow-600' },
+          { key: 'calories',  label: 'Calories', unit: 'cal', color: 'text-primary' },
+          { key: 'protein_g', label: 'Protein',  unit: 'g',    color: 'text-destructive' },
+          { key: 'carbs_g',   label: 'Carbs',    unit: 'g',    color: 'text-info' },
+          { key: 'fat_g',     label: 'Fat',      unit: 'g',    color: 'text-primary' },
         ].map(f => (
           <div key={f.key} className="flex flex-col">
             <span className={`text-[10px] font-medium mb-1 ${f.color}`}>{f.label}</span>
@@ -1277,7 +1277,7 @@ export default function HubComposer({ onClose }) {
   const renderVideoCompose = () => (
     <div className="flex-1 flex flex-col px-4 pt-4 pb-4">
       <div className="mb-3 flex items-center gap-2 text-xs text-muted-foreground">
-        <Film className="w-3.5 h-3.5 text-red-500" />
+        <Film className="w-3.5 h-3.5 text-destructive" />
         Share a short workout clip
       </div>
 
@@ -1385,7 +1385,7 @@ export default function HubComposer({ onClose }) {
           type="button"
           onClick={() => setCwPickerOpen(o => !o)}
           className={`text-[11px] font-semibold uppercase tracking-wide flex items-center gap-1.5 py-1 transition-colors ${
-            cwType ? 'text-amber-500' : 'text-muted-foreground hover:text-foreground'
+            cwType ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
           }`}
         >
           {cwType ? '⚠️' : '＋'} {cwType

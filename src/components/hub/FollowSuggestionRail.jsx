@@ -78,7 +78,7 @@ function SuggestedFolloweeCard({ user, onFollow, following, followed }) {
         {isLive && (
           <span
             aria-hidden="true"
-            className="absolute bottom-0 end-0 w-3 h-3 rounded-full bg-emerald-500 ring-2 ring-card"
+            className="absolute bottom-0 end-0 w-3 h-3 rounded-full bg-success ring-2 ring-card"
             title="Working out right now"
           />
         )}

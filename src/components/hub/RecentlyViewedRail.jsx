@@ -85,14 +85,14 @@ export default function RecentlyViewedRail({ userEmail, listings = [], onSelect 
                     {entry.item_name}
                   </span>
                   {entry.asking_price != null && (
-                    <span className="text-[10px] text-amber-600 dark:text-amber-300 font-bold">
+                    <span className="text-[10px] text-primary dark:text-primary font-bold">
                       🪙 {fmt(Number(entry.asking_price))}
                     </span>
                   )}
                 </button>
                 {isGone && (
                   <span
-                    className="absolute inset-x-0 top-1/2 -translate-y-1/2 text-center text-[10px] font-bold uppercase tracking-wider text-rose-400 bg-black/50 py-0.5 pointer-events-none"
+                    className="absolute inset-x-0 top-1/2 -translate-y-1/2 text-center text-[10px] font-bold uppercase tracking-wider text-destructive bg-black/50 py-0.5 pointer-events-none"
                     aria-hidden="true"
                   >
                     Sold

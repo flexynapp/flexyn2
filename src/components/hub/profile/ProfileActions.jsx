@@ -192,7 +192,7 @@ export default function ProfileActions({
                     />
                     <MenuItem
                       icon={Coins}
-                      iconClass="text-yellow-500"
+                      iconClass="text-primary"
                       label={tFallback('hub.profile.gift', 'Send a coin gift')}
                       onSelect={onOpenGift}
                     />

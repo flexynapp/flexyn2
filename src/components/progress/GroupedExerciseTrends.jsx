@@ -5,20 +5,23 @@ import ExerciseProgressCard from './ExerciseProgressCard';
 import { useLanguage } from '@/lib/LanguageContext';
 import { muscleKey } from '@/lib/exerciseTranslations';
 
-const MUSCLE_GROUP_COLORS = {
-  'Chest': 'bg-red-500/20 text-red-600',
-  'Back': 'bg-blue-500/20 text-blue-600',
-  'Shoulders': 'bg-purple-500/20 text-purple-600',
-  'Biceps': 'bg-amber-500/20 text-amber-600',
-  'Triceps': 'bg-orange-500/20 text-orange-600',
-  'Legs': 'bg-emerald-500/20 text-emerald-600',
-  'Glutes': 'bg-pink-500/20 text-pink-600',
-  'Core': 'bg-cyan-500/20 text-cyan-600',
-  'Forearms': 'bg-yellow-500/20 text-yellow-600',
-  'Cardio': 'bg-indigo-500/20 text-indigo-600',
-  'Full Body': 'bg-slate-500/20 text-slate-600',
-  'Other': 'bg-slate-500/20 text-slate-600',
-};
+// There used to be a MUSCLE_GROUP_COLORS map here giving each of the
+// twelve groups its own hue. It looked like a categorical encoding but
+// couldn't work as one, for two reasons:
+//
+//   1. It was rendered as a 10px dot sitting immediately to the LEFT of
+//      the group's own name. The label is the identifier; the dot was
+//      never carrying information the text didn't already carry.
+//   2. Twelve hues is past what anyone can tell apart, and four of them
+//      (red / orange / amber / yellow for Chest, Triceps, Biceps,
+//      Forearms) were adjacent on the wheel. At 10px those are one
+//      colour.
+//
+// So it was decoration wearing the costume of data. The dot is now a
+// single muted brand marker — see the render below. If a real
+// muscle-group encoding is ever needed (a stacked chart, a legend that
+// appears away from the labels), it should be built deliberately with a
+// palette chosen for discriminability, not restored from this map.
 
 // Accordion panel — always rendered so ResizeObserver can measure,
 // height animated between 0 and real pixel value for smooth open/close.
@@ -150,7 +153,7 @@ export default function GroupedExerciseTrends({ exerciseNames, regimenLogs, time
             transition={{ duration: 0.15, ease: 'easeOut' }}
           >
             <div className="flex items-center gap-3">
-              <div className={`w-2.5 h-2.5 rounded-full ${MUSCLE_GROUP_COLORS[groupLabel]?.split(' ')[0] || 'bg-slate-400'}`} />
+              <div className="w-2.5 h-2.5 rounded-full bg-primary/60 shrink-0" aria-hidden="true" />
               <span className="font-heading font-bold text-sm">{t(`muscleGroups.${muscleKey(groupLabel)}`)}</span>
               <span className="text-xs text-muted-foreground font-medium">
                 · {exercises.length} {exercises.length === 1 ? t('analytics.exercise') : t('analytics.exercises')}

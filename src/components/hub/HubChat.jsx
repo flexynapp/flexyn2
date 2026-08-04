@@ -126,7 +126,7 @@ function renderBodyWithHighlights(text, query) {
     <span>
       {segments.map((seg, idx) =>
         seg.match
-          ? <mark key={idx} className="bg-amber-300/40 text-foreground rounded-sm px-0.5">{seg.text}</mark>
+          ? <mark key={idx} className="bg-primary/30 text-foreground rounded-sm px-0.5">{seg.text}</mark>
           : <span key={idx}>{seg.text}</span>
       )}
     </span>
@@ -1152,9 +1152,9 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
         const acceptedByMe = accepted.some(e => String(e).toLowerCase() === myLc);
         if (acceptedByMe || !conversation?.id) return null;
         return (
-          <div className="mb-2 shrink-0 flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30">
+          <div className="mb-2 shrink-0 flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/10 border border-primary/30">
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-bold text-amber-500 uppercase tracking-wide">Message request</p>
+              <p className="text-xs font-bold text-primary uppercase tracking-wide">Message request</p>
               <p className="text-[11px] text-muted-foreground">Accept to move this conversation to your inbox.</p>
             </div>
             <button
@@ -1195,10 +1195,10 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
       {pinnedOpen && (() => {
         const pinned = messages.filter(m => isPinned(m));
         return (
-          <div className="mb-2 shrink-0 rounded-xl border border-amber-500/30 bg-amber-500/5 overflow-hidden">
-            <div className="flex items-center gap-2 px-3 py-2 border-b border-amber-500/20">
+          <div className="mb-2 shrink-0 rounded-xl border border-primary/30 bg-primary/5 overflow-hidden">
+            <div className="flex items-center gap-2 px-3 py-2 border-b border-primary/20">
               <span className="text-sm">📌</span>
-              <span className="text-xs font-bold text-amber-600 uppercase tracking-wide">Pinned Messages</span>
+              <span className="text-xs font-bold text-primary uppercase tracking-wide">Pinned Messages</span>
               <span className="ms-auto text-xs text-muted-foreground">{pinned.length}</span>
             </div>
             {pinned.length === 0 ? (
@@ -1711,10 +1711,10 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
       {scheduledHere.length > 0 && (
         <div className="mb-2 shrink-0 space-y-1">
           {scheduledHere.map(s => (
-            <div key={s.id} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20">
-              <Clock className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+            <div key={s.id} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-primary/10 border border-primary/20">
+              <Clock className="w-3.5 h-3.5 text-primary shrink-0" />
               <div className="flex-1 min-w-0">
-                <p className="text-[10px] font-bold text-amber-500 uppercase tracking-wide">
+                <p className="text-[10px] font-bold text-primary uppercase tracking-wide">
                   Scheduled · {new Date(s.scheduled_at).toLocaleString()}
                 </p>
                 <p className="text-xs text-foreground truncate">{s.content}</p>

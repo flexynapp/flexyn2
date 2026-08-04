@@ -214,11 +214,11 @@ export default function HeavyBirdModal({ onClose, userId, onUnlockCosmetic }) {
       <div className="w-[360px] max-w-full flex justify-between items-center px-2 mb-4 text-zinc-100 font-mono tracking-tight">
         <div>
           <span className="text-zinc-500 text-xs block uppercase">Current Load</span>
-          <span className="text-2xl font-black text-emerald-400">{currentWeight} <span className="text-sm text-zinc-400">lbs</span></span>
+          <span className="text-2xl font-black text-success">{currentWeight} <span className="text-sm text-zinc-400">lbs</span></span>
         </div>
         <div className="text-end">
           <span className="text-zinc-500 text-xs block uppercase">Personal Record</span>
-          <span className="text-xl font-bold text-amber-400">{highScore} lbs</span>
+          <span className="text-xl font-bold text-primary">{highScore} lbs</span>
         </div>
       </div>
 
@@ -240,7 +240,7 @@ export default function HeavyBirdModal({ onClose, userId, onUnlockCosmetic }) {
 
         {gameOver && (
           <div className="absolute inset-0 bg-red-950/70 backdrop-blur-sm flex flex-col items-center justify-center text-center p-6 pointer-events-none">
-            <h2 className="text-3xl font-black text-red-400 tracking-tighter uppercase mb-1">Misfire / Fatigue</h2>
+            <h2 className="text-3xl font-black text-destructive tracking-tighter uppercase mb-1">Misfire / Fatigue</h2>
             <p className="text-zinc-300 text-xs font-mono mb-4">You got crushed at {currentWeight} lbs.</p>
             <span className="bg-zinc-100 text-zinc-950 font-mono text-xs px-4 py-2 font-bold uppercase rounded">Tap to Re-rack</span>
           </div>

@@ -207,8 +207,8 @@ export default function LiveSessionBroadcaster({ onClose }) {
           <div className="flex items-center gap-2">
             {phase === 'live' && (
               <span className="relative flex w-2.5 h-2.5">
-                <span className="absolute inline-flex w-full h-full rounded-full bg-red-500 opacity-75 animate-ping" />
-                <span className="relative inline-flex w-2.5 h-2.5 rounded-full bg-red-500" />
+                <span className="absolute inline-flex w-full h-full rounded-full bg-destructive opacity-75 animate-ping" />
+                <span className="relative inline-flex w-2.5 h-2.5 rounded-full bg-destructive" />
               </span>
             )}
             <p className="font-bold text-base">
@@ -247,7 +247,7 @@ export default function LiveSessionBroadcaster({ onClose }) {
               </p>
               <button
                 onClick={goLive}
-                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-red-500 text-white font-bold hover:bg-red-600 transition-colors"
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-destructive text-white font-bold hover:bg-destructive transition-colors"
               >
                 <Radio className="w-4 h-4" />
                 Start Live Session

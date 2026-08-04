@@ -150,8 +150,8 @@ function StickerGroupCard({ group, onSell, selling }) {
           className={[
             'mt-1 w-full py-1.5 rounded-lg text-xs font-bold transition-all duration-200',
             armed
-              ? 'bg-red-500/80 text-white border border-red-400 scale-105'
-              : 'bg-amber-500/15 text-amber-600 dark:text-amber-300 border border-amber-400/30 hover:bg-amber-500/25',
+              ? 'bg-destructive/80 text-white border border-destructive scale-105'
+              : 'bg-primary/15 text-primary dark:text-primary border border-primary/30 hover:bg-primary/25',
           ].join(' ')}
         >
           {armed ? (
@@ -764,11 +764,11 @@ export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBat
               <button
                 onClick={() => setShopOpen(true)}
                 aria-label="Open Coin Shop"
-                className="flex items-center gap-1.5 bg-amber-500/15 border border-amber-400/30 rounded-full px-3 py-1 hover:bg-amber-500/25 transition-colors"
+                className="flex items-center gap-1.5 bg-primary/15 border border-primary/30 rounded-full px-3 py-1 hover:bg-primary/25 transition-colors"
               >
                 <span className="text-base">{COIN}</span>
-                <span className="text-amber-600 dark:text-amber-300 font-bold text-sm tabular-nums">{fmt(flexCoins)}</span>
-                <Store className="w-3.5 h-3.5 text-amber-600/80 dark:text-amber-300/80 ms-0.5" />
+                <span className="text-primary dark:text-primary font-bold text-sm tabular-nums">{fmt(flexCoins)}</span>
+                <Store className="w-3.5 h-3.5 text-primary/80 dark:text-primary/80 ms-0.5" />
               </button>
               <button
                 onClick={onClose}
@@ -813,7 +813,7 @@ export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBat
                   </span>
                   {/* Duplicate indicator — corner badge, doesn't take row space */}
                   {tab.badge && (
-                    <span className="absolute top-0.5 end-0.5 text-[8px] px-1 leading-tight rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-300 border border-amber-400/30 font-bold whitespace-nowrap">
+                    <span className="absolute top-0.5 end-0.5 text-[8px] px-1 leading-tight rounded-full bg-primary/20 text-primary dark:text-primary border border-primary/30 font-bold whitespace-nowrap">
                       {tab.badge}
                     </span>
                   )}
@@ -921,8 +921,8 @@ export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBat
                       disabled={selling}
                       className={`w-full mb-3 py-2 px-3 rounded-xl text-xs font-bold transition-all border ${
                         bulkArmed
-                          ? 'bg-red-500/80 text-white border-red-400'
-                          : 'bg-amber-500/15 text-amber-600 dark:text-amber-300 border-amber-400/30 hover:bg-amber-500/25'
+                          ? 'bg-destructive/80 text-white border-destructive'
+                          : 'bg-primary/15 text-primary dark:text-primary border-primary/30 hover:bg-primary/25'
                       }`}
                     >
                       {selling

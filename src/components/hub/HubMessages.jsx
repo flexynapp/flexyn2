@@ -612,7 +612,7 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                   dmView === 'requests'
                     ? 'bg-primary text-primary-foreground'
                     : requestConvs.length > 0
-                    ? 'text-amber-500 hover:bg-secondary'
+                    ? 'text-primary hover:bg-secondary'
                     : 'text-muted-foreground hover:bg-secondary'
                 }`}
               >
@@ -623,7 +623,7 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                     className={`min-w-[1.15rem] px-1 h-[1.15rem] inline-flex items-center justify-center rounded-full text-[10px] font-bold leading-none ${
                       dmView === 'requests'
                         ? 'bg-primary-foreground/25 text-primary-foreground'
-                        : 'bg-amber-500 text-white'
+                        : 'bg-primary text-white'
                     }`}
                   >
                     {requestConvs.length > 99 ? '99+' : requestConvs.length}
@@ -888,7 +888,7 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                           <button
                             disabled={requestBusyId === c.id}
                             onClick={(e) => { e.stopPropagation(); handleUnsendRequest(c.id); }}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500 text-white text-xs font-bold disabled:opacity-50 transition-opacity"
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-destructive text-white text-xs font-bold disabled:opacity-50 transition-opacity"
                           >
                             <Undo2 className="w-3.5 h-3.5" />
                             {tFallback('hub.messages.request.confirmUnsend', 'Confirm unsend')}
@@ -929,7 +929,7 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                           <button
                             disabled={requestBusyId === c.id}
                             onClick={(e) => { e.stopPropagation(); handleDeleteRequest(c.id); }}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500 text-white text-xs font-bold disabled:opacity-50 transition-opacity"
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-destructive text-white text-xs font-bold disabled:opacity-50 transition-opacity"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                             {tFallback('common.confirmDelete', 'Confirm delete')}
@@ -965,7 +965,7 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                           <button
                             disabled={requestBusyId === c.id || !otherEmail}
                             onClick={(e) => { e.stopPropagation(); handleBlockRequest(c.id, otherEmail); }}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-red-500 hover:bg-red-500/10 text-xs font-semibold disabled:opacity-50 transition-colors"
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-destructive hover:bg-destructive/10 text-xs font-semibold disabled:opacity-50 transition-colors"
                           >
                             <Ban className="w-3.5 h-3.5" />
                             {tFallback('hub.messages.request.block', 'Block')}
@@ -995,12 +995,12 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                       <span className="flex items-center pointer-events-none">
                         {deliveryStatus === 'read' ? (
                           <Eye
-                            className="w-3.5 h-3.5 shrink-0 text-emerald-500"
+                            className="w-3.5 h-3.5 shrink-0 text-success"
                             aria-label={tFallback('hub.messages.status.read', 'Read')}
                           />
                         ) : deliveryStatus === 'delivered' ? (
                           <CheckCheck
-                            className="w-3.5 h-3.5 shrink-0 text-emerald-500"
+                            className="w-3.5 h-3.5 shrink-0 text-success"
                             aria-label={tFallback('hub.messages.status.delivered', 'Delivered')}
                           />
                         ) : deliveryStatus === 'sent' ? (
@@ -1201,7 +1201,7 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                           <div className="border-t border-border/50 mx-2" />
                           <button
                             onClick={(e) => { e.stopPropagation(); handleLeaveCrew(crew); }}
-                            className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-red-500/10 text-red-500 transition-colors text-start"
+                            className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-destructive/10 text-destructive transition-colors text-start"
                           >
                             <LogOut className="w-4 h-4" />
                             Leave Chat

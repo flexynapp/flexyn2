@@ -37,13 +37,13 @@ import ErrorBoundary from '@/components/ErrorBoundary';
 const RouteMap = lazy(() => import('@/components/cardio/RouteMap'));
 
 const TYPE_META = {
-  workout:        { Icon: Dumbbell,   labelKey: 'hub.share.workout',     entity: 'Workout',      accent: 'border-violet-500/60 bg-violet-500/5',   iconBg: 'bg-violet-500/15',   iconColor: 'text-violet-500' },
-  cardio:         { Icon: Activity,   labelKey: 'hub.share.cardio',      entity: 'CardioLog',    accent: 'border-green-500/60 bg-green-500/5',     iconBg: 'bg-green-500/15',    iconColor: 'text-green-500' },
-  meal:           { Icon: Apple,      labelKey: 'hub.share.meal',        entity: 'NutritionLog', accent: 'border-orange-500/60 bg-orange-500/5',   iconBg: 'bg-orange-500/15',   iconColor: 'text-orange-500' },
+  workout:        { Icon: Dumbbell,   labelKey: 'hub.share.workout',     entity: 'Workout',      accent: 'border-primary/60 bg-primary/5',   iconBg: 'bg-primary/15',   iconColor: 'text-primary' },
+  cardio:         { Icon: Activity,   labelKey: 'hub.share.cardio',      entity: 'CardioLog',    accent: 'border-success/60 bg-success/5',     iconBg: 'bg-success/15',    iconColor: 'text-success' },
+  meal:           { Icon: Apple,      labelKey: 'hub.share.meal',        entity: 'NutritionLog', accent: 'border-primary/60 bg-primary/5',   iconBg: 'bg-primary/15',   iconColor: 'text-primary' },
   goal_completed: { Icon: Target,     labelKey: 'hub.share.goal',        entity: 'Goal',         accent: 'border-primary/60 bg-primary/5',         iconBg: 'bg-primary/15',      iconColor: 'text-primary' },
-  achievement:    { Icon: Trophy,     labelKey: 'hub.share.achievement', entity: 'Achievement',  accent: 'border-amber-500/60 bg-amber-500/5',     iconBg: 'bg-amber-500/15',    iconColor: 'text-amber-500' },
-  regimen:        { Icon: ListChecks, labelKey: 'hub.share.regimen',     entity: 'Regimen',      accent: 'border-indigo-500/60 bg-indigo-500/5',   iconBg: 'bg-indigo-500/15',   iconColor: 'text-indigo-500' },
-  stats:          { Icon: BarChart3,  labelKey: 'hub.share.stats',       entity: null,           accent: 'border-blue-500/60 bg-blue-500/5',       iconBg: 'bg-blue-500/15',     iconColor: 'text-blue-500' },
+  achievement:    { Icon: Trophy,     labelKey: 'hub.share.achievement', entity: 'Achievement',  accent: 'border-primary/60 bg-primary/5',     iconBg: 'bg-primary/15',    iconColor: 'text-primary' },
+  regimen:        { Icon: ListChecks, labelKey: 'hub.share.regimen',     entity: 'Regimen',      accent: 'border-info/60 bg-info/5',   iconBg: 'bg-info/15',   iconColor: 'text-info' },
+  stats:          { Icon: BarChart3,  labelKey: 'hub.share.stats',       entity: null,           accent: 'border-info/60 bg-info/5',       iconBg: 'bg-info/15',     iconColor: 'text-info' },
 };
 
 // Same decimation logic as the composer — used when we have to build a
@@ -298,11 +298,18 @@ function MealBlock({ snap }) {
       {snap.meal_type && (
         <p className="text-xs text-muted-foreground capitalize mb-2">{snap.meal_type}</p>
       )}
+      {/* LEFT OFF THE COLOUR BUDGET DELIBERATELY. These four tints are the
+          app's macro vocabulary — the same orange/red/blue/yellow the
+          Dashboard's MacroRingWidget uses for cal/protein/carbs/fat. A
+          user reads them across both surfaces, so re-tokenising one and
+          not the other would split one vocabulary in half. If the macro
+          palette gets revisited it has to be done as a single pass over
+          both files, which is a bigger call than a page colour cleanup. */}
       <div className="grid grid-cols-4 gap-2">
-        <Stat label={t('nutrition.macros.calories')} value={snap.calories ? `${Math.round(snap.calories)}` : '—'} bgColor="bg-orange-50 dark:bg-orange-950/20" textColor="text-orange-600" />
-        <Stat label={t('nutrition.macros.protein')}  value={snap.protein_g ? `${Math.round(snap.protein_g)}g` : '—'} bgColor="bg-red-50 dark:bg-red-950/20" textColor="text-red-600" />
-        <Stat label={t('nutrition.macros.carbs')}    value={snap.carbs_g ? `${Math.round(snap.carbs_g)}g` : '—'} bgColor="bg-blue-50 dark:bg-blue-950/20" textColor="text-blue-600" />
-        <Stat label={t('nutrition.macros.fat')}      value={snap.fat_g ? `${Math.round(snap.fat_g)}g` : '—'} bgColor="bg-yellow-50 dark:bg-yellow-950/20" textColor="text-yellow-600" />
+        <Stat label={t('nutrition.macros.calories')} value={snap.calories ? `${Math.round(snap.calories)}` : '—'} bgColor="bg-orange-50 dark:bg-orange-950/20" textColor="text-primary" />
+        <Stat label={t('nutrition.macros.protein')}  value={snap.protein_g ? `${Math.round(snap.protein_g)}g` : '—'} bgColor="bg-red-50 dark:bg-red-950/20" textColor="text-destructive" />
+        <Stat label={t('nutrition.macros.carbs')}    value={snap.carbs_g ? `${Math.round(snap.carbs_g)}g` : '—'} bgColor="bg-blue-50 dark:bg-blue-950/20" textColor="text-info" />
+        <Stat label={t('nutrition.macros.fat')}      value={snap.fat_g ? `${Math.round(snap.fat_g)}g` : '—'} bgColor="bg-yellow-50 dark:bg-yellow-950/20" textColor="text-primary" />
       </div>
     </>
   );
@@ -350,7 +357,7 @@ function AchievementBlock({ snap }) {
   const { t } = useLanguage();
   return (
     <div className="flex items-start gap-3">
-      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-400 via-orange-400 to-rose-500 flex items-center justify-center shrink-0 shadow-md shadow-amber-500/30">
+      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary via-primary to-destructive flex items-center justify-center shrink-0 shadow-md shadow-primary/30">
         <Trophy className="w-6 h-6 text-white" />
       </div>
       <div className="flex-1 min-w-0">
@@ -360,7 +367,7 @@ function AchievementBlock({ snap }) {
         )}
         <div className="flex items-center gap-2 mt-1.5">
           {snap.xp_reward != null && (
-            <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400">
+            <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-primary/15 text-primary dark:text-primary">
               +{snap.xp_reward} XP
             </span>
           )}

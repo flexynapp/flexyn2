@@ -50,10 +50,10 @@ function volumeToBucket(volumeLbs) {
 // CSS bundle keeps them (dynamic class strings are tree-shaken).
 const BUCKET_BG = {
   0: 'bg-secondary/40',
-  1: 'bg-emerald-500/30',
-  2: 'bg-emerald-500/55',
-  3: 'bg-emerald-500/75',
-  4: 'bg-emerald-500',
+  1: 'bg-success/30',
+  2: 'bg-success/55',
+  3: 'bg-success/75',
+  4: 'bg-success',
 };
 
 function dayKey(d) {

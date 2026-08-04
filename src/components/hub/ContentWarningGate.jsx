@@ -67,10 +67,10 @@ export default function ContentWarningGate({ warning, customLabel, children }) {
         onClick={() => setRevealed(true)}
         className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-background/70 backdrop-blur-sm text-foreground hover:bg-background/80 transition-colors"
       >
-        <div className="w-10 h-10 rounded-full bg-amber-500/20 text-amber-500 flex items-center justify-center">
+        <div className="w-10 h-10 rounded-full bg-primary/20 text-primary flex items-center justify-center">
           <AlertTriangle className="w-5 h-5" />
         </div>
-        <p className="text-xs font-bold uppercase tracking-[0.18em] text-amber-500">
+        <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">
           {label}
         </p>
         <p className="text-sm font-medium flex items-center gap-1.5">

@@ -122,7 +122,7 @@ export default function VoiceMemoRecorder({ onComplete, onError }) {
       aria-label={recording ? 'Recording — release to send, drag up to cancel' : 'Hold to record voice memo'}
       className={`relative p-2 rounded-lg transition-colors shrink-0 select-none touch-none ${
         recording
-          ? (cancelling ? 'bg-destructive text-destructive-foreground' : 'bg-red-500 text-white')
+          ? (cancelling ? 'bg-destructive text-destructive-foreground' : 'bg-destructive text-white')
           : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
       }`}
     >

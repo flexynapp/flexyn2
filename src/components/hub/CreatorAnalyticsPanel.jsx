@@ -44,10 +44,10 @@ export default function CreatorAnalyticsPanel({ postId }) {
       <div className="flex gap-2">
         <StatTile icon={Eye}          label="Views"    value={viewCount.toLocaleString()} />
         <StatTile icon={ThumbsUp}     label="Likes"    value={likeCount.toLocaleString()} color="text-primary" />
-        <StatTile icon={MessageCircle} label="Comments" value={commentCount.toLocaleString()} color="text-blue-500" />
+        <StatTile icon={MessageCircle} label="Comments" value={commentCount.toLocaleString()} color="text-info" />
         <StatTile icon={TrendingUp}   label="Eng. rate"
                   value={`${engagementRate}%`}
-                  color={engagementRate > 5 ? 'text-green-500' : 'text-muted-foreground'} />
+                  color={engagementRate > 5 ? 'text-success' : 'text-muted-foreground'} />
       </div>
     </div>
   );

@@ -492,10 +492,10 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
         )}
         {/* Go Live — tucked inline, compact */}
         <button onClick={() => setBroadcasterOpen(true)}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-red-500/30 bg-red-500/5 text-red-500 text-[11px] font-bold hover:bg-red-500/12 transition-colors shrink-0 ml-auto">
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-destructive/30 bg-destructive/5 text-destructive text-[11px] font-bold hover:bg-destructive/12 transition-colors shrink-0 ml-auto">
           <span className="relative flex w-2 h-2 shrink-0">
-            <span className="absolute inline-flex w-full h-full rounded-full bg-red-500 opacity-60 animate-ping" />
-            <span className="relative inline-flex w-2 h-2 rounded-full bg-red-500" />
+            <span className="absolute inline-flex w-full h-full rounded-full bg-destructive opacity-60 animate-ping" />
+            <span className="relative inline-flex w-2 h-2 rounded-full bg-destructive" />
           </span>
           <Radio className="w-3 h-3" />
           Go Live

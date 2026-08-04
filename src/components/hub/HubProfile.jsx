@@ -393,7 +393,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
     if (isSelf || !targetLastActive) return null;
     const diff = Date.now() - new Date(targetLastActive).getTime();
     const mins = Math.floor(diff / 60000);
-    if (mins < 5) return { text: 'Active now', color: 'text-emerald-500' };
+    if (mins < 5) return { text: 'Active now', color: 'text-success' };
     if (diff < 86400000) {
       const h = Math.floor(diff / 3600000);
       return { text: `Active ${h || 1}h ago`, color: 'text-muted-foreground' };
@@ -1310,12 +1310,12 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
             {activeLabel && (
               <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
                 activeLabel.text === 'Active now'
-                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
+                  ? 'bg-success/10 border-success/30 text-success dark:text-success'
                   : 'bg-muted/60 border-border/50 text-muted-foreground'
               }`}>
                 {activeLabel.text === 'Active now' ? (
                   <motion.span
-                    className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"
+                    className="w-2 h-2 rounded-full bg-success shrink-0"
                     animate={{ scale: [1, 1.4, 1], opacity: [1, 0.6, 1] }}
                     transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
                   />
@@ -1448,7 +1448,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
             aria-label={noteLiked ? 'Unlike note' : 'Like note'}
           >
             <Heart
-              className={`w-4 h-4 transition-colors ${noteLiked ? 'fill-red-500 text-red-500' : 'text-muted-foreground hover:text-red-400'}`}
+              className={`w-4 h-4 transition-colors ${noteLiked ? 'fill-destructive text-destructive' : 'text-muted-foreground hover:text-destructive'}`}
             />
             {activeNote.like_count > 0 && (
               <span className="tabular-nums">{activeNote.like_count}</span>

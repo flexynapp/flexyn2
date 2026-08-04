@@ -277,7 +277,7 @@ export default function ShareSheetModal({ post, open, onClose }) {
                       const url = `https://wa.me/?text=${encodeURIComponent(`${postText.slice(0, 200)} ${postUrl}`)}`;
                       window.open(url, '_blank', 'noopener,noreferrer');
                     }}
-                    className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-secondary hover:bg-secondary/80 transition-colors text-green-600"
+                    className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-secondary hover:bg-secondary/80 transition-colors text-success"
                   >
                     <WhatsAppIcon size={20} />
                     <span className="text-[11px] font-medium text-foreground">WhatsApp</span>
@@ -288,7 +288,7 @@ export default function ShareSheetModal({ post, open, onClose }) {
                     onClick={handleCopy}
                     className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-secondary hover:bg-secondary/80 transition-colors"
                   >
-                    {copied ? <Check className="w-5 h-5 text-green-500" /> : <Link2 className="w-5 h-5" />}
+                    {copied ? <Check className="w-5 h-5 text-success" /> : <Link2 className="w-5 h-5" />}
                     <span className="text-[11px] font-medium">{copied ? 'Copied!' : 'Copy link'}</span>
                   </button>
                 </div>

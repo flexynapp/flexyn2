@@ -102,14 +102,14 @@ export default function PRHistoryModal({ open, onClose, exerciseName, logs }) {
         ) : (
           <div className="space-y-6">
             {/* All-time best banner */}
-            <div className="flex items-center gap-3 p-4 rounded-2xl bg-gradient-to-r from-yellow-500/10 via-amber-500/8 to-transparent border border-yellow-500/20">
-              <div className="w-10 h-10 rounded-xl bg-yellow-500/15 flex items-center justify-center shrink-0">
-                <Trophy className="w-5 h-5 text-yellow-500" />
+            <div className="flex items-center gap-3 p-4 rounded-2xl bg-gradient-to-r from-primary/10 via-primary/8 to-transparent border border-primary/20">
+              <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
+                <Trophy className="w-5 h-5 text-primary" />
               </div>
               <div>
                 <p className="text-xs text-muted-foreground font-medium">All-time best</p>
                 <TapToCopy value={`All-time PR: ${formatWeight(allTimeBest, weightUnit)}`} label="PR">
-                  <p className="font-heading font-black text-2xl text-yellow-500">
+                  <p className="font-heading font-black text-2xl text-primary">
                     {formatWeight(allTimeBest, weightUnit)}
                   </p>
                 </TapToCopy>
@@ -163,8 +163,12 @@ export default function PRHistoryModal({ open, onClose, exerciseName, logs }) {
                       transition={{ delay: idx * 0.04, type: 'spring', stiffness: 300, damping: 24 }}
                       className="flex items-center gap-3 p-3 rounded-xl bg-secondary/50"
                     >
-                      <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${idx === 0 ? 'bg-yellow-500/20' : 'bg-primary/10'}`}>
-                        <Trophy className={`w-3.5 h-3.5 ${idx === 0 ? 'text-yellow-500' : 'text-primary'}`} />
+                      <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${idx === 0 ? 'bg-primary/20' : 'bg-primary/10'}`}>
+                        {/* The newest PR used to be gold and the rest amber; both
+                            collapsed to text-primary when the tiers moved onto the
+                            budget, so the row that matters lost its emphasis. Ranked
+                            by opacity now — one hue, still ordered. */}
+                        <Trophy className={`w-3.5 h-3.5 ${idx === 0 ? 'text-primary' : 'text-primary/60'}`} />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold leading-tight">
@@ -175,7 +179,7 @@ export default function PRHistoryModal({ open, onClose, exerciseName, logs }) {
                         </p>
                       </div>
                       {pr.prevBest > 0 && (
-                        <span className="text-[11px] font-bold text-emerald-500 shrink-0">
+                        <span className="text-[11px] font-bold text-success shrink-0">
                           +{formatWeight(pr.delta, weightUnit)}
                         </span>
                       )}

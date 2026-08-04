@@ -24,16 +24,16 @@ const MODES = [
 
 function rankAccent(rank, isSelf) {
   if (isSelf) return 'bg-primary/10 border-primary/30';
-  if (rank === 1) return 'bg-amber-500/10 border-amber-500/30';
+  if (rank === 1) return 'bg-primary/10 border-primary/30';
   if (rank === 2) return 'bg-slate-400/10 border-slate-400/30';
-  if (rank === 3) return 'bg-amber-700/10 border-amber-700/30';
+  if (rank === 3) return 'bg-primary/10 border-primary/30';
   return 'bg-secondary/40 border-transparent';
 }
 
 function rankColor(rank) {
-  if (rank === 1) return 'text-amber-500';
+  if (rank === 1) return 'text-primary';
   if (rank === 2) return 'text-slate-400';
-  if (rank === 3) return 'text-amber-700';
+  if (rank === 3) return 'text-primary';
   return 'text-muted-foreground';
 }
 

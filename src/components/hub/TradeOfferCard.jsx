@@ -216,7 +216,7 @@ export default function TradeOfferCard({ payload, isMine, user, conversationId, 
       className="w-[260px] sm:w-[300px] rounded-2xl overflow-hidden border border-border bg-card shadow-sm"
     >
       {/* Header */}
-      <div className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-primary/15 to-fuchsia-500/15 border-b border-border">
+      <div className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-primary/15 to-primary/15 border-b border-border">
         <ArrowRightLeft className="w-3.5 h-3.5 text-primary" />
         <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">
           Trade Offer
@@ -271,7 +271,7 @@ export default function TradeOfferCard({ payload, isMine, user, conversationId, 
       <div className="px-3 pb-3">
         {responded ? (
           <p className={`text-center text-[11px] font-bold uppercase tracking-wider ${
-            responded === 'accepted' ? 'text-emerald-500' : 'text-muted-foreground'
+            responded === 'accepted' ? 'text-success' : 'text-muted-foreground'
           }`}>
             {responded === 'accepted'
               ? (isReal ? '✓ Traded' : '✓ You replied yes')
@@ -302,7 +302,7 @@ export default function TradeOfferCard({ payload, isMine, user, conversationId, 
               </button>
             </div>
             {isReal ? (
-              <p className="flex items-start gap-1 mt-2 text-[9px] text-emerald-600 dark:text-emerald-400 leading-snug">
+              <p className="flex items-start gap-1 mt-2 text-[9px] text-success dark:text-success leading-snug">
                 <ShieldCheck className="w-2.5 h-2.5 mt-0.5 shrink-0" />
                 <span>
                   Their item is already held. Accept and the two items swap instantly.

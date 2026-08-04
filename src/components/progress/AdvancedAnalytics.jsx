@@ -57,25 +57,25 @@ export default function AdvancedAnalytics({ open, onClose, logs, children, heroS
     const mostPerformedEn = sortedExercises.slice().sort((a, b) => b.timesPerformed - a.timesPerformed)[0]?.name;
 
     return [
-      { label: t('widgets.totalWorkouts'), value: logs.length.toString(), icon: Zap, color: 'text-orange-500' },
+      { label: t('widgets.totalWorkouts'), value: logs.length.toString(), icon: Zap, color: 'text-primary' },
       // formatWeight already converts lbs → display unit internally.
       // The previous `formatWeight(fromLbs(totalVolume, weightUnit), weightUnit)`
       // converted twice — kg users saw roughly half their actual volume.
       // (Audit 11 #5.)
       { label: t('analytics.totalVolume'), value: formatWeight(totalVolume, weightUnit), icon: TrendingUp, color: 'text-primary' },
-      { label: t('analytics.totalTime'), value: `${Math.round(totalWorkoutDuration)} min`, icon: Trophy, color: 'text-amber-500' },
+      { label: t('analytics.totalTime'), value: `${Math.round(totalWorkoutDuration)} min`, icon: Trophy, color: 'text-primary' },
       // "Favorite" = most-performed (count), not heaviest. Previously
       // `favoriteEn` was the heaviest, so "Favorite exercise" and
       // "Strongest lift" labelled the same row twice. (Audit 11 #14.)
       { label: t('analytics.favoriteExercise'), value: mostPerformedEn ? translateExerciseName(mostPerformedEn, language) : 'N/A', icon: Zap, color: 'text-accent' },
       // Same double-conversion bug as totalVolume — pass lbs directly.
       // Strongest lift stays sorted by maxWeight via sortedExercises[0].
-      { label: t('analytics.strongestLift'), value: `${formatWeight(sortedExercises[0]?.maxWeight || 0, weightUnit)} (${favoriteEn ? translateExerciseName(favoriteEn, language) : 'N/A'})`, icon: Trophy, color: 'text-purple-500' },
-      { label: t('analytics.mostReps'), value: `${Math.max(...Array.from(allExercises.values()).map(e => e.maxReps), 0)} reps`, icon: TrendingUp, color: 'text-emerald-500' },
-      { label: t('analytics.uniqueExercises'), value: allExercises.size.toString(), icon: Zap, color: 'text-cyan-500' },
-      { label: t('analytics.topMuscle'), value: topMuscleEn ? t(`muscleGroups.${muscleKey(topMuscleEn)}`) : 'N/A', icon: Trophy, color: 'text-rose-500' },
-      { label: t('analytics.avgDuration'), value: `${Math.round(totalWorkoutDuration / logs.length)} min`, icon: Zap, color: 'text-indigo-500' },
-      { label: t('analytics.mostPerformed'), value: mostPerformedEn ? translateExerciseName(mostPerformedEn, language) : 'N/A', icon: TrendingUp, color: 'text-sky-500' },
+      { label: t('analytics.strongestLift'), value: `${formatWeight(sortedExercises[0]?.maxWeight || 0, weightUnit)} (${favoriteEn ? translateExerciseName(favoriteEn, language) : 'N/A'})`, icon: Trophy, color: 'text-primary' },
+      { label: t('analytics.mostReps'), value: `${Math.max(...Array.from(allExercises.values()).map(e => e.maxReps), 0)} reps`, icon: TrendingUp, color: 'text-success' },
+      { label: t('analytics.uniqueExercises'), value: allExercises.size.toString(), icon: Zap, color: 'text-info' },
+      { label: t('analytics.topMuscle'), value: topMuscleEn ? t(`muscleGroups.${muscleKey(topMuscleEn)}`) : 'N/A', icon: Trophy, color: 'text-destructive' },
+      { label: t('analytics.avgDuration'), value: `${Math.round(totalWorkoutDuration / logs.length)} min`, icon: Zap, color: 'text-info' },
+      { label: t('analytics.mostPerformed'), value: mostPerformedEn ? translateExerciseName(mostPerformedEn, language) : 'N/A', icon: TrendingUp, color: 'text-info' },
     ];
   }, [logs, t, language, weightUnit]);
 

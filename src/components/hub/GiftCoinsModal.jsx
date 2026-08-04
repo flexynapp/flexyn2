@@ -92,7 +92,7 @@ export default function GiftCoinsModal({ open, onClose, recipient }) {
         </div>
         <div className="flex items-center justify-between px-4 pt-2 pb-2 sm:pt-4">
           <h2 className="font-heading font-bold text-base flex items-center gap-2">
-            <Coins className="w-4 h-4 text-yellow-500" />
+            <Coins className="w-4 h-4 text-primary" />
             {tFallback('gift.title', 'Send a gift')}
           </h2>
           <button onClick={onClose} aria-label="Close"

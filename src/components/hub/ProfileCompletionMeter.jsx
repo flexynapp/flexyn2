@@ -81,7 +81,7 @@ export default function ProfileCompletionMeter({ user, targetProfile }) {
     >
       <div className="flex items-center justify-between gap-2 mb-2">
         <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-muted-foreground">
-          <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+          <CheckCircle2 className="w-3 h-3 text-success" />
           {tFallback('profile.completion.title', 'Profile completion')}
         </div>
         <div className="flex items-center gap-2">
@@ -102,7 +102,7 @@ export default function ProfileCompletionMeter({ user, targetProfile }) {
       </div>
       <div className="h-1 w-full rounded-full bg-border overflow-hidden">
         <motion.div
-          className="h-full bg-gradient-to-r from-emerald-400 to-emerald-500"
+          className="h-full bg-gradient-to-r from-success to-success"
           initial={{ width: 0 }}
           animate={{ width: `${pct}%` }}
           transition={{ duration: 0.6, ease: 'easeOut' }}
@@ -115,7 +115,7 @@ export default function ProfileCompletionMeter({ user, targetProfile }) {
         </div>
       )}
       {pct === 100 && (
-        <p className="mt-2 text-xs text-emerald-500 font-medium">
+        <p className="mt-2 text-xs text-success font-medium">
           {tFallback('profile.completion.allSet', 'Looking sharp — all set!')}
         </p>
       )}

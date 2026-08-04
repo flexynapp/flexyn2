@@ -120,7 +120,7 @@ export default function ReferralSheet({
 
             <div className="flex items-center justify-between px-4 pb-3 border-b border-border/50">
               <div className="flex items-center gap-2">
-                <Gift className="w-4 h-4 text-amber-500" aria-hidden="true" />
+                <Gift className="w-4 h-4 text-primary" aria-hidden="true" />
                 <h3 className="font-heading font-bold text-base">{title}</h3>
               </div>
               <button
@@ -154,12 +154,12 @@ export default function ReferralSheet({
                     className="px-3 rounded-lg border border-border bg-background hover:bg-secondary disabled:opacity-50 transition-colors flex items-center"
                     aria-label={tFallback('referral.copy', 'Copy invite link')}
                   >
-                    {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+                    {copied ? <Check className="w-4 h-4 text-success" /> : <Copy className="w-4 h-4" />}
                   </button>
                   <button
                     onClick={onShare}
                     disabled={!code}
-                    className="px-3 rounded-lg bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white transition-colors flex items-center gap-1.5 text-xs font-bold"
+                    className="px-3 rounded-lg bg-primary hover:bg-primary disabled:opacity-50 text-white transition-colors flex items-center gap-1.5 text-xs font-bold"
                   >
                     <Share2 className="w-3.5 h-3.5" />
                     {tFallback('referral.share', 'Share')}
@@ -186,7 +186,7 @@ export default function ReferralSheet({
                 </label>
                 {hasClaimed && !claimedOk ? (
                   <div className="flex items-center gap-2 rounded-lg border border-border bg-background/40 px-3 py-2.5 text-sm text-muted-foreground">
-                    <TicketCheck className="w-4 h-4 shrink-0 text-emerald-500" aria-hidden="true" />
+                    <TicketCheck className="w-4 h-4 shrink-0 text-success" aria-hidden="true" />
                     <span>
                       {claimedCode
                         ? tFallback('referral.redeem.usedWith', 'You joined with code {code}.').replace('{code}', claimedCode)
@@ -194,7 +194,7 @@ export default function ReferralSheet({
                     </span>
                   </div>
                 ) : claimedOk ? (
-                  <div className="flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2.5 text-sm text-emerald-600 dark:text-emerald-400">
+                  <div className="flex items-center gap-2 rounded-lg border border-success/30 bg-success/10 px-3 py-2.5 text-sm text-success dark:text-success">
                     <TicketCheck className="w-4 h-4 shrink-0" aria-hidden="true" />
                     {tFallback('referral.redeem.done', 'Code applied. Rewards are on their way.')}
                   </div>
@@ -237,7 +237,7 @@ export default function ReferralSheet({
               {count > 0 && (
                 <section className="pt-4 border-t border-border/50 flex items-center justify-between text-xs text-muted-foreground">
                   <span>{tFallback('referral.lifetime', 'Lifetime')}</span>
-                  <span className="tabular-nums font-semibold text-amber-500">
+                  <span className="tabular-nums font-semibold text-primary">
                     {fmt(coins)} {tFallback('referral.coins', 'coins')}
                     <span className="text-muted-foreground"> · </span>
                     {count} {count === 1 ? tFallback('referral.capsule', 'capsule') : tFallback('referral.capsules', 'capsules')}

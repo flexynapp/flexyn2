@@ -18,9 +18,16 @@ import ExerciseLogger from './ExerciseLogger';
 import { useRestTimer } from '@/lib/RestTimerContext';
 
 const TYPE_LABEL = { superset: 'Superset', circuit: 'Circuit' };
+// The left border here is STRUCTURAL, not decoration — it brackets the
+// exercises that belong to one group, the way an editor gutter marks a
+// block. It stays. What changed is that it used to be violet / emerald
+// while TYPE_BADGE two lines down was already primary / success, so the
+// stripe and the badge labelling the same group disagreed about its
+// colour. (Contrast HubPostCard, where an eleven-hue border-l-4 was pure
+// decoration restating what the card's own content said, and is gone.)
 const TYPE_COLOR  = {
-  superset: 'border-l-violet-500 bg-primary/5',
-  circuit:  'border-l-emerald-500 bg-success/5',
+  superset: 'border-l-primary bg-primary/5',
+  circuit:  'border-l-success bg-success/5',
 };
 const TYPE_BADGE  = {
   superset: 'text-primary bg-primary/10 border-primary/25',

@@ -55,19 +55,19 @@ export default function LiveSessionCard({ session, onViewProfile }) {
     <motion.div
       initial={{ opacity: 0, y: -4 }}
       animate={{ opacity: 1, y: 0 }}
-      className="rounded-xl border border-red-500/40 bg-red-500/5 overflow-hidden"
+      className="rounded-xl border border-destructive/40 bg-destructive/5 overflow-hidden"
     >
       <div className="flex items-center gap-3 p-3">
         {/* Live indicator */}
         <div className="relative shrink-0">
-          <div className="w-10 h-10 rounded-full bg-red-500/15 flex items-center justify-center">
-            <span className="font-bold text-sm text-red-500">
+          <div className="w-10 h-10 rounded-full bg-destructive/15 flex items-center justify-center">
+            <span className="font-bold text-sm text-destructive">
               {handle.slice(0, 2).toUpperCase()}
             </span>
           </div>
           <span className="absolute -bottom-0.5 -end-0.5 flex w-3.5 h-3.5">
-            <span className="absolute inline-flex w-full h-full rounded-full bg-red-500 opacity-60 animate-ping" />
-            <span className="relative inline-flex w-3.5 h-3.5 rounded-full bg-red-500" />
+            <span className="absolute inline-flex w-full h-full rounded-full bg-destructive opacity-60 animate-ping" />
+            <span className="relative inline-flex w-3.5 h-3.5 rounded-full bg-destructive" />
           </span>
         </div>
 
@@ -79,7 +79,7 @@ export default function LiveSessionCard({ session, onViewProfile }) {
             >
               @{handle}
             </button>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-red-500 bg-red-500/10 px-1.5 py-0.5 rounded">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-destructive bg-destructive/10 px-1.5 py-0.5 rounded">
               🔴 LIVE
             </span>
           </div>
@@ -98,7 +98,7 @@ export default function LiveSessionCard({ session, onViewProfile }) {
       {liveData.exercise && (
         <div className="flex items-center gap-2 px-3 pb-3">
           <div className="flex-1 flex items-center gap-2 bg-secondary/60 rounded-lg px-3 py-2">
-            <Dumbbell className="w-3.5 h-3.5 text-red-500 shrink-0" />
+            <Dumbbell className="w-3.5 h-3.5 text-destructive shrink-0" />
             <span className="text-xs font-medium text-foreground truncate">{liveData.exercise}</span>
             {liveData.set && (
               <span className="text-[11px] text-muted-foreground shrink-0">
@@ -107,8 +107,8 @@ export default function LiveSessionCard({ session, onViewProfile }) {
             )}
           </div>
           <span className="relative flex w-2 h-2 shrink-0">
-            <span className="absolute inline-flex w-full h-full rounded-full bg-green-500 opacity-75 animate-ping" />
-            <span className="relative inline-flex w-2 h-2 rounded-full bg-green-500" />
+            <span className="absolute inline-flex w-full h-full rounded-full bg-success opacity-75 animate-ping" />
+            <span className="relative inline-flex w-2 h-2 rounded-full bg-success" />
           </span>
         </div>
       )}

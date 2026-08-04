@@ -437,17 +437,19 @@ function RecentSearchCard({ user, onClick, onRemove }) {
   const username = user.username || 'athlete';
   const initials = (username || 'A').slice(0, 2).toUpperCase();
 
+  // Maps a tier's text class to its matching ring class. This was ten
+  // entries, one per tier hue; once the tiers moved onto the colour
+  // budget the keys collapsed to six DUPLICATES in an object literal,
+  // where the last write silently wins. Behaviour was unaffected — every
+  // duplicate mapped to the same value — but an object that claims ten
+  // entries and holds six is a trap for the next reader. Deduped.
   const tierToRing = {
-    'text-yellow-500': 'ring-yellow-500',
-    'text-cyan-400': 'ring-cyan-400',
-    'text-slate-300': 'ring-slate-300',
-    'text-purple-400': 'ring-purple-400',
-    'text-rose-400': 'ring-rose-400',
-    'text-emerald-400': 'ring-emerald-400',
-    'text-blue-400': 'ring-blue-400',
-    'text-amber-400': 'ring-amber-400',
-    'text-slate-400': 'ring-slate-400',
     'text-primary': 'ring-primary',
+    'text-info': 'ring-info',
+    'text-success': 'ring-success',
+    'text-destructive': 'ring-destructive',
+    'text-slate-300': 'ring-slate-300',
+    'text-slate-400': 'ring-slate-400',
   };
 
   const ringClass = tierToRing[tier.text] || 'ring-primary';
@@ -502,17 +504,19 @@ function UserResultRow({ user, onClick, delay, isFollowed, onAdd }) {
   const username = user.username || 'athlete';
   const initials = (username || 'A').slice(0, 2).toUpperCase();
 
+  // Maps a tier's text class to its matching ring class. This was ten
+  // entries, one per tier hue; once the tiers moved onto the colour
+  // budget the keys collapsed to six DUPLICATES in an object literal,
+  // where the last write silently wins. Behaviour was unaffected — every
+  // duplicate mapped to the same value — but an object that claims ten
+  // entries and holds six is a trap for the next reader. Deduped.
   const tierToRing = {
-    'text-yellow-500': 'ring-yellow-500',
-    'text-cyan-400': 'ring-cyan-400',
-    'text-slate-300': 'ring-slate-300',
-    'text-purple-400': 'ring-purple-400',
-    'text-rose-400': 'ring-rose-400',
-    'text-emerald-400': 'ring-emerald-400',
-    'text-blue-400': 'ring-blue-400',
-    'text-amber-400': 'ring-amber-400',
-    'text-slate-400': 'ring-slate-400',
     'text-primary': 'ring-primary',
+    'text-info': 'ring-info',
+    'text-success': 'ring-success',
+    'text-destructive': 'ring-destructive',
+    'text-slate-300': 'ring-slate-300',
+    'text-slate-400': 'ring-slate-400',
   };
 
   const ringClass = tierToRing[tier.text] || 'ring-primary';

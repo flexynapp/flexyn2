@@ -355,14 +355,14 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
     <div className="space-y-4">
 
       {/* ── Training Age ────────────────────────────────────────────────── */}
-      <InsightSection icon={Clock} title="Training Age" color="text-violet-500" bg="bg-violet-500/10">
+      <InsightSection icon={Clock} title="Training Age" color="text-primary" bg="bg-primary/10">
         {!trainingAge ? (
           <p className="text-sm text-muted-foreground">Log your first workout to see your training age.</p>
         ) : (
           <div className="space-y-3">
             <div className="flex items-end gap-3">
               <div>
-                <p className="font-heading font-black text-3xl text-violet-500">{trainingAge.label}</p>
+                <p className="font-heading font-black text-3xl text-primary">{trainingAge.label}</p>
                 <p className="text-xs text-muted-foreground mt-0.5">
                   Training since {format(trainingAge.firstDate, 'MMMM d, yyyy', { locale: dateLocale })}
                 </p>
@@ -376,7 +376,7 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
             {/* Consistency bar */}
             <div className="h-2.5 rounded-full bg-secondary overflow-hidden">
               <motion.div
-                className="h-full rounded-full bg-violet-500"
+                className="h-full rounded-full bg-primary"
                 initial={{ width: 0 }}
                 animate={{ width: `${trainingAge.consistencyPct}%` }}
                 transition={{ duration: 0.8, ease: 'easeOut' }}
@@ -390,22 +390,22 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
             {/* Experience badge */}
             <div className="mt-1">
               {trainingAge.totalDays < 90 && (
-                <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-500">
+                <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-success/10 text-success">
                   🌱 Beginner — building the habit
                 </span>
               )}
               {trainingAge.totalDays >= 90 && trainingAge.totalDays < 365 && (
-                <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-blue-500/10 text-blue-500">
+                <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-info/10 text-info">
                   💪 Intermediate — forming real strength
                 </span>
               )}
               {trainingAge.totalDays >= 365 && trainingAge.totalDays < 730 && (
-                <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-orange-500/10 text-orange-500">
+                <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-primary/10 text-primary">
                   🔥 Advanced — 1+ year dedicated athlete
                 </span>
               )}
               {trainingAge.totalDays >= 730 && (
-                <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-yellow-500/10 text-yellow-500">
+                <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-primary/10 text-primary">
                   ⚡ Elite — 2+ years of consistent training
                 </span>
               )}
@@ -415,7 +415,7 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
       </InsightSection>
 
       {/* ── TDEE ────────────────────────────────────────────────────────── */}
-      <InsightSection icon={Flame} title="TDEE Estimate" color="text-orange-500" bg="bg-orange-500/10">
+      <InsightSection icon={Flame} title="TDEE Estimate" color="text-primary" bg="bg-primary/10">
         {!tdee ? (
           <div>
             <p className="text-sm text-muted-foreground mb-2">
@@ -432,9 +432,9 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
         ) : (
           <div className="space-y-3">
             {tdee.missingFields.length > 0 && (
-              <div className="flex items-start gap-2 p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20">
-                <Info className="w-3.5 h-3.5 text-amber-500 mt-0.5 shrink-0" />
-                <p className="text-xs text-amber-600 dark:text-amber-400">
+              <div className="flex items-start gap-2 p-2.5 rounded-lg bg-primary/10 border border-primary/20">
+                <Info className="w-3.5 h-3.5 text-primary mt-0.5 shrink-0" />
+                <p className="text-xs text-primary dark:text-primary">
                   Partial estimate — add {tdee.missingFields.join(', ')} in your profile for accuracy.
                 </p>
               </div>
@@ -442,7 +442,7 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
 
             <div className="flex items-end gap-3">
               <div>
-                <p className="font-heading font-black text-3xl text-orange-500">{tdee.totalTDEE.toLocaleString()}</p>
+                <p className="font-heading font-black text-3xl text-primary">{tdee.totalTDEE.toLocaleString()}</p>
                 <p className="text-xs text-muted-foreground mt-0.5">cal / day estimated</p>
               </div>
             </div>
@@ -476,7 +476,7 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
       </InsightSection>
 
       {/* ── Projected Goal ───────────────────────────────────────────────── */}
-      <InsightSection icon={Target} title="Projected Goal Date" color="text-emerald-500" bg="bg-emerald-500/10">
+      <InsightSection icon={Target} title="Projected Goal Date" color="text-success" bg="bg-success/10">
         {!bodyMetrics?.length || bodyMetrics.filter(m => m.weight_lbs != null).length < 2 ? (
           <p className="text-sm text-muted-foreground">
             Log at least 2 body weight entries in the Body tab to see a projection.
@@ -504,7 +504,7 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
               <div className="space-y-3">
                 <div className="flex items-end gap-3">
                   <div>
-                    <p className={`font-heading font-black text-2xl ${projection.directionMismatch ? 'text-amber-500' : 'text-emerald-500'}`}>
+                    <p className={`font-heading font-black text-2xl ${projection.directionMismatch ? 'text-primary' : 'text-success'}`}>
                       {projection.directionMismatch
                         ? 'Trending wrong way'
                         : projection.daysFromNow > 0
@@ -524,7 +524,7 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
                   </div>
                   <div className="ml-auto flex items-center gap-1.5 pb-1">
                     {projection.losing
-                      ? <TrendingDown className="w-4 h-4 text-emerald-500" />
+                      ? <TrendingDown className="w-4 h-4 text-success" />
                       : <TrendingUp   className="w-4 h-4 text-primary" />
                     }
                     <span className="text-xs text-muted-foreground">
@@ -542,7 +542,7 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
                   <div className="w-px bg-border" />
                   <div>
                     <p className="text-xs text-muted-foreground">Goal</p>
-                    <p className="text-sm font-bold text-emerald-500">{formatWeight(projection.goalLbs, weightUnit)}</p>
+                    <p className="text-sm font-bold text-success">{formatWeight(projection.goalLbs, weightUnit)}</p>
                   </div>
                   <div className="w-px bg-border" />
                   <div>
@@ -563,7 +563,7 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
       </InsightSection>
 
       {/* ── Muscle Imbalance ─────────────────────────────────────────────── */}
-      <InsightSection icon={BarChart3} title="Muscle Imbalance" color="text-blue-500" bg="bg-blue-500/10">
+      <InsightSection icon={BarChart3} title="Muscle Imbalance" color="text-info" bg="bg-info/10">
         {!muscleImbalance ? (
           <p className="text-sm text-muted-foreground">
             Log workouts with muscle groups assigned to see your push/pull balance.
@@ -577,8 +577,8 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
                   <span className="text-xs font-medium text-muted-foreground">Push / Pull ratio</span>
                   <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
                     muscleImbalance.balanced
-                      ? 'bg-emerald-500/10 text-emerald-500'
-                      : 'bg-amber-500/10 text-amber-600'
+                      ? 'bg-success/10 text-success'
+                      : 'bg-primary/10 text-primary'
                   }`}>
                     {muscleImbalance.balanced ? '✓ Balanced' : muscleImbalance.ratio > 1.2 ? '↑ Push-dominant' : '↑ Pull-dominant'}
                   </span>
@@ -594,9 +594,9 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
 
             {/* Volume breakdown bars */}
             {[
-              { key: 'push', label: 'Push (chest/shoulders/triceps)', pct: muscleImbalance.pPush, color: 'bg-blue-500' },
-              { key: 'pull', label: 'Pull (back/biceps)',              pct: muscleImbalance.pPull, color: 'bg-emerald-500' },
-              { key: 'legs', label: 'Legs (quads/hamstrings/glutes)', pct: muscleImbalance.pLegs, color: 'bg-orange-500' },
+              { key: 'push', label: 'Push (chest/shoulders/triceps)', pct: muscleImbalance.pPush, color: 'bg-info' },
+              { key: 'pull', label: 'Pull (back/biceps)',              pct: muscleImbalance.pPull, color: 'bg-success' },
+              { key: 'legs', label: 'Legs (quads/hamstrings/glutes)', pct: muscleImbalance.pLegs, color: 'bg-primary' },
             ].map(row => (
               <div key={row.key}>
                 <div className="flex justify-between text-xs mb-1">
@@ -675,7 +675,7 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
               toast.success(`Exported ${bodyMetrics.length} body metric entries`);
             }}
           >
-            <Scale className="w-4 h-4 text-emerald-500 shrink-0" />
+            <Scale className="w-4 h-4 text-success shrink-0" />
             <div className="text-start">
               <p className="text-sm font-semibold">Body Metrics</p>
               <p className="text-xs text-muted-foreground">{bodyMetrics?.length || 0} entr{(bodyMetrics?.length || 0) === 1 ? 'y' : 'ies'} · weight, measurements</p>
@@ -696,7 +696,7 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
               toast.success(`Exported ${cardioLogs.length} cardio sessions`);
             }}
           >
-            <Activity className="w-4 h-4 text-red-500 shrink-0" />
+            <Activity className="w-4 h-4 text-destructive shrink-0" />
             <div className="text-start">
               <p className="text-sm font-semibold">Cardio Logs</p>
               <p className="text-xs text-muted-foreground">{cardioLogs?.length || 0} sessions · runs, cycling, etc.</p>

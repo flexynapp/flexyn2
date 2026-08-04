@@ -121,7 +121,7 @@ export default function ReportDialog({ open, onClose, reportedType, reportedId, 
               {submitted ? (
                 /* ── Confirmation ── */
                 <div className="flex flex-col items-center text-center py-4 gap-3">
-                  <CheckCircle2 className="w-10 h-10 text-green-500" />
+                  <CheckCircle2 className="w-10 h-10 text-success" />
                   <p className="font-heading font-bold text-base">{t('report.thankYou')}</p>
                   <p className="text-sm text-muted-foreground">{t('report.thankYouDesc')}</p>
                   <button

@@ -75,19 +75,19 @@ export default function ProfileTrophies({
                     : `${slotName} — ${tFallback('hub.profile.emptySlot', 'empty')}`}
                   className={`relative flex-1 aspect-square rounded-xl flex flex-col items-center justify-center gap-1 transition-colors ${
                     slot
-                      ? isPrimary ? 'bg-amber-500/15' : 'bg-secondary/40'
+                      ? isPrimary ? 'bg-primary/15' : 'bg-secondary/40'
                       : isSelf
                         ? isPrimary
-                          ? 'border border-dashed border-amber-500/60 hover:bg-amber-500/10'
+                          ? 'border border-dashed border-primary/60 hover:bg-primary/10'
                           : 'border border-dashed border-primary/45 hover:bg-secondary/40'
                         : 'bg-secondary/20'
-                  } ${isPrimary ? 'ring-1 ring-amber-500/45' : ''} ${isSelf ? 'cursor-pointer' : 'cursor-default'}`}
+                  } ${isPrimary ? 'ring-1 ring-primary/45' : ''} ${isSelf ? 'cursor-pointer' : 'cursor-default'}`}
                 >
                   {/* The identifier. Deliberately tiny — it has to say "this
                       one is different" without competing with the trophy. */}
                   {isPrimary && (
                     <Pin
-                      className="absolute top-1 end-1 w-2.5 h-2.5 text-amber-500"
+                      className="absolute top-1 end-1 w-2.5 h-2.5 text-primary"
                       aria-hidden="true"
                     />
                   )}
@@ -100,9 +100,9 @@ export default function ProfileTrophies({
                     </>
                   ) : isSelf ? (
                     <>
-                      <Plus className={`w-4 h-4 ${isPrimary ? 'text-amber-500/70' : 'text-primary/50'}`} />
+                      <Plus className={`w-4 h-4 ${isPrimary ? 'text-primary/70' : 'text-primary/50'}`} />
                       {isPrimary && (
-                        <span className="text-[9px] font-bold uppercase tracking-wider text-amber-600/80 dark:text-amber-500/80 leading-none">
+                        <span className="text-[9px] font-bold uppercase tracking-wider text-primary/80 dark:text-primary/80 leading-none">
                           {tFallback('hub.profile.primaryShort', 'Primary')}
                         </span>
                       )}

@@ -409,7 +409,7 @@ export default function ProfileTierBanner({
           {streak >= STREAK_CHIP_MIN && (
             <HeroPill
               icon={Flame}
-              iconClass="text-orange-300"
+              iconClass="text-primary"
               label={`${streak} ${streakLabel}`}
             >
               <span className="text-xs font-bold tabular-nums leading-none">{streak}</span>

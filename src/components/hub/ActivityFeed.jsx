@@ -20,13 +20,13 @@ import { supabase } from '@/api/supabaseClient';
 const TYPE_CONFIG = [
   { match: 'post_like',     Icon: ThumbsUp,      color: 'text-primary',     bg: 'bg-primary/10' },
   { match: 'hub_like',      Icon: ThumbsUp,      color: 'text-primary',     bg: 'bg-primary/10' },
-  { match: 'post_reaction', Icon: Heart,         color: 'text-rose-500',    bg: 'bg-rose-500/10' },
-  { match: 'hub_reaction',  Icon: Heart,         color: 'text-rose-500',    bg: 'bg-rose-500/10' },
-  { match: 'post_comment',  Icon: MessageCircle, color: 'text-blue-500',    bg: 'bg-blue-500/10' },
-  { match: 'hub_comment',   Icon: MessageCircle, color: 'text-blue-500',    bg: 'bg-blue-500/10' },
-  { match: 'follow',        Icon: UserPlus,      color: 'text-green-500',   bg: 'bg-green-500/10' },
+  { match: 'post_reaction', Icon: Heart,         color: 'text-destructive',    bg: 'bg-destructive/10' },
+  { match: 'hub_reaction',  Icon: Heart,         color: 'text-destructive',    bg: 'bg-destructive/10' },
+  { match: 'post_comment',  Icon: MessageCircle, color: 'text-info',    bg: 'bg-info/10' },
+  { match: 'hub_comment',   Icon: MessageCircle, color: 'text-info',    bg: 'bg-info/10' },
+  { match: 'follow',        Icon: UserPlus,      color: 'text-success',   bg: 'bg-success/10' },
   { match: 'hub_repost',    Icon: Repeat2,       color: 'text-primary',     bg: 'bg-primary/10' },
-  { match: 'friend_post',   Icon: Heart,         color: 'text-rose-500',    bg: 'bg-rose-500/10' },
+  { match: 'friend_post',   Icon: Heart,         color: 'text-destructive',    bg: 'bg-destructive/10' },
 ];
 
 function getConfig(type) {

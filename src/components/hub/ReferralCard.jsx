@@ -142,7 +142,7 @@ export default function ReferralCard() {
           onClick={() => setSheetOpen(true)}
           className="w-full flex items-center gap-2 px-3.5 py-2.5 rounded-full border border-border text-sm font-semibold hover:bg-secondary transition-colors"
         >
-          <Gift className="w-4 h-4 text-amber-500 shrink-0" aria-hidden="true" />
+          <Gift className="w-4 h-4 text-primary shrink-0" aria-hidden="true" />
           <span>{tFallback('referral.kicker', 'Invite friends')}</span>
           {count > 0 && (
             <span className="text-xs font-medium text-muted-foreground tabular-nums">{count}</span>
@@ -159,12 +159,12 @@ export default function ReferralCard() {
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
-      className="rounded-2xl border border-border overflow-hidden bg-gradient-to-br from-amber-500/5 via-transparent to-rose-500/5"
+      className="rounded-2xl border border-border overflow-hidden bg-gradient-to-br from-primary/5 via-transparent to-destructive/5"
     >
       <div className="px-4 py-3 flex items-center justify-between gap-2 border-b border-border/40">
         <div className="flex items-center gap-2 min-w-0">
-          <Gift className="w-4 h-4 text-amber-500 shrink-0" aria-hidden="true" />
-          <span className="text-xs font-bold uppercase tracking-[0.18em] text-amber-500 truncate">
+          <Gift className="w-4 h-4 text-primary shrink-0" aria-hidden="true" />
+          <span className="text-xs font-bold uppercase tracking-[0.18em] text-primary truncate">
             {tFallback('referral.kicker', 'Invite friends')}
           </span>
         </div>
@@ -209,12 +209,12 @@ export default function ReferralCard() {
             className="px-3 rounded-lg border border-border bg-background hover:bg-secondary disabled:opacity-50 transition-colors flex items-center gap-1.5 text-xs font-semibold"
             aria-label={tFallback('referral.copy', 'Copy invite link')}
           >
-            {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+            {copied ? <Check className="w-3.5 h-3.5 text-success" /> : <Copy className="w-3.5 h-3.5" />}
           </button>
           <button
             onClick={handleShare}
             disabled={!code}
-            className="px-3 rounded-lg bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white transition-colors flex items-center gap-1.5 text-xs font-bold"
+            className="px-3 rounded-lg bg-primary hover:bg-primary disabled:opacity-50 text-white transition-colors flex items-center gap-1.5 text-xs font-bold"
           >
             <Share2 className="w-3.5 h-3.5" />
             {tFallback('referral.share', 'Share')}
@@ -241,7 +241,7 @@ export default function ReferralCard() {
         {count > 0 && (
           <div className="flex items-center justify-between pt-2 border-t border-border/40 text-xs text-muted-foreground">
             <span>{tFallback('referral.lifetime', 'Lifetime')}</span>
-            <span className="tabular-nums font-semibold text-amber-500">
+            <span className="tabular-nums font-semibold text-primary">
               {fmt(coins)} {tFallback('referral.coins', 'coins')}
               <span className="text-muted-foreground"> · </span>
               {count} {count === 1 ? tFallback('referral.capsule', 'capsule') : tFallback('referral.capsules', 'capsules')}

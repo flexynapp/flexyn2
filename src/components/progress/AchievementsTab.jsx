@@ -17,13 +17,20 @@ import { shareAchievementPost } from '@/lib/data/shareAchievement';
 import { useDateFormatter } from '@/lib/intl';
 import EmptyState from '@/components/EmptyState';
 
+// Four of these six used to be raw yellow / emerald / purple / orange
+// while the other two were already tokens — the file was half-migrated.
+// They now collapse onto three budget values, and several categories
+// share one. That's fine and deliberate: this is a background TINT on a
+// card that already shows the achievement's icon and title, so the
+// colour was never the thing telling you which category you're looking
+// at. Don't reintroduce a per-category hue to "fix" the duplication.
 const CATEGORY_COLORS = {
   workout:    'bg-primary/10 text-primary',
   regimen:    'bg-accent/10 text-accent',
-  goal:       'bg-yellow-500/10 text-yellow-600',
-  nutrition:  'bg-emerald-500/10 text-emerald-600',
-  milestone:  'bg-purple-500/10 text-purple-600',
-  cardio:     'bg-orange-500/10 text-orange-600',
+  goal:       'bg-primary/10 text-primary',
+  nutrition:  'bg-success/10 text-success',
+  milestone:  'bg-primary/10 text-primary',
+  cardio:     'bg-primary/10 text-primary',
 };
 
 export default function AchievementsTab({ achievements = [] }) {
@@ -136,7 +143,7 @@ export default function AchievementsTab({ achievements = [] }) {
       <div className="mb-6">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
-            <Trophy className="w-5 h-5 text-yellow-500" />
+            <Trophy className="w-5 h-5 text-primary" />
             <h2 className="font-heading font-bold text-lg">{t('progress.achievements')}</h2>
           </div>
           <span className="text-xs text-muted-foreground tabular-nums">
@@ -145,7 +152,7 @@ export default function AchievementsTab({ achievements = [] }) {
         </div>
         <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
           <div
-            className="h-full bg-gradient-to-r from-yellow-400 to-yellow-600 transition-[width] duration-500"
+            className="h-full bg-gradient-to-r from-primary to-primary transition-[width] duration-500"
             style={{ width: `${progressPct}%` }}
           />
         </div>
@@ -227,7 +234,7 @@ export default function AchievementsTab({ achievements = [] }) {
                                 </p>
                               </div>
                               {ach.unlocked && (
-                                <Badge className="text-xs bg-green-600 text-white shrink-0">
+                                <Badge className="text-xs bg-success text-white shrink-0">
                                   <Star className="w-2.5 h-2.5 me-1" /> +{ach.xp_reward} XP
                                 </Badge>
                               )}

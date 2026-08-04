@@ -53,16 +53,16 @@ const CHART_STYLE = {
 };
 
 const MUSCLE_PILL = {
-  chest:       'bg-blue-500/15 text-blue-500 border-blue-500/25',
-  back:        'bg-emerald-500/15 text-emerald-500 border-emerald-500/25',
-  shoulders:   'bg-violet-500/15 text-violet-500 border-violet-500/25',
-  biceps:      'bg-cyan-500/15 text-cyan-500 border-cyan-500/25',
-  triceps:     'bg-indigo-500/15 text-indigo-500 border-indigo-500/25',
-  legs:        'bg-orange-500/15 text-orange-500 border-orange-500/25',
-  glutes:      'bg-pink-500/15 text-pink-500 border-pink-500/25',
-  core:        'bg-yellow-500/15 text-yellow-500 border-yellow-500/25',
-  'full body': 'bg-teal-500/15 text-teal-500 border-teal-500/25',
-  cardio:      'bg-red-500/15 text-red-500 border-red-500/25',
+  chest:       'bg-info/15 text-info border-info/25',
+  back:        'bg-success/15 text-success border-success/25',
+  shoulders:   'bg-primary/15 text-primary border-primary/25',
+  biceps:      'bg-info/15 text-info border-info/25',
+  triceps:     'bg-info/15 text-info border-info/25',
+  legs:        'bg-primary/15 text-primary border-primary/25',
+  glutes:      'bg-primary/15 text-primary border-primary/25',
+  core:        'bg-primary/15 text-primary border-primary/25',
+  'full body': 'bg-success/15 text-success border-success/25',
+  cardio:      'bg-destructive/15 text-destructive border-destructive/25',
 };
 const MUSCLE_PILL_DEFAULT = 'bg-primary/15 text-primary border-primary/25';
 
@@ -75,9 +75,9 @@ const FRAME_PREV   = { week: 7, month: 30, year: 365, all: null };
 // See src/components/achievements/AchievementsVault.jsx.
 const TAB_META = [
   { id: 'trends',    label: 'Trends',    Icon: TrendingUp,  iconColor: 'text-primary',    activeBg: 'bg-primary',     activeText: 'text-primary-foreground' },
-  { id: 'body',      label: 'Body',      Icon: Ruler,       iconColor: 'text-emerald-500', activeBg: 'bg-emerald-500', activeText: 'text-white' },
-  { id: 'photos',    label: 'Photos',    Icon: Camera,      iconColor: 'text-violet-500', activeBg: 'bg-violet-500',  activeText: 'text-white' },
-  { id: 'insights',  label: 'Insights',  Icon: Lightbulb,   iconColor: 'text-cyan-500',   activeBg: 'bg-cyan-500',    activeText: 'text-white' },
+  { id: 'body',      label: 'Body',      Icon: Ruler,       iconColor: 'text-success', activeBg: 'bg-success', activeText: 'text-white' },
+  { id: 'photos',    label: 'Photos',    Icon: Camera,      iconColor: 'text-primary', activeBg: 'bg-primary',  activeText: 'text-white' },
+  { id: 'insights',  label: 'Insights',  Icon: Lightbulb,   iconColor: 'text-info',   activeBg: 'bg-info',    activeText: 'text-white' },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -142,8 +142,8 @@ function PersonalBestsTab({ logs, onViewHistory }) {
           <Card className="border-none shadow-sm overflow-hidden">
             <div className="p-4">
               <div className="flex items-center gap-3 mb-3">
-                <motion.div className="w-8 h-8 rounded-lg bg-yellow-500/10 flex items-center justify-center shrink-0" animate={{ scale: [1, 1.15, 1] }} transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut', delay: idx * 0.3 }}>
-                  <Trophy className="w-4 h-4 text-yellow-500" />
+                <motion.div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0" animate={{ scale: [1, 1.15, 1] }} transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut', delay: idx * 0.3 }}>
+                  <Trophy className="w-4 h-4 text-primary" />
                 </motion.div>
                 <span className="font-heading font-bold text-sm flex-1">{pb.name}</span>
                 {onViewHistory && (
@@ -266,8 +266,8 @@ function AnalyticsTab({ logs }) {
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         {[
           { value: logs.length, label: t('progress.totalWorkouts'), color: 'text-primary' },
-          { value: trainedDays, label: t('progress.daysTrained30d'), color: 'text-amber-500' },
-          { value: volumeByMuscle[0]?.displayGroup || '—', label: t('progress.topMuscleGroup'), color: 'text-emerald-500', span: 'col-span-2 md:col-span-1' },
+          { value: trainedDays, label: t('progress.daysTrained30d'), color: 'text-primary' },
+          { value: volumeByMuscle[0]?.displayGroup || '—', label: t('progress.topMuscleGroup'), color: 'text-success', span: 'col-span-2 md:col-span-1' },
         ].map((stat, i) => (
           <motion.div key={stat.label} initial={{ opacity: 0, y: 16, scale: 0.9 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ type: 'spring', stiffness: 280, damping: 20, delay: i * 0.08 }} whileHover={{ scale: 1.04, y: -2 }} className={stat.span || ''}>
             <Card className="p-4 border-none shadow-sm text-center h-full">
@@ -673,13 +673,13 @@ export default function Progress() {
   // mirroring the Dashboard StatTile pattern.
   const heroStats = [
     { id: 'streak',   icon: Flame,      value: streak ? `${streak}d` : '—', label: 'Streak',
-      accent: 'text-orange-500',  iconBg: 'bg-orange-500/15'  },
+      accent: 'text-primary',  iconBg: 'bg-primary/15'  },
     { id: 'workouts', icon: Dumbbell,   value: logs.length,                  label: 'Workouts',
       accent: 'text-primary',     iconBg: 'bg-primary/15'     },
     { id: 'volume',   icon: TrendingUp, value: totalVolume > 0 ? `${formatBigNumber(fromLbs(totalVolume, weightUnit))}` : '—', label: `Volume (${weightUnit})`,
-      accent: 'text-emerald-500', iconBg: 'bg-emerald-500/15' },
+      accent: 'text-success', iconBg: 'bg-success/15' },
     { id: 'level',    icon: Zap,        value: `Lv ${level}`,                label: 'Level',
-      accent: 'text-violet-500',  iconBg: 'bg-violet-500/15'  },
+      accent: 'text-primary',  iconBg: 'bg-primary/15'  },
   ];
 
   // Carousel slides — one per heroStat. Each has a motivational tip
@@ -691,8 +691,7 @@ export default function Progress() {
     {
       id: 'streak',
       icon: Flame,
-      color: '20 95% 55%',
-      emoji: '🔥',
+      color: 'var(--primary)',
       kicker: 'Streak',
       value: streak ? `${streak} day${streak === 1 ? '' : 's'}` : 'Start today',
       tip: streak > 0
@@ -702,8 +701,7 @@ export default function Progress() {
     {
       id: 'workouts',
       icon: Dumbbell,
-      color: '20 95% 55%',
-      emoji: '💪',
+      color: 'var(--primary)',
       kicker: 'Workouts',
       value: `${logs.length}`,
       tip: logs.length === 0
@@ -713,8 +711,7 @@ export default function Progress() {
     {
       id: 'volume',
       icon: TrendingUp,
-      color: '160 80% 50%',
-      emoji: '🏋️',
+      color: 'var(--success)',
       kicker: 'Volume',
       value: totalVolume > 0
         ? `${formatBigNumber(Math.round(fromLbs(totalVolume, weightUnit)))} ${weightUnit}`
@@ -726,8 +723,7 @@ export default function Progress() {
     {
       id: 'level',
       icon: Zap,
-      color: '270 85% 60%',
-      emoji: '⚡',
+      color: 'var(--primary)',
       kicker: 'Level',
       value: `Lv ${level}`,
       tip: 'Every workout earns XP. Hit personal bests for bonus XP and watch the bar fill.',
@@ -771,7 +767,7 @@ export default function Progress() {
               whileHover={{ scale: 1.03 }}
               whileTap={{ scale: 0.97 }}
               onClick={() => setPersonalBestsModalOpen(true)}
-              className="flex-1 min-w-[10rem] inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-gradient-to-r from-amber-100 to-yellow-100 text-amber-700 dark:from-amber-500/15 dark:to-yellow-500/15 dark:text-amber-300 border border-amber-200/70 dark:border-amber-500/25 text-xs font-bold shadow-sm hover:shadow transition-all relative overflow-hidden"
+              className="flex-1 min-w-[10rem] inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-gradient-to-r from-primary/10 to-primary/5 text-primary dark:from-primary/15 dark:to-primary/15 dark:text-primary border border-primary/25 dark:border-primary/25 text-xs font-bold shadow-sm hover:shadow transition-all relative overflow-hidden"
             >
               <motion.div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/70 to-white/0" animate={{ x: ['100%', '-100%'] }} transition={{ duration: 2, repeat: Infinity }} />
               <Trophy className="w-3.5 h-3.5 relative z-10" />
@@ -781,7 +777,7 @@ export default function Progress() {
               whileHover={{ scale: 1.03 }}
               whileTap={{ scale: 0.97 }}
               onClick={() => setAdvancedAnalyticsOpen(true)}
-              className="flex-1 min-w-[10rem] inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-gradient-to-r from-emerald-100 to-teal-100 text-teal-700 dark:from-emerald-500/15 dark:to-teal-500/15 dark:text-teal-300 border border-teal-200/70 dark:border-teal-500/25 text-xs font-bold shadow-sm hover:shadow transition-all relative overflow-hidden"
+              className="flex-1 min-w-[10rem] inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-gradient-to-r from-success/10 to-success/5 text-success dark:from-success/15 dark:to-success/15 dark:text-success border border-success/25 dark:border-success/25 text-xs font-bold shadow-sm hover:shadow transition-all relative overflow-hidden"
             >
               <motion.div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/70 to-white/0" animate={{ x: ['100%', '-100%'] }} transition={{ duration: 2, repeat: Infinity }} />
               <SparklesIcon className="w-3.5 h-3.5 relative z-10" />
@@ -833,7 +829,7 @@ export default function Progress() {
               <div className="flex items-center justify-between mb-4">
                 <h2 className="font-heading font-black text-base">{FRAME_LABELS[statsFrame]}</h2>
                 {volumeDelta !== null && (
-                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${volumeDelta >= 0 ? 'bg-emerald-500/15 text-emerald-500' : 'bg-red-500/15 text-red-500'}`}>
+                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${volumeDelta >= 0 ? 'bg-success/15 text-success' : 'bg-destructive/15 text-destructive'}`}>
                     {volumeDelta >= 0 ? '↑' : '↓'} {Math.abs(Math.round(volumeDelta))}% vs prev
                   </span>
                 )}
@@ -845,13 +841,13 @@ export default function Progress() {
                   <p className="text-[11px] text-muted-foreground mt-0.5">Workouts</p>
                 </div>
                 <div className="text-center">
-                  <p className="font-heading font-black text-2xl text-emerald-500">
+                  <p className="font-heading font-black text-2xl text-success">
                     {frameVolume > 0 ? formatBigNumber(Math.round(fromLbs(frameVolume, weightUnit))) : '—'}
                   </p>
                   <p className="text-[11px] text-muted-foreground mt-0.5">{weightUnit} lifted</p>
                 </div>
                 <div className="text-center">
-                  <p className="font-heading font-black text-2xl text-orange-500">{weeklyCardio.sessions || '—'}</p>
+                  <p className="font-heading font-black text-2xl text-primary">{weeklyCardio.sessions || '—'}</p>
                   <p className="text-[11px] text-muted-foreground mt-0.5">Cardio</p>
                 </div>
               </div>
@@ -966,12 +962,12 @@ export default function Progress() {
                     whileHover={{ y: -3, scale: 1.03 }}
                     className="shrink-0 w-36 md:w-auto"
                   >
-                    <Card className="p-3 border-none shadow-sm bg-gradient-to-br from-yellow-500/8 via-amber-500/5 to-transparent overflow-hidden relative">
+                    <Card className="p-3 border-none shadow-sm bg-gradient-to-br from-primary/8 via-primary/5 to-transparent overflow-hidden relative">
                       <div className="absolute top-1.5 end-1.5">
-                        <Trophy className="w-3.5 h-3.5 text-yellow-500/60" />
+                        <Trophy className="w-3.5 h-3.5 text-primary/60" />
                       </div>
                       <p className="text-[11px] text-muted-foreground font-medium leading-tight mb-1 pe-4 line-clamp-1">{pr.name}</p>
-                      <p className="font-heading font-black text-xl text-amber-500 leading-none">
+                      <p className="font-heading font-black text-xl text-primary leading-none">
                         {formatWeight(pr.weight, weightUnit)}
                       </p>
                       {pr.reps > 0 && (
@@ -1063,7 +1059,7 @@ export default function Progress() {
                           {/* Header */}
                           <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-white/10">
                             <div>
-                              <p className="text-[10px] font-bold uppercase tracking-widest text-purple-400">Weekly Summary</p>
+                              <p className="text-[10px] font-bold uppercase tracking-widest text-primary">Weekly Summary</p>
                               <p className="text-sm font-bold text-white">{latestDebriefData.week_label}</p>
                             </div>
                             <button
@@ -1094,7 +1090,7 @@ export default function Progress() {
                                       <span className="text-[10px] font-normal text-white/40 ms-0.5">lbs</span>
                                     </span>
                                     {chg != null && (
-                                      <span className={`text-[10px] font-semibold ${Number(chg) >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                      <span className={`text-[10px] font-semibold ${Number(chg) >= 0 ? 'text-success' : 'text-destructive'}`}>
                                         {Number(chg) >= 0 ? '+' : ''}{chg}%
                                       </span>
                                     )}
@@ -1105,12 +1101,12 @@ export default function Progress() {
                                   </div>
                                   <div className="flex-1 flex flex-col items-center py-3 gap-0.5">
                                     <span className="text-xs text-white/40">Streak</span>
-                                    <span className="text-base font-black text-orange-400">{streak}d 🔥</span>
+                                    <span className="text-base font-black text-primary">{streak}d 🔥</span>
                                   </div>
                                   {isPr && (
                                     <div className="flex-1 flex flex-col items-center py-3 gap-0.5">
                                       <span className="text-xs text-white/40">PR</span>
-                                      <Trophy className="w-4 h-4 text-yellow-400" />
+                                      <Trophy className="w-4 h-4 text-primary" />
                                     </div>
                                   )}
                                 </div>

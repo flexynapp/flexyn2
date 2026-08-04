@@ -481,10 +481,10 @@ export default function SnakeGameModal({ open, onClose, userId }) {
                 <AnimatedNumber value={score} className="snake-pixel text-[16px] text-foreground leading-none tabular-nums" />
               </div>
               <div className="flex flex-col items-end gap-1.5">
-                <span className="snake-pixel text-[8px] text-amber-500 leading-none flex items-center gap-1">
+                <span className="snake-pixel text-[8px] text-primary leading-none flex items-center gap-1">
                   <Trophy className="w-3 h-3" /> BEST
                 </span>
-                <span className="snake-pixel text-[16px] text-amber-500 leading-none tabular-nums">{highScore}</span>
+                <span className="snake-pixel text-[16px] text-primary leading-none tabular-nums">{highScore}</span>
               </div>
             </div>
 
@@ -492,7 +492,7 @@ export default function SnakeGameModal({ open, onClose, userId }) {
             <motion.div
               animate={shake ? { x: [0, -8, 8, -6, 6, -3, 3, 0] } : { x: 0 }}
               transition={{ duration: 0.45 }}
-              className="relative rounded-xl overflow-hidden border border-purple-500/20"
+              className="relative rounded-xl overflow-hidden border border-primary/20"
               style={{ width: SIZE, height: SIZE, maxWidth: '100%' }}
             >
               <div
@@ -560,7 +560,7 @@ export default function SnakeGameModal({ open, onClose, userId }) {
                 <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-2 bg-black/60 backdrop-blur-[2px]">
                   <p className="snake-pixel text-base text-white leading-tight text-center">GAME<br />OVER</p>
                   {isNewHigh ? (
-                    <p className="text-sm font-semibold text-amber-400 flex items-center gap-1"><Trophy className="w-4 h-4" /> New best!</p>
+                    <p className="text-sm font-semibold text-primary flex items-center gap-1"><Trophy className="w-4 h-4" /> New best!</p>
                   ) : (
                     <p className="text-xs text-slate-300">Score {score} · Best {highScore}</p>
                   )}

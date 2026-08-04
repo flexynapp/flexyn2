@@ -473,7 +473,7 @@ export default function SweatJetpackModal({ onClose, userId }) {
         </div>
         <div className="text-end">
           <span className="text-zinc-500 text-[10px] block uppercase">Best</span>
-          <span className="text-base font-bold text-amber-400">{highScore}m · 🪙{bestCoins}</span>
+          <span className="text-base font-bold text-primary">{highScore}m · 🪙{bestCoins}</span>
         </div>
       </div>
 
@@ -507,7 +507,7 @@ export default function SweatJetpackModal({ onClose, userId }) {
 
         {gameOver && (
           <div className="absolute inset-0 bg-red-950/75 backdrop-blur-sm flex flex-col items-center justify-center text-center p-6 pointer-events-none">
-            <h2 className="text-3xl font-black text-red-400 tracking-tighter uppercase mb-1">Splat</h2>
+            <h2 className="text-3xl font-black text-destructive tracking-tighter uppercase mb-1">Splat</h2>
             <p className="text-zinc-300 text-xs font-mono mb-2">{distance} m · 🪙 {coinCount}</p>
             <span className="bg-orange-300 text-zinc-950 font-mono text-xs px-4 py-2 font-bold uppercase rounded">Tap to retry</span>
           </div>

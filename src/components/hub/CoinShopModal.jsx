@@ -22,9 +22,9 @@ import { SHOP_CATALOG, purchaseItem, getCapsuleOdds, BEST_VALUE_SKU } from '@/li
 // an Elite Capsule looked exactly like a Standard one in the place you buy it.
 const RARITY_STYLE = {
   common:   { ring: 'ring-slate-400/30',   text: 'text-slate-400',   glow: '' },
-  uncommon: { ring: 'ring-emerald-400/40', text: 'text-emerald-400', glow: '' },
-  rare:     { ring: 'ring-sky-400/40',     text: 'text-sky-400',     glow: 'shadow-sky-500/10' },
-  epic:     { ring: 'ring-fuchsia-400/50', text: 'text-fuchsia-400', glow: 'shadow-fuchsia-500/20' },
+  uncommon: { ring: 'ring-success/40', text: 'text-success', glow: '' },
+  rare:     { ring: 'ring-info/40',     text: 'text-info',     glow: 'shadow-info/10' },
+  epic:     { ring: 'ring-primary/50', text: 'text-primary', glow: 'shadow-primary/20' },
 };
 
 // Spending this much or more asks for confirmation first. A single mistap on
