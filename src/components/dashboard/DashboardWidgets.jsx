@@ -230,7 +230,7 @@ export default function DashboardWidgets({ logs, goals, isLoading, userProfile }
           <button
             type="button"
             onClick={() => setLibraryOpen(true)}
-            className="mt-3 w-full min-h-[52px] rounded-2xl border-2 border-dashed border-border text-muted-foreground hover:text-foreground active:border-primary/60 transition-colors flex items-center justify-center gap-2 text-sm font-semibold"
+            className="mt-3 w-full min-h-[52px] rounded-2xl border-2 border-dashed border-border text-muted-foreground hover:text-foreground active:text-foreground active:border-primary/60 transition-colors flex items-center justify-center gap-2 text-sm font-semibold"
           >
             <Plus className="w-4 h-4" /> {t('dashboard.addWidget')}
           </button>

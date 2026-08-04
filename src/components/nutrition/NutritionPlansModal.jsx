@@ -108,7 +108,7 @@ function MealRow({ meal, colors }) {
     <div className="border border-border/50 rounded-xl overflow-hidden">
       <button
         onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center justify-between px-4 py-3 text-start hover:bg-secondary/30 transition-colors"
+        className="w-full flex items-center justify-between px-4 py-3 text-start hover:bg-secondary/30 active:bg-secondary/30 transition-colors"
       >
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
@@ -229,7 +229,7 @@ function PlanDetail({ plan, scaled, onBack, colors }) {
     >
       {/* Hero */}
       <div className={`bg-gradient-to-br ${colors.card} -mx-4 sm:-mx-6 -mt-4 sm:-mt-6 px-4 sm:px-6 pt-5 pb-5`}>
-        <button onClick={onBack} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mb-3 transition-colors">
+        <button onClick={onBack} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground active:text-foreground mb-3 transition-colors">
           <ArrowLeft className="w-3.5 h-3.5" /> All plans
         </button>
         <div className="flex items-start gap-3">
@@ -423,7 +423,7 @@ export function NutritionPlansPanel({ userProfile, onStartOnboarding, trainingFu
                 <button
                   type="button"
                   onClick={onApplyFuel}
-                  className="mt-2.5 w-full inline-flex items-center justify-center gap-1.5 rounded-xl bg-primary text-white font-semibold text-sm py-2.5 hover:bg-primary/90 transition-colors"
+                  className="mt-2.5 w-full inline-flex items-center justify-center gap-1.5 rounded-xl bg-primary text-white font-semibold text-sm py-2.5 hover:bg-primary/90 active:bg-primary/90 transition-colors"
                 >
                   <ArrowLeftRight className="w-4 h-4" />
                   Set training-day fuel
@@ -521,7 +521,7 @@ export default function NutritionPlansModal({ open, onClose, userProfile, onStar
             {/* Header */}
             <div className="flex items-center justify-between px-4 sm:px-6 pb-3 shrink-0">
               <h2 className="font-heading font-bold text-xl">Nutrition Plans</h2>
-              <button onClick={handleClose} className="p-2 rounded-full hover:bg-secondary transition-colors">
+              <button onClick={handleClose} className="p-2 rounded-full hover:bg-secondary active:bg-secondary transition-colors">
                 <X className="w-5 h-5" />
               </button>
             </div>

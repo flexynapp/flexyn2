@@ -134,7 +134,7 @@ export default function IosInstallBanner() {
           </div>
           <button
             onClick={handleDismiss}
-            className="shrink-0 -me-1 p-1.5 rounded-sm text-muted-foreground/70 hover:text-foreground hover:bg-foreground/5 active:bg-foreground/10 transition-colors"
+            className="shrink-0 -me-1 p-1.5 rounded-sm text-muted-foreground/70 hover:text-foreground active:text-foreground hover:bg-foreground/5 active:bg-foreground/10 transition-colors"
             aria-label={tFallback('iosInstall.close', 'Dismiss')}
           >
             <X className="w-3 h-3" />

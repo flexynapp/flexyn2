@@ -123,7 +123,7 @@ export default function FormCoachModal({ open, onClose }) {
             <button
               onClick={onClose}
               aria-label={tFallback('common.close', 'Close')}
-              className="absolute top-3 end-3 z-10 p-1.5 rounded-md hover:bg-secondary transition-colors text-muted-foreground"
+              className="absolute top-3 end-3 z-10 p-1.5 rounded-md hover:bg-secondary active:bg-secondary transition-colors text-muted-foreground"
             >
               <X className="w-4 h-4" />
             </button>

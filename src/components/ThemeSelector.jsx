@@ -104,7 +104,7 @@ export default function ThemeSelector({ open, onClose }) {
               </div>
               <button
                 onClick={onClose}
-                className="p-2 rounded-xl hover:bg-secondary transition-colors -mt-0.5"
+                className="p-2 rounded-xl hover:bg-secondary active:bg-secondary transition-colors -mt-0.5"
                 aria-label={tFallback('common.close', 'Close')}
               >
                 <X className="w-4 h-4" />
@@ -135,7 +135,7 @@ export default function ThemeSelector({ open, onClose }) {
                             'relative flex flex-col p-4 rounded-2xl border-2 text-start transition-all duration-200',
                             isCurrent
                               ? 'shadow-lg'
-                              : 'border-border bg-card hover:border-primary/50 hover:shadow-md hover:bg-secondary/30',
+                              : 'border-border bg-card hover:border-primary/50 hover:shadow-md hover:bg-secondary/30 active:bg-secondary/30',
                           ].join(' ')}
                           style={isCurrent ? { borderColor: rc.ring, background: `${rc.ring}18` } : {}}
                         >
@@ -222,7 +222,7 @@ export default function ThemeSelector({ open, onClose }) {
                             ? 'border-primary bg-primary/5 shadow-lg shadow-primary/15'
                             : isLocked
                             ? 'border-border/60 bg-muted/20'
-                            : 'border-border bg-card hover:border-primary/50 hover:shadow-md hover:bg-secondary/30',
+                            : 'border-border bg-card hover:border-primary/50 hover:shadow-md hover:bg-secondary/30 active:bg-secondary/30',
                         ].join(' ')}
                       >
                         {/* Active check badge */}

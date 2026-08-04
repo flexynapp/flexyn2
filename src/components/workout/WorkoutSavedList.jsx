@@ -139,7 +139,7 @@ export default function WorkoutSavedList({ onSelectLog, search = '' }) {
         return (
           <motion.div key={log.id} variants={itemVariants}>
             <Card
-              className="p-4 cursor-pointer hover:bg-secondary/40 transition-colors"
+              className="p-4 cursor-pointer hover:bg-secondary/40 active:bg-secondary/40 transition-colors"
               onClick={() => onSelectLog(log)}
             >
               <div className="flex items-center gap-3">
@@ -162,7 +162,7 @@ export default function WorkoutSavedList({ onSelectLog, search = '' }) {
                   <button
                     type="button"
                     onClick={(e) => handleRepeat(e, log)}
-                    className="shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-md text-micro font-bold text-primary bg-primary/10 hover:bg-primary/20 transition-colors"
+                    className="shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-md text-micro font-bold text-primary bg-primary/10 hover:bg-primary/20 active:bg-primary/20 transition-colors"
                     aria-label={tFallback('workout.repeat', 'Repeat this workout')}
                   >
                     <Repeat className="w-3 h-3" />

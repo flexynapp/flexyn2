@@ -126,7 +126,7 @@ export default function ReferralSheet({
               <button
                 type="button"
                 onClick={onClose}
-                className="p-1.5 rounded-lg text-muted-foreground hover:bg-secondary transition-colors"
+                className="p-1.5 rounded-lg text-muted-foreground hover:bg-secondary active:bg-secondary transition-colors"
                 aria-label={tFallback('common.close', 'Close')}
               >
                 <X className="w-4 h-4" />
@@ -151,7 +151,7 @@ export default function ReferralSheet({
                   <button
                     onClick={onCopy}
                     disabled={!code}
-                    className="px-3 rounded-lg border border-border bg-background hover:bg-secondary disabled:opacity-50 transition-colors flex items-center"
+                    className="px-3 rounded-lg border border-border bg-background hover:bg-secondary active:bg-secondary disabled:opacity-50 transition-colors flex items-center"
                     aria-label={tFallback('referral.copy', 'Copy invite link')}
                   >
                     {copied ? <Check className="w-4 h-4 text-success" /> : <Copy className="w-4 h-4" />}
@@ -159,7 +159,7 @@ export default function ReferralSheet({
                   <button
                     onClick={onShare}
                     disabled={!code}
-                    className="px-3 rounded-lg bg-primary hover:bg-primary disabled:opacity-50 text-white transition-colors flex items-center gap-1.5 text-xs font-bold"
+                    className="px-3 rounded-lg bg-primary hover:bg-primary active:bg-primary disabled:opacity-50 text-white transition-colors flex items-center gap-1.5 text-xs font-bold"
                   >
                     <Share2 className="w-3.5 h-3.5" />
                     {tFallback('referral.share', 'Share')}
@@ -253,7 +253,7 @@ export default function ReferralSheet({
                   <button
                     type="button"
                     onClick={() => { onRestoreCard(); onClose(); }}
-                    className="text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
+                    className="text-xs font-semibold text-muted-foreground hover:text-foreground active:text-foreground transition-colors"
                   >
                     {tFallback('referral.restore', 'Show the full card on my profile again')}
                   </button>

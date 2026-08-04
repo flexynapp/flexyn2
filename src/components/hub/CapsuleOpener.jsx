@@ -910,7 +910,7 @@ export default function CapsuleOpener({ capsule, batch, onClaim, onClaimBatch, o
             <button
               onClick={onClose}
               aria-label="Close capsule dialog"
-              className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded-lg hover:bg-secondary"
+              className="text-muted-foreground hover:text-foreground active:text-foreground transition-colors p-1 rounded-lg hover:bg-secondary active:bg-secondary"
             >
               <X className="w-5 h-5" aria-hidden="true" />
             </button>
@@ -1231,7 +1231,7 @@ export default function CapsuleOpener({ capsule, batch, onClaim, onClaimBatch, o
               </p>
               <button
                 onClick={onClose}
-                className="mt-2 px-6 py-2.5 rounded-xl bg-secondary hover:bg-secondary/70 text-secondary-foreground font-semibold transition-colors"
+                className="mt-2 px-6 py-2.5 rounded-xl bg-secondary hover:bg-secondary/70 active:bg-secondary/70 text-secondary-foreground font-semibold transition-colors"
               >
                 Close
               </button>
@@ -1260,7 +1260,7 @@ export default function CapsuleOpener({ capsule, batch, onClaim, onClaimBatch, o
               </p>
               <button
                 onClick={onClose}
-                className="mt-2 px-6 py-2.5 rounded-xl bg-secondary hover:bg-secondary/70 text-secondary-foreground font-semibold transition-colors"
+                className="mt-2 px-6 py-2.5 rounded-xl bg-secondary hover:bg-secondary/70 active:bg-secondary/70 text-secondary-foreground font-semibold transition-colors"
               >
                 Close
               </button>

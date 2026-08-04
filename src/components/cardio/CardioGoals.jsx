@@ -393,7 +393,7 @@ export default function CardioGoals() {
                   </div>
                 </div>
                 <button
-                  className="text-muted-foreground hover:text-destructive transition-colors shrink-0"
+                  className="text-muted-foreground hover:text-destructive active:text-destructive transition-colors shrink-0"
                   onClick={() => handleDelete(goal)}
                   disabled={deleting === goal.id}
                 >

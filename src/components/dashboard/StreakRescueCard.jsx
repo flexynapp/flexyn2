@@ -83,7 +83,7 @@ export default function StreakRescueCard({ streakDays, lastWorkoutDate, lastMeal
         <button
           type="button"
           onClick={handleDismiss}
-          className="p-2 rounded-lg text-muted-foreground hover:bg-secondary transition-colors shrink-0"
+          className="p-2 rounded-lg text-muted-foreground hover:bg-secondary active:bg-secondary transition-colors shrink-0"
           aria-label={tFallback('streakRescue.skipAria', 'Skip today')}
         >
           <X className="w-4 h-4" />

@@ -9,7 +9,7 @@ function SubAccordion({ label, value, items, onChange, open, onToggle }) {
     <div className="border border-border rounded-lg overflow-hidden">
       <button
         onClick={onToggle}
-        className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-secondary/50 transition-colors"
+        className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-secondary/50 active:bg-secondary/50 transition-colors"
       >
         <div className="flex flex-col items-start gap-0.5">
           <span className="text-xs text-muted-foreground font-medium">{label}</span>
@@ -29,7 +29,7 @@ function SubAccordion({ label, value, items, onChange, open, onToggle }) {
               className={`w-full flex items-center justify-between px-3 py-2 text-sm transition-colors ${
                 item.value === value
                   ? 'bg-primary/10 text-primary font-medium'
-                  : 'hover:bg-secondary/50'
+                  : 'hover:bg-secondary/50 active:bg-secondary/50'
               }`}
             >
               {item.label}
@@ -100,7 +100,7 @@ export default function FilterDropdown({
       <button
         ref={triggerRef}
         onClick={() => { setOpen(o => !o); if (open) setOpenSub(null); }}
-        className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border hover:bg-secondary transition-colors"
+        className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border hover:bg-secondary active:bg-secondary transition-colors"
       >
         <span className="text-sm font-medium">{t('progress.filter')}</span>
         {activeCount > 0 && (

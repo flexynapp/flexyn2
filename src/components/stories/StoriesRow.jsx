@@ -371,7 +371,7 @@ function QuickAddAvatarItem({ profile, onAdd, onViewProfile }) {
         type="button"
         onClick={handleViewProfile}
         aria-label={`View ${profile.username}'s profile`}
-        className="text-micro font-medium w-[68px] text-center truncate leading-tight text-muted-foreground hover:text-foreground transition-colors focus:outline-none"
+        className="text-micro font-medium w-[68px] text-center truncate leading-tight text-muted-foreground hover:text-foreground active:text-foreground transition-colors focus:outline-none"
       >
         @{profile.username}
       </button>

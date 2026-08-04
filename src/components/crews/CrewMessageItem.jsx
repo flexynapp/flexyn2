@@ -349,7 +349,7 @@ function TextMessage({ msg, senderProfile, isOwn, currentUserId, isCurrentModera
                   className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs border transition-colors ${
                     myReacted
                       ? 'bg-primary/20 border-primary/40 text-foreground'
-                      : 'bg-card border-border text-muted-foreground hover:bg-secondary'
+                      : 'bg-card border-border text-muted-foreground hover:bg-secondary active:bg-secondary'
                   }`}
                 >
                   <span>{emoji}</span>
@@ -388,7 +388,7 @@ function TextMessage({ msg, senderProfile, isOwn, currentUserId, isCurrentModera
                     <button
                       key={emoji}
                       onClick={() => handleEmojiReact(emoji)}
-                      className={`text-2xl p-1.5 rounded-xl transition-all ${myReacted ? 'bg-primary/20 scale-110' : 'hover:bg-secondary hover:scale-110'}`}
+                      className={`text-2xl p-1.5 rounded-xl transition-all ${myReacted ? 'bg-primary/20 scale-110' : 'hover:bg-secondary active:bg-secondary hover:scale-110'}`}
                     >
                       {emoji}
                     </button>
@@ -399,7 +399,7 @@ function TextMessage({ msg, senderProfile, isOwn, currentUserId, isCurrentModera
               {isCurrentModerator && (
                 <button
                   onClick={handlePinToggle}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium hover:bg-secondary transition-colors"
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium hover:bg-secondary active:bg-secondary transition-colors"
                 >
                   <span className="text-base">📌</span>
                   Pin as announcement
@@ -407,7 +407,7 @@ function TextMessage({ msg, senderProfile, isOwn, currentUserId, isCurrentModera
               )}
               <button
                 onClick={() => setShowContext(false)}
-                className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-muted-foreground hover:bg-secondary transition-colors ${isCurrentModerator ? 'border-t border-border' : ''}`}
+                className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-muted-foreground hover:bg-secondary active:bg-secondary transition-colors ${isCurrentModerator ? 'border-t border-border' : ''}`}
               >
                 Cancel
               </button>

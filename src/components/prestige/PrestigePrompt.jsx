@@ -73,7 +73,7 @@ export default function PrestigePrompt({ currentPrestige = 0, onDismiss }) {
         </div>
         <button
           onClick={() => dismissMut.mutate()}
-          className="p-1.5 rounded-full hover:bg-secondary transition-colors"
+          className="p-1.5 rounded-full hover:bg-secondary active:bg-secondary transition-colors"
         >
           <X className="w-3.5 h-3.5 text-muted-foreground" />
         </button>
@@ -106,13 +106,13 @@ export default function PrestigePrompt({ currentPrestige = 0, onDismiss }) {
             <div className="flex gap-2">
               <button
                 onClick={() => dismissMut.mutate()}
-                className="flex-1 py-2 rounded-xl border border-border text-xs font-semibold hover:bg-secondary transition-colors"
+                className="flex-1 py-2 rounded-xl border border-border text-xs font-semibold hover:bg-secondary active:bg-secondary transition-colors"
               >
                 Not Yet
               </button>
               <button
                 onClick={() => setStep('confirm')}
-                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-yellow-500 text-slate-900 text-xs font-black hover:bg-yellow-400 transition-colors"
+                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-yellow-500 text-slate-900 text-xs font-black hover:bg-yellow-400 active:bg-yellow-400 transition-colors"
               >
                 Prestige Now
                 <ChevronRight className="w-3.5 h-3.5" />
@@ -162,14 +162,14 @@ export default function PrestigePrompt({ currentPrestige = 0, onDismiss }) {
             <div className="flex gap-2">
               <button
                 onClick={() => setStep('prompt')}
-                className="flex-1 py-2 rounded-xl border border-border text-xs font-semibold hover:bg-secondary transition-colors"
+                className="flex-1 py-2 rounded-xl border border-border text-xs font-semibold hover:bg-secondary active:bg-secondary transition-colors"
               >
                 Go Back
               </button>
               <button
                 onClick={() => prestigeMut.mutate()}
                 disabled={prestigeMut.isPending}
-                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-yellow-500 text-slate-900 text-xs font-black hover:bg-yellow-400 disabled:opacity-50 transition-colors"
+                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-yellow-500 text-slate-900 text-xs font-black hover:bg-yellow-400 active:bg-yellow-400 disabled:opacity-50 transition-colors"
               >
                 {prestigeMut.isPending
                   ? <Loader2 className="w-3.5 h-3.5 animate-spin" />

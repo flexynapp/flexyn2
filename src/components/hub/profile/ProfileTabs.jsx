@@ -50,7 +50,7 @@ export default function ProfileTabs({ tabs, active, onChange }) {
             className={`${TAB_BASE} ${
               selected
                 ? 'text-foreground border-primary'
-                : 'text-muted-foreground border-transparent hover:text-foreground'
+                : 'text-muted-foreground border-transparent hover:text-foreground active:text-foreground'
             }`}
           >
             {tab.label}

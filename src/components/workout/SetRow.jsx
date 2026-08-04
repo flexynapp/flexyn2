@@ -164,7 +164,7 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
                 tabIndex={-1}
                 aria-label="Decrease weight"
                 onClick={() => bump(-stepLbs)}
-                className="w-6 h-9 flex items-center justify-center rounded-md text-muted-foreground hover:bg-secondary/60 hover:text-foreground transition-colors shrink-0"
+                className="w-6 h-9 flex items-center justify-center rounded-md text-muted-foreground hover:bg-secondary/60 active:bg-secondary/60 hover:text-foreground active:text-foreground transition-colors shrink-0"
               >
                 <Minus className="w-3 h-3" />
               </button>
@@ -250,7 +250,7 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
               tabIndex={-1}
               aria-label="Increase weight"
               onClick={bumpUp}
-              className="w-6 h-9 flex items-center justify-center rounded-md text-muted-foreground hover:bg-secondary/60 hover:text-foreground transition-colors shrink-0"
+              className="w-6 h-9 flex items-center justify-center rounded-md text-muted-foreground hover:bg-secondary/60 active:bg-secondary/60 hover:text-foreground active:text-foreground transition-colors shrink-0"
             >
               <Plus className="w-3 h-3" />
             </button>
@@ -348,7 +348,7 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
         aria-expanded={moreOpen}
         className={[
           'h-8 w-8 rounded-lg flex items-center justify-center shrink-0 transition-colors',
-          moreOpen ? 'bg-secondary text-foreground' : 'text-muted-foreground/50 hover:text-foreground hover:bg-secondary',
+          moreOpen ? 'bg-secondary text-foreground' : 'text-muted-foreground/50 hover:text-foreground active:text-foreground hover:bg-secondary active:bg-secondary',
         ].join(' ')}
       >
         <MoreHorizontal className="w-4 h-4" />
@@ -363,7 +363,7 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
           'h-9 w-9 rounded-xl flex items-center justify-center shrink-0 transition-all',
           completed
             ? 'bg-success text-white shadow-sm shadow-success/30'
-            : 'border-2 border-border text-muted-foreground/40 hover:border-success/50 hover:text-success',
+            : 'border-2 border-border text-muted-foreground/40 hover:border-success/50 hover:text-success active:text-success',
         ].join(' ')}
       >
         <motion.span key={completed ? 'on' : 'off'} initial={{ scale: 0.4, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 500, damping: 17 }}>
@@ -392,7 +392,7 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
               type="button"
               onClick={onRemove}
               aria-label="Delete set"
-              className="h-8 w-8 ms-auto rounded-lg flex items-center justify-center text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0"
+              className="h-8 w-8 ms-auto rounded-lg flex items-center justify-center text-muted-foreground/60 hover:text-destructive active:text-destructive hover:bg-destructive/10 active:bg-destructive/10 transition-colors shrink-0"
             >
               <Trash2 className="w-4 h-4" />
             </button>
@@ -425,7 +425,7 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
                     'flex-1 h-7 rounded-md text-xs font-bold transition-colors',
                     active
                       ? 'bg-info text-white'
-                      : 'bg-secondary/60 text-muted-foreground hover:bg-secondary hover:text-foreground',
+                      : 'bg-secondary/60 text-muted-foreground hover:bg-secondary active:bg-secondary hover:text-foreground active:text-foreground',
                   ].join(' ')}
                 >
                   {label}
@@ -526,7 +526,7 @@ function TagButton({ active, onClick, activeCls, icon, label }) {
       aria-pressed={active}
       className={[
         'h-8 px-2.5 rounded-lg flex items-center gap-1.5 text-xs font-semibold transition-colors shrink-0',
-        active ? activeCls : 'text-muted-foreground hover:text-foreground hover:bg-secondary',
+        active ? activeCls : 'text-muted-foreground hover:text-foreground active:text-foreground hover:bg-secondary active:bg-secondary',
       ].join(' ')}
     >
       <span className="flex items-center justify-center w-4 h-4">{icon}</span>

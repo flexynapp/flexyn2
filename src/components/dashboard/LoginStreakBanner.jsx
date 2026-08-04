@@ -91,7 +91,7 @@ export default function LoginStreakBanner({ variant = 'default' }) {
         type="button"
         onClick={() => setShowCalendar(v => !v)}
         className={`flex items-center rounded-full p-0.5 transition-colors ${
-          onHero ? 'text-white/60 hover:text-white hover:bg-white/10' : 'text-muted-foreground hover:text-foreground hover:bg-secondary/40 active:bg-secondary/60'
+          onHero ? 'text-white/60 hover:text-white active:text-white hover:bg-white/10 active:bg-white/10' : 'text-muted-foreground hover:text-foreground active:text-foreground hover:bg-secondary/40 active:bg-secondary/60'
         }`}
         aria-label={showCalendar
           ? tFallback('streakBanner.hideCalendar', 'Hide streak calendar')

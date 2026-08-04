@@ -93,7 +93,7 @@ export default function ProfileActions({
           <button
             type="button"
             onClick={onEditProfile}
-            className="h-9 px-4 rounded-full border border-border text-sm font-semibold hover:bg-secondary transition-colors flex items-center gap-1.5"
+            className="h-9 px-4 rounded-full border border-border text-sm font-semibold hover:bg-secondary active:bg-secondary transition-colors flex items-center gap-1.5"
           >
             <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
             {tFallback('hub.profile.editProfile', 'Edit profile')}
@@ -106,7 +106,7 @@ export default function ProfileActions({
               disabled={!followStatusReady || followBusy}
               className={`h-9 px-4 rounded-full text-sm font-bold transition-colors flex items-center justify-center gap-1.5 disabled:cursor-not-allowed ${
                 isFollowingNow
-                  ? 'bg-secondary text-foreground hover:bg-destructive/10 hover:text-destructive'
+                  ? 'bg-secondary text-foreground hover:bg-destructive/10 active:bg-destructive/10 hover:text-destructive active:text-destructive'
                   : 'bg-primary text-primary-foreground hover:opacity-90'
               } ${!followStatusReady ? 'opacity-60' : ''}`}
             >
@@ -126,7 +126,7 @@ export default function ProfileActions({
               type="button"
               onClick={onMessage}
               disabled={!messageReady || messageInFlight}
-              className="h-9 w-9 rounded-full border border-border text-foreground hover:bg-secondary transition-colors flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+              className="h-9 w-9 rounded-full border border-border text-foreground hover:bg-secondary active:bg-secondary transition-colors flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
               aria-label={t('hub.profile.message')}
               title={t('hub.profile.message')}
             >
@@ -145,7 +145,7 @@ export default function ProfileActions({
           <DropdownMenuTrigger asChild>
             <button
               type="button"
-              className="h-9 w-9 rounded-full border border-border text-foreground hover:bg-secondary transition-colors flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              className="h-9 w-9 rounded-full border border-border text-foreground hover:bg-secondary active:bg-secondary transition-colors flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               aria-label={menuTitle}
             >
               <MoreHorizontal className="w-4 h-4" />

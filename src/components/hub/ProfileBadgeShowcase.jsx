@@ -121,7 +121,7 @@ export default function ProfileBadgeShowcase({ userEmail, userId, isOwn }) {
         {isOwn && rows.length >= MAX_BADGES ? (
           <button
             onClick={requestOpenAchievements}
-            className="text-xs font-semibold text-muted-foreground hover:text-primary transition-colors"
+            className="text-xs font-semibold text-muted-foreground hover:text-primary active:text-primary transition-colors"
           >
             {tFallback('profileBadges.viewAll', 'See all')}
           </button>

@@ -160,7 +160,7 @@ export default function ItemDetailSheet({
               type="button"
               onClick={onClose}
               aria-label="Close"
-              className="absolute top-0 end-0 p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+              className="absolute top-0 end-0 p-1.5 rounded-lg text-muted-foreground hover:text-foreground active:text-foreground hover:bg-secondary active:bg-secondary transition-colors"
             >
               <X className="w-4 h-4" />
             </button>
@@ -186,7 +186,7 @@ export default function ItemDetailSheet({
                 type="button"
                 onClick={() => onToggleSave(listing.id)}
                 aria-label={isSaved ? 'Remove from saved' : 'Save for later'}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border text-xs font-semibold hover:bg-secondary transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border text-xs font-semibold hover:bg-secondary active:bg-secondary transition-colors"
               >
                 <Heart className={`w-3.5 h-3.5 ${isSaved ? 'fill-red-500 text-red-500' : ''}`} />
                 {isSaved ? 'Saved' : 'Save'}
@@ -251,7 +251,7 @@ export default function ItemDetailSheet({
                     <button
                       type="button"
                       onClick={() => onSelectListing?.(alt)}
-                      className="w-full flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-secondary/30 hover:bg-secondary transition-colors text-start"
+                      className="w-full flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-secondary/30 hover:bg-secondary active:bg-secondary transition-colors text-start"
                     >
                       <Store className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                       <span className="text-xs flex-1 min-w-0 truncate">{displayName(alt)}</span>
@@ -293,7 +293,7 @@ export default function ItemDetailSheet({
           {isMine ? (
             <button
               onClick={() => onCancel(listing)}
-              className="w-full py-2.5 rounded-xl text-sm font-bold text-red-600 dark:text-red-300 bg-red-500/10 border border-red-500/30 hover:bg-red-500/20 transition-colors"
+              className="w-full py-2.5 rounded-xl text-sm font-bold text-red-600 dark:text-red-300 bg-red-500/10 border border-red-500/30 hover:bg-red-500/20 active:bg-red-500/20 transition-colors"
             >
               Cancel listing
             </button>
@@ -316,7 +316,7 @@ export default function ItemDetailSheet({
           ) : (
             <button
               onClick={() => onOfferTrade(listing)}
-              className="w-full py-2.5 rounded-xl text-sm font-bold text-blue-600 dark:text-blue-300 bg-blue-500/10 border border-blue-400/30 hover:bg-blue-500/20 transition-colors"
+              className="w-full py-2.5 rounded-xl text-sm font-bold text-blue-600 dark:text-blue-300 bg-blue-500/10 border border-blue-400/30 hover:bg-blue-500/20 active:bg-blue-500/20 transition-colors"
             >
               Offer a trade
             </button>

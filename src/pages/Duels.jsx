@@ -42,7 +42,7 @@ function DuelRow({ duel, currentUserId, opponent, onClick }) {
   return (
     <button
       onClick={onClick}
-      className="w-full flex items-center gap-3 p-3 rounded-xl border border-border bg-card hover:bg-secondary/40 transition-colors text-start"
+      className="w-full flex items-center gap-3 p-3 rounded-xl border border-border bg-card hover:bg-secondary/40 active:bg-secondary/40 transition-colors text-start"
     >
       <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
         {duel.status === 'completed'
@@ -188,7 +188,7 @@ export default function Duels() {
         <div className="flex items-center gap-2 mb-4">
           <button
             onClick={() => setShowInviteLink(true)}
-            className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-secondary text-foreground text-sm font-bold border border-border hover:bg-secondary/70 transition-colors"
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-secondary text-foreground text-sm font-bold border border-border hover:bg-secondary/70 active:bg-secondary/70 transition-colors"
             aria-label={tFallback('duels.inviteByLink', 'Challenge someone by link')}
           >
             <LinkIcon className="w-4 h-4" />
@@ -196,7 +196,7 @@ export default function Duels() {
           </button>
           <button
             onClick={() => setShowCreate(true)}
-            className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 transition-colors"
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 active:bg-primary/90 transition-colors"
           >
             <Plus className="w-4 h-4" />
             {tFallback('duels.challenge', 'Challenge')}
@@ -208,7 +208,7 @@ export default function Duels() {
             type="button"
             onClick={() => navigate(-1)}
             aria-label={tFallback('common.back', 'Back')}
-            className="-ms-1 w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+            className="-ms-1 w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground active:text-foreground hover:bg-secondary active:bg-secondary transition-colors"
           >
             <ArrowLeft className="w-5 h-5 rtl:scale-x-[-1]" />
           </button>

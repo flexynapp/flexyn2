@@ -140,7 +140,7 @@ export default function ReferralCard() {
         <button
           type="button"
           onClick={() => setSheetOpen(true)}
-          className="w-full flex items-center gap-2 px-3.5 py-2.5 rounded-full border border-border text-sm font-semibold hover:bg-secondary transition-colors"
+          className="w-full flex items-center gap-2 px-3.5 py-2.5 rounded-full border border-border text-sm font-semibold hover:bg-secondary active:bg-secondary transition-colors"
         >
           <Gift className="w-4 h-4 text-primary shrink-0" aria-hidden="true" />
           <span>{tFallback('referral.kicker', 'Invite friends')}</span>
@@ -179,7 +179,7 @@ export default function ReferralCard() {
           <button
             type="button"
             onClick={() => setHiddenPersisted(true)}
-            className="p-1 rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+            className="p-1 rounded-md text-muted-foreground hover:bg-secondary active:bg-secondary hover:text-foreground active:text-foreground transition-colors"
             aria-label={tFallback('referral.hide', 'Hide invite friends')}
             title={tFallback('referral.hide', 'Hide invite friends')}
           >
@@ -206,7 +206,7 @@ export default function ReferralCard() {
           <button
             onClick={handleCopy}
             disabled={!code}
-            className="px-3 rounded-lg border border-border bg-background hover:bg-secondary disabled:opacity-50 transition-colors flex items-center gap-1.5 text-xs font-semibold"
+            className="px-3 rounded-lg border border-border bg-background hover:bg-secondary active:bg-secondary disabled:opacity-50 transition-colors flex items-center gap-1.5 text-xs font-semibold"
             aria-label={tFallback('referral.copy', 'Copy invite link')}
           >
             {copied ? <Check className="w-3.5 h-3.5 text-success" /> : <Copy className="w-3.5 h-3.5" />}
@@ -214,7 +214,7 @@ export default function ReferralCard() {
           <button
             onClick={handleShare}
             disabled={!code}
-            className="px-3 rounded-lg bg-primary hover:bg-primary disabled:opacity-50 text-white transition-colors flex items-center gap-1.5 text-xs font-bold"
+            className="px-3 rounded-lg bg-primary hover:bg-primary active:bg-primary disabled:opacity-50 text-white transition-colors flex items-center gap-1.5 text-xs font-bold"
           >
             <Share2 className="w-3.5 h-3.5" />
             {tFallback('referral.share', 'Share')}
@@ -230,7 +230,7 @@ export default function ReferralCard() {
           <button
             type="button"
             onClick={() => setSheetOpen(true)}
-            className="flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
+            className="flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground active:text-foreground transition-colors"
           >
             {tFallback('referral.redeem.label', "Got a friend's code?")}
             <ChevronRight className="w-3.5 h-3.5" aria-hidden="true" />

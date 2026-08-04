@@ -561,7 +561,7 @@ export default function ExerciseAutocomplete({ value, onChange, onSelect, placeh
               key={ex.name}
               type="button"
               onMouseDown={() => handleSelect(ex)}
-              className="w-full text-start px-3 py-2.5 text-sm hover:bg-secondary transition-colors flex items-center justify-between gap-3"
+              className="w-full text-start px-3 py-2.5 text-sm hover:bg-secondary active:bg-secondary transition-colors flex items-center justify-between gap-3"
             >
               <span className="font-medium">{ex.displayName}</span>
               <span className="text-xs text-muted-foreground truncate">{ex.muscles.map(m => t(`muscleGroups.${muscleKey(m)}`)).join(', ')}</span>

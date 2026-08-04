@@ -36,7 +36,7 @@ export default function MuscleGroupSelector({ selected = [], availableGroups = A
               <button
                 type="button"
                 onClick={() => onRemove(muscle)}
-                className="ms-0.5 hover:text-destructive transition-colors"
+                className="ms-0.5 hover:text-destructive active:text-destructive transition-colors"
               >
                 <X className="w-3 h-3" />
               </button>
@@ -52,7 +52,7 @@ export default function MuscleGroupSelector({ selected = [], availableGroups = A
               key={muscle}
               type="button"
               onClick={() => onAdd(muscle)}
-              className="w-full text-start px-3 py-2 text-sm rounded text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+              className="w-full text-start px-3 py-2 text-sm rounded text-muted-foreground hover:bg-secondary active:bg-secondary hover:text-foreground active:text-foreground transition-colors"
             >
               {t(`muscleGroups.${muscleKey(muscle)}`)}
             </button>

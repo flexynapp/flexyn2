@@ -114,7 +114,7 @@ export default function MarketplaceHeader({
           <button
             onClick={onRefresh}
             aria-label="Refresh listings"
-            className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded-lg hover:bg-secondary"
+            className="text-muted-foreground hover:text-foreground active:text-foreground transition-colors p-1 rounded-lg hover:bg-secondary active:bg-secondary"
           >
             <RefreshCw className="w-4 h-4" />
           </button>
@@ -124,7 +124,7 @@ export default function MarketplaceHeader({
           <a
             href="/market/trades"
             onClick={(e) => { e.preventDefault(); onOpenTradeHistory?.(); }}
-            className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded-lg hover:bg-secondary"
+            className="text-muted-foreground hover:text-foreground active:text-foreground transition-colors p-1 rounded-lg hover:bg-secondary active:bg-secondary"
             aria-label="Trade history"
             title="Trade history"
           >
@@ -141,7 +141,7 @@ export default function MarketplaceHeader({
               drives the capsule-open flow (see inventoryFlow.js). */}
           <button
             onClick={requestOpenBag}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-full bg-secondary border border-border font-bold text-sm hover:bg-secondary/70 transition-colors shrink-0"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-full bg-secondary border border-border font-bold text-sm hover:bg-secondary/70 active:bg-secondary/70 transition-colors shrink-0"
             aria-label="Open My Bag"
           >
             <Package className="w-4 h-4 shrink-0" />

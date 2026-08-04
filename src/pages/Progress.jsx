@@ -149,7 +149,7 @@ function PersonalBestsTab({ logs, onViewHistory }) {
                 {onViewHistory && (
                   <button
                     onClick={() => onViewHistory(pb.name)}
-                    className="text-micro font-semibold text-primary/70 hover:text-primary flex items-center gap-0.5 transition-colors shrink-0"
+                    className="text-micro font-semibold text-primary/70 hover:text-primary active:text-primary flex items-center gap-0.5 transition-colors shrink-0"
                   >
                     History <ChevronRight className="w-3 h-3" />
                   </button>
@@ -401,7 +401,7 @@ const ProgressCarousel = forwardRef(function ProgressCarousel({ slides }, ref) {
           type="button"
           onClick={next}
           aria-label="Next slide"
-          className="absolute end-3 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-foreground/45 backdrop-blur-sm text-background hover:bg-foreground/60 active:scale-95 flex items-center justify-center shadow-md transition-all"
+          className="absolute end-3 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-foreground/45 backdrop-blur-sm text-background hover:bg-foreground/60 active:bg-foreground/60 active:scale-95 flex items-center justify-center shadow-md transition-all"
         >
           <ChevronRight className="w-4 h-4 rtl:scale-x-[-1]" />
         </button>
@@ -891,7 +891,7 @@ export default function Progress() {
                             className={`px-3 py-1 rounded-lg text-micro font-bold uppercase tracking-wider transition-all duration-150 ${
                               statsFrame === f
                                 ? 'bg-primary text-primary-foreground shadow-md scale-[1.04]'
-                                : 'text-muted-foreground hover:text-foreground hover:bg-secondary/80'
+                                : 'text-muted-foreground hover:text-foreground active:text-foreground hover:bg-secondary/80 active:bg-secondary/80'
                             }`}
                           >
                             {f === 'all' ? 'All' : f === 'week' ? 'Wk' : f === 'month' ? 'Mo' : 'Yr'}
@@ -947,7 +947,7 @@ export default function Progress() {
                 <h2 className="font-heading font-black text-sm uppercase tracking-wider text-muted-foreground">Top PRs</h2>
                 <button
                   onClick={() => setPersonalBestsModalOpen(true)}
-                  className="text-xs font-semibold text-primary hover:text-primary/80 transition-colors flex items-center gap-0.5"
+                  className="text-xs font-semibold text-primary hover:text-primary/80 active:text-primary/80 transition-colors flex items-center gap-0.5"
                 >
                   All <ChevronRight className="w-3.5 h-3.5" />
                 </button>
@@ -1001,7 +1001,7 @@ export default function Progress() {
                     className={`flex items-center justify-center gap-2.5 px-5 py-3.5 min-h-[48px] w-full rounded-xl text-body font-bold whitespace-nowrap transition-all border ${
                       isActive
                         ? `${tab.activeBg} ${tab.activeText} border-transparent shadow-md`
-                        : `bg-secondary/60 text-muted-foreground border-border/50 hover:bg-secondary hover:text-foreground`
+                        : `bg-secondary/60 text-muted-foreground border-border/50 hover:bg-secondary active:bg-secondary hover:text-foreground active:text-foreground`
                     }`}
                   >
                     <tab.Icon className={`w-[18px] h-[18px] shrink-0 ${isActive ? '' : tab.iconColor}`} />
@@ -1064,7 +1064,7 @@ export default function Progress() {
                             </div>
                             <button
                               onClick={() => refetchDebrief()}
-                              className="text-white/30 hover:text-white/60 transition-colors"
+                              className="text-white/30 hover:text-white/60 active:text-white/60 transition-colors"
                               title="Refresh summary"
                             >
                               <RefreshCw className="w-3.5 h-3.5" />

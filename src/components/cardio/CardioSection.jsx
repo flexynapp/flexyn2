@@ -47,7 +47,7 @@ function NavTile({ icon: Icon, iconBg = 'bg-primary/10', iconColor = 'text-prima
       transition={{ type: 'spring', stiffness: 380, damping: 20 }}
     >
       <Card
-        className="p-5 border-dashed cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors"
+        className="p-5 border-dashed cursor-pointer hover:border-primary/50 hover:bg-primary/5 active:bg-primary/5 transition-colors"
         onClick={onClick}
       >
         <div className="flex items-center gap-3">

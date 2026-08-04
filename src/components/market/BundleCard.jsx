@@ -67,7 +67,7 @@ export default function BundleCard({ bundle, listings, currentUser, flexCoins, o
           className={[
             'w-full py-2 rounded-lg text-sm font-bold transition-colors flex items-center justify-center gap-1.5',
             canAfford
-              ? 'bg-amber-500/20 text-amber-600 dark:text-amber-300 border border-amber-400/40 hover:bg-amber-500/30'
+              ? 'bg-amber-500/20 text-amber-600 dark:text-amber-300 border border-amber-400/40 hover:bg-amber-500/30 active:bg-amber-500/30'
               : 'bg-secondary text-muted-foreground border border-border cursor-not-allowed',
           ].join(' ')}
         >

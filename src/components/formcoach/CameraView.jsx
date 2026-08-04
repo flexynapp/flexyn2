@@ -128,14 +128,14 @@ export default function CameraView({ onCapture, isAnalyzing, exerciseSelected })
             <div className="absolute top-3 end-3 flex gap-2">
               <button
                 onClick={flipCamera}
-                className="w-9 h-9 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center text-white hover:bg-black/60 transition-colors"
+                className="w-9 h-9 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center text-white hover:bg-black/60 active:bg-black/60 transition-colors"
                 title="Flip camera"
               >
                 <RotateCcw className="w-4 h-4" />
               </button>
               <button
                 onClick={stopCamera}
-                className={`w-9 h-9 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center text-white hover:bg-black/60 transition-colors ${isAnalyzing ? 'opacity-50 pointer-events-none' : ''}`}
+                className={`w-9 h-9 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center text-white hover:bg-black/60 active:bg-black/60 transition-colors ${isAnalyzing ? 'opacity-50 pointer-events-none' : ''}`}
                 title="Turn off camera"
                 disabled={isAnalyzing}
               >

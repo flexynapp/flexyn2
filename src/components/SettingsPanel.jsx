@@ -675,7 +675,7 @@ export default function SettingsPanel() {
               className={`flex-1 px-2 py-1.5 text-xs rounded-md border transition-colors ${
                 distanceUnit === opt.value
                   ? 'border-primary bg-primary/10 text-primary font-medium'
-                  : 'border-border text-muted-foreground hover:bg-secondary'
+                  : 'border-border text-muted-foreground hover:bg-secondary active:bg-secondary'
               }`}
             >
               {opt.label}
@@ -708,7 +708,7 @@ export default function SettingsPanel() {
               className={`flex-1 px-2 py-1.5 text-xs rounded-md border transition-colors ${
                 weightUnit === opt.value
                   ? 'border-primary bg-primary/10 text-primary font-medium'
-                  : 'border-border text-muted-foreground hover:bg-secondary'
+                  : 'border-border text-muted-foreground hover:bg-secondary active:bg-secondary'
               }`}
             >
               {opt.label}
@@ -786,7 +786,7 @@ export default function SettingsPanel() {
             type="button"
             onClick={() => setDarkMode(false)}
             className={`flex items-center gap-1 px-2.5 py-1 text-micro font-bold transition-colors ${
-              !darkMode ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-secondary'
+              !darkMode ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-secondary active:bg-secondary'
             }`}
             aria-pressed={!darkMode}
           >
@@ -796,7 +796,7 @@ export default function SettingsPanel() {
             type="button"
             onClick={() => setDarkMode(true)}
             className={`flex items-center gap-1 px-2.5 py-1 text-micro font-bold transition-colors ${
-              darkMode ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-secondary'
+              darkMode ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-secondary active:bg-secondary'
             }`}
             aria-pressed={darkMode}
           >
@@ -899,7 +899,7 @@ export default function SettingsPanel() {
                       className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-micro font-bold uppercase tracking-wide transition-colors ${
                         snoozeLeft
                           ? 'bg-amber-500/15 text-amber-500 border border-amber-500/30'
-                          : 'text-muted-foreground/70 hover:bg-secondary/50 hover:text-foreground'
+                          : 'text-muted-foreground/70 hover:bg-secondary/50 active:bg-secondary/50 hover:text-foreground active:text-foreground'
                       }`}
                       aria-label={tFallback('settings.snooze.label', 'Snooze')}
                     >
@@ -924,7 +924,7 @@ export default function SettingsPanel() {
                         key={opt.mins}
                         type="button"
                         onClick={() => handleSnoozeCategory(key, opt.mins)}
-                        className="px-2 py-0.5 rounded text-micro font-bold uppercase tracking-wide bg-secondary/60 hover:bg-secondary text-foreground"
+                        className="px-2 py-0.5 rounded text-micro font-bold uppercase tracking-wide bg-secondary/60 hover:bg-secondary active:bg-secondary text-foreground"
                       >
                         {opt.label}
                       </button>
@@ -933,7 +933,7 @@ export default function SettingsPanel() {
                       <button
                         type="button"
                         onClick={() => handleSnoozeCategory(key, 0)}
-                        className="px-2 py-0.5 rounded text-micro font-bold uppercase tracking-wide text-destructive hover:bg-destructive/10"
+                        className="px-2 py-0.5 rounded text-micro font-bold uppercase tracking-wide text-destructive hover:bg-destructive/10 active:bg-destructive/10"
                       >
                         {tFallback('settings.snooze.clear', 'Clear')}
                       </button>
@@ -1072,7 +1072,7 @@ export default function SettingsPanel() {
               </button>
               <button
                 onClick={() => { setEditingStat(null); setStatValue(''); }}
-                className="h-8 w-8 rounded-md border border-border flex items-center justify-center text-muted-foreground hover:bg-secondary"
+                className="h-8 w-8 rounded-md border border-border flex items-center justify-center text-muted-foreground hover:bg-secondary active:bg-secondary"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -1100,7 +1100,7 @@ export default function SettingsPanel() {
               <button
                 key={field}
                 onClick={() => { setEditingStat(field); setStatValue(ev); setInitialStatValue(ev); }}
-                className="w-full flex items-center justify-between py-1 px-1 rounded-md hover:bg-secondary/60 transition-colors group"
+                className="w-full flex items-center justify-between py-1 px-1 rounded-md hover:bg-secondary/60 active:bg-secondary/60 transition-colors group"
               >
                 <div className="flex items-center gap-2">
                   <Icon className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
@@ -1128,7 +1128,7 @@ export default function SettingsPanel() {
                       className={`px-2.5 h-7 rounded-md text-xs font-semibold border transition-colors disabled:opacity-50 ${
                         active
                           ? 'bg-primary/10 border-primary text-primary'
-                          : 'border-border text-muted-foreground hover:bg-secondary'
+                          : 'border-border text-muted-foreground hover:bg-secondary active:bg-secondary'
                       }`}
                     >
                       {label}
@@ -1199,7 +1199,7 @@ export default function SettingsPanel() {
                 className={`flex items-center gap-1 px-2 py-1 rounded-md text-micro border transition-colors ${
                   defaultPrivacy === value
                     ? 'border-primary bg-primary/10 text-primary font-medium'
-                    : 'border-border text-muted-foreground hover:bg-secondary'
+                    : 'border-border text-muted-foreground hover:bg-secondary active:bg-secondary'
                 }`}
               >
                 <Icon className="w-2.5 h-2.5" />
@@ -1216,7 +1216,7 @@ export default function SettingsPanel() {
               setStoryBlocksOpen(v => !v);
               if (!storyBlocksOpen) loadStoryBlocks();
             }}
-            className="flex items-center justify-between w-full py-1 px-1 rounded-md hover:bg-secondary/60 transition-colors group"
+            className="flex items-center justify-between w-full py-1 px-1 rounded-md hover:bg-secondary/60 active:bg-secondary/60 transition-colors group"
           >
             <div className="flex items-center gap-2">
               <ShieldOff className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
@@ -1353,7 +1353,7 @@ export default function SettingsPanel() {
       <button
         onClick={handleDataExport}
         disabled={exporting}
-        className="flex items-center gap-2 w-full py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+        className="flex items-center gap-2 w-full py-1.5 text-xs text-muted-foreground hover:text-foreground active:text-foreground transition-colors disabled:opacity-50"
       >
         {exporting
           ? <><Loader2 className="w-3.5 h-3.5 shrink-0 animate-spin" /> Preparing export…</>
@@ -1363,7 +1363,7 @@ export default function SettingsPanel() {
       {/* Bug report */}
       <button
         onClick={() => setBugReportOpen(true)}
-        className="flex items-center gap-2 w-full py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors border-t border-border pt-3 mt-1"
+        className="flex items-center gap-2 w-full py-1.5 text-xs text-muted-foreground hover:text-foreground active:text-foreground transition-colors border-t border-border pt-3 mt-1"
       >
         <Bug className="w-3.5 h-3.5 shrink-0" />
         {t('bugReport.button')}
@@ -1374,7 +1374,7 @@ export default function SettingsPanel() {
       {isAppAdmin(user) && (
         <Link
           to="/admin/reports"
-          className="flex items-center gap-2 w-full py-1.5 text-xs text-amber-500 hover:text-amber-400 transition-colors"
+          className="flex items-center gap-2 w-full py-1.5 text-xs text-amber-500 hover:text-amber-400 active:text-amber-400 transition-colors"
         >
           <ShieldAlert className="w-3.5 h-3.5 shrink-0" />
           Open report queue
@@ -1405,7 +1405,7 @@ export default function SettingsPanel() {
             toast.error('Could not copy — your browser blocked clipboard access.');
           }
         }}
-        className="block w-full text-start py-2 text-micro text-muted-foreground/70 hover:text-muted-foreground transition-colors"
+        className="block w-full text-start py-2 text-micro text-muted-foreground/70 hover:text-muted-foreground active:text-muted-foreground transition-colors"
         aria-label="Copy build diagnostic info to clipboard"
       >
         {buildLabel()}
@@ -1420,7 +1420,7 @@ export default function SettingsPanel() {
           href="https://github.com/jdecked/twemoji"
           target="_blank"
           rel="noopener noreferrer"
-          className="underline hover:text-muted-foreground transition-colors"
+          className="underline hover:text-muted-foreground active:text-muted-foreground transition-colors"
         >
           Twemoji
         </a>
@@ -1429,7 +1429,7 @@ export default function SettingsPanel() {
           href="https://creativecommons.org/licenses/by/4.0/"
           target="_blank"
           rel="noopener noreferrer"
-          className="underline hover:text-muted-foreground transition-colors"
+          className="underline hover:text-muted-foreground active:text-muted-foreground transition-colors"
         >
           CC-BY 4.0
         </a>.
@@ -1452,7 +1452,7 @@ export default function SettingsPanel() {
                 <span className="text-foreground truncate">{maskEmail(b.blocked_email)}</span>
                 <button
                   onClick={() => handleUnblockFull(b.blocked_email)}
-                  className="px-2 py-0.5 rounded text-micro font-bold uppercase tracking-wide border border-border hover:bg-secondary"
+                  className="px-2 py-0.5 rounded text-micro font-bold uppercase tracking-wide border border-border hover:bg-secondary active:bg-secondary"
                 >
                   Unblock
                 </button>
@@ -1487,7 +1487,7 @@ export default function SettingsPanel() {
                 <span className="text-foreground truncate">{maskEmail(b.blocked_email)}</span>
                 <button
                   onClick={() => handleAllowRequestsAgain(b.blocked_email)}
-                  className="px-2 py-0.5 rounded text-micro font-bold uppercase tracking-wide border border-border hover:bg-secondary shrink-0"
+                  className="px-2 py-0.5 rounded text-micro font-bold uppercase tracking-wide border border-border hover:bg-secondary active:bg-secondary shrink-0"
                 >
                   {tFallback('settings.requestBlock.allow', 'Allow requests')}
                 </button>
@@ -1512,7 +1512,7 @@ export default function SettingsPanel() {
                 <span className="text-foreground truncate">{maskEmail(m.muted_email)}</span>
                 <button
                   onClick={() => handleUnmute(m.muted_email)}
-                  className="px-2 py-0.5 rounded text-micro font-bold uppercase tracking-wide border border-border hover:bg-secondary"
+                  className="px-2 py-0.5 rounded text-micro font-bold uppercase tracking-wide border border-border hover:bg-secondary active:bg-secondary"
                 >
                   Unmute
                 </button>

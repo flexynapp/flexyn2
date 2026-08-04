@@ -80,7 +80,7 @@ function SuggestedCrewCard({ crew, onJoin, joining }) {
       <button
         onClick={onJoin}
         disabled={joining}
-        className="mt-auto flex items-center justify-center gap-1 py-1.5 rounded-md text-xs font-bold bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-60 transition-colors"
+        className="mt-auto flex items-center justify-center gap-1 py-1.5 rounded-md text-xs font-bold bg-primary text-primary-foreground hover:bg-primary/90 active:bg-primary/90 disabled:opacity-60 transition-colors"
       >
         {joining ? (
           <Loader2 className="w-3 h-3 animate-spin" aria-hidden="true" />
@@ -155,7 +155,7 @@ export default function CrewSuggestionRail() {
           </div>
           <button
             onClick={handleDismiss}
-            className="p-1 -me-1 rounded-md text-muted-foreground/70 hover:text-foreground hover:bg-foreground/5 transition-colors"
+            className="p-1 -me-1 rounded-md text-muted-foreground/70 hover:text-foreground active:text-foreground hover:bg-foreground/5 active:bg-foreground/5 transition-colors"
             aria-label={tFallback('crewSuggestion.dismiss', 'Hide suggestions')}
           >
             <X className="w-3.5 h-3.5" />

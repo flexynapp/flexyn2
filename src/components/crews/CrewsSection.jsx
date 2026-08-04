@@ -309,7 +309,7 @@ export default function CrewsSection({ initialCrewId }) {
         <button
           onClick={() => setWarTab('crews')}
           className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-semibold rounded-lg transition-colors ${
-            warTab === 'crews' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+            warTab === 'crews' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground active:text-foreground'
           }`}
         >
           <Shield className="w-3.5 h-3.5" />
@@ -318,7 +318,7 @@ export default function CrewsSection({ initialCrewId }) {
         <button
           onClick={() => setWarTab('discover')}
           className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-semibold rounded-lg transition-colors ${
-            warTab === 'discover' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+            warTab === 'discover' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground active:text-foreground'
           }`}
         >
           <Globe2 className="w-3.5 h-3.5" />
@@ -327,7 +327,7 @@ export default function CrewsSection({ initialCrewId }) {
         <button
           onClick={() => setWarTab('battles')}
           className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-semibold rounded-lg transition-colors ${
-            warTab === 'battles' ? 'bg-rose-500 text-white shadow-sm' : 'text-muted-foreground hover:text-foreground'
+            warTab === 'battles' ? 'bg-rose-500 text-white shadow-sm' : 'text-muted-foreground hover:text-foreground active:text-foreground'
           }`}
         >
           <Swords className="w-3.5 h-3.5" />

@@ -42,7 +42,7 @@ export function OnboardingCoachButton({ onClick, className = '', size = 'lg' }) 
       type="button"
       onClick={onClick}
       aria-label="Ask the AI Coach"
-      className={`${box} border border-primary/30 bg-primary/10 backdrop-blur-sm flex items-center justify-center text-primary hover:bg-primary/20 active:scale-95 transition-all shrink-0 ${className}`}
+      className={`${box} border border-primary/30 bg-primary/10 backdrop-blur-sm flex items-center justify-center text-primary hover:bg-primary/20 active:bg-primary/20 active:scale-95 transition-all shrink-0 ${className}`}
     >
       <Sparkles className={glyph} strokeWidth={2.2} />
     </button>
@@ -150,7 +150,7 @@ export function OnboardingCoachSheet({ open, onClose, stepId, draft = {}, onAppl
               </div>
               <button
                 type="button" onClick={onClose} aria-label="Close coach"
-                className="w-9 h-9 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-secondary transition-colors shrink-0"
+                className="w-9 h-9 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-secondary active:bg-secondary transition-colors shrink-0"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -192,7 +192,7 @@ export function OnboardingCoachSheet({ open, onClose, stepId, draft = {}, onAppl
                       key={p.id}
                       type="button"
                       onClick={() => ask(p.text)}
-                      className="rounded-full border border-border bg-background px-3 py-1.5 text-xs text-foreground/80 hover:border-primary/50 hover:text-foreground transition-colors"
+                      className="rounded-full border border-border bg-background px-3 py-1.5 text-xs text-foreground/80 hover:border-primary/50 hover:text-foreground active:text-foreground transition-colors"
                     >
                       {p.text}
                     </button>

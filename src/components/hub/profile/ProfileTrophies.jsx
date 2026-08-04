@@ -78,8 +78,8 @@ export default function ProfileTrophies({
                       ? isPrimary ? 'bg-primary/15' : 'bg-secondary/40'
                       : isSelf
                         ? isPrimary
-                          ? 'border border-dashed border-primary/60 hover:bg-primary/10'
-                          : 'border border-dashed border-primary/45 hover:bg-secondary/40'
+                          ? 'border border-dashed border-primary/60 hover:bg-primary/10 active:bg-primary/10'
+                          : 'border border-dashed border-primary/45 hover:bg-secondary/40 active:bg-secondary/40'
                         : 'bg-secondary/20'
                   } ${isPrimary ? 'ring-1 ring-primary/45' : ''} ${isSelf ? 'cursor-pointer' : 'cursor-default'}`}
                 >

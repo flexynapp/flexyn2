@@ -136,7 +136,7 @@ function ExpandedDebrief({ debrief, onClose, onRefresh, isRefreshing }) {
       <div className="flex items-center justify-between px-4 py-3 shrink-0">
         <button
           onClick={onClose}
-          className="flex items-center gap-1.5 text-sm font-medium text-white/60 hover:text-white transition-colors"
+          className="flex items-center gap-1.5 text-sm font-medium text-white/60 hover:text-white active:text-white transition-colors"
         >
           <ChevronLeft className="w-4 h-4" /> Back
         </button>
@@ -146,7 +146,7 @@ function ExpandedDebrief({ debrief, onClose, onRefresh, isRefreshing }) {
             <button
               onClick={onRefresh}
               disabled={isRefreshing}
-              className="text-white/40 hover:text-white transition-colors disabled:opacity-30"
+              className="text-white/40 hover:text-white active:text-white transition-colors disabled:opacity-30"
               title="Refresh this week's data"
             >
               <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
@@ -155,7 +155,7 @@ function ExpandedDebrief({ debrief, onClose, onRefresh, isRefreshing }) {
           <button
             onClick={handleShare}
             disabled={sharing}
-            className="flex items-center gap-1.5 text-sm font-medium text-purple-400 hover:text-purple-300 transition-colors disabled:opacity-50"
+            className="flex items-center gap-1.5 text-sm font-medium text-purple-400 hover:text-purple-300 active:text-purple-300 transition-colors disabled:opacity-50"
           >
             {sharing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Share2 className="w-4 h-4" />}
             {sharing ? 'Exporting…' : 'Share'}
@@ -278,7 +278,7 @@ export default function DebriefVault({ onClose }) {
       <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
         <button
           onClick={onClose}
-          className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+          className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground active:text-foreground transition-colors"
         >
           <ChevronLeft className="w-4 h-4" /> Back
         </button>
@@ -289,7 +289,7 @@ export default function DebriefVault({ onClose }) {
         <button
           onClick={() => genMut.mutate(thisWeek)}
           disabled={genMut.isPending}
-          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
+          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground active:text-foreground transition-colors disabled:opacity-40"
           title="Refresh this week"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${genMut.isPending ? 'animate-spin' : ''}`} />
@@ -307,7 +307,7 @@ export default function DebriefVault({ onClose }) {
               className={`text-xs px-3 py-1 rounded-full border font-medium whitespace-nowrap transition-colors ${
                 filter === ep
                   ? 'bg-primary text-primary-foreground border-primary'
-                  : 'bg-secondary border-border text-muted-foreground hover:text-foreground'
+                  : 'bg-secondary border-border text-muted-foreground hover:text-foreground active:text-foreground'
               }`}
             >
               {ep ?? 'All'}
@@ -330,7 +330,7 @@ export default function DebriefVault({ onClose }) {
               className={`px-2.5 py-1 rounded-full text-micro font-bold transition-colors ${
                 sortOrder === opt.id
                   ? 'bg-primary text-primary-foreground'
-                  : 'bg-secondary/60 text-muted-foreground hover:text-foreground'
+                  : 'bg-secondary/60 text-muted-foreground hover:text-foreground active:text-foreground'
               }`}
             >
               {opt.label}

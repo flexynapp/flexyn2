@@ -75,7 +75,7 @@ export default function ListingFormModal({ open, onClose, listing, trainerId, us
       >
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-heading font-bold text-lg">{editing ? 'Edit listing' : 'New listing'}</h2>
-          <button type="button" onClick={onClose} className="w-8 h-8 rounded-full hover:bg-secondary flex items-center justify-center" aria-label="Close">
+          <button type="button" onClick={onClose} className="w-8 h-8 rounded-full hover:bg-secondary active:bg-secondary flex items-center justify-center" aria-label="Close">
             <X className="w-4 h-4" />
           </button>
         </div>

@@ -221,7 +221,7 @@ export default function LiveSessionBroadcaster({ onClose }) {
             )}
           </div>
           {phase === 'setup' && (
-            <button onClick={onClose} className="p-1 rounded-full hover:bg-secondary">
+            <button onClick={onClose} className="p-1 rounded-full hover:bg-secondary active:bg-secondary">
               <X className="w-4 h-4 text-muted-foreground" />
             </button>
           )}
@@ -247,7 +247,7 @@ export default function LiveSessionBroadcaster({ onClose }) {
               </p>
               <button
                 onClick={goLive}
-                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-destructive text-white font-bold hover:bg-destructive transition-colors"
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-destructive text-white font-bold hover:bg-destructive active:bg-destructive transition-colors"
               >
                 <Radio className="w-4 h-4" />
                 Start Live Session
@@ -282,7 +282,7 @@ export default function LiveSessionBroadcaster({ onClose }) {
                 <div className="flex flex-col items-center gap-1.5">
                   <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Set</label>
                   <div className="flex items-center gap-2">
-                    <button onClick={() => setSet(s => Math.max(1, s - 1))} className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center hover:bg-secondary/80">
+                    <button onClick={() => setSet(s => Math.max(1, s - 1))} className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center hover:bg-secondary/80 active:bg-secondary/80">
                       <ChevronDown className="w-4 h-4" />
                     </button>
                     <span className="font-heading font-bold text-2xl w-8 text-center">{set}</span>
@@ -296,7 +296,7 @@ export default function LiveSessionBroadcaster({ onClose }) {
                 <div className="flex flex-col items-center gap-1.5">
                   <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Reps</label>
                   <div className="flex items-center gap-2">
-                    <button onClick={() => setReps(r => Math.max(0, r - 1))} className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center hover:bg-secondary/80">
+                    <button onClick={() => setReps(r => Math.max(0, r - 1))} className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center hover:bg-secondary/80 active:bg-secondary/80">
                       <ChevronDown className="w-4 h-4" />
                     </button>
                     <span className="font-heading font-bold text-2xl w-8 text-center">{reps}</span>
@@ -325,7 +325,7 @@ export default function LiveSessionBroadcaster({ onClose }) {
               <button
                 onClick={endLive}
                 disabled={phase === 'ending'}
-                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-destructive text-destructive font-bold hover:bg-destructive/10 transition-colors disabled:opacity-50"
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-destructive text-destructive font-bold hover:bg-destructive/10 active:bg-destructive/10 transition-colors disabled:opacity-50"
               >
                 <StopCircle className="w-4 h-4" />
                 End Session

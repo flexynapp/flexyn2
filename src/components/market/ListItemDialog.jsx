@@ -112,7 +112,7 @@ export default function ListItemDialog({ open, onClose, userItems, user, onSucce
               <button
                 onClick={() => setStep('pick')}
                 aria-label="Back to item picker"
-                className="text-muted-foreground hover:text-foreground me-1"
+                className="text-muted-foreground hover:text-foreground active:text-foreground me-1"
               >
                 <ChevronLeft className="w-5 h-5" />
               </button>
@@ -125,7 +125,7 @@ export default function ListItemDialog({ open, onClose, userItems, user, onSucce
           <button
             onClick={handleClose}
             aria-label="Close"
-            className="text-muted-foreground hover:text-foreground p-1 rounded-lg hover:bg-secondary"
+            className="text-muted-foreground hover:text-foreground active:text-foreground p-1 rounded-lg hover:bg-secondary active:bg-secondary"
           >
             <X className="w-4 h-4" />
           </button>

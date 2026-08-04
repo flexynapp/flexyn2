@@ -178,7 +178,7 @@ export default function RegionalLeaderboardsModal({ open, onClose }) {
                   key={b.id}
                   onClick={() => setActiveBoard(b.id)}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold backdrop-blur-md transition-colors ${
-                    active ? 'bg-white text-foreground shadow-lg' : 'bg-white/15 text-white hover:bg-white/25'
+                    active ? 'bg-white text-foreground shadow-lg' : 'bg-white/15 text-white hover:bg-white/25 active:bg-white/25'
                   }`}
                   whileTap={{ scale: 0.94 }}
                   layout

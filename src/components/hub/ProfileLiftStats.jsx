@@ -169,7 +169,7 @@ export default function ProfileLiftStats({ userEmail, longestStreak, isOwn, user
         <button
           type="button"
           onClick={() => setShareOpen(true)}
-          className="mt-5 inline-flex items-center gap-1.5 px-4 h-9 rounded-full border border-border hover:bg-secondary transition-colors text-sm font-semibold text-foreground"
+          className="mt-5 inline-flex items-center gap-1.5 px-4 h-9 rounded-full border border-border hover:bg-secondary active:bg-secondary transition-colors text-sm font-semibold text-foreground"
         >
           <Share2 className="w-3.5 h-3.5 text-muted-foreground" />
           {tFallback('profileLifts.share', 'Share my stats')}

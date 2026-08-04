@@ -450,7 +450,7 @@ function RegimenBlock({ snap, post }) {
         <button
           onClick={handleCopyRegimen}
           disabled={copying || showCopied}
-          className="shrink-0 px-3 py-1.5 rounded-md bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 disabled:opacity-50 transition-colors"
+          className="shrink-0 px-3 py-1.5 rounded-md bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 active:bg-primary/20 disabled:opacity-50 transition-colors"
         >
           {copying ? tFallback('hub.activity.savingRegimen', 'Saving…') : showCopied ? tFallback('hub.activity.savedRegimen', 'Saved') : tFallback('hub.activity.saveRegimen', 'Save')}
         </button>

@@ -230,7 +230,7 @@ export default function CrewPage({ crew, onBack, onViewProfile }) {
               className={`text-sm font-semibold pb-2.5 transition-colors ${
                 tab === t.key
                   ? 'text-foreground'
-                  : 'text-muted-foreground hover:text-foreground'
+                  : 'text-muted-foreground hover:text-foreground active:text-foreground'
               }`}
               style={tab === t.key
                 ? { boxShadow: 'inset 0 -2px 0 hsl(var(--primary))' }

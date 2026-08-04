@@ -516,7 +516,7 @@ export default function SweatJetpackModal({ onClose, userId }) {
 
       <button
         onClick={onClose}
-        className="mt-4 px-6 py-2 text-zinc-500 hover:text-zinc-300 text-xs font-mono uppercase tracking-widest transition-colors"
+        className="mt-4 px-6 py-2 text-zinc-500 hover:text-zinc-300 active:text-zinc-300 text-xs font-mono uppercase tracking-widest transition-colors"
       >
         Close & cool off
       </button>

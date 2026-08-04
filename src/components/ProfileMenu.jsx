@@ -297,9 +297,9 @@ export default function ProfileMenu({ compact = false } = {}) {
         className={compact
           // Header: a plain h-11 w-11 icon button so it lines up with the
           // messages + bell buttons (no extra padding/margin/name).
-          ? 'relative flex items-center justify-center h-11 w-11 hover:bg-secondary rounded-lg transition-colors select-none-ui'
+          ? 'relative flex items-center justify-center h-11 w-11 hover:bg-secondary active:bg-secondary rounded-lg transition-colors select-none-ui'
           // Sidebar: full-width row with avatar + first name.
-          : 'relative flex items-center justify-center gap-2 w-full h-11 hover:bg-secondary rounded-lg px-3 transition-colors select-none-ui ms-2'}
+          : 'relative flex items-center justify-center gap-2 w-full h-11 hover:bg-secondary active:bg-secondary rounded-lg px-3 transition-colors select-none-ui ms-2'}
         aria-label={
           capsuleCount > 0
             ? `Profile — ${capsuleCount} unopened ${capsuleCount === 1 ? 'capsule' : 'capsules'}`
@@ -393,7 +393,7 @@ export default function ProfileMenu({ compact = false } = {}) {
                         </div>
                         <button
                           onClick={() => { setOpen(false); setView('main'); }}
-                          className="p-1 rounded-md hover:bg-secondary transition-colors shrink-0 text-muted-foreground"
+                          className="p-1 rounded-md hover:bg-secondary active:bg-secondary transition-colors shrink-0 text-muted-foreground"
                           aria-label="Close menu"
                         >
                           <X className="w-4 h-4" />
@@ -410,7 +410,7 @@ export default function ProfileMenu({ compact = false } = {}) {
                         setOpen(false);
                         navigate('/profile');
                       }}
-                      className="w-full flex items-center justify-between px-4 py-3 text-sm hover:bg-secondary transition-colors"
+                      className="w-full flex items-center justify-between px-4 py-3 text-sm hover:bg-secondary active:bg-secondary transition-colors"
                     >
                       <div className="flex items-center gap-2">
                         <div className="w-5 h-5 rounded-full bg-primary/10 border border-border flex items-center justify-center overflow-hidden shrink-0">
@@ -424,7 +424,7 @@ export default function ProfileMenu({ compact = false } = {}) {
                     </button>
                     <button
                       onClick={() => setView('settings')}
-                      className="w-full flex items-center justify-between px-4 py-3 text-sm hover:bg-secondary transition-colors border-t border-border"
+                      className="w-full flex items-center justify-between px-4 py-3 text-sm hover:bg-secondary active:bg-secondary transition-colors border-t border-border"
                     >
                       <div className="flex items-center gap-2">
                         <Settings className="w-4 h-4" />
@@ -442,7 +442,7 @@ export default function ProfileMenu({ compact = false } = {}) {
                         setOpen(false);
                         setAchievementsOpen(true);
                       }}
-                      className="w-full flex items-center justify-between px-4 py-3 text-sm hover:bg-secondary transition-colors border-t border-border"
+                      className="w-full flex items-center justify-between px-4 py-3 text-sm hover:bg-secondary active:bg-secondary transition-colors border-t border-border"
                     >
                       <div className="flex items-center gap-2">
                         <Trophy className="w-4 h-4 text-yellow-500" />
@@ -456,7 +456,7 @@ export default function ProfileMenu({ compact = false } = {}) {
                         requestOpenBag();
                         navigate('/market');
                       }}
-                      className="w-full flex items-center justify-between px-4 py-3 text-sm hover:bg-secondary transition-colors border-t border-border"
+                      className="w-full flex items-center justify-between px-4 py-3 text-sm hover:bg-secondary active:bg-secondary transition-colors border-t border-border"
                     >
                       <div className="flex items-center gap-2">
                         <ShoppingBag className="w-4 h-4" />
@@ -482,7 +482,7 @@ export default function ProfileMenu({ compact = false } = {}) {
                         setOpen(false);
                         navigate('/my-gym');
                       }}
-                      className="w-full flex items-center justify-between px-4 py-3 text-sm hover:bg-secondary transition-colors border-t border-border"
+                      className="w-full flex items-center justify-between px-4 py-3 text-sm hover:bg-secondary active:bg-secondary transition-colors border-t border-border"
                     >
                       <div className="flex items-center gap-2">
                         <Dumbbell className="w-4 h-4 text-orange-500" />
@@ -501,7 +501,7 @@ export default function ProfileMenu({ compact = false } = {}) {
                         setOpen(false);
                         navigate('/my-gyms');
                       }}
-                      className="w-full flex items-center justify-between px-4 py-3 text-sm hover:bg-secondary transition-colors border-t border-border"
+                      className="w-full flex items-center justify-between px-4 py-3 text-sm hover:bg-secondary active:bg-secondary transition-colors border-t border-border"
                     >
                       <div className="flex items-center gap-2">
                         <Building2 className="w-4 h-4 text-primary" />
@@ -514,7 +514,7 @@ export default function ProfileMenu({ compact = false } = {}) {
                         setOpen(false);
                         navigate('/corporate');
                       }}
-                      className="w-full flex items-center justify-between px-4 py-3 text-sm hover:bg-secondary transition-colors border-t border-border"
+                      className="w-full flex items-center justify-between px-4 py-3 text-sm hover:bg-secondary active:bg-secondary transition-colors border-t border-border"
                     >
                       <div className="flex items-center gap-2">
                         <Building2 className="w-4 h-4 text-emerald-500" />
@@ -527,7 +527,7 @@ export default function ProfileMenu({ compact = false } = {}) {
                         setOpen(false);
                         setJournalOpen(true);
                       }}
-                      className="w-full flex items-center justify-between px-4 py-3 text-sm hover:bg-secondary transition-colors border-t border-border"
+                      className="w-full flex items-center justify-between px-4 py-3 text-sm hover:bg-secondary active:bg-secondary transition-colors border-t border-border"
                     >
                       <div className="flex items-center gap-2">
                         <Book className="w-4 h-4" />
@@ -540,7 +540,7 @@ export default function ProfileMenu({ compact = false } = {}) {
                         setOpen(false);
                         setDebriefVaultOpen(true);
                       }}
-                      className="w-full flex items-center justify-between px-4 py-3 text-sm hover:bg-secondary transition-colors border-t border-border"
+                      className="w-full flex items-center justify-between px-4 py-3 text-sm hover:bg-secondary active:bg-secondary transition-colors border-t border-border"
                     >
                       <div className="flex items-center gap-2">
                         <Trophy className="w-4 h-4" />
@@ -553,7 +553,7 @@ export default function ProfileMenu({ compact = false } = {}) {
                         setOpen(false);
                         setInjuryFormOpen(true);
                       }}
-                      className="w-full flex items-center justify-between px-4 py-3 text-sm hover:bg-secondary transition-colors border-t border-border"
+                      className="w-full flex items-center justify-between px-4 py-3 text-sm hover:bg-secondary active:bg-secondary transition-colors border-t border-border"
                     >
                       <div className="flex items-center gap-2">
                         <ShieldAlert className="w-4 h-4 text-orange-500" />
@@ -564,7 +564,7 @@ export default function ProfileMenu({ compact = false } = {}) {
                     <ThemePicker />
                     <button
                       onClick={() => { setOpen(false); setSignOutOpen(true); }}
-                      className="w-full flex items-center gap-2 px-4 py-3 text-sm hover:bg-secondary transition-colors border-t border-border"
+                      className="w-full flex items-center gap-2 px-4 py-3 text-sm hover:bg-secondary active:bg-secondary transition-colors border-t border-border"
                     >
                       <LogOut className="w-4 h-4" />
                       {t('profile.signOut')}
@@ -572,7 +572,7 @@ export default function ProfileMenu({ compact = false } = {}) {
                     <div className="border-t border-border">
                       <button
                         onClick={() => { setOpen(false); setDeleteConfirmText(''); setDeleteOpen(true); }}
-                        className="w-full flex items-center gap-2 px-4 py-3 text-sm text-destructive hover:bg-destructive/10 transition-colors"
+                        className="w-full flex items-center gap-2 px-4 py-3 text-sm text-destructive hover:bg-destructive/10 active:bg-destructive/10 transition-colors"
                       >
                         <Trash2 className="w-4 h-4" />
                         {t('profile.deleteAccount')}
@@ -591,7 +591,7 @@ export default function ProfileMenu({ compact = false } = {}) {
                     <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
                       <button
                         onClick={() => setView('main')}
-                        className="p-1 rounded-md hover:bg-secondary transition-colors"
+                        className="p-1 rounded-md hover:bg-secondary active:bg-secondary transition-colors"
                       >
                         <ArrowLeft className="w-4 h-4" />
                       </button>
@@ -604,7 +604,7 @@ export default function ProfileMenu({ compact = false } = {}) {
             ) : (
               <button
                 onClick={() => db.auth.redirectToLogin()}
-                className="w-full flex items-center gap-2 px-4 py-3 text-sm font-medium hover:bg-secondary transition-colors"
+                className="w-full flex items-center gap-2 px-4 py-3 text-sm font-medium hover:bg-secondary active:bg-secondary transition-colors"
               >
                 <User className="w-4 h-4" />
                 {t('profile.signIn')}
@@ -716,7 +716,7 @@ export default function ProfileMenu({ compact = false } = {}) {
             <AlertDialogAction
               onClick={(e) => { e.preventDefault(); handleDeleteAccount(); }}
               disabled={isDeleting || deleteConfirmText.trim() !== 'DELETE'}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 disabled:opacity-40"
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 active:bg-destructive/90 disabled:opacity-40"
             >
               {isDeleting ? t('profile.deletingLabel') : t('profile.confirmDeletion')}
             </AlertDialogAction>

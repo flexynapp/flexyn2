@@ -107,7 +107,7 @@ function RecipePickerModal({ open, recipes: recipeList, onPick, onClose }) {
             <button
               key={r.id}
               onClick={() => onPick(r)}
-              className="w-full text-start px-3 py-2 rounded-lg border border-border bg-secondary/40 hover:bg-secondary text-sm font-medium transition-colors"
+              className="w-full text-start px-3 py-2 rounded-lg border border-border bg-secondary/40 hover:bg-secondary active:bg-secondary text-sm font-medium transition-colors"
             >
               {r.name}
               <p className="text-micro text-muted-foreground mt-0.5">
@@ -154,7 +154,7 @@ function AddMethodSheet({ open, mealLabel, onPhoto, onRecipe, onManual, onClose 
             <button
               key={key}
               onClick={onClick}
-              className="w-full flex items-center gap-3 px-3 py-3 rounded-xl border border-border bg-secondary/40 hover:bg-secondary transition-colors text-start"
+              className="w-full flex items-center gap-3 px-3 py-3 rounded-xl border border-border bg-secondary/40 hover:bg-secondary active:bg-secondary transition-colors text-start"
             >
               <span className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${tint}`}>
                 <Icon className="w-4 h-4" />
@@ -258,7 +258,7 @@ function ManualMealModal({ open, mealLabel, onSave, onClose }) {
             <button
               type="button"
               onClick={() => setShowMicros(s => !s)}
-              className="w-full flex items-center justify-between px-1 py-1 text-micro font-bold uppercase tracking-wide text-muted-foreground hover:text-foreground transition-colors"
+              className="w-full flex items-center justify-between px-1 py-1 text-micro font-bold uppercase tracking-wide text-muted-foreground hover:text-foreground active:text-foreground transition-colors"
             >
               Vitamins &amp; minerals
               <ChevronDown className={`w-4 h-4 transition-transform ${showMicros ? 'rotate-180' : ''}`} />
@@ -575,7 +575,7 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
                 key={tb.id}
                 onClick={() => setTab(tb.id)}
                 className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-colors ${
-                  tab === tb.id ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                  tab === tb.id ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground active:text-foreground'
                 }`}
               >
                 {tb.label}
@@ -595,7 +595,7 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
           <div className="flex items-center justify-between px-4 py-2 border-b border-border shrink-0">
             <button
               onClick={() => setAnchor(addDays(ws, -7))}
-              className="w-8 h-8 rounded-full bg-secondary/60 flex items-center justify-center hover:bg-secondary"
+              className="w-8 h-8 rounded-full bg-secondary/60 flex items-center justify-center hover:bg-secondary active:bg-secondary"
               aria-label="Previous week"
             >
               <ChevronLeft className="w-4 h-4" />
@@ -605,7 +605,7 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
             </span>
             <button
               onClick={() => setAnchor(addDays(ws, 7))}
-              className="w-8 h-8 rounded-full bg-secondary/60 flex items-center justify-center hover:bg-secondary"
+              className="w-8 h-8 rounded-full bg-secondary/60 flex items-center justify-center hover:bg-secondary active:bg-secondary"
               aria-label="Next week"
             >
               <ChevronRight className="w-4 h-4" />
@@ -677,7 +677,7 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
                               className={`w-full min-h-[58px] rounded-lg px-1.5 py-1.5 text-start text-micro font-medium transition-colors flex flex-col ${
                                 plan
                                   ? 'bg-success/15 border border-success/30 text-foreground'
-                                  : 'bg-secondary/40 border border-dashed border-border text-muted-foreground hover:bg-secondary/60'
+                                  : 'bg-secondary/40 border border-dashed border-border text-muted-foreground hover:bg-secondary/60 active:bg-secondary/60'
                               }`}
                             >
                               <span className="text-micro flex items-center gap-1">
@@ -812,7 +812,7 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
                     <button
                       type="button"
                       onClick={handleCopyGrocery}
-                      className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-secondary text-foreground font-semibold text-sm py-2.5 hover:bg-secondary/80 transition-colors"
+                      className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-secondary text-foreground font-semibold text-sm py-2.5 hover:bg-secondary/80 active:bg-secondary/80 transition-colors"
                     >
                       {copied ? <Check className="w-4 h-4 text-success" /> : <Copy className="w-4 h-4" />}
                       {copied ? 'Copied' : 'Copy list'}

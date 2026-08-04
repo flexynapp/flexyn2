@@ -149,7 +149,7 @@ export default function CoinShopModal({ open, onClose }) {
             <button
               onClick={onClose}
               aria-label="Close"
-              className="p-1.5 rounded-md hover:bg-secondary transition-colors"
+              className="p-1.5 rounded-md hover:bg-secondary active:bg-secondary transition-colors"
             >
               <X className="w-4 h-4" />
             </button>

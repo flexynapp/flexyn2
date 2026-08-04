@@ -70,7 +70,7 @@ function DaySection({ dateStr, entries, onSelect }) {
     <div className="mb-3">
       <button
         onClick={() => setExpanded(v => !v)}
-        className="w-full flex items-center justify-between px-4 py-2.5 bg-secondary/60 rounded-xl hover:bg-secondary/80 transition-colors"
+        className="w-full flex items-center justify-between px-4 py-2.5 bg-secondary/60 rounded-xl hover:bg-secondary/80 active:bg-secondary/80 transition-colors"
       >
         <div className="flex flex-col items-start gap-0.5">
           <span className="text-sm font-heading font-bold tracking-tight">
@@ -236,7 +236,7 @@ export default function MealHistoryModal({ open, onClose, userProfile }) {
             </div>
             <button
               onClick={onClose}
-              className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center hover:bg-secondary/70 transition-colors"
+              className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center hover:bg-secondary/70 active:bg-secondary/70 transition-colors"
             >
               <X className="w-4 h-4" />
             </button>

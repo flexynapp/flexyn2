@@ -136,7 +136,7 @@ export default function BountyBoard() {
           className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-semibold rounded-lg transition-colors ${
             tab === 'active'
               ? 'bg-amber-500 text-white shadow-sm'
-              : 'text-muted-foreground hover:text-foreground'
+              : 'text-muted-foreground hover:text-foreground active:text-foreground'
           }`}
         >
           <Zap className="w-3.5 h-3.5" />
@@ -147,7 +147,7 @@ export default function BountyBoard() {
           className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-semibold rounded-lg transition-colors ${
             tab === 'mine'
               ? 'bg-card text-foreground shadow-sm'
-              : 'text-muted-foreground hover:text-foreground'
+              : 'text-muted-foreground hover:text-foreground active:text-foreground'
           }`}
         >
           <History className="w-3.5 h-3.5" />
@@ -185,7 +185,7 @@ export default function BountyBoard() {
                 <button
                   onClick={() => generateMut.mutate()}
                   disabled={generateMut.isPending}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-amber-500 text-white text-sm font-bold hover:bg-amber-600 disabled:opacity-50 transition-colors"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-amber-500 text-white text-sm font-bold hover:bg-amber-600 active:bg-amber-600 disabled:opacity-50 transition-colors"
                 >
                   {generateMut.isPending
                     ? <Loader2 className="w-4 h-4 animate-spin" />
@@ -208,7 +208,7 @@ export default function BountyBoard() {
                   <button
                     onClick={() => generateMut.mutate()}
                     disabled={generateMut.isPending}
-                    className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                    className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground active:text-foreground transition-colors disabled:opacity-50"
                   >
                     {generateMut.isPending
                       ? <Loader2 className="w-3.5 h-3.5 animate-spin" />

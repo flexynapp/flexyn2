@@ -23,7 +23,7 @@ function PhotoPicker({ photos, selected, onSelect, label, language }) {
     <div className="relative">
       <button
         onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl bg-secondary/70 border border-border/50 text-sm font-medium hover:bg-secondary transition-colors"
+        className="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl bg-secondary/70 border border-border/50 text-sm font-medium hover:bg-secondary active:bg-secondary transition-colors"
       >
         <span className="flex items-center gap-2 min-w-0">
           <Calendar className="w-3.5 h-3.5 text-primary shrink-0" />
@@ -49,7 +49,7 @@ function PhotoPicker({ photos, selected, onSelect, label, language }) {
               <button
                 key={p.id}
                 onClick={() => { onSelect(p.id); setOpen(false); }}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 text-start hover:bg-secondary/60 transition-colors ${p.id === selected ? 'bg-primary/10' : ''}`}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 text-start hover:bg-secondary/60 active:bg-secondary/60 transition-colors ${p.id === selected ? 'bg-primary/10' : ''}`}
               >
                 <img loading="lazy" src={p.dataUrl} alt="" className="w-10 h-10 rounded-lg object-cover shrink-0" />
                 <div className="min-w-0">
@@ -128,7 +128,7 @@ export default function PhotoCompareSlider({ photos, onClose }) {
         </div>
         <button
           onClick={onClose}
-          className="w-7 h-7 rounded-lg bg-secondary hover:bg-secondary/80 flex items-center justify-center transition-colors"
+          className="w-7 h-7 rounded-lg bg-secondary hover:bg-secondary/80 active:bg-secondary/80 flex items-center justify-center transition-colors"
         >
           <X className="w-3.5 h-3.5 text-muted-foreground" />
         </button>

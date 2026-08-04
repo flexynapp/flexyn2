@@ -95,7 +95,7 @@ function NewTemplateForm({ onSave, onCancel }) {
             <span className="text-xs text-muted-foreground">{ex.target_sets}×{ex.target_reps}</span>
             <button
               onClick={() => setExercises(prev => prev.filter((_, idx) => idx !== i))}
-              className="text-muted-foreground hover:text-destructive transition-colors ms-1"
+              className="text-muted-foreground hover:text-destructive active:text-destructive transition-colors ms-1"
             >
               <Trash2 className="w-3.5 h-3.5" />
             </button>
@@ -321,7 +321,7 @@ function MyTemplateCard({ template, user, onUse, onDelete, onTogglePublic }) {
           {/* Delete */}
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button variant="ghost" size="sm" className="gap-1 text-xs text-destructive hover:text-destructive">
+              <Button variant="ghost" size="sm" className="gap-1 text-xs text-destructive hover:text-destructive active:text-destructive">
                 <Trash2 className="w-3 h-3" /> Delete
               </Button>
             </AlertDialogTrigger>
@@ -511,7 +511,7 @@ export default function TemplatesModal({ open, onClose, onLoadTemplate }) {
             <div className="grid grid-cols-2 gap-4 py-4">
               <button
                 onClick={() => setView('load')}
-                className="flex flex-col items-center gap-3 p-6 rounded-xl border border-border hover:border-primary/50 hover:bg-primary/5 transition-all text-center"
+                className="flex flex-col items-center gap-3 p-6 rounded-xl border border-border hover:border-primary/50 hover:bg-primary/5 active:bg-primary/5 transition-all text-center"
               >
                 <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
                   <FolderOpen className="w-6 h-6 text-primary" />
@@ -523,7 +523,7 @@ export default function TemplatesModal({ open, onClose, onLoadTemplate }) {
               </button>
               <button
                 onClick={() => setView('create')}
-                className="flex flex-col items-center gap-3 p-6 rounded-xl border border-border hover:border-accent/50 hover:bg-accent/5 transition-all text-center"
+                className="flex flex-col items-center gap-3 p-6 rounded-xl border border-border hover:border-accent/50 hover:bg-accent/5 active:bg-accent/5 transition-all text-center"
               >
                 <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center">
                   <PenLine className="w-6 h-6 text-accent" />
@@ -553,7 +553,7 @@ export default function TemplatesModal({ open, onClose, onLoadTemplate }) {
               <div className="flex gap-1 p-1 bg-muted/40 rounded-xl">
                 <button
                   className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-                    loadTab === 'mine' ? 'bg-background shadow text-foreground' : 'text-muted-foreground hover:text-foreground'
+                    loadTab === 'mine' ? 'bg-background shadow text-foreground' : 'text-muted-foreground hover:text-foreground active:text-foreground'
                   }`}
                   onClick={() => setLoadTab('mine')}
                 >
@@ -561,7 +561,7 @@ export default function TemplatesModal({ open, onClose, onLoadTemplate }) {
                 </button>
                 <button
                   className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-                    loadTab === 'community' ? 'bg-background shadow text-foreground' : 'text-muted-foreground hover:text-foreground'
+                    loadTab === 'community' ? 'bg-background shadow text-foreground' : 'text-muted-foreground hover:text-foreground active:text-foreground'
                   }`}
                   onClick={() => setLoadTab('community')}
                 >

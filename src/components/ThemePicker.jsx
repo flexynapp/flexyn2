@@ -16,7 +16,7 @@ export default function ThemePicker() {
           onClick={() => setDarkMode(false)}
           aria-pressed={!darkMode}
           className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium transition-colors ${
-            !darkMode ? 'bg-primary text-primary-foreground' : 'hover:bg-secondary text-muted-foreground'
+            !darkMode ? 'bg-primary text-primary-foreground' : 'hover:bg-secondary active:bg-secondary text-muted-foreground'
           }`}
         >
           <Sun className="w-3.5 h-3.5" /> Light
@@ -25,7 +25,7 @@ export default function ThemePicker() {
           onClick={() => setDarkMode(true)}
           aria-pressed={darkMode}
           className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium transition-colors ${
-            darkMode ? 'bg-primary text-primary-foreground' : 'hover:bg-secondary text-muted-foreground'
+            darkMode ? 'bg-primary text-primary-foreground' : 'hover:bg-secondary active:bg-secondary text-muted-foreground'
           }`}
         >
           <Moon className="w-3.5 h-3.5" /> Dark

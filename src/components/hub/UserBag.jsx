@@ -151,7 +151,7 @@ function StickerGroupCard({ group, onSell, selling }) {
             'mt-1 w-full py-1.5 rounded-lg text-xs font-bold transition-all duration-200',
             armed
               ? 'bg-destructive/80 text-white border border-destructive scale-105'
-              : 'bg-primary/15 text-primary dark:text-primary border border-primary/30 hover:bg-primary/25',
+              : 'bg-primary/15 text-primary dark:text-primary border border-primary/30 hover:bg-primary/25 active:bg-primary/25',
           ].join(' ')}
         >
           {armed ? (
@@ -343,7 +343,7 @@ function TitleList({ items, userId }) {
             key={item.id}
             onClick={() => equip(item.item_id)}
             className={`flex items-center gap-3 p-3 rounded-lg border transition-colors text-start ${
-              isEquipped ? 'border-primary bg-primary/10' : 'border-border bg-secondary/50 hover:bg-secondary'
+              isEquipped ? 'border-primary bg-primary/10' : 'border-border bg-secondary/50 hover:bg-secondary active:bg-secondary'
             }`}
           >
             <span className="text-2xl shrink-0">{item.item_emoji || '🏷️'}</span>
@@ -461,7 +461,7 @@ function FrameList({ items, userId }) {
             key={item.id}
             onClick={() => equip(item.item_id)}
             className={`flex flex-col items-center gap-2 p-3 rounded-lg border transition-colors ${
-              isEquipped ? 'border-primary bg-primary/10' : 'border-border bg-secondary/50 hover:bg-secondary'
+              isEquipped ? 'border-primary bg-primary/10' : 'border-border bg-secondary/50 hover:bg-secondary active:bg-secondary'
             }`}
           >
             <div
@@ -757,14 +757,14 @@ export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBat
                 onClick={() => setCollectionOpen(true)}
                 aria-label="Open Collection"
                 title="Collection — everything in the game"
-                className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground active:text-foreground hover:bg-secondary active:bg-secondary transition-colors"
               >
                 <LibraryBig className="w-4.5 h-4.5" aria-hidden="true" />
               </button>
               <button
                 onClick={() => setShopOpen(true)}
                 aria-label="Open Coin Shop"
-                className="flex items-center gap-1.5 bg-primary/15 border border-primary/30 rounded-full px-3 py-1 hover:bg-primary/25 transition-colors"
+                className="flex items-center gap-1.5 bg-primary/15 border border-primary/30 rounded-full px-3 py-1 hover:bg-primary/25 active:bg-primary/25 transition-colors"
               >
                 <span className="text-base">{COIN}</span>
                 <span className="text-primary dark:text-primary font-bold text-sm tabular-nums">{fmt(flexCoins)}</span>
@@ -773,7 +773,7 @@ export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBat
               <button
                 onClick={onClose}
                 aria-label="Close bag"
-                className="text-muted-foreground hover:text-foreground transition-colors p-1.5 rounded-lg hover:bg-secondary"
+                className="text-muted-foreground hover:text-foreground active:text-foreground transition-colors p-1.5 rounded-lg hover:bg-secondary active:bg-secondary"
               >
                 <X className="w-5 h-5" aria-hidden="true" />
               </button>
@@ -796,7 +796,7 @@ export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBat
                   aria-pressed={isActive}
                   className={[
                     'relative flex flex-col items-center justify-center gap-0.5 py-2 px-1 border-b-2 transition-colors min-w-0 overflow-hidden',
-                    isActive ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground',
+                    isActive ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground active:text-foreground',
                   ].join(' ')}
                 >
                   <div className="flex items-center gap-1 max-w-full">
@@ -845,7 +845,7 @@ export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBat
                   type="button"
                   onClick={() => setQuery('')}
                   aria-label="Clear search"
-                  className="absolute end-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground"
+                  className="absolute end-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground active:text-foreground"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -877,7 +877,7 @@ export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBat
                           key={type}
                           type="button"
                           onClick={() => onOpenCapsuleBatch(rows.slice(0, take))}
-                          className="w-full mb-3 flex items-center gap-3 px-3 py-2 rounded-xl border border-primary/30 bg-primary/10 hover:bg-primary/15 transition-colors text-start"
+                          className="w-full mb-3 flex items-center gap-3 px-3 py-2 rounded-xl border border-primary/30 bg-primary/10 hover:bg-primary/15 active:bg-primary/15 transition-colors text-start"
                         >
                           <span className="text-2xl shrink-0">{meta.emoji}</span>
                           <span className="flex-1 min-w-0">
@@ -922,7 +922,7 @@ export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBat
                       className={`w-full mb-3 py-2 px-3 rounded-xl text-xs font-bold transition-all border ${
                         bulkArmed
                           ? 'bg-destructive/80 text-white border-destructive'
-                          : 'bg-primary/15 text-primary dark:text-primary border-primary/30 hover:bg-primary/25'
+                          : 'bg-primary/15 text-primary dark:text-primary border-primary/30 hover:bg-primary/25 active:bg-primary/25'
                       }`}
                     >
                       {selling

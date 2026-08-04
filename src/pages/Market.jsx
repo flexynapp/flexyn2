@@ -33,7 +33,7 @@ export default function Market() {
         <button
           type="button"
           onClick={() => setIndexOpen(true)}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-card hover:bg-secondary transition-colors text-xs font-semibold"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-card hover:bg-secondary active:bg-secondary transition-colors text-xs font-semibold"
           title="Everything in the game, and what you're still missing"
         >
           <LibraryBig className="w-3.5 h-3.5" />

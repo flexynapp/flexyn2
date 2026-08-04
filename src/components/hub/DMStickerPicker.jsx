@@ -81,7 +81,7 @@ export default function DMStickerPicker({ open, userId, userEmail, onPick, onClo
             <button
               key={g.itemId}
               onClick={() => { onPick(g.itemId); onClose?.(); }}
-              className="relative aspect-square rounded-xl bg-secondary/50 hover:bg-secondary text-3xl flex items-center justify-center"
+              className="relative aspect-square rounded-xl bg-secondary/50 hover:bg-secondary active:bg-secondary text-3xl flex items-center justify-center"
               aria-label={`Send ${g.meta?.name} sticker`}
             >
               {g.meta?.emoji || '✨'}

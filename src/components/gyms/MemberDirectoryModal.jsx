@@ -55,7 +55,7 @@ export default function MemberDirectoryModal({ open, onClose, gymId, gymOwnerId 
             <button
               onClick={onClose}
               aria-label="Close"
-              className="w-7 h-7 rounded-full bg-secondary text-muted-foreground hover:text-foreground flex items-center justify-center"
+              className="w-7 h-7 rounded-full bg-secondary text-muted-foreground hover:text-foreground active:text-foreground flex items-center justify-center"
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -92,7 +92,7 @@ export default function MemberDirectoryModal({ open, onClose, gymId, gymOwnerId 
                           onClose();
                           navigate(`/@${m.username}`);
                         }}
-                        className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-start transition-colors ${hasUsername ? 'hover:bg-secondary/40 cursor-pointer' : 'cursor-default opacity-70'}`}
+                        className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-start transition-colors ${hasUsername ? 'hover:bg-secondary/40 active:bg-secondary/40 cursor-pointer' : 'cursor-default opacity-70'}`}
                         title={hasUsername ? `Open @${m.username}` : 'This member hasn’t set a username yet'}
                       >
                         {m.avatar_url

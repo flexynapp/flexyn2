@@ -113,7 +113,7 @@ function FriendRow({ profile, stats, onQuickSend, onSelect }) {
   const losses = stats?.losses ?? 0;
 
   return (
-    <div className="flex items-center gap-2.5 px-1 py-1.5 rounded-xl hover:bg-secondary/40 transition-colors group">
+    <div className="flex items-center gap-2.5 px-1 py-1.5 rounded-xl hover:bg-secondary/40 active:bg-secondary/40 transition-colors group">
       <button onClick={() => onSelect(profile)} className="flex items-center gap-2.5 flex-1 min-w-0 text-start">
         <Avatar profile={profile} size="sm" />
         <div className="flex-1 min-w-0">
@@ -125,7 +125,7 @@ function FriendRow({ profile, stats, onQuickSend, onSelect }) {
       {/* Quick-send paper airplane */}
       <button
         onClick={() => onQuickSend(profile)}
-        className="p-2 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 transition-colors shrink-0"
+        className="p-2 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 active:bg-rose-500/20 text-rose-500 transition-colors shrink-0"
         title={`Quick challenge @${profile.username}`}
       >
         <SendHorizonal className="w-3.5 h-3.5" />
@@ -286,7 +286,7 @@ export default function CreateDuelModal({
         <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-border">
           <div className="flex items-center gap-2">
             {step === 'configure' && !initialOpponentId && (
-              <button onClick={() => setStep('pick')} className="p-1.5 rounded-full hover:bg-secondary transition-colors">
+              <button onClick={() => setStep('pick')} className="p-1.5 rounded-full hover:bg-secondary active:bg-secondary transition-colors">
                 <ArrowLeft className="w-4 h-4 text-muted-foreground" />
               </button>
             )}
@@ -297,7 +297,7 @@ export default function CreateDuelModal({
               {step === 'pick' ? 'Challenge Someone' : `Duel @${opponent?.username}`}
             </p>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-full hover:bg-secondary transition-colors">
+          <button onClick={onClose} className="p-1.5 rounded-full hover:bg-secondary active:bg-secondary transition-colors">
             <X className="w-4 h-4 text-muted-foreground" />
           </button>
         </div>
@@ -451,7 +451,7 @@ export default function CreateDuelModal({
               <button
                 onClick={handleCreate}
                 disabled={loading}
-                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-rose-500 text-white font-bold text-sm hover:bg-rose-600 disabled:opacity-50 transition-colors"
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-rose-500 text-white font-bold text-sm hover:bg-rose-600 active:bg-rose-600 disabled:opacity-50 transition-colors"
               >
                 {loading
                   ? <Loader2 className="w-4 h-4 animate-spin" />

@@ -131,7 +131,7 @@ function HeroCard({
           type="button"
           onClick={() => slideshowRef.current?.next?.()}
           aria-label={tFallback ? tFallback('dashboard.hero.next', 'Next slide') : 'Next slide'}
-          className="absolute end-3 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-foreground/45 backdrop-blur-sm text-background hover:bg-foreground/60 active:scale-95 flex items-center justify-center shadow-md transition-all"
+          className="absolute end-3 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-foreground/45 backdrop-blur-sm text-background hover:bg-foreground/60 active:bg-foreground/60 active:scale-95 flex items-center justify-center shadow-md transition-all"
         >
           <ChevronRight className="w-4 h-4 rtl:scale-x-[-1]" />
         </button>
@@ -385,7 +385,7 @@ function QuickAction({ to, icon: Icon, label, onClick, delay = 0, iconBg, iconCo
       transition={{ duration: 0.24, delay, ease: 'easeOut' }}
       whileHover={{ x: 3 }}
       whileTap={{ scale: 0.98 }}
-      className="group relative flex items-center gap-3 px-4 py-3.5 rounded-lg bg-card border border-border/70 hover:border-primary/40 hover:bg-card transition-colors cursor-pointer select-none-ui"
+      className="group relative flex items-center gap-3 px-4 py-3.5 rounded-lg bg-card border border-border/70 hover:border-primary/40 hover:bg-card active:bg-card transition-colors cursor-pointer select-none-ui"
     >
       <div className={`w-9 h-9 rounded-lg ${bg} flex items-center justify-center transition-colors`}>
         <Icon className={`w-4 h-4 ${fg} transition-colors`} />
@@ -1263,7 +1263,7 @@ export default function Dashboard() {
               onClick={toggleRecovery}
               aria-label={recoveryOpen ? tFallback('dashboard.collapseRecovery', 'Collapse recovery') : tFallback('dashboard.expandRecovery', 'Expand recovery')}
               aria-expanded={recoveryOpen}
-              className="w-full flex items-center justify-center py-1.5 rounded-sm text-muted-foreground/60 hover:text-foreground hover:bg-secondary/40 active:bg-secondary/60 transition-colors"
+              className="w-full flex items-center justify-center py-1.5 rounded-sm text-muted-foreground/60 hover:text-foreground active:text-foreground hover:bg-secondary/40 active:bg-secondary/60 transition-colors"
             >
               {recoveryOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
             </button>
@@ -1387,7 +1387,7 @@ export default function Dashboard() {
                   <button
                     type="button"
                     onClick={() => setActionsExpanded(v => !v)}
-                    className="mt-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors"
+                    className="mt-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-muted-foreground hover:text-foreground active:text-foreground hover:bg-secondary/50 active:bg-secondary/50 transition-colors"
                     aria-expanded={actionsExpanded}
                   >
                     <ChevronDown className={`w-3.5 h-3.5 transition-transform ${actionsExpanded ? 'rotate-180' : ''}`} />
@@ -1515,7 +1515,7 @@ export default function Dashboard() {
                 type="button"
                 onClick={handleResetCustomize}
                 title={tFallback('dashboard.resetCustomize', 'Reset to default')}
-                className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-semibold text-muted-foreground hover:text-foreground active:text-foreground hover:bg-secondary active:bg-secondary transition-colors"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
                 <span>{tFallback('dashboard.reset', 'Reset')}</span>
@@ -1533,7 +1533,7 @@ export default function Dashboard() {
               className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
                 editMode
                   ? 'bg-primary text-primary-foreground shadow-sm'
-                  : 'text-muted-foreground/60 hover:text-foreground hover:bg-secondary'
+                  : 'text-muted-foreground/60 hover:text-foreground active:text-foreground hover:bg-secondary active:bg-secondary'
               }`}
             >
               {editMode ? (
@@ -1643,7 +1643,7 @@ export default function Dashboard() {
                         title={isHalf
                           ? tFallback('dashboard.layout.toHamburger', 'Stack full-width')
                           : tFallback('dashboard.layout.toHotdog',     'Pair side-by-side')}
-                        className="flex items-center gap-1 px-1.5 py-0.5 rounded-sm hover:bg-primary/10 active:bg-primary/20 text-primary/60 hover:text-primary transition-colors"
+                        className="flex items-center gap-1 px-1.5 py-0.5 rounded-sm hover:bg-primary/10 active:bg-primary/20 text-primary/60 hover:text-primary active:text-primary transition-colors"
                       >
                         {isHalf
                           ? <Columns2 className="w-3 h-3" />
@@ -1666,7 +1666,7 @@ export default function Dashboard() {
                           onPointerDown={(e) => e.stopPropagation()}
                           title={tFallback('dashboard.hideSection', 'Hide this section')}
                           aria-label={tFallback('dashboard.hideSection', 'Hide this section')}
-                          className="flex items-center justify-center w-5 h-5 rounded-sm hover:bg-destructive/15 text-destructive/60 hover:text-destructive transition-colors"
+                          className="flex items-center justify-center w-5 h-5 rounded-sm hover:bg-destructive/15 active:bg-destructive/15 text-destructive/60 hover:text-destructive active:text-destructive transition-colors"
                         >
                           <X className="w-3 h-3" />
                         </button>
@@ -1738,7 +1738,7 @@ export default function Dashboard() {
                 type="button"
                 onClick={() => setReadinessInfoOpen(false)}
                 aria-label="Close"
-                className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-secondary/60 transition-colors -mt-1 -me-2"
+                className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-secondary/60 active:bg-secondary/60 transition-colors -mt-1 -me-2"
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
               </button>

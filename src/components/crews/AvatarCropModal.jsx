@@ -158,7 +158,7 @@ export default function AvatarCropModal({ file, onCrop, onClose }) {
         {/* Header */}
         <div className="flex items-center justify-between">
           <p className="font-semibold text-sm">Crop crew photo</p>
-          <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">
+          <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground active:text-foreground transition-colors">
             <X className="w-4 h-4" />
           </button>
         </div>

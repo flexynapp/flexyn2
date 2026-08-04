@@ -146,7 +146,7 @@ export default function GroupedExerciseTrends({ exerciseNames, regimenLogs, time
             className={`w-full px-4 py-3 rounded-lg border border-border transition-colors flex items-center justify-between ${
               expandedGroups[groupLabel]
                 ? 'bg-secondary/40'
-                : 'bg-secondary/20 hover:bg-secondary/30'
+                : 'bg-secondary/20 hover:bg-secondary/30 active:bg-secondary/30'
             }`}
             whileHover={{ scale: 1.01 }}
             whileTap={{ scale: 0.98 }}

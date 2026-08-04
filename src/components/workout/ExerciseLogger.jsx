@@ -287,7 +287,7 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
             <button
               type="button"
               onClick={reopen}
-              className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground px-2 py-1.5 rounded-lg hover:bg-secondary transition-colors shrink-0"
+              className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground active:text-foreground px-2 py-1.5 rounded-lg hover:bg-secondary active:bg-secondary transition-colors shrink-0"
             >
               <Pencil className="w-3.5 h-3.5" /> Edit
             </button>
@@ -445,8 +445,8 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
           className={[
             'mt-2 w-full inline-flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition-colors',
             allSetsDone
-              ? 'bg-success text-white hover:bg-success/90'
-              : 'border border-border text-foreground hover:bg-secondary',
+              ? 'bg-success text-white hover:bg-success/90 active:bg-success/90'
+              : 'border border-border text-foreground hover:bg-secondary active:bg-secondary',
           ].join(' ')}
         >
           <CheckCircle2 className="w-4 h-4" />
@@ -496,7 +496,7 @@ function ExerciseExtras({ exercise, onChange }) {
         type="button"
         onClick={() => setOpen(o => !o)}
         className={`text-micro font-bold uppercase tracking-wide flex items-center gap-1 transition-colors ${
-          hasExtras ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+          hasExtras ? 'text-primary' : 'text-muted-foreground hover:text-foreground active:text-foreground'
         }`}
       >
         {open ? '▾' : '▸'} Tempo · notes {hasExtras && <span className="opacity-70">·</span>}

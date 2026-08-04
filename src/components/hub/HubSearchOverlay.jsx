@@ -212,7 +212,7 @@ export default function HubSearchOverlay({ open, onClose, onSelectUser, onSelect
                       initial={{ opacity: 0, scale: 0.8 }}
                       animate={{ opacity: 1, scale: 1 }}
                       onClick={() => setSearchQuery('')}
-                      className="absolute end-3 top-1/3 text-muted-foreground hover:text-foreground transition-colors"
+                      className="absolute end-3 top-1/3 text-muted-foreground hover:text-foreground active:text-foreground transition-colors"
                     >
                       <X className="w-5 h-5" />
                     </motion.button>
@@ -220,7 +220,7 @@ export default function HubSearchOverlay({ open, onClose, onSelectUser, onSelect
                 </div>
                 <button
                   onClick={onClose}
-                  className="p-2 rounded-lg hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground shrink-0"
+                  className="p-2 rounded-lg hover:bg-secondary active:bg-secondary transition-colors text-muted-foreground hover:text-foreground active:text-foreground shrink-0"
                   aria-label="Close search"
                 >
                   <X className="w-5 h-5" />
@@ -233,7 +233,7 @@ export default function HubSearchOverlay({ open, onClose, onSelectUser, onSelect
               <button
                 onClick={() => setActiveTab('people')}
                 className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                  activeTab === 'people' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                  activeTab === 'people' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground active:text-foreground'
                 }`}
               >
                 <Users className="w-4 h-4" /> People
@@ -241,7 +241,7 @@ export default function HubSearchOverlay({ open, onClose, onSelectUser, onSelect
               <button
                 onClick={() => setActiveTab('posts')}
                 className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                  activeTab === 'posts' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                  activeTab === 'posts' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground active:text-foreground'
                 }`}
               >
                 <MessageSquare className="w-4 h-4" /> Posts
@@ -288,7 +288,7 @@ export default function HubSearchOverlay({ open, onClose, onSelectUser, onSelect
                             onSelectPost?.(post);
                             onClose();
                           }}
-                          className="w-full text-start p-3 rounded-xl border border-border/40 hover:border-border hover:bg-secondary/40 transition-colors"
+                          className="w-full text-start p-3 rounded-xl border border-border/40 hover:border-border hover:bg-secondary/40 active:bg-secondary/40 transition-colors"
                         >
                           <p className="text-xs text-muted-foreground font-medium mb-1">
                             {post.author_name || 'Athlete'}
@@ -462,7 +462,7 @@ function RecentSearchCard({ user, onClick, onRemove }) {
       whileHover={{ y: -1 }}
       whileTap={{ scale: 0.98 }}
       onClick={onClick}
-      className="w-full flex items-center gap-3 p-3 rounded-xl border border-border/40 hover:border-border/80 hover:bg-secondary/40 transition-colors text-start group"
+      className="w-full flex items-center gap-3 p-3 rounded-xl border border-border/40 hover:border-border/80 hover:bg-secondary/40 active:bg-secondary/40 transition-colors text-start group"
     >
       {/* Avatar */}
       <div
@@ -486,7 +486,7 @@ function RecentSearchCard({ user, onClick, onRemove }) {
       {/* Right: remove button */}
       <button
         onClick={onRemove}
-        className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0"
+        className="p-1.5 rounded-md text-muted-foreground hover:text-destructive active:text-destructive hover:bg-destructive/10 active:bg-destructive/10 transition-colors shrink-0"
         aria-label="Remove from recent"
       >
         <Trash2 className="w-4 h-4" />
@@ -529,7 +529,7 @@ function UserResultRow({ user, onClick, delay, isFollowed, onAdd }) {
       whileHover={{ y: -1 }}
       whileTap={{ scale: 0.98 }}
       onClick={onClick}
-      className="w-full flex items-center gap-3 p-3 rounded-xl border border-border/40 hover:border-border/80 hover:bg-secondary/60 transition-colors text-start group"
+      className="w-full flex items-center gap-3 p-3 rounded-xl border border-border/40 hover:border-border/80 hover:bg-secondary/60 active:bg-secondary/60 transition-colors text-start group"
     >
       {/* Avatar */}
       <div

@@ -317,7 +317,7 @@ export default function MyGym() {
           <button
             type="button"
             onClick={() => navigate('/gym-map')}
-            className="w-full mt-2 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            className="w-full mt-2 py-2 text-sm text-muted-foreground hover:text-foreground active:text-foreground transition-colors"
           >
             Browse the map instead
           </button>

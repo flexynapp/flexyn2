@@ -101,7 +101,7 @@ export default function VoiceInputButton({ onParsed, lang = 'en-US', className =
         'shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-md transition-colors',
         listening
           ? 'bg-destructive/15 text-destructive'
-          : 'bg-secondary/60 hover:bg-secondary text-muted-foreground hover:text-foreground',
+          : 'bg-secondary/60 hover:bg-secondary active:bg-secondary text-muted-foreground hover:text-foreground active:text-foreground',
         className,
       ].join(' ')}
       aria-label={listening

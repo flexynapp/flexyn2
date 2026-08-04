@@ -88,7 +88,7 @@ export default function TabQuickActionMenu({ open, anchorRect, actions, onClose 
                   try { action.onClick(); } catch { /* swallow — menu's job is to dispatch, not own errors */ }
                   onClose();
                 }}
-                className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-foreground hover:bg-secondary transition-colors border-b border-border last:border-b-0"
+                className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-foreground hover:bg-secondary active:bg-secondary transition-colors border-b border-border last:border-b-0"
               >
                 {action.icon && <action.icon className="w-4 h-4 text-primary shrink-0" />}
                 <span className="text-start flex-1">{action.label}</span>

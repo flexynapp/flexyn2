@@ -265,7 +265,7 @@ export default function CrewChallengeCard({ crewId, isAdmin }) {
           {isAdmin && (
             <button
               onClick={() => setComposeOpen(true)}
-              className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:text-primary/80 transition-colors"
+              className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:text-primary/80 active:text-primary/80 transition-colors"
             >
               <Plus className="w-3 h-3" />
               {tFallback('challenge.new', 'New')}

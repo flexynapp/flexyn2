@@ -170,7 +170,7 @@ export default function WorkoutStreakBanner() {
         <button
           onClick={handleRescue}
           disabled={rescuing}
-          className="shrink-0 px-3 py-1.5 rounded-sm text-xs font-bold bg-primary text-white hover:bg-primary disabled:opacity-60 transition-colors"
+          className="shrink-0 px-3 py-1.5 rounded-sm text-xs font-bold bg-primary text-white hover:bg-primary active:bg-primary disabled:opacity-60 transition-colors"
         >
           {rescuing
             ? tFallback('streakRescue.saving', 'Saving…')

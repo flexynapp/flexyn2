@@ -545,7 +545,7 @@ export default function CardioManualForm({
               <button
                 type="button"
                 onClick={handleSwimDistAutoFill}
-                className="flex items-center gap-2 text-xs text-blue-500 hover:text-blue-400"
+                className="flex items-center gap-2 text-xs text-blue-500 hover:text-blue-400 active:text-blue-400"
               >
                 <RotateCcw className="w-3 h-3" />
                 Fill distance from laps ({metersTo(distanceUnit, swimDistMeters).toFixed(2)} {distanceUnit})

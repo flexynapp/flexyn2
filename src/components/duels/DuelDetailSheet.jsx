@@ -121,7 +121,7 @@ export default function DuelDetailSheet({ duel, currentUserId, opponentProfile, 
             <Icon className="w-5 h-5 text-primary" />
             <span className="font-bold">{TYPE_LABEL[duel.type]}</span>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-full hover:bg-secondary">
+          <button onClick={onClose} className="p-1.5 rounded-full hover:bg-secondary active:bg-secondary">
             <X className="w-4 h-4 text-muted-foreground" />
           </button>
         </div>
@@ -221,7 +221,7 @@ export default function DuelDetailSheet({ duel, currentUserId, opponentProfile, 
             <button
               type="button"
               onClick={() => onCancel(duel.id)}
-              className="w-full py-2.5 rounded-xl border border-rose-500/30 text-rose-500 text-sm font-semibold hover:bg-rose-500/10 transition-colors"
+              className="w-full py-2.5 rounded-xl border border-rose-500/30 text-rose-500 text-sm font-semibold hover:bg-rose-500/10 active:bg-rose-500/10 transition-colors"
             >
               Cancel challenge
             </button>

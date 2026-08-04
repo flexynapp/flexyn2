@@ -135,7 +135,7 @@ export default function WorkoutQuickGenerator({ userProfile = {}, onSaveRegimen,
         <button
           type="button"
           onClick={() => setPlan(null)}
-          className="w-full inline-flex items-center justify-center gap-1.5 rounded-xl bg-secondary text-foreground font-semibold text-sm py-2.5 hover:bg-secondary/80 transition-colors"
+          className="w-full inline-flex items-center justify-center gap-1.5 rounded-xl bg-secondary text-foreground font-semibold text-sm py-2.5 hover:bg-secondary/80 active:bg-secondary/80 transition-colors"
         >
           <RefreshCw className="w-4 h-4" />
           {tFallback('generator.tweak', 'Change picks')}
@@ -162,7 +162,7 @@ export default function WorkoutQuickGenerator({ userProfile = {}, onSaveRegimen,
             className={`flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl border py-2.5 text-sm font-semibold transition-all ${
               type === id
                 ? 'bg-primary text-primary-foreground border-primary'
-                : 'bg-background border-border text-foreground hover:border-primary/50 hover:bg-secondary'
+                : 'bg-background border-border text-foreground hover:border-primary/50 hover:bg-secondary active:bg-secondary'
             }`}
           >
             <Icon className="w-4 h-4" />
@@ -207,7 +207,7 @@ export default function WorkoutQuickGenerator({ userProfile = {}, onSaveRegimen,
                 className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
                   feel === opt.id
                     ? 'bg-primary text-primary-foreground border-primary'
-                    : 'bg-background border-border text-foreground hover:border-primary/50 hover:bg-secondary'
+                    : 'bg-background border-border text-foreground hover:border-primary/50 hover:bg-secondary active:bg-secondary'
                 }`}
               >
                 <span aria-hidden="true">{opt.emoji}</span> {opt.label}
@@ -255,7 +255,7 @@ function Pillset({ label, options, value, onChange }) {
             className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
               value === opt.id
                 ? 'bg-primary text-primary-foreground border-primary'
-                : 'bg-background border-border text-foreground hover:border-primary/50 hover:bg-secondary'
+                : 'bg-background border-border text-foreground hover:border-primary/50 hover:bg-secondary active:bg-secondary'
             }`}
           >
             {opt.label}

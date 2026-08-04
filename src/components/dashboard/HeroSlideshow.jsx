@@ -1116,7 +1116,7 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
               <button
                 type="button"
                 onClick={() => handleCta(slide.cta)}
-                className="inline-flex items-center gap-1 mt-3 px-3 py-1.5 rounded-full bg-primary/30 hover:bg-primary/40 backdrop-blur-sm text-caption font-semibold text-foreground transition-colors"
+                className="inline-flex items-center gap-1 mt-3 px-3 py-1.5 rounded-full bg-primary/30 hover:bg-primary/40 active:bg-primary/40 backdrop-blur-sm text-caption font-semibold text-foreground transition-colors"
               >
                 {slide.cta.label}
                 <ChevronRight className="w-3.5 h-3.5" />
@@ -1283,7 +1283,7 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
             <button
               type="button"
               onClick={() => handleCta(slide.cta)}
-              className="inline-flex items-center gap-1 mt-3 px-3 py-1.5 rounded-full bg-primary/10 hover:bg-primary/20 backdrop-blur-sm text-caption font-semibold text-foreground transition-colors"
+              className="inline-flex items-center gap-1 mt-3 px-3 py-1.5 rounded-full bg-primary/10 hover:bg-primary/20 active:bg-primary/20 backdrop-blur-sm text-caption font-semibold text-foreground transition-colors"
             >
               {slide.cta.label}
               <ChevronRight className="w-3.5 h-3.5" />

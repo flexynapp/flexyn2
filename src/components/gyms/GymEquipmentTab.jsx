@@ -216,7 +216,7 @@ function EquipmentRow({ row, isOwner, canRemove, busy, onVerify, onRemove, tFall
                       transition-colors select-none-ui ${
             row.verified_by_owner
               ? 'text-primary bg-primary/10'
-              : 'text-muted-foreground hover:bg-secondary'
+              : 'text-muted-foreground hover:bg-secondary active:bg-secondary'
           }`}
         >
           <Check className="w-4 h-4" />
@@ -229,7 +229,7 @@ function EquipmentRow({ row, isOwner, canRemove, busy, onVerify, onRemove, tFall
           onClick={onRemove}
           aria-label={tFallback('gymEquip.remove', 'Remove')}
           className="shrink-0 inline-flex items-center justify-center w-9 h-9 rounded-lg
-                     text-muted-foreground hover:text-destructive hover:bg-secondary
+                     text-muted-foreground hover:text-destructive active:text-destructive hover:bg-secondary active:bg-secondary
                      transition-colors select-none-ui"
         >
           <Trash2 className="w-4 h-4" />

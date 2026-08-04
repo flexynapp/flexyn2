@@ -154,7 +154,7 @@ export default function AdminReports() {
     >
       <button
         onClick={() => navigate(-1)}
-        className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors mb-3"
+        className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground active:text-foreground transition-colors mb-3"
       >
         <ChevronLeft className="w-4 h-4" /> Back
       </button>
@@ -176,7 +176,7 @@ export default function AdminReports() {
             key={id}
             onClick={() => { setReportKind(id); setActiveTab('pending'); }}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-colors ${
-              reportKind === id ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
+              reportKind === id ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground active:text-foreground'
             }`}
           >
             <Icon className="w-3.5 h-3.5" /> {label}
@@ -193,7 +193,7 @@ export default function AdminReports() {
             className={`relative px-3 py-2 text-xs font-bold uppercase tracking-wide transition-colors ${
               activeTab === tab.id
                 ? 'text-foreground'
-                : 'text-muted-foreground hover:text-foreground'
+                : 'text-muted-foreground hover:text-foreground active:text-foreground'
             }`}
           >
             {tab.label}
@@ -311,7 +311,7 @@ function ReportRow({ report, isPending, busy, onResolve, onDelete }) {
               if (confirm('Mark this report as reviewed? It will leave the pending queue.')) onResolve('reviewed');
             }}
             disabled={busy}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-xs font-semibold hover:bg-secondary transition-colors disabled:opacity-50"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-xs font-semibold hover:bg-secondary active:bg-secondary transition-colors disabled:opacity-50"
           >
             <Check className="w-3.5 h-3.5" /> Mark reviewed
           </button>
@@ -329,7 +329,7 @@ function ReportRow({ report, isPending, busy, onResolve, onDelete }) {
               if (confirm('Dismiss this report without action? It will leave the pending queue.')) onResolve('dismissed');
             }}
             disabled={busy}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-muted-foreground text-xs font-medium hover:text-foreground transition-colors disabled:opacity-50"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-muted-foreground text-xs font-medium hover:text-foreground active:text-foreground transition-colors disabled:opacity-50"
           >
             <X className="w-3.5 h-3.5" /> Dismiss
           </button>
@@ -372,14 +372,14 @@ function BugReportRow({ report, isPending, busy, onResolve }) {
           <button
             onClick={() => onResolve('reviewed')}
             disabled={busy}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-xs font-semibold hover:bg-secondary transition-colors disabled:opacity-50"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-xs font-semibold hover:bg-secondary active:bg-secondary transition-colors disabled:opacity-50"
           >
             <Check className="w-3.5 h-3.5" /> Mark reviewed
           </button>
           <button
             onClick={() => onResolve('dismissed')}
             disabled={busy}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-muted-foreground text-xs font-medium hover:text-foreground transition-colors disabled:opacity-50"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-muted-foreground text-xs font-medium hover:text-foreground active:text-foreground transition-colors disabled:opacity-50"
           >
             <X className="w-3.5 h-3.5" /> Dismiss
           </button>

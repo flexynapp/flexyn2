@@ -93,7 +93,7 @@ export default function ProfileCompletionMeter({ user, targetProfile }) {
               type="button"
               onClick={handleDismiss}
               aria-label="Dismiss"
-              className="w-5 h-5 rounded-full bg-secondary/60 hover:bg-secondary text-muted-foreground hover:text-foreground flex items-center justify-center"
+              className="w-5 h-5 rounded-full bg-secondary/60 hover:bg-secondary active:bg-secondary text-muted-foreground hover:text-foreground active:text-foreground flex items-center justify-center"
             >
               <X className="w-3 h-3" />
             </button>

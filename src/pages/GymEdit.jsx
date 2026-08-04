@@ -272,7 +272,7 @@ export default function GymEdit() {
       <button
         type="button"
         onClick={() => navigate(`/gym/${gym.id}`)}
-        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-3"
+        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground active:text-foreground mb-3"
       >
         <ArrowLeft className="w-4 h-4" /> Back to {gym.name}
       </button>
@@ -296,7 +296,7 @@ export default function GymEdit() {
               ? <img loading="lazy" src={form.cover_url} alt="" className="w-full h-full object-cover" />
               : <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">No cover yet</div>}
           </div>
-          <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-secondary/40 hover:bg-secondary text-xs font-bold uppercase tracking-wide cursor-pointer transition-colors">
+          <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-secondary/40 hover:bg-secondary active:bg-secondary text-xs font-bold uppercase tracking-wide cursor-pointer transition-colors">
             {uploadingCover ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
             {uploadingCover ? 'Uploading…' : 'Upload cover'}
             <input type="file" accept="image/*" className="hidden" onChange={handleCoverPick} />
@@ -312,7 +312,7 @@ export default function GymEdit() {
                 ? <img loading="lazy" src={form.logo_url} alt="" className="w-full h-full object-cover" />
                 : <Building2 className="w-6 h-6 text-primary" />}
             </div>
-            <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-secondary/40 hover:bg-secondary text-xs font-bold uppercase tracking-wide cursor-pointer transition-colors">
+            <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-secondary/40 hover:bg-secondary active:bg-secondary text-xs font-bold uppercase tracking-wide cursor-pointer transition-colors">
               {uploadingLogo ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
               {uploadingLogo ? 'Uploading…' : 'Upload logo'}
               <input type="file" accept="image/*" className="hidden" onChange={handleLogoPick} />
@@ -375,7 +375,7 @@ export default function GymEdit() {
               type="button"
               onClick={captureLocation}
               disabled={geoLoading}
-              className="inline-flex items-center gap-1 text-micro font-bold uppercase tracking-wide text-primary hover:bg-primary/10 px-2 py-1 rounded"
+              className="inline-flex items-center gap-1 text-micro font-bold uppercase tracking-wide text-primary hover:bg-primary/10 active:bg-primary/10 px-2 py-1 rounded"
             >
               {geoLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <MapPin className="w-3 h-3" />}
               Use my location
@@ -475,7 +475,7 @@ function HoursEditor({ value, onChange }) {
         <button
           type="button"
           onClick={setAllSame}
-          className="text-micro font-bold uppercase tracking-wide text-primary hover:bg-primary/10 px-2 py-1 rounded"
+          className="text-micro font-bold uppercase tracking-wide text-primary hover:bg-primary/10 active:bg-primary/10 px-2 py-1 rounded"
         >
           Copy Mon → all days
         </button>
@@ -536,7 +536,7 @@ function AmenitiesEditor({ value, onChange }) {
               className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-micro font-medium border transition-colors ${
                 isOn
                   ? 'bg-primary/15 text-primary border-primary/30'
-                  : 'bg-secondary/60 text-muted-foreground border-border hover:bg-secondary'
+                  : 'bg-secondary/60 text-muted-foreground border-border hover:bg-secondary active:bg-secondary'
               }`}
             >
               <span aria-hidden="true">{meta.emoji}</span>
@@ -577,7 +577,7 @@ function PhotoGalleryEditor({ gymId, value, onChange, uploading, setUploading, u
         <p className="text-micro font-bold uppercase tracking-wider text-muted-foreground">
           <ImageIcon className="w-3 h-3 inline-block me-1" /> Photo gallery
         </p>
-        <label className="inline-flex items-center gap-1 text-micro font-bold uppercase tracking-wide text-primary hover:bg-primary/10 px-2 py-1 rounded cursor-pointer">
+        <label className="inline-flex items-center gap-1 text-micro font-bold uppercase tracking-wide text-primary hover:bg-primary/10 active:bg-primary/10 px-2 py-1 rounded cursor-pointer">
           {uploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
           {uploading ? 'Uploading…' : 'Add photo'}
           <input type="file" accept="image/*" className="hidden" onChange={handlePick} disabled={uploading} />

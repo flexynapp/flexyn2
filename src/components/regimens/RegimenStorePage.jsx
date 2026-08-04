@@ -209,7 +209,7 @@ function RegimenCard({ regimen, index, isMine, user, onAdopted }) {
                   'flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition-colors',
                   adoptMutation.isSuccess
                     ? 'bg-emerald-500/15 text-emerald-500 cursor-default'
-                    : 'bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-60',
+                    : 'bg-primary text-primary-foreground hover:bg-primary/90 active:bg-primary/90 disabled:opacity-60',
                 ].join(' ')}
               >
                 <Download className="w-3.5 h-3.5" />
@@ -221,7 +221,7 @@ function RegimenCard({ regimen, index, isMine, user, onAdopted }) {
 
             <button
               onClick={() => setExpanded(e => !e)}
-              className="flex items-center gap-1 px-2 py-1.5 rounded-md text-xs text-muted-foreground hover:bg-secondary transition-colors"
+              className="flex items-center gap-1 px-2 py-1.5 rounded-md text-xs text-muted-foreground hover:bg-secondary active:bg-secondary transition-colors"
             >
               {expanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
               {expanded ? 'Less' : 'Preview'}
@@ -350,7 +350,7 @@ export default function RegimenStorePage({ onBack, onPublish }) {
         <motion.button
           whileTap={{ scale: 0.93 }}
           onClick={onBack}
-          className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors px-2 py-1.5 rounded-lg hover:bg-secondary"
+          className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground active:text-foreground transition-colors px-2 py-1.5 rounded-lg hover:bg-secondary active:bg-secondary"
         >
           <ChevronLeft className="w-4 h-4" />
           Back
@@ -384,7 +384,7 @@ export default function RegimenStorePage({ onBack, onPublish }) {
         {search && (
           <button
             onClick={() => setSearch('')}
-            className="absolute end-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors text-xs"
+            className="absolute end-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground active:text-foreground transition-colors text-xs"
             aria-label="Clear search"
           >
             ✕
@@ -409,7 +409,7 @@ export default function RegimenStorePage({ onBack, onPublish }) {
                 'shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors',
                 isActive
                   ? 'bg-primary text-primary-foreground border-primary shadow-sm'
-                  : 'border-border text-muted-foreground hover:border-primary/40 hover:text-foreground bg-card',
+                  : 'border-border text-muted-foreground hover:border-primary/40 hover:text-foreground active:text-foreground bg-card',
               ].join(' ')}
             >
               {group}
@@ -436,7 +436,7 @@ export default function RegimenStorePage({ onBack, onPublish }) {
                 'shrink-0 px-3 py-1 rounded-full text-micro font-bold uppercase tracking-wide border transition-colors',
                 isActive
                   ? 'bg-foreground/90 text-background border-foreground/90'
-                  : 'border-border/60 text-muted-foreground hover:border-primary/40 hover:text-foreground bg-card/50',
+                  : 'border-border/60 text-muted-foreground hover:border-primary/40 hover:text-foreground active:text-foreground bg-card/50',
               ].join(' ')}
             >
               {opt.label}
@@ -474,7 +474,7 @@ export default function RegimenStorePage({ onBack, onPublish }) {
             whileTap={{ scale: 0.97 }}
             transition={{ type: 'spring', stiffness: 380, damping: 22 }}
             onClick={onPublish}
-            className="group w-full rounded-xl border-2 border-dashed border-border hover:border-primary/50 bg-card hover:bg-primary/5 transition-colors p-5 flex items-center gap-4 text-start"
+            className="group w-full rounded-xl border-2 border-dashed border-border hover:border-primary/50 bg-card hover:bg-primary/5 active:bg-primary/5 transition-colors p-5 flex items-center gap-4 text-start"
           >
             <div className="w-10 h-10 rounded-xl bg-primary/10 group-hover:bg-primary/20 border border-primary/20 flex items-center justify-center shrink-0 transition-colors">
               <Plus className="w-5 h-5 text-primary" />
@@ -517,7 +517,7 @@ export default function RegimenStorePage({ onBack, onPublish }) {
             whileTap={{ scale: 0.97 }}
             transition={{ type: 'spring', stiffness: 380, damping: 22 }}
             onClick={onPublish}
-            className="group w-full rounded-xl border-2 border-dashed border-border hover:border-primary/50 bg-card hover:bg-primary/5 transition-colors p-5 flex items-center gap-4 text-start"
+            className="group w-full rounded-xl border-2 border-dashed border-border hover:border-primary/50 bg-card hover:bg-primary/5 active:bg-primary/5 transition-colors p-5 flex items-center gap-4 text-start"
           >
             <div className="w-10 h-10 rounded-xl bg-primary/10 group-hover:bg-primary/20 border border-primary/20 flex items-center justify-center shrink-0 transition-colors">
               <Plus className="w-5 h-5 text-primary" />

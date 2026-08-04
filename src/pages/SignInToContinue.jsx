@@ -149,7 +149,7 @@ export default function SignInToContinue({
           type="button"
           onClick={onBack}
           aria-label="Back"
-          className="absolute top-5 start-5 z-20 w-11 h-11 rounded-xl border border-border bg-card/80 backdrop-blur-sm flex items-center justify-center text-foreground hover:bg-secondary transition-colors"
+          className="absolute top-5 start-5 z-20 w-11 h-11 rounded-xl border border-border bg-card/80 backdrop-blur-sm flex items-center justify-center text-foreground hover:bg-secondary active:bg-secondary transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
         </button>
@@ -187,7 +187,7 @@ export default function SignInToContinue({
         {/* OAuth providers — Google + Apple */}
         <Button
           variant="outline"
-          className="w-full h-12 font-medium text-sm gap-2 bg-white text-gray-900 hover:bg-gray-50 hover:text-gray-900 border-gray-300"
+          className="w-full h-12 font-medium text-sm gap-2 bg-white text-gray-900 hover:bg-gray-50 active:bg-gray-50 hover:text-gray-900 active:text-gray-900 border-gray-300"
           onClick={() => handleProvider('google', setGoogleLoading)}
           disabled={googleLoading || appleLoading || sendingMagicLink}
         >
@@ -202,7 +202,7 @@ export default function SignInToContinue({
             keeps contrast against the background. Leaving it bg-black in
             dark mode both fails contrast and is technically off-guideline. */}
         <Button
-          className="w-full h-12 font-medium text-sm gap-2 bg-black text-white hover:bg-zinc-900 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
+          className="w-full h-12 font-medium text-sm gap-2 bg-black text-white hover:bg-zinc-900 dark:bg-white dark:text-black dark:hover:bg-zinc-200 dark:active:bg-zinc-200"
           onClick={() => handleProvider('apple', setAppleLoading)}
           disabled={googleLoading || appleLoading || sendingMagicLink}
         >
@@ -229,7 +229,7 @@ export default function SignInToContinue({
             <button
               type="button"
               onClick={handleResetEmail}
-              className="w-full text-xs text-muted-foreground hover:text-foreground transition-colors py-1.5"
+              className="w-full text-xs text-muted-foreground hover:text-foreground active:text-foreground transition-colors py-1.5"
             >
               Wrong email? Send another link
             </button>
@@ -278,7 +278,7 @@ export default function SignInToContinue({
               variant="ghost"
               onClick={handleGuestSignIn}
               disabled={guestLoading || googleLoading || appleLoading || sendingMagicLink}
-              className="w-full h-12 font-medium text-sm gap-2 text-muted-foreground hover:text-foreground"
+              className="w-full h-12 font-medium text-sm gap-2 text-muted-foreground hover:text-foreground active:text-foreground"
             >
               {guestLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
               Continue as guest

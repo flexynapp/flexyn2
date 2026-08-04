@@ -116,11 +116,11 @@ export default function MyRoutineSheet({ open, onClose }) {
       <div className="flex items-center gap-3 px-4 border-b border-border shrink-0"
         style={{ paddingTop: 'max(14px, env(safe-area-inset-top))', paddingBottom: 12 }}>
         {view === 'edit' ? (
-          <button onClick={() => setView('list')} className="p-1.5 -ms-1.5 rounded-lg hover:bg-secondary" aria-label="Back">
+          <button onClick={() => setView('list')} className="p-1.5 -ms-1.5 rounded-lg hover:bg-secondary active:bg-secondary" aria-label="Back">
             <ArrowLeft className="w-5 h-5" />
           </button>
         ) : (
-          <button onClick={onClose} className="p-1.5 -ms-1.5 rounded-lg hover:bg-secondary" aria-label="Close">
+          <button onClick={onClose} className="p-1.5 -ms-1.5 rounded-lg hover:bg-secondary active:bg-secondary" aria-label="Close">
             <XIcon className="w-5 h-5" />
           </button>
         )}
@@ -174,12 +174,12 @@ export default function MyRoutineSheet({ open, onClose }) {
                           </button>
                           {!r.is_active && (
                             <button onClick={() => activate.mutate(r.id)} aria-label="Set active"
-                              className="p-2 rounded-lg text-muted-foreground hover:text-primary hover:bg-secondary" title="Set active">
+                              className="p-2 rounded-lg text-muted-foreground hover:text-primary active:text-primary hover:bg-secondary active:bg-secondary" title="Set active">
                               <Star className="w-4 h-4" />
                             </button>
                           )}
                           <button onClick={() => { if (window.confirm(`Delete "${r.name}"?`)) remove.mutate(r.id); }} aria-label="Delete"
-                            className="p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-secondary">
+                            className="p-2 rounded-lg text-muted-foreground hover:text-destructive active:text-destructive hover:bg-secondary active:bg-secondary">
                             <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
@@ -280,7 +280,7 @@ export default function MyRoutineSheet({ open, onClose }) {
                                     <GripVertical className="w-3.5 h-3.5 text-muted-foreground/40 shrink-0" />
                                     <Dumbbell className="w-3.5 h-3.5 text-primary shrink-0" />
                                     <span className="flex-1 text-sm truncate">{ex.name}</span>
-                                    <button onClick={() => removeExercise(idx, exIdx)} aria-label="Remove" className="p-1 text-muted-foreground hover:text-destructive">
+                                    <button onClick={() => removeExercise(idx, exIdx)} aria-label="Remove" className="p-1 text-muted-foreground hover:text-destructive active:text-destructive">
                                       <XIcon className="w-3.5 h-3.5" />
                                     </button>
                                   </div>

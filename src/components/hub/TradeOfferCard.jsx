@@ -287,7 +287,7 @@ export default function TradeOfferCard({ payload, isMine, user, conversationId, 
               <button
                 onClick={() => handleResponse(false)}
                 disabled={busy}
-                className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-md border border-border text-xs font-bold hover:bg-secondary transition-colors disabled:opacity-50"
+                className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-md border border-border text-xs font-bold hover:bg-secondary active:bg-secondary transition-colors disabled:opacity-50"
               >
                 <X className="w-3.5 h-3.5" />
                 No thanks

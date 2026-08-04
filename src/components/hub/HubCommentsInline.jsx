@@ -374,7 +374,7 @@ export default function HubCommentsInline({ post, open, onClose }) {
           <button
             onClick={() => setReplyTarget(null)}
             aria-label={t('hub.comments.cancelReply')}
-            className="p-1 rounded hover:bg-secondary text-muted-foreground hover:text-foreground"
+            className="p-1 rounded hover:bg-secondary active:bg-secondary text-muted-foreground hover:text-foreground active:text-foreground"
           >
             <X className="w-3.5 h-3.5" />
           </button>
@@ -397,7 +397,7 @@ export default function HubCommentsInline({ post, open, onClose }) {
                   key={a.email}
                   type="button"
                   onMouseDown={(e) => { e.preventDefault(); insertMention(a.handle); }}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-secondary transition-colors text-start"
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-secondary active:bg-secondary transition-colors text-start"
                 >
                   <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary shrink-0">
                     {a.handle.slice(0, 2).toUpperCase()}
@@ -425,7 +425,7 @@ export default function HubCommentsInline({ post, open, onClose }) {
                     key={em}
                     type="button"
                     onClick={() => insertEmoji(em)}
-                    className="w-9 h-9 rounded-lg text-xl flex items-center justify-center hover:bg-secondary active:scale-90 transition-transform"
+                    className="w-9 h-9 rounded-lg text-xl flex items-center justify-center hover:bg-secondary active:bg-secondary active:scale-90 transition-transform"
                     aria-label={`Add ${em}`}
                   >
                     {em}
@@ -439,7 +439,7 @@ export default function HubCommentsInline({ post, open, onClose }) {
             onClick={() => setEmojiOpen((o) => !o)}
             aria-label="Add emoji"
             aria-expanded={emojiOpen}
-            className={`p-2 rounded-lg transition-colors shrink-0 ${emojiOpen ? 'bg-secondary text-primary' : 'text-muted-foreground hover:bg-secondary hover:text-foreground'}`}
+            className={`p-2 rounded-lg transition-colors shrink-0 ${emojiOpen ? 'bg-secondary text-primary' : 'text-muted-foreground hover:bg-secondary active:bg-secondary hover:text-foreground active:text-foreground'}`}
           >
             <Smile className="w-5 h-5" />
           </button>
@@ -575,7 +575,7 @@ function CommentRow({ comment: c, user, authorsById, isLiked, likeCount, onLike,
             <motion.button
               whileTap={{ scale: 0.9 }}
               onClick={onLike}
-              className={`flex items-center gap-1 transition-colors ${isLiked ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+              className={`flex items-center gap-1 transition-colors ${isLiked ? 'text-primary' : 'text-muted-foreground hover:text-foreground active:text-foreground'}`}
               aria-label={isLiked ? t('hub.comments.liked') : t('hub.comments.like')}
             >
               <ThumbsUp className={`w-3.5 h-3.5 ${isLiked ? 'fill-current' : ''}`} />
@@ -586,7 +586,7 @@ function CommentRow({ comment: c, user, authorsById, isLiked, likeCount, onLike,
             {showReply && (
               <button
                 onClick={onReply}
-                className="hover:text-foreground transition-colors font-medium"
+                className="hover:text-foreground active:text-foreground transition-colors font-medium"
               >
                 {t('hub.comments.reply')}
               </button>
@@ -597,7 +597,7 @@ function CommentRow({ comment: c, user, authorsById, isLiked, likeCount, onLike,
               translation ? (
                 <button
                   onClick={() => setShowOriginal(v => !v)}
-                  className="flex items-center gap-0.5 hover:text-primary transition-colors"
+                  className="flex items-center gap-0.5 hover:text-primary active:text-primary transition-colors"
                 >
                   <Languages className="w-3 h-3" />
                   {showOriginal ? 'Show translation' : 'Show original'}
@@ -628,7 +628,7 @@ function CommentRow({ comment: c, user, authorsById, isLiked, likeCount, onLike,
                       setTranslating(false);
                     }
                   }}
-                  className="flex items-center gap-0.5 hover:text-primary transition-colors"
+                  className="flex items-center gap-0.5 hover:text-primary active:text-primary transition-colors"
                 >
                   <Languages className="w-3 h-3" />
                   Translate
@@ -640,7 +640,7 @@ function CommentRow({ comment: c, user, authorsById, isLiked, likeCount, onLike,
             {!isMine && (
               <button
                 onClick={() => setReportOpen(true)}
-                className="hover:text-destructive transition-colors"
+                className="hover:text-destructive active:text-destructive transition-colors"
                 aria-label={t('report.buttonLabel')}
                 title={t('report.buttonLabel')}
               >
@@ -654,7 +654,7 @@ function CommentRow({ comment: c, user, authorsById, isLiked, likeCount, onLike,
         {isMine && (
           <button
             onClick={onDelete}
-            className="p-1 rounded text-muted-foreground hover:text-destructive transition-colors shrink-0"
+            className="p-1 rounded text-muted-foreground hover:text-destructive active:text-destructive transition-colors shrink-0"
             aria-label="Delete comment"
           >
             <Trash2 className="w-3 h-3" />

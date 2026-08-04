@@ -181,7 +181,7 @@ export default function BarcodeNotFoundModal({ barcode, onCancel, onSubmit }) {
               </div>
               <button
                 onClick={onCancel}
-                className="shrink-0 p-1.5 rounded-full hover:bg-muted transition-colors"
+                className="shrink-0 p-1.5 rounded-full hover:bg-muted active:bg-muted transition-colors"
               >
                 <X className="w-4 h-4 text-muted-foreground" />
               </button>
@@ -230,7 +230,7 @@ export default function BarcodeNotFoundModal({ barcode, onCancel, onSubmit }) {
                   className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-colors ${
                     tab === t.id
                       ? 'bg-card text-foreground shadow-sm'
-                      : 'text-muted-foreground hover:text-foreground'
+                      : 'text-muted-foreground hover:text-foreground active:text-foreground'
                   }`}
                 >
                   {t.label}
@@ -322,7 +322,7 @@ export default function BarcodeNotFoundModal({ barcode, onCancel, onSubmit }) {
             <div className="px-5 pb-2 shrink-0">
               <button
                 onClick={() => setTab('vitamins')}
-                className="w-full flex items-center justify-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors py-1"
+                className="w-full flex items-center justify-center gap-1 text-xs text-muted-foreground hover:text-foreground active:text-foreground transition-colors py-1"
               >
                 Add vitamins & minerals (optional)
                 <ChevronRight className="w-3 h-3" />

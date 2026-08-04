@@ -449,7 +449,7 @@ export default function LeaderboardsContent({ active = true }) {
                 className={`flex flex-col items-center justify-center gap-0.5 py-1.5 rounded-lg text-micro font-bold transition-colors min-w-0 ${
                   isActive
                     ? 'bg-card shadow-sm text-foreground'
-                    : 'text-muted-foreground hover:text-foreground'
+                    : 'text-muted-foreground hover:text-foreground active:text-foreground'
                 }`}
               >
                 <Icon className={`w-3.5 h-3.5 ${isActive ? b.accent : ''}`} aria-hidden="true" />
@@ -538,7 +538,7 @@ export default function LeaderboardsContent({ active = true }) {
                     <button
                       key={entry.key}
                       onClick={() => setShowAll(true)}
-                      className="w-full flex items-center justify-center gap-2 py-2 text-muted-foreground hover:text-foreground transition-colors"
+                      className="w-full flex items-center justify-center gap-2 py-2 text-muted-foreground hover:text-foreground active:text-foreground transition-colors"
                       aria-label={tFallback('leaderboards.showHidden', 'Show {n} hidden athletes', { n: entry.count })}
                     >
                       <Ellipsis className="w-5 h-5" aria-hidden="true" />
@@ -611,7 +611,7 @@ export default function LeaderboardsContent({ active = true }) {
               {!showAll && hiddenCount > 0 && (
                 <button
                   onClick={() => setShowAll(true)}
-                  className="w-full py-2.5 rounded-xl border border-border/60 text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors"
+                  className="w-full py-2.5 rounded-xl border border-border/60 text-xs font-bold text-muted-foreground hover:text-foreground active:text-foreground hover:bg-secondary/50 active:bg-secondary/50 transition-colors"
                 >
                   {tFallback('leaderboards.showAll', 'Show all {n}', { n: ranked.length })}
                 </button>
@@ -619,7 +619,7 @@ export default function LeaderboardsContent({ active = true }) {
               {showAll && hiddenCount === 0 && ranked.length > PODIUM_SIZE + NEIGHBOUR_RADIUS * 2 + 1 && (
                 <button
                   onClick={() => setShowAll(false)}
-                  className="w-full py-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+                  className="w-full py-2 text-xs font-medium text-muted-foreground hover:text-foreground active:text-foreground transition-colors"
                 >
                   {tFallback('leaderboards.collapse', 'Collapse')}
                 </button>

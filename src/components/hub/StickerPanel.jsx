@@ -117,7 +117,7 @@ export default function StickerPanel({ postId, onClose, onAuthorClick = null }) 
             className={`text-xs font-semibold px-2.5 py-1 rounded-md transition-colors ${
               tab === 'reactions'
                 ? 'bg-primary/10 text-primary'
-                : 'text-muted-foreground hover:bg-secondary'
+                : 'text-muted-foreground hover:bg-secondary active:bg-secondary'
             }`}
           >
             Reactions {reactions.length > 0 && `(${reactions.length})`}
@@ -127,13 +127,13 @@ export default function StickerPanel({ postId, onClose, onAuthorClick = null }) 
             className={`text-xs font-semibold px-2.5 py-1 rounded-md transition-colors ${
               tab === 'pick'
                 ? 'bg-primary/10 text-primary'
-                : 'text-muted-foreground hover:bg-secondary'
+                : 'text-muted-foreground hover:bg-secondary active:bg-secondary'
             }`}
           >
             My Stickers
           </button>
         </div>
-        <button onClick={onClose} className="text-muted-foreground hover:text-foreground p-1 rounded-md">
+        <button onClick={onClose} className="text-muted-foreground hover:text-foreground active:text-foreground p-1 rounded-md">
           <X className="w-3.5 h-3.5" />
         </button>
       </div>
@@ -193,7 +193,7 @@ export default function StickerPanel({ postId, onClose, onAuthorClick = null }) 
                       <button
                         type="button"
                         onClick={handleProfileClick}
-                        className="text-xs text-muted-foreground hover:text-primary hover:underline flex-1 truncate text-start transition-colors"
+                        className="text-xs text-muted-foreground hover:text-primary active:text-primary hover:underline flex-1 truncate text-start transition-colors"
                       >
                         @{r.user_name ?? 'athlete'}
                       </button>
@@ -248,7 +248,7 @@ export default function StickerPanel({ postId, onClose, onAuthorClick = null }) 
                       className={`flex flex-col items-center gap-0.5 p-1.5 rounded-xl border-2 transition-all ${
                         isSelected
                           ? 'border-primary bg-primary/10'
-                          : 'border-transparent hover:border-border hover:bg-secondary'
+                          : 'border-transparent hover:border-border hover:bg-secondary active:bg-secondary'
                       }`}
                       title={sticker.item_name + (sticker.variant ? ` (${sticker.variant})` : '')}
                     >

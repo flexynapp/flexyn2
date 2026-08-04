@@ -86,7 +86,7 @@ export default function StoryPollOverlay({ overlay, storyId, userId, isOwn }) {
                 onClick={() => handleVote(o.id)}
                 disabled={busy || isOwn}
                 className={`relative w-full rounded-lg px-3 py-2 text-sm font-medium text-start overflow-hidden transition-colors ${
-                  isMine ? 'border border-white/60 text-white' : 'border border-white/15 text-white/90 hover:bg-white/10'
+                  isMine ? 'border border-white/60 text-white' : 'border border-white/15 text-white/90 hover:bg-white/10 active:bg-white/10'
                 } ${isOwn ? 'cursor-default' : 'cursor-pointer'}`}
               >
                 {hasVoted && (

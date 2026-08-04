@@ -49,7 +49,7 @@ export default function JournalHistoryModal({ userId, activeDate, onClose, onPic
           <span className="font-heading font-bold text-base flex items-center gap-1.5">
             <BookOpen className="w-4 h-4 text-primary" /> {tFallback('journal.historyTitle', 'Journal log')}
           </span>
-          <button onClick={onClose} className="w-8 h-8 rounded-full hover:bg-secondary flex items-center justify-center" aria-label="Close">
+          <button onClick={onClose} className="w-8 h-8 rounded-full hover:bg-secondary active:bg-secondary flex items-center justify-center" aria-label="Close">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -73,7 +73,7 @@ export default function JournalHistoryModal({ userId, activeDate, onClose, onPic
                   <li key={e.id}>
                     <button
                       onClick={() => onPick(e.entry_date)}
-                      className={`w-full text-start px-4 py-3 transition-colors ${isActive ? 'bg-primary/10' : 'hover:bg-secondary/40'}`}
+                      className={`w-full text-start px-4 py-3 transition-colors ${isActive ? 'bg-primary/10' : 'hover:bg-secondary/40 active:bg-secondary/40'}`}
                     >
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-micro font-bold uppercase tracking-wide text-muted-foreground">{label}</span>

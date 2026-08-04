@@ -116,7 +116,7 @@ export default function BarcodeResultModal({ product, onCancel, onLog, isLogging
               </div>
               <button
                 onClick={onCancel}
-                className="shrink-0 mt-0.5 p-1.5 rounded-full hover:bg-muted transition-colors"
+                className="shrink-0 mt-0.5 p-1.5 rounded-full hover:bg-muted active:bg-muted transition-colors"
               >
                 <X className="w-4 h-4 text-muted-foreground" />
               </button>
@@ -157,7 +157,7 @@ export default function BarcodeResultModal({ product, onCancel, onLog, isLogging
                     className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-colors ${
                       tab === tb.id
                         ? 'bg-card text-foreground shadow-sm'
-                        : 'text-muted-foreground hover:text-foreground'
+                        : 'text-muted-foreground hover:text-foreground active:text-foreground'
                     }`}
                   >
                     {tb.label}

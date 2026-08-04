@@ -96,7 +96,7 @@ export default function AddToHighlightModal({ open, onClose, storyId }) {
                 key={h.id}
                 onClick={() => handleAddTo(h.id)}
                 disabled={!!busy}
-                className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-secondary/40 transition-colors disabled:opacity-60"
+                className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-secondary/40 active:bg-secondary/40 transition-colors disabled:opacity-60"
               >
                 <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center text-lg shrink-0">
                   <span aria-hidden="true">✨</span>

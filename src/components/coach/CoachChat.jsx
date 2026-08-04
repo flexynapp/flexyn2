@@ -293,7 +293,7 @@ export default function CoachChat({ mode, onSaveRegimen, onStartWorkout }) {
           <button
             onClick={handleClear}
             aria-label="Clear chat"
-            className="p-2.5 rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors touch-manipulation"
+            className="p-2.5 rounded-lg text-muted-foreground hover:bg-secondary active:bg-secondary hover:text-foreground active:text-foreground transition-colors touch-manipulation"
           >
             <Trash2 className="w-6 h-6" />
           </button>
@@ -395,7 +395,7 @@ export default function CoachChat({ mode, onSaveRegimen, onStartWorkout }) {
                 'p-2 rounded-xl transition-colors shrink-0',
                 voiceListening
                   ? 'bg-rose-500/15 text-rose-500'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-background/60',
+                  : 'text-muted-foreground hover:text-foreground active:text-foreground hover:bg-background/60 active:bg-background/60',
               ].join(' ')}
             >
               {voiceListening ? <MicOff className="w-4 h-4 animate-pulse" /> : <Mic className="w-4 h-4" />}
@@ -425,7 +425,7 @@ export default function CoachChat({ mode, onSaveRegimen, onStartWorkout }) {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{tFallback('common.cancel', 'Cancel')}</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmClear} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            <AlertDialogAction onClick={confirmClear} className="bg-destructive text-destructive-foreground hover:bg-destructive/90 active:bg-destructive/90">
               {tFallback('common.clear', 'Clear')}
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -489,7 +489,7 @@ function PromptStrip({ prompts, onPick, disabled }) {
           type="button"
           onClick={() => scrollByAmount(-160)}
           aria-label="Scroll prompts left"
-          className="absolute start-0 top-1/2 -translate-y-1/2 z-10 p-1 rounded-full bg-card border border-border shadow-sm text-muted-foreground hover:text-foreground"
+          className="absolute start-0 top-1/2 -translate-y-1/2 z-10 p-1 rounded-full bg-card border border-border shadow-sm text-muted-foreground hover:text-foreground active:text-foreground"
         >
           <ChevronLeft className="w-4 h-4" />
         </button>
@@ -511,8 +511,8 @@ function PromptStrip({ prompts, onPick, disabled }) {
             disabled={disabled}
             className={`shrink-0 whitespace-nowrap px-3 py-1.5 rounded-full border text-xs font-medium transition-colors disabled:opacity-50 ${
               p.send
-                ? 'bg-primary/10 hover:bg-primary/20 border-primary/30 text-primary'
-                : 'bg-secondary/60 hover:bg-secondary border-border/50'
+                ? 'bg-primary/10 hover:bg-primary/20 active:bg-primary/20 border-primary/30 text-primary'
+                : 'bg-secondary/60 hover:bg-secondary active:bg-secondary border-border/50'
             }`}
           >
             {p.text}
@@ -524,7 +524,7 @@ function PromptStrip({ prompts, onPick, disabled }) {
           type="button"
           onClick={() => scrollByAmount(160)}
           aria-label="Scroll prompts right"
-          className="absolute end-0 top-1/2 -translate-y-1/2 z-10 p-1 rounded-full bg-card border border-border shadow-sm text-muted-foreground hover:text-foreground"
+          className="absolute end-0 top-1/2 -translate-y-1/2 z-10 p-1 rounded-full bg-card border border-border shadow-sm text-muted-foreground hover:text-foreground active:text-foreground"
         >
           <ChevronRight className="w-4 h-4" />
         </button>
@@ -553,7 +553,7 @@ function CoachWelcome({ onPick, tFallback, generateMode }) {
           <button
             key={p.id}
             onClick={() => onPick(p.text)}
-            className="w-full text-start px-3 py-2.5 rounded-lg bg-secondary/50 hover:bg-secondary border border-border/50 text-sm transition-colors"
+            className="w-full text-start px-3 py-2.5 rounded-lg bg-secondary/50 hover:bg-secondary active:bg-secondary border border-border/50 text-sm transition-colors"
           >
             {p.text}
           </button>

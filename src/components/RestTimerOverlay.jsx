@@ -172,7 +172,7 @@ function ExpandedPanel({ onCollapse, defaultDuration, setDefaultDuration, soundE
         <button
           onClick={onCollapse}
           aria-label={t('common.close')}
-          className="w-7 h-7 rounded-lg hover:bg-secondary flex items-center justify-center transition-colors"
+          className="w-7 h-7 rounded-lg hover:bg-secondary active:bg-secondary flex items-center justify-center transition-colors"
         >
           <X className="w-4 h-4 text-muted-foreground" />
         </button>
@@ -192,7 +192,7 @@ function ExpandedPanel({ onCollapse, defaultDuration, setDefaultDuration, soundE
                 className={`py-2 rounded-lg text-sm font-semibold tabular-nums transition-colors ${
                   isActive
                     ? 'bg-primary text-primary-foreground'
-                    : 'bg-secondary text-foreground hover:bg-secondary/70'
+                    : 'bg-secondary text-foreground hover:bg-secondary/70 active:bg-secondary/70'
                 }`}
               >
                 {p < 60 ? `${p}s` : p % 60 === 0 ? `${p / 60}m` : `${Math.floor(p / 60)}m ${p % 60}s`}
@@ -225,7 +225,7 @@ function ExpandedPanel({ onCollapse, defaultDuration, setDefaultDuration, soundE
               className={`py-2 rounded-lg text-xs font-semibold transition-colors ${
                 dur === defaultDuration
                   ? 'bg-primary text-primary-foreground'
-                  : 'bg-secondary text-foreground hover:bg-secondary/70'
+                  : 'bg-secondary text-foreground hover:bg-secondary/70 active:bg-secondary/70'
               }`}
             >
               {label}
@@ -236,7 +236,7 @@ function ExpandedPanel({ onCollapse, defaultDuration, setDefaultDuration, soundE
 
       <button
         onClick={() => setSoundEnabled(!soundEnabled)}
-        className="w-full flex items-center justify-between p-2.5 rounded-lg hover:bg-secondary transition-colors"
+        className="w-full flex items-center justify-between p-2.5 rounded-lg hover:bg-secondary active:bg-secondary transition-colors"
       >
         <span className="flex items-center gap-2 text-sm">
           {soundEnabled
@@ -254,7 +254,7 @@ function ExpandedPanel({ onCollapse, defaultDuration, setDefaultDuration, soundE
 
       <button
         onClick={() => setVoiceCuesEnabled(!voiceCuesEnabled)}
-        className="w-full flex items-center justify-between p-2.5 rounded-lg hover:bg-secondary transition-colors"
+        className="w-full flex items-center justify-between p-2.5 rounded-lg hover:bg-secondary active:bg-secondary transition-colors"
       >
         <span className="flex items-center gap-2 text-sm">
           {voiceCuesEnabled

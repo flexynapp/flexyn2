@@ -123,7 +123,7 @@ export default function VoiceMemoRecorder({ onComplete, onError }) {
       className={`relative p-2 rounded-lg transition-colors shrink-0 select-none touch-none ${
         recording
           ? (cancelling ? 'bg-destructive text-destructive-foreground' : 'bg-destructive text-white')
-          : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
+          : 'text-muted-foreground hover:text-foreground active:text-foreground hover:bg-secondary active:bg-secondary'
       }`}
     >
       {recording

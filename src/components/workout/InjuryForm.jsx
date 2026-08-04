@@ -55,7 +55,7 @@ function InjuryCard({ injury, onClear, onExtend, onDelete }) {
             {injury.severity}
           </span>
         </div>
-        <button onClick={() => onDelete(injury.id)} className="p-1 text-muted-foreground hover:text-destructive transition-colors">
+        <button onClick={() => onDelete(injury.id)} className="p-1 text-muted-foreground hover:text-destructive active:text-destructive transition-colors">
           <Trash2 className="w-3.5 h-3.5" />
         </button>
       </div>
@@ -81,7 +81,7 @@ function InjuryCard({ injury, onClear, onExtend, onDelete }) {
           <Button
             size="sm"
             variant="outline"
-            className="flex-1 text-xs h-8 text-success border-success/30 hover:bg-success/10"
+            className="flex-1 text-xs h-8 text-success border-success/30 hover:bg-success/10 active:bg-success/10"
             onClick={() => onClear(injury.id)}
           >
             <CheckCircle2 className="w-3 h-3 me-1" /> Clear injury
@@ -214,7 +214,7 @@ export default function InjuryForm({ onClose }) {
       <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
         <button
           onClick={view === 'new' ? () => setView('list') : onClose}
-          className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+          className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground active:text-foreground transition-colors"
         >
           <ChevronLeft className="w-4 h-4" />
           {view === 'new' ? 'Back' : 'Close'}
@@ -228,7 +228,7 @@ export default function InjuryForm({ onClose }) {
         {view === 'list' && (
           <button
             onClick={() => setView('new')}
-            className="flex items-center gap-1 text-sm font-medium text-primary hover:text-primary/80 transition-colors"
+            className="flex items-center gap-1 text-sm font-medium text-primary hover:text-primary/80 active:text-primary/80 transition-colors"
           >
             <Plus className="w-4 h-4" /> Log
           </button>

@@ -339,7 +339,7 @@ export default function GoalsAlmostComplete({ goals, logs, cardioLogs = [], onOp
                         <Button
                           onClick={(e) => { e.stopPropagation(); handleComplete(goal.id); }}
                           size="sm"
-                          className="w-full mt-3 bg-green-600 hover:bg-green-700 text-white"
+                          className="w-full mt-3 bg-green-600 hover:bg-green-700 active:bg-green-700 text-white"
                           disabled={isCelebrating}
                         >
                           <Trophy className="w-3 h-3 me-1" /> {t('goals.pushToComplete')}

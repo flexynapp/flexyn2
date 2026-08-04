@@ -161,7 +161,7 @@ export default function ResumeWorkoutBanner() {
           className={`p-2 rounded-lg text-xs font-medium transition-colors shrink-0 ${
             confirmDiscardId === session.id
               ? 'text-destructive bg-destructive/10'
-              : 'text-muted-foreground hover:bg-secondary'
+              : 'text-muted-foreground hover:bg-secondary active:bg-secondary'
           }`}
           aria-label={confirmDiscardId === session.id
             ? tFallback('workout.resumeDiscardConfirmAria', 'Tap again to confirm discard')

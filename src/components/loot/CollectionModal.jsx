@@ -347,7 +347,7 @@ function DetailSheet({ item, onBack }) {
         <button
           type="button"
           onClick={onBack}
-          className="w-full rounded-xl border border-border py-2 text-xs font-bold hover:bg-secondary transition-colors"
+          className="w-full rounded-xl border border-border py-2 text-xs font-bold hover:bg-secondary active:bg-secondary transition-colors"
         >
           Back to collection
         </button>
@@ -447,7 +447,7 @@ export default function CollectionModal({ open, onClose, initialTab = 'stickers'
                   type="button"
                   onClick={() => setSelected(null)}
                   aria-label="Back to collection"
-                  className="w-9 h-9 rounded-lg border border-border flex items-center justify-center hover:bg-secondary transition-colors shrink-0 rtl:scale-x-[-1]"
+                  className="w-9 h-9 rounded-lg border border-border flex items-center justify-center hover:bg-secondary active:bg-secondary transition-colors shrink-0 rtl:scale-x-[-1]"
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </button>
@@ -473,7 +473,7 @@ export default function CollectionModal({ open, onClose, initialTab = 'stickers'
                 type="button"
                 onClick={onClose}
                 aria-label="Close"
-                className="p-2 rounded-md hover:bg-secondary transition-colors shrink-0 self-start"
+                className="p-2 rounded-md hover:bg-secondary active:bg-secondary transition-colors shrink-0 self-start"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -520,7 +520,7 @@ export default function CollectionModal({ open, onClose, initialTab = 'stickers'
                         className={`shrink-0 px-3 py-1.5 rounded-xl text-micro font-bold transition-all ${
                           active
                             ? 'bg-primary text-primary-foreground shadow-sm'
-                            : 'bg-secondary/60 text-muted-foreground hover:text-foreground'
+                            : 'bg-secondary/60 text-muted-foreground hover:text-foreground active:text-foreground'
                         }`}
                       >
                         {t.label}
@@ -545,7 +545,7 @@ export default function CollectionModal({ open, onClose, initialTab = 'stickers'
                         className={`px-2.5 py-1 rounded-md text-micro font-bold transition-colors ${
                           filter === f.id
                             ? 'bg-card text-foreground shadow-sm'
-                            : 'text-muted-foreground hover:text-foreground'
+                            : 'text-muted-foreground hover:text-foreground active:text-foreground'
                         }`}
                       >
                         {f.label}
@@ -646,7 +646,7 @@ export default function CollectionModal({ open, onClose, initialTab = 'stickers'
                       type="button"
                       onClick={() => setShowOdds(o => !o)}
                       aria-expanded={showOdds}
-                      className="flex items-center gap-1.5 text-micro font-bold uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground transition-colors"
+                      className="flex items-center gap-1.5 text-micro font-bold uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground active:text-foreground transition-colors"
                     >
                       <Percent className="w-3 h-3" /> Capsule odds
                     </button>

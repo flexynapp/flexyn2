@@ -1003,13 +1003,13 @@ export default function HubComposer({ onClose }) {
       {mealImagePreview ? (
         <div className="relative rounded-xl overflow-hidden border border-border mb-3">
           <img loading="lazy" src={mealImagePreview} alt="Meal" className="w-full max-h-48 object-cover" />
-          <button onClick={clearMealImage} className="absolute top-2 end-2 p-1.5 rounded-full bg-black/60 text-white hover:bg-black/80">
+          <button onClick={clearMealImage} className="absolute top-2 end-2 p-1.5 rounded-full bg-black/60 text-white hover:bg-black/80 active:bg-black/80">
             <XCircle className="w-4 h-4" />
           </button>
         </div>
       ) : (
         <button type="button" onClick={() => mealImageInputRef.current?.click()}
-          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-dashed border-border text-xs text-muted-foreground hover:border-primary/50 hover:text-foreground transition-colors mb-3">
+          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-dashed border-border text-xs text-muted-foreground hover:border-primary/50 hover:text-foreground active:text-foreground transition-colors mb-3">
           <Camera className="w-4 h-4" /> Add a photo of your meal (optional)
         </button>
       )}
@@ -1055,7 +1055,7 @@ export default function HubComposer({ onClose }) {
             <img loading="lazy" src={statusImagePreview} alt="" className="w-full max-h-48 object-cover" />
             <button
               onClick={clearStatusImage}
-              className="absolute top-2 end-2 p-1.5 rounded-full bg-black/60 text-white hover:bg-black/80 transition-colors"
+              className="absolute top-2 end-2 p-1.5 rounded-full bg-black/60 text-white hover:bg-black/80 active:bg-black/80 transition-colors"
             >
               <XCircle className="w-4 h-4" />
             </button>
@@ -1064,7 +1064,7 @@ export default function HubComposer({ onClose }) {
           <button
             type="button"
             onClick={() => statusImageInputRef.current?.click()}
-            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-dashed border-border text-xs text-muted-foreground hover:border-primary/50 hover:text-foreground transition-colors"
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-dashed border-border text-xs text-muted-foreground hover:border-primary/50 hover:text-foreground active:text-foreground transition-colors"
           >
             <ImageIcon className="w-4 h-4" /> Add a photo (optional)
           </button>
@@ -1114,7 +1114,7 @@ export default function HubComposer({ onClose }) {
             {pollOptions.length > 2 && (
               <button
                 onClick={() => setPollOptions(pollOptions.filter((_, j) => j !== i))}
-                className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                className="p-1.5 rounded-md text-muted-foreground hover:text-destructive active:text-destructive hover:bg-destructive/10 active:bg-destructive/10 transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -1124,7 +1124,7 @@ export default function HubComposer({ onClose }) {
         {pollOptions.length < 4 && (
           <button
             onClick={() => setPollOptions([...pollOptions, ''])}
-            className="w-full py-2 rounded-lg border border-dashed border-border text-xs text-muted-foreground hover:border-primary/50 hover:text-foreground transition-colors"
+            className="w-full py-2 rounded-lg border border-dashed border-border text-xs text-muted-foreground hover:border-primary/50 hover:text-foreground active:text-foreground transition-colors"
           >
             + Add option
           </button>
@@ -1180,7 +1180,7 @@ export default function HubComposer({ onClose }) {
               <img loading="lazy" src={mealImagePreview} alt="Meal" className="w-full max-h-48 object-cover" />
               <button
                 onClick={clearMealImage}
-                className="absolute top-2 end-2 p-1.5 rounded-full bg-black/60 text-white hover:bg-black/80 transition-colors"
+                className="absolute top-2 end-2 p-1.5 rounded-full bg-black/60 text-white hover:bg-black/80 active:bg-black/80 transition-colors"
               >
                 <XCircle className="w-4 h-4" />
               </button>
@@ -1189,7 +1189,7 @@ export default function HubComposer({ onClose }) {
             <button
               type="button"
               onClick={() => mealImageInputRef.current?.click()}
-              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-dashed border-border text-xs text-muted-foreground hover:border-primary/50 hover:text-foreground transition-colors"
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-dashed border-border text-xs text-muted-foreground hover:border-primary/50 hover:text-foreground active:text-foreground transition-colors"
             >
               <Camera className="w-4 h-4" /> Add a photo of your meal (optional)
             </button>
@@ -1227,7 +1227,7 @@ export default function HubComposer({ onClose }) {
                 <button
                   type="button"
                   onClick={() => setCollaboratorIds(prev => prev.filter(x => x !== id))}
-                  className="ms-0.5 hover:text-destructive"
+                  className="ms-0.5 hover:text-destructive active:text-destructive"
                 >
                   <X className="w-3 h-3" />
                 </button>
@@ -1257,7 +1257,7 @@ export default function HubComposer({ onClose }) {
                   setCollaboratorIds(prev => [...prev, u.id]);
                   setCollaboratorInput('');
                 }}
-                className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-start hover:bg-secondary transition-colors"
+                className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-start hover:bg-secondary active:bg-secondary transition-colors"
               >
                 <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0 text-xs font-bold text-primary">
                   {displayName(u)[0].toUpperCase()}
@@ -1291,7 +1291,7 @@ export default function HubComposer({ onClose }) {
             playsInline
             className="w-full max-h-56 object-contain"
           />
-          <button onClick={clearVideo} className="absolute top-2 end-2 p-1.5 rounded-full bg-black/60 text-white hover:bg-black/80">
+          <button onClick={clearVideo} className="absolute top-2 end-2 p-1.5 rounded-full bg-black/60 text-white hover:bg-black/80 active:bg-black/80">
             <XCircle className="w-4 h-4" />
           </button>
         </div>
@@ -1299,7 +1299,7 @@ export default function HubComposer({ onClose }) {
         <button
           type="button"
           onClick={() => videoInputRef.current?.click()}
-          className="w-full flex flex-col items-center justify-center gap-2 py-8 rounded-xl border-2 border-dashed border-border text-sm text-muted-foreground hover:border-primary/50 hover:text-foreground transition-colors mb-3"
+          className="w-full flex flex-col items-center justify-center gap-2 py-8 rounded-xl border-2 border-dashed border-border text-sm text-muted-foreground hover:border-primary/50 hover:text-foreground active:text-foreground transition-colors mb-3"
         >
           <Film className="w-8 h-8 opacity-40" />
           <span>Tap to select a video</span>
@@ -1339,7 +1339,7 @@ export default function HubComposer({ onClose }) {
           className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg border text-sm font-medium transition-colors ${
             privacy === 'public'
               ? 'border-primary bg-primary/5 text-primary'
-              : 'border-border text-muted-foreground hover:bg-secondary'
+              : 'border-border text-muted-foreground hover:bg-secondary active:bg-secondary'
           }`}>
           <Globe2 className="w-4 h-4" /> {t('hub.privacy.public')}
         </button>
@@ -1347,7 +1347,7 @@ export default function HubComposer({ onClose }) {
           className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg border text-sm font-medium transition-colors ${
             privacy === 'followers'
               ? 'border-primary bg-primary/5 text-primary'
-              : 'border-border text-muted-foreground hover:bg-secondary'
+              : 'border-border text-muted-foreground hover:bg-secondary active:bg-secondary'
           }`}>
           <Lock className="w-4 h-4" /> {t('hub.privacy.followers')}
         </button>
@@ -1356,7 +1356,7 @@ export default function HubComposer({ onClose }) {
             className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg border text-sm font-medium transition-colors ${
               privacy === 'crew'
                 ? 'border-primary bg-primary/5 text-primary'
-                : 'border-border text-muted-foreground hover:bg-secondary'
+                : 'border-border text-muted-foreground hover:bg-secondary active:bg-secondary'
             }`}>
             🛡️ Crew
           </button>
@@ -1385,7 +1385,7 @@ export default function HubComposer({ onClose }) {
           type="button"
           onClick={() => setCwPickerOpen(o => !o)}
           className={`text-micro font-semibold uppercase tracking-wide flex items-center gap-1.5 py-1 transition-colors ${
-            cwType ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+            cwType ? 'text-primary' : 'text-muted-foreground hover:text-foreground active:text-foreground'
           }`}
         >
           {cwType ? '⚠️' : '＋'} {cwType
@@ -1498,7 +1498,7 @@ export default function HubComposer({ onClose }) {
                   setCollaboratorInput('');
                   setCollaboratorIds([]);
                 }}
-                className="p-1.5 rounded-md hover:bg-secondary"
+                className="p-1.5 rounded-md hover:bg-secondary active:bg-secondary"
               >
                 <ArrowLeft className="w-4 h-4" />
               </button>
@@ -1523,7 +1523,7 @@ export default function HubComposer({ onClose }) {
                 </p>
               )}
             </div>
-            <button onClick={onClose} className="p-1.5 rounded-full hover:bg-secondary shrink-0">
+            <button onClick={onClose} className="p-1.5 rounded-full hover:bg-secondary active:bg-secondary shrink-0">
               <X className="w-4 h-4" />
             </button>
           </div>
@@ -1576,7 +1576,7 @@ function Section({ title, count, defaultOpen = false, alwaysOpen = false, childr
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center justify-between gap-2 px-2 py-1.5 rounded-md hover:bg-secondary/40 transition-colors"
+        className="w-full flex items-center justify-between gap-2 px-2 py-1.5 rounded-md hover:bg-secondary/40 active:bg-secondary/40 transition-colors"
         aria-expanded={open}
       >
         <div className="flex items-center gap-2 min-w-0">
@@ -1623,8 +1623,8 @@ function PickCard({ kind, title, subtitle, onClick, highlight = false }) {
       onClick={onClick}
       className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-colors text-start ${
         highlight
-          ? 'bg-primary/5 border-primary/30 hover:bg-primary/10 hover:border-primary'
-          : 'bg-card border-border hover:bg-secondary/40 hover:border-primary/40'
+          ? 'bg-primary/5 border-primary/30 hover:bg-primary/10 active:bg-primary/10 hover:border-primary'
+          : 'bg-card border-border hover:bg-secondary/40 active:bg-secondary/40 hover:border-primary/40'
       }`}
     >
       <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${

@@ -132,7 +132,7 @@ export default function GymHub() {
       <button
         type="button"
         onClick={() => navigate('/my-gyms')}
-        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-3"
+        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground active:text-foreground mb-3"
       >
         <ArrowLeft className="w-4 h-4" /> My Gyms
       </button>
@@ -161,7 +161,7 @@ export default function GymHub() {
                 <button
                   type="button"
                   onClick={() => setMembersOpen(true)}
-                  className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
+                  className="flex items-center gap-1 text-muted-foreground hover:text-foreground active:text-foreground transition-colors"
                   aria-label="View members"
                 >
                   <Users className="w-3 h-3" /> <span className="tabular-nums">{gym.member_count}</span> members
@@ -244,7 +244,7 @@ export default function GymHub() {
                     toast.error("Couldn't leave — try again.");
                   }
                 }}
-                className="gap-1.5 text-muted-foreground hover:text-destructive"
+                className="gap-1.5 text-muted-foreground hover:text-destructive active:text-destructive"
               >
                 <LogOut className="w-3.5 h-3.5" /> Leave
               </Button>
@@ -288,7 +288,7 @@ export default function GymHub() {
                 className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors ${
                   tab === tid
                     ? 'border-primary text-primary'
-                    : 'border-transparent text-muted-foreground hover:text-foreground'
+                    : 'border-transparent text-muted-foreground hover:text-foreground active:text-foreground'
                 }`}
               >
                 <Icon className="w-3.5 h-3.5" /> {label}
@@ -437,7 +437,7 @@ function EventsTab({ gymId, canCreate, gymOwnerId }) {
             className={`px-2.5 py-1 rounded-full text-micro font-bold uppercase tracking-wider transition-colors ${
               scope === opt.id
                 ? 'bg-primary text-primary-foreground'
-                : 'bg-secondary/60 text-foreground hover:bg-secondary'
+                : 'bg-secondary/60 text-foreground hover:bg-secondary active:bg-secondary'
             }`}
           >
             {opt.label}
@@ -503,7 +503,7 @@ function EventsTab({ gymId, canCreate, gymOwnerId }) {
                     <button
                       type="button"
                       onClick={() => handleDeleteEvent(e.id)}
-                      className="w-6 h-6 rounded-full text-muted-foreground hover:text-destructive flex items-center justify-center"
+                      className="w-6 h-6 rounded-full text-muted-foreground hover:text-destructive active:text-destructive flex items-center justify-center"
                       aria-label="Delete event"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
@@ -534,7 +534,7 @@ function EventsTab({ gymId, canCreate, gymOwnerId }) {
                         className={`px-2.5 py-1 rounded-full border text-micro font-bold uppercase tracking-wider transition-colors ${
                           isActive
                             ? opt.activeClass
-                            : 'border-border text-muted-foreground hover:bg-secondary'
+                            : 'border-border text-muted-foreground hover:bg-secondary active:bg-secondary'
                         } ${disabled ? 'opacity-60' : ''}`}
                       >
                         {opt.label}
@@ -584,7 +584,7 @@ function LeaderboardTab({ gymId, meUserId }) {
             className={`px-2.5 py-1 rounded-full text-micro font-bold uppercase tracking-wider transition-colors ${
               mode === m.id
                 ? 'bg-primary text-primary-foreground'
-                : 'bg-secondary/60 text-foreground hover:bg-secondary'
+                : 'bg-secondary/60 text-foreground hover:bg-secondary active:bg-secondary'
             }`}
           >
             {m.label}

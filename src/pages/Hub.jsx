@@ -214,7 +214,7 @@ export default function Hub() {
                 <button
                   type="button"
                   onClick={() => { setSection('feed'); setProfileTarget(null); }}
-                  className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                  className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground active:text-foreground transition-colors"
                 >
                   <ArrowLeft className="w-4 h-4" />
                   {t('hub.backToHub')}
@@ -229,7 +229,7 @@ export default function Hub() {
                 type="button"
                 onClick={() => setSearchOpen(true)}
                 aria-label={tFallback('hub.search.label', 'Search')}
-                className="h-11 w-11 inline-flex items-center justify-center rounded-lg text-muted-foreground hover:bg-secondary transition-colors"
+                className="h-11 w-11 inline-flex items-center justify-center rounded-lg text-muted-foreground hover:bg-secondary active:bg-secondary transition-colors"
               >
                 <Search className="w-5 h-5" />
               </button>
@@ -243,7 +243,7 @@ export default function Hub() {
                 className={`h-11 w-11 inline-flex items-center justify-center rounded-lg transition-colors ${
                   section === 'feed' && feedTab === 'activity'
                     ? 'bg-primary/10 text-primary'
-                    : 'text-muted-foreground hover:bg-secondary'
+                    : 'text-muted-foreground hover:bg-secondary active:bg-secondary'
                 }`}
               >
                 <Activity className="w-5 h-5" />
@@ -264,7 +264,7 @@ export default function Hub() {
                 className={`h-11 w-11 inline-flex items-center justify-center rounded-lg transition-colors ${
                   section === 'profile' && (!profileTarget || profileTarget?.id === user?.id || profileTarget?.email === user?.email)
                     ? 'bg-primary/10 text-primary'
-                    : 'text-muted-foreground hover:bg-secondary'
+                    : 'text-muted-foreground hover:bg-secondary active:bg-secondary'
                 }`}
               >
                 <UserIcon className="w-5 h-5" />
@@ -281,7 +281,7 @@ export default function Hub() {
                 className={`flex-1 flex items-center justify-center gap-1 py-2 text-xs font-medium rounded-md transition-colors ${
                   feedTab === 'pump'
                     ? 'bg-card text-foreground shadow-sm'
-                    : 'text-secondary-foreground/70 hover:text-secondary-foreground'
+                    : 'text-secondary-foreground/70 hover:text-secondary-foreground active:text-secondary-foreground'
                 }`}
               >
                 <Flame className="w-3.5 h-3.5" />
@@ -293,7 +293,7 @@ export default function Hub() {
                 className={`flex-1 flex items-center justify-center gap-1 py-2 text-xs font-medium rounded-md transition-colors ${
                   feedTab === 'squad'
                     ? 'bg-card text-foreground shadow-sm'
-                    : 'text-secondary-foreground/70 hover:text-secondary-foreground'
+                    : 'text-secondary-foreground/70 hover:text-secondary-foreground active:text-secondary-foreground'
                 }`}
               >
                 <UsersIcon className="w-3.5 h-3.5" />
@@ -305,7 +305,7 @@ export default function Hub() {
                 className={`flex-1 flex items-center justify-center gap-1 py-2 text-xs font-medium rounded-md transition-colors ${
                   feedTab === 'crews'
                     ? 'bg-card text-foreground shadow-sm'
-                    : 'text-secondary-foreground/70 hover:text-secondary-foreground'
+                    : 'text-secondary-foreground/70 hover:text-secondary-foreground active:text-secondary-foreground'
                 }`}
               >
                 <Shield className="w-3.5 h-3.5" />

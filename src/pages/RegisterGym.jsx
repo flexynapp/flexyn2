@@ -170,7 +170,7 @@ export default function RegisterGym() {
       <button
         type="button"
         onClick={() => navigate('/')}
-        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-3"
+        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground active:text-foreground mb-3"
       >
         <ArrowLeft className="w-4 h-4" /> Home
       </button>
@@ -304,7 +304,7 @@ export default function RegisterGym() {
               type="button"
               onClick={captureLocation}
               disabled={geoLoading}
-              className="inline-flex items-center gap-1 text-micro font-bold uppercase tracking-wide text-primary hover:bg-primary/10 px-2 py-1 rounded"
+              className="inline-flex items-center gap-1 text-micro font-bold uppercase tracking-wide text-primary hover:bg-primary/10 active:bg-primary/10 px-2 py-1 rounded"
             >
               {geoLoading
                 ? <Loader2 className="w-3 h-3 animate-spin" />

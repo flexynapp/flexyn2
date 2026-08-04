@@ -573,7 +573,7 @@ export default function NutritionOnboardingModal({ open, userProfile, onComplete
                       {customRestrictions.map(term => (
                         <span key={term} className="inline-flex items-center gap-1 pl-2.5 pr-1.5 py-1 rounded-full bg-destructive/10 text-destructive dark:text-destructive text-xs font-medium">
                           {term}
-                          <button type="button" onClick={() => removeCustom(term)} aria-label={`Remove ${term}`} className="w-4 h-4 rounded-full hover:bg-destructive/20 flex items-center justify-center">
+                          <button type="button" onClick={() => removeCustom(term)} aria-label={`Remove ${term}`} className="w-4 h-4 rounded-full hover:bg-destructive/20 active:bg-destructive/20 flex items-center justify-center">
                             <X className="w-3 h-3" />
                           </button>
                         </span>

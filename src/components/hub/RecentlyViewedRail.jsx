@@ -48,7 +48,7 @@ export default function RecentlyViewedRail({ userEmail, listings = [], onSelect 
         <button
           type="button"
           onClick={() => clearRecentlyViewed(userEmail)}
-          className="text-micro text-muted-foreground/70 hover:text-muted-foreground transition-colors"
+          className="text-micro text-muted-foreground/70 hover:text-muted-foreground active:text-muted-foreground transition-colors"
         >
           Clear
         </button>
@@ -107,7 +107,7 @@ export default function RecentlyViewedRail({ userEmail, listings = [], onSelect 
                     e.stopPropagation();
                     removeRecentlyViewed(userEmail, entry.id);
                   }}
-                  className="absolute -top-1.5 -end-1.5 w-5 h-5 rounded-full bg-secondary border border-border text-muted-foreground hover:text-foreground hover:bg-secondary/70 flex items-center justify-center transition-colors"
+                  className="absolute -top-1.5 -end-1.5 w-5 h-5 rounded-full bg-secondary border border-border text-muted-foreground hover:text-foreground active:text-foreground hover:bg-secondary/70 active:bg-secondary/70 flex items-center justify-center transition-colors"
                   aria-label="Remove from recents"
                 >
                   <X className="w-3 h-3" />

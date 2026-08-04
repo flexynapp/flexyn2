@@ -103,7 +103,7 @@ export default function FriendLeaderboardPanel() {
                 'px-2 py-1 rounded-md text-micro font-bold uppercase tracking-wider transition-colors flex items-center gap-1',
                 mode === id
                   ? 'bg-primary text-primary-foreground'
-                  : 'bg-secondary text-muted-foreground hover:text-foreground',
+                  : 'bg-secondary text-muted-foreground hover:text-foreground active:text-foreground',
               ].join(' ')}
             >
               <Icon className="w-3 h-3" aria-hidden="true" />

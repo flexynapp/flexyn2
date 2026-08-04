@@ -101,7 +101,7 @@ export default function SyncStatus({ dataUpdatedAt }) {
       type="button"
       onClick={handleRefresh}
       disabled={refreshing}
-      className={`inline-flex items-center gap-1 text-micro ${color} hover:text-foreground transition-colors disabled:opacity-50`}
+      className={`inline-flex items-center gap-1 text-micro ${color} hover:text-foreground active:text-foreground transition-colors disabled:opacity-50`}
       aria-label={tFallback('sync.refreshAria', 'Refresh dashboard data')}
     >
       <RefreshCw className={`w-2.5 h-2.5 ${refreshing ? 'animate-spin' : ''}`} />

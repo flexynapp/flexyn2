@@ -111,7 +111,7 @@ export default function AppUpdatePrompt() {
         </button>
         <button
           onClick={handleDismiss}
-          className="p-1.5 rounded-md text-muted-foreground hover:bg-secondary"
+          className="p-1.5 rounded-md text-muted-foreground hover:bg-secondary active:bg-secondary"
           aria-label="Dismiss"
         >
           <X className="w-4 h-4" />

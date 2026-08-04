@@ -53,10 +53,10 @@ export default function RoutineCalendarModal({ open, onClose }) {
             {routine ? routine.name : 'My Week'}
           </h2>
           <button onClick={() => setEditOpen(true)} aria-label="Manage routines"
-            className="w-8 h-8 rounded-lg border border-border flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary">
+            className="w-8 h-8 rounded-lg border border-border flex items-center justify-center text-muted-foreground hover:text-foreground active:text-foreground hover:bg-secondary active:bg-secondary">
             <Settings2 className="w-4 h-4" />
           </button>
-          <button onClick={onClose} aria-label="Close" className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-secondary">
+          <button onClick={onClose} aria-label="Close" className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-secondary active:bg-secondary">
             <XIcon className="w-4 h-4" />
           </button>
         </div>

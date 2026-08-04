@@ -109,7 +109,7 @@ export default function ReportDialog({ open, onClose, reportedType, reportedId, 
               </div>
               <button
                 onClick={onClose}
-                className="p-1.5 rounded-lg hover:bg-secondary transition-colors"
+                className="p-1.5 rounded-lg hover:bg-secondary active:bg-secondary transition-colors"
                 aria-label={t('common.close')}
               >
                 <X className="w-4 h-4" />
@@ -157,7 +157,7 @@ export default function ReportDialog({ open, onClose, reportedType, reportedId, 
                         className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border text-sm text-start transition-colors ${
                           reason === r.value
                             ? 'border-primary bg-primary/8 text-foreground font-medium'
-                            : 'border-border text-muted-foreground hover:bg-secondary hover:text-foreground'
+                            : 'border-border text-muted-foreground hover:bg-secondary active:bg-secondary hover:text-foreground active:text-foreground'
                         }`}
                       >
                         <span

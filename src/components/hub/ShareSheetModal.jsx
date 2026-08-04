@@ -155,7 +155,7 @@ export default function ShareSheetModal({ post, open, onClose }) {
             <div className="flex items-center justify-between px-4 pt-3 pb-2">
               <div className="w-10 h-1 rounded-full bg-border mx-auto absolute start-0 end-0 top-2" />
               <p className="text-sm font-bold">{tFallback('hub.share.title', 'Share post')}</p>
-              <button onClick={onClose} className="p-1 rounded-full hover:bg-secondary">
+              <button onClick={onClose} className="p-1 rounded-full hover:bg-secondary active:bg-secondary">
                 <X className="w-4 h-4 text-muted-foreground" />
               </button>
             </div>
@@ -194,7 +194,7 @@ export default function ShareSheetModal({ post, open, onClose }) {
                         key={conv.id}
                         onClick={() => handleSendDm(conv)}
                         disabled={!!dmSending}
-                        className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-secondary transition-colors disabled:opacity-60"
+                        className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-secondary active:bg-secondary transition-colors disabled:opacity-60"
                       >
                         <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center font-bold text-sm text-primary shrink-0">
                           {handle.slice(0, 2).toUpperCase()}
@@ -225,7 +225,7 @@ export default function ShareSheetModal({ post, open, onClose }) {
                       key={crew.id}
                       onClick={() => handleSendCrew(crew)}
                       disabled={!!crewSending}
-                      className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-secondary transition-colors disabled:opacity-60"
+                      className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-secondary active:bg-secondary transition-colors disabled:opacity-60"
                     >
                       <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
                         <Shield className="w-4 h-4" />
@@ -265,7 +265,7 @@ export default function ShareSheetModal({ post, open, onClose }) {
                       const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(`${postText.slice(0, 200)} — ${postUrl}`)}`;
                       window.open(url, '_blank', 'noopener,noreferrer');
                     }}
-                    className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-secondary hover:bg-secondary/80 transition-colors"
+                    className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-secondary hover:bg-secondary/80 active:bg-secondary/80 transition-colors"
                   >
                     <XIcon size={20} />
                     <span className="text-micro font-medium">X / Twitter</span>
@@ -277,7 +277,7 @@ export default function ShareSheetModal({ post, open, onClose }) {
                       const url = `https://wa.me/?text=${encodeURIComponent(`${postText.slice(0, 200)} ${postUrl}`)}`;
                       window.open(url, '_blank', 'noopener,noreferrer');
                     }}
-                    className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-secondary hover:bg-secondary/80 transition-colors text-success"
+                    className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-secondary hover:bg-secondary/80 active:bg-secondary/80 transition-colors text-success"
                   >
                     <WhatsAppIcon size={20} />
                     <span className="text-micro font-medium text-foreground">WhatsApp</span>
@@ -286,7 +286,7 @@ export default function ShareSheetModal({ post, open, onClose }) {
                   {/* Copy link */}
                   <button
                     onClick={handleCopy}
-                    className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-secondary hover:bg-secondary/80 transition-colors"
+                    className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-secondary hover:bg-secondary/80 active:bg-secondary/80 transition-colors"
                   >
                     {copied ? <Check className="w-5 h-5 text-success" /> : <Link2 className="w-5 h-5" />}
                     <span className="text-micro font-medium">{copied ? 'Copied!' : 'Copy link'}</span>

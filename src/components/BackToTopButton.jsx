@@ -50,7 +50,7 @@ export default function BackToTopButton() {
           onClick={handleClick}
           // 80px above the bottom tab bar so it doesn't overlap on mobile,
           // plus safe-area inset for iPhones with home-indicator gestures.
-          className="fixed end-4 z-30 w-12 h-12 rounded-full bg-card/95 backdrop-blur-sm border border-border shadow-lg flex items-center justify-center text-foreground hover:bg-secondary transition-colors lg:bottom-6"
+          className="fixed end-4 z-30 w-12 h-12 rounded-full bg-card/95 backdrop-blur-sm border border-border shadow-lg flex items-center justify-center text-foreground hover:bg-secondary active:bg-secondary transition-colors lg:bottom-6"
           style={{
             bottom: 'max(env(safe-area-inset-bottom), 80px)',
           }}

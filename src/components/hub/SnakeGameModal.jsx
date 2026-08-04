@@ -468,7 +468,7 @@ export default function SnakeGameModal({ open, onClose, userId }) {
                 type="button"
                 onClick={onClose}
                 aria-label="Close"
-                className="p-1 rounded-md text-muted-foreground hover:bg-secondary transition-colors"
+                className="p-1 rounded-md text-muted-foreground hover:bg-secondary active:bg-secondary transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>

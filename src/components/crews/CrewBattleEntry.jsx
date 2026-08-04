@@ -143,7 +143,7 @@ export default function CrewBattleEntry({ crew, currentUserId }) {
               <button
                 onClick={() => leaveMut.mutate()}
                 disabled={leaveMut.isPending}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-border text-sm font-bold hover:bg-secondary disabled:opacity-50 transition-colors"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-border text-sm font-bold hover:bg-secondary active:bg-secondary disabled:opacity-50 transition-colors"
               >
                 {leaveMut.isPending
                   ? <Loader2 className="w-4 h-4 animate-spin" />
@@ -162,7 +162,7 @@ export default function CrewBattleEntry({ crew, currentUserId }) {
               <button
                 onClick={handleEnter}
                 disabled={enterMut.isPending}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-rose-500 text-white text-sm font-bold hover:bg-rose-600 disabled:opacity-50 transition-colors"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-rose-500 text-white text-sm font-bold hover:bg-rose-600 active:bg-rose-600 disabled:opacity-50 transition-colors"
               >
                 {enterMut.isPending
                   ? <Loader2 className="w-4 h-4 animate-spin" />

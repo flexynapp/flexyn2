@@ -84,7 +84,7 @@ export default function StarterPlanHeroCard({
           type="button"
           onClick={onDismiss}
           aria-label={tFallback('workout.starter.dismissAria', 'Remove starter plan from Workout page')}
-          className="absolute top-3 end-3 z-10 w-7 h-7 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground bg-background/50 hover:bg-background/80 border border-border/50 transition-colors"
+          className="absolute top-3 end-3 z-10 w-7 h-7 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground active:text-foreground bg-background/50 hover:bg-background/80 active:bg-background/80 border border-border/50 transition-colors"
         >
           <X className="w-4 h-4" />
         </button>
@@ -157,7 +157,7 @@ export default function StarterPlanHeroCard({
             <button
               type="button"
               onClick={() => onCustomize(regimen)}
-              className="inline-flex items-center gap-1.5 px-3 py-3 rounded-xl border border-border bg-background/60 text-xs font-bold uppercase tracking-wider text-foreground hover:bg-secondary/50 transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-3 rounded-xl border border-border bg-background/60 text-xs font-bold uppercase tracking-wider text-foreground hover:bg-secondary/50 active:bg-secondary/50 transition-colors"
               aria-label={tFallback('workout.starter.customizeAria', 'Customize starter plan')}
             >
               <Pencil className="w-3.5 h-3.5" />

@@ -160,7 +160,7 @@ function RegimenPicker({ userEmail, onShare, onAssign, canAssign, onCancel }) {
             <button
               key={r.id}
               onClick={() => tab === 'assign' ? onAssign?.(r) : onShare(r)}
-              className="w-full text-start px-3 py-2.5 rounded-xl hover:bg-secondary transition-colors"
+              className="w-full text-start px-3 py-2.5 rounded-xl hover:bg-secondary active:bg-secondary transition-colors"
             >
               <p className="text-sm font-semibold text-foreground truncate">{r.name}</p>
               <p className="text-xs text-muted-foreground">{(r.exercises || []).length} exercises
@@ -221,7 +221,7 @@ function AssignedRegimenBanner({ crewId, isAdmin, onEquip }) {
                 toast.success('Plan removed.');
               } catch { toast.error('Could not remove plan.'); }
             }}
-            className="p-1 text-muted-foreground hover:text-destructive transition-colors"
+            className="p-1 text-muted-foreground hover:text-destructive active:text-destructive transition-colors"
             title="Remove plan"
           >
             <X className="w-3.5 h-3.5" />
@@ -253,7 +253,7 @@ function PinnedBanner({ message, isAdmin, crewId, onUnpin }) {
       {isAdmin && (
         <button
           onClick={onUnpin}
-          className="p-1 text-muted-foreground hover:text-foreground transition-colors shrink-0"
+          className="p-1 text-muted-foreground hover:text-foreground active:text-foreground transition-colors shrink-0"
           title="Unpin"
         >
           <PinOff className="w-3.5 h-3.5" />
@@ -602,7 +602,7 @@ export default function CrewChat({ crew, onBack, onViewProfile, embedded }) {
           Stories, stats and the roster moved to the page around it. */}
       {!embedded && (
       <div className="flex items-center gap-2.5 px-4 py-3 border-b border-border shrink-0">
-        <button onClick={onBack} className="text-muted-foreground hover:text-foreground shrink-0">
+        <button onClick={onBack} className="text-muted-foreground hover:text-foreground active:text-foreground shrink-0">
           <ArrowLeft className="w-5 h-5" />
         </button>
 
@@ -670,7 +670,7 @@ export default function CrewChat({ crew, onBack, onViewProfile, embedded }) {
         {/* Stats button */}
         <button
           onClick={() => setStatsPanelOpen(true)}
-          className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors shrink-0"
+          className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground active:text-foreground transition-colors shrink-0"
           title="Crew Stats"
         >
           <BarChart3 className="w-4 h-4" />
@@ -679,7 +679,7 @@ export default function CrewChat({ crew, onBack, onViewProfile, embedded }) {
         {/* Members button */}
         <button
           onClick={() => setMemberPanelOpen(true)}
-          className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors shrink-0"
+          className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground active:text-foreground transition-colors shrink-0"
           title="Members"
         >
           <Users className="w-4 h-4" />
@@ -819,14 +819,14 @@ export default function CrewChat({ crew, onBack, onViewProfile, embedded }) {
       <div className="px-3 pb-3 pt-2 border-t border-border shrink-0 flex items-end gap-2">
         <button
           onClick={() => fileInputRef.current?.click()}
-          className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors shrink-0"
+          className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground active:text-foreground transition-colors shrink-0"
         >
           <Paperclip className="w-4 h-4" />
         </button>
 
         <button
           onClick={() => { setRollCallOpen(true); setRegimenOpen(false); }}
-          className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors shrink-0"
+          className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground active:text-foreground transition-colors shrink-0"
           title="Roll Call"
         >
           <span className="text-base leading-none">📣</span>
@@ -834,7 +834,7 @@ export default function CrewChat({ crew, onBack, onViewProfile, embedded }) {
 
         <button
           onClick={() => { setRegimenOpen(true); setRollCallOpen(false); }}
-          className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors shrink-0"
+          className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground active:text-foreground transition-colors shrink-0"
           title="Share / assign regimen"
         >
           <Dumbbell className="w-4 h-4" />

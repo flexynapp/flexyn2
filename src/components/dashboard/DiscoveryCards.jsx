@@ -109,7 +109,7 @@ function DiscoveryCard({
       ring:   'ring-1 ring-info/20',
       bg:     'bg-info/8',
       icon:   'bg-info/15 text-info',
-      btn:    'bg-info hover:bg-info/90 text-white',
+      btn:    'bg-info hover:bg-info/90 active:bg-info/90 text-white',
     },
     // Purple — used for the OPEN_CAPSULE card. Matches the
     // capsule/loot visual language used elsewhere in UserBag
@@ -162,7 +162,7 @@ function DiscoveryCard({
             type="button"
             onClick={onDismiss}
             aria-label={dismissAriaLabel}
-            className="p-1.5 rounded-sm text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors shrink-0"
+            className="p-1.5 rounded-sm text-muted-foreground hover:bg-secondary active:bg-secondary hover:text-foreground active:text-foreground transition-colors shrink-0"
           >
             <X className="w-4 h-4" />
           </button>

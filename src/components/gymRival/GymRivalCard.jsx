@@ -126,13 +126,13 @@ export default function GymRivalCard({ currentUserId }) {
           </p>
           <div className="flex gap-2">
             <button onClick={() => rollMut.mutate('gym')} disabled={rollMut.isPending}
-              className="flex-1 inline-flex flex-col items-center gap-1 px-3 py-3 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 disabled:opacity-50 transition-colors">
+              className="flex-1 inline-flex flex-col items-center gap-1 px-3 py-3 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 active:bg-primary/90 disabled:opacity-50 transition-colors">
               <Dumbbell className="w-4 h-4" />
               Gym Rival
               <span className="text-micro font-medium opacity-80">Volume</span>
             </button>
             <button onClick={() => rollMut.mutate('cardio')} disabled={rollMut.isPending}
-              className="flex-1 inline-flex flex-col items-center gap-1 px-3 py-3 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 disabled:opacity-50 transition-colors">
+              className="flex-1 inline-flex flex-col items-center gap-1 px-3 py-3 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 active:bg-primary/90 disabled:opacity-50 transition-colors">
               <Footprints className="w-4 h-4" />
               Cardio Rival
               <span className="text-micro font-medium opacity-80">Distance</span>
@@ -152,7 +152,7 @@ export default function GymRivalCard({ currentUserId }) {
     return (
       <>
         <motion.button type="button" onClick={() => setMenuOpen(true)} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
-          className="w-full rounded-2xl border border-primary/20 bg-primary/5 p-4 mb-4 flex items-center gap-3 text-start hover:bg-primary/10 transition-colors">
+          className="w-full rounded-2xl border border-primary/20 bg-primary/5 p-4 mb-4 flex items-center gap-3 text-start hover:bg-primary/10 active:bg-primary/10 transition-colors">
           <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
             <AlertTriangle className="w-6 h-6 text-primary" />
           </div>
@@ -175,7 +175,7 @@ export default function GymRivalCard({ currentUserId }) {
     return (
       <>
         <motion.button type="button" onClick={() => setMenuOpen(true)} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
-          className={`w-full rounded-2xl border p-4 mb-4 flex items-center gap-3 text-start transition-colors ${win ? 'border-success/25 bg-success/5 hover:bg-success/10' : 'border-border bg-secondary/30 hover:bg-secondary/50'}`}>
+          className={`w-full rounded-2xl border p-4 mb-4 flex items-center gap-3 text-start transition-colors ${win ? 'border-success/25 bg-success/5 hover:bg-success/10' : 'border-border bg-secondary/30 hover:bg-secondary/50 active:bg-secondary/50'}`}>
           <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${win ? 'bg-success/10' : draw ? 'bg-secondary' : 'bg-primary/10'}`}>
             {win ? <Trophy className="w-6 h-6 text-success" /> : draw ? <Target className="w-6 h-6 text-muted-foreground" /> : <Swords className="w-6 h-6 text-primary" />}
           </div>
@@ -202,7 +202,7 @@ export default function GymRivalCard({ currentUserId }) {
   return (
     <>
       <motion.button type="button" onClick={() => setMenuOpen(true)} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} whileTap={{ scale: 0.99 }}
-        className={`w-full rounded-2xl border p-4 mb-4 flex items-center gap-3 text-start transition-colors ${needsMyConfirm ? 'border-primary/50 bg-primary/8 hover:bg-primary/12' : 'border-primary/20 bg-primary/3 hover:bg-primary/5'}`}>
+        className={`w-full rounded-2xl border p-4 mb-4 flex items-center gap-3 text-start transition-colors ${needsMyConfirm ? 'border-primary/50 bg-primary/8 hover:bg-primary/12' : 'border-primary/20 bg-primary/3 hover:bg-primary/5 active:bg-primary/5'}`}>
         {profile?.avatar_url ? (
           <img loading="lazy" src={profile.avatar_url} className="w-12 h-12 rounded-full object-cover shrink-0 ring-2 ring-primary/30" alt={name} />
         ) : (

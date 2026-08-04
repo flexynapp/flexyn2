@@ -91,7 +91,7 @@ function RepostCard({ originalPostId, onAuthorClick }) {
 
   return (
     <div
-      className="mx-3 mb-3 rounded-xl border border-border bg-secondary/20 p-3 cursor-pointer hover:bg-secondary/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+      className="mx-3 mb-3 rounded-xl border border-border bg-secondary/20 p-3 cursor-pointer hover:bg-secondary/40 active:bg-secondary/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
       onClick={(e) => {
         e.stopPropagation();
         onAuthorClick?.({ id: original.user_id, email: original.author_email });
@@ -365,7 +365,7 @@ function ImagePreview({ src }) {
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); setExpanded(false); }}
-            className="absolute top-2 end-2 w-7 h-7 rounded-full bg-black/50 flex items-center justify-center text-white hover:bg-black/70 transition-colors"
+            className="absolute top-2 end-2 w-7 h-7 rounded-full bg-black/50 flex items-center justify-center text-white hover:bg-black/70 active:bg-black/70 transition-colors"
             aria-label="Collapse image"
           >
             <ChevronDown className="w-4 h-4" />
@@ -961,7 +961,7 @@ function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
             {!postBody.startsWith('[POLL_V1]') && post.post_type !== 'repost' && (
               <button
                 onClick={handleEditStart}
-                className="p-1.5 rounded-md text-muted-foreground hover:bg-secondary hover:text-primary transition-colors"
+                className="p-1.5 rounded-md text-muted-foreground hover:bg-secondary active:bg-secondary hover:text-primary active:text-primary transition-colors"
                 aria-label={tFallback('hub.edit', 'Edit post')}
                 title={tFallback('hub.edit', 'Edit post')}
               >
@@ -970,7 +970,7 @@ function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
             )}
             <button
               onClick={handleDelete}
-              className="p-1.5 rounded-md text-muted-foreground hover:bg-secondary hover:text-destructive transition-colors"
+              className="p-1.5 rounded-md text-muted-foreground hover:bg-secondary active:bg-secondary hover:text-destructive active:text-destructive transition-colors"
               aria-label={t('hub.delete')}
             >
               <Trash2 className="w-3.5 h-3.5" />
@@ -989,7 +989,7 @@ function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
                   toast.error('Could not mute — try again.');
                 }
               }}
-              className="relative p-1.5 rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+              className="relative p-1.5 rounded-md text-muted-foreground hover:bg-secondary active:bg-secondary hover:text-foreground active:text-foreground transition-colors"
               aria-label="Mute this author"
               title="Mute author"
             >
@@ -1017,7 +1017,7 @@ function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
                   toast.error('Could not block — try again.');
                 }
               }}
-              className="relative p-1.5 rounded-md text-muted-foreground hover:bg-secondary hover:text-destructive transition-colors"
+              className="relative p-1.5 rounded-md text-muted-foreground hover:bg-secondary active:bg-secondary hover:text-destructive active:text-destructive transition-colors"
               aria-label="Block this author"
               title="Block author"
             >
@@ -1025,7 +1025,7 @@ function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
             </button>
             <button
               onClick={() => setReportOpen(true)}
-              className="relative p-1.5 rounded-md text-muted-foreground hover:bg-secondary hover:text-destructive transition-colors"
+              className="relative p-1.5 rounded-md text-muted-foreground hover:bg-secondary active:bg-secondary hover:text-destructive active:text-destructive transition-colors"
               aria-label={t('report.buttonLabel')}
               title={t('report.buttonLabel')}
             >
@@ -1074,7 +1074,7 @@ function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
             </button>
             <button
               onClick={handleEditCancel}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-xs font-medium text-muted-foreground hover:bg-secondary transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-xs font-medium text-muted-foreground hover:bg-secondary active:bg-secondary transition-colors"
             >
               <X className="w-3 h-3" />
               {tFallback('hub.post.cancel', 'Cancel')}
@@ -1104,7 +1104,7 @@ function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
               {translation ? (
                 <button
                   onClick={() => setShowOriginal((v) => !v)}
-                  className="flex items-center gap-1 hover:text-primary transition-colors"
+                  className="flex items-center gap-1 hover:text-primary active:text-primary transition-colors"
                 >
                   <Languages className="w-3 h-3" />
                   {showOriginal
@@ -1142,7 +1142,7 @@ function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
                       setTranslating(false);
                     }
                   }}
-                  className="flex items-center gap-1 hover:text-primary transition-colors"
+                  className="flex items-center gap-1 hover:text-primary active:text-primary transition-colors"
                 >
                   <Languages className="w-3 h-3" />
                   {tFallback('hub.post.translate', 'Translate')}
@@ -1239,7 +1239,7 @@ function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
           <motion.button
             whileTap={{ scale: 0.88 }}
             onClick={handleSaveMeal}
-            className={`p-2 rounded-md transition-colors ${mealSaved ? 'text-primary' : 'text-muted-foreground hover:bg-secondary hover:text-foreground'}`}
+            className={`p-2 rounded-md transition-colors ${mealSaved ? 'text-primary' : 'text-muted-foreground hover:bg-secondary active:bg-secondary hover:text-foreground active:text-foreground'}`}
             aria-label={mealSaved ? 'Remove from saved meals' : 'Save meal'}
           >
             <Bookmark className={`w-4 h-4 ${mealSaved ? 'fill-current' : ''}`} />
@@ -1250,7 +1250,7 @@ function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
           <motion.button
             whileTap={{ scale: 0.88 }}
             onClick={(e) => { e.stopPropagation(); setAnalyticsOpen(o => !o); }}
-            className={`p-2 rounded-md transition-colors ${analyticsOpen ? 'text-primary bg-secondary' : 'text-muted-foreground hover:bg-secondary hover:text-foreground'}`}
+            className={`p-2 rounded-md transition-colors ${analyticsOpen ? 'text-primary bg-secondary' : 'text-muted-foreground hover:bg-secondary active:bg-secondary hover:text-foreground active:text-foreground'}`}
             aria-label="Post analytics"
             title="View analytics"
           >
@@ -1264,7 +1264,7 @@ function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
             whileTap={{ scale: 0.88 }}
             onClick={handleRepost}
             disabled={reposting}
-            className="p-2 rounded-md text-muted-foreground hover:bg-secondary hover:text-primary transition-colors disabled:opacity-50"
+            className="p-2 rounded-md text-muted-foreground hover:bg-secondary active:bg-secondary hover:text-primary active:text-primary transition-colors disabled:opacity-50"
             aria-label={tFallback('hub.post.repost', 'Repost')}
             title={tFallback('hub.post.repost', 'Repost')}
           >
@@ -1276,7 +1276,7 @@ function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
         <motion.button
           whileTap={{ scale: 0.88 }}
           onClick={(e) => { e.stopPropagation(); setShareSheetOpen(true); }}
-          className="ml-auto p-2 rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+          className="ml-auto p-2 rounded-md text-muted-foreground hover:bg-secondary active:bg-secondary hover:text-foreground active:text-foreground transition-colors"
           aria-label="Share post"
         >
           <Share2 className="w-4 h-4" />
@@ -1287,7 +1287,7 @@ function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
       {stickerRxns.length > 0 && (
         <button
           onClick={() => setStickerPanelOpen(o => !o)}
-          className="flex items-center gap-1 px-3 py-1.5 hover:bg-secondary transition-colors w-full text-start"
+          className="flex items-center gap-1 px-3 py-1.5 hover:bg-secondary active:bg-secondary transition-colors w-full text-start"
         >
           {/* Overlapping sticker circles — waterfall effect */}
           <div className="flex items-center" style={{ marginRight: 6 }}>
@@ -1420,7 +1420,7 @@ function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
                 )}
                 <button
                   onClick={() => setAvatarPreviewOpen(false)}
-                  className="flex-1 py-2.5 rounded-xl border border-border text-sm font-medium text-muted-foreground hover:bg-secondary transition-colors"
+                  className="flex-1 py-2.5 rounded-xl border border-border text-sm font-medium text-muted-foreground hover:bg-secondary active:bg-secondary transition-colors"
                 >
                   Dismiss
                 </button>
@@ -1439,7 +1439,7 @@ function ActionButton({ icon: Icon, count, active, activeColor, onClick }) {
       whileTap={{ scale: 0.92 }}
       onClick={onClick}
       className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
-        active ? `${activeColor} bg-secondary` : 'text-muted-foreground hover:bg-secondary'
+        active ? `${activeColor} bg-secondary` : 'text-muted-foreground hover:bg-secondary active:bg-secondary'
       }`}
     >
       <Icon className={`w-4 h-4 ${active ? 'fill-current' : ''}`} />

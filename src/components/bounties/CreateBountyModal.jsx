@@ -170,7 +170,7 @@ export default function CreateBountyModal({ open, onClose, onCreated }) {
                       'px-2 py-2.5 rounded-lg border text-center transition-colors',
                       difficulty === d.id
                         ? 'border-primary bg-primary/10'
-                        : 'border-border bg-secondary/40 hover:bg-secondary',
+                        : 'border-border bg-secondary/40 hover:bg-secondary active:bg-secondary',
                     ].join(' ')}
                   >
                     <p className="text-xs font-bold">{d.label}</p>

@@ -64,7 +64,7 @@ export default function MobileSelect({ value, onValueChange, placeholder, trigge
                 key={item.value}
                 type="button"
                 onClick={() => { onValueChange(item.value); setDrawerOpen(false); }}
-                className="w-full flex items-center justify-between px-4 py-3 rounded-lg text-sm font-medium hover:bg-secondary transition-colors select-none-ui"
+                className="w-full flex items-center justify-between px-4 py-3 rounded-lg text-sm font-medium hover:bg-secondary active:bg-secondary transition-colors select-none-ui"
               >
                 <span>{item.label}</span>
                 {value === item.value && <Check className="w-4 h-4 text-primary" />}

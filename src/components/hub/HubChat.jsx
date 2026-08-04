@@ -1097,7 +1097,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
         <button
           onClick={onBack}
           aria-label={tFallback('hub.backToHub', 'Back')}
-          className="p-1.5 rounded-md hover:bg-secondary transition-colors"
+          className="p-1.5 rounded-md hover:bg-secondary active:bg-secondary transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
         </button>
@@ -1129,14 +1129,14 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
         <button
           onClick={() => { setSearchOpen(v => { if (v) setSearchQuery(''); return !v; }); }}
           aria-label="Search this conversation"
-          className={`p-1.5 rounded-md transition-colors ${searchOpen ? 'bg-primary/15 text-primary' : 'hover:bg-secondary'}`}
+          className={`p-1.5 rounded-md transition-colors ${searchOpen ? 'bg-primary/15 text-primary' : 'hover:bg-secondary active:bg-secondary'}`}
         >
           <Search className="w-4 h-4" />
         </button>
         <button
           onClick={() => setPinnedOpen(v => !v)}
           aria-label="Pinned messages"
-          className={`p-1.5 rounded-md transition-colors text-base leading-none ${pinnedOpen ? 'bg-primary/15' : 'hover:bg-secondary'}`}
+          className={`p-1.5 rounded-md transition-colors text-base leading-none ${pinnedOpen ? 'bg-primary/15' : 'hover:bg-secondary active:bg-secondary'}`}
         >
           📌
         </button>
@@ -1184,7 +1184,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
             className="flex-1 bg-transparent text-sm outline-none placeholder-muted-foreground/60"
           />
           {searchQuery && (
-            <button onClick={() => setSearchQuery('')} className="text-muted-foreground hover:text-foreground" aria-label="Clear">
+            <button onClick={() => setSearchQuery('')} className="text-muted-foreground hover:text-foreground active:text-foreground" aria-label="Clear">
               <X className="w-3.5 h-3.5" />
             </button>
           )}
@@ -1208,7 +1208,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
                 {pinned.map(m => (
                   <button key={m.id} type="button"
                     onClick={() => { scrollToMessage(m.id); setPinnedOpen(false); }}
-                    className="w-full text-start px-3 py-2 text-xs hover:bg-secondary/40 transition-colors border-b border-border/50 last:border-0">
+                    className="w-full text-start px-3 py-2 text-xs hover:bg-secondary/40 active:bg-secondary/40 transition-colors border-b border-border/50 last:border-0">
                     <p className="text-muted-foreground truncate">{m.body || m.content || '(media)'}</p>
                   </button>
                 ))}
@@ -1240,7 +1240,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
               type="button"
               onClick={handleLoadOlder}
               disabled={loadingOlder}
-              className="px-3 py-1.5 rounded-full bg-secondary/60 border border-border text-micro font-semibold text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors disabled:opacity-60"
+              className="px-3 py-1.5 rounded-full bg-secondary/60 border border-border text-micro font-semibold text-muted-foreground hover:text-foreground active:text-foreground hover:bg-secondary active:bg-secondary transition-colors disabled:opacity-60"
             >
               {loadingOlder
                 ? tFallback('hub.chat.loadingEarlier', 'Loading…')
@@ -1382,7 +1382,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
                           <button
                             type="button"
                             onClick={() => m.replied_to_message_id && scrollToMessage(m.replied_to_message_id)}
-                            className={`max-w-[75%] mb-0.5 px-2.5 py-1.5 rounded-xl border-s-2 border-primary bg-secondary/40 text-start text-xs text-muted-foreground line-clamp-2 cursor-pointer hover:bg-secondary/60 transition-colors`}
+                            className={`max-w-[75%] mb-0.5 px-2.5 py-1.5 rounded-xl border-s-2 border-primary bg-secondary/40 text-start text-xs text-muted-foreground line-clamp-2 cursor-pointer hover:bg-secondary/60 active:bg-secondary/60 transition-colors`}
                           >
                             {m.replied_to_snippet}
                           </button>
@@ -1499,7 +1499,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
                                 className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs border transition-colors ${
                                   myReacted
                                     ? 'bg-primary/20 border-primary/40 text-foreground'
-                                    : 'bg-secondary border-border text-muted-foreground hover:bg-secondary/70'
+                                    : 'bg-secondary border-border text-muted-foreground hover:bg-secondary/70 active:bg-secondary/70'
                                 }`}
                               >
                                 <span>{emoji}</span>
@@ -1619,7 +1619,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
                     <button
                       key={emoji}
                       onClick={() => handleEmojiReact(contextMsg, emoji)}
-                      className={`text-2xl p-1.5 rounded-xl transition-all ${myReacted ? 'bg-primary/20 scale-110' : 'hover:bg-secondary hover:scale-110'}`}
+                      className={`text-2xl p-1.5 rounded-xl transition-all ${myReacted ? 'bg-primary/20 scale-110' : 'hover:bg-secondary active:bg-secondary hover:scale-110'}`}
                     >
                       {emoji}
                     </button>
@@ -1630,7 +1630,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
               {/* Reply */}
               <button
                 onClick={() => handleReply(contextMsg)}
-                className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium hover:bg-secondary transition-colors"
+                className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium hover:bg-secondary active:bg-secondary transition-colors"
               >
                 <CornerUpLeft className="w-4 h-4 text-muted-foreground" />
                 Reply
@@ -1639,7 +1639,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
               {/* Pin/Unpin */}
               <button
                 onClick={() => handlePinToggle(contextMsg)}
-                className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium hover:bg-secondary transition-colors border-t border-border"
+                className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium hover:bg-secondary active:bg-secondary transition-colors border-t border-border"
               >
                 <span className="text-base">📌</span>
                 {isPinned(contextMsg) ? 'Unpin message' : 'Pin message'}
@@ -1649,7 +1649,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
               {contextMsg?.sender_email?.toLowerCase() === myEmailLc && (
                 <button
                   onClick={() => handleDeleteMessage(contextMsg)}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium hover:bg-secondary transition-colors border-t border-border text-destructive"
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium hover:bg-secondary active:bg-secondary transition-colors border-t border-border text-destructive"
                 >
                   <span className="text-base">🗑️</span>
                   Delete message
@@ -1659,7 +1659,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
               {/* Cancel */}
               <button
                 onClick={() => setContextMsg(null)}
-                className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-muted-foreground hover:bg-secondary transition-colors border-t border-border"
+                className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-muted-foreground hover:bg-secondary active:bg-secondary transition-colors border-t border-border"
               >
                 <X className="w-4 h-4" />
                 Cancel
@@ -1681,7 +1681,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
           >
             <CornerUpLeft className="w-3.5 h-3.5 text-primary shrink-0" />
             <p className="flex-1 text-xs text-muted-foreground truncate">{replyTo.snippet}</p>
-            <button onClick={() => setReplyTo(null)} className="p-0.5 rounded text-muted-foreground hover:text-foreground">
+            <button onClick={() => setReplyTo(null)} className="p-0.5 rounded text-muted-foreground hover:text-foreground active:text-foreground">
               <X className="w-3 h-3" />
             </button>
           </motion.div>
@@ -1721,7 +1721,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
               </div>
               <button
                 onClick={() => handleCancelScheduled(s.id)}
-                className="text-micro font-bold uppercase tracking-wide text-muted-foreground hover:text-destructive"
+                className="text-micro font-bold uppercase tracking-wide text-muted-foreground hover:text-destructive active:text-destructive"
               >
                 Cancel
               </button>
@@ -1751,7 +1751,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
           onClick={() => fileInputRef.current?.click()}
           disabled={pendingSendBlocked}
           aria-label="Attach image"
-          className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
+          className="p-2 rounded-lg text-muted-foreground hover:text-foreground active:text-foreground hover:bg-secondary active:bg-secondary transition-colors shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <Paperclip className="w-4 h-4" />
         </button>
@@ -1760,7 +1760,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
           onClick={() => setStickerPickerOpen(true)}
           disabled={pendingSendBlocked}
           aria-label="Send sticker"
-          className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
+          className="p-2 rounded-lg text-muted-foreground hover:text-foreground active:text-foreground hover:bg-secondary active:bg-secondary transition-colors shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <Smile className="w-4 h-4" />
         </button>
@@ -1772,7 +1772,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
             onClick={() => setGifPickerOpen(true)}
             disabled={pendingSendBlocked}
             aria-label="Send GIF"
-            className="px-2 py-1.5 rounded-lg text-micro font-extrabold text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors shrink-0 border border-border disabled:opacity-40 disabled:cursor-not-allowed"
+            className="px-2 py-1.5 rounded-lg text-micro font-extrabold text-muted-foreground hover:text-foreground active:text-foreground hover:bg-secondary active:bg-secondary transition-colors shrink-0 border border-border disabled:opacity-40 disabled:cursor-not-allowed"
           >
             GIF
           </button>
@@ -1813,7 +1813,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
             onClick={() => setScheduleOpen(v => !v)}
             aria-label="Schedule message"
             title="Schedule send"
-            className={`p-2 rounded-lg transition-colors shrink-0 ${scheduleOpen ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-secondary'}`}
+            className={`p-2 rounded-lg transition-colors shrink-0 ${scheduleOpen ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:text-foreground active:text-foreground hover:bg-secondary active:bg-secondary'}`}
           >
             <Clock className="w-4 h-4" />
           </button>

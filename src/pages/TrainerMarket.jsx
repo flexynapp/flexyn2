@@ -103,7 +103,7 @@ export default function TrainerMarket() {
       <button
         type="button"
         onClick={() => navigate('/market')}
-        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-3"
+        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground active:text-foreground mb-3"
       >
         <ArrowLeft className="w-4 h-4" /> Market
       </button>

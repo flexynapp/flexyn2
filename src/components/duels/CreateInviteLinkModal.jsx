@@ -151,7 +151,7 @@ export default function CreateInviteLinkModal({ open, onOpenChange }) {
                         className={`flex-1 py-2 rounded-lg text-sm font-bold border ${
                           active
                             ? 'bg-rose-500 text-white border-transparent'
-                            : 'bg-secondary text-muted-foreground border-border hover:text-foreground'
+                            : 'bg-secondary text-muted-foreground border-border hover:text-foreground active:text-foreground'
                         }`}
                       >
                         {h}h
@@ -164,7 +164,7 @@ export default function CreateInviteLinkModal({ open, onOpenChange }) {
               <button
                 onClick={handleCreate}
                 disabled={creating}
-                className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-rose-500 text-white text-sm font-bold hover:bg-rose-600 disabled:opacity-50 transition-colors shadow-md"
+                className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-rose-500 text-white text-sm font-bold hover:bg-rose-600 active:bg-rose-600 disabled:opacity-50 transition-colors shadow-md"
               >
                 {creating
                   ? <Loader2 className="w-4 h-4 animate-spin" />
@@ -189,14 +189,14 @@ export default function CreateInviteLinkModal({ open, onOpenChange }) {
               <div className="flex gap-2">
                 <button
                   onClick={handleCopy}
-                  className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-secondary text-sm font-bold border border-border hover:bg-secondary/80 transition-colors"
+                  className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-secondary text-sm font-bold border border-border hover:bg-secondary/80 active:bg-secondary/80 transition-colors"
                 >
                   {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
                   {copied ? 'Copied!' : 'Copy'}
                 </button>
                 <button
                   onClick={handleNativeShare}
-                  className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 transition-colors"
+                  className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 active:bg-primary/90 transition-colors"
                 >
                   <Share2 className="w-4 h-4" /> Share
                 </button>

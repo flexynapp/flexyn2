@@ -92,7 +92,7 @@ export default function CustomQuotesModal({ open, onClose }) {
                 <Sparkles className="w-4 h-4 text-primary" />
                 <h2 id="custom-quotes-title" className="font-heading font-bold text-base">{tFallback('quotes.title', 'Your custom quotes')}</h2>
               </div>
-              <button onClick={onClose} aria-label={tFallback('common.close', 'Close')} className="p-1.5 rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
+              <button onClick={onClose} aria-label={tFallback('common.close', 'Close')} className="p-1.5 rounded-lg text-muted-foreground hover:bg-secondary active:bg-secondary hover:text-foreground active:text-foreground transition-colors">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -158,7 +158,7 @@ export default function CustomQuotesModal({ open, onClose }) {
                       onClick={() => removeMut.mutate(q.id)}
                       disabled={removeMut.isPending}
                       aria-label={tFallback('quotes.deleteQuote', 'Delete quote')}
-                      className="shrink-0 p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
+                      className="shrink-0 p-1.5 rounded-lg text-muted-foreground hover:text-destructive active:text-destructive hover:bg-destructive/10 active:bg-destructive/10 transition-colors disabled:opacity-50"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>

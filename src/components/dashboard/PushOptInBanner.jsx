@@ -167,7 +167,7 @@ export default function PushOptInBanner({ hasWorkouts = false }) {
               </button>
               <button
                 onClick={handleDismiss}
-                className="px-2 py-1 rounded-sm text-micro font-medium text-muted-foreground hover:text-foreground transition-colors"
+                className="px-2 py-1 rounded-sm text-micro font-medium text-muted-foreground hover:text-foreground active:text-foreground transition-colors"
               >
                 {tFallback('pushOptIn.notNow', 'Not now')}
               </button>
@@ -175,7 +175,7 @@ export default function PushOptInBanner({ hasWorkouts = false }) {
           </div>
           <button
             onClick={handleDismiss}
-            className="shrink-0 -me-1 -mt-1 p-2.5 rounded-sm text-muted-foreground/70 hover:text-foreground hover:bg-foreground/5 active:bg-foreground/10 transition-colors"
+            className="shrink-0 -me-1 -mt-1 p-2.5 rounded-sm text-muted-foreground/70 hover:text-foreground active:text-foreground hover:bg-foreground/5 active:bg-foreground/10 transition-colors"
             aria-label={tFallback('pushOptIn.close', 'Dismiss')}
           >
             <X className="w-3.5 h-3.5" />

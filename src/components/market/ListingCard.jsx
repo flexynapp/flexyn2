@@ -66,7 +66,7 @@ export default function ListingCard({
           type="button"
           onClick={(e) => { e.stopPropagation(); onToggleSave(listing.id); }}
           aria-label={isSaved ? 'Remove from saved' : 'Save for later'}
-          className="absolute top-2 end-2 z-20 w-7 h-7 rounded-full bg-background/70 border border-border flex items-center justify-center hover:bg-background transition-colors"
+          className="absolute top-2 end-2 z-20 w-7 h-7 rounded-full bg-background/70 border border-border flex items-center justify-center hover:bg-background active:bg-background transition-colors"
         >
           <Heart className={`w-3.5 h-3.5 ${isSaved ? 'fill-red-500 text-red-500' : 'text-muted-foreground'}`} />
         </button>
@@ -116,7 +116,7 @@ export default function ListingCard({
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); onSellerClick(listing.seller_user_id); }}
-            className="font-medium text-foreground/80 hover:text-foreground hover:underline"
+            className="font-medium text-foreground/80 hover:text-foreground active:text-foreground hover:underline"
           >
             {displayName(listing)}
           </button>
@@ -155,7 +155,7 @@ export default function ListingCard({
         {isMine ? (
           <button
             onClick={() => onCancel(listing)}
-            className="w-full py-1.5 rounded-lg text-xs font-bold text-red-600 dark:text-red-300 bg-red-500/10 border border-red-500/30 hover:bg-red-500/20 transition-colors"
+            className="w-full py-1.5 rounded-lg text-xs font-bold text-red-600 dark:text-red-300 bg-red-500/10 border border-red-500/30 hover:bg-red-500/20 active:bg-red-500/20 transition-colors"
           >
             Cancel
           </button>
@@ -166,7 +166,7 @@ export default function ListingCard({
             className={[
               'w-full py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-1',
               canAfford
-                ? 'bg-amber-500/20 text-amber-600 dark:text-amber-300 border border-amber-400/40 hover:bg-amber-500/30'
+                ? 'bg-amber-500/20 text-amber-600 dark:text-amber-300 border border-amber-400/40 hover:bg-amber-500/30 active:bg-amber-500/30'
                 : 'bg-secondary text-muted-foreground border border-border cursor-not-allowed',
             ].join(' ')}
           >
@@ -176,7 +176,7 @@ export default function ListingCard({
         ) : (
           <button
             onClick={() => onOfferTrade(listing)}
-            className="w-full py-1.5 rounded-lg text-xs font-bold text-blue-600 dark:text-blue-300 bg-blue-500/10 border border-blue-400/30 hover:bg-blue-500/20 transition-colors"
+            className="w-full py-1.5 rounded-lg text-xs font-bold text-blue-600 dark:text-blue-300 bg-blue-500/10 border border-blue-400/30 hover:bg-blue-500/20 active:bg-blue-500/20 transition-colors"
           >
             Offer Trade
           </button>

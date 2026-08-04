@@ -62,7 +62,7 @@ export default function LanguagePicker({ variant = 'inline', onSelect, iconOnly 
           type="button"
           ref={triggerRef}
           onClick={handleOpen}
-          className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-border bg-background hover:bg-secondary text-sm font-medium transition-colors"
+          className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-border bg-background hover:bg-secondary active:bg-secondary text-sm font-medium transition-colors"
         >
           <span className="flex items-center gap-2">
             <span>{currentLanguage.flag}</span>
@@ -77,7 +77,7 @@ export default function LanguagePicker({ variant = 'inline', onSelect, iconOnly 
           type="button"
           ref={triggerRef}
           onClick={handleOpen}
-          className="flex items-center gap-0.5 justify-center px-2 h-8 rounded-lg border border-border hover:bg-secondary transition-colors"
+          className="flex items-center gap-0.5 justify-center px-2 h-8 rounded-lg border border-border hover:bg-secondary active:bg-secondary transition-colors"
           title="Change language"
         >
           <span className="text-base leading-none">🌐</span>
@@ -87,7 +87,7 @@ export default function LanguagePicker({ variant = 'inline', onSelect, iconOnly 
           type="button"
           ref={triggerRef}
           onClick={handleOpen}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border hover:bg-secondary text-xs font-medium transition-colors"
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border hover:bg-secondary active:bg-secondary text-xs font-medium transition-colors"
           title="Change language / 언어 변경 / Idioma"
         >
           <span>🗣️</span>

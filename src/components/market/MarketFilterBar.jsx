@@ -136,7 +136,7 @@ export default function MarketFilterBar({ filters, onChange, resultCount, totalC
               className={`px-2.5 py-1 rounded-full text-micro font-bold transition-colors ${
                 filters.type === t.id
                   ? 'bg-primary text-primary-foreground'
-                  : 'bg-secondary text-muted-foreground hover:text-foreground'
+                  : 'bg-secondary text-muted-foreground hover:text-foreground active:text-foreground'
               }`}
             >
               {t.label}
@@ -153,7 +153,7 @@ export default function MarketFilterBar({ filters, onChange, resultCount, totalC
           className={`shrink-0 px-2.5 py-1 rounded-full text-micro font-bold transition-colors ${
             filters.affordable
               ? 'bg-amber-500/20 text-amber-600 dark:text-amber-300 border border-amber-400/40'
-              : 'bg-secondary text-muted-foreground hover:text-foreground border border-transparent'
+              : 'bg-secondary text-muted-foreground hover:text-foreground active:text-foreground border border-transparent'
           }`}
         >
           {COIN} Can afford
@@ -171,7 +171,7 @@ export default function MarketFilterBar({ filters, onChange, resultCount, totalC
           className={`shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-full text-micro font-bold transition-colors border ${
             filters.saved
               ? 'bg-red-500/15 text-red-500 border-red-400/40'
-              : 'bg-secondary text-muted-foreground hover:text-foreground border-transparent'
+              : 'bg-secondary text-muted-foreground hover:text-foreground active:text-foreground border-transparent'
           }`}
         >
           <Heart className={`w-3 h-3 ${filters.saved ? 'fill-current' : ''}`} />

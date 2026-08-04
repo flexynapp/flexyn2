@@ -82,7 +82,7 @@ export default function BugReportDialog({ open, onClose }) {
               </div>
               <button
                 onClick={onClose}
-                className="p-1.5 rounded-lg hover:bg-secondary transition-colors"
+                className="p-1.5 rounded-lg hover:bg-secondary active:bg-secondary transition-colors"
                 aria-label={t('common.close')}
               >
                 <X className="w-4 h-4" />

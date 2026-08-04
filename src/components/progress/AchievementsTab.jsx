@@ -165,7 +165,7 @@ export default function AchievementsTab({ achievements = [] }) {
           className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
             activeSubTab === 'active'
               ? 'border-primary text-primary'
-              : 'border-transparent text-muted-foreground hover:text-foreground'
+              : 'border-transparent text-muted-foreground hover:text-foreground active:text-foreground'
           }`}
         >
           {t('progress.activeAchievements')}
@@ -175,7 +175,7 @@ export default function AchievementsTab({ achievements = [] }) {
           className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
             activeSubTab === 'completed'
               ? 'border-primary text-primary'
-              : 'border-transparent text-muted-foreground hover:text-foreground'
+              : 'border-transparent text-muted-foreground hover:text-foreground active:text-foreground'
           }`}
         >
           {t('progress.completedAchievements')}
@@ -269,7 +269,7 @@ export default function AchievementsTab({ achievements = [] }) {
                                   type="button"
                                   onClick={() => handleShareAchievement(ach)}
                                   disabled={sharingId === ach.achievement_id}
-                                  className="flex items-center gap-1 px-2 py-0.5 rounded-md text-micro font-bold uppercase tracking-wide text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
+                                  className="flex items-center gap-1 px-2 py-0.5 rounded-md text-micro font-bold uppercase tracking-wide text-primary hover:bg-primary/10 active:bg-primary/10 transition-colors disabled:opacity-50"
                                   aria-label="Share to Hub"
                                 >
                                   {sharingId === ach.achievement_id

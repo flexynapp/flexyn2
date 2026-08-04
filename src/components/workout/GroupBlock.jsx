@@ -125,7 +125,7 @@ export default function GroupBlock({ groupId, groupMeta = {}, exercises = [], on
                 <div className="px-4 pb-3">
                   <button
                     onClick={handleAdvance}
-                    className="w-full text-xs font-semibold py-2 rounded-lg border border-primary/30 text-primary hover:bg-primary/10 transition-colors"
+                    className="w-full text-xs font-semibold py-2 rounded-lg border border-primary/30 text-primary hover:bg-primary/10 active:bg-primary/10 transition-colors"
                   >
                     {i < exercises.length - 1
                       ? `Rest ${intra_rest_seconds}s → ${exercises[i + 1]?.name || 'Next'}`

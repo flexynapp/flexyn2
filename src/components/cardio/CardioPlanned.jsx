@@ -295,7 +295,7 @@ export default function CardioPlanned() {
                     )}
                   </div>
                   <button
-                    className="p-2 text-muted-foreground hover:text-destructive transition-colors shrink-0"
+                    className="p-2 text-muted-foreground hover:text-destructive active:text-destructive transition-colors shrink-0"
                     onClick={() => handleDelete(plan)}
                     disabled={deleting === plan.id}
                   >
@@ -332,7 +332,7 @@ export default function CardioPlanned() {
                     </p>
                   </div>
                   <button
-                    className="p-2 text-muted-foreground hover:text-destructive transition-colors shrink-0"
+                    className="p-2 text-muted-foreground hover:text-destructive active:text-destructive transition-colors shrink-0"
                     onClick={() => handleDelete(plan)}
                     disabled={deleting === plan.id}
                   >

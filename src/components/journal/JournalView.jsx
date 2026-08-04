@@ -450,7 +450,7 @@ export default function JournalView({ userId, userEmail, onClose }) {
     >
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
-        <button onClick={onClose} className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+        <button onClick={onClose} className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground active:text-foreground transition-colors">
           <ChevronLeft className="w-4 h-4" /> {tFallback('profile.journal.back', 'Back')}
         </button>
         <div className="flex items-center gap-1.5">
@@ -459,7 +459,7 @@ export default function JournalView({ userId, userEmail, onClose }) {
         </div>
         <button
           onClick={() => setHistoryOpen(true)}
-          className="flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
+          className="flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground active:text-foreground transition-colors"
           data-no-swipe
         >
           <History className="w-4 h-4" /> {tFallback('journal.log', 'Log')}
@@ -468,7 +468,7 @@ export default function JournalView({ userId, userEmail, onClose }) {
 
       {/* Date navigation */}
       <div className="flex items-center justify-between px-4 py-2.5 border-b border-border shrink-0 bg-secondary/20">
-        <button onClick={goPrev} className="p-1.5 rounded-lg hover:bg-secondary transition-colors" aria-label="Previous day" data-no-swipe>
+        <button onClick={goPrev} className="p-1.5 rounded-lg hover:bg-secondary active:bg-secondary transition-colors" aria-label="Previous day" data-no-swipe>
           <ChevronLeft className="w-4 h-4" />
         </button>
         <div className="text-center">
@@ -478,7 +478,7 @@ export default function JournalView({ userId, userEmail, onClose }) {
             {saving && <span className="text-micro text-muted-foreground flex items-center gap-1"><Loader2 className="w-2.5 h-2.5 animate-spin" /> {tFallback('journal.saving', 'Saving…')}</span>}
           </div>
         </div>
-        <button onClick={goNext} disabled={isToday} className="p-1.5 rounded-lg hover:bg-secondary transition-colors disabled:opacity-30" aria-label="Next day" data-no-swipe>
+        <button onClick={goNext} disabled={isToday} className="p-1.5 rounded-lg hover:bg-secondary active:bg-secondary transition-colors disabled:opacity-30" aria-label="Next day" data-no-swipe>
           <ChevronRight className="w-4 h-4" />
         </button>
       </div>
@@ -503,10 +503,10 @@ export default function JournalView({ userId, userEmail, onClose }) {
           {/* Formatting toolbar — today only */}
           {!readOnly && (
             <div className="flex items-center gap-1 px-4 py-2 shrink-0" data-no-swipe>
-              <button onClick={() => applyFormat('bullet')} title="Bullet list" className="w-8 h-8 rounded-md hover:bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground">
+              <button onClick={() => applyFormat('bullet')} title="Bullet list" className="w-8 h-8 rounded-md hover:bg-secondary active:bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground active:text-foreground">
                 <List className="w-4 h-4" />
               </button>
-              <button onClick={() => applyFormat('bold')} title="Bold" className="w-8 h-8 rounded-md hover:bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground">
+              <button onClick={() => applyFormat('bold')} title="Bold" className="w-8 h-8 rounded-md hover:bg-secondary active:bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground active:text-foreground">
                 <Bold className="w-4 h-4" />
               </button>
               {isVoiceInputSupported() && (
@@ -514,13 +514,13 @@ export default function JournalView({ userId, userEmail, onClose }) {
                   onClick={toggleDictation}
                   title="Dictate"
                   className={`w-8 h-8 rounded-md flex items-center justify-center transition-colors ${
-                    listening ? 'bg-red-500/15 text-red-500' : 'hover:bg-secondary text-muted-foreground hover:text-foreground'
+                    listening ? 'bg-red-500/15 text-red-500' : 'hover:bg-secondary active:bg-secondary text-muted-foreground hover:text-foreground active:text-foreground'
                   }`}
                 >
                   {listening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
                 </button>
               )}
-              <button onClick={() => fileRef.current?.click()} title="Attach" className="w-8 h-8 rounded-md hover:bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground">
+              <button onClick={() => fileRef.current?.click()} title="Attach" className="w-8 h-8 rounded-md hover:bg-secondary active:bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground active:text-foreground">
                 {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Paperclip className="w-4 h-4" />}
               </button>
               <input ref={fileRef} type="file" multiple accept="image/*,.pdf,.txt,.heic" className="hidden" onChange={onPickFiles} />

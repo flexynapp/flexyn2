@@ -140,7 +140,7 @@ export default function DailyQuote({ editMode = false }) {
                 type="button"
                 onClick={() => paginate(-1)}
                 aria-label={tFallback('quotes.prev', 'Previous quote')}
-                className="absolute start-0 top-1/2 -translate-y-1/2 w-8 h-8 hidden sm:flex items-center justify-center rounded-full text-muted-foreground/50 hover:text-foreground hover:bg-foreground/5 active:bg-foreground/10 transition-colors"
+                className="absolute start-0 top-1/2 -translate-y-1/2 w-8 h-8 hidden sm:flex items-center justify-center rounded-full text-muted-foreground/50 hover:text-foreground active:text-foreground hover:bg-foreground/5 active:bg-foreground/10 transition-colors"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
@@ -148,7 +148,7 @@ export default function DailyQuote({ editMode = false }) {
                 type="button"
                 onClick={() => paginate(1)}
                 aria-label={tFallback('quotes.next', 'Next quote')}
-                className="absolute end-0 top-1/2 -translate-y-1/2 w-8 h-8 hidden sm:flex items-center justify-center rounded-full text-muted-foreground/50 hover:text-foreground hover:bg-foreground/5 active:bg-foreground/10 transition-colors"
+                className="absolute end-0 top-1/2 -translate-y-1/2 w-8 h-8 hidden sm:flex items-center justify-center rounded-full text-muted-foreground/50 hover:text-foreground active:text-foreground hover:bg-foreground/5 active:bg-foreground/10 transition-colors"
               >
                 <ChevronRight className="w-4 h-4" />
               </button>

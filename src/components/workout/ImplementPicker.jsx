@@ -272,7 +272,7 @@ export default function ImplementPicker({ exerciseName, value, onChange, userId 
         }
         className="inline-flex items-center gap-1 max-w-[55vw] text-micro font-medium
                    bg-secondary/60 border border-border rounded-md px-1.5 py-1
-                   min-h-[32px] text-muted-foreground hover:text-foreground
+                   min-h-[32px] text-muted-foreground hover:text-foreground active:text-foreground
                    hover:border-primary/40 transition-colors select-none-ui"
       >
         <span className="truncate">
@@ -322,7 +322,7 @@ export default function ImplementPicker({ exerciseName, value, onChange, userId 
                   disabled={uploading}
                   className="flex-1 inline-flex items-center justify-center gap-1.5
                              text-xs font-semibold text-primary rounded-lg py-2.5
-                             min-h-[44px] hover:bg-secondary transition-colors
+                             min-h-[44px] hover:bg-secondary active:bg-secondary transition-colors
                              disabled:opacity-60 select-none-ui"
                 >
                   {uploading
@@ -337,7 +337,7 @@ export default function ImplementPicker({ exerciseName, value, onChange, userId 
                   onClick={() => commit(null)}
                   className="inline-flex items-center justify-center gap-1.5 px-3
                              text-xs font-medium text-muted-foreground rounded-lg
-                             min-h-[44px] hover:bg-secondary transition-colors select-none-ui"
+                             min-h-[44px] hover:bg-secondary active:bg-secondary transition-colors select-none-ui"
                 >
                   <X className="w-4 h-4" aria-hidden="true" />
                   {tFallback('implement.clear', 'Clear')}
@@ -432,7 +432,7 @@ export default function ImplementPicker({ exerciseName, value, onChange, userId 
               type="button"
               onClick={() => setShowCustom(true)}
               className="w-full flex items-center gap-2 px-3 py-3 mt-3 rounded-lg
-                         text-sm font-medium text-primary hover:bg-secondary
+                         text-sm font-medium text-primary hover:bg-secondary active:bg-secondary
                          transition-colors min-h-[44px] select-none-ui"
             >
               <Plus className="w-4 h-4 shrink-0" aria-hidden="true" />
@@ -463,7 +463,7 @@ function Row({ item, selected, onSelect }) {
       type="button"
       onClick={onSelect}
       className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-start
-                 hover:bg-secondary transition-colors min-h-[44px] select-none-ui"
+                 hover:bg-secondary active:bg-secondary transition-colors min-h-[44px] select-none-ui"
     >
       <EquipmentThumb implement={item} size={36} />
       <span className="flex-1 min-w-0">

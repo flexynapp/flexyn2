@@ -306,7 +306,7 @@ export default function Layout() {
               className={`p-2 rounded-lg transition-colors ${
                 location.pathname === '/coach'
                   ? 'bg-primary/10 text-primary'
-                  : 'text-muted-foreground hover:bg-secondary'
+                  : 'text-muted-foreground hover:bg-secondary active:bg-secondary'
               }`}
             >
               <Sparkles className="w-5 h-5" />
@@ -318,7 +318,7 @@ export default function Layout() {
               className={`relative p-2 rounded-lg transition-colors ${
                 location.pathname === '/messages'
                   ? 'bg-primary/10 text-primary'
-                  : 'text-muted-foreground hover:bg-secondary'
+                  : 'text-muted-foreground hover:bg-secondary active:bg-secondary'
               }`}
             >
               <MessageCircle className="w-5 h-5" />
@@ -342,7 +342,7 @@ export default function Layout() {
               className={`relative p-2 rounded-lg transition-colors ${
                 location.pathname === '/market'
                   ? 'bg-primary/10 text-primary'
-                  : 'text-muted-foreground hover:bg-secondary'
+                  : 'text-muted-foreground hover:bg-secondary active:bg-secondary'
               }`}
             >
               <ShoppingBag className="w-5 h-5" />
@@ -375,8 +375,8 @@ export default function Layout() {
                     ${isActive
                       ? 'bg-primary text-primary-foreground shadow-md'
                       : isHubItem
-                        ? 'text-primary border-2 border-primary/40 hover:bg-primary/5 hover:border-primary'
-                        : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
+                        ? 'text-primary border-2 border-primary/40 hover:bg-primary/5 active:bg-primary/5 hover:border-primary'
+                        : 'text-muted-foreground hover:bg-secondary active:bg-secondary hover:text-foreground active:text-foreground'
                     }`}
                 >
                   <motion.div animate={isActive ? { scale: 1.15 } : { scale: 1 }} transition={{ type: 'spring', stiffness: 400, damping: 20 }}>

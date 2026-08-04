@@ -106,7 +106,7 @@ export default function PWAInstallPrompt() {
           <button
             onClick={handleDismiss}
             aria-label="Dismiss"
-            className="shrink-0 p-1 rounded-md text-muted-foreground hover:bg-secondary transition-colors"
+            className="shrink-0 p-1 rounded-md text-muted-foreground hover:bg-secondary active:bg-secondary transition-colors"
           >
             <X className="w-4 h-4" />
           </button>

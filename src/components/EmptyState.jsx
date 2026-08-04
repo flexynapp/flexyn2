@@ -61,7 +61,7 @@ export default function EmptyState({
         {secondaryAction && (
           <button
             onClick={secondaryAction.onClick}
-            className="px-4 py-2 rounded-lg border border-border text-foreground text-sm font-medium hover:bg-secondary transition-colors"
+            className="px-4 py-2 rounded-lg border border-border text-foreground text-sm font-medium hover:bg-secondary active:bg-secondary transition-colors"
           >
             {secondaryAction.label}
           </button>

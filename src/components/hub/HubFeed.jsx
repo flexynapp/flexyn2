@@ -469,12 +469,12 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
         <div className="flex items-center rounded-lg border border-border overflow-hidden text-micro font-bold shrink-0">
           <button type="button"
             onClick={() => { setSort('newest'); setVisibleCount(PAGE_SIZE); }}
-            className={`flex items-center gap-1 px-2.5 py-1.5 transition-colors ${sort === 'newest' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:text-foreground'}`}>
+            className={`flex items-center gap-1 px-2.5 py-1.5 transition-colors ${sort === 'newest' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:text-foreground active:text-foreground'}`}>
             <Clock className="w-3 h-3" />New
           </button>
           <button type="button"
             onClick={() => { setSort('popular'); setVisibleCount(PAGE_SIZE); }}
-            className={`flex items-center gap-1 px-2.5 py-1.5 border-s border-border transition-colors ${sort === 'popular' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:text-foreground'}`}>
+            className={`flex items-center gap-1 px-2.5 py-1.5 border-s border-border transition-colors ${sort === 'popular' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:text-foreground active:text-foreground'}`}>
             <Flame className="w-3 h-3" />Hot
           </button>
         </div>
@@ -484,7 +484,7 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
             {[['today','Today'],['week','Week'],['all','All']].map(([val, label]) => (
               <button key={val} type="button"
                 onClick={() => { setTimeFilter(val); setVisibleCount(PAGE_SIZE); }}
-                className={`px-2.5 py-1.5 border-s first:border-s-0 border-border transition-colors ${timeFilter === val ? 'bg-secondary text-foreground' : 'bg-background text-muted-foreground hover:text-foreground'}`}>
+                className={`px-2.5 py-1.5 border-s first:border-s-0 border-border transition-colors ${timeFilter === val ? 'bg-secondary text-foreground' : 'bg-background text-muted-foreground hover:text-foreground active:text-foreground'}`}>
                 {label}
               </button>
             ))}
@@ -492,7 +492,7 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
         )}
         {/* Go Live — tucked inline, compact */}
         <button onClick={() => setBroadcasterOpen(true)}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-destructive/30 bg-destructive/5 text-destructive text-micro font-bold hover:bg-destructive/12 transition-colors shrink-0 ml-auto">
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-destructive/30 bg-destructive/5 text-destructive text-micro font-bold hover:bg-destructive/12 active:bg-destructive/12 transition-colors shrink-0 ml-auto">
           <span className="relative flex w-2 h-2 shrink-0">
             <span className="absolute inline-flex w-full h-full rounded-full bg-destructive opacity-60 animate-ping" />
             <span className="relative inline-flex w-2 h-2 rounded-full bg-destructive" />
@@ -527,7 +527,7 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
         <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={() => setShowTrending(v => !v)}
-            className="flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-primary transition-colors"
+            className="flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-primary active:text-primary transition-colors"
           >
             <TrendingUp className="w-3.5 h-3.5" />
             {tFallback('hub.trending', 'Trending')}
@@ -547,7 +547,7 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
                 className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
                   activeHashtag === item.tag
                     ? 'bg-primary text-primary-foreground'
-                    : 'bg-secondary/60 text-muted-foreground hover:bg-secondary hover:text-foreground'
+                    : 'bg-secondary/60 text-muted-foreground hover:bg-secondary active:bg-secondary hover:text-foreground active:text-foreground'
                 }`}
               >
                 <Hash className="w-2.5 h-2.5" />
@@ -573,7 +573,7 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
             <span className="text-sm font-semibold text-primary flex-1">{activeHashtag}</span>
             <button
               onClick={() => { setActiveHashtag(null); setVisibleCount(PAGE_SIZE); }}
-              className="p-0.5 rounded text-primary/60 hover:text-primary transition-colors"
+              className="p-0.5 rounded text-primary/60 hover:text-primary active:text-primary transition-colors"
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -640,7 +640,7 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
         <div ref={sentinelRef} className="flex justify-center py-6">
           <button
             onClick={() => setVisibleCount(c => Math.min(c + PAGE_SIZE, filteredPosts.length))}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-secondary/50 hover:bg-secondary text-sm text-muted-foreground hover:text-foreground transition-colors"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-secondary/50 hover:bg-secondary active:bg-secondary text-sm text-muted-foreground hover:text-foreground active:text-foreground transition-colors"
           >
             <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
             {t('hub.feed.loadingMore')}

@@ -105,7 +105,7 @@ function SetEditor({ sets, onChange, exerciseName = '', userProfile = {} }) {
             placeholder={t('common.reps')}
             className="h-8 text-center text-sm"
           />
-          <button type="button" onClick={() => removeSet(i)} className="p-1 text-muted-foreground hover:text-destructive">
+          <button type="button" onClick={() => removeSet(i)} className="p-1 text-muted-foreground hover:text-destructive active:text-destructive">
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -369,7 +369,7 @@ export default function EditWorkoutModal({ log, userProfile = {}, logs = [], car
             </div>
           ) : (
             <>
-              <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive sm:mr-auto" onClick={() => setConfirmDelete(true)}>
+              <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive active:text-destructive sm:mr-auto" onClick={() => setConfirmDelete(true)}>
                 <Trash2 className="w-4 h-4 me-1" /> {t('workout.deleteWorkout')}
               </Button>
               <Button variant="outline" size="sm" onClick={onClose}>{t('common.cancel')}</Button>

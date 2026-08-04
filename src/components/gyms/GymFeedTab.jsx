@@ -193,7 +193,7 @@ export default function GymFeedTab({ gymId, gymOwnerId }) {
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="w-8 h-8 rounded-full bg-secondary text-muted-foreground hover:text-foreground flex items-center justify-center"
+              className="w-8 h-8 rounded-full bg-secondary text-muted-foreground hover:text-foreground active:text-foreground flex items-center justify-center"
               title="Add image"
               aria-label="Add image"
             >
@@ -254,7 +254,7 @@ export default function GymFeedTab({ gymId, gymOwnerId }) {
                   key={p.id}
                   type="button"
                   onClick={() => navigate(`/hub?profile=${encodeURIComponent(p.user_id || '')}`)}
-                  className="w-full text-start flex gap-3 p-3 rounded-xl border border-border bg-card/60 hover:bg-secondary/40 transition-colors"
+                  className="w-full text-start flex gap-3 p-3 rounded-xl border border-border bg-card/60 hover:bg-secondary/40 active:bg-secondary/40 transition-colors"
                 >
                   <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary shrink-0">
                     {handle.slice(0, 2).toUpperCase()}
@@ -350,7 +350,7 @@ function FeedPostCard({ post, rxn, meId, isOwner, onDelete, onTogglePin, onReact
             <button
               type="button"
               onClick={() => setMenuOpen(v => !v)}
-              className="w-7 h-7 rounded-full bg-secondary/60 hover:bg-secondary text-muted-foreground hover:text-foreground flex items-center justify-center"
+              className="w-7 h-7 rounded-full bg-secondary/60 hover:bg-secondary active:bg-secondary text-muted-foreground hover:text-foreground active:text-foreground flex items-center justify-center"
               aria-label="Post menu"
             >
               <MoreHorizontal className="w-3.5 h-3.5" />
@@ -361,7 +361,7 @@ function FeedPostCard({ post, rxn, meId, isOwner, onDelete, onTogglePin, onReact
                   <button
                     type="button"
                     onClick={() => { setMenuOpen(false); onTogglePin(post.id); }}
-                    className="w-full text-start flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-secondary"
+                    className="w-full text-start flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-secondary active:bg-secondary"
                   >
                     <Pin className="w-3 h-3" />
                     {post.is_pinned ? 'Unpin' : 'Pin to top'}
@@ -371,7 +371,7 @@ function FeedPostCard({ post, rxn, meId, isOwner, onDelete, onTogglePin, onReact
                   <button
                     type="button"
                     onClick={() => { setMenuOpen(false); onDelete(post.id); }}
-                    className="w-full text-start flex items-center gap-2 px-3 py-1.5 text-xs text-destructive hover:bg-destructive/10"
+                    className="w-full text-start flex items-center gap-2 px-3 py-1.5 text-xs text-destructive hover:bg-destructive/10 active:bg-destructive/10"
                   >
                     <Trash2 className="w-3 h-3" />
                     Delete
@@ -401,7 +401,7 @@ function FeedPostCard({ post, rxn, meId, isOwner, onDelete, onTogglePin, onReact
             {...longPress.bind}
             onClick={(e) => { if (longPress.consumeClick(e)) handleQuickTap(); }}
             className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
-              iReacted ? 'text-orange-500 bg-orange-500/10' : 'text-muted-foreground hover:bg-secondary'
+              iReacted ? 'text-orange-500 bg-orange-500/10' : 'text-muted-foreground hover:bg-secondary active:bg-secondary'
             }`}
           >
             <span className="text-base leading-none">
@@ -424,7 +424,7 @@ function FeedPostCard({ post, rxn, meId, isOwner, onDelete, onTogglePin, onReact
                     key={e}
                     type="button"
                     onClick={() => handlePick(e)}
-                    className={`w-8 h-8 flex items-center justify-center rounded-full text-lg transition-transform hover:scale-125 hover:bg-secondary/60 ${
+                    className={`w-8 h-8 flex items-center justify-center rounded-full text-lg transition-transform hover:scale-125 hover:bg-secondary/60 active:bg-secondary/60 ${
                       rxn.mine?.has(e) ? 'bg-secondary' : ''
                     }`}
                   >
@@ -439,7 +439,7 @@ function FeedPostCard({ post, rxn, meId, isOwner, onDelete, onTogglePin, onReact
           type="button"
           onClick={() => setCommentsOpen(o => !o)}
           className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
-            commentsOpen ? 'text-primary bg-secondary' : 'text-muted-foreground hover:bg-secondary'
+            commentsOpen ? 'text-primary bg-secondary' : 'text-muted-foreground hover:bg-secondary active:bg-secondary'
           }`}
         >
           <MessageCircle className="w-3.5 h-3.5" />
@@ -519,7 +519,7 @@ function FeedComments({ postId, meId, isPostAuthorOrGymOwner, onChange }) {
                   <button
                     type="button"
                     onClick={() => handleDelete(c.id)}
-                    className="opacity-0 group-hover:opacity-100 transition-opacity w-5 h-5 rounded-full text-muted-foreground hover:text-destructive flex items-center justify-center"
+                    className="opacity-0 group-hover:opacity-100 transition-opacity w-5 h-5 rounded-full text-muted-foreground hover:text-destructive active:text-destructive flex items-center justify-center"
                     aria-label="Delete comment"
                   >
                     <Trash2 className="w-3 h-3" />

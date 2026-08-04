@@ -95,7 +95,7 @@ export default function PhotoAiLimitModal({ open, used = 3, cap = 3, purchasing 
             <button
               type="button"
               onClick={onClose}
-              className="w-full text-center text-label font-semibold text-muted-foreground hover:text-foreground py-1.5 transition-colors"
+              className="w-full text-center text-label font-semibold text-muted-foreground hover:text-foreground active:text-foreground py-1.5 transition-colors"
             >
               Maybe tomorrow
             </button>

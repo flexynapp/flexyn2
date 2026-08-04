@@ -95,7 +95,7 @@ function ChallengeDetail({ challenge, status, completedAt, onClose, onStartWorko
         <button
           type="button"
           onClick={onClose}
-          className="p-1 rounded-lg text-muted-foreground hover:text-foreground transition-colors"
+          className="p-1 rounded-lg text-muted-foreground hover:text-foreground active:text-foreground transition-colors"
         >
           <X className="w-4 h-4" />
         </button>
@@ -334,7 +334,7 @@ export default function Gauntlet() {
               if (window.history.length > 1) navigate(-1);
               else navigate('/dashboard');
             }}
-            className="p-2 rounded-lg text-muted-foreground hover:bg-secondary transition-colors lg:hidden"
+            className="p-2 rounded-lg text-muted-foreground hover:bg-secondary active:bg-secondary transition-colors lg:hidden"
           >
             <ChevronLeft className="w-5 h-5" />
           </button>

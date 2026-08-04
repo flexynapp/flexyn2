@@ -58,7 +58,7 @@ export default function StoryReactionPicker({ storyId, onReacted }) {
             onClick={() => handleTap(emoji)}
             className={[
               'w-9 h-9 rounded-full flex items-center justify-center text-lg transition-colors',
-              isActive ? 'bg-white/30 scale-110' : 'bg-black/30 hover:bg-black/40',
+              isActive ? 'bg-white/30 scale-110' : 'bg-black/30 hover:bg-black/40 active:bg-black/40',
               busy === emoji ? 'animate-pulse' : '',
             ].join(' ')}
             aria-pressed={isActive}

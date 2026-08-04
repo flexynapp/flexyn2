@@ -191,7 +191,7 @@ export default function CycleTrackerCard({ profile }) {
             <button
               type="button"
               onClick={() => setLogOpen(true)}
-              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-secondary/60 hover:bg-secondary text-xs font-bold transition-colors"
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-secondary/60 hover:bg-secondary active:bg-secondary text-xs font-bold transition-colors"
             >
               <Plus className="w-3 h-3" /> Log
             </button>
@@ -200,7 +200,7 @@ export default function CycleTrackerCard({ profile }) {
               onClick={handleDisable}
               aria-label="Remove cycle tracking"
               title="Remove cycle tracking"
-              className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+              className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-muted-foreground hover:text-destructive active:text-destructive hover:bg-destructive/10 active:bg-destructive/10 transition-colors"
             >
               <X className="w-4 h-4" />
             </button>
@@ -238,7 +238,7 @@ export default function CycleTrackerCard({ profile }) {
               type="button"
               onClick={() => { setHistoryOpen(v => !v); setPendingDeleteId(null); }}
               aria-expanded={historyOpen}
-              className="w-full flex items-center justify-between py-1 text-micro font-bold uppercase tracking-wide text-muted-foreground hover:text-foreground transition-colors"
+              className="w-full flex items-center justify-between py-1 text-micro font-bold uppercase tracking-wide text-muted-foreground hover:text-foreground active:text-foreground transition-colors"
             >
               <span>Logged periods · {logs.length}</span>
               {historyOpen
@@ -281,7 +281,7 @@ export default function CycleTrackerCard({ profile }) {
                             type="button"
                             onClick={() => setPendingDeleteId(null)}
                             disabled={busy}
-                            className="px-2 py-1 rounded text-micro font-bold uppercase tracking-wide border border-border text-muted-foreground hover:bg-secondary disabled:opacity-50"
+                            className="px-2 py-1 rounded text-micro font-bold uppercase tracking-wide border border-border text-muted-foreground hover:bg-secondary active:bg-secondary disabled:opacity-50"
                           >
                             Cancel
                           </button>
@@ -291,7 +291,7 @@ export default function CycleTrackerCard({ profile }) {
                           type="button"
                           onClick={() => setPendingDeleteId(l.id)}
                           aria-label={`Remove period logged on ${label}`}
-                          className="inline-flex items-center justify-center w-8 h-8 shrink-0 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                          className="inline-flex items-center justify-center w-8 h-8 shrink-0 rounded-lg text-muted-foreground hover:text-destructive active:text-destructive hover:bg-destructive/10 active:bg-destructive/10 transition-colors"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>

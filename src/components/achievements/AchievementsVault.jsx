@@ -62,7 +62,7 @@ export default function AchievementsVault({ onClose }) {
       <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
         <button
           onClick={onClose}
-          className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+          className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground active:text-foreground transition-colors"
         >
           <ChevronLeft className="w-4 h-4" />
           Back

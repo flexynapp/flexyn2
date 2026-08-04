@@ -99,7 +99,7 @@ function MemberRow({ member, profile, currentUserRole, isSelf, crewId, onViewPro
               <div className="relative">
                 <button
                   onClick={() => setRoleOpen(v => !v)}
-                  className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+                  className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground active:text-foreground transition-colors"
                   title="Change role"
                 >
                   <Shield className="w-3.5 h-3.5" />
@@ -111,7 +111,7 @@ function MemberRow({ member, profile, currentUserRole, isSelf, crewId, onViewPro
                         key={r}
                         onClick={() => setRole(r)}
                         disabled={memberRole === r}
-                        className={`w-full text-start px-3 py-2 text-xs font-semibold transition-colors hover:bg-secondary ${memberRole === r ? 'opacity-40' : ''}`}
+                        className={`w-full text-start px-3 py-2 text-xs font-semibold transition-colors hover:bg-secondary active:bg-secondary ${memberRole === r ? 'opacity-40' : ''}`}
                       >
                         {r === 'moderator' ? '⚡ Make Moderator' : '👤 Make Member'}
                       </button>
@@ -127,7 +127,7 @@ function MemberRow({ member, profile, currentUserRole, isSelf, crewId, onViewPro
                   () => crewsData.removeMember(crewId, member.user_id),
                   'Member removed.'
                 )}
-                className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center text-destructive/70 hover:text-destructive transition-colors"
+                className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center text-destructive/70 hover:text-destructive active:text-destructive transition-colors"
                 title="Remove from crew"
               >
                 <Trash2 className="w-3.5 h-3.5" />
@@ -149,7 +149,7 @@ function MemberRow({ member, profile, currentUserRole, isSelf, crewId, onViewPro
                     }
                   }, `${username} was banned.`);
                 }}
-                className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center text-destructive/70 hover:text-destructive transition-colors"
+                className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center text-destructive/70 hover:text-destructive active:text-destructive transition-colors"
                 title="Ban from crew"
               >
                 <Ban className="w-3.5 h-3.5" />

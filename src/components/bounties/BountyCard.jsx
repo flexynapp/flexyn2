@@ -139,7 +139,7 @@ export default function BountyCard({ bounty, hasActiveClaim = false, compact = f
             <button
               onClick={handleClaim}
               disabled={busy}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500 text-white text-xs font-bold hover:bg-amber-600 active:scale-[0.97] transition-all disabled:opacity-50"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500 text-white text-xs font-bold hover:bg-amber-600 active:bg-amber-600 active:scale-[0.97] transition-all disabled:opacity-50"
             >
               {busy
                 ? <Loader2 className="w-3 h-3 animate-spin" />

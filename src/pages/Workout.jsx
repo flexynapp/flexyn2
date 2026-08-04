@@ -176,7 +176,7 @@ function ReorderItemWithHandle({ value, children, className }) {
         aria-label="Drag to reorder"
         role="button"
       >
-        <span className="w-8 h-1 rounded-full bg-muted-foreground/30 hover:bg-muted-foreground/60 transition-colors" />
+        <span className="w-8 h-1 rounded-full bg-muted-foreground/30 hover:bg-muted-foreground/60 active:bg-muted-foreground/60 transition-colors" />
       </div>
       {children}
     </Reorder.Item>
@@ -1793,7 +1793,7 @@ export default function Workout() {
     const InfoBtn = ({ bid }) => (
       <button type="button"
         onClick={(e) => { e.stopPropagation(); setActiveInfo(activeInfo === bid ? null : bid); }}
-        className="absolute top-2 end-2 w-4 h-4 rounded-full border border-border/60 bg-background/80 flex items-center justify-center text-muted-foreground/60 hover:text-foreground hover:border-border transition-colors z-10">
+        className="absolute top-2 end-2 w-4 h-4 rounded-full border border-border/60 bg-background/80 flex items-center justify-center text-muted-foreground/60 hover:text-foreground active:text-foreground hover:border-border transition-colors z-10">
         <span className="text-micro font-bold leading-none italic">i</span>
       </button>
     );
@@ -1966,7 +1966,7 @@ export default function Workout() {
       <div className="relative">
         <button type="button"
           onClick={(ev) => { ev.stopPropagation(); setActiveInfo(activeInfo==='nemesis'?null:'nemesis'); }}
-          className="absolute top-3 end-3 w-4 h-4 rounded-full border border-border/60 bg-background/80 flex items-center justify-center text-muted-foreground/60 hover:text-foreground hover:border-border transition-colors z-20">
+          className="absolute top-3 end-3 w-4 h-4 rounded-full border border-border/60 bg-background/80 flex items-center justify-center text-muted-foreground/60 hover:text-foreground active:text-foreground hover:border-border transition-colors z-20">
           <span className="text-micro font-bold leading-none italic">i</span>
         </button>
         {activeInfo==='nemesis' && (
@@ -2194,7 +2194,7 @@ export default function Workout() {
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border transition-colors ${
               todayExpanded
                 ? 'bg-primary/15 border-primary/50 text-primary'
-                : 'bg-primary/8 border-primary/35 text-primary hover:bg-primary/14 hover:border-primary/55'
+                : 'bg-primary/8 border-primary/35 text-primary hover:bg-primary/14 active:bg-primary/14 hover:border-primary/55'
             }`}
           >
             <CalendarDays className="w-3 h-3" />
@@ -2204,7 +2204,7 @@ export default function Workout() {
           <div className="flex items-center gap-1.5">
             {activeDuel && (
               <button type="button" onClick={() => navigate('/duels')}
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-destructive/10 border border-destructive/25 text-destructive text-micro font-semibold hover:bg-destructive/18 transition-colors">
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-destructive/10 border border-destructive/25 text-destructive text-micro font-semibold hover:bg-destructive/18 active:bg-destructive/18 transition-colors">
                 <Swords className="w-3 h-3" />
                 <span>Duel</span>
                 <span className="w-1.5 h-1.5 rounded-full bg-destructive animate-pulse ms-0.5" />
@@ -2212,7 +2212,7 @@ export default function Workout() {
             )}
             {activeBountyClaim && (
               <button type="button" onClick={() => navigate('/bounties')}
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-primary/10 border border-primary/25 text-primary text-micro font-semibold hover:bg-primary/18 transition-colors">
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-primary/10 border border-primary/25 text-primary text-micro font-semibold hover:bg-primary/18 active:bg-primary/18 transition-colors">
                 <Zap className="w-3 h-3" />
                 <span>Bounty</span>
                 <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse ms-0.5" />
@@ -2226,7 +2226,7 @@ export default function Workout() {
               className={`flex items-center justify-center w-6 h-6 rounded-full border transition-colors ${
                 gridEditing
                   ? 'bg-primary/15 border-primary/35 text-primary'
-                  : 'bg-muted/35 border-border/35 text-muted-foreground/35 hover:text-muted-foreground hover:bg-muted/60 hover:border-border/60'
+                  : 'bg-muted/35 border-border/35 text-muted-foreground/35 hover:text-muted-foreground active:text-muted-foreground hover:bg-muted/60 active:bg-muted/60 hover:border-border/60'
               }`}
             >
               <LayoutGrid className="w-3 h-3" />
@@ -2428,7 +2428,7 @@ export default function Workout() {
                 {[0, 1, 2].map(i => (
                   <button key={i} type="button"
                     onClick={() => setHeroState([i, i > heroSlide ? 1 : -1])}
-                    className={`transition-all duration-300 rounded-full ${heroSlide === i ? 'w-5 h-1.5 bg-primary' : 'w-1.5 h-1.5 bg-muted-foreground/25 hover:bg-muted-foreground/50'}`}
+                    className={`transition-all duration-300 rounded-full ${heroSlide === i ? 'w-5 h-1.5 bg-primary' : 'w-1.5 h-1.5 bg-muted-foreground/25 hover:bg-muted-foreground/50 active:bg-muted-foreground/50'}`}
                     aria-label={`Slide ${i + 1}`} />
                 ))}
               </div>
@@ -2524,7 +2524,7 @@ export default function Workout() {
                   <p className="text-micro text-muted-foreground/60 font-medium">Drag cards to reorder</p>
                   <div className="flex items-center gap-1.5">
                     <button onClick={() => { localStorage.setItem('wkt-card-order', JSON.stringify(cardOrder)); setGridEditing(false); toast.success('Layout saved.'); setDragSrcIdx(null); setDragOverIdx(null); }}
-                      className="px-2.5 py-1 rounded-lg bg-primary text-primary-foreground text-micro font-bold hover:bg-primary/90 transition-colors">Save</button>
+                      className="px-2.5 py-1 rounded-lg bg-primary text-primary-foreground text-micro font-bold hover:bg-primary/90 active:bg-primary/90 transition-colors">Save</button>
                     {isAppAdmin(user) && (
                       <button
                         onClick={async () => {
@@ -2535,13 +2535,13 @@ export default function Workout() {
                           else toast.error('Could not save default layout.');
                         }}
                         title="Save this layout as default for all new users"
-                        className="px-2.5 py-1 rounded-lg bg-primary/15 border border-primary/40 text-primary dark:text-primary text-micro font-bold hover:bg-primary/25 transition-colors"
+                        className="px-2.5 py-1 rounded-lg bg-primary/15 border border-primary/40 text-primary dark:text-primary text-micro font-bold hover:bg-primary/25 active:bg-primary/25 transition-colors"
                       >
                         Set default
                       </button>
                     )}
                     <button onClick={() => { setCardOrder([...CARD_ORDER_DEFAULT]); localStorage.removeItem('wkt-card-order'); setGridEditing(false); setDragSrcIdx(null); setDragOverIdx(null); }}
-                      className="px-2.5 py-1 rounded-lg bg-secondary text-muted-foreground text-micro font-semibold hover:bg-secondary/80 transition-colors">Reset</button>
+                      className="px-2.5 py-1 rounded-lg bg-secondary text-muted-foreground text-micro font-semibold hover:bg-secondary/80 active:bg-secondary/80 transition-colors">Reset</button>
                   </div>
                 </div>
               )}
@@ -2612,7 +2612,7 @@ export default function Workout() {
                     transition={{ type: 'spring', stiffness: 380, damping: 20 }}
                   >
                     <Card
-                      className="p-4 border-primary/40 bg-primary/5 cursor-pointer hover:bg-primary/10 transition-colors"
+                      className="p-4 border-primary/40 bg-primary/5 cursor-pointer hover:bg-primary/10 active:bg-primary/10 transition-colors"
                       onClick={() => handleResumeSession(session.id)}
                     >
                       <div className="flex items-center justify-between">
@@ -2631,12 +2631,12 @@ export default function Workout() {
                           <Button
                             size="sm"
                             variant="ghost"
-                            className="text-xs text-muted-foreground hover:text-destructive"
+                            className="text-xs text-muted-foreground hover:text-destructive active:text-destructive"
                             onClick={(e) => { e.stopPropagation(); removeSession(session.id); }}
                           >
                             {t('workout.discard')}
                           </Button>
-                          <Button size="sm" className="bg-primary hover:bg-primary text-white text-xs">
+                          <Button size="sm" className="bg-primary hover:bg-primary active:bg-primary text-white text-xs">
                             {t('workout.resumeLabel')}
                           </Button>
                         </div>
@@ -2680,7 +2680,7 @@ export default function Workout() {
                   onClick={() => setHistoryTab(tab.id)}
                   aria-pressed={historyTab === tab.id}
                   className={`inline-flex items-center justify-center gap-1.5 rounded-lg py-2 text-sm font-semibold transition-colors ${
-                    historyTab === tab.id ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                    historyTab === tab.id ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground active:text-foreground'
                   }`}
                 >
                   <span>{tab.emoji}</span> {tab.label}
@@ -2868,7 +2868,7 @@ export default function Workout() {
             <AlertDialogCancel>{tFallback('workout.keepGoing', 'Keep going')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => { setConfirmDiscard(false); resetWorkout(activeSessionId); }}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 active:bg-destructive/90"
             >
               {tFallback('workout.discard', 'Discard')}
             </AlertDialogAction>
@@ -2921,7 +2921,7 @@ export default function Workout() {
             type="button"
             onClick={() => setCardioMenuOpen(o => !o)}
             aria-expanded={cardioMenuOpen}
-            className="w-full flex items-center justify-center gap-2 py-2 rounded-lg border border-dashed border-info/40 text-sm font-semibold text-info dark:text-info hover:bg-info/10 transition-colors"
+            className="w-full flex items-center justify-center gap-2 py-2 rounded-lg border border-dashed border-info/40 text-sm font-semibold text-info dark:text-info hover:bg-info/10 active:bg-info/10 transition-colors"
           >
             <Plus className="w-4 h-4" /> {tFallback('workout.addCardio', 'Cardio')}
             <span className="text-base leading-none">
@@ -2942,7 +2942,7 @@ export default function Workout() {
                     key={a.id}
                     type="button"
                     onClick={() => addCardio(a.id)}
-                    className="flex flex-col items-center gap-1 py-2.5 rounded-lg hover:bg-secondary transition-colors"
+                    className="flex flex-col items-center gap-1 py-2.5 rounded-lg hover:bg-secondary active:bg-secondary transition-colors"
                   >
                     <span className="text-2xl leading-none">{activityEmoji(a.id, userProfile?.gender)}</span>
                     <span className="text-xs font-semibold">{a.label}</span>
@@ -2957,7 +2957,7 @@ export default function Workout() {
           <button
             type="button"
             onClick={() => setPlateCalcOpen(true)}
-            className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg border border-border text-sm font-semibold text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+            className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg border border-border text-sm font-semibold text-muted-foreground hover:bg-secondary active:bg-secondary hover:text-foreground active:text-foreground transition-colors"
           >
             <Calculator className="w-4 h-4" />
             {tFallback('workout.plateCalc', 'Plate calculator')}
@@ -2966,7 +2966,7 @@ export default function Workout() {
             type="button"
             onClick={() => setFormCoachOpen(true)}
             aria-label={tFallback('formcoach.title', 'Form Coach')}
-            className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg border border-primary/40 text-sm font-semibold text-primary dark:text-primary hover:bg-primary/10 transition-colors"
+            className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg border border-primary/40 text-sm font-semibold text-primary dark:text-primary hover:bg-primary/10 active:bg-primary/10 transition-colors"
           >
             <Camera className="w-4 h-4" />
             {tFallback('formcoach.title', 'Form Coach')}
@@ -3088,7 +3088,7 @@ export default function Workout() {
                         setExercises(next);
                         toast.success('Paired as superset with the previous exercise.');
                       }}
-                      className="p-1.5 rounded-md text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                      className="p-1.5 rounded-md text-muted-foreground hover:text-primary active:text-primary hover:bg-primary/10 active:bg-primary/10 transition-colors"
                       aria-label="Pair with previous exercise as superset"
                       title="Pair as superset"
                     >
@@ -3124,7 +3124,7 @@ export default function Workout() {
                         },
                       });
                     }}
-                    className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                    className="p-1.5 rounded-md text-muted-foreground hover:text-destructive active:text-destructive hover:bg-destructive/10 active:bg-destructive/10 transition-colors"
                     aria-label="Skip this exercise"
                     title="Skip exercise"
                   >

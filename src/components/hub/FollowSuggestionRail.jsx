@@ -96,7 +96,7 @@ function SuggestedFolloweeCard({ user, onFollow, following, followed }) {
           'w-full flex items-center justify-center gap-1 py-1.5 rounded-md text-micro font-bold transition-colors',
           followed
             ? 'bg-secondary text-muted-foreground'
-            : 'bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-60',
+            : 'bg-primary text-primary-foreground hover:bg-primary/90 active:bg-primary/90 disabled:opacity-60',
         ].join(' ')}
       >
         {following ? (
@@ -226,7 +226,7 @@ export default function FollowSuggestionRail() {
           {!isEmptyFeedTrap && (
             <button
               onClick={handleDismiss}
-              className="p-1 -me-1 rounded-md text-muted-foreground/70 hover:text-foreground hover:bg-foreground/5 transition-colors"
+              className="p-1 -me-1 rounded-md text-muted-foreground/70 hover:text-foreground active:text-foreground hover:bg-foreground/5 active:bg-foreground/5 transition-colors"
               aria-label={tFallback('followSuggest.dismiss', 'Hide suggestions for now')}
             >
               <X className="w-3.5 h-3.5" />

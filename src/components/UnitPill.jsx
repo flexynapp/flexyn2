@@ -36,7 +36,7 @@ export default function UnitPill({ className = '' }) {
     <button
       type="button"
       onClick={handleToggle}
-      className={`inline-flex items-center justify-center min-w-[28px] h-5 px-1.5 rounded-md bg-secondary text-micro font-bold uppercase tracking-wider text-muted-foreground hover:bg-secondary/80 hover:text-foreground transition-colors ${className}`}
+      className={`inline-flex items-center justify-center min-w-[28px] h-5 px-1.5 rounded-md bg-secondary text-micro font-bold uppercase tracking-wider text-muted-foreground hover:bg-secondary/80 active:bg-secondary/80 hover:text-foreground active:text-foreground transition-colors ${className}`}
       aria-label={`Switch weight unit to ${next}`}
       title={`Tap to switch to ${next}`}
     >

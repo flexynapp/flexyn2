@@ -99,7 +99,7 @@ function IntegrationCard({ item, connected, onConnect, onDisconnect, connecting 
             <Button
               size="sm"
               variant="outline"
-              className="text-destructive border-destructive/30 hover:bg-destructive/10"
+              className="text-destructive border-destructive/30 hover:bg-destructive/10 active:bg-destructive/10"
               onClick={() => onDisconnect(item.id)}
               disabled={isConnecting || unavailable}
             >

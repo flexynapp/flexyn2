@@ -123,7 +123,7 @@ export default function WorkoutMemoryCard({ logs = [] }) {
             // changing the visual layout. Bare p-1 was 22px — below the
             // accessible-touch threshold and easy to mis-tap when the
             // primary card CTA sits right next to it.
-            className="absolute top-2 end-2 p-2.5 -m-1.5 rounded-sm text-muted-foreground/70 hover:text-foreground hover:bg-foreground/5 active:bg-foreground/10 transition-colors"
+            className="absolute top-2 end-2 p-2.5 -m-1.5 rounded-sm text-muted-foreground/70 hover:text-foreground active:text-foreground hover:bg-foreground/5 active:bg-foreground/10 transition-colors"
             aria-label={tFallback('memory.dismiss', 'Dismiss for today')}
           >
             <X className="w-3.5 h-3.5" />

@@ -153,7 +153,7 @@ export default function DuelInviteCard({ payload, isMine }) {
               <button
                 onClick={handleDecline}
                 disabled={state !== 'idle'}
-                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border border-border text-xs font-semibold hover:bg-secondary transition-colors disabled:opacity-50"
+                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border border-border text-xs font-semibold hover:bg-secondary active:bg-secondary transition-colors disabled:opacity-50"
               >
                 {state === 'declining'
                   ? <Loader2 className="w-3 h-3 animate-spin" />
@@ -164,7 +164,7 @@ export default function DuelInviteCard({ payload, isMine }) {
               <button
                 onClick={handleAccept}
                 disabled={state !== 'idle'}
-                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-rose-500 text-white text-xs font-bold hover:bg-rose-600 transition-colors disabled:opacity-50"
+                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-rose-500 text-white text-xs font-bold hover:bg-rose-600 active:bg-rose-600 transition-colors disabled:opacity-50"
               >
                 {state === 'accepting'
                   ? <Loader2 className="w-3 h-3 animate-spin" />

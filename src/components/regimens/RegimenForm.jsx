@@ -375,7 +375,7 @@ export default function RegimenForm({ initial, onSubmit, onCancel, userProfile =
                       <button
                         type="button"
                         onClick={() => ungroupExercises(groupId)}
-                        className="text-xs text-muted-foreground hover:text-destructive transition-colors flex items-center gap-1"
+                        className="text-xs text-muted-foreground hover:text-destructive active:text-destructive transition-colors flex items-center gap-1"
                       >
                         <X className="w-3 h-3" /> Ungroup
                       </button>
@@ -490,14 +490,14 @@ export default function RegimenForm({ initial, onSubmit, onCancel, userProfile =
             <span className="text-xs font-medium text-muted-foreground me-1">{selectedIndices.size} selected</span>
             <Button
               type="button" size="sm"
-              className="gap-1.5 bg-violet-600 hover:bg-violet-700 text-white text-xs"
+              className="gap-1.5 bg-violet-600 hover:bg-violet-700 active:bg-violet-700 text-white text-xs"
               onClick={() => createGroup('superset')}
             >
               <Zap className="w-3.5 h-3.5" /> Superset
             </Button>
             <Button
               type="button" size="sm"
-              className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs"
+              className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-700 text-white text-xs"
               onClick={() => createGroup('circuit')}
             >
               <RotateCcw className="w-3.5 h-3.5" /> Circuit

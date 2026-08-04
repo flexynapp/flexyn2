@@ -131,7 +131,7 @@ export default function CardioTemplates({ onApply }) {
                 <div className="flex items-center">
                   {/* Tap to apply */}
                   <button
-                    className="flex-1 flex items-center gap-3 p-4 text-start hover:bg-secondary/40 transition-colors"
+                    className="flex-1 flex items-center gap-3 p-4 text-start hover:bg-secondary/40 active:bg-secondary/40 transition-colors"
                     onClick={() => onApply(tpl)}
                   >
                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${iconClass}`}>
@@ -151,7 +151,7 @@ export default function CardioTemplates({ onApply }) {
 
                   {/* Delete */}
                   <button
-                    className="px-3 py-4 text-muted-foreground hover:text-destructive transition-colors shrink-0"
+                    className="px-3 py-4 text-muted-foreground hover:text-destructive active:text-destructive transition-colors shrink-0"
                     onClick={() => handleDelete(tpl)}
                     disabled={deleting === tpl.id}
                   >

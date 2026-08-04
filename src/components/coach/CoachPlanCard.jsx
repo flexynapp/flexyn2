@@ -173,7 +173,7 @@ export default function CoachPlanCard({ plan, onSaveRegimen, onStartWorkout, onP
               'shrink-0 inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-micro font-semibold transition-colors',
               editing
                 ? 'bg-primary text-primary-foreground'
-                : 'bg-secondary/70 text-muted-foreground hover:text-foreground hover:bg-secondary',
+                : 'bg-secondary/70 text-muted-foreground hover:text-foreground active:text-foreground hover:bg-secondary active:bg-secondary',
             ].join(' ')}
           >
             {editing ? <Check className="w-3.5 h-3.5" /> : <Pencil className="w-3.5 h-3.5" />}
@@ -217,7 +217,7 @@ export default function CoachPlanCard({ plan, onSaveRegimen, onStartWorkout, onP
         <button
           type="button"
           onClick={() => navigate('/nutrition?plans=1')}
-          className="mt-2.5 w-full flex items-center gap-2.5 rounded-xl border border-amber-500/25 bg-amber-500/5 px-3 py-2.5 text-start transition-colors hover:bg-amber-500/10"
+          className="mt-2.5 w-full flex items-center gap-2.5 rounded-xl border border-amber-500/25 bg-amber-500/5 px-3 py-2.5 text-start transition-colors hover:bg-amber-500/10 active:bg-amber-500/10"
         >
           <span className="w-8 h-8 rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
             <Flame className="w-4 h-4" />
@@ -268,7 +268,7 @@ export default function CoachPlanCard({ plan, onSaveRegimen, onStartWorkout, onP
               'flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl font-semibold text-sm py-2.5 transition-colors',
               scheduledFor
                 ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
-                : 'bg-secondary text-foreground hover:bg-secondary/80 disabled:opacity-60',
+                : 'bg-secondary text-foreground hover:bg-secondary/80 active:bg-secondary/80 disabled:opacity-60',
             ].join(' ')}
           >
             {scheduling ? <Loader2 className="w-4 h-4 animate-spin" />
@@ -294,7 +294,7 @@ export default function CoachPlanCard({ plan, onSaveRegimen, onStartWorkout, onP
           'mt-2 w-full inline-flex items-center justify-center gap-1.5 rounded-xl text-caption font-semibold py-2 transition-colors',
           saved
             ? 'text-emerald-600 dark:text-emerald-400'
-            : 'text-muted-foreground hover:text-foreground disabled:opacity-60',
+            : 'text-muted-foreground hover:text-foreground active:text-foreground disabled:opacity-60',
         ].join(' ')}
       >
         {saving ? (
@@ -452,7 +452,7 @@ function SchedulePicker({ scheduling, onCancel, onConfirm }) {
         <button
           type="button"
           onClick={onCancel}
-          className="rounded-lg px-3 py-2 text-caption font-semibold text-muted-foreground hover:text-foreground transition-colors"
+          className="rounded-lg px-3 py-2 text-caption font-semibold text-muted-foreground hover:text-foreground active:text-foreground transition-colors"
         >
           Cancel
         </button>
@@ -481,7 +481,7 @@ function Chip({ active, disabled, onClick, label }) {
         'shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 text-micro font-semibold border transition-colors disabled:opacity-35',
         active
           ? 'bg-primary text-primary-foreground border-primary'
-          : 'bg-secondary/60 text-foreground border-border/50 hover:bg-secondary',
+          : 'bg-secondary/60 text-foreground border-border/50 hover:bg-secondary active:bg-secondary',
       ].join(' ')}
     >
       {label}
@@ -521,7 +521,7 @@ function ExerciseEditor({ exercises, onSwap, onRemove, onSets }) {
                 onClick={() => onSets(i, -1)}
                 disabled={sets <= MIN_SETS}
                 aria-label={`One less set of ${ex.name}`}
-                className="p-1.5 text-muted-foreground hover:text-foreground disabled:opacity-30 transition-colors"
+                className="p-1.5 text-muted-foreground hover:text-foreground active:text-foreground disabled:opacity-30 transition-colors"
               >
                 <Minus className="w-3.5 h-3.5" />
               </button>
@@ -533,7 +533,7 @@ function ExerciseEditor({ exercises, onSwap, onRemove, onSets }) {
                 onClick={() => onSets(i, 1)}
                 disabled={sets >= MAX_SETS}
                 aria-label={`One more set of ${ex.name}`}
-                className="p-1.5 text-muted-foreground hover:text-foreground disabled:opacity-30 transition-colors"
+                className="p-1.5 text-muted-foreground hover:text-foreground active:text-foreground disabled:opacity-30 transition-colors"
               >
                 <Plus className="w-3.5 h-3.5" />
               </button>
@@ -547,7 +547,7 @@ function ExerciseEditor({ exercises, onSwap, onRemove, onSets }) {
               // screen-reader user otherwise gets a column of identical buttons.
               aria-label={`Swap ${ex.name} for another ${ex.group || 'exercise'}`}
               title={canSwap ? `Swap for another ${ex.group || 'exercise'}` : 'No alternative available'}
-              className="shrink-0 p-1.5 rounded-lg bg-secondary/60 text-muted-foreground hover:text-foreground disabled:opacity-30 transition-colors"
+              className="shrink-0 p-1.5 rounded-lg bg-secondary/60 text-muted-foreground hover:text-foreground active:text-foreground disabled:opacity-30 transition-colors"
             >
               <RefreshCw className="w-3.5 h-3.5" />
             </button>
@@ -557,7 +557,7 @@ function ExerciseEditor({ exercises, onSwap, onRemove, onSets }) {
               onClick={() => onRemove(i)}
               disabled={exercises.length <= 1}
               aria-label={`Remove ${ex.name}`}
-              className="shrink-0 p-1.5 rounded-lg bg-secondary/60 text-muted-foreground hover:text-destructive disabled:opacity-30 transition-colors"
+              className="shrink-0 p-1.5 rounded-lg bg-secondary/60 text-muted-foreground hover:text-destructive active:text-destructive disabled:opacity-30 transition-colors"
             >
               <X className="w-3.5 h-3.5" />
             </button>

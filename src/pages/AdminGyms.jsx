@@ -124,7 +124,7 @@ export default function AdminGyms() {
       <button
         type="button"
         onClick={() => navigate(-1)}
-        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-3"
+        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground active:text-foreground mb-3"
       >
         <ArrowLeft className="w-4 h-4" /> Back
       </button>
@@ -233,7 +233,7 @@ export default function AdminGyms() {
                         size="sm"
                         onClick={() => handleStartReject(v)}
                         disabled={acting}
-                        className="flex-1 text-destructive border-destructive/30 hover:bg-destructive/10"
+                        className="flex-1 text-destructive border-destructive/30 hover:bg-destructive/10 active:bg-destructive/10"
                       >
                         <X className="w-4 h-4 me-1" />
                         Reject

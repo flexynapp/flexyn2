@@ -137,7 +137,7 @@ export default function MacroNutrientBox({ entries = [], userProfile = {} }) {
               type="button"
               onClick={() => setNetCarbsInfo((v) => !v)}
               aria-label="What are net carbs?"
-              className="w-4 h-4 rounded-full border border-border/60 bg-background/80 flex items-center justify-center text-muted-foreground/60 hover:text-foreground hover:border-border transition-colors shrink-0"
+              className="w-4 h-4 rounded-full border border-border/60 bg-background/80 flex items-center justify-center text-muted-foreground/60 hover:text-foreground active:text-foreground hover:border-border transition-colors shrink-0"
             >
               <span className="text-micro font-bold leading-none italic">i</span>
             </button>

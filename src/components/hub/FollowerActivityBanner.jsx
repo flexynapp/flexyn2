@@ -172,7 +172,7 @@ function BannerCard({ post, onDismiss }) {
       <button
         type="button"
         onClick={onDismiss}
-        className="shrink-0 p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+        className="shrink-0 p-1 rounded-md text-muted-foreground hover:text-foreground active:text-foreground hover:bg-secondary active:bg-secondary transition-colors"
         aria-label="Dismiss"
       >
         <X className="w-3 h-3" />

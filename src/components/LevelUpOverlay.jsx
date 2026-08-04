@@ -102,7 +102,7 @@ export default function LevelUpOverlay({ event, onDismiss }) {
             <button
               aria-label={t('levelUp.skip')}
               onClick={onDismiss}
-              className="absolute top-3 end-3 w-8 h-8 rounded-full bg-black/20 hover:bg-black/35 flex items-center justify-center transition-colors text-white"
+              className="absolute top-3 end-3 w-8 h-8 rounded-full bg-black/20 hover:bg-black/35 active:bg-black/35 flex items-center justify-center transition-colors text-white"
             >
               <X className="w-4 h-4" />
             </button>
@@ -183,7 +183,7 @@ export default function LevelUpOverlay({ event, onDismiss }) {
               onClick={onDismiss}
               whileHover={reducedMotion ? {} : { scale: 1.02 }}
               whileTap={reducedMotion ? {} : { scale: 0.97 }}
-              className="w-full py-3 rounded-full bg-white/95 hover:bg-white text-foreground font-heading font-bold text-base transition-colors shadow-lg"
+              className="w-full py-3 rounded-full bg-white/95 hover:bg-white active:bg-white text-foreground font-heading font-bold text-base transition-colors shadow-lg"
             >
               {t('levelUp.continue')}
             </motion.button>

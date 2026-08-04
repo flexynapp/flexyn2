@@ -564,7 +564,7 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
         <button
           onClick={() => setTab('dms')}
           className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-semibold transition-colors ${
-            tab === 'dms' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+            tab === 'dms' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground active:text-foreground'
           }`}
         >
           <MessageCircle className="w-4 h-4" />
@@ -573,7 +573,7 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
         <button
           onClick={() => setTab('crews')}
           className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-semibold transition-colors ${
-            tab === 'crews' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+            tab === 'crews' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground active:text-foreground'
           }`}
         >
           <Shield className="w-4 h-4" />
@@ -597,7 +597,7 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
               <button
                 onClick={() => setDmView('inbox')}
                 className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full font-semibold transition-colors ${
-                  dmView === 'inbox' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-secondary'
+                  dmView === 'inbox' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-secondary active:bg-secondary'
                 }`}
               >
                 <Inbox className="w-3.5 h-3.5" /> {tFallback('hub.messages.view.inbox', 'Inbox')}
@@ -612,8 +612,8 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                   dmView === 'requests'
                     ? 'bg-primary text-primary-foreground'
                     : requestConvs.length > 0
-                    ? 'text-primary hover:bg-secondary'
-                    : 'text-muted-foreground hover:bg-secondary'
+                    ? 'text-primary hover:bg-secondary active:bg-secondary'
+                    : 'text-muted-foreground hover:bg-secondary active:bg-secondary'
                 }`}
               >
                 <Mail className="w-3.5 h-3.5" /> {tFallback('hub.messages.view.requests', 'Requests')}
@@ -634,7 +634,7 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                 <button
                   onClick={() => setDmView('archived')}
                   className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full font-semibold transition-colors ${
-                    dmView === 'archived' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-secondary'
+                    dmView === 'archived' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-secondary active:bg-secondary'
                   }`}
                 >
                   <Archive className="w-3.5 h-3.5" /> {tFallback('hub.messages.view.archived', 'Archived')}
@@ -648,7 +648,7 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                   requestAnimationFrame(() => searchInputRef.current?.focus());
                 }}
                 className={`ml-auto flex items-center gap-1.5 px-2.5 py-1 rounded-full font-semibold transition-colors ${
-                  searchOpen ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-secondary'
+                  searchOpen ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-secondary active:bg-secondary'
                 }`}
                 aria-label={tFallback('hub.messages.search.toggle', 'Search conversations')}
                 aria-expanded={searchOpen}
@@ -657,7 +657,7 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
               </button>
               <button
                 onClick={() => setNewGroupOpen(true)}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full font-semibold text-primary hover:bg-secondary"
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full font-semibold text-primary hover:bg-secondary active:bg-secondary"
                 aria-label="Start a new group conversation"
               >
                 <UserPlus className="w-3.5 h-3.5" /> New group
@@ -684,7 +684,7 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
               />
               <button
                 onClick={closeSearch}
-                className="absolute end-2 top-1/2 -translate-y-1/2 p-1 rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                className="absolute end-2 top-1/2 -translate-y-1/2 p-1 rounded-full text-muted-foreground hover:bg-secondary active:bg-secondary hover:text-foreground active:text-foreground transition-colors"
                 aria-label={tFallback('hub.messages.search.close', 'Close search')}
               >
                 <X className="w-4 h-4" />
@@ -965,7 +965,7 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                           <button
                             disabled={requestBusyId === c.id || !otherEmail}
                             onClick={(e) => { e.stopPropagation(); handleBlockRequest(c.id, otherEmail); }}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-destructive hover:bg-destructive/10 text-xs font-semibold disabled:opacity-50 transition-colors"
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-destructive hover:bg-destructive/10 active:bg-destructive/10 text-xs font-semibold disabled:opacity-50 transition-colors"
                           >
                             <Ban className="w-3.5 h-3.5" />
                             {tFallback('hub.messages.request.block', 'Block')}
@@ -1028,7 +1028,7 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                     }`}>
                       <button
                         onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === c.id ? null : c.id); }}
-                        className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+                        className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-secondary active:bg-secondary text-muted-foreground hover:text-foreground active:text-foreground transition-colors"
                       >
                         <MoreHorizontal className="w-4 h-4" />
                       </button>
@@ -1045,7 +1045,7 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                           >
                             <button
                               onClick={(e) => { e.stopPropagation(); togglePinConv(c.id); }}
-                              className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-secondary/60 transition-colors text-start"
+                              className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-secondary/60 active:bg-secondary/60 transition-colors text-start"
                             >
                               <Pin className="w-4 h-4 text-muted-foreground" />
                               {pinnedConvIds.has(c.id)
@@ -1054,7 +1054,7 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                             </button>
                             <button
                               onClick={(e) => { e.stopPropagation(); toggleMuteConv(c.id); }}
-                              className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-secondary/60 transition-colors text-start"
+                              className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-secondary/60 active:bg-secondary/60 transition-colors text-start"
                             >
                               <BellOff className="w-4 h-4 text-muted-foreground" />
                               {mutedConvIds.has(c.id)
@@ -1077,7 +1077,7 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                                 setArchiveVersion(v => v + 1);
                                 queryClient.invalidateQueries({ queryKey: ['hubConversations', user?.email] });
                               }}
-                              className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-secondary/60 transition-colors text-start"
+                              className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-secondary/60 active:bg-secondary/60 transition-colors text-start"
                             >
                               {isArchived(c.id, user?.id)
                                 ? <><ArchiveRestore className="w-4 h-4 text-muted-foreground" /> Unarchive</>
@@ -1169,7 +1169,7 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                   }`}>
                     <button
                       onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === crew.id ? null : crew.id); }}
-                      className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+                      className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-secondary active:bg-secondary text-muted-foreground hover:text-foreground active:text-foreground transition-colors"
                     >
                       <MoreHorizontal className="w-4 h-4" />
                     </button>
@@ -1186,14 +1186,14 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                         >
                           <button
                             onClick={(e) => { e.stopPropagation(); togglePinCrew(crew.id); }}
-                            className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-secondary/60 transition-colors text-start"
+                            className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-secondary/60 active:bg-secondary/60 transition-colors text-start"
                           >
                             <Pin className="w-4 h-4 text-muted-foreground" />
                             {pinnedCrewIds.has(crew.id) ? 'Unpin Chat' : 'Pin Chat'}
                           </button>
                           <button
                             onClick={(e) => { e.stopPropagation(); toggleMuteCrew(crew.id); }}
-                            className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-secondary/60 transition-colors text-start"
+                            className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-secondary/60 active:bg-secondary/60 transition-colors text-start"
                           >
                             <BellOff className="w-4 h-4 text-muted-foreground" />
                             {mutedCrewIds.has(crew.id) ? 'Unmute Crew' : 'Mute Crew'}
@@ -1201,7 +1201,7 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                           <div className="border-t border-border/50 mx-2" />
                           <button
                             onClick={(e) => { e.stopPropagation(); handleLeaveCrew(crew); }}
-                            className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-destructive/10 text-destructive transition-colors text-start"
+                            className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-destructive/10 active:bg-destructive/10 text-destructive transition-colors text-start"
                           >
                             <LogOut className="w-4 h-4" />
                             Leave Chat

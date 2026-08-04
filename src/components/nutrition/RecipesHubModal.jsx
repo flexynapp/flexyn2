@@ -271,7 +271,7 @@ export default function RecipesHubModal({ open, onClose, userProfile }) {
                                 aria-label={recipe.is_public ? 'Unpublish' : 'Publish to Discover'}
                                 title={recipe.is_public ? 'Remove from Discover' : 'Share to Discover'}
                                 className={`w-8 h-8 rounded-md flex items-center justify-center ${
-                                  recipe.is_public ? 'text-emerald-500 hover:bg-emerald-500/10' : 'text-muted-foreground hover:bg-secondary'
+                                  recipe.is_public ? 'text-emerald-500 hover:bg-emerald-500/10 active:bg-emerald-500/10' : 'text-muted-foreground hover:bg-secondary active:bg-secondary'
                                 }`}
                               >
                                 {busyId === recipe.id ? <Loader2 className="w-4 h-4 animate-spin" /> : (recipe.is_public ? <Globe className="w-4 h-4" /> : <Lock className="w-4 h-4" />)}
@@ -280,7 +280,7 @@ export default function RecipesHubModal({ open, onClose, userProfile }) {
                                 onClick={() => handleDelete(recipe)}
                                 disabled={busyId === recipe.id}
                                 aria-label="Remove recipe"
-                                className="w-8 h-8 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 flex items-center justify-center"
+                                className="w-8 h-8 rounded-md text-muted-foreground hover:text-destructive active:text-destructive hover:bg-destructive/10 active:bg-destructive/10 flex items-center justify-center"
                               >
                                 <Trash2 className="w-4 h-4" />
                               </button>
@@ -322,7 +322,7 @@ export default function RecipesHubModal({ open, onClose, userProfile }) {
                                 key={recipe.id}
                                 onClick={() => handlePost(recipe)}
                                 disabled={busyId === recipe.id}
-                                className="w-full flex items-center gap-2.5 p-1.5 rounded-md hover:bg-secondary/50 text-start"
+                                className="w-full flex items-center gap-2.5 p-1.5 rounded-md hover:bg-secondary/50 active:bg-secondary/50 text-start"
                               >
                                 <RecipeThumb recipe={recipe} className="w-9 h-9" />
                                 <span className="flex-1 min-w-0">
@@ -371,14 +371,14 @@ export default function RecipesHubModal({ open, onClose, userProfile }) {
                                   disabled={busyId === recipe.id}
                                   aria-label="Save to My Recipes"
                                   title="Save to My Recipes"
-                                  className="w-8 h-8 rounded-md text-primary hover:bg-primary/10 flex items-center justify-center"
+                                  className="w-8 h-8 rounded-md text-primary hover:bg-primary/10 active:bg-primary/10 flex items-center justify-center"
                                 >
                                   {busyId === recipe.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
                                 </button>
                                 <button
                                   onClick={() => setExpanded(isOpen ? null : recipe.id)}
                                   aria-label="Details"
-                                  className="w-8 h-8 rounded-md text-muted-foreground hover:bg-secondary flex items-center justify-center"
+                                  className="w-8 h-8 rounded-md text-muted-foreground hover:bg-secondary active:bg-secondary flex items-center justify-center"
                                 >
                                   <ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
                                 </button>

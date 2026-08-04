@@ -210,7 +210,7 @@ function QRModal({ url, username, onClose }) {
       >
         <div className="flex items-center justify-between w-full">
           <h3 className="font-heading font-bold text-base">@{username}'s QR Code</h3>
-          <button type="button" onClick={onClose} className="p-1 rounded text-muted-foreground hover:bg-secondary">
+          <button type="button" onClick={onClose} className="p-1 rounded text-muted-foreground hover:bg-secondary active:bg-secondary">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -226,7 +226,7 @@ function QRModal({ url, username, onClose }) {
         <div className="flex gap-2 w-full">
           <button
             onClick={handleCopy}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-border text-sm font-semibold hover:bg-secondary transition-colors"
+            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-border text-sm font-semibold hover:bg-secondary active:bg-secondary transition-colors"
           >
             <Copy className="w-4 h-4" />
             {copied ? 'Copied!' : 'Copy link'}
@@ -1355,7 +1355,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
               <button
                 type="button"
                 onClick={() => setNoteEditorOpen(true)}
-                className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold border border-dashed border-border text-muted-foreground hover:text-primary hover:border-primary/40 transition-colors"
+                className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold border border-dashed border-border text-muted-foreground hover:text-primary active:text-primary hover:border-primary/40 transition-colors"
               >
                 + {tFallback('hub.profile.addNote', 'note')}
               </button>
@@ -1448,7 +1448,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
             aria-label={noteLiked ? 'Unlike note' : 'Like note'}
           >
             <Heart
-              className={`w-4 h-4 transition-colors ${noteLiked ? 'fill-destructive text-destructive' : 'text-muted-foreground hover:text-destructive'}`}
+              className={`w-4 h-4 transition-colors ${noteLiked ? 'fill-destructive text-destructive' : 'text-muted-foreground hover:text-destructive active:text-destructive'}`}
             />
             {activeNote.like_count > 0 && (
               <span className="tabular-nums">{activeNote.like_count}</span>
@@ -1527,7 +1527,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
                 <button
                   type="button"
                   onClick={() => setFlagPickerOpen(true)}
-                  className="flex-1 text-start text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  className="flex-1 text-start text-sm text-muted-foreground hover:text-foreground active:text-foreground transition-colors"
                 >
                   {countryFlag ? 'Change flag' : 'Pick country flag →'}
                 </button>
@@ -1547,7 +1547,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
                           onClick={() => handleSetSignature(tt.value)}
                           aria-pressed={active}
                           className={`w-9 h-9 rounded-lg text-lg flex items-center justify-center transition-colors ${
-                            active ? 'bg-primary/20 ring-2 ring-primary' : 'bg-secondary/60 hover:bg-secondary'
+                            active ? 'bg-primary/20 ring-2 ring-primary' : 'bg-secondary/60 hover:bg-secondary active:bg-secondary'
                           }`}
                         >
                           {tt.value}
@@ -1562,7 +1562,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
                 <button
                   type="button"
                   onClick={() => setEditProfileOpen(false)}
-                  className="flex-1 py-1.5 text-xs rounded-lg border border-border text-muted-foreground hover:bg-secondary transition-colors"
+                  className="flex-1 py-1.5 text-xs rounded-lg border border-border text-muted-foreground hover:bg-secondary active:bg-secondary transition-colors"
                 >
                   Cancel
                 </button>
@@ -1708,12 +1708,12 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
             <div className="flex items-center rounded-lg border border-border overflow-hidden text-xs font-bold">
               <button type="button"
                 onClick={() => setProfilePostSort('newest')}
-                className={`px-3 py-1.5 transition-colors ${profilePostSort === 'newest' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
+                className={`px-3 py-1.5 transition-colors ${profilePostSort === 'newest' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground active:text-foreground'}`}>
                 New
               </button>
               <button type="button"
                 onClick={() => setProfilePostSort('popular')}
-                className={`px-3 py-1.5 border-s border-border transition-colors ${profilePostSort === 'popular' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
+                className={`px-3 py-1.5 border-s border-border transition-colors ${profilePostSort === 'popular' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground active:text-foreground'}`}>
                 Top
               </button>
             </div>
@@ -1881,7 +1881,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
                     type="button"
                     whileTap={{ scale: 0.88 }}
                     onClick={() => handleTrophySlotSet(trophyPickerSlot, emoji)}
-                    className="aspect-square flex items-center justify-center text-xl rounded-lg hover:bg-secondary transition-colors"
+                    className="aspect-square flex items-center justify-center text-xl rounded-lg hover:bg-secondary active:bg-secondary transition-colors"
                   >
                     {emoji}
                   </motion.button>
@@ -1936,7 +1936,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
                             toast.error('Could not save flag');
                           }
                         }}
-                        className="aspect-square flex flex-col items-center justify-center gap-0.5 rounded hover:bg-secondary transition-colors p-1"
+                        className="aspect-square flex flex-col items-center justify-center gap-0.5 rounded hover:bg-secondary active:bg-secondary transition-colors p-1"
                         title={name}
                       >
                         <img loading="lazy" src={imgSrc} alt={name} className="w-6 h-6 object-contain" />
@@ -2016,7 +2016,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
               <div className="flex gap-3">
                 <button
                   onClick={() => setUnfollowConfirmOpen(false)}
-                  className="flex-1 py-2 rounded-lg border border-border text-sm font-medium hover:bg-secondary transition-colors"
+                  className="flex-1 py-2 rounded-lg border border-border text-sm font-medium hover:bg-secondary active:bg-secondary transition-colors"
                 >
                   {t('hub.profile.unfollowConfirmCancel')}
                 </button>
@@ -2127,7 +2127,7 @@ function FollowingModal({ type, ids, onClose, onSelectUser }) {
           <h2 className="font-heading font-bold text-lg">
             {type === 'followers' ? t('hub.profile.followers') : t('hub.profile.following')}
           </h2>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-secondary transition-colors">
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-secondary active:bg-secondary transition-colors">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -2154,7 +2154,7 @@ function FollowingModal({ type, ids, onClose, onSelectUser }) {
                       username: u.username || null,
                     });
                   }}
-                  className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/60 transition-colors text-start"
+                  className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/60 active:bg-secondary/60 transition-colors text-start"
                 >
                   <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0 overflow-hidden">
                     {u.avatar_url ? (

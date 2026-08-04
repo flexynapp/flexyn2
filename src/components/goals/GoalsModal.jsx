@@ -250,7 +250,7 @@ export default function GoalsModal({ open, onClose, goals = [], logs = [], userP
                 className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
                   activeTab === 'active'
                     ? 'border-primary text-foreground'
-                    : 'border-transparent text-muted-foreground hover:text-foreground'
+                    : 'border-transparent text-muted-foreground hover:text-foreground active:text-foreground'
                 }`}
               >
                 {t('goals.active')}
@@ -261,7 +261,7 @@ export default function GoalsModal({ open, onClose, goals = [], logs = [], userP
                   className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
                     activeTab === 'completed'
                       ? 'border-primary text-foreground'
-                      : 'border-transparent text-muted-foreground hover:text-foreground'
+                      : 'border-transparent text-muted-foreground hover:text-foreground active:text-foreground'
                   }`}
                 >
                   {t('goals.completed')}

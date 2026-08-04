@@ -184,7 +184,7 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
             <Target className="w-4 h-4 text-primary" />
             <h2 className="font-heading font-black text-base">{assignment ? typeLabel : 'Rivals'}</h2>
           </div>
-          <button onClick={onClose} aria-label="Close" className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-secondary transition-colors">
+          <button onClick={onClose} aria-label="Close" className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-secondary active:bg-secondary transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -251,7 +251,7 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
                   </div>
                 )}
                 <button onClick={onReroll} disabled={rerolling}
-                  className="mt-7 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 disabled:opacity-50 transition-colors">
+                  className="mt-7 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 active:bg-primary/90 disabled:opacity-50 transition-colors">
                   {rerolling ? <Loader2 className="w-4 h-4 animate-spin" /> : <Target className="w-4 h-4" />}
                   {rerolling ? 'Finding someone…' : 'Find a new rival'}
                 </button>
@@ -318,7 +318,7 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
                   <button
                     onClick={() => confirmMut.mutate()}
                     disabled={confirmMut.isPending}
-                    className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-primary text-white font-black text-sm hover:bg-primary active:scale-[0.98] transition-all disabled:opacity-60"
+                    className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-primary text-white font-black text-sm hover:bg-primary active:bg-primary active:scale-[0.98] transition-all disabled:opacity-60"
                   >
                     {confirmMut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
                     Accept challenge
@@ -330,11 +330,11 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
                   </div>
                 )}
                 <div className="flex gap-2 mt-2">
-                  <button onClick={onDecline} disabled={declining || rerolling} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold border border-border text-muted-foreground hover:text-foreground hover:bg-secondary/60 disabled:opacity-50 transition-colors">
+                  <button onClick={onDecline} disabled={declining || rerolling} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold border border-border text-muted-foreground hover:text-foreground active:text-foreground hover:bg-secondary/60 active:bg-secondary/60 disabled:opacity-50 transition-colors">
                     {declining ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <X className="w-3.5 h-3.5" />}
                     Decline
                   </button>
-                  <button onClick={onReroll} disabled={rerolling || declining} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold border border-border text-muted-foreground hover:text-foreground hover:bg-secondary/60 disabled:opacity-50 transition-colors">
+                  <button onClick={onReroll} disabled={rerolling || declining} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold border border-border text-muted-foreground hover:text-foreground active:text-foreground hover:bg-secondary/60 active:bg-secondary/60 disabled:opacity-50 transition-colors">
                     {rerolling ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
                     Reroll
                   </button>
@@ -410,7 +410,7 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
 
                 {/* Once live (both accepted) the match is locked — no
                     decline or reroll, only the duel challenge. */}
-                <button onClick={onChallenge} className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-primary text-white font-black text-sm hover:bg-primary active:scale-[0.98] transition-all">
+                <button onClick={onChallenge} className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-primary text-white font-black text-sm hover:bg-primary active:bg-primary active:scale-[0.98] transition-all">
                   <Swords className="w-4 h-4" /> Challenge @{rival?.username || 'rival'} to a duel
                 </button>
               </motion.div>

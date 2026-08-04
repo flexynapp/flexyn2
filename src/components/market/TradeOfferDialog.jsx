@@ -131,7 +131,7 @@ export default function TradeOfferDialog({ open, listing, userItems, user, onClo
           <button
             onClick={onClose}
             aria-label="Close"
-            className="text-muted-foreground hover:text-foreground p-1 rounded-lg hover:bg-secondary"
+            className="text-muted-foreground hover:text-foreground active:text-foreground p-1 rounded-lg hover:bg-secondary active:bg-secondary"
           >
             <X className="w-4 h-4" />
           </button>

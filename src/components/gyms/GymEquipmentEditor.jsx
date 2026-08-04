@@ -255,7 +255,7 @@ export default function GymEquipmentEditor({ gymId, ownerId }) {
                                   disabled:opacity-50 ${
                         isOn
                           ? 'bg-primary/15 text-primary border-primary/30'
-                          : 'bg-secondary/60 text-muted-foreground border-border hover:bg-secondary'
+                          : 'bg-secondary/60 text-muted-foreground border-border hover:bg-secondary active:bg-secondary'
                       }`}
                     >
                       {isBusy

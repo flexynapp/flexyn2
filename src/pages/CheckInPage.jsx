@@ -76,7 +76,7 @@ export default function CheckInPage() {
             >
               <Dumbbell className="w-4 h-4" /> Start your workout
             </button>
-            <button type="button" onClick={() => navigate('/dashboard')} className="text-sm text-muted-foreground hover:text-foreground">
+            <button type="button" onClick={() => navigate('/dashboard')} className="text-sm text-muted-foreground hover:text-foreground active:text-foreground">
               Go to dashboard
             </button>
           </>
@@ -105,7 +105,7 @@ export default function CheckInPage() {
             </div>
             <p className="font-heading font-bold text-lg">Couldn't check in</p>
             <p className="text-sm text-muted-foreground">That code didn't match an active gym. Double-check the signage code.</p>
-            <button type="button" onClick={() => navigate('/dashboard')} className="mt-2 w-full py-3 rounded-xl bg-secondary font-semibold hover:bg-secondary/70 transition-colors">
+            <button type="button" onClick={() => navigate('/dashboard')} className="mt-2 w-full py-3 rounded-xl bg-secondary font-semibold hover:bg-secondary/70 active:bg-secondary/70 transition-colors">
               Go to dashboard
             </button>
           </>

@@ -217,7 +217,7 @@ export default function ExerciseFormModal({ exerciseName, open, onClose }) {
                       {currentIndex > 0 && (
                         <button
                           onClick={() => setCurrentIndex(idx => idx - 1)}
-                          className="absolute start-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white rounded-full p-1 transition-colors"
+                          className="absolute start-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 active:bg-black/60 text-white rounded-full p-1 transition-colors"
                         >
                           <ChevronLeft className="w-4 h-4" />
                         </button>
@@ -225,7 +225,7 @@ export default function ExerciseFormModal({ exerciseName, open, onClose }) {
                       {currentIndex < imageUrls.length - 1 && (
                         <button
                           onClick={() => setCurrentIndex(idx => idx + 1)}
-                          className="absolute end-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white rounded-full p-1 transition-colors"
+                          className="absolute end-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 active:bg-black/60 text-white rounded-full p-1 transition-colors"
                         >
                           <ChevronRight className="w-4 h-4" />
                         </button>

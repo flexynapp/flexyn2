@@ -99,7 +99,7 @@ export default function GymSignageCard({ open, onClose, gym }) {
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="w-7 h-7 rounded-full bg-secondary text-muted-foreground hover:text-foreground flex items-center justify-center"
+            className="w-7 h-7 rounded-full bg-secondary text-muted-foreground hover:text-foreground active:text-foreground flex items-center justify-center"
           >
             <X className="w-3.5 h-3.5" />
           </button>

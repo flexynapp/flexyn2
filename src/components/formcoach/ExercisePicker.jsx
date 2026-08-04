@@ -20,7 +20,7 @@ export default function ExercisePicker({ value, onChange, onDisplayChange }) {
             className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all select-none-ui
               ${value === ex
                 ? 'bg-primary text-primary-foreground border-primary'
-                : 'bg-card border-border text-foreground hover:border-primary/50 hover:bg-secondary'
+                : 'bg-card border-border text-foreground hover:border-primary/50 hover:bg-secondary active:bg-secondary'
               }`}
           >
             {ex}

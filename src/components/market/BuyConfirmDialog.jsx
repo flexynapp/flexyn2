@@ -32,7 +32,7 @@ export default function BuyConfirmDialog({ open, listing, onClose, onConfirm, bu
           <button
             onClick={onClose}
             disabled={busy}
-            className="flex-1 py-2.5 rounded-xl bg-secondary text-secondary-foreground font-semibold text-sm hover:bg-secondary/80 transition-colors"
+            className="flex-1 py-2.5 rounded-xl bg-secondary text-secondary-foreground font-semibold text-sm hover:bg-secondary/80 active:bg-secondary/80 transition-colors"
           >
             Cancel
           </button>

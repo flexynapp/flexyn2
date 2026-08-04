@@ -155,7 +155,7 @@ export default function ProgressPhotosTab() {
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
               compareMode
                 ? 'bg-primary text-primary-foreground'
-                : 'bg-secondary text-muted-foreground hover:text-foreground'
+                : 'bg-secondary text-muted-foreground hover:text-foreground active:text-foreground'
             }`}
           >
             <ArrowLeftRight className="w-3.5 h-3.5" />
@@ -261,7 +261,7 @@ export default function ProgressPhotosTab() {
                         whileHover={{ scale: 1.1 }}
                         whileTap={{ scale: 0.9 }}
                         onClick={() => setConfirmId(photo.path)}
-                        className="p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                        className="p-2 rounded-lg text-muted-foreground hover:text-destructive active:text-destructive hover:bg-destructive/10 active:bg-destructive/10 transition-colors"
                       >
                         <Trash2 className="w-4 h-4" />
                       </motion.button>
@@ -307,7 +307,7 @@ export default function ProgressPhotosTab() {
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.9 }}
                   onClick={() => setLightbox(null)}
-                  className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
+                  className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 active:bg-white/20 flex items-center justify-center transition-colors"
                 >
                   <X className="w-5 h-5 text-white" />
                 </motion.button>

@@ -324,7 +324,7 @@ export default function NearbyGymPicker({
           type="button"
           onClick={widen}
           disabled={disabled}
-          className="w-full mt-3 py-2 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+          className="w-full mt-3 py-2 text-xs text-muted-foreground hover:text-foreground active:text-foreground transition-colors disabled:opacity-50"
         >
           Don't see your gym? Search a wider area
         </button>

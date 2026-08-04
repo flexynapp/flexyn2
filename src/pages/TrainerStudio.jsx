@@ -127,7 +127,7 @@ export default function TrainerStudio() {
       <button
         type="button"
         onClick={() => navigate('/market')}
-        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-3"
+        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground active:text-foreground mb-3"
       >
         <ArrowLeft className="w-4 h-4" /> Market
       </button>
@@ -233,7 +233,7 @@ export default function TrainerStudio() {
                         <button
                           type="button"
                           onClick={() => handleTogglePublish(listing)}
-                          className="w-8 h-8 rounded-full hover:bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground"
+                          className="w-8 h-8 rounded-full hover:bg-secondary active:bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground active:text-foreground"
                           aria-label={listing.is_published ? 'Unpublish' : 'Publish'}
                           title={listing.is_published ? 'Unpublish' : 'Publish to market'}
                         >
@@ -242,7 +242,7 @@ export default function TrainerStudio() {
                         <button
                           type="button"
                           onClick={() => { setEditingListing(listing); setFormOpen(true); }}
-                          className="w-8 h-8 rounded-full hover:bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground"
+                          className="w-8 h-8 rounded-full hover:bg-secondary active:bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground active:text-foreground"
                           aria-label="Edit"
                         >
                           <Pencil className="w-4 h-4" />
@@ -250,7 +250,7 @@ export default function TrainerStudio() {
                         <button
                           type="button"
                           onClick={() => handleDelete(listing)}
-                          className="w-8 h-8 rounded-full hover:bg-destructive/10 flex items-center justify-center text-muted-foreground hover:text-destructive"
+                          className="w-8 h-8 rounded-full hover:bg-destructive/10 active:bg-destructive/10 flex items-center justify-center text-muted-foreground hover:text-destructive active:text-destructive"
                           aria-label="Delete"
                         >
                           <Trash2 className="w-4 h-4" />

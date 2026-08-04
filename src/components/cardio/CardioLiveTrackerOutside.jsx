@@ -865,7 +865,7 @@ export default function CardioLiveTrackerOutside({ mode, onCancel, onSaved, user
       <Card className="p-5 relative">
         {/* Discard button */}
         <button
-          className="absolute top-3 end-3 p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+          className="absolute top-3 end-3 p-1.5 rounded-md text-muted-foreground hover:text-destructive active:text-destructive hover:bg-destructive/10 active:bg-destructive/10 transition-colors"
           onClick={() => setConfirmDiscardOpen(true)}
         >
           <X className="w-4 h-4" />
@@ -933,7 +933,7 @@ export default function CardioLiveTrackerOutside({ mode, onCancel, onSaved, user
           <AlertDialogFooter>
             <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 active:bg-destructive/90"
               onClick={discardAndClose}
             >
               {t('cardio.live.discard')}

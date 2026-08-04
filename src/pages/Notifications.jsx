@@ -211,7 +211,7 @@ export default function Notifications() {
               'shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors',
               tab === t.id
                 ? 'bg-primary text-primary-foreground'
-                : 'bg-secondary text-foreground hover:bg-secondary/70',
+                : 'bg-secondary text-foreground hover:bg-secondary/70 active:bg-secondary/70',
             ].join(' ')}
           >
             {t.label}
@@ -220,7 +220,7 @@ export default function Notifications() {
         {rows.length > 0 && (
           <button
             onClick={handleClearAll}
-            className="ml-auto shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold bg-secondary text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors inline-flex items-center gap-1.5"
+            className="ml-auto shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold bg-secondary text-muted-foreground hover:text-destructive active:text-destructive hover:bg-destructive/10 active:bg-destructive/10 transition-colors inline-flex items-center gap-1.5"
             aria-label={tFallback('notifications.clearAll', 'Clear all')}
           >
             <Trash2 className="w-3.5 h-3.5" />
@@ -257,8 +257,8 @@ export default function Notifications() {
             className={[
               'w-full text-start flex items-start gap-3 p-3 rounded-lg border transition-colors',
               n.is_read
-                ? 'border-border bg-card hover:bg-secondary/40'
-                : 'border-primary/30 bg-primary/5 hover:bg-primary/8',
+                ? 'border-border bg-card hover:bg-secondary/40 active:bg-secondary/40'
+                : 'border-primary/30 bg-primary/5 hover:bg-primary/8 active:bg-primary/8',
             ].join(' ')}
           >
             <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center text-base shrink-0">
@@ -283,7 +283,7 @@ export default function Notifications() {
       <div className="mt-6 text-center">
         <button
           onClick={() => navigate(-1)}
-          className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground active:text-foreground transition-colors"
         >
           <ChevronLeft className="w-3.5 h-3.5" />
           {tFallback('common.back', 'Back')}

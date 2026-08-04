@@ -143,7 +143,7 @@ export default function CorporatePortal() {
 
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="max-w-2xl mx-auto p-4 pb-24">
-      <button type="button" onClick={() => navigate('/dashboard')} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-3">
+      <button type="button" onClick={() => navigate('/dashboard')} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground active:text-foreground mb-3">
         <ArrowLeft className="w-4 h-4" /> Dashboard
       </button>
 
@@ -198,7 +198,7 @@ export default function CorporatePortal() {
               {orgs.map(o => (
                 <button key={o.id} onClick={() => setSelectedId(o.id)}
                   className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${
-                    activeOrg?.id === o.id ? 'bg-primary text-primary-foreground' : 'bg-secondary/60 text-muted-foreground hover:text-foreground'
+                    activeOrg?.id === o.id ? 'bg-primary text-primary-foreground' : 'bg-secondary/60 text-muted-foreground hover:text-foreground active:text-foreground'
                   }`}>
                   {o.name}
                 </button>
@@ -291,12 +291,12 @@ function OrgHub({ org, isAdmin, onLeave, onNewChallenge }) {
               <Users className="w-3 h-3" /> {memberCount} {memberCount === 1 ? 'member' : 'members'}
             </p>
           </div>
-          <Button variant="outline" size="sm" onClick={onLeave} className="gap-1.5 text-muted-foreground hover:text-destructive shrink-0">
+          <Button variant="outline" size="sm" onClick={onLeave} className="gap-1.5 text-muted-foreground hover:text-destructive active:text-destructive shrink-0">
             <LogOut className="w-3.5 h-3.5" /> Leave
           </Button>
         </div>
         {isAdmin && (
-          <button onClick={copyCode} className="mt-3 w-full rounded-xl bg-primary/8 border border-primary/20 p-2.5 flex items-center justify-between hover:bg-primary/12 transition-colors">
+          <button onClick={copyCode} className="mt-3 w-full rounded-xl bg-primary/8 border border-primary/20 p-2.5 flex items-center justify-between hover:bg-primary/12 active:bg-primary/12 transition-colors">
             <div className="text-start">
               <p className="text-micro font-bold uppercase tracking-wider text-primary">Team join code</p>
               <p className="font-mono text-lg tracking-[0.3em] font-bold">{org.join_code}</p>
@@ -405,7 +405,7 @@ function OrgHub({ org, isAdmin, onLeave, onNewChallenge }) {
                       </p>
                     </div>
                     {isAdmin && (
-                      <button onClick={() => handleDeleteChallenge(c.id)} className="w-7 h-7 rounded-full text-muted-foreground hover:text-destructive flex items-center justify-center shrink-0" aria-label="Delete challenge">
+                      <button onClick={() => handleDeleteChallenge(c.id)} className="w-7 h-7 rounded-full text-muted-foreground hover:text-destructive active:text-destructive flex items-center justify-center shrink-0" aria-label="Delete challenge">
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     )}

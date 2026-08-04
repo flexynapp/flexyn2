@@ -31,7 +31,7 @@ export default function Bounties() {
             if (window.history.length > 1) navigate(-1);
             else navigate('/dashboard');
           }}
-          className="w-8 h-8 rounded-xl flex items-center justify-center hover:bg-secondary transition-colors"
+          className="w-8 h-8 rounded-xl flex items-center justify-center hover:bg-secondary active:bg-secondary transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
         </button>
@@ -49,7 +49,7 @@ export default function Bounties() {
             on the caller's own record. */}
         <button
           onClick={() => setComposeOpen(true)}
-          className="shrink-0 inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition-colors"
+          className="shrink-0 inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-amber-500 hover:bg-amber-600 active:bg-amber-600 text-white text-xs font-bold transition-colors"
           aria-label={tFallback('bounties.post', 'Post your own bounty')}
         >
           <Plus className="w-3.5 h-3.5" />

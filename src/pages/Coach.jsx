@@ -133,7 +133,7 @@ function TabButton({ active, onClick, Icon, label }) {
       onClick={onClick}
       aria-pressed={active}
       className={`inline-flex items-center justify-center gap-1.5 rounded-lg py-2 text-sm font-semibold transition-colors ${
-        active ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+        active ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground active:text-foreground'
       }`}
     >
       <Icon className="w-4 h-4" />

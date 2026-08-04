@@ -96,7 +96,7 @@ export default function GiftCoinsModal({ open, onClose, recipient }) {
             {tFallback('gift.title', 'Send a gift')}
           </h2>
           <button onClick={onClose} aria-label="Close"
-            className="w-7 h-7 rounded-full bg-secondary text-muted-foreground flex items-center justify-center hover:text-foreground">
+            className="w-7 h-7 rounded-full bg-secondary text-muted-foreground flex items-center justify-center hover:text-foreground active:text-foreground">
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -117,7 +117,7 @@ export default function GiftCoinsModal({ open, onClose, recipient }) {
                 className={`py-2 rounded-lg text-sm font-bold transition-colors ${
                   amount === v
                     ? 'bg-primary text-primary-foreground'
-                    : 'bg-secondary/60 hover:bg-secondary text-foreground'
+                    : 'bg-secondary/60 hover:bg-secondary active:bg-secondary text-foreground'
                 }`}
               >
                 {v}

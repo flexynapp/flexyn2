@@ -273,7 +273,7 @@ export default function NotificationPanel({ open, onClose }) {
                 onClick={() => { onClose(); navigate('/notifications'); }}
                 aria-label={tFallback('notifications.openFull', 'Open full notifications page')}
                 title={tFallback('notifications.openFull', 'Open full notifications page')}
-                className="p-1.5 rounded-md text-muted-foreground hover:text-primary hover:bg-secondary transition-colors"
+                className="p-1.5 rounded-md text-muted-foreground hover:text-primary active:text-primary hover:bg-secondary active:bg-secondary transition-colors"
               >
                 <Inbox className="w-4 h-4" aria-hidden="true" />
               </button>
@@ -282,7 +282,7 @@ export default function NotificationPanel({ open, onClose }) {
                   onClick={handleMarkAllRead}
                   aria-label={tFallback('notifications.markAllRead', 'Mark all as read')}
                   title={tFallback('notifications.markAllRead', 'Mark all as read')}
-                  className="p-1.5 rounded-md text-muted-foreground hover:text-primary hover:bg-secondary transition-colors"
+                  className="p-1.5 rounded-md text-muted-foreground hover:text-primary active:text-primary hover:bg-secondary active:bg-secondary transition-colors"
                 >
                   <CheckCheck className="w-4 h-4" aria-hidden="true" />
                 </button>
@@ -292,7 +292,7 @@ export default function NotificationPanel({ open, onClose }) {
                   onClick={handleClearAll}
                   aria-label={tFallback('notifications.clearAll', 'Clear all')}
                   title={tFallback('notifications.clearAll', 'Clear all')}
-                  className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                  className="p-1.5 rounded-md text-muted-foreground hover:text-destructive active:text-destructive hover:bg-destructive/10 active:bg-destructive/10 transition-colors"
                 >
                   <Trash2 className="w-4 h-4" aria-hidden="true" />
                 </button>
@@ -300,7 +300,7 @@ export default function NotificationPanel({ open, onClose }) {
               <button
                 onClick={onClose}
                 aria-label={tFallback('common.close', 'Close')}
-                className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                className="p-1.5 rounded-md text-muted-foreground hover:text-foreground active:text-foreground hover:bg-secondary active:bg-secondary transition-colors"
               >
                 <X className="w-4 h-4" aria-hidden="true" />
               </button>
@@ -319,7 +319,7 @@ export default function NotificationPanel({ open, onClose }) {
               className={`flex-1 px-4 py-3.5 text-sm font-semibold transition-colors border-b-2 ${
                 tab === 'all'
                   ? 'text-primary border-primary'
-                  : 'text-muted-foreground border-transparent hover:text-foreground'
+                  : 'text-muted-foreground border-transparent hover:text-foreground active:text-foreground'
               }`}
             >
               {tFallback('notifications.tab.all', 'All')}
@@ -333,7 +333,7 @@ export default function NotificationPanel({ open, onClose }) {
               className={`flex-1 px-4 py-3.5 text-sm font-semibold transition-colors border-b-2 ${
                 tab === 'friends'
                   ? 'text-primary border-primary'
-                  : 'text-muted-foreground border-transparent hover:text-foreground'
+                  : 'text-muted-foreground border-transparent hover:text-foreground active:text-foreground'
               }`}
             >
               {tFallback('notifications.tab.friends', 'Friends')}
@@ -368,7 +368,7 @@ export default function NotificationPanel({ open, onClose }) {
                 </p>
                 <button
                   onClick={() => refetch()}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium text-primary hover:bg-primary/10 transition-colors"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium text-primary hover:bg-primary/10 active:bg-primary/10 transition-colors"
                 >
                   <RotateCw className="w-3.5 h-3.5" aria-hidden="true" />
                   {tFallback('common.retry', 'Retry')}
@@ -509,7 +509,7 @@ function NotificationRow({ n, onClick, onDelete, deleting, deleteLabel }) {
           tabIndex={0}
           onClick={onClick}
           onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } }}
-          className={`group relative flex items-start gap-3 p-3 text-start bg-card transition-colors hover:bg-secondary/40 cursor-pointer ${
+          className={`group relative flex items-start gap-3 p-3 text-start bg-card transition-colors hover:bg-secondary/40 active:bg-secondary/40 cursor-pointer ${
             !n.is_read ? 'bg-primary/[0.04] border-s-2 border-s-primary ps-[10px]' : ''
           } ${deleting ? 'opacity-50 pointer-events-none' : ''}`}
         >
@@ -535,7 +535,7 @@ function NotificationRow({ n, onClick, onDelete, deleting, deleteLabel }) {
             onKeyDown={(e) => { e.stopPropagation(); }}
             aria-label={deleteLabel}
             disabled={deleting}
-            className="absolute bottom-2 end-2 p-1.5 rounded-md text-muted-foreground/40 hover:bg-destructive/10 hover:text-destructive focus-visible:text-destructive focus-visible:opacity-100 group-hover:text-muted-foreground transition-colors"
+            className="absolute bottom-2 end-2 p-1.5 rounded-md text-muted-foreground/40 hover:bg-destructive/10 active:bg-destructive/10 hover:text-destructive active:text-destructive focus-visible:text-destructive focus-visible:opacity-100 group-hover:text-muted-foreground transition-colors"
           >
             <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
           </button>

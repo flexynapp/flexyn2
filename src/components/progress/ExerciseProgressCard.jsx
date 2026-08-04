@@ -77,7 +77,7 @@ export default function ExerciseProgressCard({ exerciseName, logs, timeRange }) 
     >
     <Card className="border-none shadow-sm overflow-hidden">
       <button
-        className="w-full p-4 flex items-center justify-between hover:bg-muted/30 transition-colors"
+        className="w-full p-4 flex items-center justify-between hover:bg-muted/30 active:bg-muted/30 transition-colors"
         onClick={() => setExpanded(v => !v)}
       >
         <div className="flex items-center gap-3">

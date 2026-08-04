@@ -326,7 +326,7 @@ export default function ProgressPhotoCapture({ open, onOpenChange }) {
                 <button
                   onClick={closeCamera}
                   aria-label={tFallback('photos.closeCamera', 'Close camera')}
-                  className="p-2 hover:bg-white/10 rounded-full transition-colors"
+                  className="p-2 hover:bg-white/10 active:bg-white/10 rounded-full transition-colors"
                 >
                   <X className="w-5 h-5 text-white" />
                 </button>
@@ -376,7 +376,7 @@ export default function ProgressPhotoCapture({ open, onOpenChange }) {
                     <button
                       onClick={toggleFacingMode}
                       aria-label={tFallback('photos.flipCamera', 'Flip camera')}
-                      className="p-3 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
+                      className="p-3 rounded-full bg-white/20 hover:bg-white/30 active:bg-white/30 transition-colors"
                     >
                       <FlipHorizontal className="w-5 h-5 text-white" />
                     </button>
@@ -387,7 +387,7 @@ export default function ProgressPhotoCapture({ open, onOpenChange }) {
                     <button
                       onClick={capturePhoto}
                       aria-label={tFallback('photos.takePhoto', 'Take photo')}
-                      className="w-16 h-16 rounded-full bg-white hover:bg-white/90 transition-colors active:scale-95"
+                      className="w-16 h-16 rounded-full bg-white hover:bg-white/90 active:bg-white/90 transition-colors active:scale-95"
                     />
 
                     {/* Spacer */}
@@ -399,7 +399,7 @@ export default function ProgressPhotoCapture({ open, onOpenChange }) {
                       variant="outline"
                       onClick={() => setCapturedImage(null)}
                       disabled={saving}
-                      className="flex-1 border-white/30 bg-transparent text-white hover:bg-white/10"
+                      className="flex-1 border-white/30 bg-transparent text-white hover:bg-white/10 active:bg-white/10"
                     >
                       {t('photos.retake')}
                     </Button>

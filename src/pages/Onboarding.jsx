@@ -354,7 +354,7 @@ function StepHeader({ step, total, onBack }) {
     <div className="flex items-center gap-3 mb-7">
       {canBack ? (
         <button onClick={onBack} aria-label="Back"
-          className="w-11 h-11 rounded-xl border border-border/70 bg-card/70 backdrop-blur-sm flex items-center justify-center text-foreground hover:bg-card transition-colors shrink-0">
+          className="w-11 h-11 rounded-xl border border-border/70 bg-card/70 backdrop-blur-sm flex items-center justify-center text-foreground hover:bg-card active:bg-card transition-colors shrink-0">
           <Icon name="arrow-left" size={17} strokeWidth={2.5} />
         </button>
       ) : (
@@ -557,7 +557,7 @@ function WelcomeStep({ onNext, onSignIn }) {
           Free to start · no card needed
         </p>
         <button onClick={onSignIn}
-          className="text-sm text-muted-foreground hover:text-foreground transition-colors min-h-[44px] py-2 text-center">
+          className="text-sm text-muted-foreground hover:text-foreground active:text-foreground transition-colors min-h-[44px] py-2 text-center">
           I already have an account
         </button>
       </motion.div>
@@ -604,7 +604,7 @@ function GoalStep({ value, onChange, onNext, onBack, step, total }) {
           {selectedIds.length > 0 && (
             <motion.button initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}
               onClick={() => onChange([])}
-              className="font-mono text-micro font-bold text-muted-foreground tracking-widest uppercase px-2 py-1 rounded hover:text-foreground transition-colors border-none bg-transparent cursor-pointer">
+              className="font-mono text-micro font-bold text-muted-foreground tracking-widest uppercase px-2 py-1 rounded hover:text-foreground active:text-foreground transition-colors border-none bg-transparent cursor-pointer">
               Clear
             </motion.button>
           )}
@@ -779,7 +779,7 @@ function SharpenStep({ goals, value, onChange, onNext, onBack, step, total }) {
                 <span className="text-label font-semibold">Know a recent time?</span>
                 <button type="button"
                   onClick={() => set({ cardioDefer: !s.cardioDefer, cardioCurrent: s.cardioDefer ? cur : null })}
-                  className={`text-micro font-semibold px-2.5 py-1 rounded-lg transition-colors ${s.cardioDefer ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:bg-secondary'}`}>
+                  className={`text-micro font-semibold px-2.5 py-1 rounded-lg transition-colors ${s.cardioDefer ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:bg-secondary active:bg-secondary'}`}>
                   I&apos;ll set it later
                 </button>
               </div>
@@ -1018,7 +1018,7 @@ function AssessmentStep({ value, onChange, onNext, onBack, onSkip, step, total }
           <button
             type="button"
             onClick={onSkip || onNext}
-            className="text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors py-1.5"
+            className="text-xs font-semibold text-muted-foreground hover:text-foreground active:text-foreground transition-colors py-1.5"
           >
             Skip — generate a generic plan
           </button>
@@ -1463,7 +1463,7 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
                 type="button"
                 onClick={handleAgeTap}
                 aria-label="Tap to type your age"
-                className="font-mono text-micro font-semibold tracking-[0.3em] uppercase text-muted-foreground mt-2 hover:text-foreground transition-colors"
+                className="font-mono text-micro font-semibold tracking-[0.3em] uppercase text-muted-foreground mt-2 hover:text-foreground active:text-foreground transition-colors"
                 style={{ background: 'none', border: 'none', cursor: 'text', padding: 0 }}
               >
                 YEARS OLD · TAP TO TYPE
@@ -2419,7 +2419,7 @@ function BodyBaselineStep({ step, total, value, onChange, onNext, onBack, onSkip
             <button
               type="button"
               onClick={onSkip}
-              className="w-full py-3 rounded-2xl border border-border bg-secondary/60 text-sm font-semibold text-foreground/80 hover:bg-secondary hover:text-foreground transition-colors"
+              className="w-full py-3 rounded-2xl border border-border bg-secondary/60 text-sm font-semibold text-foreground/80 hover:bg-secondary active:bg-secondary hover:text-foreground active:text-foreground transition-colors"
             >
               Skip for now
             </button>
@@ -2432,7 +2432,7 @@ function BodyBaselineStep({ step, total, value, onChange, onNext, onBack, onSkip
             <button
               type="button"
               onClick={onNext}
-              className="w-full py-3 rounded-2xl border border-border bg-secondary/60 text-sm font-semibold text-foreground/80 hover:bg-secondary hover:text-foreground transition-colors"
+              className="w-full py-3 rounded-2xl border border-border bg-secondary/60 text-sm font-semibold text-foreground/80 hover:bg-secondary active:bg-secondary hover:text-foreground active:text-foreground transition-colors"
             >
               I know my measurements — let me enter them
             </button>
@@ -2510,7 +2510,7 @@ function InjuryHistoryStep({ step, total, value, onChange, onNext, onBack, onSki
                   <button
                     type="button"
                     onClick={() => remove(i)}
-                    className="text-muted-foreground hover:text-destructive transition-colors p-1 leading-none text-lg"
+                    className="text-muted-foreground hover:text-destructive active:text-destructive transition-colors p-1 leading-none text-lg"
                     aria-label="Remove"
                   >
                     ×
@@ -2543,7 +2543,7 @@ function InjuryHistoryStep({ step, total, value, onChange, onNext, onBack, onSki
                       'px-2.5 py-1 rounded-full text-xs font-semibold border transition-all',
                       pendingMuscle === m
                         ? 'bg-primary text-primary-foreground border-primary'
-                        : 'border-border text-muted-foreground hover:border-primary/40 hover:text-foreground',
+                        : 'border-border text-muted-foreground hover:border-primary/40 hover:text-foreground active:text-foreground',
                     ].join(' ')}
                   >
                     {m}
@@ -2595,7 +2595,7 @@ function InjuryHistoryStep({ step, total, value, onChange, onNext, onBack, onSki
         <button
           type="button"
           onClick={onSkip}
-          className="w-full py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          className="w-full py-2 text-sm text-muted-foreground hover:text-foreground active:text-foreground transition-colors"
         >
           Skip — no injuries
         </button>
@@ -2657,7 +2657,7 @@ function HomeGymStep({ step, total, value, onChange, onNext, onBack, onSkip }) {
         <button
           type="button"
           onClick={onSkip}
-          className="w-full py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          className="w-full py-2 text-sm text-muted-foreground hover:text-foreground active:text-foreground transition-colors"
         >
           Skip — I'll pick later
         </button>

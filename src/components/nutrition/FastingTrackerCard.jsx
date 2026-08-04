@@ -116,7 +116,7 @@ export default function FastingTrackerCard() {
               key={p.id}
               type="button"
               onClick={() => handleStart(p.hours)}
-              className="rounded-lg border border-border bg-secondary/30 hover:bg-secondary/60 px-2 py-2 flex flex-col items-center text-center transition-colors"
+              className="rounded-lg border border-border bg-secondary/30 hover:bg-secondary/60 active:bg-secondary/60 px-2 py-2 flex flex-col items-center text-center transition-colors"
             >
               <FastWindowDial eatingHours={24 - p.hours} className="w-5 h-5 mb-1 text-primary" />
               <p className="font-heading font-bold text-sm">{p.label}</p>

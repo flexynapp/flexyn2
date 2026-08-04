@@ -234,7 +234,7 @@ export default function GoalsList({ goals, logs, cardioLogs = [], onEdit, onDele
               <Button
                 size="sm"
                 disabled={pendingIds.complete.has(goal.id)}
-                className="mt-3 w-full bg-green-600 hover:bg-green-700 text-white gap-2"
+                className="mt-3 w-full bg-green-600 hover:bg-green-700 active:bg-green-700 text-white gap-2"
                 onClick={() => guardedAction('complete', goal.id, onComplete)}
               >
                 <Trophy className="w-4 h-4" /> {t('goals.complete')}

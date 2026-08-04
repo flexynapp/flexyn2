@@ -196,7 +196,7 @@ export default function SoloChallengesSection() {
                     type="button"
                     onClick={() => claimMut.mutate(ch.id)}
                     disabled={claimMut.isPending}
-                    className="w-full py-2 rounded-lg text-xs font-bold border border-border bg-background/60 hover:bg-secondary text-foreground transition-colors disabled:opacity-60"
+                    className="w-full py-2 rounded-lg text-xs font-bold border border-border bg-background/60 hover:bg-secondary active:bg-secondary text-foreground transition-colors disabled:opacity-60"
                   >
                     {claimMut.isPending ? '…' : tFallback('soloChallenges.claim', 'Claim challenge')}
                   </button>

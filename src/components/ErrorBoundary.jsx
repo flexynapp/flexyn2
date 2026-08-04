@@ -242,7 +242,7 @@ class ErrorBoundaryClass extends React.Component {
             <button
               type="button"
               onClick={this.handleReset}
-              className="text-xs font-semibold px-3 h-8 rounded-md border border-border bg-card text-foreground hover:bg-secondary transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              className="text-xs font-semibold px-3 h-8 rounded-md border border-border bg-card text-foreground hover:bg-secondary active:bg-secondary transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             >
               {this.tr('errorBoundary.tryAgain', 'Try again')}
             </button>
@@ -250,7 +250,7 @@ class ErrorBoundaryClass extends React.Component {
               <button
                 type="button"
                 onClick={this.handleCopyDetails}
-                className="text-xs font-semibold px-3 h-8 rounded-md border border-border bg-card text-foreground hover:bg-secondary transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                className="text-xs font-semibold px-3 h-8 rounded-md border border-border bg-card text-foreground hover:bg-secondary active:bg-secondary transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                 aria-live="polite"
               >
                 {this.state.copied

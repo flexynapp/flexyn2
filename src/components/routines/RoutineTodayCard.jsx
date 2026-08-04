@@ -55,7 +55,7 @@ export default function RoutineTodayCard({ onStart, onOpenRoutines, onChallenge 
           <span className="text-micro font-bold uppercase tracking-[0.18em] text-primary">{dayName} · today</span>
           <span className="text-micro text-muted-foreground truncate">{routine.name}</span>
           <button onClick={onOpenRoutines} aria-label="My Routine"
-            className="ms-auto w-8 h-8 rounded-lg border border-border flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary shrink-0">
+            className="ms-auto w-8 h-8 rounded-lg border border-border flex items-center justify-center text-muted-foreground hover:text-foreground active:text-foreground hover:bg-secondary active:bg-secondary shrink-0">
             <CalendarDays className="w-4 h-4" />
           </button>
         </div>

@@ -307,7 +307,7 @@ export default function DailyQuestsCard({ onNavigated }) {
         onClick={() => setCollapsed(c => !c)}
         aria-label={collapsed ? tFallback('dashboard.expandQuests', 'Expand quests') : tFallback('dashboard.collapseQuests', 'Collapse quests')}
         aria-expanded={!collapsed}
-        className="w-full mt-2 -mb-1 flex items-center justify-center py-1 rounded-sm text-muted-foreground/60 hover:text-foreground hover:bg-secondary/40 active:bg-secondary/60 transition-colors"
+        className="w-full mt-2 -mb-1 flex items-center justify-center py-1 rounded-sm text-muted-foreground/60 hover:text-foreground active:text-foreground hover:bg-secondary/40 active:bg-secondary/60 transition-colors"
       >
         {collapsed ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronUp className="w-3.5 h-3.5" />}
       </button>

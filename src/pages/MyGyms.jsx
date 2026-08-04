@@ -236,7 +236,7 @@ export default function MyGyms() {
               onClick={() => navigate(`/gym/${g.id}`)}
               whileHover={{ y: -1 }}
               whileTap={{ scale: 0.99 }}
-              className="w-full text-start rounded-2xl border border-border bg-card p-4 hover:border-primary/30 hover:bg-secondary/30 transition-colors"
+              className="w-full text-start rounded-2xl border border-border bg-card p-4 hover:border-primary/30 hover:bg-secondary/30 active:bg-secondary/30 transition-colors"
             >
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
@@ -270,7 +270,7 @@ export default function MyGyms() {
       <button
         type="button"
         onClick={() => navigate('/register-gym')}
-        className="mt-6 w-full rounded-2xl border border-dashed border-border bg-card hover:bg-secondary/30 transition-colors p-4 text-start"
+        className="mt-6 w-full rounded-2xl border border-dashed border-border bg-card hover:bg-secondary/30 active:bg-secondary/30 transition-colors p-4 text-start"
       >
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-violet-500/10 flex items-center justify-center shrink-0">

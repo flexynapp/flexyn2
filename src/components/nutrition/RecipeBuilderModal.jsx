@@ -289,7 +289,7 @@ export default function RecipeBuilderModal({ open, onClose, editingRecipe = null
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploadingImage}
-                className="w-full flex items-center justify-center gap-2 h-16 mb-3 rounded-lg border border-dashed border-border text-sm font-semibold text-muted-foreground hover:bg-secondary/40"
+                className="w-full flex items-center justify-center gap-2 h-16 mb-3 rounded-lg border border-dashed border-border text-sm font-semibold text-muted-foreground hover:bg-secondary/40 active:bg-secondary/40"
               >
                 {uploadingImage
                   ? <><Loader2 className="w-4 h-4 animate-spin" /> Uploading…</>
@@ -312,7 +312,7 @@ export default function RecipeBuilderModal({ open, onClose, editingRecipe = null
                     <button
                       onClick={() => removeIngredient(i)}
                       aria-label="Remove ingredient"
-                      className="w-8 h-8 shrink-0 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 flex items-center justify-center disabled:opacity-40"
+                      className="w-8 h-8 shrink-0 rounded-md text-muted-foreground hover:text-destructive active:text-destructive hover:bg-destructive/10 active:bg-destructive/10 flex items-center justify-center disabled:opacity-40"
                       disabled={ingredients.length === 1}
                     >
                       <Trash2 className="w-3.5 h-3.5" />
@@ -352,7 +352,7 @@ export default function RecipeBuilderModal({ open, onClose, editingRecipe = null
             <button
               type="button"
               onClick={addIngredient}
-              className="mt-2 w-full flex items-center justify-center gap-1 py-1.5 rounded-md border border-dashed border-border text-xs font-bold uppercase tracking-wide text-muted-foreground hover:bg-secondary/40"
+              className="mt-2 w-full flex items-center justify-center gap-1 py-1.5 rounded-md border border-dashed border-border text-xs font-bold uppercase tracking-wide text-muted-foreground hover:bg-secondary/40 active:bg-secondary/40"
             >
               <Plus className="w-3.5 h-3.5" /> Add ingredient
             </button>
@@ -404,7 +404,7 @@ export default function RecipeBuilderModal({ open, onClose, editingRecipe = null
                     <button
                       onClick={() => removeMicro(i)}
                       aria-label="Remove nutrient"
-                      className="w-8 h-8 shrink-0 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 flex items-center justify-center"
+                      className="w-8 h-8 shrink-0 rounded-md text-muted-foreground hover:text-destructive active:text-destructive hover:bg-destructive/10 active:bg-destructive/10 flex items-center justify-center"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -417,7 +417,7 @@ export default function RecipeBuilderModal({ open, onClose, editingRecipe = null
                         key={p.key}
                         type="button"
                         onClick={() => addPresetMicro(p)}
-                        className="px-2 py-1 rounded-full border border-border text-micro font-semibold text-muted-foreground hover:bg-secondary/50"
+                        className="px-2 py-1 rounded-full border border-border text-micro font-semibold text-muted-foreground hover:bg-secondary/50 active:bg-secondary/50"
                       >
                         + {p.label}
                       </button>
@@ -427,7 +427,7 @@ export default function RecipeBuilderModal({ open, onClose, editingRecipe = null
                 <button
                   type="button"
                   onClick={addCustomMicro}
-                  className="w-full flex items-center justify-center gap-1 py-1.5 rounded-md border border-dashed border-border text-micro font-bold uppercase tracking-wide text-muted-foreground hover:bg-secondary/40"
+                  className="w-full flex items-center justify-center gap-1 py-1.5 rounded-md border border-dashed border-border text-micro font-bold uppercase tracking-wide text-muted-foreground hover:bg-secondary/40 active:bg-secondary/40"
                 >
                   <Plus className="w-3.5 h-3.5" /> Custom nutrient
                 </button>

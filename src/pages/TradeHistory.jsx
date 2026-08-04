@@ -132,7 +132,7 @@ export default function TradeHistory() {
     >
       <button
         onClick={() => navigate(-1)}
-        className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors mb-3"
+        className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground active:text-foreground transition-colors mb-3"
       >
         <ArrowLeft className="w-4 h-4" /> Back
       </button>
@@ -145,7 +145,7 @@ export default function TradeHistory() {
             key={f.id}
             onClick={() => setFilter(f.id)}
             className={`shrink-0 px-2.5 py-1 rounded-full text-micro font-bold uppercase tracking-wide transition-colors ${
-              filter === f.id ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-secondary'
+              filter === f.id ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-secondary active:bg-secondary'
             }`}
           >
             {f.label}
@@ -253,7 +253,7 @@ function TradeRow({ trade, authorsById, onCancel, busy }) {
           type="button"
           onClick={() => onCancel(trade.offerId)}
           disabled={busy}
-          className="mt-2 w-full py-1.5 rounded-lg text-micro font-bold text-red-600 dark:text-red-300 bg-red-500/10 border border-red-500/30 hover:bg-red-500/20 transition-colors disabled:opacity-50"
+          className="mt-2 w-full py-1.5 rounded-lg text-micro font-bold text-red-600 dark:text-red-300 bg-red-500/10 border border-red-500/30 hover:bg-red-500/20 active:bg-red-500/20 transition-colors disabled:opacity-50"
         >
           {busy ? 'Cancelling…' : 'Cancel offer · release my item'}
         </button>

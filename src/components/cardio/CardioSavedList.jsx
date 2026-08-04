@@ -92,7 +92,7 @@ export default function CardioSavedList({ onSelectLog, search = '' }) {
         return (
           <motion.div key={log.id} variants={itemVariants}>
             <Card
-              className="p-4 cursor-pointer hover:bg-secondary/40 transition-colors"
+              className="p-4 cursor-pointer hover:bg-secondary/40 active:bg-secondary/40 transition-colors"
               onClick={() => onSelectLog(log)}
             >
               <div className="flex items-center gap-3">

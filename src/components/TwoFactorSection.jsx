@@ -136,7 +136,7 @@ export default function TwoFactorSection() {
         {!loading && (enabled ? (
           <button
             onClick={() => requestDisable(factors[0].id)}
-            className="px-2.5 py-1 rounded-md border border-border text-micro font-bold uppercase tracking-wide hover:bg-secondary"
+            className="px-2.5 py-1 rounded-md border border-border text-micro font-bold uppercase tracking-wide hover:bg-secondary active:bg-secondary"
           >
             Disable
           </button>
@@ -230,7 +230,7 @@ export default function TwoFactorSection() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Keep on</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDisable} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            <AlertDialogAction onClick={confirmDisable} className="bg-destructive text-destructive-foreground hover:bg-destructive/90 active:bg-destructive/90">
               Turn off
             </AlertDialogAction>
           </AlertDialogFooter>

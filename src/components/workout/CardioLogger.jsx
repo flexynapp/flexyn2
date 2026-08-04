@@ -90,7 +90,7 @@ export default function CardioLogger({ exercise, onChange, gender }) {
             <button
               type="button"
               onClick={toggleComplete}
-              className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground px-2 py-1.5 rounded-lg hover:bg-secondary transition-colors shrink-0"
+              className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground active:text-foreground px-2 py-1.5 rounded-lg hover:bg-secondary active:bg-secondary transition-colors shrink-0"
             >
               <Pencil className="w-3.5 h-3.5" /> Edit
             </button>
@@ -116,7 +116,7 @@ export default function CardioLogger({ exercise, onChange, gender }) {
               aria-pressed={a.id === activity.id}
               className={[
                 'flex-1 h-8 rounded-lg text-xs font-semibold transition-colors',
-                a.id === activity.id ? 'bg-primary text-primary-foreground' : 'bg-secondary/60 text-muted-foreground hover:text-foreground',
+                a.id === activity.id ? 'bg-primary text-primary-foreground' : 'bg-secondary/60 text-muted-foreground hover:text-foreground active:text-foreground',
               ].join(' ')}
             >
               {a.label}
@@ -164,7 +164,7 @@ export default function CardioLogger({ exercise, onChange, gender }) {
                   type="button"
                   onClick={() => removeSplit(i)}
                   aria-label="Remove split"
-                  className="h-8 w-8 rounded-lg flex items-center justify-center text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0"
+                  className="h-8 w-8 rounded-lg flex items-center justify-center text-muted-foreground/60 hover:text-destructive active:text-destructive hover:bg-destructive/10 active:bg-destructive/10 transition-colors shrink-0"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
@@ -180,7 +180,7 @@ export default function CardioLogger({ exercise, onChange, gender }) {
       <button
         type="button"
         onClick={addSplit}
-        className="mt-2 w-full inline-flex items-center justify-center gap-1.5 rounded-lg border border-dashed border-border py-2 text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+        className="mt-2 w-full inline-flex items-center justify-center gap-1.5 rounded-lg border border-dashed border-border py-2 text-xs font-semibold text-muted-foreground hover:text-foreground active:text-foreground hover:bg-secondary active:bg-secondary transition-colors"
       >
         <Plus className="w-3.5 h-3.5" /> Add split
       </button>
@@ -201,7 +201,7 @@ export default function CardioLogger({ exercise, onChange, gender }) {
         disabled={!hasData}
         className={[
           'mt-3 w-full inline-flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition-colors',
-          hasData ? 'bg-success text-white hover:bg-success/90' : 'border border-border text-muted-foreground/60',
+          hasData ? 'bg-success text-white hover:bg-success/90 active:bg-success/90' : 'border border-border text-muted-foreground/60',
         ].join(' ')}
       >
         <Check className="w-4 h-4" strokeWidth={3} /> Complete cardio

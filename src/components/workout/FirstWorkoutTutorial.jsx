@@ -104,7 +104,7 @@ export default function FirstWorkoutTutorial({ userId, onClose }) {
                     type="button"
                     onClick={handleDismiss}
                     aria-label={tFallback('workout.tutorial.dismiss', 'Dismiss tutorial')}
-                    className="w-7 h-7 rounded-full bg-secondary/60 hover:bg-secondary text-muted-foreground hover:text-foreground flex items-center justify-center shrink-0"
+                    className="w-7 h-7 rounded-full bg-secondary/60 hover:bg-secondary active:bg-secondary text-muted-foreground hover:text-foreground active:text-foreground flex items-center justify-center shrink-0"
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
@@ -130,7 +130,7 @@ export default function FirstWorkoutTutorial({ userId, onClose }) {
                       <button
                         type="button"
                         onClick={handleDismiss}
-                        className="text-micro font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground px-2 py-1"
+                        className="text-micro font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground active:text-foreground px-2 py-1"
                       >
                         {tFallback('workout.tutorial.skip', 'Skip')}
                       </button>

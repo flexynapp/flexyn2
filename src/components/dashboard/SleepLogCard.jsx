@@ -145,7 +145,7 @@ export default function SleepLogCard() {
                 aria-label={tFallback('sleep.hoursLabel', `${o.label} hours`)}
                 className={[
                   'flex-1 min-w-[44px] min-h-[36px] rounded-lg text-xs font-bold tabular-nums transition-transform flex items-center justify-center',
-                  active ? 'bg-primary/15 text-primary scale-105' : 'bg-secondary text-muted-foreground hover:text-foreground hover:scale-105',
+                  active ? 'bg-primary/15 text-primary scale-105' : 'bg-secondary text-muted-foreground hover:text-foreground active:text-foreground hover:scale-105',
                 ].join(' ')}
               >
                 {o.label}

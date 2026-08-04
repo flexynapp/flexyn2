@@ -29,7 +29,7 @@ export default function MealTypePicker({ value, onChange, size = 'sm', className
             className={`${pad} flex items-center gap-1 rounded-full font-semibold transition-colors ${
               isActive
                 ? 'bg-primary text-primary-foreground'
-                : 'bg-secondary/50 text-muted-foreground hover:bg-secondary'
+                : 'bg-secondary/50 text-muted-foreground hover:bg-secondary active:bg-secondary'
             }`}
           >
             <Icon className="w-3 h-3" />

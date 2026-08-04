@@ -110,7 +110,7 @@ export default function BottomSheet({
                   <h2 className="font-heading font-bold text-base">{title}</h2>
                   <button
                     onClick={onClose}
-                    className="w-8 h-8 rounded-full bg-secondary hover:bg-secondary/80 flex items-center justify-center transition-colors shrink-0"
+                    className="w-8 h-8 rounded-full bg-secondary hover:bg-secondary/80 active:bg-secondary/80 flex items-center justify-center transition-colors shrink-0"
                     aria-label="Close"
                   >
                     <X className="w-4 h-4 text-muted-foreground" />

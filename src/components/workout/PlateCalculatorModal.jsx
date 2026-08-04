@@ -69,7 +69,7 @@ export default function PlateCalculatorModal({ open, onClose, initialWeightLbs =
                 <Calculator className="w-5 h-5 text-primary" />
                 <h3 className="font-heading font-bold text-base">Plate calculator</h3>
               </div>
-              <button onClick={onClose} aria-label="Close" className="p-1 rounded-md text-muted-foreground hover:bg-secondary transition-colors">
+              <button onClick={onClose} aria-label="Close" className="p-1 rounded-md text-muted-foreground hover:bg-secondary active:bg-secondary transition-colors">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -104,7 +104,7 @@ export default function PlateCalculatorModal({ open, onClose, initialWeightLbs =
                       onClick={() => chooseBar(bar.lbs)}
                       className={[
                         'px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors',
-                        active ? 'bg-primary text-primary-foreground' : 'bg-secondary/60 text-muted-foreground hover:bg-secondary',
+                        active ? 'bg-primary text-primary-foreground' : 'bg-secondary/60 text-muted-foreground hover:bg-secondary active:bg-secondary',
                       ].join(' ')}
                     >
                       {bar.label} · {formatWeightNumber(bar.lbs, weightUnit)}{weightUnit}
