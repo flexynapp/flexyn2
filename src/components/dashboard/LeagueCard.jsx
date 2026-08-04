@@ -8,7 +8,21 @@ import React, { useRef, useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card } from '@/components/ui/card';
-import { ChevronRight, Globe } from 'lucide-react';
+import { ChevronRight, Globe, Medal } from 'lucide-react';
+
+// Tier colours run from dark bronze (#cd7f32) to pale legend (#f0abfc),
+// so a fixed white or black glyph on the tier badge fails at one end or
+// the other. Pick per tier from relative luminance instead.
+function onTierColor(hex) {
+  const h = (hex || '').replace('#', '');
+  if (h.length !== 6) return '#fff';
+  const [r, g, b] = [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16) / 255);
+  const lin = c => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+  const L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+  // 0.42 rather than 0.5: dark text wins ties, because the light tiers
+  // (gold, platinum, legend) are where a white glyph disappears fastest.
+  return L > 0.42 ? '#1a1d23' : '#ffffff';
+}
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -116,18 +130,34 @@ export default function LeagueCard({ onClick, stretch = false }) {
       transition={{ type: 'spring', stiffness: 380, damping: 22 }}
       className={`block w-full text-start ${stretch ? 'h-full' : ''}`}
     >
-      <Card className={`overflow-hidden border-border/60 theme-card-accent flex flex-col ${stretch ? 'h-full' : ''} ${tier.ringClass || ''}`}>
-        {/* Top stripe — gradient by tier. When stretching, flex-1 +
-            items-center absorbs the spare height and vertically centers
-            the content so the card matches its row neighbour (the
-            Readiness compact square). When not stretching it must size to
-            its content instead — otherwise it grows to whatever height the
-            parent happens to have. */}
-        <div className={`relative ${stretch ? 'flex-1' : ''} bg-gradient-to-r ${tier.gradient} px-2.5 py-1.5 text-white flex items-center`}>
-          <div className="flex items-center gap-2 w-full">
-            <span className="text-base drop-shadow shrink-0" aria-hidden="true">{tier.icon}</span>
+      {/* This was a full-bleed tier gradient with a gold ring around the
+          whole card, sitting immediately below the orange "Start a
+          workout" CTA — two saturated orange blocks stacked, with the
+          league shouting louder than the primary action on the screen.
+          It's a normal card now. Tier identity moved onto the 32px medal
+          badge, which is the smallest surface that still says "bronze";
+          confining it there also keeps the Master/Legend tiers' pink and
+          violet down to a chip instead of a full-width banner.
+
+          When stretching, flex-1 + items-center absorbs the spare height
+          so the card matches its row neighbour (the Readiness square).
+          When not stretching it must size to its content instead —
+          otherwise it grows to whatever height the parent happens to
+          have. */}
+      <Card className={`overflow-hidden border-border/60 theme-card-accent flex flex-col ${stretch ? 'h-full' : ''}`}>
+        <div className={`relative ${stretch ? 'flex-1' : ''} px-3 py-2.5 flex items-center`}>
+          <div className="flex items-center gap-2.5 w-full">
+            <span
+              className="shrink-0 w-8 h-8 rounded-sm flex items-center justify-center"
+              style={{ backgroundColor: tier.color, color: onTierColor(tier.color) }}
+              aria-hidden="true"
+            >
+              <Medal className="w-4 h-4" />
+            </span>
             <div className="flex-1 min-w-0">
-              <p className="text-micro font-bold uppercase tracking-wider opacity-90 leading-tight">
+              {/* Was 11px all-caps at 0.05em tracking on a gradient. It's
+                  the card's title, so it gets the title treatment. */}
+              <p className="font-heading font-bold text-sm leading-tight truncate">
                 {/* Composed via a vars-aware tFallback key so
                     translators control the word order. Spanish would
                     render "Liga Bronce", Japanese "ブロンズリーグ",
@@ -147,7 +177,7 @@ export default function LeagueCard({ onClick, stretch = false }) {
                   // null during refetch). The delta animation is
                   // already gated by rankDelta below.
                   key="rank"
-                  className="font-heading font-bold text-sm leading-none tabular-nums"
+                  className="text-caption font-semibold leading-none tabular-nums text-muted-foreground"
                   initial={{ y: rankDelta != null ? (rankDelta < 0 ? 8 : -8) : 0, opacity: 0.4 }}
                   animate={{ y: 0, opacity: 1 }}
                   transition={{ type: 'spring', stiffness: 400, damping: 22 }}
@@ -179,13 +209,18 @@ export default function LeagueCard({ onClick, stretch = false }) {
                 </AnimatePresence>
               </div>
             </div>
+            {/* Was an all-caps "LEFT" stacked above the number, which put
+                a shouting label on the least important thing in the row.
+                Number first, quiet word under it. */}
             <div className="text-end shrink-0">
-              <p className="text-micro uppercase tracking-wider opacity-80 leading-none">
+              <p className="font-heading font-bold text-sm leading-none tabular-nums">
+                {daysLeft}{tFallback('league.daySuffix', 'd')}
+              </p>
+              <p className="text-micro text-muted-foreground leading-none mt-0.5">
                 {tFallback('league.daysLeft', 'Left')}
               </p>
-              <p className="font-heading font-bold text-sm leading-none mt-0.5 tabular-nums">{daysLeft}{tFallback('league.daySuffix', 'd')}</p>
             </div>
-            <ChevronRight className="w-3 h-3 opacity-70 shrink-0 rtl:scale-x-[-1]" />
+            <ChevronRight className="w-4 h-4 text-muted-foreground/50 shrink-0 rtl:scale-x-[-1]" />
           </div>
         </div>
 
