@@ -12,7 +12,10 @@
 import { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Card } from '@/components/ui/card';
-import { ArrowRight, CheckCircle2 } from 'lucide-react';
+import {
+  ArrowRight, CheckCircle2,
+  Dumbbell, Grip, Footprints, Mountain, HeartPulse, Target, Zap,
+} from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { startOfDay } from 'date-fns';
 import { parseLocalDate } from '@/lib/dateUtils';
@@ -37,22 +40,33 @@ const MUSCLE_TO_LABEL = {
   full:       'Full Body',
 };
 
-// Infer a short label for a regimen from its name + exercises
+// Infer a short label for a regimen from its name + exercises.
+//
+// These used to carry an `emoji` (💪 🔱 🦵 🏋️ 🪨 🏃 🎯 ⚡) rendered as the
+// card's icon. Emoji-as-iconography is one of the loudest generated-UI
+// tells and it's also just worse: glyphs render differently on every OS,
+// ignore `currentColor` so they can't take the accent, ignore font
+// weight, and sit on their own baseline. Lucide icons inherit all of it.
+//
+// The colour assignments were also arbitrary — Arms Day was
+// text-destructive, i.e. "danger", for no reason. Colour now tracks the
+// budget's meaning: primary for pressing/effort work, info for the
+// pulling and cardio days, success for lower body.
 function inferDayLabel(regimen) {
   const name = (regimen.name || '').toLowerCase();
   // First try the regimen name — common patterns
-  if (/push/i.test(name))       return { label: 'Push Day', emoji: '💪', color: 'text-primary', bg: 'bg-primary/10' };
-  if (/pull/i.test(name))       return { label: 'Pull Day', emoji: '🔱', color: 'text-info',   bg: 'bg-info/10' };
-  if (/leg/i.test(name))        return { label: 'Legs Day', emoji: '🦵', color: 'text-success',  bg: 'bg-success/10' };
-  if (/upper/i.test(name))      return { label: 'Upper Body', emoji: '💪', color: 'text-primary', bg: 'bg-primary/10' };
-  if (/lower/i.test(name))      return { label: 'Lower Body', emoji: '🦵', color: 'text-success', bg: 'bg-success/10' };
-  if (/chest/i.test(name))      return { label: 'Chest Day', emoji: '🏋️', color: 'text-primary', bg: 'bg-primary/10' };
-  if (/back/i.test(name))       return { label: 'Back Day', emoji: '🔱', color: 'text-info',   bg: 'bg-info/10' };
-  if (/shoulder/i.test(name))   return { label: 'Shoulder Day', emoji: '🪨', color: 'text-primary', bg: 'bg-primary/10' };
-  if (/arm/i.test(name))        return { label: 'Arms Day', emoji: '💪', color: 'text-destructive',   bg: 'bg-destructive/10' };
-  if (/cardio/i.test(name))     return { label: 'Cardio Day', emoji: '🏃', color: 'text-info',  bg: 'bg-info/10' };
-  if (/core|ab/i.test(name))    return { label: 'Core Day', emoji: '🎯', color: 'text-primary',    bg: 'bg-primary/10' };
-  if (/full|total/i.test(name)) return { label: 'Full Body', emoji: '⚡', color: 'text-primary',   bg: 'bg-primary/10' };
+  if (/push/i.test(name))       return { label: 'Push Day', Icon: Dumbbell, color: 'text-primary', bg: 'bg-primary/10' };
+  if (/pull/i.test(name))       return { label: 'Pull Day', Icon: Grip, color: 'text-info',   bg: 'bg-info/10' };
+  if (/leg/i.test(name))        return { label: 'Legs Day', Icon: Footprints, color: 'text-success',  bg: 'bg-success/10' };
+  if (/upper/i.test(name))      return { label: 'Upper Body', Icon: Dumbbell, color: 'text-primary', bg: 'bg-primary/10' };
+  if (/lower/i.test(name))      return { label: 'Lower Body', Icon: Footprints, color: 'text-success', bg: 'bg-success/10' };
+  if (/chest/i.test(name))      return { label: 'Chest Day', Icon: Dumbbell, color: 'text-primary', bg: 'bg-primary/10' };
+  if (/back/i.test(name))       return { label: 'Back Day', Icon: Grip, color: 'text-info',   bg: 'bg-info/10' };
+  if (/shoulder/i.test(name))   return { label: 'Shoulder Day', Icon: Mountain, color: 'text-primary', bg: 'bg-primary/10' };
+  if (/arm/i.test(name))        return { label: 'Arms Day', Icon: Dumbbell, color: 'text-primary',   bg: 'bg-primary/10' };
+  if (/cardio/i.test(name))     return { label: 'Cardio Day', Icon: HeartPulse, color: 'text-info',  bg: 'bg-info/10' };
+  if (/core|ab/i.test(name))    return { label: 'Core Day', Icon: Target, color: 'text-primary',    bg: 'bg-primary/10' };
+  if (/full|total/i.test(name)) return { label: 'Full Body', Icon: Zap, color: 'text-primary',   bg: 'bg-primary/10' };
 
   // Fall back to dominant muscle group from exercises
   const muscles = (regimen.exercises || []).flatMap(ex =>
@@ -65,11 +79,11 @@ function inferDayLabel(regimen) {
   });
   const top = Object.entries(freq).sort((a, b) => b[1] - a[1])[0]?.[0];
   const mapped = MUSCLE_TO_LABEL[top];
-  if (mapped === 'Push') return { label: 'Push Day', emoji: '💪', color: 'text-primary', bg: 'bg-primary/10' };
-  if (mapped === 'Pull') return { label: 'Pull Day', emoji: '🔱', color: 'text-info',   bg: 'bg-info/10' };
-  if (mapped === 'Legs') return { label: 'Legs Day', emoji: '🦵', color: 'text-success',  bg: 'bg-success/10' };
+  if (mapped === 'Push') return { label: 'Push Day', Icon: Dumbbell, color: 'text-primary', bg: 'bg-primary/10' };
+  if (mapped === 'Pull') return { label: 'Pull Day', Icon: Grip, color: 'text-info',   bg: 'bg-info/10' };
+  if (mapped === 'Legs') return { label: 'Legs Day', Icon: Footprints, color: 'text-success',  bg: 'bg-success/10' };
 
-  return { label: regimen.name || 'Workout Day', emoji: '🏋️', color: 'text-primary', bg: 'bg-primary/10' };
+  return { label: regimen.name || 'Workout Day', Icon: Dumbbell, color: 'text-primary', bg: 'bg-primary/10' };
 }
 
 export default function TodaysPlanCard({ regimens = [], logs = [], hasWorkedOutToday = false }) {
@@ -137,28 +151,36 @@ export default function TodaysPlanCard({ regimens = [], logs = [], hasWorkedOutT
     <motion.div
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4 }}
+      transition={{ duration: 0.22 }}
     >
       <Card className="overflow-hidden border-border/60">
         <button
           onClick={() => navigate('/workout', { state: { selectedRegimenId: regimen.id } })}
-          className="w-full text-start px-3 py-2 flex items-center gap-2.5 hover:bg-secondary/40 transition-colors"
+          className="w-full text-start px-3 py-2 flex items-center gap-2.5 hover:bg-secondary/40 active:bg-secondary/60 transition-colors"
         >
-          <div className={`shrink-0 w-7 h-7 rounded-full ${info.bg} flex items-center justify-center text-sm`}>
-            {doneToday ? <CheckCircle2 className={`w-3.5 h-3.5 ${info.color}`} /> : info.emoji}
+          <div className={`shrink-0 w-7 h-7 rounded-full ${info.bg} flex items-center justify-center`}>
+            {doneToday
+              ? <CheckCircle2 className={`w-3.5 h-3.5 ${info.color}`} />
+              : <info.Icon className={`w-3.5 h-3.5 ${info.color}`} aria-hidden="true" />}
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <span className={`text-micro font-bold uppercase tracking-[0.16em] ${info.color}`}>
+              {/* Was 'Completed ✓' — the glyph duplicated the CheckCircle2
+                  already showing in the badge to its left, and baked a
+                  symbol into a translatable string. */}
+              <span className={`text-micro font-bold tracking-[0.1em] ${info.color}`}>
                 {doneToday
-                  ? tFallback('todaysPlan.completed', 'Completed ✓')
+                  ? tFallback('todaysPlan.completed', 'Completed')
                   : tFallback('todaysPlan.kicker', "Today's Plan")}
               </span>
             </div>
+            {/* The label used to be prefixed with the same emoji that the
+                badge renders — the icon said it once, the text said it
+                again. The badge carries it now. */}
             <p className="text-xs font-heading font-bold leading-tight mt-0.5 truncate">
               {doneToday
-                ? `${info.emoji} ${tFallback('todaysPlan.doneFmt', '{label} — done!', { label: translatedLabel })}`
-                : `${info.emoji} ${translatedLabel}`}
+                ? tFallback('todaysPlan.doneFmt', '{label} — done!', { label: translatedLabel })
+                : translatedLabel}
             </p>
             <p className="text-micro text-muted-foreground leading-snug mt-0.5 truncate">
               {regimen.name}

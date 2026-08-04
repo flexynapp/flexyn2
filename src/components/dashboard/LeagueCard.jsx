@@ -69,7 +69,7 @@ export default function LeagueCard({ onClick, stretch = false }) {
   if (!user?.id) return null;
 
   if (isLoading) {
-    return <Skeleton className="h-28 rounded-xl" />;
+    return <Skeleton className="h-28 rounded-lg" />;
   }
 
   // Defensive: bail if data is missing or any required field is absent.

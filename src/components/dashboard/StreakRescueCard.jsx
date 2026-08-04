@@ -53,7 +53,7 @@ export default function StreakRescueCard({ streakDays, lastWorkoutDate, lastMeal
         initial={{ opacity: 0, y: -10, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: -10, scale: 0.98 }}
-        transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+        transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
         onClick={handleResume}
         role="button"
         tabIndex={0}
@@ -66,14 +66,14 @@ export default function StreakRescueCard({ streakDays, lastWorkoutDate, lastMeal
           if (e.target !== e.currentTarget) return;
           if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleResume(); }
         }}
-        className="flex items-center gap-3 p-3 mb-3 rounded-xl border-2 border-primary/35 bg-primary/10 cursor-pointer hover:border-primary/55 transition-colors"
+        className="flex items-center gap-3 p-3 mb-3 rounded-lg border-2 border-primary/35 bg-primary/10 cursor-pointer hover:border-primary/55 transition-colors"
         aria-label={tFallback('streakRescue.aria', `Keep your ${streakDays}-day streak alive`).replace('{n}', String(streakDays))}
       >
-        <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
+        <div className="w-10 h-10 rounded-lg bg-primary/15 flex items-center justify-center shrink-0">
           <Flame className="w-5 h-5 text-primary" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-micro font-bold uppercase tracking-[0.18em] text-primary">
+          <p className="text-micro font-bold tracking-[0.04em] text-primary">
             {tFallback('streakRescue.kicker', `${streakDays}-day streak at risk`).replace('{n}', String(streakDays))}
           </p>
           <p className="text-sm font-heading font-bold truncate">

@@ -64,7 +64,7 @@ export default function LoginStreakBanner({ variant = 'default' }) {
     <motion.div
       initial={{ opacity: 0, y: -6 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4 }}
+      transition={{ duration: 0.22 }}
       className={`inline-flex items-center gap-1.5 ps-2 pe-1 py-0.5 rounded-full border ${
         onHero ? 'bg-white/10 border-white/20' : 'bg-primary/10 border-primary/20'
       }`}
@@ -87,7 +87,7 @@ export default function LoginStreakBanner({ variant = 'default' }) {
         type="button"
         onClick={() => setShowCalendar(v => !v)}
         className={`flex items-center rounded-full p-0.5 transition-colors ${
-          onHero ? 'text-white/60 hover:text-white hover:bg-white/10' : 'text-muted-foreground hover:text-foreground hover:bg-secondary/40'
+          onHero ? 'text-white/60 hover:text-white hover:bg-white/10' : 'text-muted-foreground hover:text-foreground hover:bg-secondary/40 active:bg-secondary/60'
         }`}
         aria-label={showCalendar
           ? tFallback('streakBanner.hideCalendar', 'Hide streak calendar')

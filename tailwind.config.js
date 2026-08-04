@@ -30,8 +30,27 @@ module.exports = {
   			// small grotesque text turn to mud.
   			micro: ['var(--text-micro)', { lineHeight: '1.25', letterSpacing: '0.017em' }]
   		},
+  		// ── Radius rhythm ────────────────────────────────────────────
+  		// THREE steps plus `full`, all derived from --radius so they move
+  		// together. The dashboard was running six radii (full 47, lg 26,
+  		// md 18, xl 15, 2xl 12, sm 3) against a single --radius token that
+  		// had stopped meaning anything.
+  		//
+  		//   sm   inner chrome — icon tiles, chips, small controls
+  		//   lg   the default surface — cards, buttons, inputs
+  		//   2xl  large surfaces — hero, sheets, modals
+  		//   full pills, avatars, rings. Nothing else.
+  		//
+  		// `xl` is pinned to var(--radius) — identical to `lg`. Tailwind's
+  		// default xl is already 0.75rem, the same value --radius holds, so
+  		// the app had two names for one radius and no way to tell which
+  		// was intended. Aliasing rather than deleting keeps the ~15
+  		// existing rounded-xl call-sites on other pages working while
+  		// removing the drift. `md` is kept for the same reason.
   		borderRadius: {
   			lg: 'var(--radius)',
+  			xl: 'var(--radius)',
+  			'2xl': 'calc(var(--radius) + 4px)',
   			md: 'calc(var(--radius) - 2px)',
   			sm: 'calc(var(--radius) - 4px)'
   		},

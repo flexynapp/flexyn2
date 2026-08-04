@@ -96,7 +96,7 @@ export default function StreakCalendarGrid({ profile, month = new Date() }) {
   const dateLocale = getDateLocale(language);
 
   return (
-    <div className="rounded-xl border border-border bg-card p-3">
+    <div className="rounded-lg border border-border bg-card p-3">
       <div className="flex items-baseline justify-between mb-2">
         <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
           {format(month, 'MMMM', { locale: dateLocale })}
@@ -131,7 +131,7 @@ export default function StreakCalendarGrid({ profile, month = new Date() }) {
               initial={{ scale: 0.6, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ delay: d.getDate() * 0.012 }}
-              className={`aspect-square rounded-md flex items-center justify-center text-micro font-bold tabular-nums ${cellClass} ${today ? 'ring-2 ring-primary' : ''}`}
+              className={`aspect-square rounded-sm flex items-center justify-center text-micro font-bold tabular-nums ${cellClass} ${today ? 'ring-2 ring-primary' : ''}`}
               aria-label={`${format(d, 'MMMM d', { locale: dateLocale })}: ${statusLabel}`}
             >
               {d.getDate()}

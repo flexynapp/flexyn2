@@ -139,7 +139,7 @@ export default function PushOptInBanner({ hasWorkouts = false }) {
           initial={{ opacity: 0, y: -6 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -4, transition: { duration: 0.18 } }}
-          transition={{ duration: 0.35 }}
+          transition={{ duration: 0.2 }}
           className="relative overflow-hidden rounded-lg border border-primary/30 bg-primary/8 px-3 py-2.5 flex items-start gap-3"
           role="region"
           aria-label={tFallback('pushOptIn.aria', 'Enable notifications')}
@@ -159,7 +159,7 @@ export default function PushOptInBanner({ hasWorkouts = false }) {
               <button
                 onClick={handleEnable}
                 disabled={push.isLoading}
-                className="px-3 py-1 rounded-md text-micro font-bold bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-60 transition-colors"
+                className="px-3 py-1 rounded-sm text-micro font-bold bg-primary text-primary-foreground hover:bg-primary/90 active:bg-primary/80 disabled:opacity-60 transition-colors"
               >
                 {push.isLoading
                   ? tFallback('pushOptIn.enabling', 'Enabling…')
@@ -167,7 +167,7 @@ export default function PushOptInBanner({ hasWorkouts = false }) {
               </button>
               <button
                 onClick={handleDismiss}
-                className="px-2 py-1 rounded-md text-micro font-medium text-muted-foreground hover:text-foreground transition-colors"
+                className="px-2 py-1 rounded-sm text-micro font-medium text-muted-foreground hover:text-foreground transition-colors"
               >
                 {tFallback('pushOptIn.notNow', 'Not now')}
               </button>
@@ -175,7 +175,7 @@ export default function PushOptInBanner({ hasWorkouts = false }) {
           </div>
           <button
             onClick={handleDismiss}
-            className="shrink-0 -me-1 -mt-1 p-2.5 rounded-md text-muted-foreground/70 hover:text-foreground hover:bg-foreground/5 transition-colors"
+            className="shrink-0 -me-1 -mt-1 p-2.5 rounded-sm text-muted-foreground/70 hover:text-foreground hover:bg-foreground/5 active:bg-foreground/10 transition-colors"
             aria-label={tFallback('pushOptIn.close', 'Dismiss')}
           >
             <X className="w-3.5 h-3.5" />

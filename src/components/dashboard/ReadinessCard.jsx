@@ -92,7 +92,7 @@ export default function ReadinessCard({ logs = [], compact = false, onClick }) {
       <motion.div
         initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
+        transition={{ duration: 0.22 }}
         className="h-full"
       >
         <Card
@@ -131,7 +131,7 @@ export default function ReadinessCard({ logs = [], compact = false, onClick }) {
               <span className="font-heading font-black text-xs tabular-nums">{score}</span>
             </div>
           </div>
-          <span className={`text-micro font-bold uppercase tracking-[0.12em] ${colors.text} leading-none`}>
+          <span className={`text-micro font-bold tracking-[0.04em] ${colors.text} leading-none`}>
             {tFallback('readiness.kicker', 'Readiness')}
           </span>
         </Card>
@@ -143,7 +143,7 @@ export default function ReadinessCard({ logs = [], compact = false, onClick }) {
     <motion.div
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4 }}
+      transition={{ duration: 0.22 }}
     >
       <Wrapper
         {...wrapperProps}
@@ -178,7 +178,7 @@ export default function ReadinessCard({ logs = [], compact = false, onClick }) {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5">
               <Activity className={`w-3.5 h-3.5 ${colors.text}`} aria-hidden="true" />
-              <span className={`text-micro font-bold uppercase tracking-[0.18em] ${colors.text}`}>
+              <span className={`text-micro font-bold tracking-[0.04em] ${colors.text}`}>
                 {tFallback('readiness.kicker', 'Readiness')}
               </span>
               <span className={`text-sm font-heading font-bold ${colors.text}`}>{safeLabel}</span>

@@ -119,7 +119,7 @@ export default function HydrationRing({ goalOz = DEFAULT_GOAL_OZ }) {
       transition={{ duration: 0.3 }}
       className="h-full"
     >
-      <Card className="px-4 py-3 h-full flex items-center min-h-[104px] cursor-pointer hover:bg-secondary/30 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+      <Card className="px-4 py-3 h-full flex items-center min-h-[104px] cursor-pointer hover:bg-secondary/30 active:bg-secondary/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
             onClick={() => navigate('/nutrition')}
             role="button"
             tabIndex={0}
@@ -161,7 +161,7 @@ export default function HydrationRing({ goalOz = DEFAULT_GOAL_OZ }) {
             </div>
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-micro font-bold uppercase tracking-[0.18em] text-info">
+            <p className="text-micro font-bold tracking-[0.04em] text-info">
               {tFallback('hydration.kicker', 'Hydration')}
             </p>
             <p className="text-sm font-heading font-bold leading-tight tabular-nums">

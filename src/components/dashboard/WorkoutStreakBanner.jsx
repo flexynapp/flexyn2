@@ -149,7 +149,7 @@ export default function WorkoutStreakBanner() {
       <motion.div
         initial={{ opacity: 0, y: -6 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
+        transition={{ duration: 0.22 }}
         className="relative overflow-hidden rounded-lg border border-primary/30 bg-primary/10 px-3 py-2.5 flex items-center justify-between gap-3"
         role="alert"
       >
@@ -170,7 +170,7 @@ export default function WorkoutStreakBanner() {
         <button
           onClick={handleRescue}
           disabled={rescuing}
-          className="shrink-0 px-3 py-1.5 rounded-md text-xs font-bold bg-primary text-white hover:bg-primary disabled:opacity-60 transition-colors"
+          className="shrink-0 px-3 py-1.5 rounded-sm text-xs font-bold bg-primary text-white hover:bg-primary disabled:opacity-60 transition-colors"
         >
           {rescuing
             ? tFallback('streakRescue.saving', 'Saving…')
@@ -184,7 +184,7 @@ export default function WorkoutStreakBanner() {
     <motion.div
       initial={{ opacity: 0, y: -6 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4 }}
+      transition={{ duration: 0.22 }}
       className={[
         'relative overflow-hidden flex items-center justify-between gap-3 px-3 py-2 rounded-lg border',
         atRisk ? 'bg-primary/10 border-primary/30' : 'bg-success/10 border-success/20',

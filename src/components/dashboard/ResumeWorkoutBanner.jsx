@@ -138,14 +138,14 @@ export default function ResumeWorkoutBanner() {
           if (e.target !== e.currentTarget) return;
           if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleResume(); }
         }}
-        className="flex items-center gap-3 p-3 mt-5 mb-3 rounded-xl border border-primary/30 bg-primary/10 cursor-pointer hover:border-primary/50 transition-colors"
+        className="flex items-center gap-3 p-3 mt-5 mb-3 rounded-lg border border-primary/30 bg-primary/10 cursor-pointer hover:border-primary/50 transition-colors"
         aria-label={`${tFallback('workout.resumeKicker', 'Resume')} ${title}`}
       >
         <div className="w-9 h-9 rounded-lg bg-primary/15 flex items-center justify-center shrink-0">
           <History className="w-4 h-4 text-primary" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-micro font-bold uppercase tracking-[0.15em] text-primary">
+          <p className="text-micro font-bold tracking-[0.04em] text-primary">
             {tFallback('workout.resumeKicker', 'Resume')}
           </p>
           <p className="text-sm font-heading font-bold truncate">{title}</p>

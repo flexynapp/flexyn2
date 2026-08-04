@@ -56,7 +56,7 @@ export default function LeagueStandingsModal({ open, onClose }) {
       <DialogContent className="max-w-2xl max-h-[88vh] overflow-y-auto p-0 gap-0">
         {isLoading || !data ? (
           <div className="p-6 space-y-2">
-            <Skeleton className="h-24 rounded-xl" />
+            <Skeleton className="h-24 rounded-lg" />
             {[1, 2, 3, 4, 5].map(i => <Skeleton key={i} className="h-14 rounded-lg" />)}
           </div>
         ) : (
@@ -165,7 +165,7 @@ function Body({ data, userId, t, tFallback, fmt, onOpenMember }) {
                     aria-label={interactive ? tFallback('league.openMember', 'Open {name}', { name: m.username || m.full_name || 'member' }) : undefined}
                     className={[
                       'flex items-center gap-3 px-3 py-2.5 rounded-lg border transition-colors',
-                      interactive ? 'cursor-pointer hover:bg-secondary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40' : '',
+                      interactive ? 'cursor-pointer hover:bg-secondary/40 active:bg-secondary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40' : '',
                       isMe
                         ? 'bg-primary/10 border-primary/40 ring-1 ring-primary/30'
                         : isPromote

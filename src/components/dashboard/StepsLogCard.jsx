@@ -124,7 +124,7 @@ export default function StepsLogCard() {
       <Card className="px-4 py-3 h-full flex flex-col justify-center gap-1.5">
         <div className="flex items-center gap-1.5">
           <Footprints className="w-3.5 h-3.5 text-primary shrink-0" aria-hidden="true" />
-          <p className="text-micro font-bold uppercase tracking-[0.18em] text-muted-foreground">
+          <p className="text-micro font-bold tracking-[0.04em] text-muted-foreground">
             {tFallback('steps.kicker', 'Steps today')}
           </p>
         </div>
@@ -152,14 +152,14 @@ export default function StepsLogCard() {
               onKeyDown={e => { if (e.key === 'Enter' && draft) save(draft); }}
               placeholder={logged != null ? fmt(logged) : tFallback('steps.placeholder', 'e.g. 8000')}
               aria-label={tFallback('steps.aria', 'Enter your step count')}
-              className="flex-1 min-w-0 h-8 rounded-md border border-border bg-secondary/50 px-2 text-sm font-mono text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/50"
+              className="flex-1 min-w-0 h-8 rounded-sm border border-border bg-secondary/50 px-2 text-sm font-mono text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/50"
             />
             <button
               type="button"
               onClick={() => draft && save(draft)}
               disabled={!draft || saving}
               aria-label={tFallback('steps.save', 'Save steps')}
-              className="h-8 w-8 shrink-0 rounded-md bg-primary text-primary-foreground flex items-center justify-center disabled:opacity-50"
+              className="h-8 w-8 shrink-0 rounded-sm bg-primary text-primary-foreground flex items-center justify-center disabled:opacity-50"
             >
               <Check className="w-4 h-4" />
             </button>

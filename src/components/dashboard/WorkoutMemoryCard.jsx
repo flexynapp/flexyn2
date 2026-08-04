@@ -87,19 +87,19 @@ export default function WorkoutMemoryCard({ logs = [] }) {
       <motion.div
         initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
+        transition={{ duration: 0.22 }}
       >
         <Card className="relative overflow-hidden border-border/60 bg-primary/5">
           <button
             onClick={handleTap}
-            className="w-full text-start px-4 py-3 flex items-center gap-3 hover:bg-secondary/30 transition-colors"
+            className="w-full text-start px-4 py-3 flex items-center gap-3 hover:bg-secondary/30 active:bg-secondary/50 transition-colors"
           >
             <div className="shrink-0 w-9 h-9 rounded-full bg-primary/12 text-primary flex items-center justify-center">
               <Calendar className="w-4 h-4" aria-hidden="true" />
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-micro font-bold uppercase tracking-[0.18em] text-primary">
+                <span className="text-micro font-bold tracking-[0.04em] text-primary">
                   {tFallback(`memory.label.${memory.yearLabel.replace(/\s+/g, '_')}`, memory.yearLabel)}
                 </span>
                 {dateStr && (
@@ -123,7 +123,7 @@ export default function WorkoutMemoryCard({ logs = [] }) {
             // changing the visual layout. Bare p-1 was 22px — below the
             // accessible-touch threshold and easy to mis-tap when the
             // primary card CTA sits right next to it.
-            className="absolute top-2 end-2 p-2.5 -m-1.5 rounded-md text-muted-foreground/70 hover:text-foreground hover:bg-foreground/5 transition-colors"
+            className="absolute top-2 end-2 p-2.5 -m-1.5 rounded-sm text-muted-foreground/70 hover:text-foreground hover:bg-foreground/5 active:bg-foreground/10 transition-colors"
             aria-label={tFallback('memory.dismiss', 'Dismiss for today')}
           >
             <X className="w-3.5 h-3.5" />

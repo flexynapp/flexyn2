@@ -126,7 +126,7 @@ export default function SleepLogCard() {
   return (
     <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="h-full">
       <Card className="px-3 py-2 h-full flex flex-col justify-center gap-1.5">
-        <p className="text-micro font-bold uppercase tracking-[0.18em] text-muted-foreground">
+        <p className="text-micro font-bold tracking-[0.04em] text-muted-foreground">
           {summary || tFallback('sleep.prompt', "Last night's sleep")}
         </p>
 

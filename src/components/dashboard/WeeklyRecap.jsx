@@ -73,14 +73,14 @@ export default function WeeklyRecap({ logs = [], cardioLogs = [] }) {
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+      transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
     >
       <Card className="overflow-hidden border-border/60 theme-card-accent">
         {/* Top band — kicker + accent + share affordance */}
         <div className="relative bg-primary/10 px-4 pt-3.5 pb-3 border-b border-border/40 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <Calendar className="w-3.5 h-3.5 text-primary" />
-            <span className="text-micro font-bold uppercase tracking-[0.18em] text-primary">
+            <span className="text-micro font-bold tracking-[0.04em] text-primary">
               {tFallback('recap.thisWeek', 'This week')}
             </span>
           </div>
@@ -159,7 +159,7 @@ export default function WeeklyRecap({ logs = [], cardioLogs = [] }) {
                     {recap.prs.map(pr => (
                       <span
                         key={pr.name}
-                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-primary/10 text-primary dark:text-primary border border-primary/20 text-xs"
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm bg-primary/10 text-primary dark:text-primary border border-primary/20 text-xs"
                       >
                         <span className="font-semibold truncate max-w-[140px]">{pr.name}</span>
                         <span className="tabular-nums">

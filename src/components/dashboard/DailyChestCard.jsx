@@ -96,7 +96,7 @@ export default function DailyChestCard() {
       transition={{ duration: 0.3 }}
       className="w-full mb-3 flex items-center gap-3 rounded-2xl p-3.5 text-start border border-primary/30 bg-primary/12 hover:bg-primary/20 transition-colors touch-manipulation disabled:opacity-60"
     >
-      <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center shrink-0">
+      <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center shrink-0">
         <Gift className="w-5 h-5 text-primary" />
       </div>
       <div className="flex-1 min-w-0">

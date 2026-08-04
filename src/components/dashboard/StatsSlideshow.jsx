@@ -59,10 +59,10 @@ function WeeklyVolumeChart({ logs = [] }) {
       className="w-full flex flex-col items-center gap-2"
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, ease: 'easeOut' }}
+      transition={{ duration: 0.26, ease: 'easeOut' }}
     >
       <div className="flex items-center gap-2">
-        <div className="w-8 h-8 rounded-xl bg-info/10 flex items-center justify-center">
+        <div className="w-8 h-8 rounded-lg bg-info/10 flex items-center justify-center">
           <BarChart2 className="w-4 h-4 text-info" />
         </div>
         <div className="text-start">
@@ -128,10 +128,10 @@ function TopExerciseChart({ logs = [] }) {
       className="w-full flex flex-col items-center gap-2"
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, ease: 'easeOut' }}
+      transition={{ duration: 0.26, ease: 'easeOut' }}
     >
       <div className="flex items-center gap-2">
-        <div className="w-8 h-8 rounded-xl bg-accent/10 flex items-center justify-center">
+        <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center">
           <TrendingUp className="w-4 h-4 text-accent" />
         </div>
         <div className="text-start">
@@ -218,7 +218,7 @@ function buildStatSlides(logs, goals, weightUnit, language) {
   slides.push({
     id: 'goals', icon: Target, iconColor: 'text-accent', iconBg: 'bg-accent/10',
     value: completedGoals.length, label: 'Goals Achieved',
-    sub: completedGoals.length > 0 ? 'Crushed it! 🎯' : 'Set your first goal',
+    sub: completedGoals.length > 0 ? 'Crushed it' : 'Set your first goal',
   });
 
   const streak = (() => {
@@ -237,7 +237,7 @@ function buildStatSlides(logs, goals, weightUnit, language) {
   slides.push({
     id: 'streak', icon: Zap, iconColor: 'text-chart-4', iconBg: 'bg-chart-4/10',
     value: streak, label: 'Day Streak',
-    sub: streak > 0 ? "You're on fire 🔥" : 'Start your streak today',
+    sub: streak > 0 ? "You're on fire" : 'Start your streak today',
   });
 
   const exCount = {};
@@ -329,7 +329,7 @@ export default function StatsSlideshow({ logs = [], goals = [], isLoading }) {
     <Card className={`px-4 pt-4 pb-3 flex flex-col items-center border-none shadow-sm col-span-2 overflow-hidden relative ${isChartSlide ? 'min-h-[210px]' : 'min-h-[130px]'}`}>
       {isLoading ? (
         <div className="space-y-2 flex flex-col items-center">
-          <Skeleton className="h-10 w-10 rounded-xl" />
+          <Skeleton className="h-10 w-10 rounded-lg" />
           <Skeleton className="h-8 w-24" />
           <Skeleton className="h-3 w-32" />
         </div>
@@ -342,12 +342,12 @@ export default function StatsSlideshow({ logs = [], goals = [], isLoading }) {
             initial="enter"
             animate="center"
             exit="exit"
-            transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
+            transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
             className={`w-full ${isChartSlide ? '' : 'flex flex-col items-center gap-3 text-center'}`}
           >
             {slide.type === 'stat' && (
               <>
-                <div className={`w-10 h-10 rounded-xl ${slide.iconBg} flex items-center justify-center`}>
+                <div className={`w-10 h-10 rounded-lg ${slide.iconBg} flex items-center justify-center`}>
                   <slide.icon className={`w-5 h-5 ${slide.iconColor}`} />
                 </div>
                 <div>

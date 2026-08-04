@@ -91,19 +91,19 @@ function DiscoveryCard({
       ring:   'ring-1 ring-primary/20',
       bg:     'bg-primary/8',
       icon:   'bg-primary/15 text-primary',
-      btn:    'bg-primary hover:bg-primary/90 text-white',
+      btn:    'bg-primary hover:bg-primary/90 active:bg-primary/80 text-white',
     },
     violet: {
       ring:   'ring-1 ring-primary/20',
       bg:     'bg-primary/8',
       icon:   'bg-primary/15 text-primary',
-      btn:    'bg-primary hover:bg-primary/90 text-white',
+      btn:    'bg-primary hover:bg-primary/90 active:bg-primary/80 text-white',
     },
     amber: {
       ring:   'ring-1 ring-primary/20',
       bg:     'bg-primary/8',
       icon:   'bg-primary/15 text-primary',
-      btn:    'bg-primary hover:bg-primary/90 text-white',
+      btn:    'bg-primary hover:bg-primary/90 active:bg-primary/80 text-white',
     },
     sky: {
       ring:   'ring-1 ring-info/20',
@@ -119,7 +119,7 @@ function DiscoveryCard({
       ring:   'ring-1 ring-primary/25',
       bg:     'bg-primary/12',
       icon:   'bg-primary/15 text-primary',
-      btn:    'bg-primary hover:bg-primary/90 text-white',
+      btn:    'bg-primary hover:bg-primary/90 active:bg-primary/80 text-white',
     },
   };
   const a = accents[accent] || accents.orange;
@@ -134,12 +134,12 @@ function DiscoveryCard({
     >
       <Card className={`relative overflow-hidden p-4 md:p-5 border-border/60 ${a.bg} ${a.ring}`}>
         <div className="flex items-start gap-3">
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${a.icon}`}>
+          <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${a.icon}`}>
             <Icon className="w-5 h-5" />
           </div>
           <div className="flex-1 min-w-0">
             {kicker && (
-              <div className="font-mono text-micro font-semibold tracking-[0.14em] uppercase text-muted-foreground mb-1">
+              <div className="font-mono text-micro font-semibold tracking-[0.04em] text-muted-foreground mb-1">
                 {kicker}
               </div>
             )}
@@ -162,7 +162,7 @@ function DiscoveryCard({
             type="button"
             onClick={onDismiss}
             aria-label={dismissAriaLabel}
-            className="p-1.5 rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors shrink-0"
+            className="p-1.5 rounded-sm text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors shrink-0"
           >
             <X className="w-4 h-4" />
           </button>

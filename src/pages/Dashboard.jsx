@@ -9,7 +9,7 @@ import {
 } from '@/lib/dashboardLayout';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { subDays, isAfter, differenceInDays, startOfDay, format } from 'date-fns';
-import { Dumbbell, TrendingUp, Play, ArrowRight, Zap, Activity, Target, Apple, Camera, Scale, TrendingDown, Minus, CheckCircle2, LayoutGrid, GripVertical, CalendarDays, ChevronRight, ChevronDown, ChevronUp, Rows3, Columns2, RotateCcw, Save, Plus, X } from 'lucide-react';
+import { Dumbbell, TrendingUp, Play, ArrowRight, Zap, Activity, Target, Apple, Camera, Scale, TrendingDown, Minus, CheckCircle2, LayoutGrid, GripVertical, CalendarDays, ChevronRight, ChevronDown, ChevronUp, Rows3, Columns2, RotateCcw, Save, Plus, X, Moon, Star, Smile } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { motion, AnimatePresence, Reorder, useReducedMotion } from 'framer-motion';
 import GoalsModal from '@/components/goals/GoalsModal';
@@ -285,7 +285,7 @@ function HeroCard({
             transition={reduceMotion ? { duration: 0 } : { duration: 3.2, repeat: Infinity, ease: 'easeInOut' }}
           />
           <div className="relative min-w-0">
-            <span className="block text-micro font-semibold tracking-[0.2em] uppercase mb-1" style={{ color: 'hsl(var(--primary-foreground) / 0.85)' }}>
+            <span className="block text-micro font-semibold tracking-[0.04em] mb-1" style={{ color: 'hsl(var(--primary-foreground) / 0.85)' }}>
               {hasWorkedOutToday
                 ? t('dashboard.hero.label.again')
                 : t('dashboard.hero.label.today')}
@@ -333,7 +333,7 @@ function StatTile({ icon: Icon, value, label, suffix, delay = 0, accent = false,
     <motion.div
       initial={{ opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, delay, ease: [0.22, 1, 0.36, 1] }}
+      transition={{ duration: 0.26, delay, ease: [0.22, 1, 0.36, 1] }}
       className="h-full"
     >
       <Card
@@ -343,7 +343,7 @@ function StatTile({ icon: Icon, value, label, suffix, delay = 0, accent = false,
       >
         <div className="flex items-center gap-2 mb-3 text-muted-foreground">
           <Icon className={`w-3.5 h-3.5 ${accent ? 'text-primary' : ''}`} />
-          <span className="text-micro font-semibold tracking-[0.16em] uppercase">
+          <span className="text-micro font-semibold tracking-[0.04em]">
             {label}
           </span>
         </div>
@@ -382,10 +382,10 @@ function QuickAction({ to, icon: Icon, label, onClick, delay = 0, iconBg, iconCo
     <motion.div
       initial={{ opacity: 0, x: -8 }}
       animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.45, delay, ease: 'easeOut' }}
+      transition={{ duration: 0.24, delay, ease: 'easeOut' }}
       whileHover={{ x: 3 }}
       whileTap={{ scale: 0.98 }}
-      className="group relative flex items-center gap-3 px-4 py-3.5 rounded-xl bg-card border border-border/70 hover:border-primary/40 hover:bg-card transition-colors cursor-pointer select-none-ui"
+      className="group relative flex items-center gap-3 px-4 py-3.5 rounded-lg bg-card border border-border/70 hover:border-primary/40 hover:bg-card transition-colors cursor-pointer select-none-ui"
     >
       <div className={`w-9 h-9 rounded-lg ${bg} flex items-center justify-center transition-colors`}>
         <Icon className={`w-4 h-4 ${fg} transition-colors`} />
@@ -436,7 +436,7 @@ function SectionHeader({ label, open, onToggle, tFallback }) {
       className="w-full mt-3 mb-1.5 px-1 flex items-center justify-between text-start group"
       aria-expanded={open}
     >
-      <span className="text-micro font-semibold tracking-[0.2em] uppercase text-muted-foreground/70 group-hover:text-foreground transition-colors">
+      <span className="text-micro font-semibold tracking-[0.04em] text-muted-foreground/70 group-hover:text-foreground transition-colors">
         {label}
       </span>
       <span className="text-micro font-semibold text-muted-foreground/50 group-hover:text-foreground transition-colors">
@@ -1219,16 +1219,26 @@ export default function Dashboard() {
               toggles. Hitting collapse no longer wipes the whole
               section like the old SectionHeader + Collapsible
               wrappers did. */}
-          {/* Recovery used to be a blue-tinted card while other sections
-              were orange/amber — cycling an accent hue per section is the
-              "every block gets its own colour" tell, and it spends the
-              colour budget on grouping that spacing already does. The
-              section reads as recovery from its heading and its contents;
-              the surface is the same surface as everywhere else. */}
-          <Card data-recovery-section className="p-4 md:p-5">
-            <div className="flex items-center gap-2 mb-3">
+          {/* Was a blue-tinted <Card> wrapping six <Card> widgets — a
+              surface inside a surface, which is the "cards nested within
+              cards" pattern. It also spent an accent hue on grouping
+              (recovery blue vs quests orange) that the heading already
+              does. Now a plain labelled region: the six widgets are the
+              only surfaces, and they line up with every other card on the
+              page instead of being inset from one.
+
+              Kept as a semantic <section> with aria-labelledby so the
+              grouping survives for screen readers now that no box draws
+              it. data-recovery-section is load-bearing — the "open
+              recovery" deep-link scrolls to it. */}
+          <section
+            data-recovery-section
+            aria-labelledby="dash-recovery-heading"
+            className="space-y-2"
+          >
+            <div className="flex items-center gap-2 px-1">
               <Activity className="w-4 h-4 text-info" />
-              <h3 className="font-heading font-bold text-sm tracking-tight">
+              <h3 id="dash-recovery-heading" className="font-heading font-bold text-sm tracking-tight">
                 {tFallback('dashboard.section.recovery', 'Nutrition & Recovery')}
               </h3>
             </div>
@@ -1253,16 +1263,16 @@ export default function Dashboard() {
               onClick={toggleRecovery}
               aria-label={recoveryOpen ? tFallback('dashboard.collapseRecovery', 'Collapse recovery') : tFallback('dashboard.expandRecovery', 'Expand recovery')}
               aria-expanded={recoveryOpen}
-              className="w-full mt-2 -mb-1 flex items-center justify-center py-1 rounded-md text-muted-foreground/60 hover:text-foreground hover:bg-secondary/40 transition-colors"
+              className="w-full flex items-center justify-center py-1.5 rounded-sm text-muted-foreground/60 hover:text-foreground hover:bg-secondary/40 active:bg-secondary/60 transition-colors"
             >
               {recoveryOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
             </button>
-          </Card>
+          </section>
         </React.Fragment>
       );
       case 'challenges': return (
         <React.Fragment key="challenges">
-          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.15 }}>
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.22, delay: 0.15 }}>
             <ErrorBoundary label="DailyQuestsCard"><DailyQuestsCard /></ErrorBoundary>
           </motion.div>
           {!isRestDay && (
@@ -1283,7 +1293,7 @@ export default function Dashboard() {
       );
       case 'league': return (
         <React.Fragment key="league">
-          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.10 }} className="h-full">
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.22, delay: 0.10 }} className="h-full">
             {/* stretch: this card shares a grid row with the Readiness
                 square and has to match its height. StatsHubModal renders
                 the same card without it — see the prop's docs. */}
@@ -1293,7 +1303,7 @@ export default function Dashboard() {
       );
       case 'friends': return (
         <React.Fragment key="friends">
-          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.12 }}>
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.22, delay: 0.12 }}>
             <ErrorBoundary label="FriendLeaderboard"><FriendLeaderboardPanel /></ErrorBoundary>
           </motion.div>
         </React.Fragment>
@@ -1364,7 +1374,7 @@ export default function Dashboard() {
         const hiddenCount = allActions.length - 3;
         return (
           <React.Fragment key="actions">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4, delay: 0.15 }}>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.22, delay: 0.15 }}>
               <div className="flex flex-col gap-2">
                 {visibleActions.map((a, i) => (
                   a.to ? (
@@ -1434,7 +1444,7 @@ export default function Dashboard() {
           <motion.div
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.25 }}
+            transition={{ duration: 0.26, delay: 0.25 }}
           >
             <DashboardWidgets logs={logs} goals={goals} isLoading={isLoading} userProfile={userProfile} />
           </motion.div>
@@ -1450,7 +1460,7 @@ export default function Dashboard() {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      transition={{ duration: 0.4 }}
+      transition={{ duration: 0.22 }}
       className="px-4 md:px-6 pt-1 md:pt-2 lg:pb-6 max-w-5xl mx-auto"
     >
       {/* ── Stories ──────────────────────────────────────────────
@@ -1469,10 +1479,10 @@ export default function Dashboard() {
       <motion.div
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: 'easeOut' }}
+        transition={{ duration: 0.26, ease: 'easeOut' }}
         className=""
       >
-        <p className="text-micro font-semibold tracking-[0.2em] uppercase text-muted-foreground mb-1.5">
+        <p className="text-micro font-semibold tracking-[0.04em] text-muted-foreground mb-1.5">
           {todayLabel}
         </p>
         <div className="flex items-start justify-between gap-2">
@@ -1494,7 +1504,7 @@ export default function Dashboard() {
                 type="button"
                 onClick={handleSetAsDefault}
                 title="Save this layout as the default for all new users"
-                className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-semibold text-primary dark:text-primary hover:bg-primary/10 transition-colors"
+                className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-semibold text-primary dark:text-primary hover:bg-primary/10 active:bg-primary/20 transition-colors"
               >
                 <Save className="w-3.5 h-3.5" />
                 <span>Set default</span>
@@ -1541,7 +1551,7 @@ export default function Dashboard() {
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.4, delay: 0.2 }}
+              transition={{ duration: 0.22, delay: 0.2 }}
               className="text-sm text-muted-foreground mt-2"
             >
               {t('dashboard.welcomeBack')}
@@ -1589,8 +1599,8 @@ export default function Dashboard() {
           only when the user has actually hidden something. Tapping a
           chip restores that section to the end of the visible list. */}
       {editMode && hiddenSections.size > 0 && (
-        <div className="mt-4 mb-3 p-3 rounded-xl border border-dashed border-border bg-secondary/30">
-          <p className="font-mono text-micro font-bold uppercase tracking-[0.18em] text-muted-foreground mb-2">
+        <div className="mt-4 mb-3 p-3 rounded-lg border border-dashed border-border bg-secondary/30">
+          <p className="font-mono text-micro font-bold tracking-[0.04em] text-muted-foreground mb-2">
             {tFallback('dashboard.hiddenSections', 'Hidden — tap to restore')}
           </p>
           <div className="flex flex-wrap gap-1.5">
@@ -1599,7 +1609,7 @@ export default function Dashboard() {
                 key={id}
                 type="button"
                 onClick={() => restoreSection(id)}
-                className="flex items-center gap-1 px-2 py-1 rounded-full border border-primary/40 bg-primary/5 text-primary text-micro font-semibold hover:bg-primary/10 transition-colors"
+                className="flex items-center gap-1 px-2 py-1 rounded-full border border-primary/40 bg-primary/5 text-primary text-micro font-semibold hover:bg-primary/10 active:bg-primary/20 transition-colors"
               >
                 <Plus className="w-3 h-3" />
                 {SECTION_LABELS[id]?.(tFallback, t) || id}
@@ -1633,12 +1643,12 @@ export default function Dashboard() {
                         title={isHalf
                           ? tFallback('dashboard.layout.toHamburger', 'Stack full-width')
                           : tFallback('dashboard.layout.toHotdog',     'Pair side-by-side')}
-                        className="flex items-center gap-1 px-1.5 py-0.5 rounded-md hover:bg-primary/10 text-primary/60 hover:text-primary transition-colors"
+                        className="flex items-center gap-1 px-1.5 py-0.5 rounded-sm hover:bg-primary/10 active:bg-primary/20 text-primary/60 hover:text-primary transition-colors"
                       >
                         {isHalf
                           ? <Columns2 className="w-3 h-3" />
                           : <Rows3    className="w-3 h-3" />}
-                        <span className="text-micro font-bold uppercase tracking-[0.18em]">
+                        <span className="text-micro font-bold tracking-[0.04em]">
                           {SECTION_LABELS[id]?.(tFallback, t) || id}
                         </span>
                       </button>
@@ -1656,7 +1666,7 @@ export default function Dashboard() {
                           onPointerDown={(e) => e.stopPropagation()}
                           title={tFallback('dashboard.hideSection', 'Hide this section')}
                           aria-label={tFallback('dashboard.hideSection', 'Hide this section')}
-                          className="flex items-center justify-center w-5 h-5 rounded-md hover:bg-destructive/15 text-destructive/60 hover:text-destructive transition-colors"
+                          className="flex items-center justify-center w-5 h-5 rounded-sm hover:bg-destructive/15 text-destructive/60 hover:text-destructive transition-colors"
                         >
                           <X className="w-3 h-3" />
                         </button>
@@ -1721,7 +1731,7 @@ export default function Dashboard() {
           >
             <div className="flex items-start justify-between gap-3 mb-3">
               <div>
-                <p className="font-mono text-micro font-bold tracking-[0.18em] uppercase text-primary mb-1">How it's calculated</p>
+                <p className="font-mono text-micro font-bold tracking-[0.04em] text-primary mb-1">How it's calculated</p>
                 <h3 className="font-heading font-bold text-lg leading-tight">Your Readiness score</h3>
               </div>
               <button
@@ -1748,25 +1758,25 @@ export default function Dashboard() {
                 const moodLogged = !!(readiness.mood?.mood || readiness.sleep?.soreness);
                 const rows = [
                   {
-                    emoji: '😴', name: "Last night's sleep", weight: '40%', d: b.sleep,
+                    Icon: Moon, name: "Last night's sleep", weight: '40%', d: b.sleep,
                     value: b.sleep?.logged ? `${b.sleep.value} hr` : null,
                     // One "Log sleep" button covers hours + quality (both come
                     // from the sleep log), shown when either is missing.
                     cta: (!b.sleep?.logged || !b.quality?.logged) ? { label: 'Log sleep', target: 'recovery' } : null,
                   },
                   {
-                    emoji: '⭐', name: 'Sleep quality', weight: '20%', d: b.quality,
+                    Icon: Star, name: 'Sleep quality', weight: '20%', d: b.quality,
                     value: b.quality?.logged ? `${b.quality.value} / 5` : null,
                   },
                   {
-                    emoji: '🙂', name: 'Mood / soreness', weight: '25%', d: b.soreness,
+                    Icon: Smile, name: 'Mood / soreness', weight: '25%', d: b.soreness,
                     value: readiness.mood?.mood
                       ? moodLabels[Math.max(0, Math.min(4, readiness.mood.mood - 1))]
                       : (readiness.sleep?.soreness ? `Soreness ${readiness.sleep.soreness}/5` : null),
                     cta: moodLogged ? null : { label: 'Log mood', target: 'recovery' },
                   },
                   {
-                    emoji: '🏋️', name: 'Days since last workout', weight: '15%', d: b.recency,
+                    Icon: Dumbbell, name: 'Days since last workout', weight: '15%', d: b.recency,
                     value: b.recency?.logged
                       ? (b.recency.value === 0 ? 'Trained today' : `${b.recency.value} day${b.recency.value === 1 ? '' : 's'} ago`)
                       : null,
@@ -1777,7 +1787,12 @@ export default function Dashboard() {
                 ];
                 return rows.map((r) => (
                   <li key={r.name} className="flex gap-3 items-start">
-                    <span className="text-xl leading-none mt-0.5">{r.emoji}</span>
+                    {/* Was a 20px emoji (😴 ⭐ 🙂 🏋️). A Lucide glyph in a
+                        muted tile inherits colour and weight, sits on the
+                        text baseline, and renders the same on every OS. */}
+                    <span className="shrink-0 mt-0.5 w-7 h-7 rounded-sm bg-secondary/60 text-muted-foreground flex items-center justify-center">
+                      <r.Icon className="w-3.5 h-3.5" aria-hidden="true" />
+                    </span>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-baseline justify-between gap-2">
                         <p className="text-sm font-semibold">{r.name}</p>
@@ -1824,7 +1839,7 @@ export default function Dashboard() {
             <button
               type="button"
               onClick={() => setReadinessInfoOpen(false)}
-              className="w-full mt-4 py-3 rounded-xl bg-primary text-primary-foreground font-bold text-sm hover:opacity-90 transition-opacity"
+              className="w-full mt-4 py-3 rounded-lg bg-primary text-primary-foreground font-bold text-sm hover:opacity-90 transition-opacity"
             >
               Got it
             </button>

@@ -114,14 +114,14 @@ export default function MacroRingWidget({ userProfile = {} }) {
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, delay: 0.05 }}
+      transition={{ duration: 0.22, delay: 0.05 }}
     >
       <Card
         className="p-4 border-border/60 cursor-pointer hover:shadow-md transition-shadow"
         onClick={() => navigate('/nutrition')}
       >
         <div className="flex items-center gap-2 mb-3">
-          <span className="text-micro font-bold uppercase tracking-[0.18em] text-muted-foreground">Today's Macros</span>
+          <span className="text-micro font-bold tracking-[0.04em] text-muted-foreground">Today's Macros</span>
         </div>
 
         <div className="flex items-center gap-4">

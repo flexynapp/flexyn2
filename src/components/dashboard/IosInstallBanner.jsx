@@ -109,12 +109,12 @@ export default function IosInstallBanner() {
           initial={{ opacity: 0, y: -6 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -4, transition: { duration: 0.18 } }}
-          transition={{ duration: 0.35 }}
+          transition={{ duration: 0.2 }}
           className="relative overflow-hidden rounded-lg border border-info/30 bg-info/8 px-2.5 py-1.5 flex items-center gap-2"
           role="region"
           aria-label={tFallback('iosInstall.aria', 'Install Flexyn on your home screen')}
         >
-          <div className="shrink-0 w-6 h-6 rounded-md bg-info/15 text-info flex items-center justify-center">
+          <div className="shrink-0 w-6 h-6 rounded-sm bg-info/15 text-info flex items-center justify-center">
             <Plus className="w-3 h-3" aria-hidden="true" />
           </div>
           <div className="flex-1 min-w-0">
@@ -134,7 +134,7 @@ export default function IosInstallBanner() {
           </div>
           <button
             onClick={handleDismiss}
-            className="shrink-0 -me-1 p-1.5 rounded-md text-muted-foreground/70 hover:text-foreground hover:bg-foreground/5 transition-colors"
+            className="shrink-0 -me-1 p-1.5 rounded-sm text-muted-foreground/70 hover:text-foreground hover:bg-foreground/5 active:bg-foreground/10 transition-colors"
             aria-label={tFallback('iosInstall.close', 'Dismiss')}
           >
             <X className="w-3 h-3" />

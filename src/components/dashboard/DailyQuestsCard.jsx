@@ -291,7 +291,7 @@ export default function DailyQuestsCard({ onNavigated }) {
         onClick={() => setCollapsed(c => !c)}
         aria-label={collapsed ? tFallback('dashboard.expandQuests', 'Expand quests') : tFallback('dashboard.collapseQuests', 'Collapse quests')}
         aria-expanded={!collapsed}
-        className="w-full mt-2 -mb-1 flex items-center justify-center py-1 rounded-md text-muted-foreground/60 hover:text-foreground hover:bg-secondary/40 transition-colors"
+        className="w-full mt-2 -mb-1 flex items-center justify-center py-1 rounded-sm text-muted-foreground/60 hover:text-foreground hover:bg-secondary/40 active:bg-secondary/60 transition-colors"
       >
         {collapsed ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronUp className="w-3.5 h-3.5" />}
       </button>
@@ -381,7 +381,7 @@ function QuestRow({ quest, onClaim, onGo, t, tFallback }) {
               initial={{ scale: 0.85, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               onClick={(e) => { e.stopPropagation(); onClaim(); }}
-              className="px-3 py-1 rounded-md bg-primary text-primary-foreground text-xs font-bold hover:opacity-90 transition-opacity"
+              className="px-3 py-1 rounded-sm bg-primary text-primary-foreground text-xs font-bold hover:opacity-90 transition-opacity"
             >
               {t('dashboard.claim')}
             </motion.button>

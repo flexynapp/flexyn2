@@ -114,7 +114,7 @@ export default function CalorieProgressWidget({ userProfile = {} }) {
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4 }}
+      transition={{ duration: 0.22 }}
     >
       <Card
         className="p-4 border-border/60 cursor-pointer hover:shadow-md transition-shadow"
@@ -126,7 +126,7 @@ export default function CalorieProgressWidget({ userProfile = {} }) {
             <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
               <Flame className="w-3.5 h-3.5 text-primary" />
             </div>
-            <span className="text-micro font-bold uppercase tracking-[0.18em] text-muted-foreground">{tFallback('calories.kicker', 'Calories')}</span>
+            <span className="text-micro font-bold tracking-[0.04em] text-muted-foreground">{tFallback('calories.kicker', 'Calories')}</span>
           </div>
           <div className="flex items-center gap-1 text-micro text-muted-foreground">
             <Apple className="w-3 h-3" />
