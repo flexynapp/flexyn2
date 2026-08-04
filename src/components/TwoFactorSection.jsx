@@ -230,7 +230,7 @@ export default function TwoFactorSection() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Keep on</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDisable} className="bg-destructive hover:bg-destructive/90">
+            <AlertDialogAction onClick={confirmDisable} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               Turn off
             </AlertDialogAction>
           </AlertDialogFooter>

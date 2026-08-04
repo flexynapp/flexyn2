@@ -425,7 +425,7 @@ export default function CoachChat({ mode, onSaveRegimen, onStartWorkout }) {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{tFallback('common.cancel', 'Cancel')}</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmClear} className="bg-destructive hover:bg-destructive/90">
+            <AlertDialogAction onClick={confirmClear} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               {tFallback('common.clear', 'Clear')}
             </AlertDialogAction>
           </AlertDialogFooter>

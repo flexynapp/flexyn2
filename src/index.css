@@ -56,7 +56,29 @@
     --muted-foreground: 210 10% 42%;
     --accent: 210 18% 30%;
     --accent-foreground: 0 0% 100%;
-    --destructive: 0 72% 51%;
+    /* ── --destructive serves two incompatible roles ─────────────────
+       1. SURFACE — `bg-destructive` with --destructive-foreground text
+          (32 call-sites: buttons, badges, toasts, count bubbles).
+       2. TEXT — `text-destructive` on a card or the page background
+          (118 call-sites, by far the dominant use).
+
+       Role 1 wants the colour DARK enough for its foreground to read on
+       it. Role 2 wants it LIGHT enough to read against a dark card. On a
+       dark theme those pull in opposite directions and no single value
+       satisfies both — which is why dark mode measured 3.48:1 as text,
+       failing AA, while looking fine as a button.
+
+       The fix is the one Material 3 uses for error/onError: keep ONE
+       colour per theme but let its FOREGROUND flip. Dark mode gets a
+       light red with near-black text on it; light mode keeps a deep red
+       with white on it. That fixes both roles through the two tokens
+       that already exist, so none of the 118 text call-sites change.
+
+       Light mode was technically passing but with no margin: the old
+       0 72% 51% measured 4.502:1 against --background, i.e. AA by
+       0.002. 47% lightness takes it to 5.03:1 on background and 5.36:1
+       on card, and white-on-destructive to the same 5.36:1. */
+    --destructive: 0 74% 47%;
     --destructive-foreground: 0 0% 100%;
     /* ── The color budget ────────────────────────────────────────────
        Color is a shared resource with a fixed ceiling, not a per-card
@@ -127,12 +149,23 @@
     --muted-foreground: 210 10% 58%;
     --accent: 210 18% 32%;
     --accent-foreground: 0 0% 100%;
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 0 0% 100%;
-    /* Both semantic hues lift ~18pts of lightness on dark. The light
-       values are tuned to clear AA against white cards; the same
-       lightness on a #16191f card lands around 2:1 and disappears.
-       See the color-budget note in :root for what these two mean. */
+    /* Lifted from 51% to 63% so `text-destructive` clears AA on the dark
+       card — it measured 3.48:1 there, the one token in the system that
+       failed. 63% puts it at 4.78:1.
+
+       That makes white-on-destructive only 3.49:1, so the FOREGROUND
+       flips to a near-black red instead (5.27:1 on the surface). This is
+       the same inversion Material 3 applies to error/onError in dark
+       themes, and it is why a destructive button reads as light-red with
+       dark text on dark mode and deep-red with white text on light. See
+       the long note in :root.
+
+       --success and --info likewise lift ~18pts of lightness on dark:
+       their light values are tuned to clear AA against white cards, and
+       the same lightness on a #16191f card lands around 2:1 and
+       disappears. */
+    --destructive: 0 75% 63%;
+    --destructive-foreground: 0 60% 10%;
     --success: 152 52% 52%;
     --success-foreground: 210 18% 9%;
     --info: 205 70% 60%;

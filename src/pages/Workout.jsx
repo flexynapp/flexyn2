@@ -2868,7 +2868,7 @@ export default function Workout() {
             <AlertDialogCancel>{tFallback('workout.keepGoing', 'Keep going')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => { setConfirmDiscard(false); resetWorkout(activeSessionId); }}
-              className="bg-destructive hover:bg-destructive/90"
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {tFallback('workout.discard', 'Discard')}
             </AlertDialogAction>
