@@ -219,6 +219,45 @@ export default function MarketplaceFeed() {
 
   const flexCoins = user?.flex_coins ?? 0;
 
+  // ── Undo a cancel ──────────────────────────────────────────────────────────
+  //
+  // Declared ABOVE handleCancel on purpose: handleCancel names it in its
+  // useCallback deps array, and a deps array is evaluated synchronously when
+  // useCallback runs. Declared the other way round this is a TDZ
+  // ReferenceError that dev mode can hide and minified production doesn't —
+  // the 2026-05-23 Hub crash was exactly this shape.
+  //
+  // "Undo" re-lists rather than un-cancelling. There is no un-cancel RPC and
+  // adding one would mean a migration plus a new way to resurrect a listing
+  // server-side; `create_marketplace_listing` (mig 025) already validates
+  // ownership, checks the item isn't listed, and sets is_listed in one
+  // transaction, so restoring the same terms through it is both correct and
+  // free. The visible outcome is identical — same item, same price, back on
+  // the market. The difference is that it's a NEW listing row: the cancelled
+  // one stays cancelled, and the restored listing sorts as newest rather than
+  // returning to its original position.
+  const handleUndoCancel = useCallback(async (listing) => {
+    try {
+      await marketplace.createListing({
+        inventory_id:     listing.inventory_id,
+        listing_type:     listing.listing_type,
+        asking_price:     listing.asking_price ?? null,
+        trade_for_rarity: listing.trade_for_rarity ?? null,
+      });
+      await qc.invalidateQueries({ queryKey: ['marketplaceListings'] });
+      await qc.invalidateQueries({ queryKey: ['userInventory', user?.email] });
+    } catch (err) {
+      reportError(err, {
+        feature: 'marketplace.undo-cancel', level: 'warning',
+        userEmail: user?.email, listingId: listing?.id,
+      });
+      // Names the recovery path: the item is safely back in the bag either
+      // way, so "it's still yours, list it again" is the accurate thing to
+      // say rather than a bare "something went wrong".
+      toast.error("Couldn't restore that listing — the item's still in your bag.");
+    }
+  }, [qc, user?.email]);
+
   // ── Cancel listing ─────────────────────────────────────────────────────────
   const handleCancel = useCallback(async (listing) => {
     try {
@@ -230,7 +269,17 @@ export default function MarketplaceFeed() {
       // and telling the user it had failed.
       await qc.invalidateQueries({ queryKey: ['marketplaceListings'] });
       await qc.invalidateQueries({ queryKey: ['userInventory', user?.email] });
-      toast.success('Pulled it back.');
+      // The Undo is what makes this toast render at all: src/lib/toast.js
+      // suppresses every non-error variant unless it carries an `action`, so
+      // the bare toast.success that used to be here showed nothing. It also
+      // happens to be the right affordance — cancelling is one tap with no
+      // confirm step, so a mis-tap needs a way back.
+      toast.success('Pulled it back.', {
+        action: {
+          label: 'Undo',
+          onClick: () => { void handleUndoCancel(listing); },
+        },
+      });
     } catch (err) {
       reportError(err, {
         feature: 'marketplace.cancel-listing', level: 'warning',
@@ -238,7 +287,7 @@ export default function MarketplaceFeed() {
       });
       toast.error('Could not cancel — try again.');
     }
-  }, [qc, user?.email]);
+  }, [qc, user?.email, handleUndoCancel]);
 
   // ── Buy item ───────────────────────────────────────────────────────────────
   // Server-atomic via the purchase_listing RPC (mig 025): locks the listing,
