@@ -48,7 +48,7 @@ function LevelBadge({ level }) {
     advanced:     { bg: 'bg-destructive/15',    text: 'text-destructive'    },
   }[level] || { bg: 'bg-secondary', text: 'text-muted-foreground' };
   return (
-    <span className={`inline-block text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${palette.bg} ${palette.text}`}>
+    <span className={`inline-block text-micro font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${palette.bg} ${palette.text}`}>
       {level}
     </span>
   );
@@ -102,10 +102,10 @@ export default function ProgramTemplatePicker({ onCreated }) {
   return (
     <div className="space-y-2">
       <div className="px-1">
-        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">
+        <p className="text-micro font-bold uppercase tracking-[0.18em] text-primary">
           {tFallback('programs.kicker', 'Built-in programs')}
         </p>
-        <p className="text-[11px] text-muted-foreground mt-0.5">
+        <p className="text-micro text-muted-foreground mt-0.5">
           {tFallback('programs.subtitle', 'Proven programming. Tap a card to get started.')}
         </p>
       </div>
@@ -124,12 +124,12 @@ export default function ProgramTemplatePicker({ onCreated }) {
                 <h4 className="font-heading font-bold text-sm">{t.name}</h4>
                 <LevelBadge level={t.level} />
               </div>
-              <p className="text-[11px] text-muted-foreground leading-snug mb-2">{t.tagline}</p>
+              <p className="text-micro text-muted-foreground leading-snug mb-2">{t.tagline}</p>
               <div className="flex items-center justify-between">
-                <span className="text-[10px] text-muted-foreground tabular-nums">
+                <span className="text-micro text-muted-foreground tabular-nums">
                   {t.days} {t.days === 1 ? 'day/wk' : 'days/wk'} · {t.sessions.length} sessions
                 </span>
-                <span className="text-[10px] font-bold text-primary inline-flex items-center gap-1">
+                <span className="text-micro font-bold text-primary inline-flex items-center gap-1">
                   {isBusy ? (
                     <>
                       <Loader2 className="w-3 h-3 animate-spin" />

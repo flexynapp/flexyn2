@@ -115,7 +115,7 @@ export default function ProfileContestRail({
         >
           <span className="text-xs font-bold tabular-nums leading-none">#{league.rank}</span>
           {league.tierLabel && (
-            <span className="text-[10px] font-extrabold uppercase tracking-wider" style={{ opacity: 0.75 }}>
+            <span className="text-micro font-extrabold uppercase tracking-wider" style={{ opacity: 0.75 }}>
               {league.tierLabel}
             </span>
           )}

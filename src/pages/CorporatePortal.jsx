@@ -282,7 +282,7 @@ function OrgHub({ org, isAdmin, onLeave, onNewChallenge }) {
             <div className="flex items-center gap-2">
               <h2 className="font-heading text-xl font-bold truncate">{org.name}</h2>
               {isAdmin && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-600 dark:text-amber-300 border border-amber-400/30 font-bold uppercase tracking-wide text-[10px]">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-600 dark:text-amber-300 border border-amber-400/30 font-bold uppercase tracking-wide text-micro">
                   <Crown className="w-2.5 h-2.5" /> Admin
                 </span>
               )}
@@ -298,7 +298,7 @@ function OrgHub({ org, isAdmin, onLeave, onNewChallenge }) {
         {isAdmin && (
           <button onClick={copyCode} className="mt-3 w-full rounded-xl bg-primary/8 border border-primary/20 p-2.5 flex items-center justify-between hover:bg-primary/12 transition-colors">
             <div className="text-start">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-primary">Team join code</p>
+              <p className="text-micro font-bold uppercase tracking-wider text-primary">Team join code</p>
               <p className="font-mono text-lg tracking-[0.3em] font-bold">{org.join_code}</p>
             </div>
             <Copy className="w-4 h-4 text-primary" />
@@ -328,7 +328,7 @@ function OrgHub({ org, isAdmin, onLeave, onNewChallenge }) {
           <div className="flex items-center gap-2 mb-3">
             <TrendingUp className="w-4 h-4 text-emerald-500" />
             <h3 className="font-heading font-bold text-sm">Engagement (read-only)</h3>
-            <span className="ms-auto inline-flex items-center gap-1 text-[10px] text-muted-foreground">
+            <span className="ms-auto inline-flex items-center gap-1 text-micro text-muted-foreground">
               <Lock className="w-3 h-3" /> aggregate only
             </span>
           </div>
@@ -349,12 +349,12 @@ function OrgHub({ org, isAdmin, onLeave, onNewChallenge }) {
                 <div key={label} className="rounded-xl bg-secondary/40 p-3 text-center">
                   <Icon className={`w-4 h-4 mx-auto mb-1 ${color}`} />
                   <p className={`font-heading font-bold text-lg tabular-nums ${color}`}>{value}</p>
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide">{label}</p>
+                  <p className="text-micro text-muted-foreground uppercase tracking-wide">{label}</p>
                 </div>
               ))}
             </div>
           )}
-          <p className="text-[10px] text-muted-foreground mt-3">
+          <p className="text-micro text-muted-foreground mt-3">
             Individual employee data is never shown — only team aggregates.
           </p>
         </div>

@@ -107,7 +107,7 @@ export default function MemberDirectoryModal({ open, onClose, gymId, gymOwnerId 
                               <Crown className="w-3 h-3 text-amber-500 shrink-0" title="Gym owner" />
                             )}
                           </div>
-                          <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                          <div className="flex items-center gap-2 text-micro text-muted-foreground">
                             {m.workout_streak > 0 && (
                               <span className="inline-flex items-center gap-0.5">
                                 <Flame className="w-2.5 h-2.5 text-orange-500" />

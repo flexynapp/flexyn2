@@ -143,7 +143,7 @@ export default function CoinShopModal({ open, onClose }) {
               <div className="flex items-center gap-1.5 mt-0.5">
                 <Coins className="w-3.5 h-3.5 text-primary" />
                 <span className="font-bold tabular-nums text-sm">{fmt(balance)}</span>
-                <span className="text-[11px] text-muted-foreground">{t('shop.balance')}</span>
+                <span className="text-micro text-muted-foreground">{t('shop.balance')}</span>
               </div>
             </div>
             <button
@@ -176,7 +176,7 @@ export default function CoinShopModal({ open, onClose }) {
           {/* Footer hint — the only "how do I get coins?" affordance in the
               modal, so it stays visible rather than being replaced by an
               error state. */}
-          <div className="p-3 border-t border-border text-[11px] text-center text-muted-foreground">
+          <div className="p-3 border-t border-border text-micro text-center text-muted-foreground">
             {t('shop.hint')}
           </div>
 
@@ -259,18 +259,18 @@ function ShopRow({ item, balance, busy, onBuy, fmt, t }) {
                 coinShop.js, not hand-labelled, so it can't drift out of
                 sync with the odds table. */}
             {isBestValue && (
-              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-primary/15 text-primary text-[9px] font-bold uppercase tracking-wider">
+              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-primary/15 text-primary text-micro font-bold uppercase tracking-wider">
                 <Sparkles className="w-2.5 h-2.5" aria-hidden="true" />
                 {tFallback('shop.bestValue', 'Best value')}
               </span>
             )}
           </div>
-          <p className="text-[11px] text-muted-foreground">{displayDesc}</p>
+          <p className="text-micro text-muted-foreground">{displayDesc}</p>
           {/* Published drop odds. Both app stores require these to be
               disclosed before a loot-box purchase, and the Elite copy used
               to claim "guaranteed epic+" when the real number is 30%. */}
           {odds && (
-            <p className="text-[10px] text-muted-foreground/80 tabular-nums mt-0.5">
+            <p className="text-micro text-muted-foreground/80 tabular-nums mt-0.5">
               {tFallback('shop.odds', '{epic}% epic+ · {legendary}% legendary+', {
                 epic: (odds.epicPlus * 100).toFixed(1),
                 legendary: (odds.legendaryPlus * 100).toFixed(1),
@@ -309,7 +309,7 @@ function ShopRow({ item, balance, busy, onBuy, fmt, t }) {
               transition={{ duration: 0.5, ease: 'easeOut' }}
             />
           </div>
-          <p className="text-[10px] text-muted-foreground mt-1 tabular-nums">
+          <p className="text-micro text-muted-foreground mt-1 tabular-nums">
             {tFallback('shop.shortBy', '{n} coins to go — earn them from daily quests, streaks and level-ups.', {
               n: fmt(shortfall),
             })}

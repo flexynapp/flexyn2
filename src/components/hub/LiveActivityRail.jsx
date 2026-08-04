@@ -58,7 +58,7 @@ function ActiveAvatar({ user, onClick }) {
           className="absolute bottom-0 end-0 w-3 h-3 rounded-full bg-success ring-2 ring-background"
         />
       </div>
-      <span className="text-[10px] font-medium text-foreground truncate w-full text-center group-hover:text-primary transition-colors">
+      <span className="text-micro font-medium text-foreground truncate w-full text-center group-hover:text-primary transition-colors">
         {user.username}
       </span>
     </button>
@@ -95,10 +95,10 @@ export default function LiveActivityRail() {
             <span className="absolute inline-flex w-full h-full rounded-full bg-success opacity-75 animate-ping" />
             <span className="relative inline-flex w-2 h-2 rounded-full bg-success" />
           </span>
-          <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-success">
+          <span className="text-micro font-bold uppercase tracking-[0.18em] text-success">
             {tFallback('liveActivity.title', 'Live now')}
           </span>
-          <span className="text-[10px] text-muted-foreground">
+          <span className="text-micro text-muted-foreground">
             {actives.length === 1
               ? tFallback('liveActivity.oneActive', '1 friend training')
               : tFallback('liveActivity.nActive', '{count} friends training', { count: actives.length })}

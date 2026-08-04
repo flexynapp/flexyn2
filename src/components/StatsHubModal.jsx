@@ -145,7 +145,7 @@ export default function StatsHubModal({ open, onClose }) {
               HubPostCard, AND in this Stats Hub. Radix DialogContent
               ships its own close X — we don't add a second one. */}
           <div className="relative bg-gradient-to-br from-primary via-fuchsia-500 to-violet-500 level-card-aurora px-5 pt-5 pb-6 text-white">
-            <p className="text-[10px] uppercase tracking-[0.2em] font-bold opacity-80 mb-3">
+            <p className="text-micro uppercase tracking-[0.2em] font-bold opacity-80 mb-3">
               {tFallback('statsHub.title', 'Your stats')}
             </p>
             <div className="flex items-start justify-between gap-3">
@@ -169,7 +169,7 @@ export default function StatsHubModal({ open, onClose }) {
                     <div className="flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-full bg-white/15 backdrop-blur w-fit max-w-full">
                       <span className="text-sm leading-none shrink-0">{equippedTitle.emoji}</span>
                       <span
-                        className="text-[11px] font-bold uppercase tracking-wider truncate"
+                        className="text-micro font-bold uppercase tracking-wider truncate"
                         style={{ color: titleRarity?.color || 'white' }}
                       >
                         {equippedTitle.name}
@@ -190,7 +190,7 @@ export default function StatsHubModal({ open, onClose }) {
                 </div>
                 <button
                   onClick={() => setShopOpen(true)}
-                  className="mt-1 text-[11px] underline underline-offset-2 opacity-90 hover:opacity-100"
+                  className="mt-1 text-micro underline underline-offset-2 opacity-90 hover:opacity-100"
                 >
                   {tFallback('statsHub.openShop', 'Open shop')}
                 </button>
@@ -200,7 +200,7 @@ export default function StatsHubModal({ open, onClose }) {
                 (title replaced the inline XP text but the bar is still useful). */}
             <div className="mt-4">
               {equippedTitle && (
-                <p className="text-[10px] opacity-80 mb-1">
+                <p className="text-micro opacity-80 mb-1">
                   {fmtNum(levelInfo.xpInLevel || 0)} / {fmtNum(levelInfo.xpNeeded || 0)} XP
                 </p>
               )}
@@ -236,7 +236,7 @@ export default function StatsHubModal({ open, onClose }) {
                   <p className="text-sm font-heading font-bold leading-tight">
                     {tFallback('statsHub.leaderboards', 'Leaderboards')}
                   </p>
-                  <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">
+                  <p className="text-micro text-muted-foreground leading-tight mt-0.5">
                     {tFallback('leaderboards.subtitle', 'See where you stand globally')}
                   </p>
                 </div>

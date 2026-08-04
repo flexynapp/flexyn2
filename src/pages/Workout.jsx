@@ -1794,11 +1794,11 @@ export default function Workout() {
       <button type="button"
         onClick={(e) => { e.stopPropagation(); setActiveInfo(activeInfo === bid ? null : bid); }}
         className="absolute top-2 end-2 w-4 h-4 rounded-full border border-border/60 bg-background/80 flex items-center justify-center text-muted-foreground/60 hover:text-foreground hover:border-border transition-colors z-10">
-        <span className="text-[8px] font-bold leading-none italic">i</span>
+        <span className="text-micro font-bold leading-none italic">i</span>
       </button>
     );
     const InfoText = ({ bid, text }) => activeInfo === bid
-      ? <p className="text-[11px] text-foreground/70 mt-1 leading-tight">{text}</p>
+      ? <p className="text-micro text-foreground/70 mt-1 leading-tight">{text}</p>
       : null;
 
     const pal = getCardPalette(idx);
@@ -1858,7 +1858,7 @@ export default function Workout() {
             <div>
               <div className="flex items-center justify-center gap-1.5 flex-wrap">
                 <p className="font-heading font-bold text-sm leading-tight">Duels</p>
-                {activeDuel && <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-success/15 text-success">Active</span>}
+                {activeDuel && <span className="text-micro font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-success/15 text-success">Active</span>}
               </div>
               <InfoText bid="duels" text="Challenge someone to a head-to-head workout battle." />
             </div>
@@ -1881,8 +1881,8 @@ export default function Workout() {
             <div>
               <div className="flex items-center justify-center gap-1.5 flex-wrap">
                 <p className="font-heading font-bold text-sm leading-tight">Bounties</p>
-                {activeBountyClaim && <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-primary/15 text-primary">Active</span>}
-                {!activeBountyClaim && activeBounties.length>0 && <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-primary/15 text-primary">{activeBounties.length} open</span>}
+                {activeBountyClaim && <span className="text-micro font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-primary/15 text-primary">Active</span>}
+                {!activeBountyClaim && activeBounties.length>0 && <span className="text-micro font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-primary/15 text-primary">{activeBounties.length} open</span>}
               </div>
               <InfoText bid="bounties" text="Daily fitness challenges — complete them to earn Flex Coins." />
             </div>
@@ -1967,10 +1967,10 @@ export default function Workout() {
         <button type="button"
           onClick={(ev) => { ev.stopPropagation(); setActiveInfo(activeInfo==='nemesis'?null:'nemesis'); }}
           className="absolute top-3 end-3 w-4 h-4 rounded-full border border-border/60 bg-background/80 flex items-center justify-center text-muted-foreground/60 hover:text-foreground hover:border-border transition-colors z-20">
-          <span className="text-[8px] font-bold leading-none italic">i</span>
+          <span className="text-micro font-bold leading-none italic">i</span>
         </button>
         {activeInfo==='nemesis' && (
-          <p className="absolute top-9 end-3 z-20 text-[11px] text-muted-foreground bg-background/95 border border-border/60 rounded-lg px-2 py-1.5 max-w-[190px] leading-tight shadow-sm">
+          <p className="absolute top-9 end-3 z-20 text-micro text-muted-foreground bg-background/95 border border-border/60 rounded-lg px-2 py-1.5 max-w-[190px] leading-tight shadow-sm">
             Weekly Rivals — you're matched with someone at your level. Out-train them to win rewards.
           </p>
         )}
@@ -1994,8 +1994,8 @@ export default function Workout() {
             <div>
               <div className="flex items-center justify-center gap-1.5 flex-wrap">
                 <p className="font-heading font-bold text-sm leading-tight">Gauntlet</p>
-                {gauntletProgress?.path_completed && <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-primary/15 text-primary">Done</span>}
-                {!gauntletProgress?.path_completed && gauntletProgress && <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-primary/15 text-primary">#{gauntletProgress.current_challenge_sequence}</span>}
+                {gauntletProgress?.path_completed && <span className="text-micro font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-primary/15 text-primary">Done</span>}
+                {!gauntletProgress?.path_completed && gauntletProgress && <span className="text-micro font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-primary/15 text-primary">#{gauntletProgress.current_challenge_sequence}</span>}
               </div>
               <InfoText bid="gauntlet" text="Complete 10 epic challenges to earn prizes and climb the leaderboard." />
             </div>
@@ -2198,13 +2198,13 @@ export default function Workout() {
             }`}
           >
             <CalendarDays className="w-3 h-3" />
-            <span className="text-[10px] font-semibold tracking-[0.12em] uppercase">Today</span>
+            <span className="text-micro font-semibold tracking-[0.12em] uppercase">Today</span>
             <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${todayExpanded ? 'rotate-180' : ''}`} />
           </button>
           <div className="flex items-center gap-1.5">
             {activeDuel && (
               <button type="button" onClick={() => navigate('/duels')}
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-destructive/10 border border-destructive/25 text-destructive text-[10px] font-semibold hover:bg-destructive/18 transition-colors">
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-destructive/10 border border-destructive/25 text-destructive text-micro font-semibold hover:bg-destructive/18 transition-colors">
                 <Swords className="w-3 h-3" />
                 <span>Duel</span>
                 <span className="w-1.5 h-1.5 rounded-full bg-destructive animate-pulse ms-0.5" />
@@ -2212,7 +2212,7 @@ export default function Workout() {
             )}
             {activeBountyClaim && (
               <button type="button" onClick={() => navigate('/bounties')}
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-primary/10 border border-primary/25 text-primary text-[10px] font-semibold hover:bg-primary/18 transition-colors">
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-primary/10 border border-primary/25 text-primary text-micro font-semibold hover:bg-primary/18 transition-colors">
                 <Zap className="w-3 h-3" />
                 <span>Bounty</span>
                 <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse ms-0.5" />
@@ -2330,10 +2330,10 @@ export default function Workout() {
                         <div className="absolute top-0 start-8 end-8 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent pointer-events-none" />
                         <div className="relative flex items-center justify-between gap-4 p-6 md:p-8">
                           <div className="min-w-0">
-                            <span className="block text-[10px] font-bold tracking-[0.25em] uppercase text-primary/80 mb-2">{t('workout.startKicker')}</span>
+                            <span className="block text-micro font-bold tracking-[0.25em] uppercase text-primary/80 mb-2">{t('workout.startKicker')}</span>
                             <span className="font-heading font-black text-3xl md:text-4xl leading-none block tracking-tight min-h-[2em]">{t('workout.freestyle')}</span>
-                            <span className="text-[13px] text-white/50 mt-2.5 block max-w-[36ch] leading-relaxed min-h-[3.25em]">{t('workout.freestyleDesc')}</span>
-                            <span className="inline-flex items-center gap-1 mt-3 px-2.5 py-1 rounded-full bg-white/8 border border-white/10 text-[10px] font-semibold text-white/60 tracking-wide uppercase">
+                            <span className="text-label text-white/50 mt-2.5 block max-w-[36ch] leading-relaxed min-h-[3.25em]">{t('workout.freestyleDesc')}</span>
+                            <span className="inline-flex items-center gap-1 mt-3 px-2.5 py-1 rounded-full bg-white/8 border border-white/10 text-micro font-semibold text-white/60 tracking-wide uppercase">
                               <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />Ready to go
                             </span>
                           </div>
@@ -2363,10 +2363,10 @@ export default function Workout() {
                         <div className="absolute top-0 start-8 end-8 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent pointer-events-none" />
                         <div className="relative flex items-center justify-between gap-4 p-6 md:p-8">
                           <div className="min-w-0">
-                            <span className="block text-[10px] font-bold tracking-[0.25em] uppercase text-primary/80 mb-2">CHALLENGE YOURSELF</span>
+                            <span className="block text-micro font-bold tracking-[0.25em] uppercase text-primary/80 mb-2">CHALLENGE YOURSELF</span>
                             <span className="font-heading font-black text-3xl md:text-4xl leading-none block tracking-tight min-h-[2em]">The Gauntlet</span>
-                            <span className="text-[13px] text-white/50 mt-2.5 block max-w-[36ch] leading-relaxed min-h-[3.25em]">10 challenges. One path. Prove what you are made of.</span>
-                            <span className="inline-flex items-center gap-1 mt-3 px-2.5 py-1 rounded-full bg-primary/15 border border-primary/20 text-[10px] font-semibold text-primary/80 tracking-wide uppercase">
+                            <span className="text-label text-white/50 mt-2.5 block max-w-[36ch] leading-relaxed min-h-[3.25em]">10 challenges. One path. Prove what you are made of.</span>
+                            <span className="inline-flex items-center gap-1 mt-3 px-2.5 py-1 rounded-full bg-primary/15 border border-primary/20 text-micro font-semibold text-primary/80 tracking-wide uppercase">
                               {gauntletProgress?.path_completed ? 'Completed' : gauntletProgress ? `Challenge #${gauntletProgress.current_challenge_sequence}` : 'Start now'}
                             </span>
                           </div>
@@ -2396,10 +2396,10 @@ export default function Workout() {
                         <div className="absolute top-0 start-8 end-8 h-px bg-gradient-to-r from-transparent via-success/25 to-transparent pointer-events-none" />
                         <div className="relative flex items-center justify-between gap-4 p-6 md:p-8">
                           <div className="min-w-0">
-                            <span className="block text-[10px] font-bold tracking-[0.25em] uppercase text-success/80 mb-2">CREW BATTLES</span>
+                            <span className="block text-micro font-bold tracking-[0.25em] uppercase text-success/80 mb-2">CREW BATTLES</span>
                             <span className="font-heading font-black text-3xl md:text-4xl leading-none block tracking-tight min-h-[2em]">Crew Wars</span>
-                            <span className="text-[13px] text-white/50 mt-2.5 block max-w-[36ch] leading-relaxed min-h-[3.25em]">Rally your crew. Crush rivals. Dominate the leaderboard.</span>
-                            <span className="inline-flex items-center gap-1 mt-3 px-2.5 py-1 rounded-full bg-success/15 border border-success/20 text-[10px] font-semibold text-success/80 tracking-wide uppercase">
+                            <span className="text-label text-white/50 mt-2.5 block max-w-[36ch] leading-relaxed min-h-[3.25em]">Rally your crew. Crush rivals. Dominate the leaderboard.</span>
+                            <span className="inline-flex items-center gap-1 mt-3 px-2.5 py-1 rounded-full bg-success/15 border border-success/20 text-micro font-semibold text-success/80 tracking-wide uppercase">
                               <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />Join the fight
                             </span>
                           </div>
@@ -2418,7 +2418,7 @@ export default function Workout() {
                 {/* Height placeholder so container does not collapse */}
                 <div className="invisible pointer-events-none" aria-hidden="true">
                   <div className="flex items-center justify-between gap-4 p-6 md:p-8 pb-9 md:pb-10">
-                    <div><span className="block text-[10px] mb-2">x</span><span className="font-heading font-black text-3xl block leading-none min-h-[2em]">x</span><span className="text-[13px] mt-2.5 block min-h-[3.25em]">placeholder line</span><span className="inline-flex mt-3 px-2.5 py-1 text-[10px]">badge placeholder</span></div>
+                    <div><span className="block text-micro mb-2">x</span><span className="font-heading font-black text-3xl block leading-none min-h-[2em]">x</span><span className="text-label mt-2.5 block min-h-[3.25em]">placeholder line</span><span className="inline-flex mt-3 px-2.5 py-1 text-micro">badge placeholder</span></div>
                     <div className="w-16 h-16 rounded-2xl shrink-0" />
                   </div>
                 </div>
@@ -2488,7 +2488,7 @@ export default function Workout() {
                       when scanning a session list, even on a card with
                       just one item. */}
                   {isToday && (
-                    <span className="absolute top-2 end-2 text-[9px] font-bold uppercase tracking-[0.18em] bg-primary text-primary-foreground px-1.5 py-0.5 rounded">
+                    <span className="absolute top-2 end-2 text-micro font-bold uppercase tracking-[0.18em] bg-primary text-primary-foreground px-1.5 py-0.5 rounded">
                       {tFallback('common.today', 'Today')}
                     </span>
                   )}
@@ -2498,7 +2498,7 @@ export default function Workout() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-semibold tracking-[0.18em] uppercase text-primary">
+                        <span className="text-micro font-semibold tracking-[0.18em] uppercase text-primary">
                           {tFallback('workout.repeatLast', 'Repeat last workout')}
                         </span>
                       </div>
@@ -2521,10 +2521,10 @@ export default function Workout() {
             <div className="mb-2">
               {gridEditing && (
                 <div className="flex items-center justify-between mb-3 px-1">
-                  <p className="text-[10px] text-muted-foreground/60 font-medium">Drag cards to reorder</p>
+                  <p className="text-micro text-muted-foreground/60 font-medium">Drag cards to reorder</p>
                   <div className="flex items-center gap-1.5">
                     <button onClick={() => { localStorage.setItem('wkt-card-order', JSON.stringify(cardOrder)); setGridEditing(false); toast.success('Layout saved.'); setDragSrcIdx(null); setDragOverIdx(null); }}
-                      className="px-2.5 py-1 rounded-lg bg-primary text-primary-foreground text-[10px] font-bold hover:bg-primary/90 transition-colors">Save</button>
+                      className="px-2.5 py-1 rounded-lg bg-primary text-primary-foreground text-micro font-bold hover:bg-primary/90 transition-colors">Save</button>
                     {isAppAdmin(user) && (
                       <button
                         onClick={async () => {
@@ -2535,13 +2535,13 @@ export default function Workout() {
                           else toast.error('Could not save default layout.');
                         }}
                         title="Save this layout as default for all new users"
-                        className="px-2.5 py-1 rounded-lg bg-primary/15 border border-primary/40 text-primary dark:text-primary text-[10px] font-bold hover:bg-primary/25 transition-colors"
+                        className="px-2.5 py-1 rounded-lg bg-primary/15 border border-primary/40 text-primary dark:text-primary text-micro font-bold hover:bg-primary/25 transition-colors"
                       >
                         Set default
                       </button>
                     )}
                     <button onClick={() => { setCardOrder([...CARD_ORDER_DEFAULT]); localStorage.removeItem('wkt-card-order'); setGridEditing(false); setDragSrcIdx(null); setDragOverIdx(null); }}
-                      className="px-2.5 py-1 rounded-lg bg-secondary text-muted-foreground text-[10px] font-semibold hover:bg-secondary/80 transition-colors">Reset</button>
+                      className="px-2.5 py-1 rounded-lg bg-secondary text-muted-foreground text-micro font-semibold hover:bg-secondary/80 transition-colors">Reset</button>
                   </div>
                 </div>
               )}
@@ -3226,10 +3226,10 @@ export default function Workout() {
                     <span className="font-medium text-foreground">{f.exName}</span>
                     {' — '}Set {f.setIndex + 1}
                     {f.weightFlagged && f.maxWeight != null && (
-                      <span className="block text-[10px]">Weight exceeds {f.maxWeight} lbs max for your profile</span>
+                      <span className="block text-micro">Weight exceeds {f.maxWeight} lbs max for your profile</span>
                     )}
                     {f.repsFlagged && f.maxReps != null && (
-                      <span className="block text-[10px]">Reps exceed {f.maxReps} reps max at that weight</span>
+                      <span className="block text-micro">Reps exceed {f.maxReps} reps max at that weight</span>
                     )}
                   </span>
                 </li>

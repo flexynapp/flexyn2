@@ -107,7 +107,7 @@ export default function RegimenReviewsBlock({ regimenId, user }) {
                     {'Athlete'}
                   </span>
                 </div>
-                <span className="text-[10px] text-muted-foreground shrink-0">
+                <span className="text-micro text-muted-foreground shrink-0">
                   {(() => { try { return formatDistanceToNowStrict(new Date(r.created_at), { addSuffix: true }); } catch { return ''; } })()}
                 </span>
               </div>
@@ -122,7 +122,7 @@ export default function RegimenReviewsBlock({ regimenId, user }) {
       {/* Composer — only when signed in */}
       {user?.id && (
         <div className="pt-2 border-t border-border/40 space-y-2">
-          <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+          <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground">
             {mine ? 'Update your review' : 'Add your review'}
           </p>
           <StarRating value={stars} onChange={(n) => { setStars(n); setAdoptionError(false); }} size="md" />
@@ -137,7 +137,7 @@ export default function RegimenReviewsBlock({ regimenId, user }) {
             />
           )}
           {adoptionError && (
-            <p className="text-[11px] text-amber-500">
+            <p className="text-micro text-amber-500">
               Adopt the regimen first — only users who've tried it can review.
             </p>
           )}
@@ -145,7 +145,7 @@ export default function RegimenReviewsBlock({ regimenId, user }) {
             <button
               onClick={onSubmit}
               disabled={submitting}
-              className="text-[11px] font-bold uppercase tracking-wide px-3 py-1 rounded-md bg-primary text-primary-foreground disabled:opacity-50"
+              className="text-micro font-bold uppercase tracking-wide px-3 py-1 rounded-md bg-primary text-primary-foreground disabled:opacity-50"
             >
               {submitting ? 'Submitting…' : mine ? 'Update review' : 'Submit review'}
             </button>

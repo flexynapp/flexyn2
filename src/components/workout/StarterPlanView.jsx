@@ -30,11 +30,11 @@ function Section({ title, subtitle, Icon, hue, items, defaultOpen, children }) {
           <Icon className="w-[18px] h-[18px]" strokeWidth={2.2} />
         </span>
         <span className="flex-1 min-w-0">
-          <span className="block font-heading font-bold text-[15px] leading-tight">{title}</span>
-          <span className="block text-[11px] text-muted-foreground mt-0.5">{subtitle}</span>
+          <span className="block font-heading font-bold text-body leading-tight">{title}</span>
+          <span className="block text-micro text-muted-foreground mt-0.5">{subtitle}</span>
         </span>
         <span
-          className="text-[11px] font-bold tabular-nums rounded-full px-2 py-0.5 me-1"
+          className="text-micro font-bold tabular-nums rounded-full px-2 py-0.5 me-1"
           style={{ background: `hsl(${hue} / 0.12)`, color: `hsl(${hue})` }}
         >
           {items.length}
@@ -79,8 +79,8 @@ export default function StarterPlanView({ regimen, cardioDefaultOpen = true, str
           <div key={`c-${i}`} className="flex items-center gap-3 rounded-xl bg-secondary/40 px-3 py-2.5">
             <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: 'hsl(217 91% 60%)' }} />
             <div className="flex-1 min-w-0">
-              <p className="font-semibold text-[13px] leading-tight truncate">{ex.displayName || ex.name}</p>
-              {ex.detail && <p className="text-[11px] text-muted-foreground mt-0.5">{ex.detail}</p>}
+              <p className="font-semibold text-label leading-tight truncate">{ex.displayName || ex.name}</p>
+              {ex.detail && <p className="text-micro text-muted-foreground mt-0.5">{ex.detail}</p>}
             </div>
           </div>
         ))}
@@ -98,12 +98,12 @@ export default function StarterPlanView({ regimen, cardioDefaultOpen = true, str
           <div key={`s-${i}`} className="flex items-center gap-3 rounded-xl bg-secondary/40 px-3 py-2.5">
             <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: 'hsl(26 95% 56%)' }} />
             <div className="flex-1 min-w-0">
-              <p className="font-semibold text-[13px] leading-tight truncate">{ex.displayName || ex.name}</p>
+              <p className="font-semibold text-label leading-tight truncate">{ex.displayName || ex.name}</p>
               {Array.isArray(ex.muscle_groups) && ex.muscle_groups.length > 0 && (
-                <p className="text-[11px] text-muted-foreground mt-0.5 truncate">{ex.muscle_groups.slice(0, 3).join(' · ')}</p>
+                <p className="text-micro text-muted-foreground mt-0.5 truncate">{ex.muscle_groups.slice(0, 3).join(' · ')}</p>
               )}
             </div>
-            <span className="font-mono text-[11px] font-bold text-foreground/70 shrink-0 tabular-nums">
+            <span className="font-mono text-micro font-bold text-foreground/70 shrink-0 tabular-nums">
               {ex.target_sets} × {ex.target_reps}
             </span>
           </div>

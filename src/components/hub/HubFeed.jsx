@@ -466,7 +466,7 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
       {/* ── Sort / Filter + Go Live — single compact row ───────────────── */}
       <div className="flex items-center gap-2 flex-wrap">
         {/* New | Hot toggle */}
-        <div className="flex items-center rounded-lg border border-border overflow-hidden text-[11px] font-bold shrink-0">
+        <div className="flex items-center rounded-lg border border-border overflow-hidden text-micro font-bold shrink-0">
           <button type="button"
             onClick={() => { setSort('newest'); setVisibleCount(PAGE_SIZE); }}
             className={`flex items-center gap-1 px-2.5 py-1.5 transition-colors ${sort === 'newest' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:text-foreground'}`}>
@@ -480,7 +480,7 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
         </div>
         {/* Time sub-filter (Hot only) */}
         {sort === 'popular' && (
-          <div className="flex items-center rounded-lg border border-border overflow-hidden text-[11px] font-bold shrink-0">
+          <div className="flex items-center rounded-lg border border-border overflow-hidden text-micro font-bold shrink-0">
             {[['today','Today'],['week','Week'],['all','All']].map(([val, label]) => (
               <button key={val} type="button"
                 onClick={() => { setTimeFilter(val); setVisibleCount(PAGE_SIZE); }}
@@ -492,7 +492,7 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
         )}
         {/* Go Live — tucked inline, compact */}
         <button onClick={() => setBroadcasterOpen(true)}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-destructive/30 bg-destructive/5 text-destructive text-[11px] font-bold hover:bg-destructive/12 transition-colors shrink-0 ml-auto">
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-destructive/30 bg-destructive/5 text-destructive text-micro font-bold hover:bg-destructive/12 transition-colors shrink-0 ml-auto">
           <span className="relative flex w-2 h-2 shrink-0">
             <span className="absolute inline-flex w-full h-full rounded-full bg-destructive opacity-60 animate-ping" />
             <span className="relative inline-flex w-2 h-2 rounded-full bg-destructive" />
@@ -552,7 +552,7 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
               >
                 <Hash className="w-2.5 h-2.5" />
                 {item.tag.replace('#', '')}
-                <span className="opacity-60 text-[10px]">{item.count}</span>
+                <span className="opacity-60 text-micro">{item.count}</span>
               </motion.button>
             ))}
           </AnimatePresence>

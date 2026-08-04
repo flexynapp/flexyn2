@@ -62,7 +62,7 @@ function InjuryCard({ injury, onClear, onExtend, onDelete }) {
 
       {injury.notes && <p className="text-xs text-muted-foreground mb-2">{injury.notes}</p>}
 
-      <div className="flex items-center gap-3 text-[11px] text-muted-foreground flex-wrap">
+      <div className="flex items-center gap-3 text-micro text-muted-foreground flex-wrap">
         <span>Logged {format(new Date(injury.injured_at), 'MMM d')}</span>
         {daysLeft !== null && isActive && (
           <span className={daysLeft <= 0 ? 'text-primary font-semibold' : ''}>

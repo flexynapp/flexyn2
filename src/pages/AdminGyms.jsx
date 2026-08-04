@@ -210,7 +210,7 @@ export default function AdminGyms() {
                   </div>
                 )}
                 {hasGeo && (
-                  <p className="mt-2 text-[10px] text-muted-foreground font-mono">
+                  <p className="mt-2 text-micro text-muted-foreground font-mono">
                     📍 {Number(v.latitude).toFixed(4)}, {Number(v.longitude).toFixed(4)}
                   </p>
                 )}

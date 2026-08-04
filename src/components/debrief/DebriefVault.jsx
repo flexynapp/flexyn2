@@ -46,11 +46,11 @@ function DebriefPreview({ debrief, onClick, isCurrentWeek }) {
         <div>
           <p className="text-xs font-bold text-white">{debrief.week_label}</p>
           {debrief.epoch_name && (
-            <p className="text-[10px] text-purple-400/70">{debrief.epoch_name}</p>
+            <p className="text-micro text-purple-400/70">{debrief.epoch_name}</p>
           )}
         </div>
         {isCurrentWeek && (
-          <span className="text-[9px] font-bold uppercase tracking-wider text-purple-400 bg-purple-500/15 px-1.5 py-0.5 rounded-full">
+          <span className="text-micro font-bold uppercase tracking-wider text-purple-400 bg-purple-500/15 px-1.5 py-0.5 rounded-full">
             This Week
           </span>
         )}
@@ -62,10 +62,10 @@ function DebriefPreview({ debrief, onClick, isCurrentWeek }) {
           <span className="text-xl font-heading font-black text-white tabular-nums">
             {fmt(Number(vol))}
           </span>
-          <span className="text-[10px] text-white/40 mb-0.5">lbs</span>
+          <span className="text-micro text-white/40 mb-0.5">lbs</span>
         </div>
         {change != null && (
-          <span className={`text-[10px] font-semibold ${Number(change) >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+          <span className={`text-micro font-semibold ${Number(change) >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
             {Number(change) >= 0 ? '+' : ''}{change}% vs prev
           </span>
         )}
@@ -73,9 +73,9 @@ function DebriefPreview({ debrief, onClick, isCurrentWeek }) {
 
       {/* Badges */}
       <div className="flex items-center gap-2 px-3 pb-3">
-        <span className="text-[10px] text-white/40">{wks} sessions</span>
+        <span className="text-micro text-white/40">{wks} sessions</span>
         {isPr && <Trophy className="w-3 h-3 text-yellow-400" />}
-        <span className="ml-auto text-[10px] text-yellow-400/60 flex items-center gap-0.5">
+        <span className="ml-auto text-micro text-yellow-400/60 flex items-center gap-0.5">
           <Zap className="w-2.5 h-2.5" />+{fmt(Number(xp))}
         </span>
       </div>
@@ -319,7 +319,7 @@ export default function DebriefVault({ onClose }) {
       {/* Sort toggle — Recent ⇄ Oldest */}
       {debriefs.length > 1 && (
         <div className="flex items-center justify-end gap-1 px-4 py-2 shrink-0">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground me-1">Sort</span>
+          <span className="text-micro font-bold uppercase tracking-wider text-muted-foreground me-1">Sort</span>
           {[
             { id: 'recent', label: 'Recent' },
             { id: 'oldest', label: 'Oldest' },
@@ -327,7 +327,7 @@ export default function DebriefVault({ onClose }) {
             <button
               key={opt.id}
               onClick={() => setSortOrder(opt.id)}
-              className={`px-2.5 py-1 rounded-full text-[11px] font-bold transition-colors ${
+              className={`px-2.5 py-1 rounded-full text-micro font-bold transition-colors ${
                 sortOrder === opt.id
                   ? 'bg-primary text-primary-foreground'
                   : 'bg-secondary/60 text-muted-foreground hover:text-foreground'

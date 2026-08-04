@@ -133,7 +133,7 @@ export default function MarketFilterBar({ filters, onChange, resultCount, totalC
               type="button"
               onClick={() => set({ type: t.id })}
               aria-pressed={filters.type === t.id}
-              className={`px-2.5 py-1 rounded-full text-[11px] font-bold transition-colors ${
+              className={`px-2.5 py-1 rounded-full text-micro font-bold transition-colors ${
                 filters.type === t.id
                   ? 'bg-primary text-primary-foreground'
                   : 'bg-secondary text-muted-foreground hover:text-foreground'
@@ -150,7 +150,7 @@ export default function MarketFilterBar({ filters, onChange, resultCount, totalC
           type="button"
           onClick={() => set({ affordable: !filters.affordable })}
           aria-pressed={filters.affordable}
-          className={`shrink-0 px-2.5 py-1 rounded-full text-[11px] font-bold transition-colors ${
+          className={`shrink-0 px-2.5 py-1 rounded-full text-micro font-bold transition-colors ${
             filters.affordable
               ? 'bg-amber-500/20 text-amber-600 dark:text-amber-300 border border-amber-400/40'
               : 'bg-secondary text-muted-foreground hover:text-foreground border border-transparent'
@@ -168,7 +168,7 @@ export default function MarketFilterBar({ filters, onChange, resultCount, totalC
           type="button"
           onClick={() => set({ saved: !filters.saved })}
           aria-pressed={filters.saved}
-          className={`shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold transition-colors border ${
+          className={`shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-full text-micro font-bold transition-colors border ${
             filters.saved
               ? 'bg-red-500/15 text-red-500 border-red-400/40'
               : 'bg-secondary text-muted-foreground hover:text-foreground border-transparent'
@@ -184,7 +184,7 @@ export default function MarketFilterBar({ filters, onChange, resultCount, totalC
           value={filters.sort}
           onChange={(e) => set({ sort: e.target.value })}
           aria-label="Sort listings"
-          className="shrink-0 bg-secondary border border-border rounded-full px-2 py-1 text-[11px] font-bold outline-none max-w-[104px]"
+          className="shrink-0 bg-secondary border border-border rounded-full px-2 py-1 text-micro font-bold outline-none max-w-[104px]"
         >
           {SORTS.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
         </select>
@@ -210,7 +210,7 @@ export default function MarketFilterBar({ filters, onChange, resultCount, totalC
               type="button"
               onClick={() => toggleRarity(r)}
               aria-pressed={on}
-              className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold border transition-colors"
+              className="shrink-0 px-2 py-0.5 rounded-full text-micro font-bold border transition-colors"
               style={{
                 color: on ? tint.color : undefined,
                 borderColor: on ? tint.color : 'hsl(var(--border))',
@@ -226,13 +226,13 @@ export default function MarketFilterBar({ filters, onChange, resultCount, totalC
       {/* Row 3 — result count + clear, only once something is filtering */}
       {activeCount > 0 && (
         <div className="flex items-center justify-between mt-1.5">
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-micro text-muted-foreground">
             {resultCount} of {totalCount} listing{totalCount === 1 ? '' : 's'}
           </p>
           <button
             type="button"
             onClick={() => onChange({ ...DEFAULT_FILTERS, sort: filters.sort })}
-            className="flex items-center gap-1 text-[11px] font-bold text-primary hover:underline"
+            className="flex items-center gap-1 text-micro font-bold text-primary hover:underline"
           >
             <X className="w-3 h-3" /> Clear filters
           </button>

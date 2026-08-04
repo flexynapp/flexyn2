@@ -138,9 +138,9 @@ function PYMKCard({ candidate, isFollowed, delay, onFollow, onSelect }) {
           <span className="font-heading font-bold text-sm text-primary">{initials}</span>
         )}
       </button>
-      <p className="text-[11px] font-semibold text-foreground text-center truncate w-full">@{username}</p>
+      <p className="text-micro font-semibold text-foreground text-center truncate w-full">@{username}</p>
       {candidate.mutualCount > 0 && (
-        <p className="text-[9px] text-muted-foreground text-center leading-tight">
+        <p className="text-micro text-muted-foreground text-center leading-tight">
           {candidate.mutualCount} mutual
         </p>
       )}
@@ -153,13 +153,13 @@ function PYMKCard({ candidate, isFollowed, delay, onFollow, onSelect }) {
             setAdding(false);
           }}
           disabled={adding}
-          className="flex items-center gap-0.5 px-2.5 py-1 rounded-lg text-[10px] font-bold text-primary-foreground bg-primary hover:opacity-90 transition-opacity disabled:opacity-60 w-full justify-center"
+          className="flex items-center gap-0.5 px-2.5 py-1 rounded-lg text-micro font-bold text-primary-foreground bg-primary hover:opacity-90 transition-opacity disabled:opacity-60 w-full justify-center"
         >
           {adding ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <UserPlus className="w-2.5 h-2.5" />}
           Follow
         </button>
       ) : (
-        <span className="text-[10px] text-primary font-semibold">✓ Following</span>
+        <span className="text-micro text-primary font-semibold">✓ Following</span>
       )}
     </motion.div>
   );

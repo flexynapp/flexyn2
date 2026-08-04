@@ -368,7 +368,7 @@ function StepHeader({ step, total, onBack }) {
           animate={{ width: `${(step / total) * 100}%` }}
           transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }} />
       </div>
-      <span className="font-mono text-[11px] font-semibold text-muted-foreground shrink-0 tracking-wider">
+      <span className="font-mono text-micro font-semibold text-muted-foreground shrink-0 tracking-wider">
         {String(step).padStart(2, '0')}<span className="opacity-40">/{String(total).padStart(2, '0')}</span>
       </span>
       {showCoach && <OnboardingCoachButton onClick={coach.open} />}
@@ -386,7 +386,7 @@ function KineticHeading({ text, kicker, accentWord }) {
     <div className="mb-2">
       {kicker && (
         <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05, duration: 0.4 }}
-          className="font-mono text-[11px] font-bold text-primary tracking-[0.18em] uppercase mb-2.5">
+          className="font-mono text-micro font-bold text-primary tracking-[0.18em] uppercase mb-2.5">
           {kicker}
         </motion.div>
       )}
@@ -411,7 +411,7 @@ function KineticHeading({ text, kicker, accentWord }) {
 function PrimaryBtn({ onClick, disabled, children, className = '' }) {
   return (
     <button onClick={onClick} disabled={disabled}
-      className={`w-full h-14 rounded-2xl font-heading font-bold text-[15px] flex items-center justify-center gap-2 transition-all
+      className={`w-full h-14 rounded-2xl font-heading font-bold text-body flex items-center justify-center gap-2 transition-all
         ${disabled
           ? 'bg-muted text-muted-foreground cursor-not-allowed opacity-60'
           : 'bg-primary text-primary-foreground hover:brightness-105 active:scale-[0.98] shadow-lg shadow-primary/25'}
@@ -478,8 +478,8 @@ function FeatureCarousel() {
         </div>
         {/* Copy */}
         <div className="flex-1 min-w-0">
-          <div className="font-mono text-[10px] font-bold tracking-[0.16em] uppercase mb-1" style={{ color: F.accent }}>{F.eyebrow}</div>
-          <div className="font-heading font-bold text-[15px] leading-tight tracking-tight text-foreground mb-1.5">{F.title}</div>
+          <div className="font-mono text-micro font-bold tracking-[0.16em] uppercase mb-1" style={{ color: F.accent }}>{F.eyebrow}</div>
+          <div className="font-heading font-bold text-body leading-tight tracking-tight text-foreground mb-1.5">{F.title}</div>
           <div className="text-[11.5px] leading-[1.45] text-muted-foreground">{F.sub}</div>
         </div>
         {/* Bouncing chevron — subtle hint that the card slides horizontally */}
@@ -524,7 +524,7 @@ function WelcomeStep({ onNext, onSignIn }) {
           <FlexynLogo className="h-9" />
         </motion.div>
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}
-          className="font-mono text-[10px] font-semibold text-muted-foreground tracking-[0.16em] uppercase">V 2.0</motion.div>
+          className="font-mono text-micro font-semibold text-muted-foreground tracking-[0.16em] uppercase">V 2.0</motion.div>
       </div>
 
       {/* Hero */}
@@ -553,7 +553,7 @@ function WelcomeStep({ onNext, onSignIn }) {
         <PrimaryBtn onClick={onNext}>
           Get started <span className="ob-icon-bob inline-flex"><Icon name="arrow-right" size={20} strokeWidth={2.5} /></span>
         </PrimaryBtn>
-        <p className="text-center text-[11px] font-medium text-muted-foreground/80 tracking-wide">
+        <p className="text-center text-micro font-medium text-muted-foreground/80 tracking-wide">
           Free to start · no card needed
         </p>
         <button onClick={onSignIn}
@@ -598,13 +598,13 @@ function GoalStep({ value, onChange, onNext, onBack, step, total }) {
 
         {/* Counter row */}
         <div className="flex items-center justify-between mb-3">
-          <span className="font-mono text-[10px] font-bold text-muted-foreground tracking-[0.16em] uppercase">
+          <span className="font-mono text-micro font-bold text-muted-foreground tracking-[0.16em] uppercase">
             {selectedIds.length === 0 ? 'Select goals' : `${selectedIds.length} selected`}
           </span>
           {selectedIds.length > 0 && (
             <motion.button initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}
               onClick={() => onChange([])}
-              className="font-mono text-[10px] font-bold text-muted-foreground tracking-widest uppercase px-2 py-1 rounded hover:text-foreground transition-colors border-none bg-transparent cursor-pointer">
+              className="font-mono text-micro font-bold text-muted-foreground tracking-widest uppercase px-2 py-1 rounded hover:text-foreground transition-colors border-none bg-transparent cursor-pointer">
               Clear
             </motion.button>
           )}
@@ -635,11 +635,11 @@ function GoalStep({ value, onChange, onNext, onBack, step, total }) {
                 </div>
                 {/* text */}
                 <div className="flex-1 min-w-0">
-                  <div className="font-heading font-bold text-[15px] text-foreground leading-tight">{g.title}</div>
-                  <div className="text-[12px] text-muted-foreground mt-0.5">{g.sub}</div>
+                  <div className="font-heading font-bold text-body text-foreground leading-tight">{g.title}</div>
+                  <div className="text-caption text-muted-foreground mt-0.5">{g.sub}</div>
                 </div>
                 {/* checkbox */}
-                <div className="w-6 h-6 rounded-[7px] flex items-center justify-center shrink-0 transition-all font-mono text-[11px] font-bold text-white"
+                <div className="w-6 h-6 rounded-[7px] flex items-center justify-center shrink-0 transition-all font-mono text-micro font-bold text-white"
                   style={{
                     border: selected ? `2px solid ${g.accent}` : '1.5px solid hsl(var(--border))',
                     background: selected ? g.accent : 'transparent',
@@ -710,7 +710,7 @@ const TIME_DISTANCES = [{ id: '1mi', label: '1 mi' }, { id: '5k', label: '5K' },
 function Chip({ children, active, accent = 'hsl(var(--primary))', small, onClick }) {
   return (
     <button type="button" onClick={onClick}
-      className={`rounded-full font-semibold transition-all cursor-pointer ${small ? 'px-3 py-1 text-[12px]' : 'px-3.5 py-1.5 text-[13px]'}`}
+      className={`rounded-full font-semibold transition-all cursor-pointer ${small ? 'px-3 py-1 text-caption' : 'px-3.5 py-1.5 text-label'}`}
       style={{
         border: `1.5px solid ${active ? accent : 'hsl(var(--border))'}`,
         background: active ? accent.replace(')', ' / 0.12)') : 'hsl(var(--card))',
@@ -725,7 +725,7 @@ function SectionLabel({ title, accent }) {
   return (
     <div className="flex items-center gap-2">
       <span className="w-1.5 h-1.5 rounded-full" style={{ background: accent }} />
-      <span className="font-heading font-bold text-[15px]">{title}</span>
+      <span className="font-heading font-bold text-body">{title}</span>
     </div>
   );
 }
@@ -735,7 +735,7 @@ function TimeInput({ value, onChange, placeholder, max = 99 }) {
     <input type="number" inputMode="numeric" min="0" max={max} placeholder={placeholder}
       value={value ?? ''}
       onChange={e => onChange(e.target.value.replace(/[^0-9]/g, '').slice(0, 2))}
-      className="w-16 h-10 rounded-xl border border-border bg-card text-center text-[15px] font-bold tabular-nums focus:outline-none focus:ring-2 focus:ring-primary/40" />
+      className="w-16 h-10 rounded-xl border border-border bg-card text-center text-body font-bold tabular-nums focus:outline-none focus:ring-2 focus:ring-primary/40" />
   );
 }
 
@@ -776,10 +776,10 @@ function SharpenStep({ goals, value, onChange, onNext, onBack, step, total }) {
 
             <div className="rounded-2xl border border-border bg-card p-3.5 space-y-3">
               <div className="flex items-center justify-between gap-2">
-                <span className="text-[13px] font-semibold">Know a recent time?</span>
+                <span className="text-label font-semibold">Know a recent time?</span>
                 <button type="button"
                   onClick={() => set({ cardioDefer: !s.cardioDefer, cardioCurrent: s.cardioDefer ? cur : null })}
-                  className={`text-[11px] font-semibold px-2.5 py-1 rounded-lg transition-colors ${s.cardioDefer ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:bg-secondary'}`}>
+                  className={`text-micro font-semibold px-2.5 py-1 rounded-lg transition-colors ${s.cardioDefer ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:bg-secondary'}`}>
                   I&apos;ll set it later
                 </button>
               </div>
@@ -794,11 +794,11 @@ function SharpenStep({ goals, value, onChange, onNext, onBack, step, total }) {
                     <TimeInput placeholder="min" value={cur.min} onChange={v => setCurrent({ min: v })} />
                     <span className="text-muted-foreground font-bold">:</span>
                     <TimeInput placeholder="sec" value={cur.sec} onChange={v => setCurrent({ sec: v })} max={59} />
-                    <span className="text-[11px] text-muted-foreground">for your {TIME_DISTANCES.find(d => d.id === cur.distance)?.label || 'run'}</span>
+                    <span className="text-micro text-muted-foreground">for your {TIME_DISTANCES.find(d => d.id === cur.distance)?.label || 'run'}</span>
                   </div>
                 </>
               )}
-              <p className="text-[11px] text-muted-foreground">Don&apos;t know it? No worries — log a run in the Cardio tab anytime and we&apos;ll dial it in.</p>
+              <p className="text-micro text-muted-foreground">Don&apos;t know it? No worries — log a run in the Cardio tab anytime and we&apos;ll dial it in.</p>
             </div>
           </div>
         )}
@@ -811,15 +811,15 @@ function SharpenStep({ goals, value, onChange, onNext, onBack, step, total }) {
                 <Chip key={n} active={focus.includes(n)} accent="hsl(26 95% 56%)" onClick={() => toggleFocus(n)}>{n}</Chip>
               ))}
             </div>
-            <p className="text-[11px] text-muted-foreground">We&apos;ll lead your plan with the lifts you pick.</p>
+            <p className="text-micro text-muted-foreground">We&apos;ll lead your plan with the lifts you pick.</p>
           </div>
         )}
 
         {nothingToAsk && (
           <div className="rounded-2xl border border-border bg-card p-5 text-center">
             <div className="text-2xl mb-1">✅</div>
-            <p className="font-heading font-bold text-[15px]">You&apos;re all set</p>
-            <p className="text-[13px] text-muted-foreground mt-1">We&apos;ve got what we need — your plan&apos;s ready to build.</p>
+            <p className="font-heading font-bold text-body">You&apos;re all set</p>
+            <p className="text-label text-muted-foreground mt-1">We&apos;ve got what we need — your plan&apos;s ready to build.</p>
           </div>
         )}
       </div>
@@ -897,8 +897,8 @@ function ExperienceStep({ value, onChange, onNext, onBack, step, total }) {
                   ))}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="font-heading font-semibold text-[14px] text-foreground">{l.label}</div>
-                  <div className="text-[12px] text-muted-foreground mt-0.5">{l.sub}</div>
+                  <div className="font-heading font-semibold text-sm text-foreground">{l.label}</div>
+                  <div className="text-caption text-muted-foreground mt-0.5">{l.sub}</div>
                 </div>
                 {selected && <Icon name="check" size={16} strokeWidth={3} color="hsl(var(--primary))" />}
               </motion.button>
@@ -1004,7 +1004,7 @@ function AssessmentStep({ value, onChange, onNext, onBack, onSkip, step, total }
           ))}
         </div>
 
-        <p className="text-[11px] text-center text-muted-foreground mt-4">
+        <p className="text-micro text-center text-muted-foreground mt-4">
           Answered {answeredCount} of {ASSESSMENT_QUESTIONS.length}
         </p>
       </div>
@@ -1090,7 +1090,7 @@ function Scrubber({ min, max, value, onChange, majorEvery = 5 }) {
                   marginTop: isMajor ? 8 : isMid ? 14 : 18,
                 }} />
               {isMajor && (
-                <span className="font-mono text-[9px] font-semibold mt-1 tracking-wide transition-colors"
+                <span className="font-mono text-micro font-semibold mt-1 tracking-wide transition-colors"
                   style={{ color: t === value ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))' }}>
                   {t}
                 </span>
@@ -1112,7 +1112,7 @@ function UnitToggle({ options, value, onChange }) {
     <div className="flex bg-secondary rounded-xl p-0.5 gap-0.5">
       {options.map(o => (
         <button key={o.id} onClick={() => onChange(o.id)}
-          className="px-3 py-1.5 font-mono text-[10px] font-bold tracking-widest uppercase rounded-[10px] transition-all cursor-pointer"
+          className="px-3 py-1.5 font-mono text-micro font-bold tracking-widest uppercase rounded-[10px] transition-all cursor-pointer"
           style={{
             background: value === o.id ? 'hsl(var(--card))' : 'transparent',
             color: value === o.id ? 'hsl(var(--foreground))' : 'hsl(var(--muted-foreground))',
@@ -1133,7 +1133,7 @@ function StatCard({ icon, label, value, unit, min, max, majorEvery = 5, onChange
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <Icon name={icon} size={15} strokeWidth={2} color="hsl(var(--muted-foreground))" />
-          <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{label}</span>
+          <span className="font-mono text-micro font-semibold uppercase tracking-[0.12em] text-muted-foreground">{label}</span>
         </div>
         {unitToggle}
       </div>
@@ -1144,7 +1144,7 @@ function StatCard({ icon, label, value, unit, min, max, majorEvery = 5, onChange
           {value}
         </motion.span>
         <span className="font-heading font-semibold text-xl text-muted-foreground">{unit}</span>
-        {suffix && <span className="font-mono text-[11px] text-muted-foreground ms-1">{suffix}</span>}
+        {suffix && <span className="font-mono text-micro text-muted-foreground ms-1">{suffix}</span>}
       </div>
       <Scrubber min={min} max={max} value={value} onChange={onChange} majorEvery={majorEvery} />
     </motion.div>
@@ -1367,7 +1367,7 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
           className="rounded-2xl border bg-card/80 p-4 mb-4">
           <div className="flex items-center gap-2 mb-2">
             <Icon name="user" size={14} color="hsl(var(--muted-foreground))" />
-            <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">What should we call you?</span>
+            <span className="font-mono text-micro font-semibold uppercase tracking-[0.14em] text-muted-foreground">What should we call you?</span>
           </div>
           <input
             type="text"
@@ -1392,7 +1392,7 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
             spellCheck={false}
             inputMode="text"
             enterKeyHint="next"
-            className="w-full h-12 rounded-xl border border-border bg-secondary/50 px-4 font-mono text-[16px] font-medium text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/30 transition-all"
+            className="w-full h-12 rounded-xl border border-border bg-secondary/50 px-4 font-mono text-base font-medium text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/30 transition-all"
           />
           {usernameError && <p className="text-xs text-destructive mt-1">{usernameError}</p>}
           {!usernameError && stripWarning && (
@@ -1403,7 +1403,7 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
         {/* Age drag section */}
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18 }}
           className="rounded-2xl border bg-card/80 p-5 relative overflow-hidden">
-          <div className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground mb-4">How old are you?</div>
+          <div className="font-mono text-micro font-semibold uppercase tracking-[0.14em] text-muted-foreground mb-4">How old are you?</div>
 
           {/* Glow halo */}
           <div style={{
@@ -1463,7 +1463,7 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
                 type="button"
                 onClick={handleAgeTap}
                 aria-label="Tap to type your age"
-                className="font-mono text-[11px] font-semibold tracking-[0.3em] uppercase text-muted-foreground mt-2 hover:text-foreground transition-colors"
+                className="font-mono text-micro font-semibold tracking-[0.3em] uppercase text-muted-foreground mt-2 hover:text-foreground transition-colors"
                 style={{ background: 'none', border: 'none', cursor: 'text', padding: 0 }}
               >
                 YEARS OLD · TAP TO TYPE
@@ -1482,7 +1482,7 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
                 border: `1.5px solid ${stage.accent.replace(')', ' / 0.4)')}`,
                 color: stage.accent,
               }}>
-              <span className="font-mono text-[10px] tracking-[0.14em] uppercase font-bold">{stage.tag}</span>
+              <span className="font-mono text-micro tracking-[0.14em] uppercase font-bold">{stage.tag}</span>
               <span style={{ width: 1, height: 12, background: stage.accent, opacity: 0.4 }} />
               <span className="text-xs font-normal" style={{ color: 'hsl(var(--foreground) / 0.8)' }}>{stage.tone}</span>
             </motion.div>
@@ -1530,9 +1530,9 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
             <div style={{ position: 'absolute', left: '50%', top: 0, bottom: 0, width: 2, marginLeft: -1, background: 'linear-gradient(180deg, hsl(var(--primary)), transparent)', pointerEvents: 'none', boxShadow: '0 0 10px hsl(var(--primary))' }} />
           </div>
           <div className="flex justify-between mt-1 px-1">
-            <span className="font-mono text-[9px] font-semibold text-muted-foreground tracking-wide">13</span>
-            <span className="font-mono text-[9px] font-semibold text-muted-foreground tracking-wide">DRAG OR USE BUTTONS</span>
-            <span className="font-mono text-[9px] font-semibold text-muted-foreground tracking-wide">80</span>
+            <span className="font-mono text-micro font-semibold text-muted-foreground tracking-wide">13</span>
+            <span className="font-mono text-micro font-semibold text-muted-foreground tracking-wide">DRAG OR USE BUTTONS</span>
+            <span className="font-mono text-micro font-semibold text-muted-foreground tracking-wide">80</span>
           </div>
           {/* ± Age nudge buttons */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginTop: 12 }}>
@@ -1548,7 +1548,7 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
             The whole app already reads this; it just never asked before. */}
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.26 }}
           className="rounded-2xl border bg-card/80 p-4 mt-4">
-          <div className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground mb-3">
+          <div className="font-mono text-micro font-semibold uppercase tracking-[0.14em] text-muted-foreground mb-3">
             Sex <span className="normal-case font-normal opacity-70">· tunes your strength + calorie targets</span>
           </div>
           {/* Three-option layout so users who don't identify as binary
@@ -1821,10 +1821,10 @@ function HeightStep({ stats, onChange, onNext, onBack, step, total }) {
                   </div>
                 </button>
               )}
-              <div className="font-mono text-[9px] font-semibold tracking-widest uppercase text-muted-foreground mt-1">
+              <div className="font-mono text-micro font-semibold tracking-widest uppercase text-muted-foreground mt-1">
                 {unit === 'cm' ? 'CM · TAP TO TYPE' : 'FT · IN · TAP TO TYPE'}
               </div>
-              <div className="font-mono text-[10px] text-muted-foreground/70 mt-1">≈ {displaySecondary}</div>
+              <div className="font-mono text-micro text-muted-foreground/70 mt-1">≈ {displaySecondary}</div>
             </div>
             {/* Ruler */}
             <div ref={ref} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerUp}
@@ -2069,8 +2069,8 @@ function WeightStep({ stats, onChange, onNext, onBack, step, total }) {
                 <NumberReel value={value} digits={String(range[1]).length} size={64} />
               </div>
             )}
-            <div className="font-mono text-[11px] font-bold tracking-[0.3em] uppercase text-primary mt-1">{unit === 'kg' ? 'KG' : 'LBS'}</div>
-            <div className="font-mono text-[9px] text-muted-foreground mt-1">≈ {unit === 'kg' ? `${lbFromKg(value)} lb` : `${kgFromLb(value)} kg`}</div>
+            <div className="font-mono text-micro font-bold tracking-[0.3em] uppercase text-primary mt-1">{unit === 'kg' ? 'KG' : 'LBS'}</div>
+            <div className="font-mono text-micro text-muted-foreground mt-1">≈ {unit === 'kg' ? `${lbFromKg(value)} lb` : `${kgFromLb(value)} kg`}</div>
           </div>
         </div>
 
@@ -2085,7 +2085,7 @@ function WeightStep({ stats, onChange, onNext, onBack, step, total }) {
             transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
             className="text-primary/70 font-bold text-sm leading-none"
           >⌃</motion.span>
-          <span className="font-mono text-[10px] font-semibold tracking-[0.18em] uppercase text-muted-foreground/80">Drag dial to set · tap to type</span>
+          <span className="font-mono text-micro font-semibold tracking-[0.18em] uppercase text-muted-foreground/80">Drag dial to set · tap to type</span>
           <motion.span
             animate={{ y: [2, -1, 2] }}
             transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
@@ -2126,7 +2126,7 @@ function StatsStep({ username, onUsernameChange, stats, onChange, onNext, onBack
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl border bg-card p-4">
           <div className="flex items-center gap-2 mb-3">
             <Icon name="user" size={15} color="hsl(var(--muted-foreground))" />
-            <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Username</span>
+            <span className="font-mono text-micro font-semibold uppercase tracking-[0.12em] text-muted-foreground">Username</span>
           </div>
           <input
             type="text"
@@ -2140,7 +2140,7 @@ function StatsStep({ username, onUsernameChange, stats, onChange, onNext, onBack
             spellCheck={false}
             inputMode="text"
             enterKeyHint="next"
-            className="w-full h-12 rounded-xl border border-border bg-secondary/50 px-4 font-mono text-[16px] font-medium text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/30 transition-all"
+            className="w-full h-12 rounded-xl border border-border bg-secondary/50 px-4 font-mono text-base font-medium text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/30 transition-all"
           />
           {usernameError && <p className="text-xs text-destructive mt-1.5">{usernameError}</p>}
           <p className="text-xs text-muted-foreground mt-1.5">Lowercase, numbers and underscores only</p>
@@ -2232,7 +2232,7 @@ function DaysStep({ days, preferredTime, onDaysChange, onTimeChange, onNext, onB
             </motion.span>
             <span className="font-heading font-semibold text-xl text-muted-foreground">days · week</span>
           </div>
-          <div className="relative font-mono text-[11px] font-bold tracking-[0.18em] uppercase text-primary mt-1">{intensityLabel}</div>
+          <div className="relative font-mono text-micro font-bold tracking-[0.18em] uppercase text-primary mt-1">{intensityLabel}</div>
         </motion.div>
 
         {/* Day grid */}
@@ -2248,7 +2248,7 @@ function DaysStep({ days, preferredTime, onDaysChange, onTimeChange, onNext, onB
                   background: selected ? 'hsl(var(--primary))' : 'hsl(var(--card))',
                   color: selected ? 'hsl(var(--primary-foreground))' : 'hsl(var(--muted-foreground))',
                 }}>
-                <span className="text-[11px]">{d}</span>
+                <span className="text-micro">{d}</span>
                 <span className="w-1.5 h-1.5 rounded-full"
                   style={{ background: selected ? 'currentColor' : 'hsl(var(--border))' }} />
               </button>
@@ -2262,8 +2262,8 @@ function DaysStep({ days, preferredTime, onDaysChange, onTimeChange, onNext, onB
             them to lie. */}
         <div>
           <div className="flex items-baseline justify-between mb-3">
-            <div className="font-mono text-[11px] font-semibold tracking-[0.12em] uppercase text-muted-foreground">Preferred time</div>
-            <div className="font-mono text-[9px] font-medium tracking-wider uppercase text-muted-foreground/70">Pick all that apply</div>
+            <div className="font-mono text-micro font-semibold tracking-[0.12em] uppercase text-muted-foreground">Preferred time</div>
+            <div className="font-mono text-micro font-medium tracking-wider uppercase text-muted-foreground/70">Pick all that apply</div>
           </div>
           <div className="grid grid-cols-2 gap-2">
             {TIMES.map(t => {
@@ -2436,7 +2436,7 @@ function BodyBaselineStep({ step, total, value, onChange, onNext, onBack, onSkip
             >
               I know my measurements — let me enter them
             </button>
-            <p className="text-[11px] text-muted-foreground/70 text-center pt-1">
+            <p className="text-micro text-muted-foreground/70 text-center pt-1">
               You can add these anytime from Progress.
             </p>
           </>
@@ -2503,7 +2503,7 @@ function InjuryHistoryStep({ step, total, value, onChange, onNext, onBack, onSki
                 >
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-semibold">{inj.muscleGroup}</span>
-                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full border ${sev.color}`}>
+                    <span className={`text-micro font-bold px-1.5 py-0.5 rounded-full border ${sev.color}`}>
                       {sev.label}
                     </span>
                   </div>
@@ -2760,7 +2760,7 @@ function RevealStep({ data, onNext, saving = false, previewRegimen = null }) {
           <RevealCoachButton />
         </motion.div>
         <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-          className="font-mono text-[11px] font-bold tracking-[0.18em] text-primary uppercase mb-4">
+          className="font-mono text-micro font-bold tracking-[0.18em] text-primary uppercase mb-4">
           Plan ready · 100%
         </motion.div>
 
@@ -2772,7 +2772,7 @@ function RevealStep({ data, onNext, saving = false, previewRegimen = null }) {
         </h1>
 
         <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.55 }}
-          className="text-[14px] text-muted-foreground leading-relaxed mb-6 max-w-xs">
+          className="text-sm text-muted-foreground leading-relaxed mb-6 max-w-xs">
           A <strong className="text-foreground">{weeks}-week</strong> {primaryGoal.title.toLowerCase()}
           {extraGoalCount > 0 && <> + <strong className="text-foreground">{extraGoalCount} more</strong></>} block,
           dialled in for a <strong className="text-foreground">{level?.label.toLowerCase()}</strong> lifter on{' '}
@@ -2784,13 +2784,13 @@ function RevealStep({ data, onNext, saving = false, previewRegimen = null }) {
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.7 }}
             className="space-y-2.5">
             <div className="flex items-center justify-between">
-              <span className="font-mono text-[10px] font-semibold tracking-[0.12em] uppercase text-muted-foreground">Your starter plan</span>
-              <span className="font-mono text-[10px] font-bold text-emerald-500">● READY</span>
+              <span className="font-mono text-micro font-semibold tracking-[0.12em] uppercase text-muted-foreground">Your starter plan</span>
+              <span className="font-mono text-micro font-bold text-emerald-500">● READY</span>
             </div>
-            <div className="font-heading font-bold text-[18px] tracking-tight text-foreground leading-tight">
+            <div className="font-heading font-bold text-lg tracking-tight text-foreground leading-tight">
               {previewRegimen?.name || `${primaryGoal.title} starter`}
             </div>
-            <div className="text-[12px] text-muted-foreground -mt-0.5 mb-1">
+            <div className="text-caption text-muted-foreground -mt-0.5 mb-1">
               {daysCount || '—'} days/week · tap a section to explore · saved to Workout → Regimens
             </div>
             <StarterPlanView regimen={previewRegimen} />

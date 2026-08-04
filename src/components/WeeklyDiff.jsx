@@ -46,7 +46,7 @@ export default function WeeklyDiff({
       <button
         type="button"
         onClick={() => setRevealing((r) => !r)}
-        className={`inline-flex items-center gap-0.5 text-[10px] font-semibold text-primary ${className}`}
+        className={`inline-flex items-center gap-0.5 text-micro font-semibold text-primary ${className}`}
       >
         <span>+{current} new</span>
       </button>
@@ -72,7 +72,7 @@ export default function WeeklyDiff({
     <button
       type="button"
       onClick={() => setRevealing((r) => !r)}
-      className={`inline-flex items-center gap-0.5 text-[10px] font-semibold ${color} ${className}`}
+      className={`inline-flex items-center gap-0.5 text-micro font-semibold ${color} ${className}`}
       aria-label={`${isUp ? 'Up' : 'Down'} ${Math.abs(Math.round(pctChange))} percent vs last week`}
     >
       <Arrow className="w-2.5 h-2.5" strokeWidth={3} />

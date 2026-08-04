@@ -26,13 +26,13 @@ export default function BundleCard({ bundle, listings, currentUser, flexCoins, o
       className="col-span-full rounded-xl border-2 border-amber-400/50 bg-card p-4 gap-3 flex flex-col relative overflow-hidden"
     >
       {/* Bundle badge */}
-      <div className="absolute top-3 end-3 flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-500 text-amber-950 text-[10px] font-extrabold uppercase tracking-wide">
+      <div className="absolute top-3 end-3 flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-500 text-amber-950 text-micro font-extrabold uppercase tracking-wide">
         <Package className="w-3 h-3" /> Bundle · {bundle.discount_pct}% off
       </div>
 
       <div>
         <p className="font-heading font-bold text-sm pe-24">{bundle.title}</p>
-        <p className="text-muted-foreground text-[11px] mt-0.5">
+        <p className="text-muted-foreground text-micro mt-0.5">
           by {displayName(bundle)} · {listings.length} item{listings.length === 1 ? '' : 's'}
         </p>
       </div>

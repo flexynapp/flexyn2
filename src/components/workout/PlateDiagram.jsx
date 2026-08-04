@@ -108,7 +108,7 @@ export default function PlateDiagram({ plates = [], barLbs = 45 }) {
           );
         })}
       </svg>
-      <span className="text-[10px] text-muted-foreground tabular-nums">
+      <span className="text-micro text-muted-foreground tabular-nums">
         {plates.map(({ count, plate }) => `${count}×${plate}`).join(' + ')} · {barLbs} bar
       </span>
     </div>

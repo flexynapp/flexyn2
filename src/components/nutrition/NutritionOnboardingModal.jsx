@@ -491,7 +491,7 @@ export default function NutritionOnboardingModal({ open, userProfile, onComplete
                         <span className="text-xl leading-none shrink-0">{r.emoji}</span>
                         <div className="min-w-0 flex-1">
                           <p className="font-heading font-semibold text-xs leading-tight">{r.label}</p>
-                          <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight">{r.desc}</p>
+                          <p className="text-micro text-muted-foreground mt-0.5 leading-tight">{r.desc}</p>
                         </div>
                         {selected && <Check className="w-4 h-4 text-primary shrink-0" />}
                       </motion.button>
@@ -534,7 +534,7 @@ export default function NutritionOnboardingModal({ open, userProfile, onComplete
                         <span className="text-xl leading-none shrink-0">{a.emoji}</span>
                         <div className="min-w-0 flex-1">
                           <p className="font-heading font-semibold text-xs leading-tight">{a.label}</p>
-                          <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight">{a.desc}</p>
+                          <p className="text-micro text-muted-foreground mt-0.5 leading-tight">{a.desc}</p>
                         </div>
                         {selected && <Check className="w-4 h-4 text-destructive shrink-0" />}
                       </motion.button>
@@ -609,7 +609,7 @@ export default function NutritionOnboardingModal({ open, userProfile, onComplete
                   <Card className="p-3 bg-primary/5">
                     <p className="text-xs text-muted-foreground">{t('nutrition.macros.calories')}</p>
                     <p className="font-heading font-bold text-2xl text-primary">{preview.calories}</p>
-                    <p className="text-[10px] text-muted-foreground">cal/day</p>
+                    <p className="text-micro text-muted-foreground">cal/day</p>
                   </Card>
                   <Card className="p-3 bg-destructive/5">
                     <p className="text-xs text-muted-foreground">{t('nutrition.macros.protein')}</p>

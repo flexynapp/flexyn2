@@ -336,7 +336,7 @@ export default function ProfileTierBanner({
           {week.map((day) => (
             <div key={day.key} className="text-center" aria-hidden="true">
               <span
-                className="block text-[9px] font-extrabold uppercase tracking-wider mb-1 leading-none"
+                className="block text-micro font-extrabold uppercase tracking-wider mb-1 leading-none"
                 style={{
                   color: 'rgba(255,255,255,0.82)',
                   // Silver and Platinum are near-white at the top of the
@@ -413,7 +413,7 @@ export default function ProfileTierBanner({
               label={`${streak} ${streakLabel}`}
             >
               <span className="text-xs font-bold tabular-nums leading-none">{streak}</span>
-              <span className="text-[10px] font-extrabold uppercase tracking-wider" style={{ opacity: 0.75 }}>
+              <span className="text-micro font-extrabold uppercase tracking-wider" style={{ opacity: 0.75 }}>
                 {streakLabel}
               </span>
             </HeroPill>

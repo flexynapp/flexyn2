@@ -79,7 +79,7 @@ export default function LiveSessionCard({ session, onViewProfile }) {
             >
               @{handle}
             </button>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-destructive bg-destructive/10 px-1.5 py-0.5 rounded">
+            <span className="text-micro font-bold uppercase tracking-wider text-destructive bg-destructive/10 px-1.5 py-0.5 rounded">
               🔴 LIVE
             </span>
           </div>
@@ -101,7 +101,7 @@ export default function LiveSessionCard({ session, onViewProfile }) {
             <Dumbbell className="w-3.5 h-3.5 text-destructive shrink-0" />
             <span className="text-xs font-medium text-foreground truncate">{liveData.exercise}</span>
             {liveData.set && (
-              <span className="text-[11px] text-muted-foreground shrink-0">
+              <span className="text-micro text-muted-foreground shrink-0">
                 Set {liveData.set}{liveData.reps ? ` · ${liveData.reps} reps` : ''}
               </span>
             )}

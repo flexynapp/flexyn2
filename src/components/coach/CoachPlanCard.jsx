@@ -158,9 +158,9 @@ export default function CoachPlanCard({ plan, onSaveRegimen, onStartWorkout, onP
     >
       <div className="mb-2.5 px-0.5 flex items-start gap-2">
         <div className="flex-1 min-w-0">
-          <p className="font-heading font-bold text-[15px] leading-tight">{activePlan.title}</p>
+          <p className="font-heading font-bold text-body leading-tight">{activePlan.title}</p>
           {activePlan.subtitle && (
-            <p className="text-[11px] text-muted-foreground mt-0.5">{activePlan.subtitle}</p>
+            <p className="text-micro text-muted-foreground mt-0.5">{activePlan.subtitle}</p>
           )}
         </div>
         {editable && (
@@ -170,7 +170,7 @@ export default function CoachPlanCard({ plan, onSaveRegimen, onStartWorkout, onP
             aria-pressed={editing}
             aria-label={editing ? 'Finish editing workout' : 'Edit workout'}
             className={[
-              'shrink-0 inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold transition-colors',
+              'shrink-0 inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-micro font-semibold transition-colors',
               editing
                 ? 'bg-primary text-primary-foreground'
                 : 'bg-secondary/70 text-muted-foreground hover:text-foreground hover:bg-secondary',
@@ -203,7 +203,7 @@ export default function CoachPlanCard({ plan, onSaveRegimen, onStartWorkout, onP
       {Array.isArray(activePlan.coachNotes) && activePlan.coachNotes.length > 0 && (
         <ul className="mt-2.5 space-y-1.5 rounded-xl border border-border bg-secondary/40 px-3 py-2.5">
           {activePlan.coachNotes.map((note, i) => (
-            <li key={i} className="flex gap-2 text-[11px] text-muted-foreground leading-snug">
+            <li key={i} className="flex gap-2 text-micro text-muted-foreground leading-snug">
               <span aria-hidden="true" className="text-primary shrink-0">•</span>
               <span>{note}</span>
             </li>
@@ -223,8 +223,8 @@ export default function CoachPlanCard({ plan, onSaveRegimen, onStartWorkout, onP
             <Flame className="w-4 h-4" />
           </span>
           <span className="flex-1 min-w-0">
-            <span className="block text-[13px] font-semibold leading-tight">Fuel your training</span>
-            <span className="block text-[11px] text-muted-foreground mt-0.5">
+            <span className="block text-label font-semibold leading-tight">Fuel your training</span>
+            <span className="block text-micro text-muted-foreground mt-0.5">
               ~+{activePlan.fuel.perRunDayKcal} kcal · +{activePlan.fuel.addCarbsG}g carbs on run days
             </span>
           </span>
@@ -280,7 +280,7 @@ export default function CoachPlanCard({ plan, onSaveRegimen, onStartWorkout, onP
       </div>
 
       {schedulerError && (
-        <p className="mt-2 text-[11px] text-destructive px-0.5">{schedulerError}</p>
+        <p className="mt-2 text-micro text-destructive px-0.5">{schedulerError}</p>
       )}
 
       {/* Save stays reachable but stops competing for the primary slot: a
@@ -291,7 +291,7 @@ export default function CoachPlanCard({ plan, onSaveRegimen, onStartWorkout, onP
         onClick={handleSave}
         disabled={saving || saved}
         className={[
-          'mt-2 w-full inline-flex items-center justify-center gap-1.5 rounded-xl text-[12px] font-semibold py-2 transition-colors',
+          'mt-2 w-full inline-flex items-center justify-center gap-1.5 rounded-xl text-caption font-semibold py-2 transition-colors',
           saved
             ? 'text-emerald-600 dark:text-emerald-400'
             : 'text-muted-foreground hover:text-foreground disabled:opacity-60',
@@ -344,14 +344,14 @@ function EvidencePanel({ evidence, exercises }) {
       >
         <Info className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
         <span className="flex-1 min-w-0">
-          <span className="block text-[11px] font-semibold leading-tight">What this is based on</span>
-          <span className="block text-[10px] text-muted-foreground mt-0.5 truncate">{summary}</span>
+          <span className="block text-micro font-semibold leading-tight">What this is based on</span>
+          <span className="block text-micro text-muted-foreground mt-0.5 truncate">{summary}</span>
         </span>
         <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
 
       {open && (
-        <div className="px-3 pb-2.5 space-y-2 text-[11px] leading-snug">
+        <div className="px-3 pb-2.5 space-y-2 text-micro leading-snug">
           <Fact label="Your training log">
             {evidence.logsRead > 0
               ? `${evidence.logsRead} session${evidence.logsRead === 1 ? '' : 's'} in the last ${evidence.historyWindowDays} days`
@@ -428,7 +428,7 @@ function SchedulePicker({ scheduling, onCancel, onConfirm }) {
 
   return (
     <div className="mt-2.5 rounded-xl border border-primary/25 bg-card p-3">
-      <p className="text-[11px] font-semibold text-muted-foreground mb-2">When are you doing this?</p>
+      <p className="text-micro font-semibold text-muted-foreground mb-2">When are you doing this?</p>
 
       <div className="flex gap-1.5 mb-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {days.map((d) => (
@@ -452,7 +452,7 @@ function SchedulePicker({ scheduling, onCancel, onConfirm }) {
         <button
           type="button"
           onClick={onCancel}
-          className="rounded-lg px-3 py-2 text-[12px] font-semibold text-muted-foreground hover:text-foreground transition-colors"
+          className="rounded-lg px-3 py-2 text-caption font-semibold text-muted-foreground hover:text-foreground transition-colors"
         >
           Cancel
         </button>
@@ -460,7 +460,7 @@ function SchedulePicker({ scheduling, onCancel, onConfirm }) {
           type="button"
           onClick={() => onConfirm(day, hour)}
           disabled={scheduling || chosenIsPast}
-          className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg bg-primary text-primary-foreground text-[12px] font-semibold py-2 transition-opacity active:opacity-80 disabled:opacity-50"
+          className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg bg-primary text-primary-foreground text-caption font-semibold py-2 transition-opacity active:opacity-80 disabled:opacity-50"
         >
           {scheduling ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CalendarClock className="w-3.5 h-3.5" />}
           {chosenIsPast ? 'That time has passed' : `Remind me ${scheduleDayLabel(day).toLowerCase()} at ${formatHour(hour)}`}
@@ -478,7 +478,7 @@ function Chip({ active, disabled, onClick, label }) {
       disabled={disabled}
       aria-pressed={active}
       className={[
-        'shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 text-[11px] font-semibold border transition-colors disabled:opacity-35',
+        'shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 text-micro font-semibold border transition-colors disabled:opacity-35',
         active
           ? 'bg-primary text-primary-foreground border-primary'
           : 'bg-secondary/60 text-foreground border-border/50 hover:bg-secondary',
@@ -504,8 +504,8 @@ function ExerciseEditor({ exercises, onSwap, onRemove, onSets }) {
         return (
           <div key={`${ex.name}-${i}`} className="flex items-center gap-2 px-3 py-2.5">
             <div className="flex-1 min-w-0">
-              <p className="text-[13px] font-semibold leading-tight truncate">{ex.name}</p>
-              <p className="text-[11px] text-muted-foreground mt-0.5 tabular-nums">
+              <p className="text-label font-semibold leading-tight truncate">{ex.name}</p>
+              <p className="text-micro text-muted-foreground mt-0.5 tabular-nums">
                 {sets} × {reps ?? '—'}
                 {weight > 0 ? ` @ ${weight} lb` : ' · bodyweight'}
                 {ex.group ? ` · ${ex.group}` : ''}
@@ -525,7 +525,7 @@ function ExerciseEditor({ exercises, onSwap, onRemove, onSets }) {
               >
                 <Minus className="w-3.5 h-3.5" />
               </button>
-              <span className="text-[11px] font-bold tabular-nums w-3 text-center" aria-hidden="true">
+              <span className="text-micro font-bold tabular-nums w-3 text-center" aria-hidden="true">
                 {sets}
               </span>
               <button

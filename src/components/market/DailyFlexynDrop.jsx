@@ -122,7 +122,7 @@ export default function DailyFlexynDrop() {
           </div>
           <div>
             <p className="font-heading font-bold text-sm leading-none">Today's Flexyn Drop</p>
-            <p className="text-[10px] text-muted-foreground mt-0.5">Rotates in {formatCountdown(remaining)}</p>
+            <p className="text-micro text-muted-foreground mt-0.5">Rotates in {formatCountdown(remaining)}</p>
           </div>
         </div>
       </div>
@@ -142,11 +142,11 @@ export default function DailyFlexynDrop() {
               }}
             >
               <span className="text-3xl leading-none mb-1.5" aria-hidden="true">{item.emoji}</span>
-              <p className="font-heading font-bold text-[11px] leading-tight line-clamp-2 h-7">
+              <p className="font-heading font-bold text-micro leading-tight line-clamp-2 h-7">
                 {item.name}
               </p>
               <p
-                className="text-[9px] font-bold uppercase tracking-wide mt-0.5"
+                className="text-micro font-bold uppercase tracking-wide mt-0.5"
                 style={{ color: tint.color }}
               >
                 {tint.label}
@@ -155,7 +155,7 @@ export default function DailyFlexynDrop() {
                 type="button"
                 onClick={() => buy(item)}
                 disabled={busy || owned}
-                className={`mt-2 w-full inline-flex items-center justify-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold transition-colors ${
+                className={`mt-2 w-full inline-flex items-center justify-center gap-1 px-2 py-1 rounded-md text-micro font-bold transition-colors ${
                   owned
                     ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 cursor-default'
                     : 'bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50'
@@ -171,7 +171,7 @@ export default function DailyFlexynDrop() {
           );
         })}
       </div>
-      <p className="text-[10px] text-muted-foreground/80 mt-2 text-center">
+      <p className="text-micro text-muted-foreground/80 mt-2 text-center">
         New drop every day at midnight · {BRANDED_ITEMS.length} branded items total
       </p>
     </motion.div>

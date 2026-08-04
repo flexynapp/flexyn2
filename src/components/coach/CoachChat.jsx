@@ -284,7 +284,7 @@ export default function CoachChat({ mode, onSaveRegimen, onStartWorkout }) {
             <p className="font-heading font-bold text-sm">
               {tFallback('coach.title', 'Coach')}
             </p>
-            <p className="text-[10px] text-muted-foreground">
+            <p className="text-micro text-muted-foreground">
               {tFallback('coach.subtitle', 'Personalized advice from your data')}
             </p>
           </div>

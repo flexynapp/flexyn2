@@ -55,7 +55,7 @@ export default function ListingCard({
     >
       {/* Featured ribbon (mig 122) */}
       {isFeatured && (
-        <div className="absolute top-2 start-2 z-20 flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-400 text-amber-950 text-[9px] font-extrabold uppercase tracking-wider">
+        <div className="absolute top-2 start-2 z-20 flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-400 text-amber-950 text-micro font-extrabold uppercase tracking-wider">
           <Star className="w-2.5 h-2.5 fill-current" /> Featured
         </div>
       )}
@@ -108,7 +108,7 @@ export default function ListingCard({
       </button>
 
       {/* Seller — tap to open their HubProfile. Excludes own listings. */}
-      <p className="text-muted-foreground text-[10px] text-center relative z-10">
+      <p className="text-muted-foreground text-micro text-center relative z-10">
         by{' '}
         {isMine || !onSellerClick ? (
           <span className="font-medium">{displayName(listing)}</span>
@@ -127,11 +127,11 @@ export default function ListingCard({
       {/* Listing type badge */}
       <div className="flex justify-center relative z-10">
         {isSale ? (
-          <span className="flex items-center gap-1 text-[10px] font-bold bg-amber-500/20 text-amber-600 dark:text-amber-300 border border-amber-400/30 rounded-full px-2 py-0.5">
+          <span className="flex items-center gap-1 text-micro font-bold bg-amber-500/20 text-amber-600 dark:text-amber-300 border border-amber-400/30 rounded-full px-2 py-0.5">
             <Coins className="w-3 h-3" /> For Sale
           </span>
         ) : (
-          <span className="flex items-center gap-1 text-[10px] font-bold bg-blue-500/20 text-blue-600 dark:text-blue-300 border border-blue-400/30 rounded-full px-2 py-0.5">
+          <span className="flex items-center gap-1 text-micro font-bold bg-blue-500/20 text-blue-600 dark:text-blue-300 border border-blue-400/30 rounded-full px-2 py-0.5">
             <Zap className="w-3 h-3" /> For Trade
           </span>
         )}

@@ -275,7 +275,7 @@ export default function CardioPlanned() {
                     <div className="flex items-center gap-2">
                       <p className="text-sm font-semibold truncate">{plan.title}</p>
                       {isDue && (
-                        <span className="text-[10px] font-bold uppercase text-primary bg-primary/10 px-1.5 py-0.5 rounded-full shrink-0">
+                        <span className="text-micro font-bold uppercase text-primary bg-primary/10 px-1.5 py-0.5 rounded-full shrink-0">
                           Today
                         </span>
                       )}

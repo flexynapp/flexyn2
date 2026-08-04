@@ -269,7 +269,7 @@ export default function Notifications() {
               {n.body && (
                 <p className="text-xs text-muted-foreground leading-snug mt-0.5 truncate">{n.body}</p>
               )}
-              <p className="text-[10px] text-muted-foreground/70 mt-1 tabular-nums">
+              <p className="text-micro text-muted-foreground/70 mt-1 tabular-nums">
                 {n.created_at ? formatDistanceToNow(new Date(n.created_at), { addSuffix: true }) : ''}
               </p>
             </div>

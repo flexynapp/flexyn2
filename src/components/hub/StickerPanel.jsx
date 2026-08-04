@@ -20,7 +20,7 @@ function RarityBadge({ rarity, variant }) {
   const rc = RARITY[rarity] ?? RARITY.common;
   return (
     <span
-      className="text-[9px] font-bold px-1.5 py-0.5 rounded-full border leading-none"
+      className="text-micro font-bold px-1.5 py-0.5 rounded-full border leading-none"
       style={{ color: rc.color, borderColor: rc.color, background: `${rc.color}18` }}
     >
       {rc.label}
@@ -180,7 +180,7 @@ export default function StickerPanel({ postId, onClose, onAuthorClick = null }) 
                       type="button"
                       onClick={handleProfileClick}
                       disabled={!profileClickable}
-                      className={`w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-bold text-primary shrink-0 overflow-hidden ${profileClickable ? 'hover:ring-2 hover:ring-primary/30 transition-shadow' : 'cursor-default'}`}
+                      className={`w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-micro font-bold text-primary shrink-0 overflow-hidden ${profileClickable ? 'hover:ring-2 hover:ring-primary/30 transition-shadow' : 'cursor-default'}`}
                       aria-label={profileClickable ? `Open ${r.user_name}'s profile` : undefined}
                     >
                       {r.user_avatar_url ? (
@@ -208,7 +208,7 @@ export default function StickerPanel({ postId, onClose, onAuthorClick = null }) 
                       size={28}
                     />
                     {r.variant && (
-                      <span className="text-[9px] font-bold capitalize" style={{ color: r.variant === 'gold' ? '#f59e0b' : r.variant === 'diamond' ? '#67e8f9' : '#e2e8f0' }}>
+                      <span className="text-micro font-bold capitalize" style={{ color: r.variant === 'gold' ? '#f59e0b' : r.variant === 'diamond' ? '#67e8f9' : '#e2e8f0' }}>
                         {r.variant}
                       </span>
                     )}

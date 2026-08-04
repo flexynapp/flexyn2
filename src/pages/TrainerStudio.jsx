@@ -166,7 +166,7 @@ export default function TrainerStudio() {
               <div key={label} className="rounded-2xl border border-border bg-card p-3 text-center">
                 <Icon className={`w-4 h-4 mx-auto mb-1 ${color}`} />
                 <p className={`font-heading font-bold text-lg tabular-nums ${color}`}>{value}</p>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">{label}</p>
+                <p className="text-micro text-muted-foreground uppercase tracking-wide">{label}</p>
               </div>
             ))}
           </div>
@@ -187,7 +187,7 @@ export default function TrainerStudio() {
               </p>
             </div>
             {!connectLinked && (
-              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full bg-amber-500/15 text-amber-600 shrink-0">
+              <span className="text-micro font-bold uppercase tracking-wider px-2 py-1 rounded-full bg-amber-500/15 text-amber-600 shrink-0">
                 Test mode
               </span>
             )}
@@ -220,9 +220,9 @@ export default function TrainerStudio() {
                         <div className="flex items-center gap-2">
                           <p className="font-heading font-bold text-sm truncate">{listing.title}</p>
                           {listing.is_published ? (
-                            <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-600 shrink-0">Live</span>
+                            <span className="text-micro font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-600 shrink-0">Live</span>
                           ) : (
-                            <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-secondary text-muted-foreground shrink-0">Draft</span>
+                            <span className="text-micro font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-secondary text-muted-foreground shrink-0">Draft</span>
                           )}
                         </div>
                         <p className="text-xs text-muted-foreground mt-0.5">
@@ -258,7 +258,7 @@ export default function TrainerStudio() {
                       </div>
                     </div>
                     {!listing.regimen_id && (
-                      <p className="text-[11px] text-amber-600 flex items-center gap-1 mt-2">
+                      <p className="text-micro text-amber-600 flex items-center gap-1 mt-2">
                         <AlertCircle className="w-3 h-3" /> No regimen linked — buyers won't unlock any content.
                       </p>
                     )}

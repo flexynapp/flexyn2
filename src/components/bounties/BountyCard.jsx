@@ -86,10 +86,10 @@ export default function BountyCard({ bounty, hasActiveClaim = false, compact = f
             </div>
           )}
           <div className="flex-1 min-w-0">
-            <p className="text-[10px] text-muted-foreground">Target</p>
+            <p className="text-micro text-muted-foreground">Target</p>
             <p className="text-sm font-bold truncate">@{bounty.target_username}</p>
           </div>
-          <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${cfg.bg} ${cfg.color}`}>
+          <span className={`text-micro font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${cfg.bg} ${cfg.color}`}>
             {cfg.label}
           </span>
         </div>
@@ -117,7 +117,7 @@ export default function BountyCard({ bounty, hasActiveClaim = false, compact = f
 
         {/* Footer: time + CTA */}
         <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+          <div className="flex items-center gap-1 text-micro text-muted-foreground">
             <Clock className="w-3 h-3" />
             <span>{isExpired ? 'Expired' : `${timeLeft} left`}</span>
           </div>

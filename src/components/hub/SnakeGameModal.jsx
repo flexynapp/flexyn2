@@ -462,7 +462,7 @@ export default function SnakeGameModal({ open, onClose, userId }) {
             <div className="flex items-center justify-between w-full">
               <div className="flex items-center gap-2">
                 <span className="text-lg leading-none" aria-hidden="true">👾</span>
-                <h3 className="snake-pixel text-[13px] leading-none">Iron Snake</h3>
+                <h3 className="snake-pixel text-label leading-none">Iron Snake</h3>
               </div>
               <button
                 type="button"
@@ -477,14 +477,14 @@ export default function SnakeGameModal({ open, onClose, userId }) {
             {/* Score row — no pause here (it lives in the D-pad center) */}
             <div className="flex items-end justify-between w-full">
               <div className="flex flex-col gap-1.5">
-                <span className="snake-pixel text-[8px] text-muted-foreground leading-none">SCORE</span>
-                <AnimatedNumber value={score} className="snake-pixel text-[16px] text-foreground leading-none tabular-nums" />
+                <span className="snake-pixel text-micro text-muted-foreground leading-none">SCORE</span>
+                <AnimatedNumber value={score} className="snake-pixel text-base text-foreground leading-none tabular-nums" />
               </div>
               <div className="flex flex-col items-end gap-1.5">
-                <span className="snake-pixel text-[8px] text-primary leading-none flex items-center gap-1">
+                <span className="snake-pixel text-micro text-primary leading-none flex items-center gap-1">
                   <Trophy className="w-3 h-3" /> BEST
                 </span>
-                <span className="snake-pixel text-[16px] text-primary leading-none tabular-nums">{highScore}</span>
+                <span className="snake-pixel text-base text-primary leading-none tabular-nums">{highScore}</span>
               </div>
             </div>
 
@@ -530,7 +530,7 @@ export default function SnakeGameModal({ open, onClose, userId }) {
               {floaters.map((f) => (
                 <motion.span
                   key={`fl-${f.id}`}
-                  className={`absolute z-20 pointer-events-none snake-pixel text-[10px] ${f.golden ? 'text-fuchsia-300' : 'text-amber-300'}`}
+                  className={`absolute z-20 pointer-events-none snake-pixel text-micro ${f.golden ? 'text-fuchsia-300' : 'text-amber-300'}`}
                   style={{ left: `${f.x}%`, top: `${f.y}%`, transform: 'translate(-50%,-50%)', textShadow: '0 1px 2px rgba(0,0,0,0.6)' }}
                   initial={{ opacity: 0, y: 0, scale: 0.7 }}
                   animate={{ opacity: [0, 1, 1, 0], y: -22, scale: 1 }}
@@ -544,14 +544,14 @@ export default function SnakeGameModal({ open, onClose, userId }) {
               {gameState === 'ready' && (
                 <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-3 bg-black/45 backdrop-blur-[2px]">
                   <p className="text-xs text-slate-300 px-6 text-center">Collect coins. Don't hit the walls or your own tail.</p>
-                  <button type="button" onClick={() => startGame('right')} className="snake-pixel text-[11px] px-5 py-3 rounded-xl bg-primary text-primary-foreground hover:opacity-90 transition-opacity leading-none">START</button>
-                  <p className="text-[10px] text-slate-400">Arrows / WASD / D-pad</p>
+                  <button type="button" onClick={() => startGame('right')} className="snake-pixel text-micro px-5 py-3 rounded-xl bg-primary text-primary-foreground hover:opacity-90 transition-opacity leading-none">START</button>
+                  <p className="text-micro text-slate-400">Arrows / WASD / D-pad</p>
                 </div>
               )}
               {gameState === 'paused' && (
                 <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-3 bg-black/50 backdrop-blur-[2px]">
                   <p className="snake-pixel text-base text-white leading-none">PAUSED</p>
-                  <button type="button" onClick={togglePause} className="snake-pixel text-[10px] px-5 py-3 rounded-xl bg-primary text-primary-foreground hover:opacity-90 transition-opacity flex items-center gap-1.5 leading-none">
+                  <button type="button" onClick={togglePause} className="snake-pixel text-micro px-5 py-3 rounded-xl bg-primary text-primary-foreground hover:opacity-90 transition-opacity flex items-center gap-1.5 leading-none">
                     <Play className="w-3.5 h-3.5" /> RESUME
                   </button>
                 </div>
@@ -564,7 +564,7 @@ export default function SnakeGameModal({ open, onClose, userId }) {
                   ) : (
                     <p className="text-xs text-slate-300">Score {score} · Best {highScore}</p>
                   )}
-                  <button type="button" onClick={() => startGame('right')} className="snake-pixel text-[10px] mt-1 px-5 py-3 rounded-xl bg-primary text-primary-foreground hover:opacity-90 transition-opacity flex items-center gap-1.5 leading-none">
+                  <button type="button" onClick={() => startGame('right')} className="snake-pixel text-micro mt-1 px-5 py-3 rounded-xl bg-primary text-primary-foreground hover:opacity-90 transition-opacity flex items-center gap-1.5 leading-none">
                     <RotateCcw className="w-3.5 h-3.5" /> AGAIN
                   </button>
                 </div>

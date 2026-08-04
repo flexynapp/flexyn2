@@ -92,7 +92,7 @@ export default function MacroNutrientBox({ entries = [], userProfile = {} }) {
                   <div className={`relative ${macro.textColor}`}>
                     <NutrientRing percent={percentOfDaily} size={52} />
                     <span
-                      className={`absolute inset-0 flex items-center justify-center text-[10px] font-bold ${macro.textColor}`}
+                      className={`absolute inset-0 flex items-center justify-center text-micro font-bold ${macro.textColor}`}
                     >
                       {Math.round(percentOfDaily)}%
                     </span>
@@ -131,7 +131,7 @@ export default function MacroNutrientBox({ entries = [], userProfile = {} }) {
           about the metric aren't distracted. */}
       <div className="mt-3 pt-3 border-t border-border/40">
         <div className="flex items-center justify-between">
-          <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
+          <span className="text-micro font-bold uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
             Net carbs <span className="font-normal normal-case opacity-70">(carbs − fiber)</span>
             <button
               type="button"
@@ -139,7 +139,7 @@ export default function MacroNutrientBox({ entries = [], userProfile = {} }) {
               aria-label="What are net carbs?"
               className="w-4 h-4 rounded-full border border-border/60 bg-background/80 flex items-center justify-center text-muted-foreground/60 hover:text-foreground hover:border-border transition-colors shrink-0"
             >
-              <span className="text-[8px] font-bold leading-none italic">i</span>
+              <span className="text-micro font-bold leading-none italic">i</span>
             </button>
           </span>
           <span className="text-xs font-bold tabular-nums text-blue-600">
@@ -147,7 +147,7 @@ export default function MacroNutrientBox({ entries = [], userProfile = {} }) {
           </span>
         </div>
         {netCarbsInfo && (
-          <p className="text-[11px] text-foreground/70 mt-2 leading-snug">
+          <p className="text-micro text-foreground/70 mt-2 leading-snug">
             Net carbs = total carbs − fiber. Fiber isn't digested or absorbed, so it doesn't raise blood sugar — subtracting it leaves the carbs your body actually uses for energy. It's the standard metric for keto and low-carb tracking.
           </p>
         )}

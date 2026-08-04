@@ -296,7 +296,7 @@ export default function CardioDetailModal({ log, open, onOpenChange, onEdit }) {
                 value={
                   <span className="flex items-center gap-1.5 justify-end">
                     <span>{log.vo2max_estimate} mL/kg/min</span>
-                    {tier && <span className={`text-[10px] font-bold ${tier.color}`}>{tier.label}</span>}
+                    {tier && <span className={`text-micro font-bold ${tier.color}`}>{tier.label}</span>}
                   </span>
                 }
               />

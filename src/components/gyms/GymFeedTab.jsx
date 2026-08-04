@@ -199,7 +199,7 @@ export default function GymFeedTab({ gymId, gymOwnerId }) {
             >
               <ImageIcon className="w-4 h-4" />
             </button>
-            <span className="text-[10px] text-muted-foreground tabular-nums">{body.length}/500</span>
+            <span className="text-micro text-muted-foreground tabular-nums">{body.length}/500</span>
           </div>
           <Button size="sm" onClick={handlePost} disabled={posting} className="gap-1.5">
             {posting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
@@ -244,7 +244,7 @@ export default function GymFeedTab({ gymId, gymOwnerId }) {
             <Sparkles className="w-3.5 h-3.5 text-primary" />
             <h3 className="text-xs font-extrabold uppercase tracking-[0.18em] text-primary">From the Flexyn community</h3>
           </div>
-          <p className="text-[11px] text-muted-foreground mb-3 px-1">Trending posts while your gym gets going.</p>
+          <p className="text-micro text-muted-foreground mb-3 px-1">Trending posts while your gym gets going.</p>
           <div className="space-y-2">
             {communityFiltered.map(p => {
               const handle = (p.author_name || '').replace(/^@/, '') || 'athlete';
@@ -335,7 +335,7 @@ function FeedPostCard({ post, rxn, meId, isOwner, onDelete, onTogglePin, onReact
         <div className="min-w-0">
           <div className="flex items-center gap-1.5">
             {post.is_pinned && (
-              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider bg-primary/15 text-primary border border-primary/25">
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-micro font-bold uppercase tracking-wider bg-primary/15 text-primary border border-primary/25">
                 <Pin className="w-2.5 h-2.5" /> Pinned
               </span>
             )}
@@ -343,7 +343,7 @@ function FeedPostCard({ post, rxn, meId, isOwner, onDelete, onTogglePin, onReact
               @{post.author_username || 'member'}
             </span>
           </div>
-          <span className="text-[11px] text-muted-foreground">{timeLabel}</span>
+          <span className="text-micro text-muted-foreground">{timeLabel}</span>
         </div>
         {(isAuthor || isOwner) && (
           <div className="relative">
@@ -509,7 +509,7 @@ function FeedComments({ postId, meId, isPostAuthorOrGymOwner, onChange }) {
               <li key={c.id} className="group flex items-start gap-2">
                 <div className="w-6 h-6 rounded-full bg-secondary shrink-0 mt-0.5" />
                 <div className="flex-1 min-w-0 rounded-xl bg-secondary/40 px-2.5 py-1.5">
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="text-micro text-muted-foreground">
                     @{c.author_username || 'athlete'} ·{' '}
                     {(() => { try { return formatDistanceToNow(parseISO(c.created_at), { addSuffix: true }); } catch { return ''; } })()}
                   </p>

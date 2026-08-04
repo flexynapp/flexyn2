@@ -151,7 +151,7 @@ export default function ThemeSelector({ open, onClose }) {
                           <div className="flex items-center gap-2 mb-2">
                             <span className="text-2xl">{lootTheme.emoji}</span>
                             {lootTheme.animated && (
-                              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider"
+                              <span className="text-micro font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider"
                                 style={{ background: `${rc.ring}30`, color: rc.ring }}>
                                 Animated
                               </span>
@@ -172,14 +172,14 @@ export default function ThemeSelector({ open, onClose }) {
                           </p>
 
                           {/* Description */}
-                          <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">
+                          <p className="text-micro text-muted-foreground leading-tight mt-0.5">
                             {lootTheme.description}
                           </p>
 
                           {/* Rarity badge */}
                           <div className={`flex items-center gap-1 mt-2 px-1.5 py-0.5 rounded-full self-start ${rc.bg}`}>
                             <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: rc.ring }} />
-                            <span className={`text-[10px] font-semibold capitalize ${rc.label}`}>
+                            <span className={`text-micro font-semibold capitalize ${rc.label}`}>
                               {lootTheme.rarity}
                             </span>
                           </div>
@@ -187,7 +187,7 @@ export default function ThemeSelector({ open, onClose }) {
                           {isCurrent && (
                             <div className="flex items-center gap-1 mt-2">
                               <div className="w-1.5 h-1.5 rounded-full" style={{ background: rc.ring }} />
-                              <span className="text-[11px] font-semibold" style={{ color: rc.ring }}>Active</span>
+                              <span className="text-micro font-semibold" style={{ color: rc.ring }}>Active</span>
                             </div>
                           )}
                         </motion.button>
@@ -249,7 +249,7 @@ export default function ThemeSelector({ open, onClose }) {
                         </p>
 
                         {/* Description */}
-                        <p className="text-[11px] text-muted-foreground leading-tight mt-1">
+                        <p className="text-micro text-muted-foreground leading-tight mt-1">
                           {theme.description}
                         </p>
 
@@ -259,7 +259,7 @@ export default function ThemeSelector({ open, onClose }) {
                             <div className="flex items-center justify-center w-4 h-4 rounded-full bg-muted">
                               <Lock className="w-2.5 h-2.5 text-muted-foreground" />
                             </div>
-                            <span className="text-[11px] font-semibold text-muted-foreground">
+                            <span className="text-micro font-semibold text-muted-foreground">
                               Level {theme.unlockLevel}
                             </span>
                           </div>
@@ -269,7 +269,7 @@ export default function ThemeSelector({ open, onClose }) {
                         {isCurrent && !isLocked && (
                           <div className="flex items-center gap-1 mt-2.5">
                             <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-                            <span className="text-[11px] font-semibold text-primary">Active</span>
+                            <span className="text-micro font-semibold text-primary">Active</span>
                           </div>
                         )}
                       </motion.button>
@@ -319,13 +319,13 @@ export default function ThemeSelector({ open, onClose }) {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-heading font-bold text-sm">🇺🇸 Brushed Steel USA</p>
-                        <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">
+                        <p className="text-micro text-muted-foreground leading-tight mt-0.5">
                           Metallic steel + patriotic embers &amp; digital pixels
                         </p>
                         {isSteelActive && (
                           <div className="flex items-center gap-1 mt-1.5">
                             <div className="w-1.5 h-1.5 rounded-full bg-slate-400" />
-                            <span className="text-[11px] font-semibold text-slate-400">Active</span>
+                            <span className="text-micro font-semibold text-slate-400">Active</span>
                           </div>
                         )}
                       </div>

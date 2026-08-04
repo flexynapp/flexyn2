@@ -985,7 +985,7 @@ export default function HubComposer({ onClose }) {
           { key: 'fat_g',     label: 'Fat',      unit: 'g',    color: 'text-primary' },
         ].map(f => (
           <div key={f.key} className="flex flex-col">
-            <span className={`text-[10px] font-medium mb-1 ${f.color}`}>{f.label}</span>
+            <span className={`text-micro font-medium mb-1 ${f.color}`}>{f.label}</span>
             <input
               type="number" inputMode="decimal"
               min="0"
@@ -994,7 +994,7 @@ export default function HubComposer({ onClose }) {
               onChange={e => setCustomMeal(p => ({ ...p, [f.key]: e.target.value }))}
               className="w-full px-2 py-1.5 rounded-lg border border-border bg-secondary/40 text-sm text-center font-heading font-bold focus:outline-none focus:ring-2 focus:ring-primary/40"
             />
-            <span className="text-[9px] text-muted-foreground text-center mt-0.5">{f.unit}</span>
+            <span className="text-micro text-muted-foreground text-center mt-0.5">{f.unit}</span>
           </div>
         ))}
       </div>
@@ -1151,7 +1151,7 @@ export default function HubComposer({ onClose }) {
             </div>
           )}
           <div className="flex-1 min-w-0">
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">
+            <p className="text-micro uppercase tracking-wider text-muted-foreground font-bold">
               {t(`hub.share.${selected.kind}`)}
             </p>
             <p className="text-sm font-medium leading-tight mt-0.5 line-clamp-2">
@@ -1303,7 +1303,7 @@ export default function HubComposer({ onClose }) {
         >
           <Film className="w-8 h-8 opacity-40" />
           <span>Tap to select a video</span>
-          <span className="text-[11px] opacity-60">MP4 / MOV · max 50 MB</span>
+          <span className="text-micro opacity-60">MP4 / MOV · max 50 MB</span>
         </button>
       )}
       <input
@@ -1373,7 +1373,7 @@ export default function HubComposer({ onClose }) {
               <option key={c.id} value={c.id}>{c.name}</option>
             ))}
           </select>
-          <p className="text-[10px] text-muted-foreground mt-1">Only crew members will see this post.</p>
+          <p className="text-micro text-muted-foreground mt-1">Only crew members will see this post.</p>
         </div>
       )}
 
@@ -1384,7 +1384,7 @@ export default function HubComposer({ onClose }) {
         <button
           type="button"
           onClick={() => setCwPickerOpen(o => !o)}
-          className={`text-[11px] font-semibold uppercase tracking-wide flex items-center gap-1.5 py-1 transition-colors ${
+          className={`text-micro font-semibold uppercase tracking-wide flex items-center gap-1.5 py-1 transition-colors ${
             cwType ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
           }`}
         >
@@ -1450,7 +1450,7 @@ export default function HubComposer({ onClose }) {
               className="w-full rounded-lg border border-border bg-secondary/50 px-3 py-1.5 text-xs text-foreground focus:outline-none focus:border-primary/50"
             />
             {scheduledAt && (
-              <p className="text-[10px] text-primary mt-1">
+              <p className="text-micro text-primary mt-1">
                 Will publish: {new Date(scheduledAt).toLocaleString()}
               </p>
             )}
@@ -1584,7 +1584,7 @@ function Section({ title, count, defaultOpen = false, alwaysOpen = false, childr
             {title}
           </h3>
           {typeof count === 'number' && count > 0 && (
-            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-secondary text-muted-foreground">
+            <span className="text-micro font-bold px-1.5 py-0.5 rounded-full bg-secondary text-muted-foreground">
               {count}
             </span>
           )}

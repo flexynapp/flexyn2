@@ -52,8 +52,8 @@ export default function RoutineTodayCard({ onStart, onOpenRoutines, onChallenge 
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="mb-4">
       <Card className="overflow-hidden border-primary/40">
         <div className="flex items-center gap-2 px-4 pt-3">
-          <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">{dayName} · today</span>
-          <span className="text-[10px] text-muted-foreground truncate">{routine.name}</span>
+          <span className="text-micro font-bold uppercase tracking-[0.18em] text-primary">{dayName} · today</span>
+          <span className="text-micro text-muted-foreground truncate">{routine.name}</span>
           <button onClick={onOpenRoutines} aria-label="My Routine"
             className="ms-auto w-8 h-8 rounded-lg border border-border flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary shrink-0">
             <CalendarDays className="w-4 h-4" />

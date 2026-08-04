@@ -474,8 +474,8 @@ export default function JournalView({ userId, userEmail, onClose }) {
         <div className="text-center">
           <p className="text-sm font-bold text-foreground">{displayDate}</p>
           <div className="flex items-center justify-center gap-2 mt-0.5">
-            {isToday && <span className="text-[11px] text-primary font-semibold">{tFallback('profile.journal.today', 'Today')}</span>}
-            {saving && <span className="text-[10px] text-muted-foreground flex items-center gap-1"><Loader2 className="w-2.5 h-2.5 animate-spin" /> {tFallback('journal.saving', 'Saving…')}</span>}
+            {isToday && <span className="text-micro text-primary font-semibold">{tFallback('profile.journal.today', 'Today')}</span>}
+            {saving && <span className="text-micro text-muted-foreground flex items-center gap-1"><Loader2 className="w-2.5 h-2.5 animate-spin" /> {tFallback('journal.saving', 'Saving…')}</span>}
           </div>
         </div>
         <button onClick={goNext} disabled={isToday} className="p-1.5 rounded-lg hover:bg-secondary transition-colors disabled:opacity-30" aria-label="Next day" data-no-swipe>
@@ -524,7 +524,7 @@ export default function JournalView({ userId, userEmail, onClose }) {
                 {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Paperclip className="w-4 h-4" />}
               </button>
               <input ref={fileRef} type="file" multiple accept="image/*,.pdf,.txt,.heic" className="hidden" onChange={onPickFiles} />
-              {listening && <span className="text-[11px] text-red-500 font-semibold ms-1 animate-pulse">{tFallback('journal.listening', 'Listening…')}</span>}
+              {listening && <span className="text-micro text-red-500 font-semibold ms-1 animate-pulse">{tFallback('journal.listening', 'Listening…')}</span>}
             </div>
           )}
 
@@ -560,7 +560,7 @@ export default function JournalView({ userId, userEmail, onClose }) {
                       ) : (
                         <a href={att.url} target="_blank" rel="noreferrer" className="w-20 h-20 rounded-lg border border-border bg-secondary/40 flex flex-col items-center justify-center gap-1 p-1 text-center">
                           <FileText className="w-5 h-5 text-muted-foreground" />
-                          <span className="text-[9px] text-muted-foreground truncate w-full">{att.name}</span>
+                          <span className="text-micro text-muted-foreground truncate w-full">{att.name}</span>
                         </a>
                       )}
                       {!readOnly && (
@@ -581,7 +581,7 @@ export default function JournalView({ userId, userEmail, onClose }) {
 
           {/* Footer hint */}
           <div className="px-4 py-2 border-t border-border shrink-0">
-            <p className="text-[11px] text-muted-foreground text-center">
+            <p className="text-micro text-muted-foreground text-center">
               {readOnly
                 ? tFallback('journal.footerPast', 'Read-only · swipe or use ← → to browse · tap Log for history')
                 : tFallback('journal.footerToday', 'Auto-saved · swipe left/right to change days · tap Log for history')}

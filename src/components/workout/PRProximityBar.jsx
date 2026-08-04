@@ -80,7 +80,7 @@ export default function PRProximityBar({ exerciseName, weight, reps, prIndex = {
         />
       </div>
       <motion.span
-        className={`text-[10px] font-bold tabular-nums whitespace-nowrap ${styles.text}`}
+        className={`text-micro font-bold tabular-nums whitespace-nowrap ${styles.text}`}
         animate={tier === 'pr' || tier === 'newpr' ? { scale: [1, 1.08, 1] } : { scale: 1 }}
         transition={{ duration: 1.4, repeat: tier === 'pr' || tier === 'newpr' ? Infinity : 0 }}
       >

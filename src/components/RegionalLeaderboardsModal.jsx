@@ -162,7 +162,7 @@ export default function RegionalLeaderboardsModal({ open, onClose }) {
             </DialogTitle>
             <div className="flex items-center gap-2 mt-1 flex-wrap">
               <p className="text-sm text-white/85">{t('leaderboards.regional.subtitle')}</p>
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/20 backdrop-blur-md text-[10px] font-bold tracking-wider text-white">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/20 backdrop-blur-md text-micro font-bold tracking-wider text-white">
                 ✨ {t('leaderboards.top100')}
               </span>
             </div>

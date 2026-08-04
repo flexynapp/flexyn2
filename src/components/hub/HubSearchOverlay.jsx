@@ -306,7 +306,7 @@ export default function HubSearchOverlay({ open, onClose, onSelectUser, onSelect
                             return (
                               <div className="flex flex-wrap gap-1 mt-1.5">
                                 {tags.map(tag => (
-                                  <span key={tag} className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] bg-primary/10 text-primary font-medium">
+                                  <span key={tag} className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-micro bg-primary/10 text-primary font-medium">
                                     <Hash className="w-2 h-2" />{tag.replace('#','')}
                                   </span>
                                 ))}
@@ -547,7 +547,7 @@ function UserResultRow({ user, onClick, delay, isFollowed, onAdd }) {
       {/* Center: handle + tier */}
       <div className="flex-1 min-w-0">
         <p className="font-heading font-bold text-base truncate">@{username}</p>
-        <span className={`text-[10px] font-bold uppercase tracking-widest ${tier.text}`}>{tier.name}</span>
+        <span className={`text-micro font-bold uppercase tracking-widest ${tier.text}`}>{tier.name}</span>
       </div>
 
       {/* Right: Add button (if not following) OR level badge */}

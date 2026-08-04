@@ -200,7 +200,7 @@ export default function MyGyms() {
           />
           {nearby.length > 0 && (
             <div className="mt-4">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2 px-1">
+              <p className="text-micro font-bold uppercase tracking-wider text-muted-foreground mb-2 px-1">
                 Near you
               </p>
               <div className="space-y-2">
@@ -216,7 +216,7 @@ export default function MyGyms() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-heading font-bold text-sm truncate">{g.name}</p>
-                      <p className="text-[11px] text-muted-foreground truncate">
+                      <p className="text-micro text-muted-foreground truncate">
                         {[g.city, g.state_code].filter(Boolean).join(', ')} · {g.member_count ?? 0} members
                       </p>
                     </div>

@@ -167,16 +167,16 @@ export default function GymHub() {
                   <Users className="w-3 h-3" /> <span className="tabular-nums">{gym.member_count}</span> members
                 </button>
                 {isOwner && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-600 dark:text-amber-300 border border-amber-400/30 font-bold uppercase tracking-wide text-[10px]">
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-600 dark:text-amber-300 border border-amber-400/30 font-bold uppercase tracking-wide text-micro">
                     <Crown className="w-2.5 h-2.5" /> Owner
                   </span>
                 )}
               </div>
               {isOwner && (
                 <div className="mt-3 rounded-xl bg-primary/8 border border-primary/20 p-2.5">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-primary mb-0.5">Your Flexyn Code</p>
+                  <p className="text-micro font-bold uppercase tracking-wider text-primary mb-0.5">Your Flexyn Code</p>
                   <p className="font-mono text-lg tracking-[0.3em] font-bold text-foreground">{gym.flexyn_code}</p>
-                  <p className="text-[10px] text-muted-foreground mt-1 mb-2">
+                  <p className="text-micro text-muted-foreground mt-1 mb-2">
                     Print this. Members scan or type it inside the gym to join.
                   </p>
                   <Button
@@ -434,7 +434,7 @@ function EventsTab({ gymId, canCreate, gymOwnerId }) {
             key={opt.id}
             type="button"
             onClick={() => setScope(opt.id)}
-            className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider transition-colors ${
+            className={`px-2.5 py-1 rounded-full text-micro font-bold uppercase tracking-wider transition-colors ${
               scope === opt.id
                 ? 'bg-primary text-primary-foreground'
                 : 'bg-secondary/60 text-foreground hover:bg-secondary'
@@ -531,7 +531,7 @@ function EventsTab({ gymId, canCreate, gymOwnerId }) {
                         type="button"
                         disabled={disabled}
                         onClick={() => handleRsvp(e.id, opt.id)}
-                        className={`px-2.5 py-1 rounded-full border text-[11px] font-bold uppercase tracking-wider transition-colors ${
+                        className={`px-2.5 py-1 rounded-full border text-micro font-bold uppercase tracking-wider transition-colors ${
                           isActive
                             ? opt.activeClass
                             : 'border-border text-muted-foreground hover:bg-secondary'
@@ -542,7 +542,7 @@ function EventsTab({ gymId, canCreate, gymOwnerId }) {
                     );
                   })}
                   {slot.going > 0 && (
-                    <span className="ms-auto text-[11px] text-muted-foreground tabular-nums flex items-center gap-1">
+                    <span className="ms-auto text-micro text-muted-foreground tabular-nums flex items-center gap-1">
                       <Users className="w-3 h-3" /> {slot.going} going
                     </span>
                   )}
@@ -581,7 +581,7 @@ function LeaderboardTab({ gymId, meUserId }) {
             key={m.id}
             type="button"
             onClick={() => setMode(m.id)}
-            className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider transition-colors ${
+            className={`px-2.5 py-1 rounded-full text-micro font-bold uppercase tracking-wider transition-colors ${
               mode === m.id
                 ? 'bg-primary text-primary-foreground'
                 : 'bg-secondary/60 text-foreground hover:bg-secondary'
@@ -599,7 +599,7 @@ function LeaderboardTab({ gymId, meUserId }) {
         myRow ? (
           <div className="rounded-xl bg-primary/10 border border-primary/30 p-3 mb-3 flex items-center justify-between">
             <span className="flex items-center gap-2">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-primary">Your rank</span>
+              <span className="text-micro font-bold uppercase tracking-wider text-primary">Your rank</span>
               <span className="font-heading font-bold tabular-nums">#{myRow.rank}</span>
             </span>
             <span className="font-bold tabular-nums">{Math.round(myRow.value).toLocaleString()} {modeMeta?.suffix}</span>

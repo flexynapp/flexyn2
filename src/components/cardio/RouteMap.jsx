@@ -295,7 +295,7 @@ export default function RouteMap({ track, height = 240, interactive = true }) {
       <div className="absolute bottom-1.5 end-1.5 flex items-end gap-1 pointer-events-none">
         {attribOpen && (
           <div
-            className="pointer-events-auto bg-white/85 dark:bg-black/70 backdrop-blur-sm text-[9px] leading-tight px-1.5 py-0.5 rounded text-gray-700 dark:text-gray-200"
+            className="pointer-events-auto bg-white/85 dark:bg-black/70 backdrop-blur-sm text-micro leading-tight px-1.5 py-0.5 rounded text-gray-700 dark:text-gray-200"
             style={{ fontFamily: 'system-ui, sans-serif' }}
           >
             {MAPTILER_KEY ? (
@@ -345,7 +345,7 @@ export default function RouteMap({ track, height = 240, interactive = true }) {
           type="button"
           onClick={() => setAttribOpen((v) => !v)}
           aria-label="Map data attribution"
-          className="pointer-events-auto w-[18px] h-[18px] rounded-full bg-white/85 dark:bg-black/70 backdrop-blur-sm text-gray-700 dark:text-gray-200 text-[11px] font-bold flex items-center justify-center hover:bg-white dark:hover:bg-black transition-colors shadow-sm"
+          className="pointer-events-auto w-[18px] h-[18px] rounded-full bg-white/85 dark:bg-black/70 backdrop-blur-sm text-gray-700 dark:text-gray-200 text-micro font-bold flex items-center justify-center hover:bg-white dark:hover:bg-black transition-colors shadow-sm"
           style={{ fontFamily: 'system-ui, sans-serif' }}
         >
           ⓘ

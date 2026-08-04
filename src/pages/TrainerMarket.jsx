@@ -151,13 +151,13 @@ export default function TrainerMarket() {
                   <p className="font-heading font-bold text-base leading-tight">{listing.title}</p>
                   {owned && <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />}
                   {isOwn && !owned && (
-                    <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-primary/15 text-primary shrink-0">Your listing</span>
+                    <span className="text-micro font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-primary/15 text-primary shrink-0">Your listing</span>
                   )}
                 </div>
                 {listing.description && (
                   <p className="text-xs text-muted-foreground line-clamp-3 mb-2">{listing.description}</p>
                 )}
-                <p className="text-[11px] text-muted-foreground mb-3">
+                <p className="text-micro text-muted-foreground mb-3">
                   {listing.sales_count > 0 ? `${listing.sales_count} sold` : 'New'}
                 </p>
                 <div className="mt-auto">

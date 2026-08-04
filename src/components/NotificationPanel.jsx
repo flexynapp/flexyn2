@@ -417,7 +417,7 @@ export default function NotificationPanel({ open, onClose }) {
                   ))}
                 </AnimatePresence>
                 {rows.length >= 50 && tab === 'all' && (
-                  <p className="text-[11px] text-center text-muted-foreground py-3">
+                  <p className="text-micro text-center text-muted-foreground py-3">
                     {tFallback('notifications.showing50', 'Showing the 50 most recent')}
                   </p>
                 )}
@@ -519,7 +519,7 @@ function NotificationRow({ n, onClick, onDelete, deleting, deleteLabel }) {
             {n.body && (
               <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{n.body}</p>
             )}
-            <p className="text-[10px] text-muted-foreground/70 mt-1">{time}</p>
+            <p className="text-micro text-muted-foreground/70 mt-1">{time}</p>
           </div>
           {!n.is_read && (
             <span className="absolute top-3 end-3 w-2 h-2 rounded-full bg-primary" aria-hidden="true" />

@@ -146,7 +146,7 @@ export default function PRHistoryModal({ open, onClose, exerciseName, logs }) {
                     />
                   </LineChart>
                 </ResponsiveContainer>
-                <p className="text-[10px] text-muted-foreground mt-2 text-center">● = new PR at that session</p>
+                <p className="text-micro text-muted-foreground mt-2 text-center">● = new PR at that session</p>
               </Card>
             )}
 
@@ -179,12 +179,12 @@ export default function PRHistoryModal({ open, onClose, exerciseName, logs }) {
                         </p>
                       </div>
                       {pr.prevBest > 0 && (
-                        <span className="text-[11px] font-bold text-success shrink-0">
+                        <span className="text-micro font-bold text-success shrink-0">
                           +{formatWeight(pr.delta, weightUnit)}
                         </span>
                       )}
                       {pr.prevBest === 0 && (
-                        <span className="text-[10px] text-muted-foreground shrink-0">first</span>
+                        <span className="text-micro text-muted-foreground shrink-0">first</span>
                       )}
                     </motion.div>
                   ))}

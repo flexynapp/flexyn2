@@ -46,7 +46,7 @@ export default function PhotoAiLimitModal({ open, used = 3, cap = 3, purchasing 
               <Camera className="w-7 h-7" />
             </div>
             <h2 className="font-heading font-bold text-lg leading-tight">You're out of Photo-AI scans</h2>
-            <p className="text-[13px] text-white/85 mt-1">
+            <p className="text-label text-white/85 mt-1">
               You've used all {cap} of today's scans.
             </p>
 
@@ -58,7 +58,7 @@ export default function PhotoAiLimitModal({ open, used = 3, cap = 3, purchasing 
                   className={`w-2.5 h-2.5 rounded-full ${i < Math.min(used, cap) ? 'bg-white' : 'bg-white/30'}`}
                 />
               ))}
-              <span className="ms-1.5 text-[11px] font-bold text-white/90 tabular-nums">{Math.min(used, cap)}/{cap} used</span>
+              <span className="ms-1.5 text-micro font-bold text-white/90 tabular-nums">{Math.min(used, cap)}/{cap} used</span>
             </div>
           </div>
 
@@ -67,7 +67,7 @@ export default function PhotoAiLimitModal({ open, used = 3, cap = 3, purchasing 
             {/* Resets tomorrow */}
             <div className="flex items-center gap-2.5 rounded-xl bg-secondary/60 px-3.5 py-3">
               <Clock className="w-4 h-4 text-muted-foreground shrink-0" />
-              <p className="text-[13px] text-muted-foreground">
+              <p className="text-label text-muted-foreground">
                 Your free scans <span className="font-semibold text-foreground">reset tomorrow</span> — come back for {cap} more.
               </p>
             </div>
@@ -84,10 +84,10 @@ export default function PhotoAiLimitModal({ open, used = 3, cap = 3, purchasing 
                 {purchasing ? <Loader2 className="w-5 h-5 animate-spin" /> : <InfinityIcon className="w-5 h-5" />}
               </span>
               <span className="flex-1 min-w-0">
-                <span className="flex items-center gap-1.5 font-heading font-bold text-[15px]">
+                <span className="flex items-center gap-1.5 font-heading font-bold text-body">
                   Unlimited Photo-AI <Sparkles className="w-3.5 h-3.5" />
                 </span>
-                <span className="block text-[11px] text-white/85">One-time unlock — scan as much as you want</span>
+                <span className="block text-micro text-white/85">One-time unlock — scan as much as you want</span>
               </span>
               <span className="font-heading font-black text-lg shrink-0">$2.99</span>
             </button>
@@ -95,7 +95,7 @@ export default function PhotoAiLimitModal({ open, used = 3, cap = 3, purchasing 
             <button
               type="button"
               onClick={onClose}
-              className="w-full text-center text-[13px] font-semibold text-muted-foreground hover:text-foreground py-1.5 transition-colors"
+              className="w-full text-center text-label font-semibold text-muted-foreground hover:text-foreground py-1.5 transition-colors"
             >
               Maybe tomorrow
             </button>

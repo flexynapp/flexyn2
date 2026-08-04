@@ -318,7 +318,7 @@ export default function HubCommentsInline({ post, open, onClose }) {
                           return next;
                         })
                       }
-                      className="text-[11px] font-semibold text-primary hover:opacity-70 transition-opacity"
+                      className="text-micro font-semibold text-primary hover:opacity-70 transition-opacity"
                     >
                       {isExpanded
                         ? t('hub.comments.hideReplies')
@@ -549,7 +549,7 @@ function CommentRow({ comment: c, user, authorsById, isLiked, likeCount, onLike,
         {/* Bubble + actions */}
         <div className="flex-1 min-w-0">
           {c._orphan && (
-            <p className="text-[10px] text-muted-foreground italic mb-0.5 ms-2">
+            <p className="text-micro text-muted-foreground italic mb-0.5 ms-2">
               ↳ Reply to a deleted comment
             </p>
           )}
@@ -568,7 +568,7 @@ function CommentRow({ comment: c, user, authorsById, isLiked, likeCount, onLike,
           </div>
 
           {/* Action row */}
-          <div className="flex items-center gap-3 mt-1 ms-2 text-[11px] text-muted-foreground flex-wrap">
+          <div className="flex items-center gap-3 mt-1 ms-2 text-micro text-muted-foreground flex-wrap">
             <span>{timeLabel}</span>
 
             {/* Like */}

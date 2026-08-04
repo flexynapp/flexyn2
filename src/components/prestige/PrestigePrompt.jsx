@@ -136,7 +136,7 @@ export default function PrestigePrompt({ currentPrestige = 0, onDismiss }) {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <p className="text-[10px] font-semibold text-rose-500 uppercase tracking-wider mb-1.5">Resets</p>
+                <p className="text-micro font-semibold text-rose-500 uppercase tracking-wider mb-1.5">Resets</p>
                 <ul className="space-y-1">
                   {RESETS.map(r => (
                     <li key={r} className="text-xs text-muted-foreground flex items-center gap-1.5">
@@ -147,7 +147,7 @@ export default function PrestigePrompt({ currentPrestige = 0, onDismiss }) {
                 </ul>
               </div>
               <div>
-                <p className="text-[10px] font-semibold text-emerald-500 uppercase tracking-wider mb-1.5">Persists</p>
+                <p className="text-micro font-semibold text-emerald-500 uppercase tracking-wider mb-1.5">Persists</p>
                 <ul className="space-y-1">
                   {PERSISTS.map(p => (
                     <li key={p} className="text-xs text-muted-foreground flex items-center gap-1.5">

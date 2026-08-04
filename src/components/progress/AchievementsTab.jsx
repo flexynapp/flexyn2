@@ -269,7 +269,7 @@ export default function AchievementsTab({ achievements = [] }) {
                                   type="button"
                                   onClick={() => handleShareAchievement(ach)}
                                   disabled={sharingId === ach.achievement_id}
-                                  className="flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wide text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
+                                  className="flex items-center gap-1 px-2 py-0.5 rounded-md text-micro font-bold uppercase tracking-wide text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
                                   aria-label="Share to Hub"
                                 >
                                   {sharingId === ach.achievement_id

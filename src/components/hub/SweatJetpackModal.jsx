@@ -464,15 +464,15 @@ export default function SweatJetpackModal({ onClose, userId }) {
     <div className="fixed inset-0 bg-zinc-950/95 backdrop-blur-md z-[110] flex flex-col items-center justify-center select-none touch-none p-3">
       <div className="w-full max-w-[640px] flex justify-between items-center px-2 mb-3 text-zinc-100 font-mono tracking-tight">
         <div>
-          <span className="text-zinc-500 text-[10px] block uppercase">Distance</span>
+          <span className="text-zinc-500 text-micro block uppercase">Distance</span>
           <span className="text-xl font-black text-orange-300">{distance}<span className="text-xs text-zinc-400"> m</span></span>
         </div>
         <div className="text-center">
-          <span className="text-zinc-500 text-[10px] block uppercase">Coins</span>
+          <span className="text-zinc-500 text-micro block uppercase">Coins</span>
           <span className="text-xl font-black text-amber-300">🪙 {coinCount}</span>
         </div>
         <div className="text-end">
-          <span className="text-zinc-500 text-[10px] block uppercase">Best</span>
+          <span className="text-zinc-500 text-micro block uppercase">Best</span>
           <span className="text-base font-bold text-primary">{highScore}m · 🪙{bestCoins}</span>
         </div>
       </div>
@@ -499,8 +499,8 @@ export default function SweatJetpackModal({ onClose, userId }) {
           <div className="absolute inset-0 bg-black/65 flex flex-col items-center justify-center text-center p-6 pointer-events-none">
             <h2 className="text-2xl font-black text-zinc-100 tracking-wider uppercase mb-1">Sweat Jetpack</h2>
             <p className="text-zinc-400 text-xs max-w-[320px] mb-2">Hold to fart. Farts lift you. Release to fall.</p>
-            <p className="text-zinc-500 text-[10px] max-w-[320px] mb-3">Dodge bars in the air, blocks on the floor and ceiling, and the yellow moving ones. Grab coins.</p>
-            <p className="text-zinc-500 text-[10px] mb-3">📱 turn your phone sideways for more room.</p>
+            <p className="text-zinc-500 text-micro max-w-[320px] mb-3">Dodge bars in the air, blocks on the floor and ceiling, and the yellow moving ones. Grab coins.</p>
+            <p className="text-zinc-500 text-micro mb-3">📱 turn your phone sideways for more room.</p>
             <span className="animate-pulse bg-orange-300 text-zinc-950 font-mono text-xs px-4 py-2 font-bold uppercase tracking-widest rounded">Hold to start</span>
           </div>
         )}

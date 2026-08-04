@@ -246,7 +246,7 @@ export default function DuelInviteLanding() {
               <Swords className="w-5 h-5" />
               Sign up to accept
             </button>
-            <p className="text-[11px] text-center text-muted-foreground">
+            <p className="text-micro text-center text-muted-foreground">
               Free. Takes ~30 seconds. We'll bring you back here.
             </p>
           </div>
@@ -295,7 +295,7 @@ function ChallengerHeader({ invite }) {
       </div>
 
       <div className="text-center">
-        <span className="text-[10px] font-semibold tracking-[0.2em] uppercase text-rose-500">
+        <span className="text-micro font-semibold tracking-[0.2em] uppercase text-rose-500">
           Duel challenge
         </span>
         <h1 className="font-heading font-bold text-2xl mt-1">

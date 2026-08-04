@@ -57,11 +57,11 @@ function NumField({ caption, value, onChange, max, className = '' }) {
         type="number" inputMode="decimal" min="0" max={max}
         value={value}
         onChange={(e) => onChange(clampRecipeNumber(e.target.value, max))}
-        // text-[16px] prevents iOS Safari from zooming the viewport when the
+        // text-base prevents iOS Safari from zooming the viewport when the
         // field is focused (any font-size below 16px triggers the auto-zoom).
-        className="h-8 text-[16px] text-center px-1 w-full"
+        className="h-8 text-base text-center px-1 w-full"
       />
-      <span className="mt-0.5 text-[8px] font-bold uppercase tracking-wide text-muted-foreground/70">{caption}</span>
+      <span className="mt-0.5 text-micro font-bold uppercase tracking-wide text-muted-foreground/70">{caption}</span>
     </div>
   );
 }
@@ -249,7 +249,7 @@ export default function RecipeBuilderModal({ open, onClose, editingRecipe = null
                 onChange={(e) => setServings(e.target.value)}
                 className="h-9 text-center w-full"
               />
-              <span className="mt-0.5 text-[8px] font-bold uppercase tracking-wide text-muted-foreground/70">servings</span>
+              <span className="mt-0.5 text-micro font-bold uppercase tracking-wide text-muted-foreground/70">servings</span>
             </div>
           </div>
 
@@ -297,7 +297,7 @@ export default function RecipeBuilderModal({ open, onClose, editingRecipe = null
               </button>
             )}
 
-            <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground mb-2">Ingredients</p>
+            <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground mb-2">Ingredients</p>
             <div className="space-y-2">
               {ingredients.map((ing, i) => (
                 <div key={i} className="rounded-lg border border-border/70 p-2 space-y-1.5">
@@ -307,7 +307,7 @@ export default function RecipeBuilderModal({ open, onClose, editingRecipe = null
                       value={ing.name}
                       onChange={(e) => updateIngredient(i, { name: e.target.value })}
                       placeholder="Ingredient"
-                      className="h-8 text-[16px] flex-1"
+                      className="h-8 text-base flex-1"
                     />
                     <button
                       onClick={() => removeIngredient(i)}
@@ -326,20 +326,20 @@ export default function RecipeBuilderModal({ open, onClose, editingRecipe = null
                           type="number" inputMode="decimal" min="0" max="10000"
                           value={ing.amount}
                           onChange={(e) => updateIngredient(i, { amount: clampRecipeNumber(e.target.value, 10000) })}
-                          className="h-8 text-[16px] text-center px-1 w-full"
+                          className="h-8 text-base text-center px-1 w-full"
                         />
                         <select
                           value={recipes.normalizeUnit(ing.unit)}
                           onChange={(e) => updateIngredient(i, { unit: e.target.value })}
                           aria-label="Unit"
-                          className="h-8 rounded-md border border-input bg-background text-[13px] px-1 shrink-0"
+                          className="h-8 rounded-md border border-input bg-background text-label px-1 shrink-0"
                         >
                           {INGREDIENT_UNITS.map(u => (
                             <option key={u.value} value={u.value}>{u.label}</option>
                           ))}
                         </select>
                       </div>
-                      <span className="mt-0.5 text-[8px] font-bold uppercase tracking-wide text-muted-foreground/70">amount</span>
+                      <span className="mt-0.5 text-micro font-bold uppercase tracking-wide text-muted-foreground/70">amount</span>
                     </div>
                     <NumField caption="cal" value={ing.calories}  max={10000} onChange={(v) => updateIngredient(i, { calories: v })}  className="flex-1" />
                     <NumField caption="P"   value={ing.protein_g} max={1000}  onChange={(v) => updateIngredient(i, { protein_g: v })} className="flex-1" />
@@ -358,20 +358,20 @@ export default function RecipeBuilderModal({ open, onClose, editingRecipe = null
             </button>
 
             {/* Directions */}
-            <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground mt-4 mb-1">Directions</p>
+            <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground mt-4 mb-1">Directions</p>
             <textarea
               value={directions}
               onChange={(e) => setDirections(e.target.value.slice(0, 4000))}
               placeholder="Step 1: …&#10;Step 2: …"
               rows={3}
-              className="w-full rounded-md border border-input bg-background text-[16px] p-2 resize-y min-h-[64px]"
+              className="w-full rounded-md border border-input bg-background text-base p-2 resize-y min-h-[64px]"
             />
 
             {/* More nutrients — recipe-level custom values (vitamins/minerals/anything) */}
             <button
               type="button"
               onClick={() => setMicrosOpen(o => !o)}
-              className="mt-4 w-full flex items-center justify-between py-1.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground"
+              className="mt-4 w-full flex items-center justify-between py-1.5 text-micro font-bold uppercase tracking-wide text-muted-foreground"
             >
               <span>More nutrients · vitamins, minerals &amp; more</span>
               <ChevronDown className={`w-4 h-4 transition-transform ${microsOpen ? 'rotate-180' : ''}`} />
@@ -385,19 +385,19 @@ export default function RecipeBuilderModal({ open, onClose, editingRecipe = null
                       onChange={(e) => updateMicro(i, { label: e.target.value })}
                       placeholder="Nutrient"
                       readOnly={!m.custom}
-                      className={`h-8 text-[16px] flex-1 ${!m.custom ? 'bg-secondary/40' : ''}`}
+                      className={`h-8 text-base flex-1 ${!m.custom ? 'bg-secondary/40' : ''}`}
                     />
                     <Input
                       type="number" inputMode="decimal" min="0" max="100000"
                       value={m.amount}
                       onChange={(e) => updateMicro(i, { amount: clampRecipeNumber(e.target.value, 100000) })}
-                      className="h-8 text-[16px] text-center w-16"
+                      className="h-8 text-base text-center w-16"
                     />
                     <select
                       value={m.unit}
                       onChange={(e) => updateMicro(i, { unit: e.target.value })}
                       aria-label="Nutrient unit"
-                      className="h-8 rounded-md border border-input bg-background text-[13px] px-1"
+                      className="h-8 rounded-md border border-input bg-background text-label px-1"
                     >
                       {MICRO_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
                     </select>
@@ -417,7 +417,7 @@ export default function RecipeBuilderModal({ open, onClose, editingRecipe = null
                         key={p.key}
                         type="button"
                         onClick={() => addPresetMicro(p)}
-                        className="px-2 py-1 rounded-full border border-border text-[11px] font-semibold text-muted-foreground hover:bg-secondary/50"
+                        className="px-2 py-1 rounded-full border border-border text-micro font-semibold text-muted-foreground hover:bg-secondary/50"
                       >
                         + {p.label}
                       </button>
@@ -427,7 +427,7 @@ export default function RecipeBuilderModal({ open, onClose, editingRecipe = null
                 <button
                   type="button"
                   onClick={addCustomMicro}
-                  className="w-full flex items-center justify-center gap-1 py-1.5 rounded-md border border-dashed border-border text-[11px] font-bold uppercase tracking-wide text-muted-foreground hover:bg-secondary/40"
+                  className="w-full flex items-center justify-center gap-1 py-1.5 rounded-md border border-dashed border-border text-micro font-bold uppercase tracking-wide text-muted-foreground hover:bg-secondary/40"
                 >
                   <Plus className="w-3.5 h-3.5" /> Custom nutrient
                 </button>
@@ -444,9 +444,9 @@ export default function RecipeBuilderModal({ open, onClose, editingRecipe = null
               ].map(({ k, l, unit, txt }) => (
                 <div key={k}>
                   <p className={`font-heading text-base font-bold tabular-nums ${txt}`}>
-                    {Math.round(totals[k] || 0)}{unit && <span className="text-[10px] font-bold ms-0.5">{unit.toUpperCase()}</span>}
+                    {Math.round(totals[k] || 0)}{unit && <span className="text-micro font-bold ms-0.5">{unit.toUpperCase()}</span>}
                   </p>
-                  <p className="text-[9px] uppercase tracking-wide text-muted-foreground">{l}</p>
+                  <p className="text-micro uppercase tracking-wide text-muted-foreground">{l}</p>
                 </div>
               ))}
             </div>
@@ -455,7 +455,7 @@ export default function RecipeBuilderModal({ open, onClose, editingRecipe = null
               // producing Infinity / NaN in the live per-serving display.
               const safeServings = Math.max(1, Number(servings) || 1);
               return (
-                <p className="text-[10px] text-muted-foreground text-center mt-2">
+                <p className="text-micro text-muted-foreground text-center mt-2">
                   Per serving: {Math.round((totals.calories || 0) / safeServings)} cal ·
                   {' '}{Math.round((totals.protein_g || 0) / safeServings)} P ·
                   {' '}{Math.round((totals.carbs_g   || 0) / safeServings)} C ·

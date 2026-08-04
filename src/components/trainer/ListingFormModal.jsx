@@ -94,7 +94,7 @@ export default function ListingFormModal({ open, onClose, listing, trainerId, us
               ))}
             </select>
             {!regimenId && (
-              <p className="text-[11px] text-amber-600 mt-1">
+              <p className="text-micro text-amber-600 mt-1">
                 Buyers unlock the linked regimen on purchase. Without one, the listing sells nothing.
               </p>
             )}
@@ -147,7 +147,7 @@ export default function ListingFormModal({ open, onClose, listing, trainerId, us
                   <span className="font-semibold text-emerald-600">You keep</span>
                   <span className="font-bold tabular-nums text-emerald-600">{formatCents(split.trainerPayoutCents)}</span>
                 </div>
-                {!priceValid && <p className="text-[11px] text-destructive">Minimum is $1.00.</p>}
+                {!priceValid && <p className="text-micro text-destructive">Minimum is $1.00.</p>}
               </div>
             )}
           </div>

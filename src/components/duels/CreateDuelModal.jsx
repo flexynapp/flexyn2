@@ -98,7 +98,7 @@ function Avatar({ profile, size = 'md' }) {
 function H2HBadge({ wins, losses }) {
   if (wins === 0 && losses === 0) return null;
   return (
-    <span className="text-[10px] font-bold tabular-nums text-muted-foreground shrink-0">
+    <span className="text-micro font-bold tabular-nums text-muted-foreground shrink-0">
       <span className="text-primary">{wins}W</span>
       {' · '}
       <span className="text-rose-500">{losses}L</span>
@@ -118,7 +118,7 @@ function FriendRow({ profile, stats, onQuickSend, onSelect }) {
         <Avatar profile={profile} size="sm" />
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold truncate">@{profile.username}</p>
-          <p className="text-[10px] text-muted-foreground">Lv {profile.current_level ?? '—'}</p>
+          <p className="text-micro text-muted-foreground">Lv {profile.current_level ?? '—'}</p>
         </div>
         <H2HBadge wins={wins} losses={losses} />
       </button>
@@ -357,7 +357,7 @@ export default function CreateDuelModal({
                   // ── Suggested: frequent + friends ────────────────────
                   suggestedList.length > 0 ? (
                     <div>
-                      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                      <p className="text-micro font-semibold text-muted-foreground uppercase tracking-wider mb-2">
                         {frequent.length > 0 ? 'Recent Rivals & Friends' : 'Friends'}
                       </p>
                       <div className="space-y-0.5">

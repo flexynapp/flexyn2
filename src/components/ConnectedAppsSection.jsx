@@ -43,7 +43,7 @@ export default function ConnectedAppsSection() {
         <Plug className="w-3.5 h-3.5 text-muted-foreground" />
         <h3 className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Connected apps</h3>
       </div>
-      <p className="text-[10px] text-muted-foreground mb-2">
+      <p className="text-micro text-muted-foreground mb-2">
         Wearable + health integrations. Coming soon — we'll let you know.
       </p>
       <ul className="space-y-1.5">
@@ -57,10 +57,10 @@ export default function ConnectedAppsSection() {
                 </div>
                 <div className="min-w-0">
                   <p className="text-xs font-semibold text-foreground truncate">{app.name}</p>
-                  <p className="text-[10px] text-muted-foreground truncate">{app.blurb}</p>
+                  <p className="text-micro text-muted-foreground truncate">{app.blurb}</p>
                 </div>
               </div>
-              <span className="text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-secondary text-muted-foreground shrink-0">
+              <span className="text-micro font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-secondary text-muted-foreground shrink-0">
                 Soon
               </span>
             </li>

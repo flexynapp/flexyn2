@@ -149,7 +149,7 @@ function PersonalBestsTab({ logs, onViewHistory }) {
                 {onViewHistory && (
                   <button
                     onClick={() => onViewHistory(pb.name)}
-                    className="text-[10px] font-semibold text-primary/70 hover:text-primary flex items-center gap-0.5 transition-colors shrink-0"
+                    className="text-micro font-semibold text-primary/70 hover:text-primary flex items-center gap-0.5 transition-colors shrink-0"
                   >
                     History <ChevronRight className="w-3 h-3" />
                   </button>
@@ -172,7 +172,7 @@ function PersonalBestsTab({ logs, onViewHistory }) {
                 </motion.div>
               </div>
               {pb.sessionCount > 0 && (
-                <p className="text-[10px] text-muted-foreground mt-2 ps-0.5">
+                <p className="text-micro text-muted-foreground mt-2 ps-0.5">
                   Logged {pb.sessionCount} {pb.sessionCount === 1 ? 'time' : 'times'}
                 </p>
               )}
@@ -447,7 +447,7 @@ const ProgressCarousel = forwardRef(function ProgressCarousel({ slides }, ref) {
             <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: `hsl(${slide.color} / 0.14)` }}>
               <Icon className="w-4 h-4" style={{ color: `hsl(${slide.color})` }} />
             </div>
-            <span className="text-[11px] font-semibold tracking-[0.18em] uppercase text-muted-foreground">
+            <span className="text-micro font-semibold tracking-[0.18em] uppercase text-muted-foreground">
               {slide.kicker}
             </span>
           </div>
@@ -838,17 +838,17 @@ export default function Progress() {
               <div className="grid grid-cols-3 gap-4 mb-4">
                 <div className="text-center">
                   <p className="font-heading font-black text-2xl text-primary">{frameLogs.length}</p>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">Workouts</p>
+                  <p className="text-micro text-muted-foreground mt-0.5">Workouts</p>
                 </div>
                 <div className="text-center">
                   <p className="font-heading font-black text-2xl text-success">
                     {frameVolume > 0 ? formatBigNumber(Math.round(fromLbs(frameVolume, weightUnit))) : '—'}
                   </p>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">{weightUnit} lifted</p>
+                  <p className="text-micro text-muted-foreground mt-0.5">{weightUnit} lifted</p>
                 </div>
                 <div className="text-center">
                   <p className="font-heading font-black text-2xl text-primary">{weeklyCardio.sessions || '—'}</p>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">Cardio</p>
+                  <p className="text-micro text-muted-foreground mt-0.5">Cardio</p>
                 </div>
               </div>
 
@@ -872,7 +872,7 @@ export default function Progress() {
                           const key = g.toLowerCase();
                           const cls = MUSCLE_PILL[key] || MUSCLE_PILL_DEFAULT;
                           return (
-                            <span key={g} className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${cls}`}>
+                            <span key={g} className={`text-micro font-semibold px-2.5 py-0.5 rounded-full border ${cls}`}>
                               {g}
                             </span>
                           );
@@ -888,7 +888,7 @@ export default function Progress() {
                           <button
                             key={f}
                             onClick={() => setStatsFrame(f)}
-                            className={`px-3 py-1 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all duration-150 ${
+                            className={`px-3 py-1 rounded-lg text-micro font-bold uppercase tracking-wider transition-all duration-150 ${
                               statsFrame === f
                                 ? 'bg-primary text-primary-foreground shadow-md scale-[1.04]'
                                 : 'text-muted-foreground hover:text-foreground hover:bg-secondary/80'
@@ -966,12 +966,12 @@ export default function Progress() {
                       <div className="absolute top-1.5 end-1.5">
                         <Trophy className="w-3.5 h-3.5 text-primary/60" />
                       </div>
-                      <p className="text-[11px] text-muted-foreground font-medium leading-tight mb-1 pe-4 line-clamp-1">{pr.name}</p>
+                      <p className="text-micro text-muted-foreground font-medium leading-tight mb-1 pe-4 line-clamp-1">{pr.name}</p>
                       <p className="font-heading font-black text-xl text-primary leading-none">
                         {formatWeight(pr.weight, weightUnit)}
                       </p>
                       {pr.reps > 0 && (
-                        <p className="text-[10px] text-muted-foreground mt-1">{pr.reps} rep{pr.reps === 1 ? '' : 's'} best</p>
+                        <p className="text-micro text-muted-foreground mt-1">{pr.reps} rep{pr.reps === 1 ? '' : 's'} best</p>
                       )}
                     </Card>
                   </motion.div>
@@ -998,7 +998,7 @@ export default function Progress() {
                     onClick={() => switchTab(tab.id)}
                     whileHover={{ scale: 1.03 }}
                     whileTap={{ scale: 0.97 }}
-                    className={`flex items-center justify-center gap-2.5 px-5 py-3.5 min-h-[48px] w-full rounded-xl text-[15px] font-bold whitespace-nowrap transition-all border ${
+                    className={`flex items-center justify-center gap-2.5 px-5 py-3.5 min-h-[48px] w-full rounded-xl text-body font-bold whitespace-nowrap transition-all border ${
                       isActive
                         ? `${tab.activeBg} ${tab.activeText} border-transparent shadow-md`
                         : `bg-secondary/60 text-muted-foreground border-border/50 hover:bg-secondary hover:text-foreground`
@@ -1059,7 +1059,7 @@ export default function Progress() {
                           {/* Header */}
                           <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-white/10">
                             <div>
-                              <p className="text-[10px] font-bold uppercase tracking-widest text-primary">Weekly Summary</p>
+                              <p className="text-micro font-bold uppercase tracking-widest text-primary">Weekly Summary</p>
                               <p className="text-sm font-bold text-white">{latestDebriefData.week_label}</p>
                             </div>
                             <button
@@ -1087,10 +1087,10 @@ export default function Progress() {
                                     <span className="text-xs text-white/40">Volume</span>
                                     <span className="text-base font-black text-white tabular-nums">
                                       {Number(vol) >= 1000 ? `${Math.round(vol/1000)}K` : Math.round(vol)}
-                                      <span className="text-[10px] font-normal text-white/40 ms-0.5">lbs</span>
+                                      <span className="text-micro font-normal text-white/40 ms-0.5">lbs</span>
                                     </span>
                                     {chg != null && (
-                                      <span className={`text-[10px] font-semibold ${Number(chg) >= 0 ? 'text-success' : 'text-destructive'}`}>
+                                      <span className={`text-micro font-semibold ${Number(chg) >= 0 ? 'text-success' : 'text-destructive'}`}>
                                         {Number(chg) >= 0 ? '+' : ''}{chg}%
                                       </span>
                                     )}

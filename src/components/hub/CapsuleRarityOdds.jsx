@@ -47,7 +47,7 @@ export default function CapsuleRarityOdds({ capsuleType = 'standard' }) {
         className="w-full flex items-center justify-between px-3 py-2 text-start hover:bg-secondary transition-colors"
         aria-expanded={open}
       >
-        <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide">
+        <span className="flex items-center gap-1.5 text-micro font-bold uppercase tracking-wide">
           <Percent className="w-3 h-3" /> Drop rates
         </span>
         {open
@@ -59,7 +59,7 @@ export default function CapsuleRarityOdds({ capsuleType = 'standard' }) {
           {rows.map(([rarity, prob]) => {
             const pct = (prob * 100).toFixed(prob < 0.01 ? 2 : 1);
             return (
-              <li key={rarity} className="flex items-center justify-between text-[11px]">
+              <li key={rarity} className="flex items-center justify-between text-micro">
                 <span className="flex items-center gap-1.5 capitalize">
                   <RarityDot rarity={rarity} />
                   <span>{rarity}</span>
@@ -69,7 +69,7 @@ export default function CapsuleRarityOdds({ capsuleType = 'standard' }) {
             );
           })}
           {pity && (
-            <li className="pt-1.5 mt-1 border-t border-border text-[10px] text-muted-foreground leading-snug">
+            <li className="pt-1.5 mt-1 border-t border-border text-micro text-muted-foreground leading-snug">
               Guaranteed <span className="font-semibold">Epic or better</span> every{' '}
               {pity.epic_at} opens, and <span className="font-semibold">Legendary or better</span>{' '}
               every {pity.legendary_at}. Legendary odds rise with every open from {pity.soft_pity_from}.

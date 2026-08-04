@@ -126,7 +126,7 @@ export default function GiftCoinsModal({ open, onClose, recipient }) {
           </div>
 
           <div>
-            <label className="block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+            <label className="block text-micro font-semibold uppercase tracking-wide text-muted-foreground mb-1">
               {tFallback('gift.customAmount', 'Custom amount')}
             </label>
             <input
@@ -138,19 +138,19 @@ export default function GiftCoinsModal({ open, onClose, recipient }) {
               onChange={e => setAmount(Number(e.target.value))}
               className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm tabular-nums"
             />
-            <p className="text-[10px] text-muted-foreground mt-1 tabular-nums">
+            <p className="text-micro text-muted-foreground mt-1 tabular-nums">
               {tFallback('gift.balance', 'Balance: {n} coins · max 10,000 per gift').replace('{n}', fmt(balance))}
             </p>
             {overBudget && (
-              <p className="text-[11px] text-destructive mt-1">{tFallback('gift.notEnough', "You don't have enough coins.")}</p>
+              <p className="text-micro text-destructive mt-1">{tFallback('gift.notEnough', "You don't have enough coins.")}</p>
             )}
             {overCap && !overBudget && (
-              <p className="text-[11px] text-destructive mt-1">{tFallback('gift.maxPerGift', 'Max 10,000 per gift.')}</p>
+              <p className="text-micro text-destructive mt-1">{tFallback('gift.maxPerGift', 'Max 10,000 per gift.')}</p>
             )}
           </div>
 
           <div>
-            <label className="block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+            <label className="block text-micro font-semibold uppercase tracking-wide text-muted-foreground mb-1">
               {tFallback('gift.message', 'Message (optional)')}
             </label>
             <input
@@ -160,7 +160,7 @@ export default function GiftCoinsModal({ open, onClose, recipient }) {
               placeholder={tFallback('gift.messagePlaceholder', 'Crushed that PR!')}
               className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm"
             />
-            <p className="text-[10px] text-muted-foreground mt-1 tabular-nums text-end">
+            <p className="text-micro text-muted-foreground mt-1 tabular-nums text-end">
               {message.length}/{MAX_MESSAGE_LEN}
             </p>
           </div>

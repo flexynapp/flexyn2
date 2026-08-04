@@ -85,7 +85,7 @@ function SuggestedFolloweeCard({ user, onFollow, following, followed }) {
       </div>
       <div className="text-center min-w-0 w-full">
         <p className="text-xs font-semibold truncate">{user.username}</p>
-        <p className="text-[10px] text-muted-foreground tabular-nums">
+        <p className="text-micro text-muted-foreground tabular-nums">
           {user.follower_count} {user.follower_count === 1 ? 'follower' : 'followers'}
         </p>
       </div>
@@ -93,7 +93,7 @@ function SuggestedFolloweeCard({ user, onFollow, following, followed }) {
         onClick={onFollow}
         disabled={following || followed}
         className={[
-          'w-full flex items-center justify-center gap-1 py-1.5 rounded-md text-[11px] font-bold transition-colors',
+          'w-full flex items-center justify-center gap-1 py-1.5 rounded-md text-micro font-bold transition-colors',
           followed
             ? 'bg-secondary text-muted-foreground'
             : 'bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-60',
@@ -217,7 +217,7 @@ export default function FollowSuggestionRail() {
         <div className="flex items-center justify-between mb-2 px-1">
           <div className="flex items-center gap-1.5">
             <UserPlus className="w-3.5 h-3.5 text-primary" aria-hidden="true" />
-            <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">
+            <span className="text-micro font-bold uppercase tracking-[0.18em] text-primary">
               {isEmptyFeedTrap
                 ? tFallback('followSuggest.kickerEmpty', 'Build your feed')
                 : tFallback('followSuggest.kicker', 'Suggested for you')}

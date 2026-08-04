@@ -29,7 +29,7 @@ function StatPill({ label, value, highlight }) {
   return (
     <div className={`flex-1 rounded-xl p-3 text-center ${highlight ? 'bg-primary/10 border border-primary/30' : 'bg-secondary/50'}`}>
       <p className={`text-lg font-black tabular-nums ${highlight ? 'text-primary' : ''}`}>{value}</p>
-      <p className="text-[10px] text-muted-foreground mt-0.5">{label}</p>
+      <p className="text-micro text-muted-foreground mt-0.5">{label}</p>
     </div>
   );
 }
@@ -144,10 +144,10 @@ export default function DuelDetailSheet({ duel, currentUserId, opponentProfile, 
               {/* Side-by-side scores */}
               <div className="flex gap-2">
                 <div className="flex-1 rounded-xl bg-secondary/60 p-3 text-center">
-                  <p className="text-[10px] text-muted-foreground mb-1">You</p>
+                  <p className="text-micro text-muted-foreground mb-1">You</p>
                   <p className="text-xl font-black tabular-nums">{fmtVol(myResult?.volume)}</p>
                   {myResult?.sets_completed != null && (
-                    <p className="text-[10px] text-muted-foreground mt-1">
+                    <p className="text-micro text-muted-foreground mt-1">
                       {myResult.sets_completed}/{myResult.sets_prescribed} sets
                     </p>
                   )}
@@ -156,10 +156,10 @@ export default function DuelDetailSheet({ duel, currentUserId, opponentProfile, 
                   <span className="text-xs font-black text-muted-foreground">VS</span>
                 </div>
                 <div className="flex-1 rounded-xl bg-secondary/60 p-3 text-center">
-                  <p className="text-[10px] text-muted-foreground mb-1">{opponentName ? `@${opponentName}` : 'Rival'}</p>
+                  <p className="text-micro text-muted-foreground mb-1">{opponentName ? `@${opponentName}` : 'Rival'}</p>
                   <p className="text-xl font-black tabular-nums">{fmtVol(theirResult?.volume)}</p>
                   {theirResult?.sets_completed != null && (
-                    <p className="text-[10px] text-muted-foreground mt-1">
+                    <p className="text-micro text-muted-foreground mt-1">
                       {theirResult.sets_completed}/{theirResult.sets_prescribed} sets
                     </p>
                   )}
@@ -174,7 +174,7 @@ export default function DuelDetailSheet({ duel, currentUserId, opponentProfile, 
 
               {/* Share line */}
               {won && (
-                <p className="text-center text-[10px] text-muted-foreground mt-2 italic">
+                <p className="text-center text-micro text-muted-foreground mt-2 italic">
                   "I beat {opponentName ? `@${opponentName}` : 'my rival'} by {fmt((myResult?.volume || 0) - (theirResult?.volume || 0))} lbs. Flexyn."
                 </p>
               )}

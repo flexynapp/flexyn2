@@ -164,7 +164,7 @@ function InsightsPanel({ storyId, onClose }) {
                       <MiniAvatar profile={v.profile} />
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-sm truncate">{v.profile?.username || 'Someone'}</p>
-                        <p className="text-[10px] text-muted-foreground">
+                        <p className="text-micro text-muted-foreground">
                           {(() => { try { return formatDistanceToNow(new Date(v.viewed_at), { addSuffix: true }); } catch { return ''; } })()}
                         </p>
                       </div>
@@ -546,7 +546,7 @@ export default function StoryViewer({
                 <div className="w-8 h-8 rounded-full overflow-hidden ring-1 ring-white/40 shrink-0">
                   {currentGroup.avatarUrl
                     ? <img loading="lazy" src={currentGroup.avatarUrl} alt="" className="w-full h-full object-cover" draggable={false} />
-                    : <div className="w-full h-full bg-white/20 flex items-center justify-center text-[10px] font-bold text-white">
+                    : <div className="w-full h-full bg-white/20 flex items-center justify-center text-micro font-bold text-white">
                         {currentGroup.username.slice(0, 2).toUpperCase()}
                       </div>
                   }
@@ -559,7 +559,7 @@ export default function StoryViewer({
                       hours / days). The expiry countdown that used to sit
                       beside this was noise — stories always last 24h. */}
                   <div className="flex items-center gap-1.5">
-                    <p className="text-white/70 text-[10px] leading-tight">{timeAgo}</p>
+                    <p className="text-white/70 text-micro leading-tight">{timeAgo}</p>
                   </div>
                 </div>
               </div>
@@ -598,7 +598,7 @@ export default function StoryViewer({
                 <button onClick={(e) => { e.stopPropagation(); setInsightsOpen(v => !v); }}
                   className="flex flex-col items-center gap-0.5 text-white/80" aria-label="View insights">
                   <Eye className="w-4 h-4" />
-                  <span className="text-[10px] font-medium">View Insights</span>
+                  <span className="text-micro font-medium">View Insights</span>
                 </button>
 
                 {/* Delete */}
@@ -630,7 +630,7 @@ export default function StoryViewer({
                     </div>
                     <div>
                       <p className="text-white/80 text-xs font-semibold leading-tight drop-shadow">Replying to story</p>
-                      <p className="text-white/45 text-[10px] leading-tight mt-0.5">{currentGroup.username}</p>
+                      <p className="text-white/45 text-micro leading-tight mt-0.5">{currentGroup.username}</p>
                     </div>
                   </div>
                 )}

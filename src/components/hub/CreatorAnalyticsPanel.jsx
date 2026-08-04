@@ -13,7 +13,7 @@ function StatTile({ icon: Icon, label, value, color = 'text-foreground' }) {
     <div className="flex flex-col items-center gap-0.5 px-3 py-2 rounded-xl bg-secondary/40 flex-1 min-w-0">
       <Icon className={`w-3.5 h-3.5 ${color} mb-0.5`} />
       <span className={`font-heading font-bold text-sm leading-none ${color}`}>{value}</span>
-      <span className="text-[10px] text-muted-foreground uppercase tracking-wide mt-0.5 truncate w-full text-center">{label}</span>
+      <span className="text-micro text-muted-foreground uppercase tracking-wide mt-0.5 truncate w-full text-center">{label}</span>
     </div>
   );
 }
@@ -38,7 +38,7 @@ export default function CreatorAnalyticsPanel({ postId }) {
 
   return (
     <div className="mx-3 mb-3 p-3 rounded-xl border border-border bg-secondary/20">
-      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">
+      <p className="text-micro font-bold uppercase tracking-widest text-muted-foreground mb-2">
         📊 Post analytics
       </p>
       <div className="flex gap-2">

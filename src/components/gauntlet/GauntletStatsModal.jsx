@@ -10,7 +10,7 @@ function StatPill({ label, value, accent }) {
   return (
     <div className="flex flex-col items-center gap-1 flex-1">
       <span className={`text-xl font-black ${accent}`}>{value}</span>
-      <span className="text-[10px] text-muted-foreground uppercase tracking-wider leading-tight text-center">{label}</span>
+      <span className="text-micro text-muted-foreground uppercase tracking-wider leading-tight text-center">{label}</span>
     </div>
   );
 }
@@ -150,7 +150,7 @@ export default function GauntletStatsModal({
 
               {/* Global stats */}
               <div className="px-5 py-4">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3 text-center">
+                <p className="text-micro font-bold uppercase tracking-widest text-muted-foreground mb-3 text-center">
                   Community Stats
                 </p>
                 <div className="flex gap-2">
@@ -192,7 +192,7 @@ export default function GauntletStatsModal({
               </div>
 
               {/* Branding for share */}
-              <div className="flex items-center justify-center gap-2 pb-4 text-[10px] text-muted-foreground/50">
+              <div className="flex items-center justify-center gap-2 pb-4 text-micro text-muted-foreground/50">
                 <Star className="w-3 h-3" /> Flexyn Gauntlet
               </div>
             </div>

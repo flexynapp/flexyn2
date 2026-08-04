@@ -181,7 +181,7 @@ export default function CreateInviteLinkModal({ open, onOpenChange }) {
               className="space-y-3 mt-2"
             >
               <div className="rounded-xl bg-secondary/50 border border-border p-3">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                <p className="text-micro font-semibold uppercase tracking-wider text-muted-foreground mb-1">
                   Your invite link
                 </p>
                 <p className="text-xs font-mono break-all text-foreground">{url}</p>
@@ -201,7 +201,7 @@ export default function CreateInviteLinkModal({ open, onOpenChange }) {
                   <Share2 className="w-4 h-4" /> Share
                 </button>
               </div>
-              <p className="text-[11px] text-muted-foreground text-center">
+              <p className="text-micro text-muted-foreground text-center">
                 Expires {fmtDate(generated.expires_at)} ·
                 {' '}{generated.window_hours}h window after accept
               </p>

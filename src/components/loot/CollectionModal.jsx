@@ -116,7 +116,7 @@ function RaritySpectrum({ breakdown }) {
             />
           </div>
           <span
-            className="text-[8px] font-bold text-center tabular-nums leading-none opacity-70"
+            className="text-micro font-bold text-center tabular-nums leading-none opacity-70"
             style={{ color: b.color }}
           >
             {b.owned}
@@ -185,7 +185,7 @@ function Slot({ item, onSelect, index }) {
       )}
 
       <span
-        className={`text-[10px] font-semibold leading-tight line-clamp-2 ${
+        className={`text-micro font-semibold leading-tight line-clamp-2 ${
           locked ? 'text-muted-foreground/70' : 'text-foreground'
         }`}
       >
@@ -300,7 +300,7 @@ function DetailSheet({ item, onBack }) {
               {locked ? 'Not collected yet' : 'In your collection'}
             </p>
             {!locked && item.ownedVariants?.length > 0 && (
-              <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">
+              <p className="text-micro text-muted-foreground leading-tight mt-0.5">
                 {item.ownedVariants.map(v => VARIANTS[v]?.label ?? v).join(' · ')} variant
                 {item.ownedVariants.length > 1 ? 's' : ''} owned
               </p>
@@ -314,13 +314,13 @@ function DetailSheet({ item, onBack }) {
         {/* How to get it — the missing "why would I chase this?" answer. */}
         {odds.length > 0 && (
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground mb-1.5 text-start">
+            <p className="text-micro font-bold uppercase tracking-[0.18em] text-muted-foreground mb-1.5 text-start">
               Drop chance
             </p>
             <div className="space-y-1.5">
               {odds.map(o => (
                 <div key={o.type} className="flex items-center gap-2">
-                  <span className="text-[11px] font-semibold capitalize w-20 shrink-0 text-start">
+                  <span className="text-micro font-semibold capitalize w-20 shrink-0 text-start">
                     {o.type}
                   </span>
                   <div className="flex-1 h-1.5 rounded-full bg-secondary overflow-hidden">
@@ -335,7 +335,7 @@ function DetailSheet({ item, onBack }) {
                       transition={{ duration: 0.5, ease: 'easeOut' }}
                     />
                   </div>
-                  <span className="text-[11px] tabular-nums text-muted-foreground w-12 text-end shrink-0">
+                  <span className="text-micro tabular-nums text-muted-foreground w-12 text-end shrink-0">
                     {(o.p * 100).toFixed(o.p < 0.01 ? 2 : 1)}%
                   </span>
                 </div>
@@ -460,7 +460,7 @@ export default function CollectionModal({ open, onClose, initialTab = 'stickers'
                   <LibraryBig className="w-3.5 h-3.5 text-primary shrink-0" />
                   <h2 className="font-heading font-bold text-base leading-tight">Collection</h2>
                 </div>
-                <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">
+                <p className="text-micro text-muted-foreground leading-tight mt-0.5">
                   <span className="font-bold text-foreground tabular-nums">{overall.owned}</span>
                   {' '}of {overall.total} collected
                   {overall.total > overall.owned && (
@@ -517,7 +517,7 @@ export default function CollectionModal({ open, onClose, initialTab = 'stickers'
                         type="button"
                         onClick={() => setTab(t.id)}
                         aria-pressed={active}
-                        className={`shrink-0 px-3 py-1.5 rounded-xl text-[11px] font-bold transition-all ${
+                        className={`shrink-0 px-3 py-1.5 rounded-xl text-micro font-bold transition-all ${
                           active
                             ? 'bg-primary text-primary-foreground shadow-sm'
                             : 'bg-secondary/60 text-muted-foreground hover:text-foreground'
@@ -542,7 +542,7 @@ export default function CollectionModal({ open, onClose, initialTab = 'stickers'
                         type="button"
                         onClick={() => setFilter(f.id)}
                         aria-pressed={filter === f.id}
-                        className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-colors ${
+                        className={`px-2.5 py-1 rounded-md text-micro font-bold transition-colors ${
                           filter === f.id
                             ? 'bg-card text-foreground shadow-sm'
                             : 'text-muted-foreground hover:text-foreground'
@@ -614,7 +614,7 @@ export default function CollectionModal({ open, onClose, initialTab = 'stickers'
                             floating next to a stub of a progress bar. */}
                         <div className="flex items-center gap-2 mb-2">
                           <span
-                            className="text-[10px] font-black uppercase tracking-[0.18em] shrink-0"
+                            className="text-micro font-black uppercase tracking-[0.18em] shrink-0"
                             style={{ color: group.color }}
                           >
                             {group.label}
@@ -624,7 +624,7 @@ export default function CollectionModal({ open, onClose, initialTab = 'stickers'
                             style={{ background: `linear-gradient(90deg, ${group.color}66, transparent)` }}
                           />
                           <span
-                            className="text-[10px] font-bold tabular-nums shrink-0 px-1.5 py-0.5 rounded-full"
+                            className="text-micro font-bold tabular-nums shrink-0 px-1.5 py-0.5 rounded-full"
                             style={{ color: group.color, background: `${group.color}18` }}
                           >
                             {group.owned}/{group.total}
@@ -646,12 +646,12 @@ export default function CollectionModal({ open, onClose, initialTab = 'stickers'
                       type="button"
                       onClick={() => setShowOdds(o => !o)}
                       aria-expanded={showOdds}
-                      className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground transition-colors"
+                      className="flex items-center gap-1.5 text-micro font-bold uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground transition-colors"
                     >
                       <Percent className="w-3 h-3" /> Capsule odds
                     </button>
                     {showOdds && (
-                      <div className="space-y-2 text-[11px] mt-2">
+                      <div className="space-y-2 text-micro mt-2">
                         {Object.entries(CAPSULE_ODDS).map(([type, odds]) => (
                           <div key={type} className="bg-secondary/40 rounded-lg px-3 py-2">
                             <p className="font-bold capitalize">{type} capsule</p>
@@ -670,7 +670,7 @@ export default function CollectionModal({ open, onClose, initialTab = 'stickers'
                 </div>
 
                 {/* Legend */}
-                <div className="px-4 py-2 border-t border-border flex items-center gap-3 text-[10px] text-muted-foreground shrink-0">
+                <div className="px-4 py-2 border-t border-border flex items-center gap-3 text-micro text-muted-foreground shrink-0">
                   <span className="flex items-center gap-1">
                     <span
                       className="w-3 h-3 rounded-[3px] shrink-0"

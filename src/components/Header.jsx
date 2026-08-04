@@ -155,7 +155,7 @@ export default function Header() {
                 key={unreadDM}
                 initial={{ scale: 0.5, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
-                className="absolute top-1 end-1 min-w-[16px] h-4 px-0.5 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center"
+                className="absolute top-1 end-1 min-w-[16px] h-4 px-0.5 rounded-full bg-destructive text-destructive-foreground text-micro font-bold flex items-center justify-center"
               >
                 {unreadDM > 9 ? '9+' : unreadDM}
               </motion.span>

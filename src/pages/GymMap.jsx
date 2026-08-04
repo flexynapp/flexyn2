@@ -875,7 +875,7 @@ export default function GymMap() {
                       but no verified owner. Saying so here is what stops
                       it reading as a half-broken business listing. */}
                   {selected.source === 'community' && (
-                    <span className="inline-flex items-center gap-1 mt-1.5 rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                    <span className="inline-flex items-center gap-1 mt-1.5 rounded-full bg-secondary px-2 py-0.5 text-micro font-semibold text-muted-foreground">
                       Community gym · added by members
                     </span>
                   )}

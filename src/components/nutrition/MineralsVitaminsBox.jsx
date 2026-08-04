@@ -89,7 +89,7 @@ export default function MineralsVitaminsBox({ entries = [], userProfile = {} }) 
                   <div className={`relative ${item.textColor}`}>
                     <NutrientRing percent={percentOfDaily} size={52} />
                     <span
-                      className={`absolute inset-0 flex items-center justify-center text-[10px] font-bold ${item.textColor}`}
+                      className={`absolute inset-0 flex items-center justify-center text-micro font-bold ${item.textColor}`}
                     >
                       {Math.round(percentOfDaily)}%
                     </span>

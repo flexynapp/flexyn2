@@ -347,7 +347,7 @@ export default function ProfileMenu({ compact = false } = {}) {
             // app's header chrome, on an orange-brand app, and the same
             // badge two branches below already renders as
             // bg-primary/text-primary-foreground. Matched to that.
-            className="absolute -top-0.5 -end-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center border-2 border-card shadow-sm"
+            className="absolute -top-0.5 -end-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-primary-foreground text-micro font-bold flex items-center justify-center border-2 border-card shadow-sm"
           >
             {capsuleCount > 9 ? '9+' : capsuleCount}
           </motion.span>
@@ -464,7 +464,7 @@ export default function ProfileMenu({ compact = false } = {}) {
                       </div>
                       <div className="flex items-center gap-2">
                         {capsuleCount > 0 && (
-                          <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center">
+                          <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-primary-foreground text-micro font-bold flex items-center justify-center">
                             {capsuleCount > 9 ? '9+' : capsuleCount}
                           </span>
                         )}

@@ -23,7 +23,7 @@ export function PollBubble({ poll, results, onVote, disabled, tFallback }) {
     <div className="min-w-[200px] max-w-[260px]">
       <div className="flex items-center gap-1.5 mb-2 opacity-90">
         <BarChart3 className="w-3.5 h-3.5 shrink-0" />
-        <span className="text-[13px] font-bold leading-snug break-words">{poll.question}</span>
+        <span className="text-label font-bold leading-snug break-words">{poll.question}</span>
       </div>
       <div className="space-y-1.5">
         {poll.options.map((opt, idx) => {
@@ -48,17 +48,17 @@ export function PollBubble({ poll, results, onVote, disabled, tFallback }) {
               <span className="relative flex items-center justify-between gap-2 px-2.5 py-1.5">
                 <span className="flex items-center gap-1.5 min-w-0">
                   {mine && <Check className="w-3.5 h-3.5 shrink-0" />}
-                  <span className="text-[13px] truncate">{opt}</span>
+                  <span className="text-label truncate">{opt}</span>
                 </span>
                 {total > 0 && (
-                  <span className="text-[11px] tabular-nums opacity-80 shrink-0">{pct}%</span>
+                  <span className="text-micro tabular-nums opacity-80 shrink-0">{pct}%</span>
                 )}
               </span>
             </button>
           );
         })}
       </div>
-      <p className="text-[10px] opacity-70 mt-1.5">
+      <p className="text-micro opacity-70 mt-1.5">
         {total === 0
           ? tFallback('hub.poll.beFirst', 'Tap an option to vote')
           : `${total} ${total === 1

@@ -75,7 +75,7 @@ export default function GroupBlock({ groupId, groupMeta = {}, exercises = [], on
       <div className="flex items-center justify-between px-3 py-2 border-b border-border/60">
         <div className="flex items-center gap-2">
           <Zap className="w-3.5 h-3.5 text-primary shrink-0" />
-          <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border ${TYPE_BADGE[type] || TYPE_BADGE.superset}`}>
+          <span className={`text-micro font-black uppercase tracking-wider px-2 py-0.5 rounded-full border ${TYPE_BADGE[type] || TYPE_BADGE.superset}`}>
             {TYPE_LABEL[type] || type}
           </span>
         </div>
@@ -88,7 +88,7 @@ export default function GroupBlock({ groupId, groupMeta = {}, exercises = [], on
       </div>
 
       {/* Rest timing info */}
-      <div className="flex items-center gap-3 px-3 py-1.5 text-[10px] text-muted-foreground border-b border-border/40">
+      <div className="flex items-center gap-3 px-3 py-1.5 text-micro text-muted-foreground border-b border-border/40">
         <span>Intra: {intra_rest_seconds}s</span>
         <span>·</span>
         <span>Inter: {inter_rest_seconds}s</span>

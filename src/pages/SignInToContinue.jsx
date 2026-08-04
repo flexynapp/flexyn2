@@ -215,7 +215,7 @@ export default function SignInToContinue({
         {/* Divider */}
         <div className="flex items-center gap-3 py-1">
           <div className="flex-1 h-px bg-border" />
-          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">or</span>
+          <span className="text-micro font-bold uppercase tracking-wider text-muted-foreground">or</span>
           <div className="flex-1 h-px bg-border" />
         </div>
 
@@ -271,7 +271,7 @@ export default function SignInToContinue({
           <>
             <div className="flex items-center gap-3 py-1">
               <div className="flex-1 h-px bg-border" />
-              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">or</span>
+              <span className="text-micro font-bold uppercase tracking-wider text-muted-foreground">or</span>
               <div className="flex-1 h-px bg-border" />
             </div>
             <Button
@@ -283,7 +283,7 @@ export default function SignInToContinue({
               {guestLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
               Continue as guest
             </Button>
-            <p className="text-[10px] text-muted-foreground/70 text-center leading-relaxed">
+            <p className="text-micro text-muted-foreground/70 text-center leading-relaxed">
               Beta access — your data lives on this device until you link an email. Accounts may be reset at launch.
             </p>
           </>

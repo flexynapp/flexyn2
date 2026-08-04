@@ -747,7 +747,7 @@ export default function SettingsPanel() {
                 {tFallback('settings.pushNotifications', 'Push notifications')}
               </p>
               {push.permission === 'denied' && (
-                <p className="text-[10px] text-destructive leading-tight mt-0.5">
+                <p className="text-micro text-destructive leading-tight mt-0.5">
                   {tFallback('settings.pushBlocked', 'Blocked — change in browser settings')}
                 </p>
               )}
@@ -785,7 +785,7 @@ export default function SettingsPanel() {
           <button
             type="button"
             onClick={() => setDarkMode(false)}
-            className={`flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold transition-colors ${
+            className={`flex items-center gap-1 px-2.5 py-1 text-micro font-bold transition-colors ${
               !darkMode ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-secondary'
             }`}
             aria-pressed={!darkMode}
@@ -795,7 +795,7 @@ export default function SettingsPanel() {
           <button
             type="button"
             onClick={() => setDarkMode(true)}
-            className={`flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold transition-colors ${
+            className={`flex items-center gap-1 px-2.5 py-1 text-micro font-bold transition-colors ${
               darkMode ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-secondary'
             }`}
             aria-pressed={darkMode}
@@ -831,7 +831,7 @@ export default function SettingsPanel() {
           />
         </div>
         {typeof navigator !== 'undefined' && !('vibrate' in navigator) && (
-          <p className="ps-5 text-[10px] text-muted-foreground/80 leading-tight mt-0.5">
+          <p className="ps-5 text-micro text-muted-foreground/80 leading-tight mt-0.5">
             {tFallback(
               'settings.haptics.unsupported',
               'Vibration is not supported on this device.'
@@ -889,14 +889,14 @@ export default function SettingsPanel() {
               <div key={key} className="relative flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2 flex-1 min-w-0">
                   <Icon className="w-3 h-3 text-muted-foreground/70 shrink-0" aria-hidden="true" />
-                  <p id={labelId} className="text-[11px] text-muted-foreground leading-tight">{label}</p>
+                  <p id={labelId} className="text-micro text-muted-foreground leading-tight">{label}</p>
                 </div>
                 <div className="flex items-center gap-1.5">
                   {isOn && (
                     <button
                       type="button"
                       onClick={() => setSnoozeOpenFor(snoozeOpen ? null : key)}
-                      className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wide transition-colors ${
+                      className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-micro font-bold uppercase tracking-wide transition-colors ${
                         snoozeLeft
                           ? 'bg-amber-500/15 text-amber-500 border border-amber-500/30'
                           : 'text-muted-foreground/70 hover:bg-secondary/50 hover:text-foreground'
@@ -924,7 +924,7 @@ export default function SettingsPanel() {
                         key={opt.mins}
                         type="button"
                         onClick={() => handleSnoozeCategory(key, opt.mins)}
-                        className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-secondary/60 hover:bg-secondary text-foreground"
+                        className="px-2 py-0.5 rounded text-micro font-bold uppercase tracking-wide bg-secondary/60 hover:bg-secondary text-foreground"
                       >
                         {opt.label}
                       </button>
@@ -933,7 +933,7 @@ export default function SettingsPanel() {
                       <button
                         type="button"
                         onClick={() => handleSnoozeCategory(key, 0)}
-                        className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide text-destructive hover:bg-destructive/10"
+                        className="px-2 py-0.5 rounded text-micro font-bold uppercase tracking-wide text-destructive hover:bg-destructive/10"
                       >
                         {tFallback('settings.snooze.clear', 'Clear')}
                       </button>
@@ -955,7 +955,7 @@ export default function SettingsPanel() {
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2 flex-1 min-w-0">
               <Moon className="w-3 h-3 text-muted-foreground/70 shrink-0" aria-hidden="true" />
-              <p id="settings-quiet-label" className="text-[11px] text-muted-foreground leading-tight">
+              <p id="settings-quiet-label" className="text-micro text-muted-foreground leading-tight">
                 {tFallback('settings.quiet.title', 'Quiet hours')}
               </p>
             </div>
@@ -980,7 +980,7 @@ export default function SettingsPanel() {
                     <option key={h} value={h}>{formatHour12(h)}</option>
                   ))}
                 </select>
-                <span className="text-[11px] text-muted-foreground" aria-hidden="true">→</span>
+                <span className="text-micro text-muted-foreground" aria-hidden="true">→</span>
                 <select
                   value={quietHours.end ?? 7}
                   onChange={(e) => updateQuietHours({ ...quietHours, end: Number(e.target.value) })}
@@ -997,7 +997,7 @@ export default function SettingsPanel() {
                 // "no quiet hours" — surface the degenerate state to
                 // the user so they don't think DND is active when it
                 // silently isn't. (Audit 14 #18.)
-                <p className="ps-5 text-[10px] text-amber-500/90 leading-tight">
+                <p className="ps-5 text-micro text-amber-500/90 leading-tight">
                   {tFallback(
                     'settings.quiet.equalWarn',
                     'Start and end are the same — quiet hours are effectively off. Pick different times.'
@@ -1021,7 +1021,7 @@ export default function SettingsPanel() {
             <p id="settings-bar-volume-label" className="text-xs text-foreground leading-tight">
               {tFallback('settings.includeBarVolume', 'Include bar weight in volume')}
             </p>
-            <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">
+            <p className="text-micro text-muted-foreground leading-tight mt-0.5">
               {tFallback('settings.includeBarVolumeHint', 'Adds the bar (e.g. 45 lb) on barbell lifts')}
             </p>
           </div>
@@ -1178,7 +1178,7 @@ export default function SettingsPanel() {
             }
             <div className="min-w-0">
               <p className="text-xs text-foreground leading-tight">Default story visibility</p>
-              <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">
+              <p className="text-micro text-muted-foreground leading-tight mt-0.5">
                 {defaultPrivacy === 'friends' ? 'Friends Only (private)' : 'Public'}
               </p>
             </div>
@@ -1196,7 +1196,7 @@ export default function SettingsPanel() {
                   queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
                 }}
                 aria-pressed={defaultPrivacy === value}
-                className={`flex items-center gap-1 px-2 py-1 rounded-md text-[10px] border transition-colors ${
+                className={`flex items-center gap-1 px-2 py-1 rounded-md text-micro border transition-colors ${
                   defaultPrivacy === value
                     ? 'border-primary bg-primary/10 text-primary font-medium'
                     : 'border-border text-muted-foreground hover:bg-secondary'
@@ -1242,12 +1242,12 @@ export default function SettingsPanel() {
                   autoCorrect="off"
                   autoComplete="off"
                   spellCheck={false}
-                  className="flex-1 h-7 rounded-md border border-border bg-secondary/50 px-2 text-[11px] text-foreground placeholder-muted-foreground/60 focus:outline-none focus:border-primary/50"
+                  className="flex-1 h-7 rounded-md border border-border bg-secondary/50 px-2 text-micro text-foreground placeholder-muted-foreground/60 focus:outline-none focus:border-primary/50"
                 />
                 <button
                   onClick={handleBlockAdd}
                   disabled={!blockEmail.trim() || blockSaving}
-                  className="h-7 px-2 rounded-md bg-primary text-primary-foreground text-[11px] font-semibold disabled:opacity-50 flex items-center gap-1"
+                  className="h-7 px-2 rounded-md bg-primary text-primary-foreground text-micro font-semibold disabled:opacity-50 flex items-center gap-1"
                 >
                   {blockSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Block'}
                 </button>
@@ -1255,18 +1255,18 @@ export default function SettingsPanel() {
 
               {/* Existing blocks */}
               {storyBlocks.length === 0 ? (
-                <p className="text-[11px] text-muted-foreground">No accounts blocked.</p>
+                <p className="text-micro text-muted-foreground">No accounts blocked.</p>
               ) : (
                 <div className="space-y-1">
                   {storyBlocks.map(b => (
                     <div key={b.blocked_email} className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-1.5 min-w-0">
                         <UserX className="w-3 h-3 text-muted-foreground shrink-0" />
-                        <span className="text-[11px] text-foreground truncate">{maskEmail(b.blocked_email)}</span>
+                        <span className="text-micro text-foreground truncate">{maskEmail(b.blocked_email)}</span>
                       </div>
                       <button
                         onClick={() => handleUnblock(b.blocked_email)}
-                        className="text-[10px] text-primary font-medium shrink-0"
+                        className="text-micro text-primary font-medium shrink-0"
                       >
                         Unblock
                       </button>
@@ -1298,7 +1298,7 @@ export default function SettingsPanel() {
         <div className="flex items-center justify-between gap-3">
           <div className="flex-1 min-w-0">
             <p id="settings-private-label" className="text-xs text-foreground">Private profile</p>
-            <p className="text-[10px] text-muted-foreground">Only followers see your level, workouts, and progress photos.</p>
+            <p className="text-micro text-muted-foreground">Only followers see your level, workouts, and progress photos.</p>
           </div>
           <ToggleSwitch
             checked={isPrivate}
@@ -1309,7 +1309,7 @@ export default function SettingsPanel() {
         <div className="flex items-center justify-between gap-3">
           <div className="flex-1 min-w-0">
             <p id="settings-hidesearch-label" className="text-xs text-foreground">Hide from search</p>
-            <p className="text-[10px] text-muted-foreground">Your account won't appear in search results or "People you may know."</p>
+            <p className="text-micro text-muted-foreground">Your account won't appear in search results or "People you may know."</p>
           </div>
           <ToggleSwitch
             checked={hideFromSearch}
@@ -1322,7 +1322,7 @@ export default function SettingsPanel() {
             <p id="settings-read-receipts-label" className="text-xs text-foreground">
               {tFallback('settings.readReceipts.title', 'Read receipts')}
             </p>
-            <p className="text-[10px] text-muted-foreground">
+            <p className="text-micro text-muted-foreground">
               {tFallback(
                 'settings.readReceipts.desc',
                 'Let people see when you’ve read their message. If you turn this off, you won’t see when others have read your messages either. Delivery ticks still work both ways.'
@@ -1338,7 +1338,7 @@ export default function SettingsPanel() {
         <div className="flex items-center justify-between gap-3">
           <div className="flex-1 min-w-0">
             <p id="settings-gym-rival-label" className="text-xs text-foreground">Opt out of Gym Rival</p>
-            <p className="text-[10px] text-muted-foreground">Stop being matched with a weekly Gym Rival to compete against.</p>
+            <p className="text-micro text-muted-foreground">Stop being matched with a weekly Gym Rival to compete against.</p>
           </div>
           <ToggleSwitch
             checked={gymRivalOptOut}
@@ -1405,7 +1405,7 @@ export default function SettingsPanel() {
             toast.error('Could not copy — your browser blocked clipboard access.');
           }
         }}
-        className="block w-full text-start py-2 text-[10px] text-muted-foreground/70 hover:text-muted-foreground transition-colors"
+        className="block w-full text-start py-2 text-micro text-muted-foreground/70 hover:text-muted-foreground transition-colors"
         aria-label="Copy build diagnostic info to clipboard"
       >
         {buildLabel()}
@@ -1414,7 +1414,7 @@ export default function SettingsPanel() {
       {/* Credits — CC-BY 4.0 requires attribution wherever the artwork is
           distributed, and we bake Twemoji into shared images (see
           src/lib/twemoji.js + ATTRIBUTIONS.md). */}
-      <p className="py-1 text-[10px] text-muted-foreground/70 leading-relaxed">
+      <p className="py-1 text-micro text-muted-foreground/70 leading-relaxed">
         {tFallback('settings.credits.twemoji', 'Emoji artwork in shared images by')}{' '}
         <a
           href="https://github.com/jdecked/twemoji"
@@ -1452,7 +1452,7 @@ export default function SettingsPanel() {
                 <span className="text-foreground truncate">{maskEmail(b.blocked_email)}</span>
                 <button
                   onClick={() => handleUnblockFull(b.blocked_email)}
-                  className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide border border-border hover:bg-secondary"
+                  className="px-2 py-0.5 rounded text-micro font-bold uppercase tracking-wide border border-border hover:bg-secondary"
                 >
                   Unblock
                 </button>
@@ -1475,7 +1475,7 @@ export default function SettingsPanel() {
               {tFallback('settings.requestBlock.title', 'Declined message requests')}
             </h3>
           </div>
-          <p className="text-[11px] text-muted-foreground mb-2">
+          <p className="text-micro text-muted-foreground mb-2">
             {tFallback(
               'settings.requestBlock.desc',
               'You deleted a message request from these accounts, so they can’t send you a new one. They are not blocked otherwise — following them or messaging them first clears this too.'
@@ -1487,7 +1487,7 @@ export default function SettingsPanel() {
                 <span className="text-foreground truncate">{maskEmail(b.blocked_email)}</span>
                 <button
                   onClick={() => handleAllowRequestsAgain(b.blocked_email)}
-                  className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide border border-border hover:bg-secondary shrink-0"
+                  className="px-2 py-0.5 rounded text-micro font-bold uppercase tracking-wide border border-border hover:bg-secondary shrink-0"
                 >
                   {tFallback('settings.requestBlock.allow', 'Allow requests')}
                 </button>
@@ -1512,7 +1512,7 @@ export default function SettingsPanel() {
                 <span className="text-foreground truncate">{maskEmail(m.muted_email)}</span>
                 <button
                   onClick={() => handleUnmute(m.muted_email)}
-                  className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide border border-border hover:bg-secondary"
+                  className="px-2 py-0.5 rounded text-micro font-bold uppercase tracking-wide border border-border hover:bg-secondary"
                 >
                   Unmute
                 </button>
@@ -1542,7 +1542,7 @@ export default function SettingsPanel() {
                 <span className="text-foreground capitalize">
                   {r.reported_type} · {r.reason.replace('_', ' ')}
                 </span>
-                <span className={`text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded ${
+                <span className={`text-micro font-bold uppercase tracking-wide px-1.5 py-0.5 rounded ${
                   r.status === 'pending'   ? 'bg-amber-500/15 text-amber-500'
                   : r.status === 'actioned' ? 'bg-emerald-500/15 text-emerald-500'
                   : r.status === 'reviewed' ? 'bg-blue-500/15 text-blue-500'

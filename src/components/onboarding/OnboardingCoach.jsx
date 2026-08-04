@@ -146,7 +146,7 @@ export function OnboardingCoachSheet({ open, onClose, stepId, draft = {}, onAppl
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-heading font-bold text-sm leading-tight">AI Coach</p>
-                <p className="text-[11px] text-muted-foreground leading-tight">Here to help you set this up</p>
+                <p className="text-micro text-muted-foreground leading-tight">Here to help you set this up</p>
               </div>
               <button
                 type="button" onClick={onClose} aria-label="Close coach"

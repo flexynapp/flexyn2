@@ -218,10 +218,10 @@ export default function TradeOfferCard({ payload, isMine, user, conversationId, 
       {/* Header */}
       <div className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-primary/15 to-primary/15 border-b border-border">
         <ArrowRightLeft className="w-3.5 h-3.5 text-primary" />
-        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">
+        <p className="text-micro font-bold uppercase tracking-[0.18em] text-primary">
           Trade Offer
         </p>
-        <span className="ml-auto text-[10px] text-muted-foreground">
+        <span className="ml-auto text-micro text-muted-foreground">
           {isMine ? 'You sent' : `From ${payload.fromName || 'someone'}`}
         </span>
       </div>
@@ -230,19 +230,19 @@ export default function TradeOfferCard({ payload, isMine, user, conversationId, 
       <div className="p-3 grid grid-cols-[1fr_auto_1fr] items-center gap-2">
         {/* Their side / "you'd give up" */}
         <div className="flex flex-col items-center gap-1 text-center">
-          <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+          <p className="text-micro font-bold uppercase tracking-wider text-muted-foreground">
             {isMine ? 'You give' : 'They want'}
           </p>
           <div className="text-3xl">{theirItem?.emoji || '❓'}</div>
-          <p className="text-[11px] font-medium leading-tight">{theirItem?.name || '—'}</p>
+          <p className="text-micro font-medium leading-tight">{theirItem?.name || '—'}</p>
           <span
-            className="text-[9px] font-bold uppercase tracking-wider"
+            className="text-micro font-bold uppercase tracking-wider"
             style={{ color: theirItemRarity.color }}
           >
             {theirItem?.rarity || 'common'}
           </span>
           {theirItem?.price ? (
-            <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+            <span className="flex items-center gap-1 text-micro text-muted-foreground">
               <Coins className="w-2.5 h-2.5" />
               {theirItem.price}
             </span>
@@ -253,13 +253,13 @@ export default function TradeOfferCard({ payload, isMine, user, conversationId, 
 
         {/* Your side / "you'd get" */}
         <div className="flex flex-col items-center gap-1 text-center">
-          <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+          <p className="text-micro font-bold uppercase tracking-wider text-muted-foreground">
             {isMine ? 'You get' : 'You receive'}
           </p>
           <div className="text-3xl">{myItem?.emoji || '❓'}</div>
-          <p className="text-[11px] font-medium leading-tight">{myItem?.name || '—'}</p>
+          <p className="text-micro font-medium leading-tight">{myItem?.name || '—'}</p>
           <span
-            className="text-[9px] font-bold uppercase tracking-wider"
+            className="text-micro font-bold uppercase tracking-wider"
             style={{ color: myItemRarity.color }}
           >
             {myItem?.rarity || 'common'}
@@ -270,7 +270,7 @@ export default function TradeOfferCard({ payload, isMine, user, conversationId, 
       {/* Action row */}
       <div className="px-3 pb-3">
         {responded ? (
-          <p className={`text-center text-[11px] font-bold uppercase tracking-wider ${
+          <p className={`text-center text-micro font-bold uppercase tracking-wider ${
             responded === 'accepted' ? 'text-success' : 'text-muted-foreground'
           }`}>
             {responded === 'accepted'
@@ -278,7 +278,7 @@ export default function TradeOfferCard({ payload, isMine, user, conversationId, 
               : (isReal ? '✕ Declined' : '✕ You replied no')}
           </p>
         ) : isMine ? (
-          <p className="text-center text-[10px] text-muted-foreground">
+          <p className="text-center text-micro text-muted-foreground">
             Waiting for their reply…
           </p>
         ) : (
@@ -302,14 +302,14 @@ export default function TradeOfferCard({ payload, isMine, user, conversationId, 
               </button>
             </div>
             {isReal ? (
-              <p className="flex items-start gap-1 mt-2 text-[9px] text-success dark:text-success leading-snug">
+              <p className="flex items-start gap-1 mt-2 text-micro text-success dark:text-success leading-snug">
                 <ShieldCheck className="w-2.5 h-2.5 mt-0.5 shrink-0" />
                 <span>
                   Their item is already held. Accept and the two items swap instantly.
                 </span>
               </p>
             ) : (
-              <p className="flex items-start gap-1 mt-2 text-[9px] text-muted-foreground leading-snug">
+              <p className="flex items-start gap-1 mt-2 text-micro text-muted-foreground leading-snug">
                 <Info className="w-2.5 h-2.5 mt-0.5 shrink-0" />
                 <span>
                   This sends a reply in chat. You and {payload.fromName || 'the sender'} arrange

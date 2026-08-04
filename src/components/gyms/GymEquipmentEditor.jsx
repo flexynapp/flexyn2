@@ -178,16 +178,16 @@ export default function GymEquipmentEditor({ gymId, ownerId }) {
   return (
     <div className="rounded-xl border border-dashed border-border p-3">
       <div className="flex items-start justify-between gap-2 mb-1">
-        <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+        <p className="text-micro font-bold uppercase tracking-wider text-muted-foreground">
           {tFallback('gymEquipEditor.title', 'Equipment')}
         </p>
         {!loading && (
-          <span className="text-[10px] text-muted-foreground shrink-0">
+          <span className="text-micro text-muted-foreground shrink-0">
             {listedCount} {tFallback('gymEquipEditor.listed', 'listed')}
           </span>
         )}
       </div>
-      <p className="text-[11px] text-muted-foreground mb-2.5">
+      <p className="text-micro text-muted-foreground mb-2.5">
         {tFallback(
           'gymEquipEditor.hint',
           'Tap what your gym has. Members see this in their workout equipment picker.'
@@ -198,7 +198,7 @@ export default function GymEquipmentEditor({ gymId, ownerId }) {
         type="button"
         onClick={() => setOpen(o => !o)}
         aria-expanded={open}
-        className="w-full flex items-center justify-between gap-2 text-[11px] font-semibold
+        className="w-full flex items-center justify-between gap-2 text-micro font-semibold
                    text-primary py-2 min-h-[36px] select-none-ui"
       >
         {open
@@ -222,7 +222,7 @@ export default function GymEquipmentEditor({ gymId, ownerId }) {
           items={BRAND_OPTIONS}
         />
         {houseBrand !== NO_BRAND && (
-          <p className="text-[10px] text-muted-foreground mt-1">
+          <p className="text-micro text-muted-foreground mt-1">
             {tFallback('gymEquipEditor.houseBrandNote', 'Applies to equipment you add from now on.')}
           </p>
         )}
@@ -236,7 +236,7 @@ export default function GymEquipmentEditor({ gymId, ownerId }) {
         <div className="space-y-3">
           {TYPES_BY_GROUP.map(group => (
             <div key={group.id}>
-              <p className="text-[10px] font-semibold text-muted-foreground/80 mb-1.5">
+              <p className="text-micro font-semibold text-muted-foreground/80 mb-1.5">
                 {group.label}
               </p>
               <div className="flex flex-wrap gap-1.5">
@@ -250,7 +250,7 @@ export default function GymEquipmentEditor({ gymId, ownerId }) {
                       onClick={() => toggle(type)}
                       disabled={isBusy}
                       aria-pressed={isOn}
-                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px]
+                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-micro
                                   font-medium border transition-colors min-h-[32px] select-none-ui
                                   disabled:opacity-50 ${
                         isOn
@@ -278,7 +278,7 @@ export default function GymEquipmentEditor({ gymId, ownerId }) {
       {pending > 0 && (
         <Link
           to={`/gym/${gymId}`}
-          className="mt-3 flex items-center gap-1.5 text-[11px] font-semibold text-primary
+          className="mt-3 flex items-center gap-1.5 text-micro font-semibold text-primary
                      hover:underline"
         >
           <ExternalLink className="w-3 h-3" aria-hidden="true" />

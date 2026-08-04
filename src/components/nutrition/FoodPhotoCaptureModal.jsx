@@ -170,7 +170,7 @@ export default function FoodPhotoCaptureModal({ open, onClose, onCapture, onPick
                 <Sparkles className="w-3.5 h-3.5 text-white" />
                 <span className="text-sm font-semibold text-white">Fit the whole plate in the frame</span>
               </span>
-              <span className="mt-2 text-[11px] text-white/70">Good, even lighting gives the best results</span>
+              <span className="mt-2 text-micro text-white/70">Good, even lighting gives the best results</span>
             </div>
           </div>
         )}

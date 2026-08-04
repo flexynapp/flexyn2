@@ -125,12 +125,12 @@ export default function DuelInviteCard({ payload, isMine }) {
             <Icon className={`w-4 h-4 shrink-0 ${meta.color}`} />
             <div>
               <p className={`text-xs font-bold ${meta.color}`}>{meta.label}</p>
-              <p className="text-[10px] text-muted-foreground">{meta.description}</p>
+              <p className="text-micro text-muted-foreground">{meta.description}</p>
             </div>
           </div>
 
           {/* Window */}
-          <p className="text-[10px] text-muted-foreground text-center">
+          <p className="text-micro text-muted-foreground text-center">
             {windowHours}h to complete after accepting
           </p>
 

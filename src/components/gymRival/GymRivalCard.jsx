@@ -129,13 +129,13 @@ export default function GymRivalCard({ currentUserId }) {
               className="flex-1 inline-flex flex-col items-center gap-1 px-3 py-3 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 disabled:opacity-50 transition-colors">
               <Dumbbell className="w-4 h-4" />
               Gym Rival
-              <span className="text-[10px] font-medium opacity-80">Volume</span>
+              <span className="text-micro font-medium opacity-80">Volume</span>
             </button>
             <button onClick={() => rollMut.mutate('cardio')} disabled={rollMut.isPending}
               className="flex-1 inline-flex flex-col items-center gap-1 px-3 py-3 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 disabled:opacity-50 transition-colors">
               <Footprints className="w-4 h-4" />
               Cardio Rival
-              <span className="text-[10px] font-medium opacity-80">Distance</span>
+              <span className="text-micro font-medium opacity-80">Distance</span>
             </button>
           </div>
           {rollMut.isPending && (
@@ -157,7 +157,7 @@ export default function GymRivalCard({ currentUserId }) {
             <AlertTriangle className="w-6 h-6 text-primary" />
           </div>
           <div className="flex-1 min-w-0">
-            <span className="text-[10px] font-black uppercase tracking-wider text-primary dark:text-primary">Challenge voided</span>
+            <span className="text-micro font-black uppercase tracking-wider text-primary dark:text-primary">Challenge voided</span>
             <p className="text-sm font-bold mt-0.5">Someone went AFK — no rewards</p>
             <p className="text-xs text-muted-foreground flex items-center gap-1"><Clock className="w-3 h-3" /> Next roll in {(() => { const ms = msUntilNextWeekStart(); const d = Math.floor(ms / 86400000); const h = Math.floor((ms % 86400000) / 3600000); return d > 0 ? `${d}d ${h}h` : `${h}h`; })()}</p>
           </div>
@@ -180,7 +180,7 @@ export default function GymRivalCard({ currentUserId }) {
             {win ? <Trophy className="w-6 h-6 text-success" /> : draw ? <Target className="w-6 h-6 text-muted-foreground" /> : <Swords className="w-6 h-6 text-primary" />}
           </div>
           <div className="flex-1 min-w-0">
-            <span className={`text-[10px] font-black uppercase tracking-wider ${win ? 'text-success' : 'text-muted-foreground'}`}>Last week's result</span>
+            <span className={`text-micro font-black uppercase tracking-wider ${win ? 'text-success' : 'text-muted-foreground'}`}>Last week's result</span>
             <p className="text-sm font-bold mt-0.5">{win ? 'You won! 🏆' : draw ? 'It was a draw' : `@${name || 'Your rival'} won`}</p>
             <p className="text-xs text-muted-foreground">Tap to see the result & roll again</p>
           </div>
@@ -213,7 +213,7 @@ export default function GymRivalCard({ currentUserId }) {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
             <Target className="w-3 h-3 text-primary" />
-            <span className="text-[10px] font-black uppercase tracking-wider text-primary">{label}</span>
+            <span className="text-micro font-black uppercase tracking-wider text-primary">{label}</span>
           </div>
           <p className="text-base font-black truncate mt-0.5">@{name || '—'}</p>
           <p className="text-xs text-muted-foreground">

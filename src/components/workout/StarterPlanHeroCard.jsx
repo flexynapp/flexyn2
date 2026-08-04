@@ -93,7 +93,7 @@ export default function StarterPlanHeroCard({
       <div className="relative">
         <div className="flex items-center gap-1.5 mb-2">
           <Sparkles className="w-3.5 h-3.5 text-primary" />
-          <span className="text-[10px] font-bold tracking-[0.18em] uppercase text-primary">
+          <span className="text-micro font-bold tracking-[0.18em] uppercase text-primary">
             {tFallback('workout.starter.kicker', 'Built by your AI Coach')}
           </span>
         </div>
@@ -107,17 +107,17 @@ export default function StarterPlanHeroCard({
         {(goalLabel || levelLabel || daysCount) && (
           <div className="flex flex-wrap items-center gap-1.5 mt-2">
             {goalLabel && (
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-primary/15 text-primary border border-primary/25">
+              <span className="px-2 py-0.5 rounded-full text-micro font-bold uppercase tracking-wider bg-primary/15 text-primary border border-primary/25">
                 {goalLabel}
               </span>
             )}
             {levelLabel && (
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-secondary/60 text-foreground border border-border">
+              <span className="px-2 py-0.5 rounded-full text-micro font-bold uppercase tracking-wider bg-secondary/60 text-foreground border border-border">
                 {levelLabel}
               </span>
             )}
             {daysCount ? (
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-secondary/60 text-foreground border border-border tabular-nums">
+              <span className="px-2 py-0.5 rounded-full text-micro font-bold uppercase tracking-wider bg-secondary/60 text-foreground border border-border tabular-nums">
                 {tFallback('workout.starter.daysPerWeek', '{n}×/week').replace('{n}', daysCount)}
               </span>
             ) : null}

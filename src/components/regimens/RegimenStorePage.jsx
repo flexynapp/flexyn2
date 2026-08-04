@@ -64,14 +64,14 @@ function DownloadBadge({ count }) {
 function PopularityBadge({ count, index }) {
   if (index === 0 && count > 0) {
     return (
-      <span className="inline-flex items-center gap-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-500 bg-amber-500/10 rounded-full px-2 py-0.5">
+      <span className="inline-flex items-center gap-0.5 text-micro font-bold uppercase tracking-wider text-amber-500 bg-amber-500/10 rounded-full px-2 py-0.5">
         <Star className="w-2.5 h-2.5 fill-current" /> Top
       </span>
     );
   }
   if (count >= 10) {
     return (
-      <span className="inline-flex items-center gap-0.5 text-[10px] font-bold uppercase tracking-wider text-orange-500 bg-orange-500/10 rounded-full px-2 py-0.5">
+      <span className="inline-flex items-center gap-0.5 text-micro font-bold uppercase tracking-wider text-orange-500 bg-orange-500/10 rounded-full px-2 py-0.5">
         <Flame className="w-2.5 h-2.5" /> Hot
       </span>
     );
@@ -139,12 +139,12 @@ function RegimenCard({ regimen, index, isMine, user, onAdopted }) {
               </h3>
               <PopularityBadge count={copyCount} index={index} />
               {regimen.difficulty && (
-                <Badge variant="outline" className="text-[10px] shrink-0 capitalize">
+                <Badge variant="outline" className="text-micro shrink-0 capitalize">
                   {regimen.difficulty}
                 </Badge>
               )}
               {isMine && (
-                <Badge variant="outline" className="text-[10px] shrink-0">Yours</Badge>
+                <Badge variant="outline" className="text-micro shrink-0">Yours</Badge>
               )}
             </div>
 
@@ -190,7 +190,7 @@ function RegimenCard({ regimen, index, isMine, user, onAdopted }) {
             {muscles.length > 0 && (
               <div className="flex flex-wrap gap-1 mt-2">
                 {muscles.map(m => (
-                  <Badge key={m} variant="secondary" className="text-[11px] font-normal px-2 py-0.5">
+                  <Badge key={m} variant="secondary" className="text-micro font-normal px-2 py-0.5">
                     {m}
                   </Badge>
                 ))}
@@ -216,7 +216,7 @@ function RegimenCard({ regimen, index, isMine, user, onAdopted }) {
                 {adoptMutation.isSuccess ? 'Saved!' : adoptMutation.isPending ? '…' : 'Adopt'}
               </motion.button>
             ) : (
-              <span className="text-[11px] text-muted-foreground px-1">Your regimen</span>
+              <span className="text-micro text-muted-foreground px-1">Your regimen</span>
             )}
 
             <button
@@ -433,7 +433,7 @@ export default function RegimenStorePage({ onBack, onPublish }) {
               whileTap={{ scale: 0.93 }}
               onClick={() => setDifficultyFilter(opt.id)}
               className={[
-                'shrink-0 px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wide border transition-colors',
+                'shrink-0 px-3 py-1 rounded-full text-micro font-bold uppercase tracking-wide border transition-colors',
                 isActive
                   ? 'bg-foreground/90 text-background border-foreground/90'
                   : 'border-border/60 text-muted-foreground hover:border-primary/40 hover:text-foreground bg-card/50',

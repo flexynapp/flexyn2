@@ -269,10 +269,10 @@ function ReportRow({ report, isPending, busy, onResolve, onDelete }) {
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-secondary">
+            <span className="text-micro font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-secondary">
               {report.reported_type}
             </span>
-            <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-500">
+            <span className="text-micro font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-500">
               {REASON_LABEL[report.reason] || report.reason}
             </span>
             <span className="text-xs text-muted-foreground">
@@ -358,7 +358,7 @@ function BugReportRow({ report, isPending, busy, onResolve }) {
               {report.reporter_email || 'anonymous'}
             </span>
             {report.page_context && (
-              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-secondary text-muted-foreground">
+              <span className="text-micro font-mono px-1.5 py-0.5 rounded bg-secondary text-muted-foreground">
                 {report.page_context}
               </span>
             )}

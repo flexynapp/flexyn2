@@ -125,7 +125,7 @@ function StickerGroupCard({ group, onSell, selling }) {
     >
       {/* Duplicate count badge */}
       {count > 1 && (
-        <span className="absolute top-2 end-2 min-w-[20px] h-5 px-1.5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center">
+        <span className="absolute top-2 end-2 min-w-[20px] h-5 px-1.5 rounded-full bg-primary text-primary-foreground text-micro font-bold flex items-center justify-center">
           ×{count}
         </span>
       )}
@@ -133,7 +133,7 @@ function StickerGroupCard({ group, onSell, selling }) {
       <StickerDisplay emoji={item.item_emoji} variant={item.variant} size={52} />
       {item.variant && (
         <span
-          className="text-[10px] font-bold"
+          className="text-micro font-bold"
           style={{ color: VARIANTS[item.variant]?.color ?? 'hsl(var(--foreground))' }}
         >
           {VARIANTS[item.variant]?.badge}
@@ -163,7 +163,7 @@ function StickerGroupCard({ group, onSell, selling }) {
           )}
         </button>
       ) : (
-        <span className="text-muted-foreground text-[10px] font-medium mt-1">In Bag</span>
+        <span className="text-muted-foreground text-micro font-medium mt-1">In Bag</span>
       )}
     </RarityFrame>
   );
@@ -200,7 +200,7 @@ function ThemeCard({ item, activeLootThemeId, onApply }) {
       <span className="text-xs font-semibold leading-tight line-clamp-2">{item.item_name}</span>
       <RarityBadge rarity={item.item_rarity} />
       {lootTheme?.animated && (
-        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-primary/20 text-primary border border-primary/30 uppercase tracking-wider">
+        <span className="text-micro font-bold px-1.5 py-0.5 rounded-full bg-primary/20 text-primary border border-primary/30 uppercase tracking-wider">
           Animated
         </span>
       )}
@@ -349,9 +349,9 @@ function TitleList({ items, userId }) {
             <span className="text-2xl shrink-0">{item.item_emoji || '🏷️'}</span>
             <div className="flex-1 min-w-0">
               <p className="font-heading font-bold text-sm">{item.item_name}</p>
-              <p className="text-[10px] uppercase tracking-wider" style={{ color: tint.color }}>{item.item_rarity}</p>
+              <p className="text-micro uppercase tracking-wider" style={{ color: tint.color }}>{item.item_rarity}</p>
             </div>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-primary shrink-0">
+            <span className="text-micro font-bold uppercase tracking-wider text-primary shrink-0">
               {isEquipped ? 'Equipped' : 'Equip'}
             </span>
           </button>
@@ -477,8 +477,8 @@ function FrameList({ items, userId }) {
               )}
             </div>
             <p className="font-heading font-bold text-xs text-center leading-tight">{item.item_name}</p>
-            <p className="text-[9px] uppercase tracking-wider" style={{ color: tint.color }}>{item.item_rarity}</p>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
+            <p className="text-micro uppercase tracking-wider" style={{ color: tint.color }}>{item.item_rarity}</p>
+            <span className="text-micro font-bold uppercase tracking-wider text-primary">
               {isEquipped ? 'Equipped' : 'Equip'}
             </span>
           </button>
@@ -806,14 +806,14 @@ export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBat
                         icon is the first thing to go: it's decorative here,
                         the word is not. Restored once there's room. */}
                     <Icon className="w-3.5 h-3.5 shrink-0 hidden min-[420px]:block" />
-                    <span className="text-[11px] font-semibold truncate">{tab.label}</span>
+                    <span className="text-micro font-semibold truncate">{tab.label}</span>
                   </div>
-                  <span className={`text-[10px] px-1.5 leading-tight rounded-full shrink-0 ${isActive ? 'bg-primary/20 text-primary' : 'bg-secondary text-muted-foreground'}`}>
+                  <span className={`text-micro px-1.5 leading-tight rounded-full shrink-0 ${isActive ? 'bg-primary/20 text-primary' : 'bg-secondary text-muted-foreground'}`}>
                     {tab.count}
                   </span>
                   {/* Duplicate indicator — corner badge, doesn't take row space */}
                   {tab.badge && (
-                    <span className="absolute top-0.5 end-0.5 text-[8px] px-1 leading-tight rounded-full bg-primary/20 text-primary dark:text-primary border border-primary/30 font-bold whitespace-nowrap">
+                    <span className="absolute top-0.5 end-0.5 text-micro px-1 leading-tight rounded-full bg-primary/20 text-primary dark:text-primary border border-primary/30 font-bold whitespace-nowrap">
                       {tab.badge}
                     </span>
                   )}
@@ -884,7 +884,7 @@ export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBat
                             <span className="block text-sm font-bold capitalize leading-tight">
                               Open {take} {type}
                             </span>
-                            <span className="block text-[11px] text-muted-foreground leading-tight">
+                            <span className="block text-micro text-muted-foreground leading-tight">
                               One spin, every result at once
                               {rows.length > take && ` · ${rows.length - take} more after`}
                             </span>

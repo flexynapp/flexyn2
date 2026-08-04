@@ -72,7 +72,7 @@ function ActivityRow({ item, index, onTap }) {
           <span className="font-semibold">{item.title || 'Someone'}</span>{' '}
           <span className="text-muted-foreground">{item.body || ''}</span>
         </p>
-        <p className="text-[11px] text-muted-foreground mt-0.5">{timeAgo(item.created_at)}</p>
+        <p className="text-micro text-muted-foreground mt-0.5">{timeAgo(item.created_at)}</p>
       </button>
     </motion.div>
   );

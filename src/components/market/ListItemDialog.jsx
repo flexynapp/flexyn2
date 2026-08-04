@@ -152,7 +152,7 @@ export default function ListItemDialog({ open, onClose, userItems, user, onSucce
                       className="flex flex-col items-center p-2 transition-transform hover:scale-105"
                     >
                       <span className="text-3xl">{item.item_emoji}</span>
-                      <span className="text-[10px] font-semibold mt-1 text-center leading-tight">
+                      <span className="text-micro font-semibold mt-1 text-center leading-tight">
                         {item.item_name}
                       </span>
                       <RarityBadge rarity={item.item_rarity} size="sm" />
@@ -217,7 +217,7 @@ export default function ListItemDialog({ open, onClose, userItems, user, onSucce
                   {priceStats ? (
                     <div className="mt-2 flex items-center gap-1.5 flex-wrap">
                       <TrendingUp className="w-3 h-3 text-muted-foreground shrink-0" />
-                      <span className="text-[11px] text-muted-foreground">
+                      <span className="text-micro text-muted-foreground">
                         Usually sells for {COIN} {priceStats.median}
                         {priceStats.low !== priceStats.high && (
                           <> ({priceStats.low}–{priceStats.high})</>
@@ -226,13 +226,13 @@ export default function ListItemDialog({ open, onClose, userItems, user, onSucce
                       <button
                         type="button"
                         onClick={() => setPrice(String(priceStats.median))}
-                        className="text-[11px] font-bold text-primary hover:underline"
+                        className="text-micro font-bold text-primary hover:underline"
                       >
                         Use {priceStats.median}
                       </button>
                     </div>
                   ) : (
-                    <p className="mt-2 text-[11px] text-muted-foreground">
+                    <p className="mt-2 text-micro text-muted-foreground">
                       No sale history yet — you set the going rate.
                     </p>
                   )}

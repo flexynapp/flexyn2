@@ -50,7 +50,7 @@ function formatDateHeading(dateStr) {
 function MacroPill({ label, value, color }) {
   if (!value || value <= 0) return null;
   return (
-    <span className={`inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${color}`}>
+    <span className={`inline-flex items-center gap-0.5 text-micro font-semibold px-1.5 py-0.5 rounded-full ${color}`}>
       {label} {Math.round(value)}g
     </span>
   );
@@ -138,7 +138,7 @@ function DaySection({ dateStr, entries, onSelect }) {
                   </div>
                   <div className="ms-3 text-end shrink-0">
                     <p className="text-sm font-heading font-bold">{Math.round(entry.calories || 0)}</p>
-                    <p className="text-[10px] text-muted-foreground">cal</p>
+                    <p className="text-micro text-muted-foreground">cal</p>
                   </div>
                 </motion.div>
               ))}
@@ -252,7 +252,7 @@ export default function MealHistoryModal({ open, onClose, userProfile }) {
               ].map(stat => (
                 <div key={stat.label} className="text-center">
                   <p className="font-heading font-bold text-lg leading-none">{fmt(stat.value)}</p>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">{stat.label}</p>
+                  <p className="text-micro text-muted-foreground mt-0.5">{stat.label}</p>
                 </div>
               ))}
             </div>
@@ -300,7 +300,7 @@ export default function MealHistoryModal({ open, onClose, userProfile }) {
             ) : tab === 'picker' ? (
               <div className="space-y-3">
                 <div>
-                  <label className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                  <label className="text-micro font-bold uppercase tracking-wide text-muted-foreground">
                     Jump to date
                   </label>
                   <input

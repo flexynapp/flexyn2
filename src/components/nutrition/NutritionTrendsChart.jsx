@@ -45,8 +45,8 @@ function Stat({ label, value, sub }) {
   return (
     <div className="text-center">
       <p className="font-heading font-bold text-base leading-none tabular-nums">{value}</p>
-      <p className="text-[10px] text-muted-foreground mt-1">{label}</p>
-      {sub && <p className="text-[9px] text-muted-foreground/70">{sub}</p>}
+      <p className="text-micro text-muted-foreground mt-1">{label}</p>
+      {sub && <p className="text-micro text-muted-foreground/70">{sub}</p>}
     </div>
   );
 }
@@ -55,7 +55,7 @@ function MacroBar({ label, avg, goal, color }) {
   const pct = goal > 0 ? Math.min((avg / goal) * 100, 100) : 0;
   return (
     <div className="flex items-center gap-2.5">
-      <span className="text-[11px] font-semibold w-12 shrink-0" style={{ color }}>{label}</span>
+      <span className="text-micro font-semibold w-12 shrink-0" style={{ color }}>{label}</span>
       <div className="flex-1 h-2 rounded-full bg-secondary overflow-hidden">
         <motion.div
           className="h-full rounded-full"
@@ -65,7 +65,7 @@ function MacroBar({ label, avg, goal, color }) {
           transition={{ duration: 0.6, ease: 'easeOut' }}
         />
       </div>
-      <span className="text-[11px] tabular-nums w-16 text-end shrink-0">
+      <span className="text-micro tabular-nums w-16 text-end shrink-0">
         <span className="font-bold">{Math.round(avg)}</span>
         <span className="text-muted-foreground">/{Math.round(goal)}g</span>
       </span>
@@ -100,14 +100,14 @@ export default function NutritionTrendsChart({ entries = [], userProfile = {}, d
       <div className="rounded-2xl border border-border bg-card p-4">
         <div className="flex items-end justify-between mb-3">
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">Calorie intake</p>
+            <p className="text-micro font-bold uppercase tracking-[0.18em] text-muted-foreground">Calorie intake</p>
             <p className="font-heading font-bold text-2xl leading-none tabular-nums mt-1">
               {avgCal.toLocaleString()}
               <span className="text-xs font-semibold text-muted-foreground ms-1.5">avg/day</span>
             </p>
           </div>
           <div className="text-end">
-            <p className="text-[10px] text-muted-foreground tabular-nums">goal {goalCal.toLocaleString()}</p>
+            <p className="text-micro text-muted-foreground tabular-nums">goal {goalCal.toLocaleString()}</p>
             <p className={`text-xs font-bold tabular-nums ${delta > goalCal * 0.15 ? 'text-amber-500' : delta < -goalCal * 0.15 ? 'text-sky-500' : 'text-emerald-500'}`}>
               {delta >= 0 ? '+' : ''}{delta.toLocaleString()} cal
             </p>
@@ -125,7 +125,7 @@ export default function NutritionTrendsChart({ entries = [], userProfile = {}, d
             const tone = calTone(s.calories, goalCal);
             return (
               <div key={s.date} className="flex-1 h-full flex flex-col items-center justify-end min-w-0">
-                <span className={`text-[8px] font-semibold tabular-nums mb-0.5 ${tone.text}`}>
+                <span className={`text-micro font-semibold tabular-nums mb-0.5 ${tone.text}`}>
                   {s.calories > 0 ? Math.round(s.calories).toLocaleString() : ''}
                 </span>
                 <motion.div
@@ -142,7 +142,7 @@ export default function NutritionTrendsChart({ entries = [], userProfile = {}, d
         {/* Day labels */}
         <div className="flex justify-between gap-1.5 mt-1.5">
           {series.map(s => (
-            <span key={s.date} className="flex-1 text-center text-[9px] text-muted-foreground/70 tabular-nums">
+            <span key={s.date} className="flex-1 text-center text-micro text-muted-foreground/70 tabular-nums">
               {(() => { try { return format(parseISO(s.date), 'EEE', { locale: dateLocale }); } catch { return ''; } })()}
             </span>
           ))}
@@ -158,7 +158,7 @@ export default function NutritionTrendsChart({ entries = [], userProfile = {}, d
 
       {/* Average macros */}
       <div className="rounded-2xl border border-border bg-card p-4">
-        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground mb-3">Avg macros / day</p>
+        <p className="text-micro font-bold uppercase tracking-[0.18em] text-muted-foreground mb-3">Avg macros / day</p>
         <div className="space-y-2.5">
           <MacroBar label="Protein" avg={avgOf('protein')} goal={dv?.protein_g || 150} color="#ef4444" />
           <MacroBar label="Carbs"   avg={avgOf('carbs')}   goal={dv?.carbs_g   || 200} color="#3b82f6" />

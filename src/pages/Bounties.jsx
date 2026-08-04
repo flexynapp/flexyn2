@@ -41,7 +41,7 @@ export default function Bounties() {
           </div>
           <div className="min-w-0">
             <h1 className="font-heading font-bold text-lg leading-tight">{tFallback('bounties.title', 'Bounties')}</h1>
-            <p className="text-[10px] text-muted-foreground truncate">{tFallback('bounties.subtitle', 'Daily social challenges · Pay to claim · Earn on completion')}</p>
+            <p className="text-micro text-muted-foreground truncate">{tFallback('bounties.subtitle', 'Daily social challenges · Pay to claim · Earn on completion')}</p>
           </div>
         </div>
         {/* Post-your-own — user-created bounty composer (A4). Server-

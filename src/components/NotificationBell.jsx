@@ -108,7 +108,7 @@ export default function NotificationBell() {
                 ease: 'easeOut',
               }}
               aria-hidden="true"
-              className="absolute top-1 end-1 min-w-[16px] h-4 px-0.5 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center"
+              className="absolute top-1 end-1 min-w-[16px] h-4 px-0.5 rounded-full bg-destructive text-destructive-foreground text-micro font-bold flex items-center justify-center"
             >
               {count > 9 ? '9+' : count}
             </motion.span>

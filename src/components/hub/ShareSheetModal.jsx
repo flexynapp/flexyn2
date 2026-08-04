@@ -268,7 +268,7 @@ export default function ShareSheetModal({ post, open, onClose }) {
                     className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-secondary hover:bg-secondary/80 transition-colors"
                   >
                     <XIcon size={20} />
-                    <span className="text-[11px] font-medium">X / Twitter</span>
+                    <span className="text-micro font-medium">X / Twitter</span>
                   </button>
 
                   {/* WhatsApp */}
@@ -280,7 +280,7 @@ export default function ShareSheetModal({ post, open, onClose }) {
                     className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-secondary hover:bg-secondary/80 transition-colors text-success"
                   >
                     <WhatsAppIcon size={20} />
-                    <span className="text-[11px] font-medium text-foreground">WhatsApp</span>
+                    <span className="text-micro font-medium text-foreground">WhatsApp</span>
                   </button>
 
                   {/* Copy link */}
@@ -289,12 +289,12 @@ export default function ShareSheetModal({ post, open, onClose }) {
                     className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-secondary hover:bg-secondary/80 transition-colors"
                   >
                     {copied ? <Check className="w-5 h-5 text-success" /> : <Link2 className="w-5 h-5" />}
-                    <span className="text-[11px] font-medium">{copied ? 'Copied!' : 'Copy link'}</span>
+                    <span className="text-micro font-medium">{copied ? 'Copied!' : 'Copy link'}</span>
                   </button>
                 </div>
 
                 {/* Instagram note */}
-                <p className="text-[10px] text-muted-foreground text-center pt-1">
+                <p className="text-micro text-muted-foreground text-center pt-1">
                   📸 For Instagram: copy the link and paste it into a Story or DM
                 </p>
               </div>

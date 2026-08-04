@@ -48,7 +48,7 @@ function NewHighlightModal({ open, onClose, onCreated }) {
           <DialogHeader className="mb-3">
             <DialogTitle>{tFallback('highlight.newTitle', 'New highlight album')}</DialogTitle>
           </DialogHeader>
-          <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
+          <label className="block text-micro font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
             {tFallback('highlight.title', 'Album title')}
           </label>
           <input
@@ -119,7 +119,7 @@ export default function StoryHighlightsRail({ userEmail, isOwn, onOpenAlbum }) {
             <div className="w-16 h-16 rounded-full border-2 border-dashed border-border flex items-center justify-center text-muted-foreground group-hover:border-primary group-hover:text-primary transition-colors">
               <Plus className="w-5 h-5" aria-hidden="true" />
             </div>
-            <span className="text-[10px] text-muted-foreground">
+            <span className="text-micro text-muted-foreground">
               {tFallback('highlight.new', 'New')}
             </span>
           </button>
@@ -141,7 +141,7 @@ export default function StoryHighlightsRail({ userEmail, isOwn, onOpenAlbum }) {
                 <span className="text-2xl" aria-hidden="true">✨</span>
               )}
             </div>
-            <span className="text-[10px] font-medium truncate w-full text-center">{h.title}</span>
+            <span className="text-micro font-medium truncate w-full text-center">{h.title}</span>
           </button>
         ))}
       </div>

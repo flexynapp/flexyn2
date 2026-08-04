@@ -69,7 +69,7 @@ function StatPill({ icon: Icon, value, label, className = '' }) {
         <Icon className="w-3.5 h-3.5 text-primary" />
         <span className="font-heading font-bold text-sm tabular-nums">{value ?? 0}</span>
       </div>
-      <span className="text-[10px] text-muted-foreground uppercase tracking-wide">{label}</span>
+      <span className="text-micro text-muted-foreground uppercase tracking-wide">{label}</span>
     </div>
   );
 }
@@ -169,7 +169,7 @@ export default function PublicProfile() {
           )}
           {/* Level badge */}
           <div className="absolute -bottom-1 -end-1 w-7 h-7 rounded-full bg-primary flex items-center justify-center border-2 border-background">
-            <span className="text-[10px] font-bold text-primary-foreground">
+            <span className="text-micro font-bold text-primary-foreground">
               {profile.current_level ?? 1}
             </span>
           </div>

@@ -102,7 +102,7 @@ function DuelRow({ duel, currentUserId, opponent, onClick }) {
               : (tFallback('duels.resultTie', 'TIE'))}
         </span>
       )}
-      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${cfg.bg} ${cfg.color}`}>
+      <span className={`text-micro font-semibold px-2 py-0.5 rounded-full border ${cfg.bg} ${cfg.color}`}>
         {t(cfg.i18nKey) || cfg.fallback}
       </span>
     </button>

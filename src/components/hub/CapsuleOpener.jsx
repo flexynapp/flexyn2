@@ -410,7 +410,7 @@ function ItemCard({ item, highlight = false, settled = false, width = CARD_W }) 
       </span>
       {!isMystery && width >= 100 && (
         <span
-          className="mt-1 text-[10px] font-bold px-2 py-0.5 rounded-full"
+          className="mt-1 text-micro font-bold px-2 py-0.5 rounded-full"
           style={{ color: tint.color, border: `1px solid ${tint.color}` }}
         >
           {tint.label}
@@ -632,15 +632,15 @@ function BatchCard({ entry, isBest, delay }) {
     >
       {isBest && (
         <span
-          className="absolute -top-1.5 px-1.5 rounded-full text-[8px] font-extrabold uppercase tracking-wider"
+          className="absolute -top-1.5 px-1.5 rounded-full text-micro font-extrabold uppercase tracking-wider"
           style={{ backgroundColor: tint.color, color: '#000' }}
         >
           Best
         </span>
       )}
       <StickerDisplay emoji={item.emoji} variant={item.variant} size={30} />
-      <span className="text-[10px] font-semibold leading-tight line-clamp-2">{item.name}</span>
-      <span className="text-[9px] font-bold uppercase tracking-wide" style={{ color: tint.color }}>
+      <span className="text-micro font-semibold leading-tight line-clamp-2">{item.name}</span>
+      <span className="text-micro font-bold uppercase tracking-wide" style={{ color: tint.color }}>
         {tint.label}
       </span>
     </motion.div>
@@ -962,7 +962,7 @@ export default function CapsuleOpener({ capsule, batch, onClaim, onClaimBatch, o
               <button
                 type="button"
                 onClick={() => setCatalogOpen(true)}
-                className="mb-4 inline-flex items-center gap-1.5 text-[11px] font-semibold text-primary hover:opacity-80 underline-offset-2 hover:underline transition-opacity"
+                className="mb-4 inline-flex items-center gap-1.5 text-micro font-semibold text-primary hover:opacity-80 underline-offset-2 hover:underline transition-opacity"
               >
                 <BookOpen className="w-3 h-3" aria-hidden="true" />
                 Browse collection
@@ -1113,13 +1113,13 @@ export default function CapsuleOpener({ capsule, batch, onClaim, onClaimBatch, o
                     </div>
                     <span className="relative z-10 font-bold text-base text-center px-3">{lootTheme.name}</span>
                     {lootTheme.animated && (
-                      <span className="relative z-10 mt-1.5 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider"
+                      <span className="relative z-10 mt-1.5 text-micro font-bold px-2 py-0.5 rounded-full uppercase tracking-wider"
                         style={{ background: `${rarityConfig.color}30`, color: rarityConfig.color, border: `1px solid ${rarityConfig.color}60` }}>
                         Animated
                       </span>
                     )}
                     <div className="relative z-10 mt-2 flex items-center justify-center">
-                      <span className="text-[9px] font-semibold uppercase tracking-widest" style={{ color: rarityConfig.color }}>
+                      <span className="text-micro font-semibold uppercase tracking-widest" style={{ color: rarityConfig.color }}>
                         Theme Drop
                       </span>
                     </div>

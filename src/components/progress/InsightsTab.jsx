@@ -382,7 +382,7 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
                 transition={{ duration: 0.8, ease: 'easeOut' }}
               />
             </div>
-            <div className="flex justify-between text-[10px] text-muted-foreground">
+            <div className="flex justify-between text-micro text-muted-foreground">
               <span>{trainingAge.activeWeeks} active weeks</span>
               <span>{trainingAge.totalWeeks} total weeks</span>
             </div>
@@ -455,8 +455,8 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
               ].map(row => (
                 <div key={row.label} className="bg-secondary/50 rounded-lg p-2.5 text-center">
                   <p className="font-heading font-bold text-sm text-foreground">{row.value}</p>
-                  <p className="text-[10px] text-muted-foreground font-medium">{row.label}</p>
-                  <p className="text-[9px] text-muted-foreground/60">{row.note}</p>
+                  <p className="text-micro text-muted-foreground font-medium">{row.label}</p>
+                  <p className="text-micro text-muted-foreground/60">{row.note}</p>
                 </div>
               ))}
             </div>
@@ -464,11 +464,11 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
             <div className="grid grid-cols-2 gap-2 pt-1 border-t border-border/50">
               <div className="text-center">
                 <p className="text-xs font-semibold text-foreground">{Math.round(tdee.totalTDEE * 0.85).toLocaleString()} cal</p>
-                <p className="text-[10px] text-muted-foreground">Cut (−15%)</p>
+                <p className="text-micro text-muted-foreground">Cut (−15%)</p>
               </div>
               <div className="text-center">
                 <p className="text-xs font-semibold text-foreground">{Math.round(tdee.totalTDEE * 1.1).toLocaleString()} cal</p>
-                <p className="text-[10px] text-muted-foreground">Bulk (+10%)</p>
+                <p className="text-micro text-muted-foreground">Bulk (+10%)</p>
               </div>
             </div>
           </div>
@@ -553,7 +553,7 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
                   </div>
                 </div>
 
-                <p className="text-[10px] text-muted-foreground">
+                <p className="text-micro text-muted-foreground">
                   Based on your logged weight trend. Actual results vary with diet and training changes.
                 </p>
               </div>

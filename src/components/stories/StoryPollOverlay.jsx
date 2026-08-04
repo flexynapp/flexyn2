@@ -106,7 +106,7 @@ export default function StoryPollOverlay({ overlay, storyId, userId, isOwn }) {
           })}
         </div>
         {hasVoted && total > 0 && (
-          <p className="text-[10px] text-white/50 mt-2 text-center tabular-nums">
+          <p className="text-micro text-white/50 mt-2 text-center tabular-nums">
             {total} {total === 1 ? 'vote' : 'votes'}
           </p>
         )}

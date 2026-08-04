@@ -34,7 +34,7 @@ export default function TodayRail({ user, onClaimed, onOpenShop }) {
           </div>
           <div className="min-w-0">
             <p className="font-heading font-bold text-sm leading-tight">Capsules</p>
-            <p className="text-[11px] text-muted-foreground leading-tight">
+            <p className="text-micro text-muted-foreground leading-tight">
               Standard · Premium · Elite
             </p>
           </div>

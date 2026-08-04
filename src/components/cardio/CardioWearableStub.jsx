@@ -88,10 +88,10 @@ function IntegrationCard({ item, connected, onConnect, onDisconnect, connecting 
           <p className="font-semibold text-sm">{item.name}</p>
           <p className="text-xs text-muted-foreground truncate">{item.subtitle}</p>
           {unavailable && item.unavailableReason && (
-            <p className="text-[10px] text-amber-500 mt-0.5">{item.unavailableReason}</p>
+            <p className="text-micro text-amber-500 mt-0.5">{item.unavailableReason}</p>
           )}
           {connected && (
-            <p className="text-[10px] text-green-500 mt-0.5 font-medium">✓ Connected</p>
+            <p className="text-micro text-green-500 mt-0.5 font-medium">✓ Connected</p>
           )}
         </div>
         <div className="shrink-0">

@@ -267,7 +267,7 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
               <p className="font-medium text-sm leading-tight truncate">
                 {exercise.displayName || translateExerciseName(exercise.name, language)}
               </p>
-              <p className="text-[11px] text-muted-foreground mt-0.5 flex items-center gap-1">
+              <p className="text-micro text-muted-foreground mt-0.5 flex items-center gap-1">
                 <span>
                   {sets.length} set{sets.length === 1 ? '' : 's'}
                   {totalVolume > 0 && <> · {formatWeight(totalVolume, weightUnit)} vol</>}
@@ -322,7 +322,7 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
           )}
           {isBarbell && (
             <div className="flex items-center gap-1.5 mt-1.5">
-              <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Bar</span>
+              <span className="text-micro font-bold uppercase tracking-wide text-muted-foreground">Bar</span>
               <select
                 value={barLbs}
                 onChange={(e) => { const v = Number(e.target.value); setActiveBarLbs(v); setBarLbs(v); }}
@@ -353,7 +353,7 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
                 const here = session.equipment?.label || null;
                 const showMachine = here && here !== prev;
                 return (
-                  <div key={idx} className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                  <div key={idx} className="flex items-center gap-1 text-micro text-muted-foreground">
                     {idx === 0 && <History className="w-3 h-3 shrink-0" aria-hidden="true" />}
                     <span className={idx === 0 ? 'font-semibold' : 'ps-4'}>{line}</span>
                     {showMachine && (
@@ -368,7 +368,7 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
               user can scan-read intent (bump = primary, hold = amber,
               regress = muted). */}
           {progressionHint && (
-            <p className={`mt-1 text-[10px] font-medium ${
+            <p className={`mt-1 text-micro font-medium ${
               progressionHint.kind === 'bump'    ? 'text-primary' :
               progressionHint.kind === 'hold'    ? 'text-primary' :
                                                    'text-muted-foreground'
@@ -495,17 +495,17 @@ function ExerciseExtras({ exercise, onChange }) {
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
-        className={`text-[10px] font-bold uppercase tracking-wide flex items-center gap-1 transition-colors ${
+        className={`text-micro font-bold uppercase tracking-wide flex items-center gap-1 transition-colors ${
           hasExtras ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
         }`}
       >
         {open ? '▾' : '▸'} Tempo · notes {hasExtras && <span className="opacity-70">·</span>}
-        {exercise?.tempo && <span className="font-mono text-[10px] opacity-80">{exercise.tempo}</span>}
+        {exercise?.tempo && <span className="font-mono text-micro opacity-80">{exercise.tempo}</span>}
       </button>
       {open && (
         <div className="mt-2 space-y-2">
           <div>
-            <label className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Tempo</label>
+            <label className="text-micro font-bold uppercase tracking-wide text-muted-foreground">Tempo</label>
             <input
               type="text"
               value={exercise?.tempo || ''}
@@ -516,7 +516,7 @@ function ExerciseExtras({ exercise, onChange }) {
             />
           </div>
           <div>
-            <label className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Notes</label>
+            <label className="text-micro font-bold uppercase tracking-wide text-muted-foreground">Notes</label>
             <textarea
               value={exercise?.notes || ''}
               onChange={(e) => onChange({ ...exercise, notes: e.target.value.slice(0, 240) || null })}

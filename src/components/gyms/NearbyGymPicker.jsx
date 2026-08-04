@@ -244,7 +244,7 @@ export default function NearbyGymPicker({
           and giving up. */}
       {osmFailed && (
         <div className="mb-3 rounded-xl border border-border bg-secondary/50 px-3 py-2">
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-micro text-muted-foreground">
             Some nearby gyms couldn't be loaded — the OpenStreetMap directory
             didn't respond.{' '}
             <button
@@ -289,7 +289,7 @@ export default function NearbyGymPicker({
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold truncate">{r.name}</p>
-                <p className="text-[11px] text-muted-foreground truncate">
+                <p className="text-micro text-muted-foreground truncate">
                   {r.distance < 1
                     ? `${Math.round(r.distance * 1000)} m`
                     : `${r.distance.toFixed(1)} km`}

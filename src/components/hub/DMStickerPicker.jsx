@@ -86,7 +86,7 @@ export default function DMStickerPicker({ open, userId, userEmail, onPick, onClo
             >
               {g.meta?.emoji || '✨'}
               {g.count > 1 && (
-                <span className="absolute bottom-0.5 end-0.5 text-[9px] font-bold px-1 rounded-full bg-background/80 border border-border">
+                <span className="absolute bottom-0.5 end-0.5 text-micro font-bold px-1 rounded-full bg-background/80 border border-border">
                   ×{g.count}
                 </span>
               )}

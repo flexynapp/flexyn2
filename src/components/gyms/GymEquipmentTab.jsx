@@ -158,7 +158,7 @@ export default function GymEquipmentTab({ gymId, gymOwnerId, isMember }) {
 
       {grouped.map(([type, items]) => (
         <div key={type}>
-          <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground px-1 mb-1.5">
+          <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground px-1 mb-1.5">
             {implementTypeLabel(type)}
           </p>
           <div className="space-y-1.5">
@@ -192,7 +192,7 @@ function EquipmentRow({ row, isOwner, canRemove, busy, onVerify, onRemove, tFall
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium truncate">{label}</p>
         {(row.fromOwnerSpace || row.verified_by_owner) && (
-          <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-primary mt-0.5">
+          <span className="inline-flex items-center gap-1 text-micro font-semibold text-primary mt-0.5">
             <BadgeCheck className="w-3 h-3" aria-hidden="true" />
             {row.fromOwnerSpace
               ? tFallback('gymEquip.byGym', 'Listed by the gym')

@@ -146,7 +146,7 @@ function SwipeableDmMessage({ children, isMine, isOptimistic, onDelete }) {
       {/* Delete affordance — slides in from the right as user drags left */}
       <div
         style={swipe.actionStyle}
-        className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide"
+        className="flex items-center gap-1.5 text-micro font-bold uppercase tracking-wide"
       >
         🗑️ Delete
       </div>
@@ -1118,7 +1118,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
               ? (conversation?.title || 'Group chat')
               : otherHandle}
           </p>
-          <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+          <p className="text-micro text-muted-foreground flex items-center gap-1">
             {isGroup
               ? <>{(conversation?.participant_emails?.length || 0)} people · group chat</>
               : <><Lock className="w-2.5 h-2.5" /> {t('hub.messages.privateNote.short')}</>}
@@ -1155,7 +1155,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
           <div className="mb-2 shrink-0 flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/10 border border-primary/30">
             <div className="flex-1 min-w-0">
               <p className="text-xs font-bold text-primary uppercase tracking-wide">Message request</p>
-              <p className="text-[11px] text-muted-foreground">Accept to move this conversation to your inbox.</p>
+              <p className="text-micro text-muted-foreground">Accept to move this conversation to your inbox.</p>
             </div>
             <button
               onClick={async () => {
@@ -1225,7 +1225,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
         className="flex-1 min-h-0 overflow-y-auto overscroll-contain pe-1"
       >
         {searchOpen && searchQuery.trim() && (
-          <p className="text-[11px] text-muted-foreground text-center mb-2 tabular-nums">
+          <p className="text-micro text-muted-foreground text-center mb-2 tabular-nums">
             {totalMatches === 0
               ? 'No matches'
               : `${totalMatches} match${totalMatches === 1 ? '' : 'es'} in ${visibleMessages.length} message${visibleMessages.length === 1 ? '' : 's'}`}
@@ -1240,7 +1240,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
               type="button"
               onClick={handleLoadOlder}
               disabled={loadingOlder}
-              className="px-3 py-1.5 rounded-full bg-secondary/60 border border-border text-[11px] font-semibold text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors disabled:opacity-60"
+              className="px-3 py-1.5 rounded-full bg-secondary/60 border border-border text-micro font-semibold text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors disabled:opacity-60"
             >
               {loadingOlder
                 ? tFallback('hub.chat.loadingEarlier', 'Loading…')
@@ -1281,7 +1281,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
               <div key={m.id} id={`dm-msg-${m.id}`}>
                 {showDivider && ts && (
                   <div className="flex justify-center my-4">
-                    <span className="text-[11px] text-muted-foreground">{formatDivider(ts)}</span>
+                    <span className="text-micro text-muted-foreground">{formatDivider(ts)}</span>
                   </div>
                 )}
                 {(() => {
@@ -1373,7 +1373,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
                           if (sameSenderAsPrev) return null;
                           const handle = 'Athlete';
                           return (
-                            <p className="text-[10px] font-bold text-muted-foreground mb-0.5 px-1">
+                            <p className="text-micro font-bold text-muted-foreground mb-0.5 px-1">
                               @{handle}
                             </p>
                           );
@@ -1457,7 +1457,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
                             <div className={`flex items-center gap-2 ${(m.body || m.content) ? 'mt-1.5' : ''}`}>
                               <audio src={m.attachment_url} controls className="max-w-[220px]" preload="metadata" />
                               {Number.isFinite(m.duration_ms) && (
-                                <span className="text-[11px] tabular-nums opacity-80">
+                                <span className="text-micro tabular-nums opacity-80">
                                   {formatVoiceDuration(m.duration_ms)}
                                 </span>
                               )}
@@ -1532,7 +1532,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
                         initial={{ opacity: 1 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="text-[10px] text-primary font-medium transition-opacity duration-1000"
+                        className="text-micro text-primary font-medium transition-opacity duration-1000"
                       >
                         Read
                         {lastSentMsg?.read_at && (
@@ -1542,7 +1542,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
                         )}
                       </motion.span>
                     ) : !isRead ? (
-                      <span className="text-[10px] text-muted-foreground">
+                      <span className="text-micro text-muted-foreground">
                         Sent
                         {ts && <span> · {formatRelativeShort(ts)}</span>}
                       </span>
@@ -1551,7 +1551,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
                 )}
                 {isLastSent && isOptimistic && (
                   <div className="flex justify-end mb-2 pe-1">
-                    <span className="text-[10px] text-muted-foreground">Sending…</span>
+                    <span className="text-micro text-muted-foreground">Sending…</span>
                   </div>
                 )}
               </div>
@@ -1714,14 +1714,14 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
             <div key={s.id} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-primary/10 border border-primary/20">
               <Clock className="w-3.5 h-3.5 text-primary shrink-0" />
               <div className="flex-1 min-w-0">
-                <p className="text-[10px] font-bold text-primary uppercase tracking-wide">
+                <p className="text-micro font-bold text-primary uppercase tracking-wide">
                   Scheduled · {new Date(s.scheduled_at).toLocaleString()}
                 </p>
                 <p className="text-xs text-foreground truncate">{s.content}</p>
               </div>
               <button
                 onClick={() => handleCancelScheduled(s.id)}
-                className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground hover:text-destructive"
+                className="text-micro font-bold uppercase tracking-wide text-muted-foreground hover:text-destructive"
               >
                 Cancel
               </button>
@@ -1735,7 +1735,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
           letting the user compose into a 42501. */}
       {pendingSendBlocked && (
         <div className="mt-2 shrink-0 px-3 py-2 rounded-lg bg-secondary/50 border border-border">
-          <p className="text-[11px] text-muted-foreground text-center">
+          <p className="text-micro text-muted-foreground text-center">
             {tFallback(
               'hub.messages.request.waitToSend',
               'Message request sent. You can send more once they accept.'
@@ -1772,7 +1772,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
             onClick={() => setGifPickerOpen(true)}
             disabled={pendingSendBlocked}
             aria-label="Send GIF"
-            className="px-2 py-1.5 rounded-lg text-[10px] font-extrabold text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors shrink-0 border border-border disabled:opacity-40 disabled:cursor-not-allowed"
+            className="px-2 py-1.5 rounded-lg text-micro font-extrabold text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors shrink-0 border border-border disabled:opacity-40 disabled:cursor-not-allowed"
           >
             GIF
           </button>

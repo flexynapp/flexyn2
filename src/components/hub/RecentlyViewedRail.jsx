@@ -48,7 +48,7 @@ export default function RecentlyViewedRail({ userEmail, listings = [], onSelect 
         <button
           type="button"
           onClick={() => clearRecentlyViewed(userEmail)}
-          className="text-[10px] text-muted-foreground/70 hover:text-muted-foreground transition-colors"
+          className="text-micro text-muted-foreground/70 hover:text-muted-foreground transition-colors"
         >
           Clear
         </button>
@@ -81,18 +81,18 @@ export default function RecentlyViewedRail({ userEmail, listings = [], onSelect 
                   aria-label={isGone ? `${entry.item_name} — no longer available` : `View ${entry.item_name}`}
                 >
                   <span className="text-2xl leading-none">{entry.item_emoji || '🎁'}</span>
-                  <span className="text-[10px] font-medium text-center leading-tight line-clamp-2 min-h-[2em]">
+                  <span className="text-micro font-medium text-center leading-tight line-clamp-2 min-h-[2em]">
                     {entry.item_name}
                   </span>
                   {entry.asking_price != null && (
-                    <span className="text-[10px] text-primary dark:text-primary font-bold">
+                    <span className="text-micro text-primary dark:text-primary font-bold">
                       🪙 {fmt(Number(entry.asking_price))}
                     </span>
                   )}
                 </button>
                 {isGone && (
                   <span
-                    className="absolute inset-x-0 top-1/2 -translate-y-1/2 text-center text-[10px] font-bold uppercase tracking-wider text-destructive bg-black/50 py-0.5 pointer-events-none"
+                    className="absolute inset-x-0 top-1/2 -translate-y-1/2 text-center text-micro font-bold uppercase tracking-wider text-destructive bg-black/50 py-0.5 pointer-events-none"
                     aria-hidden="true"
                   >
                     Sold

@@ -114,7 +114,7 @@ function Sparkle({ x, y, delay }) {
   return (
     <motion.span
       aria-hidden="true"
-      className="absolute pointer-events-none text-[8px] leading-none select-none"
+      className="absolute pointer-events-none text-micro leading-none select-none"
       style={{ left: x, top: y, color: '#fbbf24' }}
       animate={{ opacity: [0, 1, 0], scale: [0.5, 1, 0.5] }}
       transition={{ duration: 1.5, repeat: Infinity, delay, ease: 'easeInOut' }}

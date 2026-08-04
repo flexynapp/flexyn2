@@ -116,7 +116,7 @@ export default function SoloChallengesSection() {
         <h2 className="font-heading font-bold text-sm uppercase tracking-[0.18em] text-muted-foreground">
           {tFallback('soloChallenges.title', 'Solo Challenges')}
         </h2>
-        <p className="text-[10px] text-muted-foreground/70">
+        <p className="text-micro text-muted-foreground/70">
           {tFallback('soloChallenges.subtitle', 'No target — just hit the number')}
         </p>
       </div>
@@ -145,14 +145,14 @@ export default function SoloChallengesSection() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-2 mb-0.5">
                     <p className="font-heading font-bold text-sm leading-tight">{ch.title}</p>
-                    <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${diff.bg} ${diff.color}`}>
+                    <span className={`text-micro font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${diff.bg} ${diff.color}`}>
                       {diff.label}
                     </span>
                   </div>
                   {ch.description && (
-                    <p className="text-[11px] text-muted-foreground leading-snug mb-2">{ch.description}</p>
+                    <p className="text-micro text-muted-foreground leading-snug mb-2">{ch.description}</p>
                   )}
-                  <div className="flex items-center gap-2 text-[10px] text-muted-foreground mb-1.5">
+                  <div className="flex items-center gap-2 text-micro text-muted-foreground mb-1.5">
                     <span className="tabular-nums">
                       {fmt(Math.round(progress))} / {fmt(target)} {ch.target_unit || ''}
                     </span>
@@ -188,7 +188,7 @@ export default function SoloChallengesSection() {
                     {tFallback('soloChallenges.collect', 'Collect reward')}
                   </button>
                 ) : status === 'active' ? (
-                  <span className="text-[10px] text-muted-foreground italic">
+                  <span className="text-micro text-muted-foreground italic">
                     {tFallback('soloChallenges.inProgress', 'Active — keep logging workouts')}
                   </span>
                 ) : (

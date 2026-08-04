@@ -315,16 +315,16 @@ export default function LogMealForm({ newEntry, setNewEntry, onPhotoAI, isRecogn
                           <p className="font-heading font-semibold text-sm leading-tight truncate">{meal.food_name}</p>
                           <div className="flex flex-wrap gap-1.5 mt-1">
                             {meal.calories > 0 && (
-                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-500/15 text-orange-600 dark:text-orange-400">{Math.round(meal.calories)} cal</span>
+                              <span className="text-micro font-bold px-2 py-0.5 rounded-full bg-orange-500/15 text-orange-600 dark:text-orange-400">{Math.round(meal.calories)} cal</span>
                             )}
                             {meal.protein_g > 0 && (
-                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-500/15 text-red-600 dark:text-red-400">{Math.round(meal.protein_g)}g P</span>
+                              <span className="text-micro font-bold px-2 py-0.5 rounded-full bg-red-500/15 text-red-600 dark:text-red-400">{Math.round(meal.protein_g)}g P</span>
                             )}
                             {meal.carbs_g > 0 && (
-                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-600 dark:text-blue-400">{Math.round(meal.carbs_g)}g C</span>
+                              <span className="text-micro font-bold px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-600 dark:text-blue-400">{Math.round(meal.carbs_g)}g C</span>
                             )}
                             {meal.fat_g > 0 && (
-                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-yellow-500/15 text-yellow-600 dark:text-yellow-400">{Math.round(meal.fat_g)}g F</span>
+                              <span className="text-micro font-bold px-2 py-0.5 rounded-full bg-yellow-500/15 text-yellow-600 dark:text-yellow-400">{Math.round(meal.fat_g)}g F</span>
                             )}
                           </div>
                         </div>

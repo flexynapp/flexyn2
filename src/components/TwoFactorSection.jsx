@@ -136,7 +136,7 @@ export default function TwoFactorSection() {
         {!loading && (enabled ? (
           <button
             onClick={() => requestDisable(factors[0].id)}
-            className="px-2.5 py-1 rounded-md border border-border text-[11px] font-bold uppercase tracking-wide hover:bg-secondary"
+            className="px-2.5 py-1 rounded-md border border-border text-micro font-bold uppercase tracking-wide hover:bg-secondary"
           >
             Disable
           </button>
@@ -144,7 +144,7 @@ export default function TwoFactorSection() {
           <button
             onClick={startEnroll}
             disabled={enrolling}
-            className="px-2.5 py-1 rounded-md bg-primary text-primary-foreground text-[11px] font-bold uppercase tracking-wide flex items-center gap-1 disabled:opacity-50"
+            className="px-2.5 py-1 rounded-md bg-primary text-primary-foreground text-micro font-bold uppercase tracking-wide flex items-center gap-1 disabled:opacity-50"
           >
             {enrolling && <Loader2 className="w-3 h-3 animate-spin" />}
             Enable
@@ -189,7 +189,7 @@ export default function TwoFactorSection() {
               )}
               {enrollment.secret && (
                 <div className="mb-3 text-center">
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Manual key</p>
+                  <p className="text-micro text-muted-foreground uppercase tracking-wide">Manual key</p>
                   <p className="text-xs font-mono tracking-wide break-all">{enrollment.secret}</p>
                 </div>
               )}

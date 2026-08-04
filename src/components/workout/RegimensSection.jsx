@@ -306,7 +306,7 @@ export default function RegimensSection({ onStartRegimen }) {
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <h3 className="font-heading font-bold break-words leading-tight">{r.name}</h3>
                     {r.is_active && (
-                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-primary/20 text-primary dark:text-primary border border-primary/30 shrink-0">
+                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-micro font-bold bg-primary/20 text-primary dark:text-primary border border-primary/30 shrink-0">
                         <Zap className="w-2.5 h-2.5 fill-current" /> Active
                       </span>
                     )}

@@ -144,7 +144,7 @@ export default function TradeHistory() {
           <button
             key={f.id}
             onClick={() => setFilter(f.id)}
-            className={`shrink-0 px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wide transition-colors ${
+            className={`shrink-0 px-2.5 py-1 rounded-full text-micro font-bold uppercase tracking-wide transition-colors ${
               filter === f.id ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-secondary'
             }`}
           >
@@ -213,12 +213,12 @@ function TradeRow({ trade, authorsById, onCancel, busy }) {
     <li className="border border-border rounded-xl p-3 bg-card">
       <div className="flex items-start justify-between gap-2 mb-2">
         <div className="flex-1 min-w-0">
-          <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+          <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground">
             {trade.iAmSender ? 'You offered' : `${counterparty} offered`}
           </p>
           <p className="text-xs text-muted-foreground truncate">{counterparty}</p>
         </div>
-        <span className={`flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full shrink-0 ${statusMeta.bg} ${statusMeta.color}`}>
+        <span className={`flex items-center gap-1 text-micro font-bold uppercase tracking-wide px-2 py-0.5 rounded-full shrink-0 ${statusMeta.bg} ${statusMeta.color}`}>
           <statusMeta.Icon className="w-3 h-3" /> {statusMeta.label}
         </span>
       </div>
@@ -229,7 +229,7 @@ function TradeRow({ trade, authorsById, onCancel, busy }) {
         <ItemChip item={youGet} label="You get" />
       </div>
 
-      <div className="flex items-center justify-between text-[10px] text-muted-foreground gap-2">
+      <div className="flex items-center justify-between text-micro text-muted-foreground gap-2">
         <span>{relTime(trade.sentAt)}</span>
         <div className="flex items-center gap-2">
           {trade.respondedAt && (
@@ -253,7 +253,7 @@ function TradeRow({ trade, authorsById, onCancel, busy }) {
           type="button"
           onClick={() => onCancel(trade.offerId)}
           disabled={busy}
-          className="mt-2 w-full py-1.5 rounded-lg text-[11px] font-bold text-red-600 dark:text-red-300 bg-red-500/10 border border-red-500/30 hover:bg-red-500/20 transition-colors disabled:opacity-50"
+          className="mt-2 w-full py-1.5 rounded-lg text-micro font-bold text-red-600 dark:text-red-300 bg-red-500/10 border border-red-500/30 hover:bg-red-500/20 transition-colors disabled:opacity-50"
         >
           {busy ? 'Cancelling…' : 'Cancel offer · release my item'}
         </button>
@@ -268,7 +268,7 @@ function ItemChip({ item, label }) {
     <div className="flex-1 min-w-0 flex items-center gap-2 px-2 py-1.5 rounded-lg bg-secondary/40 border border-border">
       <span className="text-xl shrink-0">{item.emoji || '✨'}</span>
       <div className="min-w-0">
-        <p className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground/80">{label}</p>
+        <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground/80">{label}</p>
         <p className="text-xs font-semibold truncate">{item.name || item.itemId || 'Item'}</p>
       </div>
     </div>

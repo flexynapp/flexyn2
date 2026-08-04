@@ -100,7 +100,7 @@ function NoteBubble({ note, isOwn, isLiked, onLike, onEditOwn }) {
         } : undefined}
         aria-label={isOwn ? tFallback('stories.editNote', 'Edit your note') : undefined}
       >
-        <p className="text-[9px] text-black leading-tight text-center line-clamp-2 select-none">
+        <p className="text-micro text-black leading-tight text-center line-clamp-2 select-none">
           {note.text}
         </p>
         {/* Speech bubble tail */}
@@ -125,7 +125,7 @@ function NoteBubble({ note, isOwn, isLiked, onLike, onEditOwn }) {
             className={`w-3 h-3 transition-colors ${isLiked ? 'fill-red-500 text-red-500' : 'text-muted-foreground/60'}`}
           />
           {note.likeCount > 0 && (
-            <span className="text-[8px] text-muted-foreground font-medium">{note.likeCount}</span>
+            <span className="text-micro text-muted-foreground font-medium">{note.likeCount}</span>
           )}
         </button>
       )}
@@ -190,7 +190,7 @@ function StoryAvatarButton({
                   : 'bg-muted/70 border border-dashed border-border'
               }`}
             >
-              <p className={`text-[9px] leading-tight text-center line-clamp-2 select-none ${
+              <p className={`text-micro leading-tight text-center line-clamp-2 select-none ${
                 group.note ? 'text-foreground' : 'text-muted-foreground/70'
               }`}>
                 {group.note ? group.note.text : tFallback('stories.addANote', 'Add a note...')}
@@ -269,7 +269,7 @@ function StoryAvatarButton({
       </div>
 
       <span
-        className="text-[10px] font-medium w-[68px] text-center truncate leading-tight text-muted-foreground"
+        className="text-micro font-medium w-[68px] text-center truncate leading-tight text-muted-foreground"
       >
         {group.isOwn ? tFallback('stories.yourStory', 'Your Story') : group.username}
       </span>
@@ -347,7 +347,7 @@ function QuickAddAvatarItem({ profile, onAdd, onViewProfile }) {
             {state === 'adding' && <Loader2 className="w-2.5 h-2.5 text-orange-500 animate-spin" />}
             {state === 'added'  && <Check   className="w-2.5 h-2.5 text-muted-foreground" />}
             {state === 'idle'   && <Plus    className="w-2.5 h-2.5 text-orange-500 stroke-[3]" />}
-            <span className={`text-[9px] font-bold select-none ${state === 'added' ? 'text-muted-foreground' : 'text-orange-500'}`}>
+            <span className={`text-micro font-bold select-none ${state === 'added' ? 'text-muted-foreground' : 'text-orange-500'}`}>
               {state === 'added'
                 ? tFallback('stories.quickAdd.added', 'Added')
                 : tFallback('stories.quickAdd.add',   'Add')}
@@ -371,7 +371,7 @@ function QuickAddAvatarItem({ profile, onAdd, onViewProfile }) {
         type="button"
         onClick={handleViewProfile}
         aria-label={`View ${profile.username}'s profile`}
-        className="text-[10px] font-medium w-[68px] text-center truncate leading-tight text-muted-foreground hover:text-foreground transition-colors focus:outline-none"
+        className="text-micro font-medium w-[68px] text-center truncate leading-tight text-muted-foreground hover:text-foreground transition-colors focus:outline-none"
       >
         @{profile.username}
       </button>
@@ -765,7 +765,7 @@ export default function StoriesRow({ onViewProfile } = {}) {
                 />
                 <Plus className="w-5 h-5 text-primary relative z-10" />
               </div>
-              <span className="text-[10px] font-medium text-muted-foreground w-[68px] text-center truncate">
+              <span className="text-micro font-medium text-muted-foreground w-[68px] text-center truncate">
                 Add Story
               </span>
             </motion.button>
@@ -807,7 +807,7 @@ export default function StoriesRow({ onViewProfile } = {}) {
                     </div>
                   </div>
                 </div>
-                <span className="text-[10px] font-medium text-muted-foreground w-[68px] text-center truncate leading-tight">
+                <span className="text-micro font-medium text-muted-foreground w-[68px] text-center truncate leading-tight">
                   {crew.name}
                 </span>
               </motion.button>
@@ -849,12 +849,12 @@ export default function StoriesRow({ onViewProfile } = {}) {
               ) : (
                 /* All 6 added — show calm placeholder until noon refresh */
                 <div className="self-center shrink-0 flex flex-col items-center justify-center px-3 py-2 max-w-[140px]">
-                  <p className="text-[10px] text-muted-foreground/70 text-center leading-snug">
+                  <p className="text-micro text-muted-foreground/70 text-center leading-snug">
                     Check back at noon for more suggestions!
                   </p>
                   <button
                     onClick={() => setQaDismissed(true)}
-                    className="mt-1.5 text-[9px] text-muted-foreground/50 underline underline-offset-2"
+                    className="mt-1.5 text-micro text-muted-foreground/50 underline underline-offset-2"
                   >
                     Dismiss
                   </button>

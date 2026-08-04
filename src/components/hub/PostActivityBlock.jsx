@@ -508,7 +508,7 @@ function Stat({ icon: Icon, label, value, bgColor, textColor }) {
     <div className={`${bgColor || 'bg-card'} rounded-lg p-2 border ${bgColor ? 'border-current/20' : 'border-border/50'}`}>
       <div className="flex items-center gap-1 mb-0.5">
         {Icon && <Icon className="w-3 h-3 text-muted-foreground" />}
-        <span className="text-[10px] text-muted-foreground uppercase tracking-wider truncate">{label}</span>
+        <span className="text-micro text-muted-foreground uppercase tracking-wider truncate">{label}</span>
       </div>
       <p className={`font-heading font-bold text-sm leading-tight ${textColor || ''}`}>{value}</p>
     </div>

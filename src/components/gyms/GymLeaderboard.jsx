@@ -98,17 +98,17 @@ function LeaderboardRow({ entry, maxScore, isAuthed, onGymPress, delay }) {
         {/* Score bar */}
         <div className="mt-1.5 flex items-center gap-2">
           <ScoreBar score={entry.score} maxScore={maxScore} />
-          <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">
+          <span className="text-micro text-muted-foreground tabular-nums shrink-0">
             {Number(entry.score).toFixed(1)}
           </span>
         </div>
         {/* Stat chips */}
         <div className="flex items-center gap-3 mt-1">
-          <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
+          <span className="flex items-center gap-0.5 text-micro text-muted-foreground">
             <Users className="w-2.5 h-2.5" />
             {entry.active_members} active
           </span>
-          <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
+          <span className="flex items-center gap-0.5 text-micro text-muted-foreground">
             <Dumbbell className="w-2.5 h-2.5" />
             {entry.workout_count} workout{entry.workout_count === 1 ? '' : 's'}
           </span>
@@ -184,17 +184,17 @@ export default function GymLeaderboard({ isAuthed = false, onGymPress }) {
           <Trophy className="w-4 h-4 text-yellow-500" />
           <div>
             <p className="font-heading font-bold text-sm">Gym Leaderboard</p>
-            <p className="text-[10px] text-muted-foreground">Last 7 days · {rows.length} gyms ranked</p>
+            <p className="text-micro text-muted-foreground">Last 7 days · {rows.length} gyms ranked</p>
           </div>
         </div>
         {lastUpdated && (
-          <p className="text-[10px] text-muted-foreground">Updated {lastUpdated}</p>
+          <p className="text-micro text-muted-foreground">Updated {lastUpdated}</p>
         )}
       </div>
 
       {/* Scoring explainer */}
       <div className="px-4 py-2 bg-primary/5 border-b border-border">
-        <p className="text-[10px] text-muted-foreground text-center">
+        <p className="text-micro text-muted-foreground text-center">
           Score = workout sessions × log(active members + 1) · rewards participation breadth
         </p>
       </div>

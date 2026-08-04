@@ -46,7 +46,7 @@ function StatPill({ icon: Icon, label, value, color = 'text-primary' }) {
     <div className="flex flex-col items-center gap-1 px-3 py-2 rounded-xl bg-white/5 min-w-0 flex-1">
       <Icon className={`w-4 h-4 ${color} shrink-0`} />
       <span className="text-lg font-heading font-bold tabular-nums leading-none">{value}</span>
-      <span className="text-[10px] text-white/50 text-center leading-tight">{label}</span>
+      <span className="text-micro text-white/50 text-center leading-tight">{label}</span>
     </div>
   );
 }
@@ -63,7 +63,7 @@ function MuscleGroupGrid({ trained = [], neglected = [] }) {
         return (
           <span
             key={group}
-            className={`text-[11px] px-2 py-0.5 rounded-full font-medium border ${
+            className={`text-micro px-2 py-0.5 rounded-full font-medium border ${
               hit
                 ? 'bg-primary/20 border-primary/40 text-primary'
                 : 'bg-white/5 border-white/10 text-white/35'
@@ -120,16 +120,16 @@ export default function WeeklyDebriefCard({ debrief, forExport = false, exportRe
         <div>
           <div className="flex items-center gap-1.5">
             <span className="font-heading font-black text-base tracking-tight text-white">FLEXYN</span>
-            <span className="text-[10px] font-semibold text-primary/80 uppercase tracking-widest">Debrief</span>
+            <span className="text-micro font-semibold text-primary/80 uppercase tracking-widest">Debrief</span>
           </div>
           {epochLabel && (
-            <span className="text-[10px] text-primary/60 font-medium">{epochLabel}</span>
+            <span className="text-micro text-primary/60 font-medium">{epochLabel}</span>
           )}
         </div>
         <div className="text-end">
           <p className="text-sm font-bold text-white">{weekLabel}</p>
           {d.week_start && d.week_end && (
-            <p className="text-[10px] text-white/40">
+            <p className="text-micro text-white/40">
               {d.week_start} → {d.week_end}
             </p>
           )}
@@ -138,7 +138,7 @@ export default function WeeklyDebriefCard({ debrief, forExport = false, exportRe
 
       {/* ── Volume Hero ──────────────────────────────────────────────────── */}
       <div className="px-4 pt-4 pb-3">
-        <p className="text-[11px] text-white/40 uppercase tracking-widest font-semibold mb-0.5">Total Volume</p>
+        <p className="text-micro text-white/40 uppercase tracking-widest font-semibold mb-0.5">Total Volume</p>
         <div className="flex items-end gap-3">
           <span className="text-4xl font-heading font-black tabular-nums leading-none text-white">
             {volLbs}
@@ -155,7 +155,7 @@ export default function WeeklyDebriefCard({ debrief, forExport = false, exportRe
         <div className="mx-4 mb-3 px-3 py-2.5 rounded-xl bg-white/5 border border-white/10">
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0">
-              <p className="text-[10px] text-white/40 uppercase tracking-widest font-semibold mb-0.5">Top Lift</p>
+              <p className="text-micro text-white/40 uppercase tracking-widest font-semibold mb-0.5">Top Lift</p>
               <p className="text-sm font-bold text-white truncate">{topLiftName}</p>
               <p className="text-xs text-white/50">
                 {fmt(topLiftWeight)} lbs × {topLiftReps} reps
@@ -164,7 +164,7 @@ export default function WeeklyDebriefCard({ debrief, forExport = false, exportRe
             {topLiftIsPr && (
               <div className="flex flex-col items-center shrink-0">
                 <Trophy className="w-6 h-6 text-yellow-400" />
-                <span className="text-[9px] font-black text-yellow-400 uppercase tracking-wider">PR!</span>
+                <span className="text-micro font-black text-yellow-400 uppercase tracking-wider">PR!</span>
               </div>
             )}
           </div>
@@ -180,7 +180,7 @@ export default function WeeklyDebriefCard({ debrief, forExport = false, exportRe
 
       {/* ── Muscle Group Grid ────────────────────────────────────────────── */}
       <div className="px-4 mb-3">
-        <p className="text-[10px] text-white/40 uppercase tracking-widest font-semibold mb-2">Muscle Groups</p>
+        <p className="text-micro text-white/40 uppercase tracking-widest font-semibold mb-2">Muscle Groups</p>
         <MuscleGroupGrid trained={trained} />
         {trained.length === 0 && (
           <p className="text-xs text-white/30 italic">No exercises logged this week</p>

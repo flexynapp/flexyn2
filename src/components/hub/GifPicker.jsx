@@ -116,7 +116,7 @@ export default function GifPicker({ open, onPick, onClose }) {
           ))}
         </div>
       )}
-      <p className="text-[10px] text-muted-foreground text-center pb-1">Powered by Tenor</p>
+      <p className="text-micro text-muted-foreground text-center pb-1">Powered by Tenor</p>
     </motion.div>
   );
 }

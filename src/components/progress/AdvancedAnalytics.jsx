@@ -99,7 +99,7 @@ export default function AdvancedAnalytics({ open, onClose, logs, children, heroS
                     <Icon className={`w-4 h-4 ${stat.accent}`} />
                   </div>
                   <p className={`font-heading font-black text-lg leading-none ${stat.accent}`}>{stat.value}</p>
-                  <p className="text-[10px] text-muted-foreground mt-1 uppercase tracking-wider leading-tight">{stat.label}</p>
+                  <p className="text-micro text-muted-foreground mt-1 uppercase tracking-wider leading-tight">{stat.label}</p>
                 </Card>
               );
             })}

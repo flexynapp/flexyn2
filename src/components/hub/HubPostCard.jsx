@@ -287,12 +287,12 @@ function PollCard({ post, userEmail }) {
         </div>
         <div className="flex items-center justify-between mt-2">
           {myVote !== null && (
-            <p className="text-[11px] text-muted-foreground">{totalVotes} vote{totalVotes !== 1 ? 's' : ''}</p>
+            <p className="text-micro text-muted-foreground">{totalVotes} vote{totalVotes !== 1 ? 's' : ''}</p>
           )}
           {totalVotes > 0 && (
             <button
               onClick={() => setShowTimeline(v => !v)}
-              className="text-[11px] text-primary font-medium hover:underline ml-auto"
+              className="text-micro text-primary font-medium hover:underline ml-auto"
             >
               {showTimeline ? 'Hide timeline' : 'Vote timeline →'}
             </button>
@@ -301,7 +301,7 @@ function PollCard({ post, userEmail }) {
         {/* Vote timeline */}
         {showTimeline && timelineVotes.length > 0 && (
           <div className="mt-3 border-t border-border pt-2">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2">Vote history</p>
+            <p className="text-micro font-bold uppercase tracking-wider text-muted-foreground mb-2">Vote history</p>
             <div className="relative ps-3">
               {/* Vertical line */}
               <div className="absolute start-1 top-0 bottom-0 w-px bg-border" />
@@ -311,7 +311,7 @@ function PollCard({ post, userEmail }) {
                   const ts = v.created_at ? new Date(v.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
                   const date = v.created_at ? new Date(v.created_at).toLocaleDateString([], { month: 'short', day: 'numeric' }) : '';
                   return (
-                    <div key={i} className="flex items-center gap-2 text-[11px]">
+                    <div key={i} className="flex items-center gap-2 text-micro">
                       <div className="w-1.5 h-1.5 rounded-full bg-primary shrink-0 -ml-px" />
                       <span className="text-muted-foreground shrink-0">{date} {ts}</span>
                       <span className="font-medium text-foreground truncate">{optLabel}</span>
@@ -893,7 +893,7 @@ function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
               return (
                 <>
                   <span
-                    className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0"
+                    className="text-micro font-bold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0"
                     style={{
                       background: 'hsl(var(--primary) / 0.12)',
                       color: 'hsl(var(--primary))',
@@ -1088,7 +1088,7 @@ function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
         <div className="px-3 pb-3 text-sm break-words">
           {/* Edited badge */}
           {post.edited_at && (
-            <div className="flex items-center gap-1 mb-1 text-[10px] text-muted-foreground/70">
+            <div className="flex items-center gap-1 mb-1 text-micro text-muted-foreground/70">
               <Pencil className="w-2.5 h-2.5" />
               <span>{tFallback('hub.post.edited', 'edited')}</span>
             </div>
@@ -1100,7 +1100,7 @@ function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
           </ContentWarningGate>
           {/* Translate / Show original — hide once we know the post is already in the user's language */}
           {canTranslate && !isLikelyAlreadyInLanguage(postBody, language) && (
-            <div className="mt-1.5 flex items-center gap-2 text-[11px] text-muted-foreground">
+            <div className="mt-1.5 flex items-center gap-2 text-micro text-muted-foreground">
               {translation ? (
                 <button
                   onClick={() => setShowOriginal((v) => !v)}
@@ -1203,7 +1203,7 @@ function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
                 : <Volume2 className="w-3.5 h-3.5" />}
             </button>
             {/* Video type badge */}
-            <div className="absolute top-2 start-2 flex items-center gap-1 px-1.5 py-0.5 rounded bg-black/60 text-white text-[10px] font-bold">
+            <div className="absolute top-2 start-2 flex items-center gap-1 px-1.5 py-0.5 rounded bg-black/60 text-white text-micro font-bold">
               <Film className="w-3 h-3" />
               VIDEO
             </div>

@@ -310,7 +310,7 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
           animate={{ x: 0, opacity: 1, scale: 1 }}
           exit={{ opacity: 0 }}
           transition={{ type: 'spring', stiffness: 380, damping: 18 }}
-          className="absolute -top-3 end-0 z-10 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gradient-to-r from-primary to-primary text-primary-foreground text-[10px] font-extrabold uppercase tracking-[0.15em] shadow-lg shadow-primary/30 pointer-events-none"
+          className="absolute -top-3 end-0 z-10 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gradient-to-r from-primary to-primary text-primary-foreground text-micro font-extrabold uppercase tracking-[0.15em] shadow-lg shadow-primary/30 pointer-events-none"
           aria-live="polite"
         >
           🎉 New PR
@@ -335,9 +335,9 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
       {!moreOpen && (set.is_warmup || set.is_failed || hasFeelData || hasEffortData) && (
         <div className="flex items-center gap-1 shrink-0">
           {set.is_warmup && <TagDot className="bg-primary/15 text-primary"><Flame className="w-3 h-3" /></TagDot>}
-          {set.is_failed && <TagDot className="bg-destructive/15 text-destructive text-[11px] font-extrabold">✗</TagDot>}
+          {set.is_failed && <TagDot className="bg-destructive/15 text-destructive text-micro font-extrabold">✗</TagDot>}
           {hasFeelData && <TagDot className="bg-primary/15 text-primary text-xs">{set.feel_emoji || <MessageCircle className="w-3 h-3" />}</TagDot>}
-          {hasEffortData && <TagDot className="bg-info/15 text-info text-[10px] font-bold">{set.rpe != null ? set.rpe : set.rir}</TagDot>}
+          {hasEffortData && <TagDot className="bg-info/15 text-info text-micro font-bold">{set.rpe != null ? set.rpe : set.rir}</TagDot>}
         </div>
       )}
       {/* ⋯ — secondary options drawer (warmup / failed / feel / RPE / delete) */}
@@ -410,7 +410,7 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
             active chip again to clear. Feeds intensity into the Nemesis
             / auto-pilot engines, not just raw volume. */}
         <div className="flex items-center gap-1.5">
-          <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground w-8 shrink-0">RIR</span>
+          <span className="text-micro font-bold uppercase tracking-wide text-muted-foreground w-8 shrink-0">RIR</span>
           <div className="flex gap-1 flex-1">
             {RIR_OPTIONS.map(({ v, label }) => {
               const active = set.rir != null && Number(set.rir) === v;
@@ -437,7 +437,7 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
         {/* RPE — precise optional input (1–10, half-steps) for lifters who
             prefer the perceived-exertion scale. */}
         <div className="flex items-center gap-1.5">
-          <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground w-8 shrink-0">RPE</span>
+          <span className="text-micro font-bold uppercase tracking-wide text-muted-foreground w-8 shrink-0">RPE</span>
           <Input
             type="number"
             min="1"

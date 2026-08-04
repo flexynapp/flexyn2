@@ -180,7 +180,7 @@ export default function TradeOfferDialog({ open, listing, userItems, user, onClo
                     ].join(' ')}
                   >
                     <span className="text-2xl">{item.item_emoji}</span>
-                    <span className="text-[9px] font-semibold mt-0.5 text-center">{item.item_name}</span>
+                    <span className="text-micro font-semibold mt-0.5 text-center">{item.item_name}</span>
                     <RarityBadge rarity={item.item_rarity} size="sm" />
                   </RarityFrame>
                 );

@@ -62,7 +62,7 @@ function DayColumn({ icon: Icon, title, subtitle, form, setForm, accent }) {
         <Icon className={`w-4 h-4 ${accent}`} />
         <div>
           <p className="text-sm font-bold leading-tight">{title}</p>
-          <p className="text-[10px] text-muted-foreground leading-tight">{subtitle}</p>
+          <p className="text-micro text-muted-foreground leading-tight">{subtitle}</p>
         </div>
       </div>
       {FIELDS.map(({ key, label, suffix, step }) => (
@@ -80,7 +80,7 @@ function DayColumn({ icon: Icon, title, subtitle, form, setForm, accent }) {
               placeholder="—"
               aria-label={`${title} ${label}`}
             />
-            <span className="pointer-events-none absolute inset-y-0 end-2 flex items-center text-[10px] text-muted-foreground">
+            <span className="pointer-events-none absolute inset-y-0 end-2 flex items-center text-micro text-muted-foreground">
               {suffix}
             </span>
           </span>
@@ -174,7 +174,7 @@ export default function CalorieCyclingModal({ open, onClose }) {
               />
             </div>
 
-            <p className="text-[10px] text-muted-foreground">
+            <p className="text-micro text-muted-foreground">
               {tFallback('nutrition.cycling.blankHint', 'Leave a field blank to keep your usual goal for that macro.')}
             </p>
 

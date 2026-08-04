@@ -543,7 +543,7 @@ export default function ExerciseAutocomplete({ value, onChange, onSelect, placeh
               key={f.id}
               type="button"
               onMouseDown={(e) => { e.preventDefault(); setEquipmentFilter(f.id); }}
-              className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border transition-colors ${
+              className={`shrink-0 px-2 py-0.5 rounded-full text-micro font-bold uppercase tracking-wide border transition-colors ${
                 equipmentFilter === f.id
                   ? 'bg-primary text-primary-foreground border-primary'
                   : 'border-border/60 text-muted-foreground hover:border-primary/40 bg-card'

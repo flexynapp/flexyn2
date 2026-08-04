@@ -181,7 +181,7 @@ export default function WorkoutCalendarGrid({ logs = [], onSelectDay }) {
           <h3 className="font-heading font-bold text-sm">
             {tFallback('calendar.title', 'Activity')}
           </h3>
-          <p className="text-[11px] text-muted-foreground tabular-nums">
+          <p className="text-micro text-muted-foreground tabular-nums">
             {tFallback('calendar.daysTrained', '{count} days in last 6 months', { count: totalWorkouts })}
           </p>
         </div>
@@ -238,7 +238,7 @@ export default function WorkoutCalendarGrid({ logs = [], onSelectDay }) {
         </div>
 
         {/* Tooltip + legend row */}
-        <div className="flex items-center justify-between mt-3 text-[10px] text-muted-foreground">
+        <div className="flex items-center justify-between mt-3 text-micro text-muted-foreground">
           <div className="min-h-[14px]">
             {tooltip && !tooltip.isFuture && (
               <span className="tabular-nums">

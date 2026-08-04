@@ -38,14 +38,14 @@ function Tile({ label, value, unit, color, editing, onChange, big = false }) {
           type="number" inputMode="decimal" min="0"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className={`h-8 w-16 text-center text-[16px] font-bold tabular-nums ${color}`}
+          className={`h-8 w-16 text-center text-base font-bold tabular-nums ${color}`}
         />
       ) : (
         <p className={`font-heading font-bold tabular-nums ${color} ${big ? 'text-3xl' : 'text-xl'}`}>
-          {num(value)}<span className="text-[11px] font-semibold align-top ms-0.5">{unit}</span>
+          {num(value)}<span className="text-micro font-semibold align-top ms-0.5">{unit}</span>
         </p>
       )}
-      <p className="mt-0.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="mt-0.5 text-micro font-bold uppercase tracking-wide text-muted-foreground">{label}</p>
     </div>
   );
 }
@@ -210,7 +210,7 @@ export default function PhotoMealResultModal({ open, imageUrl, result, saving, o
             {(!readOnly || imageUrl) && (
               <div className="absolute top-3 start-3 flex items-center gap-1.5 rounded-full bg-black/50 px-2.5 py-1">
                 <Sparkles className="w-3 h-3 text-white" />
-                <span className="text-[10px] font-bold uppercase tracking-wide text-white">Photo-AI</span>
+                <span className="text-micro font-bold uppercase tracking-wide text-white">Photo-AI</span>
               </div>
             )}
             <div className="absolute bottom-0 inset-x-0 p-3">
@@ -218,7 +218,7 @@ export default function PhotoMealResultModal({ open, imageUrl, result, saving, o
                 <Input
                   value={name}
                   onChange={(e) => setName(e.target.value.slice(0, 80))}
-                  className="h-9 text-[16px] font-semibold bg-white/95"
+                  className="h-9 text-base font-semibold bg-white/95"
                   placeholder="Meal name"
                 />
               ) : (
@@ -226,10 +226,10 @@ export default function PhotoMealResultModal({ open, imageUrl, result, saving, o
               )}
               <div className="mt-1 flex items-center gap-2 flex-wrap">
                 {result.portion_estimate && (
-                  <span className="text-[11px] text-white/90 drop-shadow">{result.portion_estimate}</span>
+                  <span className="text-micro text-white/90 drop-shadow">{result.portion_estimate}</span>
                 )}
                 {confidence && (
-                  <span className={`inline-flex items-center gap-1 rounded-full ${confColor} px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white`}>
+                  <span className={`inline-flex items-center gap-1 rounded-full ${confColor} px-1.5 py-0.5 text-micro font-bold uppercase tracking-wide text-white`}>
                     {confidence} confidence
                   </span>
                 )}
@@ -256,13 +256,13 @@ export default function PhotoMealResultModal({ open, imageUrl, result, saving, o
                   <Tile label="Fat"     unit="g" color="text-primary" editing={coreEditable} value={vals.fat_g}     onChange={(v) => setVal('fat_g', v)} />
                 </div>
                 {editing && hasItems && (
-                  <p className="mt-2 text-[10px] text-muted-foreground text-center">
+                  <p className="mt-2 text-micro text-muted-foreground text-center">
                     Calories, protein, carbs &amp; fat total up from your ingredients below.
                   </p>
                 )}
               </div>
               <div className="snap-center shrink-0 basis-full min-w-full px-4 pt-4">
-                <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground mb-2 text-center">More nutrients</p>
+                <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground mb-2 text-center">More nutrients</p>
                 <div className="grid grid-cols-3 gap-2">
                   <Tile label="Fiber"  unit="g"  color="text-success" editing={editing} value={vals.fiber_g}   onChange={(v) => setVal('fiber_g', v)} />
                   <Tile label="Sugar"  unit="g"  color="text-primary"    editing={editing} value={vals.sugar_g}   onChange={(v) => setVal('sugar_g', v)} />
@@ -277,14 +277,14 @@ export default function PhotoMealResultModal({ open, imageUrl, result, saving, o
               ))}
             </div>
             {slide === 0 && (
-              <p className="text-[10px] text-muted-foreground text-center mt-1">Swipe for fiber, sugar &amp; sodium →</p>
+              <p className="text-micro text-muted-foreground text-center mt-1">Swipe for fiber, sugar &amp; sodium →</p>
             )}
 
             {/* Per-ingredient breakdown. In Edit mode every row is editable and
                 you can add/remove ingredients; the core macros re-total live. */}
             {(editing || editItems.length > 0) && (
               <div className="px-4 pt-4">
-                <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground mb-1.5">Ingredients</p>
+                <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground mb-1.5">Ingredients</p>
 
                 {editing ? (
                   <div className="space-y-2">
@@ -320,7 +320,7 @@ export default function PhotoMealResultModal({ open, imageUrl, result, saving, o
                             { k: 'fat_g',     lbl: 'F',   color: 'text-primary' },
                           ].map(({ k, lbl, color }) => (
                             <div key={k} className="flex flex-col items-center">
-                              <label className={`text-[9px] font-bold uppercase tracking-wide ${color}`}>{lbl}</label>
+                              <label className={`text-micro font-bold uppercase tracking-wide ${color}`}>{lbl}</label>
                               <Input
                                 type="number" inputMode="decimal" min="0"
                                 value={it[k]}
@@ -347,11 +347,11 @@ export default function PhotoMealResultModal({ open, imageUrl, result, saving, o
                       <div key={i} className="flex items-center justify-between gap-2 rounded-lg border border-border/70 px-3 py-2">
                         <div className="min-w-0">
                           <p className="text-sm font-semibold truncate">{it.name || 'Item'}</p>
-                          {it.amount && <p className="text-[11px] text-muted-foreground">{it.amount}</p>}
+                          {it.amount && <p className="text-micro text-muted-foreground">{it.amount}</p>}
                         </div>
                         <div className="text-end shrink-0">
-                          <p className="text-sm font-bold tabular-nums text-primary">{num(it.calories)}<span className="text-[10px] ms-0.5">cal</span></p>
-                          <p className="text-[10px] text-muted-foreground tabular-nums">
+                          <p className="text-sm font-bold tabular-nums text-primary">{num(it.calories)}<span className="text-micro ms-0.5">cal</span></p>
+                          <p className="text-micro text-muted-foreground tabular-nums">
                             {num(it.protein_g)}P · {num(it.carbs_g)}C · {num(it.fat_g)}F
                           </p>
                         </div>
@@ -363,7 +363,7 @@ export default function PhotoMealResultModal({ open, imageUrl, result, saving, o
             )}
 
             {result.notes && (
-              <p className="px-4 pt-3 text-[11px] text-muted-foreground italic">{result.notes}</p>
+              <p className="px-4 pt-3 text-micro text-muted-foreground italic">{result.notes}</p>
             )}
             <div className="h-3" />
           </div>

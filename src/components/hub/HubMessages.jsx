@@ -620,7 +620,7 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                 {requestConvs.length > 0 && (
                   <span
                     aria-label={`${requestConvs.length} pending message requests`}
-                    className={`min-w-[1.15rem] px-1 h-[1.15rem] inline-flex items-center justify-center rounded-full text-[10px] font-bold leading-none ${
+                    className={`min-w-[1.15rem] px-1 h-[1.15rem] inline-flex items-center justify-center rounded-full text-micro font-bold leading-none ${
                       dmView === 'requests'
                         ? 'bg-primary-foreground/25 text-primary-foreground'
                         : 'bg-primary text-white'
@@ -899,7 +899,7 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                           >
                             {tFallback('common.cancel', 'Cancel')}
                           </button>
-                          <span className="text-[11px] text-muted-foreground">
+                          <span className="text-micro text-muted-foreground">
                             {tFallback('hub.messages.request.unsendWarning', 'Removes it for both of you.')}
                           </span>
                         </div>
@@ -913,7 +913,7 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                             <Undo2 className="w-3.5 h-3.5" />
                             {tFallback('hub.messages.request.unsend', 'Unsend request')}
                           </button>
-                          <span className="text-[11px] text-muted-foreground">
+                          <span className="text-micro text-muted-foreground">
                             {tFallback('hub.messages.request.awaitingAccept', 'Waiting for them to accept.')}
                           </span>
                         </div>
@@ -940,7 +940,7 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                           >
                             {tFallback('common.cancel', 'Cancel')}
                           </button>
-                          <span className="text-[11px] text-muted-foreground">
+                          <span className="text-micro text-muted-foreground">
                             {tFallback('hub.messages.request.deleteWarning', 'Deletes it for both of you.')}
                           </span>
                         </div>
@@ -1152,7 +1152,7 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                         {crew.max_capacity ? `up to ${crew.max_capacity} members` : 'Group Chat'}
                         {crew.is_admin && (
                           <span
-                            className="ms-1.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wide"
+                            className="ms-1.5 px-1.5 py-0.5 rounded-full text-micro font-bold uppercase tracking-wide"
                             style={{ background: 'hsl(var(--primary) / 0.15)', color: 'hsl(var(--primary))' }}
                           >
                             Admin

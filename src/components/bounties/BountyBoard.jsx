@@ -53,10 +53,10 @@ function ClaimRow({ claim }) {
         <p className="text-xs font-semibold text-foreground leading-snug">
           {bountyDescription(bounty, language, weightUnit)}
         </p>
-        <p className="text-[10px] text-muted-foreground mt-0.5">
+        <p className="text-micro text-muted-foreground mt-0.5">
           @{bounty.target_username} · {cfg.label}
         </p>
-        <p className="text-[10px] text-muted-foreground">
+        <p className="text-micro text-muted-foreground">
           {formatDistanceToNow(new Date(claim.claimed_at), { addSuffix: true })}
         </p>
       </div>

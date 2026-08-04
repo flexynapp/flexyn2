@@ -120,14 +120,14 @@ export default function FastingTrackerCard() {
             >
               <FastWindowDial eatingHours={24 - p.hours} className="w-5 h-5 mb-1 text-primary" />
               <p className="font-heading font-bold text-sm">{p.label}</p>
-              <p className="text-[10px] text-muted-foreground">{p.desc}</p>
+              <p className="text-micro text-muted-foreground">{p.desc}</p>
             </button>
           ))}
         </div>
         {/* Manual-hours input — for users who want a duration the
             presets don't cover (e.g. 14h, 22h, 24h). */}
         <div className="flex items-center gap-2">
-          <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold shrink-0">
+          <label className="text-micro uppercase tracking-wider text-muted-foreground font-semibold shrink-0">
             Custom
           </label>
           <input
@@ -172,7 +172,7 @@ export default function FastingTrackerCard() {
             {done ? 'Eating window open' : 'Fasting'}
           </h3>
         </div>
-        <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+        <span className="text-micro uppercase tracking-wide text-muted-foreground">
           {state.targetHours}h target
         </span>
       </div>

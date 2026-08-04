@@ -224,7 +224,7 @@ class ErrorBoundaryClass extends React.Component {
           <p className="text-sm text-muted-foreground mb-4 max-w-sm">
             {this.tr('errorBoundary.desc', 'This section failed to load.')}
             {this.props.label && (
-              <span className="block text-[11px] text-muted-foreground/70 mt-1">
+              <span className="block text-micro text-muted-foreground/70 mt-1">
                 {this.tr('errorBoundary.section', 'Section: {label}', { label: this.props.label })}
               </span>
             )}
@@ -273,7 +273,7 @@ class ErrorBoundaryClass extends React.Component {
               <summary className="text-xs text-muted-foreground cursor-pointer select-none mb-2">
                 {this.tr('errorBoundary.showDetails', 'Show details')}
               </summary>
-              <pre className="text-[10px] text-destructive bg-destructive/5 rounded-lg p-3 max-w-full overflow-x-auto whitespace-pre-wrap">
+              <pre className="text-micro text-destructive bg-destructive/5 rounded-lg p-3 max-w-full overflow-x-auto whitespace-pre-wrap">
                 {this.buildDetailsText()}
               </pre>
             </details>

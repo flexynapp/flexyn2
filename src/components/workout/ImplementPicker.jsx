@@ -270,7 +270,7 @@ export default function ImplementPicker({ exerciseName, value, onChange, userId 
             ? `${tFallback('implement.choose', 'Choose equipment')}: ${value.label}`
             : tFallback('implement.choose', 'Choose equipment')
         }
-        className="inline-flex items-center gap-1 max-w-[55vw] text-[11px] font-medium
+        className="inline-flex items-center gap-1 max-w-[55vw] text-micro font-medium
                    bg-secondary/60 border border-border rounded-md px-1.5 py-1
                    min-h-[32px] text-muted-foreground hover:text-foreground
                    hover:border-primary/40 transition-colors select-none-ui"
@@ -308,7 +308,7 @@ export default function ImplementPicker({ exerciseName, value, onChange, userId 
                 <EquipmentThumb implement={value} size={56} />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate">{value.label}</p>
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="text-micro text-muted-foreground">
                     {value.photoUrl
                       ? tFallback('implement.yourPhoto', 'Your photo')
                       : tFallback('implement.noPhoto', 'No photo yet')}
@@ -449,7 +449,7 @@ function Section({ title, items, children }) {
   if (!items || items.length === 0) return null;
   return (
     <div className="mb-3">
-      <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground px-1 mb-1">
+      <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground px-1 mb-1">
         {title}
       </p>
       <div className="space-y-0.5">{items.map(children)}</div>
@@ -473,7 +473,7 @@ function Row({ item, selected, onSelect }) {
             job is telling machines apart. */}
         <span className="block text-sm font-medium line-clamp-2 leading-snug">{item.label}</span>
         {item.count > 1 && (
-          <span className="block text-[10px] text-muted-foreground">
+          <span className="block text-micro text-muted-foreground">
             used {item.count}×
           </span>
         )}

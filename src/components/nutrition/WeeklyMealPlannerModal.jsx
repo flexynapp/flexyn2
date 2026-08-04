@@ -110,7 +110,7 @@ function RecipePickerModal({ open, recipes: recipeList, onPick, onClose }) {
               className="w-full text-start px-3 py-2 rounded-lg border border-border bg-secondary/40 hover:bg-secondary text-sm font-medium transition-colors"
             >
               {r.name}
-              <p className="text-[10px] text-muted-foreground mt-0.5">
+              <p className="text-micro text-muted-foreground mt-0.5">
                 {Array.isArray(r.ingredients) ? `${r.ingredients.length} ingredient${r.ingredients.length === 1 ? '' : 's'}` : ''}
               </p>
             </button>
@@ -161,7 +161,7 @@ function AddMethodSheet({ open, mealLabel, onPhoto, onRecipe, onManual, onClose 
               </span>
               <span className="flex-1 min-w-0">
                 <span className="block font-bold text-sm">{label}</span>
-                <span className="block text-[11px] text-muted-foreground">{desc}</span>
+                <span className="block text-micro text-muted-foreground">{desc}</span>
               </span>
               <ChevRight className="w-4 h-4 text-muted-foreground shrink-0" />
             </button>
@@ -194,7 +194,7 @@ function ManualMealModal({ open, mealLabel, onSave, onClose }) {
   // remounted each keystroke — that would drop focus mid-typing.
   const renderInput = (f) => (
     <div key={f.key}>
-      <label className={`text-[11px] font-bold uppercase tracking-wide ${f.color}`}>{f.label}</label>
+      <label className={`text-micro font-bold uppercase tracking-wide ${f.color}`}>{f.label}</label>
       <div className="mt-1 flex items-center rounded-lg border border-border bg-background focus-within:ring-2 focus-within:ring-primary/40">
         <input
           type="number"
@@ -204,7 +204,7 @@ function ManualMealModal({ open, mealLabel, onSave, onClose }) {
           placeholder="0"
           className="w-full px-3 py-2 rounded-lg bg-transparent text-sm focus:outline-none"
         />
-        <span className="pe-3 text-[10px] text-muted-foreground shrink-0">{f.unit}</span>
+        <span className="pe-3 text-micro text-muted-foreground shrink-0">{f.unit}</span>
       </div>
     </div>
   );
@@ -234,7 +234,7 @@ function ManualMealModal({ open, mealLabel, onSave, onClose }) {
         </div>
         <div className="p-4 space-y-4 overflow-y-auto">
           <div>
-            <label className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Meal name</label>
+            <label className="text-micro font-bold uppercase tracking-wide text-muted-foreground">Meal name</label>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -246,7 +246,7 @@ function ManualMealModal({ open, mealLabel, onSave, onClose }) {
 
           {/* Macros — always shown. */}
           <div>
-            <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground mb-2">Macros</p>
+            <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground mb-2">Macros</p>
             <div className="grid grid-cols-2 gap-2">
               {MANUAL_MACRO_FIELDS.map(renderInput)}
             </div>
@@ -258,7 +258,7 @@ function ManualMealModal({ open, mealLabel, onSave, onClose }) {
             <button
               type="button"
               onClick={() => setShowMicros(s => !s)}
-              className="w-full flex items-center justify-between px-1 py-1 text-[11px] font-bold uppercase tracking-wide text-muted-foreground hover:text-foreground transition-colors"
+              className="w-full flex items-center justify-between px-1 py-1 text-micro font-bold uppercase tracking-wide text-muted-foreground hover:text-foreground transition-colors"
             >
               Vitamins &amp; minerals
               <ChevronDown className={`w-4 h-4 transition-transform ${showMicros ? 'rotate-180' : ''}`} />
@@ -637,7 +637,7 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
                   return (
                     <div key={dateStr} ref={isToday ? todayRef : undefined} className="flex flex-col">
                       <div className={`text-center pb-2 mb-1 border-b border-border/60 ${isToday ? 'text-primary font-bold' : ''}`}>
-                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                        <p className="text-micro uppercase tracking-wider text-muted-foreground">
                           {format(d, 'EEE')}
                         </p>
                         <p className={`font-heading font-bold text-base ${isToday ? 'text-primary' : ''}`}>
@@ -674,18 +674,18 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
                                   setAddSlot({ date: dateStr, mealType: slot.key, label: slot.label });
                                 }
                               }}
-                              className={`w-full min-h-[58px] rounded-lg px-1.5 py-1.5 text-start text-[10px] font-medium transition-colors flex flex-col ${
+                              className={`w-full min-h-[58px] rounded-lg px-1.5 py-1.5 text-start text-micro font-medium transition-colors flex flex-col ${
                                 plan
                                   ? 'bg-success/15 border border-success/30 text-foreground'
                                   : 'bg-secondary/40 border border-dashed border-border text-muted-foreground hover:bg-secondary/60'
                               }`}
                             >
-                              <span className="text-[10px] flex items-center gap-1">
+                              <span className="text-micro flex items-center gap-1">
                                 <span aria-hidden="true">{slot.emoji}</span>
                                 <span className="opacity-70">{slot.label}</span>
                               </span>
                               {plan ? (
-                                <span className="font-bold text-foreground truncate mt-0.5 text-[11px] leading-tight">
+                                <span className="font-bold text-foreground truncate mt-0.5 text-micro leading-tight">
                                   {recipe?.name || plan.food_snapshot?.name || '—'}
                                 </span>
                               ) : (
@@ -791,7 +791,7 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
                           <div className="min-w-0">
                             <p className="text-sm text-foreground leading-tight">{item.name}</p>
                             {item.recipes.length > 0 && (
-                              <p className="text-[10px] text-muted-foreground truncate mt-0.5">
+                              <p className="text-micro text-muted-foreground truncate mt-0.5">
                                 {item.recipes.join(' · ')}
                               </p>
                             )}

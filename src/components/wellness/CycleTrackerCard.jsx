@@ -44,7 +44,7 @@ function LogStartModal({ open, onClose, onSubmit, submitting }) {
         </div>
         <div className="space-y-3">
           <div>
-            <label className="block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+            <label className="block text-micro font-semibold uppercase tracking-wide text-muted-foreground mb-1">
               Start date
             </label>
             <input
@@ -56,7 +56,7 @@ function LogStartModal({ open, onClose, onSubmit, submitting }) {
             />
           </div>
           <div>
-            <label className="block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+            <label className="block text-micro font-semibold uppercase tracking-wide text-muted-foreground mb-1">
               Notes (optional)
             </label>
             <input
@@ -177,13 +177,13 @@ export default function CycleTrackerCard({ profile }) {
             <div>
               <h3 className="font-heading font-bold text-sm">Cycle</h3>
               {state ? (
-                <p className="text-[11px] text-muted-foreground">
+                <p className="text-micro text-muted-foreground">
                   Day <span className="font-bold tabular-nums">{state.dayOfCycle}</span>
                   {' · '}
                   {state.daysUntilNext} day{state.daysUntilNext === 1 ? '' : 's'} until next
                 </p>
               ) : (
-                <p className="text-[11px] text-muted-foreground">Log your first period start to begin.</p>
+                <p className="text-micro text-muted-foreground">Log your first period start to begin.</p>
               )}
             </div>
           </div>
@@ -222,7 +222,7 @@ export default function CycleTrackerCard({ profile }) {
                   {state.phaseMeta.label} phase
                 </p>
               </div>
-              <p className="text-[11px] text-foreground/85 leading-snug">
+              <p className="text-micro text-foreground/85 leading-snug">
                 {state.hint}
               </p>
             </div>
@@ -238,7 +238,7 @@ export default function CycleTrackerCard({ profile }) {
               type="button"
               onClick={() => { setHistoryOpen(v => !v); setPendingDeleteId(null); }}
               aria-expanded={historyOpen}
-              className="w-full flex items-center justify-between py-1 text-[11px] font-bold uppercase tracking-wide text-muted-foreground hover:text-foreground transition-colors"
+              className="w-full flex items-center justify-between py-1 text-micro font-bold uppercase tracking-wide text-muted-foreground hover:text-foreground transition-colors"
             >
               <span>Logged periods · {logs.length}</span>
               {historyOpen
@@ -264,7 +264,7 @@ export default function CycleTrackerCard({ profile }) {
                       <div className="min-w-0">
                         <p className="text-xs text-foreground truncate">{label}</p>
                         {l.notes && (
-                          <p className="text-[10px] text-muted-foreground truncate">{l.notes}</p>
+                          <p className="text-micro text-muted-foreground truncate">{l.notes}</p>
                         )}
                       </div>
                       {confirming ? (
@@ -273,7 +273,7 @@ export default function CycleTrackerCard({ profile }) {
                             type="button"
                             onClick={() => handleDelete(l.id)}
                             disabled={busy}
-                            className="inline-flex items-center justify-center min-w-[52px] px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wide bg-destructive text-destructive-foreground disabled:opacity-50"
+                            className="inline-flex items-center justify-center min-w-[52px] px-2 py-1 rounded text-micro font-bold uppercase tracking-wide bg-destructive text-destructive-foreground disabled:opacity-50"
                           >
                             {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Delete'}
                           </button>
@@ -281,7 +281,7 @@ export default function CycleTrackerCard({ profile }) {
                             type="button"
                             onClick={() => setPendingDeleteId(null)}
                             disabled={busy}
-                            className="px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wide border border-border text-muted-foreground hover:bg-secondary disabled:opacity-50"
+                            className="px-2 py-1 rounded text-micro font-bold uppercase tracking-wide border border-border text-muted-foreground hover:bg-secondary disabled:opacity-50"
                           >
                             Cancel
                           </button>

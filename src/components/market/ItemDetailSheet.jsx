@@ -153,7 +153,7 @@ export default function ItemDetailSheet({
                 </p>
               )}
               {soldLabel && (
-                <p className="text-[11px] text-muted-foreground mt-0.5">{soldLabel} all-time</p>
+                <p className="text-micro text-muted-foreground mt-0.5">{soldLabel} all-time</p>
               )}
             </div>
             <button
@@ -201,10 +201,10 @@ export default function ItemDetailSheet({
             <section className="rounded-xl border border-border bg-secondary/30 p-3">
               <div className="flex items-center gap-1.5 mb-2">
                 <TrendingUp className="w-3.5 h-3.5 text-muted-foreground" />
-                <h3 className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-muted-foreground">
+                <h3 className="text-micro font-extrabold uppercase tracking-[0.18em] text-muted-foreground">
                   Sold for
                 </h3>
-                <span className="text-[10px] text-muted-foreground ms-auto">
+                <span className="text-micro text-muted-foreground ms-auto">
                   last {priceStats.count}
                 </span>
               </div>
@@ -212,13 +212,13 @@ export default function ItemDetailSheet({
                 <span className="font-bold text-lg">
                   <CoinAmount value={priceStats.median} />
                 </span>
-                <span className="text-[11px] text-muted-foreground">
+                <span className="text-micro text-muted-foreground">
                   typical · range {priceStats.low}–{priceStats.high}
                 </span>
               </div>
               <PriceBars prices={priceStats.recent} color={tint.color} />
               {vsMedian !== null && Math.abs(vsMedian) >= 5 && (
-                <p className={`text-[11px] font-semibold mt-2 ${
+                <p className={`text-micro font-semibold mt-2 ${
                   vsMedian < 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'
                 }`}>
                   This one is {Math.abs(vsMedian)}% {vsMedian < 0 ? 'below' : 'above'} the typical price
@@ -232,7 +232,7 @@ export default function ItemDetailSheet({
             // counter (mig 119) counts every completed listing including
             // trades, while price history only covers completed SALE
             // listings that carried a price.
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-micro text-muted-foreground">
               {soldCount > 0
                 ? 'No priced sales recorded for this item yet.'
                 : "No sale history for this item yet — you're early."}
@@ -242,7 +242,7 @@ export default function ItemDetailSheet({
           {/* Other live listings of the same item */}
           {alternatives.length > 0 && (
             <section>
-              <h3 className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-muted-foreground mb-2">
+              <h3 className="text-micro font-extrabold uppercase tracking-[0.18em] text-muted-foreground mb-2">
                 Also listed right now
               </h3>
               <ul className="space-y-1.5">
@@ -260,7 +260,7 @@ export default function ItemDetailSheet({
                           <CoinAmount value={alt.asking_price ?? 0} />
                         </span>
                       ) : (
-                        <span className="text-[10px] font-bold text-blue-600 dark:text-blue-300 shrink-0">
+                        <span className="text-micro font-bold text-blue-600 dark:text-blue-300 shrink-0">
                           Trade
                         </span>
                       )}
@@ -273,14 +273,14 @@ export default function ItemDetailSheet({
 
           {/* Seller */}
           <section className="flex items-center justify-between pt-1">
-            <span className="text-[11px] text-muted-foreground">
+            <span className="text-micro text-muted-foreground">
               Listed by <span className="text-foreground font-medium">{displayName(listing)}</span>
             </span>
             {!isMine && onSellerClick && (
               <button
                 type="button"
                 onClick={() => onSellerClick(listing.seller_user_id)}
-                className="text-[11px] font-bold text-primary hover:underline"
+                className="text-micro font-bold text-primary hover:underline"
               >
                 View profile →
               </button>

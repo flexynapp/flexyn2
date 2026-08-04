@@ -104,12 +104,12 @@ export default function LeaderboardPodium({ rankings = [], currentUserId, onSele
             </div>
 
             <p
-              className={`w-full truncate text-center text-[11px] font-heading font-bold leading-tight ${isMe ? 'text-primary' : ''}`}
+              className={`w-full truncate text-center text-micro font-heading font-bold leading-tight ${isMe ? 'text-primary' : ''}`}
               title={name}
             >
               {name}
             </p>
-            <p className="w-full truncate text-center text-[10px] text-muted-foreground tabular-nums leading-tight">
+            <p className="w-full truncate text-center text-micro text-muted-foreground tabular-nums leading-tight">
               {row._display}
             </p>
 

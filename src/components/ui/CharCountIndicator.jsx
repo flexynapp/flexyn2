@@ -40,7 +40,7 @@ export default function CharCountIndicator({ value = '', max, warnAt = 0.85, cla
   return (
     <span
       aria-live="polite"
-      className={`text-[11px] tabular-nums ${color} ${className}`}
+      className={`text-micro tabular-nums ${color} ${className}`}
     >
       {len}/{max}
     </span>

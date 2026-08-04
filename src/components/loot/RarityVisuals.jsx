@@ -55,8 +55,8 @@ export function rarityTint(rarity) {
 
 // ─── Rarity chip ──────────────────────────────────────────────────────────────
 const BADGE_SIZE = {
-  sm: 'text-[9px] px-1.5 py-0.5',
-  md: 'text-[10px] px-2 py-0.5',
+  sm: 'text-micro px-1.5 py-0.5',
+  md: 'text-micro px-2 py-0.5',
   lg: 'text-sm px-3 py-1',
 };
 

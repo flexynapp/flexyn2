@@ -60,7 +60,7 @@ export default function Market() {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <p className="font-heading font-bold text-sm text-foreground/70">Trainer Programs</p>
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-violet-500/15 border border-violet-400/25 text-[10px] font-bold uppercase tracking-wider text-violet-500">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-violet-500/15 border border-violet-400/25 text-micro font-bold uppercase tracking-wider text-violet-500">
               <Lock className="w-2.5 h-2.5" />
               Coming Soon
             </span>

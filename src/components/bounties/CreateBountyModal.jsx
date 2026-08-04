@@ -101,7 +101,7 @@ export default function CreateBountyModal({ open, onClose, onCreated }) {
           <div className="space-y-4">
             {/* Metric */}
             <div>
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
+              <label className="block text-micro font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
                 {tFallback('createBounty.metric', 'Metric')}
               </label>
               <select
@@ -113,7 +113,7 @@ export default function CreateBountyModal({ open, onClose, onCreated }) {
                   <option key={m.id} value={m.id}>{m.label}</option>
                 ))}
               </select>
-              <p className="text-[10px] text-muted-foreground mt-1">{meta.hint}</p>
+              <p className="text-micro text-muted-foreground mt-1">{meta.hint}</p>
             </div>
 
             {/* Exercise (conditional) */}
@@ -124,7 +124,7 @@ export default function CreateBountyModal({ open, onClose, onCreated }) {
                   animate={{ opacity: 1, height: 'auto' }}
                   exit={{ opacity: 0, height: 0 }}
                 >
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
+                  <label className="block text-micro font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
                     {tFallback('createBounty.exercise', 'Exercise')}
                   </label>
                   <input
@@ -141,7 +141,7 @@ export default function CreateBountyModal({ open, onClose, onCreated }) {
 
             {/* Target value */}
             <div>
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
+              <label className="block text-micro font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
                 {tFallback('createBounty.target', 'Target value to beat')}
               </label>
               <input
@@ -156,7 +156,7 @@ export default function CreateBountyModal({ open, onClose, onCreated }) {
 
             {/* Difficulty */}
             <div>
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
+              <label className="block text-micro font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
                 {tFallback('createBounty.difficulty', 'Difficulty (sets reward)')}
               </label>
               <div className="grid grid-cols-3 gap-2">
@@ -174,14 +174,14 @@ export default function CreateBountyModal({ open, onClose, onCreated }) {
                     ].join(' ')}
                   >
                     <p className="text-xs font-bold">{d.label}</p>
-                    <p className="text-[10px] text-amber-500 mt-0.5">{d.reward}</p>
-                    <p className="text-[10px] text-muted-foreground">cost {d.cost}</p>
+                    <p className="text-micro text-amber-500 mt-0.5">{d.reward}</p>
+                    <p className="text-micro text-muted-foreground">cost {d.cost}</p>
                   </button>
                 ))}
               </div>
             </div>
 
-            <p className="text-[11px] text-muted-foreground leading-snug">
+            <p className="text-micro text-muted-foreground leading-snug">
               {tFallback(
                 'createBounty.disclaimer',
                 "When someone beats your target, they claim the reward and you lose the entry fee. Expires in 48h.",

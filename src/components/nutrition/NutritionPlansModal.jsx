@@ -25,7 +25,7 @@ function MacroBar({ protein, carbs, fat }) {
 function MacroPill({ label, value, unit = 'g', color }) {
   return (
     <div className={`flex flex-col items-center px-3 py-1.5 rounded-xl ${color}`}>
-      <span className="text-[10px] font-medium opacity-70">{label}</span>
+      <span className="text-micro font-medium opacity-70">{label}</span>
       <span className="font-heading font-bold text-sm leading-tight">{value}{unit}</span>
     </div>
   );
@@ -60,17 +60,17 @@ function PlanCard({ plan, scaled, onSelect, colors, fitsGoal }) {
           {/* Goal badges */}
           <div className="flex gap-1.5 mt-2.5 flex-wrap items-center">
             {plan.goalFit.map(g => (
-              <span key={g} className={`text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full ${colors.badge}`}>
+              <span key={g} className={`text-micro font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full ${colors.badge}`}>
                 {g}
               </span>
             ))}
             {fitsGoal && (
-              <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-primary/15 text-primary">
+              <span className="inline-flex items-center gap-1 text-micro font-semibold px-2 py-0.5 rounded-full bg-primary/15 text-primary">
                 matches your goal
               </span>
             )}
             {plan.swapCount > 0 && (
-              <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-success/15 text-success dark:text-success">
+              <span className="inline-flex items-center gap-1 text-micro font-semibold px-2 py-0.5 rounded-full bg-success/15 text-success dark:text-success">
                 <Sparkles className="w-2.5 h-2.5" />
                 adapted for you
               </span>
@@ -86,7 +86,7 @@ function PlanCard({ plan, scaled, onSelect, colors, fitsGoal }) {
               <span className="font-heading font-bold text-foreground">{kcal}</span>
               <span>cal/day</span>
             </div>
-            <div className="flex gap-1 text-[10px] text-muted-foreground">
+            <div className="flex gap-1 text-micro text-muted-foreground">
               <span className="text-destructive font-medium">{macros.protein}g P</span>
               <span>·</span>
               <span className="text-info font-medium">{macros.carbs}g C</span>
@@ -116,14 +116,14 @@ function MealRow({ meal, colors }) {
           </div>
           <div className="flex items-center gap-1.5 mt-0.5">
             <Clock className="w-3 h-3 text-muted-foreground" />
-            <span className="text-[10px] text-muted-foreground">{meal.time}</span>
-            <span className="text-[10px] text-muted-foreground">·</span>
+            <span className="text-micro text-muted-foreground">{meal.time}</span>
+            <span className="text-micro text-muted-foreground">·</span>
             <Flame className="w-3 h-3 text-primary" />
-            <span className="text-[10px] font-medium text-primary">{meal.kcal} cal</span>
+            <span className="text-micro font-medium text-primary">{meal.kcal} cal</span>
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <div className="hidden sm:flex gap-1 text-[10px]">
+          <div className="hidden sm:flex gap-1 text-micro">
             <span className="text-destructive font-medium">{meal.macros.p}g P</span>
             <span className="text-muted-foreground">·</span>
             <span className="text-info font-medium">{meal.macros.c}g C</span>
@@ -146,11 +146,11 @@ function MealRow({ meal, colors }) {
             <div className="px-4 pb-3 border-t border-border/40 bg-secondary/10">
               {/* Mobile macro row */}
               <div className="sm:hidden flex gap-2 pt-2 pb-1">
-                <span className="text-[10px] text-destructive font-medium">{meal.macros.p}g P</span>
-                <span className="text-[10px] text-muted-foreground">·</span>
-                <span className="text-[10px] text-info font-medium">{meal.macros.c}g C</span>
-                <span className="text-[10px] text-muted-foreground">·</span>
-                <span className="text-[10px] text-primary font-medium">{meal.macros.f}g F</span>
+                <span className="text-micro text-destructive font-medium">{meal.macros.p}g P</span>
+                <span className="text-micro text-muted-foreground">·</span>
+                <span className="text-micro text-info font-medium">{meal.macros.c}g C</span>
+                <span className="text-micro text-muted-foreground">·</span>
+                <span className="text-micro text-primary font-medium">{meal.macros.f}g F</span>
               </div>
               <div className="space-y-1.5 pt-2">
                 {meal.ingredients.map((ing, i) => (
@@ -161,7 +161,7 @@ function MealRow({ meal, colors }) {
                       <span className={`text-xs font-semibold ${colors.badge.split(' ')[1] || 'text-primary'}`}>{ing.amount}</span>
                       {ing.note && <span className="text-xs text-muted-foreground">— {ing.note}</span>}
                       {ing.swapped && (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-success dark:text-success bg-success/10 px-1.5 py-0.5 rounded-full">
+                        <span className="inline-flex items-center gap-1 text-micro font-semibold text-success dark:text-success bg-success/10 px-1.5 py-0.5 rounded-full">
                           <ArrowLeftRight className="w-2.5 h-2.5" />
                           swapped from {ing.swappedFrom}
                         </span>
@@ -174,7 +174,7 @@ function MealRow({ meal, colors }) {
               {/* Step-by-step directions */}
               {meal.directions?.length > 0 && (
                 <div className="mt-3 pt-2.5 border-t border-border/40">
-                  <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground mb-1.5">Directions</p>
+                  <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground mb-1.5">Directions</p>
                   <ol className="space-y-1.5">
                     {meal.directions.map((step, i) => (
                       <li key={i} className="flex gap-2 text-xs text-foreground/80 leading-snug">
@@ -204,7 +204,7 @@ function SupplementCard({ supp, colors }) {
           <p className="text-xs text-muted-foreground mt-0.5">{supp.dose} · {supp.timing}</p>
           <p className="text-xs mt-0.5 font-medium opacity-80">{supp.benefit}</p>
           {supp.swapped && (
-            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-success dark:text-success bg-success/10 px-1.5 py-0.5 rounded-full mt-1">
+            <span className="inline-flex items-center gap-1 text-micro font-semibold text-success dark:text-success bg-success/10 px-1.5 py-0.5 rounded-full mt-1">
               <ArrowLeftRight className="w-2.5 h-2.5" />
               swapped from {supp.swappedFrom}
             </span>
@@ -239,7 +239,7 @@ function PlanDetail({ plan, scaled, onBack, colors }) {
             <p className="text-sm text-muted-foreground mt-0.5">{plan.tagline}</p>
             <div className="flex gap-1.5 mt-2 flex-wrap">
               {plan.goalFit.map(g => (
-                <span key={g} className={`text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full ${colors.badge}`}>
+                <span key={g} className={`text-micro font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full ${colors.badge}`}>
                   {g}
                 </span>
               ))}
@@ -409,7 +409,7 @@ export function NutritionPlansPanel({ userProfile, onStartOnboarding, trainingFu
                 </span>
                 <div className="min-w-0">
                   <p className="font-heading font-bold text-sm leading-tight">Fuel your training</p>
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="text-micro text-muted-foreground">
                     ~{trainingFuel.runDays} run{trainingFuel.runDays === 1 ? '' : 's'}/week · ≈{trainingFuel.weeklyKcal.toLocaleString()} kcal burned
                   </p>
                 </div>

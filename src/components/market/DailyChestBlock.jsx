@@ -86,7 +86,7 @@ export default function DailyChestBlock({ user, onClaimed }) {
           <p className="font-heading font-bold text-sm leading-tight">
             {tFallback('marketplace.dailyChest.title', 'Daily Chest')}
           </p>
-          <p className="text-muted-foreground text-[11px] leading-tight">
+          <p className="text-muted-foreground text-micro leading-tight">
             {claimed
               ? tFallback('marketplace.dailyChest.comebackShort', 'Back tomorrow')
               : tFallback('marketplace.dailyChest.ctaShort', 'Free capsule + coins')}

@@ -190,7 +190,7 @@ export default function RegisterGym() {
       {/* Existing submissions */}
       {!loading && submissions.length > 0 && (
         <div className="mt-4 mb-6 space-y-2">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+          <p className="text-micro font-bold uppercase tracking-wider text-muted-foreground">
             Your submissions
           </p>
           {submissions.map(s => {
@@ -216,7 +216,7 @@ export default function RegisterGym() {
 
       <form onSubmit={handleSubmit} className="space-y-4 rounded-2xl border border-border bg-card p-4">
         <div>
-          <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+          <label className="block text-micro font-bold uppercase tracking-wider text-muted-foreground mb-1">
             Business name *
           </label>
           <Input
@@ -228,7 +228,7 @@ export default function RegisterGym() {
         </div>
 
         <div>
-          <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+          <label className="block text-micro font-bold uppercase tracking-wider text-muted-foreground mb-1">
             Street address
           </label>
           <Input
@@ -240,13 +240,13 @@ export default function RegisterGym() {
 
         <div className="grid grid-cols-3 gap-2">
           <div className="col-span-2">
-            <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+            <label className="block text-micro font-bold uppercase tracking-wider text-muted-foreground mb-1">
               City
             </label>
             <Input value={form.city} onChange={(e) => setForm(f => ({ ...f, city: e.target.value }))} />
           </div>
           <div>
-            <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+            <label className="block text-micro font-bold uppercase tracking-wider text-muted-foreground mb-1">
               State
             </label>
             <Input
@@ -260,7 +260,7 @@ export default function RegisterGym() {
 
         <div className="grid grid-cols-2 gap-2">
           <div>
-            <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+            <label className="block text-micro font-bold uppercase tracking-wider text-muted-foreground mb-1">
               ZIP / Postal
             </label>
             <Input
@@ -270,7 +270,7 @@ export default function RegisterGym() {
             />
           </div>
           <div>
-            <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+            <label className="block text-micro font-bold uppercase tracking-wider text-muted-foreground mb-1">
               Phone
             </label>
             <Input
@@ -283,7 +283,7 @@ export default function RegisterGym() {
         </div>
 
         <div>
-          <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+          <label className="block text-micro font-bold uppercase tracking-wider text-muted-foreground mb-1">
             Website
           </label>
           <Input
@@ -297,14 +297,14 @@ export default function RegisterGym() {
         {/* Location capture */}
         <div className="rounded-xl border border-dashed border-border p-3">
           <div className="flex items-center justify-between gap-2 mb-2">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+            <p className="text-micro font-bold uppercase tracking-wider text-muted-foreground">
               Pin location
             </p>
             <button
               type="button"
               onClick={captureLocation}
               disabled={geoLoading}
-              className="inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wide text-primary hover:bg-primary/10 px-2 py-1 rounded"
+              className="inline-flex items-center gap-1 text-micro font-bold uppercase tracking-wide text-primary hover:bg-primary/10 px-2 py-1 rounded"
             >
               {geoLoading
                 ? <Loader2 className="w-3 h-3 animate-spin" />
@@ -330,7 +330,7 @@ export default function RegisterGym() {
               placeholder="Longitude"
             />
           </div>
-          <p className="text-[10px] text-muted-foreground mt-1.5">
+          <p className="text-micro text-muted-foreground mt-1.5">
             Stand inside your gym + tap "Use my location" for the most accurate pin.
             Or leave blank — we can geocode from the address.
           </p>
@@ -340,7 +340,7 @@ export default function RegisterGym() {
           {submitting ? <Loader2 className="w-4 h-4 animate-spin me-2" /> : null}
           {submitting ? 'Submitting…' : 'Submit for review'}
         </Button>
-        <p className="text-[10px] text-muted-foreground text-center">
+        <p className="text-micro text-muted-foreground text-center">
           Approval typically takes 1–2 business days. We'll email you when your Flexyn Code is ready.
         </p>
       </form>

@@ -327,7 +327,7 @@ export default function Layout() {
                   key={hubUnreadCount}
                   initial={{ scale: 0.5, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
-                  className="absolute top-0.5 end-0.5 min-w-[16px] h-4 px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center"
+                  className="absolute top-0.5 end-0.5 min-w-[16px] h-4 px-1 rounded-full bg-destructive text-destructive-foreground text-micro font-bold flex items-center justify-center"
                 >
                   {hubUnreadCount > 9 ? '9+' : hubUnreadCount}
                 </motion.span>

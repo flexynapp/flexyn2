@@ -57,7 +57,7 @@ function CommunityProgress({ progress, tFallback }) {
         <p className="text-sm font-semibold">
           {tFallback('myGym.communityProgress', 'Community progress')}
         </p>
-        <span className="ms-auto text-[10px] text-muted-foreground">
+        <span className="ms-auto text-micro text-muted-foreground">
           Last 7 days
         </span>
       </div>
@@ -99,7 +99,7 @@ function CommunityProgress({ progress, tFallback }) {
           <div key={label} className="rounded-xl bg-secondary/50 px-2 py-2 text-center">
             <Icon className="w-3.5 h-3.5 text-muted-foreground mx-auto mb-1" />
             <p className="font-heading font-bold text-sm tabular-nums leading-none">{value}</p>
-            <p className="text-[10px] text-muted-foreground mt-0.5">{label}</p>
+            <p className="text-micro text-muted-foreground mt-0.5">{label}</p>
           </div>
         ))}
       </div>
@@ -144,7 +144,7 @@ function BoardRow({ entry, isMe, maxDays, delay }) {
         <p className="text-sm font-semibold truncate">
           {entry.username || 'Member'}
           {isMe && (
-            <span className="ms-1.5 text-[10px] font-bold text-primary">
+            <span className="ms-1.5 text-micro font-bold text-primary">
               YOU
             </span>
           )}
@@ -161,7 +161,7 @@ function BoardRow({ entry, isMe, maxDays, delay }) {
 
       <div className="text-end shrink-0">
         <p className="font-heading font-bold text-sm tabular-nums leading-none">{days}</p>
-        <p className="text-[10px] text-muted-foreground">
+        <p className="text-micro text-muted-foreground">
           {days === 1 ? 'day' : 'days'}
         </p>
       </div>
@@ -419,7 +419,7 @@ export default function MyGym() {
             it can be claimed — is what keeps a grey bubble from reading
             as a broken business listing. */}
         {isCommunity && (
-          <p className="mt-3 rounded-xl bg-secondary/60 px-3 py-2 text-[11px] text-muted-foreground">
+          <p className="mt-3 rounded-xl bg-secondary/60 px-3 py-2 text-micro text-muted-foreground">
             {tFallback(
               'myGym.communityNote',
               'Community gym — added by Flexyn members, not claimed by the business yet.',
@@ -438,7 +438,7 @@ export default function MyGym() {
             <p className="text-sm font-semibold">
               {tFallback('myGym.leaderboard', 'Gym leaderboard')}
             </p>
-            <p className="text-[10px] text-muted-foreground">
+            <p className="text-micro text-muted-foreground">
               {tFallback('myGym.rankedBy', 'Days trained · last 7 days')}
             </p>
           </div>
@@ -466,7 +466,7 @@ export default function MyGym() {
         )}
       </div>
 
-      <p className="text-[11px] text-muted-foreground text-center mt-4">
+      <p className="text-micro text-muted-foreground text-center mt-4">
         {tFallback(
           'myGym.footer',
           'Ranked by days trained, so showing up is what counts.',

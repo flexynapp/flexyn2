@@ -366,7 +366,7 @@ export default function RegimenForm({ initial, onSubmit, onCancel, userProfile =
                         <button
                           type="button"
                           onClick={() => toggleGroupType(groupId)}
-                          className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border transition-colors ${TYPE_BADGE[type] || TYPE_BADGE.superset}`}
+                          className={`text-micro font-black uppercase tracking-wider px-2 py-0.5 rounded-full border transition-colors ${TYPE_BADGE[type] || TYPE_BADGE.superset}`}
                           title="Click to toggle type"
                         >
                           {type === 'superset' ? 'Superset' : 'Circuit'}
@@ -384,24 +384,24 @@ export default function RegimenForm({ initial, onSubmit, onCancel, userProfile =
                     {/* Rest / round settings */}
                     <div className="flex items-center gap-4 px-3 py-2 border-b border-border/40 bg-background/40">
                       <div className="flex items-center gap-1.5">
-                        <span className="text-[10px] text-muted-foreground">Intra rest</span>
+                        <span className="text-micro text-muted-foreground">Intra rest</span>
                         <input
                           type="number" inputMode="decimal" min="0" max="300"
                           value={groupMeta.intra_rest_seconds ?? 15}
                           onChange={e => updateGroupMeta(groupId, 'intra_rest_seconds', Number(e.target.value) || 0)}
                           className="w-14 text-xs text-center rounded border border-border bg-background px-1 py-0.5 tabular-nums"
                         />
-                        <span className="text-[10px] text-muted-foreground">s</span>
+                        <span className="text-micro text-muted-foreground">s</span>
                       </div>
                       <div className="flex items-center gap-1.5">
-                        <span className="text-[10px] text-muted-foreground">Inter rest</span>
+                        <span className="text-micro text-muted-foreground">Inter rest</span>
                         <input
                           type="number" inputMode="decimal" min="0" max="600"
                           value={groupMeta.inter_rest_seconds ?? 90}
                           onChange={e => updateGroupMeta(groupId, 'inter_rest_seconds', Number(e.target.value) || 0)}
                           className="w-14 text-xs text-center rounded border border-border bg-background px-1 py-0.5 tabular-nums"
                         />
-                        <span className="text-[10px] text-muted-foreground">s</span>
+                        <span className="text-micro text-muted-foreground">s</span>
                       </div>
                       <div className="flex items-center gap-1.5">
                         <RotateCcw className="w-3 h-3 text-muted-foreground" />
@@ -411,7 +411,7 @@ export default function RegimenForm({ initial, onSubmit, onCancel, userProfile =
                           onChange={e => updateGroupMeta(groupId, 'round_count', Math.max(1, Number(e.target.value) || 1))}
                           className="w-10 text-xs text-center rounded border border-border bg-background px-1 py-0.5 tabular-nums"
                         />
-                        <span className="text-[10px] text-muted-foreground">rounds</span>
+                        <span className="text-micro text-muted-foreground">rounds</span>
                       </div>
                     </div>
 

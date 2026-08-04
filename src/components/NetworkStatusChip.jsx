@@ -36,7 +36,7 @@ export default function NetworkStatusChip() {
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -4 }}
         transition={{ duration: 0.18 }}
-        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${className}`}
+        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-micro font-semibold border ${className}`}
         role="status"
         aria-live="polite"
       >

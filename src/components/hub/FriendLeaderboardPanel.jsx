@@ -100,7 +100,7 @@ export default function FriendLeaderboardPanel() {
               onClick={(e) => { e.stopPropagation(); setMode(id); }}
               aria-pressed={mode === id}
               className={[
-                'px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider transition-colors flex items-center gap-1',
+                'px-2 py-1 rounded-md text-micro font-bold uppercase tracking-wider transition-colors flex items-center gap-1',
                 mode === id
                   ? 'bg-primary text-primary-foreground'
                   : 'bg-secondary text-muted-foreground hover:text-foreground',
@@ -120,12 +120,12 @@ export default function FriendLeaderboardPanel() {
       {expanded && (
       <div className="px-3 py-2">
         {isLoading && (
-          <div className="py-6 text-center text-[11px] text-muted-foreground">
+          <div className="py-6 text-center text-micro text-muted-foreground">
             {tFallback('friendLeaderboard.loading', 'Loading…')}
           </div>
         )}
         {!isLoading && rows.length === 0 && (
-          <div className="py-6 text-center text-[11px] text-muted-foreground">
+          <div className="py-6 text-center text-micro text-muted-foreground">
             {tFallback('friendLeaderboard.empty', 'Follow people back to start a leaderboard.')}
           </div>
         )}
@@ -166,7 +166,7 @@ export default function FriendLeaderboardPanel() {
                         {row.is_self ? (
                           <>
                             {row.username}
-                            <span className="ms-1.5 text-[9px] font-bold uppercase tracking-wider text-primary/80">
+                            <span className="ms-1.5 text-micro font-bold uppercase tracking-wider text-primary/80">
                               {tFallback('friendLeaderboard.you', 'You')}
                             </span>
                           </>

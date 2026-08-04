@@ -215,7 +215,7 @@ export default function WorkoutQuickGenerator({ userProfile = {}, onSaveRegimen,
             ))}
           </div>
           {cycleState && !feel && (
-            <p className="text-[11px] text-muted-foreground mt-1.5 leading-snug">
+            <p className="text-micro text-muted-foreground mt-1.5 leading-snug">
               {cycleState.phaseMeta.emoji} {cycleState.phaseMeta.label} phase · day {cycleState.dayOfCycle}.
               {' '}{tFallback('generator.feelOverride', 'Answer above and it will use that instead.')}
             </p>
@@ -231,7 +231,7 @@ export default function WorkoutQuickGenerator({ userProfile = {}, onSaveRegimen,
         <Sparkles className="w-4 h-4" />
         {tFallback('generator.generate', 'Generate')}
       </button>
-      <p className="text-[11px] text-muted-foreground mt-3 text-center leading-relaxed">
+      <p className="text-micro text-muted-foreground mt-3 text-center leading-relaxed">
         {isCardio
           ? tFallback('generator.cardioNote', 'Saves to your Regimens — run it live from the Cardio tab.')
           : isHiit

@@ -18,7 +18,7 @@ export function autoPickMealType(now = new Date()) {
 }
 
 export default function MealTypePicker({ value, onChange, size = 'sm', className = '' }) {
-  const pad = size === 'sm' ? 'px-2.5 py-1 text-[11px]' : 'px-3 py-1.5 text-xs';
+  const pad = size === 'sm' ? 'px-2.5 py-1 text-micro' : 'px-3 py-1.5 text-xs';
   return (
     <div role="radiogroup" aria-label="Meal type" className={`flex gap-1 ${className}`}>
       {MEAL_TYPES.map(({ id, label, icon: Icon }) => {

@@ -70,7 +70,7 @@ export default function LiveVolumePill({ exercises = [], includeBarWeight = fals
       >
         <AnimatedNumber motionValue={motionValue} unit={weightUnit} />
       </motion.span>
-      <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
+      <span className="text-micro text-muted-foreground uppercase tracking-wider">
         {weightUnit === 'kg' ? 'kg' : 'lb'} vol
       </span>
     </motion.div>

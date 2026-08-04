@@ -137,11 +137,11 @@ export default function PhotoCompareSlider({ photos, onClose }) {
       {/* Pickers */}
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">Before</p>
+          <p className="text-micro font-bold uppercase tracking-wider text-muted-foreground mb-1.5">Before</p>
           <PhotoPicker photos={photos} selected={beforeId} onSelect={setBeforeId} label="Choose before" language={language} />
         </div>
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">After</p>
+          <p className="text-micro font-bold uppercase tracking-wider text-muted-foreground mb-1.5">After</p>
           <PhotoPicker photos={photos} selected={afterId} onSelect={setAfterId} label="Choose after" language={language} />
         </div>
       </div>
@@ -194,18 +194,18 @@ export default function PhotoCompareSlider({ photos, onClose }) {
 
             {/* Labels */}
             <div className="absolute top-2 start-2 pointer-events-none">
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-black/60 text-white">
+              <span className="text-micro font-bold px-2 py-0.5 rounded-md bg-black/60 text-white">
                 BEFORE · {format(new Date(beforePhoto.takenAt), 'MMM d, yyyy', { locale: dateLocale })}
               </span>
             </div>
             <div className="absolute top-2 end-2 pointer-events-none">
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-black/60 text-white">
+              <span className="text-micro font-bold px-2 py-0.5 rounded-md bg-black/60 text-white">
                 AFTER · {format(new Date(afterPhoto.takenAt), 'MMM d, yyyy', { locale: dateLocale })}
               </span>
             </div>
           </div>
 
-          <p className="text-center text-[10px] text-muted-foreground py-2">
+          <p className="text-center text-micro text-muted-foreground py-2">
             Drag the divider to compare
           </p>
         </Card>

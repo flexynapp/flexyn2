@@ -425,7 +425,7 @@ export default function LeaderboardsContent({ active = true }) {
               value={period}
               onChange={(e) => setPeriod(e.target.value)}
               aria-label={tFallback('leaderboards.periodLabel', 'Time period')}
-              className="shrink-0 rounded-lg bg-secondary border border-border/60 px-2 py-1 text-[11px] font-bold text-foreground"
+              className="shrink-0 rounded-lg bg-secondary border border-border/60 px-2 py-1 text-micro font-bold text-foreground"
             >
               {PERIODS.map(p => (
                 <option key={p.id} value={p.id}>{tFallback(p.key, p.fallback)}</option>
@@ -446,7 +446,7 @@ export default function LeaderboardsContent({ active = true }) {
                 key={b.id}
                 onClick={() => setActiveBoard(b.id)}
                 aria-pressed={isActive}
-                className={`flex flex-col items-center justify-center gap-0.5 py-1.5 rounded-lg text-[10px] font-bold transition-colors min-w-0 ${
+                className={`flex flex-col items-center justify-center gap-0.5 py-1.5 rounded-lg text-micro font-bold transition-colors min-w-0 ${
                   isActive
                     ? 'bg-card shadow-sm text-foreground'
                     : 'text-muted-foreground hover:text-foreground'
@@ -542,7 +542,7 @@ export default function LeaderboardsContent({ active = true }) {
                       aria-label={tFallback('leaderboards.showHidden', 'Show {n} hidden athletes', { n: entry.count })}
                     >
                       <Ellipsis className="w-5 h-5" aria-hidden="true" />
-                      <span className="text-[11px] font-medium tabular-nums">{entry.count}</span>
+                      <span className="text-micro font-medium tabular-nums">{entry.count}</span>
                     </button>
                   );
                 }
@@ -572,14 +572,14 @@ export default function LeaderboardsContent({ active = true }) {
                             {isMe ? t('progress.you') : row.full_name}
                           </p>
                           {isMe && (
-                            <p className="text-[11px] text-muted-foreground truncate">{row.full_name}</p>
+                            <p className="text-micro text-muted-foreground truncate">{row.full_name}</p>
                           )}
                         </div>
                         {/* Movement since the last refresh. Trend arrows are
                             what make a board worth reopening. */}
                         {delta ? (
                           <span
-                            className={`flex items-center gap-0.5 text-[11px] font-bold tabular-nums ${
+                            className={`flex items-center gap-0.5 text-micro font-bold tabular-nums ${
                               delta > 0 ? 'text-emerald-500' : 'text-rose-500'
                             }`}
                             aria-label={tFallback(
@@ -643,7 +643,7 @@ export default function LeaderboardsContent({ active = true }) {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-heading font-bold text-sm truncate">{t('progress.you')}</p>
-                        <p className="text-[11px] text-muted-foreground truncate">
+                        <p className="text-micro text-muted-foreground truncate">
                           {tFallback('leaderboards.outsideTop', 'Outside the top {n}', { n: ranked.length })}
                         </p>
                       </div>

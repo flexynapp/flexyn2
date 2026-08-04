@@ -124,7 +124,7 @@ function CollapsedPill({ secondsLeft, progress, isFinishing, isDone, fmtTime, on
           onClick={onExpand}
           className="flex-1 text-center px-2 py-1 rounded-xl hover:bg-white/5 active:bg-white/10 transition-colors"
         >
-          <div className="text-[9px] font-semibold tracking-[0.2em] uppercase opacity-80 leading-none mb-0.5">
+          <div className="text-micro font-semibold tracking-[0.2em] uppercase opacity-80 leading-none mb-0.5">
             {isDone ? t('restTimer.done') : t('restTimer.rest')}
           </div>
           <div className="font-heading font-bold text-2xl tabular-nums leading-none">
@@ -179,7 +179,7 @@ function ExpandedPanel({ onCollapse, defaultDuration, setDefaultDuration, soundE
       </div>
 
       <div className="mb-4">
-        <span className="block text-[10px] font-semibold tracking-[0.18em] uppercase text-muted-foreground mb-2">
+        <span className="block text-micro font-semibold tracking-[0.18em] uppercase text-muted-foreground mb-2">
           {t('restTimer.defaultRest')}
         </span>
         <div className="grid grid-cols-3 gap-1.5">
@@ -207,7 +207,7 @@ function ExpandedPanel({ onCollapse, defaultDuration, setDefaultDuration, soundE
           30/30 and 40/20 cover broad HIIT territory; EMOM = "every
           minute on the minute" = 60s rest interval. */}
       <div className="mb-4">
-        <span className="block text-[10px] font-semibold tracking-[0.18em] uppercase text-muted-foreground mb-2">
+        <span className="block text-micro font-semibold tracking-[0.18em] uppercase text-muted-foreground mb-2">
           HIIT presets
         </span>
         <div className="grid grid-cols-2 gap-1.5">
@@ -273,7 +273,7 @@ function ExpandedPanel({ onCollapse, defaultDuration, setDefaultDuration, soundE
       </button>
 
       {voiceCuesEnabled && (
-        <p className="text-[11px] text-muted-foreground mt-2 px-1 leading-relaxed">
+        <p className="text-micro text-muted-foreground mt-2 px-1 leading-relaxed">
           {tFallback('restTimer.voiceHint', `Hands-free coaching: rest start, 3-2-1 countdown, "time's up". Plug in your headphones.`)}
         </p>
       )}

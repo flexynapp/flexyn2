@@ -53,9 +53,9 @@ function RecipeDetails({ recipe }) {
   const ings = Array.isArray(recipe.ingredients) ? recipe.ingredients : [];
   const micros = Array.isArray(recipe.micros) ? recipe.micros : [];
   return (
-    <div className="mt-2 pt-2 border-t border-border/60 space-y-2 text-[12px]">
+    <div className="mt-2 pt-2 border-t border-border/60 space-y-2 text-caption">
       <div>
-        <p className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground mb-1">Ingredients</p>
+        <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground mb-1">Ingredients</p>
         <ul className="space-y-0.5">
           {ings.map((ing, i) => (
             <li key={i} className="flex justify-between gap-2">
@@ -69,10 +69,10 @@ function RecipeDetails({ recipe }) {
       </div>
       {micros.length > 0 && (
         <div>
-          <p className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground mb-1">Nutrients</p>
+          <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground mb-1">Nutrients</p>
           <div className="flex flex-wrap gap-1">
             {micros.map((m, i) => (
-              <span key={i} className="px-1.5 py-0.5 rounded-full bg-secondary/50 text-[11px]">
+              <span key={i} className="px-1.5 py-0.5 rounded-full bg-secondary/50 text-micro">
                 {m.label}: {m.amount}{m.unit}
               </span>
             ))}
@@ -81,7 +81,7 @@ function RecipeDetails({ recipe }) {
       )}
       {recipe.directions && (
         <div>
-          <p className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground mb-1">Directions</p>
+          <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground mb-1">Directions</p>
           <p className="whitespace-pre-wrap text-muted-foreground">{recipe.directions}</p>
         </div>
       )}
@@ -217,7 +217,7 @@ export default function RecipesHubModal({ open, onClose, userProfile }) {
                   <button
                     key={t.id}
                     onClick={() => setTab(t.id)}
-                    className={`h-8 rounded-md text-[13px] font-semibold transition-colors ${
+                    className={`h-8 rounded-md text-label font-semibold transition-colors ${
                       tab === t.id ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground'
                     }`}
                   >
@@ -258,7 +258,7 @@ export default function RecipesHubModal({ open, onClose, userProfile }) {
                                   <span className="truncate">{recipe.name}</span>
                                   {recipe.is_public && <Globe className="w-3 h-3 text-emerald-500 shrink-0" />}
                                 </span>
-                                <span className="block text-[11px] text-muted-foreground mt-0.5">
+                                <span className="block text-micro text-muted-foreground mt-0.5">
                                   {perServingCals(recipe)} cal/serving · {macroLine(recipe)}
                                   {Number(recipe.servings) > 1 ? ` · ${recipe.servings} servings` : ''}
                                 </span>
@@ -306,7 +306,7 @@ export default function RecipesHubModal({ open, onClose, userProfile }) {
                     const postable = myRecipes.filter(r => !r.is_public);
                     return (
                       <div className="mb-3 rounded-lg border border-border p-2">
-                        <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground px-1 mb-1.5">
+                        <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground px-1 mb-1.5">
                           Choose a recipe to post
                         </p>
                         {postable.length === 0 ? (
@@ -327,7 +327,7 @@ export default function RecipesHubModal({ open, onClose, userProfile }) {
                                 <RecipeThumb recipe={recipe} className="w-9 h-9" />
                                 <span className="flex-1 min-w-0">
                                   <span className="block text-sm font-semibold truncate">{recipe.name}</span>
-                                  <span className="block text-[11px] text-muted-foreground">{perServingCals(recipe)} cal/serving</span>
+                                  <span className="block text-micro text-muted-foreground">{perServingCals(recipe)} cal/serving</span>
                                 </span>
                                 {busyId === recipe.id
                                   ? <Loader2 className="w-4 h-4 animate-spin text-primary" />
@@ -359,7 +359,7 @@ export default function RecipesHubModal({ open, onClose, userProfile }) {
                                 <RecipeThumb recipe={recipe} />
                                 <span className="min-w-0">
                                   <span className="block font-semibold text-sm leading-tight truncate">{recipe.name}</span>
-                                  <span className="block text-[11px] text-muted-foreground mt-0.5">
+                                  <span className="block text-micro text-muted-foreground mt-0.5">
                                     {perServingCals(recipe)} cal/serving · {macroLine(recipe)}
                                     {recipe.author_username ? ` · by ${recipe.author_username}` : ''}
                                   </span>

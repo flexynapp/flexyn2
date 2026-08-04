@@ -25,7 +25,7 @@ export default function PageHeader({ kicker, title, subtitle, action, className 
     >
       <div className="min-w-0 flex-1">
         {kicker && (
-          <span className="block text-[10px] font-semibold tracking-[0.2em] uppercase text-muted-foreground mb-1.5">
+          <span className="block text-micro font-semibold tracking-[0.2em] uppercase text-muted-foreground mb-1.5">
             {kicker}
           </span>
         )}

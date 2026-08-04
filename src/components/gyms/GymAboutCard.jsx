@@ -103,7 +103,7 @@ export default function GymAboutCard({ gym }) {
               className="w-full flex items-center justify-between gap-2 text-start"
               aria-expanded={expandedDay}
             >
-              <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              <span className="flex items-center gap-1.5 text-micro font-bold uppercase tracking-wider text-muted-foreground">
                 <Clock className="w-3 h-3" /> Hours
               </span>
               {todayLine && (
@@ -133,7 +133,7 @@ export default function GymAboutCard({ gym }) {
         {/* Amenities */}
         {showAmenities && (
           <div>
-            <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2">
+            <p className="flex items-center gap-1.5 text-micro font-bold uppercase tracking-wider text-muted-foreground mb-2">
               <Wifi className="w-3 h-3" /> Amenities
             </p>
             <div className="flex flex-wrap gap-1.5">
@@ -142,7 +142,7 @@ export default function GymAboutCard({ gym }) {
                 return (
                   <span
                     key={slug}
-                    className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-medium bg-secondary/60 border border-border"
+                    className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-micro font-medium bg-secondary/60 border border-border"
                   >
                     <span aria-hidden="true">{meta.emoji}</span>
                     {meta.label}

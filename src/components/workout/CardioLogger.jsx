@@ -85,7 +85,7 @@ export default function CardioLogger({ exercise, onChange, gender }) {
             </span>
             <div className="flex-1 min-w-0">
               <p className="font-medium text-sm leading-tight truncate">{emoji} {activity.name}</p>
-              {summary && <p className="text-[11px] text-muted-foreground mt-0.5 truncate">{summary}</p>}
+              {summary && <p className="text-micro text-muted-foreground mt-0.5 truncate">{summary}</p>}
             </div>
             <button
               type="button"
@@ -126,7 +126,7 @@ export default function CardioLogger({ exercise, onChange, gender }) {
       </div>
 
       {/* Split column headers */}
-      <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wide text-muted-foreground px-1 mb-1">
+      <div className="flex items-center gap-2 text-micro font-bold uppercase tracking-wide text-muted-foreground px-1 mb-1">
         {segments.length > 1 && <span className="w-6 text-center">#</span>}
         <span className="flex-1 text-center">Duration (min)</span>
         <span className="flex-1 text-center">Distance ({distanceUnit})</span>

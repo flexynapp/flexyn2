@@ -78,7 +78,7 @@ export default function WeeklyGauntletCard({
       >
         <div className="flex items-start justify-between gap-2 mb-1">
           <div>
-            <span className="text-[10px] font-bold uppercase tracking-widest text-purple-400 mb-1 block">
+            <span className="text-micro font-bold uppercase tracking-widest text-purple-400 mb-1 block">
               Community Gauntlet
             </span>
             <h3 className="text-base font-bold leading-tight">{gauntlet.title}</h3>
@@ -181,7 +181,7 @@ export default function WeeklyGauntletCard({
 
       {/* flavor text */}
       <div className="px-4 pb-3">
-        <p className="text-[11px] italic text-muted-foreground/60 text-center">
+        <p className="text-micro italic text-muted-foreground/60 text-center">
           "{gauntlet.flavor_text}"
         </p>
       </div>

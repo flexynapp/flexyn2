@@ -130,7 +130,7 @@ export default function WaterTracker({ waterOz = 0, userProfile = {}, waterUnit 
             >
               {fmt(animatedOz)}
             </motion.span>
-            <span className="text-[9px] font-medium text-muted-foreground leading-tight">{waterUnit}</span>
+            <span className="text-micro font-medium text-muted-foreground leading-tight">{waterUnit}</span>
           </div>
         </div>
 
@@ -153,7 +153,7 @@ export default function WaterTracker({ waterOz = 0, userProfile = {}, waterUnit 
               transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
             />
           </div>
-          <p className="text-[10px] text-muted-foreground mt-1">
+          <p className="text-micro text-muted-foreground mt-1">
             {Math.round(animatedProgress)}% {t('progress.title') || 'of daily goal'}
           </p>
         </div>

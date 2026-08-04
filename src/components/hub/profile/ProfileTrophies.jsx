@@ -102,7 +102,7 @@ export default function ProfileTrophies({
                     <>
                       <Plus className={`w-4 h-4 ${isPrimary ? 'text-primary/70' : 'text-primary/50'}`} />
                       {isPrimary && (
-                        <span className="text-[9px] font-bold uppercase tracking-wider text-primary/80 dark:text-primary/80 leading-none">
+                        <span className="text-micro font-bold uppercase tracking-wider text-primary/80 dark:text-primary/80 leading-none">
                           {tFallback('hub.profile.primaryShort', 'Primary')}
                         </span>
                       )}

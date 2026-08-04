@@ -112,7 +112,7 @@ function ChallengeDetail({ challenge, status, completedAt, onClose, onStartWorko
             {challenge.sequence_number}
           </div>
           <div className="flex-1 min-w-0">
-            <span className={`text-[10px] font-bold uppercase tracking-widest block mb-0.5 ${
+            <span className={`text-micro font-bold uppercase tracking-widest block mb-0.5 ${
               isLocked ? 'text-muted-foreground/30' : 'text-muted-foreground'
             }`}>
               {(() => {

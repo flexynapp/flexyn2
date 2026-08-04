@@ -76,9 +76,9 @@ export default function JournalHistoryModal({ userId, activeDate, onClose, onPic
                       className={`w-full text-start px-4 py-3 transition-colors ${isActive ? 'bg-primary/10' : 'hover:bg-secondary/40'}`}
                     >
                       <div className="flex items-center justify-between gap-2">
-                        <span className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">{label}</span>
+                        <span className="text-micro font-bold uppercase tracking-wide text-muted-foreground">{label}</span>
                         {e.attachmentCount > 0 && (
-                          <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                          <span className="text-micro text-muted-foreground flex items-center gap-0.5">
                             <Paperclip className="w-3 h-3" /> {e.attachmentCount}
                           </span>
                         )}

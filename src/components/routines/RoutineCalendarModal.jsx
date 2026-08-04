@@ -74,8 +74,8 @@ export default function RoutineCalendarModal({ open, onClose }) {
               return (
                 <div key={idx} className={`flex items-center gap-3 rounded-2xl border p-3 ${isToday ? 'border-primary/60 bg-primary/[0.04]' : 'border-border'}`}>
                   <div className="w-10 shrink-0 text-center">
-                    <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">{DAY_NAMES[idx]}</p>
-                    {isToday && <p className="text-[9px] font-bold text-primary">TODAY</p>}
+                    <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground">{DAY_NAMES[idx]}</p>
+                    {isToday && <p className="text-micro font-bold text-primary">TODAY</p>}
                   </div>
                   <div className="flex-1 min-w-0">
                     {day.isRest ? (
@@ -83,7 +83,7 @@ export default function RoutineCalendarModal({ open, onClose }) {
                     ) : (
                       <>
                         <p className="font-heading font-bold text-sm truncate">{day.label || DAY_NAMES_FULL[idx]}</p>
-                        <p className="text-[11px] text-muted-foreground">{day.exercises?.length || 0} exercise{(day.exercises?.length || 0) === 1 ? '' : 's'}</p>
+                        <p className="text-micro text-muted-foreground">{day.exercises?.length || 0} exercise{(day.exercises?.length || 0) === 1 ? '' : 's'}</p>
                       </>
                     )}
                   </div>

@@ -112,7 +112,7 @@ export default function AddToHighlightModal({ open, onClose, storyId }) {
           </div>
 
           <div className="border-t border-border mt-3 pt-3">
-            <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
+            <label className="block text-micro font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
               {tFallback('highlight.orCreate', 'Or create a new album')}
             </label>
             <div className="flex gap-2">
