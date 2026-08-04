@@ -37,7 +37,7 @@ import StoryOverlayRenderer from './StoryOverlayRenderer';
 const STORY_DURATION_MS = 8000;
 
 const FONT_MAP = {
-  normal:  "'Inter', system-ui, sans-serif",
+  normal:  "'Figtree', system-ui, sans-serif",
   serious: "Georgia, 'Times New Roman', serif",
   casual:  "'Comic Sans MS', 'Chalkboard SE', cursive",
 };

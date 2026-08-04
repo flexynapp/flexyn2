@@ -77,7 +77,7 @@ export default function LoginStreakBanner({ variant = 'default' }) {
           </span>
           <span className={onHero ? 'text-white/75' : 'text-muted-foreground'}> {streak === 1 ? t('dashboard.dayStreak') : t('dashboard.daysStreak')}</span>
           {isPersonalBest && (
-            <span className={`ms-1.5 text-[9px] font-bold uppercase tracking-wider ${onHero ? 'text-orange-300' : 'text-orange-500'}`}>
+            <span className={`ms-1.5 text-micro font-bold uppercase tracking-wider ${onHero ? 'text-orange-300' : 'text-orange-500'}`}>
               {t('dashboard.best')}
             </span>
           )}

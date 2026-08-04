@@ -194,7 +194,7 @@ function FeatVisualRecovery({ accent }) {
         alignItems: 'center', justifyContent: 'center',
       }}>
         <div style={{
-          fontFamily: 'var(--font-heading, "Space Grotesk", sans-serif)', fontSize: 28, fontWeight: 800,
+          fontFamily: 'var(--font-heading, Archivo, sans-serif)', fontSize: 28, fontWeight: 800,
           color: 'hsl(var(--foreground))', letterSpacing: '-0.04em', lineHeight: 1,
           overflow: 'hidden', height: '1em',
         }}>
@@ -222,7 +222,7 @@ function FeatVisualStreak({ accent }) {
         </svg>
         <div style={{
           position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontFamily: 'var(--font-heading, "Space Grotesk", sans-serif)', fontSize: 26, fontWeight: 800, color: 'white',
+          fontFamily: 'var(--font-heading, Archivo, sans-serif)', fontSize: 26, fontWeight: 800, color: 'white',
           textShadow: '0 2px 6px rgba(0,0,0,0.35)', paddingTop: 10, overflow: 'hidden',
         }}>
           <span style={{ display: 'block', animation: 'ob-streak-roll 0.7s 0.5s cubic-bezier(0.16,1,0.3,1) both' }}>47</span>

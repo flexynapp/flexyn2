@@ -127,7 +127,7 @@ export default function LeagueCard({ onClick, stretch = false }) {
           <div className="flex items-center gap-2 w-full">
             <span className="text-base drop-shadow shrink-0" aria-hidden="true">{tier.icon}</span>
             <div className="flex-1 min-w-0">
-              <p className="text-[8px] font-bold uppercase tracking-wider opacity-90 leading-tight">
+              <p className="text-micro font-bold uppercase tracking-wider opacity-90 leading-tight">
                 {/* Composed via a vars-aware tFallback key so
                     translators control the word order. Spanish would
                     render "Liga Bronce", Japanese "ブロンズリーグ",
@@ -154,7 +154,7 @@ export default function LeagueCard({ onClick, stretch = false }) {
                 >
                   #{myRank ?? tFallback('common.dash', '—')}
                   {totalMembers > 0 && (
-                    <span className="text-[10px] font-normal opacity-75 ms-0.5">/{totalMembers}</span>
+                    <span className="text-micro font-normal opacity-75 ms-0.5">/{totalMembers}</span>
                   )}
                 </motion.span>
 
@@ -167,7 +167,7 @@ export default function LeagueCard({ onClick, stretch = false }) {
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: rankDelta < 0 ? -6 : 6, scale: 0.8 }}
                       transition={{ type: 'spring', stiffness: 320, damping: 22 }}
-                      className={`text-[9px] font-bold leading-none px-1 py-0.5 rounded-full ${
+                      className={`text-micro font-bold leading-none px-1 py-0.5 rounded-full ${
                         rankDelta < 0
                           ? 'bg-emerald-500/30 text-emerald-200'
                           : 'bg-red-500/30 text-red-200'
@@ -180,7 +180,7 @@ export default function LeagueCard({ onClick, stretch = false }) {
               </div>
             </div>
             <div className="text-end shrink-0">
-              <p className="text-[8px] uppercase tracking-wider opacity-80 leading-none">
+              <p className="text-micro uppercase tracking-wider opacity-80 leading-none">
                 {tFallback('league.daysLeft', 'Left')}
               </p>
               <p className="font-heading font-bold text-sm leading-none mt-0.5 tabular-nums">{daysLeft}{tFallback('league.daySuffix', 'd')}</p>
@@ -200,10 +200,10 @@ export default function LeagueCard({ onClick, stretch = false }) {
         {globalRank != null && (
           <div className="shrink-0 px-2.5 py-1 border-t border-border/50 flex items-center gap-1.5 min-w-0">
             <Globe className="w-2.5 h-2.5 text-muted-foreground shrink-0" aria-hidden="true" />
-            <span className="text-[9px] font-bold tabular-nums shrink-0">
+            <span className="text-micro font-bold tabular-nums shrink-0">
               #{fmt(globalRank)}
             </span>
-            <span className="text-[9px] text-muted-foreground truncate">
+            <span className="text-micro text-muted-foreground truncate">
               {gap != null && ahead
                 ? tFallback('league.globalGap', 'globally · {n} XP behind {name}', {
                     n: fmt(gap),

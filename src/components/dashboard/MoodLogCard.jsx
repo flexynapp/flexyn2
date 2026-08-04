@@ -115,7 +115,7 @@ export default function MoodLogCard() {
       className="h-full"
     >
       <Card className="px-3 py-3 h-full min-h-[104px] flex flex-col justify-center gap-2">
-        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+        <p className="text-micro font-bold uppercase tracking-[0.18em] text-muted-foreground">
           {(() => {
             if (!current) return tFallback('mood.prompt', 'How are you feeling?');
             // `safe` is clamped 1-5 above, MOOD_LABELS has 5 entries,

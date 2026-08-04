@@ -160,11 +160,11 @@ export default function DailyQuote({ editMode = false }) {
         {ordered.length > 1 && (
           <div className="mt-2 flex items-center justify-center gap-2">
             {onDay ? (
-              <span className="text-[10px] text-muted-foreground/60 tracking-wide">
+              <span className="text-micro text-muted-foreground/60 tracking-wide">
                 {tFallback('quotes.swipeHint', 'Swipe for more')}
               </span>
             ) : (
-              <span className="text-[10px] text-muted-foreground/60 tracking-wide tabular-nums">
+              <span className="text-micro text-muted-foreground/60 tracking-wide tabular-nums">
                 {safeIndex + 1} / {ordered.length}
               </span>
             )}

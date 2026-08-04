@@ -246,7 +246,7 @@ export default function DailyQuestsCard({ onNavigated }) {
         <div className="flex items-center gap-2 min-w-0">
           <Sparkles className="w-4 h-4 text-primary shrink-0" />
           <h3 className="font-heading font-bold text-sm tracking-tight truncate">{t('dashboard.dailyQuests')}</h3>
-          <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">
+          <span className="text-micro text-muted-foreground tabular-nums shrink-0">
             {completedCount}/{annotated.length}
           </span>
         </div>
@@ -254,7 +254,7 @@ export default function DailyQuestsCard({ onNavigated }) {
           <motion.div
             initial={{ scale: 0.85, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/15 text-primary text-[11px] font-bold"
+            className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/15 text-primary text-micro font-bold"
           >
             <Coins className="w-3 h-3" />
             +{claimableCoins} {t('dashboard.ready')}
@@ -278,7 +278,7 @@ export default function DailyQuestsCard({ onNavigated }) {
       )}
 
       {!collapsed && claimedCount === annotated.length && (
-        <div className="mt-3 text-[11px] text-center text-muted-foreground">
+        <div className="mt-3 text-micro text-center text-muted-foreground">
           {t('dashboard.allQuestsClaimed')}
         </div>
       )}
@@ -351,13 +351,13 @@ function QuestRow({ quest, onClaim, onGo, t, tFallback }) {
           <div className="flex items-center gap-1.5">
             <p className="font-medium text-sm truncate">{label}</p>
             <span
-              className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded"
+              className="text-micro font-bold uppercase tracking-wider px-1.5 py-0.5 rounded"
               style={{ background: `${diffMeta.color}22`, color: diffMeta.color }}
             >
               {t(`quest.difficulty.${quest.difficulty}`)}
             </span>
           </div>
-          <p className="text-[11px] text-muted-foreground tabular-nums">
+          <p className="text-micro text-muted-foreground tabular-nums">
             {quest.progress}/{quest.target} · {quest.coin_reward} {tFallback('hub.coins', 'coins')}
           </p>
         </div>

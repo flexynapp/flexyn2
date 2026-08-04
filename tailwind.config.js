@@ -8,6 +8,28 @@ module.exports = {
   			heading: ['var(--font-heading)'],
   			body: ['var(--font-body)']
   		},
+  		// ── Type ramp ────────────────────────────────────────────────
+  		// Six named steps, defined once WITH their line-height and
+  		// tracking so vertical rhythm can't drift per call-site. See the
+  		// long note in src/index.css for why the floor is 11px.
+  		//
+  		// These are ADDITIVE — Tailwind's numeric scale (text-xs … text-4xl)
+  		// still exists and is still correct for one-off display sizes.
+  		// What they replace is the 95 arbitrary `text-[Npx]` values that
+  		// had accumulated on the dashboard.
+  		//
+  		// Naming note: none of these six collide with a color token, so
+  		// `text-title` can never be ambiguous with a `text-<color>` utility.
+  		fontSize: {
+  			display: ['var(--text-display)', { lineHeight: '1.05', letterSpacing: '-0.021em' }],
+  			title: ['var(--text-title)', { lineHeight: '1.2', letterSpacing: '-0.011em' }],
+  			body: ['var(--text-body)', { lineHeight: '1.45' }],
+  			label: ['var(--text-label)', { lineHeight: '1.35' }],
+  			caption: ['var(--text-caption)', { lineHeight: '1.3' }],
+  			// Tracking opens up as size drops — tight spacing is what makes
+  			// small grotesque text turn to mud.
+  			micro: ['var(--text-micro)', { lineHeight: '1.25', letterSpacing: '0.017em' }]
+  		},
   		borderRadius: {
   			lg: 'var(--radius)',
   			md: 'calc(var(--radius) - 2px)',

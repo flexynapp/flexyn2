@@ -99,11 +99,11 @@ export default function WorkoutMemoryCard({ logs = [] }) {
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-purple-500">
+                <span className="text-micro font-bold uppercase tracking-[0.18em] text-purple-500">
                   {tFallback(`memory.label.${memory.yearLabel.replace(/\s+/g, '_')}`, memory.yearLabel)}
                 </span>
                 {dateStr && (
-                  <span className="text-[10px] text-muted-foreground tabular-nums">
+                  <span className="text-micro text-muted-foreground tabular-nums">
                     · {dateStr}
                   </span>
                 )}
@@ -111,7 +111,7 @@ export default function WorkoutMemoryCard({ logs = [] }) {
               <p className="text-sm font-heading font-bold leading-tight mt-0.5 truncate">
                 {summary || tFallback('memory.youTrained', 'You trained on this day')}
               </p>
-              <p className="text-[11px] text-muted-foreground leading-snug mt-0.5">
+              <p className="text-micro text-muted-foreground leading-snug mt-0.5">
                 {tFallback('memory.replayHint', 'Hit the gym today to top it.')}
               </p>
             </div>

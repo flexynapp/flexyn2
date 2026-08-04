@@ -371,7 +371,7 @@ export default function WeeklyRecapShareCard({ open, onClose, recap, username })
               {tFallback('recap.share.share', 'Share')}
             </Button>
           </div>
-          <p className="text-[11px] text-muted-foreground mt-3 text-center">
+          <p className="text-micro text-muted-foreground mt-3 text-center">
             {tFallback('recap.share.hint', 'Posts to Instagram, TikTok, or download for anywhere else.')}
           </p>
         </div>

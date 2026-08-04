@@ -145,11 +145,11 @@ export default function ResumeWorkoutBanner() {
           <History className="w-4 h-4 text-primary" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-primary">
+          <p className="text-micro font-bold uppercase tracking-[0.15em] text-primary">
             {tFallback('workout.resumeKicker', 'Resume')}
           </p>
           <p className="text-sm font-heading font-bold truncate">{title}</p>
-          <p className="text-[11px] text-muted-foreground truncate">
+          <p className="text-micro text-muted-foreground truncate">
             {exCount > 0 && `${exCount} ${tFallback(exCount === 1 ? 'workout.resumeExerciseOne' : 'workout.resumeExerciseMany', exCount === 1 ? 'exercise' : 'exercises')}`}
             {setCount > 0 && ` · ${setCount} ${tFallback(setCount === 1 ? 'workout.resumeSetOne' : 'workout.resumeSetMany', setCount === 1 ? 'set logged' : 'sets logged')}`}
             {' · '}{relative}
@@ -168,7 +168,7 @@ export default function ResumeWorkoutBanner() {
             : tFallback('workout.resumeDiscardAria', 'Discard paused workout')}
         >
           {confirmDiscardId === session.id ? (
-            <span className="text-[11px] font-bold">{tFallback('common.confirm', 'Confirm?')}</span>
+            <span className="text-micro font-bold">{tFallback('common.confirm', 'Confirm?')}</span>
           ) : (
             <X className="w-4 h-4" />
           )}

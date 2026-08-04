@@ -8,9 +8,35 @@
 
 @layer base {
   :root {
-    --font-heading: 'Space Grotesk', sans-serif;
-    --font-body: 'Inter', sans-serif;
-    --font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', 'Space Grotesk', monospace;
+    /* ── Typefaces ───────────────────────────────────────────────────
+       See the <head> comment in index.html for why these two and not
+       Space Grotesk + Inter. Keep the generic fallbacks metric-adjacent
+       so the swap-in on cold load doesn't reflow headings. */
+    --font-heading: 'Archivo', 'Helvetica Neue', Arial, sans-serif;
+    --font-body: 'Figtree', system-ui, -apple-system, sans-serif;
+    --font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', monospace;
+
+    /* ── Type ramp ───────────────────────────────────────────────────
+       SIX steps. That is the whole scale — anything that needs to
+       recede does it with weight and color, not by inventing a new
+       size. The dashboard previously carried ~13 distinct sizes, 95 of
+       them arbitrary `text-[Npx]` values reaching down to 8px.
+
+       `micro` is the FLOOR at 11px. iOS drops below legibility under
+       that, and 8-10px body text is both an accessibility failure and
+       one of the loudest "generated UI" tells — the model reaches for a
+       smaller size where a designer would reach for a lighter weight.
+
+       Consumed via Tailwind's fontSize scale (tailwind.config.js), which
+       pairs each step with its line-height and tracking so the rhythm
+       can't drift per call-site. Declared here too so non-Tailwind
+       call-sites (inline styles, canvas share-cards) can read them. */
+    --text-display: 2rem;      /* 32px — one per screen, hero numerals  */
+    --text-title: 1.25rem;     /* 20px — section + card titles          */
+    --text-body: 0.9375rem;    /* 15px — default reading size           */
+    --text-label: 0.8125rem;   /* 13px — supporting / secondary         */
+    --text-caption: 0.75rem;   /* 12px — metadata, units                */
+    --text-micro: 0.6875rem;   /* 11px — FLOOR. badges only.            */
 
     --background: 30 20% 97%;
     --foreground: 210 20% 12%;

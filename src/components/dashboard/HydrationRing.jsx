@@ -156,13 +156,13 @@ export default function HydrationRing({ goalOz = DEFAULT_GOAL_OZ }) {
             </div>
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-cyan-500">
+            <p className="text-micro font-bold uppercase tracking-[0.18em] text-cyan-500">
               {tFallback('hydration.kicker', 'Hydration')}
             </p>
             <p className="text-sm font-heading font-bold leading-tight tabular-nums">
               {Math.round(totalOz)} / {goalOz} <span className="text-xs text-muted-foreground">{tFallback('hydration.unit.oz', 'oz')}</span>
             </p>
-            <p className="text-[10px] text-muted-foreground mb-1.5">
+            <p className="text-micro text-muted-foreground mb-1.5">
               {tFallback('hydration.dailyGoal', '{pct}% of daily goal', { pct: pctLabel })}
             </p>
             {/* 8-cup progress dots — each dot = goalOz/8 oz */}

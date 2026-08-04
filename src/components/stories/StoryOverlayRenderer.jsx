@@ -18,7 +18,7 @@ import StoryPollOverlay from './StoryPollOverlay';
 import StoryCountdownOverlay from './StoryCountdownOverlay';
 
 const FONT_MAP = {
-  normal:  "'Inter', system-ui, sans-serif",
+  normal:  "'Figtree', system-ui, sans-serif",
   serious: "Georgia, 'Times New Roman', serif",
   casual:  "'Comic Sans MS', 'Chalkboard SE', cursive",
   pixel:   "'Press Start 2P', monospace",

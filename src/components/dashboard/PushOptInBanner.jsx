@@ -149,7 +149,7 @@ export default function PushOptInBanner({ hasWorkouts = false }) {
             <p className="text-sm font-heading font-bold leading-tight">
               {tFallback('pushOptIn.title', 'Stay in the loop')}
             </p>
-            <p className="text-[11px] text-muted-foreground leading-snug mt-0.5">
+            <p className="text-micro text-muted-foreground leading-snug mt-0.5">
               {tFallback(
                 'pushOptIn.subtitle',
                 'Get a ping when your Gym Rival logs a workout, your streak\'s at risk, or your crew needs you.',
@@ -159,7 +159,7 @@ export default function PushOptInBanner({ hasWorkouts = false }) {
               <button
                 onClick={handleEnable}
                 disabled={push.isLoading}
-                className="px-3 py-1 rounded-md text-[11px] font-bold bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-60 transition-colors"
+                className="px-3 py-1 rounded-md text-micro font-bold bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-60 transition-colors"
               >
                 {push.isLoading
                   ? tFallback('pushOptIn.enabling', 'Enabling…')
@@ -167,7 +167,7 @@ export default function PushOptInBanner({ hasWorkouts = false }) {
               </button>
               <button
                 onClick={handleDismiss}
-                className="px-2 py-1 rounded-md text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+                className="px-2 py-1 rounded-md text-micro font-medium text-muted-foreground hover:text-foreground transition-colors"
               >
                 {tFallback('pushOptIn.notNow', 'Not now')}
               </button>

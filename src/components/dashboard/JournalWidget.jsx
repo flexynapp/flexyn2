@@ -161,7 +161,7 @@ export default function JournalWidget({ userId, userEmail }) {
         >
           <div className="flex items-center gap-1.5 min-w-0">
             <BookOpen className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-            <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+            <span className="text-micro font-bold uppercase tracking-[0.18em] text-muted-foreground">
               {tFallback('journal.widgetLabel', "Today's Journal")}
             </span>
             {moodEmoji && (
@@ -209,7 +209,7 @@ export default function JournalWidget({ userId, userEmail }) {
                 className="w-full text-sm bg-background border border-border rounded-md px-2.5 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-primary/50 placeholder:text-muted-foreground/40 mt-1"
               />
               <div className="flex items-center justify-between mt-1">
-                <span className="text-[10px] text-muted-foreground/50">
+                <span className="text-micro text-muted-foreground/50">
                   {saving
                     ? tFallback('journal.saving', 'Saving…')
                     : tFallback('journal.autosave', 'Auto-saves as you type')}
@@ -217,7 +217,7 @@ export default function JournalWidget({ userId, userEmail }) {
                 <button
                   type="button"
                   onClick={() => { clearTimeout(saveTimerRef.current); handleSave(draft); setExpanded(false); }}
-                  className="text-[10px] font-semibold text-primary hover:opacity-80 transition-opacity"
+                  className="text-micro font-semibold text-primary hover:opacity-80 transition-opacity"
                 >
                   {tFallback('journal.done', 'Done')}
                 </button>

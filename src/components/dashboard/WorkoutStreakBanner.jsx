@@ -159,7 +159,7 @@ export default function WorkoutStreakBanner() {
             <p className="text-sm font-heading font-bold leading-tight">
               {tFallback('streakRescue.title', 'Save your {streak}-day streak', { streak })}
             </p>
-            <p className="text-[11px] text-muted-foreground leading-tight">
+            <p className="text-micro text-muted-foreground leading-tight">
               {tFallback(
                 'streakRescue.subtitle',
                 'You missed yesterday. Use your monthly rescue to keep it alive.',
@@ -231,7 +231,7 @@ export default function WorkoutStreakBanner() {
               : tFallback('dashboard.workoutDaysStreak', 'day workout streak')}
           </span>
           {isPersonalBest && (
-            <span className={`ms-2 text-[10px] font-bold uppercase tracking-wider ${atRisk ? 'text-amber-500' : 'text-emerald-500'}`}>
+            <span className={`ms-2 text-micro font-bold uppercase tracking-wider ${atRisk ? 'text-amber-500' : 'text-emerald-500'}`}>
               {tFallback('dashboard.best', 'Best')}
             </span>
           )}
@@ -239,7 +239,7 @@ export default function WorkoutStreakBanner() {
         </TapToCopy>
       </div>
       {atRisk && (
-        <span className="text-[11px] font-medium text-amber-500">
+        <span className="text-micro font-medium text-amber-500">
           {tFallback('dashboard.atRiskToday', 'Train today to keep it')}
         </span>
       )}

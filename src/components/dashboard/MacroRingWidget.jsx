@@ -121,7 +121,7 @@ export default function MacroRingWidget({ userProfile = {} }) {
         onClick={() => navigate('/nutrition')}
       >
         <div className="flex items-center gap-2 mb-3">
-          <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">Today's Macros</span>
+          <span className="text-micro font-bold uppercase tracking-[0.18em] text-muted-foreground">Today's Macros</span>
         </div>
 
         <div className="flex items-center gap-4">
@@ -175,14 +175,14 @@ export default function MacroRingWidget({ userProfile = {} }) {
               return (
                 <div key={m.key} className="flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full shrink-0" style={{ background: m.color }} />
-                  <span className="text-[11px] text-muted-foreground w-8">{m.label}</span>
+                  <span className="text-micro text-muted-foreground w-8">{m.label}</span>
                   <div className="flex-1 h-1 rounded-full bg-secondary overflow-hidden">
                     <div
                       className="h-full rounded-full transition-all duration-500"
                       style={{ width: `${Math.min(pct, 100)}%`, background: m.color }}
                     />
                   </div>
-                  <span className="text-[11px] font-semibold w-16 text-end tabular-nums">
+                  <span className="text-micro font-semibold w-16 text-end tabular-nums">
                     {consumed}{m.unit !== 'cal' ? `/${goal}${m.unit}` : ''}
                   </span>
                 </div>

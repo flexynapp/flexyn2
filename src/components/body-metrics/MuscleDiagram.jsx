@@ -411,7 +411,7 @@ function getBodyPaths() {
 }
 
 const styles = {
-  container: { width: "100%", background: "hsl(var(--card))", color: "hsl(var(--card-foreground))", borderRadius: 16, padding: 24, fontFamily: "'Inter', system-ui, sans-serif", boxSizing: "border-box", border: "1px solid hsl(var(--border))" },
+  container: { width: "100%", background: "hsl(var(--card))", color: "hsl(var(--card-foreground))", borderRadius: 16, padding: 24, fontFamily: "'Figtree', system-ui, sans-serif", boxSizing: "border-box", border: "1px solid hsl(var(--border))" },
   header: { display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 16, flexWrap: "wrap", marginBottom: 20 },
   eyebrow: { fontSize: 11, letterSpacing: "0.18em", textTransform: "uppercase", color: "hsl(var(--muted-foreground))", marginBottom: 4 },
   title: { margin: 0, fontSize: 24, fontWeight: 600, letterSpacing: "-0.01em", color: "hsl(var(--foreground))" },

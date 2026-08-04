@@ -121,7 +121,7 @@ export default function IosInstallBanner() {
             <p className="text-xs font-heading font-bold leading-tight">
               {tFallback('iosInstall.title', 'Install Flexyn')}
             </p>
-            <div className="flex items-center gap-1 text-[10px] text-muted-foreground/90 mt-0.5">
+            <div className="flex items-center gap-1 text-micro text-muted-foreground/90 mt-0.5">
               <span>{tFallback('iosInstall.step1', 'Tap')}</span>
               <span className="inline-flex items-center justify-center w-4 h-4 rounded-sm bg-foreground/10">
                 <Share className="w-2.5 h-2.5" />

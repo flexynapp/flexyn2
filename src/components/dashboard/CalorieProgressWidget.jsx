@@ -31,8 +31,8 @@ function MacroBar({ label, consumed, goal, color }) {
   return (
     <div className="flex-1 min-w-0">
       <div className="flex items-center justify-between mb-0.5">
-        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">{label}</span>
-        <span className="text-[10px] font-bold text-foreground">{Math.round(consumed)}g</span>
+        <span className="text-micro font-semibold text-muted-foreground uppercase tracking-wide">{label}</span>
+        <span className="text-micro font-bold text-foreground">{Math.round(consumed)}g</span>
       </div>
       <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
         <div
@@ -126,9 +126,9 @@ export default function CalorieProgressWidget({ userProfile = {} }) {
             <div className="w-7 h-7 rounded-lg bg-orange-500/10 flex items-center justify-center">
               <Flame className="w-3.5 h-3.5 text-orange-500" />
             </div>
-            <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">{tFallback('calories.kicker', 'Calories')}</span>
+            <span className="text-micro font-bold uppercase tracking-[0.18em] text-muted-foreground">{tFallback('calories.kicker', 'Calories')}</span>
           </div>
-          <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+          <div className="flex items-center gap-1 text-micro text-muted-foreground">
             <Apple className="w-3 h-3" />
             {/* Exact-match check so "watermelon" / "Bottled water flavored"
                 aren't excluded by an overly-broad /water/i regex.
@@ -159,7 +159,7 @@ export default function CalorieProgressWidget({ userProfile = {} }) {
             className={`h-full rounded-full ${overBudget ? 'bg-red-500' : pct > 85 ? 'bg-amber-500' : 'bg-orange-500'}`}
           />
         </div>
-        <div className="flex justify-between text-[10px] text-muted-foreground mb-3">
+        <div className="flex justify-between text-micro text-muted-foreground mb-3">
           <span>{Math.round(totals.calories)} {tFallback('calories.eaten', 'eaten')}</span>
           <span>{calorieGoal} {tFallback('calories.goal', 'goal')}</span>
         </div>

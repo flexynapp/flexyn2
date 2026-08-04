@@ -101,13 +101,13 @@ export default function StreakCalendarGrid({ profile, month = new Date() }) {
         <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
           {format(month, 'MMMM', { locale: dateLocale })}
         </p>
-        <p className="text-[10px] text-muted-foreground tabular-nums">
+        <p className="text-micro text-muted-foreground tabular-nums">
           <span className="font-bold text-foreground">{hitCount}</span> {tFallback('streakCalendar.daysHit', 'days hit')}
         </p>
       </div>
       <div className="grid grid-cols-7 gap-1 mb-1">
         {weekdayLetters.map((d, i) => (
-          <span key={`wd-${i}-${d}`} className="text-[9px] text-center font-bold uppercase tracking-wide text-muted-foreground/70">
+          <span key={`wd-${i}-${d}`} className="text-micro text-center font-bold uppercase tracking-wide text-muted-foreground/70">
             {d}
           </span>
         ))}
@@ -131,7 +131,7 @@ export default function StreakCalendarGrid({ profile, month = new Date() }) {
               initial={{ scale: 0.6, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ delay: d.getDate() * 0.012 }}
-              className={`aspect-square rounded-md flex items-center justify-center text-[10px] font-bold tabular-nums ${cellClass} ${today ? 'ring-2 ring-primary' : ''}`}
+              className={`aspect-square rounded-md flex items-center justify-center text-micro font-bold tabular-nums ${cellClass} ${today ? 'ring-2 ring-primary' : ''}`}
               aria-label={`${format(d, 'MMMM d', { locale: dateLocale })}: ${statusLabel}`}
             >
               {d.getDate()}

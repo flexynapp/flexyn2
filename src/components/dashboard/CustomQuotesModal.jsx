@@ -126,7 +126,7 @@ export default function CustomQuotesModal({ open, onClose }) {
                   {tFallback('quotes.add', 'Add')}
                 </button>
               </div>
-              <p className={`text-[11px] text-end ${atLimit ? 'text-amber-500 font-semibold' : 'text-muted-foreground'}`}>
+              <p className={`text-micro text-end ${atLimit ? 'text-amber-500 font-semibold' : 'text-muted-foreground'}`}>
                 {quotes.length} / {MAX_CUSTOM_QUOTES}
               </p>
             </div>
@@ -152,7 +152,7 @@ export default function CustomQuotesModal({ open, onClose }) {
                   <div key={q.id} className="flex items-start gap-2 p-3 rounded-lg border border-border/60 bg-background/40">
                     <div className="flex-1 min-w-0">
                       <p className="text-sm leading-snug break-words">“{q.text}”</p>
-                      {q.author && <p className="text-[11px] text-muted-foreground mt-1">— {q.author}</p>}
+                      {q.author && <p className="text-micro text-muted-foreground mt-1">— {q.author}</p>}
                     </div>
                     <button
                       onClick={() => removeMut.mutate(q.id)}

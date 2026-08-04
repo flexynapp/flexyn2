@@ -211,7 +211,7 @@ function ProgressBar({ pct = 0, startLabel = '', endLabel = '', currentLabel, ta
           transition={reduce ? { duration: 0 } : { duration: 1.1, ease: [0.22, 1, 0.36, 1], delay: 0.2 }}
         />
       </div>
-      <div className="flex items-center justify-between mt-1 text-[10px] text-foreground/55">
+      <div className="flex items-center justify-between mt-1 text-micro text-foreground/55">
         <span>{startLabel}{currentLabel != null && ` · ${currentLabel}`}</span>
         <span>{endLabel}{targetLabel != null && ` · ${targetLabel}`}</span>
       </div>
@@ -1001,7 +1001,7 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
           <div className="w-8 h-8 rounded-full bg-primary/10 backdrop-blur-sm flex items-center justify-center">
             <Flame className="w-4 h-4 text-primary/80" />
           </div>
-          <span className="text-[11px] font-semibold tracking-[0.18em] uppercase text-foreground/70">
+          <span className="text-micro font-semibold tracking-[0.18em] uppercase text-foreground/70">
             {hasWorkedOutToday
               ? t('dashboard.hero.kicker.done')
               : streak > 0
@@ -1078,7 +1078,7 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
           <div className="w-8 h-8 rounded-full bg-purple-500/25 backdrop-blur-sm flex items-center justify-center">
             <FeatureIcon className="w-4 h-4 text-purple-200" />
           </div>
-          <span className="text-[11px] font-semibold tracking-[0.18em] uppercase text-purple-200">
+          <span className="text-micro font-semibold tracking-[0.18em] uppercase text-purple-200">
             {slide.kicker}
           </span>
         </div>
@@ -1104,7 +1104,7 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
               <button
                 type="button"
                 onClick={() => handleCta(slide.cta)}
-                className="inline-flex items-center gap-1 mt-3 px-3 py-1.5 rounded-full bg-purple-500/30 hover:bg-purple-500/40 backdrop-blur-sm text-[12px] font-semibold text-foreground transition-colors"
+                className="inline-flex items-center gap-1 mt-3 px-3 py-1.5 rounded-full bg-purple-500/30 hover:bg-purple-500/40 backdrop-blur-sm text-caption font-semibold text-foreground transition-colors"
               >
                 {slide.cta.label}
                 <ChevronRight className="w-3.5 h-3.5" />
@@ -1154,7 +1154,7 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
         <div className={`w-8 h-8 rounded-full backdrop-blur-sm flex items-center justify-center ${slide.iconBg || 'bg-primary/10'}`}>
           <SlideIcon className="w-4 h-4 text-foreground" />
         </div>
-        <span className="text-[11px] font-semibold tracking-[0.18em] uppercase text-foreground/70">
+        <span className="text-micro font-semibold tracking-[0.18em] uppercase text-foreground/70">
           {slide.kicker}
           {subKicker && <span className="text-foreground/70 normal-case tracking-normal font-normal ms-2">· {subKicker}</span>}
         </span>
@@ -1215,7 +1215,7 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
               initial={{ opacity: 0, x: -8 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.4, delay: 0.9 }}
-              className="inline-flex items-center gap-1 mt-2 px-2 py-0.5 rounded-full bg-secondary text-[11px] font-bold text-foreground"
+              className="inline-flex items-center gap-1 mt-2 px-2 py-0.5 rounded-full bg-secondary text-micro font-bold text-foreground"
             >
               {slide.metricDelta > 0 ? '+' : ''}
               {slide.metricDelta}
@@ -1271,7 +1271,7 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
             <button
               type="button"
               onClick={() => handleCta(slide.cta)}
-              className="inline-flex items-center gap-1 mt-3 px-3 py-1.5 rounded-full bg-primary/10 hover:bg-primary/20 backdrop-blur-sm text-[12px] font-semibold text-foreground transition-colors"
+              className="inline-flex items-center gap-1 mt-3 px-3 py-1.5 rounded-full bg-primary/10 hover:bg-primary/20 backdrop-blur-sm text-caption font-semibold text-foreground transition-colors"
             >
               {slide.cta.label}
               <ChevronRight className="w-3.5 h-3.5" />

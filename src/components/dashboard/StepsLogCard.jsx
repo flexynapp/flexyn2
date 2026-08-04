@@ -124,7 +124,7 @@ export default function StepsLogCard() {
       <Card className="px-4 py-3 h-full flex flex-col justify-center gap-1.5">
         <div className="flex items-center gap-1.5">
           <Footprints className="w-3.5 h-3.5 text-primary shrink-0" aria-hidden="true" />
-          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+          <p className="text-micro font-bold uppercase tracking-[0.18em] text-muted-foreground">
             {tFallback('steps.kicker', 'Steps today')}
           </p>
         </div>
@@ -139,7 +139,7 @@ export default function StepsLogCard() {
             <span className="text-xl font-heading font-bold leading-none tabular-nums">
               <RollingCount value={logged} format={fmt} />
             </span>
-            <span className="text-[10px] text-muted-foreground ms-1.5">{tFallback('steps.tapEdit', 'tap to edit')}</span>
+            <span className="text-micro text-muted-foreground ms-1.5">{tFallback('steps.tapEdit', 'tap to edit')}</span>
           </button>
         ) : (
           <div className="flex items-center gap-1.5">

@@ -113,7 +113,7 @@ export default function GoalsProgressStrip({ goals = [], logs = [], onOpen }) {
               <span className="text-sm font-semibold text-foreground truncate">
                 {countLabel}
               </span>
-              <span className="font-mono text-[11px] font-bold text-primary shrink-0">
+              <span className="font-mono text-micro font-bold text-primary shrink-0">
                 {detailLabel}
               </span>
             </div>

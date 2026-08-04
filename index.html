@@ -17,12 +17,30 @@
       app bundle instead of being chained behind it. The old @import
       serialized HTML -> CSS chunk -> font CSS -> font files, which on a cold
       load could leave heading text (the "F" logo + "Flexyn" wordmark are
-      Space Grotesk glyphs) briefly unpainted before the font arrived.
+      heading-font glyphs) briefly unpainted before the font arrived.
       display=swap keeps text visible in a fallback while the webfont loads.
+
+      Archivo (UI headings) + Figtree (body) replaced Space Grotesk + Inter.
+      That exact pairing is the single most over-represented combination in
+      AI-generated frontends and reads as "generated" before a user has
+      parsed a word of the copy. Archivo is a sturdier, slightly narrower
+      grotesque with tight apertures and strong tabular numerals, which is
+      what a stat-dense fitness UI actually needs; Figtree is a humanist
+      companion that stays legible at the 11px floor where Archivo's tight
+      spacing would start to close up.
+
+      Both are requested as VARIABLE ranges (`wght@a..b`), which Google
+      serves as ONE woff2 per family covering the whole axis. The old URL
+      pulled 7 static Inter weights + 4 static Space Grotesk weights = 11
+      files; this is 2. Ranges cover every weight the app actually uses
+      (audited: font-light 300 through font-black 900).
+
+      Leckerli One (the "Flexyn" wordmark), Press Start 2P and Caveat are
+      story-editor / logo faces, unrelated to the UI system — left alone.
     -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Leckerli+One&family=Press+Start+2P&family=Space+Grotesk:wght@400;500;600;700&family=Caveat:wght@500;700&display=swap" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400..900&family=Figtree:wght@300..900&family=Leckerli+One&family=Press+Start+2P&family=Caveat:wght@500;700&display=swap" />
 
     <!--
       Favicon — self-hosted SVG. Used to load a PNG from media.base44.com

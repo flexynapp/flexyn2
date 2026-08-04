@@ -100,7 +100,7 @@ function Body({ data, userId, t, tFallback, fmt, onOpenMember }) {
             <span>{totalMembers} {tFallback('league.members', 'members')}</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="text-[10px] font-bold uppercase tracking-wider opacity-80">
+            <span className="text-micro font-bold uppercase tracking-wider opacity-80">
               {tFallback('league.daysLeft', 'Days left')}
             </span>
             <span className="font-heading font-bold tabular-nums">{daysLeft}</span>
@@ -213,7 +213,7 @@ function Body({ data, userId, t, tFallback, fmt, onOpenMember }) {
         )}
 
         {/* Legend */}
-        <div className="mt-5 pt-4 border-t border-border flex items-center gap-4 text-[11px] text-muted-foreground flex-wrap">
+        <div className="mt-5 pt-4 border-t border-border flex items-center gap-4 text-micro text-muted-foreground flex-wrap">
           <div className="flex items-center gap-1.5">
             <span className="w-3 h-3 rounded-sm bg-emerald-500/30" />
             <span>{tFallback('league.promoteZone', 'Promotion')}</span>

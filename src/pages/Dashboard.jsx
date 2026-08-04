@@ -285,7 +285,7 @@ function HeroCard({
             transition={reduceMotion ? { duration: 0 } : { duration: 3.2, repeat: Infinity, ease: 'easeInOut' }}
           />
           <div className="relative min-w-0">
-            <span className="block text-[10px] font-semibold tracking-[0.2em] uppercase mb-1" style={{ color: 'hsl(var(--primary-foreground) / 0.85)' }}>
+            <span className="block text-micro font-semibold tracking-[0.2em] uppercase mb-1" style={{ color: 'hsl(var(--primary-foreground) / 0.85)' }}>
               {hasWorkedOutToday
                 ? t('dashboard.hero.label.again')
                 : t('dashboard.hero.label.today')}
@@ -343,7 +343,7 @@ function StatTile({ icon: Icon, value, label, suffix, delay = 0, accent = false,
       >
         <div className="flex items-center gap-2 mb-3 text-muted-foreground">
           <Icon className={`w-3.5 h-3.5 ${accent ? 'text-primary' : ''}`} />
-          <span className="text-[10px] font-semibold tracking-[0.16em] uppercase">
+          <span className="text-micro font-semibold tracking-[0.16em] uppercase">
             {label}
           </span>
         </div>
@@ -358,7 +358,7 @@ function StatTile({ icon: Icon, value, label, suffix, delay = 0, accent = false,
         {showTrend && (
           <div className={`flex items-center gap-0.5 mt-1.5 ${trendColor}`}>
             <TrendIcon className="w-3 h-3" />
-            <span className="text-[10px] font-semibold">
+            <span className="text-micro font-semibold">
               {isUp ? '+' : ''}{trend} {tFallback('dashboard.stats.vsLastWeek', 'vs last wk')}
             </span>
           </div>
@@ -366,7 +366,7 @@ function StatTile({ icon: Icon, value, label, suffix, delay = 0, accent = false,
         {trend === 0 && (
           <div className="flex items-center gap-0.5 mt-1.5 text-muted-foreground/60">
             <Minus className="w-3 h-3" />
-            <span className="text-[10px]">{tFallback('dashboard.stats.sameAsLastWeek', 'same as last wk')}</span>
+            <span className="text-micro">{tFallback('dashboard.stats.sameAsLastWeek', 'same as last wk')}</span>
           </div>
         )}
       </Card>
@@ -436,10 +436,10 @@ function SectionHeader({ label, open, onToggle, tFallback }) {
       className="w-full mt-3 mb-1.5 px-1 flex items-center justify-between text-start group"
       aria-expanded={open}
     >
-      <span className="text-[10px] font-semibold tracking-[0.2em] uppercase text-muted-foreground/70 group-hover:text-foreground transition-colors">
+      <span className="text-micro font-semibold tracking-[0.2em] uppercase text-muted-foreground/70 group-hover:text-foreground transition-colors">
         {label}
       </span>
-      <span className="text-[10px] font-semibold text-muted-foreground/50 group-hover:text-foreground transition-colors">
+      <span className="text-micro font-semibold text-muted-foreground/50 group-hover:text-foreground transition-colors">
         {open ? tFallback('dashboard.hide', 'Hide') : tFallback('dashboard.showAll', 'Show all')}
         <span className="ms-1">{open ? '▾' : '▸'}</span>
       </span>
@@ -1466,7 +1466,7 @@ export default function Dashboard() {
         transition={{ duration: 0.5, ease: 'easeOut' }}
         className=""
       >
-        <p className="text-[10px] font-semibold tracking-[0.2em] uppercase text-muted-foreground mb-1.5">
+        <p className="text-micro font-semibold tracking-[0.2em] uppercase text-muted-foreground mb-1.5">
           {todayLabel}
         </p>
         <div className="flex items-start justify-between gap-2">
@@ -1584,7 +1584,7 @@ export default function Dashboard() {
           chip restores that section to the end of the visible list. */}
       {editMode && hiddenSections.size > 0 && (
         <div className="mt-4 mb-3 p-3 rounded-xl border border-dashed border-border bg-secondary/30">
-          <p className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground mb-2">
+          <p className="font-mono text-micro font-bold uppercase tracking-[0.18em] text-muted-foreground mb-2">
             {tFallback('dashboard.hiddenSections', 'Hidden — tap to restore')}
           </p>
           <div className="flex flex-wrap gap-1.5">
@@ -1593,7 +1593,7 @@ export default function Dashboard() {
                 key={id}
                 type="button"
                 onClick={() => restoreSection(id)}
-                className="flex items-center gap-1 px-2 py-1 rounded-full border border-primary/40 bg-primary/5 text-primary text-[11px] font-semibold hover:bg-primary/10 transition-colors"
+                className="flex items-center gap-1 px-2 py-1 rounded-full border border-primary/40 bg-primary/5 text-primary text-micro font-semibold hover:bg-primary/10 transition-colors"
               >
                 <Plus className="w-3 h-3" />
                 {SECTION_LABELS[id]?.(tFallback, t) || id}
@@ -1619,7 +1619,7 @@ export default function Dashboard() {
                   const isHalf = layout === 'half';
                   return (
                     <React.Fragment key={id}>
-                      {i > 0 && <span className="text-[10px] text-primary/30">+</span>}
+                      {i > 0 && <span className="text-micro text-primary/30">+</span>}
                       <button
                         type="button"
                         onClick={(e) => { e.stopPropagation(); toggleSectionLayout(id); }}
@@ -1632,7 +1632,7 @@ export default function Dashboard() {
                         {isHalf
                           ? <Columns2 className="w-3 h-3" />
                           : <Rows3    className="w-3 h-3" />}
-                        <span className="text-[10px] font-bold uppercase tracking-[0.18em]">
+                        <span className="text-micro font-bold uppercase tracking-[0.18em]">
                           {SECTION_LABELS[id]?.(tFallback, t) || id}
                         </span>
                       </button>
@@ -1715,7 +1715,7 @@ export default function Dashboard() {
           >
             <div className="flex items-start justify-between gap-3 mb-3">
               <div>
-                <p className="font-mono text-[10px] font-bold tracking-[0.18em] uppercase text-primary mb-1">How it's calculated</p>
+                <p className="font-mono text-micro font-bold tracking-[0.18em] uppercase text-primary mb-1">How it's calculated</p>
                 <h3 className="font-heading font-bold text-lg leading-tight">Your Readiness score</h3>
               </div>
               <button
@@ -1789,11 +1789,11 @@ export default function Dashboard() {
                             style={{ width: `${Math.max(0, Math.min(100, r.d?.score ?? 0))}%` }}
                           />
                         </div>
-                        <span className="text-[10px] font-bold tabular-nums text-muted-foreground shrink-0 w-14 text-end">
+                        <span className="text-micro font-bold tabular-nums text-muted-foreground shrink-0 w-14 text-end">
                           +{r.d?.contribution ?? 0} pts
                         </span>
                       </div>
-                      <p className="text-[10px] text-muted-foreground/70 leading-snug mt-0.5">
+                      <p className="text-micro text-muted-foreground/70 leading-snug mt-0.5">
                         {r.d?.logged
                           ? `Scored ${r.d.score}/100 · weighted ${r.weight}`
                           : `No data yet — using a neutral estimate (${r.d?.score ?? 70}/100). Log it to sharpen your score.`}
@@ -1802,7 +1802,7 @@ export default function Dashboard() {
                         <button
                           type="button"
                           onClick={() => goLogReadinessSignal(r.cta.target)}
-                          className="mt-1.5 inline-flex items-center gap-0.5 text-[11px] font-bold text-primary hover:underline"
+                          className="mt-1.5 inline-flex items-center gap-0.5 text-micro font-bold text-primary hover:underline"
                         >
                           {r.cta.label} <span aria-hidden="true">→</span>
                         </button>
@@ -1812,7 +1812,7 @@ export default function Dashboard() {
                 ));
               })()}
             </ul>
-            <p className="text-[11px] text-muted-foreground/80 leading-relaxed">
+            <p className="text-micro text-muted-foreground/80 leading-relaxed">
               These four, weighted together, make your {readiness.score}/100. The more you log (sleep, mood, workouts), the less we estimate — and the more the number reflects you.
             </p>
             <button
