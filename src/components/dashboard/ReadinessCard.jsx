@@ -25,11 +25,11 @@ import { useReadiness } from '@/hooks/useReadiness';
 // ever exposes --readiness-{primed,ready,moderate,tired,depleted}
 // CSS vars, swap these to var() refs without changing the JSX.
 const COLOR_BY_LABEL = {
-  Primed:    { bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', text: 'text-emerald-500', ring: '#10b981' /* emerald-500 */ },
-  Ready:     { bg: 'bg-green-500/10',   border: 'border-green-500/30',   text: 'text-green-500',   ring: '#22c55e' /* green-500 */ },
-  Moderate:  { bg: 'bg-amber-500/10',   border: 'border-amber-500/30',   text: 'text-amber-500',   ring: '#f59e0b' /* amber-500 */ },
-  Tired:     { bg: 'bg-orange-500/10',  border: 'border-orange-500/30',  text: 'text-orange-500',  ring: '#fb923c' /* orange-400 */ },
-  Depleted:  { bg: 'bg-rose-500/10',    border: 'border-rose-500/30',    text: 'text-rose-500',    ring: '#f43f5e' /* rose-500 */ },
+  Primed:    { bg: 'bg-success/10', border: 'border-success/30', text: 'text-success', ring: '#10b981' /* emerald-500 */ },
+  Ready:     { bg: 'bg-success/10',   border: 'border-success/30',   text: 'text-success',   ring: '#22c55e' /* green-500 */ },
+  Moderate:  { bg: 'bg-primary/10',   border: 'border-primary/30',   text: 'text-primary',   ring: '#f59e0b' /* amber-500 */ },
+  Tired:     { bg: 'bg-primary/10',  border: 'border-primary/30',  text: 'text-primary',  ring: '#fb923c' /* orange-400 */ },
+  Depleted:  { bg: 'bg-destructive/10',    border: 'border-destructive/30',    text: 'text-destructive',    ring: '#f43f5e' /* rose-500 */ },
 };
 
 // Each label maps to its English fallback + an i18n key that the

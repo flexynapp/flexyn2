@@ -66,14 +66,14 @@ export default function StreakRescueCard({ streakDays, lastWorkoutDate, lastMeal
           if (e.target !== e.currentTarget) return;
           if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleResume(); }
         }}
-        className="flex items-center gap-3 p-3 mb-3 rounded-xl border-2 border-orange-500/35 bg-gradient-to-r from-orange-500/12 via-amber-500/8 to-transparent cursor-pointer hover:border-orange-500/55 transition-colors"
+        className="flex items-center gap-3 p-3 mb-3 rounded-xl border-2 border-primary/35 bg-primary/10 cursor-pointer hover:border-primary/55 transition-colors"
         aria-label={tFallback('streakRescue.aria', `Keep your ${streakDays}-day streak alive`).replace('{n}', String(streakDays))}
       >
-        <div className="w-10 h-10 rounded-xl bg-orange-500/15 flex items-center justify-center shrink-0">
-          <Flame className="w-5 h-5 text-orange-500" />
+        <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
+          <Flame className="w-5 h-5 text-primary" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-micro font-bold uppercase tracking-[0.18em] text-orange-500">
+          <p className="text-micro font-bold uppercase tracking-[0.18em] text-primary">
             {tFallback('streakRescue.kicker', `${streakDays}-day streak at risk`).replace('{n}', String(streakDays))}
           </p>
           <p className="text-sm font-heading font-bold truncate">
@@ -88,7 +88,7 @@ export default function StreakRescueCard({ streakDays, lastWorkoutDate, lastMeal
         >
           <X className="w-4 h-4" />
         </button>
-        <ArrowRight className="w-4 h-4 text-orange-500 shrink-0 rtl:scale-x-[-1]" aria-hidden="true" />
+        <ArrowRight className="w-4 h-4 text-primary shrink-0 rtl:scale-x-[-1]" aria-hidden="true" />
       </motion.div>
     </AnimatePresence>
   );

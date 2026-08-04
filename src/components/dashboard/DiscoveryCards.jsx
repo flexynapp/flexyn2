@@ -88,38 +88,38 @@ function DiscoveryCard({
   // would defeat Tailwind's JIT purging — using fixed class strings here.
   const accents = {
     orange: {
-      ring:   'ring-1 ring-orange-500/20',
-      bg:     'bg-gradient-to-br from-orange-500/10 via-card to-card',
-      icon:   'bg-orange-500/15 text-orange-500',
-      btn:    'bg-orange-500 hover:bg-orange-500/90 text-white',
+      ring:   'ring-1 ring-primary/20',
+      bg:     'bg-primary/8',
+      icon:   'bg-primary/15 text-primary',
+      btn:    'bg-primary hover:bg-primary/90 text-white',
     },
     violet: {
-      ring:   'ring-1 ring-violet-500/20',
-      bg:     'bg-gradient-to-br from-violet-500/10 via-card to-card',
-      icon:   'bg-violet-500/15 text-violet-500',
-      btn:    'bg-violet-500 hover:bg-violet-500/90 text-white',
+      ring:   'ring-1 ring-primary/20',
+      bg:     'bg-primary/8',
+      icon:   'bg-primary/15 text-primary',
+      btn:    'bg-primary hover:bg-primary/90 text-white',
     },
     amber: {
-      ring:   'ring-1 ring-amber-500/20',
-      bg:     'bg-gradient-to-br from-amber-500/10 via-card to-card',
-      icon:   'bg-amber-500/15 text-amber-500',
-      btn:    'bg-amber-500 hover:bg-amber-500/90 text-white',
+      ring:   'ring-1 ring-primary/20',
+      bg:     'bg-primary/8',
+      icon:   'bg-primary/15 text-primary',
+      btn:    'bg-primary hover:bg-primary/90 text-white',
     },
     sky: {
-      ring:   'ring-1 ring-sky-500/20',
-      bg:     'bg-gradient-to-br from-sky-500/10 via-card to-card',
-      icon:   'bg-sky-500/15 text-sky-500',
-      btn:    'bg-sky-500 hover:bg-sky-500/90 text-white',
+      ring:   'ring-1 ring-info/20',
+      bg:     'bg-info/8',
+      icon:   'bg-info/15 text-info',
+      btn:    'bg-info hover:bg-info/90 text-white',
     },
     // Purple — used for the OPEN_CAPSULE card. Matches the
     // capsule/loot visual language used elsewhere in UserBag
     // (purple-400 accents on the capsule cards) so the
     // discovery-card → bag handoff feels visually continuous.
     purple: {
-      ring:   'ring-1 ring-purple-500/25',
-      bg:     'bg-gradient-to-br from-purple-500/15 via-fuchsia-500/5 to-card',
-      icon:   'bg-purple-500/15 text-purple-400',
-      btn:    'bg-purple-500 hover:bg-purple-500/90 text-white',
+      ring:   'ring-1 ring-primary/25',
+      bg:     'bg-primary/12',
+      icon:   'bg-primary/15 text-primary',
+      btn:    'bg-primary hover:bg-primary/90 text-white',
     },
   };
   const a = accents[accent] || accents.orange;

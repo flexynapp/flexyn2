@@ -10,12 +10,17 @@
 // universal-recommendation starting point that 95% of users won't
 // argue with.
 //
-// Hydration uses brand cyan as the single accent — it's the
-// universal "water" semantic and stays the same color across themes
-// (a green hydration ring would read as fertility or money). The
-// HEX_HYDRATION constant + cyan-{400,500} Tailwind utilities are
-// kept in sync; updating one means updating both.
-const HEX_HYDRATION = '#06b6d4'; // matches Tailwind's cyan-500
+// Hydration reads cool — the universal "water" semantic (a green
+// hydration ring would read as fertility or money). It now draws that
+// from --info, the app's one cool hue, rather than owning a private
+// cyan: same meaning, one less hue on the screen.
+//
+// The old STROKE_HYDRATION constant was a literal '#06b6d4' that had to be
+// hand-synced with the cyan-{400,500} utilities beside it — a comment
+// asking future editors to update two places is a sync bug waiting to
+// happen. Referencing the CSS var means the ring and its surrounding
+// utilities can no longer drift, and it themes for free.
+const STROKE_HYDRATION = 'hsl(var(--info))';
 
 import React, { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -142,7 +147,7 @@ export default function HydrationRing({ goalOz = DEFAULT_GOAL_OZ }) {
               <motion.circle
                 cx={SIZE / 2} cy={SIZE / 2} r={RADIUS}
                 fill="none"
-                stroke={HEX_HYDRATION}
+                stroke={STROKE_HYDRATION}
                 strokeWidth={STROKE}
                 strokeLinecap="round"
                 strokeDasharray={CIRC}
@@ -152,11 +157,11 @@ export default function HydrationRing({ goalOz = DEFAULT_GOAL_OZ }) {
               />
             </svg>
             <div className="absolute inset-0 flex items-center justify-center">
-              <Droplet className="w-4 h-4 text-cyan-500" aria-hidden="true" />
+              <Droplet className="w-4 h-4 text-info" aria-hidden="true" />
             </div>
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-micro font-bold uppercase tracking-[0.18em] text-cyan-500">
+            <p className="text-micro font-bold uppercase tracking-[0.18em] text-info">
               {tFallback('hydration.kicker', 'Hydration')}
             </p>
             <p className="text-sm font-heading font-bold leading-tight tabular-nums">
@@ -179,7 +184,7 @@ export default function HydrationRing({ goalOz = DEFAULT_GOAL_OZ }) {
                 return (
                   <motion.div
                     key={i}
-                    className={`w-3 h-3 rounded-full transition-colors ${filled ? 'bg-cyan-400' : 'bg-secondary'}`}
+                    className={`w-3 h-3 rounded-full transition-colors ${filled ? 'bg-info' : 'bg-secondary'}`}
                     initial={{ scale: 0.6, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     transition={{ delay: i * 0.04, duration: 0.2 }}

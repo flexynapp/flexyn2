@@ -109,7 +109,7 @@ export default function WidgetLibrary({ open, onClose, onSelect, onRemove, activ
                         : tFallback('widgets.addToDashboard', 'Add to dashboard')}
                       className={`shrink-0 h-11 w-11 rounded-full flex items-center justify-center transition-colors ${
                         isActive
-                          ? 'bg-green-600 text-white active:bg-green-700'
+                          ? 'bg-success text-white active:bg-success'
                           : 'bg-secondary text-foreground active:bg-primary/15'
                       }`}
                     >

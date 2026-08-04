@@ -97,7 +97,7 @@ export default function GoalsProgressStrip({ goals = [], logs = [], onOpen }) {
           if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(); }
         } : undefined}
         style={onOpen ? { cursor: 'pointer' } : {}}
-        className="p-3 md:p-4 border-border/60 bg-gradient-to-br from-primary/5 to-card hover:border-primary/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+        className="p-3 md:p-4 border-border/60 bg-primary/5 hover:border-primary/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
       >
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-lg bg-primary/15 flex items-center justify-center shrink-0">

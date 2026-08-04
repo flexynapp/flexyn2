@@ -58,6 +58,33 @@
     --accent-foreground: 0 0% 100%;
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
+    /* ── The color budget ────────────────────────────────────────────
+       Color is a shared resource with a fixed ceiling, not a per-card
+       decision. The whole app gets FOUR hues and the neutral ramp:
+
+         --primary      brand orange. Effort, progress, streaks, CTAs,
+                        anything the user is actively doing. Amber and
+                        yellow are the same family and route here too —
+                        the hero CTA gold IS this hue.
+         --success      earned / on-track / complete.
+         --info         recovery. Sleep, hydration, rest, readiness —
+                        the things that are deliberately NOT effort.
+                        One cool hue, not the blue+sky+cyan trio.
+         --destructive  broken streak, danger, destructive actions.
+
+       No warning hue on purpose: an orange brand can't also own amber
+       for "caution" without the two reading as the same state. Caution
+       is carried by icon + copy on a primary surface instead.
+
+       The dashboard previously spent 232 off-token utilities across 14
+       hue families on one screen — including 33 purple/violet/fuchsia
+       on an app whose brand is orange. Nothing outside this block gets
+       to introduce a hue. If a new state needs one, it replaces one of
+       these; it does not extend the list. */
+    --success: 152 55% 34%;
+    --success-foreground: 0 0% 100%;
+    --info: 205 72% 40%;
+    --info-foreground: 0 0% 100%;
     --border: 210 15% 88%;
     --input: 210 15% 88%;
     --ring: 26 90% 50%;
@@ -102,6 +129,14 @@
     --accent-foreground: 0 0% 100%;
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
+    /* Both semantic hues lift ~18pts of lightness on dark. The light
+       values are tuned to clear AA against white cards; the same
+       lightness on a #16191f card lands around 2:1 and disappears.
+       See the color-budget note in :root for what these two mean. */
+    --success: 152 52% 52%;
+    --success-foreground: 210 18% 9%;
+    --info: 205 70% 60%;
+    --info-foreground: 210 18% 9%;
     --border: 210 18% 20%;
     --input: 210 18% 20%;
     --ring: 26 90% 52%;

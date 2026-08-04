@@ -291,7 +291,7 @@ function buildAchievementSlides({ logs, cardioLogs, goals, profile }) {
         const sparkSeries = history.slice(-8);
         slides.push({
           id: `pr:${name}:${recentPR.when}`,
-          icon: Trophy, iconBg: 'bg-amber-400/20',
+          icon: Trophy, iconBg: 'bg-primary/20',
           kicker: 'Personal Record',
           // The title is now JUST the exercise name. The big number
           // (weight) renders separately so it can animate.
@@ -323,7 +323,7 @@ function buildAchievementSlides({ logs, cardioLogs, goals, profile }) {
       const tv = Number(g.target_value);
       const slide = {
         id: `goal:${g.id}`,
-        icon: CheckCircle2, iconBg: 'bg-emerald-400/20',
+        icon: CheckCircle2, iconBg: 'bg-success/20',
         kicker: 'Goal Completed',
         title: g.title || 'Goal hit',
         sub: g.description?.slice(0, 60) || 'Set the next one.',
@@ -345,7 +345,7 @@ function buildAchievementSlides({ logs, cardioLogs, goals, profile }) {
     if (when && now - when <= RECENT_MS) {
       slides.push({
         id: `level:${profile.current_level}:${when}`,
-        icon: Award, iconBg: 'bg-violet-400/20',
+        icon: Award, iconBg: 'bg-primary/20',
         kicker: 'Level Up',
         title: 'You leveled up',
         // Animated level number — ticks from the PREVIOUS level to
@@ -367,7 +367,7 @@ function buildAchievementSlides({ logs, cardioLogs, goals, profile }) {
   if ([7, 14, 30, 60, 100].includes(streak)) {
     slides.push({
       id: `streak:${streak}`,
-      icon: Flame, iconBg: 'bg-orange-400/20',
+      icon: Flame, iconBg: 'bg-primary/20',
       kicker: 'Streak Milestone',
       title: "You're on fire",
       metricValue: streak,
@@ -398,7 +398,7 @@ function buildAchievementSlides({ logs, cardioLogs, goals, profile }) {
       const avgKmh = sec > 0 && Number.isFinite(km) ? km / (sec / 3600) : null;
       slides.push({
         id: `cardio:${f.meters}:${when}`,
-        icon: Footprints, iconBg: 'bg-cyan-400/20',
+        icon: Footprints, iconBg: 'bg-info/20',
         kicker: 'Distance Milestone',
         title: f.label,
         metricValue: km,
@@ -481,7 +481,7 @@ function buildPathSlides({ profile, user, logs }) {
   const weekTarget = Math.max(3, Math.min(trainingDays || 3, 6));
   slides.push({
     id: 'path:2',
-    icon: Calendar, iconBg: 'bg-blue-400/20',
+    icon: Calendar, iconBg: 'bg-info/20',
     kicker: 'Step 2',
     title: 'This week',
     metricValue: workoutsThisWeek,
@@ -505,7 +505,7 @@ function buildPathSlides({ profile, user, logs }) {
   const prWeeks = level === 'beginner' ? 2 : level === 'intermediate' ? 4 : 6;
   slides.push({
     id: 'path:3',
-    icon: Trophy, iconBg: 'bg-amber-400/20',
+    icon: Trophy, iconBg: 'bg-primary/20',
     kicker: 'Step 3',
     title: 'First PR target',
     metricValue: prWeeks,
@@ -534,7 +534,7 @@ function buildPathSlides({ profile, user, logs }) {
       // promising a moving bar that never moves. Wave 59 caught this.
       slides.push({
         id: 'path:4-loss',
-        icon: TrendingUp, iconBg: 'bg-emerald-400/20',
+        icon: TrendingUp, iconBg: 'bg-success/20',
         kicker: 'Your goal',
         title: 'Target weight',
         metricValue: targetLbs,
@@ -550,7 +550,7 @@ function buildPathSlides({ profile, user, logs }) {
     } else {
       slides.push({
         id: 'path:4-loss-generic',
-        icon: TrendingUp, iconBg: 'bg-emerald-400/20',
+        icon: TrendingUp, iconBg: 'bg-success/20',
         kicker: 'Your goal',
         title: 'Track your meals',
         sub: 'Calorie awareness is the single highest-leverage move for fat loss.',
@@ -560,7 +560,7 @@ function buildPathSlides({ profile, user, logs }) {
   } else if (/muscle|gain|bulk|strength|build/i.test(primaryGoal)) {
     slides.push({
       id: 'path:4-muscle',
-      icon: Zap, iconBg: 'bg-orange-400/20',
+      icon: Zap, iconBg: 'bg-primary/20',
       kicker: 'Your goal',
       title: 'Add to a main lift',
       metricValue: 10,
@@ -572,7 +572,7 @@ function buildPathSlides({ profile, user, logs }) {
   } else if (/endurance|cardio|run/i.test(primaryGoal)) {
     slides.push({
       id: 'path:4-endurance',
-      icon: Footprints, iconBg: 'bg-cyan-400/20',
+      icon: Footprints, iconBg: 'bg-info/20',
       kicker: 'Your goal',
       title: 'Build to a',
       metricValue: 5,
@@ -587,7 +587,7 @@ function buildPathSlides({ profile, user, logs }) {
   } else {
     slides.push({
       id: 'path:4-generic',
-      icon: Sparkles, iconBg: 'bg-violet-400/20',
+      icon: Sparkles, iconBg: 'bg-primary/20',
       kicker: 'Your goal',
       title: 'Day commit',
       metricValue: 30,
@@ -651,7 +651,7 @@ function buildTelemetrySlides({ logs, cardioLogs, profile }) {
   const slides = [
     {
       id: 'tele:week', kind: 'telemetry',
-      icon: Calendar, iconBg: 'bg-blue-400/20', kicker: 'This week',
+      icon: Calendar, iconBg: 'bg-info/20', kicker: 'This week',
       title: 'Workouts',
       metricValue: workoutsThisWeek, metricUnit: ` / ${weekTarget}`,
       progressPct: Math.min(100, (workoutsThisWeek / weekTarget) * 100),
@@ -663,7 +663,7 @@ function buildTelemetrySlides({ logs, cardioLogs, profile }) {
     },
     {
       id: 'tele:volume', kind: 'telemetry',
-      icon: TrendingUp, iconBg: 'bg-emerald-400/20', kicker: 'This week',
+      icon: TrendingUp, iconBg: 'bg-success/20', kicker: 'This week',
       title: 'Volume lifted',
       metricValue: weeklyVolume, metricUnit: ' lb',
       sub: weeklyVolume > 0 ? 'Total weight × reps across every set.' : 'Log sets and this fills in automatically.',
@@ -678,7 +678,7 @@ function buildTelemetrySlides({ logs, cardioLogs, profile }) {
     },
     {
       id: 'tele:level', kind: 'telemetry',
-      icon: Award, iconBg: 'bg-violet-400/20', kicker: 'Your level',
+      icon: Award, iconBg: 'bg-primary/20', kicker: 'Your level',
       title: 'Standing',
       metricValue: level, metricPrefix: 'Lv ', metricUnit: '',
       sub: `${xp.toLocaleString()} XP earned overall`,
@@ -691,7 +691,7 @@ function buildTelemetrySlides({ logs, cardioLogs, profile }) {
   if (cardioMeters > 0) {
     slides.push({
       id: 'tele:cardio', kind: 'telemetry',
-      icon: Footprints, iconBg: 'bg-cyan-400/20', kicker: 'This week',
+      icon: Footprints, iconBg: 'bg-info/20', kicker: 'This week',
       title: 'Distance',
       metricValue: cardioMeters / 1000, metricUnit: ' km', metricDecimals: 1,
       sub: 'Cardio logged this week.',
@@ -717,7 +717,7 @@ function buildSuggestionSlides({ logs, followsCount, push }) {
   if (!hasWorkouts) {
     s.push({
       id: 'sug:first_workout', kind: 'suggestion',
-      icon: Dumbbell, iconBg: 'bg-emerald-400/20', kicker: 'Get started',
+      icon: Dumbbell, iconBg: 'bg-success/20', kicker: 'Get started',
       title: 'Log your first workout',
       sub: 'Two minutes. Just one set. The streak starts today.',
       cta: { label: 'Start', to: '/workout' },
@@ -735,7 +735,7 @@ function buildSuggestionSlides({ logs, followsCount, push }) {
   if (followsCount === 0) {
     s.push({
       id: 'sug:follow', kind: 'suggestion',
-      icon: UserPlus, iconBg: 'bg-sky-400/20', kicker: 'Find your people',
+      icon: UserPlus, iconBg: 'bg-info/20', kicker: 'Find your people',
       title: 'Follow your first friend',
       sub: 'Their workouts show up in your feed. Yours show up in theirs.',
       cta: { label: 'Find people', to: '/hub?search=open' },
@@ -743,7 +743,7 @@ function buildSuggestionSlides({ logs, followsCount, push }) {
   }
   s.push({
     id: 'sug:regimen', kind: 'suggestion',
-    icon: ClipboardList, iconBg: 'bg-amber-400/20', kicker: 'Train smarter',
+    icon: ClipboardList, iconBg: 'bg-primary/20', kicker: 'Train smarter',
     title: 'Try a regimen',
     sub: 'Pre-built routines for legs, push, pull. No more guessing what to lift.',
     cta: { label: 'Browse', to: '/workout' },
@@ -751,7 +751,7 @@ function buildSuggestionSlides({ logs, followsCount, push }) {
   if (hasWorkouts) {
     s.push({
       id: 'sug:share', kind: 'suggestion',
-      icon: Share2, iconBg: 'bg-rose-400/20', kicker: 'Show it off',
+      icon: Share2, iconBg: 'bg-destructive/20', kicker: 'Show it off',
       title: 'Share your week',
       sub: 'A polished card of your stats. Post to Stories — it counts.',
       cta: { label: 'See it', action: 'shareWeek' },
@@ -759,7 +759,7 @@ function buildSuggestionSlides({ logs, followsCount, push }) {
   }
   s.push({
     id: 'sug:invite', kind: 'suggestion',
-    icon: Gift, iconBg: 'bg-fuchsia-400/20', kicker: 'Bring a friend',
+    icon: Gift, iconBg: 'bg-primary/20', kicker: 'Bring a friend',
     title: 'Invite a friend',
     sub: 'You both get 200 coins + an Elite capsule. Use your code.',
     cta: { label: 'Open', to: '/profile' },
@@ -787,15 +787,15 @@ function pickMode({ achievementSlides, pathSlides, profile, logs }) {
 // still colours its dots to match. Shared by the color-reporting effect
 // and the dot render below.
 const ICON_BG_TO_HSL = {
-  'bg-amber-400/20':   '45 95% 55%',
-  'bg-emerald-400/20': '160 80% 50%',
-  'bg-violet-400/20':  '270 85% 60%',
-  'bg-orange-400/20':  '25 90% 55%',
-  'bg-cyan-400/20':    '190 85% 55%',
-  'bg-blue-400/20':    '220 85% 60%',
-  'bg-sky-400/20':     '205 90% 58%',
-  'bg-rose-400/20':    '345 85% 60%',
-  'bg-fuchsia-400/20': '292 85% 62%',
+  'bg-primary/20':   '45 95% 55%',
+  'bg-success/20': '160 80% 50%',
+  'bg-primary/20':  '270 85% 60%',
+  'bg-primary/20':  '25 90% 55%',
+  'bg-info/20':    '190 85% 55%',
+  'bg-info/20':    '220 85% 60%',
+  'bg-info/20':     '205 90% 58%',
+  'bg-destructive/20':    '345 85% 60%',
+  'bg-primary/20': '292 85% 62%',
 };
 
 const HeroSlideshow = forwardRef(function HeroSlideshow({
@@ -1071,14 +1071,14 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
           aria-hidden="true"
           className="absolute -inset-3 rounded-2xl pointer-events-none"
           style={{
-            background: 'linear-gradient(135deg, rgba(168,85,247,0.20), rgba(217,70,239,0.10) 60%, transparent)',
+            background: 'linear-gradient(135deg, hsl(var(--primary) / 0.22), hsl(var(--primary) / 0.08) 60%, transparent)',
           }}
         />
         <div className="relative flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full bg-purple-500/25 backdrop-blur-sm flex items-center justify-center">
-            <FeatureIcon className="w-4 h-4 text-purple-200" />
+          <div className="w-8 h-8 rounded-full bg-primary/25 backdrop-blur-sm flex items-center justify-center">
+            <FeatureIcon className="w-4 h-4 text-primary" />
           </div>
-          <span className="text-micro font-semibold tracking-[0.18em] uppercase text-purple-200">
+          <span className="text-micro font-semibold tracking-[0.18em] uppercase text-primary">
             {slide.kicker}
           </span>
         </div>
@@ -1104,7 +1104,7 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
               <button
                 type="button"
                 onClick={() => handleCta(slide.cta)}
-                className="inline-flex items-center gap-1 mt-3 px-3 py-1.5 rounded-full bg-purple-500/30 hover:bg-purple-500/40 backdrop-blur-sm text-caption font-semibold text-foreground transition-colors"
+                className="inline-flex items-center gap-1 mt-3 px-3 py-1.5 rounded-full bg-primary/30 hover:bg-primary/40 backdrop-blur-sm text-caption font-semibold text-foreground transition-colors"
               >
                 {slide.cta.label}
                 <ChevronRight className="w-3.5 h-3.5" />

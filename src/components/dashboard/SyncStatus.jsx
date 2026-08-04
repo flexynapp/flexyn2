@@ -64,8 +64,8 @@ export default function SyncStatus({ dataUpdatedAt }) {
 
   // Color cue scales with staleness.
   let color = 'text-muted-foreground/70';
-  if (ageMin > 30) color = 'text-rose-500';
-  else if (ageMin > 5) color = 'text-amber-500';
+  if (ageMin > 30) color = 'text-destructive';
+  else if (ageMin > 5) color = 'text-primary';
 
   // formatDistanceToNow rounds awkwardly for very-recent timestamps
   // ("less than a minute ago" vs "just now"); hand-format the < 1m case.

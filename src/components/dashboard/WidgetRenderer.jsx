@@ -216,7 +216,7 @@ function WorkoutStreakWidget({ logs, isLoading }) {
   return (
     <Card className="p-4 flex flex-col min-h-[150px]">
       <h4 className="font-semibold text-sm flex items-center gap-2 mb-2">
-        <Flame className="w-4 h-4 text-orange-500" /> {tFallback('widgetDefs.workoutStreak.name', 'Workout Streak')}
+        <Flame className="w-4 h-4 text-primary" /> {tFallback('widgetDefs.workoutStreak.name', 'Workout Streak')}
       </h4>
       {isLoading ? (
         <Skeleton className="h-16 flex-1" />

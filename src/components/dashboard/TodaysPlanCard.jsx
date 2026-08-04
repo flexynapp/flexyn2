@@ -41,16 +41,16 @@ const MUSCLE_TO_LABEL = {
 function inferDayLabel(regimen) {
   const name = (regimen.name || '').toLowerCase();
   // First try the regimen name — common patterns
-  if (/push/i.test(name))       return { label: 'Push Day', emoji: '💪', color: 'text-orange-500', bg: 'bg-orange-500/10' };
-  if (/pull/i.test(name))       return { label: 'Pull Day', emoji: '🔱', color: 'text-blue-500',   bg: 'bg-blue-500/10' };
-  if (/leg/i.test(name))        return { label: 'Legs Day', emoji: '🦵', color: 'text-green-500',  bg: 'bg-green-500/10' };
-  if (/upper/i.test(name))      return { label: 'Upper Body', emoji: '💪', color: 'text-violet-500', bg: 'bg-violet-500/10' };
-  if (/lower/i.test(name))      return { label: 'Lower Body', emoji: '🦵', color: 'text-emerald-500', bg: 'bg-emerald-500/10' };
-  if (/chest/i.test(name))      return { label: 'Chest Day', emoji: '🏋️', color: 'text-orange-500', bg: 'bg-orange-500/10' };
-  if (/back/i.test(name))       return { label: 'Back Day', emoji: '🔱', color: 'text-blue-500',   bg: 'bg-blue-500/10' };
-  if (/shoulder/i.test(name))   return { label: 'Shoulder Day', emoji: '🪨', color: 'text-amber-500', bg: 'bg-amber-500/10' };
-  if (/arm/i.test(name))        return { label: 'Arms Day', emoji: '💪', color: 'text-rose-500',   bg: 'bg-rose-500/10' };
-  if (/cardio/i.test(name))     return { label: 'Cardio Day', emoji: '🏃', color: 'text-cyan-500',  bg: 'bg-cyan-500/10' };
+  if (/push/i.test(name))       return { label: 'Push Day', emoji: '💪', color: 'text-primary', bg: 'bg-primary/10' };
+  if (/pull/i.test(name))       return { label: 'Pull Day', emoji: '🔱', color: 'text-info',   bg: 'bg-info/10' };
+  if (/leg/i.test(name))        return { label: 'Legs Day', emoji: '🦵', color: 'text-success',  bg: 'bg-success/10' };
+  if (/upper/i.test(name))      return { label: 'Upper Body', emoji: '💪', color: 'text-primary', bg: 'bg-primary/10' };
+  if (/lower/i.test(name))      return { label: 'Lower Body', emoji: '🦵', color: 'text-success', bg: 'bg-success/10' };
+  if (/chest/i.test(name))      return { label: 'Chest Day', emoji: '🏋️', color: 'text-primary', bg: 'bg-primary/10' };
+  if (/back/i.test(name))       return { label: 'Back Day', emoji: '🔱', color: 'text-info',   bg: 'bg-info/10' };
+  if (/shoulder/i.test(name))   return { label: 'Shoulder Day', emoji: '🪨', color: 'text-primary', bg: 'bg-primary/10' };
+  if (/arm/i.test(name))        return { label: 'Arms Day', emoji: '💪', color: 'text-destructive',   bg: 'bg-destructive/10' };
+  if (/cardio/i.test(name))     return { label: 'Cardio Day', emoji: '🏃', color: 'text-info',  bg: 'bg-info/10' };
   if (/core|ab/i.test(name))    return { label: 'Core Day', emoji: '🎯', color: 'text-primary',    bg: 'bg-primary/10' };
   if (/full|total/i.test(name)) return { label: 'Full Body', emoji: '⚡', color: 'text-primary',   bg: 'bg-primary/10' };
 
@@ -65,9 +65,9 @@ function inferDayLabel(regimen) {
   });
   const top = Object.entries(freq).sort((a, b) => b[1] - a[1])[0]?.[0];
   const mapped = MUSCLE_TO_LABEL[top];
-  if (mapped === 'Push') return { label: 'Push Day', emoji: '💪', color: 'text-orange-500', bg: 'bg-orange-500/10' };
-  if (mapped === 'Pull') return { label: 'Pull Day', emoji: '🔱', color: 'text-blue-500',   bg: 'bg-blue-500/10' };
-  if (mapped === 'Legs') return { label: 'Legs Day', emoji: '🦵', color: 'text-green-500',  bg: 'bg-green-500/10' };
+  if (mapped === 'Push') return { label: 'Push Day', emoji: '💪', color: 'text-primary', bg: 'bg-primary/10' };
+  if (mapped === 'Pull') return { label: 'Pull Day', emoji: '🔱', color: 'text-info',   bg: 'bg-info/10' };
+  if (mapped === 'Legs') return { label: 'Legs Day', emoji: '🦵', color: 'text-success',  bg: 'bg-success/10' };
 
   return { label: regimen.name || 'Workout Day', emoji: '🏋️', color: 'text-primary', bg: 'bg-primary/10' };
 }

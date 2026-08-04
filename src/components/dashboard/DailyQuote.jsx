@@ -121,7 +121,7 @@ export default function DailyQuote({ editMode = false }) {
           onDragEnd={onDragEnd}
           style={{ touchAction: 'pan-y' }}
         >
-          <Card className="relative overflow-hidden p-5 md:p-6 border-border/60 bg-gradient-to-br from-primary/[0.04] to-transparent select-none">
+          <Card className="relative overflow-hidden p-5 md:p-6 border-border/60 bg-primary/5 select-none">
             <Quote className="absolute top-3 end-3 w-5 h-5 text-primary/30" />
             <p className="font-heading text-base md:text-lg leading-snug text-foreground/90 px-1 sm:px-7 break-words">
               "{current.text}"

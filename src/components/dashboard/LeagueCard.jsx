@@ -169,8 +169,8 @@ export default function LeagueCard({ onClick, stretch = false }) {
                       transition={{ type: 'spring', stiffness: 320, damping: 22 }}
                       className={`text-micro font-bold leading-none px-1 py-0.5 rounded-full ${
                         rankDelta < 0
-                          ? 'bg-emerald-500/30 text-emerald-200'
-                          : 'bg-red-500/30 text-red-200'
+                          ? 'bg-success/30 text-success'
+                          : 'bg-destructive/30 text-destructive'
                       }`}
                     >
                       {rankDelta < 0 ? `▲${Math.abs(rankDelta)}` : `▼${rankDelta}`}

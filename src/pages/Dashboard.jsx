@@ -327,7 +327,7 @@ function StatTile({ icon: Icon, value, label, suffix, delay = 0, accent = false,
   const showTrend = trend !== null && trend !== 0;
   const isUp = trend > 0;
   const TrendIcon = isUp ? TrendingUp : TrendingDown;
-  const trendColor = isUp ? 'text-green-500' : 'text-red-400';
+  const trendColor = isUp ? 'text-success' : 'text-destructive';
 
   return (
     <motion.div
@@ -338,7 +338,7 @@ function StatTile({ icon: Icon, value, label, suffix, delay = 0, accent = false,
     >
       <Card
         className={`relative overflow-hidden p-4 md:p-5 border-border/60 shadow-sm hover:shadow-md transition-shadow h-full ${
-          accent ? 'bg-gradient-to-br from-primary/[0.08] to-transparent' : ''
+          accent ? 'bg-primary/[0.07]' : ''
         }`}
       >
         <div className="flex items-center gap-2 mb-3 text-muted-foreground">
@@ -1219,9 +1219,15 @@ export default function Dashboard() {
               toggles. Hitting collapse no longer wipes the whole
               section like the old SectionHeader + Collapsible
               wrappers did. */}
-          <Card data-recovery-section className="p-4 md:p-5 bg-gradient-to-br from-blue-200/30 to-blue-100/10 dark:from-blue-500/8 dark:to-blue-500/5 border-blue-200/40 dark:border-blue-500/20 theme-card-accent">
+          {/* Recovery used to be a blue-tinted card while other sections
+              were orange/amber — cycling an accent hue per section is the
+              "every block gets its own colour" tell, and it spends the
+              colour budget on grouping that spacing already does. The
+              section reads as recovery from its heading and its contents;
+              the surface is the same surface as everywhere else. */}
+          <Card data-recovery-section className="p-4 md:p-5">
             <div className="flex items-center gap-2 mb-3">
-              <Activity className="w-4 h-4 text-sky-500" />
+              <Activity className="w-4 h-4 text-info" />
               <h3 className="font-heading font-bold text-sm tracking-tight">
                 {tFallback('dashboard.section.recovery', 'Nutrition & Recovery')}
               </h3>
@@ -1334,24 +1340,24 @@ export default function Dashboard() {
         // (per the "fit in the palm of her hand" goal).
         const allActions = [
           { key: 'startWorkout',  to: '/workout', icon: Play,         label: t('dashboard.startWorkout'),
-            iconBg: 'bg-orange-500/15',  iconColor: 'text-orange-500' },
+            iconBg: 'bg-primary/15',  iconColor: 'text-primary' },
           { key: 'myWeek',        icon: CalendarDays, label: tFallback('dashboard.myWeek', 'My Week'),
-            iconBg: 'bg-blue-500/15',    iconColor: 'text-blue-500',
+            iconBg: 'bg-info/15',    iconColor: 'text-info',
             onClick: () => setWeekModalOpen(true) },
           { key: 'createRegimen', icon: Dumbbell,     label: t('dashboard.createRegimen'),
-            iconBg: 'bg-purple-500/15',  iconColor: 'text-purple-500',
+            iconBg: 'bg-primary/15',  iconColor: 'text-primary',
             onClick: () => navigate('/workout', { state: { openRegimens: true } }) },
           { key: 'checkProgress', icon: TrendingUp,   label: t('dashboard.checkProgress'),
-            iconBg: 'bg-cyan-500/15',    iconColor: 'text-cyan-500',
+            iconBg: 'bg-info/15',    iconColor: 'text-info',
             onClick: () => { window.scrollTo({ top: 0, behavior: 'auto' }); navigate('/progress'); } },
           { key: 'logMeal',       icon: Apple,        label: t('dashboard.logMeal'),
-            iconBg: 'bg-rose-500/15',    iconColor: 'text-rose-500',
+            iconBg: 'bg-destructive/15',    iconColor: 'text-destructive',
             onClick: () => navigate('/nutrition', { state: { openLogMeal: true } }) },
           { key: 'logWeight',     icon: Scale,        label: tFallback('dashboard.logWeight', 'Log weight'),
-            iconBg: 'bg-amber-500/15',   iconColor: 'text-amber-500',
+            iconBg: 'bg-primary/15',   iconColor: 'text-primary',
             onClick: () => setLogWeightOpen(true) },
           { key: 'addPhoto',      icon: Camera,       label: tFallback('dashboard.addPhoto', 'Add progress photo'),
-            iconBg: 'bg-pink-500/15',    iconColor: 'text-pink-500',
+            iconBg: 'bg-primary/15',    iconColor: 'text-primary',
             onClick: () => setPhotoCaptureOpen(true) },
         ];
         const visibleActions = actionsExpanded ? allActions : allActions.slice(0, 3);
@@ -1488,7 +1494,7 @@ export default function Dashboard() {
                 type="button"
                 onClick={handleSetAsDefault}
                 title="Save this layout as the default for all new users"
-                className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-semibold text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 transition-colors"
+                className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-semibold text-primary dark:text-primary hover:bg-primary/10 transition-colors"
               >
                 <Save className="w-3.5 h-3.5" />
                 <span>Set default</span>

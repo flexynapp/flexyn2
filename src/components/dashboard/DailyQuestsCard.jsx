@@ -24,7 +24,7 @@ import { reportError } from '@/lib/reportError';
 function fireAllQuestsConfetti() {
   if (typeof window !== 'undefined' && window.matchMedia
       && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  const colors = ['#f97316', '#fb923c', '#fbbf24', '#22c55e', '#a855f7'];
+  const colors = ['#f97316', '#fb923c', '#fbbf24', '#22c55e', '#ffffff'];
   import('canvas-confetti').then(({ default: confetti }) => {
     confetti({ particleCount: 130, spread: 100, origin: { x: 0.5, y: 0.5 }, colors });
     setTimeout(() => confetti({ particleCount: 80, spread: 75, origin: { x: 0.15, y: 0.5 }, colors }), 120);
@@ -240,8 +240,11 @@ export default function DailyQuestsCard({ onNavigated }) {
     .filter(q => q.completed_at && !q.claimed_at)
     .reduce((sum, q) => sum + q.coin_reward, 0);
 
+  // Was an orange-tinted gradient card. Same reasoning as the recovery
+  // section in Dashboard.jsx — sections separate by spacing and type,
+  // not by each owning a hue.
   return (
-    <Card className="p-4 md:p-5 bg-gradient-to-br from-orange-200/30 to-orange-100/10 dark:from-orange-500/8 dark:to-orange-500/5 border-orange-200/40 dark:border-orange-500/20 theme-card-accent">
+    <Card className="p-4 md:p-5">
       <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
         <div className="flex items-center gap-2 min-w-0">
           <Sparkles className="w-4 h-4 text-primary shrink-0" />

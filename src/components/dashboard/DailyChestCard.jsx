@@ -94,10 +94,10 @@ export default function DailyChestCard() {
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className="w-full mb-3 flex items-center gap-3 rounded-2xl p-3.5 text-start border border-amber-500/30 bg-gradient-to-br from-amber-500/15 to-amber-500/5 hover:from-amber-500/20 transition-colors touch-manipulation disabled:opacity-60"
+      className="w-full mb-3 flex items-center gap-3 rounded-2xl p-3.5 text-start border border-primary/30 bg-primary/12 hover:bg-primary/20 transition-colors touch-manipulation disabled:opacity-60"
     >
-      <div className="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center shrink-0">
-        <Gift className="w-5 h-5 text-amber-500" />
+      <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center shrink-0">
+        <Gift className="w-5 h-5 text-primary" />
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-bold text-foreground">
@@ -107,7 +107,7 @@ export default function DailyChestCard() {
           {tFallback('dashboard.dailyChest.subtitle', 'Free capsule + coins — tap to open')}
         </p>
       </div>
-      <span className="shrink-0 px-3 py-1.5 rounded-full bg-amber-500 text-white text-xs font-bold flex items-center gap-1">
+      <span className="shrink-0 px-3 py-1.5 rounded-full bg-primary text-white text-xs font-bold flex items-center gap-1">
         {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : (tFallback('dashboard.dailyChest.open', 'Open'))}
       </span>
     </motion.button>

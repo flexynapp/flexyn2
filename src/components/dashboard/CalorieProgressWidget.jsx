@@ -123,8 +123,8 @@ export default function CalorieProgressWidget({ userProfile = {} }) {
         {/* Header */}
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-orange-500/10 flex items-center justify-center">
-              <Flame className="w-3.5 h-3.5 text-orange-500" />
+            <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
+              <Flame className="w-3.5 h-3.5 text-primary" />
             </div>
             <span className="text-micro font-bold uppercase tracking-[0.18em] text-muted-foreground">{tFallback('calories.kicker', 'Calories')}</span>
           </div>
@@ -156,7 +156,7 @@ export default function CalorieProgressWidget({ userProfile = {} }) {
             initial={{ width: 0 }}
             animate={{ width: `${pct}%` }}
             transition={{ duration: 0.6, ease: 'easeOut' }}
-            className={`h-full rounded-full ${overBudget ? 'bg-red-500' : pct > 85 ? 'bg-amber-500' : 'bg-orange-500'}`}
+            className={`h-full rounded-full ${overBudget ? 'bg-destructive' : pct > 85 ? 'bg-primary' : 'bg-primary'}`}
           />
         </div>
         <div className="flex justify-between text-micro text-muted-foreground mb-3">
@@ -170,19 +170,19 @@ export default function CalorieProgressWidget({ userProfile = {} }) {
             label={tFallback('macros.protein', 'Protein')}
             consumed={totals.protein_g}
             goal={goals.protein_g || 150}
-            color="bg-red-500"
+            color="bg-destructive"
           />
           <MacroBar
             label={tFallback('macros.carbs', 'Carbs')}
             consumed={totals.carbs_g}
             goal={goals.carbs_g || 200}
-            color="bg-amber-500"
+            color="bg-primary"
           />
           <MacroBar
             label={tFallback('macros.fat', 'Fat')}
             consumed={totals.fat_g}
             goal={goals.fat_g || 65}
-            color="bg-blue-500"
+            color="bg-info"
           />
         </div>
       </Card>

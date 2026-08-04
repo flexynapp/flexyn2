@@ -77,7 +77,7 @@ export default function WeeklyRecap({ logs = [], cardioLogs = [] }) {
     >
       <Card className="overflow-hidden border-border/60 theme-card-accent">
         {/* Top band — kicker + accent + share affordance */}
-        <div className="relative bg-gradient-to-r from-primary/12 via-primary/6 to-transparent px-4 pt-3.5 pb-3 border-b border-border/40 flex items-center justify-between gap-2">
+        <div className="relative bg-primary/10 px-4 pt-3.5 pb-3 border-b border-border/40 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <Calendar className="w-3.5 h-3.5 text-primary" />
             <span className="text-micro font-bold uppercase tracking-[0.18em] text-primary">
@@ -136,7 +136,7 @@ export default function WeeklyRecap({ logs = [], cardioLogs = [] }) {
           <div className="px-4 py-3 space-y-2 border-t border-border/40 bg-background/40">
             {bestLiftDisplay && (
               <div className="flex items-center gap-2">
-                <Flame className="w-3.5 h-3.5 text-orange-500 shrink-0" />
+                <Flame className="w-3.5 h-3.5 text-primary shrink-0" />
                 <span className="text-micro font-bold uppercase tracking-wider text-muted-foreground">
                   {tFallback('recap.heaviestLift', 'Heaviest lift')}
                 </span>
@@ -148,7 +148,7 @@ export default function WeeklyRecap({ logs = [], cardioLogs = [] }) {
             )}
             {recap.prs.length > 0 && (
               <div className="flex items-start gap-2">
-                <Trophy className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
+                <Trophy className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
                 <div className="min-w-0 flex-1">
                   <span className="text-micro font-bold uppercase tracking-wider text-muted-foreground">
                     {recap.prs.length === 1
@@ -159,7 +159,7 @@ export default function WeeklyRecap({ logs = [], cardioLogs = [] }) {
                     {recap.prs.map(pr => (
                       <span
                         key={pr.name}
-                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20 text-xs"
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-primary/10 text-primary dark:text-primary border border-primary/20 text-xs"
                       >
                         <span className="font-semibold truncate max-w-[140px]">{pr.name}</span>
                         <span className="tabular-nums">
@@ -221,16 +221,16 @@ function RecapStat({ icon: Icon, value, valueSuffix, label, delta, deltaPct, del
       <div className="flex items-center gap-1 min-h-[14px]">
         {isUp && (
           <>
-            <TrendingUp className="w-3 h-3 text-emerald-500" />
-            <span className="text-micro font-medium text-emerald-600 dark:text-emerald-400 tabular-nums">
+            <TrendingUp className="w-3 h-3 text-success" />
+            <span className="text-micro font-medium text-success dark:text-success tabular-nums">
               {delta !== null && delta !== undefined ? `+${delta}` : `+${deltaPct}%`}
             </span>
           </>
         )}
         {isDown && (
           <>
-            <TrendingDown className="w-3 h-3 text-rose-500" />
-            <span className="text-micro font-medium text-rose-600 dark:text-rose-400 tabular-nums">
+            <TrendingDown className="w-3 h-3 text-destructive" />
+            <span className="text-micro font-medium text-destructive dark:text-destructive tabular-nums">
               {delta !== null && delta !== undefined ? `${delta}` : `${deltaPct}%`}
             </span>
           </>

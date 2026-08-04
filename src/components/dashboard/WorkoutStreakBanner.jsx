@@ -132,7 +132,7 @@ export default function WorkoutStreakBanner() {
       delay: Math.random() * 3,
       dx: (Math.random() - 0.5) * 18,
       dy: (Math.random() - 0.5) * 14,
-      color: atRisk ? '#f59e0b' : '#10b981',
+      color: atRisk ? '#f97316' : '#22c55e',
     })),
   [atRisk]);
 
@@ -150,11 +150,11 @@ export default function WorkoutStreakBanner() {
         initial={{ opacity: 0, y: -6 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
-        className="relative overflow-hidden rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 flex items-center justify-between gap-3"
+        className="relative overflow-hidden rounded-lg border border-primary/30 bg-primary/10 px-3 py-2.5 flex items-center justify-between gap-3"
         role="alert"
       >
         <div className="flex items-center gap-2 min-w-0">
-          <ShieldCheck className="w-4 h-4 shrink-0 text-amber-500" aria-hidden="true" />
+          <ShieldCheck className="w-4 h-4 shrink-0 text-primary" aria-hidden="true" />
           <div className="min-w-0">
             <p className="text-sm font-heading font-bold leading-tight">
               {tFallback('streakRescue.title', 'Save your {streak}-day streak', { streak })}
@@ -170,7 +170,7 @@ export default function WorkoutStreakBanner() {
         <button
           onClick={handleRescue}
           disabled={rescuing}
-          className="shrink-0 px-3 py-1.5 rounded-md text-xs font-bold bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-60 transition-colors"
+          className="shrink-0 px-3 py-1.5 rounded-md text-xs font-bold bg-primary text-white hover:bg-primary disabled:opacity-60 transition-colors"
         >
           {rescuing
             ? tFallback('streakRescue.saving', 'Saving…')
@@ -187,7 +187,7 @@ export default function WorkoutStreakBanner() {
       transition={{ duration: 0.4 }}
       className={[
         'relative overflow-hidden flex items-center justify-between gap-3 px-3 py-2 rounded-lg border',
-        atRisk ? 'bg-amber-500/10 border-amber-500/30' : 'bg-emerald-500/10 border-emerald-500/20',
+        atRisk ? 'bg-primary/10 border-primary/30' : 'bg-success/10 border-success/20',
       ].join(' ')}
     >
       {/* Floating pixel particles */}
@@ -201,7 +201,7 @@ export default function WorkoutStreakBanner() {
         />
       ))}
       <div className="flex items-center gap-2 min-w-0">
-        <Dumbbell className={`w-4 h-4 shrink-0 ${atRisk ? 'text-amber-500' : 'text-emerald-500'}`} />
+        <Dumbbell className={`w-4 h-4 shrink-0 ${atRisk ? 'text-primary' : 'text-success'}`} />
         <TapToCopy
           // tFallback handles the {n} substitution in BOTH the
           // translated value and the English fallback. The old
@@ -231,7 +231,7 @@ export default function WorkoutStreakBanner() {
               : tFallback('dashboard.workoutDaysStreak', 'day workout streak')}
           </span>
           {isPersonalBest && (
-            <span className={`ms-2 text-micro font-bold uppercase tracking-wider ${atRisk ? 'text-amber-500' : 'text-emerald-500'}`}>
+            <span className={`ms-2 text-micro font-bold uppercase tracking-wider ${atRisk ? 'text-primary' : 'text-success'}`}>
               {tFallback('dashboard.best', 'Best')}
             </span>
           )}
@@ -239,13 +239,13 @@ export default function WorkoutStreakBanner() {
         </TapToCopy>
       </div>
       {atRisk && (
-        <span className="text-micro font-medium text-amber-500">
+        <span className="text-micro font-medium text-primary">
           {tFallback('dashboard.atRiskToday', 'Train today to keep it')}
         </span>
       )}
       {!atRisk && (
         <Trophy
-          className="w-3.5 h-3.5 text-emerald-500"
+          className="w-3.5 h-3.5 text-success"
           title={tFallback('dashboard.longestStreak', `Longest: ${longest}`).replace('{n}', String(longest))}
         />
       )}

@@ -106,7 +106,7 @@ function Body({ data, userId, t, tFallback, fmt, onOpenMember }) {
             <span className="font-heading font-bold tabular-nums">{daysLeft}</span>
           </div>
           {promoteN > 0 && (
-            <div className="flex items-center gap-1 text-emerald-100">
+            <div className="flex items-center gap-1 text-white/90">
               <ArrowUp className="w-3.5 h-3.5" />
               <span className="text-xs">
                 {/* The {n} placeholder in the fallback string is
@@ -121,7 +121,7 @@ function Body({ data, userId, t, tFallback, fmt, onOpenMember }) {
             </div>
           )}
           {demoteN > 0 && (
-            <div className="flex items-center gap-1 text-rose-100">
+            <div className="flex items-center gap-1 text-white/90">
               <ArrowDown className="w-3.5 h-3.5" />
               <span className="text-xs">
                 {tFallback('league.bottomDemoted', 'Bottom {n} demoted', { n: demoteN })}
@@ -169,15 +169,15 @@ function Body({ data, userId, t, tFallback, fmt, onOpenMember }) {
                       isMe
                         ? 'bg-primary/10 border-primary/40 ring-1 ring-primary/30'
                         : isPromote
-                        ? 'bg-emerald-500/5 border-emerald-500/20'
+                        ? 'bg-success/5 border-success/20'
                         : isDemote
-                        ? 'bg-rose-500/5 border-rose-500/20'
+                        ? 'bg-destructive/5 border-destructive/20'
                         : 'bg-card border-border/40',
                     ].join(' ')}
                   >
                     <div className="w-8 flex items-center justify-center">
                       {isFirst ? (
-                        <Crown className="w-4 h-4 text-yellow-500" />
+                        <Crown className="w-4 h-4 text-primary" />
                       ) : (
                         <span className="font-heading font-bold text-xs tabular-nums text-muted-foreground">
                           #{rank}
@@ -215,11 +215,11 @@ function Body({ data, userId, t, tFallback, fmt, onOpenMember }) {
         {/* Legend */}
         <div className="mt-5 pt-4 border-t border-border flex items-center gap-4 text-micro text-muted-foreground flex-wrap">
           <div className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-sm bg-emerald-500/30" />
+            <span className="w-3 h-3 rounded-sm bg-success/30" />
             <span>{tFallback('league.promoteZone', 'Promotion')}</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-sm bg-rose-500/30" />
+            <span className="w-3 h-3 rounded-sm bg-destructive/30" />
             <span>{tFallback('league.demoteZone', 'Demotion')}</span>
           </div>
         </div>

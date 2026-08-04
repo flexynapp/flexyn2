@@ -66,7 +66,7 @@ export default function LoginStreakBanner({ variant = 'default' }) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
       className={`inline-flex items-center gap-1.5 ps-2 pe-1 py-0.5 rounded-full border ${
-        onHero ? 'bg-white/10 border-white/20' : 'bg-orange-500/10 border-orange-500/20'
+        onHero ? 'bg-white/10 border-white/20' : 'bg-primary/10 border-primary/20'
       }`}
     >
       <StreakFlame days={streak} size={15} className="shrink-0" />
@@ -77,7 +77,7 @@ export default function LoginStreakBanner({ variant = 'default' }) {
           </span>
           <span className={onHero ? 'text-white/75' : 'text-muted-foreground'}> {streak === 1 ? t('dashboard.dayStreak') : t('dashboard.daysStreak')}</span>
           {isPersonalBest && (
-            <span className={`ms-1.5 text-micro font-bold uppercase tracking-wider ${onHero ? 'text-orange-300' : 'text-orange-500'}`}>
+            <span className={`ms-1.5 text-micro font-bold uppercase tracking-wider ${onHero ? 'text-primary' : 'text-primary'}`}>
               {t('dashboard.best')}
             </span>
           )}

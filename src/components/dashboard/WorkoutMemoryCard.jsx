@@ -89,17 +89,17 @@ export default function WorkoutMemoryCard({ logs = [] }) {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
       >
-        <Card className="relative overflow-hidden border-border/60 bg-gradient-to-br from-purple-500/5 via-transparent to-rose-500/5">
+        <Card className="relative overflow-hidden border-border/60 bg-primary/5">
           <button
             onClick={handleTap}
             className="w-full text-start px-4 py-3 flex items-center gap-3 hover:bg-secondary/30 transition-colors"
           >
-            <div className="shrink-0 w-9 h-9 rounded-full bg-purple-500/12 text-purple-500 flex items-center justify-center">
+            <div className="shrink-0 w-9 h-9 rounded-full bg-primary/12 text-primary flex items-center justify-center">
               <Calendar className="w-4 h-4" aria-hidden="true" />
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-micro font-bold uppercase tracking-[0.18em] text-purple-500">
+                <span className="text-micro font-bold uppercase tracking-[0.18em] text-primary">
                   {tFallback(`memory.label.${memory.yearLabel.replace(/\s+/g, '_')}`, memory.yearLabel)}
                 </span>
                 {dateStr && (

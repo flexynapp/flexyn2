@@ -60,12 +60,12 @@ export default function WorkoutSuggestionCard({ logs = [], cardioLogs = [] }) {
           onClick={() => navigate('/workout')}
           className="w-full text-start px-4 py-3 flex items-center gap-3 hover:bg-secondary/40 transition-colors"
         >
-          <div className="shrink-0 w-9 h-9 rounded-full bg-amber-500/12 text-amber-500 flex items-center justify-center">
+          <div className="shrink-0 w-9 h-9 rounded-full bg-primary/12 text-primary flex items-center justify-center">
             <Lightbulb className="w-4 h-4" aria-hidden="true" />
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <span className="text-micro font-bold uppercase tracking-[0.18em] text-amber-500">
+              <span className="text-micro font-bold uppercase tracking-[0.18em] text-primary">
                 {tFallback('suggestion.kicker', 'Tomorrow')}
               </span>
               <span className="text-sm font-heading font-bold">{label}</span>

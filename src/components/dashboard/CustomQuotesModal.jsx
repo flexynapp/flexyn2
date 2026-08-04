@@ -126,7 +126,7 @@ export default function CustomQuotesModal({ open, onClose }) {
                   {tFallback('quotes.add', 'Add')}
                 </button>
               </div>
-              <p className={`text-micro text-end ${atLimit ? 'text-amber-500 font-semibold' : 'text-muted-foreground'}`}>
+              <p className={`text-micro text-end ${atLimit ? 'text-primary font-semibold' : 'text-muted-foreground'}`}>
                 {quotes.length} / {MAX_CUSTOM_QUOTES}
               </p>
             </div>

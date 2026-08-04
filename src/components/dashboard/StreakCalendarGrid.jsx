@@ -122,7 +122,7 @@ export default function StreakCalendarGrid({ profile, month = new Date() }) {
           const today = isToday(d);
           const cellClass =
             status === 'future' ? 'bg-secondary/20 text-muted-foreground/30' :
-            status === 'hit'    ? 'bg-emerald-500/25 text-emerald-300' :
+            status === 'hit'    ? 'bg-success/25 text-success' :
                                    'bg-secondary/40 text-muted-foreground/60';
           const statusLabel = tFallback(`streakCalendar.status.${status}`, status || 'miss');
           return (

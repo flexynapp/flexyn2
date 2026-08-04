@@ -62,8 +62,8 @@ function WeeklyVolumeChart({ logs = [] }) {
       transition={{ duration: 0.5, ease: 'easeOut' }}
     >
       <div className="flex items-center gap-2">
-        <div className="w-8 h-8 rounded-xl bg-blue-500/10 flex items-center justify-center">
-          <BarChart2 className="w-4 h-4 text-blue-500" />
+        <div className="w-8 h-8 rounded-xl bg-info/10 flex items-center justify-center">
+          <BarChart2 className="w-4 h-4 text-info" />
         </div>
         <div className="text-start">
           <p className="text-sm font-heading font-bold">{t('widgets.weeklyVolume')}</p>
@@ -171,7 +171,7 @@ function buildStatSlides(logs, goals, weightUnit, language) {
   });
 
   slides.push({
-    id: 'week', icon: Flame, iconColor: 'text-orange-500', iconBg: 'bg-orange-500/10',
+    id: 'week', icon: Flame, iconColor: 'text-primary', iconBg: 'bg-primary/10',
     value: thisWeekLogs.length, label: 'Workouts This Week',
     sub: thisWeekLogs.length > 0 ? `${thisWeekLogs.length} session${thisWeekLogs.length > 1 ? 's' : ''} logged 🔥` : 'Get one in today!',
   });
@@ -187,7 +187,7 @@ function buildStatSlides(logs, goals, weightUnit, language) {
       s + (ex.sets || []).reduce((ss, set) => ss + ((set.weight || 0) * (set.reps || 0)), 0), 0), 0);
   if (weeklyVolume > 0) {
     slides.push({
-      id: 'volume', icon: BarChart2, iconColor: 'text-blue-500', iconBg: 'bg-blue-500/10',
+      id: 'volume', icon: BarChart2, iconColor: 'text-info', iconBg: 'bg-info/10',
       value: formatWeight(weeklyVolume, weightUnit),
       label: 'Lifted This Week', sub: 'Total volume this week',
     });
@@ -207,7 +207,7 @@ function buildStatSlides(logs, goals, weightUnit, language) {
   if (recentPBs.length > 0) {
     const [exName, pb] = recentPBs[0];
     slides.push({
-      id: 'pb', icon: Trophy, iconColor: 'text-yellow-500', iconBg: 'bg-yellow-500/10',
+      id: 'pb', icon: Trophy, iconColor: 'text-primary', iconBg: 'bg-primary/10',
       value: formatWeight(pb.weight, weightUnit),
       label: (() => { const d = translateExerciseName(exName, language); return `PB · ${d.length > 16 ? d.slice(0, 16) + '…' : d}`; })(),
       sub: 'Personal best',
