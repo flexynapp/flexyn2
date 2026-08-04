@@ -16,7 +16,8 @@ import { XP_REWARDS } from '@/lib/xpSystem';
 import { toast } from '@/lib/toast';
 import { isAppAdmin } from '@/lib/adminRoles';
 import { setLayoutDefault } from '@/lib/data/layoutDefaults';
-import { Trash2, TrendingUp, Loader2, Droplet, X, Beaker, History, ScanLine, ChevronDown, ChevronUp, Plus, Clock, ChevronRight, ChefHat, Calendar, ListChecks, GripVertical, LayoutGrid, RotateCcw, CheckCircle2, Save, Repeat, Eye, EyeOff, Target, Flashlight, FlashlightOff } from 'lucide-react';
+import { Trash2, TrendingUp, Loader2, Droplet, X, Beaker, History, ScanLine, ChevronDown, ChevronUp, Plus, Clock, ChevronRight, ChefHat, Calendar, ListChecks, GripVertical, LayoutGrid, RotateCcw, CheckCircle2, Save, Repeat, Eye, EyeOff, Target, Flashlight, FlashlightOff, GlassWater } from 'lucide-react';
+import { WaterBottleIcon } from '@/components/nutrition/NutrientIcon';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import MacroNutrientBox from '@/components/nutrition/MacroNutrientBox';
 import MineralsVitaminsBox from '@/components/nutrition/MineralsVitaminsBox';
@@ -1905,7 +1906,10 @@ export default function Nutrition() {
           <div className="space-y-4">
             {/* HEADER ROW */}
             <div className="flex items-center justify-between">
-              <h3 className="font-heading text-lg font-bold">{t('nutrition.waterIntake')}</h3>
+              <h3 className="font-heading text-lg font-bold flex items-center gap-2 min-w-0">
+                <GlassWater className="w-5 h-5 shrink-0 text-blue-500" />
+                <span className="truncate">{t('nutrition.waterIntake')}</span>
+              </h3>
               {/* Unit Toggle — radio-style group; aria-pressed lets screen
                   readers announce active vs inactive state. */}
               <div role="group" aria-label={t('nutrition.waterIntake')} className="flex rounded-lg border border-border overflow-hidden bg-secondary/30">
@@ -1969,7 +1973,7 @@ export default function Nutrition() {
                     disabled={saveMutation.isPending || waterOz + bottle.oz > WATER_DAILY_CAP_OZ}
                     className="pe-8 text-xs"
                   >
-                    🍶 {bottle.label}
+                    <WaterBottleIcon className="w-3.5 h-3.5 me-1 text-blue-500" /> {bottle.label}
                   </Button>
                   <button
                     onClick={() => handleDeleteBottle(bottle.id)}
@@ -1993,7 +1997,10 @@ export default function Nutrition() {
             {/* WATER ENTRY LOG — grouped by size */}
             <div className="pt-4 border-t border-border">
               <div className="flex items-center justify-between mb-3">
-                <p className="text-xs font-medium text-muted-foreground">{t('nutrition.waterEntries')}</p>
+                <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                  <Droplet className="w-3.5 h-3.5 shrink-0 text-blue-500" />
+                  {t('nutrition.waterEntries')}
+                </p>
               </div>
               {waterEntries.length === 0 ? (
                 <p className="text-xs text-muted-foreground">{t('nutrition.noWater')}</p>

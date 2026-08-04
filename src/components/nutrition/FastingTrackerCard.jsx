@@ -12,8 +12,9 @@
 
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Timer, Play, StopCircle, Check } from 'lucide-react';
+import { Hourglass, StopCircle, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Glyph, MealPlateIcon } from '@/components/nutrition/NutrientIcon';
 import { toast } from '@/lib/toast';
 import { useAuth } from '@/lib/AuthContext';
 import {
@@ -29,6 +30,40 @@ const PRESETS = [
   { id: '18:6',  hours: 18, label: '18:6',  desc: 'Tight window' },
   { id: 'OMAD',  hours: 20, label: '20:4',  desc: 'One meal a day' },
 ];
+
+/**
+ * A 24-hour dial with the EATING window filled — 8h, 6h and 4h wedges
+ * shrinking across the three preset buttons.
+ *
+ * "16:8" and "18:6" are only legible if you already know the convention;
+ * the shrinking wedge says which window is tighter without needing it. It
+ * fills the eating window rather than the fast because that's the part the
+ * user is choosing, and a nearly-full circle on every preset would show no
+ * difference between them.
+ */
+function FastWindowDial({ eatingHours, className = 'w-5 h-5' }) {
+  const CX = 12, CY = 12, R = 8.5;
+  const sweep = (eatingHours / 24) * 360;
+  // Start at 12 o'clock. SVG angles run clockwise from the +x axis, so
+  // noon is -90deg.
+  const point = (deg) => {
+    const rad = (deg * Math.PI) / 180;
+    return [CX + R * Math.cos(rad), CY + R * Math.sin(rad)];
+  };
+  const [x0, y0] = point(-90);
+  const [x1, y1] = point(-90 + sweep);
+  const largeArc = sweep > 180 ? 1 : 0;
+  return (
+    <Glyph className={className}>
+      <circle cx={CX} cy={CY} r={R} />
+      <path
+        d={`M${CX} ${CY}L${x0} ${y0}A${R} ${R} 0 ${largeArc} 1 ${x1} ${y1}Z`}
+        fill="currentColor"
+        stroke="none"
+      />
+    </Glyph>
+  );
+}
 
 export default function FastingTrackerCard() {
   const { user } = useAuth();
@@ -69,7 +104,7 @@ export default function FastingTrackerCard() {
     return (
       <div className="rounded-2xl border border-border bg-card p-4">
         <div className="flex items-center gap-2 mb-2">
-          <Timer className="w-4 h-4 text-primary" />
+          <Hourglass className="w-4 h-4 shrink-0 text-primary" />
           <h3 className="font-heading font-bold text-sm">Intermittent fasting</h3>
         </div>
         <p className="text-xs text-muted-foreground mb-3">
@@ -81,8 +116,9 @@ export default function FastingTrackerCard() {
               key={p.id}
               type="button"
               onClick={() => handleStart(p.hours)}
-              className="rounded-lg border border-border bg-secondary/30 hover:bg-secondary/60 px-2 py-2 text-center transition-colors"
+              className="rounded-lg border border-border bg-secondary/30 hover:bg-secondary/60 px-2 py-2 flex flex-col items-center text-center transition-colors"
             >
+              <FastWindowDial eatingHours={24 - p.hours} className="w-5 h-5 mb-1 text-primary" />
               <p className="font-heading font-bold text-sm">{p.label}</p>
               <p className="text-[10px] text-muted-foreground">{p.desc}</p>
             </button>
@@ -127,7 +163,11 @@ export default function FastingTrackerCard() {
     <div className="rounded-2xl border border-border bg-card p-4">
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
-          <Timer className="w-4 h-4 text-primary" />
+          {/* The header icon carries the state change too, not just the
+              wording — a plate the moment the window opens. */}
+          {done
+            ? <MealPlateIcon className="w-4 h-4 shrink-0 text-emerald-500" />
+            : <Hourglass className="w-4 h-4 shrink-0 text-primary" />}
           <h3 className="font-heading font-bold text-sm">
             {done ? 'Eating window open' : 'Fasting'}
           </h3>
@@ -152,7 +192,9 @@ export default function FastingTrackerCard() {
             />
           </svg>
           <div className="absolute inset-0 flex items-center justify-center">
-            {done ? <Check className="w-6 h-6 text-emerald-500" /> : <Play className="w-5 h-5 text-orange-500" />}
+            {/* An hourglass, not a Play triangle — the ring is counting a
+                fast down, and Play read as "press me to start". */}
+            {done ? <Check className="w-6 h-6 text-emerald-500" /> : <Hourglass className="w-5 h-5 text-orange-500" />}
           </div>
         </div>
         <div className="flex-1 min-w-0">

@@ -5,22 +5,27 @@ import {
 } from 'lucide-react';
 
 /**
- * Per-nutrient glyphs for the Nutrition page.
+ * Glyphs for the Nutrition page.
  *
  * Every tile in the Nutritional Values / Vitamins & Minerals cards and in
  * the Log Meal form reads the SAME icon from here, so a nutrient looks
  * identical wherever it appears — the tile you read and the field you type
  * into are recognisably the same thing.
  *
- * Lucide covers most of these. Sodium (salt shaker), sugar (sugar cube) and
- * the Log Meal plate have no lucide equivalent, so they're drawn below in
- * lucide's own house style — 24x24 viewBox, no fill, `currentColor` stroke,
- * width 2, round caps and joins — so they sit at the same visual weight as
- * their neighbours and inherit the tile's text colour like the rest.
+ * Lucide covers most of these. Sodium (salt shaker), sugar (sugar cube), the
+ * Log Meal plate and the water bottle have no lucide equivalent, so they're
+ * drawn below in lucide's own house style — 24x24 viewBox, no fill,
+ * `currentColor` stroke, width 2, round caps and joins — so they sit at the
+ * same visual weight as their neighbours and inherit their container's text
+ * colour like the rest.
  */
 
-/* Shared <svg> shell so the custom glyphs match lucide's attributes exactly. */
-function Glyph({ children, className = '', strokeWidth = 2, ...props }) {
+/**
+ * Shared <svg> shell so the custom glyphs match lucide's attributes exactly.
+ * Exported because the fasting card draws its own parametric dial and it has
+ * to come out at the same weight as everything around it.
+ */
+export function Glyph({ children, className = '', strokeWidth = 2, ...props }) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -90,6 +95,23 @@ export function MealPlateIcon(props) {
       <path d="M4.8 8.6V21" />
       <path d="M19.4 3v18" />
       <path d="M19.4 3c1.3 1.7 1.3 4.4 0 6.1" />
+    </Glyph>
+  );
+}
+
+/**
+ * Sport water bottle — capped, with a fill line.
+ *
+ * Replaces the 🍶 emoji the custom-bottle chips used to carry: an emoji
+ * renders in the platform's own colour and weight, so it sat in a row of
+ * lucide strokes looking like a different design system had leaked in.
+ */
+export function WaterBottleIcon(props) {
+  return (
+    <Glyph {...props}>
+      <rect x="9.5" y="2" width="5" height="3" rx="1" />
+      <path d="M10.6 5v2.4c-1.9.8-3.1 2.4-3.1 4.3v6.5A2.8 2.8 0 0 0 10.3 21h3.4a2.8 2.8 0 0 0 2.8-2.8v-6.5c0-1.9-1.2-3.5-3.1-4.3V5" />
+      <path d="M7.5 14h9" />
     </Glyph>
   );
 }
