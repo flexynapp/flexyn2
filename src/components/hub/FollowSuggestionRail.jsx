@@ -60,7 +60,7 @@ function SuggestedFolloweeCard({ user, onFollow, following, followed }) {
     <motion.div
       initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
-      className="shrink-0 w-32 rounded-2xl border border-border bg-card p-3 flex flex-col items-center gap-2"
+      className="shrink-0 snap-start w-32 rounded-2xl border border-border bg-card p-3 flex flex-col items-center gap-2"
     >
       <div className="relative">
         {user.avatar_url ? (
@@ -233,16 +233,31 @@ export default function FollowSuggestionRail() {
             </button>
           )}
         </div>
-        <div className="flex gap-2.5 overflow-x-auto pb-1 px-1 -mx-1 scrollbar-hide">
-          {suggestions.map((u) => (
-            <SuggestedFolloweeCard
-              key={u.user_id}
-              user={u}
-              following={followingEmail === u.email}
-              followed={justFollowed.has(u.email)}
-              onFollow={() => handleFollow(u.email)}
-            />
-          ))}
+        {/* The rail scrolls, but nothing said so: the third card landed
+            half-off the viewport with its username clipped mid-word
+            ("seant") and its Follow button sliced down the middle, which
+            reads as a broken layout rather than "there is more this way".
+            Two cheap signals fix it — scroll-snap so a card always comes to
+            rest whole, and a fade at the trailing edge so a partial card
+            looks deliberate. The fade is inside a relative wrapper and
+            pointer-events-none so it can never eat a tap on the card under
+            it. Logical properties (start/end) keep both correct in RTL. */}
+        <div className="relative">
+          <div className="flex gap-2.5 overflow-x-auto pb-1 px-1 -mx-1 scrollbar-hide snap-x snap-mandatory">
+            {suggestions.map((u) => (
+              <SuggestedFolloweeCard
+                key={u.user_id}
+                user={u}
+                following={followingEmail === u.email}
+                followed={justFollowed.has(u.email)}
+                onFollow={() => handleFollow(u.email)}
+              />
+            ))}
+          </div>
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-y-0 end-0 w-8 bg-gradient-to-l from-card to-transparent rtl:bg-gradient-to-r"
+          />
         </div>
       </motion.div>
     </AnimatePresence>

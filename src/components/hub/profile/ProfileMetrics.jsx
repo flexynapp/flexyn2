@@ -59,6 +59,36 @@ export default function ProfileMetrics({
   forms,
   language,
 }) {
+  // A brand-new account rendered "0 followers · 0 following · 0 posts" —
+  // three zeros in a row, which is a cold thing to show someone who just
+  // finished an eleven-step signup. It also isn't information: nobody needs
+  // to be told they have no followers on the day they arrive.
+  //
+  // Only suppressed when ALL THREE are zero. Once any one of them moves, the
+  // full row returns — a real 0 next to a real 4 is a comparison, not a
+  // verdict, and hiding it then would be hiding data.
+  //
+  // STRICT === 0, not falsy. While the counts are still loading they are
+  // null/undefined, and a falsy check would show "Find people to follow" for
+  // a moment on every profile — including accounts with thousands of
+  // followers — before snapping to the real numbers. Requiring an explicit 0
+  // means this state can only appear once we actually know the answer.
+  const isBrandNew = followerCount === 0 && followingCount === 0 && postCount === 0;
+
+  if (isBrandNew) {
+    return (
+      <div className="mt-3">
+        <button
+          type="button"
+          onClick={onOpenFollowing}
+          className="text-sm text-muted-foreground hover:text-foreground transition-colors underline-offset-2 hover:underline"
+        >
+          Find people to follow
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-3">
       <Metric

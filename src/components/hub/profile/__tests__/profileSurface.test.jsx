@@ -64,6 +64,55 @@ describe('ProfileMetrics', () => {
     expect(screen.getAllByText('0')).toHaveLength(3);
   });
 
+  // A brand-new account showed "0 followers · 0 following · 0 posts" — three
+  // zeros in a row, immediately after an eleven-step signup. It reads as a
+  // verdict and it isn't information.
+  it('offers a next step instead of three zeros on a brand-new account', () => {
+    render(
+      <ProfileMetrics
+        postCount={0}
+        followerCount={0}
+        followingCount={0}
+        onOpenFollowing={vi.fn()}
+        forms={FORMS}
+        language="en"
+      />
+    );
+    expect(screen.queryAllByText('0')).toHaveLength(0);
+    expect(screen.getByText('Find people to follow')).toBeTruthy();
+  });
+
+  // The loading case must NOT be mistaken for the empty case, or every
+  // profile flashes "Find people to follow" before its real counts land.
+  it('does not show the brand-new state while counts are still loading', () => {
+    render(
+      <ProfileMetrics
+        postCount={null}
+        followerCount={null}
+        followingCount={null}
+        forms={FORMS}
+        language="en"
+      />
+    );
+    expect(screen.queryByText('Find people to follow')).toBeNull();
+  });
+
+  it('returns to the full row as soon as one count is non-zero', () => {
+    render(
+      <ProfileMetrics
+        postCount={0}
+        followerCount={0}
+        followingCount={4}
+        onOpenFollowers={vi.fn()}
+        onOpenFollowing={vi.fn()}
+        forms={FORMS}
+        language="en"
+      />
+    );
+    expect(screen.getByText('4')).toBeTruthy();
+    expect(screen.getAllByText('0')).toHaveLength(2);
+  });
+
   it('only makes the follower/following counts tappable', () => {
     const onFollowers = vi.fn();
     render(

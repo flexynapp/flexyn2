@@ -21,7 +21,6 @@ import CrewsSection from '@/components/crews/CrewsSection';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { useStartConversation } from '@/lib/hubMessaging';
 import { markHubVisited } from '@/hooks/useHubUnreadDot';
-import { useNavHidden } from '@/lib/NavVisibilityContext';
 
 // ─── Ember particle data for the marketplace button ───────────────────────────
 const EMBERS = [
@@ -68,7 +67,6 @@ export default function Hub() {
   );
   const [feedTab, setFeedTab] = useState('pump');
   const [composerOpen, setComposerOpen] = useState(false);
-  const navHidden = useNavHidden();
   const [searchOpen, setSearchOpen] = useState(false);
   const [profileTarget, setProfileTarget] = useState(
     paramToProfileTarget(initialProfileEmail)
@@ -445,38 +443,17 @@ export default function Hub() {
         </motion.div>
       </AnimatePresence>
 
-      {/* Mobile FAB — only on the feed, not on Crews tab */}
-      {section === 'feed' && feedTab !== 'crews' && feedTab !== 'activity' && (
-        <div
-          className="lg:hidden fixed inset-x-0 z-40 pointer-events-none"
-          style={{
-            // Sit above the nav; when the nav hides on scroll-down, glide down
-            // to the wall. Matches the nav's 220ms transition so they move as
-            // one. Slides back up when the nav reappears.
-            bottom: navHidden
-              ? 'calc(1.25rem + env(safe-area-inset-bottom))'
-              : 'calc(6.5rem + env(safe-area-inset-bottom))',
-            transition: 'bottom 220ms ease-in-out',
-          }}
-        >
-          <div className="max-w-3xl mx-auto px-4 md:px-6 flex justify-end">
-            <motion.button
-              initial={{ scale: 0, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0, opacity: 0 }}
-              transition={{ type: 'spring', stiffness: 400, damping: 22 }}
-              whileTap={{ scale: 0.92 }}
-              whileHover={{ scale: 1.05 }}
-              onClick={() => setComposerOpen(true)}
-              aria-label={t('hub.composer.fab')}
-              className="pointer-events-auto w-14 h-14 rounded-full flex items-center justify-center bg-gradient-to-br from-primary to-primary/60 text-primary-foreground focus:outline-none focus:ring-4 focus:ring-primary/30"
-              style={{ boxShadow: '0 10px 24px -6px hsl(var(--primary) / 0.55), 0 4px 8px -2px hsl(var(--primary) / 0.30)' }}
-            >
-              <Plus className="w-7 h-7 stroke-[2.5]" strokeLinecap="round" />
-            </motion.button>
-          </div>
-        </div>
-      )}
+      {/* The orange "+" FAB that used to float here is gone.
+          It called setComposerOpen(true) — the exact same action as the
+          "New Post" button ~230px above it, so Hub shipped two create
+          affordances in different styles for one action. It also floated
+          over the first post card, covering its top-right corner and one of
+          that post's own controls, and it was one of eleven orange elements
+          competing for attention in a single Hub viewport.
+          Removing it settles all three at once. "New Post" keeps the job:
+          it is already balanced against Marketplace in the row above, it is
+          labelled rather than relying on a "+" glyph, and it never covers
+          content. */}
 
       {/* Composer */}
       {composerOpen && <HubComposer onClose={() => setComposerOpen(false)} />}

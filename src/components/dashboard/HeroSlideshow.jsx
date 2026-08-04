@@ -1069,7 +1069,14 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
                 type="button"
                 onClick={() => goTo(i)}
                 aria-label={tFallback('dashboard.hero.slide', `Slide ${i + 1}`)}
-                className={`h-1.5 rounded-full transition-all ${i === idx ? 'w-6' : 'w-1.5'}`}
+                // 6x6px is an indicator, not a control. `before:` grows the
+                // TAP target vertically without changing the rendered dot or
+                // the row's height — vertical is where the room is, because
+                // nine dots at a full 44px wide would need 396px on a 375px
+                // screen. Horizontal expansion is held to the gap so
+                // neighbouring targets don't overlap and steal each other's
+                // taps.
+                className={`relative h-1.5 rounded-full transition-all before:absolute before:content-[''] before:-inset-y-4 before:-inset-x-0.5 ${i === idx ? 'w-6' : 'w-1.5'}`}
                 style={dotStyle(i === idx)}
               />
             ))}
@@ -1141,7 +1148,14 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
                 type="button"
                 onClick={() => goTo(i)}
                 aria-label={tFallback('dashboard.hero.slide', `Slide ${i + 1}`)}
-                className={`h-1.5 rounded-full transition-all ${i === idx ? 'w-6' : 'w-1.5'}`}
+                // 6x6px is an indicator, not a control. `before:` grows the
+                // TAP target vertically without changing the rendered dot or
+                // the row's height — vertical is where the room is, because
+                // nine dots at a full 44px wide would need 396px on a 375px
+                // screen. Horizontal expansion is held to the gap so
+                // neighbouring targets don't overlap and steal each other's
+                // taps.
+                className={`relative h-1.5 rounded-full transition-all before:absolute before:content-[''] before:-inset-y-4 before:-inset-x-0.5 ${i === idx ? 'w-6' : 'w-1.5'}`}
                 style={dotStyle(i === idx)}
               />
             ))}
@@ -1314,7 +1328,11 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
               type="button"
               onClick={() => goTo(i)}
               aria-label={tFallback('dashboard.hero.slide', `Slide ${i + 1}`)}
-              className={`h-1.5 rounded-full transition-all ${i === idx ? 'w-6' : 'w-1.5'}`}
+              // Same tap-target expansion as the other two dot rows — see
+              // the note there. Kept in sync deliberately; three copies of
+              // this row exist because the streak / feature / achievements
+              // slides each own their chrome.
+              className={`relative h-1.5 rounded-full transition-all before:absolute before:content-[''] before:-inset-y-4 before:-inset-x-0.5 ${i === idx ? 'w-6' : 'w-1.5'}`}
               style={dotStyle(i === idx)}
             />
           ))}

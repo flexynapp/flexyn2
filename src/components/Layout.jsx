@@ -126,14 +126,14 @@ function NavTab({ item, isActive, isHubItem, hubBlue, hubPurple, hubHasNewFollow
         <motion.span animate={isActive ? { fontWeight: 700 } : { fontWeight: 500 }}>
           {item.label}
         </motion.span>
-        {hasQuickActions && (
-          // Subtle dots under the label so users know the long-press
-          // affordance exists. iOS uses this convention on Dock
-          // shortcuts. Invisible to anyone who'd find them noisy.
-          // Wave 73: text-[6px] → text-[5px], -mt-0.5 → -mt-1 so the
-          // dots tuck up under the label rather than adding a row.
-          <span aria-hidden="true" className="text-[5px] tracking-[0.3em] -mt-1 opacity-50">···</span>
-        )}
+        {/* The 5px "···" long-press hint that used to sit here is gone.
+            At text-[5px] and opacity-50 it was below the threshold of
+            being seen at all — a review read it as a clipped second line
+            of the label rather than an affordance, which is the worst of
+            both outcomes: invisible as a hint, visible as a defect.
+            The affordance is already taught properly by the OneShotTooltip
+            above ("Hold any tab for shortcuts"), which fires once and is
+            legible. One good teaching moment beats permanent noise. */}
       </Link>
     </motion.div>
   );

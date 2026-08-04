@@ -60,7 +60,11 @@ export default function LoginStreakBanner({ variant = 'default' }) {
     <div>
     {/* Compact inline pill — hugs its content on the left instead of a
         full-width card, and the ember-particle overlay was dropped, to
-        keep the (already busy) dashboard clean. Tap to expand the calendar. */}
+        keep the (already busy) dashboard clean.
+        NOTE: the pill is NOT one big toggle. Tapping the label copies the
+        streak (TapToCopy); the chevron expands the calendar. A review read
+        the whole chip as expandable and reported it as a dead control,
+        because the chevron's hit box was ~18px — see the button below. */}
     <motion.div
       initial={{ opacity: 0, y: -6 }}
       animate={{ opacity: 1, y: 0 }}
@@ -90,7 +94,15 @@ export default function LoginStreakBanner({ variant = 'default' }) {
       <button
         type="button"
         onClick={() => setShowCalendar(v => !v)}
-        className={`flex items-center rounded-full p-0.5 transition-colors ${
+        // `before:` expands the TAP target to ~44px without changing the
+        // rendered size, so the pill keeps its compact look while the
+        // control becomes reachable with a thumb. p-0.5 around a 14px icon
+        // gave it an ~18px hit box — well under the 44px minimum, and the
+        // reason a tap aimed at the chevron landed on the copy-to-clipboard
+        // label beside it and appeared to do nothing.
+        // active: states are the app-wide press feedback.
+        className={`relative flex items-center rounded-full p-0.5 transition-colors
+          before:absolute before:content-[''] before:-inset-3 ${
           onHero ? 'text-white/60 hover:text-white active:text-white hover:bg-white/10 active:bg-white/10' : 'text-muted-foreground hover:text-foreground active:text-foreground hover:bg-secondary/40 active:bg-secondary/60'
         }`}
         aria-label={showCalendar

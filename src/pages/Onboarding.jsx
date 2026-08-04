@@ -341,6 +341,11 @@ function Confetti({ pieces = 32 }) {
    SHARED: STEP HEADER (progress bar + back)
 ═══════════════════════════════════════════════════════════════ */
 
+// NOTE: the eyebrow on each step ("Experience · 03") must derive its number
+// from the same `step` prop this header uses. Four of them were hardcoded
+// string literals, and two had drifted out of sync — the Experience step
+// showed "Experience · 02" beside a progress bar reading 03/11, so the app
+// disagreed with itself about where the user was. Never type the number.
 function StepHeader({ step, total, onBack }) {
   // Hide the Back button when there's nowhere to go back to. The first
   // form step (goal) had a broken Back button: it called `back()` →
@@ -593,7 +598,7 @@ function GoalStep({ value, onChange, onNext, onBack, step, total }) {
     <div className="flex flex-col h-full">
       <StepHeader step={step} total={total} onBack={onBack} />
       <div className="flex-1 overflow-y-auto space-y-3 pb-4 pe-2">
-        <KineticHeading kicker="Goal · 01" text="What are you here for?" accentWord="for?" />
+        <KineticHeading kicker={`Goal · ${String(step).padStart(2, '0')}`} text="What are you here for?" accentWord="for?" />
         <p className="text-sm text-muted-foreground mt-1.5 mb-4 min-h-[40px] transition-all">{helper}</p>
 
         {/* Counter row */}
@@ -762,7 +767,7 @@ function SharpenStep({ goals, value, onChange, onNext, onBack, step, total }) {
     <div className="flex flex-col h-full">
       <StepHeader step={step} total={total} onBack={onBack} />
       <div className="flex-1 overflow-y-auto space-y-5 pb-4 pe-2">
-        <KineticHeading kicker="Sharpen · 02" text="Let's sharpen your plan." accentWord="sharpen" />
+        <KineticHeading kicker={`Sharpen · ${String(step).padStart(2, '0')}`} text="Let's sharpen your plan." accentWord="sharpen" />
         <p className="text-sm text-muted-foreground -mt-1">A few quick details make your starter plan spot-on — all optional.</p>
 
         {wantsCardio && (
@@ -843,11 +848,24 @@ function ExperienceStep({ value, onChange, onNext, onBack, step, total }) {
     <div className="flex flex-col h-full">
       <StepHeader step={step} total={total} onBack={onBack} />
       <div className="flex-1 overflow-y-auto pb-4 pe-2">
-        <KineticHeading kicker="Experience · 02" text="How long have you been training?" accentWord="training?" />
+        <KineticHeading kicker={`Experience · ${String(step).padStart(2, '0')}`} text="How long have you been training?" accentWord="training?" />
         <p className="text-sm text-muted-foreground mt-2 mb-6">Honest answers get you a better program.</p>
 
-        {/* Visual rep meter */}
-        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1, duration: 0.45 }}
+        {/* Visual rep meter — renders ONLY once a level is picked.
+            It used to render unconditionally, so the top third of the step
+            was a large empty card holding four grey bars and the words
+            "Choose below": a chart of nothing, explaining nothing, pushing
+            the actual options below the fold on a 375x812 viewport. Now the
+            options own the screen at rest and the meter arrives as
+            confirmation of the choice, which is the only moment it has
+            anything to show. */}
+        <AnimatePresence>
+        {current && (
+        <motion.div
+          initial={{ opacity: 0, y: 8, height: 0 }}
+          animate={{ opacity: 1, y: 0, height: 'auto' }}
+          exit={{ opacity: 0, y: -8, height: 0 }}
+          transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
           className="rounded-2xl border bg-card p-5 mb-4 relative overflow-hidden">
           {/* bars */}
           <div className="flex items-end gap-2 h-20 mb-4">
@@ -869,12 +887,14 @@ function ExperienceStep({ value, onChange, onNext, onBack, step, total }) {
           <AnimatePresence mode="wait">
             <motion.div key={current?.id || 'none'} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}>
               <div className="font-heading font-bold text-2xl tracking-tight text-foreground">
-                {current?.label || <span className="text-muted-foreground text-base">Choose below</span>}
+                {current?.label}
               </div>
               {current && <div className="text-sm text-muted-foreground mt-1">{current.desc}</div>}
             </motion.div>
           </AnimatePresence>
         </motion.div>
+        )}
+        </AnimatePresence>
 
         {/* Level list */}
         <div className="space-y-2">
@@ -909,7 +929,7 @@ function ExperienceStep({ value, onChange, onNext, onBack, step, total }) {
 
       <div className="pt-4 shrink-0">
         <PrimaryBtn onClick={onNext} disabled={!value}>
-          Continue <Icon name="arrow-right" size={18} strokeWidth={2.5} />
+          {!value ? 'Pick your experience level' : <>Continue <Icon name="arrow-right" size={18} strokeWidth={2.5} /></>}
         </PrimaryBtn>
       </div>
     </div>
@@ -1011,7 +1031,8 @@ function AssessmentStep({ value, onChange, onNext, onBack, onSkip, step, total }
 
       <div className="pt-4 shrink-0 flex flex-col gap-2">
         <PrimaryBtn onClick={onNext}>
-          {allAnswered ? 'Build my plan' : 'Continue'}
+          {/* Same reason as the schedule step: this is step 10 of 14. */}
+          Continue
           <Icon name="arrow-right" size={18} strokeWidth={2.5} />
         </PrimaryBtn>
         {!allAnswered && (
@@ -1466,7 +1487,7 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
                 className="font-mono text-micro font-semibold tracking-[0.3em] uppercase text-muted-foreground mt-2 hover:text-foreground active:text-foreground transition-colors"
                 style={{ background: 'none', border: 'none', cursor: 'text', padding: 0 }}
               >
-                YEARS OLD · TAP TO TYPE
+                YEARS OLD · TAP TO TYPE OR DRAG
               </button>
             )}
 
@@ -1530,15 +1551,23 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
             <div style={{ position: 'absolute', left: '50%', top: 0, bottom: 0, width: 2, marginLeft: -1, background: 'linear-gradient(180deg, hsl(var(--primary)), transparent)', pointerEvents: 'none', boxShadow: '0 0 10px hsl(var(--primary))' }} />
           </div>
           <div className="flex justify-between mt-1 px-1">
+            {/* The middle "DRAG OR USE BUTTONS" label is gone — the step was
+                carrying two separate instruction lines for one control, and
+                the hint under the number now covers both gestures. What's
+                left is the ruler's actual range, which is information the
+                other line was crowding out.
+                Sizes are text-micro (11px), per the app-wide type floor. */}
             <span className="font-mono text-micro font-semibold text-muted-foreground tracking-wide">13</span>
-            <span className="font-mono text-micro font-semibold text-muted-foreground tracking-wide">DRAG OR USE BUTTONS</span>
             <span className="font-mono text-micro font-semibold text-muted-foreground tracking-wide">80</span>
           </div>
           {/* ± Age nudge buttons */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginTop: 12 }}>
             <button onClick={() => bumpAge(-5)} style={nudgeBtnStyle}>−5</button>
             <button onClick={() => bumpAge(-1)} style={nudgeBtnStyle}>−1</button>
-            <span style={{ fontFamily: 'ui-monospace,monospace', fontSize: 13, fontWeight: 700, color: 'hsl(var(--foreground))', minWidth: 48, textAlign: 'center' }}>{age} yrs</span>
+            {/* The value used to be repeated here, 13px, ~300px below the
+                120px reel already showing it. One number, one place — the
+                spacer keeps the ± buttons from closing up around the gap. */}
+            <span aria-hidden="true" style={{ minWidth: 48 }} />
             <button onClick={() => bumpAge(+1)} style={nudgeBtnStyle}>+1</button>
             <button onClick={() => bumpAge(+5)} style={nudgeBtnStyle}>+5</button>
           </div>
@@ -1586,7 +1615,12 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
       </div>
       <div className="pt-4 shrink-0">
         <PrimaryBtn onClick={onNext} disabled={!canNext}>
-          Continue <Icon name="arrow-right" size={18} strokeWidth={2.5} />
+          {/* The blocker is a username field several hundred pixels up the
+              page, so a bare disabled "Continue" gave the user nothing to
+              act on — they could see it was dead and not why. */}
+          {!canNext
+            ? (usernameError ? 'Pick a different username' : 'Choose a username to continue')
+            : <>Continue <Icon name="arrow-right" size={18} strokeWidth={2.5} /></>}
         </PrimaryBtn>
       </div>
     </div>
@@ -2119,7 +2153,7 @@ function StatsStep({ username, onUsernameChange, stats, onChange, onNext, onBack
     <div className="flex flex-col h-full">
       <StepHeader step={step} total={total} onBack={onBack} />
       <div className="flex-1 overflow-y-auto space-y-3 pb-4 pe-2">
-        <KineticHeading kicker="Stats · 03" text="A few numbers, then we're done." accentWord="numbers," />
+        <KineticHeading kicker={`Stats · ${String(step).padStart(2, '0')}`} text="A few numbers, then we're done." accentWord="numbers," />
         <p className="text-sm text-muted-foreground mt-2 mb-4">Drag to set. Encrypted, never sold.</p>
 
         {/* Username */}
@@ -2285,8 +2319,12 @@ function DaysStep({ days, preferredTime, onDaysChange, onTimeChange, onNext, onB
       </div>
 
       <div className="pt-4 shrink-0">
+        {/* Was "Build my plan" — on step 09 of 14, with injuries, home gym
+            and the reveal still to come. A terminal-sounding CTA that isn't
+            terminal makes the three steps after it feel like a bait and
+            switch. "Enter Flexyn" on the reveal step is the real finish. */}
         <PrimaryBtn onClick={onNext} disabled={count === 0}>
-          Build my plan <Icon name="arrow-right" size={18} strokeWidth={2.5} />
+          {count === 0 ? 'Pick at least one day' : <>Continue <Icon name="arrow-right" size={18} strokeWidth={2.5} /></>}
         </PrimaryBtn>
       </div>
     </div>

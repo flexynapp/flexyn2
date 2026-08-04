@@ -1805,7 +1805,15 @@ export default function Workout() {
     const InfoBtn = ({ bid }) => (
       <button type="button"
         onClick={(e) => { e.stopPropagation(); setActiveInfo(activeInfo === bid ? null : bid); }}
-        className="absolute top-2 end-2 w-4 h-4 rounded-full border border-border/60 bg-background/80 flex items-center justify-center text-muted-foreground/60 hover:text-foreground active:text-foreground hover:border-border transition-colors z-10">
+        aria-label="What is this card?"
+        aria-expanded={activeInfo === bid}
+        // The badge keeps its rendered size; `before:` grows the TAP box to
+        // ~44px. Four of these render in a single viewport and every one was
+        // a 16px target sitting 8px from the card's own click handler, so a
+        // miss didn't just fail — it navigated somewhere instead.
+        // active:text-foreground is the app-wide press state; the glyph is
+        // text-micro per the 11px type floor.
+        className="absolute top-2 end-2 w-4 h-4 rounded-full border border-border/60 bg-background/80 flex items-center justify-center text-muted-foreground/60 hover:text-foreground active:text-foreground hover:border-border transition-colors z-10 before:absolute before:content-[''] before:-inset-3.5">
         <span className="text-micro font-bold leading-none italic">i</span>
       </button>
     );
@@ -1824,8 +1832,13 @@ export default function Workout() {
           onKeyDown={(e) => { if (e.key==='Enter'||e.key===' '){e.preventDefault();navigate('/coach?generate=1');} }}>
           <InfoBtn bid="generate" />
           <div className="flex flex-col items-center text-center gap-1.5">
-            <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center shrink-0">
-              <Sparkles className="w-5 h-5 text-white" />
+            {/* Matches the other nine cards. This was the lone solid
+                bg-primary tile in the grid, which read as a priority the
+                layout never explained — its neighbour "Explore Regimens" is
+                a peer, not a lesser option. If the Coach deserves top
+                billing, that is a navigation decision, not a tile colour. */}
+            <div className="w-10 h-10 rounded-xl bg-primary/18 border border-primary/28 flex items-center justify-center shrink-0">
+              <Sparkles className="w-5 h-5 text-primary" />
             </div>
             <div>
               <p className="font-heading font-bold text-sm leading-tight">{tFallback('generator.title','Generate Workout')}</p>

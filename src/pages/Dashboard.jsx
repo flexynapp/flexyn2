@@ -1185,7 +1185,11 @@ export default function Dashboard() {
     return t('dashboard.greeting.night');
   }, [t]);
 
-  const firstName = user?.username || user?.full_name?.split(' ')[0] || '';
+  // full_name FIRST. This read `username || full_name`, so an account whose
+  // handle was auto-generated greeted its owner as "Evening work, revu14404."
+  // while their real name sat unused one property away. The username is a
+  // database key; the name is what a person answers to.
+  const firstName = user?.full_name?.trim().split(/\s+/)[0] || user?.username || '';
   const todayLabel = format(new Date(), 'EEEE, MMMM d', { locale: getDateLocale(language) });
 
   // Format weekly volume nicely (1.2k for big numbers).
