@@ -229,12 +229,50 @@ export function ThemeProvider({ children }) {
   });
 
   const [darkMode, setDarkModeState] = useState(() => {
+    // An explicit choice always wins — once someone has touched the toggle
+    // (or their profile has synced a value into localStorage), that is the
+    // answer and the OS does not get to override it.
     try {
       const saved = localStorage.getItem('fn-dark-mode');
       if (saved !== null) return saved === 'true';
     } catch {}
+
+    // No stored choice: honour the OS. This used to return false
+    // unconditionally, so a phone in dark mode opened a bright cream app and
+    // the user had to go and find the setting. Dark mode existed the whole
+    // time; nothing was asking for it.
+    //
+    // Deliberately NOT persisted here. Writing the OS value into
+    // localStorage would freeze the first-seen preference forever and make
+    // the app stop following the system — the value only lands in storage
+    // when the user (or their synced profile) actually chooses.
+    try {
+      if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+        return window.matchMedia('(prefers-color-scheme: dark)').matches;
+      }
+    } catch {}
     return false;
   });
+
+  // Keep following the OS until the user expresses a preference. Someone who
+  // has never opened the setting and whose phone flips to dark at sunset
+  // should see the app flip with it.
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
+    let stored = null;
+    try { stored = localStorage.getItem('fn-dark-mode'); } catch {}
+    if (stored !== null) return; // explicit choice — stop listening
+
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const onChange = (e) => setDarkModeState(e.matches);
+    // Safari < 14 has no addEventListener on MediaQueryList.
+    if (mq.addEventListener) mq.addEventListener('change', onChange);
+    else if (mq.addListener) mq.addListener(onChange);
+    return () => {
+      if (mq.removeEventListener) mq.removeEventListener('change', onChange);
+      else if (mq.removeListener) mq.removeListener(onChange);
+    };
+  }, []);
 
   // Derive the active animation id from the current loot theme (null if none).
   // If a base theme has an animation (e.g. brushed-steel), use that as fallback.
@@ -303,7 +341,12 @@ export function ThemeProvider({ children }) {
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', darkMode);
-    try { localStorage.setItem('fn-dark-mode', String(darkMode)); } catch {}
+    // NOTE: this deliberately does NOT persist. It used to write
+    // `fn-dark-mode` on every change, which meant the OS-derived initial
+    // value was immediately written to storage — freezing whatever the phone
+    // happened to be set to on first launch and permanently silencing the
+    // prefers-color-scheme listener above. Persistence now belongs to
+    // setDarkMode(), the only path that represents an actual choice.
   }, [darkMode]);
 
   const setThemeId = useCallback((id) => {
@@ -339,6 +382,10 @@ export function ThemeProvider({ children }) {
 
   const setDarkMode = useCallback((val) => {
     setDarkModeState(val);
+    // Writing here — and only here — is what marks the preference as
+    // explicit. From this point the app stops following the OS for this
+    // device, which is the correct reading of someone having used the toggle.
+    try { localStorage.setItem('fn-dark-mode', String(val)); } catch {}
     try { db.auth.updateMe({ dark_mode: val }).catch(() => {}); } catch {}
   }, []);
 

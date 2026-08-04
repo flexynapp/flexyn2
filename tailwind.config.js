@@ -6,7 +6,22 @@ module.exports = {
   	extend: {
   		fontFamily: {
   			heading: ['var(--font-heading)'],
-  			body: ['var(--font-body)']
+  			body: ['var(--font-body)'],
+  			// `sans` is what Tailwind's preflight puts on <body>, and it was
+  			// never overridden — so it resolved to Tailwind's stock
+  			// `ui-sans-serif, system-ui, …` and every component that didn't
+  			// explicitly say font-heading or font-body inherited a stack with
+  			// no brand face in it at all.
+  			//
+  			// A review measured the result: THREE different font stacks
+  			// coexisting on /workout, the third being this default. That is
+  			// why parts of the app read as subtly unrelated to other parts —
+  			// they were literally set in a different typeface.
+  			//
+  			// Pointing sans at the body face fixes it once, globally, instead
+  			// of chasing `font-body` onto several hundred components.
+  			sans: ['var(--font-body)', 'system-ui', '-apple-system', 'sans-serif'],
+  			mono: ['var(--font-mono)']
   		},
   		// ── Type ramp ────────────────────────────────────────────────
   		// Six named steps, defined once WITH their line-height and

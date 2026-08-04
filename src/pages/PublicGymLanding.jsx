@@ -19,7 +19,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   ArrowLeft, Building2, MapPin, Users, Loader2,
-  ChevronRight, CheckCircle2, Dumbbell,
+  ChevronRight, CheckCircle2, Dumbbell, WifiOff,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/AuthContext';
@@ -50,21 +50,64 @@ export default function PublicGymLanding() {
 
   const [gym, setGym] = useState(null);
   const [notFound, setNotFound] = useState(false);
+  // Distinct from notFound on purpose. "This gym isn't on Flexyn" is a claim
+  // about the world, and we may only make it when the lookup actually
+  // succeeded — same rule the gym picker follows for Overpass failures.
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [retryNonce, setRetryNonce] = useState(0);
 
   const isAuthed = !isLoadingAuth && !!user;
 
   useEffect(() => {
     if (!id) { setNotFound(true); return; }
+    let cancelled = false;
+    setLoadFailed(false);
     supabase
       .from('gym_businesses')
       .select('id, name, logo_url, cover_url, city, state_code, member_count, amenities, photo_urls, is_active')
       .eq('id', id)
       .maybeSingle()
       .then(({ data, error }) => {
-        if (error || !data || !data.is_active) { setNotFound(true); return; }
+        if (cancelled) return;
+        // A query error is a failed lookup, not an absent gym. Only a clean
+        // response with no row — or an inactive one — means "not found".
+        if (error) { setLoadFailed(true); return; }
+        if (!data || !data.is_active) { setNotFound(true); return; }
         setGym(data);
-      });
-  }, [id]);
+      })
+      // THE FIX. There was no catch here, so a network failure rejected the
+      // promise, the .then never ran, and both flags stayed false — leaving
+      // the component wedged in its loading branch forever. That is what an
+      // audit measured as "a completely blank page, 8 DOM nodes, zero
+      // characters": it was the spinner, spinning indefinitely. The other
+      // three public routes all degraded gracefully under the identical
+      // induced failure because they handle this path.
+      .catch(() => { if (!cancelled) setLoadFailed(true); });
+    return () => { cancelled = true; };
+  }, [id, retryNonce]);
+
+  // ── Couldn't load ──────────────────────────────────────────────────
+  if (loadFailed) {
+    return (
+      <div className="fixed inset-0 bg-background flex flex-col items-center justify-center gap-4 p-6 text-center">
+        <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center">
+          <WifiOff className="w-8 h-8 text-muted-foreground" aria-hidden="true" />
+        </div>
+        <div>
+          <p className="font-heading font-bold text-lg">Couldn&rsquo;t load this gym</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            Check your connection and try again.
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Button onClick={() => setRetryNonce(n => n + 1)}>Try again</Button>
+          <Button onClick={() => { window.location.href = '/'; }} variant="outline">
+            Discover Flexyn
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   // ── Loading ────────────────────────────────────────────────────────
   if (gym === null && !notFound) {

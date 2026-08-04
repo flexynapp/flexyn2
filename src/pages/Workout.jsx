@@ -326,6 +326,35 @@ export default function Workout() {
 
   const guard = useMultiProfanityGuard();
   const { sessions, resumeWorkout, removeSession } = useWorkoutSessions(user?.id);
+
+  // Declared HERE, immediately after removeSession, rather than ~860 lines
+  // further down where it used to live. Every binding it touches is above
+  // this line, and its callers (the save mutation's onSuccess, the discard
+  // dialog) are below — so nothing reads it before initialization.
+  //
+  // The old position produced two no-use-before-define warnings, which is
+  // the same rule that caught the 2026-05-23 production Hub crash. These two
+  // were latent rather than live, because both call sites are async mutation
+  // callbacks that run long after render — but "latent TDZ in the app's
+  // hottest file" is not a state to leave a 3,700-line component in, and
+  // this file is where the pattern gets copied from.
+  const resetWorkout = (clearSessionId = null) => {
+    if (clearSessionId) removeSession(clearSessionId);
+    // Clear the live-activity presence flag (migration 088). Fire-and-
+    // forget — a failed clear isn't catastrophic; the TTL on
+    // active_until (set by markActive at workout start) caps the
+    // damage to 90 minutes even if this clear never lands.
+    activity.clearActive();
+    setStarted(false);
+    setActiveSessionId(null);
+    setSelectedRegimen(null);
+    setExercises([]);
+    setDuration('');
+    setNotes('');
+    setWorkoutName('');
+    setWorkoutTags([]);
+  };
+
   const queryClient = useQueryClient();
   // user / location / navigate are already destructured at the top of
   // the component so the early useEffect deps arrays don't TDZ.
@@ -565,6 +594,13 @@ export default function Workout() {
     queryFn: () => db.auth.me(),
     enabled: !!user?.email,
   });
+
+  // Centralized in src/lib/workoutVolume.js so the live pill, save
+  // mutation, and downstream displays all share the same formula
+  // (and honor the user's include_bar_in_volume preference — audit
+  // C-3).
+  const calculateTotalVolume = (exList) =>
+    computeTotalVolume(exList, { includeBarWeight: !!userProfile?.include_bar_in_volume });
 
   // InjuryBanner fetches its own data internally — this query is unused.
   useQuery({
@@ -1197,13 +1233,6 @@ export default function Workout() {
     onSettled: () => queryClient.invalidateQueries({ queryKey: ['workoutLogs', user?.email] }),
   });
 
-  // Centralized in src/lib/workoutVolume.js so the live pill, save
-  // mutation, and downstream displays all share the same formula
-  // (and honor the user's include_bar_in_volume preference — audit
-  // C-3).
-  const calculateTotalVolume = (exList) =>
-    computeTotalVolume(exList, { includeBarWeight: !!userProfile?.include_bar_in_volume });
-
   const getLastSetsForExercise = (exerciseName, targetSetCount) => {
     if (!logs || logs.length === 0) return null;
     for (const log of logs) {
@@ -1740,23 +1769,6 @@ export default function Workout() {
     // onError clears it.
     saveInFlightRef.current = true;
     saveMutation.mutate(pendingPayload);
-  };
-
-  const resetWorkout = (clearSessionId = null) => {
-    if (clearSessionId) removeSession(clearSessionId);
-    // Clear the live-activity presence flag (migration 088). Fire-and-
-    // forget — a failed clear isn't catastrophic; the TTL on
-    // active_until (set by markActive at workout start) caps the
-    // damage to 90 minutes even if this clear never lands.
-    activity.clearActive();
-    setStarted(false);
-    setActiveSessionId(null);
-    setSelectedRegimen(null);
-    setExercises([]);
-    setDuration('');
-    setNotes('');
-    setWorkoutName('');
-    setWorkoutTags([]);
   };
 
   const itemVariants = {
