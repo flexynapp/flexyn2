@@ -343,7 +343,11 @@ export default function ProfileMenu({ compact = false } = {}) {
             initial={{ scale: 0.6, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             aria-hidden="true"
-            className="absolute -top-0.5 -end-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-purple-500 text-white text-[10px] font-bold flex items-center justify-center border-2 border-card shadow-sm"
+            // Was bg-purple-500 / text-white — the only purple left in the
+            // app's header chrome, on an orange-brand app, and the same
+            // badge two branches below already renders as
+            // bg-primary/text-primary-foreground. Matched to that.
+            className="absolute -top-0.5 -end-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center border-2 border-card shadow-sm"
           >
             {capsuleCount > 9 ? '9+' : capsuleCount}
           </motion.span>
