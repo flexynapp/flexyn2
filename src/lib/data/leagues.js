@@ -141,17 +141,34 @@ export async function recordWeeklyXp(user, amount) {
  */
 export async function listLeagueMembers(leagueId) {
   if (!leagueId) return [];
-  // Embed user_profiles row so the standings UI can show @username
-  // instead of leaking email-local-part. The original `select('*')`
-  // only returned league_members columns (user_id + user_email +
-  // weekly_xp), forcing the UI to fall back to the email local-part
-  // which leaked corporate handles to every other league member.
-  // (Audit 15 #H5.)
+  // Embed the profile so the standings UI can show @username instead of
+  // leaking the email local-part. The original `select('*')` returned only
+  // league_members columns (user_id + user_email + weekly_xp), forcing the
+  // UI to fall back to the local-part and leaking corporate handles to
+  // every other league member. (Audit 15 #H5.)
+  //
+  // Embed target is `public_profiles`, NOT `user_profiles`, and that is
+  // load-bearing. RLS on user_profiles permits reading only your OWN row
+  // (three policies, all auth.uid() = id), so embedding it returns
+  // `user: null` for every other member — the board renders a list of blank
+  // names. public_profiles is the SECURITY DEFINER view that exists exactly
+  // for cross-user reads; it exposes a reviewed column subset and, since
+  // migration 220, no email.
+  //
+  // This embed ALSO needs the FK added in migration 283
+  // (league_members.user_id -> user_profiles.id). PostgREST infers a view's
+  // relationships through its base table, and the only FK on this column
+  // before 283 pointed at auth.users, which is not an exposed schema — so
+  // there was no path to traverse and the query 400'd with PGRST200 on
+  // every call, for every user, since the day it was written.
+  //
+  // Verified over real HTTP with a signed-in session: this returns real
+  // usernames; the user_profiles form returns null on every row.
   const { data, error } = await supabase
     .from('league_members')
     .select(`
       *,
-      user:user_profiles!user_id ( username, avatar_url )
+      user:public_profiles ( username, avatar_url )
     `)
     .eq('league_id', leagueId)
     .order('weekly_xp', { ascending: false });

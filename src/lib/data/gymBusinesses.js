@@ -241,7 +241,7 @@ export async function listFeedPosts(gymId, limit = 30) {
     .from('gym_feed_posts')
     .select(`
       *,
-      author:user_profiles!author_id ( username, avatar_url )
+      author:public_profiles ( username, avatar_url )
     `)
     .eq('gym_id', gymId)
     .order('created_at', { ascending: false })
@@ -328,13 +328,14 @@ export async function listReactionsForPosts(postIds, userId) {
 // ── Feed comments (mig 138) ────────────────────────────────────────
 export async function listFeedComments(postId) {
   if (!postId) return [];
-  // Same email-leak guard as listFeedPosts — embed the author profile
-  // so the UI can show @username instead of the email local-part.
+  // Same email-leak guard as listFeedPosts — embed the author profile so
+  // the UI can show @username instead of the email local-part. Same
+  // public_profiles-not-user_profiles reasoning as listGymMembers above.
   const { data, error } = await supabase
     .from('gym_feed_comments')
     .select(`
       id, author_id, author_email, body, created_at, parent_id,
-      author:user_profiles!author_id ( username, avatar_url )
+      author:public_profiles ( username, avatar_url )
     `)
     .eq('post_id', postId)
     .order('created_at', { ascending: true });
@@ -434,10 +435,17 @@ export async function listEventRsvps(eventIds) {
 
 // ── Member directory (mig 135) ──────────────────────────────────────
 /**
- * Full member list for the directory modal. Joins gym_members to
- * user_profiles for the display data. Caps at 200 — past that we'd
- * want pagination but the practical gym member count rarely exceeds
- * a couple hundred.
+ * Full member list for the directory modal. Caps at 200 — past that we'd
+ * want pagination, but a practical gym member count rarely exceeds a
+ * couple hundred.
+ *
+ * Embeds `public_profiles`, not `user_profiles`. RLS on user_profiles
+ * permits reading only your own row, so embedding it hands back
+ * `profile: null` for every other member and the roster renders blank.
+ * public_profiles is the SECURITY DEFINER view built for cross-user reads.
+ * The embed also depends on the FK added in migration 283 — the only FK on
+ * gym_members.user_id before that pointed at auth.users, which PostgREST
+ * will not traverse, so this 400'd with PGRST200 on every call.
  */
 export async function listGymMembers(gymId) {
   if (!gymId) return [];
@@ -446,7 +454,7 @@ export async function listGymMembers(gymId) {
     .select(`
       joined_at,
       user_id,
-      profile:user_profiles!user_id (
+      profile:public_profiles (
         username, avatar_url, total_xp, workout_streak
       )
     `)
