@@ -12,6 +12,33 @@ export const cardioI18n = {
     'cardio.weather.outside': 'Outside conditions',
     'cardio.live.autoPaused': 'Auto-paused',
     'cardio.live.autoResumed': 'Resumed',
+
+    // TODO(i18n): English-only, pending a native-speaker pass — do NOT
+    // machine-translate. Hardcoded in the JSX until the Aug 2026 audit:
+    // swimming and the utility tiles were added after running/walking/
+    // biking (keys in i18n-part8.js) and never got keys, so a non-English
+    // user saw three translated tiles and one English one in the same 2x2
+    // grid. Extracting them does not translate them — it makes them
+    // translatable, and puts them in front of the audit as a real gap
+    // instead of hiding them in JSX where no coverage tool can see them.
+    'cardio.modes.swimming': 'Swimming',
+    'cardio.modes.swimming.desc': 'Pool or open water',
+    'cardio.swim.whereQuestion': 'Where are you swimming?',
+    'cardio.swim.pool': 'Pool',
+    'cardio.swim.pool.desc': 'Lap pool, 25 m or 50 m',
+    'cardio.swim.openWater': 'Open Water',
+    'cardio.swim.openWater.desc': 'Lake, ocean, river',
+    'cardio.nav.templates': 'Templates',
+    'cardio.nav.templates.desc': 'Quick-start saved configurations',
+    'cardio.nav.planned': 'Planned Sessions',
+    'cardio.nav.planned.desc': 'Schedule upcoming workouts',
+    'cardio.nav.goals': 'Cardio Goals',
+    'cardio.nav.goals.desc': 'Weekly & monthly distance targets',
+    'cardio.nav.devices': 'Devices & Apps',
+    'cardio.nav.devices.desc': 'Apple Watch, Garmin, Fitbit…',
+    'cardio.detail.laps': 'Laps',
+    'cardio.detail.stroke': 'Stroke',
+    'cardio.planned.notesPlaceholder': 'Notes… (optional)',
   },
   es: {
     'cardio.pr.title': '🏆 ¡Nuevo récord de {label}!',

@@ -9,6 +9,7 @@ import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card } from '@/components/ui/card';
+import { useLanguage } from '@/lib/LanguageContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -41,6 +42,7 @@ function typeInfo(type) {
 }
 
 function PlanForm({ onSave, onCancel, distanceUnit }) {
+  const { tFallback } = useLanguage();
   const [title, setTitle] = useState('');
   const [type, setType] = useState('running_outside');
   const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));
@@ -149,7 +151,7 @@ function PlanForm({ onSave, onCancel, distanceUnit }) {
 
         {/* Notes */}
         <Input
-          placeholder="Notes… (optional)"
+          placeholder={tFallback('cardio.planned.notesPlaceholder', 'Notes… (optional)')}
           value={notes}
           onChange={e => setNotes(e.target.value)}
           maxLength={200}

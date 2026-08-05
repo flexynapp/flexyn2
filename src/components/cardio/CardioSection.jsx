@@ -87,7 +87,7 @@ function dispatchTitle(title) {
 }
 
 export default function CardioSection({ onBack }) {
-  const { t } = useLanguage();
+  const { t, tFallback } = useLanguage();
   const { user } = useAuth();
   const { distanceUnit } = useDistanceUnit();
   const [view, setView] = useState({ name: 'home' });
@@ -225,8 +225,8 @@ export default function CardioSection({ onBack }) {
                 icon={Waves}
                 iconBg="bg-cyan-500/10"
                 iconColor="text-cyan-500"
-                title="Swimming"
-                description="Pool or open water"
+                title={tFallback('cardio.modes.swimming', 'Swimming')}
+                description={tFallback('cardio.modes.swimming.desc', 'Pool or open water')}
                 onClick={() => setView({ name: 'mode', mode: 'swimming' })}
               />
             </div>
@@ -244,32 +244,32 @@ export default function CardioSection({ onBack }) {
               icon={BookmarkPlus}
               iconBg="bg-violet-500/10"
               iconColor="text-violet-500"
-              title="Templates"
-              description="Quick-start saved configurations"
+              title={tFallback('cardio.nav.templates', 'Templates')}
+              description={tFallback('cardio.nav.templates.desc', 'Quick-start saved configurations')}
               onClick={() => setView({ name: 'templates' })}
             />
             <NavTile
               icon={CalendarDays}
               iconBg="bg-emerald-500/10"
               iconColor="text-emerald-500"
-              title="Planned Sessions"
-              description="Schedule upcoming workouts"
+              title={tFallback('cardio.nav.planned', 'Planned Sessions')}
+              description={tFallback('cardio.nav.planned.desc', 'Schedule upcoming workouts')}
               onClick={() => setView({ name: 'planned' })}
             />
             <NavTile
               icon={Target}
               iconBg="bg-rose-500/10"
               iconColor="text-rose-500"
-              title="Cardio Goals"
-              description="Weekly & monthly distance targets"
+              title={tFallback('cardio.nav.goals', 'Cardio Goals')}
+              description={tFallback('cardio.nav.goals.desc', 'Weekly & monthly distance targets')}
               onClick={() => setView({ name: 'goals' })}
             />
             <NavTile
               icon={Watch}
               iconBg="bg-zinc-500/10"
               iconColor="text-zinc-500"
-              title="Devices & Apps"
-              description="Apple Watch, Garmin, Fitbit…"
+              title={tFallback('cardio.nav.devices', 'Devices & Apps')}
+              description={tFallback('cardio.nav.devices.desc', 'Apple Watch, Garmin, Fitbit…')}
               onClick={() => setView({ name: 'wearables' })}
             />
           </motion.div>
@@ -294,7 +294,7 @@ export default function CardioSection({ onBack }) {
             {t('cardio.back')}
           </Button>
           <h2 className="font-heading text-xl font-bold mb-4">
-            {isSwimming ? 'Where are you swimming?' : t(questionKey)}
+            {isSwimming ? tFallback('cardio.swim.whereQuestion', 'Where are you swimming?') : t(questionKey)}
           </h2>
           <motion.div
             className="space-y-4"
@@ -308,16 +308,16 @@ export default function CardioSection({ onBack }) {
                   icon={Waves}
                   iconBg="bg-cyan-500/10"
                   iconColor="text-cyan-500"
-                  title="Pool"
-                  description="Lap pool, 25 m or 50 m"
+                  title={tFallback('cardio.swim.pool', 'Pool')}
+                  description={tFallback('cardio.swim.pool.desc', 'Lap pool, 25 m or 50 m')}
                   onClick={() => setView({ name: 'inputType', mode: 'swimming', env: 'pool' })}
                 />
                 <NavTile
                   icon={Trees}
                   iconBg="bg-blue-500/10"
                   iconColor="text-blue-500"
-                  title="Open Water"
-                  description="Lake, ocean, river"
+                  title={tFallback('cardio.swim.openWater', 'Open Water')}
+                  description={tFallback('cardio.swim.openWater.desc', 'Lake, ocean, river')}
                   onClick={() => setView({ name: 'inputType', mode: 'swimming', env: 'openwater' })}
                 />
               </>

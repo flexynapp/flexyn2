@@ -87,7 +87,7 @@ function computeSplits(track, unitMeters) {
 }
 
 export default function CardioDetailModal({ log, open, onOpenChange, onEdit }) {
-  const { t } = useLanguage();
+  const { t, tFallback } = useLanguage();
   const { user } = useAuth();
   const { distanceUnit } = useDistanceUnit();
   const queryClient = useQueryClient();
@@ -277,10 +277,10 @@ export default function CardioDetailModal({ log, open, onOpenChange, onEdit }) {
             />
           )}
           {log.laps && (
-            <DetailRow label="Laps" value={`${log.laps} laps`} />
+            <DetailRow label={tFallback('cardio.detail.laps', 'Laps')} value={`${log.laps} laps`} />
           )}
           {log.stroke_type && (
-            <DetailRow label="Stroke" value={log.stroke_type} />
+            <DetailRow label={tFallback('cardio.detail.stroke', 'Stroke')} value={log.stroke_type} />
           )}
           {log.route_name && (
             <DetailRow
