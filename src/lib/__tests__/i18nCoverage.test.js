@@ -108,33 +108,73 @@ describe('partial-gap ratchet', () => {
     ).toBeLessThanOrEqual(CEILING);
   });
 
+  // Namespaces shipped English-only ON PURPOSE, awaiting a native-speaker
+  // pass. Excluded from the denominator below — NOT from the app, where they
+  // render English in every locale exactly as they did when the copy was
+  // hardcoded in JSX.
+  //
+  // Why this list exists at all: the floor used to count TOTAL coverage, so
+  // it fell whenever `en` grew — including when English-only strings were
+  // extracted OUT of JSX into keys. That penalised the workflow CLAUDE.md
+  // prescribes ("ship English-only with a TODO(i18n)") and rewarded leaving
+  // copy hardcoded, where no audit could see it at all. The cardio
+  // extraction cost a notch (0.80 → 0.79) for 18 keys; onboarding's 237
+  // would have cost ten points, for a change that took the flow from
+  // untranslatable to translatable and left not one user-visible string
+  // different.
+  //
+  // So the metric now asks the question it always meant to: of the copy we
+  // have COMMITTED to translating, how much is done? Moving a namespace in
+  // here is a deliberate act with a name attached; it is not the same as
+  // lowering the floor for everybody.
+  //
+  // Burn-down rules:
+  //   • Add a prefix ONLY when the whole namespace is new and English-only.
+  //   • DELETE the prefix the moment its translations land — the guard below
+  //     fails on a stale entry, so this list cannot quietly become permanent.
+  //   • A partial translation does not belong here. Finish it or leave it
+  //     counted.
+  const AWAITING_TRANSLATION = [
+    // Onboarding flow — extracted from JSX 2026-08-05 (audit 18 #6). 237 keys,
+    // the first thing every new user reads, so CLAUDE.md forbids machine
+    // translation outright. Needs a native pass in 14 languages.
+    'onboarding.',
+  ];
+
+  const pending = (k) => AWAITING_TRANSLATION.some(p => k.startsWith(p));
+  const counted = [...en].filter(k => !pending(k));
+
+  it('every awaiting-translation prefix still has untranslated keys', () => {
+    // A prefix that no longer matches anything untranslated has done its job
+    // and must be removed, or it silently exempts future keys that happen to
+    // share the namespace.
+    for (const prefix of AWAITING_TRANSLATION) {
+      const stillMissing = [...en].some(k =>
+        k.startsWith(prefix) && OTHERS.some(l => !keys[l].has(k)));
+      expect(
+        stillMissing,
+        `"${prefix}" is fully translated — delete it from AWAITING_TRANSLATION`,
+      ).toBe(true);
+    }
+  });
+
   // 0.79, lowered from 0.80 (kegan, Aug 2026 — deliberate, not drift).
   //
-  // This floor counts TOTAL coverage, so it falls whenever `en` grows —
-  // including when English-only strings are extracted OUT of JSX into keys.
-  // That penalises the workflow CLAUDE.md prescribes ("ship English-only
-  // with a TODO(i18n)") and rewards leaving copy hardcoded, where no audit
-  // can see it at all.
-  //
-  // It surfaced on the cardio extraction: 18 keys moved out of JSX, `en`
-  // went 1675 → 1693, and eight languages sitting in the 80.5–80.9% band
-  // dropped through the floor at once. None of them lost a translation.
-  //
-  // Note the failure mode when this does trip: `expect` throws on the first
+  // Note the failure mode when this trips: `expect` throws on the first
   // language in OTHERS order, so the message names ONE language when eight
   // may have moved. Run `node scripts/i18n-audit.mjs` for the full picture
   // before concluding the damage is small.
   //
-  // Lower bound is `ru` at 79.62%, so this leaves ~13 English-only keys of
-  // headroom. The real fix is a native-speaker pass on the ~340-key gap,
-  // not another notch down — if this trips again, translate rather than
-  // loosen.
+  // With onboarding excluded the lower bound is `ru` again. If this trips
+  // now it means a language actually LOST ground on copy we said we'd
+  // translate — so translate, don't loosen, and don't reach for
+  // AWAITING_TRANSLATION to make it green.
   const FLOOR = 0.79;
 
   it(`coverage does not regress below ${FLOOR * 100}% in any language`, () => {
     for (const l of OTHERS) {
-      const covered = [...en].filter(k => keys[l].has(k)).length;
-      const pct = covered / en.size;
+      const covered = counted.filter(k => keys[l].has(k)).length;
+      const pct = covered / counted.length;
       expect(pct, `${l} coverage fell to ${(pct * 100).toFixed(1)}%`).toBeGreaterThan(FLOOR);
     }
   });

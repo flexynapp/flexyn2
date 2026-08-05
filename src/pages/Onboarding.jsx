@@ -10,6 +10,7 @@ import FlexynLogo from '@/components/FlexynLogo';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from '@/lib/toast';
 import { useAuth } from '@/lib/AuthContext';
+import { useLanguage } from '@/lib/LanguageContext';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { db } from '@/api/db';
 import { supabase } from '@/api/supabaseClient';
@@ -25,6 +26,7 @@ import { reportError } from '@/lib/reportError';
 import { isDuplicateUsernameError, isProfaneUsernameError } from '@/lib/onboardingErrors';
 import { escapeLikePattern } from '@/lib/sqlPattern';
 import { todayLocalDateString } from '@/lib/dateUtils';
+import { useDateFormatter } from '@/lib/intl';
 import NearbyGymPicker from '@/components/gyms/NearbyGymPicker';
 import { setHomeGym, setHomeGymFromOsm } from '@/lib/data/homeGym';
 import { OnboardingCoachButton, OnboardingCoachSheet } from '@/components/onboarding/OnboardingCoach';
@@ -76,8 +78,31 @@ const LEVELS = [
   { id: 'advanced',   label: 'Advanced',   sub: '2+ years, lifts close to plateau', bars: 4, desc: 'Specificity, blocks, and earned PRs.' },
 ];
 
-const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-const TIMES    = ['Morning', 'Midday', 'Evening', 'Late night'];
+/* ── i18n ─────────────────────────────────────────────────────────
+   Every table below keeps its English text, and the translation key is
+   DERIVED from the row's stable id (`onboarding.goal.strength.title`), so
+   there is no second list of keys to keep in sync with the first. Call sites
+   read `tFallback(key, row.english)` — the English stays inline as the
+   last-resort fallback, per the i18n rule in CLAUDE.md.
+
+   Ids are also what gets PERSISTED. The preferred-training-time control used
+   to store its English display label, so a French user's profile row read
+   "Evening"; the label is now free to change or translate without touching
+   the database. (Audit 18 #6, #11.)
+────────────────────────────────────────────────────────────────── */
+
+// Weekday abbreviations come from Intl rather than a translation table —
+// correct in all 15 locales for free, instead of 105 hand-written strings.
+// 2024-01-01 was a Monday; seven consecutive days from it give Mon…Sun in
+// the order the day grid expects.
+const WEEKDAY_SEED = Array.from({ length: 7 }, (_, i) => new Date(Date.UTC(2024, 0, 1 + i)));
+
+const TIMES = [
+  { id: 'morning',    label: 'Morning'    },
+  { id: 'midday',     label: 'Midday'     },
+  { id: 'evening',    label: 'Evening'    },
+  { id: 'late_night', label: 'Late night' },
+];
 
 // Age bounds. Every part of the age step derives from these — the drag hook,
 // the ± buttons, the tap-to-type clamp, the tick marks and the range captions.
@@ -362,6 +387,7 @@ function Confetti({ pieces = 32 }) {
 // showed "Experience · 02" beside a progress bar reading 03/11, so the app
 // disagreed with itself about where the user was. Never type the number.
 function StepHeader({ step, total, onBack }) {
+  const { tFallback } = useLanguage();
   // Hide the Back button when there's nowhere to go back to. The first
   // form step (goal) had a broken Back button: it called `back()` →
   // stepIdx=0 (welcome) → an auto-advance effect immediately bounced
@@ -373,7 +399,7 @@ function StepHeader({ step, total, onBack }) {
   return (
     <div className="flex items-center gap-3 mb-7">
       {canBack ? (
-        <button onClick={onBack} aria-label="Back"
+        <button onClick={onBack} aria-label={tFallback('onboarding.common.back', 'Back')}
           className="w-11 h-11 rounded-xl border border-border/70 bg-card/70 backdrop-blur-sm flex items-center justify-center text-foreground hover:bg-card active:bg-card transition-colors shrink-0">
           <Icon name="arrow-left" size={17} strokeWidth={2.5} />
         </button>
@@ -446,6 +472,7 @@ function PrimaryBtn({ onClick, disabled, children, className = '' }) {
 ═══════════════════════════════════════════════════════════════ */
 
 function FeatureCarousel() {
+  const { tFallback } = useLanguage();
   const [idx, setIdx] = useState(0);
   const [paused, setPaused] = useState(false);
   const DURATION = 3800;
@@ -518,9 +545,15 @@ function FeatureCarousel() {
             end-3 — inside the card's own p-4 — so without this the sub-copy
             wrapped straight under it and rendered as "…RPE. ›". (Audit 18 #16.) */}
         <div className="flex-1 min-w-0 pe-5">
-          <div className="font-mono text-micro font-bold tracking-[0.16em] uppercase mb-1" style={{ color: F.accent }}>{F.eyebrow}</div>
-          <div className="font-heading font-bold text-body leading-tight tracking-tight text-foreground mb-1.5">{F.title}</div>
-          <div className="text-[11.5px] leading-[1.45] text-muted-foreground">{F.sub}</div>
+          <div className="font-mono text-micro font-bold tracking-[0.16em] uppercase mb-1" style={{ color: F.accent }}>
+            {tFallback(`onboarding.feature.${F.id}.eyebrow`, F.eyebrow)}
+          </div>
+          <div className="font-heading font-bold text-body leading-tight tracking-tight text-foreground mb-1.5">
+            {tFallback(`onboarding.feature.${F.id}.title`, F.title)}
+          </div>
+          <div className="text-[11.5px] leading-[1.45] text-muted-foreground">
+            {tFallback(`onboarding.feature.${F.id}.sub`, F.sub)}
+          </div>
         </div>
         {/* Bouncing chevron — subtle hint that the card slides horizontally */}
         <motion.span
@@ -535,7 +568,8 @@ function FeatureCarousel() {
         {FEATURES.map((f, i) => {
           const active = i === idx;
           return (
-            <button key={f.id} onClick={() => setIdx(i)} aria-label={`Show ${f.eyebrow}`}
+            <button key={f.id} onClick={() => setIdx(i)}
+              aria-label={tFallback('onboarding.feature.showAria', 'Show {name}', { name: tFallback(`onboarding.feature.${f.id}.eyebrow`, f.eyebrow) })}
               className="relative h-1 rounded-full cursor-pointer border-none p-0 transition-all duration-500 before:absolute before:content-[''] before:-inset-y-5 before:-inset-x-1"
               style={{ width: active ? 28 : 6, background: active ? 'hsl(var(--muted) / 0.7)' : 'hsl(var(--muted-foreground) / 0.3)' }}>
               {active && (
@@ -555,6 +589,17 @@ function FeatureCarousel() {
 ═══════════════════════════════════════════════════════════════ */
 
 function WelcomeStep({ onNext, onSignIn }) {
+  const { tFallback } = useLanguage();
+  // The hero animates word by word, so the copy has to survive being split on
+  // spaces in any language — hence two line keys rather than one string with a
+  // hardcoded <br>. The accent word is its own key because "mean" is the
+  // emphasis in English and the equivalent word sits elsewhere in the sentence
+  // in most other languages; if a translation doesn't contain it, nothing is
+  // accented and the headline still reads correctly.
+  const line1 = tFallback('onboarding.welcome.headline1', 'Train like you').split(' ');
+  const line2 = tFallback('onboarding.welcome.headline2', 'actually mean it.').split(' ');
+  const accent = tFallback('onboarding.welcome.accentWord', 'mean');
+  let delay = 0.15;
   return (
     <div className="flex flex-col h-full pt-3 gap-5 justify-between">
       {/* Header */}
@@ -570,16 +615,16 @@ function WelcomeStep({ onNext, onSignIn }) {
       {/* Hero */}
       <div>
         <h1 className="font-heading font-bold text-[44px] leading-[0.97] tracking-[-0.045em] text-foreground m-0">
-          {[{w:'Train',d:0.15},{w:'like',d:0.25},{w:'you',d:0.35}].map(({w,d}) => (
-            <motion.span key={w} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: d, duration: 0.55, ease: [0.16,1,0.3,1] }}
+          {line1.map((w, i) => (
+            <motion.span key={`l1-${i}`} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: (delay += 0.1) - 0.1, duration: 0.55, ease: [0.16,1,0.3,1] }}
               className="inline-block me-3">{w}</motion.span>
           ))}
           <br />
-          {[{w:'actually',d:0.45,c:false},{w:'mean',d:0.55,c:true},{w:'it.',d:0.65,c:false}].map(({w,d,c}) => (
-            <motion.span key={w} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: d, duration: 0.55, ease: [0.16,1,0.3,1] }}
-              className={`inline-block me-3 ${c ? 'text-primary' : ''}`}>{w}</motion.span>
+          {line2.map((w, i) => (
+            <motion.span key={`l2-${i}`} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: (delay += 0.1) - 0.1, duration: 0.55, ease: [0.16,1,0.3,1] }}
+              className={`inline-block me-3 ${w.replace(/[.,!?]/g, '') === accent ? 'text-primary' : ''}`}>{w}</motion.span>
           ))}
         </h1>
       </div>
@@ -591,14 +636,14 @@ function WelcomeStep({ onNext, onSignIn }) {
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.95, duration: 0.4 }}
         className="flex flex-col gap-2">
         <PrimaryBtn onClick={onNext}>
-          Get started <span className="ob-icon-bob inline-flex"><Icon name="arrow-right" size={20} strokeWidth={2.5} /></span>
+          {tFallback('onboarding.welcome.cta', 'Get started')} <span className="ob-icon-bob inline-flex"><Icon name="arrow-right" size={20} strokeWidth={2.5} /></span>
         </PrimaryBtn>
         <p className="text-center text-micro font-medium text-muted-foreground/80 tracking-wide">
-          Free to start · no card needed
+          {tFallback('onboarding.welcome.trustLine', 'Free to start · no card needed')}
         </p>
         <button onClick={onSignIn}
           className="text-sm text-muted-foreground hover:text-foreground active:text-foreground transition-colors min-h-[44px] py-2 text-center">
-          I already have an account
+          {tFallback('onboarding.welcome.haveAccount', 'I already have an account')}
         </button>
       </motion.div>
     </div>
@@ -610,42 +655,56 @@ function WelcomeStep({ onNext, onSignIn }) {
 ═══════════════════════════════════════════════════════════════ */
 
 function GoalStep({ value, onChange, onNext, onBack, step, total }) {
+  const { tFallback } = useLanguage();
   const selectedIds = Array.isArray(value) ? value : (value ? [value] : []);
   const toggle = (id) => {
     const has = selectedIds.includes(id);
     onChange(has ? selectedIds.filter(x => x !== id) : [...selectedIds, id]);
   };
 
+  // Dedupe on the ENGLISH source text, not the translated label: two goals can
+  // share a tailoring chip, and which of them "owns" it (and therefore what
+  // colour it takes) must not depend on the reader's language.
   const tailors = useMemo(() => {
     const seen = new Set(); const out = [];
-    selectedIds.forEach(id => (GOAL_TAILORS[id] || []).forEach(t => { if (!seen.has(t)) { seen.add(t); out.push({ t, id }); } }));
+    selectedIds.forEach(id => (GOAL_TAILORS[id] || []).forEach((text, i) => {
+      if (!seen.has(text)) { seen.add(text); out.push({ text, id, idx: i + 1 }); }
+    }));
     return out;
   }, [selectedIds]);
 
   const primaryAccent = selectedIds.length ? (GOALS.find(g => g.id === selectedIds[0])?.accent || 'hsl(var(--primary))') : 'hsl(var(--primary))';
 
-  const helper = selectedIds.length === 0 ? 'Pick one or many — we tailor your plan to the combination.'
-    : selectedIds.length === 1 ? "Nice. Add another if you're after a few outcomes."
-    : selectedIds.length <= 3 ? `Stacking ${selectedIds.length} goals — we'll balance your plan.`
-    : 'Heads up: 4+ goals slows visible progress on each. Your call.';
+  const helper = selectedIds.length === 0
+    ? tFallback('onboarding.goal.helper.none', 'Pick one or many — we tailor your plan to the combination.')
+    : selectedIds.length === 1
+    ? tFallback('onboarding.goal.helper.one', "Nice. Add another if you're after a few outcomes.")
+    : selectedIds.length <= 3
+    ? tFallback('onboarding.goal.helper.few', "Stacking {count} goals — we'll balance your plan.", { count: selectedIds.length })
+    : tFallback('onboarding.goal.helper.many', 'Heads up: 4+ goals slows visible progress on each. Your call.');
 
   return (
     <div className="flex flex-col h-full">
       <StepHeader step={step} total={total} onBack={onBack} />
       <div className="flex-1 overflow-y-auto space-y-3 pb-4 pe-2">
-        <KineticHeading kicker={`Goal · ${String(step).padStart(2, '0')}`} text="What are you here for?" accentWord="for?" />
+        <KineticHeading
+          kicker={`${tFallback('onboarding.goal.kicker', 'Goal')} · ${String(step).padStart(2, '0')}`}
+          text={tFallback('onboarding.goal.heading', 'What are you here for?')}
+          accentWord="for?" />
         <p className="text-sm text-muted-foreground mt-1.5 mb-4 min-h-[40px] transition-all">{helper}</p>
 
         {/* Counter row */}
         <div className="flex items-center justify-between mb-3">
           <span className="font-mono text-micro font-bold text-muted-foreground tracking-[0.16em] uppercase">
-            {selectedIds.length === 0 ? 'Select goals' : `${selectedIds.length} selected`}
+            {selectedIds.length === 0
+              ? tFallback('onboarding.goal.selectPrompt', 'Select goals')
+              : tFallback('onboarding.goal.selectedCount', '{count} selected', { count: selectedIds.length })}
           </span>
           {selectedIds.length > 0 && (
             <motion.button initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}
               onClick={() => onChange([])}
               className="font-mono text-micro font-bold text-muted-foreground tracking-widest uppercase px-2 py-1 rounded hover:text-foreground active:text-foreground transition-colors border-none bg-transparent cursor-pointer">
-              Clear
+              {tFallback('onboarding.goal.clear', 'Clear')}
             </motion.button>
           )}
         </div>
@@ -675,8 +734,12 @@ function GoalStep({ value, onChange, onNext, onBack, step, total }) {
                 </div>
                 {/* text */}
                 <div className="flex-1 min-w-0">
-                  <div className="font-heading font-bold text-body text-foreground leading-tight">{g.title}</div>
-                  <div className="text-caption text-muted-foreground mt-0.5">{g.sub}</div>
+                  <div className="font-heading font-bold text-body text-foreground leading-tight">
+                    {tFallback(`onboarding.goal.${g.id}.title`, g.title)}
+                  </div>
+                  <div className="text-caption text-muted-foreground mt-0.5">
+                    {tFallback(`onboarding.goal.${g.id}.sub`, g.sub)}
+                  </div>
                 </div>
                 {/* checkbox */}
                 <div className="w-6 h-6 rounded-[7px] flex items-center justify-center shrink-0 transition-all font-mono text-micro font-bold text-white"
@@ -703,17 +766,17 @@ function GoalStep({ value, onChange, onNext, onBack, step, total }) {
                 style={{ background: primaryAccent, opacity: 0.12 }} />
               <div className="font-mono text-[9.5px] font-bold text-muted-foreground tracking-[0.18em] uppercase mb-2.5 flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full" style={{ background: primaryAccent, boxShadow: `0 0 8px ${primaryAccent}` }} />
-                Tailoring your plan
+                {tFallback('onboarding.goal.tailoring', 'Tailoring your plan')}
               </div>
               <div className="flex flex-wrap gap-1.5">
-                {tailors.slice(0, 6).map(({ t, id }, i) => {
+                {tailors.slice(0, 6).map(({ text, id, idx }, i) => {
                   const accent = GOALS.find(g => g.id === id)?.accent || 'hsl(var(--primary))';
                   return (
-                    <motion.span key={t} initial={{ opacity: 0, scale: 0.85 }} animate={{ opacity: 1, scale: 1 }}
+                    <motion.span key={text} initial={{ opacity: 0, scale: 0.85 }} animate={{ opacity: 1, scale: 1 }}
                       transition={{ delay: i * 0.05, type: 'spring', stiffness: 400, damping: 18 }}
                       className="px-2.5 py-1 rounded-full font-mono text-[10.5px] font-semibold tracking-tight"
                       style={{ color: accent, background: accent.replace(')', ' / 0.1)'), border: `1px solid ${accent.replace(')', ' / 0.25)')}` }}>
-                      {t}
+                      {tFallback(`onboarding.tailor.${id}.${idx}`, text)}
                     </motion.span>
                   );
                 })}
@@ -725,9 +788,11 @@ function GoalStep({ value, onChange, onNext, onBack, step, total }) {
 
       <div className="pt-4 shrink-0">
         <PrimaryBtn onClick={onNext} disabled={selectedIds.length === 0}>
-          {selectedIds.length === 0 ? 'Pick at least one'
-            : selectedIds.length === 1 ? 'Continue'
-            : `Continue with ${selectedIds.length}`}
+          {selectedIds.length === 0
+            ? tFallback('onboarding.goal.ctaEmpty', 'Pick at least one')
+            : selectedIds.length === 1
+            ? tFallback('onboarding.common.continue', 'Continue')
+            : tFallback('onboarding.goal.ctaMulti', 'Continue with {count}', { count: selectedIds.length })}
           <Icon name="arrow-right" size={18} strokeWidth={2.5} />
         </PrimaryBtn>
       </div>
@@ -788,6 +853,7 @@ function TimeInput({ value, onChange, placeholder, max = 99 }) {
 }
 
 function SharpenStep({ goals, value, onChange, onNext, onBack, step, total }) {
+  const { tFallback } = useLanguage();
   const g = Array.isArray(goals) ? goals : [];
   const wantsCardio = g.some(x => CARDIO_GOAL_IDS.includes(x));
   const wantsStrength = g.some(x => x === 'strength' || x === 'muscle');
@@ -810,71 +876,97 @@ function SharpenStep({ goals, value, onChange, onNext, onBack, step, total }) {
     <div className="flex flex-col h-full">
       <StepHeader step={step} total={total} onBack={onBack} />
       <div className="flex-1 overflow-y-auto space-y-5 pb-4 pe-2">
-        <KineticHeading kicker={`Sharpen · ${String(step).padStart(2, '0')}`} text="Let's sharpen your plan." accentWord="sharpen" />
-        <p className="text-sm text-muted-foreground -mt-1">A few quick details make your starter plan spot-on — all optional.</p>
+        <KineticHeading
+          kicker={`${tFallback('onboarding.sharpen.kicker', 'Sharpen')} · ${String(step).padStart(2, '0')}`}
+          text={tFallback('onboarding.sharpen.heading', "Let's sharpen your plan.")}
+          accentWord="sharpen" />
+        <p className="text-sm text-muted-foreground -mt-1">
+          {tFallback('onboarding.sharpen.sub', 'A few quick details make your starter plan spot-on — all optional.')}
+        </p>
 
         {wantsCardio && (
           <div className="space-y-3">
-            <SectionLabel accent="hsl(45 93% 55%)" title="What are you training for?" />
+            <SectionLabel accent="hsl(45 93% 55%)" title={tFallback('onboarding.sharpen.cardioPrompt', 'What are you training for?')} />
             <div className="flex flex-wrap gap-2">
               {CARDIO_EVENTS.map(e => (
-                <Chip key={e.id} active={s.cardioEvent === e.id} accent="hsl(45 93% 55%)" onClick={() => set({ cardioEvent: e.id })}>{e.label}</Chip>
+                <Chip key={e.id} active={s.cardioEvent === e.id} accent="hsl(45 93% 55%)" onClick={() => set({ cardioEvent: e.id })}>
+                  {tFallback(`onboarding.sharpen.event.${e.id}`, e.label)}
+                </Chip>
               ))}
             </div>
 
             <div className="rounded-2xl border border-border bg-card p-3.5 space-y-3">
               <div className="flex items-center justify-between gap-2">
-                <span className="text-label font-semibold">Know a recent time?</span>
+                <span className="text-label font-semibold">{tFallback('onboarding.sharpen.recentTime', 'Know a recent time?')}</span>
                 <button type="button"
                   onClick={() => set({ cardioDefer: !s.cardioDefer, cardioCurrent: s.cardioDefer ? cur : null })}
                   className={`text-micro font-semibold px-2.5 py-1 rounded-lg transition-colors ${s.cardioDefer ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:bg-secondary active:bg-secondary'}`}>
-                  I&apos;ll set it later
+                  {tFallback('onboarding.sharpen.setLater', "I'll set it later")}
                 </button>
               </div>
               {!s.cardioDefer && (
                 <>
                   <div className="flex flex-wrap gap-2">
                     {TIME_DISTANCES.map(d => (
-                      <Chip key={d.id} small active={cur.distance === d.id} accent="hsl(217 91% 60%)" onClick={() => setCurrent({ distance: d.id })}>{d.label}</Chip>
+                      <Chip key={d.id} small active={cur.distance === d.id} accent="hsl(217 91% 60%)" onClick={() => setCurrent({ distance: d.id })}>
+                        {tFallback(`onboarding.sharpen.distance.${d.id}`, d.label)}
+                      </Chip>
                     ))}
                   </div>
                   <div className="flex items-center gap-2">
-                    <TimeInput placeholder="min" value={cur.min} onChange={v => setCurrent({ min: v })} />
+                    <TimeInput placeholder={tFallback('onboarding.sharpen.minPlaceholder', 'min')} value={cur.min} onChange={v => setCurrent({ min: v })} />
                     <span className="text-muted-foreground font-bold">:</span>
-                    <TimeInput placeholder="sec" value={cur.sec} onChange={v => setCurrent({ sec: v })} max={59} />
-                    <span className="text-micro text-muted-foreground">for your {TIME_DISTANCES.find(d => d.id === cur.distance)?.label || 'run'}</span>
+                    <TimeInput placeholder={tFallback('onboarding.sharpen.secPlaceholder', 'sec')} value={cur.sec} onChange={v => setCurrent({ sec: v })} max={59} />
+                    <span className="text-micro text-muted-foreground">
+                      {(() => {
+                        const d = TIME_DISTANCES.find(x => x.id === cur.distance);
+                        return d
+                          ? tFallback('onboarding.sharpen.forYour', 'for your {distance}', { distance: tFallback(`onboarding.sharpen.distance.${d.id}`, d.label) })
+                          : tFallback('onboarding.sharpen.forYourRun', 'for your run');
+                      })()}
+                    </span>
                   </div>
                 </>
               )}
-              <p className="text-micro text-muted-foreground">Don&apos;t know it? No worries — log a run in the Cardio tab anytime and we&apos;ll dial it in.</p>
+              <p className="text-micro text-muted-foreground">
+                {tFallback('onboarding.sharpen.noTimeHint', "Don't know it? No worries — log a run in the Cardio tab anytime and we'll dial it in.")}
+              </p>
             </div>
           </div>
         )}
 
         {wantsStrength && (
           <div className="space-y-3">
-            <SectionLabel accent="hsl(26 95% 56%)" title="Which lifts matter most?" />
+            <SectionLabel accent="hsl(26 95% 56%)" title={tFallback('onboarding.sharpen.liftsPrompt', 'Which lifts matter most?')} />
             <div className="flex flex-wrap gap-2">
               {FOCUS_LIFTS.map(n => (
                 <Chip key={n} active={focus.includes(n)} accent="hsl(26 95% 56%)" onClick={() => toggleFocus(n)}>{n}</Chip>
               ))}
             </div>
-            <p className="text-micro text-muted-foreground">We&apos;ll lead your plan with the lifts you pick.</p>
+            {/* FOCUS_LIFTS are deliberately NOT translated: the picked names
+                are persisted and matched by string downstream in
+                buildStarterRegimen, so they have to stay stable until the
+                exercise catalog itself is translated. */}
+            <p className="text-micro text-muted-foreground">
+              {tFallback('onboarding.sharpen.liftsHint', "We'll lead your plan with the lifts you pick.")}
+            </p>
           </div>
         )}
 
         {nothingToAsk && (
           <div className="rounded-2xl border border-border bg-card p-5 text-center">
             <div className="text-2xl mb-1">✅</div>
-            <p className="font-heading font-bold text-body">You&apos;re all set</p>
-            <p className="text-label text-muted-foreground mt-1">We&apos;ve got what we need — your plan&apos;s ready to build.</p>
+            <p className="font-heading font-bold text-body">{tFallback('onboarding.sharpen.allSet', "You're all set")}</p>
+            <p className="text-label text-muted-foreground mt-1">
+              {tFallback('onboarding.sharpen.allSetSub', "We've got what we need — your plan's ready to build.")}
+            </p>
           </div>
         )}
       </div>
 
       <div className="pt-4 shrink-0">
         <PrimaryBtn onClick={onNext}>
-          Continue <Icon name="arrow-right" size={18} strokeWidth={2.5} />
+          {tFallback('onboarding.common.continue', 'Continue')} <Icon name="arrow-right" size={18} strokeWidth={2.5} />
         </PrimaryBtn>
       </div>
     </div>
@@ -886,13 +978,19 @@ function SharpenStep({ goals, value, onChange, onNext, onBack, step, total }) {
 ═══════════════════════════════════════════════════════════════ */
 
 function ExperienceStep({ value, onChange, onNext, onBack, step, total }) {
+  const { tFallback } = useLanguage();
   const current = LEVELS.find(l => l.id === value) || null;
   return (
     <div className="flex flex-col h-full">
       <StepHeader step={step} total={total} onBack={onBack} />
       <div className="flex-1 overflow-y-auto pb-4 pe-2">
-        <KineticHeading kicker={`Experience · ${String(step).padStart(2, '0')}`} text="How long have you been training?" accentWord="training?" />
-        <p className="text-sm text-muted-foreground mt-2 mb-6">Honest answers get you a better program.</p>
+        <KineticHeading
+          kicker={`${tFallback('onboarding.experience.kicker', 'Experience')} · ${String(step).padStart(2, '0')}`}
+          text={tFallback('onboarding.experience.heading', 'How long have you been training?')}
+          accentWord="training?" />
+        <p className="text-sm text-muted-foreground mt-2 mb-6">
+          {tFallback('onboarding.experience.sub', 'Honest answers get you a better program.')}
+        </p>
 
         {/* Visual rep meter — renders ONLY once a level is picked.
             It used to render unconditionally, so the top third of the step
@@ -930,9 +1028,13 @@ function ExperienceStep({ value, onChange, onNext, onBack, step, total }) {
           <AnimatePresence mode="wait">
             <motion.div key={current?.id || 'none'} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}>
               <div className="font-heading font-bold text-2xl tracking-tight text-foreground">
-                {current?.label}
+                {current && tFallback(`onboarding.level.${current.id}.label`, current.label)}
               </div>
-              {current && <div className="text-sm text-muted-foreground mt-1">{current.desc}</div>}
+              {current && (
+                <div className="text-sm text-muted-foreground mt-1">
+                  {tFallback(`onboarding.level.${current.id}.desc`, current.desc)}
+                </div>
+              )}
             </motion.div>
           </AnimatePresence>
         </motion.div>
@@ -960,8 +1062,12 @@ function ExperienceStep({ value, onChange, onNext, onBack, step, total }) {
                   ))}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="font-heading font-semibold text-sm text-foreground">{l.label}</div>
-                  <div className="text-caption text-muted-foreground mt-0.5">{l.sub}</div>
+                  <div className="font-heading font-semibold text-sm text-foreground">
+                    {tFallback(`onboarding.level.${l.id}.label`, l.label)}
+                  </div>
+                  <div className="text-caption text-muted-foreground mt-0.5">
+                    {tFallback(`onboarding.level.${l.id}.sub`, l.sub)}
+                  </div>
                 </div>
                 {selected && <Icon name="check" size={16} strokeWidth={3} color="hsl(var(--primary))" />}
               </motion.button>
@@ -972,7 +1078,9 @@ function ExperienceStep({ value, onChange, onNext, onBack, step, total }) {
 
       <div className="pt-4 shrink-0">
         <PrimaryBtn onClick={onNext} disabled={!value}>
-          {!value ? 'Pick your experience level' : <>Continue <Icon name="arrow-right" size={18} strokeWidth={2.5} /></>}
+          {!value
+            ? tFallback('onboarding.experience.ctaEmpty', 'Pick your experience level')
+            : <>{tFallback('onboarding.common.continue', 'Continue')} <Icon name="arrow-right" size={18} strokeWidth={2.5} /></>}
         </PrimaryBtn>
       </div>
     </div>
@@ -1002,6 +1110,7 @@ const ASSESSMENT_ANSWERS = [
 ];
 
 function AssessmentStep({ value, onChange, onNext, onBack, onSkip, step, total }) {
+  const { tFallback } = useLanguage();
   const answers = value || {};
   const setAnswer = (qid, aid) => onChange({ ...answers, [qid]: aid });
   // Allow proceeding when all 4 are answered OR when the user
@@ -1016,15 +1125,15 @@ function AssessmentStep({ value, onChange, onNext, onBack, onSkip, step, total }
       <StepHeader step={step} total={total} onBack={onBack} />
       <div className="flex-1 overflow-y-auto pb-4 pe-2">
         <KineticHeading
-          kicker={`Assessment · ${String(step).padStart(2, '0')}`}
-          text="Quick lift check"
+          kicker={`${tFallback('onboarding.assessment.kicker', 'Assessment')} · ${String(step).padStart(2, '0')}`}
+          text={tFallback('onboarding.assessment.heading', 'Quick lift check')}
           accentWord="lift"
         />
         <p className="text-sm text-muted-foreground mt-2 mb-6">
-          Optional — but the more honest you are, the better the plan.
+          {tFallback('onboarding.assessment.sub', 'Optional — but the more honest you are, the better the plan.')}
           <br />
           <span className="text-xs text-muted-foreground/70">
-            Your AI Coach uses these to dial in starting volume.
+            {tFallback('onboarding.assessment.coachNote', 'Your AI Coach uses these to dial in starting volume.')}
           </span>
         </p>
 
@@ -1040,7 +1149,7 @@ function AssessmentStep({ value, onChange, onNext, onBack, onSkip, step, total }
               <div className="flex items-start gap-2 mb-3">
                 <span className="text-2xl leading-none" aria-hidden="true">{q.icon}</span>
                 <p className="font-heading font-semibold text-sm leading-snug text-foreground">
-                  {q.question}
+                  {tFallback(`onboarding.assessment.q.${q.id}`, q.question)}
                 </p>
               </div>
               <div className="grid grid-cols-2 gap-2">
@@ -1060,7 +1169,7 @@ function AssessmentStep({ value, onChange, onNext, onBack, onSkip, step, total }
                         color:       selected ? a.hue : 'hsl(var(--foreground))',
                       }}
                     >
-                      {a.label}
+                      {tFallback(`onboarding.assessment.answer.${a.id}`, a.label)}
                     </button>
                   );
                 })}
@@ -1070,14 +1179,16 @@ function AssessmentStep({ value, onChange, onNext, onBack, onSkip, step, total }
         </div>
 
         <p className="text-micro text-center text-muted-foreground mt-4">
-          Answered {answeredCount} of {ASSESSMENT_QUESTIONS.length}
+          {tFallback('onboarding.assessment.answered', 'Answered {count} of {total}', {
+            count: answeredCount, total: ASSESSMENT_QUESTIONS.length,
+          })}
         </p>
       </div>
 
       <div className="pt-4 shrink-0 flex flex-col gap-2">
         <PrimaryBtn onClick={onNext}>
           {/* Same reason as the schedule step: this is step 10 of 14. */}
-          Continue
+          {tFallback('onboarding.common.continue', 'Continue')}
           <Icon name="arrow-right" size={18} strokeWidth={2.5} />
         </PrimaryBtn>
         {!allAnswered && (
@@ -1088,7 +1199,7 @@ function AssessmentStep({ value, onChange, onNext, onBack, onSkip, step, total }
             // step a user is most likely to want to skip.
             className="text-xs font-semibold text-muted-foreground hover:text-foreground active:text-foreground transition-colors min-h-11"
           >
-            Skip — generate a generic plan
+            {tFallback('onboarding.assessment.skip', 'Skip — generate a generic plan')}
           </button>
         )}
       </div>
@@ -1226,6 +1337,7 @@ function NumberReel({ value }) {
    STEP: AGE — horizontal drag wheel with life-stage chip
 ═══════════════════════════════════════════════════════════════ */
 function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, onNext, onBack, step, total }) {
+  const { tFallback } = useLanguage();
   const age = stats.age;
   const setAge = (v) => onChange({ ...stats, age: v });
   const gender = stats.gender || null;
@@ -1298,12 +1410,12 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
   const offset = -age * PX + trackW / 2;
 
   const stage = useMemo(() => {
-    if (age < 18) return { tag: 'TEEN', tone: "Building habits early. We'll start with form.", accent: 'hsl(217 91% 60%)' };
-    if (age < 25) return { tag: 'PEAK INTAKE', tone: 'Hormonally primed for muscle gain. Great window.', accent: 'hsl(160 64% 45%)' };
-    if (age < 35) return { tag: 'PRIME', tone: 'Strength peaks here for most lifters. Push hard.', accent: 'hsl(26 95% 56%)' };
-    if (age < 45) return { tag: 'SUSTAIN', tone: 'Smart programming wins. Volume per session.', accent: 'hsl(38 92% 60%)' };
-    if (age < 55) return { tag: 'INTENT', tone: "Recovery becomes the variable. We'll protect it.", accent: 'hsl(280 60% 60%)' };
-    return { tag: 'LONGEVITY', tone: 'Joint-first programming. Strength is never stunted.', accent: 'hsl(0 70% 55%)' };
+    if (age < 18) return { id: 'teen',      tag: 'TEEN',        tone: "Building habits early. We'll start with form.",      accent: 'hsl(217 91% 60%)' };
+    if (age < 25) return { id: 'peak',      tag: 'PEAK INTAKE', tone: 'Hormonally primed for muscle gain. Great window.',   accent: 'hsl(160 64% 45%)' };
+    if (age < 35) return { id: 'prime',     tag: 'PRIME',       tone: 'Strength peaks here for most lifters. Push hard.',    accent: 'hsl(26 95% 56%)'  };
+    if (age < 45) return { id: 'sustain',   tag: 'SUSTAIN',     tone: 'Smart programming wins. Volume per session.',         accent: 'hsl(38 92% 60%)'  };
+    if (age < 55) return { id: 'intent',    tag: 'INTENT',      tone: "Recovery becomes the variable. We'll protect it.",    accent: 'hsl(280 60% 60%)' };
+    return          { id: 'longevity', tag: 'LONGEVITY',   tone: 'Joint-first programming. Strength is never stunted.', accent: 'hsl(0 70% 55%)'   };
   }, [age]);
 
   const canNext = username.trim().length >= 2 && !usernameError;
@@ -1312,15 +1424,22 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
     <div className="flex flex-col h-full">
       <StepHeader step={step} total={total} onBack={onBack} />
       <div className="flex-1 overflow-y-auto pb-4 pe-2">
-        <KineticHeading kicker={`About You · ${String(step).padStart(2, '0')}`} text="Tell us about yourself." accentWord="yourself." />
-        <p className="text-sm text-muted-foreground mt-2 mb-5">We use this to calibrate your plan. Encrypted, never sold.</p>
+        <KineticHeading
+          kicker={`${tFallback('onboarding.about.kicker', 'About You')} · ${String(step).padStart(2, '0')}`}
+          text={tFallback('onboarding.about.heading', 'Tell us about yourself.')}
+          accentWord="yourself." />
+        <p className="text-sm text-muted-foreground mt-2 mb-5">
+          {tFallback('onboarding.about.sub', 'We use this to calibrate your plan. Encrypted, never sold.')}
+        </p>
 
         {/* Username */}
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
           className="rounded-2xl border bg-card/80 p-4 mb-4">
           <div className="flex items-center gap-2 mb-2">
             <Icon name="user" size={14} color="hsl(var(--muted-foreground))" />
-            <span className="font-mono text-micro font-semibold uppercase tracking-[0.14em] text-muted-foreground">What should we call you?</span>
+            <span className="font-mono text-micro font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+              {tFallback('onboarding.about.usernamePrompt', 'What should we call you?')}
+            </span>
           </div>
           <input
             type="text"
@@ -1337,7 +1456,7 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
                 onNext();
               }
             }}
-            placeholder="e.g. jordan_lifts"
+            placeholder={tFallback('onboarding.about.usernamePlaceholder', 'e.g. jordan_lifts')}
             maxLength={20}
             autoCapitalize="none"
             autoCorrect="off"
@@ -1349,14 +1468,18 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
           />
           {usernameError && <p className="text-xs text-destructive mt-1">{usernameError}</p>}
           {!usernameError && stripWarning && (
-            <p className="text-xs text-muted-foreground mt-1">Letters, numbers and underscores only — capitals are auto-lowered.</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {tFallback('onboarding.about.usernameStripped', 'Letters, numbers and underscores only — capitals are auto-lowered.')}
+            </p>
           )}
         </motion.div>
 
         {/* Age drag section */}
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18 }}
           className="rounded-2xl border bg-card/80 p-5 relative overflow-hidden">
-          <div className="font-mono text-micro font-semibold uppercase tracking-[0.14em] text-muted-foreground mb-4">How old are you?</div>
+          <div className="font-mono text-micro font-semibold uppercase tracking-[0.14em] text-muted-foreground mb-4">
+            {tFallback('onboarding.about.agePrompt', 'How old are you?')}
+          </div>
 
           {/* Glow halo */}
           <div style={{
@@ -1379,14 +1502,14 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
                 onBlur={handleAgeBlur}
                 onChange={handleAgeInput}
                 onKeyDown={(e) => { if (e.key === 'Enter') { e.currentTarget.blur(); } }}
-                aria-label="Your age"
+                aria-label={tFallback('onboarding.about.ageAria', 'Your age')}
                 style={{ width: 180, fontFamily: 'var(--font-heading, sans-serif)', fontWeight: 800, fontSize: 96, lineHeight: 0.9, letterSpacing: '-0.06em', textAlign: 'center', background: 'transparent', border: 'none', borderBottom: '3px solid hsl(var(--primary))', color: 'hsl(var(--foreground))', outline: 'none', padding: 0 }}
               />
             ) : (
               <button
                 type="button"
                 onClick={handleAgeTap}
-                aria-label="Tap to type your age"
+                aria-label={tFallback('onboarding.about.ageTapAria', 'Tap to type your age')}
                 style={{ background: 'none', border: 'none', cursor: 'text', padding: 0 }}
               >
                 {/* paddingRight + letterSpacing tightened so two-digit ages
@@ -1415,14 +1538,14 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
               <button
                 type="button"
                 onClick={handleAgeTap}
-                aria-label="Tap to type your age"
+                aria-label={tFallback('onboarding.about.ageTapAria', 'Tap to type your age')}
                 className="font-mono text-micro font-semibold tracking-[0.3em] uppercase text-muted-foreground mt-2 hover:text-foreground active:text-foreground transition-colors inline-flex items-center justify-center"
                 // This LOOKS like a caption but is a real control — tapping it
                 // opens the keypad. It was 28px tall, so the affordance the
                 // copy advertises was the hardest thing on the step to hit.
                 style={{ background: 'none', border: 'none', cursor: 'text', padding: '0 8px', minHeight: 44 }}
               >
-                YEARS OLD · TAP TO TYPE OR DRAG
+                {tFallback('onboarding.about.ageHint', 'YEARS OLD · TAP TO TYPE OR DRAG')}
               </button>
             )}
 
@@ -1438,9 +1561,13 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
                 border: `1.5px solid ${stage.accent.replace(')', ' / 0.4)')}`,
                 color: stage.accent,
               }}>
-              <span className="font-mono text-micro tracking-[0.14em] uppercase font-bold">{stage.tag}</span>
+              <span className="font-mono text-micro tracking-[0.14em] uppercase font-bold">
+                {tFallback(`onboarding.stage.${stage.id}.tag`, stage.tag)}
+              </span>
               <span style={{ width: 1, height: 12, background: stage.accent, opacity: 0.4 }} />
-              <span className="text-xs font-normal" style={{ color: 'hsl(var(--foreground) / 0.8)' }}>{stage.tone}</span>
+              <span className="text-xs font-normal" style={{ color: 'hsl(var(--foreground) / 0.8)' }}>
+                {tFallback(`onboarding.stage.${stage.id}.tone`, stage.tone)}
+              </span>
             </motion.div>
           </div>
 
@@ -1513,7 +1640,10 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.26 }}
           className="rounded-2xl border bg-card/80 p-4 mt-4">
           <div className="font-mono text-micro font-semibold uppercase tracking-[0.14em] text-muted-foreground mb-3">
-            Sex <span className="normal-case font-normal opacity-70">· tunes your strength + calorie targets</span>
+            {tFallback('onboarding.about.sexLabel', 'Sex')}{' '}
+            <span className="normal-case font-normal opacity-70">
+              {tFallback('onboarding.about.sexNote', '· tunes your strength + calorie targets')}
+            </span>
           </div>
           {/* Three-option layout so users who don't identify as binary
               male/female have an "Other" path that still records a value
@@ -1541,7 +1671,7 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
                     color: active ? 'hsl(var(--primary))' : 'hsl(var(--foreground))',
                   }}
                 >
-                  {o.label}
+                  {tFallback(`onboarding.about.sex.${o.id}`, o.label)}
                 </button>
               );
             })}
@@ -1554,8 +1684,10 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
               page, so a bare disabled "Continue" gave the user nothing to
               act on — they could see it was dead and not why. */}
           {!canNext
-            ? (usernameError ? 'Pick a different username' : 'Choose a username to continue')
-            : <>Continue <Icon name="arrow-right" size={18} strokeWidth={2.5} /></>}
+            ? (usernameError
+                ? tFallback('onboarding.about.ctaBadUsername', 'Pick a different username')
+                : tFallback('onboarding.about.ctaNoUsername', 'Choose a username to continue'))
+            : <>{tFallback('onboarding.common.continue', 'Continue')} <Icon name="arrow-right" size={18} strokeWidth={2.5} /></>}
         </PrimaryBtn>
       </div>
     </div>
@@ -1566,6 +1698,7 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
    STEP: HEIGHT — silhouette + vertical ruler (ft·in default)
 ═══════════════════════════════════════════════════════════════ */
 function HeightStep({ stats, onChange, onNext, onBack, step, total }) {
+  const { tFallback } = useLanguage();
   const unit = stats.heightUnit ?? 'in';
   const inFromCm = (cm) => Math.round(cm / 2.54);
   const cmFromIn = (inches) => Math.round(inches * 2.54);
@@ -1705,10 +1838,18 @@ function HeightStep({ stats, onChange, onNext, onBack, step, total }) {
           behind the keyboard. */}
       <div className="flex-1 overflow-y-auto pb-2">
         <div className="flex justify-between items-start mb-3">
-          <KineticHeading kicker={`Height · ${String(step).padStart(2, '0')}`} text="How tall are you?" accentWord="tall" />
+          <KineticHeading
+            kicker={`${tFallback('onboarding.height.kicker', 'Height')} · ${String(step).padStart(2, '0')}`}
+            text={tFallback('onboarding.height.heading', 'How tall are you?')}
+            accentWord="tall" />
         </div>
         <div className="mb-4">
-          <PillUnitToggle options={[{id:'in',label:'ft·in'},{id:'cm',label:'cm'}]} value={unit} onChange={setUnit} />
+          <PillUnitToggle
+            options={[
+              { id: 'in', label: tFallback('onboarding.height.unitImperial', 'ft·in') },
+              { id: 'cm', label: tFallback('onboarding.height.unitMetric', 'cm') },
+            ]}
+            value={unit} onChange={setUnit} />
         </div>
 
         <div style={{ display: 'flex', gap: 12, height: 320 }}>
@@ -1774,14 +1915,16 @@ function HeightStep({ stats, onChange, onNext, onBack, step, total }) {
                   onBlur={handleHeightBlur}
                   onChange={handleHeightInput}
                   onKeyDown={(e) => { if (e.key === 'Enter') { e.currentTarget.blur(); } }}
-                  aria-label={`Your height in ${unit === 'cm' ? 'centimeters' : 'feet and inches'}`}
+                  aria-label={unit === 'cm'
+                    ? tFallback('onboarding.height.ariaMetric', 'Your height in centimeters')
+                    : tFallback('onboarding.height.ariaImperial', 'Your height in feet and inches')}
                   style={{ width: '100%', fontFamily: 'var(--font-heading, sans-serif)', fontWeight: 800, fontSize: 32, lineHeight: 1, textAlign: 'left', background: 'transparent', border: 'none', borderBottom: '2px solid hsl(var(--primary))', color: 'hsl(var(--foreground))', outline: 'none', padding: 0 }}
                 />
               ) : (
                 <button
                   type="button"
                   onClick={handleHeightTap}
-                  aria-label="Tap to type your height"
+                  aria-label={tFallback('onboarding.height.tapAria', 'Tap to type your height')}
                   // minHeight 44 — the number IS the tap-to-type target, and
                   // the hint under it says so, but it measured 38px.
                   style={{ background: 'none', border: 'none', cursor: 'text', padding: 0, textAlign: 'left', minHeight: 44, display: 'inline-flex', alignItems: 'center' }}
@@ -1792,7 +1935,9 @@ function HeightStep({ stats, onChange, onNext, onBack, step, total }) {
                 </button>
               )}
               <div className="font-mono text-micro font-semibold tracking-widest uppercase text-muted-foreground mt-1">
-                {unit === 'cm' ? 'CM · TAP TO TYPE' : 'FT · IN · TAP TO TYPE'}
+                {unit === 'cm'
+                  ? tFallback('onboarding.height.tapHintMetric', 'CM · TAP TO TYPE')
+                  : tFallback('onboarding.height.tapHintImperial', 'FT · IN · TAP TO TYPE')}
               </div>
               <div className="font-mono text-micro text-muted-foreground/70 mt-1">≈ {displaySecondary}</div>
             </div>
@@ -1831,7 +1976,9 @@ function HeightStep({ stats, onChange, onNext, onBack, step, total }) {
         <button onClick={() => bump(+5)} style={nudgeBtnStyle}>+5</button>
       </div>
       <div className="pt-3 shrink-0">
-        <PrimaryBtn onClick={onNext}>Continue <Icon name="arrow-right" size={18} strokeWidth={2.5} /></PrimaryBtn>
+        <PrimaryBtn onClick={onNext}>
+          {tFallback('onboarding.common.continue', 'Continue')} <Icon name="arrow-right" size={18} strokeWidth={2.5} />
+        </PrimaryBtn>
       </div>
     </div>
   );
@@ -1873,6 +2020,7 @@ function BarbellVisualizer({ kg }) {
 }
 
 function WeightStep({ stats, onChange, onNext, onBack, step, total }) {
+  const { tFallback } = useLanguage();
   // Scroll-into-view ref for the tap-to-type input. iOS Safari with
   // an `overflow-hidden` ancestor cannot auto-scroll the focused
   // input into view when the virtual keyboard appears, so the user
@@ -1990,7 +2138,10 @@ function WeightStep({ stats, onChange, onNext, onBack, step, total }) {
           weight" complaint. */}
       <div className="flex-1 overflow-y-auto pb-2">
         <div className="flex justify-between items-start mb-3">
-          <KineticHeading kicker={`Weight · ${String(step).padStart(2, '0')}`} text="How much do you weigh?" accentWord="weigh?" />
+          <KineticHeading
+            kicker={`${tFallback('onboarding.weight.kicker', 'Weight')} · ${String(step).padStart(2, '0')}`}
+            text={tFallback('onboarding.weight.heading', 'How much do you weigh?')}
+            accentWord="weigh?" />
         </div>
         <div className="mb-4">
           <PillUnitToggle options={[{id:'lb',label:'lb'},{id:'kg',label:'kg'}]} value={unit} onChange={setUnit} />
@@ -2034,7 +2185,9 @@ function WeightStep({ stats, onChange, onNext, onBack, step, total }) {
                 onBlur={handleWeightBlur}
                 onChange={handleWeightInput}
                 onKeyDown={(e) => { if (e.key === 'Enter') { e.currentTarget.blur(); } }}
-                aria-label={`Weight in ${unit === 'kg' ? 'kilograms' : 'pounds'}`}
+                aria-label={unit === 'kg'
+                  ? tFallback('onboarding.weight.ariaKg', 'Weight in kilograms')
+                  : tFallback('onboarding.weight.ariaLb', 'Weight in pounds')}
                 style={{ width: 130, fontFamily: 'var(--font-heading, sans-serif)', fontWeight: 800, fontSize: 48, lineHeight: 1, textAlign: 'center', background: 'transparent', border: 'none', borderBottom: '2px solid hsl(var(--primary))', color: 'hsl(var(--foreground))', outline: 'none' }}
               />
             ) : (
@@ -2060,7 +2213,9 @@ function WeightStep({ stats, onChange, onNext, onBack, step, total }) {
             transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
             className="text-primary/70 font-bold text-sm leading-none"
           >⌃</motion.span>
-          <span className="font-mono text-micro font-semibold tracking-[0.18em] uppercase text-muted-foreground/80">Drag dial to set · tap to type</span>
+          <span className="font-mono text-micro font-semibold tracking-[0.18em] uppercase text-muted-foreground/80">
+            {tFallback('onboarding.weight.dialHint', 'Drag dial to set · tap to type')}
+          </span>
           <motion.span
             animate={{ y: [2, -1, 2] }}
             transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
@@ -2083,7 +2238,9 @@ function WeightStep({ stats, onChange, onNext, onBack, step, total }) {
         </div>
       </div>
       <div className="pt-4 shrink-0">
-        <PrimaryBtn onClick={onNext}>Continue <Icon name="arrow-right" size={18} strokeWidth={2.5} /></PrimaryBtn>
+        <PrimaryBtn onClick={onNext}>
+          {tFallback('onboarding.common.continue', 'Continue')} <Icon name="arrow-right" size={18} strokeWidth={2.5} />
+        </PrimaryBtn>
       </div>
     </div>
   );
@@ -2094,26 +2251,35 @@ function WeightStep({ stats, onChange, onNext, onBack, step, total }) {
 ═══════════════════════════════════════════════════════════════ */
 
 function DaysStep({ days, preferredTime, onDaysChange, onTimeChange, onNext, onBack, step, total }) {
+  const { tFallback } = useLanguage();
+  const fmtDate = useDateFormatter();
   const toggle = (i) => {
     const next = days.includes(i) ? days.filter(d => d !== i) : [...days, i];
     onDaysChange(next);
     if (navigator.vibrate) navigator.vibrate(4);
   };
   const count = days.length;
-  const intensityLabel = count === 0 ? '—' : count <= 2 ? 'Light cadence' : count <= 4 ? 'Balanced' : count <= 5 ? 'Serious' : 'Hardcore';
+  const intensity = count === 0 ? 'none' : count <= 2 ? 'light' : count <= 4 ? 'balanced' : count <= 5 ? 'serious' : 'hardcore';
+  const intensityLabel = tFallback(
+    `onboarding.schedule.intensity.${intensity}`,
+    { none: '—', light: 'Light cadence', balanced: 'Balanced', serious: 'Serious', hardcore: 'Hardcore' }[intensity],
+  );
 
-  // preferredTime is now a string ARRAY so users who train at multiple
-  // times of day (e.g. morning lifting + evening cardio) can pick all
-  // that apply. Tolerant of legacy single-string drafts saved before the
-  // array migration — coerce to [] for stale localStorage. (Onboarding
-  // screenshot feedback, 2026-06.)
-  const selectedTimes = Array.isArray(preferredTime)
+  // preferredTime is a string ARRAY of TIME IDS so users who train at more
+  // than one slot (morning lifting + evening cardio) can pick all that apply.
+  // Two legacy draft shapes are tolerated: a bare string from before the array
+  // change, and English display labels ("Late night") from before ids. Both
+  // get mapped onto ids so a draft saved mid-flow yesterday still shows the
+  // right chips selected today.
+  const toId = (v) => (TIMES.find(t => t.id === v || t.label === v)?.id ?? null);
+  const selectedTimes = (Array.isArray(preferredTime)
     ? preferredTime
-    : (typeof preferredTime === 'string' && preferredTime ? [preferredTime] : []);
-  const toggleTime = (t) => {
-    const next = selectedTimes.includes(t)
-      ? selectedTimes.filter(x => x !== t)
-      : [...selectedTimes, t];
+    : (typeof preferredTime === 'string' && preferredTime ? [preferredTime] : [])
+  ).map(toId).filter(Boolean);
+  const toggleTime = (id) => {
+    const next = selectedTimes.includes(id)
+      ? selectedTimes.filter(x => x !== id)
+      : [...selectedTimes, id];
     onTimeChange(next);
     if (navigator.vibrate) navigator.vibrate(4);
   };
@@ -2122,8 +2288,13 @@ function DaysStep({ days, preferredTime, onDaysChange, onTimeChange, onNext, onB
     <div className="flex flex-col h-full">
       <StepHeader step={step} total={total} onBack={onBack} />
       <div className="flex-1 overflow-y-auto pb-4 pe-2 space-y-5">
-        <KineticHeading kicker={`Schedule · ${String(step).padStart(2, '0')}`} text="Which days can you train?" accentWord="train?" />
-        <p className="text-sm text-muted-foreground mt-2">Plan around real life — we'll keep recovery in check.</p>
+        <KineticHeading
+          kicker={`${tFallback('onboarding.schedule.kicker', 'Schedule')} · ${String(step).padStart(2, '0')}`}
+          text={tFallback('onboarding.schedule.heading', 'Which days can you train?')}
+          accentWord="train?" />
+        <p className="text-sm text-muted-foreground mt-2">
+          {tFallback('onboarding.schedule.sub', "Plan around real life — we'll keep recovery in check.")}
+        </p>
 
         {/* Count card */}
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
@@ -2135,7 +2306,9 @@ function DaysStep({ days, preferredTime, onDaysChange, onTimeChange, onNext, onB
               className="font-heading font-bold text-[52px] leading-none tracking-tight text-foreground">
               {count}
             </motion.span>
-            <span className="font-heading font-semibold text-xl text-muted-foreground">days · week</span>
+            <span className="font-heading font-semibold text-xl text-muted-foreground">
+              {tFallback('onboarding.schedule.daysPerWeek', 'days · week')}
+            </span>
           </div>
           <div className="relative font-mono text-micro font-bold tracking-[0.18em] uppercase text-primary mt-1">{intensityLabel}</div>
         </motion.div>
@@ -2143,10 +2316,11 @@ function DaysStep({ days, preferredTime, onDaysChange, onTimeChange, onNext, onB
         {/* Day grid */}
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}
           className="grid grid-cols-7 gap-0.5">
-          {WEEKDAYS.map((d, i) => {
+          {WEEKDAY_SEED.map((seed, i) => {
             const selected = days.includes(i);
+            const label = fmtDate(seed, { weekday: 'short', timeZone: 'UTC' });
             return (
-              <button key={d} onClick={() => toggle(i)}
+              <button key={i} onClick={() => toggle(i)}
                 // min-h-11 + the tighter grid gap above lifts these from
                 // 39x50 to >=44 wide. Seven adjacent targets where a mis-tap
                 // silently selects a DIFFERENT day is the worst hit-target
@@ -2157,7 +2331,7 @@ function DaysStep({ days, preferredTime, onDaysChange, onTimeChange, onNext, onB
                   background: selected ? 'hsl(var(--primary))' : 'hsl(var(--card))',
                   color: selected ? 'hsl(var(--primary-foreground))' : 'hsl(var(--muted-foreground))',
                 }}>
-                <span className="text-micro">{d}</span>
+                <span className="text-micro">{label}</span>
                 <span className="w-1.5 h-1.5 rounded-full"
                   style={{ background: selected ? 'currentColor' : 'hsl(var(--border))' }} />
               </button>
@@ -2171,21 +2345,25 @@ function DaysStep({ days, preferredTime, onDaysChange, onTimeChange, onNext, onB
             them to lie. */}
         <div>
           <div className="flex items-baseline justify-between mb-3">
-            <div className="font-mono text-micro font-semibold tracking-[0.12em] uppercase text-muted-foreground">Preferred time</div>
-            <div className="font-mono text-micro font-medium tracking-wider uppercase text-muted-foreground/70">Pick all that apply</div>
+            <div className="font-mono text-micro font-semibold tracking-[0.12em] uppercase text-muted-foreground">
+              {tFallback('onboarding.schedule.preferredTime', 'Preferred time')}
+            </div>
+            <div className="font-mono text-micro font-medium tracking-wider uppercase text-muted-foreground/70">
+              {tFallback('onboarding.schedule.pickAll', 'Pick all that apply')}
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-2">
             {TIMES.map(t => {
-              const active = selectedTimes.includes(t);
+              const active = selectedTimes.includes(t.id);
               return (
-                <button key={t} onClick={() => toggleTime(t)}
+                <button key={t.id} onClick={() => toggleTime(t.id)}
                   className="py-3 rounded-xl border text-sm font-medium cursor-pointer transition-all"
                   style={{
                     borderColor: active ? 'hsl(var(--primary))' : 'hsl(var(--border))',
                     background: active ? 'hsl(var(--primary) / 0.07)' : 'hsl(var(--card))',
                     color: active ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))',
                   }}>
-                  {t}
+                  {tFallback(`onboarding.schedule.time.${t.id}`, t.label)}
                 </button>
               );
             })}
@@ -2199,7 +2377,9 @@ function DaysStep({ days, preferredTime, onDaysChange, onTimeChange, onNext, onB
             terminal makes the three steps after it feel like a bait and
             switch. "Enter Flexyn" on the reveal step is the real finish. */}
         <PrimaryBtn onClick={onNext} disabled={count === 0}>
-          {count === 0 ? 'Pick at least one day' : <>Continue <Icon name="arrow-right" size={18} strokeWidth={2.5} /></>}
+          {count === 0
+            ? tFallback('onboarding.schedule.ctaEmpty', 'Pick at least one day')
+            : <>{tFallback('onboarding.common.continue', 'Continue')} <Icon name="arrow-right" size={18} strokeWidth={2.5} /></>}
         </PrimaryBtn>
       </div>
     </div>
@@ -2213,14 +2393,17 @@ function DaysStep({ days, preferredTime, onDaysChange, onTimeChange, onNext, onB
    optional — user can skip the whole step.
 ═══════════════════════════════════════════════════════════════ */
 
+// `key` is the persisted field name and `i18nKey` the translation suffix — they
+// differ because the persisted names carry their unit (waistCm) and the labels
+// must not (the unit is rendered separately).
 const MEASURE_FIELDS = [
-  { key: 'waistCm',   label: 'Waist',   icon: '📏', min: 40,  max: 180 },
+  { key: 'waistCm',   label: 'Waist',   i18nKey: 'waist',   icon: '📏', min: 40,  max: 180 },
   // Chest icon was 💪 (flexed bicep) which screenshot feedback flagged as
   // confusing — users read it as "arm/bicep" instead of "chest". Switched
   // to 👕 (t-shirt) which sits clearly over the chest area.
-  { key: 'chestCm',   label: 'Chest',   icon: '👕', min: 50,  max: 200 },
-  { key: 'hipCm',     label: 'Hips',    icon: '🍑', min: 50,  max: 200 },
-  { key: 'bodyFatPct',label: 'Body fat',icon: '📊', min: 3,   max: 60, unit: '%', isPercent: true },
+  { key: 'chestCm',   label: 'Chest',   i18nKey: 'chest',   icon: '👕', min: 50,  max: 200 },
+  { key: 'hipCm',     label: 'Hips',    i18nKey: 'hips',    icon: '🍑', min: 50,  max: 200 },
+  { key: 'bodyFatPct',label: 'Body fat',i18nKey: 'bodyFat', icon: '📊', min: 3,   max: 60, unit: '%', isPercent: true },
 ];
 
 // One source of truth for "no measurements given" — read by DEFAULT_DATA and by
@@ -2229,6 +2412,7 @@ const MEASURE_FIELDS = [
 const EMPTY_BODY_BASELINE = Object.fromEntries(MEASURE_FIELDS.map(f => [f.key, null]));
 
 function BodyBaselineStep({ step, total, value, onChange, onNext, onBack, onSkip }) {
+  const { tFallback } = useLanguage();
   // value = { waistCm, chestCm, hipCm, bodyFatPct } — all nullable
   // Measurements are collected in cm only (body-fat in %). Weight unit
   // is handled separately by the weight step.
@@ -2279,12 +2463,12 @@ function BodyBaselineStep({ step, total, value, onChange, onNext, onBack, onSkip
       <StepHeader step={step} total={total} onBack={onBack} />
       <div className="flex-1 overflow-y-auto pb-4 pe-2">
         <KineticHeading
-          kicker="Body baseline · optional"
-          text="Starting numbers for your progress graphs."
+          kicker={tFallback('onboarding.baseline.kicker', 'Body baseline · optional')}
+          text={tFallback('onboarding.baseline.heading', 'Starting numbers for your progress graphs.')}
           accentWord="progress"
         />
         <p className="text-sm text-muted-foreground mt-1 mb-5">
-          All optional. Stored encrypted, never shared. You can add these later in Progress too.
+          {tFallback('onboarding.baseline.sub', 'All optional. Stored encrypted, never shared. You can add these later in Progress too.')}
         </p>
 
         <div className="space-y-3">
@@ -2299,7 +2483,7 @@ function BodyBaselineStep({ step, total, value, onChange, onNext, onBack, onSkip
               <span className="text-2xl w-8 shrink-0">{f.icon}</span>
               <div className="flex-1">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
-                  {f.label}
+                  {tFallback(`onboarding.baseline.${f.i18nKey}`, f.label)}
                   {!f.isPercent && <span className="font-normal normal-case"> (cm)</span>}
                   {f.isPercent && <span className="font-normal normal-case"> (%)</span>}
                 </p>
@@ -2307,7 +2491,9 @@ function BodyBaselineStep({ step, total, value, onChange, onNext, onBack, onSkip
                   type="text"
                   inputMode="decimal"
                   enterKeyHint="done"
-                  placeholder={f.isPercent ? 'e.g. 18' : 'e.g. 80'}
+                  placeholder={f.isPercent
+                    ? tFallback('onboarding.baseline.placeholderPct', 'e.g. 18')
+                    : tFallback('onboarding.baseline.placeholderCm', 'e.g. 80')}
                   value={fieldDisplay(f.key)}
                   onChange={e => handleType(f.key, e.target.value)}
                   onBlur={() => commitField(f.key)}
@@ -2332,30 +2518,30 @@ function BodyBaselineStep({ step, total, value, onChange, onNext, onBack, onSkip
         {hasAny ? (
           <>
             <PrimaryBtn onClick={onNext}>
-              Save & continue
+              {tFallback('onboarding.baseline.save', 'Save & continue')}
             </PrimaryBtn>
             <button
               type="button"
               onClick={onSkip}
               className="w-full py-3 rounded-2xl border border-border bg-secondary/60 text-sm font-semibold text-foreground/80 hover:bg-secondary active:bg-secondary hover:text-foreground active:text-foreground transition-colors"
             >
-              Skip for now
+              {tFallback('onboarding.baseline.skip', 'Skip for now')}
             </button>
           </>
         ) : (
           <>
             <PrimaryBtn onClick={onSkip}>
-              Skip for now <Icon name="arrow-right" size={18} strokeWidth={2.5} />
+              {tFallback('onboarding.baseline.skip', 'Skip for now')} <Icon name="arrow-right" size={18} strokeWidth={2.5} />
             </PrimaryBtn>
             <button
               type="button"
               onClick={onNext}
               className="w-full py-3 rounded-2xl border border-border bg-secondary/60 text-sm font-semibold text-foreground/80 hover:bg-secondary active:bg-secondary hover:text-foreground active:text-foreground transition-colors"
             >
-              I know my measurements — let me enter them
+              {tFallback('onboarding.baseline.enterThem', 'I know my measurements — let me enter them')}
             </button>
             <p className="text-micro text-muted-foreground/70 text-center pt-1">
-              You can add these anytime from Progress.
+              {tFallback('onboarding.baseline.laterHint', 'You can add these anytime from Progress.')}
             </p>
           </>
         )}
@@ -2380,6 +2566,12 @@ const OB_SEVERITIES = [
 ];
 
 function InjuryHistoryStep({ step, total, value, onChange, onNext, onBack, onSkip }) {
+  const { tFallback } = useLanguage();
+  // Muscle group labels come from `i18n-muscle-groups.js`, which already ships
+  // all 15 languages for exactly these eight and was, until now, loaded into
+  // every language bundle with nothing reading it. The stored value stays the
+  // English name — `injury_logs.muscle_group` is matched by string downstream.
+  const muscleLabel = (m) => tFallback(m.toLowerCase(), m);
   // value = [{ muscleGroup, severity }]
   const [pendingMuscle, setPendingMuscle] = useState('');
   const [pendingSeverity, setPendingSeverity] = useState('mild');
@@ -2399,12 +2591,12 @@ function InjuryHistoryStep({ step, total, value, onChange, onNext, onBack, onSki
       <StepHeader step={step} total={total} onBack={onBack} />
       <div className="flex-1 overflow-y-auto pb-4 pe-2">
         <KineticHeading
-          kicker="Any injuries? · optional"
-          text="We'll work around them from day one."
+          kicker={tFallback('onboarding.injury.kicker', 'Any injuries? · optional')}
+          text={tFallback('onboarding.injury.heading', "We'll work around them from day one.")}
           accentWord="around"
         />
         <p className="text-sm text-muted-foreground mt-1 mb-5">
-          Moderate and serious injuries are excluded from your starter plan; mild ones stay in with an ease-in note. Skip if you're all good.
+          {tFallback('onboarding.injury.sub', "Moderate and serious injuries are excluded from your starter plan; mild ones stay in with an ease-in note. Skip if you're all good.")}
         </p>
 
         {/* Logged injuries */}
@@ -2420,16 +2612,16 @@ function InjuryHistoryStep({ step, total, value, onChange, onNext, onBack, onSki
                   className="flex items-center justify-between rounded-xl border border-border bg-card px-3 py-2"
                 >
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold">{inj.muscleGroup}</span>
+                    <span className="text-sm font-semibold">{muscleLabel(inj.muscleGroup)}</span>
                     <span className={`text-micro font-bold px-1.5 py-0.5 rounded-full border ${sev.color}`}>
-                      {sev.label}
+                      {tFallback(`onboarding.injury.severity.${sev.id}`, sev.label)}
                     </span>
                   </div>
                   <button
                     type="button"
                     onClick={() => remove(i)}
                     className="text-muted-foreground hover:text-destructive active:text-destructive transition-colors p-1 leading-none text-lg"
-                    aria-label="Remove"
+                    aria-label={tFallback('onboarding.injury.removeAria', 'Remove')}
                   >
                     ×
                   </button>
@@ -2444,13 +2636,15 @@ function InjuryHistoryStep({ step, total, value, onChange, onNext, onBack, onSki
             (Audit 13 #26.) */}
         {value.length >= 5 && (
           <p className="text-xs text-muted-foreground rounded-xl border border-border bg-card px-3 py-2 mt-3">
-            You've logged the max of 5. Add more later in Progress → Recovery.
+            {tFallback('onboarding.injury.capReached', "You've logged the max of 5. Add more later in Progress → Recovery.")}
           </p>
         )}
         {value.length < 5 && (
           <div className="rounded-2xl border border-border bg-card p-4 space-y-4">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Muscle group</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+                {tFallback('onboarding.injury.muscleGroup', 'Muscle group')}
+              </p>
               <div className="flex flex-wrap gap-1.5">
                 {OB_MUSCLES.map(m => (
                   <button
@@ -2464,14 +2658,16 @@ function InjuryHistoryStep({ step, total, value, onChange, onNext, onBack, onSki
                         : 'border-border text-muted-foreground hover:border-primary/40 hover:text-foreground active:text-foreground',
                     ].join(' ')}
                   >
-                    {m}
+                    {muscleLabel(m)}
                   </button>
                 ))}
               </div>
             </div>
 
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Severity</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+                {tFallback('onboarding.injury.severity', 'Severity')}
+              </p>
               <div className="flex gap-2">
                 {OB_SEVERITIES.map(s => (
                   <button
@@ -2483,7 +2679,7 @@ function InjuryHistoryStep({ step, total, value, onChange, onNext, onBack, onSki
                       pendingSeverity === s.id ? s.color : 'border-border text-muted-foreground',
                     ].join(' ')}
                   >
-                    {s.label}
+                    {tFallback(`onboarding.injury.severity.${s.id}`, s.label)}
                   </button>
                 ))}
               </div>
@@ -2500,7 +2696,7 @@ function InjuryHistoryStep({ step, total, value, onChange, onNext, onBack, onSki
                   : 'bg-secondary/40 text-muted-foreground/50 border-border/40 cursor-not-allowed',
               ].join(' ')}
             >
-              + Add injury
+              {tFallback('onboarding.injury.add', '+ Add injury')}
             </button>
           </div>
         )}
@@ -2508,14 +2704,16 @@ function InjuryHistoryStep({ step, total, value, onChange, onNext, onBack, onSki
 
       <div className="pb-2 pt-2 space-y-2 shrink-0">
         <PrimaryBtn onClick={onNext}>
-          {value.length > 0 ? `Continue · ${value.length} logged` : 'Continue'}
+          {value.length > 0
+            ? tFallback('onboarding.injury.ctaLogged', 'Continue · {count} logged', { count: value.length })
+            : tFallback('onboarding.common.continue', 'Continue')}
         </PrimaryBtn>
         <button
           type="button"
           onClick={onSkip}
           className="w-full py-2 text-sm text-muted-foreground hover:text-foreground active:text-foreground transition-colors"
         >
-          Skip — no injuries
+          {tFallback('onboarding.injury.skip', 'Skip — no injuries')}
         </button>
       </div>
     </div>
@@ -2547,24 +2745,24 @@ function InjuryHistoryStep({ step, total, value, onChange, onNext, onBack, onSki
 ═══════════════════════════════════════════════════════════════ */
 
 function HomeGymStep({ step, total, value, onChange, onNext, onBack, onSkip }) {
+  const { tFallback } = useLanguage();
   return (
     <div className="flex flex-col h-full">
       <StepHeader step={step} total={total} onBack={onBack} />
       <div className="flex-1 overflow-y-auto pb-4 pe-2">
         <KineticHeading
-          kicker="Where do you train? · optional"
-          text="Pick your gym and meet your floor."
+          kicker={tFallback('onboarding.homeGym.kicker', 'Where do you train? · optional')}
+          text={tFallback('onboarding.homeGym.heading', 'Pick your gym and meet your floor.')}
           accentWord="floor"
         />
         <p className="text-sm text-muted-foreground mt-1 mb-4">
-          Your gym gets a bubble on the Flexyn map, and you'll get a leaderboard
-          with everyone else who trains there. You can change this any time.
+          {tFallback('onboarding.homeGym.sub', "Your gym gets a bubble on the Flexyn map, and you'll get a leaderboard with everyone else who trains there. You can change this any time.")}
         </p>
 
         <NearbyGymPicker
           value={value}
           onChange={onChange}
-          emptyHint="Nothing is mapped within a few kilometres of you. Skip for now — you can pick your gym from the map later."
+          emptyHint={tFallback('onboarding.homeGym.emptyHint', 'Nothing is mapped within a few kilometres of you. Skip for now — you can pick your gym from the map later.')}
         />
       </div>
 
@@ -2580,23 +2778,23 @@ function HomeGymStep({ step, total, value, onChange, onNext, onBack, onSkip }) {
         {value ? (
           <>
             <PrimaryBtn onClick={onNext}>
-              Continue · {value.name}
+              {tFallback('onboarding.homeGym.ctaPicked', 'Continue · {name}', { name: value.name })}
             </PrimaryBtn>
             <button
               type="button"
               onClick={onSkip}
               className="w-full py-2 text-sm text-muted-foreground hover:text-foreground active:text-foreground transition-colors"
             >
-              Skip — I'll pick later
+              {tFallback('onboarding.homeGym.skip', "Skip — I'll pick later")}
             </button>
           </>
         ) : (
           <>
             <PrimaryBtn onClick={onSkip}>
-              Skip — I'll pick later <Icon name="arrow-right" size={18} strokeWidth={2.5} />
+              {tFallback('onboarding.homeGym.skip', "Skip — I'll pick later")} <Icon name="arrow-right" size={18} strokeWidth={2.5} />
             </PrimaryBtn>
             <p className="text-micro text-muted-foreground/70 text-center pt-1">
-              You can set your gym any time from Profile → My Gym.
+              {tFallback('onboarding.homeGym.laterHint', 'You can set your gym any time from Profile → My Gym.')}
             </p>
           </>
         )}
@@ -2610,6 +2808,7 @@ function HomeGymStep({ step, total, value, onChange, onNext, onBack, onSkip }) {
 ═══════════════════════════════════════════════════════════════ */
 
 function LoadingStep({ onDone }) {
+  const { tFallback } = useLanguage();
   const [step, setStep] = useState(0);
   useEffect(() => {
     if (step >= LOADING_TASKS.length) { const t = setTimeout(onDone, 600); return () => clearTimeout(t); }
@@ -2631,8 +2830,12 @@ function LoadingStep({ onDone }) {
         <FlexynLogo className="h-11 relative" />
       </motion.div>
 
-      <h2 className="font-heading font-bold text-2xl tracking-tight text-foreground text-center">Building your plan</h2>
-      <p className="text-sm text-muted-foreground text-center">Tuned to your goal · experience · schedule</p>
+      <h2 className="font-heading font-bold text-2xl tracking-tight text-foreground text-center">
+        {tFallback('onboarding.loading.heading', 'Building your plan')}
+      </h2>
+      <p className="text-sm text-muted-foreground text-center">
+        {tFallback('onboarding.loading.sub', 'Tuned to your goal · experience · schedule')}
+      </p>
 
       <div className="w-full max-w-xs space-y-3 mt-4">
         {LOADING_TASKS.map((task, i) => {
@@ -2653,7 +2856,7 @@ function LoadingStep({ onDone }) {
                 )}
               </div>
               <span className="text-sm transition-all" style={{ color: done ? 'hsl(var(--foreground))' : 'hsl(var(--muted-foreground))', fontWeight: active ? 600 : 400 }}>
-                {task}
+                {tFallback(`onboarding.loading.task.${i + 1}`, task)}
               </span>
             </div>
           );
@@ -2674,7 +2877,23 @@ function RevealCoachButton() {
   return <OnboardingCoachButton onClick={coach.open} />;
 }
 
+/**
+ * Fill `{placeholder}` slots in a translated string with React nodes.
+ *
+ * The reveal sentence mixes copy and emphasised values, and word order moves
+ * between languages — "for a beginner lifter on 3 days" puts the level before
+ * the day count in English and after it in several others. Interpolating nodes
+ * rather than concatenating JSX lets a translator move the slots freely.
+ */
+function fillNodes(template, values) {
+  return String(template).split(/(\{\w+\})/g).map((part, i) => {
+    const m = part.match(/^\{(\w+)\}$/);
+    return m ? <span key={i}>{values[m[1]] ?? ''}</span> : part;
+  });
+}
+
 function RevealStep({ data, onNext, saving = false, previewRegimen = null }) {
+  const { tFallback } = useLanguage();
   const goalIds = Array.isArray(data.goal) ? data.goal : (data.goal ? [data.goal] : []);
   const primaryGoal = GOALS.find(g => g.id === goalIds[0]) || GOALS[0];
   const extraGoalCount = Math.max(0, goalIds.length - 1);
@@ -2700,22 +2919,43 @@ function RevealStep({ data, onNext, saving = false, previewRegimen = null }) {
         </motion.div>
         <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
           className="font-mono text-micro font-bold tracking-[0.18em] text-primary uppercase mb-4">
-          Plan ready · 100%
+          {tFallback('onboarding.reveal.ready', 'Plan ready · 100%')}
         </motion.div>
 
         <h1 className="font-heading font-bold text-[38px] leading-[1.0] tracking-tight text-foreground m-0 mb-4">
-          <motion.span initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2, duration: 0.55, ease: [0.16,1,0.3,1] }} className="inline-block me-3">Welcome</motion.span>
-          <motion.span initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, duration: 0.55, ease: [0.16,1,0.3,1] }} className="inline-block me-3">in,</motion.span>
+          {tFallback('onboarding.reveal.welcome', 'Welcome in,').split(' ').map((w, i) => (
+            <motion.span key={`w-${i}`} initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 + i * 0.1, duration: 0.55, ease: [0.16,1,0.3,1] }}
+              className="inline-block me-3">{w}</motion.span>
+          ))}
           <br />
-          <motion.span initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4, duration: 0.55, ease: [0.16,1,0.3,1] }} className="inline-block text-primary">{data.username || 'lifter'}.</motion.span>
+          <motion.span initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4, duration: 0.55, ease: [0.16,1,0.3,1] }} className="inline-block text-primary">
+            {data.username || tFallback('onboarding.reveal.defaultName', 'lifter')}.
+          </motion.span>
         </h1>
 
         <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.55 }}
           className="text-sm text-muted-foreground leading-relaxed mb-6 max-w-xs">
-          A <strong className="text-foreground">{weeks}-week</strong> {primaryGoal.title.toLowerCase()}
-          {extraGoalCount > 0 && <> + <strong className="text-foreground">{extraGoalCount} more</strong></>} block,
-          dialled in for a <strong className="text-foreground">{level?.label.toLowerCase()}</strong> lifter on{' '}
-          <strong className="text-foreground">{daysCount} days</strong>.
+          {fillNodes(
+            tFallback(
+              'onboarding.reveal.summary',
+              'A {weeks}-week {goal}{extra} block, dialled in for a {level} lifter on {days} days.',
+            ),
+            {
+              weeks: <strong className="text-foreground">{weeks}</strong>,
+              goal: tFallback(`onboarding.goal.${primaryGoal.id}.title`, primaryGoal.title).toLowerCase(),
+              extra: extraGoalCount > 0
+                ? fillNodes(
+                    tFallback('onboarding.reveal.summaryExtra', ' + {count} more'),
+                    { count: <strong className="text-foreground">{extraGoalCount}</strong> },
+                  )
+                : '',
+              level: <strong className="text-foreground">
+                {level ? tFallback(`onboarding.level.${level.id}.label`, level.label).toLowerCase() : ''}
+              </strong>,
+              days: <strong className="text-foreground">{daysCount}</strong>,
+            },
+          )}
         </motion.p>
 
         {/* Your starter plan — sectioned + explorable (Cardio / Strength) */}
@@ -2723,14 +2963,24 @@ function RevealStep({ data, onNext, saving = false, previewRegimen = null }) {
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.7 }}
             className="space-y-2.5">
             <div className="flex items-center justify-between">
-              <span className="font-mono text-micro font-semibold tracking-[0.12em] uppercase text-muted-foreground">Your starter plan</span>
-              <span className="font-mono text-micro font-bold text-emerald-500">● READY</span>
+              <span className="font-mono text-micro font-semibold tracking-[0.12em] uppercase text-muted-foreground">
+                {tFallback('onboarding.reveal.starterPlan', 'Your starter plan')}
+              </span>
+              <span className="font-mono text-micro font-bold text-emerald-500">
+                {tFallback('onboarding.reveal.readyBadge', '● READY')}
+              </span>
             </div>
             <div className="font-heading font-bold text-lg tracking-tight text-foreground leading-tight">
-              {previewRegimen?.name || `${primaryGoal.title} starter`}
+              {previewRegimen?.name || tFallback('onboarding.reveal.planName', '{goal} starter', {
+                goal: tFallback(`onboarding.goal.${primaryGoal.id}.title`, primaryGoal.title),
+              })}
             </div>
             <div className="text-caption text-muted-foreground -mt-0.5 mb-1">
-              {daysCount || '—'} days/week · tap a section to explore · saved to Workout → Regimens
+              {tFallback(
+                'onboarding.reveal.planMeta',
+                '{days} days/week · tap a section to explore · saved to Workout → Regimens',
+                { days: daysCount || '—' },
+              )}
             </div>
             <StarterPlanView regimen={previewRegimen} />
           </motion.div>
@@ -2743,10 +2993,10 @@ function RevealStep({ data, onNext, saving = false, previewRegimen = null }) {
           {saving ? (
             <>
               <span className="inline-block w-4 h-4 rounded-full border-2 border-current border-t-transparent animate-spin" />
-              Saving…
+              {tFallback('onboarding.reveal.saving', 'Saving…')}
             </>
           ) : (
-            <>Enter Flexyn <Icon name="arrow-right" size={18} strokeWidth={2.5} /></>
+            <>{tFallback('onboarding.reveal.cta', 'Enter Flexyn')} <Icon name="arrow-right" size={18} strokeWidth={2.5} /></>
           )}
         </PrimaryBtn>
       </motion.div>
@@ -2830,6 +3080,7 @@ function buildVariants(flavor, direction) {
 export default function Onboarding() {
   const navigate = useNavigate();
   const { isAuthenticated, isLoadingAuth, checkUserAuth, user } = useAuth();
+  const { tFallback } = useLanguage();
   const { setWeightUnit } = useWeightUnit();
 
   const [stepIdx, setStepIdx] = useState(0);
@@ -3063,9 +3314,9 @@ export default function Onboarding() {
   const handleUsernameChange = (val) => {
     setData(d => ({ ...d, username: val }));
     if (val.length >= 2 && containsProfanity(val)) {
-      setUsernameError('Username contains inappropriate language.');
+      setUsernameError(tFallback('onboarding.error.usernameProfane', 'Username contains inappropriate language.'));
     } else if (val.length > 20) {
-      setUsernameError('Username must be 20 characters or less.');
+      setUsernameError(tFallback('onboarding.error.usernameTooLong', 'Username must be 20 characters or less.'));
     } else {
       setUsernameError('');
     }
@@ -3119,7 +3370,7 @@ export default function Onboarding() {
         if (!rows || rows.length === 0) return;
         // If the only matching row IS the current user, that's fine.
         if (user?.id && rows[0].id === user.id) return;
-        setUsernameError('That username is already taken.');
+        setUsernameError(tFallback('onboarding.error.usernameTaken', 'That username is already taken.'));
       } catch { /* network/RLS — fall through silently, the final-submit
                   check will still catch the duplicate via 23505 */ }
     }, 350);
@@ -3205,9 +3456,12 @@ export default function Onboarding() {
       fitness_goals_arr:      Array.isArray(data.goal) ? data.goal : [],
       fitness_level:          data.level,
       training_days:          Array.isArray(data.days) ? data.days : [],
-      // Multi-time array → comma-joined string for the DB column (which
-      // is still TEXT). Backwards-compatible: a single value reads back
-      // as a 1-element array.
+      // Multi-time array → comma-joined string for the DB column (which is
+      // still TEXT). Stores stable IDS ('late_night'), not display labels:
+      // this used to persist whatever English the UI happened to render, so
+      // the column's meaning depended on the reader's locale. Nothing reads
+      // it yet (Audit 18 #11) — which is precisely why now was the moment to
+      // fix the shape.
       preferred_workout_time: Array.isArray(data.preferredTime)
         ? data.preferredTime.join(',')
         : (data.preferredTime || ''),
@@ -3264,13 +3518,13 @@ export default function Onboarding() {
       // through to the generic handler instead of being mislabelled
       // "username taken" and bouncing the user to a step they can't fix.
       if (isDuplicateUsernameError(err)) {
-        setUsernameError('That username is already taken. Try another.');
+        setUsernameError(tFallback('onboarding.error.usernameTakenRetry', 'That username is already taken. Try another.'));
         setSaving(false);
         // Jump back to the age step (last step before reveal where the
         // username field is visible) so the user can edit it.
         const ageIdx = STEPS.indexOf('age');
         if (ageIdx >= 0) goTo(ageIdx);
-        toast.error('That username is already taken — try another.');
+        toast.error(tFallback('onboarding.toast.usernameTaken', 'That username is already taken — try another.'));
         return;
       }
       // Server-side profanity trigger (migration 050) — surfaces as
@@ -3278,11 +3532,11 @@ export default function Onboarding() {
       // user back to the username step with a clear inline error so
       // they can fix it without guessing.
       if (isProfaneUsernameError(err)) {
-        setUsernameError('That username contains prohibited content. Pick another.');
+        setUsernameError(tFallback('onboarding.error.usernameProhibited', 'That username contains prohibited content. Pick another.'));
         setSaving(false);
         const ageIdx = STEPS.indexOf('age');
         if (ageIdx >= 0) goTo(ageIdx);
-        toast.error('Username contains prohibited content — pick another.');
+        toast.error(tFallback('onboarding.toast.usernameProhibited', 'Username contains prohibited content — pick another.'));
         return;
       }
 
@@ -3317,7 +3571,10 @@ export default function Onboarding() {
           saved = true;
           // Loud but non-blocking: let the user know some details
           // didn't save so they're not surprised to see missing data.
-          toast.warning('Some profile details could not be saved — finish setup from Settings later.', { duration: 5000 });
+          toast.warning(
+            tFallback('onboarding.toast.partialSave', 'Some profile details could not be saved — finish setup from Settings later.'),
+            { duration: 5000 },
+          );
           reportError(tier2Err, { feature: 'onboarding.tier3-recovery', level: 'warning', userEmail: user?.email, note: 'core saved, details deferred' });
         } catch (coreErr) {
           // Even the last-resort save failed — this is a real backend
@@ -3325,15 +3582,15 @@ export default function Onboarding() {
           // in the toast so the user can report something specific.
           reportError(coreErr, { feature: 'onboarding.core-save', userEmail: user?.email, note: 'all 3 tiers failed', tier2Err: tier2Err?.message });
           if (isDuplicateUsernameError(coreErr)) {
-            setUsernameError('That username is already taken. Try another.');
+            setUsernameError(tFallback('onboarding.error.usernameTakenRetry', 'That username is already taken. Try another.'));
             const ageIdx = STEPS.indexOf('age');
             if (ageIdx >= 0) goTo(ageIdx);
-            toast.error('That username is already taken — try another.');
+            toast.error(tFallback('onboarding.toast.usernameTaken', 'That username is already taken — try another.'));
           } else if (isProfaneUsernameError(coreErr)) {
-            setUsernameError('That username contains prohibited content. Pick another.');
+            setUsernameError(tFallback('onboarding.error.usernameProhibited', 'That username contains prohibited content. Pick another.'));
             const ageIdx = STEPS.indexOf('age');
             if (ageIdx >= 0) goTo(ageIdx);
-            toast.error('Username contains prohibited content — pick another.');
+            toast.error(tFallback('onboarding.toast.usernameProhibited', 'Username contains prohibited content — pick another.'));
           } else {
             const looksOffline =
               !navigator.onLine ||
@@ -3344,8 +3601,8 @@ export default function Onboarding() {
             const detail = coreErr?.message ? `: ${String(coreErr.message).slice(0, 120)}` : '';
             toast.error(
               looksOffline
-                ? "You're offline — reconnect and tap Save again."
-                : `Could not save your profile${code}. Tap Save to retry${detail}`,
+                ? tFallback('onboarding.toast.offline', "You're offline — reconnect and tap Save again.")
+                : tFallback('onboarding.toast.saveFailed', 'Could not save your profile{code}. Tap Save to retry{detail}', { code, detail }),
               { duration: 8000 }
             );
           }
@@ -3449,7 +3706,7 @@ export default function Onboarding() {
               // navigated to, and `warning` is always delivered under the
               // current toast policy. (Audit 18 #8.)
               toast.warning(
-                "We couldn't save your injury history — add it from Progress → Recovery so your plan works around it.",
+                tFallback('onboarding.toast.injuriesFailed', "We couldn't save your injury history — add it from Progress → Recovery so your plan works around it."),
                 { duration: 7000 },
               );
             });
