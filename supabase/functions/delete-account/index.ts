@@ -146,7 +146,35 @@ Deno.serve(async (req: Request) => {
   }
 
   const uid = user.id;
-  const email = user.email || '';
+
+  // The email has to come from user_profiles when auth.users has none, and
+  // that is not an edge case — it is every guest account.
+  //
+  // `signInAnonymously` creates an auth.users row with a NULL email, while
+  // migration 172's trigger writes a synthetic
+  // `guest_<uid>@flexyn.guest` into user_profiles.email. Every email-keyed
+  // row the account goes on to create is keyed on THAT address. Reading
+  // only `user.email` therefore handed mig 284 an empty string, its
+  // `IF v_email <> ''` guard short-circuited, and the entire email sweep
+  // was skipped for the one class of account most likely to be deleted —
+  // guests exist because beta testers hit OAuth and SMTP walls.
+  //
+  // Caught by an end-to-end delete test on a seeded throwaway account: the
+  // identity, the cascade and storage were all correct, and a
+  // hub_saved_posts row keyed on the guest address was still sitting there
+  // afterwards with `swept: {}` in the report.
+  //
+  // This read must stay BEFORE the purge and the auth delete — user_profiles
+  // cascades away with the identity in step 3.
+  let email = user.email || '';
+  if (!email) {
+    const { data: profile } = await admin
+      .from('user_profiles')
+      .select('email')
+      .eq('id', uid)
+      .maybeSingle();
+    email = profile?.email || '';
+  }
 
   const report: Record<string, unknown> = { uid_prefix: uid.slice(0, 8) };
 
