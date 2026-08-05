@@ -23,6 +23,7 @@ import { ensureOnboardingCardioGoal } from '@/lib/data/onboardingCardioGoal';
 import StarterPlanView from '@/components/workout/StarterPlanView';
 import { reportError } from '@/lib/reportError';
 import { isDuplicateUsernameError, isProfaneUsernameError } from '@/lib/onboardingErrors';
+import { escapeLikePattern } from '@/lib/sqlPattern';
 import { todayLocalDateString } from '@/lib/dateUtils';
 import NearbyGymPicker from '@/components/gyms/NearbyGymPicker';
 import { setHomeGym, setHomeGymFromOsm } from '@/lib/data/homeGym';
@@ -77,6 +78,16 @@ const LEVELS = [
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const TIMES    = ['Morning', 'Midday', 'Evening', 'Late night'];
+
+// Age bounds. Every part of the age step derives from these — the drag hook,
+// the ± buttons, the tap-to-type clamp, the tick marks and the range captions.
+// They were four separate literals and had already drifted: the control was
+// raised to 100 but the ruler still stopped at 80, so anyone older scrubbed
+// into 20 units of blank track under a caption that said the max was 80.
+// (Audit 18 #3.) Floor is 13 — COPPA's minimum for a general-audience app;
+// the TEEN life-stage chip covers 13-17 messaging.
+const AGE_MIN = 13;
+const AGE_MAX = 100;
 
 /* ── Feature visual components (animated SVG illustrations for the carousel) ── */
 
@@ -223,7 +234,11 @@ function FeatVisualStreak({ accent }) {
         <div style={{
           position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontFamily: 'var(--font-heading, Archivo, sans-serif)', fontSize: 26, fontWeight: 800, color: 'white',
-          textShadow: '0 2px 6px rgba(0,0,0,0.35)', paddingTop: 10, overflow: 'hidden',
+          // Tight shadow, not a soft halo. `0 2px 6px` spread the glyph edges
+          // over ~6px and was the other half of why this number read as
+          // low-quality; 1px keeps it legible against the pale top of the
+          // flame without smearing it. (Audit 18 #15.)
+          textShadow: '0 1px 2px rgba(0,0,0,0.45)', paddingTop: 10, overflow: 'hidden',
         }}>
           <span style={{ display: 'block', animation: 'ob-streak-roll 0.7s 0.5s cubic-bezier(0.16,1,0.3,1) both' }}>47</span>
         </div>
@@ -470,19 +485,39 @@ function FeatureCarousel() {
       dragElastic={0.22}
       onDragEnd={handleDragEnd}
       className="relative rounded-[20px] border border-border overflow-hidden p-4 touch-pan-y cursor-grab active:cursor-grabbing"
-      style={{ background: 'linear-gradient(180deg, hsl(var(--card) / 0.88), hsl(var(--card) / 0.65))', backdropFilter: 'blur(18px)' }}>
+      // No backdrop-filter. CLAUDE.md's UI rules ban glassmorphism outright
+      // ("backdrop-blur is on the published list of signals designers use to
+      // identify generated UI"), and it had a second cost here: backdrop-filter
+      // promotes the whole subtree to its own composited layer, which is why
+      // the streak card's "47" rendered soft next to the rest of the page.
+      // (Audit 18 #15.)
+      style={{ background: 'linear-gradient(180deg, hsl(var(--card) / 0.88), hsl(var(--card) / 0.65))' }}>
       {/* accent glow */}
       <div className="absolute -top-10 -end-10 w-44 h-44 rounded-full blur-[40px] transition-all duration-700 pointer-events-none"
         style={{ background: F.accent, opacity: 0.18 }} />
       {/* card body — keyed so it remounts + plays entry animation on each slide */}
       <div key={F.id} className="flex items-center gap-3"
         style={{ animation: 'ob-feat-enter 0.65s cubic-bezier(0.16,1,0.3,1) both', perspective: 800 }}>
-        {/* Animated visual */}
-        <div className="flex items-center justify-center" style={{ width: 110, height: 110, flexShrink: 0, overflow: 'hidden' }}>
+        {/* Animated visual.
+            The frame is sized to the TALLEST illustration, not to a round
+            number. At 110px the Smart Log visual (127px: three set rows plus
+            the "+ PR" badge) was clipped by 17px, so the badge and the bottom
+            of the third row were sliced off — the "part of the bench is cut
+            off" report from the 2026-08-05 walkthrough. The other four
+            measure 87-100px and are centred in the frame.
+            Keep the height FIXED: letting the frame size to its content would
+            change the card's height per slide, which is the resize behaviour
+            the carousel is explicitly not supposed to have. If this frame ever
+            grows again, shrink the illustration instead. (Audit 18 #7.) */}
+        <div className="flex items-center justify-center" style={{ width: 110, height: 132, flexShrink: 0, overflow: 'hidden' }}>
           <Visual accent={F.accent} />
         </div>
         {/* Copy */}
-        <div className="flex-1 min-w-0">
+        {/* pe-5 reserves the strip the swipe chevron occupies. The chevron is
+            positioned against the CARD (the nearest positioned ancestor), at
+            end-3 — inside the card's own p-4 — so without this the sub-copy
+            wrapped straight under it and rendered as "…RPE. ›". (Audit 18 #16.) */}
+        <div className="flex-1 min-w-0 pe-5">
           <div className="font-mono text-micro font-bold tracking-[0.16em] uppercase mb-1" style={{ color: F.accent }}>{F.eyebrow}</div>
           <div className="font-heading font-bold text-body leading-tight tracking-tight text-foreground mb-1.5">{F.title}</div>
           <div className="text-[11.5px] leading-[1.45] text-muted-foreground">{F.sub}</div>
@@ -739,7 +774,15 @@ function TimeInput({ value, onChange, placeholder, max = 99 }) {
   return (
     <input type="number" inputMode="numeric" min="0" max={max} placeholder={placeholder}
       value={value ?? ''}
-      onChange={e => onChange(e.target.value.replace(/[^0-9]/g, '').slice(0, 2))}
+      // `max` is an HTML attribute on an input that never submits a form, so
+      // nothing enforced it: the seconds field accepted 99, and 22:99 was
+      // stored as 1,419s and read back to the user as 23:39. Clamp in the
+      // handler. Only out-of-range values are affected, so there's no
+      // clamp-while-typing jump. (Audit 18 #21.)
+      onChange={e => {
+        const digits = e.target.value.replace(/[^0-9]/g, '').slice(0, 2);
+        onChange(digits === '' ? '' : String(Math.min(max, parseInt(digits, 10))));
+      }}
       className="w-16 h-10 rounded-xl border border-border bg-card text-center text-body font-bold tabular-nums focus:outline-none focus:ring-2 focus:ring-primary/40" />
   );
 }
@@ -1054,131 +1097,6 @@ function AssessmentStep({ value, onChange, onNext, onBack, onSkip, step, total }
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   SCRUBBER COMPONENT (drag ruler)
-═══════════════════════════════════════════════════════════════ */
-
-function Scrubber({ min, max, value, onChange, majorEvery = 5 }) {
-  const trackRef = useRef(null);
-  const dragRef = useRef({ down: false, startX: 0, startVal: value });
-  const PX_PER_UNIT = 14;
-  const [width, setWidth] = useState(320);
-
-  useEffect(() => {
-    const update = () => { if (trackRef.current) setWidth(trackRef.current.offsetWidth); };
-    update();
-    const ro = new ResizeObserver(update);
-    if (trackRef.current) ro.observe(trackRef.current);
-    return () => ro.disconnect();
-  }, []);
-
-  const onChangeRef = useRef(onChange);
-  useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
-
-  const onDown = useCallback((e) => {
-    e.preventDefault();
-    if (e.currentTarget.setPointerCapture) e.currentTarget.setPointerCapture(e.pointerId);
-    dragRef.current = { down: true, startX: e.clientX, startVal: value };
-  }, [value]);
-
-  const onMove = useCallback((e) => {
-    if (!dragRef.current.down) return;
-    const delta = Math.round(-(e.clientX - dragRef.current.startX) / PX_PER_UNIT);
-    const next = Math.min(max, Math.max(min, dragRef.current.startVal + delta));
-    onChangeRef.current(next);
-    if (navigator.vibrate) navigator.vibrate(1);
-  }, [min, max]);
-
-  const onUp = useCallback(() => { dragRef.current.down = false; }, []);
-
-  const ticks = useMemo(() => { const a = []; for (let v = min; v <= max; v++) a.push(v); return a; }, [min, max]);
-  const offset = -value * PX_PER_UNIT + width / 2;
-
-  return (
-    <div ref={trackRef} className="relative h-16 overflow-hidden cursor-grab select-none touch-none"
-      onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}>
-      {/* fade edges */}
-      <div className="absolute inset-y-0 start-0 w-12 z-10 pointer-events-none" style={{ background: 'linear-gradient(90deg, hsl(var(--card)), transparent)' }} />
-      <div className="absolute inset-y-0 end-0 w-12 z-10 pointer-events-none" style={{ background: 'linear-gradient(270deg, hsl(var(--card)), transparent)' }} />
-      {/* cursor line */}
-      <div className="absolute start-1/2 top-0 bottom-0 w-0.5 -translate-x-1/2 z-10 rounded-full bg-primary shadow-[0_0_8px_hsl(var(--primary))]" />
-      {/* ticks */}
-      <div className="absolute inset-0" style={{ transform: `translateX(${offset}px)`, transition: dragRef.current.down ? 'none' : 'transform 0.2s cubic-bezier(0.16,1,0.3,1)' }}>
-        {ticks.map(t => {
-          const isMajor = t % majorEvery === 0;
-          const isMid = t % Math.floor(majorEvery / 2 || 1) === 0 && !isMajor;
-          return (
-            <span key={t} className="absolute top-0 flex flex-col items-center" style={{ left: t * PX_PER_UNIT, transform: 'translateX(-50%)' }}>
-              <span className="block rounded-full"
-                style={{
-                  width: 1.5, height: isMajor ? 28 : isMid ? 16 : 10,
-                  background: t === value ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground) / 0.4)',
-                  marginTop: isMajor ? 8 : isMid ? 14 : 18,
-                }} />
-              {isMajor && (
-                <span className="font-mono text-micro font-semibold mt-1 tracking-wide transition-colors"
-                  style={{ color: t === value ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))' }}>
-                  {t}
-                </span>
-              )}
-            </span>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   STEP 4: STATS (username + age + height + weight)
-═══════════════════════════════════════════════════════════════ */
-
-function UnitToggle({ options, value, onChange }) {
-  return (
-    <div className="flex bg-secondary rounded-xl p-0.5 gap-0.5">
-      {options.map(o => (
-        <button key={o.id} onClick={() => onChange(o.id)}
-          // min-h-11: these were 29px tall, and choosing the wrong unit is a
-          // 2.2x error that silently poisons every downstream calculation.
-          className="px-3 min-h-11 font-mono text-micro font-bold tracking-widest uppercase rounded-[10px] transition-all cursor-pointer"
-          style={{
-            background: value === o.id ? 'hsl(var(--card))' : 'transparent',
-            color: value === o.id ? 'hsl(var(--foreground))' : 'hsl(var(--muted-foreground))',
-            boxShadow: value === o.id ? '0 2px 6px hsl(0 0% 0% / 0.07)' : 'none',
-            border: 'none',
-          }}>
-          {o.label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function StatCard({ icon, label, value, unit, min, max, majorEvery = 5, onChange, unitToggle, suffix }) {
-  return (
-    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-      className="rounded-2xl border bg-card p-4 pb-2">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <Icon name={icon} size={15} strokeWidth={2} color="hsl(var(--muted-foreground))" />
-          <span className="font-mono text-micro font-semibold uppercase tracking-[0.12em] text-muted-foreground">{label}</span>
-        </div>
-        {unitToggle}
-      </div>
-      {/* Big value display */}
-      <div className="flex items-baseline justify-center gap-2 mb-1">
-        <motion.span key={value} initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
-          className="font-heading font-bold text-[40px] leading-none tracking-tight text-foreground">
-          {value}
-        </motion.span>
-        <span className="font-heading font-semibold text-xl text-muted-foreground">{unit}</span>
-        {suffix && <span className="font-mono text-micro text-muted-foreground ms-1">{suffix}</span>}
-      </div>
-      <Scrubber min={min} max={max} value={value} onChange={onChange} majorEvery={majorEvery} />
-    </motion.div>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════════
    DRAG HOOK — used by Age, Height, Weight steps
 ═══════════════════════════════════════════════════════════════ */
 function useDragValue({ value, onChange, min, max, axis = 'x', pxPerUnit = 14, step: stepSize = 1 }) {
@@ -1278,8 +1196,15 @@ function PillUnitToggle({ options, value, onChange }) {
 }
 
 /* ── Digit reel counter (Framer-animated) ── */
-function NumberReel({ value, digits = 2, size = 80 }) {
-  const str = String(value).padStart(digits, '0');
+//
+// No zero-padding. It used to take a `digits` prop and `padStart` to it, and
+// the weight step passed `String(range[1]).length` — 3, because the lb range
+// tops out at 400. So every weight below 100 rendered with a leading zero:
+// a 75 kg user was shown "075 KG" on the step whose entire job is to display
+// their weight back to them. Padding never bought anything either — the age
+// step's `digits={2}` was a no-op for every reachable age. (Audit 18 #2.)
+function NumberReel({ value }) {
+  const str = String(value);
   return (
     <span style={{ display: 'inline-flex' }}>
       {str.split('').map((ch, i) => (
@@ -1305,10 +1230,8 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
   const setAge = (v) => onChange({ ...stats, age: v });
   const gender = stats.gender || null;
   const setGender = (g) => onChange({ ...stats, gender: g });
-  // Floor at 13 (COPPA-safe minimum for general apps); the under-18 stage
-  // chip still surfaces TEEN messaging for 13-17 so the tone stays appropriate.
-  const bumpAge = (dir) => setAge(Math.min(100, Math.max(13, age + dir)));
-  const { ref, onPointerDown, onPointerMove, onPointerUp, isDragging } = useDragValue({ value: age, onChange: setAge, min: 13, max: 100, axis: 'x', pxPerUnit: 18 });
+  const bumpAge = (dir) => setAge(Math.min(AGE_MAX, Math.max(AGE_MIN, age + dir)));
+  const { ref, onPointerDown, onPointerMove, onPointerUp, isDragging } = useDragValue({ value: age, onChange: setAge, min: AGE_MIN, max: AGE_MAX, axis: 'x', pxPerUnit: 18 });
 
   // Tap-to-type: tapping the big number opens a numeric keypad so users
   // on mobile don't have to drag-scrub or hammer ±1 to get to their age.
@@ -1345,7 +1268,7 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
   };
   const handleAgeBlur = () => {
     const parsed = parseInt(draftAge, 10);
-    if (Number.isFinite(parsed)) setAge(Math.min(100, Math.max(13, parsed)));
+    if (Number.isFinite(parsed)) setAge(Math.min(AGE_MAX, Math.max(AGE_MIN, parsed)));
     setEditingAge(false);
     setDraftAge('');
   };
@@ -1389,7 +1312,7 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
     <div className="flex flex-col h-full">
       <StepHeader step={step} total={total} onBack={onBack} />
       <div className="flex-1 overflow-y-auto pb-4 pe-2">
-        <KineticHeading kicker={`About You · 0${step}`} text="Tell us about yourself." accentWord="yourself." />
+        <KineticHeading kicker={`About You · ${String(step).padStart(2, '0')}`} text="Tell us about yourself." accentWord="yourself." />
         <p className="text-sm text-muted-foreground mt-2 mb-5">We use this to calibrate your plan. Encrypted, never sold.</p>
 
         {/* Username */}
@@ -1479,7 +1402,7 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
                   transform: isDragging ? 'scale(0.97)' : 'scale(1)',
                   transition: 'transform 0.15s ease-out',
                 }}>
-                  <NumberReel value={age} digits={2} size={120} />
+                  <NumberReel value={age} />
                 </div>
               </button>
             )}
@@ -1537,7 +1460,7 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
             }}
           >
             <div style={{ position: 'absolute', inset: 0, transform: `translateX(${offset}px)`, transition: isDragging ? 'none' : 'transform 0.2s cubic-bezier(0.16,1,0.3,1)' }}>
-              {Array.from({ length: 81 - 13 }, (_, i) => i + 13).map(v => {
+              {Array.from({ length: AGE_MAX - AGE_MIN + 1 }, (_, i) => i + AGE_MIN).map(v => {
                 const isMajor = v % 10 === 0, isMid = v % 5 === 0 && !isMajor;
                 const isActive = v === age;
                 return (
@@ -1569,8 +1492,8 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
                 left is the ruler's actual range, which is information the
                 other line was crowding out.
                 Sizes are text-micro (11px), per the app-wide type floor. */}
-            <span className="font-mono text-micro font-semibold text-muted-foreground tracking-wide">13</span>
-            <span className="font-mono text-micro font-semibold text-muted-foreground tracking-wide">80</span>
+            <span className="font-mono text-micro font-semibold text-muted-foreground tracking-wide">{AGE_MIN}</span>
+            <span className="font-mono text-micro font-semibold text-muted-foreground tracking-wide">{AGE_MAX}</span>
           </div>
           {/* ± Age nudge buttons */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginTop: 12 }}>
@@ -1758,7 +1681,6 @@ function HeightStep({ stats, onChange, onNext, onBack, step, total }) {
   }, [ref]);
   const offsetY = -value * PX + trackH / 2;
 
-  const displayPrimary = unit === 'cm' ? `${value} cm` : `${Math.floor(value / 12)}'${value % 12}"`;
   const displaySecondary = unit === 'cm' ? `${Math.floor(inFromCm(value) / 12)}'${inFromCm(value) % 12}"` : `${cmFromIn(value)} cm`;
   // Pin minPct against a stable 4ft-7ft window so the silhouette scales
   // by ACTUAL height, not by position within the (now-wider) input range.
@@ -1783,7 +1705,7 @@ function HeightStep({ stats, onChange, onNext, onBack, step, total }) {
           behind the keyboard. */}
       <div className="flex-1 overflow-y-auto pb-2">
         <div className="flex justify-between items-start mb-3">
-          <KineticHeading kicker={`Height · 0${step}`} text="How tall are you?" accentWord="tall" />
+          <KineticHeading kicker={`Height · ${String(step).padStart(2, '0')}`} text="How tall are you?" accentWord="tall" />
         </div>
         <div className="mb-4">
           <PillUnitToggle options={[{id:'in',label:'ft·in'},{id:'cm',label:'cm'}]} value={unit} onChange={setUnit} />
@@ -2045,6 +1967,11 @@ function WeightStep({ stats, onChange, onNext, onBack, step, total }) {
   const onGaugeDown = (e) => { if (editingWeight) return; gaugeStartY.current = e.clientY; gaugeMoved.current = 0; onPointerDown(e); };
   const onGaugeMove = (e) => { gaugeMoved.current = Math.max(gaugeMoved.current, Math.abs(e.clientY - gaugeStartY.current)); onPointerMove(e); };
   const onGaugeUp = (e) => { onPointerUp(e); if (!editingWeight && gaugeMoved.current < 6) handleWeightTap(); };
+  // pointercancel means the SYSTEM took the gesture away (iOS edge-swipe,
+  // scroll hand-off) — it is not a tap and must not be treated as one. This
+  // was bound to onGaugeUp, so an interrupted touch that hadn't travelled 6px
+  // popped the numeric keyboard the user never asked for. (Audit 18 #10.)
+  const onGaugeCancel = (e) => { onPointerUp(e); };
 
   const pct = (value - range[0]) / (range[1] - range[0]);
   const circumference = 2 * Math.PI * 82;
@@ -2063,14 +1990,14 @@ function WeightStep({ stats, onChange, onNext, onBack, step, total }) {
           weight" complaint. */}
       <div className="flex-1 overflow-y-auto pb-2">
         <div className="flex justify-between items-start mb-3">
-          <KineticHeading kicker={`Weight · 0${step}`} text="How much do you weigh?" accentWord="weigh?" />
+          <KineticHeading kicker={`Weight · ${String(step).padStart(2, '0')}`} text="How much do you weigh?" accentWord="weigh?" />
         </div>
         <div className="mb-4">
           <PillUnitToggle options={[{id:'lb',label:'lb'},{id:'kg',label:'kg'}]} value={unit} onChange={setUnit} />
         </div>
 
         {/* Circular gauge — draggable dial (vertical drag sets weight, tap to type) */}
-        <div ref={ref} onPointerDown={onGaugeDown} onPointerMove={onGaugeMove} onPointerUp={onGaugeUp} onPointerCancel={onGaugeUp}
+        <div ref={ref} onPointerDown={onGaugeDown} onPointerMove={onGaugeMove} onPointerUp={onGaugeUp} onPointerCancel={onGaugeCancel}
           className="flex flex-col items-center select-none"
           style={{ position: 'relative', cursor: isDragging ? 'grabbing' : 'grab', touchAction: 'none' }}>
           <div style={{ position: 'absolute', width: 240, height: 240, borderRadius: '50%', background: 'hsl(var(--primary))', opacity: 0.1, filter: 'blur(50px)', animation: 'stat-glow-pulse 3s ease-in-out infinite' }} />
@@ -2114,7 +2041,7 @@ function WeightStep({ stats, onChange, onNext, onBack, step, total }) {
               // Not a <button>: the gauge captures pointer events, so its own
               // tap-vs-drag handler opens type mode. Tapping here bubbles up.
               <div style={{ fontFamily: 'var(--font-heading, sans-serif)', fontWeight: 800, fontSize: 64, lineHeight: 0.9, letterSpacing: '-0.05em', color: 'hsl(var(--foreground))', transform: isDragging ? 'scale(0.96)' : 'scale(1)', transition: 'transform 0.15s' }}>
-                <NumberReel value={value} digits={String(range[1]).length} size={64} />
+                <NumberReel value={value} />
               </div>
             )}
             <div className="font-mono text-micro font-bold tracking-[0.3em] uppercase text-primary mt-1">{unit === 'kg' ? 'KG' : 'LBS'}</div>
@@ -2157,81 +2084,6 @@ function WeightStep({ stats, onChange, onNext, onBack, step, total }) {
       </div>
       <div className="pt-4 shrink-0">
         <PrimaryBtn onClick={onNext}>Continue <Icon name="arrow-right" size={18} strokeWidth={2.5} /></PrimaryBtn>
-      </div>
-    </div>
-  );
-}
-
-/* ─── Legacy combined stats step (kept but not used in main flow) ─── */
-function StatsStep({ username, onUsernameChange, stats, onChange, onNext, onBack, step, total, usernameError }) {
-  const ageOk = stats.age >= 13 && stats.age <= 100;
-  const userOk = username.trim().length >= 2 && !usernameError;
-  const canNext = ageOk && userOk;
-
-  return (
-    <div className="flex flex-col h-full">
-      <StepHeader step={step} total={total} onBack={onBack} />
-      <div className="flex-1 overflow-y-auto space-y-3 pb-4 pe-2">
-        <KineticHeading kicker={`Stats · ${String(step).padStart(2, '0')}`} text="A few numbers, then we're done." accentWord="numbers," />
-        <p className="text-sm text-muted-foreground mt-2 mb-4">Drag to set. Encrypted, never sold.</p>
-
-        {/* Username */}
-        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl border bg-card p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Icon name="user" size={15} color="hsl(var(--muted-foreground))" />
-            <span className="font-mono text-micro font-semibold uppercase tracking-[0.12em] text-muted-foreground">Username</span>
-          </div>
-          <input
-            type="text"
-            value={username}
-            onChange={e => onUsernameChange(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
-            placeholder="e.g. jordan_lifts"
-            maxLength={20}
-            autoCapitalize="none"
-            autoCorrect="off"
-            autoComplete="username"
-            spellCheck={false}
-            inputMode="text"
-            enterKeyHint="next"
-            className="w-full h-12 rounded-xl border border-border bg-secondary/50 px-4 font-mono text-base font-medium text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/30 transition-all"
-          />
-          {usernameError && <p className="text-xs text-destructive mt-1.5">{usernameError}</p>}
-          <p className="text-xs text-muted-foreground mt-1.5">Lowercase, numbers and underscores only</p>
-        </motion.div>
-
-        {/* Age */}
-        <StatCard icon="user" label="Age" value={stats.age} unit="yrs" min={13} max={80} majorEvery={5}
-          onChange={v => onChange({ ...stats, age: v })}
-          suffix={stats.age < 18 ? 'guardian consent reqd' : ''} />
-
-        {/* Height */}
-        <StatCard
-          icon="ruler" label="Height"
-          value={stats.heightUnit === 'cm' ? stats.heightCm : stats.heightIn}
-          unit={stats.heightUnit === 'cm' ? 'cm' : 'in'}
-          min={stats.heightUnit === 'cm' ? 120 : 48} max={stats.heightUnit === 'cm' ? 220 : 84}
-          majorEvery={stats.heightUnit === 'cm' ? 10 : 6}
-          onChange={v => stats.heightUnit === 'cm' ? onChange({ ...stats, heightCm: v }) : onChange({ ...stats, heightIn: v })}
-          unitToggle={<UnitToggle options={[{id:'cm',label:'cm'},{id:'in',label:'in'}]} value={stats.heightUnit} onChange={u => onChange({ ...stats, heightUnit: u })} />}
-          suffix={stats.heightUnit === 'in' ? `${Math.floor(stats.heightIn / 12)}'${stats.heightIn % 12}"` : ''}
-        />
-
-        {/* Weight */}
-        <StatCard
-          icon="scale" label="Weight"
-          value={stats.weightUnit === 'kg' ? stats.weightKg : stats.weightLb}
-          unit={stats.weightUnit}
-          min={stats.weightUnit === 'kg' ? 35 : 80} max={stats.weightUnit === 'kg' ? 200 : 440}
-          majorEvery={stats.weightUnit === 'kg' ? 10 : 20}
-          onChange={v => stats.weightUnit === 'kg' ? onChange({ ...stats, weightKg: v }) : onChange({ ...stats, weightLb: v })}
-          unitToggle={<UnitToggle options={[{id:'kg',label:'kg'},{id:'lb',label:'lb'}]} value={stats.weightUnit} onChange={u => onChange({ ...stats, weightUnit: u })} />}
-        />
-      </div>
-
-      <div className="pt-4 shrink-0">
-        <PrimaryBtn onClick={onNext} disabled={!canNext}>
-          Continue <Icon name="arrow-right" size={18} strokeWidth={2.5} />
-        </PrimaryBtn>
       </div>
     </div>
   );
@@ -2370,6 +2222,11 @@ const MEASURE_FIELDS = [
   { key: 'hipCm',     label: 'Hips',    icon: '🍑', min: 50,  max: 200 },
   { key: 'bodyFatPct',label: 'Body fat',icon: '📊', min: 3,   max: 60, unit: '%', isPercent: true },
 ];
+
+// One source of truth for "no measurements given" — read by DEFAULT_DATA and by
+// the step's Skip handler, so the two can't drift into disagreeing about what
+// an empty baseline looks like.
+const EMPTY_BODY_BASELINE = Object.fromEntries(MEASURE_FIELDS.map(f => [f.key, null]));
 
 function BodyBaselineStep({ step, total, value, onChange, onNext, onBack, onSkip }) {
   // value = { waistCm, chestCm, hipCm, bodyFatPct } — all nullable
@@ -2711,17 +2568,38 @@ function HomeGymStep({ step, total, value, onChange, onNext, onBack, onSkip }) {
         />
       </div>
 
+      {/* Same hierarchy swap as the body-baseline step: on an OPTIONAL step the
+          loudest control has to be one that actually works. This was
+          `disabled={!value}` while still reading a plain "Continue", so the
+          biggest button on the last step before the reveal sat dead with
+          nothing explaining why, and the only way forward was a low-contrast
+          text link. Every other step in the flow changes its label to name the
+          blocker; this one couldn't, because nothing was blocking — the step is
+          optional. (Audit 18 #5.) */}
       <div className="pb-2 pt-2 space-y-2 shrink-0">
-        <PrimaryBtn onClick={onNext} disabled={!value}>
-          {value ? `Continue · ${value.name}` : 'Continue'}
-        </PrimaryBtn>
-        <button
-          type="button"
-          onClick={onSkip}
-          className="w-full py-2 text-sm text-muted-foreground hover:text-foreground active:text-foreground transition-colors"
-        >
-          Skip — I'll pick later
-        </button>
+        {value ? (
+          <>
+            <PrimaryBtn onClick={onNext}>
+              Continue · {value.name}
+            </PrimaryBtn>
+            <button
+              type="button"
+              onClick={onSkip}
+              className="w-full py-2 text-sm text-muted-foreground hover:text-foreground active:text-foreground transition-colors"
+            >
+              Skip — I'll pick later
+            </button>
+          </>
+        ) : (
+          <>
+            <PrimaryBtn onClick={onSkip}>
+              Skip — I'll pick later <Icon name="arrow-right" size={18} strokeWidth={2.5} />
+            </PrimaryBtn>
+            <p className="text-micro text-muted-foreground/70 text-center pt-1">
+              You can set your gym any time from Profile → My Gym.
+            </p>
+          </>
+        )}
       </div>
     </div>
   );
@@ -2994,7 +2872,7 @@ export default function Onboarding() {
     // means "skipped." See `assessment` step + buildStarterRegimen.
     assessment: {},
     // V2 optional steps — all nullable/empty means step was skipped
-    bodyBaseline: { waistCm: null, chestCm: null, hipCm: null, bodyFatPct: null },
+    bodyBaseline: { ...EMPTY_BODY_BASELINE },
     onboardingInjuries: [], // [{ muscleGroup, severity }]
     // "Sharpen your plan" follow-ups — all optional; drives the starter plan +
     // a real cardio goal. cardioEvent: 5k|10k|half|marathon|general;
@@ -3127,6 +3005,16 @@ export default function Onboarding() {
     }
   }, [user?.onboarding_complete, user?.username, isLoadingAuth, navigate]);
 
+  // Declared BEFORE the effect that calls it. `const` is not hoisted, and the
+  // effect below referenced `goTo` from above its declaration — safe only
+  // because effect bodies run after mount, and one step from throwing if
+  // anyone ever adds `goTo` to a deps array. That is the exact TDZ pattern
+  // CLAUDE.md records as having crashed Hub in production. (Audit 18 #25.)
+  const goTo = (idx) => {
+    setDirection(idx > stepIdx ? 1 : -1);
+    setStepIdx(idx);
+  };
+
   // If they authenticated via the "get started" flow, skip to goal step.
   // stepIdx is intentionally read freshly via the dep array so a future
   // change that lands the user on `welcome` while authed re-fires the
@@ -3136,11 +3024,6 @@ export default function Onboarding() {
       goTo(1);
     }
   }, [isAuthenticated, stepIdx]);
-
-  const goTo = (idx) => {
-    setDirection(idx > stepIdx ? 1 : -1);
-    setStepIdx(idx);
-  };
 
   const next = () => goTo(Math.min(STEPS.length - 1, stepIdx + 1));
   const back = () => goTo(Math.max(0, stepIdx - 1));
@@ -3217,11 +3100,19 @@ export default function Onboarding() {
         // Cross-user read (other accounts' usernames) — goes through the
         // public_profiles view so it keeps working after the base table's
         // public SELECT policy is dropped.
+        //
+        // The pattern MUST be escaped. `_` is a single-character wildcard in
+        // SQL LIKE/ILIKE, the sanitizer at onUsernameChangeSanitized
+        // deliberately allows `_`, and the field's own placeholder suggests
+        // `jordan_lifts` — so an unescaped `ilike` matched any existing
+        // `jordanXlifts` and told the user their name was taken. The error
+        // disables Continue, so this blocked signup outright for every
+        // underscored name. (Audit 18 #1.)
         const { data: rows } = await safeSelect({
           columns: ['id'],
           build: (cols) => selectProfiles((from) => from
             .select(cols)
-            .ilike('username', u)
+            .ilike('username', escapeLikePattern(u))
             .limit(1)),
         });
         if (seq !== usernameCheckSeqRef.current) return; // a newer keystroke superseded us
@@ -3522,9 +3413,16 @@ export default function Onboarding() {
             waist_cm:   bb.waistCm   ?? null,
             chest_cm:   bb.chestCm   ?? null,
             hip_cm:     bb.hipCm     ?? null,
-          }).then(() => {}).catch(sideErr => {
-            reportError(sideErr, { feature: 'onboarding.body-baseline', level: 'warning', userEmail: user?.email });
-          });
+          })
+            // supabase-js RESOLVES with `{ error }` on a database failure — it
+            // only rejects on a network-level throw. `.then(() => {}).catch()`
+            // therefore swallowed every RLS denial and constraint violation
+            // here, silently, including from Sentry. Re-throw so the catch is
+            // reachable. (Audit 18 #8.)
+            .then(({ error }) => { if (error) throw error; })
+            .catch(sideErr => {
+              reportError(sideErr, { feature: 'onboarding.body-baseline', level: 'warning', userEmail: user?.email });
+            });
         }
 
         // Injuries from onboarding step.
@@ -3538,9 +3436,23 @@ export default function Onboarding() {
             injured_at:   todayLocalDateString(),
             status:       'active',
           }));
-          supabase.from('injury_logs').insert(injuryRows).then(() => {}).catch(sideErr => {
-            reportError(sideErr, { feature: 'onboarding.injury-history', level: 'warning', userEmail: user?.email });
-          });
+          supabase.from('injury_logs').insert(injuryRows)
+            // Same resolve-with-error trap as the body-baseline insert above.
+            .then(({ error }) => { if (error) throw error; })
+            .catch(sideErr => {
+              reportError(sideErr, { feature: 'onboarding.injury-history', level: 'warning', userEmail: user?.email });
+              // TELL the user. This is the one side effect whose absence they
+              // will go looking for: they listed injuries specifically so the
+              // plan would work around them, and a silent failure means they
+              // open Progress → Recovery to an empty list and conclude the app
+              // lost them. The toast lands on the dashboard they're being
+              // navigated to, and `warning` is always delivered under the
+              // current toast policy. (Audit 18 #8.)
+              toast.warning(
+                "We couldn't save your injury history — add it from Progress → Recovery so your plan works around it.",
+                { duration: 7000 },
+              );
+            });
         }
 
         // Home gym from the picker step (mig 275). Applied here rather
@@ -3678,7 +3590,14 @@ export default function Onboarding() {
                   step={formStep} total={TOTAL_FORM}
                   value={data.bodyBaseline}
                   onChange={v => setData(d => ({ ...d, bodyBaseline: v }))}
-                  onNext={next} onBack={back} onSkip={next}
+                  onNext={next} onBack={back}
+                  // Skip must DISCARD, not just advance. It was wired straight
+                  // to `next`, so a user who typed a waist measurement and then
+                  // tapped "Skip for now" still had it written to body_metrics
+                  // at submit — the button did the opposite of its label, with
+                  // health data. The home-gym step below already clears its
+                  // pick on skip; this now matches. (Audit 18 #4.)
+                  onSkip={() => { setData(d => ({ ...d, bodyBaseline: { ...EMPTY_BODY_BASELINE } })); next(); }}
                 />
               )}
 
@@ -3698,6 +3617,12 @@ export default function Onboarding() {
                   onChange={v => setData(d => ({ ...d, assessment: v }))}
                   onNext={next}
                   onBack={back}
+                  // The step falls back to `onSkip || onNext`, so with no
+                  // handler passed "Skip — generate a generic plan" was
+                  // byte-identical to Continue and any partial answers still
+                  // fed buildStarterRegimen. Skipping now means what it says.
+                  // (Audit 18 #24.)
+                  onSkip={() => { setData(d => ({ ...d, assessment: {} })); next(); }}
                 />
               )}
 
