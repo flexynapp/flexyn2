@@ -128,7 +128,7 @@ export default function PhotoCompareSlider({ photos, onClose }) {
         </div>
         <button
           onClick={onClose}
-          className="w-7 h-7 rounded-lg bg-secondary hover:bg-secondary/80 active:bg-secondary/80 flex items-center justify-center transition-colors"
+          className="relative before:absolute before:content-[''] before:-inset-2.5 w-7 h-7 rounded-lg bg-secondary hover:bg-secondary/80 active:bg-secondary/80 flex items-center justify-center transition-colors"
         >
           <X className="w-3.5 h-3.5 text-muted-foreground" />
         </button>

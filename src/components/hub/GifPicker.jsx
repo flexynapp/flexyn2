@@ -70,7 +70,7 @@ export default function GifPicker({ open, onPick, onClose }) {
     >
       <div className="flex items-center justify-between px-4 pt-3 pb-2">
         <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">GIFs</span>
-        <button onClick={onClose} className="w-7 h-7 rounded-full bg-secondary text-muted-foreground flex items-center justify-center" aria-label="Close">
+        <button onClick={onClose} className="relative before:absolute before:content-[''] before:-inset-2.5 w-7 h-7 rounded-full bg-secondary text-muted-foreground flex items-center justify-center" aria-label="Close">
           <X className="w-3.5 h-3.5" />
         </button>
       </div>

@@ -35,12 +35,49 @@
       files; this is 2. Ranges cover every weight the app actually uses
       (audited: font-light 300 through font-black 900).
 
-      Leckerli One (the "Flexyn" wordmark), Press Start 2P and Caveat are
-      story-editor / logo faces, unrelated to the UI system — left alone.
+      SPLIT INTO TWO REQUESTS — critical and deferred.
+
+      All five families used to load from ONE render-blocking stylesheet.
+      Three of them are display faces that no first paint needs, so the app
+      was blocking its own render on Press Start 2P (used only by the story
+      overlay editor and the Snake modal) and Caveat (story overlays only).
+
+      Critical, below, stays render-blocking because first paint genuinely
+      needs it: Archivo is --font-heading, Figtree is --font-body, and
+      Leckerli One is the "Flexyn" wordmark drawn as live <text> on the
+      splash screen (SplashScreen.jsx) — deferring that would show the logo
+      in a fallback for a beat on every cold start, which is the one place
+      a font swap is unmissable.
+
+      Deferred uses the media="print" swap: the browser fetches it at low
+      priority without blocking render, then the onload flips it live. The
+      <noscript> copy keeps it working with JS disabled.
+
+      NOT self-hosted, deliberately, though the audit recommended it and it
+      would be the stronger fix — it removes the third-party dependency, the
+      render-blocking request, and the total-fallback failure mode that made
+      BOTH August reviews unable to judge typography at all.
+
+      The blocker is that this app ships 15 languages. Google's css2
+      endpoint returns per-script @font-face blocks split by unicode-range,
+      so a browser rendering Arabic, Hindi, Japanese, Korean, Chinese or
+      Russian downloads only the subset it needs — or falls through to a
+      system face when the family has no coverage. Self-hosting means
+      reproducing that subsetting by hand. Getting it wrong doesn't fail
+      loudly; it silently serves Latin glyphs to a non-Latin reader or
+      forces a 200 KB download on someone who needed 20 KB. That is worse
+      than the status quo for more users than it helps, so it wants a proper
+      subsetting pass (fonttools/glyphhanger) rather than a quick copy of
+      the woff2 URLs.
     -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400..900&family=Figtree:wght@300..900&family=Leckerli+One&family=Press+Start+2P&family=Caveat:wght@500;700&display=swap" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400..900&family=Figtree:wght@300..900&family=Leckerli+One&display=swap" />
+    <link rel="stylesheet" media="print" onload="this.media='all';this.onload=null"
+          href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Caveat:wght@500;700&display=swap" />
+    <noscript>
+      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Caveat:wght@500;700&display=swap" />
+    </noscript>
 
     <!--
       Favicon — self-hosted SVG. Used to load a PNG from media.base44.com

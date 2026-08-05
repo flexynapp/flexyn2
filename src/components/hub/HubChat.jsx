@@ -1696,7 +1696,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
             <button
               onClick={clearAttachment}
               aria-label="Remove attachment"
-              className="absolute -top-1.5 -end-1.5 w-5 h-5 rounded-full bg-foreground text-background flex items-center justify-center shadow"
+              className="relative before:absolute before:content-[''] before:-inset-2.5 absolute -top-1.5 -end-1.5 w-5 h-5 rounded-full bg-foreground text-background flex items-center justify-center shadow"
             >
               <X className="w-3 h-3" />
             </button>
