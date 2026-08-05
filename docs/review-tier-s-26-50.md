@@ -276,3 +276,68 @@ not the 27 individual items, it is adding both checks to
 **Could not verify:** atomicity of the economy RPCs under real concurrency
 (#34), the nav-reset failure mode (#28), and the bounty escrow mechanism (#33),
 which I could not locate by name.
+
+---
+
+## After the fix — 2026-08-05
+
+Everything below was applied in one commit. Migration **285** carries the
+backend half; the frontend half is four files plus a new shared module.
+
+### Fixed
+
+| # | Item | What changed |
+|---|---|---|
+| 31 | 16 unindexed FKs | `CREATE INDEX IF NOT EXISTS` on all 16 (mig 285 §1). Verified the count against production first. |
+| 42 | Unwrapped `auth.uid()` in RLS | **8**, not 11 — the three `dm_request_blocks` policies were regex false positives; they already wrap as `( SELECT lower(COALESCE(auth.email(), '')) )`. The 8 real ones rewritten with DROP+CREATE, role targeting preserved (mig 285 §2). |
+| 31 + 42 | *The recurrence itself* | Two new CTEs in `_audit_schema_drift.sql` — `missing_fk_index` and `policies_unwrapped_auth`. The regex is `!~ '\( SELECT[^)]*auth\.'`, deliberately not `'\( SELECT auth\.'`, so it does not reproduce the false-positive class that produced the wrong count above. Verified against production: returns exactly 16 and 8. **This is the durable half of the change.** |
+| 38 | `is_blocked` trusted its caller | Rewritten in plpgsql to read `auth.uid()` and ignore `p_viewer_id` (mig 285 §3). The parameter is retained, unused, so the ~2 policy call sites keep working. It **cannot** be fixed by revoking anon: it runs inside the `hub_posts` / `hub_comments` SELECT policies, a policy helper executes as the *querying* role, and anon needs `hub_posts` for the public `/@username` pages — revoking blanks them. Verified before writing. |
+| 33 + 36 | Redundant grants | `REVOKE INSERT, UPDATE, DELETE ON loot_catalog FROM authenticated`, plus `REVOKE SELECT` from anon on the four zero-policy tables (mig 285 §4). Both were already inert — RLS-enabled with no policies — and are revoked anyway so neither is a single point of failure. |
+| 48 | ko / ar / hi / tr had no date locale | `dateLocales.js` now maps exactly the 15 shipped languages. Added `ko`, `ar` (Modern Standard), `hi`, `tr`; dropped `sv`, `da`, `nb`, `fi`, which were imported for languages the app has never offered. |
+| 50 | Three `AnimatedNumber`s | Now one. The shared component gained a `from` prop — the only thing HeroSlideshow's fork could do that it couldn't — and the fork is deleted. Six tests pin the behaviour, including that `from` forces an animation on mount and that reduced-motion still wins over it. |
+| 43 | "45+ Radix primitives" | Corrected in `docs/tier-s-a-review-list.md` to 14, with the reason recorded. |
+| 28 | Nav reset on route change | Was "observed, not proven". Reading the code both proved the reset **and** found a real defect underneath it — see below. |
+
+### #28 turned out to be a live bug, not just an unproven claim
+
+The reset effect fires correctly. The line under it did not:
+
+```js
+lastScrollY.current = 0;   // ← assumes the new route starts at the top
+```
+
+Only the nav tabs scroll to top on navigation. Every other route change —
+tapping a card, a deep link, the back button — leaves the window where it was.
+So: arrive at y=600, scroll **up** to y=590, and the handler computes
+`delta = 590 - 0 = +590`, reads that as a downward scroll, and hides the nav.
+The gesture was inverted on exactly the surfaces deep enough to scroll. Now
+seeded from `window.scrollY`.
+
+### Two things worth knowing that fell out of this
+
+**`prefersReducedMotion` was load-bearing in a file that didn't own it.**
+Deleting HeroSlideshow's private `AnimatedNumber` broke `Sparkline` and
+`ProgressBar` in the same file, which had quietly started using the helper the
+count-up had declared. It now lives in `src/lib/reducedMotion.js`. Seven other
+components still carry an identical private copy (CapsuleOpener, StepsLogCard,
+LevelUpOverlay, SnakeGameModal, ThemeAnimationLayer, DailyQuestsCard,
+SplashScreen) — noted in that module, not swept here, because none is wrong
+today and animation code is where a silent regression is hardest to see.
+
+**`window.matchMedia` leaks between tests.** `src/test/setup.js` installs it as
+a module-scoped `vi.fn()`, and `vi.restoreAllMocks()` only undoes `vi.spyOn` —
+so a `.mockImplementation()` in one test survives into every test after it. The
+reduced-motion case set `matches: true`, which silently turned the *next*
+test's animation into a snap and made a passing component look broken. Any test
+file that touches `matchMedia` needs to reset it in `beforeEach`.
+
+### Not fixed — and why
+
+| # | Item | Why it's still open |
+|---|---|---|
+| 34 | Economy-RPC atomicity under concurrency | Not a code change — it needs a concurrency harness firing overlapping RPCs against a real database and asserting no double-spend. Reading the function bodies cannot prove it, and asserting it from a single-threaded probe would be exactly the kind of false confidence this review is trying to remove. |
+| 33 | Bounty escrow mechanism | Could not locate anything named escrow. Either it doesn't exist under that name or the sheet's row describes something else. Needs the author to point at it before it can be graded. |
+| 30 | `_migration_log` is empty | A **decision**, not a fix: populate it from every migration going forward, or drop the table. Both are defensible; shipping one unasked would be picking for you. An empty table that looks like a ledger is the worst of the three, so this should be resolved either way. |
+| 32 | `debrief_func_url` / `debrief_cron_secret` not in Vault | Only actionable when the weekly-debrief cron is re-scheduled — the recipe is already in CLAUDE.md. Adding the secrets now would create two Vault rows pointing at a cron that doesn't exist. |
+| 49 | `pluralize()` adoption | Sized **M** in the review and it is genuinely M: the helper is correct, it is simply not called in most of the places that hand-roll `n === 1 ? … : …`. That is a wide mechanical sweep across many components, each a small chance of changing user-visible copy. It doesn't belong bundled with a batch of one-line fixes; it wants its own pass with the diff read in full. |
+| — | The other seven `prefersReducedMotion` copies | Same reasoning as #49 — mechanical, wide, and animation regressions are silent. Noted at the top of `src/lib/reducedMotion.js` for whoever next touches those files. |

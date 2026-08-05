@@ -237,9 +237,18 @@ export default function Layout() {
   }, [handleWindowScroll]);
 
   // Reset nav visibility on route change (arriving at a new page → show nav)
+  //
+  // The baseline has to be the page's ACTUAL scroll position, not 0. Only the
+  // nav tabs scroll to top on navigation (see the window.scrollTo calls
+  // below); every other route change — tapping a card, a deep link, the back
+  // button — leaves the window wherever it was. Seeding 0 there meant the
+  // next scroll event computed a delta against a position the user was never
+  // at: arrive at y=600, scroll UP to y=590, and the handler reads
+  // delta = +590, decides that's a downward scroll, and hides the nav. The
+  // gesture was inverted on exactly the surfaces deep enough to scroll.
   useEffect(() => {
     setNavHidden(false);
-    lastScrollY.current = 0;
+    lastScrollY.current = typeof window === 'undefined' ? 0 : window.scrollY;
   }, [location.pathname]);
 
   const navItems = [

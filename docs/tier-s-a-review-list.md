@@ -68,7 +68,7 @@ is itself a finding.
 | 40 | `BE7` | 100% | Anon RPC surface lockdown | Data, security & backend systems |
 | 41 | `BE8` | 100% | Function `search_path` hardening | Data, security & backend systems |
 | 42 | `BE9` | 100% | RLS initplan optimization (wrapped `auth.*` calls) | Data, security & backend systems |
-| 43 | `UI1` | 100% | 45+ Radix-based UI primitives (accordion, alert, alert-dialog, aspect-ratio, avatar, badge, breadcrumb, button, card, chart, checkbox, collapsible, context-menu, dialog, drawer, dropdown-menu, form, hover-card, input, label, menubar, navigation-menu, pagination, popover, progress, radio-group, scroll-area, select, separator, sheet, sidebar, skeleton, slider, switch, table, tabs, textarea, toast, toaster, toggle, toggle-group, tooltip) | Design system & primitives |
+| 43 | `UI1` | 100% | **14** UI primitives — alert-dialog, badge, button, card, dialog, drawer, dropdown-menu, input, select, skeleton, textarea (Radix-backed) + BottomSheet, CharCountIndicator, FormattedNumberInput (local). ⚠️ **Corrected 2026-08-05** — the original row claimed "45+" and named 31 components that do not exist in this repo (accordion, avatar, chart, table, tabs, toast, tooltip, sidebar, form, …). They were shadcn scaffolding that shipped with the starter and was never wired to anything: a transitive-reachability check found **zero** consumers, so 32 files and 22 unused Radix dependencies were deleted. Nothing regressed, because nothing imported them. Re-score this row against 14. | Design system & primitives |
 | 44 | `UI11` | 95% | PageHeader | Design system & primitives |
 | 45 | `UI13` | 100% | Flexyn logo component | Design system & primitives |
 | 46 | `UI14` | 95% | Skeleton loaders throughout | Design system & primitives |

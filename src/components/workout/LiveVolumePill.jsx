@@ -68,7 +68,7 @@ export default function LiveVolumePill({ exercises = [], includeBarWeight = fals
         animate={isHeavy ? { scale: [1, 1.08, 1] } : { scale: 1 }}
         transition={{ duration: 1.6, repeat: isHeavy ? Infinity : 0, ease: 'easeInOut' }}
       >
-        <AnimatedNumber motionValue={motionValue} unit={weightUnit} />
+        <MotionValueCounter motionValue={motionValue} unit={weightUnit} />
       </motion.span>
       <span className="text-micro text-muted-foreground uppercase tracking-wider">
         {weightUnit === 'kg' ? 'kg' : 'lb'} vol
@@ -80,7 +80,19 @@ export default function LiveVolumePill({ exercises = [], includeBarWeight = fals
 // Subscribe-to-motion-value child — re-renders only when the value
 // snaps to a new integer so a smooth tween doesn't trigger 60Hz
 // React reconciliation.
-function AnimatedNumber({ motionValue, unit }) {
+//
+// This was called `AnimatedNumber`, which made it look like a third fork
+// of @/components/AnimatedNumber alongside HeroSlideshow's (now deleted).
+// It isn't, and it should NOT be merged into it: the shared component
+// owns its own rAF loop and drives the value through React state, so
+// swapping it in here would re-render on every frame of a tween that
+// re-fires on every keystroke in every weight and rep input on the
+// active-workout screen. This one reads a Framer-Motion motion value and
+// only re-renders when the rounded integer actually changes — which for
+// a 45-lb set is a handful of renders instead of ~27. Renamed rather
+// than unified so the next person doesn't "clean up" a duplicate that
+// exists for a reason.
+function MotionValueCounter({ motionValue, unit }) {
   const [display, setDisplay] = useState(motionValue.get());
   useEffect(() => {
     const unsub = motionValue.on('change', (latest) => {

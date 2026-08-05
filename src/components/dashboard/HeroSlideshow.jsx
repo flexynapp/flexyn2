@@ -41,60 +41,21 @@ import { formatDistanceToNowStrict } from 'date-fns';
 import { useLanguage } from '@/lib/LanguageContext';
 import { usePushSubscription } from '@/lib/usePushSubscription';
 import { supabase } from '@/api/supabaseClient';
+import AnimatedNumber from '@/components/AnimatedNumber';
+import { prefersReducedMotion } from '@/lib/reducedMotion';
 
 const ROTATE_MS = 8000;
 
-/**
- * Count-up animation primitive — eases from 0 (or `from`) to `to`
- * over `durationMs`. Used inside slides so a "195 lb Bench Press"
- * appears with the number ticking up from 0 to 195 (a few ms per
- * frame, ~1.4s total). Re-keys on `to` change so flipping between
- * slides re-fires the animation.
- *
- * Pure DOM ticker (no framer-motion dependency for the number)
- * so we can format the displayed value as integer or decimal.
- */
-// Helper — once per module, capture the user's reduced-motion
-// preference. Browsers without window/matchMedia (SSR, very old)
-// degrade to "motion allowed" since the worst case is the animation
-// still plays — never silently broken.
-const prefersReducedMotion = () => {
-  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;
-  try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; }
-  catch { return false; }
-};
-
-function AnimatedNumber({ from = 0, to, durationMs = 1400, decimals = 0, suffix = '' }) {
-  const safeFrom = Number.isFinite(from) ? from : 0;
-  const [val, setVal] = useState(safeFrom);
-  const startRef = useRef(0);
-  const rafRef = useRef(null);
-
-  useEffect(() => {
-    cancelAnimationFrame(rafRef.current);
-    if (!Number.isFinite(to)) { setVal(0); return; }
-    // Honor reduced-motion: snap to the target value with no tween.
-    // Also short-circuit no-op animations (from === to) so we don't
-    // schedule ~84 frames of busywork for a 0 → 0 case (e.g. Path
-    // Step 1 "0 logged" for a brand-new user).
-    if (safeFrom === to || prefersReducedMotion()) { setVal(to); return; }
-    startRef.current = performance.now();
-    const ease = (t) => 1 - Math.pow(1 - t, 3); // ease-out cubic
-    const tick = (now) => {
-      const elapsed = now - startRef.current;
-      const t = Math.min(1, elapsed / durationMs);
-      const cur = safeFrom + (to - safeFrom) * ease(t);
-      setVal(cur);
-      if (t < 1) rafRef.current = requestAnimationFrame(tick);
-    };
-    rafRef.current = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(rafRef.current);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [to, durationMs, safeFrom]);
-
-  const safeVal = Number.isFinite(val) ? val : 0;
-  return <>{safeVal.toFixed(decimals)}{suffix}</>;
-}
+// The count-up on the hero slides used to be a private copy of
+// AnimatedNumber declared right here — same ease-out cubic, same rAF
+// loop, same reduced-motion guard, different prop names. The shared
+// component now takes `from`, which was the only thing this copy could
+// do that it couldn't, so the fork has no reason to exist.
+//
+// Slide count-ups run at 1.4s rather than the shared 800ms default: a
+// hero number is the thing the user is looking at, so it gets a longer
+// roll than a stat that changes underneath them.
+const HERO_COUNT_MS = 1400;
 
 /**
  * Tiny inline sparkline — accepts an array of numeric Y values and
@@ -1046,7 +1007,7 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
                 className="font-heading font-bold leading-none tracking-tight tabular-nums"
                 style={{ fontSize: 'clamp(3.5rem, 12vw, 6.5rem)' }}
               >
-                <AnimatedNumber from={0} to={streak} durationMs={1400} />
+                <AnimatedNumber from={0} value={streak} duration={HERO_COUNT_MS} />
               </span>
               <span className="font-heading text-lg md:text-xl font-medium text-foreground/70 leading-tight pb-2">
                 {streak === 1 ? t('dashboard.hero.daySingular') : t('dashboard.hero.dayPlural')}
@@ -1234,8 +1195,9 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
                 {slide.metricPrefix}
                 <AnimatedNumber
                   from={slide.metricFrom ?? 0}
-                  to={slide.metricValue}
-                  decimals={slide.metricDecimals ?? 0}
+                  value={slide.metricValue}
+                  duration={HERO_COUNT_MS}
+                  format={(n) => n.toFixed(slide.metricDecimals ?? 0)}
                 />
                 {slide.metricUnit}
               </span>

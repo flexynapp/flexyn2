@@ -196,6 +196,69 @@ orphan_counts AS (
   WHERE u.id IS NULL
 )
 
+-- ── Foreign keys with no covering index ─────────────────────────────
+-- Added 2026-08-05. A #26-50 review found 16 of these, and every one
+-- belonged to a feature that landed AFTER the original indexing pass:
+-- the crew system, the July equipment picker, August's scheduled_workouts.
+-- The indexing was a one-time sweep and nothing warned when later work
+-- missed it.
+--
+-- This matters most on DELETE. Without an index on the referencing
+-- column, removing a parent row sequential-scans the child table — and
+-- these are exactly the tables the delete-account cascade walks.
+,
+missing_fk_index AS (
+  SELECT
+    'missing_fk_index'::text,
+    con.conrelid::regclass::text,
+    ('FK column has no covering index: ' ||
+      (SELECT attname FROM pg_attribute
+        WHERE attrelid = con.conrelid AND attnum = con.conkey[1]))::text,
+    'med'::text,
+    ('CREATE INDEX IF NOT EXISTS idx_' || con.conrelid::regclass::text || '_' ||
+      (SELECT attname FROM pg_attribute
+        WHERE attrelid = con.conrelid AND attnum = con.conkey[1]) ||
+      ' ON ' || con.conrelid::regclass::text || ' (' ||
+      (SELECT attname FROM pg_attribute
+        WHERE attrelid = con.conrelid AND attnum = con.conkey[1]) || ');')::text
+  FROM pg_constraint con
+  WHERE con.contype = 'f'
+    AND con.connamespace = 'public'::regnamespace
+    AND NOT EXISTS (
+      SELECT 1 FROM pg_index i
+      WHERE i.indrelid = con.conrelid
+        AND (i.indkey::int2[])[0:array_length(con.conkey,1)-1] @> con.conkey[1:1]
+    )
+),
+
+-- ── RLS policies that re-evaluate auth.*() per row ──────────────────
+-- Added 2026-08-05, same review, same structural cause. Postgres hoists
+-- a subselect to an InitPlan and runs it once per query; a bare
+-- auth.uid() in a policy runs once per candidate ROW.
+--
+-- The pattern deliberately looks for `( SELECT` anywhere before the
+-- auth call rather than the literal string `( SELECT auth.` — the first
+-- draft of this check used the stricter form and produced three false
+-- positives on dm_request_blocks, which wrap theirs as
+-- `( SELECT lower(COALESCE(auth.email(), '')) )`. Already-correct
+-- policies must not show up here or the check gets ignored.
+policies_unwrapped_auth AS (
+  SELECT
+    'rls_initplan'::text,
+    pol.polrelid::regclass::text,
+    ('policy re-evaluates auth.*() per row: ' || pol.polname)::text,
+    'low'::text,
+    'Wrap the call: auth.uid() -> (SELECT auth.uid()), then DROP + CREATE the policy.'::text
+  FROM pg_policy pol
+  JOIN pg_class c ON c.oid = pol.polrelid
+  JOIN pg_namespace n ON n.oid = c.relnamespace
+  WHERE n.nspname = 'public'
+    AND (coalesce(pg_get_expr(pol.polqual, pol.polrelid), '') ||
+         coalesce(pg_get_expr(pol.polwithcheck, pol.polrelid), '')) ~ 'auth\.(uid|email|jwt)'
+    AND (coalesce(pg_get_expr(pol.polqual, pol.polrelid), '') ||
+         coalesce(pg_get_expr(pol.polwithcheck, pol.polrelid), '')) !~ '\( SELECT[^)]*auth\.'
+)
+
 SELECT category, table_name, detail, severity, suggestion
 FROM (
   SELECT * FROM suspect_id_columns
@@ -205,6 +268,10 @@ FROM (
   SELECT * FROM rls_without_service_grant
   UNION ALL
   SELECT * FROM public_tables_no_rls
+  UNION ALL
+  SELECT * FROM missing_fk_index
+  UNION ALL
+  SELECT * FROM policies_unwrapped_auth
   UNION ALL
   SELECT * FROM orphan_counts
   WHERE detail NOT LIKE '%: 0'  -- hide zero-count orphans
