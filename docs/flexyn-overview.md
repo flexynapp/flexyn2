@@ -171,7 +171,9 @@ some are multi-week. Categorized:
 - Conversation mute + archive
 - Crew Chat message reactions
 - Gradient avatar fallback (deterministic by name)
-- Theme picker preview before applying
+- Theme picker preview before applying — note the picker itself is currently
+  disabled (`THEMES_ENABLED = false`, `src/lib/featureFlags.js`); it renders
+  as "Coming soon". A preview is only worth building once themes are back on.
 
 ### Medium (1–3 days)
 - Trending hashtags / exercises

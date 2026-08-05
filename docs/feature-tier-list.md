@@ -247,7 +247,7 @@ Marketplace / System. Reuses `notifications.js`. **~3 days.**
 - **B5. Restaurant / Chain Nutrition Search** — Spoonacular has it; just surface.
 - **B6. Achievement Reveal Engine** — queue cinematic unlocks (PR → streak → quest → capsule).
 - **B7. Streaks: Freezes, Recovery, Visual Calendar** — heatmap + 1-use-per-month freeze. #1 churn driver.
-- **B8. Seasonal Themes / Epoch Cosmetics** — debriefs already tag `epoch_id`; bundle cosmetics per epoch.
+- **B8. Seasonal Themes / Epoch Cosmetics** — debriefs already tag `epoch_id`; bundle cosmetics per epoch. **Blocked on a product decision, not effort: themes are switched OFF** (`THEMES_ENABLED = false` in `src/lib/featureFlags.js`, Aug 2026). Both the level-up palettes and the capsule loot themes are inert, and the capsule drop weights no longer roll a theme. Re-enabling comes first, or this ships into a system nobody can see.
 - **B9. Public Profile Polish** — top 3 lifts, total tonnage, longest streak, achievements wall on HubProfile.
 - **B10. Smart Plate Calculator + Bar Inventory** — per-gym bar weight, "per-side" plate breakdown.
 - **B11. Workout Templates from Today's Session** — "save this session as a template?" after logging.

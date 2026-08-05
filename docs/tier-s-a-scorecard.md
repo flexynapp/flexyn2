@@ -192,7 +192,7 @@ single highest-value thing left.
 | 116 | `GA20` | Atomic capsule open + server-authoritative rolls (migrations 028, 255, 266) | A | **A** | ✅ live |  |
 | 117 | `GA47` | Streak flame component with intensity by length | A | **A** | ✅ live |  |
 | 118 | `GA50` | Reward queue — serializes multi-celebration moments so toasts don't overlap | A | **A** | ✅ live |  |
-| 119 | `GA51` | Particles / theme animation layer | A | **A** | ✅ live |  |
+| 119 | `GA51` | Particles / theme animation layer | A | **A** | 🟡 your call | Half of it is dark. `THEMES_ENABLED = false` makes `activeAnimation` always null, so `ThemeAnimationLayer` renders nothing; `Particles` is imported directly by `LevelUpOverlay`/`LevelBar` and does still run. Code is correct — it lights up when themes come back. |
 | 120 | `GA52` | Seven celebration helpers, each with a distinct haptic + confetti signature — goal, first-wo… | A | **A** | ✅ live | Count corrected to seven in both docs. Audited: 7/7 distinct vibration patterns. |
 | 121 | `GA9` | Level reward schedule (migration 263) | A | **A** | ✅ live |  |
 | 122 | `NT18` | Notification types wired to push: streak milestone/break, quest claimed/expiry, league promo… | A | **A** | ✅ live |  |
