@@ -84,7 +84,21 @@ export async function recordWeeklyXp(user, amount) {
       p_league_member_id: ctx.member.id,
       p_amount: amount,
     });
-    if (!error) return;
+    if (!error) {
+      // Monthly board rides along on the weekly write. This is the one place
+      // the app already knows "XP was just earned", and all four callers
+      // (Workout + the three cardio surfaces) route through here — wiring it
+      // at the call sites instead would have been four edits that can drift.
+      //
+      // Ordering matters: xp_grant_log is written upstream by grant_action_xp
+      // (mig 188) before this runs, so the SUM the RPC derives already
+      // includes the XP that triggered this call.
+      //
+      // Not awaited — a monthly-standing write must not delay the caller, and
+      // syncMonthlyLeague swallows its own failures.
+      syncMonthlyLeague(user);
+      return;
+    }
     if (error.code === '42883' || error.code === '42P01') {
       // RPC missing — fall through to legacy path.
       console.warn('[leagues] xp RPC missing, falling back');
@@ -134,6 +148,50 @@ export async function recordWeeklyXp(user, amount) {
     userEmail: user.email,
     amount,
   });
+}
+
+/**
+ * Place the user on this month's board and set their standing.
+ *
+ * Monthly leagues shipped with no reachable writer and stayed empty from the
+ * day they were created — `record_monthly_xp` was revoked from
+ * `authenticated` by migration 147 (it took an arbitrary p_user_id and
+ * p_amount) and the revoke was never lifted after 147 also made the body
+ * safe. Migration 297 replaced it with `sync_my_monthly_league`, and this is
+ * the call site that finally makes the feature run.
+ *
+ * Deliberately takes no amount. The RPC derives the tier from the profile and
+ * the standing from SUM(xp_grant_log) for the current UTC month, so there is
+ * no number here for a client to inflate — re-granting the old RPC would have
+ * reintroduced exactly that. It also SETs rather than increments, so calling
+ * it twice on one action is harmless.
+ *
+ * Fire-and-forget on purpose: monthly standing is a leaderboard nicety, and
+ * a failure here must never surface to someone who just finished a workout.
+ * Errors go to Sentry, not the user.
+ */
+export async function syncMonthlyLeague(user) {
+  if (!user?.id) return;
+  try {
+    const { error } = await supabase.rpc('sync_my_monthly_league');
+    // 42883 / 42P01 — host predates migration 297. Not worth reporting; the
+    // feature simply isn't there yet and the weekly board is unaffected.
+    if (error && error.code !== '42883' && error.code !== '42P01') {
+      reportError(error, {
+        feature: 'leagues.syncMonthlyLeague',
+        level: 'warning',
+        userEmail: user.email,
+      });
+    }
+  } catch (err) {
+    if (err?.code !== '42883' && err?.code !== '42P01') {
+      reportError(err, {
+        feature: 'leagues.syncMonthlyLeague.throw',
+        level: 'warning',
+        userEmail: user.email,
+      });
+    }
+  }
 }
 
 /**
