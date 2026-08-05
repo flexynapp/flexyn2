@@ -1008,7 +1008,9 @@ function AssessmentStep({ value, onChange, onNext, onBack, onSkip, step, total }
                       key={a.id}
                       type="button"
                       onClick={() => setAnswer(q.id, a.id)}
-                      className="py-2 rounded-xl border text-xs font-bold uppercase tracking-wide transition-colors"
+                      // min-h-11: eight of these render in one viewport at
+                      // 34px tall.
+                      className="min-h-11 rounded-xl border text-xs font-bold uppercase tracking-wide transition-colors"
                       style={{
                         borderColor: selected ? a.hue : 'hsl(var(--border))',
                         background:  selected ? `${a.hue}1f` : 'hsl(var(--card))',
@@ -1039,7 +1041,9 @@ function AssessmentStep({ value, onChange, onNext, onBack, onSkip, step, total }
           <button
             type="button"
             onClick={onSkip || onNext}
-            className="text-xs font-semibold text-muted-foreground hover:text-foreground active:text-foreground transition-colors py-1.5"
+            // min-h-11 — this was a 28px caption-styled control on the one
+            // step a user is most likely to want to skip.
+            className="text-xs font-semibold text-muted-foreground hover:text-foreground active:text-foreground transition-colors min-h-11"
           >
             Skip — generate a generic plan
           </button>
@@ -1133,7 +1137,9 @@ function UnitToggle({ options, value, onChange }) {
     <div className="flex bg-secondary rounded-xl p-0.5 gap-0.5">
       {options.map(o => (
         <button key={o.id} onClick={() => onChange(o.id)}
-          className="px-3 py-1.5 font-mono text-micro font-bold tracking-widest uppercase rounded-[10px] transition-all cursor-pointer"
+          // min-h-11: these were 29px tall, and choosing the wrong unit is a
+          // 2.2x error that silently poisons every downstream calculation.
+          className="px-3 min-h-11 font-mono text-micro font-bold tracking-widest uppercase rounded-[10px] transition-all cursor-pointer"
           style={{
             background: value === o.id ? 'hsl(var(--card))' : 'transparent',
             color: value === o.id ? 'hsl(var(--foreground))' : 'hsl(var(--muted-foreground))',
@@ -1231,7 +1237,10 @@ function useDragValue({ value, onChange, min, max, axis = 'x', pxPerUnit = 14, s
 // with margin to spare — users on small phones were missing 40×40 targets.
 const nudgeBtnStyle = {
   display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-  width: 48, height: 48, borderRadius: '50%',
+  // flexShrink:0 is load-bearing. These are declared 48px, but they sit in a
+  // flex row and were being squeezed to 41px wide on a 375px screen — the
+  // declared size is not the rendered size without this.
+  width: 48, height: 48, flexShrink: 0, borderRadius: '50%',
   border: '1.5px solid hsl(var(--border))',
   background: 'hsl(var(--secondary))',
   color: 'hsl(var(--foreground))',
@@ -1253,7 +1262,7 @@ function PillUnitToggle({ options, value, onChange }) {
         const active = value === o.id;
         return (
           <button key={o.id} onClick={() => onChange(o.id)} style={{
-            border: 'none', padding: '6px 18px',
+            border: 'none', padding: '0 18px', minHeight: 44,
             fontFamily: 'ui-monospace, monospace', fontSize: 11, fontWeight: 700, letterSpacing: '0.1em',
             borderRadius: 999,
             background: active ? 'hsl(var(--primary))' : 'transparent',
@@ -1484,8 +1493,11 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
                 type="button"
                 onClick={handleAgeTap}
                 aria-label="Tap to type your age"
-                className="font-mono text-micro font-semibold tracking-[0.3em] uppercase text-muted-foreground mt-2 hover:text-foreground active:text-foreground transition-colors"
-                style={{ background: 'none', border: 'none', cursor: 'text', padding: 0 }}
+                className="font-mono text-micro font-semibold tracking-[0.3em] uppercase text-muted-foreground mt-2 hover:text-foreground active:text-foreground transition-colors inline-flex items-center justify-center"
+                // This LOOKS like a caption but is a real control — tapping it
+                // opens the keypad. It was 28px tall, so the affordance the
+                // copy advertises was the hardest thing on the step to hit.
+                style={{ background: 'none', border: 'none', cursor: 'text', padding: '0 8px', minHeight: 44 }}
               >
                 YEARS OLD · TAP TO TYPE OR DRAG
               </button>
@@ -1848,7 +1860,9 @@ function HeightStep({ stats, onChange, onNext, onBack, step, total }) {
                   type="button"
                   onClick={handleHeightTap}
                   aria-label="Tap to type your height"
-                  style={{ background: 'none', border: 'none', cursor: 'text', padding: 0, textAlign: 'left' }}
+                  // minHeight 44 — the number IS the tap-to-type target, and
+                  // the hint under it says so, but it measured 38px.
+                  style={{ background: 'none', border: 'none', cursor: 'text', padding: 0, textAlign: 'left', minHeight: 44, display: 'inline-flex', alignItems: 'center' }}
                 >
                   <div style={{ fontFamily: 'var(--font-heading, sans-serif)', fontWeight: 800, fontSize: 38, lineHeight: 1, letterSpacing: '-0.04em', color: 'hsl(var(--foreground))', transform: isDragging ? 'scale(0.97)' : 'scale(1)', transition: 'transform 0.15s' }}>
                     {unit === 'cm' ? value : `${Math.floor(value/12)}'${value%12}"`}
@@ -2131,7 +2145,12 @@ function WeightStep({ stats, onChange, onNext, onBack, step, total }) {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, marginTop: 10 }}>
           <button onClick={() => bump(-5)} style={nudgeBtnStyle}>−5</button>
           <button onClick={() => bump(-1)} style={nudgeBtnStyle}>−1</button>
-          <span style={{ fontFamily: 'ui-monospace,monospace', fontSize: 11, color: 'hsl(var(--muted-foreground))', minWidth: 56, textAlign: 'center' }}>tap number to type</span>
+          {/* The "tap number to type" label that used to sit here is gone.
+              The dial hint two lines up already reads "Drag dial to set · tap
+              to type", so the step was carrying two instruction lines for one
+              control — the same duplication removed from the age step. The
+              spacer keeps the +/- buttons from closing up around the gap. */}
+          <span aria-hidden="true" style={{ minWidth: 56 }} />
           <button onClick={() => bump(+1)} style={nudgeBtnStyle}>+1</button>
           <button onClick={() => bump(+5)} style={nudgeBtnStyle}>+5</button>
         </div>
@@ -2271,12 +2290,16 @@ function DaysStep({ days, preferredTime, onDaysChange, onTimeChange, onNext, onB
 
         {/* Day grid */}
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}
-          className="grid grid-cols-7 gap-2">
+          className="grid grid-cols-7 gap-0.5">
           {WEEKDAYS.map((d, i) => {
             const selected = days.includes(i);
             return (
               <button key={d} onClick={() => toggle(i)}
-                className="flex flex-col items-center gap-1 py-3 rounded-xl border cursor-pointer transition-all font-medium"
+                // min-h-11 + the tighter grid gap above lifts these from
+                // 39x50 to >=44 wide. Seven adjacent targets where a mis-tap
+                // silently selects a DIFFERENT day is the worst hit-target
+                // risk in onboarding — a miss here is wrong, not just missed.
+                className="flex flex-col items-center justify-center gap-1 min-h-11 py-2.5 rounded-xl border cursor-pointer transition-all font-medium"
                 style={{
                   borderColor: selected ? 'hsl(var(--primary))' : 'hsl(var(--border))',
                   background: selected ? 'hsl(var(--primary))' : 'hsl(var(--card))',
@@ -2432,7 +2455,7 @@ function BodyBaselineStep({ step, total, value, onChange, onNext, onBack, onSkip
                   onChange={e => handleType(f.key, e.target.value)}
                   onBlur={() => commitField(f.key)}
                   onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
-                  className="w-full h-10 rounded-xl border border-border bg-secondary/50 px-3 font-mono text-sm font-medium text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/30"
+                  className="w-full h-11 rounded-xl border border-border bg-secondary/50 px-3 font-mono text-sm font-medium text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/30"
                 />
               </div>
             </motion.div>

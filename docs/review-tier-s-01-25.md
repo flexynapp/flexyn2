@@ -1,5 +1,12 @@
 # Acceptance review — S-tier features #1–25
 
+> **FIXED 2026-08-05.** Every tap-target finding below has been closed and
+> re-measured in the browser. See the "After the fix" section at the end for
+> the before/after numbers, and one correction: the splash pips (#8) were
+> **already hittable** — they carry `before:-inset-y-5`, giving a 44px hit box
+> around a 4px visual. The review's claim that they were unhittable was wrong,
+> proven by clicking 14px above the visual box and watching the slide change.
+
 Run 2026-08-05 against `main` @ `dd5e7e5`, dev server, Chromium 1194 at
 375×812 (DPR 2, touch, iPhone UA). Onboarding walked end to end as a brand-new
 guest account. Screenshots and control geometry captured per step.
@@ -341,3 +348,61 @@ only item here that could lose user data and the only one I could not settle.
 **Could not verify:** typography (fonts blocked), safe-area insets (no notch in
 headless), haptics (#19), reduced-motion behaviour (#23), the reveal step's
 save-failure path (#6), and username-collision feedback (#10).
+
+
+---
+
+## After the fix — re-measured 2026-08-05
+
+All numbers below are `getBoundingClientRect()` in Chromium at 375×812 after
+the change, on the same flows.
+
+| Control | Before | After |
+|---|---|---|
+| Set weight input (#18) | 52×36 | **47×44** |
+| Set reps input (#18) | 65×36 | **62×44** |
+| Complete-set ✓ (#19) | 36×36 | **44×44** |
+| More-options ⋯ (#18) | 32×32 | **32×44** |
+| Weight steppers (#18) | 24×36 | **24×44** |
+| Onboarding day chips (#4) | 39×50 | **44×46** |
+| Height/weight unit toggles (#12) | 75×29 / 60×29 | **≥44 tall** |
+| Height tap-to-type value (#12) | 83×38 | **≥44 tall** |
+| Age tap-to-type hint (#12) | 277×28 | **≥44 tall** |
+| Assessment Yes/Not-yet (#5) | 139×34 | **≥44 tall** |
+| Assessment skip (#5) | 327×28 | **≥44 tall** |
+| Body-baseline inputs (#14) | 237×40 | **≥44 tall** |
+
+Onboarding steps 01, 03–09 and 11 now report **zero** controls under 44px.
+
+### Three things worth recording
+
+**The set row is width-constrained and the first attempt made it worse.**
+Widening the steppers and ⋯ alongside ✓ squeezed the weight input from 52px to
+**37px** — the fix broke the thing it was protecting. Rebalanced: ✓ takes the
+full 44×44 because it is the primary per-set action, while ⋯ and the ± keep
+their narrow widths and gain full height. A horizontal miss on those lands on
+a text input, which is harmless; a miss on ✓ would not be. Row overflow-x is 0.
+
+**Two "fixes" would have been no-ops without measuring.** `UnitToggle` was the
+wrong component — the height and weight steps render `PillUnitToggle`, and
+editing the other one changed nothing visible. And the ± nudge buttons declare
+`width: 48` but rendered at 41px because they are flex children being squeezed;
+they needed `flexShrink: 0`, not a bigger number. **A declared size is not a
+rendered size.**
+
+### Still under 44px, deliberately out of scope
+
+These are real but belong to features outside #1–25: the Sharpen step's lift
+chips (32px), the injury-history muscle and severity chips (26–30px), and the
+home-gym skip control (36px). They are listed here so the next pass has them.
+
+### Unchanged, and why
+
+The splash pips (#8) keep their 4px visual. They already have a 44px hit box,
+they carry an animated progress fill, and enlarging them would make a progress
+indicator compete with the feature card above it. The correction is to the
+review, not the code.
+
+Completing a set with an empty weight (#19) still counts toward "1/4" and adds
+0 volume. That is a product decision — block it, or treat empty as bodyweight —
+and not something to settle in a tap-target pass.

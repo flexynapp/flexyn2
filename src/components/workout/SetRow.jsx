@@ -164,7 +164,7 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
                 tabIndex={-1}
                 aria-label="Decrease weight"
                 onClick={() => bump(-stepLbs)}
-                className="w-6 h-9 flex items-center justify-center rounded-md text-muted-foreground hover:bg-secondary/60 active:bg-secondary/60 hover:text-foreground active:text-foreground transition-colors shrink-0"
+                className="w-6 h-11 flex items-center justify-center rounded-md text-muted-foreground hover:bg-secondary/60 active:bg-secondary/60 hover:text-foreground active:text-foreground transition-colors shrink-0"
               >
                 <Minus className="w-3 h-3" />
               </button>
@@ -234,7 +234,7 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
           }}
           enterKeyHint="next"
           placeholder={isBodyweight ? `+ ${weightUnit}` : weightUnit}
-          className={`flex-1 min-w-0 h-9 text-center transition-shadow ${isPRSet ? 'ring-2 ring-primary/60 shadow-[0_0_12px_hsl(var(--primary)/0.4)]' : ''}`}
+          className={`flex-1 min-w-0 h-11 text-center transition-shadow ${isPRSet ? 'ring-2 ring-primary/60 shadow-[0_0_12px_hsl(var(--primary)/0.4)]' : ''}`}
           aria-label={isBodyweight ? 'Added weight (bodyweight exercise)' : `Weight in ${weightUnit}`}
         />
         {(() => {
@@ -250,7 +250,7 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
               tabIndex={-1}
               aria-label="Increase weight"
               onClick={bumpUp}
-              className="w-6 h-9 flex items-center justify-center rounded-md text-muted-foreground hover:bg-secondary/60 active:bg-secondary/60 hover:text-foreground active:text-foreground transition-colors shrink-0"
+              className="w-6 h-11 flex items-center justify-center rounded-md text-muted-foreground hover:bg-secondary/60 active:bg-secondary/60 hover:text-foreground active:text-foreground transition-colors shrink-0"
             >
               <Plus className="w-3 h-3" />
             </button>
@@ -296,7 +296,7 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
           ref={repsRef}
           enterKeyHint="done"
           placeholder={t('common.reps')}
-          className={`h-9 text-center transition-shadow ${isPRSet ? 'ring-2 ring-primary/60 shadow-[0_0_12px_hsl(var(--primary)/0.4)]' : ''}`}
+          className={`h-11 text-center transition-shadow ${isPRSet ? 'ring-2 ring-primary/60 shadow-[0_0_12px_hsl(var(--primary)/0.4)]' : ''}`}
         />
       </div>
       {/* Prominent "NEW PR" flash — slides in for ~2.5s on the
@@ -347,7 +347,7 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
         aria-label="More set options"
         aria-expanded={moreOpen}
         className={[
-          'h-8 w-8 rounded-lg flex items-center justify-center shrink-0 transition-colors',
+          'h-11 w-8 rounded-lg flex items-center justify-center shrink-0 transition-colors',
           moreOpen ? 'bg-secondary text-foreground' : 'text-muted-foreground/50 hover:text-foreground active:text-foreground hover:bg-secondary active:bg-secondary',
         ].join(' ')}
       >
@@ -360,7 +360,7 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
         aria-label={completed ? 'Mark set not done' : 'Complete set'}
         aria-pressed={completed}
         className={[
-          'h-9 w-9 rounded-xl flex items-center justify-center shrink-0 transition-all',
+          'h-11 w-11 rounded-xl flex items-center justify-center shrink-0 transition-all',
           completed
             ? 'bg-success text-white shadow-sm shadow-success/30'
             : 'border-2 border-border text-muted-foreground/40 hover:border-success/50 hover:text-success active:text-success',
