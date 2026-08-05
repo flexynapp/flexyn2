@@ -816,6 +816,62 @@ July 2026 equipment/storage work was found by dropping a layer:
     — don't machine-translate prose, onboarding, or marketing, and don't
     add a second exception without asking.
 
+## UI composition — the rules that stop it looking generated
+
+Full evidence and the rendered specs: `docs/ui-craft-research.md`,
+`docs/ui-craft-prompt.md`, and the Penpot file **Flexyn Dashboard UI** (8 boards,
+including a token set carrying these values). Written Aug 2026.
+
+Tokens produce *consistency*. Consistency with no hierarchy is exactly what reads
+as AI-generated — uniform cards, one spacing value, no focal point. These rules
+govern hierarchy, which tokens can't encode.
+
+- **Two spacing registers, nothing between them.** Intra-group `gap-1`/`gap-2`
+  (4–8px); inter-section `gap-6` (24px). The middle — `gap-3`/`gap-4`/`gap-5` —
+  is **banned**: if a gap wants to be 12–20px, either those elements are one
+  group (tighten to `gap-2`) or they are two (separate to `gap-6`). 8→24 is a 3×
+  ratio, which is what makes the two registers read as distinct rather than as
+  drift. Tuned tighter than the 32/40 the literature suggests because this app is
+  deliberately dense; the ratio is what matters, not the absolute.
+- **Exactly one `gap-8` (32px) per page.** On Dashboard it sits below
+  `TodaysPlan` — the seam between *action* (above) and *state* (below). A second
+  break means neither reads as the break.
+- **One dominant element per screen, and only it may bleed.** It breaks the
+  page's `px-4` inset; nothing else does. `HeroSlideshow` is Dashboard's — it
+  holds the first slot but currently has no bleed handling, so it reads as one
+  card among many.
+- **Cards mark discrete, user-arranged objects.** Dashboard is a configurable
+  widget grid (16 definitions in `src/lib/widgetDefinitions.js`), so a card per
+  widget is *correct* — 31 of its 34 are widget shells and must stay. Read-only
+  data that is **not** a widget gets no surface: hairline dividers instead. Never
+  nest a card in a card (already removed once — see `Dashboard.jsx:1231`).
+- **Elevation has two levels.** Resting = hairline border, no shadow. Raised =
+  `shadow-md`, for interactive or genuinely floating surfaces. `shadow-sm` adds
+  nothing a hairline doesn't; `shadow-xl`/`2xl` on a 390px viewport is a tell,
+  not depth. **Coloured shadows are banned.**
+- **Radius is `sm` / `lg` / `2xl` / `full`**, per the roles documented at
+  `tailwind.config.js:48–71`. `xl` and `md` are compatibility aliases pinned to
+  existing values — **never reach for them in new code**, and don't add a sixth.
+- **Four hues, no exceptions.** A new state replaces an existing hue; it does not
+  extend the list. Macros are the one case that needs mutual distinguishability
+  rather than state meaning, so they use the semantically-neutral chart ramp:
+  protein `--chart-1`, carbs `--chart-2`, fat `--chart-3`. Routing them through
+  the state hues would render a healthy protein figure as `destructive`.
+- **Hierarchy by weight and colour before size.** Six type steps, 11px floor. If
+  something needs to recede, change weight — do not invent a seventh size.
+- **No gradient as decoration, no glassmorphism.** `bg-gradient-to-*` and
+  `backdrop-blur` are both on the published list of signals designers use to
+  identify generated UI. Neither is how you make something look designed.
+- **Data must be earned.** A number gets screen space only with trend, history or
+  comparison attached. A bare figure in a box is decoration.
+
+**Before treating a grep hit as debt, read the comments.** Auditing this codebase
+produced five findings; four shrank or inverted on inspection. `text-[5px]` and
+`rounded-card` were prose inside comments; "6 and 11 distinct radii" was counting
+class names when `lg` and `xl` resolve to the same value; "34 cards, cut to 20"
+would have broken the widget grid. The reasoning in this repo lives in comments
+that greps don't read — so a raw count is a question, not a conclusion.
+
 ## Testing
 
 - Framework: vitest, jsdom. Setup in `src/test/setup.js`.
