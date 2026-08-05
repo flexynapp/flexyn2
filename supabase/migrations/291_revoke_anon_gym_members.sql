@@ -1,0 +1,46 @@
+-- Migration 291: close anon access to gym_members
+--
+-- Migration 142 added two things together:
+--
+--   CREATE POLICY "Public can view gym membership list" ON public.gym_members
+--     FOR SELECT TO anon USING (TRUE);
+--   GRANT SELECT ON public.gym_members TO anon;
+--
+-- under the comment "no PII — only user_id + gym_id exposed". That premise
+-- does not hold. `get_public_profile_by_username` is EXECUTE-able by anon and
+-- returns the profile id, so username → id → gym_members resolves a named
+-- person to the gym they train at. Turning that gym id into a street address
+-- needs gym_businesses, which is authenticated-only — i.e. any free account.
+-- Verified against production during the Aug 2026 audit: anon read 2 rows,
+-- and the username → id step returned an id field.
+--
+-- It also contradicts a decision the project already made deliberately:
+-- `get_gym_community_progress` is gated on is_gym_member_or_owner precisely
+-- because it "reports how many people train at a named physical address and
+-- when". The aggregate was protected while the raw rows were open.
+--
+-- STATE WHEN THIS WAS WRITTEN: the POLICY had already been dropped directly
+-- in the SQL editor, so anon reads returned 0 rows — but no migration in the
+-- repo records that, and 142 still creates it. A rebuild from migration
+-- history (new environment, disaster recovery) would silently restore the
+-- hole. The DROP below is therefore a no-op against current production and
+-- exists to make the repo agree with it.
+--
+-- The GRANT was NOT dropped and is still live. On its own it exposes nothing
+-- — RLS with no matching policy returns zero rows — but it is the other half
+-- of what 142 added, and it means the next permissive policy anyone writes on
+-- this table is anon-readable by default rather than by decision.
+--
+-- Nothing in the app needs either. All four gym_members read sites
+-- (gymBusinesses.js x3, GymHub.jsx) sit behind auth. PublicGymLanding, the
+-- only anon-reachable gym surface, renders `gym.member_count` — a
+-- denormalized column on gym_businesses — and never queries this table. Its
+-- own access comes from "Public can view active gyms" (is_active = true) on
+-- gym_businesses, which is untouched here.
+--
+-- Idempotent: DROP POLICY IF EXISTS, and REVOKE on an already-revoked
+-- privilege is a no-op.
+
+DROP POLICY IF EXISTS "Public can view gym membership list" ON public.gym_members;
+
+REVOKE SELECT ON public.gym_members FROM anon;
