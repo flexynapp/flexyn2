@@ -1932,6 +1932,13 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
                           setFlagPickerOpen(false);
                           try {
                             await me.update({ country_flag: emoji });
+                            // Same reason as the trophy / bio handlers above:
+                            // on your OWN profile `countryFlag` reads from
+                            // useAuth().user, not the hubProfileLookup cache
+                            // (which is null for self). Invalidating that
+                            // query alone left the flag persisted server-side
+                            // and invisible until a full reload.
+                            await checkUserAuth?.();
                             queryClient.invalidateQueries({ queryKey: ['hubProfileLookup', email] });
                           } catch {
                             toast.error('Could not save flag');
