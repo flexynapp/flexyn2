@@ -5,7 +5,7 @@ import { db } from '@/api/db';
 import { useAuth } from '@/lib/AuthContext';
 import {
   packLayout, unpackLayout, writeLayoutToLocal, clearLayoutLocal,
-  queueLayoutSync, flushLayoutSync,
+  queueLayoutSync, flushLayoutSync, ORDER_KEY, LAYOUTS_KEY,
 } from '@/lib/dashboardLayout';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { subDays, isAfter, differenceInDays, startOfDay, format } from 'date-fns';
@@ -562,7 +562,7 @@ export default function Dashboard() {
   const toggleSectionLayout = (id) => {
     setSectionLayouts(prev => {
       const next = { ...prev, [id]: (prev[id] || 'full') === 'half' ? 'full' : 'half' };
-      try { localStorage.setItem(`flexyn.dashSectionLayouts.${user?.id || 'anon'}`, JSON.stringify(next)); } catch { /* ignore */ }
+      try { localStorage.setItem(LAYOUTS_KEY(user?.id), JSON.stringify(next)); } catch { /* ignore */ }
       return next;
     });
   };
@@ -572,9 +572,17 @@ export default function Dashboard() {
   // next launch. Default OPEN so first-load behavior matches the
   // pre-refactor state; the user can choose to collapse anything they
   // don't want to see.
+  // Per-user, per CLAUDE.md's `flexyn.<feature>.<userId>` convention — the
+  // same reasoning as restDayKey below: two people on one phone must not
+  // inherit each other's collapsed sections. sessionStorage already limits
+  // this to a single tab, but a sign-out/sign-in in that tab leaked it.
+  // Dashboard mounts below App.jsx's auth gates, so user is resolved on the
+  // first render and these initializers don't read an 'anon' key and then
+  // start writing a uid one mid-session.
+  const dashOpenKey = (key) => `flexyn.dash.${user?.id || 'anon'}.${key}Open`;
   const initOpen = (key, defaultOpen) => {
     try {
-      const v = sessionStorage.getItem(`flexyn.dash.${key}Open`);
+      const v = sessionStorage.getItem(dashOpenKey(key));
       if (v == null) return defaultOpen;
       return v === '1';
     } catch { return defaultOpen; }
@@ -600,7 +608,7 @@ export default function Dashboard() {
   const [actionsExpanded, setActionsExpanded] = useState(false);
 
   const makeToggle = (key, setter) => () => setter(v => {
-    try { sessionStorage.setItem(`flexyn.dash.${key}Open`, v ? '0' : '1'); } catch { /* ignore */ }
+    try { sessionStorage.setItem(dashOpenKey(key), v ? '0' : '1'); } catch { /* ignore */ }
     return !v;
   });
   const toggleReadiness    = makeToggle('readiness',    setReadinessOpen);
@@ -675,7 +683,7 @@ export default function Dashboard() {
     if (!user?.id) return;
     try {
       // First try user-specific saved order, then fall back to admin-set default
-      const userSaved  = localStorage.getItem(`flexyn.dashWidgetOrder.${user.id}`);
+      const userSaved  = localStorage.getItem(ORDER_KEY(user.id));
       const appDefault = localStorage.getItem('flexyn.dashWidgetOrder.default');
       const raw = userSaved || appDefault;
       if (!raw) {
@@ -705,7 +713,7 @@ export default function Dashboard() {
   useEffect(() => {
     if (!user?.id) return;
     try {
-      const saved = localStorage.getItem(`flexyn.dashSectionLayouts.${user.id}`);
+      const saved = localStorage.getItem(LAYOUTS_KEY(user.id));
       if (!saved) return;
       const parsed = JSON.parse(saved);
       if (parsed && typeof parsed === 'object') setSectionLayouts(parsed);
@@ -805,10 +813,7 @@ export default function Dashboard() {
     if (reorderWriteTimerRef.current) clearTimeout(reorderWriteTimerRef.current);
     reorderWriteTimerRef.current = setTimeout(() => {
       try {
-        localStorage.setItem(
-          `flexyn.dashWidgetOrder.${user?.id || 'anon'}`,
-          JSON.stringify(newOrder),
-        );
+        localStorage.setItem(ORDER_KEY(user?.id), JSON.stringify(newOrder));
       } catch { /* private mode / quota */ }
       reorderWriteTimerRef.current = null;
     }, 200);
