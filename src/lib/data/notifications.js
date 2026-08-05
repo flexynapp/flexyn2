@@ -31,6 +31,7 @@
 
 import { supabase } from '@/api/supabaseClient';
 import { safeSelect } from '@/api/safeSelect';
+import { CAPSULE_GLYPH } from '@/lib/lootCatalog';
 
 
 export const NOTIFICATION_TYPES = {
@@ -401,10 +402,10 @@ export async function notifyCapsuleEarned({ user, capsuleType, reason, t }) {
     userEmail: user.email,
     type:      NOTIFICATION_TYPES.CAPSULE_EARNED,
     title:     tr(t, 'notifications.row.capsule_earned.title',
-                  '🎁 {label} Capsule earned', { label }),
+                  `${CAPSULE_GLYPH.standard} {label} Capsule earned`, { label }),
     body:      reason || tr(t, 'notifications.row.capsule_earned.body_default',
                             'Open it from your bag.'),
-    icon:      capsuleType === 'elite' ? '💎' : capsuleType === 'premium' ? '🎁' : '📦',
+    icon:      CAPSULE_GLYPH[capsuleType] || CAPSULE_GLYPH.standard,
     linkUrl:   '/hub',
     metadata:  { capsuleType, reason },
   });

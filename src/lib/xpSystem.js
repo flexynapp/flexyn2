@@ -127,6 +127,42 @@ export const XP_REWARDS = {
   achievementUnlocked: (xpReward) => xpReward,
 };
 
+// ── Goal completion XP ───────────────────────────────────────────────────────
+/**
+ * XP for completing a personal goal.
+ *
+ * Two things were wrong with the version this replaces, which lived
+ * copy-pasted in GoalsModal.jsx AND GoalsAlmostComplete.jsx:
+ *
+ *   1. It was capped at 500 per goal — the entire `goal_completed` daily
+ *      ceiling (migration 262) in ONE completion. Two goals matched a
+ *      capped max-effort workout.
+ *   2. It scaled off `target_weight` / `target_reps`, which are numbers
+ *      the user TYPES when creating the goal. Nothing verifies them
+ *      against a lift, so "type a bigger target" was a valid strategy —
+ *      a 1000 lb goal paid 500 XP.
+ *
+ * The shape is kept (a heavier goal is worth more than a lighter one —
+ * that's real, and completion is still gated on logged progress reaching
+ * 100%), but the ceiling is XP_REWARDS.goalCompleted, which is what this
+ * file has documented as a goal's value all along and which nothing read.
+ * So the scaling now distinguishes goals BELOW the cap rather than
+ * inflating past it.
+ */
+export function calculateGoalXp(goal) {
+  const weight = Number(goal?.target_weight) || 0;
+  const reps   = Number(goal?.target_reps)   || 0;
+  const hasWeight = weight > 0;
+  const hasReps   = reps   > 0;
+
+  let raw = 0;
+  if (hasWeight && hasReps) raw = weight * 0.5 + reps * 3;
+  else if (hasWeight)       raw = weight * 0.75;
+  else if (hasReps)         raw = reps * 4;
+
+  return Math.min(Math.floor(raw), XP_REWARDS.goalCompleted);
+}
+
 // ── Workout XP: strength ─────────────────────────────────────────────────────
 // Tuned so:
 //   - A 20-min beginner session (light weight, 6 sets) ≈ 60–90 XP
@@ -248,13 +284,19 @@ export function calculateTotalVolume(exercises) {
 // came to disagree with the database in the first place (see migration 261).
 // The caps have exactly one home, and it is SQL:
 //
-//   grant_action_xp        (migrations 198, 262) — per-action, per-day:
+//   grant_action_xp    (migrations 198, 262, 286, 298) — per-action, per-day,
+//     bucketed by the LIFTER'S local date, returning what it credited:
 //     workout_completed 4000 · cardio_completed 2400 · goal_completed 500
-//     regimen_created 200 · comeback_bonus 200 · recipe_created 75
-//     meal_logged 30 · water_logged 24 · anything unclassified 1000
+//     regimen_created 200 · comeback_bonus 200 · crew_xp_fuel 100
+//     recipe_created 75 · meal_logged 30 · water_logged 24 ·
+//     anything unclassified 1000
 //
 //   increment_user_xp      (migrations 203, 261) — global 50,000 per rolling
 //     24h, enforced against xp_grant_log, and not callable by `authenticated`.
+//
+// Migration 298 closed the last path around all of that: claim_crew_xp_fuel
+// called increment_user_xp directly with a CLIENT-supplied amount, so a chat
+// button was worth up to 1,000 XP a tap against no daily ceiling at all.
 //
 // Client-side caps that DO still apply are the per-session ones above:
 // MAX_WORKOUT_XP and MAX_CARDIO_XP bound a single submission before it is

@@ -8,9 +8,11 @@ import { calculateLevelFromXp } from '@/lib/xpSystem';
 import LevelUpOverlay from '@/components/LevelUpOverlay';
 import * as capsules from '@/lib/data/capsules';
 import { reportError } from '@/lib/reportError';
+import { CAPSULE_GLYPH } from '@/lib/lootCatalog';
 
-// Capsule emoji per type — kept in sync with CAPSULE_META in UserBag.
-const CAPSULE_EMOJI = { standard: '📦', premium: '🎁', elite: '💠' };
+// Capsule glyph per type. These land inside toast TITLE strings, so they
+// have to be text — the drawn capsule (CapsuleIcon) can't go here. Single
+// source of truth is lootCatalog so the Bag and a toast can't disagree.
 const CAPSULE_LABEL = { standard: 'Standard Capsule', premium: 'Premium Capsule', elite: 'Elite Capsule' };
 
 /**
@@ -162,7 +164,7 @@ export default function LevelUpManager() {
     const handler = (e) => {
       const { type, source, threshold } = e.detail || {};
       if (!type) return;
-      const emoji = CAPSULE_EMOJI[type] || '🎁';
+      const emoji = CAPSULE_GLYPH[type] || CAPSULE_GLYPH.standard;
       const label = CAPSULE_LABEL[type] || 'Capsule';
       // Tailor the subtitle by source so the message lands. The
       // welcome-source case is load-bearing for day-0 retention —

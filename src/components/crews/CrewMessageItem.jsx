@@ -16,6 +16,7 @@ import { toast } from '@/lib/toast';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { formatDistanceToNow } from 'date-fns';
 import * as crewsData from '@/lib/data/crews';
+import { CREW_XP_FUEL_AMOUNT } from '@/lib/data/crews';
 import * as crewRxns from '@/lib/data/crewMessageReactions';
 import { supabase } from '@/api/supabaseClient';
 import { triggerHaptic } from '@/lib/haptic';
@@ -427,20 +428,34 @@ function XpFuelMessage({ msg, currentUserId, crewId }) {
 
   let parsed = {};
   try { parsed = JSON.parse(msg.content || '{}'); } catch {}
-  const { username = 'A member', xp = 500 } = parsed;
+  // The XP figure is NO LONGER read out of the message body. That body is
+  // JSON the sender's browser wrote, and it used to be both the number
+  // displayed AND the number requested from the RPC. The server prices a
+  // claim (migration 298); this is the app's own copy of that price, shown
+  // before you tap, and the response says what actually landed.
+  const { username = 'A member' } = parsed;
+  const xp = CREW_XP_FUEL_AMOUNT;
 
   const handleClaim = async () => {
     if (claiming || claimed) return;
     setClaiming(true);
     try {
-      // claimXpFuel now does claim + XP in one atomic RPC (mig 159).
-      // Pass xp as the third arg so the server uses the correct
-      // amount (clamped 1..1000 server-side).
-      const wasNew = await crewsData.claimXpFuel(msg.id, currentUserId, xp);
+      // claimXpFuel does claim + XP in one atomic RPC (mig 159, 298).
+      const { claimed: wasNew, xp: granted, reason } = await crewsData.claimXpFuel(msg.id, currentUserId);
       if (wasNew) {
-        toast.success(`+${xp} XP added to your account!`);
-      } else {
+        // Report the SERVER's number. A claim past the daily fuel cap
+        // credits less than the banner promised, and saying "+25 XP" when
+        // nothing landed is the kind of quiet lie that makes an economy
+        // feel broken.
+        toast.success(granted > 0
+          ? `+${granted} XP added to your account!`
+          : "Claimed — you've hit today's XP fuel cap.");
+      } else if (reason === 'own_fuel') {
+        toast('You can\'t claim your own fuel — it\'s for the crew.');
+      } else if (reason === 'already_claimed') {
         toast('You already claimed this fuel.');
+      } else {
+        toast('This fuel is no longer available.');
       }
       setClaimed(true);
     } catch {

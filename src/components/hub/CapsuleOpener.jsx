@@ -7,6 +7,7 @@ import { X, Sparkles, BookOpen } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { ITEMS, BRANDED_ITEMS, getItemsByRarity, VARIANTS } from '@/lib/lootCatalog';
 import { rarityTint } from '@/components/loot/RarityVisuals';
+import CapsuleIcon from '@/components/loot/CapsuleIcon';
 import { pickItemForRoll, buildCandidateMenu, hydrateItemById } from '@/lib/lootRoll';
 import { LOOT_THEMES, getLootThemeById } from '@/lib/lootThemes';
 import { LOOT_FRAMES } from '@/lib/lootFrames';
@@ -107,6 +108,26 @@ const RARITY_LADDER = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythi
 function rarityRank(r) {
   const i = RARITY_LADDER.indexOf(r);
   return i < 0 ? 0 : i;
+}
+
+const LEGENDARY_RANK = RARITY_LADDER.indexOf('legendary');
+
+// Gold is the LEGENDARY tier's own treatment — brushed metal instead of an
+// amber outline. Mythic and animated keep their rose/pink identity, which
+// the badge, the bag and the marketplace all use; painting them gold too
+// would make the top of the ladder read as one undifferentiated tier.
+const GOLD_RIM  = '#fcd34d';
+const GOLD_GLOW = 'rgba(252, 211, 77, 0.55)';
+export function isGoldCard(rarity) {
+  return rarity === 'legendary';
+}
+
+// …but the ENCORE is for legendary AND everything above it. A mythic pull
+// is rarer than a legendary one; it would be absurd for it to get less of
+// a moment. The encore reel draws from this same shelf, so nothing below
+// legendary ever appears in it.
+export function isEncoreTier(rarity) {
+  return rarityRank(rarity) >= LEGENDARY_RANK;
 }
 
 // ─── Reel filler pool ─────────────────────────────────────────────────────────
@@ -305,6 +326,71 @@ export function buildReel(winItem) {
   return { cards, winIndex };
 }
 
+// ─── The legendary encore ─────────────────────────────────────────────────────
+// A gold pull gets a SECOND spin, and that reel contains nothing but gold.
+//
+// The normal reel is mostly commons by design — that's what makes the
+// landing feel like it beat the odds. But it also means the biggest
+// moment in the whole loop plays out identically to a 5-XP sticker: same
+// grey run-up, same stop. The encore re-runs the spin with the run-up
+// replaced by the legendary/mythic/animated shelf, so the thing you see
+// streaming past is the company your prize now keeps.
+//
+// It is PURELY cosmetic and it re-lands on the SAME item. The server
+// already granted it (open_capsule_atomic) before the first reel moved —
+// nothing here can change, re-roll or re-grant a prize.
+const GOLD_POOL = (() => {
+  const pool = [];
+  for (const rarity of RARITY_LADDER.slice(LEGENDARY_RANK)) {
+    for (const item of FILLER_POOL[rarity] || []) pool.push(item);
+  }
+  return pool;
+})();
+
+/**
+ * A reel of gold-tier cards only, landing on `winItem`.
+ *
+ * Draws WITH replacement, unlike buildReel: the gold shelf is ~11 items
+ * across every catalog and a 12–20 card reel would exhaust it. Adjacent
+ * repeats are still forbidden — a card sliding past twice in a row is the
+ * thing that reads as a rendering bug.
+ */
+export function buildLegendaryReel(winItem) {
+  // Shorter than a normal reel. This is the encore, not a second wait —
+  // the user has already watched one spin and knows what they won.
+  const lead  = 9 + Math.floor(Math.random() * 7);   // 9..15
+  const trail = 3 + Math.floor(Math.random() * 3);   // 3..5
+  const pool  = GOLD_POOL.filter(i => i.id !== winItem.id);
+
+  const draw = (prev) => {
+    if (pool.length === 0) return winItem;
+    for (let attempt = 0; attempt < 6; attempt++) {
+      const next = pool[Math.floor(Math.random() * pool.length)];
+      if (!prev || next.id !== prev.id) return next;
+    }
+    return pool[0];
+  };
+
+  const cards = [];
+  for (let i = 0; i < lead; i++) cards.push(draw(cards[cards.length - 1]));
+  const winIndex = cards.length;
+  cards.push(winItem);
+  for (let i = 0; i < trail; i++) cards.push(draw(cards[cards.length - 1]));
+
+  // Repair the two seams around the prize — draw() only ever compared
+  // against the card before it, and the prize was inserted between.
+  for (let i = 1; i < cards.length; i++) {
+    let guard = 0;
+    while (cards[i].id === cards[i - 1].id && guard < 6) {
+      if (i === winIndex) { cards[i - 1] = draw(cards[i - 2]); }
+      else                { cards[i]     = draw(cards[i - 1]); }
+      guard += 1;
+    }
+  }
+
+  return { cards, winIndex };
+}
+
 // ─── Rarity ranking + a single server-authoritative roll ──────────────────────
 // Pulled out of handleOpen so one capsule and ten capsules share exactly
 // one roll path. Every roll is its own claim_capsule_loot call (migration
@@ -389,34 +475,44 @@ async function rollOneCapsule(capsuleId) {
 function ItemCard({ item, highlight = false, settled = false, width = CARD_W }) {
   const tint = rarityTint(item.rarity);
   const isMystery = item.id === '__mystery__';
+  // A legendary renders as a gold card — brushed metal, gold rim, gold
+  // bloom — so the card the reel stops on is unmistakably a gold one. A
+  // rarity chip and a 2px border were the only difference between winning
+  // a legendary and winning a 5-coin common, at 130px, in motion.
+  const isGold = !isMystery && isGoldCard(item.rarity);
   return (
     <div
       className={[
         'flex-none flex flex-col items-center justify-center rounded-xl border-2 select-none',
-        isMystery ? 'bg-secondary opacity-60' : 'bg-card',
+        isGold ? 'reel-card-gold relative overflow-hidden' : (isMystery ? 'bg-secondary opacity-60' : 'bg-card'),
         settled ? 'reel-winner-settled' : '',
       ].join(' ')}
       style={{
         width,
         height: width,
-        borderColor: tint.border,
+        borderColor: isGold ? GOLD_RIM : tint.border,
         // The bloom keyframe drives box-shadow once settled, so don't fight
         // it with an inline one.
-        boxShadow: settled ? undefined : (highlight ? tint.glow : undefined),
-        '--bloom': `${tint.color}80`,
+        boxShadow: settled
+          ? undefined
+          : (highlight ? (isGold ? `0 0 26px ${GOLD_GLOW}` : tint.glow) : undefined),
+        '--bloom': isGold ? GOLD_GLOW : `${tint.color}80`,
       }}
     >
-      <span className="leading-none mb-1" style={{ fontSize: Math.round(width * 0.3) }}>{item.emoji}</span>
+      <span className="relative leading-none mb-1" style={{ fontSize: Math.round(width * 0.3) }}>{item.emoji}</span>
       <span
-        className={`font-semibold truncate px-1 ${isMystery ? 'text-muted-foreground' : 'text-foreground/80'}`}
+        className={`relative font-semibold truncate px-1 ${isMystery ? 'text-muted-foreground' : 'text-foreground/80'}`}
         style={{ fontSize: Math.max(8, Math.round(width * 0.09)) }}
       >
         {item.name}
       </span>
       {!isMystery && width >= 100 && (
         <span
-          className="mt-1 text-micro font-bold px-2 py-0.5 rounded-full"
-          style={{ color: tint.color, border: `1px solid ${tint.color}` }}
+          className="relative mt-1 text-micro font-bold px-2 py-0.5 rounded-full"
+          style={{
+            color: isGold ? GOLD_RIM : tint.color,
+            border: `1px solid ${isGold ? GOLD_RIM : tint.color}`,
+          }}
         >
           {tint.label}
         </span>
@@ -654,7 +750,9 @@ function BatchCard({ entry, isBest, delay }) {
 
 
 // ─── Component ────────────────────────────────────────────────────────────────
-// Phases: 'idle' → 'spinning' → 'revealing' → 'claimed'
+// Phases: 'idle' → 'spinning' → ['encore' →] 'revealing' → 'claimed'
+// The 'encore' phase only exists for a legendary-or-better pull: one more
+// spin, on a reel with nothing under legendary in it. See buildLegendaryReel.
 // Ten capsules used to mean ten full round trips through this modal:
 // open bag → tap capsule → 3s spin → claim → close → bag reopens → repeat.
 // `batch` runs one spin and reveals every result at once. It is a UI
@@ -674,6 +772,10 @@ export default function CapsuleOpener({ capsule, batch, onClaim, onClaimBatch, o
   //   { capsuleId, item, cards, winIndex, variant }
   // A single open has exactly one. A batch has N, spun in stacked waves.
   const [reels, setReels] = useState([]);
+  // The encore reel — { cards, winIndex, variant } — built at roll time
+  // when the best pull is legendary or better, null otherwise.
+  const [encore, setEncore] = useState(null);
+  const [encoreSettled, setEncoreSettled] = useState(false);
   const [waveIndex, setWaveIndex] = useState(0);
   const [settledInWave, setSettledInWave] = useState(0);
   const [catalogOpen, setCatalogOpen] = useState(false);
@@ -681,9 +783,9 @@ export default function CapsuleOpener({ capsule, batch, onClaim, onClaimBatch, o
   // so a stack doesn't move in lockstep; this is just the label.
   const [spinVariant, setSpinVariant] = useState(makeSpin);
 
-  const capsuleEmoji = capsule?.capsule_type === 'elite'
-    ? '💠' : capsule?.capsule_type === 'premium'
-    ? '🎁' : '📦';
+  // The hero icon. A batch shows the type it's opening, not the single
+  // `capsule` prop — which is null for a batch.
+  const capsuleType = (isBatch ? batchRows[0]?.capsule_type : capsule?.capsule_type) || 'standard';
 
   // Synchronous guard against double-tap on Open (in addition to the
   // phase state machine, which is async). Without this a fast mobile
@@ -723,17 +825,32 @@ export default function CapsuleOpener({ capsule, batch, onClaim, onClaimBatch, o
   useEffect(() => {
     if (phase !== 'spinning' || currentWave.length === 0) return;
     if (settledInWave < currentWave.length) return;
-    // Whole wave has landed. Beat, then either the next stack or the haul.
+    // Whole wave has landed. Beat, then the next stack — or, on a gold
+    // pull, the encore before the reveal.
     const t = setTimeout(() => {
       if (waveIndex + 1 < reelWaves.length) {
         setWaveIndex(i => i + 1);
         setSettledInWave(0);
+      } else if (encore) {
+        setPhase('encore');
       } else {
         setPhase('revealing');
       }
     }, 700);
     return () => clearTimeout(t);
-  }, [phase, settledInWave, currentWave.length, waveIndex, reelWaves.length]);
+  }, [phase, settledInWave, currentWave.length, waveIndex, reelWaves.length, encore]);
+
+  // The encore's own settle → reveal. Same shape as the wave hand-off
+  // above (state + an effect that owns the timer) so an unmount mid-beat
+  // clears it, with a longer pause: the gold card has just bloomed and it
+  // should be allowed to sit there.
+  const handleEncoreSettled = useCallback(() => setEncoreSettled(true), []);
+
+  useEffect(() => {
+    if (phase !== 'encore' || !encoreSettled) return;
+    const t = setTimeout(() => setPhase('revealing'), 900);
+    return () => clearTimeout(t);
+  }, [phase, encoreSettled]);
 
   // ── Trigger spin ────────────────────────────────────────────────────────────
   // Server-authoritative roll (migration 028). The RPC:
@@ -809,8 +926,18 @@ export default function CapsuleOpener({ capsule, batch, onClaim, onClaimBatch, o
       return { capsuleId, item, cards, winIndex, variant: makeSpin() };
     });
 
+    // Gold pull → build the encore now, so the transition out of the last
+    // wave is a state flip rather than a reel being generated mid-beat.
+    // A batch earns one encore, on the best pull, for the same reason the
+    // haul has one "Best" crown.
+    const encoreSpec = isEncoreTier(best.item.rarity)
+      ? { ...buildLegendaryReel(best.item), item: best.item, variant: makeSpin() }
+      : null;
+
     setResults(ok);
     setReels(specs);
+    setEncore(encoreSpec);
+    setEncoreSettled(false);
     setWaveIndex(0);
     setSettledInWave(0);
     setWonItem(best.item);
@@ -939,7 +1066,7 @@ export default function CapsuleOpener({ capsule, batch, onClaim, onClaimBatch, o
                 className="relative"
               >
                 <div className="absolute inset-0 rounded-full bg-primary/20 blur-2xl scale-150" />
-                <span className="relative text-8xl">{capsuleEmoji}</span>
+                <CapsuleIcon type={capsuleType} size={124} className="relative" />
               </motion.div>
 
               <div className="text-center">
@@ -959,7 +1086,7 @@ export default function CapsuleOpener({ capsule, batch, onClaim, onClaimBatch, o
                   rarity. Collapsed by default so the dramatic moment
                   stays clean; one tap to expand. */}
               <div className="mb-2 w-72 max-w-full flex flex-col gap-2">
-                <CapsuleRarityOdds capsuleType={(isBatch ? batchRows[0]?.capsule_type : capsule?.capsule_type) || 'standard'} />
+                <CapsuleRarityOdds capsuleType={capsuleType} />
                 {/* Where you actually stand against those odds. Display
                     only — see src/lib/pity.js. */}
                 <CapsuleStreak />
@@ -1015,6 +1142,45 @@ export default function CapsuleOpener({ capsule, batch, onClaim, onClaimBatch, o
                     onSettled={handleReelSettled}
                   />
                 ))}
+              </div>
+            </motion.div>
+          )}
+
+          {/* ── ENCORE — one more spin, gold only ──────────────────────────── */}
+          {phase === 'encore' && encore && (
+            <motion.div
+              key="encore"
+              className="flex flex-col items-center py-8 gap-3 relative"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+            >
+              {/* Gold wash behind the reel so the encore doesn't just look
+                  like the same spin running a second time. */}
+              <div
+                className="absolute inset-0 pointer-events-none"
+                style={{ background: `radial-gradient(ellipse 70% 60% at 50% 50%, ${GOLD_GLOW}, transparent 70%)` }}
+              />
+              <motion.p
+                className="relative z-10 text-sm font-extrabold tracking-[0.3em] uppercase"
+                style={{ color: GOLD_RIM, textShadow: `0 0 18px ${GOLD_GLOW}` }}
+                initial={{ scale: 0.7, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ type: 'spring', stiffness: 320, damping: 16 }}
+              >
+                {rarityTint(encore.item.rarity).label}
+              </motion.p>
+              <p className="relative z-10 text-muted-foreground text-micro font-medium tracking-widest uppercase -mt-1">
+                One more spin — legendaries only
+              </p>
+
+              <div className="relative z-10 w-full">
+                <CapsuleReel
+                  cards={encore.cards}
+                  winIndex={encore.winIndex}
+                  variant={encore.variant}
+                  cardW={CARD_W}
+                  onSettled={handleEncoreSettled}
+                />
               </div>
             </motion.div>
           )}

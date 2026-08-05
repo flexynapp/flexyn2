@@ -16,6 +16,19 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { useNumberFormatter } from '@/lib/intl';
 import { supabase } from '@/api/supabaseClient';
 import { SHOP_CATALOG, purchaseItem, getCapsuleOdds, BEST_VALUE_SKU } from '@/lib/data/coinShop';
+import CapsuleIcon from '@/components/loot/CapsuleIcon';
+
+/**
+ * Shop row icon. Capsule SKUs draw the real capsule; everything else
+ * (streak freeze) is still a glyph. The catalog's `icon` string stays the
+ * fallback — it's what the purchase toast uses, which can't hold a node.
+ */
+function ShopIcon({ item, size }) {
+  if (item?.grants?.type === 'capsule') {
+    return <CapsuleIcon type={item.grants.capsuleType} size={size} className="shrink-0" />;
+  }
+  return <div className="shrink-0 leading-none" style={{ fontSize: size }} aria-hidden="true">{item?.icon}</div>;
+}
 
 // Rarity accent per SKU. The bag and the marketplace already colour items by
 // rarity; the shop sold the *sources* of those items as flat neutral rows, so
@@ -197,7 +210,9 @@ export default function CoinShopModal({ open, onClose }) {
                   onClick={(e) => e.stopPropagation()}
                   className="w-full max-w-[300px] rounded-2xl bg-card border border-border p-4 text-center shadow-2xl"
                 >
-                  <div className="text-4xl mb-2" aria-hidden="true">{SHOP_CATALOG[confirmSku].icon}</div>
+                  <div className="mb-2 flex justify-center">
+                    <ShopIcon item={SHOP_CATALOG[confirmSku]} size={40} />
+                  </div>
                   <p className="font-heading font-bold text-sm">
                     {t(`shop.${SKU_TO_CAMEL[confirmSku]}.name`)}
                   </p>
@@ -251,7 +266,7 @@ function ShopRow({ item, balance, busy, onBuy, fmt, t }) {
   return (
     <div className={`rounded-xl bg-background/60 border border-border/50 p-3 ring-1 ${rarity.ring} ${rarity.glow} ${isBestValue ? 'shadow-md' : ''}`}>
       <div className="flex items-center gap-3">
-        <div className="text-3xl shrink-0" aria-hidden="true">{item.icon}</div>
+        <ShopIcon item={item} size={30} />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 flex-wrap">
             <p className={`font-heading font-bold text-sm truncate ${rarity.text}`}>{displayName}</p>

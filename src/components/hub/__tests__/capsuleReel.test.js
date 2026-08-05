@@ -12,9 +12,12 @@
 // single-sample test cannot show.
 
 import { describe, it, expect } from 'vitest';
-import { buildReel, splitIntoWaves } from '../CapsuleOpener';
+import {
+  buildReel, buildLegendaryReel, splitIntoWaves, isGoldCard, isEncoreTier,
+} from '../CapsuleOpener';
 
 const WIN = { id: 'stk_fire', emoji: '🔥', name: 'On Fire', rarity: 'common', type: 'sticker' };
+const LEGEND = { id: 'stk_glow', emoji: '🌟', name: 'Radiance', rarity: 'legendary', type: 'sticker' };
 const spins = (n, item = WIN) => Array.from({ length: n }, () => buildReel(item));
 
 describe('buildReel — structure', () => {
@@ -137,6 +140,76 @@ describe('buildReel — filler pool breadth (user-reported)', () => {
     // Old behaviour was effectively 1.0 for the common tier. Anything
     // under half means consecutive spins genuinely look different.
     expect(mean).toBeLessThan(0.5);
+  });
+});
+
+describe('buildLegendaryReel — the encore spin', () => {
+  const encores = (n, item = LEGEND) => Array.from({ length: n }, () => buildLegendaryReel(item));
+
+  it('contains NOTHING below legendary — that is the whole premise', () => {
+    for (const { cards } of encores(200)) {
+      for (const c of cards) {
+        expect(isEncoreTier(c.rarity)).toBe(true);
+      }
+    }
+  });
+
+  it('lands on the item the server actually granted', () => {
+    for (const { cards, winIndex } of encores(200)) {
+      expect(cards[winIndex]).toBe(LEGEND);
+    }
+  });
+
+  it('never shows the prize anywhere except the winning slot', () => {
+    for (const { cards, winIndex } of encores(200)) {
+      const elsewhere = cards.filter((c, i) => i !== winIndex && c.id === LEGEND.id);
+      expect(elsewhere).toHaveLength(0);
+    }
+  });
+
+  it('never repeats a card back to back — the gold pool is small enough to', () => {
+    for (const { cards } of encores(200)) {
+      for (let i = 1; i < cards.length; i++) {
+        expect(cards[i].id).not.toBe(cards[i - 1].id);
+      }
+    }
+  });
+
+  it('leaves run-out cards after the prize so it settles mid-reel', () => {
+    for (const { cards, winIndex } of encores(200)) {
+      expect(cards.length - winIndex - 1).toBeGreaterThanOrEqual(3);
+    }
+  });
+
+  it('varies its landing index — an encore is still a spin, not a cut', () => {
+    const seen = new Set(encores(200).map(r => r.winIndex));
+    expect(seen.size).toBeGreaterThan(3);
+  });
+
+  it('works for mythic and animated wins too, without downgrading them', () => {
+    const mythic = { id: 'x_myth', emoji: '🌠', name: 'Myth', rarity: 'mythic', type: 'sticker' };
+    const { cards, winIndex } = buildLegendaryReel(mythic);
+    expect(cards[winIndex]).toBe(mythic);
+    expect(cards.every(c => isEncoreTier(c.rarity))).toBe(true);
+  });
+});
+
+describe('gold tier — which pull gets which treatment', () => {
+  it('paints legendary gold, and nothing below it', () => {
+    expect(isGoldCard('legendary')).toBe(true);
+    for (const r of ['common', 'uncommon', 'rare', 'epic']) {
+      expect(isGoldCard(r)).toBe(false);
+    }
+  });
+
+  it('leaves mythic and animated their own colour', () => {
+    expect(isGoldCard('mythic')).toBe(false);
+    expect(isGoldCard('animated')).toBe(false);
+  });
+
+  it('still gives mythic and animated the encore — they outrank legendary', () => {
+    for (const r of ['legendary', 'mythic', 'animated']) expect(isEncoreTier(r)).toBe(true);
+    for (const r of ['common', 'uncommon', 'rare', 'epic']) expect(isEncoreTier(r)).toBe(false);
   });
 });
 

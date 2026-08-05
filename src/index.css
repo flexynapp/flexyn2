@@ -2989,6 +2989,37 @@ html[data-theme-tier] {
   animation: reel-settle-bloom 620ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
+/* Gold tier. A legendary card is brushed metal, not a card with an amber
+   outline — at 130px, in motion, an outline is not a difference you can
+   see, and the landing is the one frame that has to read instantly. The
+   sheen sweeps once when the reel settles on it. */
+.reel-card-gold {
+  background:
+    linear-gradient(158deg,
+      #3a2a0c 0%,
+      #6b4f14 26%,
+      #b98b1f 46%,
+      #e6c35c 52%,
+      #a97f1c 58%,
+      #6b4f14 76%,
+      #33250a 100%);
+}
+.reel-card-gold::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(112deg, transparent 38%, rgba(255,255,255,0.5) 50%, transparent 62%);
+  transform: translateX(-130%);
+}
+.reel-card-gold.reel-winner-settled::after {
+  animation: gold-sheen 900ms cubic-bezier(0.22, 1, 0.36, 1) 140ms forwards;
+}
+@keyframes gold-sheen {
+  to { transform: translateX(130%); }
+}
+
 /* The indicator answers the settle too, so the eye is told where to look. */
 @keyframes reel-line-pulse {
   0%   { opacity: 0.7; transform: scaleY(1); }
@@ -3001,6 +3032,9 @@ html[data-theme-tier] {
   .reel-track-spinning,
   .reel-winner-settled,
   .reel-line-settled { animation: none; }
+  /* The gold card keeps its metal — that's colour, not motion. Only the
+     sweeping sheen is suppressed, and it's parked off-card. */
+  .reel-card-gold.reel-winner-settled::after { animation: none; }
 }
 
 /* Muscle heat-map detail sheet (MuscleGroupHeatmap.jsx) */

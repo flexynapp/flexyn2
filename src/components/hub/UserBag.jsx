@@ -21,8 +21,9 @@ import { patchProfile } from '@/api/profileCache';
 import { safeSelect } from '@/api/safeSelect';
 import * as inventory from '@/lib/data/inventory';
 import * as capsules  from '@/lib/data/capsules';
-import { RARITY, ITEMS, VARIANTS } from '@/lib/lootCatalog';
+import { RARITY, ITEMS, VARIANTS, CAPSULE_GLYPH } from '@/lib/lootCatalog';
 import { RarityBadge, RarityFrame, rarityTint, COIN } from '@/components/loot/RarityVisuals';
+import CapsuleIcon from '@/components/loot/CapsuleIcon';
 import { getLootThemeById } from '@/lib/lootThemes';
 import { getLootFrameById } from '@/lib/lootFrames';
 import { THEMES_ENABLED } from '@/lib/featureFlags';
@@ -40,11 +41,17 @@ const SELL_PRICE = Object.fromEntries(
   Object.entries(RARITY).map(([k, v]) => [k, Math.floor((v.baseCoins ?? 10) / 2)])
 );
 
-// Map capsule_type string → display metadata
+// Map capsule_type string → display metadata.
+//
+// The catalog ids are cap_standard / cap_premium / cap_elite — the
+// lookups here said capsule_* and so had ALWAYS fallen through to the
+// literals below. Corrected rather than deleted: the catalog carries the
+// description the opener shows. The glyph is only a text fallback now;
+// the visible icon is <CapsuleIcon>, which draws the sphere.
 const CAPSULE_META = {
-  standard: ITEMS.find(i => i.id === 'capsule_standard') ?? { name: 'Standard Capsule', emoji: '📦', rarity: 'common'   },
-  premium:  ITEMS.find(i => i.id === 'capsule_premium')  ?? { name: 'Premium Capsule',  emoji: '🎁', rarity: 'uncommon' },
-  elite:    ITEMS.find(i => i.id === 'capsule_elite')    ?? { name: 'Elite Capsule',    emoji: '💠', rarity: 'epic'     },
+  standard: ITEMS.find(i => i.id === 'cap_standard') ?? { name: 'Standard Capsule', emoji: CAPSULE_GLYPH.standard, rarity: 'common'   },
+  premium:  ITEMS.find(i => i.id === 'cap_premium')  ?? { name: 'Premium Capsule',  emoji: CAPSULE_GLYPH.premium,  rarity: 'uncommon' },
+  elite:    ITEMS.find(i => i.id === 'cap_elite')    ?? { name: 'Elite Capsule',    emoji: CAPSULE_GLYPH.elite,    rarity: 'epic'     },
 };
 
 // The rarity chip / rarity-tinted card shell now come from the shared
@@ -63,7 +70,7 @@ function CapsuleCard({ capsuleRow, onOpenCapsule }) {
       animate={{ opacity: 1, scale: 1 }}
       className="flex flex-col items-center p-3 gap-2 text-center"
     >
-      <span className="text-5xl leading-none">{meta.emoji}</span>
+      <CapsuleIcon type={capsuleRow.capsule_type || 'standard'} size={56} />
       <span className="text-xs font-semibold leading-tight">{meta.name}</span>
       <RarityBadge rarity={meta.rarity} />
       <button
@@ -877,7 +884,6 @@ export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBat
                   {onOpenCapsuleBatch && Object.entries(capsulesByType)
                     .filter(([, rows]) => rows.length > 1)
                     .map(([type, rows]) => {
-                      const meta = CAPSULE_META[type] ?? CAPSULE_META.standard;
                       const take = Math.min(rows.length, 10);
                       return (
                         <button
@@ -886,7 +892,7 @@ export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBat
                           onClick={() => onOpenCapsuleBatch(rows.slice(0, take))}
                           className="w-full mb-3 flex items-center gap-3 px-3 py-2 rounded-xl border border-primary/30 bg-primary/10 hover:bg-primary/15 active:bg-primary/15 transition-colors text-start"
                         >
-                          <span className="text-2xl shrink-0">{meta.emoji}</span>
+                          <CapsuleIcon type={type} size={26} className="shrink-0" />
                           <span className="flex-1 min-w-0">
                             <span className="block text-sm font-bold capitalize leading-tight">
                               Open {take} {type}

@@ -8,6 +8,7 @@ import { Target, Zap, Trophy } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import GoalProgressBar from './GoalProgressBar';
+import { calculateGoalXp } from '@/lib/xpSystem';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { formatWeight } from '@/lib/weightUnit';
@@ -99,15 +100,10 @@ export default function GoalsAlmostComplete({ goals, logs, cardioLogs = [], onOp
       }
 
       const goal = goals.find(g => g.id === goalId);
-      let xpReward = 0;
-      if (goal?.target_weight && goal?.target_reps) {
-        xpReward = Math.floor(goal.target_weight * 0.5 + goal.target_reps * 3);
-      } else if (goal?.target_weight) {
-        xpReward = Math.floor(goal.target_weight * 0.75);
-      } else if (goal?.target_reps) {
-        xpReward = Math.floor(goal.target_reps * 4);
-      }
-      xpReward = Math.min(xpReward, 500);
+      // Shared with GoalsModal via xpSystem.js — the two copies of this
+      // formula are how the same completion could pay two different
+      // numbers depending on which surface you tapped it from.
+      const xpReward = calculateGoalXp(goal);
 
       // Atomic state transition via complete_goal RPC (migration 030).
       // Only the FIRST caller flips the status — prevents the

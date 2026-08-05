@@ -153,6 +153,27 @@ export const RARITY = {
   },
 };
 
+// ── Capsule glyph ─────────────────────────────────────────────────────
+// Text-only fallback for the capsule. Anywhere a capsule is RENDERED,
+// use <CapsuleIcon type=… /> (src/components/loot/CapsuleIcon.jsx) — it
+// draws the actual gachapon sphere. This map exists for the surfaces
+// that can only hold a string: toast titles, push-notification icons,
+// catalog rows.
+//
+// It used to be 📦 / 🎁 / 💠 — a box, a present and a gem. None of them
+// is a capsule, and the box in particular is what a user opening the Bag
+// saw first. Declared above ITEMS because ITEMS reads it at module load.
+//
+// All three tiers share the glyph on purpose: the tier is carried by
+// COLOUR on the real icon, and every string site that uses this map also
+// names the tier next to it ("Premium Capsule earned"). Three different
+// emoji objects is the drift this replaces, not a feature to preserve.
+export const CAPSULE_GLYPH = {
+  standard: '🔮',
+  premium:  '🔮',
+  elite:    '🔮',
+};
+
 export const ITEMS = [
   // ── Common stickers (5) ──
   { id: 'stk_muscle',   type: 'sticker', rarity: 'common',    name: 'Flex',          description: 'Show off those gains.', emoji: '💪', baseCoins: 5  },
@@ -186,9 +207,9 @@ export const ITEMS = [
   { id: 'stk_sparkle',  type: 'sticker', rarity: 'animated',  name: 'Sparkle',        description: 'Rarest of the rare — it moves!', emoji: '✨', baseCoins: 500 },
 
   // ── Capsule items (3) ──
-  { id: 'cap_standard', type: 'capsule', rarity: 'common',    name: 'Standard Capsule', description: 'A mystery awaits inside.', emoji: '📦', baseCoins: 0 },
-  { id: 'cap_premium',  type: 'capsule', rarity: 'uncommon',  name: 'Premium Capsule',  description: 'Better odds, better loot.', emoji: '🎁', baseCoins: 0 },
-  { id: 'cap_elite',    type: 'capsule', rarity: 'epic',      name: 'Elite Capsule',    description: 'Only the finest drops.', emoji: '💠', baseCoins: 0 },
+  { id: 'cap_standard', type: 'capsule', rarity: 'common',    name: 'Standard Capsule', description: 'A mystery awaits inside.', emoji: CAPSULE_GLYPH.standard, baseCoins: 0 },
+  { id: 'cap_premium',  type: 'capsule', rarity: 'uncommon',  name: 'Premium Capsule',  description: 'Better odds, better loot.', emoji: CAPSULE_GLYPH.premium, baseCoins: 0 },
+  { id: 'cap_elite',    type: 'capsule', rarity: 'epic',      name: 'Elite Capsule',    description: 'Only the finest drops.', emoji: CAPSULE_GLYPH.elite, baseCoins: 0 },
 ];
 
 export const CAPSULE_ODDS = {

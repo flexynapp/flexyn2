@@ -6,6 +6,7 @@ import {
   calculateWorkoutXp,
   calculateCardioXp,
   calculateTotalVolume,
+  calculateGoalXp,
   MAX_WORKOUT_XP,
   MAX_CARDIO_XP,
   XP_REWARDS,
@@ -277,5 +278,45 @@ describe('XP constants', () => {
   it('XP_REWARDS.achievementUnlocked is a function', () => {
     expect(typeof XP_REWARDS.achievementUnlocked).toBe('function');
     expect(XP_REWARDS.achievementUnlocked(50)).toBe(50);
+  });
+});
+
+// ─── Goal completion ──────────────────────────────────────────────────────────
+//
+// The formula this replaces lived twice (GoalsModal + GoalsAlmostComplete),
+// capped at 500, and scaled off numbers the user TYPES when creating the
+// goal. Nothing verifies a target against a lift, so a 1000 lb goal paid
+// 500 XP — the entire goal_completed daily allowance (migration 262) for
+// one tap. These lock the ceiling to the documented reward.
+
+describe('calculateGoalXp', () => {
+  it('never pays more than the documented goal reward, however big the target', () => {
+    for (const target of [500, 1000, 99999]) {
+      expect(calculateGoalXp({ target_weight: target, target_reps: target }))
+        .toBe(XP_REWARDS.goalCompleted);
+    }
+  });
+
+  it('still ranks a heavier goal above a lighter one below the cap', () => {
+    const light = calculateGoalXp({ target_weight: 45,  target_reps: 5 });
+    const mid   = calculateGoalXp({ target_weight: 95,  target_reps: 5 });
+    expect(mid).toBeGreaterThan(light);
+    expect(mid).toBeLessThanOrEqual(XP_REWARDS.goalCompleted);
+  });
+
+  it('handles weight-only and reps-only goals', () => {
+    expect(calculateGoalXp({ target_weight: 100 })).toBe(75);
+    expect(calculateGoalXp({ target_reps: 20 })).toBe(80);
+  });
+
+  it('pays nothing for a goal with no numeric target', () => {
+    expect(calculateGoalXp({})).toBe(0);
+    expect(calculateGoalXp(null)).toBe(0);
+    expect(calculateGoalXp({ target_weight: 0, target_reps: 0 })).toBe(0);
+  });
+
+  it('ignores negative / junk targets rather than crediting them', () => {
+    expect(calculateGoalXp({ target_weight: -500 })).toBe(0);
+    expect(calculateGoalXp({ target_reps: 'lots' })).toBe(0);
   });
 });

@@ -13,6 +13,7 @@ import { Plus, Pencil, Trash2, Dumbbell, Eye, ChevronUp, LayoutTemplate, Globe, 
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { motion, AnimatePresence } from 'framer-motion';
+import { XP_REWARDS } from '@/lib/xpSystem';
 import RegimenForm from '@/components/regimens/RegimenForm';
 import RegimenDetailView from '@/components/regimens/RegimenDetailView';
 import TemplatesModal from '@/components/workout/TemplatesModal';
@@ -53,17 +54,27 @@ export default function RegimensSection({ onStartRegimen }) {
   const createMutation = useMutation({
     mutationFn: async (data) => {
       const regimen = await db.entities.Regimen.create(data);
+      // An EMPTY regimen earns nothing. Creating one is a name and a save —
+      // it was paying 100 XP a pop (a whole level-1→2), twice a day against
+      // the server's 200/day cap, for typing. The XP is for planning a
+      // session, so it's owed only when there is a session to plan.
+      const exerciseCount = (data?.exercises || []).length;
       // XP failure must NOT roll back the regimen — it was successfully created
       // server-side. Reverting the optimistic UI on XP failure causes the regimen
       // to "disappear" until the next refetch, which looks like a save bug.
-      try {
-        await db.functions.invoke('updateUserXpAndAchievements', {
-          xp_gained: 100,
-          action_type: 'regimen_created',
-          action_data: {},
-        });
-      } catch (xpErr) {
-        reportError(xpErr, { feature: 'regimens.xp-update', level: 'warning', userEmail: user?.email });
+      if (exerciseCount > 0) {
+        try {
+          await db.functions.invoke('updateUserXpAndAchievements', {
+            // Was a hardcoded 100 while XP_REWARDS.regimenCreated said 60 and
+            // nothing read it — the same mirrored-constant drift that put the
+            // level curve out of sync with the database (migration 261).
+            xp_gained: XP_REWARDS.regimenCreated,
+            action_type: 'regimen_created',
+            action_data: { exercise_count: exerciseCount },
+          });
+        } catch (xpErr) {
+          reportError(xpErr, { feature: 'regimens.xp-update', level: 'warning', userEmail: user?.email });
+        }
       }
       return regimen;
     },

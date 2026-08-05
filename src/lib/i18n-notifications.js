@@ -55,7 +55,7 @@ const enKeys = {
 
   'notifications.row.pr_set.title':                           '🏆 New {label} PR!',
 
-  'notifications.row.capsule_earned.title':                   '🎁 {label} Capsule earned',
+  'notifications.row.capsule_earned.title':                   '🔮 {label} Capsule earned',
   'notifications.row.capsule_earned.body_default':            'Open it from your bag.',
   'notifications.row.capsule.label.standard':                 'Standard',
   'notifications.row.capsule.label.premium':                  'Premium',
@@ -113,7 +113,7 @@ const esKeys = {
 
   'notifications.row.pr_set.title':                           '🏆 ¡Nuevo récord de {label}!',
 
-  'notifications.row.capsule_earned.title':                   '🎁 Cápsula {label} obtenida',
+  'notifications.row.capsule_earned.title':                   '🔮 Cápsula {label} obtenida',
   'notifications.row.capsule_earned.body_default':            'Ábrela desde tu bolsa.',
   'notifications.row.capsule.label.standard':                 'Estándar',
   'notifications.row.capsule.label.premium':                  'Premium',
@@ -159,7 +159,7 @@ const frKeys = {
 
   'notifications.row.pr_set.title':                           '🏆 Nouveau record de {label} !',
 
-  'notifications.row.capsule_earned.title':                   '🎁 Capsule {label} obtenue',
+  'notifications.row.capsule_earned.title':                   '🔮 Capsule {label} obtenue',
   'notifications.row.capsule_earned.body_default':            'Ouvrez-la depuis votre sac.',
   'notifications.row.capsule.label.standard':                 'Standard',
   'notifications.row.capsule.label.premium':                  'Premium',
@@ -218,7 +218,7 @@ const deKeys = {
 
   'notifications.row.pr_set.title':                           '🏆 Neuer {label}-Rekord!',
 
-  'notifications.row.capsule_earned.title':                   '🎁 {label}-Kapsel erhalten',
+  'notifications.row.capsule_earned.title':                   '🔮 {label}-Kapsel erhalten',
   'notifications.row.capsule_earned.body_default':            'Öffne sie aus deiner Tasche.',
   'notifications.row.capsule.label.standard':                 'Standard',
   'notifications.row.capsule.label.premium':                  'Premium',
@@ -277,7 +277,7 @@ const ptKeys = {
 
   'notifications.row.pr_set.title':                           '🏆 Novo recorde de {label}!',
 
-  'notifications.row.capsule_earned.title':                   '🎁 Cápsula {label} conquistada',
+  'notifications.row.capsule_earned.title':                   '🔮 Cápsula {label} conquistada',
   'notifications.row.capsule_earned.body_default':            'Abra-a na sua bolsa.',
   'notifications.row.capsule.label.standard':                 'Padrão',
   'notifications.row.capsule.label.premium':                  'Premium',
@@ -336,7 +336,7 @@ const jaKeys = {
 
   'notifications.row.pr_set.title':                           '🏆 {label}の新記録！',
 
-  'notifications.row.capsule_earned.title':                   '🎁 {label}カプセル獲得',
+  'notifications.row.capsule_earned.title':                   '🔮 {label}カプセル獲得',
   'notifications.row.capsule_earned.body_default':            'バッグから開封してください。',
   'notifications.row.capsule.label.standard':                 'スタンダード',
   'notifications.row.capsule.label.premium':                  'プレミアム',
@@ -390,7 +390,7 @@ const itKeys = {
   'notifications.row.capsule.label.mystery':  'Mistero',
   'notifications.row.capsule.label.premium':  'Premium',
   'notifications.row.capsule.label.standard': 'Standard',
-  'notifications.row.capsule_earned.title':        '🎁 Capsula {label} ottenuta',
+  'notifications.row.capsule_earned.title':        '🔮 Capsula {label} ottenuta',
   'notifications.row.capsule_earned.body_default': 'Aprila dalla tua borsa.',
   'notifications.row.friend_follow.title': '{name} ha iniziato a seguirti',
   'notifications.row.friend_follow.body':  'Tocca per vedere il profilo.',
@@ -442,7 +442,7 @@ const koKeys = {
   'notifications.row.capsule.label.mystery':  '미스터리',
   'notifications.row.capsule.label.premium':  '프리미엄',
   'notifications.row.capsule.label.standard': '스탠다드',
-  'notifications.row.capsule_earned.title':        '🎁 {label} 캡슐 획득',
+  'notifications.row.capsule_earned.title':        '🔮 {label} 캡슐 획득',
   'notifications.row.capsule_earned.body_default': '가방에서 열어보세요.',
   'notifications.row.friend_follow.title': '{name}님이 회원님을 팔로우했습니다',
   'notifications.row.friend_follow.body':  '탭하여 프로필 보기.',
@@ -494,7 +494,7 @@ const zhKeys = {
   'notifications.row.capsule.label.mystery':  '神秘',
   'notifications.row.capsule.label.premium':  '高级',
   'notifications.row.capsule.label.standard': '标准',
-  'notifications.row.capsule_earned.title':        '🎁 获得{label}胶囊',
+  'notifications.row.capsule_earned.title':        '🔮 获得{label}胶囊',
   'notifications.row.capsule_earned.body_default': '在背包中打开。',
   'notifications.row.friend_follow.title': '{name} 关注了你',
   'notifications.row.friend_follow.body':  '点按查看主页。',
@@ -546,7 +546,7 @@ const arKeys = {
   'notifications.row.capsule.label.mystery':  'غامضة',
   'notifications.row.capsule.label.premium':  'مميزة',
   'notifications.row.capsule.label.standard': 'عادية',
-  'notifications.row.capsule_earned.title':        '🎁 حصلت على كبسولة {label}',
+  'notifications.row.capsule_earned.title':        '🔮 حصلت على كبسولة {label}',
   'notifications.row.capsule_earned.body_default': 'افتحها من حقيبتك.',
   'notifications.row.friend_follow.title': '{name} تابعك',
   'notifications.row.friend_follow.body':  'اضغط لعرض الملف الشخصي.',
@@ -598,7 +598,7 @@ const hiKeys = {
   'notifications.row.capsule.label.mystery':  'रहस्य',
   'notifications.row.capsule.label.premium':  'प्रीमियम',
   'notifications.row.capsule.label.standard': 'स्टैंडर्ड',
-  'notifications.row.capsule_earned.title':        '🎁 {label} कैप्सूल मिला',
+  'notifications.row.capsule_earned.title':        '🔮 {label} कैप्सूल मिला',
   'notifications.row.capsule_earned.body_default': 'इसे अपने बैग से खोलें।',
   'notifications.row.friend_follow.title': '{name} ने आपको फ़ॉलो किया',
   'notifications.row.friend_follow.body':  'प्रोफ़ाइल देखने के लिए टैप करें।',
@@ -650,7 +650,7 @@ const ruKeys = {
   'notifications.row.capsule.label.mystery':  'Загадочная',
   'notifications.row.capsule.label.premium':  'Премиум',
   'notifications.row.capsule.label.standard': 'Обычная',
-  'notifications.row.capsule_earned.title':        '🎁 Получена капсула «{label}»',
+  'notifications.row.capsule_earned.title':        '🔮 Получена капсула «{label}»',
   'notifications.row.capsule_earned.body_default': 'Открой её в сумке.',
   'notifications.row.friend_follow.title': '{name} подписался на тебя',
   'notifications.row.friend_follow.body':  'Нажми, чтобы открыть профиль.',
@@ -702,7 +702,7 @@ const trKeys = {
   'notifications.row.capsule.label.mystery':  'Gizemli',
   'notifications.row.capsule.label.premium':  'Premium',
   'notifications.row.capsule.label.standard': 'Standart',
-  'notifications.row.capsule_earned.title':        '🎁 {label} kapsül kazanıldı',
+  'notifications.row.capsule_earned.title':        '🔮 {label} kapsül kazanıldı',
   'notifications.row.capsule_earned.body_default': 'Çantandan aç.',
   'notifications.row.friend_follow.title': '{name} seni takip etti',
   'notifications.row.friend_follow.body':  'Profili görmek için dokun.',
@@ -754,7 +754,7 @@ const plKeys = {
   'notifications.row.capsule.label.mystery':  'Tajemnicza',
   'notifications.row.capsule.label.premium':  'Premium',
   'notifications.row.capsule.label.standard': 'Standardowa',
-  'notifications.row.capsule_earned.title':        '🎁 Zdobyto kapsułę {label}',
+  'notifications.row.capsule_earned.title':        '🔮 Zdobyto kapsułę {label}',
   'notifications.row.capsule_earned.body_default': 'Otwórz ją w plecaku.',
   'notifications.row.friend_follow.title': '{name} zaczął(-ęła) Cię obserwować',
   'notifications.row.friend_follow.body':  'Dotknij, aby zobaczyć profil.',
@@ -806,7 +806,7 @@ const nlKeys = {
   'notifications.row.capsule.label.mystery':  'Mysterie',
   'notifications.row.capsule.label.premium':  'Premium',
   'notifications.row.capsule.label.standard': 'Standaard',
-  'notifications.row.capsule_earned.title':        '🎁 {label}-capsule verdiend',
+  'notifications.row.capsule_earned.title':        '🔮 {label}-capsule verdiend',
   'notifications.row.capsule_earned.body_default': 'Open hem in je tas.',
   'notifications.row.friend_follow.title': '{name} volgt je nu',
   'notifications.row.friend_follow.body':  'Tik om het profiel te bekijken.',

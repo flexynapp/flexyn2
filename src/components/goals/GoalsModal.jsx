@@ -4,6 +4,7 @@ import { db } from '@/api/db';
 import * as goalsData from '@/lib/data/goals';
 import * as quests from '@/lib/data/quests';
 import { ACTION_TYPES } from '@/lib/questCatalog';
+import { calculateGoalXp } from '@/lib/xpSystem';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -115,13 +116,10 @@ export default function GoalsModal({ open, onClose, goals = [], logs = [], userP
   const completeMutation = useMutation({
     mutationFn: async (goalId) => {
       const goal = goals.find(g => g.id === goalId);
-      const hasWeight = goal?.target_weight > 0;
-      const hasReps = goal?.target_reps > 0;
-      let xpReward = 0;
-      if (hasWeight && hasReps) xpReward = Math.floor(goal.target_weight * 0.5 + goal.target_reps * 3);
-      else if (hasWeight) xpReward = Math.floor(goal.target_weight * 0.75);
-      else if (hasReps) xpReward = Math.floor(goal.target_reps * 4);
-      xpReward = Math.min(xpReward, 500); // Hard cap.
+      // One formula, in xpSystem.js. This was duplicated here and in
+      // GoalsAlmostComplete.jsx, both capped at 500 — a single goal could
+      // pay the whole day's goal_completed allowance.
+      const xpReward = calculateGoalXp(goal);
 
       // Idempotency: atomic state transition via complete_goal RPC (migration
       // 030). Only the FIRST caller flips status active→completed; subsequent

@@ -13,14 +13,14 @@
 // editing SHOP_CATALOG below.
 
 import { supabase } from '@/api/supabaseClient';
-import { CAPSULE_ODDS } from '@/lib/lootCatalog';
+import { CAPSULE_ODDS, CAPSULE_GLYPH } from '@/lib/lootCatalog';
 
 export const SHOP_CATALOG = {
   capsule_standard: {
     sku: 'capsule_standard',
     name: 'Standard Capsule',
     description: 'Common to rare drops. Always something new.',
-    icon: '📦',
+    icon: CAPSULE_GLYPH.standard,
     price: 100,
     rarity: 'common',
     grants: { type: 'capsule', capsuleType: 'standard' },
@@ -29,7 +29,7 @@ export const SHOP_CATALOG = {
     sku: 'capsule_premium',
     name: 'Premium Capsule',
     description: 'Better odds at rare and epic drops.',
-    icon: '🎁',
+    icon: CAPSULE_GLYPH.premium,
     price: 350,
     rarity: 'rare',
     grants: { type: 'capsule', capsuleType: 'premium' },
@@ -44,7 +44,7 @@ export const SHOP_CATALOG = {
     // accurate odds for loot boxes. See getCapsuleOdds() below — the shop
     // now renders the true numbers rather than a claim.
     description: 'The best odds we offer. Real shot at legendary.',
-    icon: '💎',
+    icon: CAPSULE_GLYPH.elite,
     price: 1000,
     rarity: 'epic',
     grants: { type: 'capsule', capsuleType: 'elite' },

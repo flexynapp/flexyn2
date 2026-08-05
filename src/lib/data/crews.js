@@ -6,7 +6,12 @@ import { db } from '@/api/db';
 import { compressImage } from '@/lib/imageCompress';
 import { containsProfanity } from '@/lib/profanityFilter';
 
-const CREW_XP_FUEL_AMOUNT = 500;
+// Display value of one XP-fuel claim. The AUTHORITATIVE number is the
+// constant inside claim_crew_xp_fuel (migration 298) — this is only what
+// the banner promises before you tap, and the claim response is what the
+// toast reports. It said 500 while the RPC granted whatever the client
+// asked for, up to 1000.
+export const CREW_XP_FUEL_AMOUNT = 25;
 
 // ── Crews ─────────────────────────────────────────────────────────────────────
 
@@ -468,17 +473,26 @@ export async function fireXpFuel(crewId, senderId, senderName) {
  * for source-compat but is ignored by the RPC (auth.uid()
  * server-side).
  *
- * @returns boolean - true if newly claimed, false if already claimed
+ * @returns {{claimed: boolean, xp?: number, reason?: string}}
+ *   `xp` is what the SERVER credited, which is not always the advertised
+ *   amount — the daily crew-fuel cap (migration 298) can credit less, or
+ *   nothing. `reason` is 'own_fuel' | 'already_claimed' | 'not_crew_member'
+ *   | 'not_fuel_message' | 'message_not_found' | 'unavailable'.
  */
-export async function claimXpFuel(messageId, userId, xpAmount = 25) {
+export async function claimXpFuel(messageId, userId) {
+  // p_xp is sent as null on purpose. Migration 298 ignores it outright —
+  // the server prices a fuel claim — and on a pre-298 host null makes the
+  // old COALESCE(p_xp, 25) fall to its own default rather than letting
+  // this browser name its own XP figure. It was previously the caller's
+  // argument, so "claim 1000" was one devtools edit away.
   const { data, error } = await supabase.rpc('claim_crew_xp_fuel', {
     p_message_id: messageId,
-    p_xp:         xpAmount,
+    p_xp:         null,
   });
   if (!error) {
-    // RPC returned { ok, xp_amount } or { ok:false, error:'already_claimed' }
-    if (data?.ok === true) return true;
-    if (data?.ok === false && data?.error === 'already_claimed') return false;
+    // { ok, xp_amount, capped } or { ok:false, error:'already_claimed' | … }
+    if (data?.ok === true) return { claimed: true, xp: Number(data.xp_amount) || 0 };
+    if (data?.ok === false) return { claimed: false, reason: data.error || 'unavailable' };
   }
   // Legacy fallback path. `42883`/`42P01` mean the RPC isn't deployed yet.
   if (error && (error.code === '42883' || error.code === '42P01')) {
@@ -486,10 +500,10 @@ export async function claimXpFuel(messageId, userId, xpAmount = 25) {
       .from('crew_xp_claims')
       .insert({ message_id: messageId, user_id: userId });
     if (insErr && insErr.code !== '23505') throw insErr;
-    return !insErr;
+    return { claimed: !insErr, xp: 0, reason: insErr ? 'already_claimed' : undefined };
   }
   if (error) throw error;
-  return false;
+  return { claimed: false, reason: 'unavailable' };
 }
 
 export async function getUnclaimedXpFuels(crewId, userId) {
