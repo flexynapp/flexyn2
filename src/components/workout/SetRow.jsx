@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Trophy, Flame, Gauge, MessageCircle, Minus, Plus, Check, Trash2, MoreHorizontal } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -10,7 +10,9 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { parseSetInput } from '@/lib/parseSetInput';
 import { epleyOneRepMax } from '@/lib/oneRepMax';
 import { triggerHaptic } from '@/lib/haptic';
-import PRProximityBar from './PRProximityBar';
+import PRProximityBar, { prProximityPct } from './PRProximityBar';
+import OneShotTooltip from '@/components/OneShotTooltip';
+import { TOOLTIP } from '@/lib/tooltipRegistry';
 import PlateDiagram from './PlateDiagram';
 import { getActiveBarLbs, platesPerSide } from '@/lib/barInventory';
 
@@ -37,9 +39,29 @@ const RIR_OPTIONS = [
 
 export default function SetRow({ set, index, onChange, onRemove, exerciseName = '', userProfile = {}, prIndex = {}, isBodyweight = false, prevFeelNote = '' }) {
   const { weightUnit } = useWeightUnit();
-  const { t } = useLanguage();
+  const { t, tFallback } = useLanguage();
   const maxWeight = getMaxRealisticWeight(exerciseName, userProfile);
   const maxReps = getMaxRealisticReps(exerciseName, set.weight || 0, userProfile);
+
+  // ── One-shot hints ────────────────────────────────────────────────────────
+  // Both of these were registered in tooltipRegistry.js and never mounted, so
+  // two real features shipped with nothing teaching them. Smart paste in
+  // particular is undiscoverable by definition — nobody pastes "225 x 8" into
+  // a number field to see what happens.
+  //
+  // Anchored on the FIRST set row only (`index === 0`). SetRow renders once
+  // per set, and while hasSeenTooltip() would stop the 2nd..Nth from firing,
+  // mounting a portal per set to have it immediately no-op is waste on the
+  // hottest screen in the app.
+  const weightInputRef = useRef(null);
+  const proximityRef = useRef(null);
+  const isFirstSet = index === 0;
+
+  // The PR bar renders nothing below 70% of the user's best, so the hint has
+  // to mount only when there is actually a bar to point at — OneShotTooltip's
+  // effect fires once on mount and will not re-run when the anchor appears
+  // later. Same predicate the bar itself uses, so the two cannot disagree.
+  const proximityPct = prProximityPct({ exerciseName, weight: set.weight, reps: set.reps, prIndex });
 
   // Weight input — local raw-string state WHILE FOCUSED so the user's
   // keystrokes aren't re-formatted mid-typing. The stored value is
@@ -172,6 +194,7 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
           );
         })()}
         <Input
+          ref={weightInputRef}
           type="number"
           inputMode="decimal"
           value={weightFocused ? weightDraft : (set.weight != null ? formatWeightNumber(set.weight, weightUnit) : '')}
@@ -494,12 +517,34 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
     )}
     {/* PR proximity bar — visible at >=70% of PR. Renders nothing
         below that threshold so warmup sets stay quiet. */}
-    <PRProximityBar
-      exerciseName={exerciseName}
-      weight={set.weight}
-      reps={set.reps}
-      prIndex={prIndex}
-    />
+    <div ref={proximityRef}>
+      <PRProximityBar
+        exerciseName={exerciseName}
+        weight={set.weight}
+        reps={set.reps}
+        prIndex={prIndex}
+      />
+    </div>
+
+    {/* Registered in tooltipRegistry.js and, until now, never mounted —
+        so the bar appeared with nothing explaining it. Gated on the bar
+        actually rendering (proximityPct != null) rather than on a ref
+        null-check, because OneShotTooltip's effect runs once on mount
+        and will not re-run when the anchor shows up later. */}
+    {proximityPct != null && (
+      <OneShotTooltip id={TOOLTIP.PR_PROXIMITY_BAR} anchorRef={proximityRef} placement="top">
+        {tFallback('workout.tooltip.prProximity',
+          'This bar tracks how close this set is to your best.')}
+      </OneShotTooltip>
+    )}
+
+    {/* Smart paste. First set row only — see the note at the top. */}
+    {isFirstSet && (
+      <OneShotTooltip id={TOOLTIP.WORKOUT_SMART_PASTE} anchorRef={weightInputRef} placement="bottom">
+        {tFallback('workout.tooltip.smartPaste',
+          'Paste "225 x 8" here to fill weight and reps at once.')}
+      </OneShotTooltip>
+    )}
     {showPlates && (
       <PlateDiagram plates={plates} barLbs={getActiveBarLbs()} />
     )}

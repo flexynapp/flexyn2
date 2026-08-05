@@ -29,9 +29,23 @@
 import { motion } from 'framer-motion';
 import { epleyOneRepMax } from '@/lib/oneRepMax';
 
-export default function PRProximityBar({ exerciseName, weight, reps, prIndex = {} }) {
-  // Lookup all-time PR for this exercise. Returns 0 for new exercises;
-  // suppress the bar in that case (no useful comparator).
+/**
+ * Percentage of the all-time PR this set represents, or `null` when the bar
+ * should not render at all (no prior best, no usable estimate, or below the
+ * 70% warmup threshold).
+ *
+ * Exported because callers need to know whether the bar is on screen BEFORE
+ * rendering it. `OneShotTooltip` explains what the bar means, and its effect
+ * runs once on mount with deps `[id, anchorRef, delayMs]` — the ref object is
+ * stable, so if the anchor isn't in the DOM at that moment the effect never
+ * re-runs and the hint is lost. Mounting the tooltip conditionally is the
+ * only thing that works; a null-check inside it is not enough.
+ *
+ * Keep this as the single source of the thresholds — the component below
+ * calls it too, so the tooltip and the bar can never disagree about whether
+ * there is something to point at.
+ */
+export function prProximityPct({ exerciseName, weight, reps, prIndex = {} }) {
   const key = (exerciseName || '').trim().toLowerCase();
   const priorBest = prIndex[key] || 0;
   if (!priorBest) return null;
@@ -41,9 +55,14 @@ export default function PRProximityBar({ exerciseName, weight, reps, prIndex = {
 
   const pct = (liveEstimate / priorBest) * 100;
 
-  // Below the warmup threshold → don't clutter. Above any threshold
-  // we render with tier-appropriate styling.
+  // Below the warmup threshold → don't clutter.
   if (pct < 70) return null;
+  return pct;
+}
+
+export default function PRProximityBar({ exerciseName, weight, reps, prIndex = {} }) {
+  const pct = prProximityPct({ exerciseName, weight, reps, prIndex });
+  if (pct == null) return null;
 
   let tier;
   let fill = Math.min(100, pct);

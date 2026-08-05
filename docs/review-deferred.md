@@ -67,3 +67,5 @@ Kept so a re-read of an old review doesn't re-raise something already done.
 | 86/90 | 76–100 | Daily chest readiness was per-device | `isDailyChestReady(userId, lastClaimAt)` now consults the server's `last_daily_chest_at` as well; either source saying "claimed" hides it. |
 | 86/90 | 76–100 | Coin balance stale after claiming a chest | `patchProfile({ flex_coins: data.new_balance })` — server-returned, so it is the permitted case for a privileged column. |
 | 96 | 76–100 | Profile-menu row named three entries that don't exist | Row rewritten in `docs/tier-s-a-review-list.md`. |
+| 110 | 101–127 | 4 of 5 registered tooltips never mounted | Three mounted (smart paste, PR proximity, DM double-tap); `STREAK_FLAME_TAP` removed — no such gesture exists. `tooltipRegistry.test.js` now fails when a registered ID has no mount site (verified it fires). |
+| 120 | 101–127 | "Six celebration helpers" — there are seven | Corrected in the sheet and CLAUDE.md; the table now lists all seven with their patterns. |

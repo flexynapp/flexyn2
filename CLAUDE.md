@@ -41,12 +41,14 @@ contributors should match:
   (emerald/cyan), PRShareCard (gold/crimson). Color rotation gives each
   moment its own identity; the share API + download fallback chain is
   identical.
-- **Six celebration helpers each have a distinct vibration + confetti
+- **Seven celebration helpers each have a distinct vibration + confetti
   signature** (goal / first-workout / first-regimen / first-goal /
-  first-meal / pr). When adding a 7th, give it its own signature —
-  see `src/lib/prCelebration.js` for the pattern. Multi-celebration
-  events should route through `src/lib/rewardQueue.js` to avoid
-  overlapping toasts.
+  first-meal / pr / crew-win). When adding an 8th, give it its own
+  signature — see `src/lib/prCelebration.js` for the pattern.
+  Multi-celebration events should route through `src/lib/rewardQueue.js`
+  to avoid overlapping toasts; today `Workout.jsx` is the only surface
+  where two can land on one action (a first workout that also sets a PR),
+  and it uses the queue.
 - **`tFallback('key', 'English fallback')`** is the standard i18n call.
   English fallbacks ship inline; native translators fill non-English
   locales via `src/lib/i18n-*.js` part files (the splitter aggregates).
@@ -441,9 +443,10 @@ workout has to resolve active injuries and pass them.
 
 ## Celebration system
 
-There are five "first-X" milestone celebrations + one completion. Each
-fires confetti + haptic + toast + Sentry breadcrumb, but uses a **distinct
-vocabulary** so a user feels each as its own moment:
+There are **seven** helpers — five "first-X" milestones, one goal
+completion, one PR, one crew win. Each fires confetti + haptic + toast +
+Sentry breadcrumb, but uses a **distinct vocabulary** so a user feels each
+as its own moment:
 
 | Helper | Trigger | Haptic | Confetti shape | Emoji | Palette |
 |---|---|---|---|---|---|
@@ -452,6 +455,13 @@ vocabulary** so a user feels each as its own moment:
 | `fireFirstRegimenCelebration` | First regimen saved | `[15,45,15,45]` | 2 side bursts y:0.6 | 💪 | Purple/pink |
 | `fireFirstGoalCelebration` | First goal created | `[10,30,80]` | 1 top burst y:0.3 | 🎯 | Blue/teal |
 | `fireFirstMealCelebration` | First meal logged | `[12,30,12,30,12]` | 2 bottom corners y:0.85 | 🥗 | Warm food |
+| `firePRCelebration` | Personal record | `[40,80,40,80,40,80]` | — | 🏋️ | Gold/crimson |
+| `fireCrewWinCelebration` | Crew war won | `[20,50,20,50,20,50,80]` | — | ⚔️ | Crew colours |
+
+Audited 2026-08-05: **seven for seven distinct vibration patterns**, no two
+colliding. This table said five for a while — `firePRCelebration` and
+`fireCrewWinCelebration` both postdated it — so re-read
+`src/lib/*Celebration.js` rather than this table if the count matters.
 
 All live in `src/lib/*Celebration.js`. Each is well-tested in
 `src/lib/__tests__/*Celebration.test.js`. **Don't add another celebration

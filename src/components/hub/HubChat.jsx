@@ -13,6 +13,8 @@ import { ITEMS as LOOT_ITEMS } from '@/lib/lootCatalog';
 import { format, parseISO, differenceInHours, formatDistanceToNowStrict } from 'date-fns';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
+import OneShotTooltip from '@/components/OneShotTooltip';
+import { TOOLTIP } from '@/lib/tooltipRegistry';
 import * as hubMessages from '@/lib/data/hubMessages';
 import * as users from '@/lib/data/users';
 import * as dmRxns from '@/lib/data/dmMessageReactions';
@@ -181,6 +183,8 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
 
   // ── Double-tap fire reactions ──────────────────────────────────────────────
   const lastTapRef = useRef({ id: null, time: 0 });
+  // Anchor for the one-shot double-tap hint (see the mount below the list).
+  const lastMsgRef = useRef(null);
   const [floatingFires, setFloatingFires] = useState([]);
 
   // ── Pinning ────────────────────────────────────────────────────────────────
@@ -1278,7 +1282,14 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
             const isRead = !!m.read_at && readReceiptsEnabled;
             const rxnGroups = getReactionGroups(m.id);
             return (
-              <div key={m.id} id={`dm-msg-${m.id}`}>
+              <div
+                key={m.id}
+                id={`dm-msg-${m.id}`}
+                // Anchor for the one-shot double-tap hint. The LAST message,
+                // not the first — the thread is scrolled to the bottom, so
+                // anchoring to the oldest would point the tooltip off screen.
+                ref={i === visibleMessages.length - 1 ? lastMsgRef : undefined}
+              >
                 {showDivider && ts && (
                   <div className="flex justify-center my-4">
                     <span className="text-micro text-muted-foreground">{formatDivider(ts)}</span>
@@ -1557,6 +1568,17 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
               </div>
             );
           })
+        )}
+
+        {/* Double-tap-to-react was registered in tooltipRegistry.js and never
+            mounted, so the gesture shipped with nothing teaching it. Gated on
+            there being a message to point at — OneShotTooltip fires once on
+            mount and won't re-run when an anchor appears later, so mounting it
+            against an empty thread would burn the one shot on nothing. */}
+        {visibleMessages.length > 0 && (
+          <OneShotTooltip id={TOOLTIP.DM_DOUBLE_TAP} anchorRef={lastMsgRef} placement="top">
+            {tFallback('hub.chat.tooltip.doubleTap', 'Double-tap a message to react 🔥')}
+          </OneShotTooltip>
         )}
 
         {/* Typing indicator bubble */}

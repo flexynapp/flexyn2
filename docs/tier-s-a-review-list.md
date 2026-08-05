@@ -155,7 +155,7 @@ is itself a finding.
 | 117 | `GA47` | 80% | Streak flame component with intensity by length | Gamification & economy |
 | 118 | `GA50` | 70% | Reward queue — serializes multi-celebration moments so toasts don't overlap | Gamification & economy |
 | 119 | `GA51` | 70% | Particles / theme animation layer | Gamification & economy |
-| 120 | `GA52` | 85% | Six celebration helpers, each with a distinct haptic + confetti signature | Gamification & economy |
+| 120 | `GA52` | 85% | **Seven** celebration helpers, each with a distinct haptic + confetti signature — goal, first-workout, first-regimen, first-goal, first-meal, PR, crew-win. ⚠️ **Corrected 2026-08-05** — the row said six; `fireCrewWinCelebration` postdates it. Audited: seven-for-seven distinct vibration patterns, no two colliding. | Gamification & economy |
 | 121 | `GA9` | 85% | Level reward schedule (migration 263) | Gamification & economy |
 | 122 | `NT18` | 70% | Notification types wired to push: streak milestone/break, quest claimed/expiry, league promoted/demoted/held, friend post, friend follow, comment reply, post reaction/like, sticker reaction, trade offer, crew broadcast, PR set, capsule earned, coin milestone, welcome back, weekly gauntlet started, duel invite/result, bounty claim/beaten, crew war started/resolved, rival assigned, rival overthrown, crew challenge created/completed, DM received, memories, referrals, gym member join, report resolution, workout reminder | Notifications |
 | 123 | `RS20` | 80% | Scroll position + scroll restoration hooks | PWA, performance & resilience |

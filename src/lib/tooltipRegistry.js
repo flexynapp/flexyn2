@@ -16,13 +16,33 @@
 //   1. Append a constant below.
 //   2. Mount <OneShotTooltip id={TOOLTIP.YOUR_ID} ... /> in the
 //      consuming component.
+//
+// ── BOTH STEPS. Step 2 is the one that gets skipped. ──────────────────────
+//
+// This registry held five IDs and exactly ONE of them was ever mounted. The
+// other four were registered, documented, and rendered nowhere — so three
+// real, shipped gestures had nothing teaching them (smart paste, the PR
+// proximity bar, double-tap-to-react), and the fourth described a gesture
+// that did not exist at all.
+//
+// An unmounted tooltip is invisible by construction: nothing throws, nothing
+// warns, and the feature it was meant to teach still works fine for anyone
+// who already knows about it. `src/lib/__tests__/tooltipRegistry.test.js`
+// now fails the suite when a registered ID has no mount site, so step 2
+// cannot be forgotten again.
+//
+// REMOVED 2026-08-05 — `STREAK_FLAME_TAP` ('streak-flame-tap'), "streak flame
+// shows streak details". StreakFlame.jsx has no click handler and none of its
+// three consumers wraps it in one, so the gesture it advertised has never
+// existed. The nearby thing that DOES expand streak details is the chevron on
+// LoginStreakBanner, and a chevron is already its own affordance — it does not
+// need a one-shot hint. Re-add this entry only alongside a real tap target.
 
 export const TOOLTIP = {
   LONG_PRESS_TABS:    'long-press-tabs',     // bottom-nav long-press quick actions
   DM_DOUBLE_TAP:      'dm-double-tap',       // double-tap-to-react on DM messages
   WORKOUT_SMART_PASTE: 'workout-smart-paste', // paste "225 x 8" into the weight field
   PR_PROXIMITY_BAR:    'pr-proximity-bar',    // the new bar on set rows
-  STREAK_FLAME_TAP:    'streak-flame-tap',    // streak flame shows streak details
 };
 
 const LS_PREFIX = 'flexyn.seenTooltip.';
