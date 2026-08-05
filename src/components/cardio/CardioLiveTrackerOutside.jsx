@@ -125,7 +125,7 @@ export default function CardioLiveTrackerOutside({ mode, onCancel, onSaved, user
 
   // ── Restore snapshot on mount ──
   useEffect(() => {
-    const snap = readSnapshot();
+    const snap = readSnapshot(user?.id);
     if (!snap || snap.kind !== 'outside' || snap.mode !== mode) return;
     startedAtRef.current = snap.startedAt;
     pausedTotalMsRef.current = snap.pausedTotalMs || 0;
@@ -232,7 +232,7 @@ export default function CardioLiveTrackerOutside({ mode, onCancel, onSaved, user
   useEffect(() => {
     if (status !== 'tracking' && status !== 'paused') return;
     const id = setInterval(() => {
-      snapshot({
+      snapshot(user?.id, {
         kind: 'outside',
         mode,
         startedAt: startedAtRef.current,
@@ -485,7 +485,7 @@ export default function CardioLiveTrackerOutside({ mode, onCancel, onSaved, user
   const discardAndClose = () => {
     if (watchIdRef.current != null) navigator.geolocation.clearWatch(watchIdRef.current);
     if (tickIdRef.current) clearInterval(tickIdRef.current);
-    clearSnapshot();
+    clearSnapshot(user?.id);
     onCancel();
   };
 
@@ -535,7 +535,7 @@ export default function CardioLiveTrackerOutside({ mode, onCancel, onSaved, user
         gps_track: trackRef.current,
       };
       const createdLog = await db.entities.CardioLog.create(payload);
-      clearSnapshot();
+      clearSnapshot(user?.id);
       // Atomic accumulation via increment_user_distance RPC (migration 023).
       if (Number(payload.distance_meters) > 0) {
         try {

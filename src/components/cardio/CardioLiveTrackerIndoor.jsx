@@ -53,7 +53,7 @@ export default function CardioLiveTrackerIndoor({ mode, env, onCancel, onSaved, 
 
   // ── Restore snapshot on mount ──
   useEffect(() => {
-    const snap = readSnapshot();
+    const snap = readSnapshot(user?.id);
     if (!snap || snap.kind !== 'indoor' || snap.mode !== mode || snap.env !== env) return;
     startedAtRef.current = snap.startedAt;
     pausedTotalMsRef.current = snap.pausedTotalMs || 0;
@@ -86,7 +86,7 @@ export default function CardioLiveTrackerIndoor({ mode, env, onCancel, onSaved, 
   useEffect(() => {
     if (status !== 'tracking' && status !== 'paused') return;
     const id = setInterval(() => {
-      snapshot({
+      snapshot(user?.id, {
         kind: 'indoor',
         mode,
         env,
@@ -165,7 +165,7 @@ export default function CardioLiveTrackerIndoor({ mode, env, onCancel, onSaved, 
   // ── Discard ──
   const discardAndClose = () => {
     if (tickIdRef.current) clearInterval(tickIdRef.current);
-    clearSnapshot();
+    clearSnapshot(user?.id);
     onCancel();
   };
 
@@ -223,7 +223,7 @@ export default function CardioLiveTrackerIndoor({ mode, env, onCancel, onSaved, 
         gps_track: [],
       };
       const createdLog = await db.entities.CardioLog.create(payload);
-      clearSnapshot();
+      clearSnapshot(user?.id);
       // Atomic accumulation via increment_user_distance RPC (migration 023).
       // See CardioManualForm for context on the race this fixes.
       if (Number(payload.distance_meters) > 0) {

@@ -122,11 +122,11 @@ export default function CardioSection({ onBack }) {
   const lastLog = lastLogs[0] || null;
 
   useEffect(() => {
-    const snap = readSnapshot();
+    const snap = readSnapshot(user?.id);
     if (snap && Date.now() - snap.savedAt < 12 * 60 * 60 * 1000) {
       setRecoverable(snap);
     } else if (snap) {
-      clearSnapshot();
+      clearSnapshot(user?.id);
     }
   }, []);
 
@@ -539,7 +539,7 @@ export default function CardioSection({ onBack }) {
             <AlertDialogDescription>{t('cardio.recover.desc')}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => { clearSnapshot(); setRecoverable(null); }}>
+            <AlertDialogCancel onClick={() => { clearSnapshot(user?.id); setRecoverable(null); }}>
               {t('cardio.recover.discard')}
             </AlertDialogCancel>
             <AlertDialogAction onClick={() => {

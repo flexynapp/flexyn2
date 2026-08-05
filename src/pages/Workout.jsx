@@ -292,9 +292,15 @@ export default function Workout() {
   // None need a grid tile. Order per user request; the full-width Rival
   // card ('nemesis') stays last.
   const CARD_ORDER_DEFAULT = ['generate','explore','cardio','regimens','duels','bounties','goals','saved','nemesis'];
+  // Per-user, per CLAUDE.md's `flexyn.<feature>.<userId>` convention. The
+  // old key was a bare `wkt-card-order` — unnamespaced and shared, so a
+  // second account on the same phone inherited the first one's card
+  // layout. `user` is declared at the top of the component, well above
+  // this useState initializer, so reading it here is not a TDZ hazard.
+  const cardOrderKey = `flexyn.wktCardOrder.${user?.id || 'anon'}`;
   const [cardOrder, setCardOrder] = useState(() => {
     try {
-      const s = localStorage.getItem('wkt-card-order');
+      const s = localStorage.getItem(cardOrderKey);
       if (s) {
         const p = JSON.parse(s);
         if (CARD_ORDER_DEFAULT.every(c => p.includes(c)) && p.length === CARD_ORDER_DEFAULT.length) return p;
@@ -2548,7 +2554,7 @@ export default function Workout() {
                 <div className="flex items-center justify-between mb-3 px-1">
                   <p className="text-micro text-muted-foreground/60 font-medium">Drag cards to reorder</p>
                   <div className="flex items-center gap-1.5">
-                    <button onClick={() => { localStorage.setItem('wkt-card-order', JSON.stringify(cardOrder)); setGridEditing(false); toast.success('Layout saved.'); setDragSrcIdx(null); setDragOverIdx(null); }}
+                    <button onClick={() => { localStorage.setItem(cardOrderKey, JSON.stringify(cardOrder)); setGridEditing(false); toast.success('Layout saved.'); setDragSrcIdx(null); setDragOverIdx(null); }}
                       className="px-2.5 py-1 rounded-lg bg-primary text-primary-foreground text-micro font-bold hover:bg-primary/90 active:bg-primary/90 transition-colors">Save</button>
                     {isAppAdmin(user) && (
                       <button
@@ -2565,7 +2571,7 @@ export default function Workout() {
                         Set default
                       </button>
                     )}
-                    <button onClick={() => { setCardOrder([...CARD_ORDER_DEFAULT]); localStorage.removeItem('wkt-card-order'); setGridEditing(false); setDragSrcIdx(null); setDragOverIdx(null); }}
+                    <button onClick={() => { setCardOrder([...CARD_ORDER_DEFAULT]); localStorage.removeItem(cardOrderKey); setGridEditing(false); setDragSrcIdx(null); setDragOverIdx(null); }}
                       className="px-2.5 py-1 rounded-lg bg-secondary text-muted-foreground text-micro font-semibold hover:bg-secondary/80 active:bg-secondary/80 transition-colors">Reset</button>
                   </div>
                 </div>
