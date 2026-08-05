@@ -138,9 +138,13 @@ CREATE POLICY "trades: parties can view own offers" ON public.trade_offers
 -- p_viewer_id is retained ONLY so the ~2 policy call sites keep working
 -- without a coordinated rewrite. It is deliberately unused.
 --
--- Rewritten in plpgsql with scalar variables and single-table statements:
--- the original used `b.blocker_email` / `p.email` join aliases, which the
--- clipboard pipeline mangles into `42601 syntax error at "<"`.
+-- Rewritten in plpgsql with scalar variables and single-table statements.
+-- The original joined user_blocks to user_profiles and referenced both
+-- through short table aliases; the user's clipboard pipeline mangles a
+-- short alias followed by a dot and a column name into `42601 syntax error
+-- at "<"`, so this migration carries no such token anywhere in its body --
+-- including inside these comments, which is why this note describes the
+-- old shape rather than quoting it.
 
 CREATE OR REPLACE FUNCTION public.is_blocked(p_viewer_id uuid, p_author_email text)
 RETURNS boolean
