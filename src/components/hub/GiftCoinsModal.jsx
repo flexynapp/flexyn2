@@ -96,7 +96,8 @@ export default function GiftCoinsModal({ open, onClose, recipient }) {
             {tFallback('gift.title', 'Send a gift')}
           </h2>
           <button onClick={onClose} aria-label="Close"
-            className="relative before:absolute before:content-[''] before:-inset-2.5 w-7 h-7 rounded-full bg-secondary text-muted-foreground flex items-center justify-center hover:text-foreground active:text-foreground">            <X className="w-3.5 h-3.5" />
+            className="relative before:absolute before:content-[''] before:-inset-2.5 w-7 h-7 rounded-full bg-secondary text-muted-foreground flex items-center justify-center hover:text-foreground active:text-foreground">
+            <X className="w-3.5 h-3.5" />
           </button>
         </div>
 

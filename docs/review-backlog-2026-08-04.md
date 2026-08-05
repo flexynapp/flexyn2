@@ -14,7 +14,71 @@ not executed.
 
 ---
 
-## Scoreboard
+## Status — end of the 2026-08-05 fix session
+
+**37 of the 96 items are now shipped.** Six commits on
+`claude/analysis-next-steps-g8i60y`. 2592 tests passing (up from 2578),
+lint clean, build clean.
+
+Two things still need a human and block the rest:
+
+1. **Run the SQL** for migrations 280 and 281, and
+   `supabase functions deploy delete-account`. Until both land, account
+   deletion returns an honest "temporarily unavailable" rather than
+   falsely reporting success.
+2. **Fill the three placeholders in `src/pages/Legal.jsx`** — entity,
+   contact email, jurisdiction.
+
+Measured improvements this session:
+
+| | Before | After |
+|---|---|---|
+| Eager critical path | 556 KB gz | **492 KB gz** (−11.5%) |
+| `vendor-misc` | 268 KB gz | **202 KB gz** |
+| Render-blocking font families | 5 | **3** |
+| ESLint warnings | 215 | **212** (0 TDZ in Workout.jsx) |
+| Dead `ui/*` wrappers | 33 | **0** |
+| Unused Radix dependencies | 22 | **0** |
+| Tests | 2578 | **2592** |
+
+### Corrections found while fixing
+
+- **The delete cascade would have aborted.** 104 FKs into `auth.users`
+  already cascade, but four are `NO ACTION`/`RESTRICT` — `bounties`,
+  `duels`, `pending_duel_invites`, `gym_businesses` — so a naive
+  `deleteUser()` fails with `23503` for anyone who ever won a duel.
+- **`PublicGymLanding` was never blank.** A `.then` with no `.catch`
+  left it wedged in its loading branch. "8 DOM nodes, zero characters"
+  was the spinner.
+- **The muted-contrast finding is arithmetic.** The colour both reviews
+  reported, `rgb(96,107,118)`, computes to **5.09:1** on the cream
+  background — passing AA. Their 4.3:1 matches the *previous* token
+  value. Token left alone.
+- **The `vendor-misc` mystery was a transitive-dependency gap.** jsPDF
+  and TF.js were excluded from the eager chunk; their dependencies were
+  not. canvg, dompurify, pako (via fast-png) and @mediapipe were riding
+  along.
+- **The tap-target counts are mostly SVG.** A sweep for real `<button>`
+  elements with a pinned sub-44px box finds seven across Hub and
+  Progress, not 266. All seven fixed.
+- **`VITE_ANTHROPIC_API_KEY` would publish an Anthropic key** to every
+  visitor if set — Vite inlines `VITE_*` into the bundle. Unset today;
+  now documented under a DO-NOT-SET heading.
+
+### Deliberately not done
+
+Self-hosting fonts (needs a real unicode-range subsetting pass for 15
+languages — doing it badly is worse than the status quo), the profile
+tier banner legibility (already carries a three-layer vignette and
+doubled text shadows; any further change should follow a screenshot),
+the magenta avatar (a deterministic per-user identity colour, not a
+palette break), and `B-D4` content-under-nav (needs one look on device
+to find which scroll container is at fault). Product decisions P1–P9 and
+the nine unverified items are untouched by design.
+
+---
+
+## Scoreboard (original triage)
 
 | Bucket | Count |
 |---|---|
