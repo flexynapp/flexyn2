@@ -3,9 +3,22 @@
 // Barcode lookup waterfall:
 //   1. Community FoodItem entity (user-submitted, checked first — instant, free)
 //   2. Open Food Facts (~3M products, global, keyless public API — client-side fetch)
-//   3. USDA FoodData Central (~1M products, strongest for US branded foods)
-//      — proxied through base44/functions/usdaBarcodeLookup so the API key
-//        stays server-side. Do NOT add an API key to this file.
+//
+// There used to be a third tier, USDA FoodData Central, and the comment here
+// claimed it was "proxied through base44/functions/usdaBarcodeLookup so the
+// API key stays server-side". None of that was true by the time it was
+// removed (Aug 2026 audit): db.functions.invoke is a local shim, there was no
+// server, and it fetched api.nal.usda.gov straight from the browser with
+// `api_key=DEMO_KEY` — USDA's public demo key, rate-limited to roughly 30
+// requests an hour per IP. So the tier answered for the first few scans after
+// an IP went quiet and 429'd the rest of the time, while the comment said the
+// opposite.
+//
+// Dropped rather than fixed. Making it real means a USDA key in a deployed
+// Edge Function, and the tier only ever added micronutrient depth on US
+// branded foods that Open Food Facts already missed. If that depth is wanted
+// later, add it back as an actual server-side proxy — and do NOT put an API
+// key in this file.
 //
 // Returns a normalised product object or null if all sources miss.
 // The caller is responsible for showing the "not found" UI when null is returned.
@@ -18,7 +31,7 @@ import { db } from '@/api/db';
 //   barcode:      string,
 //   name:         string,
 //   servingLabel: string,
-//   source:       'community' | 'openfoodfacts' | 'usda',
+//   source:       'community' | 'openfoodfacts',
 //   nutrition: {
 //     calories, protein, carbs, fat, fiber, sugar, sodium, cholesterol (all numbers|null)
 //   },
@@ -28,25 +41,6 @@ import { db } from '@/api/db';
 //   }
 // }
 
-
-async function lookupUSDA(barcode) {
-  // Server-side proxy through base44/functions/usdaBarcodeLookup. The USDA
-  // API key lives as a Base44 secret on the server — the client never sees
-  // it and never talks to api.nal.usda.gov directly.
-  //
-  // Returns the same normalized shape as the previous client implementation,
-  // or null on no-match / upstream error. Errors here are swallowed by the
-  // caller's try/catch in lookupBarcode().
-  try {
-    const result = await db.functions.invoke('usdaBarcodeLookup', { barcode });
-    // db.functions.invoke returns { data, ... } — the function's body is in `data`.
-    const product = result?.data ?? result;
-    if (!product || product.error) return null;
-    return product;
-  } catch {
-    return null;
-  }
-}
 
 // ── Open Food Facts ──────────────────────────────────────────────────────────
 function parseServingGrams(raw) {
@@ -194,7 +188,7 @@ async function lookupCommunity(barcode) {
 // ── Public waterfall ──────────────────────────────────────────────────────────
 /**
  * Look up a barcode across all three sources in order:
- *   community → Open Food Facts → USDA FDC
+ *   community → Open Food Facts
  *
  * Returns a normalised product object, or null if none found.
  * Errors in individual sources are swallowed — the next source is tried.
@@ -212,12 +206,6 @@ export async function lookupBarcode(barcode) {
   try {
     const off = await lookupOpenFoodFacts(barcode);
     if (off) return off;
-  } catch { /* swallow */ }
-
-  // 3. USDA FoodData Central — strongest US branded food micronutrient data
-  try {
-    const usda = await lookupUSDA(barcode);
-    if (usda) return usda;
   } catch { /* swallow */ }
 
   return null;

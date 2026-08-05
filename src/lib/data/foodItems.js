@@ -1,6 +1,6 @@
 // src/lib/data/foodItems.js
 // Community food database — shared across all users.
-// Records are created when a user scans a barcode not found in OFF or USDA.
+// Records are created when a user scans a barcode Open Food Facts doesn't have.
 // Any user who later scans the same barcode gets this record back.
 // 
 // BACKEND_CONTRACT note: This entity is NOT scoped to created_by on read.

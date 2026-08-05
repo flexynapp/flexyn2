@@ -529,7 +529,6 @@ const functions = {
       case 'updateUserXpAndAchievements': return _invokeXp(payload);
       case 'deleteAccountData':           return _invokeDeleteAccount();
       case 'cleanupAfterReset':           return null;
-      case 'usdaBarcodeLookup':           return _invokeBarcodeLookup(payload);
       default:
         console.warn(`[Supabase shim] Unknown function: "${name}"`);
         return null;
@@ -683,28 +682,6 @@ async function _invokeDeleteAccount() {
   return { success: true };
 }
 
-async function _invokeBarcodeLookup({ barcode } = {}) {
-  if (!barcode) return null;
-  try {
-    const res = await fetch(
-      `https://api.nal.usda.gov/fdc/v1/foods/search?query=${encodeURIComponent(barcode)}&api_key=DEMO_KEY&pageSize=1`
-    );
-    if (!res.ok) return null;
-    const json = await res.json();
-    const food = json?.foods?.[0];
-    if (!food) return null;
-    const n = (id) => food.foodNutrients?.find(x => x.nutrientId === id)?.value ?? 0;
-    return {
-      name: food.description,
-      brand: food.brandOwner ?? food.brandName ?? '',
-      serving_label: food.servingSize ? `${food.servingSize}${food.servingSizeUnit ?? 'g'}` : '100g',
-      nutrition: { calories: n(1008), protein: n(1003), carbs: n(1005), fat: n(1004), fiber: n(1079), sodium: n(1093) },
-    };
-  } catch (err) {
-    console.warn('[Barcode] lookup failed:', err);
-    return null;
-  }
-}
 
 /* ── Integrations — file upload via Supabase Storage ────────────────────── */
 // Requires a public Supabase Storage bucket named "uploads".

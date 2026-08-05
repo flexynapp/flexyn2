@@ -1268,7 +1268,7 @@ export default function Nutrition() {
       sugar_g:        n.sugar    ?? null,
       sodium_mg:      n.sodium   ?? null,
       cholesterol_mg: n.cholesterol ?? null,
-      // Vitamins & minerals — now populated from USDA/community sources
+      // Vitamins & minerals — populated from Open Food Facts / community sources
       calcium_mg:      v.calcium_mg     ?? null,
       iron_mg:         v.iron_mg        ?? null,
       magnesium_mg:    v.magnesium_mg   ?? null,

@@ -50,7 +50,6 @@ const VITAMIN_ROWS = [
 
 const SOURCE_LABELS = {
   openfoodfacts: 'Open Food Facts',
-  usda:          'USDA FoodData Central',
   community:     '👥 Community Submitted',
 };
 
