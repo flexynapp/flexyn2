@@ -28,7 +28,7 @@
 //   1. admin_purge_user_data()  — clear the four blockers, delete the PII that
 //                                 ON DELETE SET NULL would otherwise preserve,
 //                                 sweep email-keyed tables discovered from
-//                                 information_schema (mig 281).
+//                                 information_schema (mig 284).
 //   2. storage.remove('<uid>/') — blobs are not rows and cascade to nothing.
 //   3. auth.admin.deleteUser()  — the identity, plus the 104-table cascade.
 //
@@ -43,7 +43,7 @@
 // token via getUser() and NEVER from the request body — a body-supplied id on
 // a service-role function is an "delete any account" endpoint. This is the
 // same mistake mig 108 shipped as a privacy leak by trusting a client-passed
-// email, and the reason mig 281 revokes EXECUTE from `authenticated`.
+// email, and the reason mig 284 revokes EXECUTE from `authenticated`.
 //
 // verify_jwt is left ON for this function (unlike send-push and
 // generateWeeklyDebriefs, which authenticate with their own shared secrets):
@@ -55,7 +55,7 @@
 //   supabase functions deploy delete-account
 //
 // No secrets to set — SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are injected
-// by the platform. Run migration 281 first, or every call returns
+// by the platform. Run migration 284 first, or every call returns
 // purge_failed with 42883 (function does not exist).
 
 // @ts-ignore — Deno runtime

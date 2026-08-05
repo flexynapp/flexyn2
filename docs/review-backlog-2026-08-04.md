@@ -22,7 +22,7 @@ lint clean, build clean.
 
 Two things still need a human and block the rest:
 
-1. **Run the SQL** for migrations 280 and 281, and
+1. **Run the SQL** for migrations 283 and 284, and
    `supabase functions deploy delete-account`. Until both land, account
    deletion returns an honest "temporarily unavailable" rather than
    falsely reporting success.
@@ -125,7 +125,7 @@ section so they don't get re-raised.
 | ID | Item |
 |---|---|
 | X4 | **The FK diagnosis was backwards.** Both reviews say `league_members` has no `user_id` FK. It has one — pointing at **`auth.users(id)`**. PostgREST won't traverse into `auth`, an unexposed schema. Realising this is what surfaced X1 and X2. |
-| X5 | **The published SQL would have failed with `42710`.** It names its constraints `league_members_user_id_fkey` / `gym_members_user_id_fkey` — both already exist. Mig 280 uses `*_user_profile_fkey`. |
+| X5 | **The published SQL would have failed with `42710`.** It names its constraints `league_members_user_id_fkey` / `gym_members_user_id_fkey` — both already exist. Mig 283 uses `*_user_profile_fkey`. |
 | C-F13 | **Revoking anon on `is_blocked` would break public profiles.** It is called inside the SELECT policies on `hub_posts` and `hub_comments`; a policy helper runs as the *querying* role and `anon` holds SELECT on `hub_posts`. The revoke turns a filtered read into `permission denied for function`. The review's own F15 already found it isn't routable over PostgREST. |
 | X6 | **`is_crew_admin` — same class,** ~13 crew policies. |
 | C-F12 | **`public_profiles` is SECURITY DEFINER on purpose.** RLS on `user_profiles` permits reading only your own row, so the definer view *is* how anyone sees anyone else's profile. `security_invoker = on` would reduce Hub, every leaderboard and every profile to the viewer's own row. Exposes a 31-column subset, no email since mig 220. |

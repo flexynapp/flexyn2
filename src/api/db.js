@@ -633,7 +633,7 @@ async function _invokeDeleteAccount() {
   // The replacement is the `delete-account` Edge Function, which runs under
   // the service role and derives what to purge from the schema itself rather
   // than from a list. See supabase/functions/delete-account/index.ts and
-  // migration 281 for the ordering, which is not arbitrary.
+  // migration 284 for the ordering, which is not arbitrary.
   //
   // There is deliberately NO fallback to the old cascade. Falling back would
   // mean telling someone their account was deleted when it was reset — which
