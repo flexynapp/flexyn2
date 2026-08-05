@@ -92,17 +92,45 @@ export async function listEntries(userId, limit = 365) {
   }));
 }
 
-/** Upload a journal attachment to the avatars bucket; returns public URL. */
+// Extension → pinned MIME. Mirrors SAFE_MIMES in src/api/db.js: the
+// contentType must derive from the extension, never from the
+// client-supplied file.type, or `evil.svg` lands in a PUBLIC bucket as
+// image/svg+xml and executes script on the storage origin when the
+// attachment chip opens it. SVG is refused for exactly that reason.
+const ATTACHMENT_MIMES = {
+  jpg: 'image/jpeg', jpeg: 'image/jpeg',
+  png: 'image/png', webp: 'image/webp', gif: 'image/gif',
+  heic: 'image/heic', heif: 'image/heif', avif: 'image/avif',
+};
+
+/** Upload a journal attachment to the uploads bucket; returns public URL. */
 export async function uploadAttachment(userId, file) {
   if (!userId || !file) return null;
-  const ext = (file.name?.split('.').pop() || 'bin').toLowerCase();
-  const path = `journal/${userId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+  const ext = (file.name?.split('.').pop() || '').toLowerCase();
+  const contentType = ATTACHMENT_MIMES[ext];
+  if (!contentType) {
+    console.warn('[journal] attachment type not supported:', ext || '(none)');
+    return null;
+  }
+  // The bucket is `uploads` — there has never been an `avatars` bucket.
+  // Migration comments in 140/145 called it that and three call sites
+  // copied the name, so every upload here 404'd on a missing bucket.
+  //
+  // The uid must be the FIRST path segment: the bucket's INSERT policy is
+  // `foldername(name)[1] = auth.uid()`, so the old `journal/<uid>/...`
+  // would still have been rejected by RLS even with the right bucket.
+  const path = `${userId}/journal/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
   const { error } = await supabase.storage
-    .from('avatars')
-    .upload(path, file, { upsert: false, contentType: file.type || 'application/octet-stream' });
-  if (error) return null;
-  const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path);
-  return { url: publicUrl, type: file.type || '', name: file.name || 'attachment' };
+    .from('uploads')
+    .upload(path, file, { upsert: false, contentType });
+  if (error) {
+    // Caller surfaces a generic "couldn't upload" toast; log the reason so
+    // a bucket/RLS regression is diagnosable rather than just "returned null".
+    console.warn('[journal] attachment upload failed:', error);
+    return null;
+  }
+  const { data: { publicUrl } } = supabase.storage.from('uploads').getPublicUrl(path);
+  return { url: publicUrl, type: contentType, name: file.name || 'attachment' };
 }
 
 /**

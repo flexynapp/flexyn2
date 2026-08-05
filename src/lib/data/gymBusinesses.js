@@ -472,16 +472,37 @@ export async function listGymMembers(gymId) {
   }));
 }
 
+// Extension → pinned MIME. Same rule as src/api/db.js and GymEdit.jsx:
+// derive contentType from the extension, never from client-supplied
+// file.type, so `evil.svg` can't land in the PUBLIC bucket as
+// image/svg+xml and run script on the storage origin.
+const FEED_IMAGE_MIMES = {
+  jpg: 'image/jpeg', jpeg: 'image/jpeg',
+  png: 'image/png', webp: 'image/webp', heic: 'image/heic',
+};
+
 export async function uploadFeedImage(gymId, file) {
   if (!gymId || !file) return null;
   const { data: { user } } = await supabase.auth.getUser();
   if (!user?.id) return null;
-  const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
-  const path = `gym/${gymId}/feed/${user.id}-${Date.now()}.${ext}`;
+  const ext = (file.name.split('.').pop() || '').toLowerCase();
+  const contentType = FEED_IMAGE_MIMES[ext];
+  if (!contentType) {
+    console.warn('[gymBusinesses] feed image type not supported:', ext || '(none)');
+    return null;
+  }
+  // Bucket is `uploads` — there has never been an `avatars` bucket, so
+  // this path 404'd on every post. The uid must also be the FIRST segment:
+  // the bucket's INSERT policy is `foldername(name)[1] = auth.uid()`, so
+  // the old `gym/<gymId>/feed/...` would fail RLS even on the right bucket.
+  const path = `${user.id}/gym/${gymId}/feed/${Date.now()}.${ext}`;
   const { error } = await supabase.storage
-    .from('avatars')
-    .upload(path, file, { upsert: false, contentType: file.type || 'image/jpeg' });
-  if (error) return null;
-  const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path);
+    .from('uploads')
+    .upload(path, file, { upsert: false, contentType });
+  if (error) {
+    console.warn('[gymBusinesses] feed image upload failed:', error);
+    return null;
+  }
+  const { data: { publicUrl } } = supabase.storage.from('uploads').getPublicUrl(path);
   return publicUrl;
 }

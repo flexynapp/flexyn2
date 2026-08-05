@@ -97,9 +97,14 @@ export default function GymEdit() {
   }
 
   // Image upload helper — shared by logo + cover. Uploads to the
-  // "avatars" bucket under gym/<gymId>/<kind>-<timestamp>.<ext> so
-  // each gym's assets are namespaced under its id (easier to clean
-  // up later + simple RLS by owner_id is straightforward via prefix).
+  // `uploads` bucket under <uid>/gym/<gymId>/<kind>-<timestamp>.<ext>.
+  //
+  // This used to target an "avatars" bucket that has never existed (the
+  // name came from migration comments in 140/145), so every gym logo and
+  // cover upload failed. The uid has to lead the path regardless of how
+  // we'd prefer to namespace these: the bucket's INSERT policy is
+  // `foldername(name)[1] = auth.uid()`, so a gym-first prefix is rejected
+  // by RLS. The gym id still namespaces the assets, one level down.
   const uploadImage = async (file, kind) => {
     if (!file || !user?.id) return null;
     // Hard cap at 5 MB so a 12 MB phone photo doesn't get served
@@ -126,9 +131,9 @@ export default function GymEdit() {
       toast.error('Image type not supported — use JPG, PNG, WebP, or HEIC.');
       return null;
     }
-    const path = `gym/${gym.id}/${kind}-${Date.now()}.${ext}`;
+    const path = `${user.id}/gym/${gym.id}/${kind}-${Date.now()}.${ext}`;
     const { error } = await supabase.storage
-      .from('avatars')
+      .from('uploads')
       // Pin contentType to the safe MIME derived from the extension,
       // NOT the client-supplied file.type — which a tampered client
       // can lie about.
@@ -139,7 +144,7 @@ export default function GymEdit() {
       toast.error(`Upload failed: ${error.message}`);
       return null;
     }
-    const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path);
+    const { data: { publicUrl } } = supabase.storage.from('uploads').getPublicUrl(path);
     return publicUrl;
   };
 
