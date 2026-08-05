@@ -1383,7 +1383,7 @@ export default function Nutrition() {
     }
     const convertedOz = displayToOz(amount, bottleInputUnit);
     if (convertedOz > MAX_BOTTLE_OZ) {
-      toast.error(t('nutrition.toast.bottleTooBig') || 'That bottle is too big — try a smaller size.');
+      toast.error(tFallback('nutrition.toast.bottleTooBig', 'That bottle is too big — try a smaller size.'));
       return;
     }
     const nick = bottleNickname.trim();
@@ -1952,7 +1952,7 @@ export default function Nutrition() {
                 className="text-xs md:text-sm bg-info hover:bg-info active:bg-info text-white"
                 onClick={() => guardSubmit(() => {
                   if (waterOz + 8 > WATER_DAILY_CAP_OZ) {
-                    toast.error(t('nutrition.toast.waterCap') || "That's plenty of water for today. Stay safe!");
+                    toast.error(tFallback('nutrition.toast.waterCap', "That's plenty of water for today. Stay safe!"));
                     return;
                   }
                   saveMutation.mutate({ date, food_name: waterFoodName(8), calories: 0, created_by: user?.email, user_id: user?.id });
@@ -1981,7 +1981,7 @@ export default function Nutrition() {
                     size="sm"
                     onClick={() => guardSubmit(() => {
                       if (waterOz + bottle.oz > WATER_DAILY_CAP_OZ) {
-                        toast.error(t('nutrition.toast.waterCap') || "That's plenty of water for today. Stay safe!");
+                        toast.error(tFallback('nutrition.toast.waterCap', "That's plenty of water for today. Stay safe!"));
                         return;
                       }
                       saveMutation.mutate({ date, food_name: waterFoodName(bottle.oz), calories: 0, created_by: user?.email, user_id: user?.id });

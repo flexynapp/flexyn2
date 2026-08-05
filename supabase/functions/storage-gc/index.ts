@@ -65,6 +65,35 @@
 // Requests with neither get 401. This function deletes files, so an open
 // endpoint would be a destructive-action surface.
 //
+// ── DEPLOY WITH verify_jwt: false. THIS IS LOAD-BEARING. ─────────────────────
+//
+//   supabase functions deploy storage-gc --no-verify-jwt
+//
+// The gateway's `verify_jwt` check runs BEFORE this file does. With it on,
+// a request carrying `X-Storage-GC-Secret` and no `Authorization` header is
+// rejected by the gateway with
+//   401 {"code":"UNAUTHORIZED_NO_AUTH_HEADER","message":"Missing authorization header"}
+// and the auth gate above never executes — so the cron path, which is the
+// only path that actually runs this thing, can never work.
+//
+// That is not hypothetical. It shipped that way and stayed that way: the
+// cron fired 2,710 times over nine days with zero recorded failures while
+// collecting nothing. Two blobs queued 2026-07-27 still had `attempts = 0`,
+// which is the tell — this function increments that, so zero means the body
+// never ran, not that it ran and failed. Nothing surfaced it because
+// `extensions.http_post` is PERFORMed inside a BEGIN…EXCEPTION block that
+// discards the response, and pg_cron records `succeeded` because the SQL
+// itself was fine.
+//
+// `send-push` and `generateWeeklyDebriefs` are both deployed verify_jwt:
+// false for exactly this reason — they authenticate with their own shared
+// secrets too. Turning it on here does not add a layer, it removes the
+// only working caller.
+//
+// Do NOT "fix" the cron instead by putting a service_role JWT in
+// `cron.job.command`: that token bypasses every RLS policy in the project
+// and does not belong in a table. See the Weekly Debriefs note in CLAUDE.md.
+//
 // ── SAFETY ───────────────────────────────────────────────────────────────────
 //
 // It never chooses what to delete. claim_storage_cleanup() does, and it

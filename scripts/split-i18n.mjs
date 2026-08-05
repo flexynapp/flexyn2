@@ -19,7 +19,7 @@
 // a per-language map, dedupe keys (later parts win — matches the runtime
 // merge in i18n.js), write each map out as a stable JSON-like ESM module.
 
-import { readdir, writeFile, mkdir, rm } from 'node:fs/promises';
+import { readdir, readFile, writeFile, mkdir, rm } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
@@ -62,6 +62,90 @@ async function main() {
   // mergeTranslations semantics in i18n.js so we can't introduce a
   // silent drift between the split and the runtime fallback.
   const merged = Object.fromEntries(LANGS.map((l) => [l, {}]));
+
+  // ── Duplicate-language-block guard ────────────────────────────────────────
+  //
+  // This HAS to read the raw source. By the time jiti.import() hands back an
+  // object, JavaScript has already resolved `{ pt: {...}, ..., pt: {...} }` by
+  // keeping the LAST block and discarding the earlier one — silently, with no
+  // error and no warning. The merge below can only ever see the survivor, so
+  // the loss is structurally invisible downstream.
+  //
+  // It had happened three times in 41 files. Only one caused real damage, and
+  // it picked the worst possible key to lose: `onboarding.welcome.languageHint`
+  // for pt, it, ja and ko — the string whose entire job is telling someone who
+  // can't read the current language how to switch. It fell back to English, so
+  // a Portuguese speaker on the welcome screen was asked "Don't speak English?".
+  // The correct Portuguese was four lines above the block that overwrote it.
+  //
+  // It must be scoped PER OBJECT LITERAL, not per file. `i18n-warn.js` holds
+  // two separate literals — a plain one and a second passed to a merge helper
+  // — each legitimately declaring all 15 languages. A file-wide count calls
+  // that a duplicate and blocks a correct build, which is worse than no guard
+  // at all. Hence the brace-depth scan below rather than a bare regex.
+  //
+  // The scan skips string contents, because translation VALUES contain braces
+  // (`{count}`, `{streak}` placeholders) and a naive depth counter drifts on
+  // the first one it meets.
+  const dupErrors = [];
+  for (const file of partFiles) {
+    const raw = await readFile(path.join(LIB_DIR, file), 'utf8');
+    const counts = new Map();   // lang -> occurrences, reset per top-level literal
+    let depth = 0;
+    let quote = null;           // ' " or ` while inside a string
+
+    for (let i = 0; i < raw.length; i++) {
+      const c = raw[i];
+
+      if (quote) {
+        if (c === '\\') { i++; continue; }
+        if (c === quote) quote = null;
+        continue;
+      }
+      if (c === "'" || c === '"' || c === '`') { quote = c; continue; }
+      if (c === '/' && raw[i + 1] === '/') { i = raw.indexOf('\n', i); if (i < 0) break; continue; }
+      if (c === '/' && raw[i + 1] === '*') { i = raw.indexOf('*/', i) + 1; if (i < 1) break; continue; }
+
+      if (c === '{') {
+        depth++;
+        // A language block sits at depth 2: the outer literal opened at
+        // depth 1, and `en: {` opens depth 2. Look backwards for its key.
+        if (depth === 2) {
+          const before = raw.slice(Math.max(0, i - 24), i);
+          const m = before.match(/([a-z]{2})\s*:\s*$/);
+          if (m && LANGS.includes(m[1])) {
+            counts.set(m[1], (counts.get(m[1]) || 0) + 1);
+          }
+        }
+        continue;
+      }
+      if (c === '}') {
+        depth--;
+        if (depth <= 0) {
+          // Left the literal — record anything duplicated inside it, then reset.
+          const dups = [...counts].filter(([, n]) => n > 1);
+          if (dups.length) {
+            dupErrors.push(
+              `  ${file} — ${dups.map(([l, n]) => `'${l}' declared ${n}×`).join(', ')}`
+            );
+          }
+          counts.clear();
+          depth = 0;
+        }
+      }
+    }
+  }
+  if (dupErrors.length) {
+    console.error(
+      '\n[split-i18n] DUPLICATE LANGUAGE BLOCKS — build stopped.\n\n' +
+      dupErrors.join('\n') +
+      '\n\nA language may appear at most once per part file. JavaScript keeps\n' +
+      'the last block and throws the earlier one away without warning, so\n' +
+      'every key in the earlier block is silently lost. Merge them into one\n' +
+      'block per language.\n'
+    );
+    process.exit(1);
+  }
 
   for (const file of partFiles) {
     const absPath = path.join(LIB_DIR, file);

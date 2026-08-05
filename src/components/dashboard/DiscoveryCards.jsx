@@ -313,16 +313,16 @@ export default function DiscoveryCards({ logs = [], regimens = [], isLoading = f
           icon={Package}
           accent="purple"
           kicker={tFallback('discovery.openCapsule.kicker', 'GIFT WAITING')}
-          title={
-            t('discovery.openCapsule.title') ||
-            (unopenedCapsuleCount === 1
+          title={tFallback(
+            'discovery.openCapsule.title',
+            unopenedCapsuleCount === 1
               ? 'Your first capsule is waiting'
-              : `You have ${unopenedCapsuleCount} unopened capsules`)
-          }
-          body={
-            t('discovery.openCapsule.body') ||
-            "Capsules drop stickers, frames, titles, and Flex Coins. Trade duplicates with friends. Open yours to see what's inside."
-          }
+              : `You have ${unopenedCapsuleCount} unopened capsules`,
+          )}
+          body={tFallback(
+            'discovery.openCapsule.body',
+            "Capsules drop stickers, frames, titles, and Flex Coins. Trade duplicates with friends. Open yours to see what's inside.",
+          )}
           ctaLabel={tFallback('discovery.openCapsule.cta', 'Open it now')}
           dismissAriaLabel={tFallback('discovery.openCapsule.dismissLabel', 'Later')}
           onCta={() => {
@@ -415,10 +415,10 @@ export default function DiscoveryCards({ logs = [], regimens = [], isLoading = f
           accent="sky"
           kicker={tFallback('discovery.pushOptIn.kicker', 'STAY ON TRACK')}
           title={tFallback('discovery.pushOptIn.title', 'Want a daily nudge?')}
-          body={
-            t('discovery.pushOptIn.body') ||
-            "Quiet, optional reminders to keep your streak alive. Manage them anytime in Settings — we'll never spam you."
-          }
+          body={tFallback(
+            'discovery.pushOptIn.body',
+            "Quiet, optional reminders to keep your streak alive. Manage them anytime in Settings — we'll never spam you.",
+          )}
           ctaLabel={tFallback('discovery.pushOptIn.cta', 'Enable reminders')}
           dismissAriaLabel={tFallback('discovery.pushOptIn.dismissLabel', 'Not now')}
           onCta={async () => {
@@ -446,10 +446,10 @@ export default function DiscoveryCards({ logs = [], regimens = [], isLoading = f
                 );
               } else if (res.reason === 'unsupported') {
                 handleDismiss(DISCOVERY_CARDS.PUSH_OPTIN);
-                toast.error(
-                  t('discovery.pushOptIn.toastUnsupported') ||
-                  "This device doesn't support push notifications yet."
-                );
+                toast.error(tFallback(
+                  'discovery.pushOptIn.toastUnsupported',
+                  "This device doesn't support push notifications yet.",
+                ));
               }
               // 'default' / 'server_error' / no outcome — leave the
               // card visible so the user can retry.

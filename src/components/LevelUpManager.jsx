@@ -7,6 +7,7 @@ import { useSettings } from '@/lib/SettingsContext';
 import { calculateLevelFromXp } from '@/lib/xpSystem';
 import LevelUpOverlay from '@/components/LevelUpOverlay';
 import * as capsules from '@/lib/data/capsules';
+import { reportError } from '@/lib/reportError';
 
 // Capsule emoji per type — kept in sync with CAPSULE_META in UserBag.
 const CAPSULE_EMOJI = { standard: '📦', premium: '🎁', elite: '💠' };
@@ -48,17 +49,45 @@ export default function LevelUpManager() {
     } catch {}
 
     // First time on this device — baseline silently, then ensure welcome capsule.
+    //
+    // localStorage is written in .then(), NOT before the call. This branch is
+    // the ONLY thing that ever grants the welcome capsule, and it is gated on
+    // "no baseline on this device" — so writing the baseline first burns the
+    // one shot whether or not the grant landed. A user who was offline, or
+    // whose token was mid-refresh, lost their welcome capsule permanently:
+    // the branch never runs again on that device, and a console.warn is
+    // invisible in production.
+    //
+    // That is not hypothetical. It is exactly why migration 278 had to exist
+    // — a one-time backfill for every user the grant had silently failed for
+    // — and 278's head comment names this write as the reason the loss could
+    // not self-heal. Migration 277 fixed the server side; this is the client
+    // half that was left behind.
+    //
+    // The level-up branch below already does it this way, with the same
+    // reasoning spelled out. grant_welcome_capsule is idempotent server-side
+    // (it checks the marker under a row lock), so retrying on the next mount
+    // is safe and cheap.
     if (lastSeenLevel === null || Number.isNaN(lastSeenLevel)) {
-      try { localStorage.setItem(storageKey, String(currentLevel)); } catch {}
       lastFiredForRef.current = currentLevel;
       // Grant a starter capsule if the user has never received one.
       capsules
         .grantWelcomeCapsule(userProfile.id, user.email)
         .then(() => {
+          try { localStorage.setItem(storageKey, String(currentLevel)); } catch {}
           queryClient.invalidateQueries({ queryKey: ['userCapsulesCount', user.email] });
           queryClient.invalidateQueries({ queryKey: ['userCapsules', user.email] });
         })
-        .catch((err) => console.warn('[LevelUpManager] welcome capsule grant failed:', err));
+        .catch((err) => {
+          // Leave localStorage unwritten so the next mount retries, and roll
+          // the in-session flag back so a re-render this session retries too.
+          lastFiredForRef.current = null;
+          reportError(err, {
+            feature: 'capsules.welcome-grant',
+            level: 'warning',
+            userEmail: user.email,
+          });
+        });
       return;
     }
 
@@ -108,7 +137,11 @@ export default function LevelUpManager() {
         queryClient.invalidateQueries({ queryKey: ['userProfile', user.email] });
       })
       .catch((err) => {
-        console.warn('[LevelUpManager] capsule grant failed:', err);
+        reportError(err, {
+          feature: 'capsules.level-up-grant',
+          level: 'warning',
+          userEmail: user.email,
+        });
         // Roll the in-session flag back so the next render attempts
         // again. localStorage stays at the OLD level so a refresh
         // also retries.

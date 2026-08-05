@@ -30,7 +30,7 @@ function useAnimatedValue(target, duration = 550) {
 }
 
 export default function WaterTracker({ waterOz = 0, userProfile = {}, waterUnit = 'oz', ozToDisplay = (v) => v }) {
-  const { t } = useLanguage();
+  const { t, tFallback } = useLanguage();
 
   const dailyRecOz = useMemo(() => {
     const weight = userProfile?.weight_lbs;
@@ -154,7 +154,10 @@ export default function WaterTracker({ waterOz = 0, userProfile = {}, waterUnit 
             />
           </div>
           <p className="text-micro text-muted-foreground mt-1">
-            {Math.round(animatedProgress)}% {t('progress.title') || 'of daily goal'}
+            {/* NOT t('progress.title') — that key exists and means "Progress",
+                the page title, so the `||` never fired and this rendered
+                "45% Progress". Its own key, via tFallback. */}
+            {Math.round(animatedProgress)}% {tFallback('nutrition.water.ofDailyGoal', 'of daily goal')}
           </p>
         </div>
       </div>

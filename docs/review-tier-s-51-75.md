@@ -222,19 +222,36 @@ t('nutrition.profanityWarning')  || 'Please remove inappropriate…'     // rend
 Two of those are `toast.error(...)` — so the user gets a toast reading
 `nutrition.toast.waterCap`.
 
-**2. `crewTreasury.js` passes its fallback into the `vars` parameter.** `t` is
-`(key, vars)`, not `(key, fallback)`. So `t('treasury.warWon', 'War won')` hands
-the string `'War won'` to `Object.entries(...)`, which iterates its characters
-and performs a series of no-op `{0}`/`{1}` replacements on the raw key. Eight
-keys — `treasury.unknown`, `boughtSeat`, `boughtBanner`, `boughtPerk`, `warWon`,
-`warLost`, `warDrawn`, `challenge` — render as literal key paths in the crew
-treasury ledger. The author clearly intended `tFallback` semantics; the
-signature silently accepted the argument and threw it away.
+**2. RETRACTED — `crewTreasury.js` is correct.** An earlier draft of this
+review reported eight more raw-key renders here, on the reading that
+`t('treasury.warWon', 'War won')` passes a fallback into `t`'s `vars`
+parameter. It does not. `describeLedgerReason(reason, tFallback)` takes the
+translator as an **argument** and aliases it to a local `t`:
 
-**3. Thirteen keys total are absent from `en`**, verified by parsing the built
-aggregate: all five from (1) and all eight from (2). Since `en` is the last
-fallback before the raw key, missing from `en` means *guaranteed* raw-key
-render, in every one of the 15 languages.
+```js
+export function describeLedgerReason(reason, tFallback) {
+  const t = tFallback || ((_k, fallback) => fallback);
+```
+
+and `CrewTreasuryPanel.jsx` passes `tFallback`. So those eight calls have
+correct `(key, fallback)` semantics and always did. The finding was an artefact
+of a regex that matched `t(` without knowing which `t` was in scope — the same
+class of mistake as grading from a migration instead of the installed function.
+The guard test written for this now filters to files that call `useLanguage()`,
+which excludes this module by construction.
+
+**3. Five keys are absent from `en`** (not thirteen), verified by parsing the
+built aggregate. Since `en` is the last fallback before the raw key, missing
+from `en` means *guaranteed* raw-key render in every one of the 15 languages.
+
+**4. Found while fixing, worse than a raw key: a silently WRONG string.**
+`WaterTracker.jsx` had `{Math.round(pct)}% {t('progress.title') || 'of daily goal'}`.
+`progress.title` exists and means **"Progress"** — the page title. So the `||`
+never fired and the hydration ring read **"45% Progress"** instead of "45% of
+daily goal". A missing key at least looks broken; this one looks fine and says
+the wrong thing. Five further `||` sites were dead-but-harmless (key present,
+fallback identical), which is why the fix is to ban the pattern rather than
+chase the keys.
 
 **FIX:** Convert all 13 sites to `tFallback(key, 'English')` — that is what both
 patterns were reaching for. Then add the audit as a test: parse `en.js`, scan
@@ -327,31 +344,50 @@ adopted; most loading states still render immediately.
 `attempts = 0` after nine days is the tell: the Edge Function increments it, so
 zero means the body never executed — not that it ran and failed.
 
-**Cause, proven by probing both endpoints rather than inferred:**
-`storage-gc` is deployed with **`verify_jwt: true`**, and `kick_storage_gc`
-posts only `X-Storage-GC-Secret` with **no `Authorization` header**. The
-Supabase gateway therefore rejects every dispatch before the function's own auth
-gate runs:
+**Cause — and the near-miss is the point.**
+
+The first diagnosis was: `storage-gc` is deployed `verify_jwt: true` while
+`kick_storage_gc` sends only `X-Storage-GC-Secret` and no `Authorization`, so
+the gateway rejects every dispatch. Probing both endpoints appeared to confirm
+it, with two different bodies from two different layers:
 
 ```
-POST /storage-gc   → 401 {"code":"UNAUTHORIZED_NO_AUTH_HEADER","message":"Missing authorization header"}   ← gateway
-POST /send-push    → 401 {"error":"unauthorized"}                                                          ← the function's own code
+POST /storage-gc   → 401 {"code":"UNAUTHORIZED_NO_AUTH_HEADER"}   ← the gateway
+POST /send-push    → 401 {"error":"unauthorized"}                 ← the function's own code
 ```
 
-Two different bodies from two different layers. `send-push` authenticates the
-same way — a shared secret in a custom header — and works, because it is
-deployed with `verify_jwt: false`. `generateWeeklyDebriefs` is `false` for the
-identical reason, and CLAUDE.md already explains that posture. `storage-gc` is
-the odd one out.
+That is all true, and it is a real defect. **It is not why nothing happened.**
 
-Nothing surfaced this because every layer reports success: `extensions.http_post`
-is `PERFORM`ed inside a `BEGIN … EXCEPTION` block so the response is discarded,
-and pg_cron records the job as `succeeded` because the SQL ran fine. Same shape
-as the weekly-debrief cron that 404'd silently for ten weeks.
+Reading the *installed* function body found the actual cause:
 
-**FIX:** Redeploy `storage-gc` with `verify_jwt: false`. **Do not** fix it by
-putting a service_role JWT in `cron.job.command` — CLAUDE.md rules that out, and
-a service_role token bypasses every RLS policy in the project. **S**
+```sql
+PERFORM extensions.http_post(...)   -- this function does not exist
+```
+
+pg_net is registered with `extensions` as its extension namespace, but it
+publishes its API into a schema named `net`. The real function is
+`net.http_post`. So every call raised `42883: function
+extensions.http_post(...) does not exist` — and the call sits inside
+`BEGIN … EXCEPTION WHEN OTHERS THEN RAISE WARNING … END`, so the error was
+caught, downgraded to a warning, and the function returned normally. pg_cron
+recorded `succeeded` because the SQL itself was fine.
+
+**The request was never sent. A request that is never sent cannot be rejected
+by a gateway.** The curl proved what *would* happen if it were sent; it could
+not prove that was the reason. This is precisely the failure mode CLAUDE.md's
+push post-mortem warns about — a plausible, evidence-backed diagnosis of the
+wrong layer — and the thing that broke the tie was reading `pg_get_functiondef`
+instead of the migration that created it.
+
+**FIX (both, and both were needed):**
+1. `net.http_post` instead of `extensions.http_post`, and drop the exception
+   handler — every early return above it is explicit, so reaching the dispatch
+   means "configured with work pending" and a failure there should surface as
+   a failed cron run. Migration 286.
+2. Redeploy `storage-gc` with `verify_jwt: false`, matching `send-push` and
+   `generateWeeklyDebriefs`. **Do not** instead put a service_role JWT in
+   `cron.job.command` — CLAUDE.md rules that out, and that token bypasses every
+   RLS policy in the project. **S**
 
 ### #75 `RS6` — Write strip-and-retry on missing columns
 **GRADE: A** — Handles both error shapes that matter (`42703` from Postgres,

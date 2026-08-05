@@ -165,7 +165,7 @@ export default function DashboardWidgets({ logs, goals, isLoading, userProfile }
   };
 
   const isEmpty = activeWidgets.length === 0;
-  const removeLabel = t('dashboard.removeWidget') || 'Remove widget';
+  const removeLabel = tFallback('dashboard.removeWidget', 'Remove widget');
   const dragHint = tFallback('dashboard.dragWidget', 'Drag to reorder');
 
   // WidgetLibrary is mounted ONCE below (not per-branch) so adding the

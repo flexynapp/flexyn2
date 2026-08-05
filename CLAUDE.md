@@ -736,9 +736,30 @@ July 2026 equipment/storage work was found by dropping a layer:
   { 'key': 'value' } }` object.
 - At build time `scripts/split-i18n.mjs` merges every part file into
   per-language aggregates under `src/lib/i18n-langs/`.
-- New keys: add to a part file with English at minimum. Use the
-  `t(key) || 'English'` fallback pattern at the call site so missing
-  translations surface a sensible string, never a key code.
+- New keys: add to a part file with English at minimum. At the call site
+  use **`tFallback(key, 'English')`** so a missing translation surfaces a
+  sensible string, never a key code.
+- **NEVER `t(key) || 'English'`. It does not work**, and this file used to
+  recommend it. `getTranslation` ends with `return enVal ?? key`, so a
+  total miss returns the *key string* — which is non-empty, therefore
+  truthy, so `||` never reaches the fallback. Eleven call sites had
+  accumulated: five rendered raw key paths (two of them inside
+  `toast.error`, so users saw a toast reading `nutrition.toast.waterCap`),
+  five were dead-but-harmless, and one was worse than either —
+  `t('progress.title') || 'of daily goal'` rendered **"45% Progress"** on
+  the hydration ring, because that key exists and means the Progress page
+  title. A missing key looks broken; that one looked fine and said the
+  wrong thing. `src/lib/__tests__/i18nRawKeys.test.js` now fails the suite
+  on the pattern itself, so it can't come back.
+- **A language may appear at most once per part file.** JavaScript resolves
+  a duplicate literal key by keeping the last block and discarding the
+  earlier one silently — no error, no warning. Three of 41 files had this;
+  it cost `onboarding.welcome.languageHint` in pt/it/ja/ko, the one string
+  whose job is telling someone who can't read the current language how to
+  switch, so those four fell back to English asking "Don't speak English?".
+  `scripts/split-i18n.mjs` now fails the build on it. The guard is
+  brace-depth aware because `i18n-warn.js` legitimately holds two separate
+  object literals that each declare all 15 languages.
 - Adding a new part file: name it `i18n-<domain>.js` and the splitter
   picks it up automatically. Export shape must match existing files.
 - **Don't ship machine-translated copy** on prominent surfaces. If you

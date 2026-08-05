@@ -1,9 +1,5 @@
 // Part 6: bodyMetrics form labels + workout.durationLabel + muscleGroups for all languages
 export const translations_p6 = {
-  pt: { 'onboarding.welcome.languageHint': 'Não fala português? Escolha seu idioma abaixo.' },
-  it: { 'onboarding.welcome.languageHint': 'Non parli italiano? Scegli la tua lingua qui sotto.' },
-  ja: { 'onboarding.welcome.languageHint': '日本語以外をお使いですか？以下から言語を選択してください。' },
-  ko: { 'onboarding.welcome.languageHint': '한국어를 사용하지 않으시나요? 아래에서 언어를 선택하세요.' },
   en: {
     'muscleGroups.chest': 'Chest',
     'muscleGroups.back': 'Back',
@@ -97,6 +93,7 @@ export const translations_p6 = {
     'workout.weightWithUnit': 'Gewicht (lbs)',
   },
   pt: {
+    'onboarding.welcome.languageHint': 'Não fala português? Escolha seu idioma abaixo.',
     'muscleGroups.chest': 'Peito',
     'muscleGroups.back': 'Costas',
     'muscleGroups.shoulders': 'Ombros',
@@ -120,6 +117,7 @@ export const translations_p6 = {
     'workout.weightWithUnit': 'Peso (lbs)',
   },
   it: {
+    'onboarding.welcome.languageHint': 'Non parli italiano? Scegli la tua lingua qui sotto.',
     'muscleGroups.chest': 'Petto',
     'muscleGroups.back': 'Schiena',
     'muscleGroups.shoulders': 'Spalle',
@@ -143,6 +141,7 @@ export const translations_p6 = {
     'workout.weightWithUnit': 'Peso (lbs)',
   },
   ja: {
+    'onboarding.welcome.languageHint': '日本語以外をお使いですか？以下から言語を選択してください。',
     'muscleGroups.chest': '胸',
     'muscleGroups.back': '背中',
     'muscleGroups.shoulders': '肩',
@@ -166,6 +165,7 @@ export const translations_p6 = {
     'workout.weightWithUnit': '重量 (lbs)',
   },
   ko: {
+    'onboarding.welcome.languageHint': '한국어를 사용하지 않으시나요? 아래에서 언어를 선택하세요.',
     'muscleGroups.chest': '가슴',
     'muscleGroups.back': '등',
     'muscleGroups.shoulders': '어깨',

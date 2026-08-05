@@ -49,7 +49,7 @@ export default function GoalsModal({ open, onClose, goals = [], logs = [], userP
   const [editing, setEditing] = useState(null);
   const [activeTab, setActiveTab] = useState('active'); // 'active' | 'completed'
   const [tabDirection, setTabDirection] = useState(1);
-  const { t } = useLanguage();
+  const { t, tFallback } = useLanguage();
   const { weightUnit } = useWeightUnit();
 
   const switchTab = (tab) => {
@@ -108,7 +108,7 @@ export default function GoalsModal({ open, onClose, goals = [], logs = [], userP
     queryKey: ['goals', user?.email],
     identify: (g) => g.id,
     deleteFn: (id) => goalsData.remove(id),
-    label: t('goals.toast.deleted') || 'Goal deleted',
+    label: tFallback('goals.toast.deleted', 'Goal deleted'),
     feature: 'goals.delete',
   });
 
