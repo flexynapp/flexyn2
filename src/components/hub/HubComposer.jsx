@@ -724,7 +724,10 @@ export default function HubComposer({ onClose }) {
         ? null
         : buildSnapshot(effectiveSelected.kind, effectiveSelected.item);
 
-      await hubPosts.create({
+      // Keep the created row — notify_friend_post_for now takes the post id
+      // and derives the preview from the stored body, so the notification
+      // text can't be caller-supplied (mig 288).
+      const createdPost = await hubPosts.create({
         author_email:           user.email,
         author_name:            handle(user),
         author_avatar_url:      user.avatar_url || null,
@@ -764,6 +767,9 @@ export default function HubComposer({ onClose }) {
           const posterName = user.username ? `@${user.username}` : 'A friend';
           const preview = (finalBody || '').slice(0, 100);
           const capped = followerEmails.slice(0, 100);
+          // No post id means nothing to attribute the notification to —
+          // skip rather than fall back to sending caller-supplied text.
+          if (!createdPost?.id) return;
           // Per-recipient i18n via notify_friend_post_for (migration 041).
           // The RPC reads each recipient's preferred_language server-side
           // so the title renders in their language, not the poster's.
@@ -773,11 +779,15 @@ export default function HubComposer({ onClose }) {
             const recipient = lcMap.get(email?.toLowerCase());
             if (!recipient?.id) return null;
             const { error } = await supabase.rpc('notify_friend_post_for', {
-              p_user_id:      recipient.id,
-              p_poster_name:  posterName,
-              p_post_preview: preview,
+              p_user_id: recipient.id,
+              p_post_id: createdPost.id,
             });
-            if (error && (error.code === '42883' || error.code === '42P01')) {
+            // PGRST202 = PostgREST can't find a function with these argument
+            // names, i.e. a host still on the pre-288 three-text-param
+            // signature. Frontend deploys before the SQL is pasted, so this
+            // window is expected — take the legacy path rather than dropping
+            // the notification.
+            if (error && (error.code === '42883' || error.code === '42P01' || error.code === 'PGRST202')) {
               return notifications.notifyFriendPost({
                 recipient: { id: recipient.id, email: recipient.email },
                 posterName,
