@@ -43,13 +43,24 @@ describe('toast policy wrapper', () => {
     expect(sonnerToast.success).toHaveBeenCalledWith('Saved!', { action });
   });
 
-  it('silences info / message / warning toasts', () => {
+  // Reversed on 2026-08-05, for the same reason success was reversed the day
+  // before — and this is the half that first pass missed. A paren-balanced
+  // scan of every remaining call site found 28 of 28 info/message/warning
+  // calls carrying no `action`, so the gate was not filtering this class, it
+  // was deleting it. Among the deleted: SetRow's "Capped at 315 lb" (the app
+  // silently overwriting a weight the user typed), the cardio tracker's
+  // "Auto-paused" mid-run, and Onboarding's "Some profile details could not
+  // be saved".
+  //
+  // If these go back behind keepIfAction, flip this test with them — and
+  // re-run the audit in toastPolicy.test.js first.
+  it('forwards info / message / warning even without an action', () => {
     toast.info('fyi');
     toast.message('hey');
     toast.warning('careful');
-    expect(sonnerToast.info).not.toHaveBeenCalled();
-    expect(sonnerToast.message).not.toHaveBeenCalled();
-    expect(sonnerToast.warning).not.toHaveBeenCalled();
+    expect(sonnerToast.info).toHaveBeenCalledWith('fyi');
+    expect(sonnerToast.message).toHaveBeenCalledWith('hey');
+    expect(sonnerToast.warning).toHaveBeenCalledWith('careful');
   });
 
   it('silences a plain toast() call', () => {

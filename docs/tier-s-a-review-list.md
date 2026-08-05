@@ -126,7 +126,7 @@ is itself a finding.
 | 93 | `ON18` | 70% | Onboarding AI Coach component (`OnboardingCoach`) | Onboarding & auth |
 | 94 | `P1` | 70% | Four tabs: Trends, Body, Photos, Insights | Progress |
 | 95 | `SE1` | 75% | Settings panel (slide-over from the profile menu) | Settings & account |
-| 96 | `SE32` | 80% | Profile menu entries: Profile, Settings, Marketplace, My Bag, My Gym, My Gyms, Corporate, Trade History, Admin (role-gated), Sign out, Delete account | Settings & account |
+| 96 | `SE32` | 80% | Profile menu entries: **Profile · Settings · Achievements · My Bag · My Gym · My Gyms · My Journal · Weekly Summary · My Injuries · Sign out/Sign in · Delete account**, plus Corporate Wellness (feature-flagged **off**, renders for nobody). ⚠️ **Corrected 2026-08-05** — the original row claimed three entries that do not exist: *Marketplace* (My Bag navigates to `/market`, but there is no Marketplace item), *Trade History* (absent), and a role-gated *Admin* entry (the only admin affordance is a crown drawn on the avatar for verified users). It also omitted four that do: Achievements, My Journal, Weekly Summary, My Injuries. Read off the twelve buttons in `ProfileMenu.jsx`. | Settings & account |
 | 97 | `W4` | 70% | Weight stepper buttons (increase/decrease) + decimal input mode | Workout |
 | 98 | `W45` | 85% | First-workout coach-mark tutorial (skip / next / dismiss, tip N of M) | Workout |
 | 99 | `W46` | 70% | Workout saved list with search by name or date | Workout |

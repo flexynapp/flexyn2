@@ -245,6 +245,38 @@ delivery to a device. Expect `sent: 1, removed: 0`.
   `037_welcome_back_and_quest_crons.sql` so concurrent cron firings
   can't double-send.
 
+## Toast policy — everything except decoration now reaches the user
+
+`src/lib/toast.js` is the app-wide wrapper. **The old "errors only" policy is
+gone**, in two steps, and both were the same bug found twice:
+
+- **2026-08-04** — `success` was suppressed unless it carried an `action`.
+  271 of 283 non-error call sites carried none, so for a month a successful
+  save was pixel-identical to a dead button. `success` became a passthrough.
+- **2026-08-05** — that pass only scanned `success`. A second audit found
+  **28 of 28** `info` / `message` / `warning` calls also carried no action.
+  Not most — all. Among the messages nobody was seeing: `SetRow`'s
+  "Capped at 315 lb" (the app silently overwriting a weight the user typed),
+  the cardio tracker's "Auto-paused" / "GPS signal weak" mid-run, and
+  Onboarding's "Some profile details could not be saved". All three became
+  passthroughs.
+
+Current shape:
+
+| Variant | Behaviour |
+|---|---|
+| `error` `success` `info` `message` `warning` | always delivered |
+| plain `toast(...)` | delivered only with an `action` |
+| `loading` `custom` | suppressed (decoration) |
+
+**Why this kept being invisible:** `keepIfAction` returns `undefined` and every
+call site ignores the return value, so a dropped toast is indistinguishable
+from a delivered one at the call site. Nothing throws, nothing warns, no test
+failed. `src/lib/__tests__/toastPolicy.test.js` now asserts on **delivery** —
+did sonner actually get called — and carries the call-site audit as a standing
+check. Re-run it before re-filtering any variant: a variant where 100% of
+callers pass no action isn't being filtered, it's being switched off.
+
 ## Resilience layers
 
 The app uses a layered approach to failure handling — each layer catches
@@ -600,14 +632,13 @@ the ONE that is theirs.
   Ranking a local gym floor by weight moved sorts it by bodyweight and
   training age and tells a beginner they're last, which is exactly the
   person this feature needs to keep. Don't "improve" it to volume.
-- **A success toast here MUST carry an `action`, or it renders nothing.**
-  `src/lib/toast.js` suppresses every non-error variant unless it has one
-  (the app-wide "errors only" policy). Both save paths originally called
-  a bare `toast.success(...)`, so a working save produced no feedback
-  whatsoever and looked identical to a dead button — which is most of
-  why this feature took four rounds to land. They now pass an Undo
-  action, which both satisfies the policy and is the right affordance for
-  a one-tap commit. Same trap applies to any new confirmation anywhere.
+- **~~A success toast here MUST carry an `action`, or it renders nothing.~~**
+  **No longer true — see the toast-policy section below.** Both save paths
+  originally called a bare `toast.success(...)`, which under the old
+  "errors only" policy produced no feedback whatsoever and looked
+  identical to a dead button. That is most of why this feature took four
+  rounds to land. They still pass an Undo action, which is the right
+  affordance for a one-tap commit regardless of the policy.
 - **Tapping a gym in the My Gym picker SAVES it — no confirm step.** It
   was select-then-press-a-button, and the selected row's ✓ read as
   "saved" when it only meant "highlighted", so a pick sat uncommitted

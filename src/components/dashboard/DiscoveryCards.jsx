@@ -39,6 +39,9 @@ import { reportError } from '@/lib/reportError';
 import { requestOpenBag } from '@/lib/inventoryFlow';
 import * as capsulesData from '@/lib/data/capsules';
 import { isDailyChestReady } from '@/lib/dailyChest';
+// profileCache, never @/api/db — db.js registers an auth listener at module
+// scope that breaks any test stubbing the supabase client. See CLAUDE.md.
+import { getProfile } from '@/api/profileCache';
 import {
   isDismissed,
   dismiss as dismissCard,
@@ -245,7 +248,9 @@ export default function DiscoveryCards({ logs = [], regimens = [], isLoading = f
     //    the next render this card shows. Once claimed (or no chest
     //    today), the capsule banner takes over. After the user opens
     //    every capsule, neither card shows.
-    if (unopenedCapsuleCount > 0 && !isDailyChestReady(user.id) && !sessionDismissed.has('openCapsule')) {
+    if (unopenedCapsuleCount > 0
+        && !isDailyChestReady(user.id, getProfile()?.last_daily_chest_at)
+        && !sessionDismissed.has('openCapsule')) {
       return 'openCapsule';
     }
 

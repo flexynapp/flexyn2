@@ -18,15 +18,48 @@
 // it was not a trap, it was the default for most of the app. Logging a meal,
 // the single healthiest signal in the product, confirmed nothing.
 //
-// So `success` is now a passthrough: it is the confirmation class, and an
-// unconfirmed save is the worst failure mode here. `info` / `message` /
-// `warning` stay filtered — those are the chatty ones the original policy was
-// actually aimed at, and they still surface when they carry an `action`,
-// because an action makes them a control rather than a passive badge.
-// `loading` and `custom` stay off.
+// So `success` became a passthrough: it is the confirmation class, and an
+// unconfirmed save is the worst failure mode here.
 //
-// If the subtle cues do ship, revert `success` to keepIfAction here and
-// nothing at the call sites changes.
+// ── 2026-08-05: info / message / warning follow, and here is why ──────────
+//
+// That first pass fixed one variant of four. A second audit scanned every
+// remaining call site with a paren-balanced parser (so multi-line calls are
+// read whole) and found **28 of 28** `info` / `message` / `warning` calls
+// carry no `action`. Not most. All of them. The gate was not shaping this
+// class of message, it was deleting the entire class.
+//
+// The argument for keeping them filtered was that they are "the chatty ones".
+// The actual contents say otherwise:
+//
+//   SetRow.jsx              "Capped at 315 lb" / "Capped at 50 reps"
+//   CardioLiveTracker…      "Auto-paused" / "Auto-resumed" / "GPS signal weak"
+//   Onboarding.jsx          "Some profile details could not be saved"
+//   DailyChestCard.jsx      "Already claimed today"
+//
+// The first is the app silently overwriting a number the user typed. The
+// second means someone runs a 10k and finds half of it recorded. The third is
+// a data-loss warning during signup. The fourth was added specifically to fix
+// a bug a user reported — their complaint is quoted in that file — and it
+// rendered nothing, so the fix was invisible and the report would have come
+// back.
+//
+// `warning` in particular is error-adjacent. Muting "your data didn't save"
+// was never a design decision anyone made; it was collateral from a policy
+// aimed at completion badges.
+//
+// So all three are passthroughs now. `loading` and `custom` stay off — those
+// really are decoration — and plain `toast()` stays action-gated.
+//
+// ── TO REVERT ────────────────────────────────────────────────────────────
+//
+// If the subtle inline cues ship and this class should go quiet again, wrap
+// the variant back in keepIfAction on its line below. Nothing at the ~300
+// call sites has to change either way; that is the whole point of this
+// module. But before reverting any of them, re-run the audit — a variant
+// where 100% of callers pass no action is not being filtered, it is being
+// switched off, and `src/lib/__tests__/toastPolicy.test.js` now fails if a
+// passthrough variant stops passing through.
 //
 // NOTE: because plain `toast(...)` is silenced too, this also hides the
 // Undo/action toasts (e.g. delete → Undo). If we want those back, allow-list
@@ -53,16 +86,20 @@ toast.dismiss = (...args) => sonnerToast.dismiss(...args);
 // Promise helper: run the work, show nothing.
 toast.promise = (p) => (typeof p === 'function' ? p() : p);
 
-// Passive variants are silenced — but still honor a functional action button
-// if one is attached (e.g. a "Retry" affordance on an info toast).
+// Retained for the plain `toast()` form above, and so re-filtering a variant
+// is a one-word change rather than a rewrite. See "TO REVERT" in the header.
+// eslint-disable-next-line no-unused-vars
 const keepIfAction = (fn) => (message, opts) => (hasAction(opts) ? fn(message, opts) : undefined);
-// Success is the confirmation class and always surfaces: a save the user
-// cannot tell succeeded is indistinguishable from a broken button. See the
-// header note before filtering this again.
+
+// Every variant below reaches the user. Each one is a thing the app needs to
+// tell someone about an action they just took — a save that worked, a value
+// that got clamped, a run that auto-paused, a field that failed to persist.
 toast.success = (...args) => sonnerToast.success(...args);
-toast.info = keepIfAction(sonnerToast.info);
-toast.message = keepIfAction(sonnerToast.message);
-toast.warning = keepIfAction(sonnerToast.warning);
+toast.info    = (...args) => sonnerToast.info(...args);
+toast.message = (...args) => sonnerToast.message(...args);
+toast.warning = (...args) => sonnerToast.warning(...args);
+
+// Decoration, not information. These stay off.
 toast.loading = noop;
 toast.custom = noop;
 

@@ -17,13 +17,19 @@ import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { requestOpenBag } from '@/lib/inventoryFlow';
 import { isDailyChestReady } from '@/lib/dailyChest';
+import { getProfile, patchProfile } from '@/api/profileCache';
 import { reportError } from '@/lib/reportError';
 
 export default function DailyChestCard() {
   const { user } = useAuth();
   const { tFallback } = useLanguage();
   const qc = useQueryClient();
-  const [ready, setReady] = useState(() => isDailyChestReady(user?.id));
+  // The server's claim timestamp, not just this device's localStorage — see
+  // the note in lib/dailyChest.js. Read fresh on each check rather than
+  // captured once, because the profile cache is repopulated by the refetch
+  // that `claim` below triggers.
+  const [ready, setReady] = useState(() =>
+    isDailyChestReady(user?.id, getProfile()?.last_daily_chest_at));
   const [loading, setLoading] = useState(false);
 
   // Re-check chest readiness on midnight rollover (and when the user
@@ -31,7 +37,8 @@ export default function DailyChestCard() {
   // fresh chest without requiring a manual refresh.
   useEffect(() => {
     if (!user?.id) return undefined;
-    const recheck = () => setReady(isDailyChestReady(user.id));
+    const recheck = () =>
+      setReady(isDailyChestReady(user.id, getProfile()?.last_daily_chest_at));
     const id = setInterval(recheck, 60 * 1000);
     const onVis = () => { if (document.visibilityState === 'visible') recheck(); };
     document.addEventListener('visibilitychange', onVis);
@@ -53,6 +60,18 @@ export default function DailyChestCard() {
       qc.invalidateQueries({ queryKey: ['userCapsules', user.email] });
       qc.invalidateQueries({ queryKey: ['userCapsulesCount', user.email] });
       qc.invalidateQueries({ queryKey: ['userProfile', user.email] });
+      // Invalidating ['userProfile'] refetches, and the refetch calls
+      // db.auth.me(), which hands back the SAME module-level cache object —
+      // so the header's coin balance stayed stale after a claim. See the
+      // "Profile cache" section in CLAUDE.md.
+      //
+      // flex_coins is on the do-not-patch list because a client-computed
+      // value can be silently clamped by migration 264's ledger trigger.
+      // `new_balance` is not client-computed: it is what the RPC returned
+      // AFTER the trigger ran, which is exactly the case that list permits.
+      if (typeof data?.new_balance === 'number') {
+        patchProfile({ flex_coins: data.new_balance });
+      }
       setReady(false);
       // Inspect the RPC response so the "already claimed" path no
       // longer fires the same success toast + auto-opens the bag —

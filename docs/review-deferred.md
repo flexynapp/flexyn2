@@ -4,7 +4,7 @@ Everything the acceptance reviews found that has **not** been fixed, and why.
 One place, so nothing quietly falls off the list between bands.
 
 Updated after each batch. Bands completed so far: **#1–25**, **#26–50**,
-**#51–75**.
+**#51–75**, **#76–100**.
 
 Status values: `OPEN` (needs doing), `DECISION` (needs a call from Kegan,
 not a fix), `BLOCKED` (needs information or access I don't have).
@@ -63,3 +63,7 @@ Kept so a re-read of an old review doesn't re-raise something already done.
 | 53 | 51–75 | Coin ledger `actor` always `postgres` | `session_user` (mig 286). Historical rows can't be corrected. |
 | 59 | 51–75 | XP caps rolled over at UTC midnight | `user_local_now()` (mig 286). |
 | 66 | 51–75 | Toast-policy row was stale | Behaviour was deliberately changed earlier; the sheet described the old one. Noted in the review. |
+| — | 76–100 | **28 of 28 info/message/warning toasts rendered nothing** | All three variants made passthrough; `toastPolicy.test.js` asserts on delivery and audits the call sites. |
+| 86/90 | 76–100 | Daily chest readiness was per-device | `isDailyChestReady(userId, lastClaimAt)` now consults the server's `last_daily_chest_at` as well; either source saying "claimed" hides it. |
+| 86/90 | 76–100 | Coin balance stale after claiming a chest | `patchProfile({ flex_coins: data.new_balance })` — server-returned, so it is the permitted case for a privileged column. |
+| 96 | 76–100 | Profile-menu row named three entries that don't exist | Row rewritten in `docs/tier-s-a-review-list.md`. |
