@@ -109,17 +109,6 @@ export default function DailyQuestsCard({ onNavigated }) {
   // duplicate before it leaves the client.
   const claimingRef = useRef(new Set());
 
-  // Reward cue for a just-claimed quest: { id, coins }. The app-wide toast
-  // policy (src/lib/toast.js) suppresses every non-error toast that doesn't
-  // carry an `action`, so the old `toast.success('+N coins claimed!')` here
-  // rendered NOTHING — the coins landed and the balance moved, but the
-  // reward moment itself was invisible. That policy exists to stop toasts
-  // obstructing the view "until we ship subtle completion cues", so this is
-  // that cue rather than a fake action bolted on to defeat the policy.
-  const [claimFx, setClaimFx] = useState(null);
-  const claimFxTimer = useRef(null);
-  useEffect(() => () => clearTimeout(claimFxTimer.current), []);
-
   const handleClaim = async (questRow) => {
     if (questRow.claimed_at) return;
     if (!questRow.completed_at) return;
@@ -157,11 +146,10 @@ export default function DailyQuestsCard({ onNavigated }) {
        // raw key visible when the language file didn't have the entry,
        // and the substitution silently no-op'd when the translator used a
        // different placeholder name. (Audit 08 #M-1.)
-      // Float a "+N 🪙" off the claimed row and announce the same string to
-      // screen readers (which got nothing at all from the suppressed toast).
-      setClaimFx({ id: questRow.id, coins: result.coinsAwarded });
-      clearTimeout(claimFxTimer.current);
-      claimFxTimer.current = setTimeout(() => setClaimFx(null), 1600);
+      toast.success(
+        tFallback('dashboard.coinsClaimedToast', '+{coins} coins claimed!', { coins: result.coinsAwarded }),
+        { icon: '🪙' }
+      );
       queryClient.invalidateQueries({ queryKey: ['dailyQuests'] });
       queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
       // Also invalidate the coin-balance queries that surface in the
@@ -299,7 +287,6 @@ export default function DailyQuestsCard({ onNavigated }) {
             <QuestRow
               key={q.id}
               quest={q}
-              justClaimedCoins={claimFx?.id === q.id ? claimFx.coins : null}
               onClaim={() => handleClaim(q)}
               onGo={() => goToQuest(q)}
               t={t}
@@ -308,14 +295,6 @@ export default function DailyQuestsCard({ onNavigated }) {
           ))}
         </div>
       )}
-
-      {/* Screen readers got nothing from the suppressed toast. Announce the
-          claim with the same string the toast used to carry. */}
-      <div className="sr-only" role="status" aria-live="polite">
-        {claimFx
-          ? tFallback('dashboard.coinsClaimedToast', '+{coins} coins claimed!', { coins: claimFx.coins })
-          : ''}
-      </div>
 
       {!collapsed && claimedCount === annotated.length && (
         <div className="mt-3 text-micro text-center text-muted-foreground">
@@ -336,7 +315,7 @@ export default function DailyQuestsCard({ onNavigated }) {
   );
 }
 
-function QuestRow({ quest, justClaimedCoins = null, onClaim, onGo, t, tFallback }) {
+function QuestRow({ quest, onClaim, onGo, t, tFallback }) {
   if (!quest || !quest.definition) return null;
   const def = quest.definition;
   const completed = !!quest.completed_at;
@@ -389,26 +368,6 @@ function QuestRow({ quest, justClaimedCoins = null, onClaim, onGo, t, tFallback 
         }}
         aria-hidden="true"
       />
-
-      {/* Reward cue — rises and fades where the Claim button just was. The
-          row is overflow-hidden, so the travel stays inside its bounds.
-          aria-hidden: the card announces this via its own live region. */}
-      <AnimatePresence>
-        {justClaimedCoins != null && (
-          <motion.div
-            key="claim-fx"
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: -8 }}
-            exit={{ opacity: 0, y: -16 }}
-            transition={{ duration: 0.5, ease: 'easeOut' }}
-            aria-hidden="true"
-            className="absolute end-3 top-1/2 -translate-y-1/2 z-10 flex items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-primary-foreground text-micro font-bold tabular-nums pointer-events-none"
-          >
-            <Coins className="w-3 h-3" />
-            +{justClaimedCoins}
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       <div className="relative flex items-center gap-3">
         {/* Was a 24px emoji. The tile takes the difficulty accent, which
