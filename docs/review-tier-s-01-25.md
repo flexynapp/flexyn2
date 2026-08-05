@@ -403,6 +403,23 @@ they carry an animated progress fill, and enlarging them would make a progress
 indicator compete with the feature card above it. The correction is to the
 review, not the code.
 
-Completing a set with an empty weight (#19) still counts toward "1/4" and adds
-0 volume. That is a product decision — block it, or treat empty as bodyweight —
-and not something to settle in a tap-target pass.
+### OPEN DECISION — completing a set with no weight (#19)
+
+Deferred by Kegan 2026-08-05, recorded here so it isn't rediscovered.
+
+A set can be marked complete with an empty weight field. It counts toward
+"Complete exercise 1/4", contributes **0** to session volume, and gives no
+prompt or warning. Verified in the browser: ticking set 1 with an empty weight
+left `LB VOL` at 0 while the exercise counter advanced to 1/4.
+
+Three defensible resolutions, and this is a product call rather than a bug fix:
+
+1. **Block it** — the ✓ stays disabled until weight and reps are both present.
+   Safest for data quality, most annoying for bodyweight work.
+2. **Treat empty as bodyweight** — resolve to the user's logged bodyweight and
+   count it in volume. Matches what a lifter means by a completed pull-up set,
+   but silently invents a number.
+3. **Leave it** — accept that a completed set can be worth 0.
+
+Whichever is chosen, the current state is the worst of the three: the set reads
+as done and the volume disagrees, with nothing explaining why.
