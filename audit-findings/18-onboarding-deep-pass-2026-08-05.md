@@ -61,8 +61,61 @@ prefix on that list ever becomes fully translated, so the exemption is a
 burn-down list and cannot quietly become permanent. Floor stays at 0.79 and the
 lower bound is `ru` again, exactly where it was before this change.
 
-**Still open:** #9, #12, #13, #14, #17, #18, #19, #20, #23, the six open
-questions, and the native-speaker pass on the 237 onboarding keys.
+### Fix round 3 — #9, #12, #13, #14, #18, #19, #23
+
+The payload builder, the unit conversions and the height parser are now a pure
+module, `src/lib/data/onboardingProfile.js`, with **57 tests**. They were ~90
+lines inlined in a click handler reachable only by completing 14 steps against
+a live Supabase, which is why every defect in them shipped: nothing could see
+them. That closes **#18** for the logic that matters most — the code that
+decides what gets written to a stranger's profile.
+
+- **#13 — the clamps defended against constraints that don't exist.** The
+  comment claimed migration 073 enforced `age 13–120`, `height_inches 36–96`
+  and `weight_lbs 50–800`. None of those three is real: there is no age
+  constraint, and the two that exist are far wider (`≤ 108`, `≤ 1500`). The
+  real bounds are now recorded in `DB_CHECK_BOUNDS` with their constraint
+  names, the ranges live in one `PROFILE_RANGES` object the steps and the
+  payload both read, and a test asserts every reachable UI value sits inside
+  the real constraints. The two can't drift apart again without failing.
+- **#14 — `numeric` columns now get numbers.** The `String()` wrapping was a
+  leftover from when the columns were TEXT. It worked via implicit cast, but it
+  meant a non-numeric value would raise 22P02 and fall into the tier-2 and
+  tier-3 fallbacks rather than failing where the mistake was.
+- **#9 — `"511"` now reads as 5'11", not 8'0".** The old regex parsed it as 51
+  feet 1 inch, clamped to the ceiling. `"180"` (a cm value typed while the
+  toggle still said ft·in) did the same. Three-digit input is now feet-then-
+  inches, inches ≥ 12 is rejected rather than guessed at, and a rejected entry
+  says so instead of silently reverting.
+- **#12 — the two username thresholds agree.** Continue unlocked at 2
+  characters, the availability check bailed below 3, so a two-character name
+  was never checked and the collision surfaced as a 23505 at final submit.
+  Both read `MIN_USERNAME_LENGTH`.
+- **#19 — a username alone no longer counts as a finished profile.** The
+  redirect now uses the same `hasFullProfile` test `App.jsx:266-274` already
+  applies before auto-healing the flag, so a user who picked a name and dropped
+  out — or landed on the username-only tier-3 fallback — isn't bounced to a
+  Dashboard of empty cards with no route back.
+- **#23 — the anon draft bucket is gone.** No pre-auth step collects anything,
+  so the unconditional write was stamping a fresh copy of `DEFAULT_DATA` into
+  an `…anon` slot on every visit, and a migration effect existed to move that
+  nothing into the user's bucket on sign-in. Both removed; stale buckets swept.
+
+Also folded in: `body_metrics` now takes its weight from the same resolver as
+the profile, so the first point on the Progress chart can't disagree with the
+profile it was captured beside.
+
+**Deliberately not done:**
+
+- **#17** (the AI Coach carousel illustration) is a design decision. It comes
+  from the Penpot file, not from an audit.
+- **#20** (the 4.9 s loading theatre) is open question 4 — whether the pacing is
+  deliberate is a product call, and shortening it unilaterally would be
+  answering it.
+
+**Still open:** #11's second half (nothing reads `preferred_workout_time`),
+#17, #20, the six open questions, and the native-speaker pass on the 237
+onboarding keys.
 
 **One recommendation in this report was wrong and is corrected below:** #26 said
 to delete `i18n-onboarding-steps.js` and `i18n-onboarding-slideshow.js`. They

@@ -200,6 +200,8 @@ export const onboardingI18n = {
     'onboarding.height.tapHintMetric': 'CM · TAP TO TYPE',
     'onboarding.height.tapHintImperial': 'FT · IN · TAP TO TYPE',
     'onboarding.height.tapAria': 'Tap to type your height',
+    'onboarding.height.hintImperial': "Enter feet and inches — e.g. 5'10 or 511. Switch to cm above if that's what you meant.",
+    'onboarding.height.hintMetric': "Enter centimetres — e.g. 178. Switch to ft·in above if that's what you meant.",
     'onboarding.height.ariaMetric': 'Your height in centimeters',
     'onboarding.height.ariaImperial': 'Your height in feet and inches',
 

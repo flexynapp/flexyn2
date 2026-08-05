@@ -25,6 +25,7 @@ import StarterPlanView from '@/components/workout/StarterPlanView';
 import { reportError } from '@/lib/reportError';
 import { isDuplicateUsernameError, isProfaneUsernameError } from '@/lib/onboardingErrors';
 import { escapeLikePattern } from '@/lib/sqlPattern';
+import { buildProfilePayload, resolveMeasurements, parseHeightInput, PROFILE_RANGES } from '@/lib/data/onboardingProfile';
 import { todayLocalDateString } from '@/lib/dateUtils';
 import { useDateFormatter } from '@/lib/intl';
 import NearbyGymPicker from '@/components/gyms/NearbyGymPicker';
@@ -111,8 +112,17 @@ const TIMES = [
 // into 20 units of blank track under a caption that said the max was 80.
 // (Audit 18 #3.) Floor is 13 — COPPA's minimum for a general-audience app;
 // the TEEN life-stage chip covers 13-17 messaging.
-const AGE_MIN = 13;
-const AGE_MAX = 100;
+// Sourced from the payload builder so the control and the value that reaches
+// the database cannot disagree about what's allowed. Everything the steps
+// offer is inside the real CHECK bounds — see DB_CHECK_BOUNDS there.
+const AGE_MIN = PROFILE_RANGES.age.min;
+const AGE_MAX = PROFILE_RANGES.age.max;
+
+// One threshold for "long enough to be a username", read by both the Continue
+// button and the availability check. They disagreed (2 vs 3) and the gap was
+// invisible until submit. The 20-character ceiling is enforced by the field's
+// maxLength and by handleUsernameChange.
+const MIN_USERNAME_LENGTH = 2;
 
 /* ── Feature visual components (animated SVG illustrations for the carousel) ── */
 
@@ -1418,7 +1428,7 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
     return          { id: 'longevity', tag: 'LONGEVITY',   tone: 'Joint-first programming. Strength is never stunted.', accent: 'hsl(0 70% 55%)'   };
   }, [age]);
 
-  const canNext = username.trim().length >= 2 && !usernameError;
+  const canNext = username.trim().length >= MIN_USERNAME_LENGTH && !usernameError;
 
   return (
     <div className="flex flex-col h-full">
@@ -1709,11 +1719,15 @@ function HeightStep({ stats, onChange, onNext, onBack, step, total }) {
   };
 
   const value = unit === 'cm' ? stats.heightCm : stats.heightIn;
-  // Expanded range from [48,84]→[36,96] (3-8 ft) and [120,220]→[90,245] cm.
-  // The narrow range cut off shorter people (<4ft, e.g. accessibility/kids
-  // accounts) and taller athletes (>7ft NBA-range), forcing them to bail.
-  // (Onboarding screenshot feedback, 2026-06.)
-  const range = unit === 'cm' ? [90, 245] : [36, 96];
+  // Expanded from [48,84]→[36,96] and [120,220]→[90,245] cm: the narrow range
+  // cut off shorter people (<4ft, e.g. accessibility accounts) and taller
+  // athletes (>7ft), forcing them to bail. (Onboarding screenshot feedback,
+  // 2026-06.) Now sourced from PROFILE_RANGES, which is the union of each
+  // unit's range and what the other converts into — so toggling ft·in ↔ cm at
+  // either extreme never silently clamps the value you just set.
+  const range = unit === 'cm'
+    ? [PROFILE_RANGES.heightCm.min, PROFILE_RANGES.heightCm.max]
+    : [PROFILE_RANGES.heightIn.min, PROFILE_RANGES.heightIn.max];
   const PX = unit === 'cm' ? 6 : 12;
   const setValue = (v) => unit === 'cm'
     ? onChange({ ...stats, heightCm: v, heightIn: inFromCm(v) })
@@ -1740,40 +1754,9 @@ function HeightStep({ stats, onChange, onNext, onBack, step, total }) {
   const [draftHeight,   setDraftHeight]   = useState('');
   const heightInputRef = useRef(null);
 
-  // Parse the user's text input into a clamped value in current unit.
-  // For ft·in mode, supports several familiar shapes:
-  //   "70"       → 70 inches
-  //   "5'10"     → 70 inches
-  //   "5 10"     → 70 inches
-  //   "5.10"     → 70 inches (legibility shortcut, not a true decimal)
-  //   "5'10\""   → 70 inches
-  //   "5"        → 60 inches  (interpreted as feet when alone in ft·in
-  //                            mode AND in range — typing "5" by itself
-  //                            far more often means "5 feet" than
-  //                            "5 inches")
-  const parseHeightDraft = (raw, mode) => {
-    const trimmed = (raw || '').trim();
-    if (!trimmed) return null;
-    if (mode === 'cm') {
-      const n = parseInt(trimmed.replace(/[^0-9]/g, ''), 10);
-      return Number.isFinite(n) ? n : null;
-    }
-    // ft·in mode
-    const ftInMatch = trimmed.match(/^(\d{1,2})\s*(?:['’ .]\s*)?(\d{0,2})\s*(?:["”]?)$/);
-    if (ftInMatch) {
-      const ft = parseInt(ftInMatch[1] || '0', 10);
-      const inch = parseInt(ftInMatch[2] || '0', 10);
-      const total = ft * 12 + inch;
-      // Heuristic: bare "5" (no inches separator) = 5 ft; bare "70"
-      // (≥ min inches) = 70 inches. The ftInMatch above captures the
-      // bare-number case in ftInMatch[1] with empty [2], so total = ft*12.
-      // For bare numbers >= 36 (typical lower bound where total-inches
-      // makes sense), prefer total-inches interpretation.
-      if (!ftInMatch[2] && ft >= 36) return ft;
-      return total;
-    }
-    return null;
-  };
+  // Parsing lives in `@/lib/data/onboardingProfile` (`parseHeightInput`) with
+  // its own tests — the shapes it has to accept are exactly the sort of thing
+  // that looks obviously right and is off by a factor of ten. (Audit 18 #9.)
 
   // iOS keyboard scrolls focused input into view only when there's a
   // scrollable ancestor — see WeightStep / AgeStep for the bug story.
@@ -1799,9 +1782,22 @@ function HeightStep({ stats, onChange, onNext, onBack, step, total }) {
     const allowed = unit === 'cm' ? /[^0-9]/g : /[^0-9'’ ."”]/g;
     setDraftHeight((e.target.value || '').replace(allowed, '').slice(0, 8));
   };
+  // Say something when the input is rejected. `parseHeightInput` now returns
+  // null for things it can't read as a height — chiefly a cm value typed while
+  // the toggle still says ft·in — instead of the old behaviour of clamping it
+  // to 8'0". Reverting in silence is better than being wrong, but it still
+  // reads as the field ignoring you. (Audit 18 #9.)
+  const [heightHint, setHeightHint] = useState(false);
   const handleHeightBlur = () => {
-    const parsed = parseHeightDraft(draftHeight, unit);
-    if (Number.isFinite(parsed)) setValue(Math.min(range[1], Math.max(range[0], parsed)));
+    const typed = draftHeight.trim();
+    const parsed = parseHeightInput(draftHeight, unit);
+    if (Number.isFinite(parsed)) {
+      setValue(Math.min(range[1], Math.max(range[0], parsed)));
+      setHeightHint(false);
+    } else if (typed) {
+      setHeightHint(true);
+      setTimeout(() => setHeightHint(false), 4000);
+    }
     setEditingHeight(false);
     setDraftHeight('');
   };
@@ -1940,6 +1936,13 @@ function HeightStep({ stats, onChange, onNext, onBack, step, total }) {
                   : tFallback('onboarding.height.tapHintImperial', 'FT · IN · TAP TO TYPE')}
               </div>
               <div className="font-mono text-micro text-muted-foreground/70 mt-1">≈ {displaySecondary}</div>
+              {heightHint && (
+                <p className="text-micro text-primary mt-1 leading-snug">
+                  {unit === 'cm'
+                    ? tFallback('onboarding.height.hintMetric', "Enter centimetres — e.g. 178. Switch to ft·in above if that's what you meant.")
+                    : tFallback('onboarding.height.hintImperial', "Enter feet and inches — e.g. 5'10 or 511. Switch to cm above if that's what you meant.")}
+                </p>
+              )}
             </div>
             {/* Ruler */}
             <div ref={ref} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerUp}
@@ -2041,7 +2044,9 @@ function WeightStep({ stats, onChange, onNext, onBack, step, total }) {
   };
 
   const value = unit === 'kg' ? stats.weightKg : stats.weightLb;
-  const range = unit === 'kg' ? [35, 180] : [80, 400];
+  const range = unit === 'kg'
+    ? [PROFILE_RANGES.weightKg.min, PROFILE_RANGES.weightKg.max]
+    : [PROFILE_RANGES.weightLb.min, PROFILE_RANGES.weightLb.max];
   const PX = unit === 'kg' ? 8 : 6; // increased from 4 → 6 for lb: easier to drag
   // Mark userTouchedWeight=true so the post-onboarding body_metrics
   // insert can distinguish "user kept default 165 lb" from "user
@@ -3160,32 +3165,29 @@ export default function Onboarding() {
     }
   });
 
-  // Persist every data change. Cheap — the object is small (< 500 bytes).
-  useEffect(() => {
-    try {
-      localStorage.setItem(ONBOARDING_DRAFT_KEY, JSON.stringify(data));
-    } catch { /* private mode / quota */ }
-  }, [data, ONBOARDING_DRAFT_KEY]);
-
-  // Anon → authed key migration. When `user.id` first appears mid-flow
-  // (user signed up after typing a few answers), copy any draft from
-  // the anon bucket into the now-user-keyed bucket and clear the anon
-  // slot so it can't leak into the next person to log in on this
-  // device. No-op if the user-keyed slot already has data (avoid
-  // clobbering a returning user's saved progress).
+  // Persist every data change, but ONLY once there's a user to key it to.
+  //
+  // There is no longer any pre-auth step that collects anything: welcome's two
+  // CTAs both open the sign-in gate, so `welcome` is the only screen an
+  // anonymous visitor sees and it has no inputs. The unconditional write was
+  // therefore stamping a fresh copy of DEFAULT_DATA into an `…anon` bucket on
+  // every single visit, and a migration effect below it existed to move that
+  // nothing into the user's bucket on sign-in. Both are gone; the stale anon
+  // bucket from earlier builds is swept once. (Audit 18 #23.)
+  //
+  // If a pre-auth step is ever reintroduced, this is the line to revisit —
+  // and the cross-user question comes back with it, because two people
+  // signing up on one device would share the anon bucket.
   useEffect(() => {
     if (!user?.id) return;
     try {
-      const anonKey = 'fn-onboarding-draft-v1.anon';
-      const anonRaw = localStorage.getItem(anonKey);
-      if (!anonRaw) return;
-      const userKey = `fn-onboarding-draft-v1.${user.id}`;
-      if (!localStorage.getItem(userKey)) {
-        localStorage.setItem(userKey, anonRaw);
-      }
-      localStorage.removeItem(anonKey);
+      localStorage.setItem(ONBOARDING_DRAFT_KEY, JSON.stringify(data));
     } catch { /* private mode / quota */ }
-  }, [user?.id]);
+  }, [data, ONBOARDING_DRAFT_KEY, user?.id]);
+
+  useEffect(() => {
+    try { localStorage.removeItem('fn-onboarding-draft-v1.anon'); } catch { /* private mode */ }
+  }, []);
 
   const [usernameError, setUsernameError] = useState('');
 
@@ -3249,12 +3251,36 @@ export default function Onboarding() {
     if (isLoadingAuth) return;
     const isDeletedPlaceholder = !!(user?.username?.startsWith('deleted_'));
     const hasRealUsername = !!(user?.username && !isDeletedPlaceholder);
+    // A username alone is NOT evidence of a finished profile. This used to
+    // bounce anyone holding one straight to the dashboard, so a user who
+    // picked a name and then dropped out — or whose save landed on the
+    // username-only tier-3 fallback — was sent to a Dashboard of empty cards
+    // with no way back into the flow that would fill them.
+    //
+    // App.jsx:266-274 already knows the right test for "the legacy flow
+    // really did complete" and refuses to auto-heal the onboarding_complete
+    // flag without it. The two gates disagreed; this is the same test.
+    // (Audit 18 #19.)
+    const hasFullProfile = !!(
+      user?.fitness_level ||
+      user?.fitness_goals ||
+      user?.primary_goal ||
+      user?.training_days_per_week ||
+      user?.weight_lbs ||
+      user?.height_inches
+    );
     // Never skip onboarding for deleted_ placeholder accounts — stale
     // onboarding_complete flags must not override the re-onboarding gate.
-    if (!isDeletedPlaceholder && (user?.onboarding_complete || hasRealUsername)) {
+    if (!isDeletedPlaceholder && (user?.onboarding_complete || (hasRealUsername && hasFullProfile))) {
       navigate('/dashboard', { replace: true });
     }
-  }, [user?.onboarding_complete, user?.username, isLoadingAuth, navigate]);
+  }, [
+    user?.onboarding_complete, user?.username, isLoadingAuth, navigate,
+    // The profile fields the gate now reads have to be in here, or a profile
+    // that finishes loading after the first pass never re-triggers the check.
+    user?.fitness_level, user?.fitness_goals, user?.primary_goal,
+    user?.training_days_per_week, user?.weight_lbs, user?.height_inches,
+  ]);
 
   // Declared BEFORE the effect that calls it. `const` is not hoisted, and the
   // effect below referenced `goTo` from above its declaration — safe only
@@ -3343,7 +3369,12 @@ export default function Onboarding() {
   const submittingRef = useRef(false);
   useEffect(() => {
     const u = (data.username || '').trim();
-    if (u.length < 3) return;
+    // Same threshold the Continue button uses (MIN_USERNAME_LENGTH). These
+    // were 3 here and 2 there, so a two-character name was never checked for
+    // availability: the user sailed through the remaining steps and found out
+    // it was taken when the final save came back 23505, which bounced them
+    // from the reveal screen all the way to the age step. (Audit 18 #12.)
+    if (u.length < MIN_USERNAME_LENGTH) return;
     if (usernameError) return; // already showing a different validation error
     const seq = ++usernameCheckSeqRef.current;
     const timer = setTimeout(async () => {
@@ -3386,112 +3417,16 @@ export default function Onboarding() {
     const s = data.stats || {};
     const weightUnit = s.weightUnit === 'kg' ? 'kg' : 'lbs';
 
-    // ── Bulletproof numeric conversion ────────────────────────────────────
-    // Migration 073 added CHECK constraints on user_profiles:
-    //   age            13–120
-    //   height_inches  36–96
-    //   weight_lbs     50–800
-    // Out-of-range values trigger 23514 server-side and block onboarding
-    // with a generic "Could not save" toast. The per-step UI clamps are
-    // best-effort, but a stale localStorage draft, a NaN slipping through,
-    // or a botched kg↔lb conversion can produce an out-of-range value.
-    // Clamp HERE so the payload is always valid no matter what.
-    //
-    // Also: the previous minimal-save fallback at this site had a SIGN
-    // BUG — it multiplied kg by 0.453592 (the lb→kg factor) to get lbs,
-    // producing a 34-lb payload for a 75 kg user, which then failed the
-    // weight_lbs ≥ 50 CHECK constraint. Both tiers failed and every
-    // metric-system user was stranded with "Could not save your profile.
-    // Tap Save to retry." This is the user-reported onboarding blocker.
-    const safeInt = (v, fallback) => {
-      const n = typeof v === 'number' ? v : parseInt(v, 10);
-      return Number.isFinite(n) ? Math.round(n) : fallback;
-    };
-    const clampInt = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
-
-    const ageVal = clampInt(safeInt(s.age, 26), 13, 120);
-
-    // Resolve height into both units, NaN-safe and constraint-clamped.
-    const heightInRaw =
-      s.heightUnit === 'in'
-        ? safeInt(s.heightIn, 70)
-        : Math.round(safeInt(s.heightCm, 178) / 2.54);
-    const heightCmRaw =
-      s.heightUnit === 'cm'
-        ? safeInt(s.heightCm, 178)
-        : Math.round(safeInt(s.heightIn, 70) * 2.54);
-    const heightInVal = clampInt(heightInRaw, 36, 96);
-    const heightCmVal = clampInt(heightCmRaw, 91, 244); // mirror inches range
-
-    // Resolve weight into both units. CORRECT conversions:
-    //   lbs → kg: lbs * 0.453592
-    //   kg  → lbs: kg / 0.453592  (≈ kg * 2.20462)
-    const weightLbRaw =
-      s.weightUnit === 'lb'
-        ? safeInt(s.weightLb, 165)
-        : Math.round(safeInt(s.weightKg, 75) * 2.20462);
-    const weightKgRaw =
-      s.weightUnit === 'kg'
-        ? safeInt(s.weightKg, 75)
-        : Math.round(safeInt(s.weightLb, 165) * 0.453592);
-    const weightLbVal = clampInt(weightLbRaw, 50, 800);
-    const weightKgVal = clampInt(weightKgRaw, 23, 363); // mirror lbs range
-
-    // Core fields — these alone are enough to call onboarding "done."
-    // If everything else fails, this is the last-resort payload that
-    // gets the user into the app so they can fix details later from
-    // Settings rather than being stranded forever on the reveal screen.
-    const coreProfile = {
-      username:                data.username.trim(),
-      onboarding_complete:     true,
-      onboarding_completed:    true,
-      onboarding_completed_at: new Date().toISOString(),
-    };
-
-    // Detail fields — fitness profile + demographics. Strip-and-retry
-    // inside db.auth.updateMe handles any column missing from the
-    // running schema.
-    const detailProfile = {
-      fitness_goals:          Array.isArray(data.goal) ? data.goal.join(',') : (data.goal || ''),
-      fitness_goals_arr:      Array.isArray(data.goal) ? data.goal : [],
-      fitness_level:          data.level,
-      training_days:          Array.isArray(data.days) ? data.days : [],
-      // Multi-time array → comma-joined string for the DB column (which is
-      // still TEXT). Stores stable IDS ('late_night'), not display labels:
-      // this used to persist whatever English the UI happened to render, so
-      // the column's meaning depended on the reader's locale. Nothing reads
-      // it yet (Audit 18 #11) — which is precisely why now was the moment to
-      // fix the shape.
-      preferred_workout_time: Array.isArray(data.preferredTime)
-        ? data.preferredTime.join(',')
-        : (data.preferredTime || ''),
-      age:           ageVal,
-      height_cm:     String(heightCmVal),
-      height_inches: String(heightInVal),
-      height_unit:   s.heightUnit === 'cm' ? 'metric' : 'imperial',
-      weight_kg:     String(weightKgVal),
-      weight_lbs:    String(weightLbVal),
-      weight_unit:   weightUnit,
-      // Biological sex (mig 161) — drives sex-specific strength ceilings,
-      // volume caps, and BMR. NULL if the user didn't pick one; the
-      // consumers default NULL to 'male'. updateMe strip-and-retry drops
-      // this cleanly on hosts where mig 158 hasn't run yet.
-      gender:        s.gender || null,
-    };
-
-    // Tier 1 — everything (including the JSONB fitness_assessment).
-    const fullProfile = {
-      ...detailProfile,
-      fitness_assessment: data.assessment || {},
-      ...coreProfile,
-    };
-
-    // Tier 2 — drop fitness_assessment in case its JSONB validation /
-    // schema-cache state is the trigger.
-    const minimalProfile = {
-      ...detailProfile,
-      ...coreProfile,
-    };
+    // Unit conversion, clamping and the three save tiers live in
+    // `@/lib/data/onboardingProfile` — pure, and tested directly rather than
+    // through a 14-step flow against a live database. See that module for why
+    // the clamps are what they are; the CHECK constraints this code used to
+    // claim it was defending against mostly do not exist. (Audit 18 #13, #14.)
+    const {
+      core: coreProfile,
+      full: fullProfile,
+      minimal: minimalProfile,
+    } = buildProfilePayload({ data, nowIso: new Date().toISOString() });
 
     // Tier 3 — last resort: just username + completion flags. This is
     // the bulletproof guarantee the user can always finish onboarding.
@@ -3663,9 +3598,10 @@ export default function Onboarding() {
             created_by: user.email,
             user_id:    user.id,
             date:       todayLocalDateString(),
-            weight_lbs: userTouchedWeight
-              ? (s.weightUnit === 'lb' ? safeInt(s.weightLb, 165) : Math.round(safeInt(s.weightKg, 75) * 2.20462))
-              : null,
+            // Same resolver the profile payload uses, so the first point on
+            // the Progress weight chart cannot disagree with the weight on the
+            // profile it was captured alongside.
+            weight_lbs: userTouchedWeight ? resolveMeasurements(s).weightLb : null,
             body_fat_pct: bb.bodyFatPct ?? null,
             waist_cm:   bb.waistCm   ?? null,
             chest_cm:   bb.chestCm   ?? null,
