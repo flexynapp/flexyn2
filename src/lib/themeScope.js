@@ -13,13 +13,21 @@
 
 import { THEMES } from './ThemeContext';
 import { LOOT_THEMES } from './lootThemes';
+import { THEMES_ENABLED } from './featureFlags';
 
 /**
  * Resolve a theme id (loot OR level-up) to its theme record.
  * Loot themes win when both ids are valid — that matches the global
  * apply order in ThemeContext (lootTheme overrides base theme).
+ *
+ * With themes off every profile resolves to the default, including other
+ * people's. `preferred_theme` / `loot_theme_id` are still on their rows,
+ * so without this a stranger's profile would render in a palette nobody
+ * can choose any more — and the viewer would reasonably read it as an
+ * unlock they'd missed.
  */
 function resolveTheme({ lootThemeId, themeId }) {
+  if (!THEMES_ENABLED) return THEMES[0];
   if (lootThemeId) {
     const loot = LOOT_THEMES.find(t => t.id === lootThemeId);
     if (loot) return loot;

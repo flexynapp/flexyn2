@@ -175,12 +175,23 @@ describe('recoveryMessage', () => {
 });
 
 describe('buildCandidateMenu — the payload open_capsule_atomic rolls against', () => {
-  it('covers every category the server can roll', async () => {
+  // The menu has to track what the SERVER rolls, in both directions. A
+  // missing category the server can land on costs the user their item;
+  // an extra one the server dropped is a bucket the roll can never
+  // resolve against. `theme` is currently in the second group —
+  // migration 281 removed it from `_roll_capsule_shape` — so the
+  // expectation is derived from the flag rather than hardcoded, and
+  // turning themes back on re-arms the original assertion by itself.
+  it('covers every category the server can roll, and no others', async () => {
     const { buildCandidateMenu } = await import('../lootRoll');
+    const { THEMES_ENABLED } = await import('../featureFlags');
     const menu = buildCandidateMenu();
-    for (const cat of ['sticker', 'theme', 'title', 'frame']) {
-      expect(Object.keys(menu).some(k => k.startsWith(cat + ':'))).toBe(true);
+    const has = (cat) => Object.keys(menu).some(k => k.startsWith(cat + ':'));
+
+    for (const cat of ['sticker', 'title', 'frame']) {
+      expect(has(cat), `${cat} missing`).toBe(true);
     }
+    expect(has('theme')).toBe(THEMES_ENABLED);
   });
 
   it('covers every rarity the odds tables can produce', async () => {

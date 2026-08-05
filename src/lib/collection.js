@@ -18,6 +18,7 @@ import { ITEMS, BRANDED_ITEMS, RARITY } from '@/lib/lootCatalog';
 import { LOOT_TITLES } from '@/lib/lootTitles';
 import { LOOT_FRAMES } from '@/lib/lootFrames';
 import { LOOT_THEMES } from '@/lib/lootThemes';
+import { THEMES_ENABLED } from '@/lib/featureFlags';
 
 // Common → rarest. Ascending reads better for a completion grid than the
 // Item Index's old rarest-first order: you scan your easy wins, then see
@@ -52,11 +53,22 @@ const SOURCES = {
   themes: () => [...LOOT_THEMES],
 };
 
+/**
+ * The tabs the grid renders — and, via `overallCompletion`, the denominator
+ * of "you have N of M".
+ *
+ * Themes drop out while they're off (src/lib/featureFlags.js + migration
+ * 281 stops the server rolling them). That's the same reasoning that keeps
+ * capsules out above: 28 theme slots nothing can fill would put 100%
+ * permanently out of reach and quietly deflate every completion number on
+ * the screen. `catalogFor('themes')` still works, so an owned theme is
+ * never orphaned — it just isn't chaseable right now.
+ */
 export const COLLECTION_TABS = [
   { id: 'stickers', label: 'Stickers' },
   { id: 'titles',   label: 'Titles'   },
   { id: 'frames',   label: 'Frames'   },
-  { id: 'themes',   label: 'Themes'   },
+  ...(THEMES_ENABLED ? [{ id: 'themes', label: 'Themes' }] : []),
 ];
 
 /** Every catalog entry for a tab, deduped by id, in catalog order. */

@@ -18,6 +18,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from '@/components/ui/dropdown-menu';
+import { THEMES_ENABLED } from '@/lib/featureFlags';
 
 // A dropdown anchored to the "…" button, not a sheet from the bottom of the
 // screen. A bottom sheet is the right shape for a surface with its own
@@ -27,7 +28,7 @@ import {
 // is. Radix handles the anchoring, collision flipping, outside-click,
 // Escape, focus return and RTL side-swapping; the app already wraps it at
 // components/ui/dropdown-menu.
-function MenuItem({ icon: Icon, label, onSelect, iconClass = 'text-muted-foreground' }) {
+function MenuItem({ icon: Icon, label, onSelect, iconClass = 'text-muted-foreground', disabled = false, hint }) {
   return (
     <DropdownMenuItem
       // Synchronous on purpose. The obvious defensive move here is to defer
@@ -38,11 +39,20 @@ function MenuItem({ icon: Icon, label, onSelect, iconClass = 'text-muted-foregro
       // framer-motion overlays, so there is no race to lose. And rAF is
       // paused in a hidden or throttled tab, so deferring would mean a
       // backgrounded tab silently swallowing the tap.
-      onSelect={onSelect}
-      className="gap-2.5 py-2.5 cursor-pointer"
+      onSelect={disabled ? (e) => e.preventDefault() : onSelect}
+      disabled={disabled}
+      // Radix already applies pointer-events-none + 50% opacity to a
+      // disabled item and takes it out of the keyboard walk; the hint is
+      // what turns "greyed out" from a dead end into a promise.
+      className={`gap-2.5 py-2.5 ${disabled ? 'cursor-default' : 'cursor-pointer'}`}
     >
-      <Icon className={`w-4 h-4 shrink-0 ${iconClass}`} />
-      {label}
+      <Icon className={`w-4 h-4 shrink-0 ${disabled ? 'text-muted-foreground' : iconClass}`} />
+      <span className={disabled ? 'text-muted-foreground' : undefined}>{label}</span>
+      {hint && (
+        <span className="ms-auto text-micro font-semibold uppercase tracking-wide text-muted-foreground">
+          {hint}
+        </span>
+      )}
     </DropdownMenuItem>
   );
 }
@@ -159,11 +169,22 @@ export default function ProfileActions({
           <DropdownMenuContent align="end" sideOffset={6} collisionPadding={12} className="w-56">
             {isSelf ? (
               <>
+                {/* Themes are off (see src/lib/featureFlags.js). The entry
+                    stays in the menu rather than disappearing: people who
+                    have used it before will go looking, and an item that
+                    silently vanished reads as something broken, where a
+                    greyed one that says "Coming soon" reads as a decision. */}
                 <MenuItem
                   icon={Palette}
                   iconClass="text-primary"
                   label={tFallback('hub.profile.themes', 'Themes')}
                   onSelect={onOpenThemes}
+                  disabled={!THEMES_ENABLED}
+                  // Reusing levelBar.comingSoon rather than minting a new
+                  // key: it's the same two words and it already ships in
+                  // all 15 languages, where a new key would be English-only
+                  // on 14 of them.
+                  hint={THEMES_ENABLED ? undefined : tFallback('levelBar.comingSoon', 'Coming Soon')}
                 />
                 {hasUsername && (
                   <MenuItem

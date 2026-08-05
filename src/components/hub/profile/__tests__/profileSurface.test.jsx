@@ -202,6 +202,34 @@ describe('ProfileActions', () => {
     expect(screen.getByText('Edit profile')).toBeTruthy();
     expect(screen.queryByText('hub.profile.follow')).toBeNull();
   });
+
+  // Themes are off (src/lib/featureFlags.js). The entry stays in the menu
+  // and says "Coming soon" rather than disappearing — a control that
+  // vanishes reads as a bug, and people who have used it will go looking.
+  // Both halves matter: still listed, and genuinely not clickable.
+  it('shows Themes as a disabled "Coming soon" entry while themes are off', () => {
+    const onOpenThemes = vi.fn();
+    render(
+      <ProfileActions
+        {...base}
+        isSelf
+        menuOpen
+        onOpenThemes={onOpenThemes}
+        isFollowingNow={false}
+        theyFollowMe={false}
+      />
+    );
+
+    const themes = screen.getByText('Themes');
+    expect(themes).toBeTruthy();
+    expect(screen.getByText('Coming Soon')).toBeTruthy();
+
+    const item = themes.closest('[role="menuitem"]');
+    expect(item.getAttribute('data-disabled')).not.toBeNull();
+
+    fireEvent.click(item);
+    expect(onOpenThemes).not.toHaveBeenCalled();
+  });
 });
 
 describe('ProfileTrophies', () => {

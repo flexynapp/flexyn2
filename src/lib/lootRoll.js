@@ -21,6 +21,7 @@ import { getItemsByRarity, getItemById } from '@/lib/lootCatalog';
 import { LOOT_THEMES, getLootThemeById } from '@/lib/lootThemes';
 import { LOOT_TITLES, getLootTitleById } from '@/lib/lootTitles';
 import { LOOT_FRAMES, getLootFrameById } from '@/lib/lootFrames';
+import { THEMES_ENABLED } from '@/lib/featureFlags';
 
 /**
  * Rehydrate a server-granted item id into its full catalog entry.
@@ -79,8 +80,12 @@ export function resolveRolledItem(category, rarity) {
     ?? null;
 }
 
-// Every category/rarity combination a roll can land on.
-const CATEGORIES = ['sticker', 'theme', 'title', 'frame'];
+// Every category/rarity combination a roll can land on. `theme` drops out
+// while themes are off (src/lib/featureFlags.js) — the server stopped
+// rolling that category in migration 281, so a theme entry in the menu is
+// dead weight the roll can never resolve against.
+const CATEGORIES = ['sticker', 'theme', 'title', 'frame']
+  .filter(c => c !== 'theme' || THEMES_ENABLED);
 const RARITIES   = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic', 'animated'];
 
 /**

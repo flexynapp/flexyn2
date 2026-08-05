@@ -12,6 +12,7 @@ import { LOOT_THEMES, getLootThemeById } from '@/lib/lootThemes';
 import { LOOT_FRAMES } from '@/lib/lootFrames';
 // LOOT_TITLES is still used by pickItemForRoll for title items.
 import { LOOT_TITLES } from '@/lib/lootTitles';
+import { THEMES_ENABLED } from '@/lib/featureFlags';
 import { supabase } from '@/api/supabaseClient';
 import { triggerHaptic } from '@/lib/haptic';
 import StickerDisplay from './StickerDisplay';
@@ -135,7 +136,11 @@ const FILLER_POOL = (() => {
   BRANDED_ITEMS.forEach(push);
   (LOOT_TITLES || []).forEach(push);
   (LOOT_FRAMES || []).forEach(push);
-  (LOOT_THEMES || []).forEach(push);
+  // Themes are off (src/lib/featureFlags.js + migration 281). The whole
+  // point of the wide filler pool is that the reel previews what you can
+  // actually win — streaming themes past someone who can no longer win
+  // one inverts that and turns the run-up into a tease.
+  if (THEMES_ENABLED) (LOOT_THEMES || []).forEach(push);
   return byRarity;
 })();
 

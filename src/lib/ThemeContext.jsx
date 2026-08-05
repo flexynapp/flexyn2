@@ -1,6 +1,12 @@
 import { createContext, useContext, useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { db } from '@/api/db';
 import { LOOT_THEMES, getLootThemeById } from '@/lib/lootThemes';
+import { THEMES_ENABLED } from '@/lib/featureFlags';
+
+// The palette everyone runs while THEMES_ENABLED is false. It's also
+// THEMES[0], but naming it means the "which one is the default" question
+// has a single answer instead of an index nobody can grep for.
+export const DEFAULT_THEME_ID = 'orange-slate';
 
 export const THEMES = [
   {
@@ -209,11 +215,16 @@ export function ThemeProvider({ children }) {
   // Per-Provider set of previously-applied CSS custom-property keys.
   const prevKeysRef = useRef(new Set());
   const [themeId, setThemeIdState] = useState(() => {
-    try { return localStorage.getItem('fn-theme') || 'orange-slate'; } catch { return 'orange-slate'; }
+    // With themes off, a stored pick is ignored but NOT cleared — the row
+    // and the localStorage key both survive so re-enabling the feature
+    // hands everyone their old palette back rather than a reset.
+    if (!THEMES_ENABLED) return DEFAULT_THEME_ID;
+    try { return localStorage.getItem('fn-theme') || DEFAULT_THEME_ID; } catch { return DEFAULT_THEME_ID; }
   });
 
   // Loot theme id (null = no loot theme active, a base level-up theme is active instead)
   const [lootThemeId, setLootThemeIdState] = useState(() => {
+    if (!THEMES_ENABLED) return null;
     try { return localStorage.getItem('fn-loot-theme') || null; } catch { return null; }
   });
 
@@ -227,9 +238,14 @@ export function ThemeProvider({ children }) {
 
   // Derive the active animation id from the current loot theme (null if none).
   // If a base theme has an animation (e.g. brushed-steel), use that as fallback.
-  const lootTheme = lootThemeId ? getLootThemeById(lootThemeId) : null;
+  const lootTheme = (THEMES_ENABLED && lootThemeId) ? getLootThemeById(lootThemeId) : null;
   const baseThemeAnim = !lootThemeId ? (THEMES.find(t => t.id === themeId)?.animation ?? null) : null;
-  const activeAnimation = lootTheme?.animation ?? baseThemeAnim ?? null;
+  // No theme means no scene: ThemeAnimationLayer keys off this, so leaving
+  // it live would keep painting a capsule theme's animation over a default
+  // palette it no longer matches.
+  const activeAnimation = THEMES_ENABLED
+    ? (lootTheme?.animation ?? baseThemeAnim ?? null)
+    : null;
 
   // Hydrate from server user on mount
   useEffect(() => {
@@ -238,13 +254,15 @@ export function ThemeProvider({ children }) {
       try {
         const me = await db.auth.me();
         if (cancelled) return;
-        if (me?.preferred_theme && THEMES.some(t => t.id === me.preferred_theme) && me.preferred_theme !== themeId) {
-          setThemeIdState(me.preferred_theme);
-          try { localStorage.setItem('fn-theme', me.preferred_theme); } catch {}
-        }
+        // Dark mode is a separate axis and stays live with themes off.
         if (typeof me?.dark_mode === 'boolean' && me.dark_mode !== darkMode) {
           setDarkModeState(me.dark_mode);
           try { localStorage.setItem('fn-dark-mode', String(me.dark_mode)); } catch {}
+        }
+        if (!THEMES_ENABLED) return;
+        if (me?.preferred_theme && THEMES.some(t => t.id === me.preferred_theme) && me.preferred_theme !== themeId) {
+          setThemeIdState(me.preferred_theme);
+          try { localStorage.setItem('fn-theme', me.preferred_theme); } catch {}
         }
         // Restore loot theme from server if stored there
         if (me?.loot_theme_id) {
@@ -276,7 +294,11 @@ export function ThemeProvider({ children }) {
         root.removeAttribute('data-theme-tier');
       }
     } catch { /* ignore */ }
-    try { localStorage.setItem('fn-theme', themeId); } catch {}
+    // Don't persist while themes are off — `themeId` is the forced default
+    // here, and writing it would overwrite the pick we're preserving.
+    if (THEMES_ENABLED) {
+      try { localStorage.setItem('fn-theme', themeId); } catch {}
+    }
   }, [themeId, lootThemeId, lootTheme]);
 
   useEffect(() => {
@@ -285,6 +307,10 @@ export function ThemeProvider({ children }) {
   }, [darkMode]);
 
   const setThemeId = useCallback((id) => {
+    // Inert while themes are off. The setters are the choke point rather
+    // than each call site, so a surface we miss (or one added later) can't
+    // quietly write a theme back onto the profile.
+    if (!THEMES_ENABLED) return;
     // Switching a level-up theme clears the loot theme
     setThemeIdState(id);
     setLootThemeIdState(null);
@@ -294,6 +320,7 @@ export function ThemeProvider({ children }) {
   }, []);
 
   const setLootThemeId = useCallback((id) => {
+    if (!THEMES_ENABLED) return;
     setLootThemeIdState(id);
     try {
       if (id) {

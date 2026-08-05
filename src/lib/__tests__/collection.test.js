@@ -163,11 +163,15 @@ describe('overallCompletion', () => {
     expect(overall.pct).toBe(0);
   });
 
+  // Second item comes from `frames` rather than `themes` because themes
+  // are off (src/lib/featureFlags.js) and no longer a COLLECTION_TABS
+  // entry, so counting one would prove nothing about crossing tabs. The
+  // claim under test is unchanged: two tabs, two owned, total 2.
   it('counts ownership across tabs, not just the first one', () => {
     const sticker = catalogFor('stickers')[0];
-    const theme   = catalogFor('themes')[0];
+    const other   = catalogFor('frames')[0];
     const overall = overallCompletion(
-      ownershipFrom([{ item_id: sticker.id }, { item_id: theme.id }]));
+      ownershipFrom([{ item_id: sticker.id }, { item_id: other.id }]));
     expect(overall.owned).toBe(2);
   });
 });
@@ -194,11 +198,11 @@ describe('rarityBreakdown', () => {
   it('counts a tier across every tab, not just the first', () => {
     const pick = (tab, rarity) => catalogFor(tab).find(i => i.rarity === rarity);
     const sticker = pick('stickers', 'common');
-    const theme   = pick('themes', 'common');
-    expect(sticker && theme).toBeTruthy();
+    const other   = pick('frames', 'common');
+    expect(sticker && other).toBeTruthy();
 
     const owned = rarityBreakdown(
-      ownershipFrom([{ item_id: sticker.id }, { item_id: theme.id }]));
+      ownershipFrom([{ item_id: sticker.id }, { item_id: other.id }]));
     expect(owned.find(b => b.rarity === 'common').owned).toBe(2);
   });
 

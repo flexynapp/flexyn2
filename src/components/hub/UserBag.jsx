@@ -25,6 +25,7 @@ import { RARITY, ITEMS, VARIANTS } from '@/lib/lootCatalog';
 import { RarityBadge, RarityFrame, rarityTint, COIN } from '@/components/loot/RarityVisuals';
 import { getLootThemeById } from '@/lib/lootThemes';
 import { getLootFrameById } from '@/lib/lootFrames';
+import { THEMES_ENABLED } from '@/lib/featureFlags';
 import StickerDisplay from './StickerDisplay';
 import { reportError } from '@/lib/reportError';
 import CoinShopModal from './CoinShopModal';
@@ -204,16 +205,22 @@ function ThemeCard({ item, activeLootThemeId, onApply }) {
           Animated
         </span>
       )}
+      {/* Themes are off (src/lib/featureFlags.js) — a theme you already own
+          stays visible in the Bag, because making owned items disappear
+          reads as losing them. It just can't be equipped right now. */}
       <button
         onClick={() => onApply(item.item_id)}
+        disabled={!THEMES_ENABLED}
         className={[
           'mt-1 w-full py-1.5 rounded-lg text-xs font-bold transition-all duration-200',
-          isActive
-            ? 'bg-primary/25 text-primary border border-primary/50'
-            : 'bg-primary text-primary-foreground hover:opacity-90',
+          !THEMES_ENABLED
+            ? 'bg-secondary text-muted-foreground border border-border cursor-default'
+            : isActive
+              ? 'bg-primary/25 text-primary border border-primary/50'
+              : 'bg-primary text-primary-foreground hover:opacity-90',
         ].join(' ')}
       >
-        {isActive ? '✓ Active' : 'Apply'}
+        {!THEMES_ENABLED ? 'Coming soon' : isActive ? '✓ Active' : 'Apply'}
       </button>
     </RarityFrame>
   );
@@ -958,7 +965,16 @@ export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBat
               )
             ) : (
               fThemes.length === 0 ? (
-                <EmptyState icon={Palette} label={q ? `No themes match "${query}".` : 'No themes yet — open Elite capsules!'} />
+                <EmptyState
+                  icon={Palette}
+                  label={q
+                    ? `No themes match "${query}".`
+                    : THEMES_ENABLED
+                      ? 'No themes yet — open Elite capsules!'
+                      // Don't send anyone spending Elite capsules chasing a
+                      // drop the server no longer rolls (migration 281).
+                      : 'Themes are coming soon.'}
+                />
               ) : (
                 <motion.div layout className="grid grid-cols-3 sm:grid-cols-4 gap-3">
                   {fThemes.map(item => (
