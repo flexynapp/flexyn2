@@ -166,6 +166,43 @@ describe('buildHiitSession (Quick-pick HIIT)', () => {
     expect(plan.title).toMatch(/HIIT/i);
     expect(plan.workout.exercises.every((e) => e.restSec === 30)).toBe(true);
   });
+
+  // The HIIT branch of WorkoutQuickGenerator used to call this with none of
+  // the context the strength branch passed: no injury exclusions, no
+  // modifiers, no demographics. `full_body` focus makes the injury half the
+  // dangerous one — it is the focus most likely to program the exact group
+  // the user reported hurt. generateWorkout defaults excludeMuscleGroups to
+  // an empty Set, so the omission was silent.
+  it('honours injury exclusions', async () => {
+    const plan = await buildHiitSession({
+      user: { email: 'a@b.com' },
+      durationMinutes: 30,
+      equipment: 'bodyweight',
+      excludeMuscleGroups: new Set(['chest', 'shoulders']),
+    });
+    const groups = plan.workout.exercises.map((e) => (e.group || '').toLowerCase());
+    expect(groups.length).toBeGreaterThan(0);
+    expect(groups).not.toContain('chest');
+    expect(groups).not.toContain('shoulders');
+  });
+
+  it('still builds a session when nothing is excluded', async () => {
+    const plan = await buildHiitSession({ user: { email: 'a@b.com' }, durationMinutes: 30, equipment: 'bodyweight' });
+    expect(plan.workout.exercises.length).toBeGreaterThan(0);
+  });
+
+  it('carries modifier notes through to the card', async () => {
+    // CLAUDE.md's rule: an automatic adjustment that isn't explained reads as
+    // a bug. sessionToPlan forwards coachNotes, so passing modifiers here has
+    // to surface them rather than silently changing someone's session.
+    const plan = await buildHiitSession({
+      user: { email: 'a@b.com' },
+      durationMinutes: 30,
+      equipment: 'bodyweight',
+      modifiers: { loadMultiplier: 0.9, setsDelta: -1, repDelta: 0, restDeltaSec: 0, notes: ['Eating in a deficit — trimmed a set.'], applied: true },
+    });
+    expect(plan.coachNotes).toEqual(expect.arrayContaining([expect.stringMatching(/deficit/i)]));
+  });
 });
 
 describe('GENERATE_PLAN intent routing', () => {

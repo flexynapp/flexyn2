@@ -76,33 +76,43 @@ export default function WorkoutQuickGenerator({ userProfile = {}, onSaveRegimen,
     setGenerating(true);
     try {
       const bodyweightLbs = Number(userProfile?.weight_lbs) || 165;
+      // Computed ONCE, above the branch. These used to live inside the
+      // strength `else`, so the HIIT branch generated with none of them —
+      // an injured user got a full-body circuit that could program the group
+      // they reported hurt, which is the exact defect the comment above says
+      // this wiring exists to prevent. Cardio takes none of it: it builds a
+      // fixed cardio block rather than selecting exercises.
+      const modifiers = buildTrainingModifiers({
+        cycleState,
+        feel,
+        goal:          userProfile?.fitness_goals_arr || userProfile?.fitness_goals,
+        nutritionGoal: userProfile?.nutrition_goal,
+        weeklyRateLbs: userProfile?.weekly_rate_lbs,
+        age:           profileAge(userProfile),
+        // Allergies + dietary restrictions, so a fuel suggestion never names
+        // something the user can't eat. loadRestrictions falls back to the
+        // localStorage copy when the profile column isn't populated.
+        restrictions:  loadRestrictions(userProfile),
+      });
+      const excludeMuscleGroups = getExcludedMuscleGroups(activeInjuries);
+      const demographics = {
+        gender:        userProfile?.gender,
+        age:           profileAge(userProfile),
+        activityLevel: userProfile?.activity_level,
+      };
+
       let next;
       if (type === 'cardio') {
         next = buildCardioSession({ style: cardioStyle, durationMinutes: duration, skillLevel: skill });
       } else if (type === 'hiit') {
-        next = await buildHiitSession({ user, durationMinutes: duration, equipment, skillLevel: skill, bodyweightLbs });
-      } else {
-        const modifiers = buildTrainingModifiers({
-          cycleState,
-          feel,
-          goal:          userProfile?.fitness_goals_arr || userProfile?.fitness_goals,
-          nutritionGoal: userProfile?.nutrition_goal,
-          weeklyRateLbs: userProfile?.weekly_rate_lbs,
-          age:           profileAge(userProfile),
-          // Allergies + dietary restrictions, so a fuel suggestion never names
-          // something the user can't eat. loadRestrictions falls back to the
-          // localStorage copy when the profile column isn't populated.
-          restrictions:  loadRestrictions(userProfile),
+        next = await buildHiitSession({
+          user, durationMinutes: duration, equipment, skillLevel: skill, bodyweightLbs,
+          excludeMuscleGroups, modifiers, demographics,
         });
+      } else {
         const workout = await generateWorkout({
           user, focus, durationMinutes: duration, equipment, skillLevel: skill, bodyweightLbs, seed: Date.now(),
-          modifiers,
-          excludeMuscleGroups: getExcludedMuscleGroups(activeInjuries),
-          demographics: {
-            gender:        userProfile?.gender,
-            age:           profileAge(userProfile),
-            activityLevel: userProfile?.activity_level,
-          },
+          modifiers, excludeMuscleGroups, demographics,
         });
         next = sessionToPlan(workout);
       }

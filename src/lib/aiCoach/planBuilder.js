@@ -368,9 +368,22 @@ export function buildCardioSession({ style = 'easy', durationMinutes = 45, skill
  * Build a bodyweight/conditioning circuit for the Quick-pick "HIIT" type:
  * a full-body session with minimal rest. Startable + saveable like any session.
  */
-export async function buildHiitSession({ user, durationMinutes = 30, equipment = 'bodyweight', skillLevel = 'intermediate', bodyweightLbs = 165 } = {}) {
+export async function buildHiitSession({
+  user, durationMinutes = 30, equipment = 'bodyweight', skillLevel = 'intermediate',
+  bodyweightLbs = 165,
+  // These three used to be missing entirely, so the HIIT branch of the
+  // Quick-pick generator ran with generateWorkout's inert defaults: no injury
+  // exclusions, no training modifiers, no demographic scaling. `full_body`
+  // focus makes the injury half the worst of the three — it maximises the
+  // chance of programming the exact group the user reported hurt. All three
+  // default to inert here too, so a caller that passes none is unchanged.
+  excludeMuscleGroups = new Set(),
+  modifiers,
+  demographics,
+} = {}) {
   const workout = await generateWorkout({
     user, focus: 'full_body', durationMinutes, equipment, skillLevel, bodyweightLbs, seed: Date.now(),
+    excludeMuscleGroups, modifiers, demographics,
   });
   const exercises = (workout.exercises || []).map((ex) => ({ ...ex, restSec: 30 }));
   return sessionToPlan({ ...workout, exercises, title: `HIIT Circuit · ${durationMinutes} min`, focus: 'hiit' });
