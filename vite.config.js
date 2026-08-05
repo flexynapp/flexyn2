@@ -232,10 +232,40 @@ export default defineConfig({
           // actually generates signage. ~250 KB off every cold start.
           if (id.includes('node_modules/jspdf')) return undefined;
 
+          // …and jspdf's OWN dependencies, which is the half that was missed.
+          //
+          // Excluding `jspdf` moves jspdf. It does not move canvg, dompurify
+          // or pako, which jspdf pulls in for SVG rendering, HTML sanitising
+          // and deflate. Those three fell through to the vendor-misc
+          // catch-all below and shipped in the eager critical path on every
+          // cold start — 385 KB raw / ~110 KB gz — for a gym-signage PDF
+          // export almost nobody triggers. Nothing in src/ imports any of
+          // them directly; they are transitive only, so they belong wherever
+          // jspdf lands.
+          //
+          // This is the bulk of the "~200 KB of vendor-misc nobody could
+          // account for" from the August 2026 bundle audit. Measured with
+          // `npm run analyze`: canvg 165 KB, dompurify 115 KB, pako 104 KB.
+          if (id.includes('node_modules/canvg')) return undefined;
+          if (id.includes('node_modules/dompurify')) return undefined;
+          if (id.includes('node_modules/pako')) return undefined;
+          // pako arrives through fast-png, not through jspdf directly, so
+          // excluding pako alone left it anchored to fast-png in the eager
+          // chunk. fast-png has exactly one dependent in this tree — jspdf —
+          // so it belongs on the same lazy path.
+          if (id.includes('node_modules/fast-png')) return undefined;
+
           // Pose-detection / TF.js — already lazy-loaded by analyzeForm, but
           // pin to its own chunks so it definitely doesn't bleed into entry.
           if (id.includes('@tensorflow-models/pose-detection')) return 'vendor-pose';
           if (id.includes('@tensorflow/tfjs')) return 'vendor-tfjs';
+          // Same transitive-dependency trap as jspdf's, one layer down: TF.js
+          // is pinned out of the entry chunk but @mediapipe/pose (47 KB) and
+          // long (40 KB) are its dependencies, not its own files, so the
+          // catch-all was loading them eagerly for a feature that only runs
+          // when someone opens Form Coach.
+          if (id.includes('@mediapipe')) return 'vendor-pose';
+          if (id.includes('node_modules/long')) return 'vendor-tfjs';
 
           // Supabase — large, used across the app.
           if (id.includes('@supabase')) return 'vendor-supabase';
@@ -273,6 +303,19 @@ export default defineConfig({
           // navigates to one of those pages. Shared across both so the
           // chunk caches and is reused.
           if (id.includes('recharts')) return 'vendor-charts';
+          // NOT pinned here: recharts' transitive deps (decimal.js-light via
+          // recharts-scale, and the d3 family via victory-vendor). Tried and
+          // reverted — measured, it makes things WORSE, not better.
+          //
+          // Moving them to 'vendor-charts' pulls that whole chunk into the
+          // eager graph, so recharts itself (which is currently lazy) gets
+          // dragged along with it: 503 KB gz eager becomes 566. Leaving them
+          // in vendor-misc costs ~27 KB gz; pinning them costs ~63. The
+          // jspdf/TF.js exclusions above work because those libraries are
+          // reached ONLY through a dynamic import, which is not true here.
+          // If this is revisited, measure the eager total before and after —
+          // the intuition that "grouping related deps must be better" is
+          // exactly what's wrong.
 
           // Lucide icons — many small SVG components.
           if (id.includes('lucide-react')) return 'vendor-icons';
