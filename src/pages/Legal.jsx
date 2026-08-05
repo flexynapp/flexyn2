@@ -28,7 +28,7 @@
 //
 // Keep LAST_UPDATED accurate when the disclosures change.
 
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import FlexynLogo from '@/components/FlexynLogo';
 
@@ -52,18 +52,73 @@ function Blank({ value, label }) {
   );
 }
 
+/**
+ * Where the header's back arrow goes: 'back' — one real history step — or
+ * 'home', a full document load of `/`.
+ *
+ * Never a client-side <Link>, and that constraint is structural rather than
+ * stylistic. App.jsx picks this route table out of `window.location.pathname`
+ * read once at mount and never subscribes to location, so an in-app
+ * navigation away from here does not unmount the page: it re-matches inside
+ * the legal routes, where anything that isn't /privacy or /terms falls to
+ * `path="*"` and renders the Privacy Policy. That is exactly what the old
+ * `<Link to="/">` did — from /terms it silently swapped in the other
+ * document, from /privacy it appeared to do nothing at all, and neither ever
+ * returned the reader to the sign-in screen they opened this from.
+ *
+ * One real history step is safe when there is an entry of ours behind us:
+ * either the reader came from our own origin — the sign-in screen links here
+ * with plain <a> tags, so that entry is a previous *document* and back()
+ * restores it, bfcache and all — or they have already navigated within this
+ * document (react-router only stamps a location key once you move off the
+ * entry the page loaded on, so 'default' means we have not).
+ *
+ * Otherwise — a reviewer opening /privacy straight from a store listing —
+ * we hard-load `/` instead of navigating, for the same reason as above.
+ */
+export function resolveLegalBackTarget({ referrer, origin, historyLength, locationKey }) {
+  if (!(historyLength > 1)) return 'home';
+  if (locationKey && locationKey !== 'default') return 'back';
+  try {
+    if (referrer && new URL(referrer).origin === origin) return 'back';
+  } catch {
+    // Malformed referrer — treat it as external and go home.
+  }
+  return 'home';
+}
+
+function BackButton() {
+  const { key: locationKey } = useLocation();
+
+  const handleBack = () => {
+    const target = resolveLegalBackTarget({
+      referrer: document.referrer,
+      origin: window.location.origin,
+      historyLength: window.history.length,
+      locationKey,
+    });
+    if (target === 'back') window.history.back();
+    else window.location.assign('/');
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={handleBack}
+      className="flex items-center justify-center w-9 h-9 -ms-2 rounded-full hover:bg-muted transition-colors"
+      aria-label="Back"
+    >
+      <ArrowLeft className="w-5 h-5 rtl:scale-x-[-1]" />
+    </button>
+  );
+}
+
 function Shell({ title, children }) {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <header className="sticky top-0 z-10 bg-card/95 backdrop-blur-md border-b border-border">
         <div className="max-w-2xl mx-auto px-5 py-3 flex items-center gap-3">
-          <Link
-            to="/"
-            className="flex items-center justify-center w-9 h-9 -ms-2 rounded-full hover:bg-muted transition-colors"
-            aria-label="Back"
-          >
-            <ArrowLeft className="w-5 h-5 rtl:scale-x-[-1]" />
-          </Link>
+          <BackButton />
           <FlexynLogo className="h-5 w-auto" />
         </div>
       </header>

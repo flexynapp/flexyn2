@@ -3,7 +3,7 @@
 // carousel, multi-select goals, experience level, stat scrubbers,
 // schedule picker, loading animation, and personalised reveal.
 
-import { createContext, useContext, useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { createContext, useContext, useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import SignInToContinue from './SignInToContinue';
 import FlexynLogo from '@/components/FlexynLogo';
@@ -496,10 +496,57 @@ function FeatureCarousel() {
   const F = FEATURES[idx];
   const Visual = F.Visual;
 
+  /* The five illustrations are drawn at fixed natural sizes between 59×71 and
+     108×104, and their frame is now elastic — the card is this screen's flex-1
+     element (see WelcomeStep), so the panel runs from roughly 130px tall on an
+     iPhone SE to 260px on a 15 Pro Max. Scaling each illustration to fit is
+     what turns that extra height into a bigger picture instead of more padding
+     around a small one, which was the entire point of letting the card flex.
+     Fit on BOTH axes off the natural size: these five have very different
+     aspect ratios (the streak flame is portrait, the progress bars landscape),
+     so a height-only scale leaves the wide ones swimming in tint and crops the
+     tall ones. `offsetWidth`/`offsetHeight` are layout values and ignore the
+     transform, so reading them off the scaled node itself is safe and doesn't
+     feed back. Capped at 2 so FeatVisualCoach's rings — they animate out to
+     scale(2.4) — fade before the panel clips them, and floored at 0.5 rather
+     than 1: a floor of 1 means "never shrink", which on a short viewport left
+     a 100px illustration inside a 62px panel and sliced the recovery ring in
+     half, top and bottom.
+
+     `compact` is the same measurement answering a second question. The stacked
+     card — illustration above, copy below — needs vertical room to be worth
+     having; under ~300px of stage it degrades into a sliver of art over three
+     lines of text. Below that threshold the card lays out side-by-side
+     instead, which is far more height-efficient. This is a real case, not a
+     legacy-device edge: an iPhone SE is 667px, and in mobile Safari before the
+     app is installed the expanded URL bar takes another ~90px off any phone. */
+  const stageRef = useRef(null);
+  const frameRef = useRef(null);
+  const visualRef = useRef(null);
+  const [compact, setCompact] = useState(false);
+  const [illScale, setIllScale] = useState(1);
+  useLayoutEffect(() => {
+    const stage = stageRef.current, frame = frameRef.current, vis = visualRef.current;
+    if (!stage || !frame || !vis) return;
+    const fit = () => {
+      setCompact(stage.clientHeight < 300);
+      const nw = vis.offsetWidth, nh = vis.offsetHeight;
+      if (!nw || !nh) return;
+      setIllScale(Math.max(0.5, Math.min(2,
+        Math.min(frame.clientWidth * 0.86 / nw, frame.clientHeight * 0.86 / nh))));
+    };
+    fit();
+    if (typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(fit);
+    ro.observe(stage);
+    ro.observe(frame);
+    return () => ro.disconnect();
+  }, [idx]);
+
   // Swipe affordance — user feedback ("make this carousel people
   // requested to scroll") flagged that the auto-rotating pips didn't
-  // signal the cards were interactive. Drag-to-swipe + a subtle
-  // bouncing chevron makes the gesture discoverable.
+  // signal the cards were interactive. Drag-to-swipe plus the peeking
+  // neighbours below makes the gesture discoverable.
   const handleDragEnd = (_e, info) => {
     const dx = info.offset.x;
     const vx = info.velocity.x;
@@ -515,66 +562,78 @@ function FeatureCarousel() {
   };
 
   return (
+    /* The rail is this screen's ONE dominant element, and the only thing
+       allowed to break the shell's px-6 inset (`-mx-6`) — see the composition
+       rules in CLAUDE.md. It is also the only flexible block on the screen:
+       everything above and below is `shrink-0`, so all leftover viewport
+       height lands here instead of being divided into three equal voids the
+       way `justify-between` used to divide it (89px each at 812px tall,
+       ~130px on a 15 Pro Max — a third of the screen holding nothing). */
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.85, duration: 0.5 }}
-      onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}
-      drag="x"
-      dragConstraints={{ left: 0, right: 0 }}
-      dragElastic={0.22}
-      onDragEnd={handleDragEnd}
-      className="relative rounded-[20px] border border-border overflow-hidden p-4 touch-pan-y cursor-grab active:cursor-grabbing"
-      // No backdrop-filter. CLAUDE.md's UI rules ban glassmorphism outright
-      // ("backdrop-blur is on the published list of signals designers use to
-      // identify generated UI"), and it had a second cost here: backdrop-filter
-      // promotes the whole subtree to its own composited layer, which is why
-      // the streak card's "47" rendered soft next to the rest of the page.
-      // (Audit 18 #15.)
-      style={{ background: 'linear-gradient(180deg, hsl(var(--card) / 0.88), hsl(var(--card) / 0.65))' }}>
-      {/* accent glow */}
-      <div className="absolute -top-10 -end-10 w-44 h-44 rounded-full blur-[40px] transition-all duration-700 pointer-events-none"
-        style={{ background: F.accent, opacity: 0.18 }} />
-      {/* card body — keyed so it remounts + plays entry animation on each slide */}
-      <div key={F.id} className="flex items-center gap-3"
-        style={{ animation: 'ob-feat-enter 0.65s cubic-bezier(0.16,1,0.3,1) both', perspective: 800 }}>
-        {/* Animated visual.
-            The frame is sized to the TALLEST illustration, not to a round
-            number. At 110px the Smart Log visual (127px: three set rows plus
-            the "+ PR" badge) was clipped by 17px, so the badge and the bottom
-            of the third row were sliced off — the "part of the bench is cut
-            off" report from the 2026-08-05 walkthrough. The other four
-            measure 87-100px and are centred in the frame.
-            Keep the height FIXED: letting the frame size to its content would
-            change the card's height per slide, which is the resize behaviour
-            the carousel is explicitly not supposed to have. If this frame ever
-            grows again, shrink the illustration instead. (Audit 18 #7.) */}
-        <div className="flex items-center justify-center" style={{ width: 110, height: 132, flexShrink: 0, overflow: 'hidden' }}>
-          <Visual accent={F.accent} />
-        </div>
-        {/* Copy */}
-        {/* pe-5 reserves the strip the swipe chevron occupies. The chevron is
-            positioned against the CARD (the nearest positioned ancestor), at
-            end-3 — inside the card's own p-4 — so without this the sub-copy
-            wrapped straight under it and rendered as "…RPE. ›". (Audit 18 #16.) */}
-        <div className="flex-1 min-w-0 pe-5">
-          <div className="font-mono text-micro font-bold tracking-[0.16em] uppercase mb-1" style={{ color: F.accent }}>
-            {tFallback(`onboarding.feature.${F.id}.eyebrow`, F.eyebrow)}
+      className="relative -mx-6 flex-1 min-h-0 flex flex-col">
+      <div ref={stageRef} className="relative flex-1 min-h-0 overflow-hidden"
+        onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
+        {/* Peeking neighbours. A card whose edge you can see reads as swipeable
+            in a way a static hint never did — this replaces the bouncing `›`
+            chevron, which also used to force a `pe-5` gutter into the copy
+            column to stop the sub-line wrapping under it. (Audit 18 #16.)
+            Geometry: the active card is inset 42px each side, so a neighbour
+            sits one card-width plus a 12px gutter away and shows 30px. */}
+        {[-1, 1].map(dir => (
+          <div key={dir} aria-hidden="true"
+            className="absolute inset-y-5 rounded-[20px] border border-border/60 pointer-events-none"
+            style={{
+              width: 'calc(100% - 84px)',
+              insetInlineStart: dir < 0 ? 'calc(114px - 100%)' : 'calc(100% - 30px)',
+              background: 'hsl(var(--card) / 0.6)',
+            }} />
+        ))}
+
+        <motion.div
+          drag="x"
+          dragConstraints={{ left: 0, right: 0 }}
+          dragElastic={0.22}
+          onDragEnd={handleDragEnd}
+          className={`absolute inset-y-0 start-[42px] end-[42px] rounded-[20px] border border-border overflow-hidden p-5 flex touch-pan-y cursor-grab active:cursor-grabbing ${compact ? 'flex-row items-center gap-4' : 'flex-col'}`}
+          // No backdrop-filter. CLAUDE.md's UI rules ban glassmorphism outright
+          // ("backdrop-blur is on the published list of signals designers use to
+          // identify generated UI"), and it had a second cost here: backdrop-filter
+          // promotes the whole subtree to its own composited layer, which is why
+          // the streak card's "47" rendered soft next to the rest of the page.
+          // (Audit 18 #15.)
+          style={{ background: 'hsl(var(--card))' }}>
+          {/* accent glow */}
+          <div className="absolute -top-10 -end-10 w-44 h-44 rounded-full blur-[40px] transition-all duration-700 pointer-events-none"
+            style={{ background: F.accent, opacity: 0.18 }} />
+
+          {/* Illustration panel — takes every pixel the copy doesn't need. */}
+          <div ref={frameRef}
+            className={`relative rounded-2xl flex items-center justify-center overflow-hidden ${compact ? 'h-full w-[40%] shrink-0' : 'flex-1 min-h-0 w-full'}`}
+            style={{ background: F.accent.replace(')', ' / 0.07)') }}>
+            {/* keyed so it remounts + plays the entry animation on each slide */}
+            <div key={F.id} ref={visualRef} style={{ transform: `scale(${illScale})`, animation: 'ob-feat-enter 0.65s cubic-bezier(0.16,1,0.3,1) both', perspective: 800 }}>
+              <Visual accent={F.accent} />
+            </div>
           </div>
-          <div className="font-heading font-bold text-body leading-tight tracking-tight text-foreground mb-1.5">
-            {tFallback(`onboarding.feature.${F.id}.title`, F.title)}
+
+          {/* Copy */}
+          <div key={`copy-${F.id}`} className={`relative ${compact ? 'flex-1 min-w-0' : 'shrink-0 pt-4'}`}
+            style={{ animation: 'ob-feat-enter 0.65s cubic-bezier(0.16,1,0.3,1) both' }}>
+            <div className="font-mono text-micro font-bold tracking-[0.16em] uppercase mb-1" style={{ color: F.accent }}>
+              {tFallback(`onboarding.feature.${F.id}.eyebrow`, F.eyebrow)}
+            </div>
+            <div className={`font-heading font-bold leading-tight tracking-tight text-foreground mb-1.5 ${compact ? 'text-body' : 'text-title'}`}>
+              {tFallback(`onboarding.feature.${F.id}.title`, F.title)}
+            </div>
+            <div className="text-caption leading-[1.45] text-muted-foreground">
+              {tFallback(`onboarding.feature.${F.id}.sub`, F.sub)}
+            </div>
           </div>
-          <div className="text-[11.5px] leading-[1.45] text-muted-foreground">
-            {tFallback(`onboarding.feature.${F.id}.sub`, F.sub)}
-          </div>
-        </div>
-        {/* Bouncing chevron — subtle hint that the card slides horizontally */}
-        <motion.span
-          aria-hidden="true"
-          animate={{ x: [0, 5, 0] }}
-          transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
-          className="absolute end-3 top-1/2 -translate-y-1/2 text-muted-foreground/40 text-lg pointer-events-none select-none"
-        >›</motion.span>
+        </motion.div>
       </div>
+
       {/* pip indicators with progress fill */}
-      <div className="flex gap-1.5 mt-3.5 items-center">
+      <div className="flex gap-1.5 pt-3.5 items-center justify-center shrink-0">
         {FEATURES.map((f, i) => {
           const active = i === idx;
           return (
@@ -611,9 +670,19 @@ function WelcomeStep({ onNext, onSignIn }) {
   const accent = tFallback('onboarding.welcome.accentWord', 'mean');
   let delay = 0.15;
   return (
-    <div className="flex flex-col h-full pt-3 gap-5 justify-between">
+    /* `gap-6` + a single flexible child, NOT `justify-between`.
+       This column used to be four fixed-height blocks (43 + 128 + 184 + 130 =
+       485px) distributed with `justify-between`, so every spare pixel of
+       viewport was split into three identical gutters — 41px on an iPhone SE,
+       89px at 812, ~130px on a 15 Pro Max. Nothing was allowed to absorb the
+       slack, so the slack became the layout, and the taller the phone the
+       emptier the first screen looked. `gap-5` was also in the banned 12–20px
+       middle spacing register (CLAUDE.md). Now the three chrome blocks are
+       `shrink-0` at a 24px rhythm and FeatureCarousel is `flex-1`, so extra
+       height goes into the one element that can use it. */
+    <div className="flex flex-col h-full pt-3 gap-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between shrink-0">
         <motion.div initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }}
           transition={{ type: 'spring', stiffness: 400, damping: 20 }}>
           <FlexynLogo className="h-9" />
@@ -623,7 +692,7 @@ function WelcomeStep({ onNext, onSignIn }) {
       </div>
 
       {/* Hero */}
-      <div>
+      <div className="shrink-0">
         <h1 className="font-heading font-bold text-[44px] leading-[0.97] tracking-[-0.045em] text-foreground m-0">
           {line1.map((w, i) => (
             <motion.span key={`l1-${i}`} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
@@ -644,7 +713,7 @@ function WelcomeStep({ onNext, onSignIn }) {
 
       {/* CTAs */}
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.95, duration: 0.4 }}
-        className="flex flex-col gap-2">
+        className="flex flex-col gap-2 shrink-0">
         <PrimaryBtn onClick={onNext}>
           {tFallback('onboarding.welcome.cta', 'Get started')} <span className="ob-icon-bob inline-flex"><Icon name="arrow-right" size={20} strokeWidth={2.5} /></span>
         </PrimaryBtn>
@@ -3082,6 +3151,10 @@ function buildVariants(flavor, direction) {
   }
 }
 
+// Session-scoped marker for "the reader is on the sign-in gate, not the
+// welcome screen." See the showSignIn state below for why it's persisted.
+const SIGN_IN_GATE_KEY = 'fn-onboarding-signin-gate';
+
 export default function Onboarding() {
   const navigate = useNavigate();
   const { isAuthenticated, isLoadingAuth, checkUserAuth, user } = useAuth();
@@ -3095,8 +3168,24 @@ export default function Onboarding() {
   // gate (Google + Apple + email magic-link, all with error handling) rather
   // than being force-redirected to Google with no fallback. Toggled by the
   // welcome CTAs; the OAuth/magic-link round-trip reloads the app, so this
-  // flag doesn't need to survive the redirect.
-  const [showSignIn, setShowSignIn] = useState(false);
+  // flag doesn't need to survive *that* redirect.
+  //
+  // It does need to survive one other reload, which is why it's persisted:
+  // the gate carries the Terms / Privacy links, those are plain <a> tags to
+  // public routes (see SignInToContinue), and coming back from one is a
+  // fresh document. Without this, reading the terms dropped the reader on
+  // the welcome screen instead of the gate they left. Session-scoped, so it
+  // never leaks into a later visit.
+  const [showSignIn, setShowSignIn] = useState(() => {
+    try { return sessionStorage.getItem(SIGN_IN_GATE_KEY) === '1'; } catch { return false; }
+  });
+
+  useEffect(() => {
+    try {
+      if (showSignIn && !isAuthenticated) sessionStorage.setItem(SIGN_IN_GATE_KEY, '1');
+      else sessionStorage.removeItem(SIGN_IN_GATE_KEY);
+    } catch { /* Safari private mode — the gate just won't survive a reload. */ }
+  }, [showSignIn, isAuthenticated]);
 
   // Persist in-flight onboarding state to localStorage so a refresh / tab
   // close mid-flow doesn't lose 6 steps of input. Cleared on successful
