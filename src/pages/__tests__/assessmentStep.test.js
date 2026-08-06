@@ -34,10 +34,23 @@ describe('assessment step', () => {
     expect(questionsBlock()).not.toMatch(/Can you/);
   });
 
-  it('keeps all four checks', () => {
-    for (const id of ['bench_bw', 'squat_bw15', 'pullups_10', 'mile_under10']) {
-      expect(questionsBlock(), id).toContain(id);
-    }
+  it('asks five, in two tiers, easiest first', () => {
+    // Five is a ceiling: seven rows don't fit a phone, and this step ends
+    // above a pinned CTA. The order matters as much as the set — opening with
+    // things the user can't do is what the foundation tier exists to avoid.
+    const block = questionsBlock();
+    const order = [...block.matchAll(/id: '([a-z0-9_]+)'/g)].map(m => m[1]);
+    expect(order).toEqual([
+      'pushups_20', 'plank_60s',                      // foundation
+      'squat_bw15', 'pullups_10', 'mile_under10',     // strength
+    ]);
+  });
+
+  it('has no tally under the list', () => {
+    // The answered rows already carry the answer's hue in border and chip, so
+    // "Answered 2 of 5" was the same fact in a second place — and it was the
+    // 30px that pushed five questions off the bottom of a 667pt screen.
+    expect(assessmentStep()).not.toContain('assessment.answered');
   });
 
   it('does not stack the answers under the question', () => {

@@ -1199,8 +1199,32 @@ function ExperienceStep({ value, onChange, onNext, onBack, step, total }) {
    ASSESSMENT STEP — 4 lift-estimate questions, all optional
 ═══════════════════════════════════════════════════════════════ */
 
+// Five questions in two tiers, and five is a deliberate ceiling: seven rows
+// don't fit a phone, and this step ends above a pinned CTA.
+//
+// The tiers exist because the original four were ALL advanced benchmarks —
+// published standards put most untrained men at 0-3 pull-ups and call 8+
+// genuinely intermediate. A real beginner answered "not yet" four times and
+// scored 0; so did someone a year into training. The instrument had no
+// resolution at the end of the range where nearly every new user sits, which
+// is the end that decides whether week one is achievable.
+//
+// FOUNDATION (push-ups, plank) is answerable by someone who trains a little,
+// so it separates "never trained" from "trains a bit".
+// STRENGTH (squat, pull-ups, mile) is the ceiling end.
+//
+// What was cut, and why it was the right two: "bench press your bodyweight"
+// is an upper-body push, which 20 push-ups already reads; "25 bodyweight
+// squats" is a leg endurance test sitting next to a leg strength one. Each
+// removal drops a duplicate signal rather than a distinct one.
+//
+// Easiest first, so the step doesn't open with things the user can't do.
+// Every id here must appear in starterRegimen's FOUNDATION_KEYS or
+// STRENGTH_KEYS, or the answer is collected and ignored — which would make
+// this step's "your AI Coach uses these" a lie.
 const ASSESSMENT_QUESTIONS = [
-  { id: 'bench_bw',     question: 'Bench press your bodyweight' },
+  { id: 'pushups_20',   question: '20 push-ups in a row' },
+  { id: 'plank_60s',    question: 'A 60-second plank' },
   { id: 'squat_bw15',   question: 'Squat 1.5× your bodyweight' },
   { id: 'pullups_10',   question: '10 strict pull-ups in a row' },
   { id: 'mile_under10', question: 'A mile under 10 minutes' },
@@ -1247,7 +1271,7 @@ function AssessmentStep({ value, onChange, onNext, onBack, onSkip, step, total }
             one fits with room. The answered row carries the answer's hue in
             its border, and the chosen chip in border and label — the same
             budget the goal cards settled on, no fills. */}
-        <div className="space-y-2">
+        <div className="flex flex-col" style={{ gap: 'var(--fluid-stack)' }}>
           {ASSESSMENT_QUESTIONS.map((q, qi) => {
             const answer = ASSESSMENT_ANSWERS.find(a => a.id === answers[q.id]);
             return (
@@ -1256,8 +1280,9 @@ function AssessmentStep({ value, onChange, onNext, onBack, onSkip, step, total }
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1 + qi * 0.06, duration: 0.4 }}
-                className="flex items-center gap-2 rounded-2xl border bg-card px-4 py-3 transition-colors"
-                style={{ borderColor: answer ? answer.hue : 'hsl(var(--border))' }}
+                className="flex items-center gap-2 rounded-2xl border bg-card px-4 transition-colors"
+                style={{ paddingBlock: 'var(--fluid-card-y)',
+                  borderColor: answer ? answer.hue : 'hsl(var(--border))' }}
               >
                 <p className="flex-1 min-w-0 font-heading font-semibold text-label leading-tight text-foreground">
                   {tFallback(`onboarding.assessment.q.${q.id}`, q.question)}
@@ -1287,11 +1312,6 @@ function AssessmentStep({ value, onChange, onNext, onBack, onSkip, step, total }
           })}
         </div>
 
-        <p className="text-micro text-center text-muted-foreground mt-4">
-          {tFallback('onboarding.assessment.answered', 'Answered {count} of {total}', {
-            count: answeredCount, total: ASSESSMENT_QUESTIONS.length,
-          })}
-        </p>
       </div>
 
       <div className="shrink-0 flex flex-col gap-2" style={{ paddingTop: 'var(--fluid-cta-gap)' }}>
@@ -1391,23 +1411,25 @@ const nudgeBtnStyle = {
 
 /* ── Pill unit toggle (ft·in / cm, lb / kg) ── */
 function PillUnitToggle({ options, value, onChange }) {
+  // Two full-width segments, the same control the sex row and the goal cards
+  // use: hairline border, accent on the border and the label, no fill. It was
+  // a compact pill with a filled active segment and a coloured drop shadow —
+  // a third selection idiom on a flow that now has one.
   return (
-    <div style={{
-      display: 'inline-flex', background: 'hsl(var(--secondary))',
-      borderRadius: 999, padding: 3, gap: 2, border: '1px solid hsl(var(--border))',
-    }}>
+    <div className="flex w-full" style={{ gap: 'var(--fluid-stack)' }}>
       {options.map(o => {
         const active = value === o.id;
         return (
-          <button key={o.id} onClick={() => onChange(o.id)} style={{
-            border: 'none', padding: '0 18px', minHeight: 44,
-            fontFamily: 'ui-monospace, monospace', fontSize: 11, fontWeight: 700, letterSpacing: '0.1em',
-            borderRadius: 999,
-            background: active ? 'hsl(var(--primary))' : 'transparent',
-            color: active ? 'white' : 'hsl(var(--muted-foreground))',
-            cursor: 'pointer', transition: 'all 0.25s cubic-bezier(0.16,1,0.3,1)',
-            textTransform: 'uppercase', minWidth: 60,
-          }}>{o.label}</button>
+          <button key={o.id} type="button" onClick={() => onChange(o.id)}
+            aria-pressed={active}
+            className="flex-1 min-h-11 rounded-lg border text-label font-semibold transition-colors"
+            style={{
+              borderColor: active ? 'hsl(var(--primary))' : 'hsl(var(--border))',
+              background: 'hsl(var(--card))',
+              color: active ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))',
+            }}>
+            {o.label}
+          </button>
         );
       })}
     </div>
@@ -1450,7 +1472,6 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
   const setAge = (v) => onChange({ ...stats, age: v });
   const gender = stats.gender || null;
   const setGender = (g) => onChange({ ...stats, gender: g });
-  const bumpAge = (dir) => setAge(Math.min(AGE_MAX, Math.max(AGE_MIN, age + dir)));
   const { ref, onPointerDown, onPointerMove, onPointerUp, isDragging } = useDragValue({ value: age, onChange: setAge, min: AGE_MIN, max: AGE_MAX, axis: 'x', pxPerUnit: 18 });
 
   // Tap-to-type: tapping the big number opens a numeric keypad so users
@@ -1541,12 +1562,9 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
 
         {/* Username */}
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-          className="rounded-2xl border bg-card/80 p-4 mb-4">
-          <div className="flex items-center gap-2 mb-2">
-            <Icon name="user" size={14} color="hsl(var(--muted-foreground))" />
-            <span className="font-mono text-micro font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-              {tFallback('onboarding.about.usernamePrompt', 'What should we call you?')}
-            </span>
+          style={{ marginBottom: 'var(--fluid-section)' }}>
+          <div className="font-mono text-micro font-semibold uppercase tracking-[0.14em] text-muted-foreground mb-2">
+            {tFallback('onboarding.about.usernamePrompt', 'What should we call you?')}
           </div>
           <input
             type="text"
@@ -1583,18 +1601,10 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
 
         {/* Age drag section */}
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18 }}
-          className="rounded-2xl border bg-card/80 p-5 relative overflow-hidden">
-          <div className="font-mono text-micro font-semibold uppercase tracking-[0.14em] text-muted-foreground mb-4">
+          className="relative">
+          <div className="font-mono text-micro font-semibold uppercase tracking-[0.14em] text-muted-foreground mb-2 text-center">
             {tFallback('onboarding.about.agePrompt', 'How old are you?')}
           </div>
-
-          {/* Glow halo */}
-          <div style={{
-            position: 'absolute', top: '30%', left: '50%', transform: 'translate(-50%,-50%)',
-            width: 200, height: 200, borderRadius: '50%',
-            background: stage.accent, opacity: 0.1, filter: 'blur(50px)',
-            transition: 'background 0.5s', pointerEvents: 'none', animation: 'stat-glow-pulse 3s ease-in-out infinite',
-          }} />
 
           {/* Hero number — tap to type a value directly */}
           <div className="flex flex-col items-center mb-4">
@@ -1626,7 +1636,7 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
                     (Onboarding screenshot feedback, 2026-06.) */}
                 <div style={{
                   fontFamily: 'var(--font-heading, sans-serif)', fontWeight: 800,
-                  fontSize: 120, lineHeight: 0.9, letterSpacing: '-0.03em',
+                  fontSize: 'var(--fluid-hero)', lineHeight: 0.9, letterSpacing: '-0.03em',
                   paddingRight: '0.1em',
                   color: 'hsl(var(--foreground))',
                   transform: isDragging ? 'scale(0.97)' : 'scale(1)',
@@ -1652,7 +1662,7 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
                 // copy advertises was the hardest thing on the step to hit.
                 style={{ background: 'none', border: 'none', cursor: 'text', padding: '0 8px', minHeight: 44 }}
               >
-                {tFallback('onboarding.about.ageHint', 'YEARS OLD · TAP TO TYPE OR DRAG')}
+                {tFallback('onboarding.about.ageHint', 'TAP TO TYPE OR DRAG')}
               </button>
             )}
 
@@ -1664,8 +1674,8 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
               transition={{ duration: 0.35, ease: [0.34, 1.56, 0.64, 1] }}
               className="flex items-center gap-2 mt-3 px-4 py-2 rounded-full text-sm font-semibold"
               style={{
-                background: `${stage.accent.replace(')', ' / 0.12)')}`,
-                border: `1.5px solid ${stage.accent.replace(')', ' / 0.4)')}`,
+                background: 'hsl(var(--card))',
+                border: `1.5px solid ${stage.accent}`,
                 color: stage.accent,
               }}>
               <span className="font-mono text-micro tracking-[0.14em] uppercase font-bold">
@@ -1686,7 +1696,7 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
             onPointerUp={onPointerUp}
             onPointerCancel={onPointerUp}
             style={{
-              position: 'relative', height: 48, overflow: 'hidden',
+              position: 'relative', height: 'var(--fluid-scrubber)', overflow: 'hidden',
               cursor: isDragging ? 'grabbing' : 'grab', touchAction: 'none', userSelect: 'none',
               maskImage: 'linear-gradient(90deg, transparent, black 12%, black 88%, transparent)',
               WebkitMaskImage: 'linear-gradient(90deg, transparent, black 12%, black 88%, transparent)',
@@ -1717,7 +1727,7 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
               })}
             </div>
             {/* Center hairline */}
-            <div style={{ position: 'absolute', left: '50%', top: 0, bottom: 0, width: 2, marginLeft: -1, background: 'linear-gradient(180deg, hsl(var(--primary)), transparent)', pointerEvents: 'none', boxShadow: '0 0 10px hsl(var(--primary))' }} />
+            <div style={{ position: 'absolute', left: '50%', top: 8, bottom: 8, width: 2, marginLeft: -1, background: 'hsl(var(--primary))', borderRadius: 1, pointerEvents: 'none' }} />
           </div>
           <div className="flex justify-between mt-1 px-1">
             {/* The middle "DRAG OR USE BUTTONS" label is gone — the step was
@@ -1729,28 +1739,23 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
             <span className="font-mono text-micro font-semibold text-muted-foreground tracking-wide">{AGE_MIN}</span>
             <span className="font-mono text-micro font-semibold text-muted-foreground tracking-wide">{AGE_MAX}</span>
           </div>
-          {/* ± Age nudge buttons */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginTop: 12 }}>
-            <button onClick={() => bumpAge(-5)} style={nudgeBtnStyle}>−5</button>
-            <button onClick={() => bumpAge(-1)} style={nudgeBtnStyle}>−1</button>
-            {/* The value used to be repeated here, 13px, ~300px below the
-                120px reel already showing it. One number, one place — the
-                spacer keeps the ± buttons from closing up around the gap. */}
-            <span aria-hidden="true" style={{ minWidth: 48 }} />
-            <button onClick={() => bumpAge(+1)} style={nudgeBtnStyle}>+1</button>
-            <button onClick={() => bumpAge(+5)} style={nudgeBtnStyle}>+5</button>
-          </div>
         </motion.div>
 
         {/* Sex — calibrates strength targets, training volume, and calories.
             The whole app already reads this; it just never asked before. */}
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.26 }}
-          className="rounded-2xl border bg-card/80 p-4 mt-4">
-          <div className="font-mono text-micro font-semibold uppercase tracking-[0.14em] text-muted-foreground mb-3">
-            {tFallback('onboarding.about.sexLabel', 'Sex')}{' '}
-            <span className="normal-case font-normal opacity-70">
-              {tFallback('onboarding.about.sexNote', '· tunes your strength + calorie targets')}
-            </span>
+          style={{ marginTop: 'var(--fluid-section)' }}>
+          {/* "Sex assigned at birth" rather than "Sex" or "Gender": this value
+              feeds BMR and the strength multipliers in _demographicScale, so
+              the honest question is the physiological one. The two-step
+              standard (sex at birth + gender identity) is what health research
+              uses, but the second step earns its place only when something
+              reads it — nothing here does, so asking it would be collecting
+              data for nothing. "Prefer not to say" replaces "Other", which as
+              a sex option told the calculator nothing anyway; both land on the
+              same conservative middle value. */}
+          <div className="font-mono text-micro font-semibold uppercase tracking-[0.14em] text-muted-foreground mb-2">
+            {tFallback('onboarding.about.sexPrompt', 'What sex were you assigned at birth?')}
           </div>
           {/* Three-option layout so users who don't identify as binary
               male/female have an "Other" path that still records a value
@@ -1761,9 +1766,9 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
               (Onboarding screenshot feedback, 2026-06.) */}
           <div className="grid grid-cols-3 gap-2">
             {[
-              { id: 'male', label: 'Male' },
-              { id: 'female', label: 'Female' },
-              { id: 'other', label: 'Other' },
+              { id: 'female', label: tFallback('onboarding.about.sexFemale', 'Female') },
+              { id: 'male',   label: tFallback('onboarding.about.sexMale', 'Male') },
+              { id: 'other',  label: tFallback('onboarding.about.sexSkip', 'Prefer not to say') },
             ].map(o => {
               const active = gender === o.id;
               return (
@@ -1771,7 +1776,7 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
                   key={o.id}
                   type="button"
                   onClick={() => setGender(o.id)}
-                  className="h-11 rounded-xl border text-sm font-semibold transition-colors"
+                  className="min-h-11 px-2 py-2 rounded-lg border text-caption font-semibold leading-tight transition-colors"
                   style={{
                     borderColor: active ? 'hsl(var(--primary))' : 'hsl(var(--border))',
                     background: active ? 'hsl(var(--primary) / 0.12)' : 'transparent',
@@ -1829,8 +1834,6 @@ function HeightStep({ stats, onChange, onNext, onBack, step, total }) {
   const setValue = (v) => unit === 'cm'
     ? onChange({ ...stats, heightCm: v, heightIn: inFromCm(v) })
     : onChange({ ...stats, heightIn: v, heightCm: cmFromIn(v) });
-
-  const bump = (dir) => setValue(Math.min(range[1], Math.max(range[0], value + dir)));
 
   const { ref, onPointerDown, onPointerMove, onPointerUp, isDragging } = useDragValue({ value, onChange: setValue, min: range[0], max: range[1], axis: 'y', pxPerUnit: PX });
 
@@ -1930,12 +1933,11 @@ function HeightStep({ stats, onChange, onNext, onBack, step, total }) {
           and AgeStep. Without this the user's number input was hidden
           behind the keyboard. */}
       <div className="flex-1 overflow-y-auto pb-2">
-        <div className="flex justify-between items-start mb-3">
-          <KineticHeading
-            text={tFallback('onboarding.height.heading', 'How tall are you?')}
-            accentWord="tall" />
-        </div>
-        <div className="mb-4">
+        <KineticHeading
+          text={tFallback('onboarding.height.heading', 'How tall are you?')}
+          accentWord="tall" />
+        <div style={{ height: 'var(--fluid-stack)' }} />
+        <div style={{ marginBottom: 'var(--fluid-section)' }}>
           <PillUnitToggle
             options={[
               { id: 'in', label: tFallback('onboarding.height.unitImperial', 'ft·in') },
@@ -1944,12 +1946,62 @@ function HeightStep({ stats, onChange, onNext, onBack, step, total }) {
             value={unit} onChange={setUnit} />
         </div>
 
-        <div style={{ display: 'flex', gap: 12, height: 320 }}>
+            <div className="text-center" style={{ marginBottom: 'var(--fluid-section)' }}>
+            {editingHeight ? (
+              <input
+                ref={heightInputRef}
+                // type="text" so the ft·in separator chars (' or " or .)
+                // are typeable on mobile. type="number" rejects them.
+                type="text"
+                // Numeric keypad for cm mode; default for ft·in mode
+                // (need the apostrophe/quote/dot keys).
+                inputMode={unit === 'cm' ? 'numeric' : 'text'}
+                pattern={unit === 'cm' ? '[0-9]*' : undefined}
+                enterKeyHint="done"
+                value={draftHeight}
+                placeholder={unit === 'cm' ? '170' : "5'10"}
+                onBlur={handleHeightBlur}
+                onChange={handleHeightInput}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.currentTarget.blur(); } }}
+                aria-label={unit === 'cm'
+                  ? tFallback('onboarding.height.ariaMetric', 'Your height in centimeters')
+                  : tFallback('onboarding.height.ariaImperial', 'Your height in feet and inches')}
+                style={{ width: '100%', fontFamily: 'var(--font-heading, sans-serif)', fontWeight: 800, fontSize: 32, lineHeight: 1, textAlign: 'center', background: 'transparent', border: 'none', borderBottom: '2px solid hsl(var(--primary))', color: 'hsl(var(--foreground))', outline: 'none', padding: 0 }}
+              />
+            ) : (
+              <button
+                type="button"
+                onClick={handleHeightTap}
+                aria-label={tFallback('onboarding.height.tapAria', 'Tap to type your height')}
+                // minHeight 44 — the number IS the tap-to-type target, and
+                // the hint under it says so, but it measured 38px.
+                style={{ background: 'none', border: 'none', cursor: 'text', padding: 0, minHeight: 44, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+              >
+                <div style={{ fontFamily: 'var(--font-heading, sans-serif)', fontWeight: 800, fontSize: 'var(--fluid-hero)', lineHeight: 1, letterSpacing: '-0.04em', color: 'hsl(var(--foreground))', transform: isDragging ? 'scale(0.97)' : 'scale(1)', transition: 'transform 0.15s' }}>
+                  {unit === 'cm' ? value : `${Math.floor(value/12)}'${value%12}"`}
+                </div>
+              </button>
+            )}
+            <div className="font-mono text-micro font-semibold tracking-widest uppercase text-muted-foreground mt-2">
+              {unit === 'cm'
+                ? tFallback('onboarding.height.tapHintMetric', 'CM · TAP TO TYPE')
+                : tFallback('onboarding.height.tapHintImperial', 'FT · IN · TAP TO TYPE')}
+            </div>
+            <div className="font-mono text-micro text-muted-foreground/70 mt-1">≈ {displaySecondary}</div>
+            {heightHint && (
+              <p className="text-micro text-primary mt-1 leading-snug">
+                {unit === 'cm'
+                  ? tFallback('onboarding.height.hintMetric', "Enter centimetres — e.g. 178. Switch to ft·in above if that's what you meant.")
+                  : tFallback('onboarding.height.hintImperial', "Enter feet and inches — e.g. 5'10 or 511. Switch to cm above if that's what you meant.")}
+              </p>
+            )}
+          </div>
+        <div style={{ display: 'flex', gap: 8, height: 'var(--fluid-panel)' }}>
           {/* Silhouette panel */}
           <div style={{
             flex: 1, position: 'relative', display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
-            background: 'linear-gradient(180deg, transparent, hsl(var(--card) / 0.6))',
-            borderRadius: 18, overflow: 'hidden', border: '1px solid hsl(var(--border))',
+            background: 'hsl(var(--card))',
+            borderRadius: 16, overflow: 'hidden', border: '1px solid hsl(var(--border))',
           }}>
             {/* Reference lines — labels are unit-aware so cm-mode users
                 aren't asked to mentally convert 6'0" → 183 cm.
@@ -1970,79 +2022,29 @@ function HeightStep({ stats, onChange, onNext, onBack, step, total }) {
             })}
             {/* Silhouette */}
             <svg viewBox="0 0 100 240" preserveAspectRatio="xMidYMax meet"
-              style={{ width: '65%', height: `${silhouetteH}%`, transition: isDragging ? 'none' : 'height 0.3s cubic-bezier(0.34,1.56,0.64,1)', position: 'relative', zIndex: 2 }}>
-              <defs>
-                <linearGradient id="sil-grad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="hsl(var(--primary))" />
-                  <stop offset="100%" stopColor="hsl(var(--primary) / 0.3)" />
-                </linearGradient>
-              </defs>
-              <circle cx="50" cy="20" r="12" fill="url(#sil-grad)" />
-              <rect x="46" y="30" width="8" height="6" fill="url(#sil-grad)" />
-              <path d="M30 36 Q30 45,32 60 L32 130 Q32 138,35 140 L65 140 Q68 138,68 130 L68 60 Q70 45,70 36 Z" fill="url(#sil-grad)" />
-              <rect x="20" y="38" width="10" height="78" rx="5" fill="url(#sil-grad)" />
-              <rect x="70" y="38" width="10" height="78" rx="5" fill="url(#sil-grad)" />
-              <rect x="34" y="138" width="13" height="92" rx="5" fill="url(#sil-grad)" />
-              <rect x="53" y="138" width="13" height="92" rx="5" fill="url(#sil-grad)" />
+              style={{ width: '74%', height: `${silhouetteH}%`, transition: isDragging ? 'none' : 'height 0.3s cubic-bezier(0.34,1.56,0.64,1)', position: 'relative', zIndex: 2 }}>
+              <circle cx="50" cy="20" r="12" fill="hsl(var(--primary))" />
+              <rect x="46" y="30" width="8" height="6" fill="hsl(var(--primary))" />
+              <path d="M30 36 Q30 45,32 60 L32 130 Q32 138,35 140 L65 140 Q68 138,68 130 L68 60 Q70 45,70 36 Z" fill="hsl(var(--primary))" />
+              <rect x="20" y="38" width="10" height="78" rx="5" fill="hsl(var(--primary))" />
+              <rect x="70" y="38" width="10" height="78" rx="5" fill="hsl(var(--primary))" />
+              <rect x="34" y="138" width="13" height="92" rx="5" fill="hsl(var(--primary))" />
+              <rect x="53" y="138" width="13" height="92" rx="5" fill="hsl(var(--primary))" />
             </svg>
-            <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 16, background: 'linear-gradient(0deg, hsl(var(--primary) / 0.2), transparent)', pointerEvents: 'none' }} />
           </div>
 
-          {/* Readout + ruler */}
-          <div style={{ width: 120, display: 'flex', flexDirection: 'column' }}>
-            <div className="mb-3">
-              {editingHeight ? (
-                <input
-                  ref={heightInputRef}
-                  // type="text" so the ft·in separator chars (' or " or .)
-                  // are typeable on mobile. type="number" rejects them.
-                  type="text"
-                  // Numeric keypad for cm mode; default for ft·in mode
-                  // (need the apostrophe/quote/dot keys).
-                  inputMode={unit === 'cm' ? 'numeric' : 'text'}
-                  pattern={unit === 'cm' ? '[0-9]*' : undefined}
-                  enterKeyHint="done"
-                  value={draftHeight}
-                  placeholder={unit === 'cm' ? '170' : "5'10"}
-                  onBlur={handleHeightBlur}
-                  onChange={handleHeightInput}
-                  onKeyDown={(e) => { if (e.key === 'Enter') { e.currentTarget.blur(); } }}
-                  aria-label={unit === 'cm'
-                    ? tFallback('onboarding.height.ariaMetric', 'Your height in centimeters')
-                    : tFallback('onboarding.height.ariaImperial', 'Your height in feet and inches')}
-                  style={{ width: '100%', fontFamily: 'var(--font-heading, sans-serif)', fontWeight: 800, fontSize: 32, lineHeight: 1, textAlign: 'left', background: 'transparent', border: 'none', borderBottom: '2px solid hsl(var(--primary))', color: 'hsl(var(--foreground))', outline: 'none', padding: 0 }}
-                />
-              ) : (
-                <button
-                  type="button"
-                  onClick={handleHeightTap}
-                  aria-label={tFallback('onboarding.height.tapAria', 'Tap to type your height')}
-                  // minHeight 44 — the number IS the tap-to-type target, and
-                  // the hint under it says so, but it measured 38px.
-                  style={{ background: 'none', border: 'none', cursor: 'text', padding: 0, textAlign: 'left', minHeight: 44, display: 'inline-flex', alignItems: 'center' }}
-                >
-                  <div style={{ fontFamily: 'var(--font-heading, sans-serif)', fontWeight: 800, fontSize: 38, lineHeight: 1, letterSpacing: '-0.04em', color: 'hsl(var(--foreground))', transform: isDragging ? 'scale(0.97)' : 'scale(1)', transition: 'transform 0.15s' }}>
-                    {unit === 'cm' ? value : `${Math.floor(value/12)}'${value%12}"`}
-                  </div>
-                </button>
-              )}
-              <div className="font-mono text-micro font-semibold tracking-widest uppercase text-muted-foreground mt-1">
-                {unit === 'cm'
-                  ? tFallback('onboarding.height.tapHintMetric', 'CM · TAP TO TYPE')
-                  : tFallback('onboarding.height.tapHintImperial', 'FT · IN · TAP TO TYPE')}
-              </div>
-              <div className="font-mono text-micro text-muted-foreground/70 mt-1">≈ {displaySecondary}</div>
-              {heightHint && (
-                <p className="text-micro text-primary mt-1 leading-snug">
-                  {unit === 'cm'
-                    ? tFallback('onboarding.height.hintMetric', "Enter centimetres — e.g. 178. Switch to ft·in above if that's what you meant.")
-                    : tFallback('onboarding.height.hintImperial', "Enter feet and inches — e.g. 5'10 or 511. Switch to cm above if that's what you meant.")}
-                </p>
-              )}
-            </div>
+          {/* Ruler */}
+          <div style={{ width: 84, display: 'flex', flexDirection: 'column' }}>
             {/* Ruler */}
             <div ref={ref} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerUp}
-              style={{ flex: 1, position: 'relative', cursor: isDragging ? 'grabbing' : 'grab', touchAction: 'none', userSelect: 'none', background: 'hsl(var(--card) / 0.6)', border: '1px solid hsl(var(--border))', borderRadius: 14, overflow: 'hidden', maskImage: 'linear-gradient(180deg, transparent, black 15%, black 85%, transparent)', WebkitMaskImage: 'linear-gradient(180deg, transparent, black 15%, black 85%, transparent)' }}>
+              style={{ flex: 1, position: 'relative', cursor: isDragging ? 'grabbing' : 'grab', touchAction: 'none', userSelect: 'none', background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 16, overflow: 'hidden' }}>
+              {/* Three layers, and the order matters. The card and its border
+                  are the OUTER element, so they stay crisp. The fade is this
+                  middle layer, whose box is the visible ruler. The transform
+                  is the inner one — putting the mask there instead masks a box
+                  the ticks don't sit in (they're positioned at `value * PX`,
+                  hundreds of px outside it), and every tick disappears. */}
+              <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', maskImage: 'linear-gradient(180deg, transparent, black 15%, black 85%, transparent)', WebkitMaskImage: 'linear-gradient(180deg, transparent, black 15%, black 85%, transparent)' }}>
               <div style={{ position: 'absolute', inset: 0, transform: `translateY(${offsetY}px)`, transition: isDragging ? 'none' : 'transform 0.2s cubic-bezier(0.16,1,0.3,1)' }}>
                 {ticks.map(v => {
                   const isMajor = unit === 'cm' ? v % 10 === 0 : v % 12 === 0;
@@ -2056,23 +2058,12 @@ function HeightStep({ stats, onChange, onNext, onBack, step, total }) {
                   );
                 })}
               </div>
-              {/* Center line */}
-              <div style={{ position: 'absolute', left: 0, right: 0, top: '50%', height: 2, marginTop: -1, background: 'linear-gradient(90deg, transparent, hsl(var(--primary)), transparent)', boxShadow: '0 0 10px hsl(var(--primary))', pointerEvents: 'none' }} />
-              <div style={{ position: 'absolute', left: 0, top: '50%', marginTop: -5, borderLeft: '7px solid hsl(var(--primary))', borderTop: '5px solid transparent', borderBottom: '5px solid transparent' }} />
-              <div style={{ position: 'absolute', right: 0, top: '50%', marginTop: -5, borderRight: '7px solid hsl(var(--primary))', borderTop: '5px solid transparent', borderBottom: '5px solid transparent' }} />
+              </div>
+              {/* Center line — outside the fade, so it stays solid. */}
+              <div style={{ position: 'absolute', left: 8, right: 8, top: '50%', height: 2, marginTop: -1, background: 'hsl(var(--primary))', borderRadius: 1, pointerEvents: 'none' }} />
             </div>
           </div>
         </div>
-      </div>
-      {/* ± Fine-tune row for height */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, paddingTop: 8 }}>
-        <button onClick={() => bump(-5)} style={nudgeBtnStyle}>−5</button>
-        <button onClick={() => bump(-1)} style={nudgeBtnStyle}>−1</button>
-        <span style={{ fontFamily: 'ui-monospace,monospace', fontSize: 11, color: 'hsl(var(--muted-foreground))', minWidth: 72, textAlign: 'center' }}>
-          {unit === 'cm' ? `${value} cm` : `${Math.floor(value/12)}'${value%12}"`}
-        </span>
-        <button onClick={() => bump(+1)} style={nudgeBtnStyle}>+1</button>
-        <button onClick={() => bump(+5)} style={nudgeBtnStyle}>+5</button>
       </div>
       <div className="pt-3 shrink-0">
         <PrimaryBtn onClick={onNext}>
@@ -2251,23 +2242,15 @@ function WeightStep({ stats, onChange, onNext, onBack, step, total }) {
         <div ref={ref} onPointerDown={onGaugeDown} onPointerMove={onGaugeMove} onPointerUp={onGaugeUp} onPointerCancel={onGaugeCancel}
           className="flex flex-col items-center select-none"
           style={{ position: 'relative', cursor: isDragging ? 'grabbing' : 'grab', touchAction: 'none' }}>
-          <div style={{ position: 'absolute', width: 240, height: 240, borderRadius: '50%', background: 'hsl(var(--primary))', opacity: 0.1, filter: 'blur(50px)', animation: 'stat-glow-pulse 3s ease-in-out infinite' }} />
           <svg width="220" height="220" viewBox="0 0 200 200" style={{ position: 'relative' }}>
-            <defs>
-              <linearGradient id="wt-grad" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stopColor="hsl(38 92% 60%)" />
-                <stop offset="50%" stopColor="hsl(var(--primary))" />
-                <stop offset="100%" stopColor="hsl(14 92% 56%)" />
-              </linearGradient>
-            </defs>
             <circle cx="100" cy="100" r="82" fill="none" stroke="hsl(var(--muted-foreground) / 0.12)" strokeWidth="3" />
             {Array.from({ length: 60 }).map((_, i) => {
               const angle = -90 + i * 6; const isMajor = i % 5 === 0;
               const r1 = isMajor ? 68 : 74; const r2 = 79;
               return <line key={i} x1={100 + Math.cos(angle * Math.PI/180) * r1} y1={100 + Math.sin(angle * Math.PI/180) * r1} x2={100 + Math.cos(angle * Math.PI/180) * r2} y2={100 + Math.sin(angle * Math.PI/180) * r2} stroke="hsl(var(--muted-foreground) / 0.35)" strokeWidth={isMajor ? 1.5 : 0.8} strokeLinecap="round" />;
             })}
-            <circle cx="100" cy="100" r="82" fill="none" stroke="url(#wt-grad)" strokeWidth="5" strokeLinecap="round" strokeDasharray={`${dash} ${circumference}`} transform="rotate(-90 100 100)" style={{ transition: isDragging ? 'none' : 'stroke-dasharray 0.25s cubic-bezier(0.16,1,0.3,1)' }} />
-            <circle cx={100 + Math.cos((-90 + pct * 360) * Math.PI/180) * 82} cy={100 + Math.sin((-90 + pct * 360) * Math.PI/180) * 82} r="5" fill="hsl(var(--primary))" style={{ filter: 'drop-shadow(0 0 6px hsl(var(--primary)))', transition: isDragging ? 'none' : 'all 0.25s cubic-bezier(0.16,1,0.3,1)' }} />
+            <circle cx="100" cy="100" r="82" fill="none" stroke="hsl(var(--primary))" strokeWidth="6" strokeLinecap="round" strokeDasharray={`${dash} ${circumference}`} transform="rotate(-90 100 100)" style={{ transition: isDragging ? 'none' : 'stroke-dasharray 0.25s cubic-bezier(0.16,1,0.3,1)' }} />
+            <circle cx={100 + Math.cos((-90 + pct * 360) * Math.PI/180) * 82} cy={100 + Math.sin((-90 + pct * 360) * Math.PI/180) * 82} r="5" fill="hsl(var(--primary))" style={{ transition: isDragging ? 'none' : 'all 0.25s cubic-bezier(0.16,1,0.3,1)' }} />
           </svg>
           <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', textAlign: 'center' }}>
             {editingWeight ? (

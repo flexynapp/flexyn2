@@ -252,6 +252,9 @@
     --fluid-card-title: clamp(14px, 1.9vh, 15px);
     --fluid-card-sub: clamp(11px, 1.55vh, 12px);      /* 11px is the floor */
     --fluid-tile: clamp(2rem, 4.8vh, 2.5rem);         /* icon tile       32→40 */
+    --fluid-hero: clamp(48px, 8vh, 84px);             /* the one big number on a step */
+    --fluid-scrubber: clamp(38px, 5.6vh, 48px);       /* horizontal drag ruler */
+    --fluid-panel: clamp(240px, 38vh, 360px);         /* figure / ruler panel height */
     --fluid-cta-h: clamp(3rem, 6.6vh, 3.5rem);        /* pinned CTA      48→56 */
     --fluid-cta-gap: clamp(0.5rem, 1.8vh, 1rem);      /* above the CTA    8→16 */
   }
