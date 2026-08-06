@@ -59,15 +59,6 @@ const GOALS = [
   { id: 'mobility',  title: 'Move better',       sub: 'Mobility, flexibility, longevity.',                     icon: 'wind',          accent: 'hsl(280 60% 60%)' },
 ];
 
-const GOAL_TAILORS = {
-  strength:  ['Heavier compounds', 'Anti-cheat: bar speed', '+15 g protein/day'],
-  muscle:    ['Hypertrophy volume', 'Heatmap: chest / back / legs', '+25 g protein/day'],
-  lose:      ['Calorie target −350', 'Cardio finishers', 'Anti-cheat: rest timer'],
-  speed:     ['Interval sessions', 'Tempo runs', 'Pace tracking'],
-  endurance: ['Easy-run base', 'Weekly long run', 'Carb-forward macros'],
-  mobility:  ['Daily mobility flow', 'Form-check anti-cheat', 'Recovery weighting'],
-};
-
 // Goals that are cardio/running — used to decide whether the "sharpen your plan"
 // step asks the cardio follow-ups.
 const CARDIO_GOAL_IDS = ['speed', 'endurance'];
@@ -391,11 +382,15 @@ function Confetti({ pieces = 32 }) {
    SHARED: STEP HEADER (progress bar + back)
 ═══════════════════════════════════════════════════════════════ */
 
-// NOTE: the eyebrow on each step ("Experience · 03") must derive its number
-// from the same `step` prop this header uses. Four of them were hardcoded
-// string literals, and two had drifted out of sync — the Experience step
-// showed "Experience · 02" beside a progress bar reading 03/11, so the app
-// disagreed with itself about where the user was. Never type the number.
+// The bar is the ONLY progress indicator now. It used to be one of three:
+// each step also carried an eyebrow ("Experience · 03") and this header
+// printed "03/11" beside the bar — three renderings of one fact, in three
+// type styles, above a heading that already said what the step was. Two of
+// the eyebrows had even drifted out of sync with the bar, because their
+// numbers were typed rather than derived, so the app disagreed with itself
+// about where the user was. One bar can't drift.
+//
+// `step` and `total` stay: they're what fills it.
 function StepHeader({ step, total, onBack }) {
   const { tFallback } = useLanguage();
   // Hide the Back button when there's nowhere to go back to. The first
@@ -424,10 +419,15 @@ function StepHeader({ step, total, onBack }) {
           animate={{ width: `${(step / total) * 100}%` }}
           transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }} />
       </div>
-      <span className="font-mono text-micro font-semibold text-muted-foreground shrink-0 tracking-wider">
-        {String(step).padStart(2, '0')}<span className="opacity-40">/{String(total).padStart(2, '0')}</span>
-      </span>
-      {showCoach && <OnboardingCoachButton onClick={coach.open} />}
+      {/* The bar is centred between two 44px slots, not just pushed off the
+          back button. Removing the "02/11" label left nothing on this side,
+          so the bar ran flush to the content edge and read as running off the
+          screen. The coach button is w-11 h-11 like the back button, so it
+          drops into this slot without shifting the bar — and when it isn't
+          shown the spacer holds the same width. */}
+      {showCoach
+        ? <OnboardingCoachButton onClick={coach.open} />
+        : <div className="w-11 h-11 shrink-0" aria-hidden="true" />}
     </div>
   );
 }
@@ -436,16 +436,10 @@ function StepHeader({ step, total, onBack }) {
    SHARED: KINETIC HEADING
 ═══════════════════════════════════════════════════════════════ */
 
-function KineticHeading({ text, kicker, accentWord }) {
+function KineticHeading({ text, accentWord }) {
   const words = text.split(' ');
   return (
     <div className="mb-2">
-      {kicker && (
-        <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05, duration: 0.4 }}
-          className="font-mono text-micro font-bold text-primary tracking-[0.18em] uppercase mb-2.5">
-          {kicker}
-        </motion.div>
-      )}
       <h1 className="font-heading font-bold text-[30px] leading-[1.05] tracking-tight text-foreground m-0">
         {words.map((w, i) => (
           <motion.span key={i} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
@@ -470,10 +464,74 @@ function PrimaryBtn({ onClick, disabled, children, className = '' }) {
       className={`w-full h-14 rounded-2xl font-heading font-bold text-body flex items-center justify-center gap-2 transition-all
         ${disabled
           ? 'bg-muted text-muted-foreground cursor-not-allowed opacity-60'
-          : 'bg-primary text-primary-foreground hover:brightness-105 active:scale-[0.98] shadow-lg shadow-primary/25'}
+          /* shadow-md, not a coloured bloom. `shadow-primary/25` threw an
+             orange haze onto the background under the button, which reads as
+             a gradient rather than as depth — and coloured shadows are on the
+             banned list in CLAUDE.md for exactly that reason. */
+          : 'bg-primary text-primary-foreground hover:brightness-105 active:scale-[0.98] shadow-md'}
         ${className}`}>
       {children}
     </button>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SHARED: OPTION CARD
+
+   The selectable row the form steps are built from — goals, experience
+   levels, anything added later. It exists so those steps speak the same
+   visual language as the welcome screen's feature card, which is the
+   reference for how this flow should look:
+
+     · flat card on `--card`, no tint at all — chosen or not
+     · hairline border that takes the option's accent when it is
+     · no shadow
+
+   The shadow matters. These cards used to cast a coloured drop shadow
+   (`0 8px 24px -10px <accent>`), which CLAUDE.md bans outright: coloured
+   shadows are on the published list of signals people use to spot generated
+   UI, and it is most of why the step read as dated. Elevation here is two
+   levels — hairline at rest, `shadow-md` when something genuinely floats —
+   and a card sitting in a list is at rest.
+
+   A selected card spends its accent in exactly three places — the border,
+   the icon tile behind the glyph, and the pick pill — and nowhere else. No
+   wash across the card. The first version lit the corner with a blurred
+   accent blob, which is a gradient however it's built: it bleeds a hue
+   across half the surface, changes the text's background as it goes, and
+   with several picked the list reads as a set of differently-tinted
+   rectangles rather than a set of cards, one of which is chosen.
+
+   `leading` and `trailing` are what carry the accent; pass whatever the step
+   needs (an icon tile, a bar chart, a pick-order pill).
+═══════════════════════════════════════════════════════════════ */
+
+function OptionCard({
+  selected, accent = 'hsl(var(--primary))', onClick,
+  leading, title, sub, trailing, delay = 0,
+}) {
+  return (
+    <motion.button type="button" onClick={onClick} aria-pressed={selected}
+      initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+      transition={{ delay, duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+      className="relative w-full overflow-hidden flex items-center gap-2 px-4 py-3 rounded-2xl border text-start cursor-pointer transition-colors"
+      style={{
+        borderColor: selected ? accent : 'hsl(var(--border))',
+        background: 'hsl(var(--card))',
+      }}>
+      {leading && <span className="shrink-0 flex items-center">{leading}</span>}
+      <span className="flex-1 min-w-0 block">
+        <span className="block font-heading font-bold text-body leading-tight tracking-tight text-foreground">
+          {title}
+        </span>
+        {sub && (
+          <span className="block text-caption leading-[1.45] text-muted-foreground">
+            {sub}
+          </span>
+        )}
+      </span>
+      {trailing && <span className="shrink-0 flex items-center">{trailing}</span>}
+    </motion.button>
   );
 }
 
@@ -741,19 +799,6 @@ function GoalStep({ value, onChange, onNext, onBack, step, total }) {
     onChange(has ? selectedIds.filter(x => x !== id) : [...selectedIds, id]);
   };
 
-  // Dedupe on the ENGLISH source text, not the translated label: two goals can
-  // share a tailoring chip, and which of them "owns" it (and therefore what
-  // colour it takes) must not depend on the reader's language.
-  const tailors = useMemo(() => {
-    const seen = new Set(); const out = [];
-    selectedIds.forEach(id => (GOAL_TAILORS[id] || []).forEach((text, i) => {
-      if (!seen.has(text)) { seen.add(text); out.push({ text, id, idx: i + 1 }); }
-    }));
-    return out;
-  }, [selectedIds]);
-
-  const primaryAccent = selectedIds.length ? (GOALS.find(g => g.id === selectedIds[0])?.accent || 'hsl(var(--primary))') : 'hsl(var(--primary))';
-
   const helper = selectedIds.length === 0
     ? tFallback('onboarding.goal.helper.none', 'Pick one or many — we tailor your plan to the combination.')
     : selectedIds.length === 1
@@ -765,104 +810,76 @@ function GoalStep({ value, onChange, onNext, onBack, step, total }) {
   return (
     <div className="flex flex-col h-full">
       <StepHeader step={step} total={total} onBack={onBack} />
-      <div className="flex-1 overflow-y-auto space-y-3 pb-4 pe-2">
+      {/* Spacing here is load-bearing, not decoration: six cards plus the
+          heading came to 25px more than the box, so the last card was sliced
+          mid-height right where the CTA starts — which reads as broken rather
+          than as "scroll for more". The `space-y-3` between these four blocks
+          was 36px of it, and the middle spacing register is banned in this
+          codebase anyway; each block now carries its own `mb-2`. */}
+      <div className="flex-1 overflow-y-auto pb-2 pe-2">
         <KineticHeading
-          kicker={`${tFallback('onboarding.goal.kicker', 'Goal')} · ${String(step).padStart(2, '0')}`}
           text={tFallback('onboarding.goal.heading', 'What are you here for?')}
           accentWord="for?" />
-        <p className="text-sm text-muted-foreground mt-1.5 mb-4 min-h-[40px] transition-all">{helper}</p>
+        {/* min-h holds two lines so the cards don't jump as the helper text
+            changes length with the number of picks. */}
+        <p className="text-sm text-muted-foreground mb-2 min-h-[40px] transition-all">{helper}</p>
 
-        {/* Counter row */}
-        <div className="flex items-center justify-between mb-3">
-          <span className="font-mono text-micro font-bold text-muted-foreground tracking-[0.16em] uppercase">
-            {selectedIds.length === 0
-              ? tFallback('onboarding.goal.selectPrompt', 'Select goals')
-              : tFallback('onboarding.goal.selectedCount', '{count} selected', { count: selectedIds.length })}
-          </span>
-          {selectedIds.length > 0 && (
+        {/* Clear. No count beside it — the cards carry their own numbers, and
+            the helper line above already says how many are stacked. The row
+            collapses entirely until there's something to clear, so an
+            untouched step has no empty strip above the first card. */}
+        {selectedIds.length > 0 && (
+          <div className="flex items-center justify-end mb-2">
             <motion.button initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}
               onClick={() => onChange([])}
               className="font-mono text-micro font-bold text-muted-foreground tracking-widest uppercase px-2 py-1 rounded hover:text-foreground active:text-foreground transition-colors border-none bg-transparent cursor-pointer">
               {tFallback('onboarding.goal.clear', 'Clear')}
             </motion.button>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* Goal cards */}
-        <div className="space-y-2.5">
+        <div className="space-y-2">
           {GOALS.map((g, i) => {
             const selected = selectedIds.includes(g.id);
             const order = selectedIds.indexOf(g.id) + 1;
             return (
-              <motion.button key={g.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.05 + i * 0.07, duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+              <OptionCard key={g.id}
+                selected={selected} accent={g.accent} delay={0.05 + i * 0.07}
                 onClick={() => toggle(g.id)}
-                className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl border text-start cursor-pointer transition-all"
-                style={{
-                  borderColor: selected ? g.accent : 'hsl(var(--border))',
-                  background: selected ? g.accent.replace(')', ' / 0.07)') : 'hsl(var(--card))',
-                  boxShadow: selected ? `0 8px 24px -10px ${g.accent.replace(')', ' / 0.4)')}` : 'none',
-                }}>
-                {/* icon */}
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-all"
-                  style={{
-                    background: selected ? g.accent.replace(')', ' / 0.18)') : 'hsl(var(--secondary))',
-                    color: selected ? g.accent : 'hsl(var(--muted-foreground))',
-                  }}>
-                  <Icon name={g.icon} size={20} strokeWidth={2} />
-                </div>
-                {/* text */}
-                <div className="flex-1 min-w-0">
-                  <div className="font-heading font-bold text-body text-foreground leading-tight">
-                    {tFallback(`onboarding.goal.${g.id}.title`, g.title)}
-                  </div>
-                  <div className="text-caption text-muted-foreground mt-0.5">
-                    {tFallback(`onboarding.goal.${g.id}.sub`, g.sub)}
-                  </div>
-                </div>
-                {/* checkbox */}
-                <div className="w-6 h-6 rounded-[7px] flex items-center justify-center shrink-0 transition-all font-mono text-micro font-bold text-white"
-                  style={{
-                    border: selected ? `2px solid ${g.accent}` : '1.5px solid hsl(var(--border))',
-                    background: selected ? g.accent : 'transparent',
-                    color: 'white',
-                  }}>
-                  {selected && (selectedIds.length > 1
-                    ? <span>{order}</span>
-                    : <Icon name="check" size={13} strokeWidth={3} color="white" />)}
-                </div>
-              </motion.button>
+                title={tFallback(`onboarding.goal.${g.id}.title`, g.title)}
+                sub={tFallback(`onboarding.goal.${g.id}.sub`, g.sub)}
+                leading={
+                  <span className="w-10 h-10 rounded-lg flex items-center justify-center transition-colors"
+                    style={{
+                      background: selected ? g.accent.replace(')', ' / 0.12)') : 'hsl(var(--secondary))',
+                      color: selected ? g.accent : 'hsl(var(--muted-foreground))',
+                    }}>
+                    <Icon name={g.icon} size={20} strokeWidth={2} />
+                  </span>
+                }
+                trailing={
+                  /* A pill, not a tick box. The square checkbox was the one
+                     form control on a screen made entirely of cards, and it
+                     is what the multi-select order number sat inside — so it
+                     had to carry a number anyway, which a checkbox never
+                     does. Round mirrors the carousel pips. */
+                  <span className="w-6 h-6 rounded-full flex items-center justify-center transition-all font-mono text-micro font-bold"
+                    style={{
+                      border: selected ? 'none' : '1.5px solid hsl(var(--border))',
+                      background: selected ? g.accent : 'transparent',
+                      color: 'white',
+                    }}>
+                    {selected && (selectedIds.length > 1
+                      ? order
+                      : <Icon name="check" size={13} strokeWidth={3} color="white" />)}
+                  </span>
+                }
+              />
             );
           })}
         </div>
 
-        {/* Live tailoring preview */}
-        <AnimatePresence>
-          {tailors.length > 0 && (
-            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
-              className="overflow-hidden mt-4 p-3.5 rounded-2xl border bg-card/70 backdrop-blur-sm relative">
-              <div className="absolute -top-8 -end-8 w-28 h-28 rounded-full blur-[30px] pointer-events-none transition-all duration-500"
-                style={{ background: primaryAccent, opacity: 0.12 }} />
-              <div className="font-mono text-[9.5px] font-bold text-muted-foreground tracking-[0.18em] uppercase mb-2.5 flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full" style={{ background: primaryAccent, boxShadow: `0 0 8px ${primaryAccent}` }} />
-                {tFallback('onboarding.goal.tailoring', 'Tailoring your plan')}
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {tailors.slice(0, 6).map(({ text, id, idx }, i) => {
-                  const accent = GOALS.find(g => g.id === id)?.accent || 'hsl(var(--primary))';
-                  return (
-                    <motion.span key={text} initial={{ opacity: 0, scale: 0.85 }} animate={{ opacity: 1, scale: 1 }}
-                      transition={{ delay: i * 0.05, type: 'spring', stiffness: 400, damping: 18 }}
-                      className="px-2.5 py-1 rounded-full font-mono text-[10.5px] font-semibold tracking-tight"
-                      style={{ color: accent, background: accent.replace(')', ' / 0.1)'), border: `1px solid ${accent.replace(')', ' / 0.25)')}` }}>
-                      {tFallback(`onboarding.tailor.${id}.${idx}`, text)}
-                    </motion.span>
-                  );
-                })}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
       </div>
 
       <div className="pt-4 shrink-0">
@@ -954,9 +971,8 @@ function SharpenStep({ goals, value, onChange, onNext, onBack, step, total }) {
   return (
     <div className="flex flex-col h-full">
       <StepHeader step={step} total={total} onBack={onBack} />
-      <div className="flex-1 overflow-y-auto space-y-5 pb-4 pe-2">
+      <div className="flex-1 overflow-y-auto space-y-2 pb-2 pe-2">
         <KineticHeading
-          kicker={`${tFallback('onboarding.sharpen.kicker', 'Sharpen')} · ${String(step).padStart(2, '0')}`}
           text={tFallback('onboarding.sharpen.heading', "Let's sharpen your plan.")}
           accentWord="sharpen" />
         <p className="text-sm text-muted-foreground -mt-1">
@@ -1062,12 +1078,13 @@ function ExperienceStep({ value, onChange, onNext, onBack, step, total }) {
   return (
     <div className="flex flex-col h-full">
       <StepHeader step={step} total={total} onBack={onBack} />
-      <div className="flex-1 overflow-y-auto pb-4 pe-2">
+      <div className="flex-1 overflow-y-auto pb-2 pe-2">
         <KineticHeading
-          kicker={`${tFallback('onboarding.experience.kicker', 'Experience')} · ${String(step).padStart(2, '0')}`}
           text={tFallback('onboarding.experience.heading', 'How long have you been training?')}
           accentWord="training?" />
-        <p className="text-sm text-muted-foreground mt-2 mb-6">
+        {/* Tightened for the same reason as the goal step: with the meter
+            open, the fourth level card was being sliced by the CTA. */}
+        <p className="text-sm text-muted-foreground mb-2">
           {tFallback('onboarding.experience.sub', 'Honest answers get you a better program.')}
         </p>
 
@@ -1093,14 +1110,12 @@ function ExperienceStep({ value, onChange, onNext, onBack, step, total }) {
               const active = current ? b <= current.bars : false;
               const heights = ['25%', '45%', '70%', '100%'];
               return (
+                /* No coloured shadow and no gloss gradient on the tallest
+                   bar — both are banned decoration (CLAUDE.md), and the bar
+                   already carries its meaning in height and fill. */
                 <motion.div key={b} className="flex-1 rounded-t-lg relative overflow-hidden"
                   animate={{ height: heights[b - 1], background: active ? 'hsl(var(--primary))' : 'hsl(var(--secondary))' }}
-                  transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-                  style={{ boxShadow: active ? '0 6px 20px -8px hsl(var(--primary) / 0.55)' : 'none' }}>
-                  {active && b === (current?.bars || 0) && (
-                    <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, hsl(0 0% 100% / 0.28), transparent 40%)' }} />
-                  )}
-                </motion.div>
+                  transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }} />
               );
             })}
           </div>
@@ -1125,31 +1140,30 @@ function ExperienceStep({ value, onChange, onNext, onBack, step, total }) {
           {LEVELS.map((l, i) => {
             const selected = value === l.id;
             return (
-              <motion.button key={l.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.15 + i * 0.05, duration: 0.4 }}
+              <OptionCard key={l.id}
+                selected={selected} delay={0.15 + i * 0.05}
                 onClick={() => onChange(l.id)}
-                className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl border cursor-pointer transition-all text-start"
-                style={{
-                  borderColor: selected ? 'hsl(var(--primary))' : 'hsl(var(--border))',
-                  background: selected ? 'hsl(var(--primary) / 0.06)' : 'hsl(var(--card))',
-                }}>
-                {/* mini bar chart */}
-                <div className="flex items-end gap-0.5 shrink-0">
-                  {[1, 2, 3, 4].map(b => (
-                    <span key={b} className="block rounded-sm transition-colors"
-                      style={{ width: 4, height: b * 5 + 4, background: b <= l.bars ? 'hsl(var(--primary))' : 'hsl(var(--border))' }} />
-                  ))}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="font-heading font-semibold text-sm text-foreground">
-                    {tFallback(`onboarding.level.${l.id}.label`, l.label)}
-                  </div>
-                  <div className="text-caption text-muted-foreground mt-0.5">
-                    {tFallback(`onboarding.level.${l.id}.sub`, l.sub)}
-                  </div>
-                </div>
-                {selected && <Icon name="check" size={16} strokeWidth={3} color="hsl(var(--primary))" />}
-              </motion.button>
+                title={tFallback(`onboarding.level.${l.id}.label`, l.label)}
+                sub={tFallback(`onboarding.level.${l.id}.sub`, l.sub)}
+                leading={
+                  /* mini bar chart */
+                  <span className="flex items-end gap-0.5 w-10 justify-center">
+                    {[1, 2, 3, 4].map(b => (
+                      <span key={b} className="block rounded-sm transition-colors"
+                        style={{ width: 4, height: b * 5 + 4, background: b <= l.bars ? 'hsl(var(--primary))' : 'hsl(var(--border))' }} />
+                    ))}
+                  </span>
+                }
+                trailing={
+                  <span className="w-6 h-6 rounded-full flex items-center justify-center transition-all"
+                    style={{
+                      border: selected ? 'none' : '1.5px solid hsl(var(--border))',
+                      background: selected ? 'hsl(var(--primary))' : 'transparent',
+                    }}>
+                    {selected && <Icon name="check" size={13} strokeWidth={3} color="white" />}
+                  </span>
+                }
+              />
             );
           })}
         </div>
@@ -1202,13 +1216,12 @@ function AssessmentStep({ value, onChange, onNext, onBack, onSkip, step, total }
   return (
     <div className="flex flex-col h-full">
       <StepHeader step={step} total={total} onBack={onBack} />
-      <div className="flex-1 overflow-y-auto pb-4 pe-2">
+      <div className="flex-1 overflow-y-auto pb-2 pe-2">
         <KineticHeading
-          kicker={`${tFallback('onboarding.assessment.kicker', 'Assessment')} · ${String(step).padStart(2, '0')}`}
           text={tFallback('onboarding.assessment.heading', 'Quick lift check')}
           accentWord="lift"
         />
-        <p className="text-sm text-muted-foreground mt-2 mb-6">
+        <p className="text-sm text-muted-foreground mb-2">
           {tFallback('onboarding.assessment.sub', 'Optional — but the more honest you are, the better the plan.')}
           <br />
           <span className="text-xs text-muted-foreground/70">
@@ -1216,16 +1229,16 @@ function AssessmentStep({ value, onChange, onNext, onBack, onSkip, step, total }
           </span>
         </p>
 
-        <div className="space-y-4">
+        <div className="space-y-2">
           {ASSESSMENT_QUESTIONS.map((q, qi) => (
             <motion.div
               key={q.id}
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 + qi * 0.06, duration: 0.4 }}
-              className="rounded-2xl border bg-card p-4"
+              className="rounded-2xl border bg-card p-3"
             >
-              <div className="flex items-start gap-2 mb-3">
+              <div className="flex items-start gap-2 mb-2">
                 <span className="text-2xl leading-none" aria-hidden="true">{q.icon}</span>
                 <p className="font-heading font-semibold text-sm leading-snug text-foreground">
                   {tFallback(`onboarding.assessment.q.${q.id}`, q.question)}
@@ -1376,7 +1389,6 @@ function PillUnitToggle({ options, value, onChange }) {
             background: active ? 'hsl(var(--primary))' : 'transparent',
             color: active ? 'white' : 'hsl(var(--muted-foreground))',
             cursor: 'pointer', transition: 'all 0.25s cubic-bezier(0.16,1,0.3,1)',
-            boxShadow: active ? '0 4px 12px hsl(var(--primary) / 0.35)' : 'none',
             textTransform: 'uppercase', minWidth: 60,
           }}>{o.label}</button>
         );
@@ -1504,7 +1516,6 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
       <StepHeader step={step} total={total} onBack={onBack} />
       <div className="flex-1 overflow-y-auto pb-4 pe-2">
         <KineticHeading
-          kicker={`${tFallback('onboarding.about.kicker', 'About You')} · ${String(step).padStart(2, '0')}`}
           text={tFallback('onboarding.about.heading', 'Tell us about yourself.')}
           accentWord="yourself." />
         <p className="text-sm text-muted-foreground mt-2 mb-5">
@@ -1904,7 +1915,6 @@ function HeightStep({ stats, onChange, onNext, onBack, step, total }) {
       <div className="flex-1 overflow-y-auto pb-2">
         <div className="flex justify-between items-start mb-3">
           <KineticHeading
-            kicker={`${tFallback('onboarding.height.kicker', 'Height')} · ${String(step).padStart(2, '0')}`}
             text={tFallback('onboarding.height.heading', 'How tall are you?')}
             accentWord="tall" />
         </div>
@@ -2213,7 +2223,6 @@ function WeightStep({ stats, onChange, onNext, onBack, step, total }) {
       <div className="flex-1 overflow-y-auto pb-2">
         <div className="flex justify-between items-start mb-3">
           <KineticHeading
-            kicker={`${tFallback('onboarding.weight.kicker', 'Weight')} · ${String(step).padStart(2, '0')}`}
             text={tFallback('onboarding.weight.heading', 'How much do you weigh?')}
             accentWord="weigh?" />
         </div>
@@ -2363,7 +2372,6 @@ function DaysStep({ days, preferredTime, onDaysChange, onTimeChange, onNext, onB
       <StepHeader step={step} total={total} onBack={onBack} />
       <div className="flex-1 overflow-y-auto pb-4 pe-2 space-y-5">
         <KineticHeading
-          kicker={`${tFallback('onboarding.schedule.kicker', 'Schedule')} · ${String(step).padStart(2, '0')}`}
           text={tFallback('onboarding.schedule.heading', 'Which days can you train?')}
           accentWord="train?" />
         <p className="text-sm text-muted-foreground mt-2">
@@ -2470,160 +2478,6 @@ function DaysStep({ days, preferredTime, onDaysChange, onTimeChange, onNext, onB
 // `key` is the persisted field name and `i18nKey` the translation suffix — they
 // differ because the persisted names carry their unit (waistCm) and the labels
 // must not (the unit is rendered separately).
-const MEASURE_FIELDS = [
-  { key: 'waistCm',   label: 'Waist',   i18nKey: 'waist',   icon: '📏', min: 40,  max: 180 },
-  // Chest icon was 💪 (flexed bicep) which screenshot feedback flagged as
-  // confusing — users read it as "arm/bicep" instead of "chest". Switched
-  // to 👕 (t-shirt) which sits clearly over the chest area.
-  { key: 'chestCm',   label: 'Chest',   i18nKey: 'chest',   icon: '👕', min: 50,  max: 200 },
-  { key: 'hipCm',     label: 'Hips',    i18nKey: 'hips',    icon: '🍑', min: 50,  max: 200 },
-  { key: 'bodyFatPct',label: 'Body fat',i18nKey: 'bodyFat', icon: '📊', min: 3,   max: 60, unit: '%', isPercent: true },
-];
-
-// One source of truth for "no measurements given" — read by DEFAULT_DATA and by
-// the step's Skip handler, so the two can't drift into disagreeing about what
-// an empty baseline looks like.
-const EMPTY_BODY_BASELINE = Object.fromEntries(MEASURE_FIELDS.map(f => [f.key, null]));
-
-function BodyBaselineStep({ step, total, value, onChange, onNext, onBack, onSkip }) {
-  const { tFallback } = useLanguage();
-  // value = { waistCm, chestCm, hipCm, bodyFatPct } — all nullable
-  // Measurements are collected in cm only (body-fat in %). Weight unit
-  // is handled separately by the weight step.
-
-  // Per-field text drafts. We must NOT clamp while the user is typing — the
-  // old code clamped on every keystroke, so typing "8" toward a waist of 80
-  // instantly snapped to the 40 cm minimum and you could never enter a real
-  // value (body-fat did the same, snapping to 3%). Beta feedback: the waist
-  // and body-fat inputs "won't let me type." Fix: hold the raw string, then
-  // parse + clamp ONCE on blur. Out-of-range / junk still can't be persisted
-  // (the original -50 / 1e10 guard, Audit 13 #7 + #27).
-  const [drafts, setDrafts] = useState({});
-
-  const sanitizeNumeric = (raw) => {
-    let s = String(raw).replace(/[^0-9.]/g, '');
-    const dot = s.indexOf('.');
-    if (dot !== -1) s = s.slice(0, dot + 1) + s.slice(dot + 1).replace(/\./g, '');
-    return s;
-  };
-
-  const handleType = (key, raw) => {
-    setDrafts(d => ({ ...d, [key]: sanitizeNumeric(raw) }));
-  };
-
-  const commitField = (key) => {
-    if (!(key in drafts)) return;
-    const raw = drafts[key];
-    let committed = null;
-    if (raw !== '' && raw !== '.') {
-      const num = Number(raw);
-      if (Number.isFinite(num)) {
-        const field = MEASURE_FIELDS.find(f => f.key === key);
-        const min = field?.min ?? -Infinity;
-        const max = field?.max ?? Infinity;
-        committed = Math.max(min, Math.min(max, num));
-      }
-    }
-    onChange({ ...value, [key]: committed });
-    setDrafts(d => { const n = { ...d }; delete n[key]; return n; });
-  };
-
-  const fieldDisplay = (key) => (key in drafts ? drafts[key] : (value[key] ?? ''));
-
-  const hasAny = MEASURE_FIELDS.some(f => value[f.key] != null && value[f.key] !== '');
-
-  return (
-    <div className="flex flex-col h-full">
-      <StepHeader step={step} total={total} onBack={onBack} />
-      <div className="flex-1 overflow-y-auto pb-4 pe-2">
-        <KineticHeading
-          kicker={tFallback('onboarding.baseline.kicker', 'Body baseline · optional')}
-          text={tFallback('onboarding.baseline.heading', 'Starting numbers for your progress graphs.')}
-          accentWord="progress"
-        />
-        <p className="text-sm text-muted-foreground mt-1 mb-5">
-          {tFallback('onboarding.baseline.sub', 'All optional. Stored encrypted, never shared. You can add these later in Progress too.')}
-        </p>
-
-        <div className="space-y-3">
-          {MEASURE_FIELDS.map((f, i) => (
-            <motion.div
-              key={f.key}
-              initial={{ opacity: 0, x: 16 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: i * 0.06, ease: [0.16, 1, 0.3, 1], duration: 0.4 }}
-              className="rounded-2xl border border-border bg-card p-4 flex items-center gap-4"
-            >
-              <span className="text-2xl w-8 shrink-0">{f.icon}</span>
-              <div className="flex-1">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
-                  {tFallback(`onboarding.baseline.${f.i18nKey}`, f.label)}
-                  {!f.isPercent && <span className="font-normal normal-case"> (cm)</span>}
-                  {f.isPercent && <span className="font-normal normal-case"> (%)</span>}
-                </p>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  enterKeyHint="done"
-                  placeholder={f.isPercent
-                    ? tFallback('onboarding.baseline.placeholderPct', 'e.g. 18')
-                    : tFallback('onboarding.baseline.placeholderCm', 'e.g. 80')}
-                  value={fieldDisplay(f.key)}
-                  onChange={e => handleType(f.key, e.target.value)}
-                  onBlur={() => commitField(f.key)}
-                  onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
-                  className="w-full h-11 rounded-xl border border-border bg-secondary/50 px-3 font-mono text-sm font-medium text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/30"
-                />
-              </div>
-            </motion.div>
-          ))}
-        </div>
-      </div>
-
-      {/* Visual hierarchy swaps based on whether the user has filled
-          anything in. Most users don't know their tape-measure stats off
-          the top of their head, so we don't want "Save & continue" to be
-          the loudest button — that pressures them into faking numbers.
-          When NO field is filled, Skip becomes the primary visual action.
-          When the user HAS entered something, Save returns to primary so
-          they don't lose their data by hitting Skip out of habit.
-          (Onboarding screenshot feedback, 2026-06.) */}
-      <div className="pb-2 pt-2 space-y-2 shrink-0">
-        {hasAny ? (
-          <>
-            <PrimaryBtn onClick={onNext}>
-              {tFallback('onboarding.baseline.save', 'Save & continue')}
-            </PrimaryBtn>
-            <button
-              type="button"
-              onClick={onSkip}
-              className="w-full py-3 rounded-2xl border border-border bg-secondary/60 text-sm font-semibold text-foreground/80 hover:bg-secondary active:bg-secondary hover:text-foreground active:text-foreground transition-colors"
-            >
-              {tFallback('onboarding.baseline.skip', 'Skip for now')}
-            </button>
-          </>
-        ) : (
-          <>
-            <PrimaryBtn onClick={onSkip}>
-              {tFallback('onboarding.baseline.skip', 'Skip for now')} <Icon name="arrow-right" size={18} strokeWidth={2.5} />
-            </PrimaryBtn>
-            <button
-              type="button"
-              onClick={onNext}
-              className="w-full py-3 rounded-2xl border border-border bg-secondary/60 text-sm font-semibold text-foreground/80 hover:bg-secondary active:bg-secondary hover:text-foreground active:text-foreground transition-colors"
-            >
-              {tFallback('onboarding.baseline.enterThem', 'I know my measurements — let me enter them')}
-            </button>
-            <p className="text-micro text-muted-foreground/70 text-center pt-1">
-              {tFallback('onboarding.baseline.laterHint', 'You can add these anytime from Progress.')}
-            </p>
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
-
 /* ═══════════════════════════════════════════════════════════════
    STEP V2-B: INJURY HISTORY (optional)
    Quick injury log so the starter regimen can exclude affected
@@ -2665,7 +2519,6 @@ function InjuryHistoryStep({ step, total, value, onChange, onNext, onBack, onSki
       <StepHeader step={step} total={total} onBack={onBack} />
       <div className="flex-1 overflow-y-auto pb-4 pe-2">
         <KineticHeading
-          kicker={tFallback('onboarding.injury.kicker', 'Any injuries? · optional')}
           text={tFallback('onboarding.injury.heading', "We'll work around them from day one.")}
           accentWord="around"
         />
@@ -2825,7 +2678,6 @@ function HomeGymStep({ step, total, value, onChange, onNext, onBack, onSkip }) {
       <StepHeader step={step} total={total} onBack={onBack} />
       <div className="flex-1 overflow-y-auto pb-4 pe-2">
         <KineticHeading
-          kicker={tFallback('onboarding.homeGym.kicker', 'Where do you train? · optional')}
           text={tFallback('onboarding.homeGym.heading', 'Pick your gym and meet your floor.')}
           accentWord="floor"
         />
@@ -3082,8 +2934,8 @@ function RevealStep({ data, onNext, saving = false, previewRegimen = null }) {
    MAIN ONBOARDING ORCHESTRATOR
 ═══════════════════════════════════════════════════════════════ */
 
-const STEPS = ['welcome', 'goal', 'sharpen', 'experience', 'age', 'height', 'weight', 'body_baseline', 'days', 'assessment', 'injury_history', 'home_gym', 'loading', 'reveal'];
-const FORM_STEP_NAMES = ['goal', 'sharpen', 'experience', 'age', 'height', 'weight', 'body_baseline', 'days', 'assessment', 'injury_history', 'home_gym'];
+const STEPS = ['welcome', 'goal', 'sharpen', 'experience', 'age', 'height', 'weight', 'days', 'assessment', 'injury_history', 'home_gym', 'loading', 'reveal'];
+const FORM_STEP_NAMES = ['goal', 'sharpen', 'experience', 'age', 'height', 'weight', 'days', 'assessment', 'injury_history', 'home_gym'];
 const TOTAL_FORM = FORM_STEP_NAMES.length;
 
 // Per-step theatrical transition flavors — variety = wow factor
@@ -3095,7 +2947,6 @@ const STEP_TRANSITIONS = {
   age:           'fwd',
   height:        'flip',
   weight:        'tilt',
-  body_baseline: 'flip',
   days:          'curtain',
   assessment:    'fwd',
   injury_history:'tilt',
@@ -3217,7 +3068,6 @@ export default function Onboarding() {
     // means "skipped." See `assessment` step + buildStarterRegimen.
     assessment: {},
     // V2 optional steps — all nullable/empty means step was skipped
-    bodyBaseline: { ...EMPTY_BODY_BASELINE },
     onboardingInjuries: [], // [{ muscleGroup, severity }]
     // "Sharpen your plan" follow-ups — all optional; drives the starter plan +
     // a real cardio goal. cardioEvent: 5k|10k|half|marathon|general;
@@ -3240,7 +3090,6 @@ export default function Onboarding() {
         ...DEFAULT_DATA,
         ...parsed,
         stats: { ...DEFAULT_DATA.stats, ...(parsed.stats || {}) },
-        bodyBaseline: { ...DEFAULT_DATA.bodyBaseline, ...(parsed.bodyBaseline || {}) },
         onboardingInjuries: Array.isArray(parsed.onboardingInjuries) ? parsed.onboardingInjuries : [],
         // Only restore a draft pick that still has something to act on.
         // A half-written shape would reach setHomeGymFromOsm as
@@ -3299,12 +3148,11 @@ export default function Onboarding() {
       strengthFocus: data.sharpen?.strengthFocus,
       injuries: data.onboardingInjuries || [],
       age: data.stats?.age,
-      bodyFatPct: data.bodyBaseline?.bodyFatPct,
       gender: data.stats?.gender,
       weightKg: data.stats?.weightKg,
       heightCm: data.stats?.heightCm,
     }),
-    [data.goal, data.level, data.days, data.assessment, data.sharpen?.cardioEvent, data.sharpen?.strengthFocus, data.onboardingInjuries, data.stats?.age, data.bodyBaseline?.bodyFatPct, data.stats?.gender, data.stats?.weightKg, data.stats?.heightCm]
+    [data.goal, data.level, data.days, data.assessment, data.sharpen?.cardioEvent, data.sharpen?.strengthFocus, data.onboardingInjuries, data.stats?.age, data.stats?.gender, data.stats?.weightKg, data.stats?.heightCm]
   );
 
   // Force Iron Orange theme during onboarding so new/reset users always see
@@ -3658,8 +3506,7 @@ export default function Onboarding() {
             strengthFocus: data.sharpen?.strengthFocus,
             injuries: data.onboardingInjuries || [],
             age: data.stats?.age,
-            bodyFatPct: data.bodyBaseline?.bodyFatPct,
-            gender: data.stats?.gender,
+                  gender: data.stats?.gender,
             weightKg: data.stats?.weightKg,
             heightCm: data.stats?.heightCm,
           },
@@ -3675,14 +3522,17 @@ export default function Onboarding() {
             reportError(sideErr, { feature: 'onboarding.cardio-goal', level: 'warning', userEmail: user?.email });
           });
 
-        // Body baseline (mig 133) — only if user filled bodyBaseline
-        // step. weight_lbs left NULL unless user actually touched the
-        // weight step (avoids phantom default-165 entry contaminating
-        // the Progress chart). Audit 13 #2.
-        const bb = data.bodyBaseline || {};
-        const hasMeasurements = Object.values(bb).some(v => v != null && v !== '');
+        // Seed the Progress weight chart with the weight the user just
+        // entered, so it opens with a first point instead of an empty graph.
+        //
+        // This block used to also write body-fat / waist / chest / hip from a
+        // "body baseline" step, and only ran when that step was filled in.
+        // That step is gone, so the measurement columns have no source and the
+        // gate moves to the weight step's own "did they actually touch it"
+        // flag — which was always the guard on weight_lbs here, to keep the
+        // default 165 lb from contaminating the chart as a phantom entry.
         const userTouchedWeight = !!data.stats?.userTouchedWeight;
-        if (user?.id && hasMeasurements) {
+        if (user?.id && userTouchedWeight) {
           supabase.from('body_metrics').insert({
             created_by: user.email,
             user_id:    user.id,
@@ -3690,11 +3540,7 @@ export default function Onboarding() {
             // Same resolver the profile payload uses, so the first point on
             // the Progress weight chart cannot disagree with the weight on the
             // profile it was captured alongside.
-            weight_lbs: userTouchedWeight ? resolveMeasurements(s).weightLb : null,
-            body_fat_pct: bb.bodyFatPct ?? null,
-            waist_cm:   bb.waistCm   ?? null,
-            chest_cm:   bb.chestCm   ?? null,
-            hip_cm:     bb.hipCm     ?? null,
+            weight_lbs: resolveMeasurements(s).weightLb,
           })
             // supabase-js RESOLVES with `{ error }` on a database failure — it
             // only rejects on a network-level throw. `.then(() => {}).catch()`
@@ -3703,7 +3549,7 @@ export default function Onboarding() {
             // reachable. (Audit 18 #8.)
             .then(({ error }) => { if (error) throw error; })
             .catch(sideErr => {
-              reportError(sideErr, { feature: 'onboarding.body-baseline', level: 'warning', userEmail: user?.email });
+              reportError(sideErr, { feature: 'onboarding.weight-seed', level: 'warning', userEmail: user?.email });
             });
         }
 
@@ -3865,22 +3711,6 @@ export default function Onboarding() {
                 <WeightStep step={formStep} total={TOTAL_FORM}
                   stats={data.stats} onChange={s => setData(d => ({ ...d, stats: s }))}
                   onNext={next} onBack={back} />
-              )}
-
-              {stepName === 'body_baseline' && (
-                <BodyBaselineStep
-                  step={formStep} total={TOTAL_FORM}
-                  value={data.bodyBaseline}
-                  onChange={v => setData(d => ({ ...d, bodyBaseline: v }))}
-                  onNext={next} onBack={back}
-                  // Skip must DISCARD, not just advance. It was wired straight
-                  // to `next`, so a user who typed a waist measurement and then
-                  // tapped "Skip for now" still had it written to body_metrics
-                  // at submit — the button did the opposite of its label, with
-                  // health data. The home-gym step below already clears its
-                  // pick on skip; this now matches. (Audit 18 #4.)
-                  onSkip={() => { setData(d => ({ ...d, bodyBaseline: { ...EMPTY_BODY_BASELINE } })); next(); }}
-                />
               )}
 
               {stepName === 'days' && (

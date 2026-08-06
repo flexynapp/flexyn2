@@ -78,29 +78,8 @@ export const onboardingI18n = {
     'onboarding.goal.selectPrompt': 'Select goals',
     'onboarding.goal.selectedCount': '{count} selected',
     'onboarding.goal.clear': 'Clear',
-    'onboarding.goal.tailoring': 'Tailoring your plan',
     'onboarding.goal.ctaEmpty': 'Pick at least one',
     'onboarding.goal.ctaMulti': 'Continue with {count}',
-
-    /* Goal tailoring chips */
-    'onboarding.tailor.strength.1': 'Heavier compounds',
-    'onboarding.tailor.strength.2': 'Anti-cheat: bar speed',
-    'onboarding.tailor.strength.3': '+15 g protein/day',
-    'onboarding.tailor.muscle.1': 'Hypertrophy volume',
-    'onboarding.tailor.muscle.2': 'Heatmap: chest / back / legs',
-    'onboarding.tailor.muscle.3': '+25 g protein/day',
-    'onboarding.tailor.lose.1': 'Calorie target −350',
-    'onboarding.tailor.lose.2': 'Cardio finishers',
-    'onboarding.tailor.lose.3': 'Anti-cheat: rest timer',
-    'onboarding.tailor.speed.1': 'Interval sessions',
-    'onboarding.tailor.speed.2': 'Tempo runs',
-    'onboarding.tailor.speed.3': 'Pace tracking',
-    'onboarding.tailor.endurance.1': 'Easy-run base',
-    'onboarding.tailor.endurance.2': 'Weekly long run',
-    'onboarding.tailor.endurance.3': 'Carb-forward macros',
-    'onboarding.tailor.mobility.1': 'Daily mobility flow',
-    'onboarding.tailor.mobility.2': 'Form-check anti-cheat',
-    'onboarding.tailor.mobility.3': 'Recovery weighting',
 
     /* ── Sharpen step ────────────────────────────────────────────── */
     'onboarding.sharpen.kicker': 'Sharpen',
@@ -212,20 +191,6 @@ export const onboardingI18n = {
     'onboarding.weight.ariaKg': 'Weight in kilograms',
     'onboarding.weight.ariaLb': 'Weight in pounds',
 
-    /* ── Body baseline step ──────────────────────────────────────── */
-    'onboarding.baseline.kicker': 'Body baseline · optional',
-    'onboarding.baseline.heading': 'Starting numbers for your progress graphs.',
-    'onboarding.baseline.sub': 'All optional. Stored encrypted, never shared. You can add these later in Progress too.',
-    'onboarding.baseline.waist': 'Waist',
-    'onboarding.baseline.chest': 'Chest',
-    'onboarding.baseline.hips': 'Hips',
-    'onboarding.baseline.bodyFat': 'Body fat',
-    'onboarding.baseline.placeholderCm': 'e.g. 80',
-    'onboarding.baseline.placeholderPct': 'e.g. 18',
-    'onboarding.baseline.save': 'Save & continue',
-    'onboarding.baseline.skip': 'Skip for now',
-    'onboarding.baseline.enterThem': 'I know my measurements — let me enter them',
-    'onboarding.baseline.laterHint': 'You can add these anytime from Progress.',
 
     /* ── Schedule step ───────────────────────────────────────────── */
     'onboarding.schedule.kicker': 'Schedule',
