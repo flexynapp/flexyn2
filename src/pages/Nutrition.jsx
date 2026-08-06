@@ -1283,8 +1283,20 @@ export default function Nutrition() {
     setScannedProduct(null);
   };
 
+  // Returns TRUE only when a mutation actually starts.
+  //
+  // The form latches an in-flight ref before calling this and clears it in an
+  // effect keyed on `isLogging`. Both early returns below skip the mutation,
+  // so `isLogging` never flips, the effect never re-runs, and that ref stayed
+  // latched FOREVER — every later tap on Log Meal was swallowed and the
+  // button was dead until remount. Kegan hit exactly this on 2026-08-05:
+  // "I added all the calories and protein and hit log meal and nothing's
+  // happening. Maybe it's because I just logged one."
+  //
+  // Reporting whether we started lets the form release its own guard. Any
+  // new early return added here MUST return false.
   const addEntry = () => {
-    if (!newEntry.food_name.trim()) { toast.error(t('nutrition.toast.enterFoodName')); return; }
+    if (!newEntry.food_name.trim()) { toast.error(t('nutrition.toast.enterFoodName')); return false; }
     // Parent-side guard against re-entrant mutation calls — the form's
     // submittingRef catches taps inside the form, but a programmatic
     // call path (e.g. Enter key fast-firing twice before isPending
@@ -1292,7 +1304,7 @@ export default function Nutrition() {
     // can still produce duplicate POSTs without this server-state
     // check. React Query's isPending flips after the first .mutate()
     // resolves a microtask later, leaving a brief window we close here.
-    if (saveMutation.isPending) return;
+    if (saveMutation.isPending) return false;
     // Per-field coercion so non-numeric values (from photo-AI / barcode
     // / paste / typed-then-edited input) never persist as strings to
     // numeric DB columns. Previously `v === '' ? 0 : v` left strings
@@ -1317,6 +1329,7 @@ export default function Nutrition() {
       ...safeEntry,
     });
     setNewEntry({ food_name: '', calories: '', protein_g: '', carbs_g: '', fat_g: '', sodium_mg: '', fiber_g: '', sugar_g: '', cholesterol_mg: '', iron_mg: '', magnesium_mg: '', calcium_mg: '', potassium_mg: '', vitamin_a_iu: '', vitamin_c_mg: '', vitamin_d_iu: '', vitamin_b12_mcg: '' });
+    return true;
   };
 
   // Re-log a previously-logged meal (from the Log Meal form's History tab)

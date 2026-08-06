@@ -2,9 +2,9 @@
 // "People You May Know" discovery surface — rendered inside the Squad feed
 // empty state and as a soft inline widget when the feed has fewer than 3 posts.
 //
-// Data: Supabase RPC `get_people_you_may_know` (migration 103) returns users
-// with at least one mutual follower. Falls back to a recency-sorted sample
-// from User.list() when the RPC is unavailable (new account, no mutuals).
+// Data: Supabase RPC `get_people_you_may_know` returns users with at least
+// one mutual follower, hydrated from the `public_profiles` view. There is
+// deliberately NO fallback — see the note on the query below.
 
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -13,7 +13,6 @@ import { UserPlus, Loader2, Users } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { supabase } from '@/api/supabaseClient';
-import { db } from '@/api/db';
 import * as hubFollows from '@/lib/data/hubFollows';
 import { calculateLevelFromXp } from '@/lib/xpSystem';
 import { getTier } from '@/lib/xpTier';
@@ -23,35 +22,60 @@ export default function PeopleYouMayKnow({ onSelectUser }) {
   const { tFallback, t } = useLanguage();
   const [localFollowed, setLocalFollowed] = useState(new Set());
 
-  // Fetch PYMK candidates from RPC, fall back to User.list()
+  // ── Suggestions come from the algorithm, or not at all ────────────────────
+  //
+  // This used to enumerate the entire user table. Twice, on two paths:
+  //
+  //   • The RPC branch fetched `db.entities.User.list()` — EVERY user — just
+  //     to hydrate the 8 ids the RPC returned.
+  //   • When the RPC returned no rows, a fallback listed every user, filtered
+  //     out the ones you already follow, and showed the first 8.
+  //
+  // `get_people_you_may_know` (mig 218) is a mutuals-only algorithm: people
+  // followed by people who follow you. On a sparse network that legitimately
+  // returns EMPTY — which meant the fallback was the live path essentially
+  // all the time, and "People you may know" was really "everyone who has an
+  // account". Kegan flagged it as a privacy breach on 2026-08-05 and he is
+  // right: a directory of every user is not a suggestion.
+  //
+  // The RPC itself is fine and does not need changing — it derives the viewer
+  // from auth.uid() and ignores its own p_email parameter, which is the
+  // correct shape (see the mig 108 note in CLAUDE.md).
+  //
+  // So: no fallback. If the algorithm has nothing, the component renders
+  // nothing (`if (!candidates.length) return null` below). An empty rail is
+  // the honest state for a new account, and it disappears on its own as soon
+  // as the user follows a couple of people.
+  //
+  // Hydration reads `public_profiles`, not `user_profiles` — the view carries
+  // no email, so a suggestion card cannot leak an address. Scoped with
+  // .in('id', ids) so we fetch exactly the candidates and nothing else.
   const { data: candidates = [], isLoading } = useQuery({
     queryKey: ['pymk', user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
-      // Try RPC first — it now returns user_id (mig 218), so candidates
-      // hydrate by id and we never match users.list() rows on email.
+
       const { data: rpcData, error: rpcErr } = await supabase.rpc('get_people_you_may_know', {
         p_limit: 8,
       });
-      if (!rpcErr && rpcData?.length) {
-        const allUsers = await db.entities.User.list().catch(() => []);
-        const idSet = new Set(rpcData.map(r => r.user_id));
-        const mutualMap = Object.fromEntries(rpcData.map(r => [r.user_id, r.mutual_count]));
-        return allUsers
-          .filter(u => idSet.has(u.id) && u.id !== user.id && !u.username?.startsWith('deleted_'))
-          .map(u => ({ ...u, mutualCount: mutualMap[u.id] ?? 0 }))
-          .slice(0, 8);
-      }
-      // Fallback: recent users not yet followed (id-keyed)
-      const [allUsers, followingIds] = await Promise.all([
-        db.entities.User.list().catch(() => []),
-        hubFollows.listFollowingIds(user.id).catch(() => []),
-      ]);
-      const followSet = new Set(followingIds);
-      return allUsers
-        .filter(u => u.id !== user.id && !followSet.has(u.id) && !u.username?.startsWith('deleted_'))
-        .slice(0, 8)
-        .map(u => ({ ...u, mutualCount: 0 }));
+      if (rpcErr || !rpcData?.length) return [];
+
+      const ids = rpcData.map(r => r.user_id).filter(Boolean);
+      if (!ids.length) return [];
+      const mutualMap = Object.fromEntries(rpcData.map(r => [r.user_id, r.mutual_count]));
+
+      const { data: profiles, error: profErr } = await supabase
+        .from('public_profiles')
+        .select('id, username, full_name, avatar_url, total_xp, current_level')
+        .in('id', ids);
+      if (profErr || !profiles?.length) return [];
+
+      return profiles
+        .filter(u => u.id !== user.id && !u.username?.startsWith('deleted_'))
+        .map(u => ({ ...u, mutualCount: mutualMap[u.id] ?? 0 }))
+        // Preserve the RPC's mutual-count ordering; .in() does not guarantee it.
+        .sort((a, b) => (b.mutualCount || 0) - (a.mutualCount || 0))
+        .slice(0, 8);
     },
     enabled: !!user?.id,
     staleTime: 5 * 60_000,

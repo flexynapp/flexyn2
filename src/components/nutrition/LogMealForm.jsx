@@ -199,7 +199,17 @@ export default function LogMealForm({ newEntry, setNewEntry, onPhotoAI, isRecogn
     }
     submittingRef.current = true;
     try {
-      onLog();
+      // onLog returns FALSE when it bailed without starting a mutation
+      // (empty food name, or a save already in flight). In that case
+      // `isLogging` never flips, so the effect above never re-runs, and the
+      // guard would stay latched forever — leaving the Log Meal button
+      // permanently dead with no error and no way back short of remounting
+      // the form. Release it here instead.
+      //
+      // `=== false` on purpose: a caller that returns undefined keeps the old
+      // latch-and-wait-for-isLogging behaviour, so the barcode path is
+      // unaffected by this contract.
+      if (onLog() === false) submittingRef.current = false;
     } catch (err) {
       // Reset the in-flight guard if onLog throws synchronously —
       // otherwise the user can never retry without remounting.
