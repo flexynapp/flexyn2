@@ -115,8 +115,7 @@ const TIMES = [
 // They were four separate literals and had already drifted: the control was
 // raised to 100 but the ruler still stopped at 80, so anyone older scrubbed
 // into 20 units of blank track under a caption that said the max was 80.
-// (Audit 18 #3.) Floor is 13 — COPPA's minimum for a general-audience app;
-// the TEEN life-stage chip covers 13-17 messaging.
+// (Audit 18 #3.) Floor is 13 — COPPA's minimum for a general-audience app.
 // Sourced from the payload builder so the control and the value that reaches
 // the database cannot disagree about what's allowed. Everything the steps
 // offer is inside the real CHECK bounds — see DB_CHECK_BOUNDS there.
@@ -1502,7 +1501,7 @@ function NumberReel({ value }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   STEP: AGE — horizontal drag wheel with life-stage chip
+   STEP: AGE — horizontal drag wheel
 ═══════════════════════════════════════════════════════════════ */
 function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, onNext, onBack, step, total }) {
   const { tFallback } = useLanguage();
@@ -1575,15 +1574,6 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
 
   const PX = 20;
   const offset = -age * PX + trackW / 2;
-
-  const stage = useMemo(() => {
-    if (age < 18) return { id: 'teen',      tag: 'TEEN',        tone: "Building habits early. We'll start with form.",      accent: 'hsl(217 91% 60%)' };
-    if (age < 25) return { id: 'peak',      tag: 'PEAK INTAKE', tone: 'Hormonally primed for muscle gain. Great window.',   accent: 'hsl(160 64% 45%)' };
-    if (age < 35) return { id: 'prime',     tag: 'PRIME',       tone: 'Strength peaks here for most lifters. Push hard.',    accent: 'hsl(26 95% 56%)'  };
-    if (age < 45) return { id: 'sustain',   tag: 'SUSTAIN',     tone: 'Smart programming wins. Volume per session.',         accent: 'hsl(38 92% 60%)'  };
-    if (age < 55) return { id: 'intent',    tag: 'INTENT',      tone: "Recovery becomes the variable. We'll protect it.",    accent: 'hsl(280 60% 60%)' };
-    return          { id: 'longevity', tag: 'LONGEVITY',   tone: 'Joint-first programming. Strength is never stunted.', accent: 'hsl(0 70% 55%)'   };
-  }, [age]);
 
   // All three answers on this step are required. Sex was not, so the buttons
   // could be left untouched and Continue still went through — and because an
@@ -1714,29 +1704,15 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
               </button>
             )}
 
-            {/* Life-stage chip */}
-            <motion.div
-              key={stage.tag}
-              initial={{ opacity: 0, scale: 0.85 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.35, ease: [0.34, 1.56, 0.64, 1] }}
-              className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold"
-              style={{
-                // mt-3 was a flat 12px — the banned middle register, and fixed
-                // on the axis that runs out first.
-                marginTop: 'var(--fluid-stack)',
-                background: 'hsl(var(--card))',
-                border: `1.5px solid ${stage.accent}`,
-                color: stage.accent,
-              }}>
-              <span className="font-mono text-micro tracking-[0.14em] uppercase font-bold">
-                {tFallback(`onboarding.stage.${stage.id}.tag`, stage.tag)}
-              </span>
-              <span style={{ width: 1, height: 12, background: stage.accent, opacity: 0.4 }} />
-              <span className="text-xs font-normal" style={{ color: 'hsl(var(--foreground) / 0.8)' }}>
-                {tFallback(`onboarding.stage.${stage.id}.tone`, stage.tone)}
-              </span>
-            </motion.div>
+            {/* The life-stage chip used to sit here — a pill reading e.g.
+                "PRIME · Strength peaks here for most lifters. Push hard.",
+                keyed to six age bands. It was 42px on a step that had 9px to
+                spare before the sex question needed a second row, and it is
+                the one thing here the user did not ask for and cannot act on:
+                the plan already adapts to age through _demographicScale's
+                ageFactor, and the chip only narrated that. Removed rather
+                than shrunk — a smaller version costs the same argument at a
+                worse size. */}
           </div>
 
           {/* Horizontal ruler scrubber */}

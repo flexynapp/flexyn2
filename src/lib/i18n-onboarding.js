@@ -167,18 +167,6 @@ export const onboardingI18n = {
     'onboarding.about.ctaNoSex': 'Answer the sex question to continue',
 
     /* Life-stage chip */
-    'onboarding.stage.teen.tag': 'TEEN',
-    'onboarding.stage.teen.tone': "Building habits early. We'll start with form.",
-    'onboarding.stage.peak.tag': 'PEAK INTAKE',
-    'onboarding.stage.peak.tone': 'Hormonally primed for muscle gain. Great window.',
-    'onboarding.stage.prime.tag': 'PRIME',
-    'onboarding.stage.prime.tone': 'Strength peaks here for most lifters. Push hard.',
-    'onboarding.stage.sustain.tag': 'SUSTAIN',
-    'onboarding.stage.sustain.tone': 'Smart programming wins. Volume per session.',
-    'onboarding.stage.intent.tag': 'INTENT',
-    'onboarding.stage.intent.tone': "Recovery becomes the variable. We'll protect it.",
-    'onboarding.stage.longevity.tag': 'LONGEVITY',
-    'onboarding.stage.longevity.tone': 'Joint-first programming. Strength is never stunted.',
 
     /* ── Height step ─────────────────────────────────────────────── */
     'onboarding.height.kicker': 'Height',

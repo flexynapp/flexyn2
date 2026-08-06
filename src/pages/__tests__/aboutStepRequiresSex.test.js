@@ -15,6 +15,16 @@ import { readFileSync } from 'node:fs';
 const SOURCE = readFileSync('src/pages/Onboarding.jsx', 'utf8');
 const I18N = readFileSync('src/lib/i18n-onboarding.js', 'utf8');
 
+// Strips `/* … */`, `{/* … */}` and `// …` so an assertion can ask about the
+// code rather than about the prose explaining it. The reasoning in this
+// codebase lives in comments, which is exactly why a raw grep over the source
+// is a question and not a conclusion.
+function stripComments(src) {
+  return src
+    .replace(/\{?\/\*[\s\S]*?\*\/\}?/g, '')
+    .replace(/(^|[^:])\/\/.*$/gm, '$1');
+}
+
 function aboutStep() {
   const start = SOURCE.indexOf('function AgeStep(');
   const end = SOURCE.indexOf('function HeightStep(', start);
@@ -81,6 +91,26 @@ describe('about step — sex is required', () => {
     // Four in a single row would put "Prefer not to say" on three lines at
     // 375px; 2x2 gives every label a full-width column.
     expect(step).toContain('grid grid-cols-2 gap-2');
+  });
+
+  it('has no life-stage chip left to pay for', () => {
+    // The chip ("PRIME · Strength peaks here for most lifters. Push hard.")
+    // was 42px on the step with the least room, and it was the one thing here
+    // the user did not ask for and could not act on — the plan already adapts
+    // to age through _demographicScale's ageFactor; the chip only narrated
+    // that. Removing it is what let the fourth sex option fit: the SE went
+    // from -38.9px to +18.8px of slack, with all four options on screen.
+    const step = aboutStep();
+    expect(step).not.toContain('stage.accent');
+    expect(step).not.toMatch(/const stage = useMemo/);
+    // Match against CODE, not prose. The comment above the removal names the
+    // chip's copy verbatim, and a raw grep for 'PRIME' can't tell the two
+    // apart — it would report the explanation as the thing it explains.
+    for (const tag of ['PRIME', 'SUSTAIN', 'PEAK INTAKE', 'LONGEVITY']) {
+      expect(stripComments(step)).not.toContain(tag);
+    }
+    // And its 12 i18n keys went with it rather than lingering as dead copy.
+    expect(I18N).not.toContain('onboarding.stage.');
   });
 
   it('leaves every downstream consumer on its neutral branch', () => {
