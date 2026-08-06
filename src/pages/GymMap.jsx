@@ -68,23 +68,10 @@ function pinGradient({ isMine, memberCount }) {
   return 'linear-gradient(135deg,#9ca3af,#6b7280)';
 }
 
-// Orange means ONE thing on this map now: a gym you have joined.
-//
-// It used to mean "Camp Quannapowitt" — a single flexyn_code given an
-// orange teardrop as a one-off highlight (5a62bb7). That highlight is
-// gone, because a colour that means two things is the exact failure
-// CLAUDE.md records for grey, which was read as "my gym" three separate
-// times before the ★ badge was added to disambiguate it. If a gym wants
-// singling out again it needs a signal that isn't this one.
-//
-// The tiers are now:
-//   orange bubble  — a gym YOU are a member of
-//   purple bubble  — a verified business you have not joined
-//   grey bubble    — a community gym you have not joined
-//   grey teardrop  — an OSM gym nobody has picked yet
-//
-// ★ still marks your HOME gym specifically, because you can be a member
-// of several and only one of them is the one you declared.
+// The one-off orange teardrop for Camp Quannapowitt (5a62bb7) was
+// retired when orange became "yours" — a colour meaning two things is
+// the failure CLAUDE.md records for grey. A gym wanting to stand out
+// again needs a signal that isn't colour.
 
 // ── Pin DOM builders ───────────────────────────────────────────────────
 
@@ -132,19 +119,10 @@ function buildFlexynPin({ gym, compact, onClick, signal, isMine = false }) {
 }
 
 // Community gym bubble (migration 275) — a gym somebody declared as
-// their home gym during onboarding, promoted from an OpenStreetMap
-// entry. Same bubble SHAPE as a Flexyn business pin because it is a real
-// place with real members and a real leaderboard, but grey rather than
-// purple because nobody has proven they own it.
-//
-// The three map tiers read at a glance:
-//   purple bubble  — verified Flexyn business
-//   grey bubble    — community gym, members train here (this one)
-//   grey teardrop  — an OSM gym nobody has picked yet
-//
-// Grey is shared with the OSM teardrop deliberately: both mean
-// "unclaimed". Shape is what separates "has a community" from "just
-// exists on a map".
+// their home gym, promoted from an OpenStreetMap entry. Same bubble
+// SHAPE as a verified business, because it is an equally real place with
+// real members and a real leaderboard; only the colour differs, and that
+// now comes from pinGradient rather than from who owns the record.
 function buildCommunityPin({ gym, compact, onClick, signal, isMine = false }) {
   const el = document.createElement('button');
   el.type = 'button';
@@ -260,10 +238,6 @@ export default function GymMap({ onClose, onContinue }) {
   const placeAbortRef = useRef(null);
   const debounceRef   = useRef(null);
   const refreshRef    = useRef(null); // always → latest refreshFromBounds
-  // Read inside the one-time map-init effect, which cannot see props
-  // changing. A ref keeps it out of that effect's (empty) dep array.
-  const autoLocateRef = useRef(false);
-  autoLocateRef.current = !!onContinue;
 
   const [view,        setView]        = useState('map');
   const [gyms,        setGyms]        = useState([]);
@@ -546,16 +520,18 @@ export default function GymMap({ onClose, onContinue }) {
       setCurrentZoom(map.getZoom());
       refreshRef.current?.();
 
-      // Opening on the whole United States is the right default for
-      // browsing and the wrong one for "pick your gym": onboarding sends
-      // the user here from a step about their own neighbourhood, and a
-      // continental view answers a question they didn't ask.
+      // Open on the user's own area, whichever button got them here.
       //
-      // Only in onboarding mode. The standalone map keeps its US view —
-      // it has a GeolocateControl for anyone who wants their own
-      // position, and hijacking the camera on every visit would be worse
-      // than a neutral start.
-      if (!autoLocateRef.current) return;
+      // This was onboarding-only, on the theory that a standalone map
+      // should start neutral. That made the same page behave two ways:
+      // arrive from onboarding and you get your neighbourhood, arrive
+      // from My Gyms and you get the continent — same button label,
+      // same destination, different answer. Every entry point to this
+      // map is someone looking for a gym they could actually train at,
+      // and none of them are asking about Nebraska.
+      //
+      // Nothing is hijacked: on denial or timeout the US view stands,
+      // and the GeolocateControl is still there.
       if (typeof navigator === 'undefined' || !navigator.geolocation) return;
       navigator.geolocation.getCurrentPosition(
         (pos) => {

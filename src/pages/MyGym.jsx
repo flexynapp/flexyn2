@@ -314,12 +314,17 @@ export default function MyGym() {
             )}
           />
 
+          {/* Same control, same words, same weight as the one above the
+              onboarding picker. It read "Browse the map instead" in
+              muted text here and "Browse map" as a button there — one
+              destination described two ways in the two places a user
+              actually meets it. */}
           <button
             type="button"
             onClick={() => navigate('/gym-map')}
-            className="w-full mt-2 py-2 text-sm text-muted-foreground hover:text-foreground active:text-foreground transition-colors"
+            className="w-full mt-3 py-2.5 rounded-xl text-sm font-bold border border-border bg-card text-primary hover:border-primary/40 active:border-primary/40 transition-all"
           >
-            Browse the map instead
+            Browse map
           </button>
         </div>
       </motion.div>
