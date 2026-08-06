@@ -1037,6 +1037,38 @@ the ONE that is theirs.
   drags the whole map engine into the onboarding chunk — vite.config
   keeps maplibre out of `vendor-misc` precisely so it stays lazy. The
   onboarding picker and the map share this module instead.
+- **A search radius is in KILOMETRES, never in degrees** (fixed
+  2026-08-06). `fetchOsmGymsNear` took a single `radiusDeg` and applied it
+  to latitude and longitude alike, but a degree of longitude shrinks by
+  cos(latitude): the 0.05° default reached 5.56 km north-south and only
+  4.83 km (Houston) / 4.22 km (New York) / 3.75 km (Seattle) east-west.
+  So anywhere north of ~30° the advertised radius was under three miles in
+  the axis that mattered, and a gym three miles down the road was not
+  ranked low — it was never fetched. Verified against live Overpass: a
+  point 2.79 mi east of a Chicago Planet Fitness missed it under the old
+  geometry (2.57 mi reach) and finds it under `bboxAround()`.
+- **The lookup is a cheap query plus a free classifier, and that split is
+  load-bearing.** Overpass only uses its index for exact `key=value`
+  matches; a case-insensitive regex or a negative match like
+  `["sport"!~"tennis"]` degrades to a bbox scan. Measured over a 27 km box:
+  the exact-match query answered in 27s, the same query with one `!~`
+  clause 504'd three times at 58s / 57s / 82s. So `GYM_SELECTORS`
+  over-fetches on exact matches only, and `isGymLike()` decides what a gym
+  is from tags already in hand. **Put new rules in the classifier, not the
+  query.**
+- **Query `nwr`, not `node` + `way`.** Relations were never asked for, so
+  a gym mapped as a multipolygon — normal for anything inside a larger
+  building — was invisible.
+- **`leisure=sports_centre` is fetched unfiltered on purpose.** It used to
+  be qualified with `["sport"~"fitness"]`, which was the single biggest
+  source of misses: YMCAs, council rec centres, boxing gyms and climbing
+  gyms carry no `sport` tag at all or one that isn't the string "fitness".
+  Measured near downtown Houston, the old filter found 20 of the 30 named
+  fitness places within three miles; the current one finds 27 and the
+  three it drops are a tennis centre, a public pool and a basketball
+  arena. The client-side per-mirror abort is 30s against a `[timeout:25]`
+  header — it was 20s, i.e. the app hung up on queries the server was
+  still legitimately working on.
 - **`owner_id` stays NULL on a community gym.** Same reasoning as demo
   gyms below: nobody proved they own the place, so nobody gets owner
   controls. `created_by_user_id` records who promoted it and grants

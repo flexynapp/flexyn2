@@ -24,7 +24,15 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { getGymsInBbox } from '@/lib/data/gymBusinesses';
-import { fetchOsmGymsNear, distanceKm } from '@/lib/osmGyms';
+import {
+  fetchOsmGymsNear, distanceKm, bboxAround, DEFAULT_NEAR_RADIUS_KM,
+} from '@/lib/osmGyms';
+import { useWeightUnit } from '@/lib/WeightUnitContext';
+
+/** Widen steps, in km. 8 / 20 / 40 ≈ 5 / 12 / 25 miles. */
+const RADIUS_STEPS_KM = [DEFAULT_NEAR_RADIUS_KM, 20, 40];
+const MAX_RADIUS_KM = RADIUS_STEPS_KM[RADIUS_STEPS_KM.length - 1];
+const KM_PER_MILE = 1.609344;
 
 /**
  * @param {object|null} value      current pick — { gymId } or { osm }
@@ -57,13 +65,24 @@ export default function NearbyGymPicker({
   // outright and sends no CORS header, another was timing out on every
   // request), so this path is hit for real, not theoretically.
   const [osmFailed, setOsmFailed] = useState(false);
-  // Widen on demand. The default box is only ~11 km N-S by ~8 km E-W,
-  // which is a reasonable "my gym" radius in a city and too small in a
-  // suburb.
-  const [radiusDeg, setRadiusDeg] = useState(0.05);
+  // Widen on demand, in KILOMETRES. It used to be a raw degree offset
+  // applied to both axes, which made the real east-west reach shrink with
+  // latitude — 0.05° is 3.0 miles in Houston and 2.3 in Seattle — so a
+  // gym three miles away was never fetched. See bboxAround().
+  const [radiusKm, setRadiusKm] = useState(DEFAULT_NEAR_RADIUS_KM);
+
+  // Distance units follow the weight unit, the only unit signal the app
+  // stores. kg → km, lbs/stone → miles, which is right everywhere that
+  // matters (the US, the UK and Liberia are the imperial holdouts and
+  // all three weigh in pounds or stone).
+  const { weightUnit } = useWeightUnit();
+  const imperial = weightUnit !== 'kg';
+  const fmtRadius = (km) => (imperial
+    ? `${Math.round(km / KM_PER_MILE)} mi`
+    : `${Math.round(km)} km`);
 
   // `radius` is always passed explicitly. It deliberately has no default
-  // reading radiusDeg: this callback has empty deps (it must stay stable
+  // reading radiusKm: this callback has empty deps (it must stay stable
   // or the mount effect re-fires), so a default would capture the FIRST
   // radius forever and silently ignore every widen.
   const load = useCallback((radius) => {
@@ -82,13 +101,16 @@ export default function NearbyGymPicker({
           // Both sources in parallel, each catching its own failure, so
           // Overpass being down can never hide the Flexyn gyms — but the
           // OSM failure is now RECORDED rather than discarded.
+          // The Flexyn half searches 1 km wider so a registered gym that
+          // sits just past the OSM edge still shows up.
+          const box = bboxAround(lat, lng, radius + 1);
           const [flexyn, osm] = await Promise.all([
             getGymsInBbox({
-              minLat: lat - (radius + 0.01), maxLat: lat + (radius + 0.01),
-              minLng: lng - (radius + 0.01), maxLng: lng + (radius + 0.01),
+              minLat: box.south, maxLat: box.north,
+              minLng: box.west,  maxLng: box.east,
               limit: 40,
             }).catch(() => []),
-            fetchOsmGymsNear(lat, lng, { radiusDeg: radius, signal: ac.signal })
+            fetchOsmGymsNear(lat, lng, { radiusKm: radius, signal: ac.signal })
               .catch((e) => {
                 if (e?.name !== 'AbortError') setOsmFailed(true);
                 return [];
@@ -135,13 +157,13 @@ export default function NearbyGymPicker({
     return () => ac.abort();
   }, []);
 
-  // Mount-only: `load` closes over radiusDeg, and listing it here would
-  // re-fetch on every widen in addition to the explicit call.
-  useEffect(() => { load(0.05); }, [load]);
+  // Mount-only: listing radiusKm here would re-fetch on every widen in
+  // addition to the explicit call.
+  useEffect(() => { load(DEFAULT_NEAR_RADIUS_KM); }, [load]);
 
   const widen = () => {
-    const next = Math.min(0.25, radiusDeg * 3);
-    setRadiusDeg(next);
+    const next = RADIUS_STEPS_KM.find(km => km > radiusKm) ?? MAX_RADIUS_KM;
+    setRadiusKm(next);
     load(next);
   };
 
@@ -187,9 +209,15 @@ export default function NearbyGymPicker({
             ? 'We need your location to find gyms near you. Turn it on and retry, or pick your gym from the map instead.'
             : 'The gym directory did not respond. Retry, or pick your gym from the map instead.'}
         </p>
+        {/* `onClick={load}` handed React's click event straight to the
+            radius argument. `lat - <SyntheticEvent>` is NaN, so Retry
+            built a bbox of "NaN" strings and every retry after granting
+            location permission failed on a malformed query — the one
+            button on the one screen where a user has just fixed the
+            problem themselves. */}
         <button
           type="button"
-          onClick={load}
+          onClick={() => load(radiusKm)}
           className="w-full py-2 rounded-xl text-sm font-bold border border-border bg-secondary hover:border-primary/40 transition-all"
         >
           Retry
@@ -212,17 +240,20 @@ export default function NearbyGymPicker({
         <p className="text-xs text-muted-foreground mb-3">
           {lookupBroke
             ? "The gym directory (OpenStreetMap) didn't respond, so we couldn't check what's around you. It's usually brief — try again."
-            : (emptyHint || 'Nothing is mapped within a few kilometres of you.')}
+            /* State the radius. "No gyms found nearby" is a claim the
+               user can't check against anything, and when the real reach
+               was under three miles it was one they'd have disputed. */
+            : (emptyHint || `Nothing is mapped within ${fmtRadius(radiusKm)} of you.`)}
         </p>
         <div className="flex gap-2">
           <button
             type="button"
-            onClick={() => load(radiusDeg)}
+            onClick={() => load(radiusKm)}
             className="flex-1 py-2 rounded-xl text-sm font-bold border border-border bg-secondary hover:border-primary/40 transition-all"
           >
             Try again
           </button>
-          {radiusDeg < 0.25 && (
+          {radiusKm < MAX_RADIUS_KM && (
             <button
               type="button"
               onClick={widen}
@@ -249,7 +280,7 @@ export default function NearbyGymPicker({
             didn't respond.{' '}
             <button
               type="button"
-              onClick={() => load(radiusDeg)}
+              onClick={() => load(radiusKm)}
               className="font-semibold text-primary underline underline-offset-2"
             >
               Retry
@@ -290,9 +321,11 @@ export default function NearbyGymPicker({
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold truncate">{r.name}</p>
                 <p className="text-micro text-muted-foreground truncate">
-                  {r.distance < 1
-                    ? `${Math.round(r.distance * 1000)} m`
-                    : `${r.distance.toFixed(1)} km`}
+                  {imperial
+                    ? `${(r.distance / KM_PER_MILE).toFixed(1)} mi`
+                    : (r.distance < 1
+                      ? `${Math.round(r.distance * 1000)} m`
+                      : `${r.distance.toFixed(1)} km`)}
                   {r.sub ? ` · ${r.sub}` : ''}
                   {r.memberCount > 0 ? ` · ${r.memberCount} on Flexyn` : ''}
                 </p>
@@ -319,14 +352,14 @@ export default function NearbyGymPicker({
       {/* Always reachable, not just on the empty state — the most common
           "my gym isn't here" cause is a radius that's too small, and a
           user who can see a list has no other way to widen it. */}
-      {radiusDeg < 0.25 && (
+      {radiusKm < MAX_RADIUS_KM && (
         <button
           type="button"
           onClick={widen}
           disabled={disabled}
           className="w-full mt-3 py-2 text-xs text-muted-foreground hover:text-foreground active:text-foreground transition-colors disabled:opacity-50"
         >
-          Don't see your gym? Search a wider area
+          Showing gyms within {fmtRadius(radiusKm)} — search wider
         </button>
       )}
     </>
