@@ -14,86 +14,127 @@ on iOS / Android / desktop. 15 supported languages.
 The README has the production overview; this file is for working
 conventions a contributor needs day-to-day.
 
-## Session journal — May 2026 batch
+**How this file is ordered.** Invariants first — the properties the app
+depends on, where being wrong means a security or data bug, not an ugly
+screen. Then how to work here (workflow, layout, tests, guards). Then the
+domain sections. Then history: the May 2026 session journal and the standing
+out-of-scope list are at the BOTTOM because they are the least likely thing a
+contributor needs and the most likely to have gone stale.
 
-A single long session shipped migrations 080–099 plus ~17,000 lines of
-new product code. Conventions/patterns introduced here that future
-contributors should match:
+Two habits this file exists to enforce, both learned expensively:
 
-- **Migration order matters and we DON'T renumber retroactively.** When
-  numbering parallel commits, pick the next free `NNN` at branch start.
-  If two branches independently claim the same number, the second-to-
-  land renames its file. Files at the same NNN are tolerated when
-  bodies are disjoint (e.g. `054_duels.sql` + `054_bio_profanity_check.sql`).
-- **The push pipeline is live and gated by `app.send_push_url` /
-  `app.send_push_secret` via Supabase Vault** (not `ALTER DATABASE` —
-  managed Supabase blocks that). The `notify_push_fanout` trigger short-
-  circuits when secrets are missing, so new RLS tables don't break
-  push delivery during partial-deploy windows. As of mig 098 the trigger
-  also short-circuits during the user's quiet hours.
-- **Per-category notification preferences use SINGULAR keys** (streak,
-  quests, league, social, achievements, engagement, competitive). The
-  category mapping was unified in migration 083 after migration 065
-  silently regressed it to plural names — see the migration head comment
-  for the full story.
-- **Three share cards follow the same Canvas 2D pattern** (no
-  html2canvas dep): WorkoutShareCard (purple/fuchsia), WeeklyRecapShareCard
-  (emerald/cyan), PRShareCard (gold/crimson). Color rotation gives each
-  moment its own identity; the share API + download fallback chain is
-  identical.
-- **Seven celebration helpers each have a distinct vibration + confetti
-  signature** (goal / first-workout / first-regimen / first-goal /
-  first-meal / pr / crew-win). When adding an 8th, give it its own
-  signature — see `src/lib/prCelebration.js` for the pattern.
-  Multi-celebration events should route through `src/lib/rewardQueue.js`
-  to avoid overlapping toasts; today `Workout.jsx` is the only surface
-  where two can land on one action (a first workout that also sets a PR),
-  and it uses the queue.
-- **`tFallback('key', 'English fallback')`** is the standard i18n call.
-  English fallbacks ship inline; native translators fill non-English
-  locales via `src/lib/i18n-*.js` part files (the splitter aggregates).
-  Don't ship machine-translated copy.
-- **localStorage flags for per-device UX state** follow the
-  `flexyn.<feature>.<userId>` namespace pattern. Examples:
-  `flexyn.celebratedCrewWars.<userId>`, `flexyn.pendingReferralCode`,
-  `flexyn.pushOptInDismissed.<userId>`, `flexyn.iosInstallDismissed.<userId>`,
-  `flexyn.onboardingState.<userId>`.
-- **Schema drift audit lives at `supabase/migrations/_audit_schema_drift.sql`**
-  (leading underscore keeps it out of auto-runners). Paste it into the
-  SQL Editor to surface column-type drift, missing FKs, missing
-  service_role grants, and orphan rows. Migration 085's ALTER DEFAULT
-  PRIVILEGES auto-grants service_role on new public tables, so new
-  drift in that dimension shouldn't accumulate.
-- **The single most-common defect class shipped this session** has
-  been references to nonexistent columns / functions in new
-  migrations and RPCs — caught and patched across 100 (timezone_offset
-  vs timezone_offset_minutes), 101 (weekly_xp/volume/sessions on the
-  wrong table, total_posts nonexistent, grant_flex_coins undefined),
-  109 (followed_email vs followee_email on hub_follows — broke 100%
-  of Block-button clicks). Before writing a new migration that
-  references existing schema, **grep for the actual column / function
-  name in the migrations directory** rather than typing what you
-  expect it to be. Same rule for SECURITY DEFINER RPCs that pass
-  user-supplied identifiers: gate on auth.uid() server-side, not
-  on the client-supplied param (108 was a privacy leak from
-  trusting client-passed email).
+- **Read the installed artefact, not the migration that created it.** A later
+  migration redefining a function from a stale template is invisible in the
+  file that "owns" the feature. `pg_get_functiondef()` is the source of truth.
+  Push notifications had never sent a single request for months because of it.
+- **Before treating a grep hit as debt, read the comments.** The reasoning in
+  this codebase lives in comments that greps don't read, so a raw count is a
+  question, not a conclusion. Four of five findings in one audit shrank or
+  inverted on inspection.
 
-The biggest user-facing additions this session:
+## INVARIANTS — break these and you ship a security or data bug
 
-- Push fanout for nemesis, gauntlet, comments+replies, memories,
-  referrals (mig 081–089)
-- Streak rescue (mig 087) — one-tap save on a missed day, once/month
-- Onboarding 7-day nudge sequence + iOS install banner + push opt-in
-- Live activity rail + follow suggestions + crew suggestions + friend
-  leaderboards on Hub
-- Workout calendar grid + workout memory card + workout suggestion +
-  PR celebration + repeat-from-log on Dashboard/Workout
-- Hydration ring + mood log + sleep log + recovery score + readiness
-  card (mig 094–097)
-- Voice input (set logging + Coach dictation)
-- Built-in program templates + workout templates + bar inventory
-- User-created bounties + crew challenges + quiet hours + dedicated
-  notification page + story emoji reactions + story highlights schema
+Everything below this heading is a convention. Everything in this section is a
+property the app depends on. Read it before writing code that touches XP,
+coins, achievements, or anything keyed to a user.
+
+### The client never computes XP, coins, or achievements
+
+The server is authoritative. This is not a style preference — it is enforced in
+the database, and client-side arithmetic will be **silently clamped, rejected,
+or rate-limited** rather than failing loudly.
+
+| Migration | What it enforces |
+|---|---|
+| `042` | `increment_user_xp` credits `auth.uid()` only — the client-supplied `p_user_id` is IGNORED. Single grant capped at 100k. |
+| `142` / `173` | Privileged `user_profiles` columns are immutable to direct PostgREST writes. The RPC is the ONLY path. |
+| `176` | `increment_flex_coins` mint guard: 2,500/call, 25,000/day, against `flex_coin_grant_ledger`. |
+| `180` | Crew-war XP clamp. |
+| `188` | Rolling 24h per-user XP cap inside the RPC, plus an append-only audit ledger that both drives the cap and is the tamper-proof log. |
+| `189` | XP-milestone achievements granted by `grant_xp_milestone_achievements()`. The client used to INSERT achievement rows directly, which let any signed-in user forge a badge. |
+| `192` | `grant_level_up_rewards` clamps `p_new_level` to the server's `current_level`. It previously trusted the client, so any authenticated user — including an anonymous guest — could pass 99 and mint the entire capsule ladder plus ~6,800 coins in one call. |
+| `262` | Cardio XP caps. |
+| `264` | Flex-coin ledger + mint ceiling, applied as a TRIGGER rather than by restating 22 SECURITY DEFINER functions — see that migration's head for why. |
+
+Consequences a contributor must know:
+
+- **Never write `flex_coins`, `total_xp`, `current_level` or any other
+  privileged column from the client**, and never patch them into the profile
+  cache from a client-computed value. The full list is in the Profile cache
+  section; `flex_coins` is doubly unsafe because 264's trigger clamps credits
+  past the rolling ceiling, so even an accepted write may not store the number
+  you sent. Patch only with a value the **server returned**.
+- **Awarding something new means a SECURITY DEFINER RPC**, deriving the user
+  from `auth.uid()` — never from a parameter. Then `REVOKE` it from PUBLIC and
+  run `get_advisors` (see the Scheduled workouts section for how a missing
+  REVOKE exposed a cron-only function to `anon`).
+- **The anti-cheat systems are not advertised in the product.** Onboarding used
+  to name them and the signals they watch on its second screen; that copy is
+  gone and `src/pages/__tests__/goalStepCopy.test.js` fails if it returns. A
+  check only works while it is not universally known.
+
+### Identity — four keys, and which one to use
+
+Rows are keyed four different ways, which is a real source of bugs (the
+`followed_email` / `followee_email` mix-up broke 100% of Block-button clicks).
+Across `src/lib/data/` alone: `user_id` 231 uses, `created_by` 71,
+`user_email` 47, `owner_id` 17, `author_email` 16.
+
+- **`user_id UUID REFERENCES auth.users(id)` is the key. RLS gates on
+  `auth.uid()`.** Every new table gets this.
+- **`created_by TEXT` is an email and a base44 legacy** — migration 001 says so
+  in a comment. Older tables carry BOTH and their policies read
+  `auth.email() = created_by OR auth.uid() = user_id`. `makeEntity().create` in
+  `src/api/db.js` auto-injects both so RLS passes either way. Don't add
+  `created_by` to a new table.
+- **A denormalised `user_email` is for delivery, not identity.** It exists on
+  tables the push fan-out reads (`scheduled_workouts`, `notifications`) so the
+  worker doesn't need a join. It is written by the RPC from `auth.uid()`, never
+  accepted from the client — that's exactly why `scheduled_workouts` has no
+  client INSERT policy.
+- **Never gate on a client-supplied identifier.** Migration 108 was a privacy
+  leak from trusting a client-passed email.
+
+## Workflow
+
+1. `git fetch origin && git rev-list --left-right --count HEAD...origin/main`
+   before any work. If origin is ahead, rebase.
+2. Edit. Run `npm run lint` + `npm run build` (and `npm run test` if
+   logic changed).
+3. Commit with a multi-paragraph message that explains the why, not just
+   the what. Use HEREDOC so quotes survive.
+4. `git push origin <branch>` — push the feature branch first.
+5. `git push origin <branch>:main` — fast-forward main. Only after the
+   branch push succeeds.
+6. **ALWAYS, after every push, send the user the SQL to run.** This is a
+   standing instruction (kegan, 2026-05). Frontend ships via Netlify
+   auto-deploy from `main`, but the DB is deployed by the user manually
+   pasting SQL into the Supabase SQL editor — so a push is only "done"
+   once they have the matching SQL. After each push, report EITHER:
+     • the pending migration(s) as a copy-paste block, OR
+     • "No SQL needed — frontend only" when the change touched no
+       migrations / DB objects.
+   Don't wait to be asked. See the paste-safety rule below — the SQL
+   you hand over must survive the user's clipboard pipeline.
+   **MANDATORY, NO EXCEPTIONS (kegan, 2026-05, mobile):** ALWAYS paste the
+   actual SQL inline in chat inside a fenced ```sql code block so it has a
+   one-tap copy button. NEVER tell the user to open / copy a file from the
+   repo or GitHub — they are on mobile and cannot open files. This applies
+   no matter how long the SQL is; if a bundle is huge, split it across
+   several ```sql blocks in the SAME reply (each its own copy button) and
+   tell them the run order — but it must all be in chat. A file path is
+   NEVER an acceptable substitute for the inline SQL.
+7. **Paste-safe SQL is mandatory.** The user's paste pipeline mangles
+   short `alias.column` tokens AND record-field `.id` tokens (e.g.
+   `up.id`, `v_verif.id`, `v_capsule.id`) → `42601 syntax error at "<"`.
+   Only emit: `public.<table>`, `auth.<fn>()`, `NEW.`/`OLD.`, bare
+   columns in single-table statements, CTE-renamed join keys, and
+   `#variable_conflict use_column` for RETURNS TABLE OUT-param shadowing.
+   Prefer scalar `SELECT ... INTO v_a, v_b` over `%ROWTYPE` + dotted
+   record access. A migration that's fine for a CLI runner can still
+   mangle on paste — rewrite the bundle you hand the user accordingly.
+8. Update tasks via `TaskUpdate` (this session uses TaskCreate /
+   TaskUpdate / TaskList — `TodoWrite` was deprecated mid-session).
 
 ## Two engineers, parallel sessions
 
@@ -103,6 +144,156 @@ to `main` are the convention here (no PR workflow). Push your feature
 branch first, then fast-forward `main`. Never force-push `main`.
 
 See: `~/.claude/projects/C--Flexyn/memory/feedback_parallel_sync.md`.
+
+## File locations cheat sheet
+
+- New page → `src/pages/<Name>.jsx`, registered as a lazy import in
+  `src/App.jsx`.
+- New data-layer function → `src/lib/data/<table>.js`. Export named
+  functions, use `supabase` from `@/api/supabaseClient`, wrap
+  column-named reads in `safeSelect`. If it writes `user_profiles`, read
+  the "Profile cache" section above first — you almost certainly need a
+  `patchProfile()` call, and you must import `@/api/profileCache` rather
+  than `@/api/db`.
+- New component → `src/components/<area>/<Name>.jsx`. Components for
+  Dashboard go in `dashboard/`, hub in `hub/`, etc.
+- New lib helper → `src/lib/<helper>.js`. If it's a celebration, mirror
+  one of the existing `*Celebration.js` files.
+- Anything that changes what the AI Coach programs → `src/lib/aiCoach/`,
+  and read the "AI Coach personalization" section above first. New context
+  inputs go through `buildTrainingModifiers` (clamped + explained on the
+  card), not straight into `generateWorkout`.
+
+## Testing
+
+- Framework: vitest, jsdom. Setup in `src/test/setup.js`.
+- Existing tests: `src/lib/__tests__/`, `src/lib/data/__tests__/`,
+  `src/components/__tests__/`, `src/api/__tests__/`, `src/hooks/__tests__/`.
+- Supabase mock pattern: see `src/lib/__tests__/capsuleMilestones.test.js`
+  or `src/lib/data/__tests__/injuries.test.js` for the chainable-mock shape.
+- Confetti tests: `canvas-confetti` mock leaks across tests because
+  `setTimeout`-scheduled bursts from prior tests can land in later
+  buffers. Filter the mock calls by a **unique signature** (e.g. the
+  helper's distinctive origin coords) rather than asserting on exact
+  call count.
+- Data-layer modules under `src/lib/data/` are worth testing directly, not
+  only through the components that call them. `equipment.js` looked covered
+  because `ImplementPicker.test.jsx` mocked `persistEquipmentPhoto` — but
+  the mock always returned null, so every step between the picker and the
+  database was untested. A mocked dependency is not coverage of that
+  dependency. See `src/lib/data/__tests__/equipment.test.js` for a
+  chainable-mock shape that asserts on the **sequence** of statements,
+  which is usually the part that's actually unproven.
+- `npm run test` — full suite. `npm run test:watch` — watch mode.
+  `npm run test:coverage` — V8 coverage. As of 2026-08-06: **2769 tests
+  passing across 198 files**.
+
+## Build guards (don't disable)
+
+The build has an `onwarn` hook in `vite.config.js` that turns specific
+Rollup warning codes into **build failures**. These were added after a
+production crash on 2026-05-23 — a `inventory.listMine` call referenced
+a non-existent named export, Vite's `logLevel: 'error'` setting silenced
+the `MISSING_EXPORT` warning, and the bug shipped as a runtime crash.
+The guard ensures that defect class can never silently land again.
+
+Currently blocking:
+- `MISSING_EXPORT` — `import { foo } from 'mod'` or `ns.foo` where
+  `foo` isn't on the module's exports. Symptoms in production: silent
+  `undefined`-call TypeError, or in some bundler configs a minified
+  TDZ (`can't access lexical declaration 'oe' before initialization`).
+- `UNRESOLVED_IMPORT` — module path doesn't resolve at build time.
+- `PLUGIN_ERROR` — a Vite/Rollup plugin escalated to error (shouldn't
+  be a warning anyway).
+
+**If the build fails with `[vite-build-guard]`** — don't disable the
+guard. The warning corresponds to a real bug. Fix the import, then
+rebuild. If you have a defensible case for treating one as a false
+positive (extremely rare), surface it explicitly rather than removing
+the code from the blocking set silently.
+
+## TDZ trap — declare const/let BEFORE first use
+
+JavaScript hoists `function` declarations but **not** `const` or `let`.
+Code that *reads* a const-bound name before its declaration line
+throws `ReferenceError: can't access lexical declaration X before
+initialization`. Dev mode masks some patterns (React's double-render,
+JSX callback fns that only run after render); production minified
+re-orders statements and the bug fires on the first render.
+
+The 2026-05-23 production Hub crash was this exact pattern in
+`HubPostCard.jsx`:
+
+```jsx
+function HubPostCard({ post }) {
+  // ...
+  useEffect(() => {
+    if (... || isMine) return;     // ← reads `isMine`
+    // ...
+  }, [user?.email, post.id, isMine]);  // ← AND in deps array
+
+  // ... 80 lines later ...
+  const isMine = post.author_email === user?.email;  // ← declared LATE
+}
+```
+
+The deps array `[..., isMine]` is evaluated synchronously when
+`useEffect` is called, but `isMine` is in TDZ at that point. **Always
+declare a `const` before its first use, including inside any
+`useEffect` / `useMemo` / `useCallback` deps array.**
+
+ESLint has `no-use-before-define` configured at `'warn'` level
+(masked by `--quiet` in the default `npm run lint` script — run
+`npx eslint .` to see all 141 existing warnings). Goal is to upgrade
+to `'error'` once those are cleaned up. New code: don't add new
+violations of this rule.
+
+## ESLint
+
+- `npm run lint` — must exit clean before any push.
+- Common stumble: teammate's commits sometimes land unused imports
+  (`X`, `useCallback`, etc.). Those are chore commits — fix in a
+  separate small commit so the blame stays clean.
+
+## Build & analyze
+
+- `npm run dev` — Vite dev server.
+- `npm run build` — production build. Vite + manual chunking in
+  [vite.config.js](vite.config.js) splits the heaviest deps into their
+  own vendor chunks (`vendor-tfjs`, `vendor-supabase`, `vendor-charts`,
+  `vendor-motion`, etc.).
+- `npm run analyze` — build with `ANALYZE=true` so
+  rollup-plugin-visualizer writes a treemap to `dist/bundle-stats.html`.
+  Use this when adding a substantial library or wondering where bytes
+  went.
+- Lazy-loading rule: modals and tabs that only mount on user action
+  should be `React.lazy()` + `<Suspense fallback={null}>`. Existing
+  examples: `DebriefVault`, `InjuryForm`, the page chunks in `App.jsx`.
+- `html2canvas`, `canvas-confetti`, `@zxing/browser`, and `maplibre-gl`
+  are excluded from the `vendor-misc` chunk so their dynamic imports
+  get their own lazy chunks. Don't break that — see the `manualChunks`
+  function in vite.config.
+
+## Verifying against production — three layers
+
+Each layer catches what the one below it cannot, and every real bug in the
+July 2026 equipment/storage work was found by dropping a layer:
+
+1. **SQL as `authenticated`** — `BEGIN; SET LOCAL role authenticated; SET
+   LOCAL request.jwt.claims = '{"sub":"<uuid>","role":"authenticated"}'; …
+   ROLLBACK;` with the client's statements issued **separately** (CTEs in
+   one statement can't see each other's writes, which gives a false
+   "blocked"). This is the only way to test RLS — raw MCP/SQL-editor
+   queries run as `postgres` and bypass it entirely. Blind to PostgREST and
+   Storage: a bucket MIME allowlist is enforced by the Storage service, not
+   the database.
+2. **A node probe** using the anon key from `.env.local` plus
+   `supabase.auth.signInAnonymously()`, driving the real HTTP APIs. Proves
+   the service layer. Clean up whatever it writes.
+3. **The deployed site in the browser pane.** A file input can be driven
+   without a real file: build a `File` (canvas → `toBlob` for an image,
+   `MediaRecorder` over `canvas.captureStream()` for a genuinely decodable
+   video), assign via `DataTransfer` to `input.files`, dispatch `change`.
 
 ## Database migrations
 
@@ -129,6 +320,390 @@ See: `~/.claude/projects/C--Flexyn/memory/feedback_parallel_sync.md`.
   `055_first_workout_capsule_flag.sql` — both pairs touch disjoint
   tables, so the alphabetical execution order is harmless). Don't add
   a third file at the same number — renumber instead.
+
+## Profile cache — invalidating `['userProfile']` does NOT refresh it
+
+`db.auth.me()` returns a **module-level cache** (`src/api/profileCache.js`)
+and only re-reads the row when that cache is empty. So this does nothing:
+
+```js
+await supabase.from('user_profiles').update({ some_flag: true }).eq('id', id);
+queryClient.invalidateQueries({ queryKey: ['userProfile', email] }); // ← refetches
+// ...and the refetch calls me(), which hands back the SAME stale object.
+```
+
+The symptom is nasty because the write **succeeds**: with an optimistic
+local state the control flips, then the effect that syncs from `profile`
+reads the old value back, so the toggle reverts on remount while the row
+holds the new value. UI and database disagree and the user can't tell which
+is real. This bit the cycle-tracker X, all four Settings privacy toggles,
+story privacy, quiet hours, prestige, trainer status and the equipped
+title/frame — see commits 88933c0, 208cf82, 7db3f83.
+
+**The rule:**
+
+- `db.auth.updateMe()` refreshes the cache itself → nothing to do.
+- A **raw `supabase.from('user_profiles').update()`** or an **RPC** that
+  changes the row → call `patchProfile({ ...the columns you changed })`
+  from `@/api/profileCache` on success.
+- **Import `@/api/profileCache`, never `@/api/db`, from a data module.**
+  `db.js` registers a `supabase.auth.onAuthStateChange` listener at module
+  scope, so importing it drags that listener in and breaks any test that
+  stubs the supabase client — this is exactly how `gymRival.js` broke
+  `gymRivalOverthrow.test.js`. `profileCache.js` is plain state with no
+  imports and is safe anywhere.
+
+**Do NOT patch these** — migration 142 rejects direct client writes to them
+with `42501`, so a client-computed value would cache something that never
+persisted, which is worse than being stale:
+
+> `flex_coins` · `total_xp` · `current_level` · `prestige_level` ·
+> `league_tier` · `login_streak` · `workout_streak` ·
+> `longest_login_streak` · `longest_workout_streak` ·
+> `milestone_capsules_awarded` · `referral_code` · `referred_by` ·
+> `last_daily_chest_at`
+
+`flex_coins` is doubly unsafe: migration 264's ledger trigger **clamps**
+credits past the rolling ceiling, so even an accepted write may not store
+the number you sent. For all of these, patch only with a value the **server**
+returned (an RPC's payload), never one computed on the client. The existing
+raw writes to those columns are deliberately guarded pre-030 / pre-173
+fallbacks — leave them alone.
+
+Not worth patching either: pure write-only columns nothing reads back
+through `me()`, e.g. the `last_active_at` presence heartbeat in `Layout.jsx`
+and `HubProfile.jsx`.
+
+## Resilience layers
+
+The app uses a layered approach to failure handling — each layer catches
+a different class of bug:
+
+| Layer | Where | What it catches |
+|---|---|---|
+| Write strip-and-retry | `src/api/db.js` `updateMe` + `makeEntity().create` | 42703 / PGRST204 missing-column on inserts/upserts |
+| Read strip-and-retry | `src/api/safeSelect.js` | Same, but for `supabase.from().select()` chains |
+| Per-region ErrorBoundary | Wrapped around each major card on Dashboard / Workout / Progress / Goals / Nutrition | Render-time throws inside the section |
+| Route-level ErrorBoundary | `src/App.jsx` on every route | Render-time throws in a whole page chunk |
+| Recovery affordances | `src/components/ErrorBoundary.jsx` | "Go to Home" + "Try again" + "Copy details" + auto-reset on `location.pathname` change |
+| Async error capture | `src/lib/reportError.js` | catch-block / mutation-onError failures → Sentry with feature tags |
+
+**Patterns to use:**
+
+- New `.select()` with explicit column lists → wrap in
+  [safeSelect](src/api/safeSelect.js). Existing examples:
+  `HubProfile.jsx`, `stories.js`, `debriefs.js`, `LoginStreakBanner.jsx`.
+- New catch blocks for async failures → use
+  [reportError](src/lib/reportError.js) with a `feature` tag (e.g.
+  `workout.save`, `onboarding.starter-regimen`).
+- New page → wrap in `<ErrorBoundary label="...">`. New region inside an
+  existing page → same.
+
+## Toast policy — everything except decoration now reaches the user
+
+`src/lib/toast.js` is the app-wide wrapper. **The old "errors only" policy is
+gone**, in two steps, and both were the same bug found twice:
+
+- **2026-08-04** — `success` was suppressed unless it carried an `action`.
+  271 of 283 non-error call sites carried none, so for a month a successful
+  save was pixel-identical to a dead button. `success` became a passthrough.
+- **2026-08-05** — that pass only scanned `success`. A second audit found
+  **28 of 28** `info` / `message` / `warning` calls also carried no action.
+  Not most — all. Among the messages nobody was seeing: `SetRow`'s
+  "Capped at 315 lb" (the app silently overwriting a weight the user typed),
+  the cardio tracker's "Auto-paused" / "GPS signal weak" mid-run, and
+  Onboarding's "Some profile details could not be saved". All three became
+  passthroughs.
+
+Current shape:
+
+| Variant | Behaviour |
+|---|---|
+| `error` `success` `info` `message` `warning` | always delivered |
+| plain `toast(...)` | delivered only with an `action` |
+| `loading` `custom` | suppressed (decoration) |
+
+**Why this kept being invisible:** `keepIfAction` returns `undefined` and every
+call site ignores the return value, so a dropped toast is indistinguishable
+from a delivered one at the call site. Nothing throws, nothing warns, no test
+failed. `src/lib/__tests__/toastPolicy.test.js` now asserts on **delivery** —
+did sonner actually get called — and carries the call-site audit as a standing
+check. Re-run it before re-filtering any variant: a variant where 100% of
+callers pass no action isn't being filtered, it's being switched off.
+
+## i18n discipline
+
+- 15 supported languages: `en es fr de pt it ja ko zh ar hi ru tr pl nl`.
+- Per-domain translation files: `src/lib/i18n-*.js` (e.g. `i18n-coach.js`,
+  `i18n-goals.js`, `i18n-discovery.js`). Each exports a `{ <lang>:
+  { 'key': 'value' } }` object.
+- At build time `scripts/split-i18n.mjs` merges every part file into
+  per-language aggregates under `src/lib/i18n-langs/`.
+- New keys: add to a part file with English at minimum. At the call site
+  use **`tFallback(key, 'English')`** so a missing translation surfaces a
+  sensible string, never a key code.
+- **NEVER `t(key) || 'English'`. It does not work**, and this file used to
+  recommend it. `getTranslation` ends with `return enVal ?? key`, so a
+  total miss returns the *key string* — which is non-empty, therefore
+  truthy, so `||` never reaches the fallback. Eleven call sites had
+  accumulated: five rendered raw key paths (two of them inside
+  `toast.error`, so users saw a toast reading `nutrition.toast.waterCap`),
+  five were dead-but-harmless, and one was worse than either —
+  `t('progress.title') || 'of daily goal'` rendered **"45% Progress"** on
+  the hydration ring, because that key exists and means the Progress page
+  title. A missing key looks broken; that one looked fine and said the
+  wrong thing. `src/lib/__tests__/i18nRawKeys.test.js` now fails the suite
+  on the pattern itself, so it can't come back.
+- **A language may appear at most once per part file.** JavaScript resolves
+  a duplicate literal key by keeping the last block and discarding the
+  earlier one silently — no error, no warning. Three of 41 files had this;
+  it cost `onboarding.welcome.languageHint` in pt/it/ja/ko, the one string
+  whose job is telling someone who can't read the current language how to
+  switch, so those four fell back to English asking "Don't speak English?".
+  `scripts/split-i18n.mjs` now fails the build on it. The guard is
+  brace-depth aware because `i18n-warn.js` legitimately holds two separate
+  object literals that each declare all 15 languages.
+- Adding a new part file: name it `i18n-<domain>.js` and the splitter
+  picks it up automatically. Export shape must match existing files.
+- **Don't ship machine-translated copy** on prominent surfaces. If you
+  can't get native-quality translations for all 15 languages, ship
+  English-only for the missing ones with a `TODO(i18n)` comment in the
+  file head.
+  - **One deliberate exception exists**: `src/lib/i18n-equipment.js` (37
+    short UI labels, machine-translated 2026-07-30 with Kegan's sign-off,
+    on the reasoning that a reviewed-later label beats an English
+    fallback). It marks itself as MT, tracks outstanding languages in an
+    exported `REVIEW_PENDING`, and is guarded by
+    `src/lib/__tests__/i18nEquipment.test.js`. **This is not a precedent**
+    — don't machine-translate prose, onboarding, or marketing, and don't
+    add a second exception without asking.
+
+## UI composition — the rules that stop it looking generated
+
+Full evidence and the rendered specs: `docs/ui-craft-research.md`,
+`docs/ui-craft-prompt.md`, and the Penpot file **Flexyn Dashboard UI**. Written Aug 2026.
+
+**Correction (2026-08-06):** this said the Penpot file held "8 boards, including a token
+set carrying these values". It was **empty** when opened over MCP — no boards, no
+components, no tokens. It now carries token sets generated from `index.css` and
+`tailwind.config.js` (`core`, `theme.light`, `theme.dark`, `accent`, with Light/Dark
+themes) plus boards for the consolidated Sharpen, Assessment and Age steps. Values in
+this section are sourced from the CODE, so they were never wrong — but don't cite the
+Penpot file as their origin.
+
+Tokens produce *consistency*. Consistency with no hierarchy is exactly what reads
+as AI-generated — uniform cards, one spacing value, no focal point. These rules
+govern hierarchy, which tokens can't encode.
+
+- **Two spacing registers, nothing between them.** Intra-group `gap-1`/`gap-2`
+  (4–8px); inter-section `gap-6` (24px). The middle — `gap-3`/`gap-4`/`gap-5` —
+  is **banned**: if a gap wants to be 12–20px, either those elements are one
+  group (tighten to `gap-2`) or they are two (separate to `gap-6`). 8→24 is a 3×
+  ratio, which is what makes the two registers read as distinct rather than as
+  drift. Tuned tighter than the 32/40 the literature suggests because this app is
+  deliberately dense; the ratio is what matters, not the absolute.
+- **Exactly one `gap-8` (32px) per page.** On Dashboard it sits below
+  `TodaysPlan` — the seam between *action* (above) and *state* (below). A second
+  break means neither reads as the break.
+- **One dominant element per screen, and only it may bleed.** It breaks the
+  page's `px-4` inset; nothing else does. `HeroSlideshow` is Dashboard's — it
+  holds the first slot but currently has no bleed handling, so it reads as one
+  card among many.
+- **Cards mark discrete, user-arranged objects.** Dashboard is a configurable
+  widget grid (16 definitions in `src/lib/widgetDefinitions.js`), so a card per
+  widget is *correct* — 31 of its 34 are widget shells and must stay. Read-only
+  data that is **not** a widget gets no surface: hairline dividers instead. Never
+  nest a card in a card (already removed once — see `Dashboard.jsx:1231`).
+- **Elevation has two levels.** Resting = hairline border, no shadow. Raised =
+  `shadow-md`, for interactive or genuinely floating surfaces. `shadow-sm` adds
+  nothing a hairline doesn't; `shadow-xl`/`2xl` on a 390px viewport is a tell,
+  not depth. **Coloured shadows are banned.**
+- **Radius is `sm` / `lg` / `2xl` / `full`**, per the roles documented at
+  `tailwind.config.js:48–71`. `xl` and `md` are compatibility aliases pinned to
+  existing values — **never reach for them in new code**, and don't add a sixth.
+- **Four hues, no exceptions.** A new state replaces an existing hue; it does not
+  extend the list. Macros are the one case that needs mutual distinguishability
+  rather than state meaning, so they use the semantically-neutral chart ramp:
+  protein `--chart-1`, carbs `--chart-2`, fat `--chart-3`. Routing them through
+  the state hues would render a healthy protein figure as `destructive`.
+- **Hierarchy by weight and colour before size.** Six type steps, 11px floor. If
+  something needs to recede, change weight — do not invent a seventh size.
+- **No gradient as decoration, no glassmorphism.** `bg-gradient-to-*` and
+  `backdrop-blur` are both on the published list of signals designers use to
+  identify generated UI. Neither is how you make something look designed.
+- **Data must be earned.** A number gets screen space only with trend, history or
+  comparison attached. A bare figure in a box is decoration.
+
+## Fitting every phone — the fluid scale (`--fluid-*`)
+
+**Vertical sizing is fluid, not fixed. Use `--fluid-*` from `:root` (defined in
+`src/index.css`) rather than adding a px value beside one.**
+
+The app is one column on a screen we don't control, from a 375×667 iPhone SE to
+a 430×932 Pro Max — a 40% swing in the axis that runs out. Fixed pixels cannot
+serve both ends: a 30px heading and 24px gaps cost the *same* on both, so the
+onboarding goal step overflowed the SE by **131px** — hiding two of six cards
+and slicing a third under the CTA — while the Pro Max had **193px** going
+spare. Tuning that per device is a breakpoint treadmill; clamping against
+viewport height is one rule that fits all of them.
+
+| Variable | Range | For |
+|---|---|---|
+| `--fluid-pad-y` | 16→24 | shell padding |
+| `--fluid-header-gap` | 16→28 | under a page header |
+| `--fluid-heading` | 24→30 | page heading |
+| `--fluid-section` | 12→24 | between groups |
+| `--fluid-stack` | 6→8 | within a group |
+| `--fluid-card-y` | 10→12 | card padding |
+| `--fluid-card-title` / `--fluid-card-sub` | 14→15 / 11→12 | card text |
+| `--fluid-tile` | 32→40 | icon tile |
+| `--fluid-cta-h` / `--fluid-cta-gap` | 48→56 / 8→16 | pinned CTA |
+
+Minimums are the floor below which a surface stops being *comfortable*, not the
+smallest thing that technically fits. Maximums are what the design was drawn at,
+so nothing at iPhone-15 size or above changes. Text floors at 11px — the
+app-wide minimum, and going under it is one of the loudest generated-UI tells.
+
+Result on the goal step, all six selected: SE went from 131px over to a **24px
+gap**, iPhone 15 and Pro Max unchanged.
+
+**`.safe-page`** is the companion shell class — safe-area insets plus that
+padding. Any full-screen surface that positions its own edges instead of
+sitting inside `Layout.jsx` needs it. Layout has had insets since launch;
+anything escaping Layout does not, which is how onboarding shipped with its
+Continue button partly under the home indicator on **every notched iPhone, on
+all eleven steps**, for months. If you build a page, sheet or full-height menu
+outside Layout, start from `.safe-page`.
+
+**Two things this does not do.** The scale is vertical only — horizontal
+crowding is a wrapping problem, not a scaling one. And only onboarding is
+converted so far; the rest of the app still uses fixed values and is fine
+because it scrolls inside Layout rather than pinning a CTA to the viewport
+bottom. Convert a surface when it has to *end* at a fixed point.
+
+**Verify at 667 as well as 932.** A layout that fits a Pro Max tells you
+nothing. Render the surface in an iframe at each device height (an iframe, not
+a div — `vh` inside a div resolves against the window and quietly reports the
+wrong answer), and measure the last child's bottom against the scroll box.
+`scrollHeight` cannot do this: it clamps to `clientHeight`, so it reads "0px
+spare" for both a screen that is exactly full and one that is half empty.
+
+**Before treating a grep hit as debt, read the comments.** Auditing this codebase
+produced five findings; four shrank or inverted on inspection. `text-[5px]` and
+`rounded-card` were prose inside comments; "6 and 11 distinct radii" was counting
+class names when `lg` and `xl` resolve to the same value; "34 cards, cut to 20"
+would have broken the widget grid. The reasoning in this repo lives in comments
+that greps don't read — so a raw count is a question, not a conclusion.
+
+## AI Coach personalization
+
+Everything that shapes a generated session lives in one pure module,
+[trainingModifiers.js](src/lib/aiCoach/trainingModifiers.js). It takes
+context and returns four bounded numbers plus the notes explaining them;
+`generateWorkout` applies them. No I/O, no React — callers fetch the
+context and pass it in.
+
+```
+buildTrainingModifiers({ goal, nutritionGoal, weeklyRateLbs, restrictions,
+                         age, cycleState, feel })
+  → { loadMultiplier, setsDelta, repDelta, restDeltaSec, notes[], applied }
+```
+
+`generateWorkout` takes three separate context inputs — `modifiers`,
+`demographics` ({ gender, age, activityLevel }) and `excludeMuscleGroups`.
+**All three default to inert**, so a caller that passes none gets the exact
+workout the generator produced before any of this existed.
+
+**Rules for anything added here:**
+
+- **Clamp it.** Every output is bounded: load `0.8–1.1`, sets `±1`, reps
+  `-4…+6`, rest `-30…+60s`. Stacked signals must never compound into a
+  prescription nobody asked for. When you add an input, check the clamp
+  still leaves room — a +30s age bonus on a +30s strength goal hit the old
+  45s ceiling and silently collapsed two age bands into one value.
+- **Explain it on the card.** Every adjustment pushes a `notes` string, and
+  `CoachPlanCard` renders them. An automatic change to someone's training
+  that isn't explained reads as a bug — a user who suddenly gets a lighter
+  day must be able to see it was the deficit, the phase, or their check-in.
+- **Verify with real numbers, not just tests.** Twice now, green tests hid
+  a defect that printing the actual output across a range exposed
+  immediately (the rest clamp; the goal-priority ordering).
+- **Context flows IN.** These modules must not import `@/api/db` — see the
+  Profile cache section. `planBuilder`'s test mocks `@/api/db` with only
+  `entities.WorkoutLog`, so a `db.auth.me()` call there breaks it.
+- **Both surfaces or neither.** Quick pick
+  ([WorkoutQuickGenerator.jsx](src/components/coach/WorkoutQuickGenerator.jsx))
+  and the chat path (`CoachChat` → `askCoach(user, msg, ctx)` →
+  `buildCoachPlan`) must get the same context, or the two disagree about
+  the same lift. Both were silently running on `{}` at different points.
+
+**Cycle phase is deliberately weak.** A 2023 Frontiers systematic review
+found no reliable effect of cycle phase on strength performance or on
+adaptation; ACSM's guidance is to adapt to symptoms, not the calendar. So
+phase moves load by **at most 5%**, never blocks a session, and is fully
+overridden the moment the user answers the "how do you feel today?"
+check-in — a reported symptom beats a predicted phase. Do not strengthen
+this without new evidence. The one un-hedged phase note is ovulation
+(ligament laxity → ACL risk), which surfaces as a warm-up cue, not a load
+change. Cycle context is read **only** when `cycle_tracking_enabled` is on.
+
+**Multi-goal profiles blend, they don't collapse.** Onboarding lets people
+tick several goals and a profile carrying all six is normal.
+`normalizeGoals()` returns every match and the rules are **averaged** —
+summing would let strength+endurance cancel by luck and strength+speed
+compound. `normalizeGoal()` (singular) still returns the dominant one for
+callers that want a label. `mobility` contributes a note and no numbers, so
+its note is re-added after the blend or averaging erases its only
+contribution.
+
+**Diet cuts volume, not load.** Intensity is what protects strength in a
+deficit, so `lose` removes a set and leaves the bar heavy; `gain` adds one.
+
+**Fuel notes are allergen-filtered.** `fuelNote()` checks the user's
+`DIETARY_RESTRICTIONS` + `ALLERGENS` (via `loadRestrictions`) and never
+names a food they can't eat. If a stacked combination rules out every named
+option it falls back to unnamed macros rather than guessing. Never add a
+food suggestion anywhere in the Coach without routing it through this.
+
+**Starting weights use demographics.** `_demographicScale()` in
+workoutGenerator scales the bodyweight multipliers by sex (upper and lower
+body separately — the gap is far smaller in the legs), age and activity.
+Unset or `other` sex takes a conservative middle value rather than
+defaulting to male: over-prescribing a first working set is the direction
+that hurts someone. Only applies when there's no history for that lift.
+
+**Injuries must be passed.** `getExcludedMuscleGroups()` in
+[injuries.js](src/lib/data/injuries.js) handles synergists (a serious
+shoulder injury also drops chest and triceps). It and `excludeMuscleGroups`
+both existed for months with zero callers connecting them, so an injured
+user was still handed Overhead Press. Any new surface that generates a
+workout has to resolve active injuries and pass them.
+
+## Celebration system
+
+There are **seven** helpers — five "first-X" milestones, one goal
+completion, one PR, one crew win. Each fires confetti + haptic + toast +
+Sentry breadcrumb, but uses a **distinct vocabulary** so a user feels each
+as its own moment:
+
+| Helper | Trigger | Haptic | Confetti shape | Emoji | Palette |
+|---|---|---|---|---|---|
+| `fireGoalCelebration` | Goal completed | `[15,50,15]` | 2 side bursts y:0.55 | 🏆 | Green/yellow |
+| `fireFirstWorkoutCelebration` | First workout logged | `[20,60,20,60,80]` | Center + 2 sides y:0.55-0.6 | 🎉 | Orange/green |
+| `fireFirstRegimenCelebration` | First regimen saved | `[15,45,15,45]` | 2 side bursts y:0.6 | 💪 | Purple/pink |
+| `fireFirstGoalCelebration` | First goal created | `[10,30,80]` | 1 top burst y:0.3 | 🎯 | Blue/teal |
+| `fireFirstMealCelebration` | First meal logged | `[12,30,12,30,12]` | 2 bottom corners y:0.85 | 🥗 | Warm food |
+| `firePRCelebration` | Personal record | `[40,80,40,80,40,80]` | — | 🏋️ | Gold/crimson |
+| `fireCrewWinCelebration` | Crew war won | `[20,50,20,50,20,50,80]` | — | ⚔️ | Crew colours |
+
+Audited 2026-08-05: **seven for seven distinct vibration patterns**, no two
+colliding. This table said five for a while — `firePRCelebration` and
+`fireCrewWinCelebration` both postdated it — so re-read
+`src/lib/*Celebration.js` rather than this table if the count matters.
+
+All live in `src/lib/*Celebration.js`. Each is well-tested in
+`src/lib/__tests__/*Celebration.test.js`. **Don't add another celebration
+without giving it a distinct haptic + confetti signature.**
 
 ## Push notifications
 
@@ -247,225 +822,66 @@ delivery to a device. Expect `sent: 1, removed: 0`.
   `037_welcome_back_and_quest_crons.sql` so concurrent cron firings
   can't double-send.
 
-## Toast policy — everything except decoration now reaches the user
+## Storage — the `uploads` bucket
 
-`src/lib/toast.js` is the app-wide wrapper. **The old "errors only" policy is
-gone**, in two steps, and both were the same bug found twice:
+Every user upload goes through `_uploadFile` in `src/api/db.js`, which
+defaults to the public `uploads` bucket and writes
+`<auth.uid()>/<timestamp>.<ext>`. That prefix is what every RLS policy on
+the bucket keys off, so don't change the path shape casually.
 
-- **2026-08-04** — `success` was suppressed unless it carried an `action`.
-  271 of 283 non-error call sites carried none, so for a month a successful
-  save was pixel-identical to a dead button. `success` became a passthrough.
-- **2026-08-05** — that pass only scanned `success`. A second audit found
-  **28 of 28** `info` / `message` / `warning` calls also carried no action.
-  Not most — all. Among the messages nobody was seeing: `SetRow`'s
-  "Capped at 315 lb" (the app silently overwriting a weight the user typed),
-  the cardio tracker's "Auto-paused" / "GPS signal weak" mid-run, and
-  Onboarding's "Some profile details could not be saved". All three became
-  passthroughs.
+- **The bucket's `allowed_mime_types` must agree with `SAFE_MIMES` +
+  `VIDEO_MIMES` in db.js.** They didn't until mig 272, and the result was
+  that Hub video posts and story videos had **never once succeeded** since
+  the project was created — Storage rejected them before writing, and the
+  UI showed a generic "couldn't post". When you teach `_uploadFile` a new
+  type, add it to the bucket in the same change or it will fail in exactly
+  this silent way.
+- **50 MB is a hard ceiling on the Free plan.** Supabase enforces a global
+  file-size limit above every bucket which cannot exceed 50 MB on Free, so
+  a per-bucket limit above that is fiction. `VIDEO_MAX_BYTES` and the
+  user-facing copy say 50 MB for that reason. Moving to Pro means raising
+  the global limit, the bucket, the constant, and the copy together.
+- **Pin `contentType` from the extension for videos too.** It read
+  `SAFE_MIMES[ext]`, and `ext` is `''` on the video branch (it lives in
+  `videoExt`), so it was `undefined` and supabase-js fell back to the
+  client-supplied `file.type` — the exact thing the comment there says we
+  don't trust.
+- **`remove()` needs a SELECT policy** (mig 273). Storage resolves a
+  delete's targets with a SELECT first. Mig 185 dropped the bucket's only
+  SELECT policy to stop enumeration, which silently broke deletion: the API
+  returns **200 with an empty array** and removes nothing. Every
+  failed-after-upload cleanup was orphaning its blob. Mig 273 restores a
+  SELECT scoped to the caller's own uid prefix — enumeration stays closed.
+  If you ever add a bucket policy, check `remove()` still deletes rather
+  than assuming a 200 means success.
+- **`storage.protect_delete()` blocks direct `DELETE FROM storage.objects`**
+  with `42501`. It only checks a session setting, so `BEGIN; SET LOCAL
+  storage.allow_delete_query = 'true'; DELETE …; COMMIT;` works. Use it only
+  when the owning user no longer exists — it removes the metadata row and
+  can orphan the blob. Prefer the Storage API.
 
-Current shape:
+## Service worker / PWA
 
-| Variant | Behaviour |
-|---|---|
-| `error` `success` `info` `message` `warning` | always delivered |
-| plain `toast(...)` | delivered only with an `action` |
-| `loading` `custom` | suppressed (decoration) |
-
-**Why this kept being invisible:** `keepIfAction` returns `undefined` and every
-call site ignores the return value, so a dropped toast is indistinguishable
-from a delivered one at the call site. Nothing throws, nothing warns, no test
-failed. `src/lib/__tests__/toastPolicy.test.js` now asserts on **delivery** —
-did sonner actually get called — and carries the call-site audit as a standing
-check. Re-run it before re-filtering any variant: a variant where 100% of
-callers pass no action isn't being filtered, it's being switched off.
-
-## Resilience layers
-
-The app uses a layered approach to failure handling — each layer catches
-a different class of bug:
-
-| Layer | Where | What it catches |
-|---|---|---|
-| Write strip-and-retry | `src/api/db.js` `updateMe` + `makeEntity().create` | 42703 / PGRST204 missing-column on inserts/upserts |
-| Read strip-and-retry | `src/api/safeSelect.js` | Same, but for `supabase.from().select()` chains |
-| Per-region ErrorBoundary | Wrapped around each major card on Dashboard / Workout / Progress / Goals / Nutrition | Render-time throws inside the section |
-| Route-level ErrorBoundary | `src/App.jsx` on every route | Render-time throws in a whole page chunk |
-| Recovery affordances | `src/components/ErrorBoundary.jsx` | "Go to Home" + "Try again" + "Copy details" + auto-reset on `location.pathname` change |
-| Async error capture | `src/lib/reportError.js` | catch-block / mutation-onError failures → Sentry with feature tags |
-
-**Patterns to use:**
-
-- New `.select()` with explicit column lists → wrap in
-  [safeSelect](src/api/safeSelect.js). Existing examples:
-  `HubProfile.jsx`, `stories.js`, `debriefs.js`, `LoginStreakBanner.jsx`.
-- New catch blocks for async failures → use
-  [reportError](src/lib/reportError.js) with a `feature` tag (e.g.
-  `workout.save`, `onboarding.starter-regimen`).
-- New page → wrap in `<ErrorBoundary label="...">`. New region inside an
-  existing page → same.
-
-## Profile cache — invalidating `['userProfile']` does NOT refresh it
-
-`db.auth.me()` returns a **module-level cache** (`src/api/profileCache.js`)
-and only re-reads the row when that cache is empty. So this does nothing:
-
-```js
-await supabase.from('user_profiles').update({ some_flag: true }).eq('id', id);
-queryClient.invalidateQueries({ queryKey: ['userProfile', email] }); // ← refetches
-// ...and the refetch calls me(), which hands back the SAME stale object.
-```
-
-The symptom is nasty because the write **succeeds**: with an optimistic
-local state the control flips, then the effect that syncs from `profile`
-reads the old value back, so the toggle reverts on remount while the row
-holds the new value. UI and database disagree and the user can't tell which
-is real. This bit the cycle-tracker X, all four Settings privacy toggles,
-story privacy, quiet hours, prestige, trainer status and the equipped
-title/frame — see commits 88933c0, 208cf82, 7db3f83.
-
-**The rule:**
-
-- `db.auth.updateMe()` refreshes the cache itself → nothing to do.
-- A **raw `supabase.from('user_profiles').update()`** or an **RPC** that
-  changes the row → call `patchProfile({ ...the columns you changed })`
-  from `@/api/profileCache` on success.
-- **Import `@/api/profileCache`, never `@/api/db`, from a data module.**
-  `db.js` registers a `supabase.auth.onAuthStateChange` listener at module
-  scope, so importing it drags that listener in and breaks any test that
-  stubs the supabase client — this is exactly how `gymRival.js` broke
-  `gymRivalOverthrow.test.js`. `profileCache.js` is plain state with no
-  imports and is safe anywhere.
-
-**Do NOT patch these** — migration 142 rejects direct client writes to them
-with `42501`, so a client-computed value would cache something that never
-persisted, which is worse than being stale:
-
-> `flex_coins` · `total_xp` · `current_level` · `prestige_level` ·
-> `league_tier` · `login_streak` · `workout_streak` ·
-> `longest_login_streak` · `longest_workout_streak` ·
-> `milestone_capsules_awarded` · `referral_code` · `referred_by` ·
-> `last_daily_chest_at`
-
-`flex_coins` is doubly unsafe: migration 264's ledger trigger **clamps**
-credits past the rolling ceiling, so even an accepted write may not store
-the number you sent. For all of these, patch only with a value the **server**
-returned (an RPC's payload), never one computed on the client. The existing
-raw writes to those columns are deliberately guarded pre-030 / pre-173
-fallbacks — leave them alone.
-
-Not worth patching either: pure write-only columns nothing reads back
-through `me()`, e.g. the `last_active_at` presence heartbeat in `Layout.jsx`
-and `HubProfile.jsx`.
-
-## AI Coach personalization
-
-Everything that shapes a generated session lives in one pure module,
-[trainingModifiers.js](src/lib/aiCoach/trainingModifiers.js). It takes
-context and returns four bounded numbers plus the notes explaining them;
-`generateWorkout` applies them. No I/O, no React — callers fetch the
-context and pass it in.
-
-```
-buildTrainingModifiers({ goal, nutritionGoal, weeklyRateLbs, restrictions,
-                         age, cycleState, feel })
-  → { loadMultiplier, setsDelta, repDelta, restDeltaSec, notes[], applied }
-```
-
-`generateWorkout` takes three separate context inputs — `modifiers`,
-`demographics` ({ gender, age, activityLevel }) and `excludeMuscleGroups`.
-**All three default to inert**, so a caller that passes none gets the exact
-workout the generator produced before any of this existed.
-
-**Rules for anything added here:**
-
-- **Clamp it.** Every output is bounded: load `0.8–1.1`, sets `±1`, reps
-  `-4…+6`, rest `-30…+60s`. Stacked signals must never compound into a
-  prescription nobody asked for. When you add an input, check the clamp
-  still leaves room — a +30s age bonus on a +30s strength goal hit the old
-  45s ceiling and silently collapsed two age bands into one value.
-- **Explain it on the card.** Every adjustment pushes a `notes` string, and
-  `CoachPlanCard` renders them. An automatic change to someone's training
-  that isn't explained reads as a bug — a user who suddenly gets a lighter
-  day must be able to see it was the deficit, the phase, or their check-in.
-- **Verify with real numbers, not just tests.** Twice now, green tests hid
-  a defect that printing the actual output across a range exposed
-  immediately (the rest clamp; the goal-priority ordering).
-- **Context flows IN.** These modules must not import `@/api/db` — see the
-  Profile cache section. `planBuilder`'s test mocks `@/api/db` with only
-  `entities.WorkoutLog`, so a `db.auth.me()` call there breaks it.
-- **Both surfaces or neither.** Quick pick
-  ([WorkoutQuickGenerator.jsx](src/components/coach/WorkoutQuickGenerator.jsx))
-  and the chat path (`CoachChat` → `askCoach(user, msg, ctx)` →
-  `buildCoachPlan`) must get the same context, or the two disagree about
-  the same lift. Both were silently running on `{}` at different points.
-
-**Cycle phase is deliberately weak.** A 2023 Frontiers systematic review
-found no reliable effect of cycle phase on strength performance or on
-adaptation; ACSM's guidance is to adapt to symptoms, not the calendar. So
-phase moves load by **at most 5%**, never blocks a session, and is fully
-overridden the moment the user answers the "how do you feel today?"
-check-in — a reported symptom beats a predicted phase. Do not strengthen
-this without new evidence. The one un-hedged phase note is ovulation
-(ligament laxity → ACL risk), which surfaces as a warm-up cue, not a load
-change. Cycle context is read **only** when `cycle_tracking_enabled` is on.
-
-**Multi-goal profiles blend, they don't collapse.** Onboarding lets people
-tick several goals and a profile carrying all six is normal.
-`normalizeGoals()` returns every match and the rules are **averaged** —
-summing would let strength+endurance cancel by luck and strength+speed
-compound. `normalizeGoal()` (singular) still returns the dominant one for
-callers that want a label. `mobility` contributes a note and no numbers, so
-its note is re-added after the blend or averaging erases its only
-contribution.
-
-**Diet cuts volume, not load.** Intensity is what protects strength in a
-deficit, so `lose` removes a set and leaves the bar heavy; `gain` adds one.
-
-**Fuel notes are allergen-filtered.** `fuelNote()` checks the user's
-`DIETARY_RESTRICTIONS` + `ALLERGENS` (via `loadRestrictions`) and never
-names a food they can't eat. If a stacked combination rules out every named
-option it falls back to unnamed macros rather than guessing. Never add a
-food suggestion anywhere in the Coach without routing it through this.
-
-**Starting weights use demographics.** `_demographicScale()` in
-workoutGenerator scales the bodyweight multipliers by sex (upper and lower
-body separately — the gap is far smaller in the legs), age and activity.
-Unset or `other` sex takes a conservative middle value rather than
-defaulting to male: over-prescribing a first working set is the direction
-that hurts someone. Only applies when there's no history for that lift.
-
-**Injuries must be passed.** `getExcludedMuscleGroups()` in
-[injuries.js](src/lib/data/injuries.js) handles synergists (a serious
-shoulder injury also drops chest and triceps). It and `excludeMuscleGroups`
-both existed for months with zero callers connecting them, so an injured
-user was still handed Overhead Press. Any new surface that generates a
-workout has to resolve active injuries and pass them.
-
-## Celebration system
-
-There are **seven** helpers — five "first-X" milestones, one goal
-completion, one PR, one crew win. Each fires confetti + haptic + toast +
-Sentry breadcrumb, but uses a **distinct vocabulary** so a user feels each
-as its own moment:
-
-| Helper | Trigger | Haptic | Confetti shape | Emoji | Palette |
-|---|---|---|---|---|---|
-| `fireGoalCelebration` | Goal completed | `[15,50,15]` | 2 side bursts y:0.55 | 🏆 | Green/yellow |
-| `fireFirstWorkoutCelebration` | First workout logged | `[20,60,20,60,80]` | Center + 2 sides y:0.55-0.6 | 🎉 | Orange/green |
-| `fireFirstRegimenCelebration` | First regimen saved | `[15,45,15,45]` | 2 side bursts y:0.6 | 💪 | Purple/pink |
-| `fireFirstGoalCelebration` | First goal created | `[10,30,80]` | 1 top burst y:0.3 | 🎯 | Blue/teal |
-| `fireFirstMealCelebration` | First meal logged | `[12,30,12,30,12]` | 2 bottom corners y:0.85 | 🥗 | Warm food |
-| `firePRCelebration` | Personal record | `[40,80,40,80,40,80]` | — | 🏋️ | Gold/crimson |
-| `fireCrewWinCelebration` | Crew war won | `[20,50,20,50,20,50,80]` | — | ⚔️ | Crew colours |
-
-Audited 2026-08-05: **seven for seven distinct vibration patterns**, no two
-colliding. This table said five for a while — `firePRCelebration` and
-`fireCrewWinCelebration` both postdated it — so re-read
-`src/lib/*Celebration.js` rather than this table if the count matters.
-
-All live in `src/lib/*Celebration.js`. Each is well-tested in
-`src/lib/__tests__/*Celebration.test.js`. **Don't add another celebration
-without giving it a distinct haptic + confetti signature.**
+- **Never put `/* @vite-ignore */` on the `virtual:pwa-register` import.**
+  It tells Vite not to resolve the specifier, so the module is never
+  bundled and the runtime import rejects on a bare string. It sat on that
+  import from 2026-05-23 until 2026-07-31 and disabled the service worker
+  entirely: no precache, no offline shell, no update prompt, and push
+  opt-in hanging forever on `navigator.serviceWorker.ready`. There is a
+  comment at the call site; leave it there.
+- **`AppUpdatePrompt` is the only thing that registers the worker**, and it
+  sits below five early returns in `App.jsx` (loading, `user_not_registered`,
+  `auth_required`, incomplete onboarding, stashed token). So nothing global
+  in that render — service worker, install prompt — mounts while signed
+  out. Measuring any of it on the marketing or onboarding screens shows it
+  missing whether or not it works.
+- **An installed PWA can be months behind `main`.** A device was found
+  running a ten-week-old build while every server-side check said the
+  backend was healthy — and the feature under test didn't exist in that
+  build. `buildInfo.js` exists for this: Settings → footer → tap the build
+  label copies hash + date + UA, and the live hash is readable straight out
+  of the served bundle. **Ask for the device build hash before theorising**
+  whenever a device report and the database disagree.
 
 ## Equipment picker (migrations 268–273, July 2026)
 
@@ -687,360 +1103,86 @@ Consequence worth knowing: the equipment tab's owner controls (Confirm /
 "Listed by the gym") never render on a demo gym, because a demo gym has
 no owner to be. That's correct behavior, not a bug.
 
-## Storage — the `uploads` bucket
+## Session journal — May 2026 batch
 
-Every user upload goes through `_uploadFile` in `src/api/db.js`, which
-defaults to the public `uploads` bucket and writes
-`<auth.uid()>/<timestamp>.<ext>`. That prefix is what every RLS policy on
-the bucket keys off, so don't change the path shape casually.
+A single long session shipped migrations 080–099 plus ~17,000 lines of
+new product code. Conventions/patterns introduced here that future
+contributors should match:
 
-- **The bucket's `allowed_mime_types` must agree with `SAFE_MIMES` +
-  `VIDEO_MIMES` in db.js.** They didn't until mig 272, and the result was
-  that Hub video posts and story videos had **never once succeeded** since
-  the project was created — Storage rejected them before writing, and the
-  UI showed a generic "couldn't post". When you teach `_uploadFile` a new
-  type, add it to the bucket in the same change or it will fail in exactly
-  this silent way.
-- **50 MB is a hard ceiling on the Free plan.** Supabase enforces a global
-  file-size limit above every bucket which cannot exceed 50 MB on Free, so
-  a per-bucket limit above that is fiction. `VIDEO_MAX_BYTES` and the
-  user-facing copy say 50 MB for that reason. Moving to Pro means raising
-  the global limit, the bucket, the constant, and the copy together.
-- **Pin `contentType` from the extension for videos too.** It read
-  `SAFE_MIMES[ext]`, and `ext` is `''` on the video branch (it lives in
-  `videoExt`), so it was `undefined` and supabase-js fell back to the
-  client-supplied `file.type` — the exact thing the comment there says we
-  don't trust.
-- **`remove()` needs a SELECT policy** (mig 273). Storage resolves a
-  delete's targets with a SELECT first. Mig 185 dropped the bucket's only
-  SELECT policy to stop enumeration, which silently broke deletion: the API
-  returns **200 with an empty array** and removes nothing. Every
-  failed-after-upload cleanup was orphaning its blob. Mig 273 restores a
-  SELECT scoped to the caller's own uid prefix — enumeration stays closed.
-  If you ever add a bucket policy, check `remove()` still deletes rather
-  than assuming a 200 means success.
-- **`storage.protect_delete()` blocks direct `DELETE FROM storage.objects`**
-  with `42501`. It only checks a session setting, so `BEGIN; SET LOCAL
-  storage.allow_delete_query = 'true'; DELETE …; COMMIT;` works. Use it only
-  when the owning user no longer exists — it removes the metadata row and
-  can orphan the blob. Prefer the Storage API.
+- **Migration order matters and we DON'T renumber retroactively.** When
+  numbering parallel commits, pick the next free `NNN` at branch start.
+  If two branches independently claim the same number, the second-to-
+  land renames its file. Files at the same NNN are tolerated when
+  bodies are disjoint (e.g. `054_duels.sql` + `054_bio_profanity_check.sql`).
+- **The push pipeline is live and gated by `app.send_push_url` /
+  `app.send_push_secret` via Supabase Vault** (not `ALTER DATABASE` —
+  managed Supabase blocks that). The `notify_push_fanout` trigger short-
+  circuits when secrets are missing, so new RLS tables don't break
+  push delivery during partial-deploy windows. As of mig 098 the trigger
+  also short-circuits during the user's quiet hours.
+- **Per-category notification preferences use SINGULAR keys** (streak,
+  quests, league, social, achievements, engagement, competitive). The
+  category mapping was unified in migration 083 after migration 065
+  silently regressed it to plural names — see the migration head comment
+  for the full story.
+- **Three share cards follow the same Canvas 2D pattern** (no
+  html2canvas dep): WorkoutShareCard (purple/fuchsia), WeeklyRecapShareCard
+  (emerald/cyan), PRShareCard (gold/crimson). Color rotation gives each
+  moment its own identity; the share API + download fallback chain is
+  identical.
+- **Seven celebration helpers each have a distinct vibration + confetti
+  signature** (goal / first-workout / first-regimen / first-goal /
+  first-meal / pr / crew-win). When adding an 8th, give it its own
+  signature — see `src/lib/prCelebration.js` for the pattern.
+  Multi-celebration events should route through `src/lib/rewardQueue.js`
+  to avoid overlapping toasts; today `Workout.jsx` is the only surface
+  where two can land on one action (a first workout that also sets a PR),
+  and it uses the queue.
+- **`tFallback('key', 'English fallback')`** is the standard i18n call.
+  English fallbacks ship inline; native translators fill non-English
+  locales via `src/lib/i18n-*.js` part files (the splitter aggregates).
+  Don't ship machine-translated copy.
+- **localStorage flags for per-device UX state** follow the
+  `flexyn.<feature>.<userId>` namespace pattern. Examples:
+  `flexyn.celebratedCrewWars.<userId>`, `flexyn.pendingReferralCode`,
+  `flexyn.pushOptInDismissed.<userId>`, `flexyn.iosInstallDismissed.<userId>`,
+  `flexyn.onboardingState.<userId>`.
+- **Schema drift audit lives at `supabase/migrations/_audit_schema_drift.sql`**
+  (leading underscore keeps it out of auto-runners). Paste it into the
+  SQL Editor to surface column-type drift, missing FKs, missing
+  service_role grants, and orphan rows. Migration 085's ALTER DEFAULT
+  PRIVILEGES auto-grants service_role on new public tables, so new
+  drift in that dimension shouldn't accumulate.
+- **The single most-common defect class shipped this session** has
+  been references to nonexistent columns / functions in new
+  migrations and RPCs — caught and patched across 100 (timezone_offset
+  vs timezone_offset_minutes), 101 (weekly_xp/volume/sessions on the
+  wrong table, total_posts nonexistent, grant_flex_coins undefined),
+  109 (followed_email vs followee_email on hub_follows — broke 100%
+  of Block-button clicks). Before writing a new migration that
+  references existing schema, **grep for the actual column / function
+  name in the migrations directory** rather than typing what you
+  expect it to be. Same rule for SECURITY DEFINER RPCs that pass
+  user-supplied identifiers: gate on auth.uid() server-side, not
+  on the client-supplied param (108 was a privacy leak from
+  trusting client-passed email).
 
-## Service worker / PWA
+The biggest user-facing additions this session:
 
-- **Never put `/* @vite-ignore */` on the `virtual:pwa-register` import.**
-  It tells Vite not to resolve the specifier, so the module is never
-  bundled and the runtime import rejects on a bare string. It sat on that
-  import from 2026-05-23 until 2026-07-31 and disabled the service worker
-  entirely: no precache, no offline shell, no update prompt, and push
-  opt-in hanging forever on `navigator.serviceWorker.ready`. There is a
-  comment at the call site; leave it there.
-- **`AppUpdatePrompt` is the only thing that registers the worker**, and it
-  sits below five early returns in `App.jsx` (loading, `user_not_registered`,
-  `auth_required`, incomplete onboarding, stashed token). So nothing global
-  in that render — service worker, install prompt — mounts while signed
-  out. Measuring any of it on the marketing or onboarding screens shows it
-  missing whether or not it works.
-- **An installed PWA can be months behind `main`.** A device was found
-  running a ten-week-old build while every server-side check said the
-  backend was healthy — and the feature under test didn't exist in that
-  build. `buildInfo.js` exists for this: Settings → footer → tap the build
-  label copies hash + date + UA, and the live hash is readable straight out
-  of the served bundle. **Ask for the device build hash before theorising**
-  whenever a device report and the database disagree.
-
-## Verifying against production — three layers
-
-Each layer catches what the one below it cannot, and every real bug in the
-July 2026 equipment/storage work was found by dropping a layer:
-
-1. **SQL as `authenticated`** — `BEGIN; SET LOCAL role authenticated; SET
-   LOCAL request.jwt.claims = '{"sub":"<uuid>","role":"authenticated"}'; …
-   ROLLBACK;` with the client's statements issued **separately** (CTEs in
-   one statement can't see each other's writes, which gives a false
-   "blocked"). This is the only way to test RLS — raw MCP/SQL-editor
-   queries run as `postgres` and bypass it entirely. Blind to PostgREST and
-   Storage: a bucket MIME allowlist is enforced by the Storage service, not
-   the database.
-2. **A node probe** using the anon key from `.env.local` plus
-   `supabase.auth.signInAnonymously()`, driving the real HTTP APIs. Proves
-   the service layer. Clean up whatever it writes.
-3. **The deployed site in the browser pane.** A file input can be driven
-   without a real file: build a `File` (canvas → `toBlob` for an image,
-   `MediaRecorder` over `canvas.captureStream()` for a genuinely decodable
-   video), assign via `DataTransfer` to `input.files`, dispatch `change`.
-
-## i18n discipline
-
-- 15 supported languages: `en es fr de pt it ja ko zh ar hi ru tr pl nl`.
-- Per-domain translation files: `src/lib/i18n-*.js` (e.g. `i18n-coach.js`,
-  `i18n-goals.js`, `i18n-discovery.js`). Each exports a `{ <lang>:
-  { 'key': 'value' } }` object.
-- At build time `scripts/split-i18n.mjs` merges every part file into
-  per-language aggregates under `src/lib/i18n-langs/`.
-- New keys: add to a part file with English at minimum. At the call site
-  use **`tFallback(key, 'English')`** so a missing translation surfaces a
-  sensible string, never a key code.
-- **NEVER `t(key) || 'English'`. It does not work**, and this file used to
-  recommend it. `getTranslation` ends with `return enVal ?? key`, so a
-  total miss returns the *key string* — which is non-empty, therefore
-  truthy, so `||` never reaches the fallback. Eleven call sites had
-  accumulated: five rendered raw key paths (two of them inside
-  `toast.error`, so users saw a toast reading `nutrition.toast.waterCap`),
-  five were dead-but-harmless, and one was worse than either —
-  `t('progress.title') || 'of daily goal'` rendered **"45% Progress"** on
-  the hydration ring, because that key exists and means the Progress page
-  title. A missing key looks broken; that one looked fine and said the
-  wrong thing. `src/lib/__tests__/i18nRawKeys.test.js` now fails the suite
-  on the pattern itself, so it can't come back.
-- **A language may appear at most once per part file.** JavaScript resolves
-  a duplicate literal key by keeping the last block and discarding the
-  earlier one silently — no error, no warning. Three of 41 files had this;
-  it cost `onboarding.welcome.languageHint` in pt/it/ja/ko, the one string
-  whose job is telling someone who can't read the current language how to
-  switch, so those four fell back to English asking "Don't speak English?".
-  `scripts/split-i18n.mjs` now fails the build on it. The guard is
-  brace-depth aware because `i18n-warn.js` legitimately holds two separate
-  object literals that each declare all 15 languages.
-- Adding a new part file: name it `i18n-<domain>.js` and the splitter
-  picks it up automatically. Export shape must match existing files.
-- **Don't ship machine-translated copy** on prominent surfaces. If you
-  can't get native-quality translations for all 15 languages, ship
-  English-only for the missing ones with a `TODO(i18n)` comment in the
-  file head.
-  - **One deliberate exception exists**: `src/lib/i18n-equipment.js` (37
-    short UI labels, machine-translated 2026-07-30 with Kegan's sign-off,
-    on the reasoning that a reviewed-later label beats an English
-    fallback). It marks itself as MT, tracks outstanding languages in an
-    exported `REVIEW_PENDING`, and is guarded by
-    `src/lib/__tests__/i18nEquipment.test.js`. **This is not a precedent**
-    — don't machine-translate prose, onboarding, or marketing, and don't
-    add a second exception without asking.
-
-## UI composition — the rules that stop it looking generated
-
-Full evidence and the rendered specs: `docs/ui-craft-research.md`,
-`docs/ui-craft-prompt.md`, and the Penpot file **Flexyn Dashboard UI** (8 boards,
-including a token set carrying these values). Written Aug 2026.
-
-Tokens produce *consistency*. Consistency with no hierarchy is exactly what reads
-as AI-generated — uniform cards, one spacing value, no focal point. These rules
-govern hierarchy, which tokens can't encode.
-
-- **Two spacing registers, nothing between them.** Intra-group `gap-1`/`gap-2`
-  (4–8px); inter-section `gap-6` (24px). The middle — `gap-3`/`gap-4`/`gap-5` —
-  is **banned**: if a gap wants to be 12–20px, either those elements are one
-  group (tighten to `gap-2`) or they are two (separate to `gap-6`). 8→24 is a 3×
-  ratio, which is what makes the two registers read as distinct rather than as
-  drift. Tuned tighter than the 32/40 the literature suggests because this app is
-  deliberately dense; the ratio is what matters, not the absolute.
-- **Exactly one `gap-8` (32px) per page.** On Dashboard it sits below
-  `TodaysPlan` — the seam between *action* (above) and *state* (below). A second
-  break means neither reads as the break.
-- **One dominant element per screen, and only it may bleed.** It breaks the
-  page's `px-4` inset; nothing else does. `HeroSlideshow` is Dashboard's — it
-  holds the first slot but currently has no bleed handling, so it reads as one
-  card among many.
-- **Cards mark discrete, user-arranged objects.** Dashboard is a configurable
-  widget grid (16 definitions in `src/lib/widgetDefinitions.js`), so a card per
-  widget is *correct* — 31 of its 34 are widget shells and must stay. Read-only
-  data that is **not** a widget gets no surface: hairline dividers instead. Never
-  nest a card in a card (already removed once — see `Dashboard.jsx:1231`).
-- **Elevation has two levels.** Resting = hairline border, no shadow. Raised =
-  `shadow-md`, for interactive or genuinely floating surfaces. `shadow-sm` adds
-  nothing a hairline doesn't; `shadow-xl`/`2xl` on a 390px viewport is a tell,
-  not depth. **Coloured shadows are banned.**
-- **Radius is `sm` / `lg` / `2xl` / `full`**, per the roles documented at
-  `tailwind.config.js:48–71`. `xl` and `md` are compatibility aliases pinned to
-  existing values — **never reach for them in new code**, and don't add a sixth.
-- **Four hues, no exceptions.** A new state replaces an existing hue; it does not
-  extend the list. Macros are the one case that needs mutual distinguishability
-  rather than state meaning, so they use the semantically-neutral chart ramp:
-  protein `--chart-1`, carbs `--chart-2`, fat `--chart-3`. Routing them through
-  the state hues would render a healthy protein figure as `destructive`.
-- **Hierarchy by weight and colour before size.** Six type steps, 11px floor. If
-  something needs to recede, change weight — do not invent a seventh size.
-- **No gradient as decoration, no glassmorphism.** `bg-gradient-to-*` and
-  `backdrop-blur` are both on the published list of signals designers use to
-  identify generated UI. Neither is how you make something look designed.
-- **Data must be earned.** A number gets screen space only with trend, history or
-  comparison attached. A bare figure in a box is decoration.
-
-**Before treating a grep hit as debt, read the comments.** Auditing this codebase
-produced five findings; four shrank or inverted on inspection. `text-[5px]` and
-`rounded-card` were prose inside comments; "6 and 11 distinct radii" was counting
-class names when `lg` and `xl` resolve to the same value; "34 cards, cut to 20"
-would have broken the widget grid. The reasoning in this repo lives in comments
-that greps don't read — so a raw count is a question, not a conclusion.
-
-## Testing
-
-- Framework: vitest, jsdom. Setup in `src/test/setup.js`.
-- Existing tests: `src/lib/__tests__/`, `src/lib/data/__tests__/`,
-  `src/components/__tests__/`, `src/api/__tests__/`, `src/hooks/__tests__/`.
-- Supabase mock pattern: see `src/lib/__tests__/capsuleMilestones.test.js`
-  or `src/lib/data/__tests__/injuries.test.js` for the chainable-mock shape.
-- Confetti tests: `canvas-confetti` mock leaks across tests because
-  `setTimeout`-scheduled bursts from prior tests can land in later
-  buffers. Filter the mock calls by a **unique signature** (e.g. the
-  helper's distinctive origin coords) rather than asserting on exact
-  call count.
-- Data-layer modules under `src/lib/data/` are worth testing directly, not
-  only through the components that call them. `equipment.js` looked covered
-  because `ImplementPicker.test.jsx` mocked `persistEquipmentPhoto` — but
-  the mock always returned null, so every step between the picker and the
-  database was untested. A mocked dependency is not coverage of that
-  dependency. See `src/lib/data/__tests__/equipment.test.js` for a
-  chainable-mock shape that asserts on the **sequence** of statements,
-  which is usually the part that's actually unproven.
-- `npm run test` — full suite. `npm run test:watch` — watch mode.
-  `npm run test:coverage` — V8 coverage. As of 2026-07-31: **2366 tests
-  passing across 167 files**.
-
-## Build guards (don't disable)
-
-The build has an `onwarn` hook in `vite.config.js` that turns specific
-Rollup warning codes into **build failures**. These were added after a
-production crash on 2026-05-23 — a `inventory.listMine` call referenced
-a non-existent named export, Vite's `logLevel: 'error'` setting silenced
-the `MISSING_EXPORT` warning, and the bug shipped as a runtime crash.
-The guard ensures that defect class can never silently land again.
-
-Currently blocking:
-- `MISSING_EXPORT` — `import { foo } from 'mod'` or `ns.foo` where
-  `foo` isn't on the module's exports. Symptoms in production: silent
-  `undefined`-call TypeError, or in some bundler configs a minified
-  TDZ (`can't access lexical declaration 'oe' before initialization`).
-- `UNRESOLVED_IMPORT` — module path doesn't resolve at build time.
-- `PLUGIN_ERROR` — a Vite/Rollup plugin escalated to error (shouldn't
-  be a warning anyway).
-
-**If the build fails with `[vite-build-guard]`** — don't disable the
-guard. The warning corresponds to a real bug. Fix the import, then
-rebuild. If you have a defensible case for treating one as a false
-positive (extremely rare), surface it explicitly rather than removing
-the code from the blocking set silently.
-
-## TDZ trap — declare const/let BEFORE first use
-
-JavaScript hoists `function` declarations but **not** `const` or `let`.
-Code that *reads* a const-bound name before its declaration line
-throws `ReferenceError: can't access lexical declaration X before
-initialization`. Dev mode masks some patterns (React's double-render,
-JSX callback fns that only run after render); production minified
-re-orders statements and the bug fires on the first render.
-
-The 2026-05-23 production Hub crash was this exact pattern in
-`HubPostCard.jsx`:
-
-```jsx
-function HubPostCard({ post }) {
-  // ...
-  useEffect(() => {
-    if (... || isMine) return;     // ← reads `isMine`
-    // ...
-  }, [user?.email, post.id, isMine]);  // ← AND in deps array
-
-  // ... 80 lines later ...
-  const isMine = post.author_email === user?.email;  // ← declared LATE
-}
-```
-
-The deps array `[..., isMine]` is evaluated synchronously when
-`useEffect` is called, but `isMine` is in TDZ at that point. **Always
-declare a `const` before its first use, including inside any
-`useEffect` / `useMemo` / `useCallback` deps array.**
-
-ESLint has `no-use-before-define` configured at `'warn'` level
-(masked by `--quiet` in the default `npm run lint` script — run
-`npx eslint .` to see all 141 existing warnings). Goal is to upgrade
-to `'error'` once those are cleaned up. New code: don't add new
-violations of this rule.
-
-## Build & analyze
-
-- `npm run dev` — Vite dev server.
-- `npm run build` — production build. Vite + manual chunking in
-  [vite.config.js](vite.config.js) splits the heaviest deps into their
-  own vendor chunks (`vendor-tfjs`, `vendor-supabase`, `vendor-charts`,
-  `vendor-motion`, etc.).
-- `npm run analyze` — build with `ANALYZE=true` so
-  rollup-plugin-visualizer writes a treemap to `dist/bundle-stats.html`.
-  Use this when adding a substantial library or wondering where bytes
-  went.
-- Lazy-loading rule: modals and tabs that only mount on user action
-  should be `React.lazy()` + `<Suspense fallback={null}>`. Existing
-  examples: `DebriefVault`, `InjuryForm`, the page chunks in `App.jsx`.
-- `html2canvas`, `canvas-confetti`, `@zxing/browser`, and `maplibre-gl`
-  are excluded from the `vendor-misc` chunk so their dynamic imports
-  get their own lazy chunks. Don't break that — see the `manualChunks`
-  function in vite.config.
-
-## ESLint
-
-- `npm run lint` — must exit clean before any push.
-- Common stumble: teammate's commits sometimes land unused imports
-  (`X`, `useCallback`, etc.). Those are chore commits — fix in a
-  separate small commit so the blame stays clean.
-
-## File locations cheat sheet
-
-- New page → `src/pages/<Name>.jsx`, registered as a lazy import in
-  `src/App.jsx`.
-- New data-layer function → `src/lib/data/<table>.js`. Export named
-  functions, use `supabase` from `@/api/supabaseClient`, wrap
-  column-named reads in `safeSelect`. If it writes `user_profiles`, read
-  the "Profile cache" section above first — you almost certainly need a
-  `patchProfile()` call, and you must import `@/api/profileCache` rather
-  than `@/api/db`.
-- New component → `src/components/<area>/<Name>.jsx`. Components for
-  Dashboard go in `dashboard/`, hub in `hub/`, etc.
-- New lib helper → `src/lib/<helper>.js`. If it's a celebration, mirror
-  one of the existing `*Celebration.js` files.
-- Anything that changes what the AI Coach programs → `src/lib/aiCoach/`,
-  and read the "AI Coach personalization" section above first. New context
-  inputs go through `buildTrainingModifiers` (clamped + explained on the
-  card), not straight into `generateWorkout`.
-
-## Workflow
-
-1. `git fetch origin && git rev-list --left-right --count HEAD...origin/main`
-   before any work. If origin is ahead, rebase.
-2. Edit. Run `npm run lint` + `npm run build` (and `npm run test` if
-   logic changed).
-3. Commit with a multi-paragraph message that explains the why, not just
-   the what. Use HEREDOC so quotes survive.
-4. `git push origin <branch>` — push the feature branch first.
-5. `git push origin <branch>:main` — fast-forward main. Only after the
-   branch push succeeds.
-6. **ALWAYS, after every push, send the user the SQL to run.** This is a
-   standing instruction (kegan, 2026-05). Frontend ships via Netlify
-   auto-deploy from `main`, but the DB is deployed by the user manually
-   pasting SQL into the Supabase SQL editor — so a push is only "done"
-   once they have the matching SQL. After each push, report EITHER:
-     • the pending migration(s) as a copy-paste block, OR
-     • "No SQL needed — frontend only" when the change touched no
-       migrations / DB objects.
-   Don't wait to be asked. See the paste-safety rule below — the SQL
-   you hand over must survive the user's clipboard pipeline.
-   **MANDATORY, NO EXCEPTIONS (kegan, 2026-05, mobile):** ALWAYS paste the
-   actual SQL inline in chat inside a fenced ```sql code block so it has a
-   one-tap copy button. NEVER tell the user to open / copy a file from the
-   repo or GitHub — they are on mobile and cannot open files. This applies
-   no matter how long the SQL is; if a bundle is huge, split it across
-   several ```sql blocks in the SAME reply (each its own copy button) and
-   tell them the run order — but it must all be in chat. A file path is
-   NEVER an acceptable substitute for the inline SQL.
-7. **Paste-safe SQL is mandatory.** The user's paste pipeline mangles
-   short `alias.column` tokens AND record-field `.id` tokens (e.g.
-   `up.id`, `v_verif.id`, `v_capsule.id`) → `42601 syntax error at "<"`.
-   Only emit: `public.<table>`, `auth.<fn>()`, `NEW.`/`OLD.`, bare
-   columns in single-table statements, CTE-renamed join keys, and
-   `#variable_conflict use_column` for RETURNS TABLE OUT-param shadowing.
-   Prefer scalar `SELECT ... INTO v_a, v_b` over `%ROWTYPE` + dotted
-   record access. A migration that's fine for a CLI runner can still
-   mangle on paste — rewrite the bundle you hand the user accordingly.
-8. Update tasks via `TaskUpdate` (this session uses TaskCreate /
-   TaskUpdate / TaskList — `TodoWrite` was deprecated mid-session).
+- Push fanout for nemesis, gauntlet, comments+replies, memories,
+  referrals (mig 081–089)
+- Streak rescue (mig 087) — one-tap save on a missed day, once/month
+- Onboarding 7-day nudge sequence + iOS install banner + push opt-in
+- Live activity rail + follow suggestions + crew suggestions + friend
+  leaderboards on Hub
+- Workout calendar grid + workout memory card + workout suggestion +
+  PR celebration + repeat-from-log on Dashboard/Workout
+- Hydration ring + mood log + sleep log + recovery score + readiness
+  card (mig 094–097)
+- Voice input (set logging + Coach dictation)
+- Built-in program templates + workout templates + bar inventory
+- User-created bounties + crew challenges + quiet hours + dedicated
+  notification page + story emoji reactions + story highlights schema
 
 ## Things that are intentionally out of scope right now
 
