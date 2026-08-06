@@ -2773,6 +2773,15 @@ function HomeGymStep({ step, total, value, onChange, onNext, onBack, onSkip }) {
               const id = await resolveHomeGymId(null);
               if (id) onChange({ gymId: id, name: '', applied: true });
             }}
+            // Swaps the card's "View Hub" for a Continue and hides the
+            // register-gym link — both route somewhere App.jsx will not
+            // let an unfinished user go.
+            onContinue={async () => {
+              setBrowsing(false);
+              const id = await resolveHomeGymId(null);
+              if (id) onChange({ gymId: id, name: '', applied: true });
+              onNext();
+            }}
           />
         </Suspense>
       )}

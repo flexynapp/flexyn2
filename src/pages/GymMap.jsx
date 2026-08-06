@@ -251,8 +251,14 @@ function buildOsmPin({ gym, onClick, signal }) {
  *   `data` is persisted, not `stepIdx`, so it would also drop the user at
  *   the start of the flow with their answers intact but ten steps to
  *   re-click. An overlay avoids both.
+ * @param {Function} [onContinue] onboarding mode. The gym card's second
+ *   action is "View Hub", which routes to /gym/:id — a destination a user
+ *   who has not finished onboarding cannot reach, because App.jsx sends
+ *   them straight back to the onboarding route. Passing this swaps that
+ *   button for a Continue that returns to the flow, and only once the gym
+ *   is actually theirs: before that there is nothing to continue FROM.
  */
-export default function GymMap({ onClose }) {
+export default function GymMap({ onClose, onContinue }) {
   const navigate = useNavigate();
   const { user } = useAuth();
 
@@ -963,6 +969,24 @@ export default function GymMap({ onClose }) {
           </motion.button>
         )}
 
+        {/* Onboarding mode: once a home gym exists there is always a way
+            forward, without having to find the pin again and re-tap it.
+            Adopting an OSM gym closes its card (the entry is promoted to
+            a community row and the pin is rebuilt), so relying on the
+            card alone would strand the user on a map with no exit but
+            Back. */}
+        {onContinue && homeGymId && (
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="absolute bottom-4 start-3 end-3 z-30"
+          >
+            <Button className="w-full h-12 text-base font-bold" onClick={onContinue}>
+              Continue
+            </Button>
+          </motion.div>
+        )}
+
         {/* Home-gym status chip.
             Grey means two different things on this map — a community gym
             (bubble) and an unclaimed OpenStreetMap entry (teardrop) — and
@@ -1086,10 +1110,18 @@ export default function GymMap({ onClose }) {
                     ? <Loader2 className="w-4 h-4 animate-spin" />
                     : isHome(selected.id) ? 'My gym ✓' : 'Set as my gym'}
                 </Button>
-                <Button variant="outline" className="flex-1"
-                  onClick={() => navigate(`/gym/${selected.id}`)}>
-                  View Hub
-                </Button>
+                {onContinue ? (
+                  isHome(selected.id) && (
+                    <Button className="flex-1" onClick={onContinue}>
+                      Continue
+                    </Button>
+                  )
+                ) : (
+                  <Button variant="outline" className="flex-1"
+                    onClick={() => navigate(`/gym/${selected.id}`)}>
+                    View Hub
+                  </Button>
+                )}
               </div>
             </motion.div>
           )}
@@ -1139,10 +1171,15 @@ export default function GymMap({ onClose }) {
                   ? <Loader2 className="w-4 h-4 animate-spin" />
                   : 'Set as my gym'}
               </Button>
-              <Button variant="outline" className="w-full"
-                onClick={() => { setSelectedOsm(null); navigate('/register-gym'); }}>
-                I own this gym — register it 🚀
-              </Button>
+              {/* Hidden in onboarding mode for the same reason as View
+                  Hub: /register-gym is behind the same gate that sends an
+                  unfinished user back to the flow. */}
+              {!onContinue && (
+                <Button variant="outline" className="w-full"
+                  onClick={() => { setSelectedOsm(null); navigate('/register-gym'); }}>
+                  I own this gym — register it 🚀
+                </Button>
+              )}
             </motion.div>
           )}
         </AnimatePresence>
