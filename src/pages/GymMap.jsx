@@ -21,6 +21,8 @@ import { fetchOsmGyms, OSM_ZOOM_MIN } from '@/lib/osmGyms';
 import {
   matchesFlexynGym, matchesOsmGym, normalizeQuery,
 } from '@/lib/gymSearch';
+import { searchPlaces, PLACES_ATTRIBUTION } from '@/lib/geocode';
+import { reportError } from '@/lib/reportError';
 import {
   setHomeGym, setHomeGymFromOsm, resolveHomeGymId, getHomeGym,
 } from '@/lib/data/homeGym';
@@ -268,6 +270,7 @@ export default function GymMap() {
   const markersRef    = useRef([]);
   const osmMarkersRef = useRef([]);
   const osmAbortRef   = useRef(null);
+  const placeAbortRef = useRef(null);
   const debounceRef   = useRef(null);
   const refreshRef    = useRef(null); // always → latest refreshFromBounds
 
@@ -282,6 +285,9 @@ export default function GymMap() {
   const [osmLoading,  setOsmLoading]  = useState(false);  // grey-pin fetch in flight
   const [search,      setSearch]      = useState('');
   const [searchOpen,  setSearchOpen]  = useState(false);
+  // Place lookup (Nominatim) — only ever fired on an explicit submit.
+  const [places,      setPlaces]      = useState([]);
+  const [placeStatus, setPlaceStatus] = useState('idle'); // idle | searching | done | error
   const [currentZoom, setCurrentZoom] = useState(US_ZOOM);
   // "Search this area" button — Google Maps / Yelp pattern. Shows
   // when the user has moved the map since the last fetch. Tap to
@@ -620,15 +626,47 @@ export default function GymMap() {
     return () => { ac.abort(); };
   }, [osmGyms, claimedOsmKeys, search]);
 
-  // ── Search fly-to ──────────────────────────────────────────────────────
+  // ── Go to a place ──────────────────────────────────────────────────────
   //
-  // Flexyn rows first — a registered gym is the more useful destination
-  // when both layers match — then OSM, which is where nearly every real
-  // gym actually lives.
-  const flyToMatch = useCallback(() => {
+  // Clearing the query is not tidying-up, it is the point. The text was
+  // a DESTINATION, and it is also the pin filter — leaving "chicago" in
+  // the box after flying to Chicago filters the gyms that just loaded
+  // down to the ones called "chicago", which is none of them. You would
+  // arrive at an empty map.
+  const goToPlace = useCallback((place) => {
     const map = mapRef.current;
-    if (!map || !search.trim()) return;
+    if (!map || !place) return;
+    setSearch('');
+    setPlaces([]);
+    setPlaceStatus('idle');
+    if (place.bbox) {
+      map.fitBounds(
+        [[place.bbox.west, place.bbox.south], [place.bbox.east, place.bbox.north]],
+        // A whole city fitted exactly is zoom ~10, below the level where
+        // gyms are worth drawing. Cap it so you land somewhere useful.
+        { maxZoom: 13, padding: 40, duration: 1200 },
+      );
+    } else {
+      map.flyTo({ center: [place.lon, place.lat], zoom: 13, duration: 1200 });
+    }
+    // The moveend handler refreshes both pin layers for wherever we land.
+  }, []);
+
+  // ── Submit ─────────────────────────────────────────────────────────────
+  //
+  // Two different questions share one box, and which one you meant is
+  // answered by what's on screen. A gym in view wins — Flexyn rows first,
+  // since a registered gym is the more useful destination, then OSM,
+  // where nearly every real gym actually lives. Only when nothing in view
+  // matches do we go and ask where the place is.
+  //
+  // Deliberately on SUBMIT, never on a keystroke: Nominatim's usage
+  // policy forbids client-side autocomplete against it. Typing keeps
+  // doing the local filter, which is free.
+  const runSearch = useCallback(async () => {
+    const map = mapRef.current;
     const q = normalizeQuery(search);
+    if (!map || !q) return;
 
     const flexynHit = gyms.find(g => matchesFlexynGym(q, g));
     if (flexynHit) {
@@ -636,8 +674,41 @@ export default function GymMap() {
       return;
     }
     const osmHit = osmGyms.find(g => matchesOsmGym(q, g));
-    if (osmHit) map.flyTo({ center: [osmHit.lon, osmHit.lat], zoom: 13, duration: 1200 });
-  }, [gyms, osmGyms, search]);
+    if (osmHit) {
+      map.flyTo({ center: [osmHit.lon, osmHit.lat], zoom: 13, duration: 1200 });
+      return;
+    }
+
+    placeAbortRef.current?.abort();
+    const ctrl = new AbortController();
+    placeAbortRef.current = ctrl;
+    setPlaceStatus('searching');
+    setPlaces([]);
+    try {
+      const found = await searchPlaces(q, { signal: ctrl.signal });
+      if (ctrl.signal.aborted) return;
+      setPlaces(found);
+      setPlaceStatus('done');
+      // One unambiguous answer needs no menu. Several — the three
+      // Springfields — do, and that is exactly when the full label
+      // earns its space.
+      if (found.length === 1) goToPlace(found[0]);
+    } catch (err) {
+      if (ctrl.signal.aborted || err?.name === 'AbortError') return;
+      // "We couldn't ask" and "there is no such place" are different
+      // sentences, and only this one gets a retry.
+      setPlaceStatus('error');
+      reportError(err, { feature: 'gym-map.place-search' });
+    }
+  }, [search, gyms, osmGyms, goToPlace]);
+
+  // Drop stale place results the moment the query changes — they answer
+  // a question the user has moved on from.
+  useEffect(() => {
+    setPlaces([]);
+    setPlaceStatus('idle');
+    return () => placeAbortRef.current?.abort();
+  }, [search]);
 
   // ── Derived UI values ──────────────────────────────────────────────────
   const q             = normalizeQuery(search);
@@ -709,19 +780,92 @@ export default function GymMap() {
             exit={{ height: 0, opacity: 0 }}
             className="border-b border-border bg-card overflow-hidden shrink-0">
             <div className="px-3 py-2 flex gap-2">
-              {/* Was "Search gym name or city…". There is no geocoder
-                  here: `gyms` is whatever get_gyms_in_bbox returned for
-                  the CURRENT viewport, so typing a city you aren't
-                  looking at could never match anything. Promise what the
-                  control does — filter this view — rather than a
-                  place search it can't perform. */}
+              {/* Typing filters the pins in view — free, instant, no
+                  network. Go searches for a PLACE, and only on submit,
+                  because Nominatim's usage policy forbids client-side
+                  autocomplete against it. */}
               <Input
-                placeholder="Filter gyms in view…"
+                placeholder="Filter gyms, or go to a place…"
                 value={search} onChange={e => setSearch(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') flyToMatch(); }}
+                onKeyDown={e => { if (e.key === 'Enter') runSearch(); }}
+                enterKeyHint="search"
                 autoFocus className="h-9" />
-              {search && <Button variant="outline" size="sm" onClick={() => setSearch('')}>Clear</Button>}
+              {search && (
+                <>
+                  {/* The label stays "Go" in both states rather than
+                      being swapped for a spinner. A button whose
+                      accessible name changes under it — or vanishes into
+                      an icon — is one a screen reader user can't refer
+                      to (WCAG 2.5.3, label in name). */}
+                  <Button
+                    size="sm"
+                    onClick={runSearch}
+                    disabled={placeStatus === 'searching'}
+                    className="shrink-0 gap-1"
+                  >
+                    {placeStatus === 'searching' && (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
+                    )}
+                    Go
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => setSearch('')}>Clear</Button>
+                </>
+              )}
             </div>
+
+            {/* Place results. Only ever populated by an explicit Go. */}
+            {placeStatus !== 'idle' && (
+              <div className="px-3 pb-2">
+                {placeStatus === 'searching' && (
+                  <p className="text-micro text-muted-foreground py-1">Looking up places…</p>
+                )}
+
+                {placeStatus === 'error' && (
+                  <p className="text-micro text-muted-foreground py-1">
+                    Couldn&apos;t look up places right now.{' '}
+                    <button
+                      type="button"
+                      onClick={runSearch}
+                      className="font-semibold text-primary underline underline-offset-2"
+                    >
+                      Retry
+                    </button>
+                  </p>
+                )}
+
+                {placeStatus === 'done' && places.length === 0 && (
+                  <p className="text-micro text-muted-foreground py-1">
+                    No gym in view matches “{search.trim()}”, and no place by that name either.
+                  </p>
+                )}
+
+                {places.length > 1 && (
+                  <>
+                    {/* Only shown when there's a genuine choice to make —
+                        a single hit flies straight there. The full label
+                        is what tells three Springfields apart, so it is
+                        the reason this list exists at all. */}
+                    <div className="space-y-1">
+                      {places.map(p => (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => goToPlace(p)}
+                          className="w-full text-start rounded-xl border border-border bg-card px-3 py-2 hover:border-primary/40 active:border-primary/40 transition-colors"
+                        >
+                          <p className="text-sm font-semibold truncate">{p.name}</p>
+                          <p className="text-micro text-muted-foreground truncate">{p.label}</p>
+                        </button>
+                      ))}
+                    </div>
+                    {/* ODbL requires this wherever the results are shown.
+                        The map's own attribution control covers the
+                        tiles, not this. */}
+                    <p className="text-micro text-muted-foreground pt-1.5">{PLACES_ATTRIBUTION}</p>
+                  </>
+                )}
+              </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>

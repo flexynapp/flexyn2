@@ -1,5 +1,41 @@
 # Third-party attributions
 
+## OpenStreetMap — map tiles, gym data, and place search
+
+The Gym Locator is built on OpenStreetMap three separate times, and all
+three are covered by the same licence:
+
+| Surface | Service | Code |
+|---|---|---|
+| Base map tiles | OpenFreeMap (Liberty style), or MapTiler when `VITE_MAPTILER_KEY` is set | `src/pages/GymMap.jsx` |
+| Nearby gyms | Overpass API | `src/lib/osmGyms.js` |
+| Place search ("go to Chicago") | Nominatim | `src/lib/geocode.js` |
+
+- Data © **OpenStreetMap contributors**, licensed under the **Open Database
+  License (ODbL) 1.0** — https://www.openstreetmap.org/copyright
+
+**ODbL requires the credit to appear wherever the data is shown**, not once
+in a settings screen. The map canvas carries MapLibre's own
+`attributionControl`, which credits the tile source. That control does NOT
+cover the other two, so:
+
+- Overpass results are drawn as pins on that same canvas and the map's
+  attribution covers them.
+- Nominatim results are rendered in the search panel, outside the canvas, so
+  they carry their own credit: `PLACES_ATTRIBUTION` in `src/lib/geocode.js`,
+  rendered beneath the result list. A test asserts it names OpenStreetMap.
+  **Don't remove that line to tidy the panel.**
+
+**Nominatim and Overpass are donated services with usage policies, and both
+block abusers by IP** — which for us means the feature dying for every user
+at once, not degrading for one. The constraints are documented at the head
+of each file and enforced in code (a 1 req/s gate and a result cache for
+Nominatim; a mirror race with per-mirror timeouts for Overpass). The one
+that is easiest to break by accident: **Nominatim forbids client-side
+autocomplete**, so place search fires on an explicit submit only. A debounced
+keystroke handler would still be autocomplete.
+
+
 ## Equipment imagery — deliberately none
 
 The equipment picker (`src/lib/equipmentCatalog.js`,

@@ -1059,6 +1059,23 @@ the ONE that is theirs.
 - **Query `nwr`, not `node` + `way`.** Relations were never asked for, so
   a gym mapped as a multipolygon — normal for anything inside a larger
   building — was invisible.
+- **The map's search box answers two questions and they have different
+  costs.** Typing filters the pins in view (`src/lib/gymSearch.js` — free,
+  instant, no network, and it must cover BOTH pin layers; it filtered only
+  the registered `gym_businesses` rows for months, which on a typical
+  viewport is a handful out of dozens). Submitting geocodes a place
+  (`src/lib/geocode.js` → Nominatim). **Never fire the geocoder on a
+  keystroke** — Nominatim's usage policy forbids client-side autocomplete
+  against it, and a debounce is still autocomplete. It is a donated
+  service that blocks by IP, so the failure mode is the feature dying for
+  everyone at once. The 1 req/s gate and the result cache in that file are
+  load-bearing, and so is `PLACES_ATTRIBUTION` under the results — the
+  map's own attribution control covers the tiles, not this. See
+  ATTRIBUTIONS.md.
+- **Flying to a place must clear the query.** The same string is the pin
+  filter, so leaving "chicago" in the box after flying to Chicago filters
+  the gyms that just loaded down to the ones named "chicago" — you arrive
+  at an empty map.
 - **`leisure=sports_centre` is fetched unfiltered on purpose.** It used to
   be qualified with `["sport"~"fitness"]`, which was the single biggest
   source of misses: YMCAs, council rec centres, boxing gyms and climbing
