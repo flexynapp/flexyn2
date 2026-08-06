@@ -15,7 +15,12 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { getGymsInBbox, listMyGyms } from '@/lib/data/gymBusinesses';
-import { fetchOsmGyms, OSM_ZOOM_MIN, bboxAround } from '@/lib/osmGyms';
+import { OSM_ZOOM_MIN, bboxAround } from '@/lib/osmGyms';
+// Reads the Postgres cache (~19ms) instead of Overpass. The map was
+// still calling Overpass directly from the browser after the picker
+// moved off it, which is why its grey pins kept not appearing: that path
+// takes 2-30s and fails about one run in three.
+import { fetchOsmGymsInBboxCached } from '@/lib/data/osmGymCache';
 // Extracted so it is testable without dragging maplibre-gl into jsdom;
 // the head comment there records why the search was covering one layer.
 import {
@@ -267,7 +272,7 @@ export default function GymMap({ onClose, onContinue }) {
   const [selectedOsm, setSelectedOsm] = useState(null);
   const [loading,     setLoading]     = useState(false);
   const [mapError,    setMapError]    = useState(null);
-  const [osmError,    setOsmError]    = useState(null);   // last fetchOsmGyms error message
+  const [osmError,    setOsmError]    = useState(null);   // last OSM-cache read failure
   const [osmLoading,  setOsmLoading]  = useState(false);  // grey-pin fetch in flight
   const [search,      setSearch]      = useState('');
   const [searchOpen,  setSearchOpen]  = useState(false);
@@ -425,20 +430,25 @@ export default function GymMap({ onClose, onContinue }) {
       setOsmLoading(true);
       setOsmError(null);
       try {
-        // fetchOsmGyms now takes plain numbers rather than a MapLibre
-        // LngLatBounds, so callers without a map (the onboarding gym
-        // picker) can use it too.
-        const dots = await fetchOsmGyms(
+        // Plain numbers rather than a MapLibre LngLatBounds, so the
+        // cache module stays usable by callers without a map.
+        const { gyms: dots, partial } = await fetchOsmGymsInBboxCached(
           {
             south: b.getSouth(), west: b.getWest(),
             north: b.getNorth(), east: b.getEast(),
           },
-          { zoom, signal: ctrl.signal },
+          { signal: ctrl.signal, limit: 1000 },
         );
         if (!ctrl.signal.aborted) {
           setOsmGyms(dots);
+          // `partial` here is usually the viewport being too wide to
+          // fill rather than a failure — the cache still answered. Say
+          // nothing; the pins that exist are drawn either way.
           setOsmError(null);
           setHasMovedSinceFetch(false);
+          if (partial && dots.length === 0) {
+            setOsmError('Zoom in to load gyms for this area');
+          }
         }
       } catch (err) {
         if (err.name !== 'AbortError') {

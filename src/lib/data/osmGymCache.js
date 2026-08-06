@@ -74,6 +74,79 @@ async function fill(box, signal) {
 }
 
 /**
+ * Matches MAX_SPAN_DEG in the edge function. A box wider than this is a
+ * map viewport, not a "gyms near me" query, and the function refuses to
+ * fill it — asking anyway just spends a round trip to be told 413.
+ */
+const MAX_FILL_SPAN_DEG = 2.0;
+
+/**
+ * The cached-read core, in bbox terms. `fetchOsmGymsNearCached` is this
+ * with a radius; GymMap uses it directly with the map's own bounds.
+ */
+async function readBox(box, { signal, limit = 300, sort } = {}) {
+  const clean = (gyms) => gyms.filter(
+    g => Number.isFinite(g?.lat) && Number.isFinite(g?.lon),
+  );
+  const done = (gyms, partial = false) => ({
+    gyms: sort ? sort(clean(gyms)) : clean(gyms),
+    partial,
+  });
+
+  let first;
+  try {
+    first = await readCache(box, limit);
+  } catch (err) {
+    reportError(err, { feature: 'osm-cache.read' });
+    first = { gyms: [], total: 1, known: 0, fresh: 0 };
+  }
+
+  const covered = first.known >= first.total;
+  if (covered && first.fresh >= first.total) return done(first.gyms);
+
+  // Too big to fill. The map at low zoom lands here constantly, and the
+  // right answer is "show what we have" rather than a round trip that
+  // comes back 413 and puts an error banner over a working cache.
+  const tooBig = (box.north - box.south) > MAX_FILL_SPAN_DEG
+              || (box.east - box.west) > MAX_FILL_SPAN_DEG;
+  if (tooBig) return done(first.gyms, true);
+
+  if (covered) {
+    fill(box, signal).catch(() => {});
+    return done(first.gyms);
+  }
+
+  try {
+    await fill(box, signal);
+  } catch (err) {
+    if (err?.name === 'AbortError') throw err;
+    if (first.gyms.length > 0) return done(first.gyms, true);
+    throw err;
+  }
+
+  try {
+    return done((await readCache(box, limit)).gyms);
+  } catch (err) {
+    if (first.gyms.length > 0) return done(first.gyms, true);
+    throw err;
+  }
+}
+
+/**
+ * Gyms inside a bounding box — the map's shape of the question.
+ *
+ * GymMap called Overpass directly until now, which is why its grey pins
+ * kept not appearing: that is the 2-30s path failing about one run in
+ * three, and it was still doing it after the picker moved off it.
+ */
+export async function fetchOsmGymsInBboxCached(box, opts = {}) {
+  if (!box || ![box.south, box.north, box.west, box.east].every(Number.isFinite)) {
+    return { gyms: [], partial: false };
+  }
+  return readBox(box, opts);
+}
+
+/**
  * Gyms near a point, closest first, served from the cache.
  *
  * Returns `{ gyms, partial }`. `partial` means a fill was needed and
@@ -94,55 +167,11 @@ export async function fetchOsmGymsNearCached(
   lat, lng, { radiusKm = DEFAULT_NEAR_RADIUS_KM, signal, limit = 300 } = {},
 ) {
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return { gyms: [], partial: false };
-  const box = bboxAround(lat, lng, radiusKm);
-
-  const done = (gyms, partial = false) => ({
-    gyms: gyms
-      .filter(g => Number.isFinite(g?.lat) && Number.isFinite(g?.lon))
-      .sort((a, b) => distanceKm(lat, lng, a.lat, a.lon)
-                    - distanceKm(lat, lng, b.lat, b.lon)),
-    partial,
+  return readBox(bboxAround(lat, lng, radiusKm), {
+    signal,
+    limit,
+    sort: (gyms) => gyms.sort(
+      (a, b) => distanceKm(lat, lng, a.lat, a.lon) - distanceKm(lat, lng, b.lat, b.lon),
+    ),
   });
-
-  let first;
-  try {
-    first = await readCache(box, limit);
-  } catch (err) {
-    // The cache is unreachable (RPC missing on a pre-300 host, network
-    // down). Fall through to a fill attempt rather than reporting empty.
-    reportError(err, { feature: 'osm-cache.read' });
-    first = { gyms: [], total: 1, known: 0, fresh: 0 };
-  }
-
-  const covered = first.known >= first.total;
-
-  // Fully covered and current: done, and this is the common case.
-  if (covered && first.fresh >= first.total) return done(first.gyms);
-
-  // Covered but stale. Serve immediately, refresh behind the user. The
-  // refresh is deliberately not awaited and its failure is not reported
-  // as a user-visible error — nobody is waiting on it.
-  if (covered) {
-    fill(box, signal).catch(() => {});
-    return done(first.gyms);
-  }
-
-  // Never looked here. This is the one path that waits.
-  try {
-    await fill(box, signal);
-  } catch (err) {
-    if (err?.name === 'AbortError') throw err;
-    // The fill failed. Anything already cached still beats nothing, but
-    // it is NARROWER than what was asked for — flagged, not smuggled.
-    if (first.gyms.length > 0) return done(first.gyms, true);
-    throw err;
-  }
-
-  try {
-    const second = await readCache(box, limit);
-    return done(second.gyms);
-  } catch (err) {
-    if (first.gyms.length > 0) return done(first.gyms, true);
-    throw err;
-  }
 }
