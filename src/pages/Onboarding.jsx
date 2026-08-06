@@ -2401,13 +2401,40 @@ function DaysStep({ days, preferredTime, onDaysChange, onTimeChange, onNext, onB
           {tFallback('onboarding.schedule.sub', "Plan around real life — we'll keep recovery in check.")}
         </p>
 
-        {/* Count card */}
+        {/* Count card.
+            Three things used to fire on every tap and fight each other.
+
+            The glow ran `transition-all duration-500` over a
+            radial-gradient whose alpha was interpolated from `count`.
+            background-image is not composited, so that repainted the
+            card for half a second on every selection. It is one static
+            gradient now with an animated OPACITY, which is — the same
+            swap the onboarding step transitions needed.
+
+            The number carried `key={count}` with `opacity: 0` in its
+            initial and no AnimatePresence, so the old digit was removed
+            the instant the new one mounted: a blank frame, then a fade.
+            It keeps the key (remounting one glyph is cheap) but enters at
+            full opacity, so only the scale moves and there is nothing to
+            flicker.
+
+            And the scale used Framer's default, which for scale is a
+            SPRING — 0.7 to 1 overshoots and settles over ~0.5s. That
+            bounce, landing on top of a repainting background, is the
+            stutter. A short tween lands it in 180ms and stops. */}
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
           className="rounded-2xl border bg-card p-5 text-center relative overflow-hidden">
-          <div className="absolute inset-0 pointer-events-none transition-all duration-500"
-            style={{ background: `radial-gradient(80% 60% at 50% 0%, hsl(var(--primary) / ${0.04 + count * 0.025}), transparent 70%)` }} />
+          <motion.div
+            className="absolute inset-0 pointer-events-none"
+            style={{ background: 'radial-gradient(80% 60% at 50% 0%, hsl(var(--primary) / 0.2), transparent 70%)' }}
+            animate={{ opacity: Math.min(1, 0.2 + count * 0.125) }}
+            transition={{ duration: 0.35, ease: 'easeOut' }}
+          />
           <div className="relative flex items-baseline justify-center gap-2">
-            <motion.span key={count} initial={{ scale: 0.7, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+            <motion.span key={count}
+              initial={{ scale: 0.88, opacity: 1 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
               className="font-heading font-bold text-[52px] leading-none tracking-tight text-foreground">
               {count}
             </motion.span>
@@ -2415,7 +2442,17 @@ function DaysStep({ days, preferredTime, onDaysChange, onTimeChange, onNext, onB
               {tFallback('onboarding.schedule.daysPerWeek', 'days · week')}
             </span>
           </div>
-          <div className="relative font-mono text-micro font-bold tracking-[0.18em] uppercase text-primary mt-1">{intensityLabel}</div>
+          {/* Keyed on the INTENSITY, not the count: it only changes at
+              thresholds, so tapping a fourth day shouldn't flicker a
+              label that still reads "Balanced". Enters at full opacity
+              for the same reason the digit does. */}
+          <motion.div key={intensity}
+            initial={{ opacity: 1, y: 3 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+            className="relative font-mono text-micro font-bold tracking-[0.18em] uppercase text-primary mt-1">
+            {intensityLabel}
+          </motion.div>
         </motion.div>
 
         {/* Day grid */}
