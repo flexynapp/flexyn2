@@ -395,6 +395,14 @@ function StepHeader({ step, total, onBack }) {
   const canBack = typeof onBack === 'function';
   const coach = useContext(OnboardingCoachContext);
   const showCoach = !!coach && hasCoachFor(coach.stepName);
+  // This row sits OUTSIDE each step's scroll box, so it only lines up with the
+  // content below it while the two share a horizontal inset. Eight of the ten
+  // scroll boxes used to carry `pe-2` — a scrollbar gutter that protects
+  // nothing here (no card scales, rings or shadows, and this ships to iOS and
+  // Android where scrollbars are overlays) — which pushed the coach button 8px
+  // past the right edge of every card on those steps while the two boxes
+  // without it were correct. The gutter is gone rather than mirrored onto this
+  // row: one inset, set by the page shell, is a contract that can't drift.
   return (
     <div className="flex items-center gap-3" style={{ marginBottom: 'var(--fluid-header-gap)' }}>
       {canBack ? (
@@ -815,7 +823,7 @@ function GoalStep({ value, onChange, onNext, onBack, step, total }) {
           than as "scroll for more". The `space-y-3` between these four blocks
           was 36px of it, and the middle spacing register is banned in this
           codebase anyway; each block now carries its own `mb-2`. */}
-      <div className="flex-1 overflow-y-auto pb-2 pe-2">
+      <div className="flex-1 overflow-y-auto pb-2">
         <KineticHeading
           text={tFallback('onboarding.goal.heading', 'What are you here for?')}
           accentWord="for?" />
@@ -997,7 +1005,7 @@ function SharpenStep({ goals, value, onChange, onNext, onBack, step, total }) {
   return (
     <div className="flex flex-col h-full">
       <StepHeader step={step} total={total} onBack={onBack} />
-      <div className="flex-1 overflow-y-auto pb-2 pe-2">
+      <div className="flex-1 overflow-y-auto pb-2">
         <KineticHeading
           text={tFallback('onboarding.sharpen.heading', "Let's sharpen your plan.")}
           accentWord="sharpen" />
@@ -1093,7 +1101,7 @@ function ExperienceStep({ value, onChange, onNext, onBack, step, total }) {
   return (
     <div className="flex flex-col h-full">
       <StepHeader step={step} total={total} onBack={onBack} />
-      <div className="flex-1 overflow-y-auto pb-2 pe-2">
+      <div className="flex-1 overflow-y-auto pb-2">
         <KineticHeading
           text={tFallback('onboarding.experience.heading', 'How long have you been training?')}
           accentWord="training?" />
@@ -1255,7 +1263,7 @@ function AssessmentStep({ value, onChange, onNext, onBack, onSkip, step, total }
   return (
     <div className="flex flex-col h-full">
       <StepHeader step={step} total={total} onBack={onBack} />
-      <div className="flex-1 overflow-y-auto pb-2 pe-2">
+      <div className="flex-1 overflow-y-auto pb-2">
         <KineticHeading
           text={tFallback('onboarding.assessment.heading', 'Quick lift check')}
           accentWord="lift"
@@ -1537,7 +1545,7 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
   return (
     <div className="flex flex-col h-full">
       <StepHeader step={step} total={total} onBack={onBack} />
-      <div className="flex-1 overflow-y-auto pb-4 pe-2">
+      <div className="flex-1 overflow-y-auto pb-4">
         <KineticHeading
           text={tFallback('onboarding.about.heading', 'Tell us about yourself.')}
           accentWord="yourself." />
@@ -2331,7 +2339,7 @@ function DaysStep({ days, preferredTime, onDaysChange, onTimeChange, onNext, onB
   return (
     <div className="flex flex-col h-full">
       <StepHeader step={step} total={total} onBack={onBack} />
-      <div className="flex-1 overflow-y-auto pb-4 pe-2 space-y-5">
+      <div className="flex-1 overflow-y-auto pb-4 space-y-5">
         <KineticHeading
           text={tFallback('onboarding.schedule.heading', 'Which days can you train?')}
           accentWord="train?" />
@@ -2478,7 +2486,7 @@ function InjuryHistoryStep({ step, total, value, onChange, onNext, onBack, onSki
   return (
     <div className="flex flex-col h-full">
       <StepHeader step={step} total={total} onBack={onBack} />
-      <div className="flex-1 overflow-y-auto pb-4 pe-2">
+      <div className="flex-1 overflow-y-auto pb-4">
         <KineticHeading
           text={tFallback('onboarding.injury.heading', "We'll work around them from day one.")}
           accentWord="around"
@@ -2637,7 +2645,7 @@ function HomeGymStep({ step, total, value, onChange, onNext, onBack, onSkip }) {
   return (
     <div className="flex flex-col h-full">
       <StepHeader step={step} total={total} onBack={onBack} />
-      <div className="flex-1 overflow-y-auto pb-4 pe-2">
+      <div className="flex-1 overflow-y-auto pb-4">
         <KineticHeading
           text={tFallback('onboarding.homeGym.heading', 'Pick your gym and meet your floor.')}
           accentWord="floor"
@@ -2795,7 +2803,7 @@ function RevealStep({ data, onNext, saving = false, previewRegimen = null }) {
   return (
     <div className="flex flex-col h-full">
       <Confetti pieces={28} />
-      <div className="flex-1 overflow-y-auto pb-4 pt-2 pe-2">
+      <div className="flex-1 overflow-y-auto pb-4 pt-2">
         <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05, duration: 0.4 }}
           className="flex items-center justify-between gap-3"
           style={{ marginBottom: 'var(--fluid-section)' }}>
