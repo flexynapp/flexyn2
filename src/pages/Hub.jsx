@@ -327,14 +327,13 @@ export default function Hub() {
           stack. */}
       {section === 'feed' && feedTab !== 'crews' && feedTab !== 'activity' && <LiveActivityRail />}
 
-      {/* Follow suggestions rail (migration 091). Visible when the user
-          has <3 followees (empty-feed trap) or hasn't dismissed in 30d.
-          Each card is one-tap follow. The biggest single-feature lift
-          to first-week retention because an empty feed = bounce. */}
-      {section === 'feed' && feedTab !== 'crews' && feedTab !== 'activity' && <FollowSuggestionRail />}
-
-      {/* Stories tray — hidden on Crews tab. Moved above the leaderboard
-          per user feedback (the rule is "stories stay on top"). */}
+      {/* Stories tray — hidden on Crews tab. "Stories stay on top": people
+          you already follow come BEFORE strangers to add. The follow
+          suggestion rail used to render above this, so the first thing on
+          Hub was a list of people you don't know while your friends' stories
+          sat below the fold — and it pushed the "add a note" affordance off
+          the top of your own avatar. Kegan flagged both on 2026-08-05.
+          The rule was already written here; the order just didn't match it. */}
       {section === 'feed' && feedTab !== 'crews' && feedTab !== 'activity' && (
         <StoriesRow
           onViewProfile={(u) => {
@@ -343,6 +342,12 @@ export default function Hub() {
           }}
         />
       )}
+      {/* Follow suggestions rail (migration 091). Visible when the user
+          has <3 followees (empty-feed trap) or hasn't dismissed in 30d.
+          Each card is one-tap follow. The biggest single-feature lift
+          to first-week retention because an empty feed = bounce.
+          Sits BELOW stories — see the note above. */}
+      {section === 'feed' && feedTab !== 'crews' && feedTab !== 'activity' && <FollowSuggestionRail />}
 
       {/* Friends-only weekly leaderboard (migration 093) moved to the
           Dashboard ("Friends this week" section) so it's a quick stats

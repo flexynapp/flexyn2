@@ -41,6 +41,14 @@ const EXPORT_TABLES = [
   { name: 'sleep_logs',       table: 'sleep_logs',     column: 'user_id',      via: 'id' },
   { name: 'mood_logs',        table: 'mood_logs',      column: 'user_id',      via: 'id' },
   { name: 'cycle_logs',       table: 'cycle_logs',     column: 'user_id',      via: 'id' },
+  // Added 2026-08-05. Both were being written and read — step_logs has its
+  // own dashboard card, journal_entries is the My Journal editor — and
+  // neither appeared here, so a user exercising Article 20 got an export
+  // missing their step history and every word of their own journal. Found
+  // while answering "where does this data even go?", which is a fair
+  // question to be able to answer with the export itself.
+  { name: 'step_logs',        table: 'step_logs',      column: 'user_id',      via: 'id' },
+  { name: 'journal_entries',  table: 'journal_entries', column: 'user_id',     via: 'id' },
   // Social membership + interactions
   { name: 'gym_members',          table: 'gym_members',          column: 'user_id',      via: 'id' },
   { name: 'gym_event_rsvps',      table: 'gym_event_rsvps',      column: 'user_id',      via: 'id' },
