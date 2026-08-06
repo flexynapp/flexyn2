@@ -18,7 +18,8 @@ vi.mock('@/api/supabaseClient', () => ({
 }));
 vi.mock('@/lib/reportError', () => ({ reportError: vi.fn() }));
 
-const { fetchOsmGymsNearCached } = await import('../osmGymCache');
+const { fetchOsmGymsNearCached, fetchOsmGymsInBboxCached } =
+  await import('../osmGymCache');
 
 const SANFORD = { lat: 43.4387179, lng: -70.7746224 };
 const gym = (name, lat, lon) => ({ osmType: 'node', osmId: name.length, name, lat, lon });
@@ -125,6 +126,63 @@ describe('fetchOsmGymsNearCached', () => {
 
   it('returns [] on a bad fix without any round trip', async () => {
     expect((await fetchOsmGymsNearCached(NaN, -70.77)).gyms).toEqual([]);
+    expect(rpc).not.toHaveBeenCalled();
+  });
+});
+
+describe('fetchOsmGymsInBboxCached — the map\'s shape of the question', () => {
+  const BOX = { south: 42.7, north: 42.9, west: -71.2, east: -71.0 };
+
+  it('does not wait for a cold fill in background mode', async () => {
+    rpc.mockResolvedValueOnce(cached([], 9, 0, 0));
+    let resolveFill;
+    invoke.mockReturnValue(new Promise(r => { resolveFill = r; }));
+
+    const res = await fetchOsmGymsInBboxCached(BOX, { background: true });
+
+    // Returned while the fill is still in flight. Panning into a new
+    // area used to block on this for up to the edge function's own 70s
+    // budget, holding the PREVIOUS area's pins on screen the whole time.
+    expect(res.gyms).toEqual([]);
+    expect(res.filling).toBeInstanceOf(Promise);
+    resolveFill({ data: { ok: true }, error: null });
+    await res.filling;
+  });
+
+  it('still blocks when background is not asked for', async () => {
+    rpc
+      .mockResolvedValueOnce(cached([], 9, 0, 0))
+      .mockResolvedValueOnce(cached([gym('YMCA', 42.8, -71.1)], 9, 9, 9));
+
+    // The picker needs the opposite: it is a one-shot list, and an empty
+    // answer there is a claim about the world.
+    const res = await fetchOsmGymsInBboxCached(BOX);
+    expect(res.gyms.map(r => r.name)).toEqual(['YMCA']);
+    expect(res.filling).toBeUndefined();
+  });
+
+  it('serves a covered area with no fill at all', async () => {
+    rpc.mockResolvedValueOnce(cached([gym('YMCA', 42.8, -71.1)], 4, 4, 4));
+    const res = await fetchOsmGymsInBboxCached(BOX, { background: true });
+    expect(res.gyms.map(r => r.name)).toEqual(['YMCA']);
+    expect(invoke).not.toHaveBeenCalled();
+  });
+
+  it('refuses to fill a viewport wider than the edge function accepts', async () => {
+    rpc.mockResolvedValueOnce(cached([], 900, 0, 0));
+    const wide = { south: 30, north: 45, west: -120, east: -70 };
+
+    const res = await fetchOsmGymsInBboxCached(wide, { background: true });
+
+    // The function rejects >2 degrees by design; asking anyway spends a
+    // round trip to be told 413, with an error banner over a cache that
+    // answered fine.
+    expect(invoke).not.toHaveBeenCalled();
+    expect(res.partial).toBe(true);
+  });
+
+  it('returns nothing for a malformed box without a round trip', async () => {
+    expect((await fetchOsmGymsInBboxCached(null)).gyms).toEqual([]);
     expect(rpc).not.toHaveBeenCalled();
   });
 });

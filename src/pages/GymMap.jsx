@@ -406,22 +406,41 @@ export default function GymMap({ onClose, onContinue }) {
       try {
         // Plain numbers rather than a MapLibre LngLatBounds, so the
         // cache module stays usable by callers without a map.
-        const { gyms: dots, partial } = await fetchOsmGymsInBboxCached(
-          {
-            south: b.getSouth(), west: b.getWest(),
-            north: b.getNorth(), east: b.getEast(),
-          },
-          { signal: ctrl.signal, limit: 1000 },
+        const box = {
+          south: b.getSouth(), west: b.getWest(),
+          north: b.getNorth(), east: b.getEast(),
+        };
+
+        // `background: true` is what stops a pan into a cold area from
+        // freezing. The read returns immediately with whatever is
+        // cached, and hands back a promise for the fill still running
+        // behind it — so the previous area's pins come off the map at
+        // once instead of sitting there for up to a minute while a
+        // spinner ran and nothing on screen belonged to where the user
+        // had actually panned to.
+        const { gyms: dots, filling } = await fetchOsmGymsInBboxCached(
+          box, { signal: ctrl.signal, limit: 1000, background: true },
         );
-        if (!ctrl.signal.aborted) {
-          setOsmGyms(dots);
-          // `partial` here is usually the viewport being too wide to
-          // fill rather than a failure — the cache still answered. Say
-          // nothing; the pins that exist are drawn either way.
-          setOsmError(null);
-          setHasMovedSinceFetch(false);
-          if (partial && dots.length === 0) {
-            setOsmError('Zoom in to load gyms for this area');
+        if (ctrl.signal.aborted) return;
+        setOsmGyms(dots);
+        setOsmError(null);
+        setHasMovedSinceFetch(false);
+
+        if (filling) {
+          // Still loading, honestly: the pill keeps spinning until the
+          // fill lands, then the area is re-read once and the new pins
+          // appear. A failed fill leaves the cached view standing.
+          try {
+            await filling;
+            if (ctrl.signal.aborted) return;
+            const second = await fetchOsmGymsInBboxCached(
+              box, { signal: ctrl.signal, limit: 1000 },
+            );
+            if (!ctrl.signal.aborted) setOsmGyms(second.gyms);
+          } catch (fillErr) {
+            if (fillErr?.name !== 'AbortError' && !ctrl.signal.aborted) {
+              setOsmError('Could not load gyms for this area');
+            }
           }
         }
       } catch (err) {

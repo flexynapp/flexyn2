@@ -62,6 +62,19 @@ async function readCache(box, limit) {
   };
 }
 
+/**
+ * Client-side ceiling on a fill.
+ *
+ * The edge function's own budget is 70s (a 60s Overpass timeout plus
+ * transfer), and waiting that long is never the right answer on a phone:
+ * a map pan that spins for over a minute reads as broken long before it
+ * reads as thorough. 25s covers every fill measured so far — a 30-mile
+ * cold box landed in 4.6-5.9s — and gives up on the ones that wouldn't
+ * have finished usefully anyway. The fill keeps running server-side, so
+ * the tile still lands and the NEXT look at that area is instant.
+ */
+const FILL_TIMEOUT_MS = 25_000;
+
 async function fill(box, signal) {
   const { error } = await supabase.functions.invoke(FILL_FUNCTION, {
     body: {
@@ -69,6 +82,7 @@ async function fill(box, signal) {
       minLng: box.west,  maxLng: box.east,
     },
     signal,
+    timeout: FILL_TIMEOUT_MS,
   });
   if (error) throw error;
 }
@@ -84,7 +98,16 @@ const MAX_FILL_SPAN_DEG = 2.0;
  * The cached-read core, in bbox terms. `fetchOsmGymsNearCached` is this
  * with a radius; GymMap uses it directly with the map's own bounds.
  */
-async function readBox(box, { signal, limit = 300, sort } = {}) {
+/**
+ * @param {boolean} [background] don't WAIT for a cold fill — return what
+ *   is cached now and hand back a `filling` promise the caller can await
+ *   before re-reading. The map wants this: panning into a new area must
+ *   not freeze on a fill, and holding the previous area's pins on screen
+ *   while a spinner runs is worse than showing an honestly empty map.
+ *   The picker wants the opposite; it is a one-shot list and an empty
+ *   answer there is a claim about the world.
+ */
+async function readBox(box, { signal, limit = 300, sort, background } = {}) {
   const clean = (gyms) => gyms.filter(
     g => Number.isFinite(g?.lat) && Number.isFinite(g?.lon),
   );
@@ -114,6 +137,10 @@ async function readBox(box, { signal, limit = 300, sort } = {}) {
   if (covered) {
     fill(box, signal).catch(() => {});
     return done(first.gyms);
+  }
+
+  if (background) {
+    return { ...done(first.gyms, true), filling: fill(box, signal) };
   }
 
   try {
