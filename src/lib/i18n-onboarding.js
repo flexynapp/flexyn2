@@ -244,15 +244,17 @@ export const onboardingI18n = {
     'onboarding.loading.task.6': 'Locking in week one',
 
     /* ── Reveal step ─────────────────────────────────────────────── */
-    'onboarding.reveal.ready': 'Plan ready · 100%',
+    // The summary is the hero here, not the greeting — it is the only line on
+    // the step built entirely from the user's own answers. Two "ready" badges
+    // used to sit above and beside it; both asserted a completeness nothing
+    // measured, and the plan being visible says it better than either did.
     'onboarding.reveal.welcome': 'Welcome in,',
     'onboarding.reveal.defaultName': 'lifter',
     'onboarding.reveal.summary': 'A {weeks}-week {goal}{extra} block, dialled in for a {level} lifter on {days} days.',
     'onboarding.reveal.summaryExtra': ' + {count} more',
     'onboarding.reveal.starterPlan': 'Your starter plan',
-    'onboarding.reveal.readyBadge': '● READY',
     'onboarding.reveal.planName': '{goal} starter',
-    'onboarding.reveal.planMeta': '{days} days/week · tap a section to explore · saved to Workout → Regimens',
+    'onboarding.reveal.planMeta': 'Saved to Workout → Regimens',
     'onboarding.reveal.cta': 'Enter Flexyn',
     'onboarding.reveal.saving': 'Saving…',
 

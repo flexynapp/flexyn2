@@ -2797,84 +2797,83 @@ function RevealStep({ data, onNext, saving = false, previewRegimen = null }) {
       <Confetti pieces={28} />
       <div className="flex-1 overflow-y-auto pb-4 pt-2 pe-2">
         <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05, duration: 0.4 }}
-          className="mb-5 flex items-center justify-between gap-3">
+          className="flex items-center justify-between gap-3"
+          style={{ marginBottom: 'var(--fluid-section)' }}>
           <FlexynLogo className="h-7" />
           {/* Reveal has no StepHeader, so the coach button is placed
               directly — "why this plan?" is the question people most
               want answered before they commit to it. */}
           <RevealCoachButton />
         </motion.div>
-        <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-          className="font-mono text-micro font-bold tracking-[0.18em] text-primary uppercase mb-4">
-          {tFallback('onboarding.reveal.ready', 'Plan ready · 100%')}
-        </motion.div>
 
-        <h1 className="font-heading font-bold text-[38px] leading-[1.0] tracking-tight text-foreground m-0 mb-4">
-          {tFallback('onboarding.reveal.welcome', 'Welcome in,').split(' ').map((w, i) => (
-            <motion.span key={`w-${i}`} initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 + i * 0.1, duration: 0.55, ease: [0.16,1,0.3,1] }}
-              className="inline-block me-3">{w}</motion.span>
-          ))}
-          <br />
-          <motion.span initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4, duration: 0.55, ease: [0.16,1,0.3,1] }} className="inline-block text-primary">
-            {data.username || tFallback('onboarding.reveal.defaultName', 'lifter')}.
-          </motion.span>
-        </h1>
+        {/* The greeting is ceremony — it says nothing the user didn't already
+            know. It used to be the 38px hero while the earned sentence sat
+            under it in the faintest type on the page. It is now one quiet
+            line introducing the thing that IS the payoff. */}
+        <motion.p initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15, duration: 0.4 }}
+          className="text-body font-medium text-muted-foreground truncate"
+          style={{ marginBottom: 'var(--fluid-stack)' }}>
+          {tFallback('onboarding.reveal.welcome', 'Welcome in,')}{' '}
+          {data.username || tFallback('onboarding.reveal.defaultName', 'lifter')}.
+        </motion.p>
 
-        <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.55 }}
-          className="text-sm text-muted-foreground leading-relaxed mb-6 max-w-xs">
+        {/* The one dominant element on the step. Every value in this sentence
+            came from something the user answered across eleven steps, so the
+            interpolated values carry the accent and the prose around them
+            stays foreground — the emphasis lands on what they chose. */}
+        <motion.h1 initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.25, duration: 0.55, ease: [0.16,1,0.3,1] }}
+          className="font-heading font-bold leading-[1.1] tracking-tight text-foreground m-0"
+          style={{ fontSize: 'var(--fluid-heading)', marginBottom: 'var(--fluid-section)' }}>
           {fillNodes(
             tFallback(
               'onboarding.reveal.summary',
               'A {weeks}-week {goal}{extra} block, dialled in for a {level} lifter on {days} days.',
             ),
             {
-              weeks: <strong className="text-foreground">{weeks}</strong>,
-              goal: tFallback(`onboarding.goal.${primaryGoal.id}.title`, primaryGoal.title).toLowerCase(),
+              weeks: <span className="text-primary">{weeks}</span>,
+              goal: <span className="text-primary">
+                {tFallback(`onboarding.goal.${primaryGoal.id}.title`, primaryGoal.title).toLowerCase()}
+              </span>,
               extra: extraGoalCount > 0
                 ? fillNodes(
                     tFallback('onboarding.reveal.summaryExtra', ' + {count} more'),
-                    { count: <strong className="text-foreground">{extraGoalCount}</strong> },
+                    { count: <span className="text-primary">{extraGoalCount}</span> },
                   )
                 : '',
-              level: <strong className="text-foreground">
+              level: <span className="text-primary">
                 {level ? tFallback(`onboarding.level.${level.id}.label`, level.label).toLowerCase() : ''}
-              </strong>,
-              days: <strong className="text-foreground">{daysCount}</strong>,
+              </span>,
+              days: <span className="text-primary">{daysCount}</span>,
             },
           )}
-        </motion.p>
+        </motion.h1>
 
         {/* Your starter plan — sectioned + explorable (Cardio / Strength) */}
         {previewExercises.length > 0 && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.7 }}
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }}
             className="space-y-2.5">
-            <div className="flex items-center justify-between">
-              <span className="font-mono text-micro font-semibold tracking-[0.12em] uppercase text-muted-foreground">
-                {tFallback('onboarding.reveal.starterPlan', 'Your starter plan')}
-              </span>
-              <span className="font-mono text-micro font-bold text-emerald-500">
-                {tFallback('onboarding.reveal.readyBadge', '● READY')}
-              </span>
-            </div>
+            <span className="block font-mono text-micro font-semibold tracking-[0.12em] uppercase text-muted-foreground">
+              {tFallback('onboarding.reveal.starterPlan', 'Your starter plan')}
+            </span>
             <div className="font-heading font-bold text-lg tracking-tight text-foreground leading-tight">
               {previewRegimen?.name || tFallback('onboarding.reveal.planName', '{goal} starter', {
                 goal: tFallback(`onboarding.goal.${primaryGoal.id}.title`, primaryGoal.title),
               })}
             </div>
+            {/* The only thing in the whole flow that tells someone where their
+                plan went. The day count that used to lead this line is already
+                in the heading, and "tap a section to explore" described a
+                chevron the user can see. */}
             <div className="text-caption text-muted-foreground -mt-0.5 mb-1">
-              {tFallback(
-                'onboarding.reveal.planMeta',
-                '{days} days/week · tap a section to explore · saved to Workout → Regimens',
-                { days: daysCount || '—' },
-              )}
+              {tFallback('onboarding.reveal.planMeta', 'Saved to Workout → Regimens')}
             </div>
             <StarterPlanView regimen={previewRegimen} />
           </motion.div>
         )}
       </div>
 
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.1 }}
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.85 }}
         className="pt-4 shrink-0">
         <PrimaryBtn onClick={onNext} disabled={saving}>
           {saving ? (
