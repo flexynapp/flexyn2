@@ -230,6 +230,7 @@ export const onboardingI18n = {
     // directly above this. See the note on myGym.pickEmptyHint.
     'onboarding.homeGym.emptyHint': 'Try Browse map above, or skip for now — you can pick your gym any time from Profile → My Gym.',
     'onboarding.homeGym.ctaPicked': 'Continue · {name}',
+    'onboarding.homeGym.browseMap': 'Browse map',
     'onboarding.homeGym.skip': "Skip — I'll pick later",
     'onboarding.homeGym.laterHint': 'You can set your gym any time from Profile → My Gym.',
 
@@ -251,7 +252,15 @@ export const onboardingI18n = {
     // "Welcome in, {name}." greeting that told the user their own name, a
     // "Your starter plan" eyebrow, and the regimen's title under it — the
     // last three all naming the plan the heading had just described.
-    'onboarding.reveal.summary': 'A {weeks}-week {goal}{extra} block, dialled in for a {level} lifter on {days} days.',
+    // Plural, so there is no article to get wrong. This read "for a {level}
+    // lifter", and two of the four levels start with a vowel — the payoff
+    // sentence on the final screen said "for a advanced lifter" and "for a
+    // returning lifter" is fine but "a advanced" is not. An English "a/an"
+    // rule would also be the wrong shape to hand a translator, since the
+    // article agrees with gender or case in most of the other 14 languages.
+    // Pluralising drops the article in every language at once. (Onboarding
+    // polish #2)
+    'onboarding.reveal.summary': 'A {weeks}-week {goal}{extra} block, dialled in for {level} lifters on {days} days.',
     'onboarding.reveal.summaryExtra': ' + {count} more',
     'onboarding.reveal.planMeta': 'Saved to Workout → Regimens',
     'onboarding.reveal.cta': 'Enter Flexyn',

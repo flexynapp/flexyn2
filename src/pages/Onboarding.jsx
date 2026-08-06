@@ -427,8 +427,15 @@ function StepHeader({ step, total, onBack }) {
           jump from, because the user has not seen the bar anywhere else
           yet. One silent change on entry beats a permanently lopsided row. */}
       {canBack && (
+        /* No backdrop-blur, and `rounded-lg` rather than `rounded-xl`.
+           CLAUDE.md bans glassmorphism outright and pins the radius set to
+           sm/lg/2xl/full — the carousel below already had its backdrop-filter
+           removed citing that same rule, and this button (which renders on
+           all ten form steps) was the last one left. Opaque `bg-card` also
+           drops a composited layer that existed to blur an Aurora the button
+           covers anyway. (Onboarding polish #7) */
         <button onClick={onBack} aria-label={tFallback('onboarding.common.back', 'Back')}
-          className="w-11 h-11 rounded-xl border border-border/70 bg-card/70 backdrop-blur-sm flex items-center justify-center text-foreground hover:bg-card active:bg-card transition-colors shrink-0">
+          className="w-11 h-11 rounded-lg border border-border/70 bg-card flex items-center justify-center text-foreground hover:bg-card active:bg-card transition-colors shrink-0">
           <Icon name="arrow-left" size={17} strokeWidth={2.5} />
         </button>
       )}
@@ -858,7 +865,13 @@ function GoalStep({ value, onChange, onNext, onBack, step, total }) {
           <div className="flex items-center justify-end" style={{ marginBottom: 'var(--fluid-stack)' }}>
             <motion.button initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}
               onClick={() => onChange([])}
-              className="font-mono text-micro font-bold text-muted-foreground tracking-widest uppercase px-2 py-1 rounded hover:text-foreground active:text-foreground transition-colors border-none bg-transparent cursor-pointer">
+              /* 21.8px tall, and it clears every pick on the step. Grown to a
+                 44px target with a pseudo-element rather than `min-h-11`,
+                 because this step has the least room in the flow — 23.6px of
+                 slack on a 667pt SE — and 22px of real height put it 6px into
+                 overflow. Same technique the carousel pips use above.
+                 (Onboarding polish #5) */
+              className="relative font-mono text-micro font-bold text-muted-foreground tracking-widest uppercase px-2 py-1 rounded hover:text-foreground active:text-foreground transition-colors border-none bg-transparent cursor-pointer before:absolute before:content-[''] before:-inset-y-[11px] before:-inset-x-2">
               {tFallback('onboarding.goal.clear', 'Clear')}
             </motion.button>
           </div>
@@ -950,8 +963,10 @@ const TIME_DISTANCE_FOR_EVENT = {
 
 function Chip({ children, active, accent = 'hsl(var(--primary))', onClick }) {
   return (
+    /* min-h-11. These measured 31.5px tall — twelve of them on one step, and
+       they are the only controls the sharpen step has. (Onboarding polish #5) */
     <button type="button" onClick={onClick}
-      className="rounded-full font-semibold transition-all cursor-pointer px-3.5 py-1.5 text-label"
+      className="rounded-full font-semibold transition-all cursor-pointer px-3.5 py-1.5 min-h-11 text-label"
       style={{
         border: `1.5px solid ${active ? accent : 'hsl(var(--border))'}`,
         background: 'hsl(var(--card))',
@@ -984,7 +999,9 @@ function TimeInput({ value, onChange, placeholder, max = 99 }) {
         const digits = e.target.value.replace(/[^0-9]/g, '').slice(0, 2);
         onChange(digits === '' ? '' : String(Math.min(max, parseInt(digits, 10))));
       }}
-      className="w-16 h-10 rounded-xl border border-border bg-card text-center text-body font-bold tabular-nums focus:outline-none focus:ring-2 focus:ring-primary/40" />
+      // h-11, not h-10: these measured 40px, and they are the only text entry
+      // on the step. (Onboarding polish #5)
+      className="w-16 h-11 rounded-lg border border-border bg-card text-center text-body font-bold tabular-nums focus:outline-none focus:ring-2 focus:ring-primary/40" />
   );
 }
 
@@ -1170,8 +1187,17 @@ function ExperienceStep({ value, onChange, onNext, onBack, step, total }) {
                 /* No coloured shadow and no gloss gradient on the tallest
                    bar — both are banned decoration (CLAUDE.md), and the bar
                    already carries its meaning in height and fill. */
+                /* `backgroundColor`, not `background`. The shorthand reads
+                   back from the DOM as the full computed value ("rgba(0,0,0,0)
+                   none repeat scroll 0% 0% / auto padding-box border-box"),
+                   which Framer cannot interpolate — so it logged four
+                   "not an animatable value" warnings on every level pick and
+                   snapped the bars to their colour instead of animating them.
+                   The height half of this animation worked the whole time,
+                   which is why the snap read as a rendering glitch rather
+                   than as a missing transition. (Onboarding polish #4) */
                 <motion.div key={b} className="flex-1 rounded-t-lg relative overflow-hidden"
-                  animate={{ height: heights[b - 1], background: active ? 'hsl(var(--primary))' : 'hsl(var(--secondary))' }}
+                  animate={{ height: heights[b - 1], backgroundColor: active ? 'hsl(var(--primary))' : 'hsl(var(--secondary))' }}
                   transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }} />
               );
             })}
@@ -1297,10 +1323,9 @@ function AssessmentStep({ value, onChange, onNext, onBack, onSkip, step, total }
   const { tFallback } = useLanguage();
   const answers = value || {};
   const setAnswer = (qid, aid) => onChange({ ...answers, [qid]: aid });
-  // Allow proceeding when all 4 are answered OR when the user
-  // explicitly chooses to skip. We don't BLOCK on incomplete; the
-  // bottom button text changes to "Skip rest" when fewer than 4 are
-  // answered so the user always knows they can move on.
+  // Never BLOCK on an incomplete answer set — the whole step is optional.
+  // The skip button below stays visible until all five are answered, so the
+  // user always has a way past without inventing answers.
   const answeredCount = ASSESSMENT_QUESTIONS.filter(q => !!answers[q.id]).length;
   const allAnswered = answeredCount === ASSESSMENT_QUESTIONS.length;
 
@@ -1368,7 +1393,9 @@ function AssessmentStep({ value, onChange, onNext, onBack, onSkip, step, total }
 
       <div className="shrink-0 flex flex-col gap-2" style={{ paddingTop: 'var(--fluid-cta-gap)' }}>
         <PrimaryBtn onClick={onNext}>
-          {/* Same reason as the schedule step: this is step 10 of 14. */}
+          {/* Same reason as the schedule step: this is form step 8 of 10,
+              with injuries, home gym, the build and the reveal still to
+              come — so the CTA says Continue, not something terminal. */}
           {tFallback('onboarding.common.continue', 'Continue')}
           <Icon name="arrow-right" size={18} strokeWidth={2.5} />
         </PrimaryBtn>
@@ -1658,7 +1685,13 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
                 onChange={handleAgeInput}
                 onKeyDown={(e) => { if (e.key === 'Enter') { e.currentTarget.blur(); } }}
                 aria-label={tFallback('onboarding.about.ageAria', 'Your age')}
-                style={{ width: 180, fontFamily: 'var(--font-heading, sans-serif)', fontWeight: 800, fontSize: 96, lineHeight: 0.9, letterSpacing: '-0.06em', textAlign: 'center', background: 'transparent', border: 'none', borderBottom: '3px solid hsl(var(--primary))', color: 'hsl(var(--foreground))', outline: 'none', padding: 0 }}
+                // `--fluid-hero`, the same size the number renders at when it
+                // is NOT being edited. It was a fixed 96px against a display
+                // value that clamps 48→84px, so tapping the number to type
+                // grew it by 80% on a 667pt SE (53.4px → 96px) and by 14% on a
+                // Pro Max — the control jumped the moment you touched it, by a
+                // different amount on every phone. (Onboarding polish #6)
+                style={{ width: 180, fontFamily: 'var(--font-heading, sans-serif)', fontWeight: 800, fontSize: 'var(--fluid-hero)', lineHeight: 0.9, letterSpacing: '-0.06em', textAlign: 'center', background: 'transparent', border: 'none', borderBottom: '3px solid hsl(var(--primary))', color: 'hsl(var(--foreground))', outline: 'none', padding: 0 }}
               />
             ) : (
               <button
@@ -2013,7 +2046,11 @@ function HeightStep({ stats, onChange, onNext, onBack, step, total }) {
                 aria-label={unit === 'cm'
                   ? tFallback('onboarding.height.ariaMetric', 'Your height in centimeters')
                   : tFallback('onboarding.height.ariaImperial', 'Your height in feet and inches')}
-                style={{ width: '100%', fontFamily: 'var(--font-heading, sans-serif)', fontWeight: 800, fontSize: 32, lineHeight: 1, textAlign: 'center', background: 'transparent', border: 'none', borderBottom: '2px solid hsl(var(--primary))', color: 'hsl(var(--foreground))', outline: 'none', padding: 0 }}
+                // `--fluid-hero`, matching the display value above it. This
+                // was a fixed 32px against a 48→84px display, so tapping to
+                // type SHRANK the number by 40%. Age had the same mismatch in
+                // the opposite direction. (Onboarding polish #6)
+                style={{ width: '100%', fontFamily: 'var(--font-heading, sans-serif)', fontWeight: 800, fontSize: 'var(--fluid-hero)', lineHeight: 1, textAlign: 'center', background: 'transparent', border: 'none', borderBottom: '2px solid hsl(var(--primary))', color: 'hsl(var(--foreground))', outline: 'none', padding: 0 }}
               />
             ) : (
               <button
@@ -2317,12 +2354,18 @@ function WeightStep({ stats, onChange, onNext, onBack, step, total }) {
                 aria-label={unit === 'kg'
                   ? tFallback('onboarding.weight.ariaKg', 'Weight in kilograms')
                   : tFallback('onboarding.weight.ariaLb', 'Weight in pounds')}
-                style={{ width: 130, fontFamily: 'var(--font-heading, sans-serif)', fontWeight: 800, fontSize: 48, lineHeight: 1, textAlign: 'center', background: 'transparent', border: 'none', borderBottom: '2px solid hsl(var(--primary))', color: 'hsl(var(--foreground))', outline: 'none' }}
+                style={{ width: 130, fontFamily: 'var(--font-heading, sans-serif)', fontWeight: 800, fontSize: 'var(--fluid-hero)', lineHeight: 1, textAlign: 'center', background: 'transparent', border: 'none', borderBottom: '2px solid hsl(var(--primary))', color: 'hsl(var(--foreground))', outline: 'none' }}
               />
             ) : (
               // Not a <button>: the gauge captures pointer events, so its own
               // tap-vs-drag handler opens type mode. Tapping here bubbles up.
-              <div style={{ fontFamily: 'var(--font-heading, sans-serif)', fontWeight: 800, fontSize: 64, lineHeight: 0.9, letterSpacing: '-0.05em', color: 'hsl(var(--foreground))', transform: isDragging ? 'scale(0.96)' : 'scale(1)', transition: 'transform 0.15s' }}>
+              // `--fluid-hero` — "the one big number on a step", per its
+              // definition in index.css. Age and height already read it;
+              // weight was a fixed 64px display against a fixed 48px editing
+              // input, so it was both inconsistent with its two neighbours
+              // AND resized on tap like they did. All three now hold still.
+              // (Onboarding polish #6)
+              <div style={{ fontFamily: 'var(--font-heading, sans-serif)', fontWeight: 800, fontSize: 'var(--fluid-hero)', lineHeight: 0.9, letterSpacing: '-0.05em', color: 'hsl(var(--foreground))', transform: isDragging ? 'scale(0.96)' : 'scale(1)', transition: 'transform 0.15s' }}>
                 <NumberReel value={value} />
               </div>
             )}
@@ -2514,8 +2557,8 @@ function DaysStep({ days, preferredTime, onDaysChange, onTimeChange, onNext, onB
       </div>
 
       <div className="shrink-0" style={{ paddingTop: 'var(--fluid-cta-gap)' }}>
-        {/* Was "Build my plan" — on step 09 of 14, with injuries, home gym
-            and the reveal still to come. A terminal-sounding CTA that isn't
+        {/* Was "Build my plan" — on form step 7 of 10, with injuries, home
+            gym and the reveal still to come. A terminal-sounding CTA that isn't
             terminal makes the three steps after it feel like a bait and
             switch. "Enter Flexyn" on the reveal step is the real finish. */}
         <PrimaryBtn onClick={onNext} disabled={count === 0}>
@@ -2607,7 +2650,14 @@ function InjuryHistoryStep({ step, total, value, onChange, onNext, onBack, onSki
                   <button
                     type="button"
                     onClick={() => remove(i)}
-                    className="text-muted-foreground hover:text-destructive active:text-destructive transition-colors p-1 leading-none text-lg"
+                    /* 26x23px, the only DESTRUCTIVE control in the flow and
+                       the smallest. Grown with a pseudo-element, not real
+                       height: five logged injuries are five of these, so
+                       `min-h-11` added ~105px and put the step 96px into
+                       overflow on a 667pt SE. The expansion stays inside the
+                       8px row gap, so neighbouring rows' targets meet but
+                       never overlap. (Onboarding polish #5) */
+                    className="relative text-muted-foreground hover:text-destructive active:text-destructive transition-colors p-1 leading-none text-lg before:absolute before:content-[''] before:-inset-y-[11px] before:-inset-x-3"
                     aria-label={tFallback('onboarding.injury.removeAria', 'Remove')}
                   >
                     ×
@@ -2698,6 +2748,14 @@ function InjuryHistoryStep({ step, total, value, onChange, onNext, onBack, onSki
         <button
           type="button"
           onClick={onSkip}
+          // Left at 36px deliberately. It is 327px wide and full-bleed, which
+          // is the easiest thing on the step to hit, and it clears the WCAG
+          // 2.5.8 minimum comfortably — while `min-h-11` here is 8px taken
+          // straight off the scroll box, which on a 667pt SE with five
+          // injuries logged is 8px more of the list pushed below the fold.
+          // The three targets that genuinely failed (Clear, Remove, the
+          // sharpen chips) were all under the 24px floor or unreachably
+          // narrow; this one is neither. (Onboarding polish #5)
           className="w-full py-2 text-sm text-muted-foreground hover:text-foreground active:text-foreground transition-colors"
         >
           {tFallback('onboarding.injury.skip', 'Skip — no injuries')}
@@ -2760,9 +2818,14 @@ function HomeGymStep({ step, total, value, onChange, onNext, onBack, onSkip }) {
         <button
           type="button"
           onClick={() => setBrowsing(true)}
-          className="w-full mb-3 py-2.5 rounded-xl text-sm font-bold border border-border bg-card text-primary hover:border-primary/40 active:border-primary/40 transition-all"
+          // min-h-11: this measured 42px, and it is the escape hatch for
+          // anyone the radius search can't serve. (Onboarding polish #5)
+          className="w-full min-h-11 mb-3 py-2.5 rounded-xl text-sm font-bold border border-border bg-card text-primary hover:border-primary/40 active:border-primary/40 transition-all"
         >
-          Browse map
+          {/* The one hardcoded user-facing string left in the flow — every
+              other one on this step goes through tFallback. (Onboarding
+              polish #3) */}
+          {tFallback('onboarding.homeGym.browseMap', 'Browse map')}
         </button>
 
         <NearbyGymPicker
@@ -2961,7 +3024,7 @@ function RevealStep({ data, onNext, saving = false, previewRegimen = null }) {
         </motion.div>
 
         {/* The one dominant element on the step. Every value in this sentence
-            came from something the user answered across eleven steps, so the
+            came from something the user answered across ten form steps, so the
             interpolated values carry the accent and the prose around them
             stays foreground — the emphasis lands on what they chose.
 
@@ -2976,7 +3039,10 @@ function RevealStep({ data, onNext, saving = false, previewRegimen = null }) {
           {fillNodes(
             tFallback(
               'onboarding.reveal.summary',
-              'A {weeks}-week {goal}{extra} block, dialled in for a {level} lifter on {days} days.',
+              // Plural — "for a {level} lifter" rendered "for a advanced
+              // lifter" on the payoff screen. See the key in
+              // i18n-onboarding.js. (Onboarding polish #2)
+              'A {weeks}-week {goal}{extra} block, dialled in for {level} lifters on {days} days.',
             ),
             {
               weeks: <span className="text-primary">{weeks}</span>,
@@ -3797,7 +3863,7 @@ export default function Onboarding() {
             authenticated app, but onboarding escapes Layout and never got
             them: 24px of bottom padding against a 34px home indicator put
             the Continue button partly under it on every notched iPhone, on
-            all eleven steps. The step's own spacing reads `--fluid-*`, which
+            every step in the flow. The step's own spacing reads `--fluid-*`, which
             is why the goal step now fits a 667pt SE as well as a 932pt Pro
             Max instead of overflowing the first by 131px. */}
         <div className="safe-page w-full max-w-[420px] h-full flex flex-col">
@@ -3897,7 +3963,18 @@ export default function Onboarding() {
                   step={formStep} total={TOTAL_FORM}
                   value={data.onboardingInjuries}
                   onChange={v => setData(d => ({ ...d, onboardingInjuries: v }))}
-                  onNext={next} onBack={back} onSkip={next}
+                  onNext={next} onBack={back}
+                  // Skip CLEARS, exactly like `assessment` above and
+                  // `home_gym` below. Wired to a bare `next` this button read
+                  // "Skip — no injuries" and kept every injury the user had
+                  // logged: they still landed in `injury_logs` at submit, and
+                  // still reached `ensureStarterRegimen`, so the plan excluded
+                  // muscle groups for injuries the user had just said they
+                  // didn't have. Reproduced end to end — logged Chest + Legs,
+                  // tapped Skip, both rows were inserted. Same defect audit 18
+                  // #4 found on the body-baseline step; this was the one
+                  // sibling that never got the fix. (Onboarding polish #1)
+                  onSkip={() => { setData(d => ({ ...d, onboardingInjuries: [] })); next(); }}
                 />
               )}
 
