@@ -22,17 +22,25 @@
 //   { gymId, name }        an existing gym_businesses row
 //   { osm, name }          an OSM feature to promote on save
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { getGymsInBbox } from '@/lib/data/gymBusinesses';
 import {
   fetchOsmGymsNear, distanceKm, bboxAround, DEFAULT_NEAR_RADIUS_KM,
 } from '@/lib/osmGyms';
 import { useDistanceUnit } from '@/lib/DistanceUnitContext';
 
-/** Widen steps, in km. 8 / 20 / 40 ≈ 5 / 12 / 25 miles. */
-const RADIUS_STEPS_KM = [DEFAULT_NEAR_RADIUS_KM, 20, 40];
-const MAX_RADIUS_KM = RADIUS_STEPS_KM[RADIUS_STEPS_KM.length - 1];
 const KM_PER_MILE = 1.609344;
+
+/**
+ * Widen steps, in km — 5 / 15 / 30 miles.
+ *
+ * The 30-mile ceiling is not arbitrary: outside a city, 5 miles can be
+ * genuinely empty. Sanford, Maine has five mapped gyms within 3 miles
+ * but the next cluster is 13 miles out, and a beta tester there was
+ * shown "no gyms found" with a button they had to notice and press.
+ */
+const RADIUS_STEPS_KM = [DEFAULT_NEAR_RADIUS_KM, 24, 48];
+const MAX_RADIUS_KM = RADIUS_STEPS_KM[RADIUS_STEPS_KM.length - 1];
 
 /**
  * @param {object|null} value      current pick — { gymId } or { osm }
@@ -70,6 +78,11 @@ export default function NearbyGymPicker({
   // latitude — 0.05° is 3.0 miles in Houston and 2.3 in Seattle — so a
   // gym three miles away was never fetched. See bboxAround().
   const [radiusKm, setRadiusKm] = useState(DEFAULT_NEAR_RADIUS_KM);
+  // `load` has empty deps and cannot read radiusKm. This is how a
+  // finishing request knows whether it is still the newest one — a
+  // manual widen mid-flight must not be overridden by the older load's
+  // auto-escalation.
+  const radiusRef = useRef(DEFAULT_NEAR_RADIUS_KM);
 
   // The app has a distance-unit preference of its own — synced to the
   // profile, settable in Settings, and already read by the cardio,
@@ -94,6 +107,7 @@ export default function NearbyGymPicker({
       setStatus('denied');
       return undefined;
     }
+    radiusRef.current = radius;
     setStatus('locating');
     setOsmFailed(false);
     const ac = new AbortController();
@@ -101,6 +115,7 @@ export default function NearbyGymPicker({
       async (pos) => {
         const lat = pos.coords.latitude;
         const lng = pos.coords.longitude;
+        let osmBroke = false;
         try {
           // Both sources in parallel, each catching its own failure, so
           // Overpass being down can never hide the Flexyn gyms — but the
@@ -116,7 +131,7 @@ export default function NearbyGymPicker({
             }).catch(() => []),
             fetchOsmGymsNear(lat, lng, { radiusKm: radius, signal: ac.signal })
               .catch((e) => {
-                if (e?.name !== 'AbortError') setOsmFailed(true);
+                if (e?.name !== 'AbortError') { osmBroke = true; setOsmFailed(true); }
                 return [];
               }),
           ]);
@@ -149,7 +164,29 @@ export default function NearbyGymPicker({
               distance: distanceKm(lat, lng, g.lat, g.lon),
             }));
 
-          setRows([...dbRows, ...osmRows].sort((a, b) => a.distance - b.distance));
+          const merged = [...dbRows, ...osmRows]
+            .sort((a, b) => a.distance - b.distance);
+
+          // Nothing within the default radius, and the lookup WORKED —
+          // so this is a real "there is nothing here", which outside a
+          // city is normal. Go straight out to the maximum rather than
+          // rendering an empty state and a button the user has to
+          // notice: the whole screen exists to hand them a list.
+          //
+          // Gated on `osmBroke` — widening a FAILED lookup just fails
+          // again, more slowly, and tells them "nothing within 30 miles"
+          // about a query that never ran. That claim has to be earned.
+          //
+          // Reads the ref, not `radius`: two loads can be in flight
+          // after a manual widen and only the newest may escalate.
+          if (merged.length === 0 && !osmBroke && radius < MAX_RADIUS_KM
+              && radiusRef.current === radius) {
+            setRadiusKm(MAX_RADIUS_KM);
+            load(MAX_RADIUS_KM);
+            return;
+          }
+
+          setRows(merged);
           setStatus('ready');
         } catch {
           setStatus('failed');

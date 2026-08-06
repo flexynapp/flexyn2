@@ -230,7 +230,7 @@ export async function fetchOsmGyms(bbox, { zoom = 13, signal } = {}) {
     selectors.map(sel => `nwr${sel}${box};`).join('') +
     `);out center ${cap};`;
 
-  const ctrls = [];
+  let ctrls = [];
   const tryMirror = async (mirror) => {
     const ctrl = new AbortController();
     ctrls.push(ctrl);
@@ -262,15 +262,42 @@ export async function fetchOsmGyms(bbox, { zoom = 13, signal } = {}) {
     }
   };
 
+  // Race all mirrors, and if the whole race loses, run it once more.
+  //
+  // A mirror answering 429 or 504 is the common failure and it is
+  // usually momentary — measured repeatedly against private.coffee while
+  // building this. One retry turns most of those into a result instead
+  // of "we couldn't search for gyms", which is a dead end on a screen
+  // whose whole job is to show you a list.
+  //
+  // NOT retried on a timeout. A timeout means the mirrors are grinding,
+  // and a second 30s race just doubles the wait before the same answer.
+  // Fast failures get a second chance; slow ones don't.
+  const raceMirrors = async () => {
+    ctrls = [];
+    try {
+      const result = await Promise.any(OVERPASS_MIRRORS.map(tryMirror));
+      for (const c of ctrls) {
+        try { c.abort('won'); } catch { /* ignore */ }
+      }
+      return result;
+    } catch (err) {
+      throw err?.errors ? pickError(err.errors) : err;
+    }
+  };
+
   let json;
   try {
-    json = await Promise.any(OVERPASS_MIRRORS.map(tryMirror));
-    for (const c of ctrls) {
-      try { c.abort('won'); } catch { /* ignore */ }
-    }
+    json = await raceMirrors();
   } catch (err) {
     if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
-    throw err?.errors ? pickError(err.errors) : err;
+    if (/timed out/i.test(err?.message || '')) throw err;
+    try {
+      json = await raceMirrors();
+    } catch (retryErr) {
+      if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+      throw retryErr;
+    }
   }
 
   // Dedupe by osmId — a gym tagged BOTH leisure=fitness_centre AND

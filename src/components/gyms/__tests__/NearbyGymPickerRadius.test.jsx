@@ -1,0 +1,103 @@
+// The auto-widen in NearbyGymPicker.
+//
+// Reported from Sanford, Maine: "timed out, no gyms found". Two separate
+// things were behind that phrasing and they need opposite handling.
+//
+// Outside a city the default radius can be genuinely empty, and the old
+// behaviour was to render "No gyms found nearby" plus a button the user
+// had to notice and press. That is a dead end on a screen whose only job
+// is to hand someone a list. An empty-but-successful lookup now goes
+// straight out to the 30-mile maximum on its own.
+//
+// A FAILED lookup must not do that. Widening a query that never ran
+// produces "nothing within 30 miles" — a claim about the world made on
+// no evidence — and takes twice as long to say it.
+
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, waitFor } from '@testing-library/react';
+
+const fetchOsmGymsNear = vi.fn();
+vi.mock('@/lib/osmGyms', async (importOriginal) => ({
+  ...(await importOriginal()),
+  fetchOsmGymsNear: (...args) => fetchOsmGymsNear(...args),
+}));
+
+vi.mock('@/lib/data/gymBusinesses', () => ({
+  getGymsInBbox: vi.fn(async () => []),
+}));
+
+const NearbyGymPicker = (await import('../NearbyGymPicker')).default;
+
+/** Geolocation always succeeds, at Sanford, Maine. */
+const SANFORD = { latitude: 43.4387179, longitude: -70.7746224 };
+
+const osmGym = (name, lat, lon) => ({
+  osmId: Math.abs(name.length * 7919), osmType: 'node', name, lat, lon,
+  brand: null, website: null,
+});
+
+/** Radii the picker asked for, in km, in order. */
+const radiiRequested = () => fetchOsmGymsNear.mock.calls.map(c => c[2].radiusKm);
+
+beforeEach(() => {
+  fetchOsmGymsNear.mockReset();
+  vi.stubGlobal('navigator', {
+    ...globalThis.navigator,
+    geolocation: {
+      getCurrentPosition: (ok) => ok({ coords: SANFORD }),
+    },
+  });
+});
+
+afterEach(() => { vi.unstubAllGlobals(); });
+
+describe('an empty result widens itself', () => {
+  it('escalates to 30 miles and shows what it finds there', async () => {
+    fetchOsmGymsNear
+      .mockResolvedValueOnce([])                                   // 5 mi: nothing
+      .mockResolvedValueOnce([osmGym('Planet Fitness', 43.6, -70.8)]); // 30 mi
+
+    render(<NearbyGymPicker value={null} onChange={() => {}} />);
+
+    await waitFor(() => expect(screen.getByText('Planet Fitness')).toBeTruthy());
+    // 8 km ≈ 5 miles, then straight to 48 km ≈ 30. No intermediate step:
+    // one extra round trip is the whole budget for this.
+    expect(radiiRequested()).toEqual([8, 48]);
+    // And the user is never shown the dead end on the way.
+    expect(screen.queryByText(/No gyms found nearby/i)).toBeNull();
+  });
+
+  it('does not widen when the first radius already had something', async () => {
+    fetchOsmGymsNear.mockResolvedValueOnce([osmGym('CrossFit 207', 43.45, -70.78)]);
+
+    render(<NearbyGymPicker value={null} onChange={() => {}} />);
+
+    await waitFor(() => expect(screen.getByText('CrossFit 207')).toBeTruthy());
+    expect(radiiRequested()).toEqual([8]);
+  });
+
+  it('stops at the maximum rather than escalating forever', async () => {
+    fetchOsmGymsNear.mockResolvedValue([]);
+
+    render(<NearbyGymPicker value={null} onChange={() => {}} />);
+
+    await waitFor(() => expect(screen.getByText(/No gyms found nearby/i)).toBeTruthy());
+    expect(radiiRequested()).toEqual([8, 48]);
+    // Now the empty state is honest: 30 miles really were searched.
+    expect(screen.getByText(/within 30 mi of you/i)).toBeTruthy();
+  });
+});
+
+describe('a failed lookup does not widen', () => {
+  it('reports the failure instead of claiming nothing is within 30 miles', async () => {
+    fetchOsmGymsNear.mockRejectedValue(new Error('OSM timed out after 30s'));
+
+    render(<NearbyGymPicker value={null} onChange={() => {}} />);
+
+    await waitFor(() => expect(screen.getByText(/Couldn't search for gyms/i)).toBeTruthy());
+    // One attempt. Widening a query that never ran would take twice as
+    // long to produce a claim it hasn't earned.
+    expect(radiiRequested()).toEqual([8]);
+    expect(screen.queryByText(/within 30 mi/i)).toBeNull();
+  });
+});

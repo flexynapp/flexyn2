@@ -21,6 +21,9 @@ afterEach(() => { globalThis.fetch = realFetch; });
  *  thing under test rather than about what counts as a gym. */
 const GYM = { leisure: 'fitness_centre' };
 
+/** One fetch per mirror per race — see OVERPASS_MIRRORS in the module. */
+const OVERPASS_MIRROR_COUNT = 3;
+
 describe('fetchOsmGyms', () => {
   it('carries osmType through for every element', async () => {
     stageOverpass([
@@ -85,6 +88,51 @@ describe('fetchOsmGyms', () => {
     // — that is the surface the recall was widened for.
     await fetchOsmGymsNear(40, -74);
     expect(decodeURIComponent(globalThis.fetch.mock.calls.at(-1)[0])).toContain(SWEEP);
+  });
+
+  it('re-races the mirrors once when the whole race fails fast', async () => {
+    // 429 and 504 are the common Overpass failures and they are usually
+    // momentary. Without a retry the picker renders "we couldn't search
+    // for gyms" — a dead end on a screen whose only job is to show a
+    // list — for something a second attempt would have answered.
+    let round = 0;
+    globalThis.fetch = vi.fn(async () => {
+      // Three mirrors per race, so the first three calls are round one.
+      if (round++ < OVERPASS_MIRROR_COUNT) throw new Error('OSM 504');
+      return { ok: true, json: async () => ({ elements: [
+        { type: 'node', id: 1, lat: 40, lon: -74, tags: { ...GYM, name: 'Second try' } },
+      ] }) };
+    });
+
+    const rows = await fetchOsmGyms({ south: 39, west: -76, north: 42, east: -73 });
+    expect(rows.map(r => r.name)).toEqual(['Second try']);
+  });
+
+  it('gives up after the second race rather than looping', async () => {
+    globalThis.fetch = vi.fn(async () => { throw new Error('OSM 504'); });
+
+    await expect(
+      fetchOsmGyms({ south: 39, west: -76, north: 42, east: -73 }),
+    ).rejects.toThrow('504');
+    // Two races, three mirrors each. A third would be a retry loop
+    // against a service that blocks abusers.
+    expect(globalThis.fetch).toHaveBeenCalledTimes(OVERPASS_MIRROR_COUNT * 2);
+  });
+
+  it('does NOT retry a timeout', async () => {
+    // A timeout means the mirrors are grinding. A second 30s race just
+    // doubles the wait before the same answer.
+    vi.useFakeTimers();
+    globalThis.fetch = vi.fn((_url, { signal }) => new Promise((_res, rej) => {
+      signal.addEventListener('abort', () => rej(signal.reason));
+    }));
+
+    const promise = fetchOsmGyms({ south: 39, west: -76, north: 42, east: -73 });
+    const assertion = expect(promise).rejects.toThrow(/timed out/i);
+    await vi.advanceTimersByTimeAsync(31_000);
+    await assertion;
+    expect(globalThis.fetch).toHaveBeenCalledTimes(OVERPASS_MIRROR_COUNT);
+    vi.useRealTimers();
   });
 
   it('reports a timeout as a timeout', async () => {
