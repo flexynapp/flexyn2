@@ -1193,8 +1193,17 @@ function ExperienceStep({ value, onChange, onNext, onBack, step, total }) {
           className="rounded-2xl border bg-card px-5 relative overflow-hidden"
           style={{ paddingBlock: 'var(--fluid-section)', marginBottom: 'var(--fluid-section)' }}>
           {/* bars */}
+          {/* `--fluid-section`, not `--fluid-stack`. The chart and the
+              sentence explain each other, so the tight register looked
+              right on paper — but a 60px graphic sitting 6.7px above a
+              single line of prose reads as one blob, and it left the gap
+              above the text visibly smaller than the card's own bottom
+              padding, which looks like a mistake rather than a choice.
+              It was tightened while this step was still 36px over; with
+              the duplicated heading gone there is 43px spare and no
+              reason to keep paying for it. */}
           <div className="flex items-end gap-2"
-            style={{ height: 'var(--fluid-meter)', marginBottom: 'var(--fluid-stack)' }}>
+            style={{ height: 'var(--fluid-meter)', marginBottom: 'var(--fluid-section)' }}>
             {[1, 2, 3, 4].map(b => {
               const active = current ? b <= current.bars : false;
               const heights = ['25%', '45%', '70%', '100%'];
@@ -1217,27 +1226,35 @@ function ExperienceStep({ value, onChange, onNext, onBack, step, total }) {
               );
             })}
           </div>
-          {/* Same `initial={false}` for the same reason, and it is the half
-              that actually carries the text. Without it the label and
-              description still faded in on their own after the card was
-              already there — the card would open and THEN fill.
+          {/* The level's NAME used to head this card, at `text-2xl`, and it
+              was the whole problem in one line. It repeated the option card
+              sitting 8px below — which the user had just tapped, and which
+              carries the name, an accent border and a check — so the card's
+              loudest element was the one piece of information on it the user
+              could not possibly need. `text-2xl` is also not one of the six
+              named type steps, and at 24px it matched `--fluid-heading`'s
+              floor: a confirmation chip rendering at page-heading size,
+              directly under the actual page heading.
 
-              `mode="wait"` stays: both copies sit in normal flow, so letting
-              them overlap would make the card briefly twice as tall. It only
-              costs a beat when swapping levels, and the transition is pinned
-              short so that beat stays under the 0.35s the card takes. */}
+              Removing it fixes the hierarchy by subtraction rather than by
+              shrinking a duplicate, and leaves the card saying the only
+              thing it ever knew that nothing else did — what this level
+              means for the program. That sentence gets the card's voice now
+              (`text-body`, foreground) instead of being the muted footnote
+              under a headline that was telling the user their own answer.
+              Same reduction this file has already made to the reveal step's
+              plan title and the three-way progress indicator.
+
+              `initial={false}` and `mode="wait"` both stay, for the reasons
+              they were added: the copy must arrive WITH the card rather than
+              a beat later, and two descriptions overlapping in normal flow
+              would make the card briefly twice as tall. (Onboarding polish #9) */}
           <AnimatePresence mode="wait" initial={false}>
-            <motion.div key={current?.id || 'none'} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
-              transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}>
-              <div className="font-heading font-bold text-2xl tracking-tight text-foreground">
-                {current && tFallback(`onboarding.level.${current.id}.label`, current.label)}
-              </div>
-              {current && (
-                <div className="text-sm text-muted-foreground mt-1">
-                  {tFallback(`onboarding.level.${current.id}.desc`, current.desc)}
-                </div>
-              )}
-            </motion.div>
+            <motion.p key={current?.id || 'none'} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
+              className="text-body text-foreground m-0">
+              {current && tFallback(`onboarding.level.${current.id}.desc`, current.desc)}
+            </motion.p>
           </AnimatePresence>
         </motion.div>
         )}

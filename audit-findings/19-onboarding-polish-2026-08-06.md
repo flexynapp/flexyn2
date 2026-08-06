@@ -12,7 +12,7 @@ same commit as this report.
 
 ## Summary
 
-**11 findings: 2 high · 6 medium · 3 low. Ten fixed, one reported.**
+**12 findings: 2 high · 7 medium · 3 low. Eleven fixed, one reported.**
 Seven more candidates were killed before they reached this table — see
 *Killed* below, which is the more useful half of the pass.
 
@@ -68,11 +68,12 @@ Verified: `live` reproduced in the browser · `sql` proven against the database 
 | 4 | medium | Onboarding.jsx:1174 | Every user, every time they pick an experience level | The meter's four bars animate `background` — the *shorthand*, which reads back from the DOM as `"rgba(0, 0, 0, 0) none repeat scroll 0% 0% / auto padding-box border-box"` and Framer cannot interpolate. So the bars **snap** to their colour instead of animating, and each pick logs **4** `not an animatable value` warnings. The `height` half of the same animation worked throughout, which is why the snap read as a rendering glitch rather than a missing transition | `backgroundColor` | **live** |
 | 5 | medium | Onboarding.jsx:861, 954, 987, 2570 | Anyone with average-sized thumbs | Four controls under the WCAG 2.5.8 24px floor or well under Apple's 44px: goal's **Clear** at 21.8px, the twelve sharpen **chips** at 31.5px, sharpen's **TimeInput** at 40px, and injury's **Remove ×** at 26×23 — the only destructive control in the flow and the smallest thing in it | Chips and inputs grew for real; Clear and Remove grew via `::before`, because real height put those two steps into overflow (see *Fix log*) | **live** |
 | 6 | medium | Onboarding.jsx:1661, 2016, 2325 | Anyone who taps the big number to type instead of dragging | The hero number **resizes the moment you touch it**, by a different amount on each of the three steps and each phone. Measured at 375×667: age **53.4px → 96px** (grows 80%), height **53.4px → 32px** (shrinks 40%), weight **64px → 48px**. Weight's display was also the only one of the three not on the fluid scale, so on an SE it rendered *larger* than age's | All six sizes read `--fluid-hero` — "the one big number on a step", per its own definition in index.css | **live** |
-| 7 | medium | Onboarding.jsx:1163-1177 | SE-sized phone, user picks an experience level | Opening the meter pushed the step **36px past the fold** on a 375×667 (box 514px, content 550px), so the fourth option card was half-hidden right after the user had been asked to choose among four. The card carried **four fixed pixel values** on the one step in the flow that overflowed: 40px of vertical padding, an 80px bar chart, and two `mb-4`s that are both in the 12–20px spacing register CLAUDE.md bans outright | All four now read the fluid scale, via a new `--fluid-meter: clamp(56px, 9vh, 80px)` in index.css alongside the existing single-purpose `--fluid-panel` / `--fluid-scrubber`. **SE: 36px over → 8.9px slack.** i15 +6px, Pro Max −3.1px of its 169 | **live** |
-| 8 | low | Onboarding.jsx:431 | Every form step | The back button carried `backdrop-blur-sm` and `rounded-xl`. CLAUDE.md bans glassmorphism outright and pins the radius set to `sm/lg/2xl/full`; the carousel 250 lines below had its `backdrop-filter` removed citing that exact rule. This was the last one left, and it renders on all ten form steps | `bg-card` opaque, `rounded-lg` | **code** |
-| 9 | low | Onboarding.jsx:1371, 2480, 2973, 3812 + 1300 | — | Comment drift from the 14-step era: "step 10 of 14", "step 09 of 14", "eleven steps", "all eleven steps", and an assessment comment describing 4 questions when there are 5. In a codebase whose reasoning lives in comments, drift is the thing that makes the next reader distrust all of them | Corrected to the real counts | **code** |
-| 10 | low | Onboarding.jsx:3287, App.jsx:266-274 | — | `hasFullProfile` reads `user?.training_days_per_week`. **That column does not exist** on `user_profiles` — confirmed against the live schema. The term is permanently `undefined`, so it contributes nothing to an OR that reads like a safety net. Harmless today because five sibling terms are real | Report only — the fix belongs with App.jsx, which is outside this pass | **sql** |
-| 11 | low | Onboarding.jsx — whole file | A user with the OS "Reduce Motion" toggle on | The flow has **no** `prefers-reduced-motion` handling anywhere, while eight other components in the app do. It is the most animation-dense surface in the product: thirteen keyed step transitions, word-by-word heading reveals, a 4.9s loading theatre and confetti | Report only — needs a decision on what the reduced-motion flow should *be*, not a blanket disable | **code** |
+| 7 | low | Onboarding.jsx:431 | Every form step | The back button carried `backdrop-blur-sm` and `rounded-xl`. CLAUDE.md bans glassmorphism outright and pins the radius set to `sm/lg/2xl/full`; the carousel 250 lines below had its `backdrop-filter` removed citing that exact rule. This was the last one left, and it renders on all ten form steps | `bg-card` opaque, `rounded-lg` | **code** |
+| 8 | medium | Onboarding.jsx:1163-1177 | SE-sized phone, user picks an experience level | Opening the meter pushed the step **36px past the fold** on a 375×667 (box 514px, content 550px), so the fourth option card was half-hidden right after the user had been asked to choose among four. The card carried **four fixed pixel values** on the one step in the flow that overflowed: 40px of vertical padding, an 80px bar chart, and two `mb-4`s that are both in the 12–20px spacing register CLAUDE.md bans outright | All four now read the fluid scale, via a new `--fluid-meter: clamp(56px, 9vh, 80px)` in index.css alongside the existing single-purpose `--fluid-panel` / `--fluid-scrubber`. Then the duplicated heading came out (#9). **SE: 36px over → 33.8px slack.** i15 104.3 → 126.1, Pro Max 169.2 → 186.0 | **live** |
+| 9 | medium | Onboarding.jsx:1232 | Every user, the moment they pick a level | The meter card was headed by the level's **name** at `text-2xl` — repeating the option card 8px below it, which the user had just tapped and which already carries that name, an accent border and a check. The card's loudest element was the one thing on it the user could not need. `text-2xl` is also not one of the six named type steps, and at 24px it matched `--fluid-heading`'s floor: a confirmation chip rendering at page-heading size, directly under the actual page heading | Removed rather than shrunk — fixing the hierarchy by subtraction. The card keeps the only thing it ever knew that nothing else did (what the level means for the program) and that sentence takes the card's voice at `text-body`. Recovered another 25px on an SE | **live** |
+| 10 | low | Onboarding.jsx:1371, 2480, 2973, 3812 + 1300 | — | Comment drift from the 14-step era: "step 10 of 14", "step 09 of 14", "eleven steps", "all eleven steps", and an assessment comment describing 4 questions when there are 5. In a codebase whose reasoning lives in comments, drift is the thing that makes the next reader distrust all of them | Corrected to the real counts | **code** |
+| 11 | low | Onboarding.jsx:3287, App.jsx:266-274 | — | `hasFullProfile` reads `user?.training_days_per_week`. **That column does not exist** on `user_profiles` — confirmed against the live schema. The term is permanently `undefined`, so it contributes nothing to an OR that reads like a safety net. Harmless today because five sibling terms are real | Report only — the fix belongs with App.jsx, which is outside this pass | **sql** |
+| 12 | low | Onboarding.jsx — whole file | A user with the OS "Reduce Motion" toggle on | The flow has **no** `prefers-reduced-motion` handling anywhere, while eight other components in the app do. It is the most animation-dense surface in the product: thirteen keyed step transitions, word-by-word heading reveals, a 4.9s loading theatre and confetti | Report only — needs a decision on what the reduced-motion flow should *be*, not a blanket disable | **code** |
 
 ---
 
@@ -106,7 +107,7 @@ Post-fix numbers.
 | welcome | fits (CTA 89.7px clear) | fits (92.5) | fits (94.2) |
 | goal | **+23.6 slack** | +112.3 | +197.5 |
 | sharpen | +38.7 | +188.0 | +270.6 |
-| experience | **+8.9** (was −36, #7) | +104.3 | +166.1 |
+| experience | **+33.8** (was −36, #7 + #9) | +126.1 | +186.0 |
 | age | **+17.8 slack** | +137.3 | +198.4 |
 | height | +51.5 | +117.7 | +150.3 |
 | weight | +98.7 | +226.5 | +329.5 |
@@ -194,17 +195,13 @@ Product calls, not mine:
    step transitions wholesale would leave the flow feeling broken; the honest
    version probably keeps the crossfade and drops the word-by-word reveals,
    the confetti and the loading pulse.
-4. **The experience step fits, but with 8.9px to spare** — thinner than
-   `goal` (23.6) or `age` (17.8), the next two tightest. Today's copy is
-   English on every locale, so it is stable; when `i18n-onboarding.js` gets
-   its native-speaker pass, a German level description wrapping to a third
-   line is ~20px and puts the step back over on an SE. Two levers exist and
-   both are design calls, not padding tweaks: the meter's level label renders
-   at `text-2xl` — the same size as the page heading, which is a hierarchy
-   inversion worth fixing on its own merits and worth ~5px; and the label and
-   description duplicate what the selected option card directly below already
-   says, which is the exact redundancy this file has removed three times
-   elsewhere.
+4. **Should the meter be a card at all?** With the duplicated heading gone
+   it holds a bar chart and one sentence. CLAUDE.md reserves cards for
+   discrete, user-arranged objects and says read-only data that is not a
+   widget gets a hairline instead. A hairline-separated meter would drop the
+   border and 32px of padding — but the card is also what makes the
+   confirmation feel like a response to the tap, so this is a judgement about
+   the moment, not about the pixels.
 5. **Should `home_gym` be in onboarding at all?** It is the newest and
    least-proven step, it is the only one that can write before final save
    (via `GymJoinSheet`), and it is optional. It also has the most slack of
