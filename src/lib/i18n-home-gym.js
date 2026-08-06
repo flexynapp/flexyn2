@@ -50,8 +50,13 @@ export default {
     'myGym.pickTitle': 'Which gym do you train at?',
     'myGym.pickBody':
       "Pick it below and you'll get a leaderboard with everyone else who trains there — plus a bubble on the Flexyn map. You can change it any time.",
+    // No radius claim here on purpose — the picker states the distance it
+    // actually searched directly above this line. This one had said "within
+    // a few kilometres", which stopped being true when the search started
+    // reaching 30 miles, and it was OVERRIDING the real figure rather than
+    // sitting under it.
     'myGym.pickEmptyHint':
-      'Nothing is mapped within a few kilometres of you. Try the map instead — you can search anywhere in the country.',
+      "Add it yourself below, or use the map — you can search anywhere in the country.",
 
     'myGym.goneTitle': 'That gym is no longer listed',
     'myGym.goneBody':

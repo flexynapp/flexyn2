@@ -84,7 +84,30 @@ describe('an empty result widens itself', () => {
     await waitFor(() => expect(screen.getByText(/No gyms found nearby/i)).toBeTruthy());
     expect(radiiRequested()).toEqual([8, 48]);
     // Now the empty state is honest: 30 miles really were searched.
-    expect(screen.getByText(/within 30 mi of you/i)).toBeTruthy();
+    expect(screen.getByText(/within/i).textContent).toMatch(/30 mi/);
+  });
+
+  it('states the radius even when the host passes its own hint', async () => {
+    // This is the shape the bug had: the radius line was
+    // `emptyHint || <radius>`, and BOTH hosts pass an emptyHint — so the
+    // sentence that makes "no gyms found" checkable had never once
+    // rendered in the app, only in a test that passed no hint. It also
+    // cost a diagnosis: with the screen reading the same before and
+    // after the fix, nobody could tell which build a phone was running.
+    fetchOsmGymsNear.mockResolvedValue([]);
+
+    render(
+      <NearbyGymPicker
+        value={null}
+        onChange={() => {}}
+        emptyHint="Skip for now — you can pick your gym from the map later."
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByText(/No gyms found nearby/i)).toBeTruthy());
+    // The fact AND the advice, not one instead of the other.
+    expect(screen.getByText(/Nothing is mapped within/i).textContent).toMatch(/30 mi/);
+    expect(screen.getByText(/Skip for now/i)).toBeTruthy();
   });
 });
 

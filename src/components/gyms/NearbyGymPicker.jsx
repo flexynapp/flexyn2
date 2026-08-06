@@ -397,14 +397,33 @@ export default function NearbyGymPicker({
         <p className="text-sm font-semibold mb-1">
           {lookupBroke ? "Couldn't search for gyms" : 'No gyms found nearby'}
         </p>
-        <p className="text-xs text-muted-foreground mb-3">
-          {lookupBroke
-            ? "The gym directory (OpenStreetMap) didn't respond, so we couldn't check what's around you. It's usually brief — try again."
-            /* State the radius. "No gyms found nearby" is a claim the
-               user can't check against anything, and when the real reach
-               was under three miles it was one they'd have disputed. */
-            : (emptyHint || `Nothing is mapped within ${fmtRadius(radiusKm)} of you.`)}
-        </p>
+        {lookupBroke ? (
+          <p className="text-xs text-muted-foreground mb-3">
+            The gym directory (OpenStreetMap) didn&apos;t respond, so we couldn&apos;t
+            check what&apos;s around you. It&apos;s usually brief — try again.
+          </p>
+        ) : (
+          <>
+            {/* The radius is a FACT about what just happened and it always
+                renders. It used to be `emptyHint || <radius line>`, and
+                both hosts pass an emptyHint — so the radius sentence I
+                added to make this claim checkable had never once appeared
+                in the app. It only showed up in a test, which passes no
+                hint. A fallback that every real caller overrides isn't a
+                fallback, it's dead code.
+                It costs a diagnosis, too: with the screen saying the same
+                thing before and after a fix, neither we nor the user can
+                tell which build a phone is running. */}
+            <p className="text-xs text-muted-foreground mb-1">
+              Nothing is mapped within <span className="font-semibold">{fmtRadius(radiusKm)}</span> of you.
+            </p>
+            {/* The host's line is ADVICE — "skip for now", "try the map" —
+                which complements the fact rather than replacing it. */}
+            {emptyHint && (
+              <p className="text-xs text-muted-foreground mb-3">{emptyHint}</p>
+            )}
+          </>
+        )}
         <div className="flex gap-2">
           <button
             type="button"
