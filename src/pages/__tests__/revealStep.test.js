@@ -84,15 +84,22 @@ describe('reveal step', () => {
     expect(step.indexOf('<motion.h1')).toBeGreaterThan(step.indexOf('<RevealCoachButton'));
   });
 
-  it('has no "YOUR STARTER PLAN" eyebrow over the plan name', () => {
-    // The plan's own name sits one line below it, larger, and reads "Your
-    // Starter Plan — Build Strength". A label directly above the thing it
-    // labels, in the same words, is not a label.
+  it('puts no title over the plan sections', () => {
+    // Three lines used to stack above the sections: a "YOUR STARTER PLAN"
+    // eyebrow, the regimen's own name ("Your Starter Plan — Build Strength"),
+    // and the meta line. The first two named the plan the heading directly
+    // above them had just described, in the user's own numbers. Only the
+    // line saying where it was saved survives.
     const step = revealStep();
     expect(step).not.toContain('reveal.starterPlan');
+    expect(step).not.toContain('reveal.planName');
+    expect(step).not.toContain('previewRegimen?.name');
     expect(I18N).not.toContain("'onboarding.reveal.starterPlan'");
-    // planName is still the fallback for a regimen that arrives unnamed.
-    expect(step).toContain('onboarding.reveal.planName');
+    expect(I18N).not.toContain("'onboarding.reveal.planName'");
+    // planMeta is the block's only line of copy, and it sits directly on the
+    // sections rather than under a title.
+    const block = step.slice(step.indexOf('previewExercises.length > 0'));
+    expect(block.indexOf('reveal.planMeta')).toBeLessThan(block.indexOf('<StarterPlanView'));
   });
 
   it('interpolates the summary rather than hardcoding the numbers', () => {

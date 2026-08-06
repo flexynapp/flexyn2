@@ -2843,24 +2843,22 @@ function RevealStep({ data, onNext, saving = false, previewRegimen = null }) {
           )}
         </motion.h1>
 
-        {/* Your starter plan — sectioned + explorable (Cardio / Strength) */}
+        {/* Your starter plan — sectioned + explorable (Cardio / Strength).
+
+            Nothing titles this block. It carried three lines of heading over
+            the sections at one point — a "YOUR STARTER PLAN" eyebrow, the
+            regimen's own name ("Your Starter Plan — Build Strength"), and a
+            meta line — and all three said what the heading above already says
+            and what the sections themselves show. The one survivor is the
+            line telling the user where the plan was saved. */}
         {previewExercises.length > 0 && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
             className="space-y-2.5">
-            {/* No "YOUR STARTER PLAN" eyebrow above this — the plan's own name
-                sits one line below it, larger, and reads "Your Starter Plan —
-                Build Strength". A label directly above the thing it labels,
-                saying the same words, is the eyebrow doing nothing. */}
-            <div className="font-heading font-bold text-lg tracking-tight text-foreground leading-tight">
-              {previewRegimen?.name || tFallback('onboarding.reveal.planName', '{goal} starter', {
-                goal: tFallback(`onboarding.goal.${primaryGoal.id}.title`, primaryGoal.title),
-              })}
-            </div>
             {/* The only thing in the whole flow that tells someone where their
                 plan went. The day count that used to lead this line is already
                 in the heading, and "tap a section to explore" described a
                 chevron the user can see. */}
-            <div className="text-caption text-muted-foreground -mt-0.5 mb-1">
+            <div className="text-caption text-muted-foreground">
               {tFallback('onboarding.reveal.planMeta', 'Saved to Workout → Regimens')}
             </div>
             <StarterPlanView regimen={previewRegimen} />

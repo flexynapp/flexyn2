@@ -247,14 +247,14 @@ export const onboardingI18n = {
 
     /* ── Reveal step ─────────────────────────────────────────────── */
     // The summary IS the step — it is the only line built entirely from the
-    // user's own answers, so it opens the page with nothing above it. Four
-    // strings that used to sit around it are gone: two "ready" badges that
-    // asserted a completeness nothing measured, a "Welcome in, {name}."
-    // greeting that told the user their own name, and a "Your starter plan"
-    // eyebrow directly above the plan's own, larger name.
+    // user's own answers, so it opens the page with nothing above it and
+    // nothing restating it below. Five strings that used to crowd it are
+    // gone: two "ready" badges asserting a completeness nothing measured, a
+    // "Welcome in, {name}." greeting that told the user their own name, a
+    // "Your starter plan" eyebrow, and the regimen's title under it — the
+    // last three all naming the plan the heading had just described.
     'onboarding.reveal.summary': 'A {weeks}-week {goal}{extra} block, dialled in for a {level} lifter on {days} days.',
     'onboarding.reveal.summaryExtra': ' + {count} more',
-    'onboarding.reveal.planName': '{goal} starter',
     'onboarding.reveal.planMeta': 'Saved to Workout → Regimens',
     'onboarding.reveal.cta': 'Enter Flexyn',
     'onboarding.reveal.saving': 'Saving…',
