@@ -15,7 +15,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { getGymsInBbox, listMyGyms } from '@/lib/data/gymBusinesses';
-import { fetchOsmGyms, OSM_ZOOM_MIN } from '@/lib/osmGyms';
+import { fetchOsmGyms, OSM_ZOOM_MIN, bboxAround } from '@/lib/osmGyms';
 // Extracted so it is testable without dragging maplibre-gl into jsdom;
 // the head comment there records why the search was covering one layer.
 import {
@@ -39,6 +39,29 @@ const MAPTILER_KEY = import.meta.env?.VITE_MAPTILER_KEY || '';
 const STYLE_URL    = MAPTILER_KEY
   ? `https://api.maptiler.com/maps/streets-v2/style.json?key=${MAPTILER_KEY}`
   : 'https://tiles.openfreemap.org/styles/liberty';
+
+// One axis, three colours: how this gym relates to YOU.
+//
+//   orange — yours
+//   blue   — someone else trains here, you don't
+//   grey   — nobody has joined it yet
+//
+// That replaces a scheme built on a different axis (who owns the record:
+// purple verified business, grey community, grey unclaimed OSM), which
+// answered a question no one standing in front of the map was asking.
+// Ownership still exists in the data and still shows on the gym card;
+// it just stopped being what the pin is for.
+//
+// The ★ is gone with it. It marked the home gym because colour alone
+// couldn't — grey meant two things, and "which pin is mine?" was
+// answered wrong by eye three separate times. Orange now means exactly
+// one thing, so the badge is redundant decoration on top of a signal
+// that already works.
+function pinGradient({ isMine, memberCount }) {
+  if (isMine) return 'linear-gradient(135deg,#fb923c,#ea580c)';
+  if ((memberCount ?? 0) > 0) return 'linear-gradient(135deg,#60a5fa,#2563eb)';
+  return 'linear-gradient(135deg,#9ca3af,#6b7280)';
+}
 
 // Orange means ONE thing on this map now: a gym you have joined.
 //
@@ -67,7 +90,7 @@ const STYLE_URL    = MAPTILER_KEY
 // the top-left corner of the map container (the reported bug).
 // All hover scaling is now applied to an INNER wrapper so the outer
 // transform stays MapLibre's exclusive property.
-function buildFlexynPin({ gym, compact, onClick, signal, isHome = false, isMine = false }) {
+function buildFlexynPin({ gym, compact, onClick, signal, isMine = false }) {
   const el = document.createElement('button');
   el.type  = 'button';
   el.title = gym.name;
@@ -81,9 +104,7 @@ function buildFlexynPin({ gym, compact, onClick, signal, isHome = false, isMine 
   const inner = document.createElement('div');
   Object.assign(inner.style, {
     width: '100%', height: '100%', borderRadius: '50%',
-    background: isMine
-      ? 'linear-gradient(135deg,#fb923c,#ea580c)'
-      : 'linear-gradient(135deg,#7c3aed,#4338ca)',
+    background: pinGradient({ isMine, memberCount: gym.member_count }),
     border: '2.5px solid #fff',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
     color: '#fff', fontSize: `${compact ? 10 : 12}px`, fontWeight: '700',
@@ -94,23 +115,6 @@ function buildFlexynPin({ gym, compact, onClick, signal, isHome = false, isMine 
   });
   inner.textContent = compact ? '🏋' : (gym.member_count > 0 ? String(gym.member_count) : '🏋');
   el.appendChild(inner);
-  // The user's OWN gym gets a star. Colour alone can't carry this —
-  // grey already means two things here — and "which pin is mine?" was
-  // repeatedly answered wrong by eye.
-  if (isHome) {
-    const badge = document.createElement('div');
-    Object.assign(badge.style, {
-      position: 'absolute', top: '-6px', insetInlineEnd: '-6px',
-      width: '16px', height: '16px', borderRadius: '50%',
-      background: '#f59e0b', border: '2px solid #fff',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontSize: '9px', lineHeight: '1', color: '#fff',
-      boxShadow: '0 1px 3px rgba(0,0,0,0.35)', pointerEvents: 'none',
-    });
-    badge.textContent = '★';
-    el.style.position = 'relative';
-    el.appendChild(badge);
-  }
   // signal: an AbortSignal from the caller's effect so all listeners
   // tear down together when the marker (or the parent map) unmounts.
   // Without this, removed markers' closures kept onClick + the gym
@@ -136,7 +140,7 @@ function buildFlexynPin({ gym, compact, onClick, signal, isHome = false, isMine 
 // Grey is shared with the OSM teardrop deliberately: both mean
 // "unclaimed". Shape is what separates "has a community" from "just
 // exists on a map".
-function buildCommunityPin({ gym, compact, onClick, signal, isHome = false, isMine = false }) {
+function buildCommunityPin({ gym, compact, onClick, signal, isMine = false }) {
   const el = document.createElement('button');
   el.type = 'button';
   el.title = gym.name;
@@ -151,9 +155,7 @@ function buildCommunityPin({ gym, compact, onClick, signal, isHome = false, isMi
   const inner = document.createElement('div');
   Object.assign(inner.style, {
     width: '100%', height: '100%', borderRadius: '50%',
-    background: isMine
-      ? 'linear-gradient(135deg,#fb923c,#ea580c)'
-      : 'linear-gradient(135deg,#9ca3af,#6b7280)',
+    background: pinGradient({ isMine, memberCount: gym.member_count }),
     border: '2.5px solid #fff',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
     color: '#fff', fontSize: `${compact ? 9 : 11}px`, fontWeight: '700',
@@ -164,23 +166,6 @@ function buildCommunityPin({ gym, compact, onClick, signal, isHome = false, isMi
   });
   inner.textContent = compact ? '' : (gym.member_count > 0 ? String(gym.member_count) : '🏋');
   el.appendChild(inner);
-  // The user's OWN gym gets a star. Colour alone can't carry this —
-  // grey already means two things here — and "which pin is mine?" was
-  // repeatedly answered wrong by eye.
-  if (isHome) {
-    const badge = document.createElement('div');
-    Object.assign(badge.style, {
-      position: 'absolute', top: '-6px', insetInlineEnd: '-6px',
-      width: '16px', height: '16px', borderRadius: '50%',
-      background: '#f59e0b', border: '2px solid #fff',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontSize: '9px', lineHeight: '1', color: '#fff',
-      boxShadow: '0 1px 3px rgba(0,0,0,0.35)', pointerEvents: 'none',
-    });
-    badge.textContent = '★';
-    el.style.position = 'relative';
-    el.appendChild(badge);
-  }
   const opts = signal ? { signal } : undefined;
   el.addEventListener('mouseenter', () => { inner.style.transform = 'scale(1.2)'; }, opts);
   el.addEventListener('mouseleave', () => { inner.style.transform = 'scale(1)'; }, opts);
@@ -270,6 +255,10 @@ export default function GymMap({ onClose, onContinue }) {
   const placeAbortRef = useRef(null);
   const debounceRef   = useRef(null);
   const refreshRef    = useRef(null); // always → latest refreshFromBounds
+  // Read inside the one-time map-init effect, which cannot see props
+  // changing. A ref keeps it out of that effect's (empty) dep array.
+  const autoLocateRef = useRef(false);
+  autoLocateRef.current = !!onContinue;
 
   const [view,        setView]        = useState('map');
   const [gyms,        setGyms]        = useState([]);
@@ -546,6 +535,33 @@ export default function GymMap({ onClose, onContinue }) {
       if (cancelled) return;
       setCurrentZoom(map.getZoom());
       refreshRef.current?.();
+
+      // Opening on the whole United States is the right default for
+      // browsing and the wrong one for "pick your gym": onboarding sends
+      // the user here from a step about their own neighbourhood, and a
+      // continental view answers a question they didn't ask.
+      //
+      // Only in onboarding mode. The standalone map keeps its US view —
+      // it has a GeolocateControl for anyone who wants their own
+      // position, and hijacking the camera on every visit would be worse
+      // than a neutral start.
+      if (!autoLocateRef.current) return;
+      if (typeof navigator === 'undefined' || !navigator.geolocation) return;
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          if (cancelled) return;
+          // 25 miles. fitBounds rather than a zoom number so the radius
+          // is the same distance on every screen size, instead of the
+          // same zoom level covering a different area on each.
+          const b = bboxAround(pos.coords.latitude, pos.coords.longitude, 40.23);
+          map.fitBounds(
+            [[b.west, b.south], [b.east, b.north]],
+            { padding: 24, duration: 0 },
+          );
+        },
+        () => { /* denied or timed out — the US view is a fine fallback */ },
+        { timeout: 8_000, maximumAge: 600_000 },
+      );
     });
 
     mapRef.current = map;
@@ -599,8 +615,8 @@ export default function GymMap({ onClose, onContinue }) {
     for (const g of visible) {
       const mine = myGymIds.has(g.id);
       const el   = g.source === 'community'
-        ? buildCommunityPin({ gym: g, compact, onClick: setSelected, signal: ac.signal, isHome: g.id === homeGymId, isMine: mine })
-        : buildFlexynPin({ gym: g, compact, onClick: setSelected, signal: ac.signal, isHome: g.id === homeGymId, isMine: mine });
+        ? buildCommunityPin({ gym: g, compact, onClick: setSelected, signal: ac.signal, isMine: mine })
+        : buildFlexynPin({ gym: g, compact, onClick: setSelected, signal: ac.signal, isMine: mine });
       const marker = new maplibregl.Marker({ element: el, anchor: 'center' })
         .setLngLat([g.longitude, g.latitude])
         .addTo(map);
