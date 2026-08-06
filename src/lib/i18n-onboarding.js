@@ -142,6 +142,10 @@ export const onboardingI18n = {
     'onboarding.about.sexPrompt': 'What sex were you assigned at birth?',
     'onboarding.about.sexFemale': 'Female',
     'onboarding.about.sexMale': 'Male',
+    'onboarding.about.sexOther': 'Other',
+    // Distinct from sexOther on purpose: "Other" states something about the
+    // user's sex, "Prefer not to say" declines to. They compute the same
+    // conservative middle downstream; the difference is kept in the data.
     'onboarding.about.sexSkip': 'Prefer not to say',
     'onboarding.about.usernamePrompt': 'What should we call you?',
     'onboarding.about.usernamePlaceholder': 'e.g. jordan_lifts',

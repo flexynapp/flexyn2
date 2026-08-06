@@ -1600,7 +1600,11 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
         <KineticHeading
           text={tFallback('onboarding.about.heading', 'Tell us about yourself.')}
           accentWord="yourself." />
-        <p className="text-sm text-muted-foreground mt-2 mb-5">
+        {/* mb-5 was 20px flat, which is both in the banned 12–20px register
+            and the wrong axis: it cost a 667pt screen exactly what it cost a
+            932pt one, on the step with the least room to spare. */}
+        <p className="text-sm text-muted-foreground mt-2"
+          style={{ marginBottom: 'var(--fluid-section)' }}>
           {tFallback('onboarding.about.sub', 'We use this to calibrate your plan. Encrypted, never sold.')}
         </p>
 
@@ -1651,7 +1655,7 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
           </div>
 
           {/* Hero number — tap to type a value directly */}
-          <div className="flex flex-col items-center mb-4">
+          <div className="flex flex-col items-center" style={{ marginBottom: 'var(--fluid-stack)' }}>
             {editingAge ? (
               <input
                 ref={ageInputRef}
@@ -1716,8 +1720,11 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
               initial={{ opacity: 0, scale: 0.85 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.35, ease: [0.34, 1.56, 0.64, 1] }}
-              className="flex items-center gap-2 mt-3 px-4 py-2 rounded-full text-sm font-semibold"
+              className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold"
               style={{
+                // mt-3 was a flat 12px — the banned middle register, and fixed
+                // on the axis that runs out first.
+                marginTop: 'var(--fluid-stack)',
                 background: 'hsl(var(--card))',
                 border: `1.5px solid ${stage.accent}`,
                 color: stage.accent,
@@ -1801,24 +1808,36 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
           <div className="font-mono text-micro font-semibold uppercase tracking-[0.14em] text-muted-foreground mb-2">
             {tFallback('onboarding.about.sexPrompt', 'What sex were you assigned at birth?')}
           </div>
-          {/* Three options, and the third is what makes requiring an answer
-              fair: declining is a choice you can make here, not a field you
-              leave blank. It stores 'other', which lands on the same
-              conservative middle value as unset — so the calculator learns
-              nothing, which is the point, while the flow still knows the
-              question was answered.
+          {/* Four options, because "Other" and "Prefer not to say" are not the
+              same answer. "Other" is a statement about the user's sex; "Prefer
+              not to say" is a refusal to make one. Collapsing them — which
+              this step did, offering three and labelling the third one or the
+              other depending on which key won — makes someone who simply
+              doesn't want to answer pick a category that describes them.
+              That matters more now the question is required.
 
-              The labels come straight from `o.label`. They used to be looked
-              up again as `onboarding.about.sex.${o.id}` with `o.label` as the
-              fallback, and that key set still existed — so `sex.other` ('Other')
-              won and the button rendered "Other", never the "Prefer not to say"
-              the code above it specifies. A fallback only fires when the key is
-              missing; this one wasn't. */}
-          <div className="grid grid-cols-3 gap-2">
+              They compute identically and are meant to: every consumer
+              branches on 'male'/'female' by name and lets everything else fall
+              to the conservative middle (_demographicScale 0.75/0.85,
+              mifflinStJeor base−78, activityEmoji's neutral figure). The
+              distinction is kept in the DATA, not in the maths, so it is there
+              if anything ever wants to report on it honestly.
+
+              `user_profiles.gender` is plain TEXT with no CHECK — verified
+              against the installed column, not the migration — so the fourth
+              value needs no schema change.
+
+              Labels come straight from `o.label`. They used to be looked up
+              again as `onboarding.about.sex.${o.id}` with `o.label` as the
+              fallback, and that key set still existed, so `sex.other` won and
+              the third button rendered "Other" no matter what the code said.
+              A fallback only fires when the key is missing; that one wasn't. */}
+          <div className="grid grid-cols-2 gap-2">
             {[
-              { id: 'female', label: tFallback('onboarding.about.sexFemale', 'Female') },
-              { id: 'male',   label: tFallback('onboarding.about.sexMale', 'Male') },
-              { id: 'other',  label: tFallback('onboarding.about.sexSkip', 'Prefer not to say') },
+              { id: 'female',            label: tFallback('onboarding.about.sexFemale', 'Female') },
+              { id: 'male',              label: tFallback('onboarding.about.sexMale', 'Male') },
+              { id: 'other',             label: tFallback('onboarding.about.sexOther', 'Other') },
+              { id: 'prefer_not_to_say', label: tFallback('onboarding.about.sexSkip', 'Prefer not to say') },
             ].map(o => {
               const active = gender === o.id;
               return (

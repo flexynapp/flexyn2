@@ -50,23 +50,49 @@ describe('about step — sex is required', () => {
     expect(I18N).toContain("'onboarding.about.ctaNoSex'");
   });
 
-  it('renders "Prefer not to say", which is what makes requiring it fair', () => {
-    // The labels were looked up as `onboarding.about.sex.${id}` with the real
-    // copy as the FALLBACK — and that key set existed, so `sex.other`
-    // ('Other') won and the button never showed the intended words. A
-    // fallback only fires when the key is missing.
+  it('separates "Other" from "Prefer not to say"', () => {
+    // They are different answers: "Other" states something about the user's
+    // sex, declining does not. Offering only one of them makes someone who
+    // simply doesn't want to answer pick a category that describes them —
+    // which matters much more now the question can't be skipped.
     const step = aboutStep();
+    expect(step).toContain('onboarding.about.sexOther');
     expect(step).toContain('onboarding.about.sexSkip');
-    expect(step).not.toMatch(/tFallback\(`onboarding\.about\.sex\.\$\{o\.id\}`/);
+    expect(I18N).toContain("'onboarding.about.sexOther': 'Other'");
     expect(I18N).toContain("'onboarding.about.sexSkip': 'Prefer not to say'");
-    expect(I18N).not.toContain("'onboarding.about.sex.other'");
-    expect(I18N).not.toContain("'onboarding.about.sex.male'");
-    expect(I18N).not.toContain("'onboarding.about.sex.female'");
   });
 
-  it('offers exactly the three options the rule accepts', () => {
+  it('does not look the labels up through a key that shadows them', () => {
+    // The labels were looked up as `onboarding.about.sex.${id}` with the real
+    // copy as the FALLBACK — and that key set existed, so `sex.other`
+    // ('Other') won and the third button never showed the intended words. A
+    // fallback only fires when the key is missing.
     const step = aboutStep();
-    const ids = [...step.matchAll(/\{ id: '(female|male|other)',/g)].map(m => m[1]);
-    expect(ids).toEqual(['female', 'male', 'other']);
+    expect(step).not.toMatch(/tFallback\(`onboarding\.about\.sex\.\$\{o\.id\}`/);
+    for (const dead of ['sex.other', 'sex.male', 'sex.female']) {
+      expect(I18N).not.toContain(`'onboarding.about.${dead}'`);
+    }
+  });
+
+  it('offers exactly the four options, declining last', () => {
+    const step = aboutStep();
+    const ids = [...step.matchAll(/\{ id: '(female|male|other|prefer_not_to_say)',/g)].map(m => m[1]);
+    expect(ids).toEqual(['female', 'male', 'other', 'prefer_not_to_say']);
+    // Four in a single row would put "Prefer not to say" on three lines at
+    // 375px; 2x2 gives every label a full-width column.
+    expect(step).toContain('grid grid-cols-2 gap-2');
+  });
+
+  it('leaves every downstream consumer on its neutral branch', () => {
+    // The new value must behave exactly like 'other' everywhere, and does,
+    // because each consumer names 'male'/'female' and lets the rest fall
+    // through. Asserted here so a future `=== 'other'` special case has to
+    // decide consciously what declining means rather than silently excluding
+    // it. (realisticLimits and workoutFatigue branch on 'female' alone.)
+    const gen = readFileSync('src/lib/aiCoach/workoutGenerator.js', 'utf8');
+    const nut = readFileSync('src/lib/nutritionDefaults.js', 'utf8');
+    for (const src of [gen, nut]) expect(src).not.toContain("=== 'other'");
+    expect(gen).toContain("if (g === 'male')");
+    expect(gen).toContain("else if (g === 'female')");
   });
 });

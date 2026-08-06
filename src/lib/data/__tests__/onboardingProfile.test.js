@@ -302,9 +302,11 @@ describe('buildProfilePayload', () => {
 
     it('accepts every sex the step actually offers, declining included', () => {
       // Requiring an answer is only fair because "Prefer not to say" is one of
-      // them. It records 'other' and must pass the gate like any other choice —
-      // this asks for a decision, not a disclosure.
-      for (const gender of ['female', 'male', 'other']) {
+      // them. It records its own value — distinct from 'other', which states
+      // something about the user's sex rather than declining to — and must
+      // pass the gate like any other choice. This asks for a decision, not a
+      // disclosure.
+      for (const gender of ['female', 'male', 'other', 'prefer_not_to_say']) {
         expect(canLeaveAboutStep({ ...ok, gender })).toBe(true);
       }
     });

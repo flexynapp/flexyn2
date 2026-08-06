@@ -41,9 +41,12 @@ export const MIN_USERNAME_LENGTH = 2;
  * an unset value silently takes the conservative middle, so nobody ever saw a
  * consequence, they just got a plan calibrated on a guess.
  *
- * Requiring it is only fair because declining is one of the three options.
- * "Prefer not to say" records `other`, which lands on that same middle value —
- * so this asks the user to make a choice, not to disclose.
+ * Requiring it is only fair because declining is one of the four options.
+ * "Prefer not to say" records `prefer_not_to_say`, which lands on that same
+ * middle value — so this asks the user to make a choice, not to disclose. It
+ * is deliberately a separate value from `other`: "Other" states something
+ * about the user's sex, declining does not, and only one of those is an answer
+ * to the question. The maths treats them identically; the data does not.
  *
  * Extracted and named so the rule is testable. Inline in the JSX it was one
  * `&&` chain inside a 400-line component, reachable only by driving the real
