@@ -67,6 +67,43 @@ describe('fetchOsmGyms', () => {
     expect(q).not.toContain('!~');
   });
 
+  it('drops the broad sports_centre sweep below metro zoom', async () => {
+    stageOverpass([]);
+    const SWEEP = 'nwr["leisure"="sports_centre"]';
+
+    // It is the broadest selector here and cost scales with viewport:
+    // measured on a phone-shaped bbox, zoom 9 answered in 3.1s, zoom 7
+    // in 10.1s and zoom 5 in 27.0s against a 30s cap. Below a metro view
+    // the names aren't legible anyway, so the recall can't be used.
+    await fetchOsmGyms({ south: 39, west: -76, north: 42, east: -73 }, { zoom: 6 });
+    expect(decodeURIComponent(globalThis.fetch.mock.calls[0][0])).not.toContain(SWEEP);
+
+    await fetchOsmGyms({ south: 39, west: -76, north: 42, east: -73 }, { zoom: 9 });
+    expect(decodeURIComponent(globalThis.fetch.mock.calls.at(-1)[0])).toContain(SWEEP);
+
+    // The near-me picker fetches at zoom 13, so it always gets the sweep
+    // — that is the surface the recall was widened for.
+    await fetchOsmGymsNear(40, -74);
+    expect(decodeURIComponent(globalThis.fetch.mock.calls.at(-1)[0])).toContain(SWEEP);
+  });
+
+  it('reports a timeout as a timeout', async () => {
+    // AbortSignal.abort(reason) rejects with the reason VERBATIM, so
+    // abort('timeout') threw a bare STRING out to callers: err.message
+    // was undefined and GymMap fell back to its generic failure copy for
+    // what is really a timeout.
+    vi.useFakeTimers();
+    globalThis.fetch = vi.fn((_url, { signal }) => new Promise((_res, rej) => {
+      signal.addEventListener('abort', () => rej(signal.reason));
+    }));
+
+    const promise = fetchOsmGyms({ south: 39, west: -76, north: 42, east: -73 });
+    const assertion = expect(promise).rejects.toThrow(/timed out/i);
+    await vi.advanceTimersByTimeAsync(31_000);
+    await assertion;
+    vi.useRealTimers();
+  });
+
   it('dedupes on type+id, not id alone', async () => {
     stageOverpass([
       // The same node tagged both leisure=fitness_centre and amenity=gym

@@ -103,12 +103,6 @@ export const OSM_ZOOM_MIN = 5;
 // is normal for anything inside a larger building — was invisible.
 const GYM_SELECTORS = [
   '["leisure"="fitness_centre"]',
-  // Not filtered to `["sport"~"fitness"]` any more. That filter was the
-  // single biggest source of misses: YMCAs, council rec centres, boxing
-  // gyms, climbing gyms and plenty of plain commercial gyms carry
-  // `leisure=sports_centre` with no sport tag at all, or with a sport
-  // that isn't the string "fitness". Fetch them and sort it out below.
-  '["leisure"="sports_centre"]',
   '["amenity"="gym"]',
   '["club"="fitness"]',
   '["sport"="fitness"]',
@@ -118,6 +112,24 @@ const GYM_SELECTORS = [
   '["sport"="gymnastics"]',
   '["sport"="climbing"]',
 ];
+
+/**
+ * Zoom at or above which the broad `leisure=sports_centre` sweep runs.
+ *
+ * Not filtered to `["sport"~"fitness"]` any more — that filter was the
+ * single biggest source of misses, because YMCAs, council rec centres,
+ * boxing gyms and climbing gyms carry no sport tag at all or one that
+ * isn't the string "fitness". But it is also the broadest selector here,
+ * and cost scales with viewport: measured on a phone-shaped bbox, zoom 9
+ * answered in 3.1s, zoom 7 in 10.1s and zoom 5 in 27.0s against a 30s
+ * cap. Below a metro-sized view the individual names aren't legible
+ * anyway, so the recall this buys can't be used — it just makes the pin
+ * refresh the slowest thing on the page.
+ *
+ * The near-me picker calls fetchOsmGyms at zoom 13, so it always gets
+ * the sweep.
+ */
+const SPORTS_CENTRE_SWEEP_ZOOM_MIN = 9;
 
 /** Sports whose presence means "this is somewhere you train". */
 const GYM_SPORTS = new Set([
@@ -207,9 +219,11 @@ export async function fetchOsmGyms(bbox, { zoom = 13, signal } = {}) {
   const includeOutdoor = zoom >= 13;
 
   const box = `(${s},${w},${n},${e})`;
-  const selectors = includeOutdoor
-    ? [...GYM_SELECTORS, '["leisure"="fitness_station"]']
-    : GYM_SELECTORS;
+  const selectors = [
+    ...GYM_SELECTORS,
+    ...(zoom >= SPORTS_CENTRE_SWEEP_ZOOM_MIN ? ['["leisure"="sports_centre"]'] : []),
+    ...(includeOutdoor ? ['["leisure"="fitness_station"]'] : []),
+  ];
 
   const q =
     `[out:json][timeout:${OVERPASS_SERVER_TIMEOUT_S}];(` +
@@ -220,7 +234,15 @@ export async function fetchOsmGyms(bbox, { zoom = 13, signal } = {}) {
   const tryMirror = async (mirror) => {
     const ctrl = new AbortController();
     ctrls.push(ctrl);
-    const timer = setTimeout(() => ctrl.abort('timeout'), MIRROR_ABORT_MS);
+    // Abort with an Error, not a string. `AbortSignal.abort(reason)`
+    // rejects the fetch with the reason VERBATIM, so `abort('timeout')`
+    // threw a bare string all the way out to callers — `err.message` was
+    // undefined and GymMap's status pill fell back to the generic
+    // "Could not load nearby gyms" for what is really a timeout.
+    const timer = setTimeout(
+      () => ctrl.abort(new Error(`OSM timed out after ${MIRROR_ABORT_MS / 1000}s`)),
+      MIRROR_ABORT_MS,
+    );
     const forwardAbort = () => ctrl.abort('outer-aborted');
     if (signal?.aborted) {
       clearTimeout(timer);

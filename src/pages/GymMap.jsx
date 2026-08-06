@@ -3,7 +3,7 @@
 // Dynamic import caused chunk-load errors that triggered the ErrorBoundary reload
 // loop; static import eliminates that failure mode entirely.
 
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import maplibregl from 'maplibre-gl';
 // CSS is imported globally in main.jsx (same as RouteMap.jsx)
 import { useNavigate } from 'react-router-dom';
@@ -16,6 +16,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { getGymsInBbox } from '@/lib/data/gymBusinesses';
 import { fetchOsmGyms, OSM_ZOOM_MIN } from '@/lib/osmGyms';
+// Extracted so it is testable without dragging maplibre-gl into jsdom;
+// the head comment there records why the search was covering one layer.
+import {
+  matchesFlexynGym, matchesOsmGym, normalizeQuery,
+} from '@/lib/gymSearch';
 import {
   setHomeGym, setHomeGymFromOsm, resolveHomeGymId, getHomeGym,
 } from '@/lib/data/homeGym';
@@ -555,12 +560,8 @@ export default function GymMap() {
     // re-zoom, re-load).
     const ac = new AbortController();
     const compact = currentZoom < 5;
-    const q       = search.trim().toLowerCase();
-    const visible = q
-      ? gyms.filter(g =>
-          (g.name || '').toLowerCase().includes(q) ||
-          (g.city || '').toLowerCase().includes(q))
-      : gyms;
+    const q       = normalizeQuery(search);
+    const visible = gyms.filter(g => matchesFlexynGym(q, g));
 
     for (const g of visible) {
       const special = SPECIAL_PIN_CODES.has(g.flexyn_code);
@@ -577,6 +578,24 @@ export default function GymMap() {
     return () => { ac.abort(); };
   }, [gyms, currentZoom, search, homeGymId]);
 
+  // Suppress the live Overpass teardrop for any gym already promoted to
+  // a community gym (mig 275). Both layers describe the same physical
+  // place — the database row came FROM this OSM feature — so without
+  // this the promoted gym renders twice: a grey community bubble from
+  // `gyms` and a grey OSM teardrop from `osmGyms`, metres apart, only
+  // one of which is tappable into a leaderboard.
+  //
+  // Keyed on type/id together because OSM ids are only unique within a
+  // type; node/123 and way/123 are different places.
+  //
+  // Declared HERE, above the effect that reads it, because a deps array
+  // is evaluated synchronously when useEffect is called — a const
+  // declared further down is still in TDZ at that point. See the TDZ
+  // section in CLAUDE.md.
+  const claimedOsmKeys = useMemo(() => new Set(
+    gyms.filter(g => g.osm_id != null).map(g => `${g.osm_type || 'node'}/${g.osm_id}`),
+  ), [gyms]);
+
   // ── OSM pin rendering ──────────────────────────────────────────────────
   useEffect(() => {
     const map = mapRef.current;
@@ -585,24 +604,13 @@ export default function GymMap() {
     osmMarkersRef.current.forEach(m => { try { m.remove(); } catch { /* ignore */ } });
     osmMarkersRef.current = [];
 
-    // Suppress the live Overpass teardrop for any gym already promoted
-    // to a community gym (mig 275). Both layers describe the same
-    // physical place — the database row came FROM this OSM feature — so
-    // without this the promoted gym renders twice: a grey community
-    // bubble from `gyms` and a grey OSM teardrop from `osmGyms`, metres
-    // apart, only one of which is tappable into a leaderboard.
-    //
-    // Keyed on type/id together because OSM ids are only unique within a
-    // type; node/123 and way/123 are different places.
-    const claimed = new Set(
-      gyms
-        .filter(g => g.osm_id != null)
-        .map(g => `${g.osm_type || 'node'}/${g.osm_id}`),
-    );
-
     const ac = new AbortController();
+    // `search` is in the deps now. Without it this effect never re-ran on
+    // a keystroke, so every teardrop survived every query.
+    const q = normalizeQuery(search);
     for (const g of osmGyms) {
-      if (claimed.has(`${g.osmType || 'node'}/${g.osmId}`)) continue;
+      if (claimedOsmKeys.has(`${g.osmType || 'node'}/${g.osmId}`)) continue;
+      if (!matchesOsmGym(q, g)) continue;
       const el     = buildOsmPin({ gym: g, onClick: setSelectedOsm, signal: ac.signal });
       const marker = new maplibregl.Marker({ element: el, anchor: 'bottom' })
         .setLngLat([g.lon, g.lat])
@@ -610,26 +618,37 @@ export default function GymMap() {
       osmMarkersRef.current.push(marker);
     }
     return () => { ac.abort(); };
-  }, [osmGyms, gyms]);
+  }, [osmGyms, claimedOsmKeys, search]);
 
   // ── Search fly-to ──────────────────────────────────────────────────────
+  //
+  // Flexyn rows first — a registered gym is the more useful destination
+  // when both layers match — then OSM, which is where nearly every real
+  // gym actually lives.
   const flyToMatch = useCallback(() => {
     const map = mapRef.current;
     if (!map || !search.trim()) return;
-    const q   = search.trim().toLowerCase();
-    const hit = gyms.find(g =>
-      (g.name || '').toLowerCase().includes(q) ||
-      (g.city || '').toLowerCase().includes(q));
-    if (hit) map.flyTo({ center: [hit.longitude, hit.latitude], zoom: 13, duration: 1200 });
-  }, [gyms, search]);
+    const q = normalizeQuery(search);
+
+    const flexynHit = gyms.find(g => matchesFlexynGym(q, g));
+    if (flexynHit) {
+      map.flyTo({ center: [flexynHit.longitude, flexynHit.latitude], zoom: 13, duration: 1200 });
+      return;
+    }
+    const osmHit = osmGyms.find(g => matchesOsmGym(q, g));
+    if (osmHit) map.flyTo({ center: [osmHit.lon, osmHit.lat], zoom: 13, duration: 1200 });
+  }, [gyms, osmGyms, search]);
 
   // ── Derived UI values ──────────────────────────────────────────────────
-  const q            = search.trim().toLowerCase();
-  const visibleCount = q
-    ? gyms.filter(g =>
-        (g.name || '').toLowerCase().includes(q) ||
-        (g.city || '').toLowerCase().includes(q)).length
-    : gyms.length;
+  const q             = normalizeQuery(search);
+  const visibleCount  = gyms.filter(g => matchesFlexynGym(q, g)).length;
+  // Counted through the SAME two predicates the pin loop uses, off the
+  // same claimed-key set. The pill read `osmGyms.length` raw, so it
+  // reported "47 nearby" while a search had hidden all 47 — and that
+  // also kept its "No matches" branch permanently unreachable.
+  const visibleOsmCount = useMemo(() => osmGyms.filter(g =>
+    !claimedOsmKeys.has(`${g.osmType || 'node'}/${g.osmId}`) && matchesOsmGym(q, g),
+  ).length, [osmGyms, claimedOsmKeys, q]);
 
   // ── Render ─────────────────────────────────────────────────────────────
   // Layout: explicit 100dvh height on the outer wrapper, then header
@@ -690,8 +709,14 @@ export default function GymMap() {
             exit={{ height: 0, opacity: 0 }}
             className="border-b border-border bg-card overflow-hidden shrink-0">
             <div className="px-3 py-2 flex gap-2">
+              {/* Was "Search gym name or city…". There is no geocoder
+                  here: `gyms` is whatever get_gyms_in_bbox returned for
+                  the CURRENT viewport, so typing a city you aren't
+                  looking at could never match anything. Promise what the
+                  control does — filter this view — rather than a
+                  place search it can't perform. */}
               <Input
-                placeholder="Search gym name or city…"
+                placeholder="Filter gyms in view…"
                 value={search} onChange={e => setSearch(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') flyToMatch(); }}
                 autoFocus className="h-9" />
@@ -805,10 +830,16 @@ export default function GymMap() {
           <div className="absolute bottom-24 start-3 z-10 px-3 py-1.5 rounded-full bg-card/90 backdrop-blur border border-border shadow-md text-xs font-medium flex items-center gap-1.5">
             {loading ? (
               <><Loader2 className="w-3 h-3 animate-spin text-muted-foreground" /><span className="text-muted-foreground">Loading…</span></>
-            ) : visibleCount === 0 && osmGyms.length === 0 ? (
+            ) : visibleCount === 0 && visibleOsmCount === 0 ? (
               <span className="text-muted-foreground">
-                {search
-                  ? 'No matches'
+                {/* Both branches used to read `osmGyms.length`, so a
+                    search matching nothing still reported "47 nearby"
+                    and never reached "No matches" at all. */}
+                {q
+                  // The search only ever covers what is loaded for this
+                  // viewport, so say which area came up empty rather
+                  // than implying we checked everywhere.
+                  ? 'No matches in this area'
                   : osmLoading
                     ? 'Finding nearby gyms…'
                     : osmError
@@ -825,8 +856,8 @@ export default function GymMap() {
             ) : (
               <span className="text-muted-foreground">
                 {visibleCount > 0 && <><span className="text-primary font-bold">{visibleCount}</span> on Flexyn</>}
-                {visibleCount > 0 && osmGyms.length > 0 && ' · '}
-                {osmGyms.length > 0 && <><span className="font-bold">{osmGyms.length}</span> nearby</>}
+                {visibleCount > 0 && visibleOsmCount > 0 && ' · '}
+                {visibleOsmCount > 0 && <><span className="font-bold">{visibleOsmCount}</span> nearby</>}
                 {osmLoading && <Loader2 className="w-3 h-3 animate-spin text-muted-foreground inline ms-1" />}
               </span>
             )}
