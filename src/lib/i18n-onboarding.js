@@ -186,7 +186,7 @@ export const onboardingI18n = {
     /* ── Weight step ─────────────────────────────────────────────── */
     'onboarding.weight.kicker': 'Weight',
     'onboarding.weight.heading': 'How much do you weigh?',
-    'onboarding.weight.dialHint': 'Drag dial to set · tap to type',
+    'onboarding.weight.dialHint': 'Tap to type · drag to set',
     'onboarding.weight.ariaKg': 'Weight in kilograms',
     'onboarding.weight.ariaLb': 'Weight in pounds',
 

@@ -1393,21 +1393,6 @@ function useDragValue({ value, onChange, min, max, axis = 'x', pxPerUnit = 14, s
 // Shared style for the ±1 / ±5 nudge buttons on weight / height / age steps
 // 48×48 hits Apple HIG (44pt) + WCAG 2.5.8 (24×24 minimum, 44×44 recommended)
 // with margin to spare — users on small phones were missing 40×40 targets.
-const nudgeBtnStyle = {
-  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-  // flexShrink:0 is load-bearing. These are declared 48px, but they sit in a
-  // flex row and were being squeezed to 41px wide on a 375px screen — the
-  // declared size is not the rendered size without this.
-  width: 48, height: 48, flexShrink: 0, borderRadius: '50%',
-  border: '1.5px solid hsl(var(--border))',
-  background: 'hsl(var(--secondary))',
-  color: 'hsl(var(--foreground))',
-  fontFamily: 'ui-monospace, monospace', fontSize: 14, fontWeight: 700,
-  cursor: 'pointer', userSelect: 'none',
-  WebkitTapHighlightColor: 'transparent',
-  touchAction: 'manipulation',
-  transition: 'background 0.15s, transform 0.1s',
-};
 
 /* ── Pill unit toggle (ft·in / cm, lb / kg) ── */
 function PillUnitToggle({ options, value, onChange }) {
@@ -2081,7 +2066,7 @@ function WeightPlate({ kg, color, delay }) {
   const h = 24 + Math.min(kg, 25) * 1.4;
   const w = 7 + Math.min(kg, 25) * 0.18;
   return (
-    <div style={{ width: w, height: h, marginRight: 1, background: color, borderRadius: 3, boxShadow: 'inset 0 -2px 0 rgba(0,0,0,0.25), 0 2px 6px rgba(0,0,0,0.12)', animation: `spring-in 0.35s ${delay}s cubic-bezier(0.34,1.56,0.64,1) both`, flexShrink: 0, position: 'relative' }}>
+    <div style={{ width: w, height: h, marginRight: 1, background: color, borderRadius: 3, animation: `spring-in 0.35s ${delay}s cubic-bezier(0.34,1.56,0.64,1) both`, flexShrink: 0, position: 'relative' }}>
       <span style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%) rotate(-90deg)', fontFamily: 'ui-monospace,monospace', fontSize: 7, fontWeight: 700, color: kg === 5 ? 'hsl(0 0% 30%)' : 'white' }}>{kg}</span>
     </div>
   );
@@ -2101,7 +2086,7 @@ function BarbellVisualizer({ kg }) {
       <div className="flex items-center" style={{ flexDirection: 'row-reverse' }}>
         {plates.map((p, i) => <WeightPlate key={`l${i}-${p}`} kg={p} color={PLATE_COLORS[p]} delay={i * 0.04} />)}
       </div>
-      <div style={{ width: 100, height: 6, background: 'linear-gradient(180deg, hsl(0 0% 78%), hsl(0 0% 52%))', borderRadius: 3, boxShadow: 'inset 0 -1px 0 hsl(0 0% 30%)' }} />
+      <div style={{ width: 100, height: 6, background: 'hsl(0 0% 68%)', borderRadius: 3 }} />
       <div className="flex items-center">
         {plates.map((p, i) => <WeightPlate key={`r${i}-${p}`} kg={p} color={PLATE_COLORS[p]} delay={i * 0.04} />)}
       </div>
@@ -2143,7 +2128,6 @@ function WeightStep({ stats, onChange, onNext, onBack, step, total }) {
     ? onChange({ ...stats, weightKg: v, weightLb: lbFromKg(v), userTouchedWeight: true })
     : onChange({ ...stats, weightLb: v, weightKg: kgFromLb(v), userTouchedWeight: true });
 
-  const bump = (dir) => setValue(Math.min(range[1], Math.max(range[0], value + dir)));
 
   // Tap-to-type: tapping the big number shows a native input.
   //
@@ -2291,34 +2275,11 @@ function WeightStep({ stats, onChange, onNext, onBack, step, total }) {
         {/* Dial hint — the gauge above is the input: drag it up/down to set,
             tap the number to type. Replaces the old horizontal scrubber. */}
         <div className="flex items-center justify-center gap-1.5 mt-3 mb-1" aria-hidden="true">
-          <motion.span
-            animate={{ y: [-2, 1, -2] }}
-            transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
-            className="text-primary/70 font-bold text-sm leading-none"
-          >⌃</motion.span>
           <span className="font-mono text-micro font-semibold tracking-[0.18em] uppercase text-muted-foreground/80">
-            {tFallback('onboarding.weight.dialHint', 'Drag dial to set · tap to type')}
+            {tFallback('onboarding.weight.dialHint', 'Tap to type · drag to set')}
           </span>
-          <motion.span
-            animate={{ y: [2, -1, 2] }}
-            transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
-            className="text-primary/70 font-bold text-sm leading-none"
-          >⌄</motion.span>
         </div>
 
-        {/* ± Fine-tune buttons — always reachable even if drag doesn't work */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, marginTop: 10 }}>
-          <button onClick={() => bump(-5)} style={nudgeBtnStyle}>−5</button>
-          <button onClick={() => bump(-1)} style={nudgeBtnStyle}>−1</button>
-          {/* The "tap number to type" label that used to sit here is gone.
-              The dial hint two lines up already reads "Drag dial to set · tap
-              to type", so the step was carrying two instruction lines for one
-              control — the same duplication removed from the age step. The
-              spacer keeps the +/- buttons from closing up around the gap. */}
-          <span aria-hidden="true" style={{ minWidth: 56 }} />
-          <button onClick={() => bump(+1)} style={nudgeBtnStyle}>+1</button>
-          <button onClick={() => bump(+5)} style={nudgeBtnStyle}>+5</button>
-        </div>
       </div>
       <div className="shrink-0" style={{ paddingTop: 'var(--fluid-cta-gap)' }}>
         <PrimaryBtn onClick={onNext}>
