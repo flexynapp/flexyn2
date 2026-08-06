@@ -219,6 +219,42 @@
   * {
     @apply border-border outline-ring/50;
   }
+
+  /* ── Fluid vertical scale ────────────────────────────────────────
+     The app is one column on a screen we don't control, running from a
+     375x667 iPhone SE to a 430x932 Pro Max — a 40% difference in the
+     axis that actually runs out. Fixed pixels can't serve both: a 30px
+     heading and 24px gaps cost the SAME on both, so the onboarding goal
+     step overflowed the small screen by 131px while the large one had
+     193px going spare.
+
+     Every value below clamps against viewport HEIGHT. Minimums are the
+     floor below which a surface stops being comfortable — not the
+     smallest thing that technically fits — and maximums are what the
+     design was drawn at, so nothing at iPhone-15 size or above changes.
+     Text floors at 11px, the app-wide minimum.
+
+     This is what Dynamic Type + Auto Layout do on iOS, and it replaces
+     per-device tuning: after converting onboarding, the same step went
+     from 131px over on an SE to a 24px gap, with the larger phones
+     untouched.
+
+     USE THESE rather than adding a fixed px value beside them. If a new
+     surface needs a size this scale doesn't have, add it here so every
+     surface gets it, and check the result at 667 as well as 932. */
+  :root {
+    --fluid-pad-y: clamp(1rem, 2.2vh, 1.5rem);        /* shell padding   16→24 */
+    --fluid-header-gap: clamp(1rem, 2.6vh, 1.75rem);  /* under a header  16→28 */
+    --fluid-heading: clamp(24px, 3.4vh, 30px);        /* page heading    24→30 */
+    --fluid-section: clamp(0.75rem, 2.4vh, 1.5rem);   /* between groups  12→24 */
+    --fluid-stack: clamp(0.375rem, 1vh, 0.5rem);      /* within a group   6→8  */
+    --fluid-card-y: clamp(0.625rem, 1.4vh, 0.75rem);  /* card padding    10→12 */
+    --fluid-card-title: clamp(14px, 1.9vh, 15px);
+    --fluid-card-sub: clamp(11px, 1.55vh, 12px);      /* 11px is the floor */
+    --fluid-tile: clamp(2rem, 4.8vh, 2.5rem);         /* icon tile       32→40 */
+    --fluid-cta-h: clamp(3rem, 6.6vh, 3.5rem);        /* pinned CTA      48→56 */
+    --fluid-cta-gap: clamp(0.5rem, 1.8vh, 1rem);      /* above the CTA    8→16 */
+  }
   /* Text inputs render a 1–2px scrollbar sliver as a stray black line on some
      platforms (border-box rounding pushes scrollHeight just past clientHeight
      on short/auto-resizing fields). Hide the scrollbar chrome on all text
@@ -278,6 +314,21 @@
 }
 
 @layer utilities {
+  /* ── Safe-area page shell ────────────────────────────────────────
+     Any full-screen surface — a page, a sheet, a full-height menu —
+     that positions its own edges rather than sitting inside Layout.jsx.
+     Layout has had insets since launch; anything that escapes it does
+     not, which is how onboarding shipped with its Continue button
+     partly under the home indicator on every notched iPhone.
+
+     Pairs with the fluid scale below: `--fluid-pad-y` is the padding,
+     the inset is added on top of it. */
+  .safe-page {
+    padding-top: calc(var(--fluid-pad-y) + env(safe-area-inset-top));
+    padding-bottom: calc(var(--fluid-pad-y) + env(safe-area-inset-bottom));
+    padding-inline: 1.5rem;
+  }
+
   .break-anywhere {
     overflow-wrap: anywhere;
     word-break: break-word;

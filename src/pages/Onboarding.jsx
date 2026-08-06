@@ -50,13 +50,19 @@ const OnboardingCoachContext = createContext(null);
    CONSTANTS
 ═══════════════════════════════════════════════════════════════ */
 
+// No per-goal accent. Six goals each carrying their own hue put six colours
+// on one screen, which reads as six branded products rather than as a list
+// with one thing chosen — and the composition rule in CLAUDE.md is four
+// hues, where a new state REPLACES one rather than extending the list.
+// Selection is primary against grey; the icon and the label are what tell
+// the goals apart.
 const GOALS = [
-  { id: 'strength',  title: 'Build strength',   sub: 'Compound lifts. Heavy. Honest.',                        icon: 'dumbbell',      accent: 'hsl(26 95% 56%)'  },
-  { id: 'muscle',    title: 'Add muscle',        sub: 'Hypertrophy program, smart volume.',                    icon: 'flame',         accent: 'hsl(14 92% 56%)'  },
-  { id: 'lose',      title: 'Lose fat',          sub: 'Recomp without losing the gains.',                      icon: 'trending-down', accent: 'hsl(160 64% 45%)' },
-  { id: 'speed',     title: 'Run faster',        sub: 'Sharpen your pace — intervals & tempo.',                icon: 'zap',           accent: 'hsl(45 93% 55%)'  },
-  { id: 'endurance', title: 'Run further',       sub: 'Build distance without burning out.',                   icon: 'activity',      accent: 'hsl(217 91% 60%)' },
-  { id: 'mobility',  title: 'Move better',       sub: 'Mobility, flexibility, longevity.',                     icon: 'wind',          accent: 'hsl(280 60% 60%)' },
+  { id: 'strength',  title: 'Build strength', sub: 'Compound lifts. Heavy. Honest.',         icon: 'dumbbell'      },
+  { id: 'muscle',    title: 'Add muscle',     sub: 'Hypertrophy program, smart volume.',     icon: 'flame'         },
+  { id: 'lose',      title: 'Lose fat',       sub: 'Recomp without losing the gains.',       icon: 'trending-down' },
+  { id: 'speed',     title: 'Run faster',     sub: 'Sharpen your pace — intervals & tempo.', icon: 'zap'           },
+  { id: 'endurance', title: 'Run further',    sub: 'Build distance without burning out.',    icon: 'activity'      },
+  { id: 'mobility',  title: 'Move better',    sub: 'Mobility, flexibility, longevity.',      icon: 'wind'          },
 ];
 
 // Goals that are cardio/running — used to decide whether the "sharpen your plan"
@@ -328,25 +334,13 @@ function Icon({ name, size = 22, strokeWidth = 2.2, color = 'currentColor' }) {
 ═══════════════════════════════════════════════════════════════ */
 
 function Aurora() {
-  return (
-    <div aria-hidden="true" className="pointer-events-none fixed inset-0 overflow-hidden">
-      {/* Grid overlay */}
-      <div className="absolute inset-0 opacity-[0.035]"
-        style={{ backgroundImage: 'linear-gradient(hsl(var(--foreground)) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--foreground)) 1px, transparent 1px)', backgroundSize: '48px 48px' }} />
-      {/* Blobs */}
-      <motion.div className="absolute rounded-full blur-[50px] opacity-55"
-        style={{ width: '70%', height: '55%', left: '-10%', top: '-10%', background: 'radial-gradient(circle, hsl(var(--primary) / 0.55), transparent 70%)', willChange: 'transform' }}
-        animate={{ x: [0, 20, 0], y: [0, 15, 0] }} transition={{ duration: 18, repeat: Infinity, ease: 'easeInOut' }} />
-      <motion.div className="absolute rounded-full blur-[50px] opacity-40"
-        style={{ width: '55%', height: '50%', right: '-5%', top: '25%', background: 'radial-gradient(circle, hsl(38 92% 60% / 0.5), transparent 70%)', willChange: 'transform' }}
-        animate={{ x: [0, -20, 0], y: [0, 20, 0] }} transition={{ duration: 14, repeat: Infinity, ease: 'easeInOut', delay: 2 }} />
-      <motion.div className="absolute rounded-full blur-[50px] opacity-35"
-        style={{ width: '75%', height: '45%', left: '5%', bottom: '-10%', background: 'radial-gradient(circle, hsl(14 92% 56% / 0.38), transparent 70%)', willChange: 'transform' }}
-        animate={{ x: [0, 15, 0], y: [0, -10, 0] }} transition={{ duration: 20, repeat: Infinity, ease: 'easeInOut', delay: 4 }} />
-      {/* Vignette */}
-      <div className="absolute inset-0" style={{ background: 'radial-gradient(ellipse 80% 80% at 50% 50%, transparent 40%, hsl(var(--background) / 0.35) 100%)' }} />
-    </div>
-  );
+  // Deliberately nothing. This used to paint a 48px grid, three animated
+  // radial-gradient blobs and a vignette behind every onboarding step —
+  // five gradients moving under the content on the first screens anyone
+  // sees. The background is a flat surface now; the component stays so the
+  // step layout (which positions against a fixed backdrop) is untouched and
+  // the decision is recorded where someone would look for it.
+  return null;
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -402,7 +396,7 @@ function StepHeader({ step, total, onBack }) {
   const coach = useContext(OnboardingCoachContext);
   const showCoach = !!coach && hasCoachFor(coach.stepName);
   return (
-    <div className="flex items-center gap-3 mb-7">
+    <div className="flex items-center gap-3" style={{ marginBottom: 'var(--fluid-header-gap)' }}>
       {canBack ? (
         <button onClick={onBack} aria-label={tFallback('onboarding.common.back', 'Back')}
           className="w-11 h-11 rounded-xl border border-border/70 bg-card/70 backdrop-blur-sm flex items-center justify-center text-foreground hover:bg-card active:bg-card transition-colors shrink-0">
@@ -440,7 +434,8 @@ function KineticHeading({ text, accentWord }) {
   const words = text.split(' ');
   return (
     <div className="mb-2">
-      <h1 className="font-heading font-bold text-[30px] leading-[1.05] tracking-tight text-foreground m-0">
+      <h1 className="font-heading font-bold leading-[1.05] tracking-tight text-foreground m-0"
+        style={{ fontSize: 'var(--fluid-heading)' }}>
         {words.map((w, i) => (
           <motion.span key={i} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.08 + i * 0.06, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
@@ -461,7 +456,8 @@ function KineticHeading({ text, accentWord }) {
 function PrimaryBtn({ onClick, disabled, children, className = '' }) {
   return (
     <button onClick={onClick} disabled={disabled}
-      className={`w-full h-14 rounded-2xl font-heading font-bold text-body flex items-center justify-center gap-2 transition-all
+      style={{ height: 'var(--fluid-cta-h)' }}
+      className={`w-full rounded-2xl font-heading font-bold text-body flex items-center justify-center gap-2 transition-all
         ${disabled
           ? 'bg-muted text-muted-foreground cursor-not-allowed opacity-60'
           /* shadow-md, not a coloured bloom. `shadow-primary/25` threw an
@@ -514,18 +510,21 @@ function OptionCard({
     <motion.button type="button" onClick={onClick} aria-pressed={selected}
       initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
       transition={{ delay, duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-      className="relative w-full overflow-hidden flex items-center gap-2 px-4 py-3 rounded-2xl border text-start cursor-pointer transition-colors"
+      className="relative w-full overflow-hidden flex items-center gap-2 px-4 rounded-2xl border text-start cursor-pointer transition-colors"
       style={{
+        paddingBlock: 'var(--fluid-card-y)',
         borderColor: selected ? accent : 'hsl(var(--border))',
         background: 'hsl(var(--card))',
       }}>
       {leading && <span className="shrink-0 flex items-center">{leading}</span>}
       <span className="flex-1 min-w-0 block">
-        <span className="block font-heading font-bold text-body leading-tight tracking-tight text-foreground">
+        <span className="block font-heading font-bold leading-tight tracking-tight text-foreground"
+          style={{ fontSize: 'var(--fluid-card-title)' }}>
           {title}
         </span>
         {sub && (
-          <span className="block text-caption leading-[1.45] text-muted-foreground">
+          <span className="block leading-[1.45] text-muted-foreground"
+            style={{ fontSize: 'var(--fluid-card-sub)' }}>
             {sub}
           </span>
         )}
@@ -805,7 +804,7 @@ function GoalStep({ value, onChange, onNext, onBack, step, total }) {
     ? tFallback('onboarding.goal.helper.one', "Nice. Add another if you're after a few outcomes.")
     : selectedIds.length <= 3
     ? tFallback('onboarding.goal.helper.few', "Stacking {count} goals — we'll balance your plan.", { count: selectedIds.length })
-    : tFallback('onboarding.goal.helper.many', 'Heads up: 4+ goals slows visible progress on each. Your call.');
+    : tFallback('onboarding.goal.helper.many', 'Heads up: 4+ goals slows visible progress on each.');
 
   return (
     <div className="flex flex-col h-full">
@@ -822,14 +821,15 @@ function GoalStep({ value, onChange, onNext, onBack, step, total }) {
           accentWord="for?" />
         {/* min-h holds two lines so the cards don't jump as the helper text
             changes length with the number of picks. */}
-        <p className="text-sm text-muted-foreground mb-2 min-h-[40px] transition-all">{helper}</p>
+        <p className="text-sm text-muted-foreground min-h-[40px] transition-all"
+          style={{ marginBottom: 'var(--fluid-stack)' }}>{helper}</p>
 
         {/* Clear. No count beside it — the cards carry their own numbers, and
             the helper line above already says how many are stacked. The row
             collapses entirely until there's something to clear, so an
             untouched step has no empty strip above the first card. */}
         {selectedIds.length > 0 && (
-          <div className="flex items-center justify-end mb-2">
+          <div className="flex items-center justify-end" style={{ marginBottom: 'var(--fluid-stack)' }}>
             <motion.button initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}
               onClick={() => onChange([])}
               className="font-mono text-micro font-bold text-muted-foreground tracking-widest uppercase px-2 py-1 rounded hover:text-foreground active:text-foreground transition-colors border-none bg-transparent cursor-pointer">
@@ -839,21 +839,22 @@ function GoalStep({ value, onChange, onNext, onBack, step, total }) {
         )}
 
         {/* Goal cards */}
-        <div className="space-y-2">
+        <div className="flex flex-col" style={{ gap: 'var(--fluid-stack)' }}>
           {GOALS.map((g, i) => {
             const selected = selectedIds.includes(g.id);
             const order = selectedIds.indexOf(g.id) + 1;
             return (
               <OptionCard key={g.id}
-                selected={selected} accent={g.accent} delay={0.05 + i * 0.07}
+                selected={selected} delay={0.05 + i * 0.07}
                 onClick={() => toggle(g.id)}
                 title={tFallback(`onboarding.goal.${g.id}.title`, g.title)}
                 sub={tFallback(`onboarding.goal.${g.id}.sub`, g.sub)}
                 leading={
-                  <span className="w-10 h-10 rounded-lg flex items-center justify-center transition-colors"
+                  <span className="rounded-lg flex items-center justify-center transition-colors"
                     style={{
-                      background: selected ? g.accent.replace(')', ' / 0.12)') : 'hsl(var(--secondary))',
-                      color: selected ? g.accent : 'hsl(var(--muted-foreground))',
+                      width: 'var(--fluid-tile)', height: 'var(--fluid-tile)',
+                      background: selected ? 'hsl(var(--primary) / 0.12)' : 'hsl(var(--secondary))',
+                      color: selected ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))',
                     }}>
                     <Icon name={g.icon} size={20} strokeWidth={2} />
                   </span>
@@ -867,7 +868,7 @@ function GoalStep({ value, onChange, onNext, onBack, step, total }) {
                   <span className="w-6 h-6 rounded-full flex items-center justify-center transition-all font-mono text-micro font-bold"
                     style={{
                       border: selected ? 'none' : '1.5px solid hsl(var(--border))',
-                      background: selected ? g.accent : 'transparent',
+                      background: selected ? 'hsl(var(--primary))' : 'transparent',
                       color: 'white',
                     }}>
                     {selected && (selectedIds.length > 1
@@ -882,7 +883,7 @@ function GoalStep({ value, onChange, onNext, onBack, step, total }) {
 
       </div>
 
-      <div className="pt-4 shrink-0">
+      <div className="shrink-0" style={{ paddingTop: 'var(--fluid-cta-gap)' }}>
         <PrimaryBtn onClick={onNext} disabled={selectedIds.length === 0}>
           {selectedIds.length === 0
             ? tFallback('onboarding.goal.ctaEmpty', 'Pick at least one')
@@ -1000,7 +1001,7 @@ function SharpenStep({ goals, value, onChange, onNext, onBack, step, total }) {
         <KineticHeading
           text={tFallback('onboarding.sharpen.heading', "Let's sharpen your plan.")}
           accentWord="sharpen" />
-        <p className="text-sm text-muted-foreground mb-6">
+        <p className="text-sm text-muted-foreground" style={{ marginBottom: 'var(--fluid-section)' }}>
           {tFallback('onboarding.sharpen.sub', 'A few quick details make your starter plan spot-on — all optional.')}
         </p>
 
@@ -1045,7 +1046,7 @@ function SharpenStep({ goals, value, onChange, onNext, onBack, step, total }) {
         )}
 
         {wantsStrength && (
-          <div className="space-y-2 mt-6">
+          <div className="space-y-2" style={{ marginTop: 'var(--fluid-section)' }}>
             <SectionLabel accent="hsl(26 95% 56%)" title={tFallback('onboarding.sharpen.liftsPrompt', 'Which lifts matter most?')} />
             <div className="flex flex-wrap gap-2">
               {FOCUS_LIFTS.map(n => (
@@ -1063,7 +1064,7 @@ function SharpenStep({ goals, value, onChange, onNext, onBack, step, total }) {
         )}
 
         {nothingToAsk && (
-          <div className="rounded-2xl border border-border bg-card p-5 text-center mt-6">
+          <div className="rounded-2xl border border-border bg-card p-5 text-center" style={{ marginTop: 'var(--fluid-section)' }}>
             <div className="text-2xl mb-1">✅</div>
             <p className="font-heading font-bold text-body">{tFallback('onboarding.sharpen.allSet', "You're all set")}</p>
             <p className="text-label text-muted-foreground mt-1">
@@ -1073,7 +1074,7 @@ function SharpenStep({ goals, value, onChange, onNext, onBack, step, total }) {
         )}
       </div>
 
-      <div className="pt-4 shrink-0">
+      <div className="shrink-0" style={{ paddingTop: 'var(--fluid-cta-gap)' }}>
         <PrimaryBtn onClick={onNext}>
           {tFallback('onboarding.common.continue', 'Continue')} <Icon name="arrow-right" size={18} strokeWidth={2.5} />
         </PrimaryBtn>
@@ -1183,7 +1184,7 @@ function ExperienceStep({ value, onChange, onNext, onBack, step, total }) {
         </div>
       </div>
 
-      <div className="pt-4 shrink-0">
+      <div className="shrink-0" style={{ paddingTop: 'var(--fluid-cta-gap)' }}>
         <PrimaryBtn onClick={onNext} disabled={!value}>
           {!value
             ? tFallback('onboarding.experience.ctaEmpty', 'Pick your experience level')
@@ -1235,7 +1236,7 @@ function AssessmentStep({ value, onChange, onNext, onBack, onSkip, step, total }
           text={tFallback('onboarding.assessment.heading', 'Quick lift check')}
           accentWord="lift"
         />
-        <p className="text-sm text-muted-foreground mb-6">
+        <p className="text-sm text-muted-foreground" style={{ marginBottom: 'var(--fluid-section)' }}>
           {tFallback('onboarding.assessment.sub', 'Optional — the more honest you are, the better the plan. Your AI Coach uses these to set starting volume.')}
         </p>
 
@@ -1293,7 +1294,7 @@ function AssessmentStep({ value, onChange, onNext, onBack, onSkip, step, total }
         </p>
       </div>
 
-      <div className="pt-4 shrink-0 flex flex-col gap-2">
+      <div className="shrink-0 flex flex-col gap-2" style={{ paddingTop: 'var(--fluid-cta-gap)' }}>
         <PrimaryBtn onClick={onNext}>
           {/* Same reason as the schedule step: this is step 10 of 14. */}
           {tFallback('onboarding.common.continue', 'Continue')}
@@ -1784,7 +1785,7 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
           </div>
         </motion.div>
       </div>
-      <div className="pt-4 shrink-0">
+      <div className="shrink-0" style={{ paddingTop: 'var(--fluid-cta-gap)' }}>
         <PrimaryBtn onClick={onNext} disabled={!canNext}>
           {/* The blocker is a username field several hundred pixels up the
               page, so a bare disabled "Continue" gave the user nothing to
@@ -2336,7 +2337,7 @@ function WeightStep({ stats, onChange, onNext, onBack, step, total }) {
           <button onClick={() => bump(+5)} style={nudgeBtnStyle}>+5</button>
         </div>
       </div>
-      <div className="pt-4 shrink-0">
+      <div className="shrink-0" style={{ paddingTop: 'var(--fluid-cta-gap)' }}>
         <PrimaryBtn onClick={onNext}>
           {tFallback('onboarding.common.continue', 'Continue')} <Icon name="arrow-right" size={18} strokeWidth={2.5} />
         </PrimaryBtn>
@@ -2469,7 +2470,7 @@ function DaysStep({ days, preferredTime, onDaysChange, onTimeChange, onNext, onB
         </div>
       </div>
 
-      <div className="pt-4 shrink-0">
+      <div className="shrink-0" style={{ paddingTop: 'var(--fluid-cta-gap)' }}>
         {/* Was "Build my plan" — on step 09 of 14, with injuries, home gym
             and the reveal still to come. A terminal-sounding CTA that isn't
             terminal makes the three steps after it feel like a bait and
@@ -3667,7 +3668,15 @@ export default function Onboarding() {
       />
 
       <div className="relative z-10 h-full flex items-start justify-center overflow-hidden">
-        <div className="w-full max-w-[420px] h-full px-6 py-6 sm:py-10 flex flex-col">
+        {/* `safe-page` carries the safe-area insets and the fluid padding —
+            see index.css. Layout.jsx has had insets since launch for the
+            authenticated app, but onboarding escapes Layout and never got
+            them: 24px of bottom padding against a 34px home indicator put
+            the Continue button partly under it on every notched iPhone, on
+            all eleven steps. The step's own spacing reads `--fluid-*`, which
+            is why the goal step now fits a 667pt SE as well as a 932pt Pro
+            Max instead of overflowing the first by 131px. */}
+        <div className="safe-page w-full max-w-[420px] h-full flex flex-col">
           <AnimatePresence mode="wait">
             <motion.div key={stepName}
               variants={buildVariants(direction > 0 ? STEP_TRANSITIONS[stepName] : 'back', direction)}

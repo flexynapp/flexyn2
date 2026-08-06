@@ -74,7 +74,7 @@ export const onboardingI18n = {
     'onboarding.goal.helper.none': 'Pick one or many — we tailor your plan to the combination.',
     'onboarding.goal.helper.one': "Nice. Add another if you're after a few outcomes.",
     'onboarding.goal.helper.few': "Stacking {count} goals — we'll balance your plan.",
-    'onboarding.goal.helper.many': 'Heads up: 4+ goals slows visible progress on each. Your call.',
+    'onboarding.goal.helper.many': 'Heads up: 4+ goals slows visible progress on each.',
     'onboarding.goal.selectPrompt': 'Select goals',
     'onboarding.goal.selectedCount': '{count} selected',
     'onboarding.goal.clear': 'Clear',
