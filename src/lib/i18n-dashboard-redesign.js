@@ -12,12 +12,20 @@
 
 export const dashboardRedesignI18n = {
   en: {
-    // ── Time-aware greetings — atmospheric, session-framed copy ───────────
-    'dashboard.greeting.lateNight':  'Late-night grit',
+    // ── Time-aware greetings ──────────────────────────────────────────────
+    // These render as `{greeting}, {FirstName}.` on the Dashboard, so each
+    // one has to work as DIRECT ADDRESS. Three of the five were noun phrases
+    // and came out ungrammatical — "Midday momentum, Sean." is a label with a
+    // name stapled to it, not a greeting. Imperatives keep the gym-floor
+    // energy the originals were reaching for AND survive the comma.
+    // TODO(i18n): the other 14 languages still translate the old noun
+    // phrases. Those may read fine in-language; a native pass should confirm
+    // rather than assume.
+    'dashboard.greeting.lateNight':  'Still at it',
     'dashboard.greeting.morning':    'Rise and grind',
-    'dashboard.greeting.afternoon':  'Midday momentum',
-    'dashboard.greeting.evening':    'Evening work',
-    'dashboard.greeting.night':      'Night shift',
+    'dashboard.greeting.afternoon':  'Keep it rolling',
+    'dashboard.greeting.evening':    'Finish strong',
+    'dashboard.greeting.night':      'Still going',
 
     // ── Hero card kickers (small uppercase label above the streak) ───────
     'dashboard.hero.kicker.done':       'Locked in today',

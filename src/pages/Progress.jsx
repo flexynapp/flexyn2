@@ -265,7 +265,7 @@ function AnalyticsTab({ logs }) {
     <div className="space-y-6">
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         {[
-          { value: logs.length, label: t('progress.totalWorkouts'), color: 'text-primary' },
+          { value: logs.length, label: t('progress.totalWorkouts'), color: 'text-info' },
           { value: trainedDays, label: t('progress.daysTrained30d'), color: 'text-primary' },
           { value: volumeByMuscle[0]?.displayGroup || '—', label: t('progress.topMuscleGroup'), color: 'text-success', span: 'col-span-2 md:col-span-1' },
         ].map((stat, i) => (
@@ -671,15 +671,27 @@ export default function Progress() {
   // card across the app. Each tile keeps its own color identity via
   // an accent applied to the icon + value only (not a solid fill),
   // mirroring the Dashboard StatTile pattern.
+  // One colour per stat. Three of these four were `text-primary`, so Streak,
+  // Workouts and Level were visually identical and the row read as one
+  // undifferentiated block — you could not tell the tiles apart at a glance,
+  // which is the entire job of a stat tile. Each now owns a semantic token:
+  //
+  //   streak   → primary      (orange — the brand's "keep going" colour, and
+  //                            the flame already reads orange everywhere else)
+  //   workouts → info         (blue)
+  //   volume   → success      (green — unchanged)
+  //   level    → accent       (the progression/reward colour)
+  //
+  // Tokens, not raw hex, so themes and dark mode keep working.
   const heroStats = [
     { id: 'streak',   icon: Flame,      value: streak ? `${streak}d` : '—', label: 'Streak',
       accent: 'text-primary',  iconBg: 'bg-primary/15'  },
     { id: 'workouts', icon: Dumbbell,   value: logs.length,                  label: 'Workouts',
-      accent: 'text-primary',     iconBg: 'bg-primary/15'     },
+      accent: 'text-info',     iconBg: 'bg-info/15'     },
     { id: 'volume',   icon: TrendingUp, value: totalVolume > 0 ? `${formatBigNumber(fromLbs(totalVolume, weightUnit))}` : '—', label: `Volume (${weightUnit})`,
       accent: 'text-success', iconBg: 'bg-success/15' },
     { id: 'level',    icon: Zap,        value: `Lv ${level}`,                label: 'Level',
-      accent: 'text-primary',  iconBg: 'bg-primary/15'  },
+      accent: 'text-accent',   iconBg: 'bg-accent/15'   },
   ];
 
   // Carousel slides — one per heroStat. Each has a motivational tip
@@ -837,7 +849,7 @@ export default function Progress() {
 
               <div className="grid grid-cols-3 gap-4 mb-4">
                 <div className="text-center">
-                  <p className="font-heading font-black text-2xl text-primary">{frameLogs.length}</p>
+                  <p className="font-heading font-black text-2xl text-info">{frameLogs.length}</p>
                   <p className="text-micro text-muted-foreground mt-0.5">Workouts</p>
                 </div>
                 <div className="text-center">
@@ -847,7 +859,9 @@ export default function Progress() {
                   <p className="text-micro text-muted-foreground mt-0.5">{weightUnit} lifted</p>
                 </div>
                 <div className="text-center">
-                  <p className="font-heading font-black text-2xl text-primary">{weeklyCardio.sessions || '—'}</p>
+                  {/* accent, not primary — Workouts above is already primary
+                      and the two sat side by side reading as one number. */}
+                  <p className="font-heading font-black text-2xl text-accent">{weeklyCardio.sessions || '—'}</p>
                   <p className="text-micro text-muted-foreground mt-0.5">Cardio</p>
                 </div>
               </div>

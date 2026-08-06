@@ -1226,7 +1226,18 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
       <div
         ref={scrollerRef}
         onScroll={handleScroll}
-        className="flex-1 min-h-0 overflow-y-auto overscroll-contain pe-1"
+        // overflow-x-hidden is load-bearing, not belt-and-braces. Setting
+        // ONLY overflow-y-auto leaves the x-axis computing to `auto` (CSS
+        // Overflow 3 §3: a non-visible value on one axis forces the other from
+        // `visible` to `auto`), so any child wider than the column — a long
+        // unbroken URL, a wide attachment, the pinned bar — gave the whole
+        // thread a horizontal scrollbar on desktop. That scrollbar then sat
+        // over the pinned-messages affordance and hid it.
+        //
+        // scrollbar-hide kills the visible track. The thread is a chat log;
+        // its scroll position is obvious from the content and the bar was
+        // pure chrome over the conversation.
+        className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain pe-1 scrollbar-hide"
       >
         {searchOpen && searchQuery.trim() && (
           <p className="text-micro text-muted-foreground text-center mb-2 tabular-nums">

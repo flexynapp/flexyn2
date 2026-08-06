@@ -412,6 +412,57 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
     );
   }
 
+  // ── Sort / filter toolbar ─────────────────────────────────────────────────
+  //
+  // Declared here, ABOVE the empty-state early return, and rendered in BOTH
+  // branches. It used to live only in the populated return, which made "Hot"
+  // a dead end: pick Hot, have it filter everything out, and the toolbar you
+  // would use to get back to New unmounted along with the feed. The only way
+  // out was a full page refresh.
+  //
+  // A control that removes itself is worse than one that returns no results —
+  // the user cannot tell whether the app broke or the feed is genuinely empty,
+  // and either way they are stuck.
+  const sortToolbar = (
+    <div className="flex items-center gap-2 flex-wrap">
+      {/* New | Hot toggle */}
+      <div className="flex items-center rounded-lg border border-border overflow-hidden text-micro font-bold shrink-0">
+        <button type="button"
+          onClick={() => { setSort('newest'); setVisibleCount(PAGE_SIZE); }}
+          className={`flex items-center gap-1 px-2.5 py-1.5 transition-colors ${sort === 'newest' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:text-foreground active:text-foreground'}`}>
+          <Clock className="w-3 h-3" />New
+        </button>
+        <button type="button"
+          onClick={() => { setSort('popular'); setVisibleCount(PAGE_SIZE); }}
+          className={`flex items-center gap-1 px-2.5 py-1.5 border-s border-border transition-colors ${sort === 'popular' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:text-foreground active:text-foreground'}`}>
+          <Flame className="w-3 h-3" />Hot
+        </button>
+      </div>
+      {/* Time sub-filter (Hot only) */}
+      {sort === 'popular' && (
+        <div className="flex items-center rounded-lg border border-border overflow-hidden text-micro font-bold shrink-0">
+          {[['today','Today'],['week','Week'],['all','All']].map(([val, label]) => (
+            <button key={val} type="button"
+              onClick={() => { setTimeFilter(val); setVisibleCount(PAGE_SIZE); }}
+              className={`px-2.5 py-1.5 border-s first:border-s-0 border-border transition-colors ${timeFilter === val ? 'bg-secondary text-foreground' : 'bg-background text-muted-foreground hover:text-foreground active:text-foreground'}`}>
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+      {/* Go Live — tucked inline, compact */}
+      <button onClick={() => setBroadcasterOpen(true)}
+        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-destructive/30 bg-destructive/5 text-destructive text-micro font-bold hover:bg-destructive/12 active:bg-destructive/12 transition-colors shrink-0 ml-auto">
+        <span className="relative flex w-2 h-2 shrink-0">
+          <span className="absolute inline-flex w-full h-full rounded-full bg-destructive opacity-60 animate-ping" />
+          <span className="relative inline-flex w-2 h-2 rounded-full bg-destructive" />
+        </span>
+        <Radio className="w-3 h-3" />
+        Go Live
+      </button>
+    </div>
+  );
+
   if (filteredPosts.length === 0 && !isLoading) {
     const isSquadWithFollowing = feedTab === 'squad' && following.length > 0;
     // Friendly empty state with an actionable CTA — previously was just text.
@@ -432,8 +483,27 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
       // a query param tells Hub.jsx to open the search overlay.
       onClick: () => navigate('/hub?search=open'),
     };
+    // Hot + a time window can empty a feed that has plenty in it. Say so,
+    // and offer the way out, rather than implying nobody has posted.
+    const emptiedByFilter = sort === 'popular';
     return (
       <div className="space-y-4">
+        {sortToolbar}
+        {emptiedByFilter ? (
+          <EmptyState
+            illustration={<NoFeedIllustration />}
+            title={tFallback('hub.empty.filteredTitle', 'Nothing hot in this window')}
+            body={tFallback('hub.empty.filteredDesc', 'No posts match Hot for the time range you picked. Try a wider range, or switch back to New.')}
+            action={{
+              label: tFallback('hub.empty.cta.backToNew', 'Back to New'),
+              onClick: () => { setSort('newest'); setVisibleCount(PAGE_SIZE); },
+            }}
+            secondaryAction={timeFilter !== 'all' ? {
+              label: tFallback('hub.empty.cta.allTime', 'Widen to All time'),
+              onClick: () => { setTimeFilter('all'); setVisibleCount(PAGE_SIZE); },
+            } : undefined}
+          />
+        ) : (
         <EmptyState
           illustration={feedTab === 'pump' ? <NoFeedIllustration /> : <NoFriendsIllustration />}
           title={
@@ -453,6 +523,7 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
           action={feedTab === 'pump' || isSquadWithFollowing ? ctaShare : ctaDiscover}
           secondaryAction={feedTab === 'pump' ? undefined : (isSquadWithFollowing ? ctaDiscover : ctaShare)}
         />
+        )}
         {/* PYMK suggestion rail — shown on Squad empty state to help new users build their network */}
         {feedTab === 'squad' && (
           <PeopleYouMayKnow onSelectUser={(u) => navigate(`/hub?profile=${encodeURIComponent(u.id || u.email)}`)} />
@@ -463,44 +534,7 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
 
   return (
     <div className="space-y-3">
-      {/* ── Sort / Filter + Go Live — single compact row ───────────────── */}
-      <div className="flex items-center gap-2 flex-wrap">
-        {/* New | Hot toggle */}
-        <div className="flex items-center rounded-lg border border-border overflow-hidden text-micro font-bold shrink-0">
-          <button type="button"
-            onClick={() => { setSort('newest'); setVisibleCount(PAGE_SIZE); }}
-            className={`flex items-center gap-1 px-2.5 py-1.5 transition-colors ${sort === 'newest' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:text-foreground active:text-foreground'}`}>
-            <Clock className="w-3 h-3" />New
-          </button>
-          <button type="button"
-            onClick={() => { setSort('popular'); setVisibleCount(PAGE_SIZE); }}
-            className={`flex items-center gap-1 px-2.5 py-1.5 border-s border-border transition-colors ${sort === 'popular' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:text-foreground active:text-foreground'}`}>
-            <Flame className="w-3 h-3" />Hot
-          </button>
-        </div>
-        {/* Time sub-filter (Hot only) */}
-        {sort === 'popular' && (
-          <div className="flex items-center rounded-lg border border-border overflow-hidden text-micro font-bold shrink-0">
-            {[['today','Today'],['week','Week'],['all','All']].map(([val, label]) => (
-              <button key={val} type="button"
-                onClick={() => { setTimeFilter(val); setVisibleCount(PAGE_SIZE); }}
-                className={`px-2.5 py-1.5 border-s first:border-s-0 border-border transition-colors ${timeFilter === val ? 'bg-secondary text-foreground' : 'bg-background text-muted-foreground hover:text-foreground active:text-foreground'}`}>
-                {label}
-              </button>
-            ))}
-          </div>
-        )}
-        {/* Go Live — tucked inline, compact */}
-        <button onClick={() => setBroadcasterOpen(true)}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-destructive/30 bg-destructive/5 text-destructive text-micro font-bold hover:bg-destructive/12 active:bg-destructive/12 transition-colors shrink-0 ml-auto">
-          <span className="relative flex w-2 h-2 shrink-0">
-            <span className="absolute inline-flex w-full h-full rounded-full bg-destructive opacity-60 animate-ping" />
-            <span className="relative inline-flex w-2 h-2 rounded-full bg-destructive" />
-          </span>
-          <Radio className="w-3 h-3" />
-          Go Live
-        </button>
-      </div>
+      {sortToolbar}
 
       {/* ── Live session cards ─────────────────────────────────────────── */}
       <Suspense fallback={null}>

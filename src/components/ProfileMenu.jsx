@@ -133,6 +133,21 @@ export default function ProfileMenu({ compact = false } = {}) {
   // Wave 54 (Settings audit) caught this.
   const deletingRef = useRef(false);
   const [journalOpen, setJournalOpen] = useState(false);
+
+  // Close the journal overlay whenever the route changes.
+  //
+  // My Journal is a global overlay; My Gyms is a route. Without this, opening
+  // one and then the other left BOTH on screen at once — the journal floating
+  // over the My Gyms page — which reads as the app breaking rather than as two
+  // surfaces coexisting. Nothing else in the menu has this problem because
+  // every other entry navigates.
+  //
+  // Same shape as the nav-visibility reset in Layout.jsx and the
+  // ErrorBoundary's auto-reset: an overlay that outlives the page it was
+  // opened from has to be told when the page goes away.
+  useEffect(() => {
+    setJournalOpen(false);
+  }, [location.pathname]);
   const [debriefVaultOpen, setDebriefVaultOpen] = useState(false);
   const [injuryFormOpen, setInjuryFormOpen] = useState(false);
   const [achievementsOpen, setAchievementsOpen] = useState(false);

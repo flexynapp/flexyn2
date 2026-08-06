@@ -97,15 +97,24 @@ function NavTab({ item, isActive, isHubItem, hubBlue, hubPurple, hubHasNewFollow
                           : 'border-2 border-border text-muted-foreground bg-muted/40')
                       : (isActive
                           ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/40'
-                          // Inactive Hub is a NEUTRAL ring, not an accent one.
-                          // It used to be border-primary/text-primary/bg-primary/5,
-                          // which meant the Hub icon sat in an orange ring on
-                          // every screen in the app — so on Workout (or any
-                          // other tab) two tabs read as selected at once. The
-                          // ring is what marks Hub as the elevated centre slot;
-                          // the accent is what marks the selected tab. Those
-                          // are different jobs and only one of them is stateful.
-                          : 'border-2 border-border text-muted-foreground bg-muted/40')
+                          // Inactive Hub keeps a NEUTRAL RING but a COLOURED
+                          // ICON. Two constraints meet here and both are real:
+                          //
+                          //  • Hub is the social centre slot and should look
+                          //    inviting even when you're elsewhere — a fully
+                          //    grey Hub reads as disabled (kegan, walkthrough
+                          //    2026-08-05).
+                          //  • It used to be border-primary + bg-primary/5,
+                          //    which put an orange RING on every screen in the
+                          //    app, so on Workout two tabs read as selected at
+                          //    once.
+                          //
+                          // Colouring the glyph and leaving the ring neutral
+                          // satisfies both: the ring is what says "selected"
+                          // and stays stateful, the icon is what says "this is
+                          // Hub" and can be branded. Do not put the accent back
+                          // on the border or the bg.
+                          : 'border-2 border-border text-primary bg-muted/40')
                 }`
               // Non-Hub tabs: an equal-height (h-9) centered icon slot so
               // every tab's label sits on the same baseline as Hub's.
