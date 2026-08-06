@@ -17,7 +17,7 @@
 import { supabase } from '@/api/supabaseClient';
 import { safeSelect } from '@/api/safeSelect';
 import { db } from '@/api/db';
-import { startOfWeek, subDays, differenceInCalendarDays, format } from 'date-fns';
+import { subDays, differenceInCalendarDays, format } from 'date-fns';
 import { INTENTS } from './intents';
 import { formatNumber } from '../intl';
 

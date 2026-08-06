@@ -27,7 +27,7 @@ import { getGymsInBbox } from '@/lib/data/gymBusinesses';
 import {
   fetchOsmGymsNear, distanceKm, bboxAround, DEFAULT_NEAR_RADIUS_KM,
 } from '@/lib/osmGyms';
-import { useWeightUnit } from '@/lib/WeightUnitContext';
+import { useDistanceUnit } from '@/lib/DistanceUnitContext';
 
 /** Widen steps, in km. 8 / 20 / 40 ≈ 5 / 12 / 25 miles. */
 const RADIUS_STEPS_KM = [DEFAULT_NEAR_RADIUS_KM, 20, 40];
@@ -71,12 +71,16 @@ export default function NearbyGymPicker({
   // gym three miles away was never fetched. See bboxAround().
   const [radiusKm, setRadiusKm] = useState(DEFAULT_NEAR_RADIUS_KM);
 
-  // Distance units follow the weight unit, the only unit signal the app
-  // stores. kg → km, lbs/stone → miles, which is right everywhere that
-  // matters (the US, the UK and Liberia are the imperial holdouts and
-  // all three weigh in pounds or stone).
-  const { weightUnit } = useWeightUnit();
-  const imperial = weightUnit !== 'kg';
+  // The app has a distance-unit preference of its own — synced to the
+  // profile, settable in Settings, and already read by the cardio,
+  // goals and leaderboard surfaces. Use it.
+  //
+  // This originally derived miles-vs-km from the WEIGHT unit, on the
+  // reasoning that lbs implies miles. It does, but it was reinventing a
+  // preference the user may have set explicitly, and disagreeing with
+  // every other distance in the app the moment they set one.
+  const { distanceUnit } = useDistanceUnit();
+  const imperial = distanceUnit !== 'km';
   const fmtRadius = (km) => (imperial
     ? `${Math.round(km / KM_PER_MILE)} mi`
     : `${Math.round(km)} km`);

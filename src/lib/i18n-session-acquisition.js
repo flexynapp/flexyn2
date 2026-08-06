@@ -1,4 +1,3 @@
-/* eslint-disable */
 //
 // src/lib/i18n-session-acquisition.js
 //

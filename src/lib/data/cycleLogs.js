@@ -5,7 +5,6 @@
 // BEFORE mounting any cycle UI or invoking these helpers.
 
 import { supabase } from '@/api/supabaseClient';
-import { safeSelect } from '@/api/safeSelect';
 
 
 const TABLE = 'cycle_logs';

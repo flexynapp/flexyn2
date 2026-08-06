@@ -1,7 +1,7 @@
 // Tests for src/lib/recentExerciseUsage — tracks per-user exercise
 // usage in localStorage + computes ranking scores.
 
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
   recordExerciseUse,
   recordWorkoutExercises,

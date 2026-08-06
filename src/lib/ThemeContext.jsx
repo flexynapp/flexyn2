@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { db } from '@/api/db';
-import { LOOT_THEMES, getLootThemeById } from '@/lib/lootThemes';
+import { getLootThemeById } from '@/lib/lootThemes';
 import { THEMES_ENABLED } from '@/lib/featureFlags';
 
 // The palette everyone runs while THEMES_ENABLED is false. It's also

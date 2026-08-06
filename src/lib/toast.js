@@ -88,7 +88,10 @@ toast.promise = (p) => (typeof p === 'function' ? p() : p);
 
 // Retained for the plain `toast()` form above, and so re-filtering a variant
 // is a one-word change rather than a rewrite. See "TO REVERT" in the header.
-// eslint-disable-next-line no-unused-vars
+// The rule name matters: `no-unused-vars` is switched OFF in
+// eslint.config.js in favour of `unused-imports/no-unused-vars`, so this
+// directive named a rule that wasn't running and suppressed nothing.
+// eslint-disable-next-line unused-imports/no-unused-vars
 const keepIfAction = (fn) => (message, opts) => (hasAction(opts) ? fn(message, opts) : undefined);
 
 // Every variant below reaches the user. Each one is a thing the app needs to

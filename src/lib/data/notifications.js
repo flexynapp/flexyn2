@@ -30,7 +30,6 @@
 // migration 035 — out of scope for this layer.
 
 import { supabase } from '@/api/supabaseClient';
-import { safeSelect } from '@/api/safeSelect';
 import { CAPSULE_GLYPH } from '@/lib/lootCatalog';
 
 

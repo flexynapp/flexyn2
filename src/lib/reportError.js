@@ -39,7 +39,6 @@ export function reportError(err, ctx = {}) {
   // Always log locally — Sentry might be off, network might be down, or the
   // engineer might be debugging without checking Sentry. console.error is
   // the universal channel.
-  // eslint-disable-next-line no-console
   console.error(
     `[reportError]${feature ? ' ' + feature : ''}:`,
     err,
@@ -69,8 +68,7 @@ export function reportError(err, ctx = {}) {
     });
   } catch (sentryErr) {
     if (isDev) {
-      // eslint-disable-next-line no-console
-      console.error('[reportError] Sentry capture failed:', sentryErr);
+          console.error('[reportError] Sentry capture failed:', sentryErr);
     }
   }
 }

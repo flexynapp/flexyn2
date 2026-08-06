@@ -17,7 +17,7 @@
 // generous: rule-based checks on a single static frame can't replace a coach,
 // so we err on the side of "Good" unless something is clearly off.
 
-import { angleAt, angleFromVertical, bestSide, distance, midpoint, ifConfident } from './geometry';
+import { angleAt, angleFromVertical, bestSide, distance, ifConfident } from './geometry';
 
 // ── Score helpers ─────────────────────────────────────────────────────────────
 

@@ -10,14 +10,13 @@
 //   {bag.openingCapsule && <CapsuleOpener capsule={bag.openingCapsule}
 //        onClaim={bag.claimCapsule} onClose={bag.closeOpener} />}
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/lib/toast';
 import { supabase } from '@/api/supabaseClient';
 import { safeSelect } from '@/api/safeSelect';
 import { useAuth } from '@/lib/AuthContext';
 import * as capsules from '@/lib/data/capsules';
-import { recoverStrandedCapsules, recoveryMessage } from '@/lib/capsuleRecovery';
 
 // Custom event name used by external callers (e.g. StatsHubModal "Bag &
 // Capsules" tile) to ask whatever currently owns the bag flow to open

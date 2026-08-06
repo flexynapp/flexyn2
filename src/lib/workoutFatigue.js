@@ -4,7 +4,7 @@
  * based on user demographics and same-day history (strength + cardio combined).
  */
 
-import { checkDailyHours, DAILY_HOUR_LIMITS } from './cardioLimits';
+import { checkDailyHours } from './cardioLimits';
 import { formatNumber } from './intl';
 
 export function getMaxRealisticSetsPerWorkout(userProfile) {

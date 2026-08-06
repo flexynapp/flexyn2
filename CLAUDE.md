@@ -275,19 +275,32 @@ before treating one as debt. And when you add a plugin, check you enabled
 every rule you meant to — a half-configured plugin fails silently and
 looks configured.
 
-**Six unused directives remain and are deliberate:**
+**`src/lib/**` is now linted too** (2026-08-06). It never had been: the
+component block's `files:` globs cover only `src/components`, `src/pages`
+and `Layout.jsx`, and `src/lib` was in its `ignores` on top of that. So
+every data module, context provider, helper and i18n part file was
+unchecked — most of the app's logic — and a clean `npm run lint` said
+nothing about any of it. It now runs the same rules; `src/lib/i18n-langs/`
+is excluded because `split-i18n.mjs` generates it (ESLint doesn't read
+`.gitignore`, so generated output has to be named in `ignores`).
 
-- `src/components/ErrorBoundary.jsx:187` — `no-alert` over a real
-  `window.prompt`. The rule is off (enabling it would add 23 warnings), so
-  the directive is inert today and *correct* the day anyone turns it on.
-- Five in `src/lib/**`, which **is not linted at all**: the config's
-  `files:` globs cover only `src/components/**`, `src/pages/**` and
-  `src/Layout.jsx`, and `src/lib/**` is additionally in `ignores`. So
-  every data module, every helper and every i18n part file is unchecked —
-  `no-undef`, unused imports, hook deps, all of it. Bringing it under the
-  component ruleset measured at **20 errors + 9 warnings** if you want to
-  take it on; until then, don't assume a clean `npm run lint` says
-  anything about `src/lib`.
+That surfaced 18 dead imports, **nine of them `safeSelect`** in
+`src/lib/data/` modules that import it and never wrap anything — worth
+knowing, because the Resilience-layers section says a new `.select()`
+with explicit columns should go through it, and those nine reads don't.
+
+**Zero unused directives remain, and that's the target.** A directive
+naming a rule that isn't enabled suppresses nothing and reports forever
+as a warning, which trains people to ignore lint warnings. Intent belongs
+in a prose comment next to the code — every one removed already had one.
+The two shapes that came up:
+
+- **Wrong rule name.** `src/lib/toast.js` disabled `no-unused-vars`,
+  which this config explicitly sets to `"off"` in favour of
+  `unused-imports/no-unused-vars`. Renaming it made it work.
+- **Rule not enabled at all.** `no-console` in `reportError.js`,
+  `no-alert` in `ErrorBoundary.jsx`. Removed; if either rule is ever
+  turned on, lint names the exact lines to re-annotate.
 
 ## Build & analyze
 

@@ -184,7 +184,6 @@ class ErrorBoundaryClass extends React.Component {
         setTimeout(() => this.setState({ copied: false }), 2500);
       } catch {
         // Last resort — show it for manual selection.
-        // eslint-disable-next-line no-alert
         window.prompt('Copy this error report:', text);
       }
     }

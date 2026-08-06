@@ -5,7 +5,6 @@ import {
   getMaxRealisticCalories,
   checkCardioSpeed,
   checkDailyHours,
-  CARDIO_SPEED_LIMITS,
   DAILY_HOUR_LIMITS,
 } from '../cardioLimits';
 

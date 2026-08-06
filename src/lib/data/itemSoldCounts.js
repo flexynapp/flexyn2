@@ -8,7 +8,6 @@
 // the typical call is countsFor([...itemIds]) returning a Map.
 
 import { supabase } from '@/api/supabaseClient';
-import { safeSelect } from '@/api/safeSelect';
 
 
 /**
