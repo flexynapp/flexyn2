@@ -3,7 +3,7 @@
 // carousel, multi-select goals, experience level, stat scrubbers,
 // schedule picker, loading animation, and personalised reveal.
 
-import { createContext, useContext, useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from 'react';
+import { createContext, useContext, useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import SignInToContinue from './SignInToContinue';
 import FlexynLogo from '@/components/FlexynLogo';
@@ -30,7 +30,14 @@ import { todayLocalDateString } from '@/lib/dateUtils';
 import { useDateFormatter } from '@/lib/intl';
 import NearbyGymPicker from '@/components/gyms/NearbyGymPicker';
 import GymJoinSheet from '@/components/gyms/GymJoinSheet';
-import { setHomeGym, setHomeGymFromOsm, setHomeGymCustom } from '@/lib/data/homeGym';
+// Lazy on purpose: GymMap statically imports maplibre-gl, and
+// vite.config keeps that out of vendor-misc so it stays its own chunk.
+// A static import here would put a map engine in the onboarding bundle
+// for a screen most users never open.
+const GymMapOverlay = lazy(() => import('@/pages/GymMap'));
+import {
+  setHomeGym, setHomeGymFromOsm, setHomeGymCustom, resolveHomeGymId,
+} from '@/lib/data/homeGym';
 import { OnboardingCoachButton, OnboardingCoachSheet } from '@/components/onboarding/OnboardingCoach';
 import { hasCoachFor } from '@/lib/aiCoach/onboardingCoach';
 
@@ -2703,6 +2710,7 @@ function HomeGymStep({ step, total, value, onChange, onNext, onBack, onSkip }) {
   // any other way, and what it costs. `applied` is how handleRevealNext
   // knows not to write the same pick a second time.
   const [candidate, setCandidate] = useState(null);
+  const [browsing, setBrowsing] = useState(false);
   return (
     <div className="flex flex-col h-full">
       <StepHeader step={step} total={total} onBack={onBack} />
@@ -2715,12 +2723,40 @@ function HomeGymStep({ step, total, value, onChange, onNext, onBack, onSkip }) {
           {tFallback('onboarding.homeGym.sub', "Your gym gets a bubble on the Flexyn map, and you'll get a leaderboard with everyone else who trains there. You can change this any time.")}
         </p>
 
+        {/* Escape hatch for anyone the radius search can't serve: the
+            whole country, pannable, instead of a list around one fix. */}
+        <button
+          type="button"
+          onClick={() => setBrowsing(true)}
+          className="w-full mb-3 py-2.5 rounded-xl text-sm font-bold border border-border bg-card text-primary hover:border-primary/40 active:border-primary/40 transition-all"
+        >
+          Browse map
+        </button>
+
         <NearbyGymPicker
           value={value}
           onChange={setCandidate}
           emptyHint={tFallback('onboarding.homeGym.emptyHint', "Add it yourself below, or skip for now — you can pick your gym from the map later.")}
         />
       </div>
+
+      {/* The map is a full-screen OVERLAY, not a route. App.jsx forces an
+          incomplete-onboarding user back onto the onboarding route, so
+          navigating to /gym-map bounces straight back — and stepIdx isn't
+          persisted, so it would also drop them at the start of the flow.
+          Picking on the map commits through GymMap's own adopt path, so
+          on close we take whatever home gym now exists. */}
+      {browsing && (
+        <Suspense fallback={null}>
+          <GymMapOverlay
+            onClose={async () => {
+              setBrowsing(false);
+              const id = await resolveHomeGymId(null);
+              if (id) onChange({ gymId: id, name: '', applied: true });
+            }}
+          />
+        </Suspense>
+      )}
 
       <GymJoinSheet
         pick={candidate}

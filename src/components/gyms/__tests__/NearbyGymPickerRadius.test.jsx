@@ -36,8 +36,17 @@ const osmGym = (name, lat, lon) => ({
   brand: null, website: null,
 });
 
+/** The cache returns { gyms, partial } — `partial` means a widen was
+ *  asked for and could not be served, so the rows are the narrower set. */
+const cached = (gyms, partial = false) => ({ gyms, partial });
+
+/** 3 / 6 / 12 / 24 miles, in km. Doubling is the product decision. */
+const MI = 1.609344;
+const R = [3, 6, 12, 24].map(m => +(m * MI).toFixed(6));
+
 /** Radii the picker asked for, in km, in order. */
-const radiiRequested = () => fetchOsmGymsNear.mock.calls.map(c => c[2].radiusKm);
+const radiiRequested = () =>
+  fetchOsmGymsNear.mock.calls.map(c => +c[2].radiusKm.toFixed(6));
 
 let geolocationCalls = 0;
 
@@ -57,15 +66,16 @@ afterEach(() => { vi.unstubAllGlobals(); });
 describe('an empty result widens itself', () => {
   it('escalates to 30 miles and shows what it finds there', async () => {
     fetchOsmGymsNear
-      .mockResolvedValueOnce([])                                   // 5 mi: nothing
-      .mockResolvedValueOnce([osmGym('Planet Fitness', 43.6, -70.8)]); // 30 mi
+      .mockResolvedValueOnce(cached([]))                                   // 5 mi: nothing
+      .mockResolvedValueOnce(cached([osmGym('Planet Fitness', 43.6, -70.8)])); // 30 mi
 
     render(<NearbyGymPicker value={null} onChange={() => {}} />);
 
     await waitFor(() => expect(screen.getByText('Planet Fitness')).toBeTruthy());
-    // 8 km ≈ 5 miles, then straight to 48 km ≈ 30. No intermediate step:
-    // one extra round trip is the whole budget for this.
-    expect(radiiRequested()).toEqual([8, 48]);
+    // 3 miles, then 6 — ONE step. It used to jump straight to the
+    // maximum, which made "Search Wider" vanish on the first empty
+    // result: the control disappeared exactly when it was wanted.
+    expect(radiiRequested()).toEqual([R[0], R[1]]);
     // And the user is never shown the dead end on the way.
     expect(screen.queryByText(/No gyms found nearby/i)).toBeNull();
     // ONE satellite fix, not two. The widen used to re-enter through
@@ -76,23 +86,26 @@ describe('an empty result widens itself', () => {
   });
 
   it('does not widen when the first radius already had something', async () => {
-    fetchOsmGymsNear.mockResolvedValueOnce([osmGym('CrossFit 207', 43.45, -70.78)]);
+    fetchOsmGymsNear.mockResolvedValueOnce(cached([osmGym('CrossFit 207', 43.45, -70.78)]));
 
     render(<NearbyGymPicker value={null} onChange={() => {}} />);
 
     await waitFor(() => expect(screen.getByText('CrossFit 207')).toBeTruthy());
-    expect(radiiRequested()).toEqual([8]);
+    expect(radiiRequested()).toEqual([R[0]]);
   });
 
   it('stops at the maximum rather than escalating forever', async () => {
-    fetchOsmGymsNear.mockResolvedValue([]);
+    fetchOsmGymsNear.mockResolvedValue(cached([]));
 
     render(<NearbyGymPicker value={null} onChange={() => {}} />);
 
     await waitFor(() => expect(screen.getByText(/No gyms found nearby/i)).toBeTruthy());
-    expect(radiiRequested()).toEqual([8, 48]);
-    // Now the empty state is honest: 30 miles really were searched.
-    expect(screen.getByText(/within/i).textContent).toMatch(/30 mi/);
+    // Every step, in order, and then it stops — 3, 6, 12, 24 and no
+    // fifth attempt. Stepping is what keeps "Search Wider" on screen
+    // while there is still somewhere wider to go.
+    expect(radiiRequested()).toEqual(R);
+    // And the empty state is now honest: 24 miles really were searched.
+    expect(screen.getByText(/Nothing is mapped within/i).textContent).toMatch(/24 mi/);
   });
 
   it('states the radius even when the host passes its own hint', async () => {
@@ -102,7 +115,7 @@ describe('an empty result widens itself', () => {
     // rendered in the app, only in a test that passed no hint. It also
     // cost a diagnosis: with the screen reading the same before and
     // after the fix, nobody could tell which build a phone was running.
-    fetchOsmGymsNear.mockResolvedValue([]);
+    fetchOsmGymsNear.mockResolvedValue(cached([]));
 
     render(
       <NearbyGymPicker
@@ -114,13 +127,13 @@ describe('an empty result widens itself', () => {
 
     await waitFor(() => expect(screen.getByText(/No gyms found nearby/i)).toBeTruthy());
     // The fact AND the advice, not one instead of the other.
-    expect(screen.getByText(/Nothing is mapped within/i).textContent).toMatch(/30 mi/);
+    expect(screen.getByText(/Nothing is mapped within/i).textContent).toMatch(/24 mi/);
     expect(screen.getByText(/Skip for now/i)).toBeTruthy();
   });
 });
 
 describe('a failed lookup does not widen', () => {
-  it('reports the failure instead of claiming nothing is within 30 miles', async () => {
+  it('reports the failure instead of claiming nothing is within 24 miles', async () => {
     fetchOsmGymsNear.mockRejectedValue(new Error('OSM timed out after 30s'));
 
     render(<NearbyGymPicker value={null} onChange={() => {}} />);
@@ -128,8 +141,8 @@ describe('a failed lookup does not widen', () => {
     await waitFor(() => expect(screen.getByText(/Couldn't search for gyms/i)).toBeTruthy());
     // One attempt. Widening a query that never ran would take twice as
     // long to produce a claim it hasn't earned.
-    expect(radiiRequested()).toEqual([8]);
-    expect(screen.queryByText(/within 30 mi/i)).toBeNull();
+    expect(radiiRequested()).toEqual([R[0]]);
+    expect(screen.queryByText(/Nothing is mapped within/i)).toBeNull();
   });
 });
 
@@ -144,7 +157,7 @@ describe('adding a gym OpenStreetMap has never heard of', () => {
   };
 
   it('reports the typed name at the fix the lookup already used', async () => {
-    fetchOsmGymsNear.mockResolvedValue([]);
+    fetchOsmGymsNear.mockResolvedValue(cached([]));
     const onChange = vi.fn();
 
     render(<NearbyGymPicker value={null} onChange={onChange} />);
@@ -169,7 +182,7 @@ describe('adding a gym OpenStreetMap has never heard of', () => {
   });
 
   it('will not submit a name too short for the RPC to accept', async () => {
-    fetchOsmGymsNear.mockResolvedValue([]);
+    fetchOsmGymsNear.mockResolvedValue(cached([]));
     const onChange = vi.fn();
 
     render(<NearbyGymPicker value={null} onChange={onChange} />);
@@ -182,7 +195,7 @@ describe('adding a gym OpenStreetMap has never heard of', () => {
   });
 
   it('shows the pending pick, because onboarding does not save until the end', async () => {
-    fetchOsmGymsNear.mockResolvedValue([]);
+    fetchOsmGymsNear.mockResolvedValue(cached([]));
 
     render(
       <NearbyGymPicker
@@ -199,7 +212,7 @@ describe('adding a gym OpenStreetMap has never heard of', () => {
   });
 
   it('offers the path alongside a list too, not only when empty', async () => {
-    fetchOsmGymsNear.mockResolvedValueOnce([osmGym('CrossFit 207', 43.45, -70.78)]);
+    fetchOsmGymsNear.mockResolvedValueOnce(cached([osmGym('CrossFit 207', 43.45, -70.78)]));
 
     render(<NearbyGymPicker value={null} onChange={() => {}} />);
 

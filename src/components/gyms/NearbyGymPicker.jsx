@@ -24,7 +24,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { getGymsInBbox } from '@/lib/data/gymBusinesses';
-import { distanceKm, bboxAround, DEFAULT_NEAR_RADIUS_KM } from '@/lib/osmGyms';
+import { distanceKm, bboxAround } from '@/lib/osmGyms';
 // Reads our own Postgres (~19ms) instead of Overpass (2.3-30s, failing
 // about one run in three at the wider radius). Only the first person in
 // an area pays a fill — see the head comment there for the measurements.
@@ -34,14 +34,17 @@ import { useDistanceUnit } from '@/lib/DistanceUnitContext';
 const KM_PER_MILE = 1.609344;
 
 /**
- * Widen steps, in km — 5 / 15 / 30 miles.
+ * 3 miles, doubling: 3 / 6 / 12 / 24.
  *
- * The 30-mile ceiling is not arbitrary: outside a city, 5 miles can be
- * genuinely empty. Sanford, Maine has five mapped gyms within 3 miles
- * but the next cluster is 13 miles out, and a beta tester there was
- * shown "no gyms found" with a button they had to notice and press.
+ * Stated in MILES and converted, rather than picked as round kilometres,
+ * because the steps are a product decision and the doubling is the point
+ * — each tap is a visibly bigger area, not an arbitrary next number.
+ *
+ * Three miles is deliberately tight. Outside a city it will often be
+ * empty, which is what the auto-widen below is for: Sanford, Maine has
+ * five mapped gyms within 3 miles and then nothing until 13.
  */
-const RADIUS_STEPS_KM = [DEFAULT_NEAR_RADIUS_KM, 24, 48];
+const RADIUS_STEPS_KM = [3, 6, 12, 24].map(mi => mi * KM_PER_MILE);
 const MAX_RADIUS_KM = RADIUS_STEPS_KM[RADIUS_STEPS_KM.length - 1];
 
 /**
@@ -86,12 +89,12 @@ export default function NearbyGymPicker({
   // applied to both axes, which made the real east-west reach shrink with
   // latitude — 0.05° is 3.0 miles in Houston and 2.3 in Seattle — so a
   // gym three miles away was never fetched. See bboxAround().
-  const [radiusKm, setRadiusKm] = useState(DEFAULT_NEAR_RADIUS_KM);
+  const [radiusKm, setRadiusKm] = useState(RADIUS_STEPS_KM[0]);
   // `load` has empty deps and cannot read radiusKm. This is how a
   // finishing request knows whether it is still the newest one — a
   // manual widen mid-flight must not be overridden by the older load's
   // auto-escalation.
-  const radiusRef = useRef(DEFAULT_NEAR_RADIUS_KM);
+  const radiusRef = useRef(RADIUS_STEPS_KM[0]);
 
   // The app has a distance-unit preference of its own — synced to the
   // profile, settable in Settings, and already read by the cardio,
@@ -145,7 +148,7 @@ export default function NearbyGymPicker({
             fetchOsmGymsNearCached(lat, lng, { radiusKm: radius, signal: ac.signal })
               .catch((e) => {
                 if (e?.name !== 'AbortError') { osmBroke = true; setOsmFailed(true); }
-                return [];
+                return { gyms: [], partial: false };
               }),
           ]);
 
@@ -164,7 +167,13 @@ export default function NearbyGymPicker({
           // The dedupe that matters — see the head comment.
           const claimed = new Set(dbRows.map(r => r.osmKey).filter(Boolean));
 
-          const osmRows = (osm || [])
+          // `partial` means the widen was asked for and could not be
+          // served — the rows are the NARROWER set we already had. Say
+          // so, or the user taps "Search Wider" and watches the same
+          // list re-render with no explanation. That is what happened.
+          if (osm?.partial) { osmBroke = true; setOsmFailed(true); }
+
+          const osmRows = (osm?.gyms || [])
             .filter(g => !claimed.has(`${g.osmType || 'node'}/${g.osmId}`))
             .map(g => ({
               key: `osm:${g.osmType}/${g.osmId}`,
@@ -194,8 +203,14 @@ export default function NearbyGymPicker({
           // after a manual widen and only the newest may escalate.
           if (merged.length === 0 && !osmBroke && radius < MAX_RADIUS_KM
               && radiusRef.current === radius) {
-            setRadiusKm(MAX_RADIUS_KM);
-            load(MAX_RADIUS_KM, { lat, lng });
+            // ONE step, not straight to the maximum. It used to jump, and
+            // that made "Search Wider" vanish on the first empty result —
+            // the control disappeared exactly when the user would reach
+            // for it. Stepping also keeps each fill small, and the wide
+            // ones are the ones that fail.
+            const next = RADIUS_STEPS_KM.find(km => km > radius) ?? MAX_RADIUS_KM;
+            setRadiusKm(next);
+            load(next, { lat, lng });
             return;
           }
 
@@ -220,7 +235,7 @@ export default function NearbyGymPicker({
 
   // Mount-only: listing radiusKm here would re-fetch on every widen in
   // addition to the explicit call.
-  useEffect(() => { load(DEFAULT_NEAR_RADIUS_KM); }, [load]);
+  useEffect(() => { load(RADIUS_STEPS_KM[0]); }, [load]);
 
   const widen = () => {
     const next = RADIUS_STEPS_KM.find(km => km > radiusKm) ?? MAX_RADIUS_KM;
@@ -296,7 +311,8 @@ export default function NearbyGymPicker({
           disabled={!canAddCustom}
           className="w-full py-2 text-xs text-muted-foreground hover:text-foreground active:text-foreground transition-colors disabled:opacity-50"
         >
-          My gym isn&apos;t listed — add it
+          My gym isn&apos;t listed —{' '}
+          <span className="font-semibold text-primary">Add It</span>
         </button>
       )}
     </div>
@@ -453,9 +469,9 @@ export default function NearbyGymPicker({
             <button
               type="button"
               onClick={widen}
-              className="flex-1 py-2 rounded-xl text-sm font-bold border border-border bg-secondary hover:border-primary/40 transition-all"
+              className="flex-1 py-2 rounded-xl text-sm font-bold border border-border bg-secondary text-primary hover:border-primary/40 transition-all"
             >
-              Search wider
+              Search Wider
             </button>
           )}
         </div>
@@ -529,8 +545,12 @@ export default function NearbyGymPicker({
                     : (r.distance < 1
                       ? `${Math.round(r.distance * 1000)} m`
                       : `${r.distance.toFixed(1)} km`)}
-                  {r.sub ? ` · ${r.sub}` : ''}
-                  {r.memberCount > 0 ? ` · ${r.memberCount} on Flexyn` : ''}
+                  {/* Always the Flexyn count, never "On OpenStreetMap".
+                      Where the row came from is our plumbing; how many
+                      people the user would be joining is the thing they
+                      are actually choosing between — and "0 on Flexyn"
+                      is information, not an absence. */}
+                  {` · ${r.memberCount} on Flexyn`}
                 </p>
               </div>
               {busyKey === r.key
@@ -562,7 +582,8 @@ export default function NearbyGymPicker({
           disabled={disabled}
           className="w-full mt-3 py-2 text-xs text-muted-foreground hover:text-foreground active:text-foreground transition-colors disabled:opacity-50"
         >
-          Showing gyms within {fmtRadius(radiusKm)} — search wider
+          Showing gyms within {fmtRadius(radiusKm)} —{' '}
+          <span className="font-semibold text-primary">Search Wider</span>
         </button>
       )}
       {addCustomBlock}

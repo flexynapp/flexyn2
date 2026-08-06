@@ -39,7 +39,7 @@ describe('fetchOsmGymsNearCached', () => {
   it('serves a covered, fresh area without touching the fill', async () => {
     rpc.mockResolvedValueOnce(cached([gym('YMCA', 43.44, -70.78)], 9, 9, 9));
 
-    const rows = await fetchOsmGymsNearCached(SANFORD.lat, SANFORD.lng);
+    const { gyms: rows } = await fetchOsmGymsNearCached(SANFORD.lat, SANFORD.lng);
 
     expect(rows.map(r => r.name)).toEqual(['YMCA']);
     // The whole point: this path is a single ~19ms database read.
@@ -54,14 +54,14 @@ describe('fetchOsmGymsNearCached', () => {
       gym('Middle', 43.50, -70.80),
     ], 9, 9, 9));
 
-    const rows = await fetchOsmGymsNearCached(SANFORD.lat, SANFORD.lng);
+    const { gyms: rows } = await fetchOsmGymsNearCached(SANFORD.lat, SANFORD.lng);
     expect(rows.map(r => r.name)).toEqual(['Near', 'Middle', 'Far']);
   });
 
   it('serves a STALE area immediately and refreshes behind the user', async () => {
     rpc.mockResolvedValueOnce(cached([gym('YMCA', 43.44, -70.78)], 9, 9, 0));
 
-    const rows = await fetchOsmGymsNearCached(SANFORD.lat, SANFORD.lng);
+    const { gyms: rows } = await fetchOsmGymsNearCached(SANFORD.lat, SANFORD.lng);
 
     // Gyms open and close over months. A spinner that confirms last
     // month's list is a spinner for nothing.
@@ -76,7 +76,7 @@ describe('fetchOsmGymsNearCached', () => {
       .mockResolvedValueOnce(cached([], 9, 0, 0))
       .mockResolvedValueOnce(cached([gym('CrossFit 207', 43.46, -70.75)], 9, 9, 9));
 
-    const rows = await fetchOsmGymsNearCached(SANFORD.lat, SANFORD.lng);
+    const { gyms: rows } = await fetchOsmGymsNearCached(SANFORD.lat, SANFORD.lng);
 
     expect(rows.map(r => r.name)).toEqual(['CrossFit 207']);
     expect(invoke).toHaveBeenCalledTimes(1);
@@ -88,7 +88,7 @@ describe('fetchOsmGymsNearCached', () => {
     // every user in a gym-less area pay Overpass on every visit.
     rpc.mockResolvedValueOnce(cached([], 9, 9, 9));
 
-    expect(await fetchOsmGymsNearCached(SANFORD.lat, SANFORD.lng)).toEqual([]);
+    expect((await fetchOsmGymsNearCached(SANFORD.lat, SANFORD.lng)).gyms).toEqual([]);
     expect(invoke).not.toHaveBeenCalled();
   });
 
@@ -98,8 +98,12 @@ describe('fetchOsmGymsNearCached', () => {
 
     // Partial coverage plus a dead Overpass. Something beats the picker's
     // failure state, which tells the user to retry what we could show.
-    const rows = await fetchOsmGymsNearCached(SANFORD.lat, SANFORD.lng);
-    expect(rows.map(r => r.name)).toEqual(['YMCA']);
+    const res = await fetchOsmGymsNearCached(SANFORD.lat, SANFORD.lng);
+    expect(res.gyms.map(r => r.name)).toEqual(['YMCA']);
+    // But FLAGGED. This used to return the rows and nothing else, so
+    // tapping "Search Wider" over a failed fill re-rendered the identical
+    // list with no error — asked for more, got the same, told nothing.
+    expect(res.partial).toBe(true);
   });
 
   it('throws when there is nothing cached AND the fill fails', async () => {
@@ -115,12 +119,12 @@ describe('fetchOsmGymsNearCached', () => {
     rpc.mockRejectedValueOnce({ code: '42883', message: 'function does not exist' });
     rpc.mockResolvedValueOnce(cached([gym('YMCA', 43.44, -70.78)], 9, 9, 9));
 
-    const rows = await fetchOsmGymsNearCached(SANFORD.lat, SANFORD.lng);
+    const { gyms: rows } = await fetchOsmGymsNearCached(SANFORD.lat, SANFORD.lng);
     expect(rows.map(r => r.name)).toEqual(['YMCA']);
   });
 
   it('returns [] on a bad fix without any round trip', async () => {
-    expect(await fetchOsmGymsNearCached(NaN, -70.77)).toEqual([]);
+    expect((await fetchOsmGymsNearCached(NaN, -70.77)).gyms).toEqual([]);
     expect(rpc).not.toHaveBeenCalled();
   });
 });

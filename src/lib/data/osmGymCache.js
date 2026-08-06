@@ -76,10 +76,15 @@ async function fill(box, signal) {
 /**
  * Gyms near a point, closest first, served from the cache.
  *
- * Throws only when there is nothing to show AND the fill failed — a
- * partial answer is always better than an error, because the picker
- * renders a failure state that tells the user to retry something we
- * could have just shown them.
+ * Returns `{ gyms, partial }`. `partial` means a fill was needed and
+ * failed, so what came back is whatever was already cached — narrower
+ * than asked for, and the caller must SAY so.
+ *
+ * That flag exists because of a real bug: this used to return the stale
+ * rows and nothing else, so tapping "Search wider" over a failed fill
+ * re-rendered the identical list with no error. The user asked for more,
+ * got the same, and was told nothing. A silent fallback is fine when
+ * nobody asked; it is a lie when they did.
  *
  * @param {number} lat
  * @param {number} lng
@@ -88,13 +93,16 @@ async function fill(box, signal) {
 export async function fetchOsmGymsNearCached(
   lat, lng, { radiusKm = DEFAULT_NEAR_RADIUS_KM, signal, limit = 300 } = {},
 ) {
-  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return [];
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return { gyms: [], partial: false };
   const box = bboxAround(lat, lng, radiusKm);
 
-  const sortByDistance = (gyms) => gyms
-    .filter(g => Number.isFinite(g?.lat) && Number.isFinite(g?.lon))
-    .sort((a, b) => distanceKm(lat, lng, a.lat, a.lon)
-                  - distanceKm(lat, lng, b.lat, b.lon));
+  const done = (gyms, partial = false) => ({
+    gyms: gyms
+      .filter(g => Number.isFinite(g?.lat) && Number.isFinite(g?.lon))
+      .sort((a, b) => distanceKm(lat, lng, a.lat, a.lon)
+                    - distanceKm(lat, lng, b.lat, b.lon)),
+    partial,
+  });
 
   let first;
   try {
@@ -109,14 +117,14 @@ export async function fetchOsmGymsNearCached(
   const covered = first.known >= first.total;
 
   // Fully covered and current: done, and this is the common case.
-  if (covered && first.fresh >= first.total) return sortByDistance(first.gyms);
+  if (covered && first.fresh >= first.total) return done(first.gyms);
 
   // Covered but stale. Serve immediately, refresh behind the user. The
   // refresh is deliberately not awaited and its failure is not reported
   // as a user-visible error — nobody is waiting on it.
   if (covered) {
     fill(box, signal).catch(() => {});
-    return sortByDistance(first.gyms);
+    return done(first.gyms);
   }
 
   // Never looked here. This is the one path that waits.
@@ -124,16 +132,17 @@ export async function fetchOsmGymsNearCached(
     await fill(box, signal);
   } catch (err) {
     if (err?.name === 'AbortError') throw err;
-    // The fill failed, but anything already cached still beats nothing.
-    if (first.gyms.length > 0) return sortByDistance(first.gyms);
+    // The fill failed. Anything already cached still beats nothing, but
+    // it is NARROWER than what was asked for — flagged, not smuggled.
+    if (first.gyms.length > 0) return done(first.gyms, true);
     throw err;
   }
 
   try {
     const second = await readCache(box, limit);
-    return sortByDistance(second.gyms);
+    return done(second.gyms);
   } catch (err) {
-    if (first.gyms.length > 0) return sortByDistance(first.gyms);
+    if (first.gyms.length > 0) return done(first.gyms, true);
     throw err;
   }
 }

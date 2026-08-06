@@ -243,7 +243,16 @@ function buildOsmPin({ gym, onClick, signal }) {
 // it races rather than falls back sequentially.
 
 // ── Component ──────────────────────────────────────────────────────────
-export default function GymMap() {
+/**
+ * @param {Function} [onClose] when present, the Back button calls this
+ *   instead of navigating. Onboarding mounts this as a full-screen
+ *   overlay: App.jsx forces an incomplete-onboarding user back onto the
+ *   onboarding route, so a real navigation to /gym-map bounces — and only
+ *   `data` is persisted, not `stepIdx`, so it would also drop the user at
+ *   the start of the flow with their answers intact but ten steps to
+ *   re-click. An overlay avoids both.
+ */
+export default function GymMap({ onClose }) {
   const navigate = useNavigate();
   const { user } = useAuth();
 
@@ -745,7 +754,7 @@ export default function GymMap() {
     >
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-card z-10 shrink-0">
-        <button type="button" onClick={() => navigate(-1)}
+        <button type="button" onClick={() => (onClose ? onClose() : navigate(-1))}
           className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center"
           aria-label="Back">
           <ArrowLeft className="w-4 h-4" />
