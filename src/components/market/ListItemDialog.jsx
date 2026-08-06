@@ -139,10 +139,7 @@ export default function ListItemDialog({ open, onClose, userItems, user, onSucce
                   No stickers available to list. Open capsules to get more!
                 </div>
               ) : (
-                <div
-                  className="grid grid-cols-3 gap-2 max-h-64 overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-track]:bg-transparent"
-                  style={{ scrollbarWidth: 'thin', scrollbarColor: 'hsl(var(--border)) transparent' }}
-                >
+                <div className="grid grid-cols-3 gap-2 max-h-64 overflow-y-auto">
                   {unlistedItems.map(item => (
                     <RarityFrame
                       key={item.id}

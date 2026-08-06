@@ -256,6 +256,25 @@
   .overflow-y-scroll {
     overscroll-behavior: contain;
   }
+  /* The app draws no scrollbars of its own. Everything that scrolls inside it
+     — step bodies, modal grids, horizontal rails, side panels — scrolls by
+     swipe on iOS and Android and by wheel or trackpad on desktop, painting no
+     bar. This is the whole rule: individual components should not be styling
+     ::-webkit-scrollbar, and don't need `scrollbar-hide` for new code.
+
+     html and body are deliberately excluded. On desktop that is the browser's
+     own page scrollbar — the one scrollbar we do want, provided by the
+     platform rather than by us. The selector has to be written this way
+     rather than as a plain `*` because styling ::-webkit-scrollbar at all
+     hands scrollbar rendering to the stylesheet, so there's no "back to
+     default" value to restore for the document afterwards. */
+  *:not(html):not(body)::-webkit-scrollbar {
+    display: none;
+  }
+  *:not(html):not(body) {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
 }
 
 @layer utilities {

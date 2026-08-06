@@ -155,10 +155,7 @@ export default function TradeOfferDialog({ open, listing, userItems, user, onClo
               No eligible stickers to offer.
             </p>
           ) : (
-            <div
-              className="grid grid-cols-3 gap-2 max-h-52 overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-track]:bg-transparent"
-              style={{ scrollbarWidth: 'thin', scrollbarColor: 'hsl(var(--border)) transparent' }}
-            >
+            <div className="grid grid-cols-3 gap-2 max-h-52 overflow-y-auto">
               {eligibleItems.map(item => {
                 const picked = selectedOffer?.id === item.id;
                 return (
