@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { getGymsInBbox } from '@/lib/data/gymBusinesses';
+import { getGymsInBbox, listMyGyms } from '@/lib/data/gymBusinesses';
 import { fetchOsmGyms, OSM_ZOOM_MIN } from '@/lib/osmGyms';
 // Extracted so it is testable without dragging maplibre-gl into jsdom;
 // the head comment there records why the search was covering one layer.
@@ -40,7 +40,23 @@ const STYLE_URL    = MAPTILER_KEY
   ? `https://api.maptiler.com/maps/streets-v2/style.json?key=${MAPTILER_KEY}`
   : 'https://tiles.openfreemap.org/styles/liberty';
 
-const SPECIAL_PIN_CODES = new Set(['WKF2QPWT']);
+// Orange means ONE thing on this map now: a gym you have joined.
+//
+// It used to mean "Camp Quannapowitt" — a single flexyn_code given an
+// orange teardrop as a one-off highlight (5a62bb7). That highlight is
+// gone, because a colour that means two things is the exact failure
+// CLAUDE.md records for grey, which was read as "my gym" three separate
+// times before the ★ badge was added to disambiguate it. If a gym wants
+// singling out again it needs a signal that isn't this one.
+//
+// The tiers are now:
+//   orange bubble  — a gym YOU are a member of
+//   purple bubble  — a verified business you have not joined
+//   grey bubble    — a community gym you have not joined
+//   grey teardrop  — an OSM gym nobody has picked yet
+//
+// ★ still marks your HOME gym specifically, because you can be a member
+// of several and only one of them is the one you declared.
 
 // ── Pin DOM builders ───────────────────────────────────────────────────
 
@@ -51,7 +67,7 @@ const SPECIAL_PIN_CODES = new Set(['WKF2QPWT']);
 // the top-left corner of the map container (the reported bug).
 // All hover scaling is now applied to an INNER wrapper so the outer
 // transform stays MapLibre's exclusive property.
-function buildFlexynPin({ gym, compact, onClick, signal, isHome = false }) {
+function buildFlexynPin({ gym, compact, onClick, signal, isHome = false, isMine = false }) {
   const el = document.createElement('button');
   el.type  = 'button';
   el.title = gym.name;
@@ -65,7 +81,9 @@ function buildFlexynPin({ gym, compact, onClick, signal, isHome = false }) {
   const inner = document.createElement('div');
   Object.assign(inner.style, {
     width: '100%', height: '100%', borderRadius: '50%',
-    background: 'linear-gradient(135deg,#7c3aed,#4338ca)',
+    background: isMine
+      ? 'linear-gradient(135deg,#fb923c,#ea580c)'
+      : 'linear-gradient(135deg,#7c3aed,#4338ca)',
     border: '2.5px solid #fff',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
     color: '#fff', fontSize: `${compact ? 10 : 12}px`, fontWeight: '700',
@@ -118,7 +136,7 @@ function buildFlexynPin({ gym, compact, onClick, signal, isHome = false }) {
 // Grey is shared with the OSM teardrop deliberately: both mean
 // "unclaimed". Shape is what separates "has a community" from "just
 // exists on a map".
-function buildCommunityPin({ gym, compact, onClick, signal, isHome = false }) {
+function buildCommunityPin({ gym, compact, onClick, signal, isHome = false, isMine = false }) {
   const el = document.createElement('button');
   el.type = 'button';
   el.title = gym.name;
@@ -133,7 +151,9 @@ function buildCommunityPin({ gym, compact, onClick, signal, isHome = false }) {
   const inner = document.createElement('div');
   Object.assign(inner.style, {
     width: '100%', height: '100%', borderRadius: '50%',
-    background: 'linear-gradient(135deg,#9ca3af,#6b7280)',
+    background: isMine
+      ? 'linear-gradient(135deg,#fb923c,#ea580c)'
+      : 'linear-gradient(135deg,#9ca3af,#6b7280)',
     border: '2.5px solid #fff',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
     color: '#fff', fontSize: `${compact ? 9 : 11}px`, fontWeight: '700',
@@ -168,44 +188,6 @@ function buildCommunityPin({ gym, compact, onClick, signal, isHome = false }) {
   return el;
 }
 
-function buildOrangePin({ gym, onClick, signal }) {
-  const el = document.createElement('button');
-  el.type  = 'button';
-  el.title = gym.name;
-  // Explicit width/height + line-height:0/font-size:0 so the SVG sits
-  // flush in the button without baseline-alignment gaps. MapLibre uses
-  // the marker's offsetWidth/Height to anchor; deterministic dims
-  // guarantee correct geo-anchor positioning.
-  Object.assign(el.style, {
-    width: '32px', height: '46px',
-    background: 'none', border: 'none', padding: '0',
-    cursor: 'pointer', display: 'block',
-    lineHeight: '0', fontSize: '0',
-  });
-  // Inner wrapper carries the hover transform — see buildFlexynPin
-  // for the rationale (MapLibre owns the outer element's transform).
-  const inner = document.createElement('div');
-  Object.assign(inner.style, {
-    width: '100%', height: '100%', display: 'block',
-    transition: 'transform 140ms ease-out',
-    transform: 'scale(1)',
-    transformOrigin: 'center bottom',
-    willChange: 'transform',
-  });
-  inner.innerHTML = `<svg width="32" height="46" viewBox="0 0 32 46" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block">
-    <path d="M16 1C7.72 1 1 7.72 1 16c0 12 15 29 15 29S31 28 31 16C31 7.72 24.28 1 16 1z"
-      fill="#f97316" stroke="#fff" stroke-width="2"
-      style="filter:drop-shadow(0 3px 4px rgba(0,0,0,0.35))"/>
-    <circle cx="16" cy="15" r="7" fill="rgba(255,255,255,0.25)"/>
-    <circle cx="16" cy="15" r="4" fill="rgba(255,255,255,0.55)"/>
-  </svg>`;
-  el.appendChild(inner);
-  const opts = signal ? { signal } : undefined;
-  el.addEventListener('mouseenter', () => { inner.style.transform = 'scale(1.2) translateY(-3px)'; }, opts);
-  el.addEventListener('mouseleave', () => { inner.style.transform = 'scale(1)'; }, opts);
-  el.addEventListener('click', e => { e.stopPropagation(); onClick(gym); }, opts);
-  return el;
-}
 
 function buildOsmPin({ gym, onClick, signal }) {
   const el = document.createElement('button');
@@ -299,6 +281,11 @@ export default function GymMap() {
   // Home gym (mig 275). Tracked locally as well as on the profile so the
   // card flips to "My gym ✓" the moment the RPC returns — AuthContext
   // snapshots the profile and won't reflect the write until it reloads.
+  // Every gym the viewer is a member of, which is what paints a pin
+  // orange. Broader than homeGymId on purpose: gym_members is the
+  // many-gyms junction, so you can belong to several floors while only
+  // one of them is the home gym that carries the ★.
+  const [myGymIds, setMyGymIds] = useState(() => new Set());
   const [homeGymId, setHomeGymId] = useState(user?.home_gym_id || null);
   const [homeGymName, setHomeGymName] = useState(null);
   const [settingHome, setSettingHome] = useState(false);
@@ -325,6 +312,20 @@ export default function GymMap() {
     (gymId) => !!gymId && homeGymId === gymId,
     [homeGymId],
   );
+
+  // Loaded once per viewer rather than per viewport: membership doesn't
+  // change as the map pans, and re-reading it on every moveend would put
+  // a query behind a gesture for an answer that cannot have changed.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!user?.id) { setMyGymIds(new Set()); return; }
+      const rows = await listMyGyms(user.id);
+      if (cancelled) return;
+      setMyGymIds(new Set((rows || []).map(r => r.gym?.id || r.id).filter(Boolean)));
+    })();
+    return () => { cancelled = true; };
+  }, [user?.id, homeGymId]);
 
   const adoptGym = useCallback(async (gym) => {
     if (!gym?.id || settingHome) return;
@@ -581,19 +582,17 @@ export default function GymMap() {
     const visible = gyms.filter(g => matchesFlexynGym(q, g));
 
     for (const g of visible) {
-      const special = SPECIAL_PIN_CODES.has(g.flexyn_code);
-      const el      = special
-        ? buildOrangePin({ gym: g, onClick: setSelected, signal: ac.signal })
-        : g.source === 'community'
-          ? buildCommunityPin({ gym: g, compact, onClick: setSelected, signal: ac.signal, isHome: g.id === homeGymId })
-          : buildFlexynPin({ gym: g, compact, onClick: setSelected, signal: ac.signal, isHome: g.id === homeGymId });
-      const marker  = new maplibregl.Marker({ element: el, anchor: special ? 'bottom' : 'center' })
+      const mine = myGymIds.has(g.id);
+      const el   = g.source === 'community'
+        ? buildCommunityPin({ gym: g, compact, onClick: setSelected, signal: ac.signal, isHome: g.id === homeGymId, isMine: mine })
+        : buildFlexynPin({ gym: g, compact, onClick: setSelected, signal: ac.signal, isHome: g.id === homeGymId, isMine: mine });
+      const marker = new maplibregl.Marker({ element: el, anchor: 'center' })
         .setLngLat([g.longitude, g.latitude])
         .addTo(map);
       markersRef.current.push(marker);
     }
     return () => { ac.abort(); };
-  }, [gyms, currentZoom, search, homeGymId]);
+  }, [gyms, currentZoom, search, homeGymId, myGymIds]);
 
   // Suppress the live Overpass teardrop for any gym already promoted to
   // a community gym (mig 275). Both layers describe the same physical

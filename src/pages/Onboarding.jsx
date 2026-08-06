@@ -29,6 +29,7 @@ import { buildProfilePayload, resolveMeasurements, parseHeightInput, PROFILE_RAN
 import { todayLocalDateString } from '@/lib/dateUtils';
 import { useDateFormatter } from '@/lib/intl';
 import NearbyGymPicker from '@/components/gyms/NearbyGymPicker';
+import GymJoinSheet from '@/components/gyms/GymJoinSheet';
 import { setHomeGym, setHomeGymFromOsm, setHomeGymCustom } from '@/lib/data/homeGym';
 import { OnboardingCoachButton, OnboardingCoachSheet } from '@/components/onboarding/OnboardingCoach';
 import { hasCoachFor } from '@/lib/aiCoach/onboardingCoach';
@@ -44,7 +45,7 @@ import { hasCoachFor } from '@/lib/aiCoach/onboardingCoach';
    step components change at all.
 ═══════════════════════════════════════════════════════════════ */
 
-const OnboardingCoachContext = createContext(null);
+export const OnboardingCoachContext = createContext(null);
 
 /* ═══════════════════════════════════════════════════════════════
    CONSTANTS
@@ -1129,7 +1130,23 @@ function ExperienceStep({ value, onChange, onNext, onBack, step, total }) {
             options own the screen at rest and the meter arrives as
             confirmation of the choice, which is the only moment it has
             anything to show. */}
-        <AnimatePresence>
+        {/* `initial={false}` is what makes this step arrive in one piece.
+            Without it the meter played its open animation on MOUNT — so
+            walking onto the step with a level already chosen showed the card
+            growing from height 0 as an EMPTY shell, and its text landed in
+            two later beats inside it. Measured off a screen recording of the
+            real device: bars at 1.17s, "New" at 1.41s, the description at
+            1.64s. Three arrivals for one card, which is the choppiness.
+
+            Animating `height: 0 → auto` is also the one property here that
+            can't be composited — it relayouts the four option cards below on
+            every frame — so not running it on arrival is worth it twice.
+
+            AnimatePresence only suppresses children present at its OWN first
+            render, so picking a level while standing on the step still
+            animates the card open. Which is right: this should animate as a
+            response to a choice, not as a greeting. */}
+        <AnimatePresence initial={false}>
         {current && (
         <motion.div
           initial={{ opacity: 0, y: 8, height: 0 }}
@@ -1152,8 +1169,18 @@ function ExperienceStep({ value, onChange, onNext, onBack, step, total }) {
               );
             })}
           </div>
-          <AnimatePresence mode="wait">
-            <motion.div key={current?.id || 'none'} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}>
+          {/* Same `initial={false}` for the same reason, and it is the half
+              that actually carries the text. Without it the label and
+              description still faded in on their own after the card was
+              already there — the card would open and THEN fill.
+
+              `mode="wait"` stays: both copies sit in normal flow, so letting
+              them overlap would make the card briefly twice as tall. It only
+              costs a beat when swapping levels, and the transition is pinned
+              short so that beat stays under the 0.35s the card takes. */}
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div key={current?.id || 'none'} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}>
               <div className="font-heading font-bold text-2xl tracking-tight text-foreground">
                 {current && tFallback(`onboarding.level.${current.id}.label`, current.label)}
               </div>
@@ -2652,6 +2679,15 @@ function InjuryHistoryStep({ step, total, value, onChange, onNext, onBack, onSki
 
 function HomeGymStep({ step, total, value, onChange, onNext, onBack, onSkip }) {
   const { tFallback } = useLanguage();
+  // Picking opens a confirmation sheet rather than committing silently.
+  // The pick is the one social commitment onboarding asks for, and it
+  // used to advance the step with nothing acknowledging it.
+  //
+  // The sheet JOINS, which means this step now writes — see the head
+  // comment in GymJoinSheet.jsx for why the leaderboard cannot be shown
+  // any other way, and what it costs. `applied` is how handleRevealNext
+  // knows not to write the same pick a second time.
+  const [candidate, setCandidate] = useState(null);
   return (
     <div className="flex flex-col h-full">
       <StepHeader step={step} total={total} onBack={onBack} />
@@ -2666,10 +2702,18 @@ function HomeGymStep({ step, total, value, onChange, onNext, onBack, onSkip }) {
 
         <NearbyGymPicker
           value={value}
-          onChange={onChange}
-          emptyHint={tFallback('onboarding.homeGym.emptyHint', 'Nothing is mapped within a few kilometres of you. Skip for now — you can pick your gym from the map later.')}
+          onChange={setCandidate}
+          emptyHint={tFallback('onboarding.homeGym.emptyHint', "Add it yourself below, or skip for now — you can pick your gym from the map later.")}
         />
       </div>
+
+      <GymJoinSheet
+        pick={candidate}
+        open={!!candidate}
+        onCancel={() => { setCandidate(null); onChange(null); }}
+        onJoined={(gymId) => onChange({ ...candidate, gymId, applied: true })}
+        onContinue={() => { setCandidate(null); onNext(); }}
+      />
 
       {/* Same hierarchy swap as the body-baseline step: on an OPTIONAL step the
           loudest control has to be one that actually works. This was
@@ -3575,11 +3619,18 @@ export default function Onboarding() {
         // a gym that didn't attach is recoverable from Profile → My
         // Gym, and must never block entry into the app.
         if (data.homeGym) {
-          const attach = data.homeGym.custom
-            ? setHomeGymCustom(data.homeGym.custom)
-            : data.homeGym.osm
-              ? setHomeGymFromOsm(data.homeGym.osm)
-              : setHomeGym(data.homeGym.gymId);
+          // `applied` means GymJoinSheet already committed this pick when
+          // the user tapped Join. Re-running the RPC would be harmless —
+          // all three are idempotent — but it would be a wasted round
+          // trip on the slowest screen in the flow, and for an OSM pick
+          // it re-reads a row we already hold the id for.
+          const attach = data.homeGym.applied
+            ? setHomeGym(data.homeGym.gymId)
+            : data.homeGym.custom
+              ? setHomeGymCustom(data.homeGym.custom)
+              : data.homeGym.osm
+                ? setHomeGymFromOsm(data.homeGym.osm)
+                : setHomeGym(data.homeGym.gymId);
           attach.catch(sideErr => {
             reportError(sideErr, { feature: 'onboarding.home-gym', level: 'warning', userEmail: user?.email });
           });
@@ -3793,3 +3844,6 @@ export default function Onboarding() {
   );
 }
 
+
+// TEMP measurement export — delete me.
+export const __STEPS__ = { ExperienceStep };
