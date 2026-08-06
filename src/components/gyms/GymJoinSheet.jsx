@@ -37,7 +37,7 @@ import { motion } from 'framer-motion';
 import BottomSheet from '@/components/ui/BottomSheet';
 import { staticMapCard } from '@/lib/staticMap';
 import {
-  setHomeGym, setHomeGymFromOsm, setHomeGymCustom, getGymConsistencyBoard,
+  setHomeGym, setHomeGymFromOsm, getGymConsistencyBoard,
 } from '@/lib/data/homeGym';
 import { leaveGym } from '@/lib/data/gymBusinesses';
 import { useDistanceUnit } from '@/lib/DistanceUnitContext';
@@ -47,8 +47,7 @@ const KM_PER_MILE = 1.609344;
 
 /** Route a pick shape to the RPC that commits it. */
 function commit(pick) {
-  if (pick?.custom) return setHomeGymCustom(pick.custom);
-  if (pick?.osm)    return setHomeGymFromOsm(pick.osm);
+  if (pick?.osm) return setHomeGymFromOsm(pick.osm);
   return setHomeGym(pick?.gymId);
 }
 
@@ -132,8 +131,6 @@ export default function GymJoinSheet({ pick, open, onCancel, onJoined, onContinu
       setError({
         NAME_REJECTED: "That gym's name can't be added automatically.",
         CREATE_LIMIT: "You've added a lot of gyms already — pick an existing one.",
-        NAME_REQUIRED: 'Give the gym a name first.',
-        BAD_COORDS: "We couldn't tell where you are — turn location on and retry.",
       }[res.error] || "Couldn't join that gym — try again.");
       setStage('confirm');
       return;
@@ -172,11 +169,9 @@ export default function GymJoinSheet({ pick, open, onCancel, onJoined, onContinu
     onCancel?.();
   };
 
-  const coords = pick?.custom
-    ? { lat: pick.custom.lat, lng: pick.custom.lng }
-    : pick?.osm
-      ? { lat: pick.osm.lat, lng: pick.osm.lon }
-      : { lat: pick?.latitude, lng: pick?.longitude };
+  const coords = pick?.osm
+    ? { lat: pick.osm.lat, lng: pick.osm.lon }
+    : { lat: pick?.latitude, lng: pick?.longitude };
 
   return (
     <BottomSheet

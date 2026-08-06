@@ -56,7 +56,7 @@ export default {
     // reaching 30 miles, and it was OVERRIDING the real figure rather than
     // sitting under it.
     'myGym.pickEmptyHint':
-      "Add it yourself below, or use the map — you can search anywhere in the country.",
+      'Try the map instead — you can search anywhere in the country.',
 
     'myGym.goneTitle': 'That gym is no longer listed',
     'myGym.goneBody':

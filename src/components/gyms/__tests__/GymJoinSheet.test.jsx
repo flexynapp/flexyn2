@@ -12,12 +12,10 @@ import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 
 const setHomeGym = vi.fn();
 const setHomeGymFromOsm = vi.fn();
-const setHomeGymCustom = vi.fn();
 const getGymConsistencyBoard = vi.fn();
 vi.mock('@/lib/data/homeGym', () => ({
   setHomeGym: (...a) => setHomeGym(...a),
   setHomeGymFromOsm: (...a) => setHomeGymFromOsm(...a),
-  setHomeGymCustom: (...a) => setHomeGymCustom(...a),
   getGymConsistencyBoard: (...a) => getGymConsistencyBoard(...a),
 }));
 
@@ -47,7 +45,7 @@ const setup = (pick, props = {}) => {
 };
 
 beforeEach(() => {
-  [setHomeGym, setHomeGymFromOsm, setHomeGymCustom, getGymConsistencyBoard, leaveGym]
+  [setHomeGym, setHomeGymFromOsm, getGymConsistencyBoard, leaveGym]
     .forEach(m => m.mockReset());
   setHomeGym.mockResolvedValue({ ok: true, gymId: 'gym-1' });
   leaveGym.mockResolvedValue({ ok: true });
@@ -151,10 +149,8 @@ describe('backing out after the write', () => {
 
 describe('a failed join', () => {
   it('surfaces the reason and stays on the confirm step', async () => {
-    setHomeGymCustom.mockResolvedValue({ ok: false, error: 'CREATE_LIMIT' });
-    const { onJoined } = setup({
-      custom: { name: 'My Gym', lat: 43.4, lng: -70.7 }, name: 'My Gym',
-    });
+    setHomeGym.mockResolvedValue({ ok: false, error: 'CREATE_LIMIT' });
+    const { onJoined } = setup(DB_PICK);
 
     fireEvent.click(screen.getByText('Join gym'));
 

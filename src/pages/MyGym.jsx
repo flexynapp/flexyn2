@@ -31,7 +31,7 @@ import EmptyState from '@/components/EmptyState';
 import { useLanguage } from '@/lib/LanguageContext';
 import {
   getHomeGym, getCommunityProgress, getGymConsistencyBoard, resolveHomeGymId,
-  setHomeGym, setHomeGymFromOsm, setHomeGymCustom,
+  setHomeGym, setHomeGymFromOsm,
 } from '@/lib/data/homeGym';
 import NearbyGymPicker from '@/components/gyms/NearbyGymPicker';
 import { toast } from '@/lib/toast';
@@ -226,11 +226,9 @@ export default function MyGym() {
     if (!choice || saving) return;
     setPending(choice);
     setSaving(true);
-    const res = choice.custom
-      ? await setHomeGymCustom(choice.custom)
-      : choice.osm
-        ? await setHomeGymFromOsm(choice.osm)
-        : await setHomeGym(choice.gymId);
+    const res = choice.osm
+      ? await setHomeGymFromOsm(choice.osm)
+      : await setHomeGym(choice.gymId);
     setSaving(false);
 
     if (!res.ok) {
@@ -239,8 +237,6 @@ export default function MyGym() {
         CREATE_LIMIT: "You've added a lot of gyms already — pick an existing one.",
         GYM_INACTIVE: 'That gym is no longer active on Flexyn.',
         GYM_NOT_FOUND: "We couldn't find that gym any more.",
-        NAME_REQUIRED: 'Give the gym a name first.',
-        BAD_COORDS: "We couldn't tell where you are — turn location on and retry.",
       }[res.error];
       toast.error(msg || "Couldn't set your gym — try again.");
       setPending(null);

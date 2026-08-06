@@ -20,10 +20,10 @@
 //                               later picker shares the same row and
 //                               therefore the same leaderboard.
 //   setHomeGymCustom(gym)     — a gym OSM has never heard of, typed by
-//                               the person who trains there and placed
-//                               at their own location (mig 299). Deduped
-//                               on name + position instead, for the same
-//                               one-gym-one-row reason.
+//                               the person who trains there (mig 299).
+//                               DORMANT: no UI calls it — see its own
+//                               doc comment for why it was retired and
+//                               why it was kept.
 //
 // Profile-cache rule (CLAUDE.md): these are RPCs that change
 // user_profiles, so the module-level cache in profileCache.js does NOT
@@ -97,16 +97,24 @@ export async function setHomeGymFromOsm(osmGym) {
 }
 
 /**
- * Create a community gym from a typed name and the caller's own
- * location, then adopt it — the path for a gym OpenStreetMap has never
- * heard of (migration 299).
+ * DORMANT since 2026-08-06 — nothing in the UI calls this.
  *
- * Needed because `setHomeGymFromOsm` keys on (osm_type, osm_id), so
- * every route to a home gym before this required the gym to already
- * exist in OSM. It often doesn't: the Planet Fitness three miles from a
- * beta tester in Sanford, Maine appears in no tag on any of the 1,905
- * named objects within five miles of him. Widening the search radius
- * cannot reach a place that isn't in the dataset.
+ * The "My gym isn't listed — Add It" path was removed from the picker
+ * once the OSM cache (mig 300) started serving street data fast enough
+ * that gyms reliably appear in the list or on the map. Typing one by
+ * hand became the rare exception rather than the fallback, and an
+ * always-visible text box invites duplicates of gyms that already exist.
+ *
+ * Kept, not deleted, and migration 299 stays deployed: the case that
+ * motivated it is still real — a Planet Fitness three miles from a beta
+ * tester appears in no tag on any of the 1,905 named objects within five
+ * miles of him. If unmapped gyms turn out to be common, this is the
+ * ready-made route back, verified end to end against production.
+ *
+ * Create a community gym from a typed name and the caller's own
+ * location (migration 299). Needed because setHomeGymFromOsm keys on
+ * (osm_type, osm_id), so every other route requires the gym to already
+ * exist in OSM.
  *
  * The RPC reuses an existing gym of the same name within ~500 m rather
  * than creating a second one, so two people at the same gym still share

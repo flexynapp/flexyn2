@@ -36,7 +36,7 @@ import GymJoinSheet from '@/components/gyms/GymJoinSheet';
 // for a screen most users never open.
 const GymMapOverlay = lazy(() => import('@/pages/GymMap'));
 import {
-  setHomeGym, setHomeGymFromOsm, setHomeGymCustom, resolveHomeGymId,
+  setHomeGym, setHomeGymFromOsm, resolveHomeGymId,
 } from '@/lib/data/homeGym';
 import { OnboardingCoachButton, OnboardingCoachSheet } from '@/components/onboarding/OnboardingCoach';
 import { hasCoachFor } from '@/lib/aiCoach/onboardingCoach';
@@ -3176,9 +3176,7 @@ export default function Onboarding() {
         // Only restore a draft pick that still has something to act on.
         // A half-written shape would reach setHomeGymFromOsm as
         // undefined coords and fail the RPC's validation for no reason.
-        homeGym: (parsed.homeGym?.gymId
-                  || parsed.homeGym?.osm?.osmId
-                  || parsed.homeGym?.custom?.name)
+        homeGym: (parsed.homeGym?.gymId || parsed.homeGym?.osm?.osmId)
           ? parsed.homeGym
           : null,
       };
@@ -3681,11 +3679,9 @@ export default function Onboarding() {
           // it re-reads a row we already hold the id for.
           const attach = data.homeGym.applied
             ? setHomeGym(data.homeGym.gymId)
-            : data.homeGym.custom
-              ? setHomeGymCustom(data.homeGym.custom)
-              : data.homeGym.osm
-                ? setHomeGymFromOsm(data.homeGym.osm)
-                : setHomeGym(data.homeGym.gymId);
+            : data.homeGym.osm
+              ? setHomeGymFromOsm(data.homeGym.osm)
+              : setHomeGym(data.homeGym.gymId);
           attach.catch(sideErr => {
             reportError(sideErr, { feature: 'onboarding.home-gym', level: 'warning', userEmail: user?.email });
           });

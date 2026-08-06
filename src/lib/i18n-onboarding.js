@@ -228,7 +228,7 @@ export const onboardingI18n = {
     'onboarding.homeGym.sub': "Your gym gets a bubble on the Flexyn map, and you'll get a leaderboard with everyone else who trains there. You can change this any time.",
     // No radius claim — the picker states the distance it actually searched
     // directly above this. See the note on myGym.pickEmptyHint.
-    'onboarding.homeGym.emptyHint': "Add it yourself below, or skip for now — you can pick your gym from the map later.",
+    'onboarding.homeGym.emptyHint': 'Try Browse map above, or skip for now — you can pick your gym any time from Profile → My Gym.',
     'onboarding.homeGym.ctaPicked': 'Continue · {name}',
     'onboarding.homeGym.skip': "Skip — I'll pick later",
     'onboarding.homeGym.laterHint': 'You can set your gym any time from Profile → My Gym.',

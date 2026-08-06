@@ -78,13 +78,9 @@ export default function NearbyGymPicker({
   // outright and sends no CORS header, another was timing out on every
   // request), so this path is hit for real, not theoretically.
   const [osmFailed, setOsmFailed] = useState(false);
-  // The geolocation fix, kept after the lookup finishes. "Add my gym"
-  // places the new gym exactly where the user is standing, which is the
-  // whole basis for trusting a typed name: the person adding it is the
-  // person who trains there.
+  // The geolocation fix, kept after the lookup finishes so a widen or a
+  // retry doesn't pay for a second satellite fix.
   const [fix, setFix] = useState(null);
-  const [adding, setAdding] = useState(false);
-  const [customName, setCustomName] = useState('');
   // Widen on demand, in KILOMETRES. It used to be a raw degree offset
   // applied to both axes, which made the real east-west reach shrink with
   // latitude — 0.05° is 3.0 miles in Houston and 2.3 in Seattle — so a
@@ -243,81 +239,6 @@ export default function NearbyGymPicker({
     load(next, fix);
   };
 
-  // ── "My gym isn't listed" (mig 299) ──────────────────────────────────
-  //
-  // Not every gym is in OpenStreetMap, and no radius reaches one that
-  // isn't. A tester's Planet Fitness three miles away appears in no tag
-  // on any of the 1,905 named objects within five miles of him — so
-  // before this, the feature simply did not work where OSM coverage is
-  // thin, which is where a local gym community is worth the most.
-  //
-  // The name is typed; the POSITION is the user's own geolocation fix,
-  // never an address they type. That is what makes the row trustworthy
-  // enough to share: whoever adds it is standing in it.
-  const canAddCustom = !!fix && !disabled;
-  const trimmedCustom = customName.trim();
-
-  const submitCustom = () => {
-    if (!canAddCustom || trimmedCustom.length < 2) return;
-    onChange({
-      custom: { name: trimmedCustom, lat: fix.lat, lng: fix.lng },
-      name: trimmedCustom,
-      key: `custom:${trimmedCustom.toLowerCase()}`,
-    });
-    setAdding(false);
-    setCustomName('');
-  };
-
-  /** The add-your-gym form, and the button that opens it. */
-  const addCustomBlock = (
-    <div className="mt-3">
-      {adding ? (
-        <div className="rounded-xl border border-border bg-card p-3">
-          <label htmlFor="custom-gym-name" className="text-micro text-muted-foreground">
-            We&apos;ll add it at your current location.
-          </label>
-          <input
-            id="custom-gym-name"
-            value={customName}
-            onChange={(e) => setCustomName(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') submitCustom(); }}
-            placeholder="Gym name"
-            maxLength={120}
-            autoFocus
-            className="w-full mt-2 px-3 py-2 rounded-xl border border-border bg-background text-sm outline-none focus:border-primary/50 transition-colors"
-          />
-          <div className="flex gap-2 mt-2">
-            <button
-              type="button"
-              onClick={submitCustom}
-              disabled={trimmedCustom.length < 2}
-              className="flex-1 py-2 rounded-xl text-sm font-bold bg-primary text-primary-foreground disabled:opacity-50 transition-all"
-            >
-              Add gym
-            </button>
-            <button
-              type="button"
-              onClick={() => { setAdding(false); setCustomName(''); }}
-              className="px-4 py-2 rounded-xl text-sm font-bold border border-border bg-secondary transition-all"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      ) : (
-        <button
-          type="button"
-          onClick={() => setAdding(true)}
-          disabled={!canAddCustom}
-          className="w-full py-2 text-xs text-muted-foreground hover:text-foreground active:text-foreground transition-colors disabled:opacity-50"
-        >
-          My gym isn&apos;t listed —{' '}
-          <span className="font-semibold text-primary">Add It</span>
-        </button>
-      )}
-    </div>
-  );
-
   const q = query.trim().toLowerCase();
   const visible = (q
     ? rows.filter(r => r.name.toLowerCase().includes(q) || (r.sub || '').toLowerCase().includes(q))
@@ -327,41 +248,6 @@ export default function NearbyGymPicker({
   const isSelected = (r) => (
     r.kind === 'db' ? value?.gymId === r.gymId : value?.osm?.osmId === r.osm?.osmId
   );
-
-  // A custom pick has no row in the list to carry its ✓ — it doesn't
-  // exist anywhere yet. Onboarding holds the pick until final save, so
-  // without this the user types a name, taps Add, and the screen looks
-  // exactly as it did before: the same failure mode the My Gym picker
-  // already had once, where "highlighted" was mistaken for "saved".
-  const customPick = value?.custom
-    ? (
-      <button
-        type="button"
-        onClick={() => { if (deselectable && !disabled) onChange(null); }}
-        aria-pressed="true"
-        className="w-full text-start rounded-xl border border-primary bg-primary/10 p-3 mb-2 flex items-center gap-3"
-      >
-        <div className="w-9 h-9 rounded-lg bg-primary/15 flex items-center justify-center shrink-0 text-sm">
-          🏋
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold truncate">{value.custom.name}</p>
-          <p className="text-micro text-muted-foreground truncate">
-            Adding at your location
-          </p>
-        </div>
-        {busyKey === value.key
-          ? (
-            <span
-              className="w-4 h-4 shrink-0 rounded-full border-2 border-primary border-t-transparent animate-spin"
-              role="status"
-              aria-label="Saving"
-            />
-          )
-          : <span className="text-primary text-lg leading-none shrink-0">✓</span>}
-      </button>
-    )
-    : null;
 
   const pick = (r) => {
     if (disabled) return;
@@ -420,7 +306,6 @@ export default function NearbyGymPicker({
     const lookupBroke = osmFailed;
     return (
       <>
-      {customPick}
       <div className="rounded-2xl border border-border bg-card p-4 text-center">
         <p className="text-sm font-semibold mb-1">
           {lookupBroke ? "Couldn't search for gyms" : 'No gyms found nearby'}
@@ -475,11 +360,6 @@ export default function NearbyGymPicker({
             </button>
           )}
         </div>
-        {/* The point of this whole path. An empty list is exactly when
-            "my gym isn't listed" is the true answer, and before mig 299
-            it was a dead end — no radius reaches a gym that isn't in
-            OpenStreetMap. */}
-        {addCustomBlock}
       </div>
       </>
     );
@@ -487,7 +367,6 @@ export default function NearbyGymPicker({
 
   return (
     <>
-      {customPick}
       {/* We have SOME rows but the OSM half failed, so the list is
           missing every unregistered gym — which is most of them. Saying
           so is what stops a user concluding their gym isn't on Flexyn
@@ -586,7 +465,6 @@ export default function NearbyGymPicker({
           <span className="font-semibold text-primary">Search Wider</span>
         </button>
       )}
-      {addCustomBlock}
     </>
   );
 }
