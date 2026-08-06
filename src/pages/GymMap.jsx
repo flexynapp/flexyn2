@@ -549,7 +549,18 @@ export default function GymMap() {
       try { map.remove(); } catch { /* ignore */ }
       mapRef.current = null;
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    // Mount-once, and `[]` is honestly empty: everything this effect
+    // touches is a ref, a module constant or a setState setter, all of
+    // which React guarantees stable. exhaustive-deps agrees and reports
+    // nothing.
+    //
+    // It carried an `eslint-disable-line react-hooks/exhaustive-deps`
+    // that suppressed a warning the rule wasn't raising. Left in place it
+    // would have gone on pre-suppressing the rule for whatever this
+    // effect grows to reference next — a reactive value read here and
+    // missing from the deps is a real bug (a map initialised from a stale
+    // prop, never rebuilt), and the rule catching it is the point.
+  }, []);
 
   // ── Flexyn pin rendering ───────────────────────────────────────────────
   useEffect(() => {
