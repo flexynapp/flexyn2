@@ -1,5 +1,14 @@
 # Prompt — Onboarding deep pass (audit 1 of 3)
 
+> **SUPERSEDED 2026-08-06 — do not run this one.** It was written against a
+> 3,743-line file with **14** steps including `body_baseline`; the file is now
+> 3,897 lines with **13** steps, i18n is wired, and the fluid scale has landed,
+> so every line number and roughly half the findings below are stale. It ran as
+> `audit-findings/18-onboarding-deep-pass-2026-08-05.md`. For a current pass use
+> [`onboarding-polish-audit-prompt.md`](./onboarding-polish-audit-prompt.md).
+> Kept because its method section and its coverage caveats are still the best
+> record of how this flow has to be tested.
+
 Self-contained brief. Paste into a fresh session; assumes no memory of the one
 that wrote it. Companion passes follow for **Dashboard** and **Progress** —
 same method, same deliverable shape. Do those separately, not in this session.
