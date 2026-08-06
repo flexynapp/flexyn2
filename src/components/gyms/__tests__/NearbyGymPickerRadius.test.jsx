@@ -14,7 +14,7 @@
 // no evidence — and takes twice as long to say it.
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 
 const fetchOsmGymsNear = vi.fn();
 vi.mock('@/lib/osmGyms', async (importOriginal) => ({
@@ -99,5 +99,82 @@ describe('a failed lookup does not widen', () => {
     // long to produce a claim it hasn't earned.
     expect(radiiRequested()).toEqual([8]);
     expect(screen.queryByText(/within 30 mi/i)).toBeNull();
+  });
+});
+
+describe('adding a gym OpenStreetMap has never heard of', () => {
+  // The case this exists for: a Planet Fitness three miles away that
+  // appears in no tag on any of the 1,905 named objects within five
+  // miles of it. No radius reaches a place that isn't in the dataset.
+
+  const openAddForm = async () => {
+    await waitFor(() => expect(screen.getByText(/isn't listed/i)).toBeTruthy());
+    fireEvent.click(screen.getByText(/isn't listed/i));
+  };
+
+  it('reports the typed name at the fix the lookup already used', async () => {
+    fetchOsmGymsNear.mockResolvedValue([]);
+    const onChange = vi.fn();
+
+    render(<NearbyGymPicker value={null} onChange={onChange} />);
+    await openAddForm();
+
+    fireEvent.change(screen.getByPlaceholderText('Gym name'), {
+      target: { value: '  Planet Fitness Sanford  ' },
+    });
+    fireEvent.click(screen.getByText('Add gym'));
+
+    // The POSITION is the user's own geolocation fix, never a typed
+    // address. That is what makes a typed name trustworthy enough to
+    // share a row: whoever adds it is standing in it.
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({
+      custom: {
+        name: 'Planet Fitness Sanford',
+        lat: SANFORD.latitude,
+        lng: SANFORD.longitude,
+      },
+      name: 'Planet Fitness Sanford',
+    }));
+  });
+
+  it('will not submit a name too short for the RPC to accept', async () => {
+    fetchOsmGymsNear.mockResolvedValue([]);
+    const onChange = vi.fn();
+
+    render(<NearbyGymPicker value={null} onChange={onChange} />);
+    await openAddForm();
+
+    fireEvent.change(screen.getByPlaceholderText('Gym name'), { target: { value: 'X' } });
+    fireEvent.click(screen.getByText('Add gym'));
+
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('shows the pending pick, because onboarding does not save until the end', async () => {
+    fetchOsmGymsNear.mockResolvedValue([]);
+
+    render(
+      <NearbyGymPicker
+        value={{ custom: { name: 'Planet Fitness Sanford', lat: 43.4, lng: -70.7 } }}
+        onChange={() => {}}
+      />,
+    );
+
+    // Without this the user types a name, taps Add, and the screen looks
+    // exactly as it did before — the same failure the My Gym picker
+    // already had once, where "highlighted" read as "saved".
+    await waitFor(() => expect(screen.getByText('Planet Fitness Sanford')).toBeTruthy());
+    expect(screen.getByText(/Adding at your location/i)).toBeTruthy();
+  });
+
+  it('offers the path alongside a list too, not only when empty', async () => {
+    fetchOsmGymsNear.mockResolvedValueOnce([osmGym('CrossFit 207', 43.45, -70.78)]);
+
+    render(<NearbyGymPicker value={null} onChange={() => {}} />);
+
+    await waitFor(() => expect(screen.getByText('CrossFit 207')).toBeTruthy());
+    // Five gyms within 3 miles and none of them yours is the exact
+    // Sanford case — a non-empty list is no evidence the right one is in it.
+    expect(screen.getByText(/isn't listed/i)).toBeTruthy();
   });
 });

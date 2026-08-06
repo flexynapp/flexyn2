@@ -29,7 +29,7 @@ import { buildProfilePayload, resolveMeasurements, parseHeightInput, PROFILE_RAN
 import { todayLocalDateString } from '@/lib/dateUtils';
 import { useDateFormatter } from '@/lib/intl';
 import NearbyGymPicker from '@/components/gyms/NearbyGymPicker';
-import { setHomeGym, setHomeGymFromOsm } from '@/lib/data/homeGym';
+import { setHomeGym, setHomeGymFromOsm, setHomeGymCustom } from '@/lib/data/homeGym';
 import { OnboardingCoachButton, OnboardingCoachSheet } from '@/components/onboarding/OnboardingCoach';
 import { hasCoachFor } from '@/lib/aiCoach/onboardingCoach';
 
@@ -3055,7 +3055,9 @@ export default function Onboarding() {
         // Only restore a draft pick that still has something to act on.
         // A half-written shape would reach setHomeGymFromOsm as
         // undefined coords and fail the RPC's validation for no reason.
-        homeGym: (parsed.homeGym?.gymId || parsed.homeGym?.osm?.osmId)
+        homeGym: (parsed.homeGym?.gymId
+                  || parsed.homeGym?.osm?.osmId
+                  || parsed.homeGym?.custom?.name)
           ? parsed.homeGym
           : null,
       };
@@ -3551,9 +3553,11 @@ export default function Onboarding() {
         // a gym that didn't attach is recoverable from Profile → My
         // Gym, and must never block entry into the app.
         if (data.homeGym) {
-          const attach = data.homeGym.osm
-            ? setHomeGymFromOsm(data.homeGym.osm)
-            : setHomeGym(data.homeGym.gymId);
+          const attach = data.homeGym.custom
+            ? setHomeGymCustom(data.homeGym.custom)
+            : data.homeGym.osm
+              ? setHomeGymFromOsm(data.homeGym.osm)
+              : setHomeGym(data.homeGym.gymId);
           attach.catch(sideErr => {
             reportError(sideErr, { feature: 'onboarding.home-gym', level: 'warning', userEmail: user?.email });
           });

@@ -50,7 +50,7 @@ vi.mock('@/lib/reportError', () => ({
 }));
 
 import {
-  setHomeGym, setHomeGymFromOsm, getCommunityProgress,
+  setHomeGym, setHomeGymFromOsm, setHomeGymCustom, getCommunityProgress,
   getGymConsistencyBoard, resolveHomeGymId,
 } from '../homeGym';
 
@@ -243,5 +243,82 @@ describe('resolveHomeGymId', () => {
     _state.authUser = null;
 
     expect(await resolveHomeGymId(null)).toBeNull();
+  });
+});
+
+describe('setHomeGymCustom', () => {
+  // The path for a gym OpenStreetMap has never heard of (mig 299).
+  // setHomeGymFromOsm keys on (osm_type, osm_id), so before this a user
+  // whose gym isn't mapped had no route to a home gym at all — and no
+  // search radius can reach a place that isn't in the dataset.
+
+  it('sends the typed name and the caller\'s own coordinates', async () => {
+    _state.rpcResponses.set_home_gym_custom = {
+      data: { ok: true, gym_id: 'gym-new', created: true }, error: null,
+    };
+
+    const res = await setHomeGymCustom({
+      name: '  Planet Fitness Sanford  ', lat: 43.4387179, lng: -70.7746224,
+    });
+
+    expect(res).toEqual({ ok: true, gymId: 'gym-new', created: true });
+    expect(_state.rpcCalls[0]).toEqual({
+      name: 'set_home_gym_custom',
+      args: {
+        p_name: 'Planet Fitness Sanford',
+        p_lat: 43.4387179,
+        p_lng: -70.7746224,
+        p_city: null,
+        p_state: null,
+      },
+    });
+    expect(patchProfileMock).toHaveBeenCalledWith({ home_gym_id: 'gym-new' });
+  });
+
+  it('reports created:false when the RPC reused an existing gym', async () => {
+    // Two people at the same gym must land on ONE row, or the
+    // leaderboard splits in half and neither half sees the other.
+    _state.rpcResponses.set_home_gym_custom = {
+      data: { ok: true, gym_id: 'gym-shared', created: false }, error: null,
+    };
+
+    expect(await setHomeGymCustom({ name: 'The Gym', lat: 43.4, lng: -70.7 }))
+      .toEqual({ ok: true, gymId: 'gym-shared', created: false });
+  });
+
+  it('rejects a too-short name without calling the RPC', async () => {
+    expect(await setHomeGymCustom({ name: 'X', lat: 43.4, lng: -70.7 }))
+      .toEqual({ ok: false, error: 'NAME_REQUIRED' });
+    expect(_state.rpcCalls).toHaveLength(0);
+  });
+
+  it('rejects a missing fix without calling the RPC', async () => {
+    // A gym with no coordinates cannot be placed on the map, and the RPC
+    // rejects it anyway — no reason to spend the round trip.
+    expect(await setHomeGymCustom({ name: 'Real Gym', lat: undefined, lng: -70.7 }))
+      .toEqual({ ok: false, error: 'BAD_COORDS' });
+    expect(_state.rpcCalls).toHaveLength(0);
+  });
+
+  it('surfaces the profanity trigger as NAME_REJECTED', async () => {
+    // 23514 is mig 158's check. Its own code so the UI can say something
+    // better than "try again" about a name it will never accept.
+    _state.rpcResponses.set_home_gym_custom = {
+      data: null, error: { code: '23514', message: 'violates check constraint' },
+    };
+
+    expect(await setHomeGymCustom({ name: 'a bad name', lat: 43.4, lng: -70.7 }))
+      .toEqual({ ok: false, error: 'NAME_REJECTED' });
+    expect(patchProfileMock).not.toHaveBeenCalled();
+  });
+
+  it('passes the server\'s own error code through', async () => {
+    _state.rpcResponses.set_home_gym_custom = {
+      data: { ok: false, error: 'CREATE_LIMIT' }, error: null,
+    };
+
+    expect(await setHomeGymCustom({ name: 'Gym 21', lat: 43.4, lng: -70.7 }))
+      .toEqual({ ok: false, error: 'CREATE_LIMIT' });
+    expect(patchProfileMock).not.toHaveBeenCalled();
   });
 });

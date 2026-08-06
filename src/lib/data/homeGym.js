@@ -10,8 +10,8 @@
 // join and the profile write in one server-side transaction so that
 // invariant can't be half-applied.
 //
-// Two entry points because a gym may or may not exist in our database
-// yet:
+// Three entry points, because a gym may exist in our database, in
+// OpenStreetMap, or nowhere at all:
 //   setHomeGym(gymId)         — an existing gym_businesses row
 //   setHomeGymFromOsm(osmGym) — an OpenStreetMap gym nobody has picked
 //                               before; the RPC promotes it to a
@@ -19,6 +19,11 @@
 //                               deduped on (osm_type, osm_id) so every
 //                               later picker shares the same row and
 //                               therefore the same leaderboard.
+//   setHomeGymCustom(gym)     — a gym OSM has never heard of, typed by
+//                               the person who trains there and placed
+//                               at their own location (mig 299). Deduped
+//                               on name + position instead, for the same
+//                               one-gym-one-row reason.
 //
 // Profile-cache rule (CLAUDE.md): these are RPCs that change
 // user_profiles, so the module-level cache in profileCache.js does NOT
@@ -82,6 +87,54 @@ export async function setHomeGymFromOsm(osmGym) {
     // 23514 is the mig 158 profanity trigger rejecting the OSM name.
     // Surfacing it as its own code lets the caller say something more
     // useful than "try again" for a gym it will never be able to add.
+    if (error.code === '23514') return { ok: false, error: 'NAME_REJECTED' };
+    return { ok: false, error: error.code || 'RPC_FAILED' };
+  }
+  if (!data?.ok) return { ok: false, error: data?.error || 'UNKNOWN' };
+
+  patchProfile({ home_gym_id: data.gym_id });
+  return { ok: true, gymId: data.gym_id, created: !!data.created };
+}
+
+/**
+ * Create a community gym from a typed name and the caller's own
+ * location, then adopt it — the path for a gym OpenStreetMap has never
+ * heard of (migration 299).
+ *
+ * Needed because `setHomeGymFromOsm` keys on (osm_type, osm_id), so
+ * every route to a home gym before this required the gym to already
+ * exist in OSM. It often doesn't: the Planet Fitness three miles from a
+ * beta tester in Sanford, Maine appears in no tag on any of the 1,905
+ * named objects within five miles of him. Widening the search radius
+ * cannot reach a place that isn't in the dataset.
+ *
+ * The RPC reuses an existing gym of the same name within ~500 m rather
+ * than creating a second one, so two people at the same gym still share
+ * one row and therefore one leaderboard.
+ *
+ * @param {{name: string, lat: number, lng: number, city?: string, state?: string}} gym
+ * @returns {Promise<{ok, gymId?, created?, error?}>}
+ */
+export async function setHomeGymCustom(gym) {
+  const name = (gym?.name || '').trim();
+  if (name.length < 2) return { ok: false, error: 'NAME_REQUIRED' };
+  if (!Number.isFinite(gym?.lat) || !Number.isFinite(gym?.lng)) {
+    return { ok: false, error: 'BAD_COORDS' };
+  }
+
+  const { data, error } = await supabase.rpc('set_home_gym_custom', {
+    p_name: name,
+    p_lat: gym.lat,
+    p_lng: gym.lng,
+    p_city: gym.city ?? null,
+    p_state: gym.state ?? null,
+  });
+
+  if (error) {
+    reportError(error, { feature: 'home-gym.set-custom' });
+    // 23514 is mig 158's profanity trigger. Its own code so the caller
+    // can say something more useful than "try again" about a name that
+    // will never be accepted.
     if (error.code === '23514') return { ok: false, error: 'NAME_REJECTED' };
     return { ok: false, error: error.code || 'RPC_FAILED' };
   }
