@@ -2806,23 +2806,17 @@ function RevealStep({ data, onNext, saving = false, previewRegimen = null }) {
           <RevealCoachButton />
         </motion.div>
 
-        {/* The greeting is ceremony — it says nothing the user didn't already
-            know. It used to be the 38px hero while the earned sentence sat
-            under it in the faintest type on the page. It is now one quiet
-            line introducing the thing that IS the payoff. */}
-        <motion.p initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15, duration: 0.4 }}
-          className="text-body font-medium text-muted-foreground truncate"
-          style={{ marginBottom: 'var(--fluid-stack)' }}>
-          {tFallback('onboarding.reveal.welcome', 'Welcome in,')}{' '}
-          {data.username || tFallback('onboarding.reveal.defaultName', 'lifter')}.
-        </motion.p>
-
         {/* The one dominant element on the step. Every value in this sentence
             came from something the user answered across eleven steps, so the
             interpolated values carry the accent and the prose around them
-            stays foreground — the emphasis lands on what they chose. */}
+            stays foreground — the emphasis lands on what they chose.
+
+            There is no greeting above it. "Welcome in, {name}." was ceremony
+            that told the user their own name, and once it had been demoted to
+            a 15px muted line it was too small to be worth the row it cost —
+            so the payoff now starts at the top of the page. */}
         <motion.h1 initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.25, duration: 0.55, ease: [0.16,1,0.3,1] }}
+          transition={{ delay: 0.15, duration: 0.55, ease: [0.16,1,0.3,1] }}
           className="font-heading font-bold leading-[1.1] tracking-tight text-foreground m-0"
           style={{ fontSize: 'var(--fluid-heading)', marginBottom: 'var(--fluid-section)' }}>
           {fillNodes(
@@ -2851,11 +2845,12 @@ function RevealStep({ data, onNext, saving = false, previewRegimen = null }) {
 
         {/* Your starter plan — sectioned + explorable (Cardio / Strength) */}
         {previewExercises.length > 0 && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }}
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}
             className="space-y-2.5">
-            <span className="block font-mono text-micro font-semibold tracking-[0.12em] uppercase text-muted-foreground">
-              {tFallback('onboarding.reveal.starterPlan', 'Your starter plan')}
-            </span>
+            {/* No "YOUR STARTER PLAN" eyebrow above this — the plan's own name
+                sits one line below it, larger, and reads "Your Starter Plan —
+                Build Strength". A label directly above the thing it labels,
+                saying the same words, is the eyebrow doing nothing. */}
             <div className="font-heading font-bold text-lg tracking-tight text-foreground leading-tight">
               {previewRegimen?.name || tFallback('onboarding.reveal.planName', '{goal} starter', {
                 goal: tFallback(`onboarding.goal.${primaryGoal.id}.title`, primaryGoal.title),
@@ -2873,7 +2868,7 @@ function RevealStep({ data, onNext, saving = false, previewRegimen = null }) {
         )}
       </div>
 
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.85 }}
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.75 }}
         className="pt-4 shrink-0">
         <PrimaryBtn onClick={onNext} disabled={saving}>
           {saving ? (

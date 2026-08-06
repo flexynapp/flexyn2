@@ -246,15 +246,14 @@ export const onboardingI18n = {
     'onboarding.loading.task.6': 'Locking in week one',
 
     /* ── Reveal step ─────────────────────────────────────────────── */
-    // The summary is the hero here, not the greeting — it is the only line on
-    // the step built entirely from the user's own answers. Two "ready" badges
-    // used to sit above and beside it; both asserted a completeness nothing
-    // measured, and the plan being visible says it better than either did.
-    'onboarding.reveal.welcome': 'Welcome in,',
-    'onboarding.reveal.defaultName': 'lifter',
+    // The summary IS the step — it is the only line built entirely from the
+    // user's own answers, so it opens the page with nothing above it. Four
+    // strings that used to sit around it are gone: two "ready" badges that
+    // asserted a completeness nothing measured, a "Welcome in, {name}."
+    // greeting that told the user their own name, and a "Your starter plan"
+    // eyebrow directly above the plan's own, larger name.
     'onboarding.reveal.summary': 'A {weeks}-week {goal}{extra} block, dialled in for a {level} lifter on {days} days.',
     'onboarding.reveal.summaryExtra': ' + {count} more',
-    'onboarding.reveal.starterPlan': 'Your starter plan',
     'onboarding.reveal.planName': '{goal} starter',
     'onboarding.reveal.planMeta': 'Saved to Workout → Regimens',
     'onboarding.reveal.cta': 'Enter Flexyn',

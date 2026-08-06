@@ -70,6 +70,31 @@ describe('reveal step', () => {
     expect(step).not.toContain('text-[38px]');
   });
 
+  it('opens on the summary — no greeting line above it', () => {
+    // "Welcome in, {name}." told the user their own name. Demoted to a 15px
+    // muted line it was too small to be worth the row it cost, so the payoff
+    // starts at the top of the page instead.
+    const step = revealStep();
+    expect(step).not.toContain('reveal.welcome');
+    expect(step).not.toContain('reveal.defaultName');
+    expect(I18N).not.toContain("'onboarding.reveal.welcome'");
+    expect(I18N).not.toContain("'onboarding.reveal.defaultName'");
+    // The heading is the first thing under the logo/coach bar.
+    expect(step.indexOf('<motion.h1')).toBeLessThan(step.indexOf('<StarterPlanView'));
+    expect(step.indexOf('<motion.h1')).toBeGreaterThan(step.indexOf('<RevealCoachButton'));
+  });
+
+  it('has no "YOUR STARTER PLAN" eyebrow over the plan name', () => {
+    // The plan's own name sits one line below it, larger, and reads "Your
+    // Starter Plan — Build Strength". A label directly above the thing it
+    // labels, in the same words, is not a label.
+    const step = revealStep();
+    expect(step).not.toContain('reveal.starterPlan');
+    expect(I18N).not.toContain("'onboarding.reveal.starterPlan'");
+    // planName is still the fallback for a regimen that arrives unnamed.
+    expect(step).toContain('onboarding.reveal.planName');
+  });
+
   it('interpolates the summary rather than hardcoding the numbers', () => {
     // Every value here is the user's own answer. fillNodes exists so a
     // translator can move the slots — concatenating JSX would freeze English
