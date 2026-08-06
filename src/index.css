@@ -270,6 +270,7 @@
     --fluid-hero: clamp(48px, calc(8 * var(--vhu)), 84px);             /* the one big number on a step */
     --fluid-scrubber: clamp(38px, calc(5.6 * var(--vhu)), 48px);       /* horizontal drag ruler */
     --fluid-panel: clamp(240px, calc(38 * var(--vhu)), 360px);         /* figure / ruler panel height */
+    --fluid-meter: clamp(56px, calc(9 * var(--vhu)), 80px);             /* bar-chart meter  56→80 */
     --fluid-cta-h: clamp(3rem, calc(6.6 * var(--vhu)), 3.5rem);        /* pinned CTA      48→56 */
     --fluid-cta-gap: clamp(0.5rem, calc(1.8 * var(--vhu)), 1rem);      /* above the CTA    8→16 */
 

@@ -1177,9 +1177,24 @@ function ExperienceStep({ value, onChange, onNext, onBack, step, total }) {
           animate={{ opacity: 1, y: 0, height: 'auto' }}
           exit={{ opacity: 0, y: -8, height: 0 }}
           transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-          className="rounded-2xl border bg-card p-5 mb-4 relative overflow-hidden">
+          /* Four fixed pixel values used to live on this card, on the one
+             step in the flow that overflowed: 40px of vertical padding, an
+             80px bar chart, and two `mb-4`s that were both in the 12–20px
+             spacing register CLAUDE.md bans outright. Measured on a 375x667
+             SE with a level picked, the step ran 36px past the fold and
+             sliced the fourth option card — the one the user had just been
+             asked to choose among four.
+
+             All four now read the fluid scale, which recovers 49px at 667
+             and costs 8px at 932 where there were 169px spare. The bars keep
+             their 25/45/70/100% proportions at any height, so the meter
+             reads the same; it just stops demanding 80px from a screen that
+             hasn't got them. (Onboarding polish #8) */
+          className="rounded-2xl border bg-card px-5 relative overflow-hidden"
+          style={{ paddingBlock: 'var(--fluid-section)', marginBottom: 'var(--fluid-section)' }}>
           {/* bars */}
-          <div className="flex items-end gap-2 h-20 mb-4">
+          <div className="flex items-end gap-2"
+            style={{ height: 'var(--fluid-meter)', marginBottom: 'var(--fluid-stack)' }}>
             {[1, 2, 3, 4].map(b => {
               const active = current ? b <= current.bars : false;
               const heights = ['25%', '45%', '70%', '100%'];
