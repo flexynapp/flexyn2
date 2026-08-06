@@ -141,7 +141,12 @@ export default function StoryHighlightsRail({ userEmail, isOwn, onOpenAlbum }) {
                 <span className="text-2xl" aria-hidden="true">✨</span>
               )}
             </div>
-            <span className="text-micro font-medium truncate w-full text-center">{h.title}</span>
+            {/* leading-normal, not text-micro's own 1.25. `truncate` sets
+                overflow:hidden, and at 11px a 1.25 line-height leaves the
+                glyph box taller than its container — so the tops of capitals
+                were being shaved off ("PRs" lost the tip of the P). The
+                ellipsis behaviour is unchanged; only the vertical room is. */}
+            <span className="text-micro leading-normal font-medium truncate w-full text-center">{h.title}</span>
           </button>
         ))}
       </div>

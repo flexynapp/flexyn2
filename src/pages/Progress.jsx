@@ -1067,18 +1067,23 @@ export default function Progress() {
                         <motion.div
                           initial={{ opacity: 0, y: 8 }}
                           animate={{ opacity: 1, y: 0 }}
-                          className="rounded-2xl overflow-hidden border border-border mb-5"
-                          style={{ background: 'linear-gradient(135deg, #0f0f14 0%, #141824 100%)' }}
+                          // Was a hardcoded dark gradient (#0f0f14 -> #141824) with
+                          // white text, so this card rendered dark in light mode and
+                          // was the only thing on the page that did. Tokens instead:
+                          // it now follows the theme like every other surface, and
+                          // the flat fill matches the "no gradient as decoration"
+                          // rule in CLAUDE.md.
+                          className="rounded-2xl overflow-hidden border border-border bg-card mb-5"
                         >
                           {/* Header */}
-                          <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-white/10">
+                          <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-border">
                             <div>
                               <p className="text-micro font-bold uppercase tracking-widest text-primary">Weekly Summary</p>
-                              <p className="text-sm font-bold text-white">{latestDebriefData.week_label}</p>
+                              <p className="text-sm font-bold text-foreground">{latestDebriefData.week_label}</p>
                             </div>
                             <button
                               onClick={() => refetchDebrief()}
-                              className="text-white/30 hover:text-white/60 active:text-white/60 transition-colors"
+                              className="text-foreground/30 hover:text-muted-foreground active:text-muted-foreground transition-colors"
                               title="Refresh summary"
                             >
                               <RefreshCw className="w-3.5 h-3.5" />
@@ -1096,12 +1101,12 @@ export default function Progress() {
                             const insight = d.ai_insight || '';
                             return (
                               <>
-                                <div className="flex divide-x divide-white/10">
+                                <div className="flex divide-x divide-border">
                                   <div className="flex-1 flex flex-col items-center py-3 gap-0.5">
-                                    <span className="text-xs text-white/40">Volume</span>
-                                    <span className="text-base font-black text-white tabular-nums">
+                                    <span className="text-xs text-muted-foreground">Volume</span>
+                                    <span className="text-base font-black text-foreground tabular-nums">
                                       {Number(vol) >= 1000 ? `${Math.round(vol/1000)}K` : Math.round(vol)}
-                                      <span className="text-micro font-normal text-white/40 ms-0.5">lbs</span>
+                                      <span className="text-micro font-normal text-muted-foreground ms-0.5">lbs</span>
                                     </span>
                                     {chg != null && (
                                       <span className={`text-micro font-semibold ${Number(chg) >= 0 ? 'text-success' : 'text-destructive'}`}>
@@ -1110,23 +1115,23 @@ export default function Progress() {
                                     )}
                                   </div>
                                   <div className="flex-1 flex flex-col items-center py-3 gap-0.5">
-                                    <span className="text-xs text-white/40">Sessions</span>
-                                    <span className="text-base font-black text-white">{wks}</span>
+                                    <span className="text-xs text-muted-foreground">Sessions</span>
+                                    <span className="text-base font-black text-foreground">{wks}</span>
                                   </div>
                                   <div className="flex-1 flex flex-col items-center py-3 gap-0.5">
-                                    <span className="text-xs text-white/40">Streak</span>
+                                    <span className="text-xs text-muted-foreground">Streak</span>
                                     <span className="text-base font-black text-primary">{streak}d 🔥</span>
                                   </div>
                                   {isPr && (
                                     <div className="flex-1 flex flex-col items-center py-3 gap-0.5">
-                                      <span className="text-xs text-white/40">PR</span>
+                                      <span className="text-xs text-muted-foreground">PR</span>
                                       <Trophy className="w-4 h-4 text-primary" />
                                     </div>
                                   )}
                                 </div>
                                 {insight && (
-                                  <div className="px-4 py-2.5 border-t border-white/10">
-                                    <p className="text-xs text-white/60 italic leading-relaxed">"{insight}"</p>
+                                  <div className="px-4 py-2.5 border-t border-border">
+                                    <p className="text-xs text-muted-foreground italic leading-relaxed">"{insight}"</p>
                                   </div>
                                 )}
                               </>

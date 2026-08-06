@@ -57,6 +57,9 @@ export default function NotificationPanel({ open, onClose }) {
   // is on the LEFT, so the slide-in must come from -100% (off the left)
   // rather than the LTR default of +100% (off the right).
   const offEdge = language === 'ar' ? '-100%' : '100%';
+  // Which way the panel leaves. LTR: it sits on the right and exits right, so
+  // a dismiss is a POSITIVE x drag. RTL mirrors both.
+  const closesTowardEnd = language !== 'ar';
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [deletingIds, setDeletingIds] = useState(() => new Set());
@@ -254,7 +257,34 @@ export default function NotificationPanel({ open, onClose }) {
           exit={{ x: offEdge }}
           transition={{ type: 'spring', damping: 28, stiffness: 280 }}
           onClick={(e) => e.stopPropagation()}
-          className="absolute end-0 top-0 bottom-0 w-full sm:w-96 bg-card border-s border-border shadow-2xl flex flex-col"
+          // ── Swipe to dismiss ──────────────────────────────────────────────
+          //
+          // The panel slid in from the edge and had NO drag handler, so the
+          // obvious gesture — push it back off the side it came from — did
+          // nothing. The swipe fell through to whatever was underneath and
+          // scrolled that instead, which reads as the panel being stuck: you
+          // push sideways and the page moves up.
+          //
+          // Direction is derived from `offEdge` rather than hardcoded, so this
+          // stays correct in Arabic where the panel enters from the left and
+          // therefore has to leave to the left.
+          //
+          // dragDirectionLock keeps a vertical scroll through the notification
+          // list from being read as a dismiss — the list is the primary
+          // interaction here and must stay scrollable.
+          drag="x"
+          dragDirectionLock
+          dragElastic={{ [closesTowardEnd ? 'left' : 'right']: 0, [closesTowardEnd ? 'right' : 'left']: 0.25 }}
+          dragConstraints={{ left: 0, right: 0 }}
+          onDragEnd={(_e, info) => {
+            const travelled = closesTowardEnd ? info.offset.x : -info.offset.x;
+            const flung     = closesTowardEnd ? info.velocity.x : -info.velocity.x;
+            // Either a deliberate push past a third of a phone width, or a
+            // quick flick that didn't travel far. Velocity catches the flick
+            // so a fast, short gesture doesn't feel ignored.
+            if (travelled > 120 || flung > 500) onClose();
+          }}
+          className="absolute end-0 top-0 bottom-0 w-full sm:w-96 bg-card border-s border-border shadow-2xl flex flex-col touch-pan-y"
         >
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b border-border">
