@@ -2826,7 +2826,7 @@ function RevealStep({ data, onNext, saving = false, previewRegimen = null }) {
         <motion.h1 initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15, duration: 0.55, ease: [0.16,1,0.3,1] }}
           className="font-heading font-bold leading-[1.1] tracking-tight text-foreground m-0"
-          style={{ fontSize: 'var(--fluid-heading)', marginBottom: 'var(--fluid-section)' }}>
+          style={{ fontSize: 'var(--fluid-heading-sentence)', marginBottom: 'var(--fluid-section)' }}>
           {fillNodes(
             tFallback(
               'onboarding.reveal.summary',

@@ -605,6 +605,19 @@ viewport height is one rule that fits all of them.
 | `--fluid-card-title` / `--fluid-card-sub` | 14→15 / 11→12 | card text |
 | `--fluid-tile` | 32→40 | icon tile |
 | `--fluid-cta-h` / `--fluid-cta-gap` | 48→56 / 8→16 | pinned CTA |
+| `--fluid-heading-sentence` | 24→30 | a heading that is a **sentence** |
+
+**One of these clamps against width, and it has to.** Every heading on a form
+step is a question of three to five words, so its line count doesn't move and
+sizing it by height is right. The reveal step's heading is a full sentence, and
+how many lines a sentence takes is a function of the column it wraps in — width.
+Sized by height it got the axis wrong and showed it: at `3.4vh` the 393×852
+iPhone 15 rendered 29px in a 345px column and took **four** lines, while the
+*wider* 430px Pro Max took three at 30px. The middle phone wrapped worst, which
+viewport height cannot explain. `--fluid-heading-sentence` is
+`clamp(24px, calc(7.75vw - 3.7px), 30px)` — the ratio from sweeping 22→30px
+against each device's real content width. Reach for it when a heading is prose;
+keep `--fluid-heading` for the questions.
 
 Minimums are the floor below which a surface stops being *comfortable*, not the
 smallest thing that technically fits. Maximums are what the design was drawn at,
@@ -634,6 +647,15 @@ a div — `vh` inside a div resolves against the window and quietly reports the
 wrong answer), and measure the last child's bottom against the scroll box.
 `scrollHeight` cannot do this: it clamps to `clientHeight`, so it reads "0px
 spare" for both a screen that is exactly full and one that is half empty.
+
+**Kill the iframe's scrollbar before you measure width.** Desktop Chrome
+reserves a ~17px classic scrollbar inside an iframe that iOS and Android do
+not, so the column you measure is 17px narrower than the phone's. That is
+enough to change where text wraps: it made the reveal heading read as four
+lines on a Pro Max that actually renders three, and every slack number taken
+that way is pessimistic. Inject
+`*{scrollbar-width:none}*::-webkit-scrollbar{display:none;width:0}` into the
+frame — it keeps `vh` honest while restoring the true width.
 
 **Before treating a grep hit as debt, read the comments.** Auditing this codebase
 produced five findings; four shrank or inverted on inspection. `text-[5px]` and

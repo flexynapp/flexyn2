@@ -20,6 +20,7 @@ import { readFileSync } from 'node:fs';
 
 const SOURCE = readFileSync('src/pages/Onboarding.jsx', 'utf8');
 const I18N = readFileSync('src/lib/i18n-onboarding.js', 'utf8');
+const CSS = readFileSync('src/index.css', 'utf8');
 
 function revealStep() {
   const start = SOURCE.indexOf('function RevealStep(');
@@ -64,10 +65,35 @@ describe('reveal step', () => {
     // The summary is the h1 and it rides the fluid scale rather than a fixed
     // px value, so it shrinks on a 667pt screen instead of overflowing it.
     const h1 = step.slice(step.indexOf('<motion.h1'), step.indexOf('</motion.h1>'));
-    expect(h1).toContain("fontSize: 'var(--fluid-heading)'");
+    expect(h1).toContain("fontSize: 'var(--fluid-heading-sentence)'");
     expect(h1).toContain('onboarding.reveal.summary');
     // And nothing on the step is pinned to the old 38px hero size.
     expect(step).not.toContain('text-[38px]');
+  });
+
+  it('sizes the heading against WIDTH, so it holds three lines', () => {
+    // This heading is a sentence, not a question, so its line count is set by
+    // the column it wraps in — width — while every other --fluid-* clamps
+    // against height. Sized by height it got the axis wrong and showed it:
+    // the 393x852 iPhone 15 rendered 29px in a 345px column and took four
+    // lines, while the WIDER 430px Pro Max took three at 30px.
+    //
+    // Ratio measured by sweeping 22→30px against each device's real content
+    // width (device − 48px of .safe-page inset): the largest size holding the
+    // long case to three lines is 26px at 327, 27px at 345, 30px+ at 382.
+    // (100vw − 48px) / 12.9 → 25.4 / 26.8 / 29.6px, three lines on all three.
+    expect(CSS).toContain('--fluid-heading-sentence:');
+    const decl = CSS.slice(CSS.indexOf('--fluid-heading-sentence:'));
+    const value = decl.slice(0, decl.indexOf(';'));
+    expect(value).toMatch(/\d(\.\d+)?vw\b/);      // width, not height
+    expect(value).not.toMatch(/\d(\.\d+)?vh\b/);
+    // Same bounds the vertical scale used: never below the old floor, never
+    // above what the design was drawn at.
+    expect(value).toContain('24px');
+    expect(value).toContain('30px');
+    // The shared --fluid-heading stays height-based for the short question
+    // headings on every other step; this is an addition, not a replacement.
+    expect(CSS).toMatch(/--fluid-heading:\s*clamp\([^;]*vh/);
   });
 
   it('opens on the summary — no greeting line above it', () => {

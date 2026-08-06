@@ -257,6 +257,32 @@
     --fluid-panel: clamp(240px, 38vh, 360px);         /* figure / ruler panel height */
     --fluid-cta-h: clamp(3rem, 6.6vh, 3.5rem);        /* pinned CTA      48→56 */
     --fluid-cta-gap: clamp(0.5rem, 1.8vh, 1rem);      /* above the CTA    8→16 */
+
+    /* THE ONE VALUE HERE THAT CLAMPS AGAINST WIDTH, and it has to.
+       Every heading above is a question of three to five words, so its line
+       count doesn't move and sizing it against height is right. The reveal
+       step's heading is a full sentence — "A 12-week build strength + 1 more
+       block, dialled in for a consistent lifter on 4 days." — and how many
+       lines that takes is a function of the column it wraps in, which is
+       WIDTH. Sizing it by height gets the axis wrong, and did: at 3.4vh the
+       393x852 iPhone 15 rendered it at 29px in a 345px column and took four
+       lines, while the WIDER 430px Pro Max took three at 30px. The middle
+       phone wrapped worst, which is not a thing viewport height can explain.
+
+       The ratio is measured, not guessed. Sweeping 22→30px against each
+       device's real content width (device - 48px of .safe-page inset), the
+       largest size holding the long case to three lines is 26px at 327,
+       27px at 345 and 30px+ at 382 — a column-to-size ratio of ~12.9. So:
+       (100vw - 48px) / 12.9 = 7.75vw - 3.7px, which lands at 25.4 / 26.8 /
+       29.6px on the three devices, all three lines. Bounds are the same
+       24→30 the vertical scale used, so nothing gets smaller than the old
+       floor or larger than what the design was drawn at.
+
+       "Long case" means longest goal title + an extra count + longest level
+       label + two-digit weeks. English only — this copy has no translations
+       yet (see the head of i18n-onboarding.js), and a language that runs
+       longer would need this re-measured, not re-guessed. */
+    --fluid-heading-sentence: clamp(24px, calc(7.75vw - 3.7px), 30px);
   }
   /* Text inputs render a 1–2px scrollbar sliver as a stray black line on some
      platforms (border-box rounding pushes scrollHeight just past clientHeight
