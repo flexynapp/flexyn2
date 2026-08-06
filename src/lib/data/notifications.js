@@ -52,6 +52,13 @@ export const NOTIFICATION_TYPES = {
 
 const DEFAULT_LIMIT = 50;
 
+// This module deliberately does NOT use safeSelect, and it used to carry
+// an unused import of it that made the absence look like an oversight.
+// It has nothing to strip: the read below is `select('*')`, unreadCount
+// asks for the primary key only, and the third select returns an
+// inserted row. safeSelect protects an explicit column LIST from a
+// pending migration; none of these name one.
+
 /** List the user's recent notifications, newest first. */
 export async function listForUser(user, limit = DEFAULT_LIMIT) {
   if (!user?.id) return [];

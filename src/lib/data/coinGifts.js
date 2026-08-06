@@ -9,6 +9,7 @@
 // 124_coin_gifting.sql.
 
 import { supabase } from '@/api/supabaseClient';
+import { safeSelect } from '@/api/safeSelect';
 
 
 /**
@@ -49,19 +50,23 @@ export async function giftCoins({ recipientId, amount, message } = {}) {
  * @param {number} [opts.limit=20]
  */
 export async function listMyGifts({ direction = 'all', limit = 20 } = {}) {
-  let query = supabase
-    .from('coin_gifts')
-    .select('id, sender_id, recipient_id, amount, message, created_at')
-    .order('created_at', { ascending: false })
-    .limit(limit);
   const { data: { user } } = await supabase.auth.getUser();
   if (!user?.id) return [];
-  if (direction === 'sent') {
-    query = query.eq('sender_id', user.id);
-  } else if (direction === 'received') {
-    query = query.eq('recipient_id', user.id);
-  }
-  const { data, error } = await query;
+  const { data, error } = await safeSelect({
+    columns: ['id', 'sender_id', 'recipient_id', 'amount', 'message', 'created_at'],
+    // Built fresh per attempt, including the direction filter: safeSelect
+    // may retry, and a supabase query builder is single-use.
+    build: (cols) => {
+      const q = supabase
+        .from('coin_gifts')
+        .select(cols)
+        .order('created_at', { ascending: false })
+        .limit(limit);
+      if (direction === 'sent')     return q.eq('sender_id', user.id);
+      if (direction === 'received') return q.eq('recipient_id', user.id);
+      return q;
+    },
+  });
   if (error) return [];
   return data || [];
 }

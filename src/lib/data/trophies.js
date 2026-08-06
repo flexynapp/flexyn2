@@ -9,6 +9,7 @@
 //     fire a celebration toast.
 
 import { supabase } from '@/api/supabaseClient';
+import { safeSelect } from '@/api/safeSelect';
 
 import { toast } from '@/lib/toast';
 import { getTrophy } from '@/lib/trophyDefinitions';
@@ -16,12 +17,19 @@ import { getTrophy } from '@/lib/trophyDefinitions';
 export async function listEarned(userIdOrEmail, byEmail = false) {
   if (!userIdOrEmail) return [];
   try {
-    const q = supabase
-      .from('user_trophies')
-      .select('trophy_id, earned_at');
-    const { data, error } = byEmail
-      ? await q.eq('user_email', userIdOrEmail).order('earned_at', { ascending: false })
-      : await q.eq('user_id', userIdOrEmail).order('earned_at', { ascending: false });
+    // The whole chain is rebuilt per attempt rather than a pre-built `q`
+    // being reused: safeSelect may call this more than once, and a
+    // supabase query builder is single-use — replaying one would send
+    // the second request with the first request's filters already
+    // applied.
+    const { data, error } = await safeSelect({
+      columns: ['trophy_id', 'earned_at'],
+      build: (cols) => supabase
+        .from('user_trophies')
+        .select(cols)
+        .eq(byEmail ? 'user_email' : 'user_id', userIdOrEmail)
+        .order('earned_at', { ascending: false }),
+    });
     if (error) {
       if (error.code === '42P01') return []; // table missing, mig not applied
       return [];

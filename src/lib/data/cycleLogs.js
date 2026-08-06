@@ -5,6 +5,7 @@
 // BEFORE mounting any cycle UI or invoking these helpers.
 
 import { supabase } from '@/api/supabaseClient';
+import { safeSelect } from '@/api/safeSelect';
 
 
 const TABLE = 'cycle_logs';
@@ -12,12 +13,15 @@ const TABLE = 'cycle_logs';
 /** All period-start dates for the current user (ascending). */
 export async function listMine(userId, limit = 24) {
   if (!userId) return [];
-  const { data, error } = await supabase
-    .from(TABLE)
-    .select('id, start_date, notes, created_at')
-    .eq('user_id', userId)
-    .order('start_date', { ascending: true })
-    .limit(limit);
+  const { data, error } = await safeSelect({
+    columns: ['id', 'start_date', 'notes', 'created_at'],
+    build: (cols) => supabase
+      .from(TABLE)
+      .select(cols)
+      .eq('user_id', userId)
+      .order('start_date', { ascending: true })
+      .limit(limit),
+  });
   if (error) {
     if (error.code === '42P01') return [];
     return [];

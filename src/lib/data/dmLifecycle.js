@@ -10,6 +10,7 @@
 // a retry toast.
 
 import { supabase } from '@/api/supabaseClient';
+import { safeSelect } from '@/api/safeSelect';
 
 
 /** Soft-delete one of your own messages. */
@@ -58,12 +59,15 @@ export async function cancelMyScheduledMessage(messageId) {
  */
 export async function listMyScheduled(userId) {
   if (!userId) return [];
-  const { data, error } = await supabase
-    .from('hub_messages')
-    .select('id, conversation_id, content, scheduled_at, sender_email')
-    .eq('user_id', userId)
-    .eq('status', 'scheduled')
-    .order('scheduled_at', { ascending: true });
+  const { data, error } = await safeSelect({
+    columns: ['id', 'conversation_id', 'content', 'scheduled_at', 'sender_email'],
+    build: (cols) => supabase
+      .from('hub_messages')
+      .select(cols)
+      .eq('user_id', userId)
+      .eq('status', 'scheduled')
+      .order('scheduled_at', { ascending: true }),
+  });
   if (error) return [];
   return data ?? [];
 }

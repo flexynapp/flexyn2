@@ -19,6 +19,7 @@
 //   4. Return entries sorted newest-first.
 
 import { supabase } from '@/api/supabaseClient';
+import { safeSelect } from '@/api/safeSelect';
 
 
 const OFFER_MARKER    = '[TRADE_OFFER_V1]';
@@ -122,11 +123,18 @@ export async function listMyTrades(myEmail, limit = 500) {
   // in. The simplest correct read uses the existing RLS-protected
   // hub_messages table: RLS already restricts to messages the viewer
   // can see, so a bare select is safe.
-  const { data, error } = await supabase
-    .from('hub_messages')
-    .select('id, conversation_id, sender_email, body, content, created_at')
-    .order('created_at', { ascending: false })
-    .limit(limit);
+  // `body` and `content` are the two names this table has used for the
+  // message text across migrations, and pairOffersWithResponses reads
+  // whichever is present — so a strip here degrades to the other rather
+  // than to nothing.
+  const { data, error } = await safeSelect({
+    columns: ['id', 'conversation_id', 'sender_email', 'body', 'content', 'created_at'],
+    build: (cols) => supabase
+      .from('hub_messages')
+      .select(cols)
+      .order('created_at', { ascending: false })
+      .limit(limit),
+  });
   if (error) return [];
   return pairOffersWithResponses(data || [], myEmail);
 }

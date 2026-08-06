@@ -9,16 +9,20 @@
 // user can keep story scope after a full unblock if they choose.
 
 import { supabase } from '@/api/supabaseClient';
+import { safeSelect } from '@/api/safeSelect';
 
 
 /** Return the current user's full-block list (blocked emails). */
 export async function listBlocks(userId) {
   if (!userId) return [];
-  const { data, error } = await supabase
-    .from('user_blocks')
-    .select('blocked_email, created_at')
-    .eq('blocker_id', userId)
-    .order('created_at', { ascending: false });
+  const { data, error } = await safeSelect({
+    columns: ['blocked_email', 'created_at'],
+    build: (cols) => supabase
+      .from('user_blocks')
+      .select(cols)
+      .eq('blocker_id', userId)
+      .order('created_at', { ascending: false }),
+  });
   if (error) return [];
   return data ?? [];
 }

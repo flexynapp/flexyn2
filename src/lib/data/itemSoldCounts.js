@@ -8,6 +8,7 @@
 // the typical call is countsFor([...itemIds]) returning a Map.
 
 import { supabase } from '@/api/supabaseClient';
+import { safeSelect } from '@/api/safeSelect';
 
 
 /**
@@ -18,10 +19,13 @@ export async function countsFor(itemIds) {
   if (!Array.isArray(itemIds) || itemIds.length === 0) return new Map();
   const ids = Array.from(new Set(itemIds.filter(Boolean)));
   if (ids.length === 0) return new Map();
-  const { data, error } = await supabase
-    .from('item_sold_counts')
-    .select('item_id, sold_count')
-    .in('item_id', ids);
+  const { data, error } = await safeSelect({
+    columns: ['item_id', 'sold_count'],
+    build: (cols) => supabase
+      .from('item_sold_counts')
+      .select(cols)
+      .in('item_id', ids),
+  });
   if (error) return new Map();
   const m = new Map();
   for (const row of data || []) {

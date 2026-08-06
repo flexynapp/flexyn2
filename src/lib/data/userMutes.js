@@ -9,16 +9,20 @@
 // via RLS because mute should be reversible and per-viewer cheap.
 
 import { supabase } from '@/api/supabaseClient';
+import { safeSelect } from '@/api/safeSelect';
 
 
 /** List the current user's mute list. Returns rows with muted_email. */
 export async function listMutes(userId) {
   if (!userId) return [];
-  const { data, error } = await supabase
-    .from('user_mutes')
-    .select('muted_email, created_at')
-    .eq('muter_id', userId)
-    .order('created_at', { ascending: false });
+  const { data, error } = await safeSelect({
+    columns: ['muted_email', 'created_at'],
+    build: (cols) => supabase
+      .from('user_mutes')
+      .select(cols)
+      .eq('muter_id', userId)
+      .order('created_at', { ascending: false }),
+  });
   if (error) return [];
   return data ?? [];
 }
