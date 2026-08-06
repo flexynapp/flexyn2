@@ -203,7 +203,10 @@ describe('answerOnboarding', () => {
   });
 
   it('answers "can I skip this" on the optional steps', () => {
-    for (const stepId of [OB.BASELINE, OB.HOME_GYM, NUT.RESTRICTIONS]) {
+    // OB.BASELINE was here until the body-baseline step was deleted from the
+    // flow; its guide went with it. See onboardingCoachSteps.test.js, which
+    // now fails if the two lists drift apart again in either direction.
+    for (const stepId of [OB.HOME_GYM, NUT.RESTRICTIONS]) {
       expect(answerOnboarding({ stepId, message: 'can I skip this?' }).reply).toMatch(/yes/i);
     }
   });

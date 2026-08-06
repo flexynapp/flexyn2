@@ -35,7 +35,6 @@ export const OB = {
   AGE:        'age',
   HEIGHT:     'height',
   WEIGHT:     'weight',
-  BASELINE:   'body_baseline',
   DAYS:       'days',
   ASSESSMENT: 'assessment',
   INJURY:     'injury_history',
@@ -384,16 +383,6 @@ const GUIDES = {
         ? { reply: "Estimate it. Being 5 lb out changes your calorie target by about 25 kcal — nothing you'd notice. Put your best guess in and correct it the first time you weigh yourself." }
         : null
     ),
-  },
-
-  [OB.BASELINE]: {
-    intro: () => "Optional measurements. Genuinely fine to skip — ask me if you want to know what they'd buy you.",
-    prompts: () => [
-      { id: 'skip', text: 'Can I skip this?' },
-      { id: 'why',  text: 'What are these used for?' },
-    ],
-    explain: () => "Waist, chest, hips and body fat give you a second way to see progress. That matters more than it sounds: during a recomp the scale can sit still for weeks while your waist drops, and without a tape measure that reads as 'nothing is happening' when something clearly is.",
-    skip: () => ({ reply: "Yes — skip it. Nothing downstream depends on these, and you can add them later from Progress. The one reason to do it now is that a baseline you never took is a comparison you can never make." }),
   },
 
   [OB.DAYS]: {
