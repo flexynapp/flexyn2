@@ -19,6 +19,41 @@
  * mostly could not happen. Kept here as documentation, and asserted against by
  * the tests so the two can't drift apart again.
  */
+/**
+ * Shortest username the flow accepts.
+ *
+ * Lives here rather than in Onboarding.jsx because two places enforce it — the
+ * Continue button and the availability pre-check — and they had drifted to 3
+ * and 2, so a two-character name was never checked for availability: the user
+ * sailed through the rest of the flow and found out it was taken when the
+ * final save came back 23505, which bounced them from the reveal screen back
+ * to the age step. One constant, one meaning.
+ */
+export const MIN_USERNAME_LENGTH = 2;
+
+/**
+ * Can the user leave the "Tell us about yourself" step?
+ *
+ * All three answers on that step are required, and sex was not: the buttons
+ * could be left untouched and Continue still went through. That mattered more
+ * than an unanswered question usually does, because sex feeds
+ * `_demographicScale` in the workout generator (starting loads) and BMR — and
+ * an unset value silently takes the conservative middle, so nobody ever saw a
+ * consequence, they just got a plan calibrated on a guess.
+ *
+ * Requiring it is only fair because declining is one of the three options.
+ * "Prefer not to say" records `other`, which lands on that same middle value —
+ * so this asks the user to make a choice, not to disclose.
+ *
+ * Extracted and named so the rule is testable. Inline in the JSX it was one
+ * `&&` chain inside a 400-line component, reachable only by driving the real
+ * flow, which is how it went this long without the third condition.
+ */
+export function canLeaveAboutStep({ username, usernameError, gender } = {}) {
+  const named = String(username ?? '').trim().length >= MIN_USERNAME_LENGTH;
+  return named && !usernameError && Boolean(gender);
+}
+
 export const DB_CHECK_BOUNDS = {
   height_inches: { min: 0, max: 108, exclusiveMin: true, constraint: 'user_profiles_height_inches_sane' },
   height_cm:     { min: 0, max: 275, exclusiveMin: true, constraint: 'user_profiles_height_cm_sane' },

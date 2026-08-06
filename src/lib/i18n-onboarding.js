@@ -150,11 +150,17 @@ export const onboardingI18n = {
     'onboarding.about.ageAria': 'Your age',
     'onboarding.about.ageTapAria': 'Tap to type your age',
     'onboarding.about.ageHint': 'TAP TO TYPE OR DRAG',
-    'onboarding.about.sex.male': 'Male',
-    'onboarding.about.sex.female': 'Female',
-    'onboarding.about.sex.other': 'Other',
+    // The `onboarding.about.sex.*` trio that used to sit here is gone. The step
+    // looked those up with sexFemale/sexMale/sexSkip as the FALLBACK, so
+    // `sex.other` ('Other') shadowed the "Prefer not to say" the code
+    // specified and the button had been rendering the wrong word. A fallback
+    // only fires when the key is missing, and these weren't.
     'onboarding.about.ctaNoUsername': 'Choose a username to continue',
     'onboarding.about.ctaBadUsername': 'Pick a different username',
+    // Sex is required — see canLeaveAboutStep. The blocker names itself
+    // because a dead Continue with no reason is what the username states
+    // already learned not to do.
+    'onboarding.about.ctaNoSex': 'Answer the sex question to continue',
 
     /* Life-stage chip */
     'onboarding.stage.teen.tag': 'TEEN',

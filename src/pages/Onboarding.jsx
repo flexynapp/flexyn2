@@ -25,7 +25,7 @@ import StarterPlanView from '@/components/workout/StarterPlanView';
 import { reportError } from '@/lib/reportError';
 import { isDuplicateUsernameError, isProfaneUsernameError } from '@/lib/onboardingErrors';
 import { escapeLikePattern } from '@/lib/sqlPattern';
-import { buildProfilePayload, resolveMeasurements, parseHeightInput, PROFILE_RANGES } from '@/lib/data/onboardingProfile';
+import { buildProfilePayload, resolveMeasurements, parseHeightInput, PROFILE_RANGES, MIN_USERNAME_LENGTH, canLeaveAboutStep } from '@/lib/data/onboardingProfile';
 import { todayLocalDateString } from '@/lib/dateUtils';
 import { useDateFormatter } from '@/lib/intl';
 import NearbyGymPicker from '@/components/gyms/NearbyGymPicker';
@@ -118,9 +118,10 @@ const AGE_MAX = PROFILE_RANGES.age.max;
 
 // One threshold for "long enough to be a username", read by both the Continue
 // button and the availability check. They disagreed (2 vs 3) and the gap was
-// invisible until submit. The 20-character ceiling is enforced by the field's
-// maxLength and by handleUsernameChange.
-const MIN_USERNAME_LENGTH = 2;
+// invisible until submit. Now imported from onboardingProfile.js alongside
+// `canLeaveAboutStep`, which is the other half of the same rule. The
+// 20-character ceiling is enforced by the field's maxLength and by
+// handleUsernameChange.
 
 /* ── Feature visual components (animated SVG illustrations for the carousel) ── */
 
@@ -1577,7 +1578,13 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
     return          { id: 'longevity', tag: 'LONGEVITY',   tone: 'Joint-first programming. Strength is never stunted.', accent: 'hsl(0 70% 55%)'   };
   }, [age]);
 
-  const canNext = username.trim().length >= MIN_USERNAME_LENGTH && !usernameError;
+  // All three answers on this step are required. Sex was not, so the buttons
+  // could be left untouched and Continue still went through — and because an
+  // unset value silently takes the conservative middle in _demographicScale
+  // and BMR, nobody ever saw a consequence; they just got a plan calibrated on
+  // a guess. Declining is one of the three options, so this asks for a choice,
+  // not a disclosure.
+  const canNext = canLeaveAboutStep({ username, usernameError, gender });
 
   return (
     <div className="flex flex-col h-full">
@@ -1787,13 +1794,19 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
           <div className="font-mono text-micro font-semibold uppercase tracking-[0.14em] text-muted-foreground mb-2">
             {tFallback('onboarding.about.sexPrompt', 'What sex were you assigned at birth?')}
           </div>
-          {/* Three-option layout so users who don't identify as binary
-              male/female have an "Other" path that still records a value
-              (vs. silently leaving it null, which the strength/calorie
-              calibrators default to 'male'). Stored as 'other' — consumers
-              treat it the same as the unset default for now, but the value
-              survives so we can surface inclusive copy downstream.
-              (Onboarding screenshot feedback, 2026-06.) */}
+          {/* Three options, and the third is what makes requiring an answer
+              fair: declining is a choice you can make here, not a field you
+              leave blank. It stores 'other', which lands on the same
+              conservative middle value as unset — so the calculator learns
+              nothing, which is the point, while the flow still knows the
+              question was answered.
+
+              The labels come straight from `o.label`. They used to be looked
+              up again as `onboarding.about.sex.${o.id}` with `o.label` as the
+              fallback, and that key set still existed — so `sex.other` ('Other')
+              won and the button rendered "Other", never the "Prefer not to say"
+              the code above it specifies. A fallback only fires when the key is
+              missing; this one wasn't. */}
           <div className="grid grid-cols-3 gap-2">
             {[
               { id: 'female', label: tFallback('onboarding.about.sexFemale', 'Female') },
@@ -1813,7 +1826,7 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
                     color: active ? 'hsl(var(--primary))' : 'hsl(var(--foreground))',
                   }}
                 >
-                  {tFallback(`onboarding.about.sex.${o.id}`, o.label)}
+                  {o.label}
                 </button>
               );
             })}
@@ -1828,7 +1841,9 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
           {!canNext
             ? (usernameError
                 ? tFallback('onboarding.about.ctaBadUsername', 'Pick a different username')
-                : tFallback('onboarding.about.ctaNoUsername', 'Choose a username to continue'))
+                : username.trim().length < MIN_USERNAME_LENGTH
+                  ? tFallback('onboarding.about.ctaNoUsername', 'Choose a username to continue')
+                  : tFallback('onboarding.about.ctaNoSex', 'Answer the sex question to continue'))
             : <>{tFallback('onboarding.common.continue', 'Continue')} <Icon name="arrow-right" size={18} strokeWidth={2.5} /></>}
         </PrimaryBtn>
       </div>

@@ -5,6 +5,8 @@ import {
   buildProfilePayload,
   PROFILE_RANGES,
   DB_CHECK_BOUNDS,
+  MIN_USERNAME_LENGTH,
+  canLeaveAboutStep,
 } from '../onboardingProfile';
 
 // First tests to cover any of onboarding's logic. The whole flow — 3,600 lines,
@@ -281,6 +283,48 @@ describe('buildProfilePayload', () => {
 
     it('does not throw when data itself is missing', () => {
       expect(() => buildProfilePayload({ nowIso: NOW })).not.toThrow();
+    });
+  });
+
+  describe('canLeaveAboutStep — all three answers are required', () => {
+    const ok = { username: 'jordan', usernameError: null, gender: 'female' };
+
+    it('regression: sex could be skipped entirely', () => {
+      // The gate was `username.length >= MIN && !usernameError`. Sex was not in
+      // it, so the three buttons could be left untouched and Continue went
+      // through. Nothing downstream complained — _demographicScale and BMR
+      // take a conservative middle for an unset value — so the user simply got
+      // a plan calibrated on a guess, with no error to notice.
+      expect(canLeaveAboutStep({ ...ok, gender: null })).toBe(false);
+      expect(canLeaveAboutStep({ ...ok, gender: undefined })).toBe(false);
+      expect(canLeaveAboutStep({ ...ok, gender: '' })).toBe(false);
+    });
+
+    it('accepts every sex the step actually offers, declining included', () => {
+      // Requiring an answer is only fair because "Prefer not to say" is one of
+      // them. It records 'other' and must pass the gate like any other choice —
+      // this asks for a decision, not a disclosure.
+      for (const gender of ['female', 'male', 'other']) {
+        expect(canLeaveAboutStep({ ...ok, gender })).toBe(true);
+      }
+    });
+
+    it('still enforces the username rules it always did', () => {
+      expect(canLeaveAboutStep({ ...ok, username: '' })).toBe(false);
+      expect(canLeaveAboutStep({ ...ok, username: 'a' })).toBe(false);
+      expect(canLeaveAboutStep({ ...ok, username: '   ' })).toBe(false);
+      expect(canLeaveAboutStep({ ...ok, usernameError: 'taken' })).toBe(false);
+      // Exactly at the threshold passes — the boundary the two call sites
+      // used to disagree about.
+      expect(canLeaveAboutStep({ ...ok, username: 'a'.repeat(MIN_USERNAME_LENGTH) })).toBe(true);
+    });
+
+    it('is total — no argument shape throws', () => {
+      // It runs on every keystroke of the username field.
+      expect(() => canLeaveAboutStep()).not.toThrow();
+      expect(canLeaveAboutStep()).toBe(false);
+      expect(canLeaveAboutStep({})).toBe(false);
+      expect(canLeaveAboutStep({ username: 12345, gender: 'male' })).toBe(true);
     });
   });
 });
