@@ -397,3 +397,63 @@ describe('buildStarterRegimen — body-fat conditioning nudge', () => {
     expect(r.exercises.map(e => e.name)).not.toContain('Mountain Climbers');
   });
 });
+
+// ── Assessment tiers ────────────────────────────────────────────────────
+//
+// The original four questions were all advanced benchmarks, so a beginner and
+// someone a year into training both scored 0 and got the same plan. The
+// foundation tier tells those two apart. The list was later cut from seven to
+// five to fit a phone; the retired keys are still counted so an older profile
+// isn't demoted on a recompute.
+describe('assessment tiers', () => {
+  const base = { goals: ['strength'], level: 'newbie', daysCount: 3 };
+
+  it('promotes on two strength answers and on acing them', () => {
+    const solid = buildStarterRegimen({ ...base, assessment: { squat_bw15: 'yes', pullups_10: 'yes' } });
+    const aces = buildStarterRegimen({
+      ...base,
+      assessment: { squat_bw15: 'yes', pullups_10: 'yes', mile_under10: 'yes' },
+    });
+    expect(solid.description).toMatch(/consistent/i);
+    expect(aces.description).toMatch(/advanced/i);
+  });
+
+  it('lifts a self-declared newbie off the floor on foundation answers', () => {
+    const trainsABit = buildStarterRegimen({
+      ...base,
+      assessment: { pushups_20: 'yes', plank_60s: 'yes' },
+    });
+    expect(trainsABit.description).toMatch(/returning/i);
+  });
+
+  it('does not let the foundation tier promote past returning', () => {
+    // Clearing a beginner bar says nothing about handling real volume.
+    const allFoundation = buildStarterRegimen({
+      ...base,
+      assessment: { pushups_20: 'yes', plank_60s: 'yes', squats_25: 'yes' },
+    });
+    expect(allFoundation.description).toMatch(/returning/i);
+    expect(allFoundation.description).not.toMatch(/consistent|advanced/i);
+  });
+
+  it('ignores a single foundation answer', () => {
+    const barely = buildStarterRegimen({ ...base, assessment: { pushups_20: 'yes' } });
+    expect(barely.description).toMatch(/newbie|new/i);
+  });
+
+  it('still counts answers to questions that are no longer asked', () => {
+    // A profile saved when `bench_bw` and `squats_25` existed must not be
+    // demoted just because the list got shorter.
+    const legacy = buildStarterRegimen({
+      ...base,
+      assessment: { bench_bw: 'yes', squat_bw15: 'yes' },
+    });
+    expect(legacy.description).toMatch(/consistent/i);
+
+    const legacyFoundation = buildStarterRegimen({
+      ...base,
+      assessment: { squats_25: 'yes', pushups_20: 'yes' },
+    });
+    expect(legacyFoundation.description).toMatch(/returning/i);
+  });
+});

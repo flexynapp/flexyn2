@@ -127,17 +127,40 @@ const LEVEL_SETS_REPS = {
   advanced:   { sets: 5, reps: 5  },
 };
 
-// Compute an "advanced index" 0..4 from the fitness_assessment blob
-// (mig 129). Each 'yes' answer adds 1; 'not_yet' and missing answers
-// don't. Used to optionally bump sets +1 across the board (more
-// volume) when the user is clearly more advanced than their
-// fitness_level alone suggests.
-function advancedIndex(assessment) {
+// The onboarding self-assessment comes in two tiers.
+//
+// STRENGTH is the original four, and they are all ADVANCED benchmarks —
+// published standards put most untrained men at 0-3 pull-ups. So a beginner
+// scored 0 here and so did someone a year in: no resolution at the end of the
+// range where nearly every new user sits.
+//
+// FOUNDATION is the addition. These are answerable by someone who trains a
+// little, so they separate "never trained" from "trains a bit" — which is
+// exactly the distinction that decides whether week one is achievable.
+//
+// Keep these in step with ASSESSMENT_QUESTIONS in Onboarding.jsx. A question
+// that isn't listed here is collected and ignored.
+const STRENGTH_KEYS = ['squat_bw15', 'pullups_10', 'mile_under10'];
+const FOUNDATION_KEYS = ['pushups_20', 'plank_60s'];
+
+// `bench_bw` and `squats_25` were asked at one point and are still read here
+// on purpose: a profile answered before the question list was cut still has
+// them in its blob, and dropping them from the count would silently demote
+// that user's plan on any recompute. They can't be answered any more, so they
+// only ever add signal, never remove it.
+const LEGACY_STRENGTH_KEYS = ['bench_bw'];
+const LEGACY_FOUNDATION_KEYS = ['squats_25'];
+
+const countYes = (assessment, keys) => {
   if (!assessment || typeof assessment !== 'object') return 0;
-  const keys = ['bench_bw', 'squat_bw15', 'pullups_10', 'mile_under10'];
   let n = 0;
   for (const k of keys) if (assessment[k] === 'yes') n++;
   return n;
+};
+
+// 0..4 over the strength tier — three live questions plus the retired one.
+function advancedIndex(assessment) {
+  return countYes(assessment, STRENGTH_KEYS) + countYes(assessment, LEGACY_STRENGTH_KEYS);
 }
 
 // Promote the self-reported experience level using what the fitness
@@ -153,11 +176,19 @@ function effectiveLevel(level, assessment, goalKey) {
   const adv = advancedIndex(a);
   if (goalKey === 'endurance') {
     if (a.mile_under10 === 'yes') idx = Math.max(idx, 2);          // fit runner → consistent
-    if (a.mile_under10 === 'yes' && adv >= 3) idx = LEVEL_ORDER.length - 1; // + broadly fit → advanced
+    if (a.mile_under10 === 'yes' && adv >= 2) idx = LEVEL_ORDER.length - 1; // + broadly fit → advanced
   } else {
-    if (adv >= 4) idx = LEVEL_ORDER.length - 1;                    // aces everything → advanced
+    // Three live strength questions, so "aces everything" is 3 — but a
+    // profile from when there were four can still score 4, and must not be
+    // demoted for it.
+    if (adv >= 3) idx = LEVEL_ORDER.length - 1;                    // aces everything → advanced
     else if (adv >= 2) idx = Math.max(idx, 2);                     // solid → consistent
   }
+  // The foundation tier can only lift someone OFF the floor — a person who
+  // can do 20 push-ups and hold a plank is not a day-one newbie, whatever
+  // they picked on the experience step. It never promotes past 'returning',
+  // because clearing a beginner bar says nothing about handling real volume.
+  if (countYes(a, FOUNDATION_KEYS) + countYes(a, LEGACY_FOUNDATION_KEYS) >= 2) idx = Math.max(idx, 1);
   return LEVEL_ORDER[idx];
 }
 
