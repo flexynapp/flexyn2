@@ -75,19 +75,60 @@ const GOAL_LABELS = {
 
 // Ordered: the first pattern that hits wins for that goal id, and a message
 // can match several goals (people genuinely want two or three).
+// Words that mean a goal HERE, not merely in English.
+//
+// Several of these used to be bare tokens that carry a completely different
+// sense in an ordinary sentence, and the step acted on them:
+//
+//   "I'm heavy right now"        → Build strength   (heavy = their bodyweight)
+//   "I only have half an hour"   → Run further      (half = half-marathon)
+//   "how much longer does this take?" → Run further (longer = duration)
+//   "my schedule is tight"       → Move better      (tight = busy)
+//   "cut down on my gym time"    → Lose fat         (cut = reduce)
+//
+// So the ambiguous ones now require the context that disambiguates them:
+// `heavy` needs something to lift, `half` needs a marathon, `pace` needs a
+// run, `tight` needs a body part. `longer` is gone outright — endurance is
+// already covered by distance/further/stamina/marathon, and no phrasing of
+// "longer" reliably means it.
 const GOAL_PATTERNS = [
-  ['lose',      /\b(lose|losing|drop|shed|cut|cutting|slim|leaner?|lean out|body ?fat|belly|tone|toned|weight loss)\b/],
+  ['lose',      /\b(lose|losing|shed|slim|leaner?|lean out|body ?fat|belly|tone|toned|weight loss|cutting|drop (?:weight|fat|lb|kg|pounds)|cut (?:weight|fat|down to))\b/],
   ['muscle',    /\b(muscle|bigger|size|mass|hypertrophy|bulk|bulking|jacked|fill out|put on)\b/],
-  ['strength',  /\b(strong|stronger|strength|power|powerlift|heavy|heavier|1 ?rm|max out)\b/],
-  ['speed',     /\b(faster|speed|sprint|pace|mile time|5 ?k time|quicker)\b/],
-  ['endurance', /\b(endurance|distance|further|farther|longer|stamina|marathon|half|10 ?k|conditioning)\b/],
-  ['mobility',  /\b(mobility|mobile|flexib|stiff|tight|posture|longevity|pain[- ]free|range of motion)\b/],
+  ['strength',  /\b(strong|stronger|strength|powerlift|1 ?rm|max out|heavy (?:weights?|lifts?|squats?|bench|deadlifts?|bars?|sets?|days?)|lift(?:ing)? heavy|heavier (?:weights?|bars?|lifts?))\b/],
+  ['speed',     /\b(faster|speed|sprint|quicker|mile time|5 ?k time|(?:run|running|mile|race) pace|pace (?:per|for) )\b/],
+  ['endurance', /\b(endurance|distance|further|farther|stamina|marathon|10 ?k|conditioning)\b/],
+  ['mobility',  /\b(mobility|mobile|flexib|stiff|posture|longevity|pain[- ]free|range of motion|tight (?:hips?|hamstrings?|shoulders?|back|calves|calf|hip flexors?|chest|quads?)|(?:hips?|hamstrings?|shoulders?|back|calves|quads?)(?: are| is| feel| feels)? tight)\b/],
 ];
+
+// "I don't want to bulk up" named a goal and meant the opposite of picking it.
+// Nothing looked for the negation, so the step answered "That reads as **Add
+// muscle**" and offered a button that would select it.
+//
+// A match is dropped when a negator sits just before it. The window is short
+// so a negation can't leak across a clause — "I don't want to lose weight, I
+// want to get stronger" must still infer strength.
+//
+// This suppresses more than it should in one case: "no more belly fat" reads
+// as negated when the user does want that goal. That direction is the right
+// one to fail in — the cost is the generic list instead of a pre-selection,
+// where the cost of the old behaviour was asserting the opposite of what
+// someone just told you and offering to act on it.
+const NEGATORS = /\b(?:don'?t|do not|dont|not|no|never|avoid|rather not|isn'?t|ain'?t|without|stop|quit)\b/;
+const NEGATION_WINDOW = 28;
 
 /** Every training goal the message points at, most-confident first. */
 export function inferGoals(message) {
   const m = String(message || '').toLowerCase();
-  return GOAL_PATTERNS.filter(([, re]) => re.test(m)).map(([id]) => id);
+  return GOAL_PATTERNS
+    .filter(([, re]) => {
+      const hit = re.exec(m);
+      if (!hit) return false;
+      // Check the words immediately before the match, not the whole message,
+      // so one negated clause can't cancel a goal named in another.
+      const before = m.slice(Math.max(0, hit.index - NEGATION_WINDOW), hit.index);
+      return !NEGATORS.test(before);
+    })
+    .map(([id]) => id);
 }
 
 const LEVEL_LABELS = {
