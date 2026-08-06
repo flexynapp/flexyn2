@@ -405,15 +405,24 @@ function StepHeader({ step, total, onBack }) {
   // row: one inset, set by the page shell, is a contract that can't drift.
   return (
     <div className="flex items-center gap-3" style={{ marginBottom: 'var(--fluid-header-gap)' }}>
-      {canBack ? (
+      {/* No spacer when there's no Back button, unlike the coach slot below.
+          The bar was centred between two 44px slots, which measures correct
+          and reads wrong on the one step where the left slot is invisible:
+          ~78px of empty space on the bar's left against ~12px on its right,
+          so it looks shoved left even though its centre is the page centre.
+
+          The trade-off the spacer bought was "no layout jump between steps",
+          and that is still worth paying on the RIGHT — the coach button
+          comes and goes mid-flow, so a bar that changed width each time
+          would be a repeated twitch. Back is absent on exactly one step,
+          `goal`, and it is the FIRST one: there is no previous position to
+          jump from, because the user has not seen the bar anywhere else
+          yet. One silent change on entry beats a permanently lopsided row. */}
+      {canBack && (
         <button onClick={onBack} aria-label={tFallback('onboarding.common.back', 'Back')}
           className="w-11 h-11 rounded-xl border border-border/70 bg-card/70 backdrop-blur-sm flex items-center justify-center text-foreground hover:bg-card active:bg-card transition-colors shrink-0">
           <Icon name="arrow-left" size={17} strokeWidth={2.5} />
         </button>
-      ) : (
-        // Spacer keeps the progress bar in the same position even when
-        // the button is hidden — no layout jump between steps.
-        <div className="w-11 h-11 shrink-0" aria-hidden="true" />
       )}
       <div className="flex-1 h-1.5 rounded-full bg-border/50 overflow-hidden">
         <motion.div className="h-full rounded-full bg-primary"
@@ -421,12 +430,13 @@ function StepHeader({ step, total, onBack }) {
           animate={{ width: `${(step / total) * 100}%` }}
           transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }} />
       </div>
-      {/* The bar is centred between two 44px slots, not just pushed off the
-          back button. Removing the "02/11" label left nothing on this side,
-          so the bar ran flush to the content edge and read as running off the
-          screen. The coach button is w-11 h-11 like the back button, so it
-          drops into this slot without shifting the bar — and when it isn't
-          shown the spacer holds the same width. */}
+      {/* This slot always holds 44px, unlike the back slot above. Removing
+          the "02/11" label left nothing on this side, so the bar ran flush
+          to the content edge and read as running off the screen — the
+          spacer is what stops that. The coach button is w-11 h-11 like the
+          back button, so it drops in without shifting the bar, and steps
+          with no coach content keep the same width rather than twitching
+          the bar wider and narrower as the user moves through the flow. */}
       {showCoach
         ? <OnboardingCoachButton onClick={coach.open} />
         : <div className="w-11 h-11 shrink-0" aria-hidden="true" />}
