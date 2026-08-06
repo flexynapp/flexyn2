@@ -106,19 +106,28 @@ describe('joining as the first member', () => {
 
     fireEvent.click(screen.getByText('Join gym'));
 
-    await waitFor(() => expect(screen.getByText(/first person here/i)).toBeTruthy());
+    await waitFor(() => expect(screen.getByText(/first person on Flexyn who trains here/i)).toBeTruthy());
     // `created` means the row did not exist a moment ago, so there is
     // nobody to rank against and no reason to spend the round trip.
     expect(getGymConsistencyBoard).not.toHaveBeenCalled();
     expect(screen.getByLabelText(/Map showing CrossFit 207/i)).toBeTruthy();
     // ODbL — the image grid has no attribution control to inherit.
     expect(screen.getByText(/OpenStreetMap contributors/i)).toBeTruthy();
+
+    // Founding member, not owner. The copy said "your gym", "it's
+    // yours" and "your leaderboard", which claims a control the user
+    // does not have: joining sets a home gym, owner_id stays NULL, and
+    // the board is shared by everyone who trains there.
+    const sheet = document.body.textContent;
+    expect(sheet).toMatch(/Founding member/i);
+    expect(sheet).toMatch(/belongs to everyone who shows up/i);
+    expect(sheet).not.toMatch(/your gym|it.s yours|your leaderboard/i);
   });
 
   it('treats an existing but empty gym as first-member too', async () => {
     setup({ ...DB_PICK, memberCount: 0 });
     fireEvent.click(screen.getByText('Join gym'));
-    await waitFor(() => expect(screen.getByText(/first person here/i)).toBeTruthy());
+    await waitFor(() => expect(screen.getByText(/first person on Flexyn who trains here/i)).toBeTruthy());
     expect(getGymConsistencyBoard).not.toHaveBeenCalled();
   });
 
@@ -128,7 +137,7 @@ describe('joining as the first member', () => {
     fireEvent.click(screen.getByText('Join gym'));
     // A board that won't load is not a failed join — don't strand the
     // user on a spinner over something already committed.
-    await waitFor(() => expect(screen.getByText(/first person here/i)).toBeTruthy());
+    await waitFor(() => expect(screen.getByText(/first person on Flexyn who trains here/i)).toBeTruthy());
   });
 });
 

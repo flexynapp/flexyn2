@@ -177,7 +177,9 @@ export default function GymJoinSheet({ pick, open, onCancel, onJoined, onContinu
     <BottomSheet
       open={open}
       onClose={stage === 'joining' ? () => {} : cancel}
-      title={stage === 'joined' ? 'You’re on the floor' : 'Your gym'}
+      title={stage !== 'joined'
+        ? 'Your gym'
+        : firstMember ? 'Founding member' : 'You’re on the floor'}
     >
       <div className="space-y-4 pb-2">
         {/* Identity block — the same on every stage, so the thing the
@@ -227,12 +229,27 @@ export default function GymJoinSheet({ pick, open, onCancel, onJoined, onContinu
         ) : firstMember ? (
           <>
             {/* Nobody to rank against yet, so the payoff is the place
-                itself plus the fact that they are the one who put it on
-                the map. */}
+                plus being first to it.
+
+                Carefully NOT possessive. This said "your gym", "it's
+                yours" and "your leaderboard", which reads as ownership
+                and control — claiming the place, running the board,
+                deciding who is on it. None of that is true: joining
+                sets a home gym, and owner_id stays NULL precisely
+                because nobody has proven they own anything (mig 275).
+                The board is shared by everyone who makes this their
+                home gym, and this user is simply the first name on it.
+                "Founding member" is the honest word for that. */}
             <p className="text-sm text-muted-foreground">
-              You’re the first person here. Your gym is on the Flexyn map now —
-              in orange, because it’s yours — and everyone who joins after you
-              lands on your leaderboard.
+              You’re the first person on Flexyn who trains here. The gym belongs
+              to everyone who shows up — as others make it their home gym they
+              join this leaderboard alongside you, and it starts filling from
+              the day they do.
+            </p>
+            {/* The colour rule, said once, where it is first true. */}
+            <p className="text-xs text-muted-foreground">
+              On the map it’s <span className="font-semibold text-primary">orange</span> because
+              you’ve joined it. Gyms other people have joined show blue.
             </p>
             <StaticMapCard lat={coords.lat} lng={coords.lng} label={pick?.name} />
             <button
