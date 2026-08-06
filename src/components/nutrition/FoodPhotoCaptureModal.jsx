@@ -40,7 +40,6 @@ export default function FoodPhotoCaptureModal({ open, onClose, onCapture, onPick
       cancelledRef.current = true;
       stopCamera();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   const stopCamera = () => {

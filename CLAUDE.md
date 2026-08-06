@@ -250,10 +250,44 @@ violations of this rule.
 
 ## ESLint
 
-- `npm run lint` — must exit clean before any push.
+- `npm run lint` — must exit clean before any push. It runs `--quiet`, so
+  it only reports ERRORS. Run bare `npx eslint .` to see the 240 warnings,
+  which is where the standing debt lives.
 - Common stumble: teammate's commits sometimes land unused imports
   (`X`, `useCallback`, etc.). Those are chore commits — fix in a
   separate small commit so the blame stays clean.
+
+**`react-hooks/exhaustive-deps` was registered but never enabled** (fixed
+2026-08-06). The plugin was in `plugins:` and `rules-of-hooks` was on, but
+its other half was missing from the rules block — so every
+`eslint-disable-line react-hooks/exhaustive-deps` in the codebase had been
+suppressing a rule that wasn't running. ESLint reports those as "unused
+directive", which reads like a dead comment and invites deletion; **26 of
+the 34 were doing real work the moment the rule existed.** Deleting them
+would have silently un-suppressed 26 deliberate decisions with nobody
+looking. It is now `'warn'` with 65 pre-existing violations, in the same
+posture as `no-use-before-define` — see the comment in
+`eslint.config.js` for the upgrade path.
+
+Lesson worth keeping: **"unused eslint-disable" means the rule produced no
+error, NOT that the code is clean.** Check whether the rule is even on
+before treating one as debt. And when you add a plugin, check you enabled
+every rule you meant to — a half-configured plugin fails silently and
+looks configured.
+
+**Six unused directives remain and are deliberate:**
+
+- `src/components/ErrorBoundary.jsx:187` — `no-alert` over a real
+  `window.prompt`. The rule is off (enabling it would add 23 warnings), so
+  the directive is inert today and *correct* the day anyone turns it on.
+- Five in `src/lib/**`, which **is not linted at all**: the config's
+  `files:` globs cover only `src/components/**`, `src/pages/**` and
+  `src/Layout.jsx`, and `src/lib/**` is additionally in `ignores`. So
+  every data module, every helper and every i18n part file is unchecked —
+  `no-undef`, unused imports, hook deps, all of it. Bringing it under the
+  component ruleset measured at **20 errors + 9 warnings** if you want to
+  take it on; until then, don't assume a clean `npm run lint` says
+  anything about `src/lib`.
 
 ## Build & analyze
 

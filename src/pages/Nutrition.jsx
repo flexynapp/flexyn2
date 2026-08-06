@@ -482,7 +482,7 @@ export default function Nutrition() {
         if (saved) setCustomBottles(JSON.parse(saved));
       } catch {}
     }
-  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   // Persist bottles on every change (user.id known at this point)
   useEffect(() => {
@@ -1222,7 +1222,6 @@ export default function Nutrition() {
       // Release the camera + torch + decode loop on unmount so nothing leaks.
       stopScanLoop();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /* ========================================================= */

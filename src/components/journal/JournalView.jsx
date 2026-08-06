@@ -289,7 +289,7 @@ export default function JournalView({ userId, userEmail, onClose }) {
     stopDictation();
     setActiveDate(d);
     loadDay(d);
-  }, [dateStr, flush, loadDay]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [dateStr, flush, loadDay]);
 
   // Navigate backward, skipping empty past days (no blank pages)
   // Navigate to the nearest past entry; O(n log n) sort once, no loop burn.

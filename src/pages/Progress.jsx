@@ -366,7 +366,7 @@ const ProgressCarousel = forwardRef(function ProgressCarousel({ slides }, ref) {
       const i = slides.findIndex(s => s.id === id);
       if (i >= 0) goTo(i);
     },
-  }), [slides, goTo]); // eslint-disable-line react-hooks/exhaustive-deps
+  }), [slides, goTo]);
 
   // Auto-rotate.
   useEffect(() => {

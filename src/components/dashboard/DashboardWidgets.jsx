@@ -143,7 +143,6 @@ export default function DashboardWidgets({ logs, goals, isLoading, userProfile }
       }
       hydratedFor.current = uid;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, userProfile]);
 
   // Persist every change to both the cache and (debounced) the DB.
@@ -151,7 +150,6 @@ export default function DashboardWidgets({ logs, goals, isLoading, userProfile }
     if (hydratedFor.current !== user?.id) return;
     try { localStorage.setItem(STORAGE_KEY(user?.id), JSON.stringify(activeWidgets)); } catch { /* best-effort */ }
     queueDbSave(user?.id, activeWidgets);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeWidgets, user?.id]);
 
   // Add does NOT close the library — the user can add (and remove) several

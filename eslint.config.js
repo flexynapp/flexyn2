@@ -55,6 +55,31 @@ export default [
         { ignore: ["cmdk-input-wrapper", "toast-close"] },
       ],
       "react-hooks/rules-of-hooks": "error",
+      // The plugin was registered but this, its other half, never was —
+      // so for as long as the project has existed every
+      // `eslint-disable-line react-hooks/exhaustive-deps` in the codebase
+      // has been suppressing a rule that wasn't running. 34 of them had
+      // accumulated, all reported by ESLint as "unused directive", which
+      // reads like dead comments and is a standing invitation to delete
+      // them. 26 were doing real work the moment this line exists.
+      //
+      // A dependency array that lies is how a component ends up rendering
+      // last render's data: the effect closes over a stale value and
+      // never re-runs to see the new one. It is the same shape of defect
+      // as the TDZ bug below — invisible until a specific interleaving
+      // hits it, and then inexplicable.
+      //
+      // CURRENT LEVEL: 'warn'. 65 pre-existing violations sit in files
+      // carrying no directive at all; they are not audited and this line
+      // is what makes them visible. `npm run lint` runs --quiet, so
+      // warnings don't block — same posture as no-use-before-define
+      // below, and for the same reason.
+      //
+      // GOAL: 'error', once those 65 are triaged. Each is either a
+      // genuine missing dep (add it) or a deliberate omission (a
+      // disable-line WITH a comment saying why — the omission is the
+      // interesting part, not the suppression).
+      "react-hooks/exhaustive-deps": "warn",
       // Catches the exact pattern that caused the production Hub TDZ:
       // a useEffect referencing a `const` declared later in the same
       // function body. JavaScript hoists function declarations but NOT

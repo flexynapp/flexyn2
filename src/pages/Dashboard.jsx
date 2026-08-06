@@ -999,7 +999,6 @@ export default function Dashboard() {
   useEffect(() => {
     if (!user?.id || layoutHydratedFor.current !== user.id) return;
     queueLayoutSync(user.id, packLayout({ hiddenSections, widgetOrder, sectionLayouts }));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hiddenSections, widgetOrder, sectionLayouts, user?.id]);
 
   // Drop any pending debounce on unmount — the timer is module-level, so a
