@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowRight, ArrowLeft, Mail, Loader2, Check } from 'lucide-react';
+import { ArrowRight, ArrowLeft, Mail, Loader2, Check, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from '@/lib/toast';
@@ -34,6 +34,11 @@ export default function SignInToContinue({
 }) {
   const [email, setEmail] = useState('');
   const [emailSent, setEmailSent] = useState(false);
+  // Whether the address they entered already had an account. A magic link
+  // signs up and signs in with the same tap, so without this the screen said
+  // "check your inbox" identically either way and someone entering the email
+  // they already use had no idea they'd just asked to sign back in.
+  const [hasExistingAccount, setHasExistingAccount] = useState(false);
   const [sendingMagicLink, setSendingMagicLink] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [appleLoading, setAppleLoading] = useState(false);
@@ -93,7 +98,8 @@ export default function SignInToContinue({
     }
     setSendingMagicLink(true);
     try {
-      await db.auth.signInWithMagicLink(trimmed, '/');
+      const { isNewAccount } = await db.auth.signInWithMagicLink(trimmed, '/');
+      setHasExistingAccount(!isNewAccount);
       setEmailSent(true);
     } catch (err) {
       toast.error(err?.message || 'Could not send magic link. Try again.');
@@ -108,6 +114,7 @@ export default function SignInToContinue({
   // away and back.
   const handleResetEmail = () => {
     setEmailSent(false);
+    setHasExistingAccount(false);
     setEmail('');
   };
 
@@ -222,10 +229,27 @@ export default function SignInToContinue({
         {/* Magic link */}
         {emailSent ? (
           <div className="space-y-2">
-            <div className="flex items-center gap-2 px-4 py-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 text-sm">
-              <Check className="w-4 h-4 shrink-0" />
-              <span>Check your inbox — we sent a sign-in link to <strong>{email}</strong>.</span>
-            </div>
+            {hasExistingAccount ? (
+              // The address is already registered. Said plainly, because the
+              // alternative — the same "check your inbox" as a brand-new
+              // signup — is what let someone reach the end of "Let's get you
+              // set up" without ever being told they already have an account.
+              // The link we just sent IS the sign-in link, so there is nothing
+              // else for them to press.
+              <div className="flex items-start gap-2 px-4 py-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-600 text-sm">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>
+                  <strong>You already have a Flexyn account.</strong> We sent a
+                  sign-in link to <strong>{email}</strong> — tap it and you're
+                  back in, with your workouts and streaks intact.
+                </span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 px-4 py-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 text-sm">
+                <Check className="w-4 h-4 shrink-0" />
+                <span>Check your inbox — we sent a sign-in link to <strong>{email}</strong>.</span>
+              </div>
+            )}
             <button
               type="button"
               onClick={handleResetEmail}

@@ -441,10 +441,31 @@ const auth = {
   },
 
   /**
-   * Email magic-link sign-in. Supabase emails the user a one-tap link
-   * that signs them in directly — no password needed. shouldCreateUser
-   * is true so the same flow handles both signup and login. The auth
-   * provider must be enabled in the Supabase dashboard.
+   * Email magic-link sign-in. Supabase emails the user a one-tap link that
+   * signs them in directly — no password needed. The auth provider must be
+   * enabled in the Supabase dashboard.
+   *
+   * Sent in two phases so the caller can tell the user WHICH of the two
+   * things just happened. A single `shouldCreateUser: true` call is silently
+   * both a sign-up and a sign-in; mechanically that's right — the link signs
+   * an existing user into their existing account — but someone who enters
+   * the address they already have an account with gets a screen that reads
+   * as "new account created", with nothing anywhere saying otherwise. So we
+   * ask first: `shouldCreateUser: false` sends the link when the account
+   * exists and refuses when it doesn't, and only then do we send the
+   * creating variant.
+   *
+   * Exactly one email goes out on either path — the refusal doesn't send —
+   * so this costs nothing against the project's email rate limit.
+   *
+   * Note this makes the UI able to say whether an address has an account,
+   * which is a user-enumeration signal. GoTrue answers that question to
+   * anyone who asks it directly, rate-limited, whatever our UI does; if we
+   * ever decide to stop confirming it, the fix is on the auth provider, not
+   * here.
+   *
+   * Resolves to `{ ok: true, isNewAccount }` — `isNewAccount` true means
+   * this call created the account.
    */
   async signInWithMagicLink(email, redirectTo) {
     if (!email || typeof email !== 'string') {
@@ -453,12 +474,32 @@ const auth = {
     const target = redirectTo
       ? `${window.location.origin}${redirectTo.startsWith('/') ? redirectTo : '/' + redirectTo}`
       : window.location.origin;
+    const clean = email.trim().toLowerCase();
+
+    // Phase 1 — send only if the account already exists.
+    const { error: probeError } = await supabase.auth.signInWithOtp({
+      email: clean,
+      options: { emailRedirectTo: target, shouldCreateUser: false },
+    });
+    if (!probeError) return { ok: true, isNewAccount: false };
+
+    // GoTrue's "there's no account here" is a 422 `otp_disabled` carrying
+    // "Signups not allowed for otp" — verified against this project on
+    // 2026-08-05. The message is matched as well as the code because the
+    // code field is newer than some deployed GoTrue versions. Anything
+    // else — rate limit, malformed address, network — is a real failure
+    // and stays the caller's problem.
+    const noAccount = probeError.code === 'otp_disabled'
+      || (probeError.status === 422 && /signups?\s+not\s+allowed/i.test(probeError.message || ''));
+    if (!noAccount) throw probeError;
+
+    // Phase 2 — no account, so create one and send the link.
     const { error } = await supabase.auth.signInWithOtp({
-      email: email.trim().toLowerCase(),
+      email: clean,
       options: { emailRedirectTo: target, shouldCreateUser: true },
     });
     if (error) throw error;
-    return { ok: true };
+    return { ok: true, isNewAccount: true };
   },
 
   /**
