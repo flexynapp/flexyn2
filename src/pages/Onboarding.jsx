@@ -1199,10 +1199,10 @@ function ExperienceStep({ value, onChange, onNext, onBack, step, total }) {
 ═══════════════════════════════════════════════════════════════ */
 
 const ASSESSMENT_QUESTIONS = [
-  { id: 'bench_bw',     icon: '🏋️', question: 'Can you bench-press your bodyweight?' },
-  { id: 'squat_bw15',   icon: '🦵', question: 'Can you squat 1.5× your bodyweight?' },
-  { id: 'pullups_10',   icon: '🤸', question: 'Can you do 10 strict pull-ups in a row?' },
-  { id: 'mile_under10', icon: '🏃', question: 'Can you run a mile in under 10 minutes?' },
+  { id: 'bench_bw',     question: 'Bench press your bodyweight' },
+  { id: 'squat_bw15',   question: 'Squat 1.5× your bodyweight' },
+  { id: 'pullups_10',   question: '10 strict pull-ups in a row' },
+  { id: 'mile_under10', question: 'A mile under 10 minutes' },
 ];
 
 const ASSESSMENT_ANSWERS = [
@@ -1235,53 +1235,55 @@ function AssessmentStep({ value, onChange, onNext, onBack, onSkip, step, total }
           text={tFallback('onboarding.assessment.heading', 'Quick lift check')}
           accentWord="lift"
         />
-        <p className="text-sm text-muted-foreground mb-2">
-          {tFallback('onboarding.assessment.sub', 'Optional — but the more honest you are, the better the plan.')}
-          <br />
-          <span className="text-xs text-muted-foreground/70">
-            {tFallback('onboarding.assessment.coachNote', 'Your AI Coach uses these to dial in starting volume.')}
-          </span>
+        <p className="text-sm text-muted-foreground mb-6">
+          {tFallback('onboarding.assessment.sub', 'Optional — the more honest you are, the better the plan. Your AI Coach uses these to set starting volume.')}
         </p>
 
+        {/* One row per question. The answer is binary, so it doesn't need a
+            card holding a question above two full-width buttons — it needs a
+            statement and a two-segment control. That layout ran 146px past
+            the bottom of the screen, the worst overflow of any step; this
+            one fits with room. The answered row carries the answer's hue in
+            its border, and the chosen chip in border and label — the same
+            budget the goal cards settled on, no fills. */}
         <div className="space-y-2">
-          {ASSESSMENT_QUESTIONS.map((q, qi) => (
-            <motion.div
-              key={q.id}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 + qi * 0.06, duration: 0.4 }}
-              className="rounded-2xl border bg-card p-3"
-            >
-              <div className="flex items-start gap-2 mb-2">
-                <span className="text-2xl leading-none" aria-hidden="true">{q.icon}</span>
-                <p className="font-heading font-semibold text-sm leading-snug text-foreground">
+          {ASSESSMENT_QUESTIONS.map((q, qi) => {
+            const answer = ASSESSMENT_ANSWERS.find(a => a.id === answers[q.id]);
+            return (
+              <motion.div
+                key={q.id}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 + qi * 0.06, duration: 0.4 }}
+                className="flex items-center gap-2 rounded-2xl border bg-card px-4 py-3 transition-colors"
+                style={{ borderColor: answer ? answer.hue : 'hsl(var(--border))' }}
+              >
+                <p className="flex-1 min-w-0 font-heading font-semibold text-label leading-tight text-foreground">
                   {tFallback(`onboarding.assessment.q.${q.id}`, q.question)}
                 </p>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                {ASSESSMENT_ANSWERS.map(a => {
-                  const selected = answers[q.id] === a.id;
-                  return (
-                    <button
-                      key={a.id}
-                      type="button"
-                      onClick={() => setAnswer(q.id, a.id)}
-                      // min-h-11: eight of these render in one viewport at
-                      // 34px tall.
-                      className="min-h-11 rounded-xl border text-xs font-bold uppercase tracking-wide transition-colors"
-                      style={{
-                        borderColor: selected ? a.hue : 'hsl(var(--border))',
-                        background:  selected ? `${a.hue}1f` : 'hsl(var(--card))',
-                        color:       selected ? a.hue : 'hsl(var(--foreground))',
-                      }}
-                    >
-                      {tFallback(`onboarding.assessment.answer.${a.id}`, a.label)}
-                    </button>
-                  );
-                })}
-              </div>
-            </motion.div>
-          ))}
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {ASSESSMENT_ANSWERS.map(a => {
+                    const selected = answers[q.id] === a.id;
+                    return (
+                      <button
+                        key={a.id}
+                        type="button"
+                        onClick={() => setAnswer(q.id, a.id)}
+                        aria-pressed={selected}
+                        className="min-h-11 px-3 rounded-full border text-caption font-semibold transition-colors"
+                        style={{
+                          borderColor: selected ? a.hue : 'hsl(var(--border))',
+                          color:       selected ? a.hue : 'hsl(var(--muted-foreground))',
+                        }}
+                      >
+                        {tFallback(`onboarding.assessment.answer.${a.id}`, a.label)}
+                      </button>
+                    );
+                  })}
+                </div>
+              </motion.div>
+            );
+          })}
         </div>
 
         <p className="text-micro text-center text-muted-foreground mt-4">
