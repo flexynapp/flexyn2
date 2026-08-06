@@ -908,13 +908,26 @@ const CARDIO_EVENTS = [
 const FOCUS_LIFTS = ['Bench Press', 'Squat', 'Deadlift', 'Overhead Press', 'Pull-Up'];
 const TIME_DISTANCES = [{ id: '1mi', label: '1 mi' }, { id: '5k', label: '5K' }, { id: '10k', label: '10K' }];
 
-function Chip({ children, active, accent = 'hsl(var(--primary))', small, onClick }) {
+// Which distance the "recent time" is asked at, per event.
+//
+// This used to be its own row of three chips, sitting on screen from the
+// moment the step opened and asking the user to answer a question they had
+// already answered one line above. The event IS the distance — so 5K and 10K
+// take their own, and the longer events fall back to a 5K benchmark, which is
+// what the old picker offered anyway (it never listed half or marathon).
+// Keeping the value inside that same {1mi, 5k, 10k} vocabulary matters:
+// `ensureOnboardingCardioGoal` renders it straight into the goal's note.
+const TIME_DISTANCE_FOR_EVENT = {
+  '5k': '5k', '10k': '10k', half: '5k', marathon: '5k', general: '5k',
+};
+
+function Chip({ children, active, accent = 'hsl(var(--primary))', onClick }) {
   return (
     <button type="button" onClick={onClick}
-      className={`rounded-full font-semibold transition-all cursor-pointer ${small ? 'px-3 py-1 text-caption' : 'px-3.5 py-1.5 text-label'}`}
+      className="rounded-full font-semibold transition-all cursor-pointer px-3.5 py-1.5 text-label"
       style={{
         border: `1.5px solid ${active ? accent : 'hsl(var(--border))'}`,
-        background: active ? accent.replace(')', ' / 0.12)') : 'hsl(var(--card))',
+        background: 'hsl(var(--card))',
         color: active ? accent : 'hsl(var(--foreground))',
       }}>
       {children}
@@ -963,75 +976,76 @@ function SharpenStep({ goals, value, onChange, onNext, onBack, step, total }) {
   const setCurrent = (patch) => {
     const nextCur = { ...cur, ...patch };
     nextCur.timeSec = (Number(nextCur.min) || 0) * 60 + (Number(nextCur.sec) || 0);
-    set({ cardioCurrent: nextCur, cardioDefer: false });
+    set({ cardioCurrent: nextCur });
   };
+
+  // Picking the event also fixes the distance the time is asked at, so the
+  // user never answers "which distance?" twice.
+  const pickEvent = (eventId) => set({
+    cardioEvent: eventId,
+    cardioCurrent: { ...cur, distance: TIME_DISTANCE_FOR_EVENT[eventId] || '5k' },
+  });
+
+  const timeDistance = TIME_DISTANCES.find(d => d.id === cur.distance);
+  const timeDistanceLabel = timeDistance
+    ? tFallback(`onboarding.sharpen.distance.${timeDistance.id}`, timeDistance.label)
+    : null;
 
   const nothingToAsk = !wantsCardio && !wantsStrength;
 
   return (
     <div className="flex flex-col h-full">
       <StepHeader step={step} total={total} onBack={onBack} />
-      <div className="flex-1 overflow-y-auto space-y-2 pb-2 pe-2">
+      <div className="flex-1 overflow-y-auto pb-2 pe-2">
         <KineticHeading
           text={tFallback('onboarding.sharpen.heading', "Let's sharpen your plan.")}
           accentWord="sharpen" />
-        <p className="text-sm text-muted-foreground -mt-1">
+        <p className="text-sm text-muted-foreground mb-6">
           {tFallback('onboarding.sharpen.sub', 'A few quick details make your starter plan spot-on — all optional.')}
         </p>
 
         {wantsCardio && (
-          <div className="space-y-3">
+          <div className="space-y-2">
             <SectionLabel accent="hsl(45 93% 55%)" title={tFallback('onboarding.sharpen.cardioPrompt', 'What are you training for?')} />
             <div className="flex flex-wrap gap-2">
               {CARDIO_EVENTS.map(e => (
-                <Chip key={e.id} active={s.cardioEvent === e.id} accent="hsl(45 93% 55%)" onClick={() => set({ cardioEvent: e.id })}>
+                <Chip key={e.id} active={s.cardioEvent === e.id} accent="hsl(45 93% 55%)" onClick={() => pickEvent(e.id)}>
                   {tFallback(`onboarding.sharpen.event.${e.id}`, e.label)}
                 </Chip>
               ))}
             </div>
 
-            <div className="rounded-2xl border border-border bg-card p-3.5 space-y-3">
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-label font-semibold">{tFallback('onboarding.sharpen.recentTime', 'Know a recent time?')}</span>
-                <button type="button"
-                  onClick={() => set({ cardioDefer: !s.cardioDefer, cardioCurrent: s.cardioDefer ? cur : null })}
-                  className={`text-micro font-semibold px-2.5 py-1 rounded-lg transition-colors ${s.cardioDefer ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:bg-secondary active:bg-secondary'}`}>
-                  {tFallback('onboarding.sharpen.setLater', "I'll set it later")}
-                </button>
-              </div>
-              {!s.cardioDefer && (
-                <>
-                  <div className="flex flex-wrap gap-2">
-                    {TIME_DISTANCES.map(d => (
-                      <Chip key={d.id} small active={cur.distance === d.id} accent="hsl(217 91% 60%)" onClick={() => setCurrent({ distance: d.id })}>
-                        {tFallback(`onboarding.sharpen.distance.${d.id}`, d.label)}
-                      </Chip>
-                    ))}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <TimeInput placeholder={tFallback('onboarding.sharpen.minPlaceholder', 'min')} value={cur.min} onChange={v => setCurrent({ min: v })} />
-                    <span className="text-muted-foreground font-bold">:</span>
-                    <TimeInput placeholder={tFallback('onboarding.sharpen.secPlaceholder', 'sec')} value={cur.sec} onChange={v => setCurrent({ sec: v })} max={59} />
-                    <span className="text-micro text-muted-foreground">
-                      {(() => {
-                        const d = TIME_DISTANCES.find(x => x.id === cur.distance);
-                        return d
-                          ? tFallback('onboarding.sharpen.forYour', 'for your {distance}', { distance: tFallback(`onboarding.sharpen.distance.${d.id}`, d.label) })
-                          : tFallback('onboarding.sharpen.forYourRun', 'for your run');
-                      })()}
-                    </span>
-                  </div>
-                </>
-              )}
-              <p className="text-micro text-muted-foreground">
-                {tFallback('onboarding.sharpen.noTimeHint', "Don't know it? No worries — log a run in the Cardio tab anytime and we'll dial it in.")}
-              </p>
-            </div>
+            {/* The time question is CREATED by the answer above it — there is
+                nothing to ask until we know the distance, and asking anyway
+                is what made this step feel like a form. It also replaces a
+                bordered card nested inside this section (a surface inside a
+                surface) with a hairline, and a separate 1 mi / 5K / 10K row
+                that re-asked the distance the event already gave us. */}
+            {s.cardioEvent && (
+              <>
+                <div className="h-px bg-border" role="presentation" />
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-label font-semibold">
+                    {timeDistanceLabel
+                      ? tFallback('onboarding.sharpen.recentTimeFor', 'Recent {distance} time?', { distance: timeDistanceLabel })
+                      : tFallback('onboarding.sharpen.recentTime', 'Know a recent time?')}
+                  </span>
+                  <TimeInput placeholder={tFallback('onboarding.sharpen.minPlaceholder', 'min')} value={cur.min} onChange={v => setCurrent({ min: v })} />
+                  <span className="text-muted-foreground font-bold">:</span>
+                  <TimeInput placeholder={tFallback('onboarding.sharpen.secPlaceholder', 'sec')} value={cur.sec} onChange={v => setCurrent({ sec: v })} max={59} />
+                </div>
+                {/* Leaving the fields empty already IS "later", which is why
+                    the button that used to say so is gone. */}
+                <p className="text-micro text-muted-foreground">
+                  {tFallback('onboarding.sharpen.noTimeHint', "Don't know it? Log a run in Cardio anytime and we'll dial it in.")}
+                </p>
+              </>
+            )}
           </div>
         )}
 
         {wantsStrength && (
-          <div className="space-y-3">
+          <div className="space-y-2 mt-6">
             <SectionLabel accent="hsl(26 95% 56%)" title={tFallback('onboarding.sharpen.liftsPrompt', 'Which lifts matter most?')} />
             <div className="flex flex-wrap gap-2">
               {FOCUS_LIFTS.map(n => (
@@ -1049,7 +1063,7 @@ function SharpenStep({ goals, value, onChange, onNext, onBack, step, total }) {
         )}
 
         {nothingToAsk && (
-          <div className="rounded-2xl border border-border bg-card p-5 text-center">
+          <div className="rounded-2xl border border-border bg-card p-5 text-center mt-6">
             <div className="text-2xl mb-1">✅</div>
             <p className="font-heading font-bold text-body">{tFallback('onboarding.sharpen.allSet', "You're all set")}</p>
             <p className="text-label text-muted-foreground mt-1">
@@ -3072,7 +3086,7 @@ export default function Onboarding() {
     // "Sharpen your plan" follow-ups — all optional; drives the starter plan +
     // a real cardio goal. cardioEvent: 5k|10k|half|marathon|general;
     // cardioCurrent: { distance, timeSec }; strengthFocus: [exercise names].
-    sharpen: { cardioEvent: null, cardioCurrent: null, cardioDefer: false, strengthFocus: [] },
+    sharpen: { cardioEvent: null, cardioCurrent: null, strengthFocus: [] },
     // Home gym pick (mig 275). Either { gymId, name } for a gym we
     // already have a row for, or { osm, name } for an OpenStreetMap
     // entry to promote. null = skipped.
