@@ -409,10 +409,15 @@ export default function NearbyGymPicker({
         <p className="text-sm font-semibold mb-1">
           {lookupBroke ? "Couldn't search for gyms" : 'No gyms found nearby'}
         </p>
+        {/* The failure branch no longer names OpenStreetMap. The lookup
+            goes through our own cache now (mig 300), so a failure here can
+            be ours — and the first one was: the fill function answered the
+            CORS preflight with 405, the browser never sent the POST, and
+            this copy confidently blamed a service never contacted. */}
         {lookupBroke ? (
           <p className="text-xs text-muted-foreground mb-3">
-            The gym directory (OpenStreetMap) didn&apos;t respond, so we couldn&apos;t
-            check what&apos;s around you. It&apos;s usually brief — try again.
+            We couldn&apos;t reach the gym directory, so we couldn&apos;t check
+            what&apos;s around you. It&apos;s usually brief — try again.
           </p>
         ) : (
           <>

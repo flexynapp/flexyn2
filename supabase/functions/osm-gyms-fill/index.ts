@@ -106,10 +106,33 @@ function isGymLike(tags: Record<string, string> = {}): boolean {
   return tags.leisure === 'sports_centre' && sports.length === 0;
 }
 
+// CORS is not optional here, unlike send-push.
+//
+// send-push is called by pg_net from a database trigger — server to
+// server, no browser, no preflight — so nothing in this project had ever
+// needed these headers. This function is called from the app, and
+// supabase-js sends `Authorization` and `Content-Type: application/json`,
+// which makes it a non-simple request: the browser fires an OPTIONS
+// preflight FIRST and will not send the POST unless that preflight comes
+// back with permission.
+//
+// The method guard below used to answer OPTIONS with 405 and no CORS
+// headers, so the preflight failed, the POST was never sent, and the
+// client saw an instant network error — which the picker rendered as
+// "OpenStreetMap didn't respond". Overpass was never contacted. The logs
+// showed four OPTIONS 405s and zero POSTs.
+const CORS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers':
+    'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Max-Age': '86400',
+};
+
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
     status,
-    headers: { 'Content-Type': 'application/json' },
+    headers: { ...CORS, 'Content-Type': 'application/json' },
   });
 
 /** Race the mirrors; first usable answer wins, losers are aborted. */
@@ -150,6 +173,9 @@ async function queryOverpass(q: string): Promise<{ elements?: unknown[] }> {
 }
 
 Deno.serve(async (req: Request) => {
+  // Answer the preflight before anything else, including the method
+  // guard — an OPTIONS that gets 405 is a POST that never happens.
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405);
 
   let body: Record<string, number>;
