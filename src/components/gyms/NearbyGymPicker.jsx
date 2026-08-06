@@ -109,8 +109,13 @@ export default function NearbyGymPicker({
   // reading radiusKm: this callback has empty deps (it must stay stable
   // or the mount effect re-fires), so a default would capture the FIRST
   // radius forever and silently ignore every widen.
-  const load = useCallback((radius) => {
-    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+  //
+  // `knownFix` skips the geolocation round trip. The auto-widen used to
+  // re-enter through getCurrentPosition, so an empty first search cost a
+  // SECOND satellite fix before its second query even started — pure
+  // latency on the exact path where the user is already waiting longest.
+  const load = useCallback((radius, knownFix) => {
+    if (!knownFix && (typeof navigator === 'undefined' || !navigator.geolocation)) {
       setStatus('denied');
       return undefined;
     }
@@ -118,10 +123,8 @@ export default function NearbyGymPicker({
     setStatus('locating');
     setOsmFailed(false);
     const ac = new AbortController();
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
+
+    const runAt = async (lat, lng) => {
         setFix({ lat, lng });
         let osmBroke = false;
         try {
@@ -190,7 +193,7 @@ export default function NearbyGymPicker({
           if (merged.length === 0 && !osmBroke && radius < MAX_RADIUS_KM
               && radiusRef.current === radius) {
             setRadiusKm(MAX_RADIUS_KM);
-            load(MAX_RADIUS_KM);
+            load(MAX_RADIUS_KM, { lat, lng });
             return;
           }
 
@@ -199,10 +202,17 @@ export default function NearbyGymPicker({
         } catch {
           setStatus('failed');
         }
-      },
-      () => setStatus('denied'),
-      { timeout: 8_000, maximumAge: 600_000 },
-    );
+    };
+
+    if (knownFix) {
+      runAt(knownFix.lat, knownFix.lng);
+    } else {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => runAt(pos.coords.latitude, pos.coords.longitude),
+        () => setStatus('denied'),
+        { timeout: 8_000, maximumAge: 600_000 },
+      );
+    }
     return () => ac.abort();
   }, []);
 
@@ -213,7 +223,7 @@ export default function NearbyGymPicker({
   const widen = () => {
     const next = RADIUS_STEPS_KM.find(km => km > radiusKm) ?? MAX_RADIUS_KM;
     setRadiusKm(next);
-    load(next);
+    load(next, fix);
   };
 
   // ── "My gym isn't listed" (mig 299) ──────────────────────────────────
@@ -375,7 +385,7 @@ export default function NearbyGymPicker({
             problem themselves. */}
         <button
           type="button"
-          onClick={() => load(radiusKm)}
+          onClick={() => load(radiusKm, fix)}
           className="w-full py-2 rounded-xl text-sm font-bold border border-border bg-secondary hover:border-primary/40 transition-all"
         >
           Retry
@@ -427,7 +437,7 @@ export default function NearbyGymPicker({
         <div className="flex gap-2">
           <button
             type="button"
-            onClick={() => load(radiusKm)}
+            onClick={() => load(radiusKm, fix)}
             className="flex-1 py-2 rounded-xl text-sm font-bold border border-border bg-secondary hover:border-primary/40 transition-all"
           >
             Try again
@@ -466,7 +476,7 @@ export default function NearbyGymPicker({
             didn't respond.{' '}
             <button
               type="button"
-              onClick={() => load(radiusKm)}
+              onClick={() => load(radiusKm, fix)}
               className="font-semibold text-primary underline underline-offset-2"
             >
               Retry

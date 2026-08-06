@@ -39,12 +39,15 @@ const osmGym = (name, lat, lon) => ({
 /** Radii the picker asked for, in km, in order. */
 const radiiRequested = () => fetchOsmGymsNear.mock.calls.map(c => c[2].radiusKm);
 
+let geolocationCalls = 0;
+
 beforeEach(() => {
   fetchOsmGymsNear.mockReset();
+  geolocationCalls = 0;
   vi.stubGlobal('navigator', {
     ...globalThis.navigator,
     geolocation: {
-      getCurrentPosition: (ok) => ok({ coords: SANFORD }),
+      getCurrentPosition: (ok) => { geolocationCalls++; ok({ coords: SANFORD }); },
     },
   });
 });
@@ -65,6 +68,11 @@ describe('an empty result widens itself', () => {
     expect(radiiRequested()).toEqual([8, 48]);
     // And the user is never shown the dead end on the way.
     expect(screen.queryByText(/No gyms found nearby/i)).toBeNull();
+    // ONE satellite fix, not two. The widen used to re-enter through
+    // getCurrentPosition, so an empty first search paid for a second
+    // fix before its query even started — pure latency on exactly the
+    // path where the user is already waiting longest.
+    expect(geolocationCalls).toBe(1);
   });
 
   it('does not widen when the first radius already had something', async () => {
