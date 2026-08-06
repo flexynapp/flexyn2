@@ -45,7 +45,7 @@ import { hasCoachFor } from '@/lib/aiCoach/onboardingCoach';
    step components change at all.
 ═══════════════════════════════════════════════════════════════ */
 
-export const OnboardingCoachContext = createContext(null);
+const OnboardingCoachContext = createContext(null);
 
 /* ═══════════════════════════════════════════════════════════════
    CONSTANTS
@@ -3844,6 +3844,3 @@ export default function Onboarding() {
   );
 }
 
-
-// TEMP measurement export — delete me.
-export const __STEPS__ = { ExperienceStep };
