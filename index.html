@@ -100,7 +100,14 @@
          not zoom it. Suppress unwanted pinch on the specific surfaces with
          `touch-action` instead — that is local, and it leaves the user's
          own zoom affordance intact everywhere else. -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <!-- `interactive-widget=resizes-content` makes the soft keyboard shrink
+         the LAYOUT viewport rather than sliding the visual one. That is what
+         lets full-screen shells size themselves with `svh` — a unit that
+         never changes — instead of `dvh`, which tracks the iOS Safari URL
+         bar continuously as it collapses and expands. A fixed element sized
+         in dvh is therefore being resized on every scroll gesture, which is
+         the rubber-banding you see in onboarding. See Onboarding.jsx. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
 
     <!-- PWA. vite-plugin-pwa emits manifest.webmanifest; the old
          /manifest.json reference 404'd silently and broke the

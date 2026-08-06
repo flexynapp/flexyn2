@@ -2923,9 +2923,17 @@ function buildVariants(flavor, direction) {
 
   switch (flavor) {
     case 'curtain':
+      // Was an animated `clip-path: inset(...)`. WebKit does not run
+      // clip-path on the compositor, so a full-screen inset wipe repaints
+      // the entire step subtree every frame — on three of the eleven
+      // steps. That costs more than the blur and the brightness this same
+      // function already refuses to use, and it is the one thing in here
+      // contradicting its own GPU-only rule.
+      //
+      // A slide reads as the same gesture and is transform-only.
       return {
-        enter:  { clipPath: 'inset(0 0 0 100%)', opacity: 1 },
-        center: { clipPath: 'inset(0 0 0 0%)', opacity: 1, transition: { duration: 0.6, ease: [0.76, 0, 0.24, 1] } },
+        enter:  { opacity: 0, x: direction > 0 ? '38%' : '-38%' },
+        center: { opacity: 1, x: 0, transition: { duration: 0.5, ease: [0.76, 0, 0.24, 1] } },
         exit,
       };
     case 'tilt':
@@ -2949,9 +2957,13 @@ function buildVariants(flavor, direction) {
         exit,
       };
     case 'iris':
+      // Same reason as curtain, and worse: a circle() growing to 140% of
+      // a full-screen box is the most expensive repaint in the flow, and
+      // it lands on `reveal` — the one step that is also mounting the
+      // generated plan. Scale + fade opens the same way for free.
       return {
-        enter:  { clipPath: 'circle(0% at 50% 55%)', scale: 1.03 },
-        center: { clipPath: 'circle(140% at 50% 55%)', scale: 1, transition: { duration: 0.75, ease: [0.65, 0, 0.35, 1] } },
+        enter:  { opacity: 0, scale: 0.94 },
+        center: { opacity: 1, scale: 1, transition: { duration: 0.55, ease: [0.16, 1, 0.3, 1] } },
         exit,
       };
     default: // 'fwd' / 'back'
@@ -3593,14 +3605,21 @@ export default function Onboarding() {
   }
 
   return (
-    // Use 100dvh (dynamic viewport height) so the layout adapts when
-    // the iOS Safari URL bar / virtual keyboard collapses or expands.
-    // Plain `fixed inset-0` resolves to 100vh which on iOS stays at
-    // pre-keyboard size — pushing the focused input behind the
-    // keyboard. dvh shrinks with the keyboard so onboarding inputs
-    // stay reachable.
+    // 100svh, not 100dvh.
+    //
+    // dvh was chosen so a focused input wouldn't sit behind the soft
+    // keyboard, and it does solve that — but it solves it by tracking the
+    // viewport CONTINUOUSLY, and on iOS Safari the URL bar collapses and
+    // expands with every scroll gesture. A fixed shell sized in dvh is
+    // therefore being resized mid-gesture: the whole step grows and
+    // shrinks under the content while it animates.
+    //
+    // svh is the SMALLEST viewport height and never changes, so the shell
+    // holds still. The keyboard case moves to where it belongs —
+    // `interactive-widget=resizes-content` in index.html's viewport meta,
+    // which shrinks the layout viewport when the keyboard opens.
     <OnboardingCoachContext.Provider value={coachCtx}>
-    <div className="fixed inset-0 bg-background overflow-hidden" style={{ height: '100dvh' }}>
+    <div className="fixed inset-0 bg-background overflow-hidden" style={{ height: '100svh' }}>
       <Aurora />
 
       {/* Mounted at the root rather than inside the step, so the sheet
@@ -3615,7 +3634,15 @@ export default function Onboarding() {
         onApply={applyCoachSuggestion}
       />
 
-      <div className="relative z-10 h-full flex items-start justify-center overflow-hidden">
+      {/* `perspective` lives HERE, on the element that does not move. It
+          was set on the animating child itself, where it does nothing for
+          that element's own rotateX/rotateY — a 3D transform is projected
+          by its PARENT's perspective — while still forcing a 3D rendering
+          context onto a full-screen subtree on every step. */}
+      <div
+        className="relative z-10 h-full flex items-start justify-center overflow-hidden"
+        style={{ perspective: 1000 }}
+      >
         {/* `safe-page` carries the safe-area insets and the fluid padding —
             see index.css. Layout.jsx has had insets since launch for the
             authenticated app, but onboarding escapes Layout and never got
@@ -3629,7 +3656,12 @@ export default function Onboarding() {
             <motion.div key={stepName}
               variants={buildVariants(direction > 0 ? STEP_TRANSITIONS[stepName] : 'back', direction)}
               initial="enter" animate="center" exit="exit"
-              style={{ perspective: 1000, transformStyle: 'preserve-3d', willChange: 'transform, opacity' }}
+              /* No willChange and no preserve-3d here. Framer Motion sets
+                 will-change for the duration of an animation and clears it
+                 after; pinning it kept a full-screen layer promoted for
+                 the whole flow. preserve-3d on the same subtree disables
+                 subpixel text antialiasing, which is why type appears to
+                 shimmer as a step settles. */
               className="flex-1 flex flex-col min-h-0">
 
               {stepName === 'welcome' && (
