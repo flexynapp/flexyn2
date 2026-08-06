@@ -15,7 +15,7 @@ import {
   ArrowLeft, Building2, Users, MapPin, Trophy, Calendar, MessageSquare,
   Loader2, Plus, Crown, Printer, Share2, Pencil, LogOut, Trash2, Dumbbell,
 } from 'lucide-react';
-import { leaveGym } from '@/lib/data/gymBusinesses';
+import { leaveGym, getGymPublicPreview } from '@/lib/data/gymBusinesses';
 
 const GymSignageCard = lazy(() => import('@/components/gyms/GymSignageCard'));
 const GymFeedTab            = lazy(() => import('@/components/gyms/GymFeedTab'));
@@ -47,6 +47,56 @@ const LB_MODES = [
   { id: 'streak',      label: 'Streak',      suffix: 'd' },
 ];
 
+/**
+ * Activity without identity — what a non-member may see (mig 301).
+ *
+ * Below five members everything but the count is withheld, and the copy
+ * says why rather than implying the gym is dead. That threshold is not
+ * squeamishness: the roster is visible to members, so at four people an
+ * individual's attendance is derivable from the aggregate by
+ * subtraction. Names being absent is not what protects anyone here.
+ */
+function GymActivityPreview({ preview }) {
+  if (!preview) return null;
+
+  if (!preview.meetsThreshold) {
+    return (
+      <div className="mb-4">
+        <p className="font-heading font-bold text-2xl tabular-nums leading-none">
+          {preview.memberCount}
+        </p>
+        <p className="text-xs text-muted-foreground mt-1">
+          {preview.memberCount === 1 ? 'member' : 'members'} on Flexyn ·
+          too few to show activity yet
+        </p>
+      </div>
+    );
+  }
+
+  const peak = Math.max(1, ...preview.shape);
+  return (
+    <div className="mb-4">
+      <p className="text-sm font-semibold mb-1">
+        <span className="tabular-nums">{preview.activeMembers}</span> of{' '}
+        <span className="tabular-nums">{preview.memberCount}</span> trained this week
+      </p>
+      {/* Bare day counts, tallest first. No names, no avatars, and
+          nothing orderable against the roster — see the RPC. */}
+      {preview.shape.length > 0 && (
+        <div className="flex items-end justify-center gap-1 h-10 mt-2" aria-hidden="true">
+          {preview.shape.map((d, i) => (
+            <div key={i} className="w-3 rounded-t bg-primary/70"
+              style={{ height: `${Math.max(8, (d / peak) * 100)}%` }} />
+          ))}
+        </div>
+      )}
+      <p className="text-micro text-muted-foreground mt-2">
+        {preview.sessionCount} sessions · {preview.activeDays} gym days · last 7 days
+      </p>
+    </div>
+  );
+}
+
 export default function GymHub() {
   const { id } = useParams();
   const { user } = useAuth();
@@ -60,7 +110,18 @@ export default function GymHub() {
   // Membership check — false until proven true so we don't flash the
   // full member-only feed/leaderboard to a non-member on first render.
   const [isMember, setIsMember] = useState(false);
+  // Anonymised activity for non-members (mig 301). Fetched regardless of
+  // membership — the RPC is cheap and the block only renders for people
+  // who aren't in yet.
+  const [preview, setPreview] = useState(null);
   const [membershipChecked, setMembershipChecked] = useState(false);
+
+  useEffect(() => {
+    if (!id) return undefined;
+    let cancelled = false;
+    getGymPublicPreview(id).then(p => { if (!cancelled) setPreview(p); });
+    return () => { cancelled = true; };
+  }, [id]);
   const [joining, setJoining] = useState(false);
 
   useEffect(() => {
@@ -267,6 +328,10 @@ export default function GymHub() {
           instead. Owners always count as members for this check. */}
       {membershipChecked && !isMember && !isOwner && (
         <div className="rounded-2xl border border-dashed border-primary/40 bg-primary/5 p-5 text-center">
+          {/* Activity WITHOUT identity (mig 301). This used to be a flat
+              "join to unlock", which asks someone to commit to a gym
+              before telling them whether anyone trains there. */}
+          <GymActivityPreview preview={preview} />
           <p className="text-sm text-muted-foreground mb-3">
             Join to access the local feed, events, and member leaderboard.
           </p>

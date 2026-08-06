@@ -144,6 +144,38 @@ export async function getGymsInBbox({ minLat, maxLat, minLng, maxLng, limit = 50
   return Array.isArray(data) ? data : [];
 }
 
+/**
+ * What a NON-member may see about a gym (migration 301).
+ *
+ * Shape without identity: how busy the floor is, never who is on it.
+ * The old answer was a flat "join to unlock", which asks someone to
+ * commit to a gym before telling them whether anyone trains there.
+ *
+ * `meets_threshold` false means the gym has fewer than five members and
+ * everything except the count is withheld — not because names are
+ * missing but because at that size an individual's attendance is
+ * derivable from the aggregate by anyone who can see the roster, and
+ * members still can. Render the count and say so; don't tease.
+ *
+ * @returns {Promise<{memberCount, meetsThreshold, activeMembers, sessionCount, activeDays, shape}|null>}
+ */
+export async function getGymPublicPreview(gymId) {
+  if (!gymId) return null;
+  const { data, error } = await supabase.rpc('get_gym_public_preview', {
+    p_gym_id: gymId,
+  });
+  // 42883 is a pre-301 host: no preview to show, and not worth an error.
+  if (error) return null;
+  return {
+    memberCount:    Number(data?.member_count) || 0,
+    meetsThreshold: !!data?.meets_threshold,
+    activeMembers:  Number(data?.active_members) || 0,
+    sessionCount:   Number(data?.session_count) || 0,
+    activeDays:     Number(data?.active_days) || 0,
+    shape:          Array.isArray(data?.streak_shape) ? data.streak_shape : [],
+  };
+}
+
 /** Full gym detail by id — for the Gym Hub page header. */
 export async function getGym(id) {
   if (!id) return null;
