@@ -16,10 +16,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 
+// The picker reads the Postgres cache now, not Overpass directly.
 const fetchOsmGymsNear = vi.fn();
-vi.mock('@/lib/osmGyms', async (importOriginal) => ({
-  ...(await importOriginal()),
-  fetchOsmGymsNear: (...args) => fetchOsmGymsNear(...args),
+vi.mock('@/lib/data/osmGymCache', () => ({
+  fetchOsmGymsNearCached: (...args) => fetchOsmGymsNear(...args),
 }));
 
 vi.mock('@/lib/data/gymBusinesses', () => ({

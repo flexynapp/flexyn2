@@ -24,9 +24,11 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { getGymsInBbox } from '@/lib/data/gymBusinesses';
-import {
-  fetchOsmGymsNear, distanceKm, bboxAround, DEFAULT_NEAR_RADIUS_KM,
-} from '@/lib/osmGyms';
+import { distanceKm, bboxAround, DEFAULT_NEAR_RADIUS_KM } from '@/lib/osmGyms';
+// Reads our own Postgres (~19ms) instead of Overpass (2.3-30s, failing
+// about one run in three at the wider radius). Only the first person in
+// an area pays a fill — see the head comment there for the measurements.
+import { fetchOsmGymsNearCached } from '@/lib/data/osmGymCache';
 import { useDistanceUnit } from '@/lib/DistanceUnitContext';
 
 const KM_PER_MILE = 1.609344;
@@ -140,7 +142,7 @@ export default function NearbyGymPicker({
               minLng: box.west,  maxLng: box.east,
               limit: 40,
             }).catch(() => []),
-            fetchOsmGymsNear(lat, lng, { radiusKm: radius, signal: ac.signal })
+            fetchOsmGymsNearCached(lat, lng, { radiusKm: radius, signal: ac.signal })
               .catch((e) => {
                 if (e?.name !== 'AbortError') { osmBroke = true; setOsmFailed(true); }
                 return [];
