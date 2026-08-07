@@ -1494,17 +1494,6 @@ export default function Workout() {
     return () => { cancelled = true; };
   }, []);
 
-  // /workout?freestyle=1 — the Dashboard hero's "Start workout" CTAs land
-  // IN a session rather than on this page's picker. "Start" that drops you
-  // on a screen with another Start button on it is a step the user already
-  // took. Same param-stripping as ?scheduled= above so a refresh doesn't
-  // blow away whatever they've logged since.
-  useEffect(() => {
-    if (new URLSearchParams(window.location.search).get('freestyle') !== '1') return;
-    startFreestyle();
-    window.history.replaceState({}, '', '/workout');
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
   const handleResumeSession = (sessionId) => {
     const session = resumeWorkout(sessionId);
     if (!session) return;
@@ -2117,6 +2106,9 @@ export default function Workout() {
   // Deep-link entry points used by daily-quest CTAs:
   //   /workout?openCardio=1   — CARDIO_COMPLETED / CARDIO_SECONDS quests
   //   /workout?openGoals=1    — GOAL_COMPLETED quest
+  //   /workout?freestyle=1    — every "Start a workout" CTA in the app
+  //                             (Dashboard hero + its slideshow, the
+  //                             Workout tab's Quick log long-press)
   // The route map lives in src/lib/questCatalog.js. Without this handler
   // a user tapping a cardio/goals quest from Dashboard or StatsHub
   // would land on /workout but the corresponding panel wouldn't open
@@ -2135,6 +2127,16 @@ export default function Workout() {
       params.delete('openGoals');
       consumed = true;
     }
+    // A "Start" button that lands you on a page with another Start button
+    // on it is a step the user already took. This opens the session for
+    // them — but NOT over a live one: startFreestyle() blanks the exercise
+    // list, so firing it on someone mid-workout would delete the sets
+    // they've logged. Already started is already where the CTA was going.
+    if (params.get('freestyle') === '1') {
+      if (!started) startFreestyle();
+      params.delete('freestyle');
+      consumed = true;
+    }
     if (consumed) {
       // Route through react-router's navigate so its internal
       // location state stays in sync. Direct
@@ -2150,6 +2152,11 @@ export default function Workout() {
       // middle of the newly-opened panel. Scroll after the panel renders.
       setTimeout(() => { try { window.scrollTo({ top: 0, behavior: 'auto' }); } catch { /* noop */ } }, 0);
     }
+    // `started` and `startFreestyle` are deliberately not deps. The param
+    // is the trigger; re-running this because a session opened (or because
+    // startFreestyle was re-created on a render) would only re-read a
+    // search string this pass already stripped.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.search, navigate]);
 
   useEffect(() => {

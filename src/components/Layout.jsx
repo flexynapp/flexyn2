@@ -277,7 +277,10 @@ export default function Layout() {
   const TAB_ACTIONS = {
     '/dashboard': [],
     '/workout': [
-      { id: 'quicklog', label: 'Quick log', icon: Plus, onClick: () => navigate('/workout') },
+      // ?freestyle=1 opens the session itself. Plain /workout landed on the
+      // page's picker with a Start button still to press, which is the one
+      // step "Quick log" exists to skip.
+      { id: 'quicklog', label: 'Quick log', icon: Plus, onClick: () => navigate('/workout?freestyle=1') },
       { id: 'cardio',   label: 'Open cardio', icon: Play, onClick: () => navigate('/workout?openCardio=1') },
       { id: 'goals',    label: 'Open goals', icon: Sparkles, onClick: () => navigate('/workout?openGoals=1') },
     ],
