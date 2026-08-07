@@ -167,6 +167,18 @@ export default function ProgressPhotoCapture({ open, onOpenChange }) {
     };
   }, []);
 
+  // Fresh state every time the parent opens this. In controlled mode the
+  // component never unmounts — Dashboard renders it permanently and only
+  // toggles `open` — so `saving`, a stale preview, or a previous camera error
+  // all survive a close and are still there on the next open. That is how a
+  // single stalled upload could disable the Save button for the rest of the
+  // session with no way for the user to clear it.
+  useEffect(() => {
+    if (!isControlled || !open) return;
+    setSaving(false);
+    setCameraError(null);
+  }, [isControlled, open]);
+
   const capturePhoto = () => {
     if (!videoRef.current || !canvasRef.current) return;
     const canvas = canvasRef.current;
@@ -210,7 +222,18 @@ export default function ProgressPhotoCapture({ open, onOpenChange }) {
   // silently dropped the photo (C17). On failure we surface an error
   // toast and keep the preview so the user can retry.
   const savePhoto = async () => {
-    if (!capturedImage || saving) return;
+    // Was `if (!capturedImage || saving) return;` — a silent return, and the
+    // reason "nothing happens when I tap Save, no toast at all" was possible.
+    // uploadProgressPhoto had no timeout, so one stalled request (spotty
+    // signal, big blob) left `saving` true forever: the button went disabled,
+    // every later tap hit this guard and returned without a word, and the
+    // component stays mounted between opens in controlled mode so closing and
+    // reopening the sheet did not clear it either.
+    if (saving) return;                        // genuine double-tap guard
+    if (!capturedImage) {
+      toast.error(tFallback('photos.saveError', "Couldn't save your photo. Please try again."));
+      return;
+    }
     if (!user?.id) {
       toast.error(tFallback('photos.saveError', "Couldn't save your photo. Please try again."));
       return;
@@ -231,12 +254,24 @@ export default function ProgressPhotoCapture({ open, onOpenChange }) {
 
     setSaving(true);
     try {
-      await uploadProgressPhoto(user.id, blob, Date.now());
+      // 45s ceiling. Storage has no client-side timeout of its own, and an
+      // upload that never settles is indistinguishable from a dead button.
+      await Promise.race([
+        uploadProgressPhoto(user.id, blob, Date.now()),
+        new Promise((_, reject) => setTimeout(
+          () => reject(new Error('progress photo upload timed out after 45s')),
+          45_000,
+        )),
+      ]);
     } catch (err) {
-      setSaving(false);
       reportError(err, { feature: 'progressPhoto.upload', userEmail: user?.email });
       toast.error(tFallback('photos.saveError', "Couldn't save your photo. Please try again."));
       return;
+    } finally {
+      // finally, not just the catch: the success path calls closeCamera()
+      // which happens to reset this, so the old code was one refactor away
+      // from wedging the button permanently. Make it unconditional.
+      setSaving(false);
     }
 
     toast.success(t('photos.savedToast'), {
