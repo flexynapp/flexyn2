@@ -53,7 +53,12 @@ const MAX_TOKENS = 1000;
 // Belt-and-braces against a tampered client padding the prompt. The
 // composer already caps input at 500 chars.
 const MAX_MESSAGE_CHARS = 800;
-const MAX_HISTORY_TURNS = 8;
+// 4, not 8. History is the one input that grows without bound as a
+// conversation runs, and it is billed in full on every turn — turn 8 pays for
+// turns 1-7 all over again. Four turns still carries "why?" and "make it
+// shorter", which is what history is here for; nobody was referring back six
+// messages in a fitness chat.
+const MAX_HISTORY_TURNS = 4;
 const MAX_CONTEXT_CHARS = 4000;
 
 const CORS = {
@@ -66,31 +71,18 @@ const CORS = {
 // PARSE_ERROR branch (which is what recognize-meal has to do). The shape is
 // guaranteed by the API, so the only failure modes left are refusal and
 // max_tokens, both of which are checked explicitly below.
+// Descriptions are deliberately terse. The schema is re-sent on every single
+// message, and its long-form guidance restated what the "# When to hand off"
+// section of the system prompt already says at length — ~200 tokens of
+// duplication per turn, which is 5% of the cost of running this thing. The
+// system prompt is the one place that explains the contract; this just names
+// the fields.
 const REPLY_SCHEMA = {
   type: 'object',
   properties: {
-    kind: {
-      type: 'string',
-      enum: ['answer', 'plan'],
-      description:
-        "'plan' ONLY when the user is asking you to BUILD a workout, program, " +
-        "routine or regimen they could save and train from. Everything else — " +
-        "including nutrition, recovery, progress, technique and off-topic — is 'answer'.",
-    },
-    reply: {
-      type: 'string',
-      description:
-        "What the coach says. For kind='plan' this is the short intro that sits " +
-        'above the generated session card — do NOT list exercises here, the app ' +
-        'builds those. For kind=\'answer\' this is the whole reply.',
-    },
-    goal: {
-      type: 'string',
-      description:
-        "For kind='plan', a one-line restatement of the training goal in plain " +
-        'English for the plan generator (e.g. "train for a faster 5K", "upper ' +
-        'body hypertrophy, 45 minutes, dumbbells only"). Empty string when kind=\'answer\'.',
-    },
+    kind:  { type: 'string', enum: ['answer', 'plan'], description: "'plan' only for a build-me-a-workout request." },
+    reply: { type: 'string', description: 'The coach reply. For plan, a 1-2 sentence intro only.' },
+    goal:  { type: 'string', description: 'For plan, the training goal in one line. Empty otherwise.' },
   },
   required: ['kind', 'reply', 'goal'],
   additionalProperties: false,

@@ -698,8 +698,11 @@ export async function buildCoachContext({ user, profile = {}, excludeMuscleGroup
         : null,
       setsByMuscleLast14: setsByMuscle,
       // Exercise names only. Enough for "you've squatted three times this
-      // week", far short of shipping every set.
-      recentSessions: last14.slice(0, 6).map(w => ({
+      // week", far short of shipping every set. Three sessions rather than
+      // six: the digest is re-sent on every message, and sessions four
+      // through six never showed up in a reply — the tallies above already
+      // carry the fortnight's shape.
+      recentSessions: last14.slice(0, 3).map(w => ({
         date: parseLogDate(w.date) ? format(parseLogDate(w.date), 'yyyy-MM-dd') : null,
         daysAgo: _daysAgo(w.date),
         exercises: (w.exercises || []).map(e => e.name).filter(Boolean).slice(0, 10),
@@ -728,7 +731,9 @@ export async function buildCoachContext({ user, profile = {}, excludeMuscleGroup
     }
     ctx.topLifts = Object.entries(prMap)
       .sort((a, b) => b[1].weight - a[1].weight)
-      .slice(0, 8)
+      // Five, not eight. prsResponder shows a top five for the same reason:
+      // past that it stops being "your PRs" and becomes a list.
+      .slice(0, 5)
       .map(([name, pr]) => ({
         name,
         weightLb: pr.weight,
