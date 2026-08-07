@@ -80,7 +80,7 @@ export function mergeWidgetOrder(saved, defaults) {
    one must not imply the other.
    ══════════════════════════════════════════════════════════════════ */
 
-export const LAYOUT_DEFAULTS_VERSION = 2;
+export const LAYOUT_DEFAULTS_VERSION = 3;
 
 /**
  * Move `first` to sit immediately before `second` and mark both 'half', so
@@ -116,6 +116,23 @@ const LAYOUT_MIGRATIONS = [
   {
     to: 2,
     name: 'pair-streak-with-quests',
+    apply: (layout) => pairAdjacent(layout, 'streak', 'challenges'),
+  },
+  // v2 shipped broken and this repairs it. Two faults stamped layouts as
+  // migrated without migrating them:
+  //   · Dashboard read widgetOrder from React state in a branch where the
+  //     localStorage loader's setState had not landed, so the step compared
+  //     against defaults (already paired), reported "nothing to do", and the
+  //     saved order was restored over the top afterwards.
+  //   · The sync effect called packLayout() without a defaultsVersion, and
+  //     packLayout defaults it to the CURRENT version — so the server copy
+  //     claimed v2 for a layout that had never been touched. That stamp then
+  //     out-ranked the local one on every later load.
+  // Re-running the same pairing is safe precisely because steps are required
+  // to be idempotent: anyone already paired gets changed:false and no write.
+  {
+    to: 3,
+    name: 'pair-streak-with-quests-repair',
     apply: (layout) => pairAdjacent(layout, 'streak', 'challenges'),
   },
 ];

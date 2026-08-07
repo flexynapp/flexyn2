@@ -6,7 +6,7 @@ import { useAuth } from '@/lib/AuthContext';
 import {
   packLayout, unpackLayout, writeLayoutToLocal, clearLayoutLocal,
   queueLayoutSync, flushLayoutSync, mergeWidgetOrder, applyLayoutMigrations,
-  readLocalDefaultsVersion, ORDER_KEY, LAYOUTS_KEY,
+  readLocalDefaultsVersion, ORDER_KEY, LAYOUTS_KEY, HIDDEN_KEY,
 } from '@/lib/dashboardLayout';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { subDays, isAfter, differenceInDays, startOfDay, format } from 'date-fns';
@@ -920,6 +920,11 @@ export default function Dashboard() {
   // would read it in the temporal dead zone when the deps array is
   // evaluated, which is the exact production crash CLAUDE.md documents.
   const layoutHydratedFor = useRef(null);
+  // The defaults version this session actually reached, so the sync stamps
+  // what happened instead of asserting the current constant. packLayout()
+  // defaulting to the constant is what let a never-migrated layout be written
+  // to the server as "v2 done", which then out-ranked the local copy forever.
+  const [layoutDefaultsVersion, setLayoutDefaultsVersion] = useState(0);
 
   useEffect(() => {
     const uid = user?.id;
@@ -948,12 +953,34 @@ export default function Dashboard() {
           : sectionLayouts,
         defaultsVersion: remote.defaultsVersion,
       }
-      : {
-        hiddenSections: Array.from(hiddenSections),
-        widgetOrder,
-        sectionLayouts,
-        defaultsVersion: readLocalDefaultsVersion(uid),
-      };
+      : (() => {
+        // Read localStorage DIRECTLY rather than trusting the state values.
+        // The local order/layout/hidden loaders are separate effects, and this
+        // one can run before their setState has landed — so `widgetOrder` here
+        // may still be defaultWidgetOrder. Migrating that is worse than not
+        // migrating: the step sees defaults (already paired), reports "nothing
+        // to do", stamps the version as done, and then the local loader
+        // overwrites state with the un-paired saved order that will now never
+        // be migrated again. Caught on a guest account whose streak and quests
+        // stayed apart after the migration shipped.
+        const readJson = (key, fallback) => {
+          try {
+            const raw = localStorage.getItem(key);
+            return raw ? JSON.parse(raw) : fallback;
+          } catch { return fallback; }
+        };
+        const savedOrder = readJson(ORDER_KEY(uid), null);
+        const savedLayouts = readJson(LAYOUTS_KEY(uid), null);
+        const savedHidden = readJson(HIDDEN_KEY(uid), null);
+        return {
+          hiddenSections: Array.isArray(savedHidden) ? savedHidden : Array.from(hiddenSections),
+          widgetOrder: Array.isArray(savedOrder) && savedOrder.length > 0
+            ? mergeWidgetOrder(savedOrder, defaultWidgetOrder)
+            : widgetOrder,
+          sectionLayouts: savedLayouts && typeof savedLayouts === 'object' ? savedLayouts : sectionLayouts,
+          defaultsVersion: readLocalDefaultsVersion(uid),
+        };
+      })();
 
     // Catch a saved layout up to the current DEFAULTS. mergeWidgetOrder
     // protects a customized order, which means a new default pairing could
@@ -976,6 +1003,7 @@ export default function Dashboard() {
       writeLayoutToLocal(uid, { ...next, defaultsVersion: version });
     }
 
+    setLayoutDefaultsVersion(version);
     layoutHydratedFor.current = uid;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, userProfile]);
@@ -985,8 +1013,10 @@ export default function Dashboard() {
   // before the profile has been read.
   useEffect(() => {
     if (!user?.id || layoutHydratedFor.current !== user.id) return;
-    queueLayoutSync(user.id, packLayout({ hiddenSections, widgetOrder, sectionLayouts }));
-  }, [hiddenSections, widgetOrder, sectionLayouts, user?.id]);
+    queueLayoutSync(user.id, packLayout({
+      hiddenSections, widgetOrder, sectionLayouts, defaultsVersion: layoutDefaultsVersion,
+    }));
+  }, [hiddenSections, widgetOrder, sectionLayouts, layoutDefaultsVersion, user?.id]);
 
   // Drop any pending debounce on unmount — the timer is module-level, so a
   // stale one firing after an account switch would write the previous

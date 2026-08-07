@@ -369,16 +369,19 @@ function QuestRow({ quest, onClaim, onGo, t, tFallback }) {
         aria-hidden="true"
       />
 
-      {/* cq-stack: a quest row sits inside the quests card's padding AND its
-          own, so in a half-width dashboard slot the text column is ~60px —
-          too narrow even for two wrapped lines. Icon above text gives the
-          label the row's full width. See index.css. */}
-      <div className="relative flex items-center gap-3 cq-stack">
+      {/* NOT cq-stack. Stacking the icon above the text did fix the ~60px
+          text column, but it took each row from 44px to 98px — and in a
+          PAIRED row that made the quests card ~487px against ~294px full
+          width, so "save space by pairing" cost 129px instead. The icon tile
+          goes instead (cq-hide below): its only job at this width is colour,
+          and the difficulty word it duplicates is already hidden. That hands
+          the title the full 147px, where two clamped lines fit. */}
+      <div className="relative flex items-center gap-3">
         {/* Was a 24px emoji. The tile takes the difficulty accent, which
             the emoji could never do — colour now carries "how hard is
             this" on the icon as well as the pill. */}
         <div
-          className="shrink-0 w-9 h-9 rounded-sm flex items-center justify-center"
+          className="shrink-0 w-9 h-9 rounded-sm flex items-center justify-center cq-hide"
           style={{ backgroundColor: `hsl(${diffMeta.color})`, color: 'white' }}
           aria-hidden="true"
         >
