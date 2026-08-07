@@ -134,13 +134,20 @@ export default function WeeklyRecap({ logs = [], cardioLogs = [] }) {
             to say. A workout-with-no-weights week still gets the stats row. */}
         {(bestLiftDisplay || recap.prs.length > 0) && (
           <div className="px-4 py-3 space-y-2 border-t border-border/40 bg-background/40">
+            {/* In a half-width slot this line ran 36px outside the card —
+                measured at 168px with real history, the only state where it
+                renders at all. min-w-0 + truncate did NOT fix it: after the
+                fixed label and icon there were ~26px left, and the nested
+                inline spans kept their intrinsic width and overflowed anyway.
+                cq-stack puts the label above the value so the value gets the
+                card's full width, which needs no truncation at all. */}
             {bestLiftDisplay && (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 min-w-0 cq-stack">
                 <Flame className="w-3.5 h-3.5 text-primary shrink-0" />
-                <span className="text-micro font-bold uppercase tracking-wider text-muted-foreground">
+                <span className="text-micro font-bold uppercase tracking-wider text-muted-foreground shrink-0">
                   {tFallback('recap.heaviestLift', 'Heaviest lift')}
                 </span>
-                <span className="text-xs truncate">
+                <span className="text-xs truncate min-w-0">
                   <span className="font-semibold">{bestLiftDisplay}</span>
                   <span className="text-muted-foreground"> · {recap.bestLift.name}</span>
                 </span>

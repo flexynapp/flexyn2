@@ -480,13 +480,16 @@
     .cq-num-small {
       font-size: var(--text-micro);
     }
-    /* A single truncated line ("Train fo…") tells the user nothing. Two
-       wrapped lines fit the same 168px and read as the actual quest. */
+    /* A single truncated line ("Train fo…") tells the user nothing, so wrap
+       instead. THREE lines, not two: measured with real quest titles at 168px,
+       "Take a progress photo" needs three at a 96px text column and a 2-line
+       clamp cut the third off — a clipped word is the failure the clamp exists
+       to avoid. The class name is historical. */
     .cq-clamp2 {
       white-space: normal;
       overflow: hidden;
       display: -webkit-box;
-      -webkit-line-clamp: 2;
+      -webkit-line-clamp: 3;
       -webkit-box-orient: vertical;
       text-overflow: clip;
     }
