@@ -1,11 +1,21 @@
 /**
  * i18n-dashboard-redesign.js
  *
- * Translation patch for the redesigned Dashboard hero, stats strip, and
- * contextual greetings introduced in the S-tier dashboard refresh.
+ * Translation patch for the redesigned Dashboard hero, stats strip,
+ * contextual greetings and edit-mode legend introduced in the S-tier
+ * dashboard refresh.
  *
- * 28 keys × 15 languages. All values translated explicitly — no English
+ * 35 keys × 15 languages. All values translated explicitly — no English
  * fallbacks. Placeholders ({n}, {unit}, etc.) are preserved verbatim.
+ *
+ * (This header read "28 keys" while the file carried 29 — a key was added
+ * without moving the count. Counted, not assumed, on 2026-08-07.)
+ *
+ * TODO(i18n): the six `dashboard.editLegend.*` keys were added in one pass
+ * (2026-08-07) and want a native read before anyone calls them final. They
+ * are the only strings in the app that have to teach a gesture, so a
+ * translation that is merely grammatical can still fail — the test is
+ * whether someone who has never opened edit mode knows what to press.
  *
  * Wired into i18n.js via a single import + spread into mergeTranslations().
  */
@@ -64,6 +74,18 @@ export const dashboardRedesignI18n = {
     // ── Quick links column header ────────────────────────────────────────
     'dashboard.quickActions': 'Quick actions',
     'dashboard.quoteOfTheDay': 'Quote of the day',
+
+    // ── Edit-mode legend (board 03) ──────────────────────────────────────
+    // Four controls in one strip, explained in five rows: the layout toggle
+    // is one button with two states, so it gets a row per state. "Hamburger"
+    // and "hotdog" are Flexyn's own names for the two shapes and are kept as
+    // loanwords everywhere — they are what makes the pair memorable.
+    'dashboard.editLegend.title':     'Four controls, one strip',
+    'dashboard.editLegend.drag':      'Long-press and drag to reorder a section',
+    'dashboard.editLegend.hamburger': 'Stack full-width — hamburger',
+    'dashboard.editLegend.hotdog':    'Pair side-by-side — hotdog (travels as one)',
+    'dashboard.editLegend.collapse':  'Collapse — replaces the per-card chevron',
+    'dashboard.editLegend.hide':      'Hide — comes back from the rail at the top',
   },
 
   es: {
@@ -96,6 +118,12 @@ export const dashboardRedesignI18n = {
     'dashboard.stats.groupPlural':      'grupos',
     'dashboard.quickActions': 'Acciones rápidas',
     'dashboard.quoteOfTheDay': 'Frase del día',
+    'dashboard.editLegend.title':     'Cuatro controles, una sola fila',
+    'dashboard.editLegend.drag':      'Mantén pulsado y arrastra para reordenar una sección',
+    'dashboard.editLegend.hamburger': 'Ancho completo — hamburguesa',
+    'dashboard.editLegend.hotdog':    'Emparejar en paralelo — hot dog (se mueven juntas)',
+    'dashboard.editLegend.collapse':  'Contraer — sustituye a la flecha de cada tarjeta',
+    'dashboard.editLegend.hide':      'Ocultar — vuelve desde la fila de arriba',
   },
 
   fr: {
@@ -128,6 +156,12 @@ export const dashboardRedesignI18n = {
     'dashboard.stats.groupPlural':      'groupes',
     'dashboard.quickActions': 'Actions rapides',
     'dashboard.quoteOfTheDay': 'Citation du jour',
+    'dashboard.editLegend.title':     'Quatre contrôles, une seule ligne',
+    'dashboard.editLegend.drag':      'Appui long puis glisser pour réordonner une section',
+    'dashboard.editLegend.hamburger': 'Pleine largeur — hamburger',
+    'dashboard.editLegend.hotdog':    'Côte à côte — hot-dog (se déplacent ensemble)',
+    'dashboard.editLegend.collapse':  'Réduire — remplace la flèche de chaque carte',
+    'dashboard.editLegend.hide':      'Masquer — revient depuis la barre en haut',
   },
 
   de: {
@@ -160,6 +194,12 @@ export const dashboardRedesignI18n = {
     'dashboard.stats.groupPlural':      'Gruppen',
     'dashboard.quickActions': 'Schnellzugriff',
     'dashboard.quoteOfTheDay': 'Zitat des Tages',
+    'dashboard.editLegend.title':     'Vier Steuerelemente, eine Leiste',
+    'dashboard.editLegend.drag':      'Lang drücken und ziehen, um einen Abschnitt zu verschieben',
+    'dashboard.editLegend.hamburger': 'Volle Breite — Hamburger',
+    'dashboard.editLegend.hotdog':    'Nebeneinander — Hotdog (bewegen sich zusammen)',
+    'dashboard.editLegend.collapse':  'Einklappen — ersetzt den Pfeil auf jeder Karte',
+    'dashboard.editLegend.hide':      'Ausblenden — kommt über die Leiste oben zurück',
   },
 
   pt: {
@@ -192,6 +232,12 @@ export const dashboardRedesignI18n = {
     'dashboard.stats.groupPlural':      'grupos',
     'dashboard.quickActions': 'Ações rápidas',
     'dashboard.quoteOfTheDay': 'Frase do dia',
+    'dashboard.editLegend.title':     'Quatro controles, uma só linha',
+    'dashboard.editLegend.drag':      'Toque e segure, depois arraste para reordenar uma seção',
+    'dashboard.editLegend.hamburger': 'Largura total — hambúrguer',
+    'dashboard.editLegend.hotdog':    'Lado a lado — hot dog (movem-se juntas)',
+    'dashboard.editLegend.collapse':  'Recolher — substitui a seta de cada cartão',
+    'dashboard.editLegend.hide':      'Ocultar — volta pela faixa no topo',
   },
 
   it: {
@@ -224,6 +270,12 @@ export const dashboardRedesignI18n = {
     'dashboard.stats.groupPlural':      'gruppi',
     'dashboard.quickActions': 'Azioni rapide',
     'dashboard.quoteOfTheDay': 'Citazione del giorno',
+    'dashboard.editLegend.title':     'Quattro controlli, una sola riga',
+    'dashboard.editLegend.drag':      'Tieni premuto e trascina per riordinare una sezione',
+    'dashboard.editLegend.hamburger': 'Larghezza piena — hamburger',
+    'dashboard.editLegend.hotdog':    'Affiancate — hot dog (si spostano insieme)',
+    'dashboard.editLegend.collapse':  'Comprimi — sostituisce la freccia di ogni scheda',
+    'dashboard.editLegend.hide':      'Nascondi — torna dalla barra in alto',
   },
 
   ja: {
@@ -256,6 +308,12 @@ export const dashboardRedesignI18n = {
     'dashboard.stats.groupPlural':      '部位',
     'dashboard.quickActions': 'クイック操作',
     'dashboard.quoteOfTheDay': '今日の名言',
+    'dashboard.editLegend.title':     '4つの操作が1列に',
+    'dashboard.editLegend.drag':      '長押ししてドラッグでセクションを並べ替え',
+    'dashboard.editLegend.hamburger': '全幅にする — ハンバーガー',
+    'dashboard.editLegend.hotdog':    '横に並べる — ホットドッグ（2つで1つとして動く）',
+    'dashboard.editLegend.collapse':  '折りたたむ — カードごとの矢印の代わり',
+    'dashboard.editLegend.hide':      '非表示 — 上部のバーから戻せます',
   },
 
   ko: {
@@ -288,6 +346,12 @@ export const dashboardRedesignI18n = {
     'dashboard.stats.groupPlural':      '그룹',
     'dashboard.quickActions': '빠른 작업',
     'dashboard.quoteOfTheDay': '오늘의 명언',
+    'dashboard.editLegend.title':     '컨트롤 네 개, 한 줄에',
+    'dashboard.editLegend.drag':      '길게 눌러 드래그하면 섹션 순서가 바뀝니다',
+    'dashboard.editLegend.hamburger': '전체 너비 — 햄버거',
+    'dashboard.editLegend.hotdog':    '나란히 배치 — 핫도그 (둘이 함께 움직입니다)',
+    'dashboard.editLegend.collapse':  '접기 — 카드마다 있던 화살표를 대신합니다',
+    'dashboard.editLegend.hide':      '숨기기 — 맨 위 바에서 다시 불러옵니다',
   },
 
   zh: {
@@ -320,6 +384,12 @@ export const dashboardRedesignI18n = {
     'dashboard.stats.groupPlural':      '组',
     'dashboard.quickActions': '快捷操作',
     'dashboard.quoteOfTheDay': '每日金句',
+    'dashboard.editLegend.title':     '四个控件，一行搞定',
+    'dashboard.editLegend.drag':      '长按拖动可重新排列版块',
+    'dashboard.editLegend.hamburger': '整行宽度 — 汉堡',
+    'dashboard.editLegend.hotdog':    '并排显示 — 热狗（两个一起移动）',
+    'dashboard.editLegend.collapse':  '折叠 — 取代每张卡片上的箭头',
+    'dashboard.editLegend.hide':      '隐藏 — 可从顶部的栏中恢复',
   },
 
   ar: {
@@ -352,6 +422,12 @@ export const dashboardRedesignI18n = {
     'dashboard.stats.groupPlural':      'مجموعات',
     'dashboard.quickActions': 'إجراءات سريعة',
     'dashboard.quoteOfTheDay': 'اقتباس اليوم',
+    'dashboard.editLegend.title':     'أربعة عناصر تحكّم في شريط واحد',
+    'dashboard.editLegend.drag':      'اضغط مطوّلاً واسحب لإعادة ترتيب القسم',
+    'dashboard.editLegend.hamburger': 'بعرض كامل — همبرغر',
+    'dashboard.editLegend.hotdog':    'جنبًا إلى جنب — هوت دوغ (يتحركان معًا)',
+    'dashboard.editLegend.collapse':  'طيّ — يحل محل السهم في كل بطاقة',
+    'dashboard.editLegend.hide':      'إخفاء — يعود من الشريط في الأعلى',
   },
 
   hi: {
@@ -384,6 +460,12 @@ export const dashboardRedesignI18n = {
     'dashboard.stats.groupPlural':      'समूह',
     'dashboard.quickActions': 'त्वरित क्रियाएँ',
     'dashboard.quoteOfTheDay': 'आज का विचार',
+    'dashboard.editLegend.title':     'चार कंट्रोल, एक ही पट्टी',
+    'dashboard.editLegend.drag':      'सेक्शन का क्रम बदलने के लिए दबाकर रखें और खींचें',
+    'dashboard.editLegend.hamburger': 'पूरी चौड़ाई — हैमबर्गर',
+    'dashboard.editLegend.hotdog':    'साथ-साथ — हॉट डॉग (दोनों एक साथ चलते हैं)',
+    'dashboard.editLegend.collapse':  'समेटें — हर कार्ड के तीर की जगह',
+    'dashboard.editLegend.hide':      'छिपाएँ — ऊपर की पट्टी से वापस आता है',
   },
 
   ru: {
@@ -416,6 +498,12 @@ export const dashboardRedesignI18n = {
     'dashboard.stats.groupPlural':      'групп',
     'dashboard.quickActions': 'Быстрые действия',
     'dashboard.quoteOfTheDay': 'Цитата дня',
+    'dashboard.editLegend.title':     'Четыре элемента, одна строка',
+    'dashboard.editLegend.drag':      'Нажми и удерживай, затем перетащи, чтобы поменять порядок разделов',
+    'dashboard.editLegend.hamburger': 'Во всю ширину — бургер',
+    'dashboard.editLegend.hotdog':    'Рядом друг с другом — хот-дог (двигаются вместе)',
+    'dashboard.editLegend.collapse':  'Свернуть — заменяет стрелку на каждой карточке',
+    'dashboard.editLegend.hide':      'Скрыть — вернётся с панели сверху',
   },
 
   tr: {
@@ -448,6 +536,12 @@ export const dashboardRedesignI18n = {
     'dashboard.stats.groupPlural':      'grup',
     'dashboard.quickActions': 'Hızlı eylemler',
     'dashboard.quoteOfTheDay': 'Günün sözü',
+    'dashboard.editLegend.title':     'Dört kontrol, tek şerit',
+    'dashboard.editLegend.drag':      'Bir bölümü yeniden sıralamak için basılı tutup sürükle',
+    'dashboard.editLegend.hamburger': 'Tam genişlik — hamburger',
+    'dashboard.editLegend.hotdog':    'Yan yana — hot dog (birlikte hareket eder)',
+    'dashboard.editLegend.collapse':  'Daralt — her karttaki oku değiştirir',
+    'dashboard.editLegend.hide':      'Gizle — üstteki şeritten geri gelir',
   },
 
   pl: {
@@ -480,6 +574,12 @@ export const dashboardRedesignI18n = {
     'dashboard.stats.groupPlural':      'grup',
     'dashboard.quickActions': 'Szybkie akcje',
     'dashboard.quoteOfTheDay': 'Cytat dnia',
+    'dashboard.editLegend.title':     'Cztery kontrolki, jeden pasek',
+    'dashboard.editLegend.drag':      'Naciśnij i przytrzymaj, potem przeciągnij, aby zmienić kolejność sekcji',
+    'dashboard.editLegend.hamburger': 'Pełna szerokość — hamburger',
+    'dashboard.editLegend.hotdog':    'Obok siebie — hot dog (przenoszą się razem)',
+    'dashboard.editLegend.collapse':  'Zwiń — zastępuje strzałkę na każdej karcie',
+    'dashboard.editLegend.hide':      'Ukryj — wraca z paska na górze',
   },
 
   nl: {
@@ -512,5 +612,11 @@ export const dashboardRedesignI18n = {
     'dashboard.stats.groupPlural':      'groepen',
     'dashboard.quickActions': 'Snelle acties',
     'dashboard.quoteOfTheDay': 'Quote van de dag',
+    'dashboard.editLegend.title':     'Vier knoppen, één balk',
+    'dashboard.editLegend.drag':      'Lang indrukken en slepen om een sectie te verplaatsen',
+    'dashboard.editLegend.hamburger': 'Volle breedte — hamburger',
+    'dashboard.editLegend.hotdog':    'Naast elkaar — hotdog (verplaatsen samen)',
+    'dashboard.editLegend.collapse':  'Inklappen — vervangt de pijl op elke kaart',
+    'dashboard.editLegend.hide':      'Verbergen — komt terug via de balk bovenaan',
   },
 };

@@ -1834,11 +1834,13 @@ export default function Dashboard() {
           for collapse, destructive for hide. Read them here, recognise
           them up there.
 
-          Strings are inline tFallback English, matching the rest of edit
-          mode (Reset, Hidden — tap to restore, Hide this section). The
-          dashboard part file declares itself fully translated with no
-          English fallbacks, so half-filling it is worse than leaving these
-          for a translation pass that can take them as a set. */}
+          The six strings now live in i18n-dashboard-redesign.js across all
+          15 languages, taken as a set so the part file keeps its "no English
+          fallbacks" contract. The inline English stays as the tFallback
+          second argument per the app-wide convention — it is the fallback,
+          not the source. "Hamburger" and "hotdog" are loanwords in every
+          locale: they are Flexyn's names for the two shapes, and a
+          translated nickname would stop matching what the strip teaches. */}
       {editMode && (
         <div className="mt-6 mb-4">
           <div className="flex items-center gap-2 mb-2">
