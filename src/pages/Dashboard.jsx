@@ -10,7 +10,7 @@ import {
 } from '@/lib/dashboardLayout';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { subDays, isAfter, differenceInDays, startOfDay, format } from 'date-fns';
-import { Dumbbell, TrendingUp, Play, ArrowRight, Zap, Activity, Target, Apple, Camera, Scale, TrendingDown, Minus, CheckCircle2, LayoutGrid, GripVertical, CalendarDays, ChevronRight, ChevronDown, ChevronUp, Rows3, Columns2, RotateCcw, Save, Plus, X } from 'lucide-react';
+import { Dumbbell, TrendingUp, Play, ArrowRight, Zap, Activity, Target, Apple, Camera, Scale, TrendingDown, Minus, CheckCircle2, LayoutGrid, GripVertical, CalendarDays, ChevronRight, ChevronDown, Rows3, Columns2, RotateCcw, Plus, X } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import GoalsModal from '@/components/goals/GoalsModal';
@@ -1549,9 +1549,13 @@ export default function Dashboard() {
                 type="button"
                 onClick={handleSetAsDefault}
                 title="Save this layout as the default for all new users"
-                className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-semibold text-primary dark:text-primary hover:bg-primary/10 active:bg-primary/20 transition-colors"
+                className="flex items-center gap-1 px-2 py-1.5 rounded-full bg-secondary text-micro font-semibold text-foreground hover:bg-secondary/80 active:bg-secondary/70 transition-colors"
               >
-                <Save className="w-3.5 h-3.5" />
+                {/* Board 03 draws a plus here, not a floppy disk. "Set
+                    default" adds this layout to what new accounts get; save
+                    is what the button does to the record, not what the user
+                    is doing. */}
+                <Plus className="w-3 h-3" />
                 <span>Set default</span>
               </button>
             )}
@@ -1560,9 +1564,9 @@ export default function Dashboard() {
                 type="button"
                 onClick={handleResetCustomize}
                 title={tFallback('dashboard.resetCustomize', 'Reset to default')}
-                className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-semibold text-muted-foreground hover:text-foreground active:text-foreground hover:bg-secondary active:bg-secondary transition-colors"
+                className="flex items-center gap-1 px-2 py-1.5 rounded-full bg-secondary text-micro font-semibold text-foreground hover:bg-secondary/80 active:bg-secondary/70 transition-colors"
               >
-                <RotateCcw className="w-3.5 h-3.5" />
+                <RotateCcw className="w-3 h-3" />
                 <span>{tFallback('dashboard.reset', 'Reset')}</span>
               </button>
             )}
@@ -1575,14 +1579,17 @@ export default function Dashboard() {
             <button
               onClick={() => setEditMode(e => !e)}
               title={editMode ? tFallback('dashboard.doneEditing', 'Done editing') : tFallback('dashboard.customizeHome', 'Customize home')}
-              className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+              // Three pills in a row in edit mode, and board 03 draws them as
+              // pills: two on --secondary, Done on --primary. rounded-lg read
+              // as three buttons that happened to sit together.
+              className={`flex items-center gap-1.5 px-2 py-1.5 rounded-full text-micro font-semibold transition-colors ${
                 editMode
                   ? 'bg-primary text-primary-foreground shadow-sm'
                   : 'text-muted-foreground/60 hover:text-foreground active:text-foreground hover:bg-secondary active:bg-secondary'
               }`}
             >
               {editMode ? (
-                <><CheckCircle2 className="w-3.5 h-3.5" /><span>{tFallback('dashboard.done', 'Done')}</span></>
+                <><CheckCircle2 className="w-3 h-3" /><span>{tFallback('dashboard.done', 'Done')}</span></>
               ) : (
                 <LayoutGrid className="w-4 h-4" />
               )}
@@ -1647,9 +1654,12 @@ export default function Dashboard() {
 
       {/* Hidden-sections chip rail — only renders in edit mode and
           only when the user has actually hidden something. Tapping a
-          chip restores that section to the end of the visible list. */}
+          chip restores that section to the end of the visible list.
+
+          Solid border, per board 03. Dashed reads as a drop target — this
+          rail is a shelf you take things off, not one you drag onto. */}
       {editMode && hiddenSections.size > 0 && (
-        <div className="mt-4 mb-3 p-3 rounded-lg border border-dashed border-border bg-secondary/30">
+        <div className="mt-4 mb-3 p-3 rounded-lg border border-border bg-secondary/30">
           <p className="font-mono text-micro font-bold tracking-[0.04em] text-muted-foreground mb-2">
             {tFallback('dashboard.hiddenSections', 'Hidden — tap to restore')}
           </p>
@@ -1695,14 +1705,18 @@ export default function Dashboard() {
           >
             {editMode && (
               <div className="flex items-center gap-2 mt-6 mb-1 px-1">
-                <GripVertical className="w-4 h-4 text-primary/50 cursor-grab active:cursor-grabbing" />
+                {/* The strip runs at full strength in board 03 — grip and
+                    labels in --primary, × in --destructive. Dimming every
+                    control to 50-60% made the row of things you came here to
+                    use the faintest thing on the screen. */}
+                <GripVertical className="w-3.5 h-3.5 text-primary cursor-grab active:cursor-grabbing" />
                 {row.sections.map((id, i) => {
                   const layout = sectionLayouts[id] || 'full';
                   const isHalf = layout === 'half';
                   const isCollapsed = collapsedSections.has(id);
                   return (
                     <React.Fragment key={id}>
-                      {i > 0 && <span className="text-micro text-primary/30">+</span>}
+                      {i > 0 && <span className="text-micro text-primary/50">+</span>}
                       <button
                         type="button"
                         onClick={(e) => { e.stopPropagation(); toggleSectionLayout(id); }}
@@ -1710,7 +1724,7 @@ export default function Dashboard() {
                         title={isHalf
                           ? tFallback('dashboard.layout.toHamburger', 'Stack full-width')
                           : tFallback('dashboard.layout.toHotdog',     'Pair side-by-side')}
-                        className="flex items-center gap-1 px-1.5 py-0.5 rounded-sm hover:bg-primary/10 active:bg-primary/20 text-primary/60 hover:text-primary active:text-primary transition-colors"
+                        className="flex items-center gap-1 px-1.5 py-0.5 rounded-sm hover:bg-primary/10 active:bg-primary/20 text-primary transition-colors"
                       >
                         {isHalf
                           ? <Columns2 className="w-3 h-3" />
@@ -1735,9 +1749,12 @@ export default function Dashboard() {
                         aria-expanded={!isCollapsed}
                         className="flex items-center justify-center w-5 h-5 rounded-sm hover:bg-primary/10 active:bg-primary/20 text-muted-foreground hover:text-foreground active:text-foreground transition-colors"
                       >
+                        {/* Right when collapsed, down when open — the
+                            disclosure convention board 03 draws. Down/up read
+                            as "move it", which is the grip's job. */}
                         {isCollapsed
-                          ? <ChevronDown className="w-3 h-3" />
-                          : <ChevronUp   className="w-3 h-3" />}
+                          ? <ChevronRight className="w-3 h-3" />
+                          : <ChevronDown  className="w-3 h-3" />}
                       </button>
                       {/* Per-section hide button — tapping this removes
                           the section from the user's dashboard. The
@@ -1753,7 +1770,7 @@ export default function Dashboard() {
                           onPointerDown={(e) => e.stopPropagation()}
                           title={tFallback('dashboard.hideSection', 'Hide this section')}
                           aria-label={tFallback('dashboard.hideSection', 'Hide this section')}
-                          className="flex items-center justify-center w-5 h-5 rounded-sm hover:bg-destructive/15 active:bg-destructive/15 text-destructive/60 hover:text-destructive active:text-destructive transition-colors"
+                          className="flex items-center justify-center w-5 h-5 rounded-sm hover:bg-destructive/15 active:bg-destructive/15 text-destructive transition-colors"
                         >
                           <X className="w-3 h-3" />
                         </button>
@@ -1805,6 +1822,47 @@ export default function Dashboard() {
           );
         })}
       </Reorder.Group>
+
+      {/* ── Edit-mode legend (board 03) ────────────────────────────────
+          Four icons in a strip with no labels, explained only by `title`
+          tooltips — which a touch device never fires. This app ships to
+          iOS and Android, so until now nothing on a phone said what grip,
+          hamburger, hotdog, chevron or × actually did.
+
+          Icon colours are the strip's own semantics, which is the whole
+          point of the legend: primary for the three that rearrange, muted
+          for collapse, destructive for hide. Read them here, recognise
+          them up there.
+
+          Strings are inline tFallback English, matching the rest of edit
+          mode (Reset, Hidden — tap to restore, Hide this section). The
+          dashboard part file declares itself fully translated with no
+          English fallbacks, so half-filling it is worse than leaving these
+          for a translation pass that can take them as a set. */}
+      {editMode && (
+        <div className="mt-6 mb-4">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" aria-hidden="true" />
+            <h2 className="font-heading font-bold text-body">
+              {tFallback('dashboard.editLegend.title', 'Four controls, one strip')}
+            </h2>
+          </div>
+          <ul className="space-y-1">
+            {[
+              { Icon: GripVertical, tone: 'text-primary',     key: 'drag',      en: 'Long-press and drag to reorder a section' },
+              { Icon: Rows3,        tone: 'text-primary',     key: 'hamburger', en: 'Stack full-width — hamburger' },
+              { Icon: Columns2,     tone: 'text-primary',     key: 'hotdog',    en: 'Pair side-by-side — hotdog (travels as one)' },
+              { Icon: ChevronDown,  tone: 'text-muted-foreground', key: 'collapse', en: 'Collapse — replaces the per-card chevron' },
+              { Icon: X,            tone: 'text-destructive', key: 'hide',      en: 'Hide — comes back from the rail at the top' },
+            ].map(({ Icon, tone, key, en }) => (
+              <li key={key} className="flex items-center gap-2">
+                <Icon className={`w-3.5 h-3.5 shrink-0 ${tone}`} aria-hidden="true" />
+                <span className="text-caption">{tFallback(`dashboard.editLegend.${key}`, en)}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* ── Prestige prompt — only when at max level ───────────── */}
       {isPrestigeEligible(userProfile) && !userProfile.prestige_dismissed && (
