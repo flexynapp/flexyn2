@@ -73,6 +73,65 @@ Consequences a contributor must know:
   gone and `src/pages/__tests__/goalStepCopy.test.js` fails if it returns. A
   check only works while it is not universally known.
 
+### Privacy boundaries that are enforced, not just intended
+
+Four holes were found in one pass on 2026-08-06, and **three of them were
+found by testing a claim this file already made.** The docs described the
+intent correctly every time; the enforcement had drifted. That is a cheap
+audit to repeat against the rest of these invariants — pick a sentence
+here, write the SQL that proves it, and run it as the role it is meant to
+stop.
+
+The technique that found all four: `BEGIN; SET LOCAL role authenticated;
+SET LOCAL request.jwt.claims = '{"sub":"<uuid>","role":"authenticated"}';
+… ROLLBACK;` — actually attempting the thing that should fail. MCP and
+the SQL editor run as `postgres` and bypass RLS entirely, so a query that
+"looks fine" there proves nothing.
+
+- **`gym_members` is readable only for your own rows or a gym you belong
+  to** (mig 301). It carried `USING (true)` until then, so any signed-in
+  user could pull any gym's roster and join it to `public_profiles` for
+  usernames, avatars, XP and streaks — while the leaderboard RPCs
+  correctly answered 42501. The gate was on the expensive door with the
+  window open.
+- **`is_blocked(uuid, text)` is INTERNAL** (migs 302, 304). It takes the
+  viewer as a parameter, so exposing it lets anyone probe "does X block
+  Y?" for pairs they are not half of. It is revoked from `anon` and
+  `authenticated`; only SECURITY DEFINER callers reach it. Client and
+  policy code uses **`viewer_is_blocked_by(text)`**, which reads the
+  viewer from `auth.uid()`.
+  **Do not "fix" is_blocked by guarding on `p_viewer_id = auth.uid()`.**
+  `enforce_block_on_dm_send` and `notify_dm_received` legitimately pass
+  the RECIPIENT's id — "does the person I am messaging block me?" — and
+  that guard would silently switch off block enforcement on DMs.
+- **The hub feed's read policies are `TO authenticated`** (mig 303). They
+  were `TO PUBLIC` and unreachable by anon only because anon lacked
+  EXECUTE on `current_user_email`. Depending on a missing GRANT is not a
+  boundary. Measured: granting anon those helpers exposed 23 posts and 8
+  comments; after scoping the policies, 0 and 0.
+- **Gym activity is previewable without identity above a threshold**
+  (mig 301). `get_gym_public_preview` returns counts and bare day-count
+  integers, and withholds everything but the member count below **five
+  members** — because the roster is visible to members, so at smaller
+  sizes an individual's attendance is derivable by subtraction. The
+  threshold is what protects people; omitting names is not.
+
+**Rewriting an RLS policy: prove equivalence on seeded data.** The live
+hub had 23 public posts, zero followers-only, zero scheduled and zero
+blocks, so a before/after there would have exercised one branch. Seed the
+missing cases, capture the exact SET of visible row ids per viewer, apply,
+capture again, and diff both directions. Matching counts are not enough —
+all four test viewers matched on counts while a swap would have been
+invisible.
+
+**`ALTER POLICY … TO role` changes roles without restating the
+expression.** Prefer it to DROP/CREATE: `hub_posts`' old expression
+carried `hub_follows.follower_email` and `hub_posts.author_email`, exactly
+the `alias.column` tokens the paste pipeline mangles (see the workflow
+section). Where the expression genuinely must change, hoist correlated
+subqueries into helper functions so the policy is bare columns and
+`public.fn()` calls only.
+
 ### Identity — four keys, and which one to use
 
 Rows are keyed four different ways, which is a real source of bugs (the
