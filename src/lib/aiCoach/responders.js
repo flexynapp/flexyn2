@@ -21,9 +21,27 @@
 import { supabase } from '@/api/supabaseClient';
 import { safeSelect } from '@/api/safeSelect';
 import { db } from '@/api/db';
-import { subDays, differenceInCalendarDays, format } from 'date-fns';
+import { subDays, differenceInCalendarDays, format, parseISO } from 'date-fns';
 import { INTENTS } from './intents';
 import { formatNumber } from '../intl';
+
+// ── Log dates are calendar days, not instants ────────────────────────────────
+//
+// `workout_logs.date` is a bare YYYY-MM-DD: the day the user trained, in the
+// timezone they trained in. `new Date('2026-08-07')` parses that as UTC
+// midnight, which is the PREVIOUS local day for every user west of Greenwich
+// — so "It's been N days" ran one day high, and a session logged today
+// rendered as yesterday, for most of the userbase. `parseISO` reads a
+// date-only string as local midnight, which is what the value means.
+//
+// Anything that is already a full timestamp still parses normally. Returns
+// null rather than an Invalid Date so a bad row degrades to "no timing"
+// instead of poisoning arithmetic downstream with NaN.
+function parseLogDate(value) {
+  if (!value) return null;
+  const d = typeof value === 'string' ? parseISO(value) : new Date(value);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
 
 // ── Internal helpers ─────────────────────────────────────────────────────────
 
@@ -50,7 +68,7 @@ async function _fetchRecentWorkouts(userEmail, days = 14) {
   const since = subDays(new Date(), days);
   try {
     const all = await db.entities.WorkoutLog.filter({ created_by: userEmail }, '-date', 200);
-    return (all || []).filter(w => new Date(w.date) >= since);
+    return (all || []).filter(w => { const d = parseLogDate(w.date); return d && d >= since; });
   } catch {
     return [];
   }
@@ -61,7 +79,7 @@ async function _fetchRecentCardio(userEmail, days = 14) {
   const since = subDays(new Date(), days);
   try {
     const all = await db.entities.CardioLog.filter({ created_by: userEmail }, '-date', 200);
-    return (all || []).filter(l => new Date(l.date) >= since);
+    return (all || []).filter(l => { const d = parseLogDate(l.date); return d && d >= since; });
   } catch {
     return [];
   }
@@ -109,7 +127,7 @@ async function whatToTrain({ user }) {
 
   // Days since last workout
   const lastDate = workouts[0]?.date;
-  const daysSince = lastDate ? differenceInCalendarDays(new Date(), new Date(lastDate)) : 0;
+  const daysSince = parseLogDate(lastDate) ? differenceInCalendarDays(new Date(), parseLogDate(lastDate)) : 0;
 
   const lines = [
     `**You've trained ${workouts.length} time${workouts.length === 1 ? '' : 's'} in the last 7 days.**`,
@@ -141,7 +159,7 @@ async function progressCheck({ user }) {
     (async () => {
       const all = await _fetchRecentWorkouts(user?.email, 14);
       const cutoff = subDays(new Date(), 7);
-      return all.filter(w => new Date(w.date) < cutoff);
+      return all.filter(w => { const d = parseLogDate(w.date); return d && d < cutoff; });
     })(),
     _fetchProfile(user?.id),
   ]);
@@ -319,7 +337,7 @@ async function prsResponder({ user }) {
 
   const lines = ["**Your top 5 PRs:**"];
   for (const [name, pr] of top5) {
-    lines.push(`• ${name}: ${pr.weight} lb × ${pr.reps} (${format(new Date(pr.date), 'MMM d')})`);
+    lines.push(`• ${name}: ${pr.weight} lb × ${pr.reps} (${format(parseLogDate(pr.date), 'MMM d')})`);
   }
   return lines.join('\n');
 }
@@ -520,7 +538,7 @@ async function recoveryCheck({ user }) {
     lines.push("No sleep log yet today — log it to sharpen this score.");
   }
   if (latestWorkout?.date) {
-    const days = differenceInCalendarDays(new Date(), new Date(latestWorkout.date));
+    const days = differenceInCalendarDays(new Date(), parseLogDate(latestWorkout.date));
     lines.push(days === 0
       ? "You trained today — light recovery work is the right move."
       : days === 1
@@ -614,6 +632,17 @@ export async function respond({ user, intent }) {
 
 const _n = (v) => (Number.isFinite(Number(v)) ? Number(v) : null);
 
+// Every date in the digest ships with the day count already worked out.
+// The model cannot be trusted to subtract two dates: asked for the user's
+// PRs it reported a lift logged 2026-07-28 as "28 days ago" (it was 10),
+// having read the day-of-month as the answer — while getting the same lift
+// right in a different reply. Arithmetic belongs in code; the model's job is
+// what the number means.
+function _daysAgo(date) {
+  const d = parseLogDate(date);
+  return d ? differenceInCalendarDays(new Date(), d) : null;
+}
+
 export async function buildCoachContext({ user, profile = {}, excludeMuscleGroups = [] } = {}) {
   const ctx = {
     // Stated up front so the model reports weights in the unit the user
@@ -650,8 +679,8 @@ export async function buildCoachContext({ user, profile = {}, excludeMuscleGroup
   try {
     const cutoff7  = subDays(new Date(), 7);
     const cutoff14 = subDays(new Date(), 14);
-    const last7  = workouts.filter(w => new Date(w.date) >= cutoff7);
-    const last14 = workouts.filter(w => new Date(w.date) >= cutoff14);
+    const last7  = workouts.filter(w => { const d = parseLogDate(w.date); return d && d >= cutoff7; });
+    const last14 = workouts.filter(w => { const d = parseLogDate(w.date); return d && d >= cutoff14; });
 
     const setsByMuscle = { chest: 0, back: 0, shoulders: 0, arms: 0, legs: 0, core: 0 };
     for (const w of last14) {
@@ -665,13 +694,14 @@ export async function buildCoachContext({ user, profile = {}, excludeMuscleGroup
       sessionsLast7:  last7.length,
       sessionsLast14: last14.length,
       daysSinceLastSession: workouts[0]?.date
-        ? differenceInCalendarDays(new Date(), new Date(workouts[0].date))
+        ? differenceInCalendarDays(new Date(), parseLogDate(workouts[0].date))
         : null,
       setsByMuscleLast14: setsByMuscle,
       // Exercise names only. Enough for "you've squatted three times this
       // week", far short of shipping every set.
       recentSessions: last14.slice(0, 6).map(w => ({
-        date: w.date ? format(new Date(w.date), 'yyyy-MM-dd') : null,
+        date: parseLogDate(w.date) ? format(parseLogDate(w.date), 'yyyy-MM-dd') : null,
+        daysAgo: _daysAgo(w.date),
         exercises: (w.exercises || []).map(e => e.name).filter(Boolean).slice(0, 10),
       })),
     };
@@ -703,7 +733,8 @@ export async function buildCoachContext({ user, profile = {}, excludeMuscleGroup
         name,
         weightLb: pr.weight,
         reps: pr.reps,
-        date: pr.date ? format(new Date(pr.date), 'yyyy-MM-dd') : null,
+        date: parseLogDate(pr.date) ? format(parseLogDate(pr.date), 'yyyy-MM-dd') : null,
+        daysAgo: _daysAgo(pr.date),
       }));
   } catch { ctx.topLifts = []; }
 
