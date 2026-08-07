@@ -474,6 +474,12 @@
     .cq-wrap {
       white-space: normal;
     }
+    /* Numerals sized for a full-width grid, taken back to the 11px floor
+       when the grid is in a narrow container (a half slot gives ~18px cells,
+       where 13px collides with its own box). */
+    .cq-num-small {
+      font-size: var(--text-micro);
+    }
     /* A single truncated line ("Train fo…") tells the user nothing. Two
        wrapped lines fit the same 168px and read as the actual quest. */
     .cq-clamp2 {

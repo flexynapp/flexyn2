@@ -131,7 +131,13 @@ export default function StreakCalendarGrid({ profile, month = new Date() }) {
               initial={{ scale: 0.6, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ delay: d.getDate() * 0.012 }}
-              className={`aspect-square rounded-sm flex items-center justify-center text-micro font-bold tabular-nums ${cellClass} ${today ? 'ring-2 ring-primary' : ''}`}
+              // 13px (text-label), not the 11px micro floor. The grid is
+              // grid-cols-7 with aspect-square cells, so a full-width
+              // dashboard row gives each day ~44px — an 11px numeral in a
+              // 44px box reads as a rounding error, and 11px is reserved
+              // for badges. cq-num-small takes it back down if this ever
+              // renders in a narrow container, where cells are ~18px.
+              className={`aspect-square rounded-sm flex items-center justify-center text-label font-bold tabular-nums cq-num-small ${cellClass} ${today ? 'ring-2 ring-primary' : ''}`}
               aria-label={`${format(d, 'MMMM d', { locale: dateLocale })}: ${statusLabel}`}
             >
               {d.getDate()}
