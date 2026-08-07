@@ -139,7 +139,12 @@ function NutritionShortcutsCarousel({ onScan, onRecipes, onHistory, onPlans, onP
       kicker: 'Weekly Planner',
       title: 'Weekly Planner',
       tip: 'Drop meals into a 7-day grid. Hit your macro targets across the week, not just one day.',
-      ctaLabel: 'Plan the week',
+      // Not "Plan the week" — that label now belongs to the Dashboard hero
+      // CTA that opens the My Week routine calendar, and two buttons with
+      // the same words opening different planners is a coin flip for the
+      // user. This one plans meals; the sibling labels ("Open scanner",
+      // "Browse history", "See plans") are verb + noun for the same reason.
+      ctaLabel: 'Plan meals',
       onCta: onPlanner,
     },
   ];
