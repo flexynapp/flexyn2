@@ -289,16 +289,26 @@ mobile that is calories, protein, carbs and fat as four identical tiles. Four
 equal siblings give no answer to the only question the screen exists to answer:
 *am I on track?* (Note `gap-3` is also the banned middle from phase 1.)
 
-One element dominates — calories remaining, with its progress bar and an "on
-track" read. Protein / carbs / fat recede to a supporting row with **no
-surfaces**, keyed to `chart-1/2/3` from phase 2 and separated by hairlines.
+**Settled — the calorie duplication is intentional.** `CalorieTopBar` is pinned
+above the reorderable widgets and deliberately excluded from the widget list
+(`Nutrition.jsx:355–357`), and calories also appearing in `MacroNutrientBox` is
+on purpose, confirmed by Kegan. **Do not "fix" it.** The top bar is the
+persistent read; the tile is part of the breakdown.
 
-**Open question for the author, not for the implementer:** `CalorieTopBar` is
-already pinned above the reorderable widgets and deliberately excluded from the
-widget list (`Nutrition.jsx:355–357`). If it already carries the calorie read,
-then promoting a calories tile inside `MacroNutrientBox` duplicates it — and the
-right move may be to drop calories from the box entirely and let the three macros
-be three, with the top bar as the dominant element. Decide this before building.
+That constrains the move rather than blocking it. Because `CalorieTopBar`
+already owns the calorie read, promoting calories *again* inside the box would
+put the same number on screen three times and still leave the four tiles equal.
+So:
+
+- **Calories stays, but recedes** — a quiet reference line at the top of the box
+  (label + `1,240 left of 2,400`), with a hairline under it. Not a tile, not a
+  hero.
+- **The three macros carry the hierarchy.** They become full-width rows keyed to
+  `chart-1/2/3` from phase 2, with **no surfaces** — the box itself is the only
+  card.
+- **One macro leads**: the one furthest from target, at a larger value and a
+  heavier bar. The other two stay quiet. That is what turns the box from a
+  readout into a coach, and it is dynamic rather than a fixed favourite.
 
 A number earns screen space only with trend, history, or comparison attached. A
 bare figure in a box is decoration.
