@@ -221,6 +221,12 @@ function buildSystemPrompt(languageName: string): string {
 interface AnthropicResponse {
   content?: Array<{ type: string; text?: string }>;
   stop_reason?: string;
+  usage?: {
+    input_tokens?: number;
+    output_tokens?: number;
+    cache_read_input_tokens?: number;
+    cache_creation_input_tokens?: number;
+  };
 }
 
 interface HistoryTurn { role?: string; text?: string }
@@ -393,16 +399,28 @@ Deno.serve(async (req: Request) => {
   if (!reply) {
     return await fail({ ok: false, error: 'EMPTY_REPLY' }, 502);
   }
+  // Token counts ride back on every reply. A Coach turn is now the app's
+  // main recurring API spend, and a per-day figure in the Anthropic console
+  // aggregates it with recognize-meal, the weekly debriefs and any testing
+  // — which is exactly how a day of test traffic gets read as the price of
+  // one message. This is the per-turn number, at the point it was incurred.
+  const usage = {
+    inputTokens:  payload?.usage?.input_tokens ?? null,
+    outputTokens: payload?.usage?.output_tokens ?? null,
+    cacheReadTokens: payload?.usage?.cache_read_input_tokens ?? null,
+    model: MODEL,
+  };
+
   const kind = parsed?.kind === 'plan' ? 'plan' : 'answer';
   // A plan handoff with no goal is unusable downstream — the generator would
   // parse an empty string and produce a default session that has nothing to do
   // with what was asked. Degrade to a plain answer instead.
   const goal = String(parsed?.goal || '').trim();
   if (kind === 'plan' && !goal) {
-    return json({ ok: true, kind: 'answer', reply, goal: '' });
+    return json({ ok: true, kind: 'answer', reply, goal: '', usage });
   }
 
-  return json({ ok: true, kind, reply, goal });
+  return json({ ok: true, kind, reply, goal, usage });
 });
 
 function json(obj: unknown, status = 200) {
