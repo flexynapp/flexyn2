@@ -14,7 +14,6 @@ import { ChevronDown, ChevronUp } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import StreakFlame from '@/components/StreakFlame';
 import AnimatedNumber from '@/components/AnimatedNumber';
-import TapToCopy from '@/components/TapToCopy';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/api/supabaseClient';
@@ -61,10 +60,11 @@ export default function LoginStreakBanner({ variant = 'default' }) {
     {/* Compact inline pill — hugs its content on the left instead of a
         full-width card, and the ember-particle overlay was dropped, to
         keep the (already busy) dashboard clean.
-        NOTE: the pill is NOT one big toggle. Tapping the label copies the
-        streak (TapToCopy); the chevron expands the calendar. A review read
-        the whole chip as expandable and reported it as a dead control,
-        because the chevron's hit box was ~18px — see the button below. */}
+        NOTE: tapping the LABEL used to copy "N-day login streak" to the
+        clipboard (TapToCopy). That is gone — nobody needs a streak on their
+        clipboard, and it made the pill two controls in one chip, which a
+        review had already misread as a single dead toggle. The chevron below
+        is now the only control, and it expands the calendar. */}
     <motion.div
       initial={{ opacity: 0, y: -6 }}
       animate={{ opacity: 1, y: 0 }}
@@ -74,11 +74,10 @@ export default function LoginStreakBanner({ variant = 'default' }) {
       }`}
     >
       <StreakFlame days={streak} size={15} className="shrink-0" />
-      <TapToCopy value={`${streak}-day login streak`} label="streak">
-        {/* cq-wrap: this pill now shares a row with Daily Quests, so it can
-            be ~168px wide. English fits with room; a longer locale string
-            would overflow, so allow it to wrap in a narrow container only. */}
-        <span className={`text-xs whitespace-nowrap cq-wrap ${onHero ? 'text-white' : ''}`}>
+      {/* cq-wrap: this pill now shares a row with Daily Quests, so it can
+          be ~168px wide. English fits with room; a longer locale string
+          would overflow, so allow it to wrap in a narrow container only. */}
+      <span className={`text-xs whitespace-nowrap cq-wrap ${onHero ? 'text-white' : ''}`}>
           <span className="font-heading font-bold tabular-nums">
             <AnimatedNumber value={streak} />
           </span>
@@ -92,8 +91,7 @@ export default function LoginStreakBanner({ variant = 'default' }) {
               {t('dashboard.best')}
             </span>
           )}
-        </span>
-      </TapToCopy>
+      </span>
       <button
         type="button"
         onClick={() => setShowCalendar(v => !v)}

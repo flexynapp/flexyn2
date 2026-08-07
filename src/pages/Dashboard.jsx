@@ -5,7 +5,8 @@ import { db } from '@/api/db';
 import { useAuth } from '@/lib/AuthContext';
 import {
   packLayout, unpackLayout, writeLayoutToLocal, clearLayoutLocal,
-  queueLayoutSync, flushLayoutSync, mergeWidgetOrder, ORDER_KEY, LAYOUTS_KEY,
+  queueLayoutSync, flushLayoutSync, mergeWidgetOrder, applyLayoutMigrations,
+  readLocalDefaultsVersion, ORDER_KEY, LAYOUTS_KEY,
 } from '@/lib/dashboardLayout';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { subDays, isAfter, differenceInDays, startOfDay, format } from 'date-fns';
@@ -68,7 +69,7 @@ import { getDateLocale } from '@/lib/dateLocales';
 function HeroCard({
   streak, hasWorkedOutToday, daysSinceLast,
   logs, cardioLogs, goals, userProfile, user,
-  onPrimary, onReadinessInfo, navigate,
+  onPrimary, onReadinessInfo, onPlanWeek, navigate,
   t, tFallback,
 }) {
   // Pick the right CTA copy based on the user's recent activity.
@@ -172,7 +173,20 @@ function HeroCard({
             routine slide. Reserving the gutter fixes it for EVERY slide
             rather than per-slide, which is what a shared overlay needs; with
             a single slide there is no button, so no gutter is taken. */}
-        <div className={`relative p-4 md:p-6 pb-2 md:pb-2 min-h-[264px] md:min-h-[284px] ${slideCount > 1 ? 'pe-12 md:pe-14' : ''}`}>
+        {/* 330px, measured rather than guessed. The floor was 264/284, and
+            the slides actually run 264→306px at 375pt (Step 2 is the tall
+            one: progress bar plus a longer sub-line), so the box grew 42px on
+            every rotation — the collapse/expand. 330 clears the tallest
+            measured slide with ~24px of headroom, so shorter slides sit at
+            the top against empty card and nothing moves.
+
+            Deliberately min-height and not a hard height: a slide type this
+            account never rotates through, or a longer locale, would be
+            CLIPPED by a fixed height. This way the worst case is that one
+            unusually tall slide grows the box — visible, not destructive —
+            while every slide in normal rotation is pinned. Re-measure with
+            the loop in the browser console before changing it. */}
+        <div className={`relative p-4 md:p-6 pb-2 md:pb-2 min-h-[330px] ${slideCount > 1 ? 'pe-12 md:pe-14' : ''}`}>
           <HeroSlideshow
             ref={slideshowRef}
             logs={logs}
@@ -185,6 +199,7 @@ function HeroCard({
             daysSinceLast={daysSinceLast}
             onPrimary={onPrimary}
             onSlideCta={(to) => navigate(to)}
+            onPlanWeek={onPlanWeek}
             onSlidesCountChange={setSlideCount}
             onSlideColorChange={setSlideColor}
             t={t}
@@ -918,21 +933,49 @@ export default function Dashboard() {
     if (!userProfile || Object.keys(userProfile).length === 0) return;
 
     const remote = unpackLayout(userProfile.dashboard_layout);
-    if (remote) {
-      // Server wins on load — that's what makes it cross-device. In-session
-      // edits win afterwards, guarded by layoutHydratedFor.
-      setHiddenSections(new Set(remote.hiddenSections));
-      if (remote.widgetOrder.length > 0) {
-        // Same merge the localStorage path uses: keep the user's ordering for
-        // sections that still exist, slot in any added since they last
-        // customized, so a new section doesn't discard their layout.
-        setWidgetOrder(mergeWidgetOrder(remote.widgetOrder, defaultWidgetOrder));
+
+    // The layout this user is actually on, from whichever source is
+    // authoritative: the server copy if there is one, otherwise whatever the
+    // localStorage effects above already put into state.
+    const base = remote
+      ? {
+        hiddenSections: remote.hiddenSections,
+        widgetOrder: remote.widgetOrder.length > 0
+          ? mergeWidgetOrder(remote.widgetOrder, defaultWidgetOrder)
+          : widgetOrder,
+        sectionLayouts: Object.keys(remote.sectionLayouts).length > 0
+          ? remote.sectionLayouts
+          : sectionLayouts,
+        defaultsVersion: remote.defaultsVersion,
       }
-      if (Object.keys(remote.sectionLayouts).length > 0) {
-        setSectionLayouts(remote.sectionLayouts);
-      }
-      writeLayoutToLocal(uid, remote);
+      : {
+        hiddenSections: Array.from(hiddenSections),
+        widgetOrder,
+        sectionLayouts,
+        defaultsVersion: readLocalDefaultsVersion(uid),
+      };
+
+    // Catch a saved layout up to the current DEFAULTS. mergeWidgetOrder
+    // protects a customized order, which means a new default pairing could
+    // otherwise never reach anyone who had opened edit mode — the pair needs
+    // two ids adjacent and both 'half', and their saved order says
+    // otherwise. Each step is the smallest change that delivers the new
+    // default and touches nothing else; see dashboardLayout.js.
+    const { layout: next, version, applied } = applyLayoutMigrations(base, base.defaultsVersion);
+
+    // Server wins on load — that's what makes it cross-device. In-session
+    // edits win afterwards, guarded by layoutHydratedFor.
+    if (remote || applied.length > 0) {
+      setHiddenSections(new Set(next.hiddenSections));
+      if (next.widgetOrder.length > 0) setWidgetOrder(next.widgetOrder);
+      if (Object.keys(next.sectionLayouts).length > 0) setSectionLayouts(next.sectionLayouts);
+      writeLayoutToLocal(uid, { ...next, defaultsVersion: version });
+    } else {
+      // Nothing to hydrate and nothing to migrate, but the version still has
+      // to be recorded or every load re-runs the same no-op steps.
+      writeLayoutToLocal(uid, { ...next, defaultsVersion: version });
     }
+
     layoutHydratedFor.current = uid;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, userProfile]);
@@ -1558,6 +1601,7 @@ export default function Dashboard() {
           user={user}
           onPrimary={() => navigate('/workout')}
           onReadinessInfo={() => openReadiness()}
+          onPlanWeek={() => setWeekModalOpen(true)}
           navigate={navigate}
           t={t}
           tFallback={tFallback}

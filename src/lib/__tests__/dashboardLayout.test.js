@@ -6,7 +6,8 @@ vi.mock('@/api/db', () => ({ db: { auth: { updateMe: (...a) => updateMe(...a) } 
 const {
   packLayout, unpackLayout, writeLayoutToLocal, clearLayoutLocal,
   queueLayoutSync, flushLayoutSync, mergeWidgetOrder,
-  HIDDEN_KEY, ORDER_KEY, LAYOUTS_KEY,
+  applyLayoutMigrations, readLocalDefaultsVersion, LAYOUT_DEFAULTS_VERSION,
+  HIDDEN_KEY, ORDER_KEY, LAYOUTS_KEY, DEFAULTS_VERSION_KEY,
 } = await import('../dashboardLayout');
 
 beforeEach(() => {
@@ -65,6 +66,112 @@ describe('mergeWidgetOrder', () => {
   });
 });
 
+describe('applyLayoutMigrations', () => {
+  // A layout saved before versioning: streak and challenges nowhere near
+  // each other and neither one 'half' — i.e. the state every existing user
+  // who had touched edit mode was stuck in.
+  const legacy = () => ({
+    hiddenSections: [],
+    widgetOrder: ['streak', 'stats', 'actions', 'friends', 'challenges', 'journal'],
+    sectionLayouts: { chest: 'half', league: 'half' },
+  });
+
+  it('moves streak next to challenges and halves both', () => {
+    const { layout, version, applied } = applyLayoutMigrations(legacy(), 0);
+    const i = layout.widgetOrder.indexOf('streak');
+    expect(layout.widgetOrder[i + 1]).toBe('challenges');
+    expect(layout.sectionLayouts.streak).toBe('half');
+    expect(layout.sectionLayouts.challenges).toBe('half');
+    expect(version).toBe(LAYOUT_DEFAULTS_VERSION);
+    expect(applied).toContain('pair-streak-with-quests');
+  });
+
+  it('leaves every other section where the user put it', () => {
+    const { layout } = applyLayoutMigrations(legacy(), 0);
+    expect(layout.widgetOrder.filter(id => id !== 'streak'))
+      .toEqual(['stats', 'actions', 'friends', 'challenges', 'journal']);
+  });
+
+  it('preserves unrelated pairings', () => {
+    const { layout } = applyLayoutMigrations(legacy(), 0);
+    expect(layout.sectionLayouts.chest).toBe('half');
+    expect(layout.sectionLayouts.league).toBe('half');
+  });
+
+  it('adds and drops nothing', () => {
+    const before = legacy();
+    const { layout } = applyLayoutMigrations(before, 0);
+    expect([...layout.widgetOrder].sort()).toEqual([...before.widgetOrder].sort());
+  });
+
+  // A hidden section must not be resurrected by a default change.
+  it('declines to pair when either section is hidden', () => {
+    const hidden = { ...legacy(), hiddenSections: ['challenges'] };
+    const { layout, applied, version } = applyLayoutMigrations(hidden, 0);
+    expect(applied).toEqual([]);
+    expect(layout.widgetOrder).toEqual(hidden.widgetOrder);
+    expect(layout.sectionLayouts.streak).toBeUndefined();
+    // ...but the version still advances, or this retries on every load.
+    expect(version).toBe(LAYOUT_DEFAULTS_VERSION);
+  });
+
+  it('is a no-op for a layout already on the current version', () => {
+    const current = applyLayoutMigrations(legacy(), 0).layout;
+    const again = applyLayoutMigrations(current, LAYOUT_DEFAULTS_VERSION);
+    expect(again.applied).toEqual([]);
+    expect(again.layout).toEqual(current);
+  });
+
+  it('is idempotent when re-run from version 0', () => {
+    const once = applyLayoutMigrations(legacy(), 0).layout;
+    const twice = applyLayoutMigrations(once, 0);
+    expect(twice.layout.widgetOrder).toEqual(once.widgetOrder);
+    expect(twice.applied).toEqual([]);
+  });
+
+  it('skips a step whose sections are absent entirely', () => {
+    const sparse = { hiddenSections: [], widgetOrder: ['stats', 'journal'], sectionLayouts: {} };
+    const { layout, applied } = applyLayoutMigrations(sparse, 0);
+    expect(applied).toEqual([]);
+    expect(layout.widgetOrder).toEqual(['stats', 'journal']);
+  });
+});
+
+describe('defaults version round trip', () => {
+  it('treats a blob with no dv as version 0, not as current', () => {
+    const unpacked = unpackLayout({ v: 1, hiddenSections: [], widgetOrder: ['stats'], sectionLayouts: {} });
+    expect(unpacked.defaultsVersion).toBe(0);
+  });
+
+  it('packs and reads back the version it was given', () => {
+    const packed = packLayout({ hiddenSections: [], widgetOrder: ['stats'], sectionLayouts: {}, defaultsVersion: 2 });
+    expect(packed.dv).toBe(2);
+    expect(unpackLayout(packed).defaultsVersion).toBe(2);
+  });
+
+  it('defaults to the current version when packing without one', () => {
+    expect(packLayout({ hiddenSections: [], widgetOrder: [], sectionLayouts: {} }).dv)
+      .toBe(LAYOUT_DEFAULTS_VERSION);
+  });
+
+  it('mirrors the version locally and reads it back', () => {
+    writeLayoutToLocal('u1', { hiddenSections: [], widgetOrder: ['stats'], sectionLayouts: {}, defaultsVersion: 2 });
+    expect(localStorage.getItem(DEFAULTS_VERSION_KEY('u1'))).toBe('2');
+    expect(readLocalDefaultsVersion('u1')).toBe(2);
+  });
+
+  it('reports 0 when nothing has been mirrored yet', () => {
+    expect(readLocalDefaultsVersion('never-seen')).toBe(0);
+  });
+
+  // Reset lands on the current defaults by definition, so the migration must
+  // not run afterwards and reshuffle what Reset just set.
+  it('marks the local mirror current after a Reset', () => {
+    clearLayoutLocal('u2');
+    expect(readLocalDefaultsVersion('u2')).toBe(LAYOUT_DEFAULTS_VERSION);
+  });
+});
+
 describe('packLayout', () => {
   it('serialises a Set of hidden sections to an array', () => {
     const out = packLayout({
@@ -80,7 +187,15 @@ describe('packLayout', () => {
 
   it('tolerates missing pieces without throwing', () => {
     const out = packLayout({});
-    expect(out).toEqual({ v: 1, hiddenSections: [], widgetOrder: [], sectionLayouts: {} });
+    // dv is the defaults version, separate from v (the blob shape). Packing
+    // without one means "written by current code", so it stamps current.
+    expect(out).toEqual({
+      v: 1,
+      dv: LAYOUT_DEFAULTS_VERSION,
+      hiddenSections: [],
+      widgetOrder: [],
+      sectionLayouts: {},
+    });
   });
 });
 
