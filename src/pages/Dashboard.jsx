@@ -1,17 +1,17 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, Suspense } from 'react';
 import StoriesRow from '@/components/stories/StoriesRow';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { db } from '@/api/db';
 import { useAuth } from '@/lib/AuthContext';
 import {
   packLayout, unpackLayout, writeLayoutToLocal, clearLayoutLocal,
-  queueLayoutSync, flushLayoutSync, ORDER_KEY, LAYOUTS_KEY,
+  queueLayoutSync, flushLayoutSync, mergeWidgetOrder, ORDER_KEY, LAYOUTS_KEY,
 } from '@/lib/dashboardLayout';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { subDays, isAfter, differenceInDays, startOfDay, format } from 'date-fns';
-import { Dumbbell, TrendingUp, Play, ArrowRight, Zap, Activity, Target, Apple, Camera, Scale, TrendingDown, Minus, CheckCircle2, LayoutGrid, GripVertical, CalendarDays, ChevronRight, ChevronDown, ChevronUp, Rows3, Columns2, RotateCcw, Save, Plus, X, Moon, Star, Smile } from 'lucide-react';
+import { Dumbbell, TrendingUp, Play, ArrowRight, Zap, Activity, Target, Apple, Camera, Scale, TrendingDown, Minus, CheckCircle2, LayoutGrid, GripVertical, CalendarDays, ChevronRight, ChevronDown, ChevronUp, Rows3, Columns2, RotateCcw, Save, Plus, X } from 'lucide-react';
 import { Card } from '@/components/ui/card';
-import { motion, AnimatePresence, Reorder, useReducedMotion } from 'framer-motion';
+import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import GoalsModal from '@/components/goals/GoalsModal';
 import GoalsAlmostComplete from '@/components/goals/GoalsAlmostComplete';
 import GoalsProgressStrip from '@/components/dashboard/GoalsProgressStrip';
@@ -29,14 +29,12 @@ import DailyQuestsCard from '@/components/dashboard/DailyQuestsCard';
 import WeeklyRecap from '@/components/dashboard/WeeklyRecap';
 import WorkoutSuggestionCard from '@/components/dashboard/WorkoutSuggestionCard';
 import WorkoutMemoryCard from '@/components/dashboard/WorkoutMemoryCard';
-import CalorieProgressWidget from '@/components/dashboard/CalorieProgressWidget';
-import MacroRingWidget from '@/components/dashboard/MacroRingWidget';
-import HydrationRing from '@/components/dashboard/HydrationRing';
-import MoodLogCard from '@/components/dashboard/MoodLogCard';
 import JournalWidget from '@/components/dashboard/JournalWidget';
-import StepsLogCard from '@/components/dashboard/StepsLogCard';
-import SleepLogCard from '@/components/dashboard/SleepLogCard';
 import ReadinessCard from '@/components/dashboard/ReadinessCard';
+import TonightRow from '@/components/dashboard/TonightRow';
+// Sleep / mood / steps logging + the score explainer live in this sheet, so
+// three log cards leave the eager dashboard chunk and arrive on first open.
+const ReadinessSheet = React.lazy(() => import('@/components/dashboard/ReadinessSheet'));
 import { useReadiness } from '@/hooks/useReadiness';
 import LoginStreakBanner from '@/components/dashboard/LoginStreakBanner';
 import PushOptInBanner from '@/components/dashboard/PushOptInBanner';
@@ -77,9 +75,6 @@ function HeroCard({
   // HeroSlideshow handles the LEFT-column content (achievement
   // carousel / new-user calculated path / streak fallback) and uses
   // these same booleans to pick its mode.
-  // Honor prefers-reduced-motion: drop the decorative shine sweep
-  // entirely and hold the glow static for motion-sensitive users.
-  const reduceMotion = useReducedMotion();
   const isFresh = streak === 0 && daysSinceLast == null;
   const isOnStreak = streak > 0;
   const isLapsed = !isOnStreak && !isFresh && daysSinceLast >= 2;
@@ -95,16 +90,17 @@ function HeroCard({
     cta = t('dashboard.hero.cta.startFirst');
   }
 
-  // Carousel chevron lives at the OUTER right edge of the viewport,
-  // not inside the slideshow column. Drag-to-swipe also lives on the
-  // outer wrapper so the WHOLE hero card is swipeable, not just the
-  // slideshow content area.
+  // Drag-to-swipe lives on the band so the WHOLE hero is swipeable, not
+  // just the slideshow content area.
   const slideshowRef = useRef(null);
   const [slideCount, setSlideCount] = useState(0);
-  // Per-slide color tint. Each slide reports its own HSL accent up
-  // via onSlideColorChange — HeroCard paints the hero's gradient
-  // mesh in that color. Falls back to the app's primary brand color
-  // (the "warm orange" hue) when no slide is selected.
+  // Per-slide accent. Each slide reports its own HSL colour up via
+  // onSlideColorChange (orange for streak, purple for duels, pink for
+  // stories, cyan for cardio…). It used to paint an animated radial
+  // gradient mesh across the whole band; that is a decorative gradient,
+  // which is on CLAUDE.md's banned list and was most of why the hero read
+  // as one more generated card. The slide identity is worth keeping, so it
+  // survives as a 2px solid rule along the top edge of the band instead.
   const [slideColor, setSlideColor] = useState(null);
   const handleDragEnd = (_e, info) => {
     if (slideCount <= 1) return;
@@ -121,58 +117,42 @@ function HeroCard({
       transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
       className="relative"
     >
-      {/* Carousel chevron — pinned to the OUTER right edge of the
-          dashboard content (overflowing past the page's p-4/p-6/p-8
-          padding lands it at the viewport's right edge). Sibling of
-          the rounded card, so the rounded card's overflow-hidden
-          doesn't clip it. */}
-      {slideCount > 1 && (
-        <button
-          type="button"
-          onClick={() => slideshowRef.current?.next?.()}
-          aria-label={tFallback ? tFallback('dashboard.hero.next', 'Next slide') : 'Next slide'}
-          className="absolute end-3 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-foreground/45 backdrop-blur-sm text-background hover:bg-foreground/60 active:bg-foreground/60 active:scale-95 flex items-center justify-center shadow-md transition-all"
-        >
-          <ChevronRight className="w-4 h-4 rtl:scale-x-[-1]" />
-        </button>
-      )}
+      {/* The hero is the page's ONE dominant element, so it is the only
+          thing allowed to break the page's px-4/px-6 inset (CLAUDE.md).
+          -mx-4/-mx-6 cancels that padding, the band runs edge to edge, and
+          only the bottom corners round — the top edge is a seam with the
+          content above, not a card corner.
+
+          bg-muted on light / bg-card on dark: a white band on the off-white
+          light background did not read as dominant, which defeats the whole
+          point of letting it bleed. On dark, --card is already lighter than
+          --background so it separates on its own. */}
       <motion.div
         drag={slideCount > 1 ? 'x' : false}
         dragConstraints={{ left: 0, right: 0 }}
         dragElastic={0.18}
         onDragEnd={handleDragEnd}
-        className="relative overflow-hidden rounded-2xl bg-card text-foreground border border-border shadow-sm touch-pan-y"
+        className="relative overflow-hidden -mx-4 md:-mx-6 rounded-b-2xl bg-muted dark:bg-card text-foreground touch-pan-y"
       >
-        {/* Animated gradient mesh — tint follows the current slide's
-            color (orange for streak, purple for duels feature, pink
-            for stories feature, cyan for cardio milestones, etc.). */}
-        <div className="absolute inset-0 opacity-100 pointer-events-none">
-          <motion.div
-            key={`mesh-tr-${slideColor || 'default'}`}
-            initial={{ opacity: 0.6 }}
-            animate={{ opacity: 0.9 }}
-            transition={{ duration: 0.7, ease: 'easeOut' }}
-            className="absolute -top-1/3 -end-1/4 w-[120%] h-[140%] rounded-full blur-3xl"
-            style={{ background: `radial-gradient(circle, hsl(${slideColor || 'var(--primary)'} / 0.20), transparent 65%)` }}
-          />
-          <motion.div
-            key={`mesh-bl-${slideColor || 'default'}`}
-            className="absolute -bottom-1/3 -start-1/4 w-[100%] h-[120%] rounded-full blur-3xl"
-            style={{ background: `radial-gradient(circle, hsl(${slideColor || 'var(--primary)'} / 0.13), transparent 70%)` }}
-            animate={{ x: [0, 20, 0], y: [0, -10, 0], opacity: [0.75, 0.95, 0.75] }}
-            transition={{ duration: 9, repeat: Infinity, ease: 'easeInOut' }}
-          />
-        </div>
-
-        {/* Subtle grid texture */}
+        {/* Slide identity — a 2px solid rule, not a gradient wash. */}
         <div
-          className="absolute inset-0 opacity-[0.5] pointer-events-none"
-          style={{
-            backgroundImage:
-              'linear-gradient(hsl(var(--foreground) / 0.04) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--foreground) / 0.04) 1px, transparent 1px)',
-            backgroundSize: '32px 32px',
-          }}
+          aria-hidden="true"
+          className="absolute inset-x-0 top-0 h-0.5 pointer-events-none transition-colors"
+          style={{ background: `hsl(${slideColor || 'var(--primary)'})` }}
         />
+
+        {/* Carousel chevron — inside the band now that the band itself
+            reaches the viewport edge. */}
+        {slideCount > 1 && (
+          <button
+            type="button"
+            onClick={() => slideshowRef.current?.next?.()}
+            aria-label={tFallback ? tFallback('dashboard.hero.next', 'Next slide') : 'Next slide'}
+            className="absolute end-3 top-[38%] -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-foreground/10 text-foreground hover:bg-foreground/20 active:bg-foreground/20 active:scale-95 flex items-center justify-center transition-all"
+          >
+            <ChevronRight className="w-4 h-4 rtl:scale-x-[-1]" />
+          </button>
+        )}
 
         {/* min-h locks the hero card's vertical size so different slides
             (Step 2 has a long sub-line + progress bar, Step 3 has just a
@@ -222,182 +202,135 @@ function HeroCard({
             <LoginStreakBanner variant="default" />
           </ErrorBoundary>
         </div>
-      </motion.div>
 
-      {/* Primary CTA — sits BELOW the hero card (no overlap) and follows
-          the user's selected theme. Background, text, shadow, glow and
-          the arrow chip all key off --primary / --primary-foreground
-          (set per-theme in ThemeContext), so the button recolors
-          automatically when the user changes their theme. */}
-      <div className="relative mt-3 mx-4 md:mx-6 flex items-stretch gap-2">
-        <motion.button
-          whileHover={{ y: -2 }}
-          whileTap={{ scale: 0.98 }}
-          transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-          onClick={onPrimary}
-          className="group relative flex-[2] overflow-hidden rounded-2xl p-2.5 md:p-3 border-2 border-white flex items-center justify-between gap-3 text-start select-none-ui"
-          // Theme-following CTA — keys off the user's selected theme via
-          // --primary / --primary-foreground (ThemeContext sets these per
-          // theme). A subtle white→dark sheen over the solid primary adds
-          // depth without per-theme color math, so this one block recolors
-          // for every theme (orange, blue, violet, neon, …).
-          style={{
-            background:
-              'linear-gradient(135deg, rgba(255,255,255,0.18), rgba(255,255,255,0) 42%, rgba(0,0,0,0.18)), linear-gradient(315deg, #ffd27a 0%, #fb9d38 32%, #f2700d 64%, #c2410c 100%)',
-            color: '#ffffff',
-            boxShadow:
-              '0 12px 24px -8px rgba(242,112,13,0.5), 0 5px 12px -4px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.35)',
-          }}
-        >
-          {/* Subtle shine sweep — a single slow, dim sheen that passes
-              every few seconds (was a bright double-sweep every ~2s, which
-              read as fast/distracting). Skipped under reduced-motion. */}
-          {!reduceMotion && (
-            <motion.div
-              aria-hidden="true"
-              className="absolute inset-y-0 -inset-x-4 pointer-events-none"
-              style={{
-                background:
-                  'linear-gradient(105deg, transparent 30%, rgba(255,255,255,0.2) 47%, rgba(255,255,255,0.45) 50%, rgba(255,255,255,0.2) 53%, transparent 70%)',
-                mixBlendMode: 'screen',
-              }}
-              initial={{ x: '-110%' }}
-              animate={{ x: '110%' }}
-              transition={{
-                duration: 1.2,
-                ease: 'easeInOut',
-                repeat: Infinity,
-                repeatDelay: 6,
-              }}
-            />
-          )}
-          {/* Theme-glow pulse — slow, low-amplitude breathe; held static
-              under reduced-motion. */}
-          <motion.div
-            aria-hidden="true"
-            className="absolute -inset-2 rounded-2xl pointer-events-none"
-            style={{
-              background: 'radial-gradient(ellipse at center, hsl(var(--primary) / 0.35), transparent 70%)',
-              filter: 'blur(6px)',
-              zIndex: -1,
-            }}
-            animate={reduceMotion ? { opacity: 0.6 } : { opacity: [0.5, 0.72, 0.5] }}
-            transition={reduceMotion ? { duration: 0 } : { duration: 3.2, repeat: Infinity, ease: 'easeInOut' }}
-          />
-          <div className="relative min-w-0">
-            <span className="block text-micro font-semibold tracking-[0.04em] mb-1" style={{ color: 'hsl(var(--primary-foreground) / 0.85)' }}>
-              {hasWorkedOutToday
-                ? t('dashboard.hero.label.again')
-                : t('dashboard.hero.label.today')}
-            </span>
-            <span className="font-heading font-bold text-lg md:text-xl leading-tight break-anywhere">
-              {cta}
-            </span>
-          </div>
-          <motion.div
-            className="relative shrink-0 w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center"
-            style={{
-              background: 'rgba(255,255,255,0.92)',
-              color: 'hsl(var(--primary))',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.22), inset 0 1px 1px rgba(255,255,255,0.7)',
-            }}
-            whileHover={{ rotate: 5 }}
+        {/* The "today" row — primary CTA (2/3) + Readiness (1/3) — now sits
+            INSIDE the band. It used to be a sibling below it, which made
+            today's moment read as three stacked objects (slide, streak,
+            action) instead of one.
+
+            Flat --primary, no baked-in orange gradient, no shine sweep, no
+            coloured bloom. The old version hard-coded #ffd27a→#c2410c, so it
+            did NOT actually follow the user's theme despite the comment
+            claiming it did, and it carried three of the four generated-UI
+            tells CLAUDE.md lists. Depth is shadow-md; the arrow chip is
+            --primary-foreground. Recolours with every theme for free.
+
+            No whileHover lift: this ships to iOS and Android where there is
+            no hover, and the tap scale is the feedback that matters. */}
+        <div className="relative z-10 px-4 md:px-6 pb-4 md:pb-5 flex items-stretch gap-2">
+          <motion.button
+            whileTap={{ scale: 0.98 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+            onClick={onPrimary}
+            className="group relative flex-[2] rounded-2xl px-3 py-2.5 md:p-3 bg-primary text-primary-foreground shadow-md hover:brightness-105 flex items-center justify-between gap-3 text-start select-none-ui transition-all"
           >
-            <ArrowRight className="w-5 h-5 md:w-6 md:h-6 transition-transform group-hover:translate-x-0.5 rtl:scale-x-[-1]" strokeWidth={2.5} />
-          </motion.div>
-        </motion.button>
-        {/* Readiness — 1/3 of the row beside the primary CTA (2/3). Pulled
-            up here from a standalone dashboard section so it reads as part
-            of the "today" moment; renderDashboardSection('readiness') now
-            returns null so it isn't rendered twice. items-stretch keeps it
-            the same height as the CTA. */}
-        <div className="flex-1 min-w-[92px]">
-          <ErrorBoundary label="ReadinessCard">
-            <ReadinessCard logs={logs} compact onClick={onReadinessInfo} />
-          </ErrorBoundary>
+            <span className="min-w-0">
+              <span className="block text-micro font-semibold tracking-[0.04em] mb-1 text-primary-foreground/80">
+                {hasWorkedOutToday
+                  ? t('dashboard.hero.label.again')
+                  : t('dashboard.hero.label.today')}
+              </span>
+              <span className="block font-heading font-bold text-lg md:text-xl leading-tight break-anywhere">
+                {cta}
+              </span>
+            </span>
+            <span className="shrink-0 w-10 h-10 md:w-12 md:h-12 rounded-full bg-primary-foreground text-primary flex items-center justify-center">
+              <ArrowRight className="w-5 h-5 md:w-6 md:h-6 transition-transform group-hover:translate-x-0.5 rtl:scale-x-[-1]" strokeWidth={2.5} />
+            </span>
+          </motion.button>
+          {/* Readiness — 1/3 beside the CTA, and the entry point to the
+              Readiness sheet where sleep / mood / steps are logged.
+              renderDashboardSection('readiness') returns null so it isn't
+              rendered twice. items-stretch matches the CTA's height. */}
+          <div className="flex-1 min-w-[92px]">
+            <ErrorBoundary label="ReadinessCard">
+              <ReadinessCard logs={logs} compact onClick={onReadinessInfo} />
+            </ErrorBoundary>
+          </div>
         </div>
-      </div>
+      </motion.div>
     </motion.div>
   );
 }
 
-function StatTile({ icon: Icon, value, label, suffix, delay = 0, accent = false, trend = null }) {
+/* One card, three columns, hairline dividers — was three separate Cards in
+   a grid. These are read-only numbers, not widgets the user arranged, and
+   CLAUDE.md reserves card surfaces for the latter: "read-only data that is
+   NOT a widget gets no surface: hairline dividers instead". Three surfaces
+   for three related figures also spent three focal points on one idea. */
+function StatColumn({ icon: Icon, value, label, suffix, accent = false, trend = null }) {
   const { tFallback } = useLanguage();
-  // trend: positive number = up, negative = down, 0 or null = no arrow
+  // trend: positive number = up, negative = down, 0 = flat, null = no data
   const showTrend = trend !== null && trend !== 0;
   const isUp = trend > 0;
   const TrendIcon = isUp ? TrendingUp : TrendingDown;
-  const trendColor = isUp ? 'text-success' : 'text-destructive';
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 14 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.26, delay, ease: [0.22, 1, 0.36, 1] }}
-      className="h-full"
-    >
-      <Card
-        className={`relative overflow-hidden p-4 md:p-5 border-border/60 shadow-sm hover:shadow-md transition-shadow h-full ${
-          accent ? 'bg-primary/[0.07]' : ''
-        }`}
-      >
-        <div className="flex items-center gap-2 mb-3 text-muted-foreground">
-          <Icon className={`w-3.5 h-3.5 ${accent ? 'text-primary' : ''}`} />
-          <span className="text-micro font-semibold tracking-[0.04em]">
-            {label}
-          </span>
-        </div>
-        <div className="flex items-baseline gap-1.5">
-          <span className="font-heading font-bold text-3xl md:text-4xl leading-none tabular-nums tracking-tight">
-            {value}
-          </span>
-          {suffix && (
-            <span className="text-xs text-muted-foreground font-medium">{suffix}</span>
-          )}
-        </div>
+    <div className="flex-1 min-w-0 px-3">
+      <div className="flex items-center gap-1.5 mb-2 text-muted-foreground">
+        <Icon className={`w-3 h-3 shrink-0 ${accent ? 'text-primary' : ''}`} />
+        <span className="text-micro font-semibold tracking-[0.04em] truncate">{label}</span>
+      </div>
+      <div className="font-heading font-bold text-2xl md:text-3xl leading-none tabular-nums tracking-tight truncate">
+        {value}
+      </div>
+      <div className="mt-1.5 h-4 flex items-center gap-0.5">
         {showTrend && (
-          <div className={`flex items-center gap-0.5 mt-1.5 ${trendColor}`}>
-            <TrendIcon className="w-3 h-3" />
-            <span className="text-micro font-semibold">
+          <>
+            <TrendIcon className={`w-3 h-3 shrink-0 ${isUp ? 'text-success' : 'text-destructive'}`} />
+            <span className={`text-micro font-semibold truncate ${isUp ? 'text-success' : 'text-destructive'}`}>
               {isUp ? '+' : ''}{trend} {tFallback('dashboard.stats.vsLastWeek', 'vs last wk')}
             </span>
-          </div>
+          </>
         )}
         {trend === 0 && (
-          <div className="flex items-center gap-0.5 mt-1.5 text-muted-foreground/60">
-            <Minus className="w-3 h-3" />
-            <span className="text-micro">{tFallback('dashboard.stats.sameAsLastWeek', 'same as last wk')}</span>
-          </div>
+          <>
+            <Minus className="w-3 h-3 shrink-0 text-muted-foreground/60" />
+            <span className="text-micro text-muted-foreground/60 truncate">
+              {tFallback('dashboard.stats.sameAsLastWeek', 'same as last wk')}
+            </span>
+          </>
         )}
-      </Card>
-    </motion.div>
+        {trend === null && suffix && (
+          <span className="text-micro text-muted-foreground font-medium truncate">{suffix}</span>
+        )}
+      </div>
+    </div>
   );
 }
 
-function QuickAction({ to, icon: Icon, label, onClick, delay = 0, iconBg, iconColor }) {
-  // Default to muted secondary chrome if no color hint provided.
-  const bg = iconBg   || 'bg-secondary';
-  const fg = iconColor || 'text-foreground/70';
+/* A grid tile, not a list row. Seven full-width rows plus a "Show 4 more"
+   toggle cost roughly a screen and a half and still hid four of the seven
+   actions behind a tap. Eight tiles in two rows fit the same actions in a
+   third of the height with nothing hidden — so the toggle is gone too.
+   One tile carries the primary accent (Start workout); the rest are muted
+   chrome, which keeps a single focal point instead of eight competing
+   coloured icons. */
+function ActionTile({ to, icon: Icon, label, onClick, delay = 0, accent = false }) {
   const inner = (
     <motion.div
-      initial={{ opacity: 0, x: -8 }}
-      animate={{ opacity: 1, x: 0 }}
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.24, delay, ease: 'easeOut' }}
-      whileHover={{ x: 3 }}
-      whileTap={{ scale: 0.98 }}
-      className="group relative flex items-center gap-3 px-4 py-3.5 rounded-lg bg-card border border-border/70 hover:border-primary/40 hover:bg-card active:bg-card transition-colors cursor-pointer select-none-ui"
+      whileTap={{ scale: 0.97 }}
+      className={`group h-full flex flex-col items-center justify-center gap-2 px-1 py-3 rounded-lg bg-card border transition-colors cursor-pointer select-none-ui ${
+        accent ? 'border-primary' : 'border-border/70 hover:border-primary/40'
+      }`}
     >
-      <div className={`w-9 h-9 rounded-lg ${bg} flex items-center justify-center transition-colors`}>
-        <Icon className={`w-4 h-4 ${fg} transition-colors`} />
-      </div>
-      <span className="font-heading font-semibold text-sm flex-1 leading-tight">{label}</span>
-      <ArrowRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0 rtl:scale-x-[-1]" />
+      <span
+        className={`w-8 h-8 rounded-sm flex items-center justify-center shrink-0 ${
+          accent ? 'bg-primary/15' : 'bg-secondary'
+        }`}
+      >
+        <Icon className={`w-4 h-4 ${accent ? 'text-primary' : 'text-muted-foreground'}`} />
+      </span>
+      <span className="text-micro font-semibold leading-tight text-center break-anywhere">{label}</span>
     </motion.div>
   );
 
-  if (to) return <Link to={to}>{inner}</Link>;
+  if (to) return <Link to={to} className="block h-full">{inner}</Link>;
   return (
-    <button onClick={onClick} className="w-full text-start">
+    <button type="button" onClick={onClick} className="h-full text-center">
       {inner}
     </button>
   );
@@ -415,53 +348,62 @@ function QuickAction({ to, icon: Icon, label, onClick, delay = 0, iconBg, iconCo
 // by widgetOrder id; takes (tFallback, t) so it stays i18n-aware.
 const SECTION_LABELS = {
   readiness:    (tF) => tF('dashboard.section.readiness',    'Readiness'),
-  recovery:     (tF) => tF('dashboard.section.recovery',     'Recovery'),
+  // Was 'Nutrition & Recovery' — the macro / calorie / hydration widgets
+  // moved off the dashboard (Nutrition owns them) and what's left is the
+  // three signals you log at the end of the day.
+  recovery:     (tF) => tF('dashboard.section.tonight',      'Tonight'),
+  stats:        (tF) => tF('dashboard.section.stats',        'This week'),
   challenges:   (tF) => tF('dashboard.section.challenges',   'Challenges'),
   chest:        (tF) => tF('dashboard.section.chest',        'Daily chest'),
   league:       (tF) => tF('dashboard.section.league',       'Weekly rank'),
   friends:      (tF) => tF('dashboard.section.friends',      'Friends this week'),
   progress:     (tF) => tF('dashboard.section.progress',     'Your progress'),
   actions:      (tF, t) => t('dashboard.quickActions'),
+  journal:      (tF) => tF('dashboard.section.journal',      'Journal'),
   discover:     (tF) => tF('dashboard.section.discover',     'Discover'),
   motivation:   (tF) => tF('dashboard.section.motivation',   'More motivation'),
   onboarding:   (tF) => tF('dashboard.section.onboarding',   'Get started'),
-  customize:    (tF) => tF('dashboard.section.customize',    'Customize dashboard'),
+  customize:    (tF) => tF('dashboard.section.customize',    'Widget library'),
 };
 
-function SectionHeader({ label, open, onToggle, tFallback }) {
+/* Section label — the onboarding step language: a 1.5px accent dot, a bold
+   heading, and an optional quiet note on the right. No Hide / Show all
+   control: collapsing lives in edit mode now, next to drag, pair and hide,
+   so normal mode shows content instead of a control on every section. */
+function SectionLabel({ label, note }) {
   return (
-    <button
-      type="button"
-      onClick={onToggle}
-      className="w-full mt-3 mb-1.5 px-1 flex items-center justify-between text-start group"
-      aria-expanded={open}
-    >
-      <span className="text-micro font-semibold tracking-[0.04em] text-muted-foreground/70 group-hover:text-foreground transition-colors">
-        {label}
+    <div className="flex items-baseline justify-between gap-2 mb-2 px-1">
+      <span className="flex items-center gap-2 min-w-0">
+        <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" aria-hidden="true" />
+        <h2 className="font-heading font-bold text-sm tracking-tight truncate">{label}</h2>
       </span>
-      <span className="text-micro font-semibold text-muted-foreground/50 group-hover:text-foreground transition-colors">
-        {open ? tFallback('dashboard.hide', 'Hide') : tFallback('dashboard.showAll', 'Show all')}
-        <span className="ms-1">{open ? '▾' : '▸'}</span>
-      </span>
-    </button>
+      {note && (
+        <span className="text-micro font-semibold text-muted-foreground/70 shrink-0">{note}</span>
+      )}
+    </div>
   );
 }
 
-function Collapsible({ open, children }) {
+/* What a collapsed section renders in NORMAL mode. Collapse has to stay
+   reachable and reversible without entering edit mode, otherwise it is
+   indistinguishable from hide — so a collapsed section keeps a slim
+   labelled row you can tap to bring it back. */
+function CollapsedStub({ label, onExpand, tFallback }) {
   return (
-    <AnimatePresence initial={false}>
-      {open && (
-        <motion.div
-          initial={{ height: 0, opacity: 0 }}
-          animate={{ height: 'auto', opacity: 1 }}
-          exit={{ height: 0, opacity: 0 }}
-          transition={{ duration: 0.25, ease: 'easeOut' }}
-          className="overflow-hidden"
-        >
-          {children}
-        </motion.div>
-      )}
-    </AnimatePresence>
+    <button
+      type="button"
+      onClick={onExpand}
+      aria-expanded={false}
+      className="w-full flex items-center justify-between gap-2 px-4 py-3 rounded-lg border border-dashed border-border bg-card/40 text-start group"
+    >
+      <span className="text-label font-semibold text-muted-foreground group-hover:text-foreground transition-colors truncate">
+        {label}
+      </span>
+      <span className="flex items-center gap-1 shrink-0 text-micro font-semibold text-muted-foreground/70 group-hover:text-foreground transition-colors">
+        {tFallback('dashboard.showAll', 'Show all')}
+        <ChevronDown className="w-3.5 h-3.5" />
+      </span>
+    </button>
   );
 }
 
@@ -486,14 +428,23 @@ export default function Dashboard() {
   const [weekModalOpen, setWeekModalOpen] = useState(false);
   const [leagueModalOpen, setLeagueModalOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
+  // Order follows the v2 composition: orient (hero, pinned above these
+  // rows) → this week's numbers → what to do now → what to log tonight →
+  // then the game layer, then state, then the tail.
+  //
+  // 'stats' is new: the three weekly figures used to live inside
+  // 'progress', below goals and the recap, so the page's most-glanced
+  // numbers sat a screen and a half down. They are their own row now,
+  // directly under the hero.
   const defaultWidgetOrder = [
-    'readiness', 'league',   // small square + wide rank, directly under hero
-    'friends',               // quick friends-this-week stats check
-    'challenges', 'actions', // hotdog pair: quests next to quick actions
-    'chest',
-    'recovery',
-    'progress',
-    'journal',               // daily journal preview widget
+    'stats',                 // this week / volume / muscles — one card, 3 cols
+    'actions',               // 4 × 2 tile grid
+    'recovery',              // "Tonight" — sleep · mood · steps
+    'challenges',            // daily quests + streak rescue
+    'chest', 'league',       // hotdog pair: chest beside weekly rank
+    'friends',
+    'progress',              // goals, weekly recap, suggestion + memory
+    'journal',
     'discover', 'motivation',
     'onboarding',
     'customize',
@@ -545,19 +496,18 @@ export default function Dashboard() {
   // sections in widgetOrder render side-by-side; a lone half degrades
   // to full width (no half-width orphan).
   //
-  // Factory default pairs:
-  //   readiness + league   — small square + wide rank under hero
-  //   challenges + actions — daily quests next to quick actions
-  // User can flip any of these via the layout icon in edit mode.
-  // Default both to full-width. The old 'half' default paired Readiness
-  // (a compact square) with League — but LeagueCard renders null for anyone
-  // not yet in a league (every new user), leaving the Readiness square
-  // stranded next to an empty half and a big gap. Full-width Readiness also
-  // shows its tier + recommendation, so it reads as more than a bare number.
-  // Users can still flip either to 'half' via the layout icon in edit mode.
+  // Factory default pair: chest + league. Both are small, single-figure
+  // cards that waste a full row on their own, and they sit adjacent in
+  // defaultWidgetOrder so the pairing actually takes effect.
+  //
+  // The previous default paired readiness + league and had to be turned off,
+  // because LeagueCard renders null for anyone not yet in a league — every
+  // new user — which stranded a 96px square next to an empty half. That
+  // failure mode is unchanged here: a lone half degrades to full width (see
+  // dashboardRows), so a new user sees a full-width chest card and no gap.
   const [sectionLayouts, setSectionLayouts] = useState({
-    readiness:  'full',
-    league:     'full',
+    chest:   'half',
+    league:  'half',
   });
   const toggleSectionLayout = (id) => {
     setSectionLayouts(prev => {
@@ -567,60 +517,47 @@ export default function Dashboard() {
     });
   };
 
-  // Per-section collapse state. Every section gets its own Hide / Show
-  // all toggle. State is per-device (sessionStorage) — resets fresh on
-  // next launch. Default OPEN so first-load behavior matches the
-  // pre-refactor state; the user can choose to collapse anything they
-  // don't want to see.
-  // Per-user, per CLAUDE.md's `flexyn.<feature>.<userId>` convention — the
-  // same reasoning as restDayKey below: two people on one phone must not
-  // inherit each other's collapsed sections. sessionStorage already limits
-  // this to a single tab, but a sign-out/sign-in in that tab leaked it.
-  // Dashboard mounts below App.jsx's auth gates, so user is resolved on the
-  // first render and these initializers don't read an 'anon' key and then
-  // start writing a uid one mid-session.
-  const dashOpenKey = (key) => `flexyn.dash.${user?.id || 'anon'}.${key}Open`;
-  const initOpen = (key, defaultOpen) => {
+  // Per-section collapse. This was ten separate `xxxOpen` booleans plus ten
+  // toggles plus a SectionHeader rendering "Hide / Show all" above every
+  // section — a control on every section, permanently, for a preference
+  // most people set once or never. One Set replaces all of it: collapsing
+  // happens in edit mode (beside drag / pair / hide) and a collapsed
+  // section keeps a slim labelled stub so it can be reopened without
+  // entering edit mode.
+  //
+  // Still per-device (sessionStorage → resets next launch) and still keyed
+  // per-user, per CLAUDE.md's `flexyn.<feature>.<userId>` convention: two
+  // people on one phone must not inherit each other's collapsed sections.
+  // sessionStorage already limits this to one tab, but a sign-out/sign-in
+  // in that tab leaked it. Dashboard mounts below App.jsx's auth gates, so
+  // `user` is resolved on the first render and this initializer doesn't
+  // read an 'anon' key and then start writing a uid one mid-session.
+  const collapsedKey = `flexyn.dash.${user?.id || 'anon'}.collapsed`;
+  const [collapsedSections, setCollapsedSections] = useState(() => {
     try {
-      const v = sessionStorage.getItem(dashOpenKey(key));
-      if (v == null) return defaultOpen;
-      return v === '1';
-    } catch { return defaultOpen; }
-  };
-  const [readinessOpen,    setReadinessOpen]    = useState(() => initOpen('readiness',    true));
-  // Modal that explains how the Readiness score is computed. Surfaced
-  // by tapping the Readiness card — screenshot feedback flagged that
-  // the bare number gave no hint about what feeds it.
-  const [readinessInfoOpen, setReadinessInfoOpen] = useState(false);
-  const [recoveryOpen,     setRecoveryOpen]     = useState(() => initOpen('recovery',     true));
-  const [challengesOpen,   setChallengesOpen]   = useState(() => initOpen('challenges',   true));
-  const [chestOpen,        setChestOpen]        = useState(() => initOpen('chest',        true));
-  const [leagueOpen,       setLeagueOpen]       = useState(() => initOpen('league',       true));
-  const [progressOpen,     setProgressOpen]     = useState(() => initOpen('progress',     true));
-  const [actionsOpen,      setActionsOpen]      = useState(() => initOpen('actions',      true));
-  const [discoverOpen,     setDiscoverOpen]     = useState(() => initOpen('discover',     true));
-  const [motivationOpen,   setMotivationOpen]   = useState(() => initOpen('motivation',   true));
-  const [onboardingOpen,   setOnboardingOpen]   = useState(() => initOpen('onboarding',   true));
-  const [customizeOpen,    setCustomizeOpen]    = useState(() => initOpen('customize',    true));
-  // "Show more / less" toggle for the quick-actions vertical list.
-  // Defaults to collapsed — user sees the top 3 actions; the rest are
-  // one tap away.
-  const [actionsExpanded, setActionsExpanded] = useState(false);
-
-  const makeToggle = (key, setter) => () => setter(v => {
-    try { sessionStorage.setItem(dashOpenKey(key), v ? '0' : '1'); } catch { /* ignore */ }
-    return !v;
+      const raw = sessionStorage.getItem(collapsedKey);
+      return new Set(raw ? JSON.parse(raw) : []);
+    } catch { return new Set(); }
   });
-  const toggleReadiness    = makeToggle('readiness',    setReadinessOpen);
-  const toggleRecovery     = makeToggle('recovery',     setRecoveryOpen);
-  const toggleChest        = makeToggle('chest',        setChestOpen);
-  const toggleLeague       = makeToggle('league',       setLeagueOpen);
-  const toggleProgress     = makeToggle('progress',     setProgressOpen);
-  const toggleActions      = makeToggle('actions',      setActionsOpen);
-  const toggleDiscover     = makeToggle('discover',     setDiscoverOpen);
-  const toggleMotivation   = makeToggle('motivation',   setMotivationOpen);
-  const toggleOnboarding   = makeToggle('onboarding',   setOnboardingOpen);
-  const toggleCustomize    = makeToggle('customize',    setCustomizeOpen);
+  const toggleCollapsed = (id) => {
+    setCollapsedSections(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      try { sessionStorage.setItem(collapsedKey, JSON.stringify(Array.from(next))); }
+      catch { /* private mode / quota */ }
+      return next;
+    });
+  };
+
+  // The Readiness sheet — score breakdown AND the sleep / mood / steps
+  // loggers. `focus` is which signal to scroll to, set when the user taps a
+  // column of the Tonight row rather than the Readiness card itself.
+  const [readinessSheetOpen, setReadinessSheetOpen] = useState(false);
+  const [readinessFocus, setReadinessFocus] = useState(null);
+  const openReadiness = (signal = null) => {
+    setReadinessFocus(signal);
+    setReadinessSheetOpen(true);
+  };
 
   // ── Rest day declaration ──────────────────────────────────────────────────
   // Per-user key (flexyn.<feature>.<userId> per CLAUDE.md) so two users
@@ -671,14 +608,13 @@ export default function Dashboard() {
 
   // Load + persist widget order per user.
   //
-  // Merge-with-defaults: keep the user's saved positions for ids that
-  // still exist, drop unknown/stale ids, and APPEND any new
-  // defaultWidgetOrder ids that don't appear in the saved array. The
-  // previous code required `defaultWidgetOrder.every(id => parsed.includes(id))`,
-  // which meant the very next time we add a new section to
-  // defaultWidgetOrder, every existing user's saved order is silently
-  // discarded — they lose their customization on first load after the
-  // deploy. Merge instead.
+  // Merge-with-defaults (mergeWidgetOrder): keep the user's saved positions
+  // for ids that still exist, drop unknown/stale ids, and slot any NEW
+  // defaultWidgetOrder id in at its default index. The original code
+  // required `defaultWidgetOrder.every(id => parsed.includes(id))`, which
+  // discarded a user's whole saved order the first time we added a section;
+  // the version after that appended new ids at the end, which was fine until
+  // 'stats' — a row that belongs under the hero, not at the bottom.
   useEffect(() => {
     if (!user?.id) return;
     try {
@@ -696,9 +632,7 @@ export default function Dashboard() {
       }
       const parsed = JSON.parse(raw);
       if (!Array.isArray(parsed)) return;
-      const known   = parsed.filter(id => defaultWidgetOrder.includes(id));
-      const missing = defaultWidgetOrder.filter(id => !known.includes(id));
-      const merged  = [...known, ...missing];
+      const merged = mergeWidgetOrder(parsed, defaultWidgetOrder);
       // Use JSON.stringify for the equality check — joining on a single
       // delimiter ('|') aliases two different orderings when an id
       // happens to contain that delimiter ("foo|bar" + "baz" joins
@@ -786,9 +720,12 @@ export default function Dashboard() {
   const handleResetCustomize = () => {
     setWidgetOrder(defaultWidgetOrder);
     setSectionLayouts({
-      readiness: 'full',
-      league:    'full',
+      chest:  'half',
+      league: 'half',
     });
+    // Reset means reset: a section the user collapsed comes back too.
+    setCollapsedSections(new Set());
+    try { sessionStorage.removeItem(collapsedKey); } catch { /* private mode */ }
     // Reset also unhides everything. Previously it left hidden sections
     // hidden, so "Reset" restored the order but not the sections the user
     // had removed — and there was no other way to get them all back at
@@ -977,12 +914,10 @@ export default function Dashboard() {
       // edits win afterwards, guarded by layoutHydratedFor.
       setHiddenSections(new Set(remote.hiddenSections));
       if (remote.widgetOrder.length > 0) {
-        // Same merge the localStorage path uses: keep the user's ordering
-        // for sections that still exist, append any added since they last
+        // Same merge the localStorage path uses: keep the user's ordering for
+        // sections that still exist, slot in any added since they last
         // customized, so a new section doesn't discard their layout.
-        const known   = remote.widgetOrder.filter(id => defaultWidgetOrder.includes(id));
-        const missing = defaultWidgetOrder.filter(id => !known.includes(id));
-        setWidgetOrder([...known, ...missing]);
+        setWidgetOrder(mergeWidgetOrder(remote.widgetOrder, defaultWidgetOrder));
       }
       if (Object.keys(remote.sectionLayouts).length > 0) {
         setSectionLayouts(remote.sectionLayouts);
@@ -1014,23 +949,12 @@ export default function Dashboard() {
   // the score (same numbers ReadinessCard renders).
   const readiness = useReadiness(logs);
 
-  // Readiness explainer redirects — send the user to exactly where they
-  // add the missing signal. Sleep/quality/mood live in the (collapsible)
-  // recovery section on this page, so we close the sheet, expand that
-  // section, and scroll it into view. Recency is driven by workouts, so
-  // that one routes to the Workout page.
-  const goLogReadinessSignal = (target) => {
-    setReadinessInfoOpen(false);
-    if (target === 'workout') { navigate('/workout'); return; }
-    setRecoveryOpen(true);
-    // Defer the scroll a tick so the section has expanded first.
-    setTimeout(() => {
-      try {
-        document.querySelector('[data-recovery-section]')
-          ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      } catch { /* no-op */ }
-    }, 80);
-  };
+  // goLogReadinessSignal is gone. It closed the explainer, expanded the
+  // recovery section and scrolled to [data-recovery-section] — which only
+  // worked while the loggers were a section on this page. They live in the
+  // sheet now, directly above the breakdown that names them, so there is
+  // nothing to navigate to: the only signal you can't log there is
+  // training, and ReadinessSheet routes that one to /workout itself.
   const regimens = useMemo(() => filterAfterReset(rawRegimens, userProfile), [rawRegimens, userProfile]);
   const goals = useMemo(() => filterAfterReset(rawGoals, userProfile), [rawGoals, userProfile]);
 
@@ -1219,63 +1143,70 @@ export default function Dashboard() {
         // see HeroCard). Return null here so a saved widgetOrder that still
         // lists 'readiness' can't render it a second time as a section.
         return null;
+      // "Tonight" — sleep · mood · steps as one three-column row. Keeps the
+      // section id `recovery` deliberately: every saved widgetOrder,
+      // sectionLayouts and hiddenSections entry out there already refers to
+      // it, so renaming the id would silently discard those users' choices
+      // and reappear as a section they had hidden. Only the label changed.
+      //
+      // Gone from here: MacroRingWidget, CalorieProgressWidget and
+      // HydrationRing. All three duplicated the Nutrition tab, which owns
+      // MacroNutrientBox, CalorieTopBar and WaterTracker — no feature lost.
+      // Sleep / mood / steps are NOT duplicated anywhere, which is why they
+      // stayed on the page rather than going with them.
       case 'recovery': return (
         <React.Fragment key="recovery">
-          {/* Recovery card — mirrors Daily Quests exactly: outer Card
-              always visible, the header (icon + label) lives inside,
-              widgets are conditionally rendered, chevron at the bottom
-              toggles. Hitting collapse no longer wipes the whole
-              section like the old SectionHeader + Collapsible
-              wrappers did. */}
-          {/* Was a blue-tinted <Card> wrapping six <Card> widgets — a
-              surface inside a surface, which is the "cards nested within
-              cards" pattern. It also spent an accent hue on grouping
-              (recovery blue vs quests orange) that the heading already
-              does. Now a plain labelled region: the six widgets are the
-              only surfaces, and they line up with every other card on the
-              page instead of being inset from one.
-
-              Kept as a semantic <section> with aria-labelledby so the
-              grouping survives for screen readers now that no box draws
-              it. data-recovery-section is load-bearing — the "open
-              recovery" deep-link scrolls to it. */}
-          <section
-            data-recovery-section
-            aria-labelledby="dash-recovery-heading"
-            className="space-y-2"
-          >
-            <div className="flex items-center gap-2 px-1">
-              <Activity className="w-4 h-4 text-info" />
-              <h3 id="dash-recovery-heading" className="font-heading font-bold text-sm tracking-tight">
-                {tFallback('dashboard.section.recovery', 'Nutrition & Recovery')}
-              </h3>
+          <section aria-labelledby="dash-tonight-heading">
+            <div className="flex items-baseline justify-between gap-2 mb-2 px-1">
+              <span className="flex items-center gap-2 min-w-0">
+                <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" aria-hidden="true" />
+                <h2 id="dash-tonight-heading" className="font-heading font-bold text-sm tracking-tight truncate">
+                  {tFallback('dashboard.section.tonight', 'Tonight')}
+                </h2>
+              </span>
+              <span className="text-micro font-semibold text-muted-foreground/70 shrink-0">
+                {tFallback('dashboard.tonight.note', 'feeds your readiness')}
+              </span>
             </div>
-
-            {recoveryOpen && (
-              <div className="space-y-2">
-                <ErrorBoundary label="MacroRingWidget"><MacroRingWidget userProfile={userProfile} /></ErrorBoundary>
-                <ErrorBoundary label="CalorieProgressWidget"><CalorieProgressWidget userProfile={userProfile} /></ErrorBoundary>
-                {/* Full-width, stacked — a 2-col grid cramped the mood row
-                    (5×44px targets can't fit half the card, so the last
-                    emoji clipped) and clipped the hydration dots. Stacked,
-                    each card has the room its content needs. */}
-                <ErrorBoundary label="HydrationRing"><HydrationRing /></ErrorBoundary>
-                <ErrorBoundary label="MoodLogCard"><MoodLogCard /></ErrorBoundary>
-                <ErrorBoundary label="SleepLogCard"><SleepLogCard /></ErrorBoundary>
-                <ErrorBoundary label="StepsLogCard"><StepsLogCard /></ErrorBoundary>
-              </div>
-            )}
-
-            <button
-              type="button"
-              onClick={toggleRecovery}
-              aria-label={recoveryOpen ? tFallback('dashboard.collapseRecovery', 'Collapse recovery') : tFallback('dashboard.expandRecovery', 'Expand recovery')}
-              aria-expanded={recoveryOpen}
-              className="w-full flex items-center justify-center py-1.5 rounded-sm text-muted-foreground/60 hover:text-foreground active:text-foreground hover:bg-secondary/40 active:bg-secondary/60 transition-colors"
-            >
-              {recoveryOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-            </button>
+            <ErrorBoundary label="TonightRow">
+              <TonightRow readiness={readiness} onOpen={openReadiness} />
+            </ErrorBoundary>
           </section>
+        </React.Fragment>
+      );
+      // The three weekly figures, promoted out of 'progress' into their own
+      // row under the hero. One card with hairline dividers, not three cards.
+      case 'stats': return (
+        <React.Fragment key="stats">
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <Card className="py-4 px-1 divide-x divide-border flex items-stretch">
+              <StatColumn
+                icon={Activity}
+                value={thisWeekLogs.length}
+                label={t('dashboard.stats.thisWeek')}
+                suffix={thisWeekLogs.length === 1 ? t('dashboard.stats.workoutSingular') : t('dashboard.stats.workoutPlural')}
+                accent
+                trend={workoutTrend}
+              />
+              <StatColumn
+                icon={Zap}
+                value={formatVolume(weeklyVolume)}
+                label={t('dashboard.stats.volume')}
+                suffix={weightUnit}
+              />
+              <StatColumn
+                icon={Target}
+                value={muscleGroupCount}
+                label={t('dashboard.stats.muscles')}
+                suffix={muscleGroupCount === 1 ? t('dashboard.stats.groupSingular') : t('dashboard.stats.groupPlural')}
+                trend={muscleTrend}
+              />
+            </Card>
+          </motion.div>
         </React.Fragment>
       );
       case 'challenges': return (
@@ -1299,14 +1230,16 @@ export default function Dashboard() {
           <ErrorBoundary label="DailyChestCard"><DailyChestCard /></ErrorBoundary>
         </React.Fragment>
       );
+      // No motion.div wrapper here, deliberately. LeagueCard returns null
+      // until the user is actually in a league, and a wrapper div renders
+      // either way — which is what stranded the old readiness + league pair
+      // next to an empty half. With nothing between the fragment and the
+      // card, a null card means this section renders NO DOM, so the paired
+      // wrapper's `empty:hidden` collapses it and Daily chest takes the full
+      // width. stretch keeps it the same height as its partner.
       case 'league': return (
         <React.Fragment key="league">
-          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.22, delay: 0.10 }} className="h-full">
-            {/* stretch: this card shares a grid row with the Readiness
-                square and has to match its height. StatsHubModal renders
-                the same card without it — see the prop's docs. */}
-            <ErrorBoundary label="LeagueCard"><LeagueCard stretch onClick={() => setLeagueModalOpen(true)} /></ErrorBoundary>
-          </motion.div>
+          <ErrorBoundary label="LeagueCard"><LeagueCard stretch onClick={() => setLeagueModalOpen(true)} /></ErrorBoundary>
         </React.Fragment>
       );
       case 'friends': return (
@@ -1318,94 +1251,83 @@ export default function Dashboard() {
       );
       case 'progress': return (
         <React.Fragment key="progress">
-          <SectionHeader
-            label={tFallback('dashboard.section.progress', 'Your progress')}
-            open={progressOpen}
-            onToggle={toggleProgress}
-            tFallback={tFallback}
-          />
-          <Collapsible open={progressOpen}>
-            <div className="grid grid-cols-3 gap-2 mb-2">
-              <StatTile icon={Activity} value={thisWeekLogs.length} label={t('dashboard.stats.thisWeek')} suffix={thisWeekLogs.length === 1 ? t('dashboard.stats.workoutSingular') : t('dashboard.stats.workoutPlural')} delay={0.05} accent trend={workoutTrend} />
-              <StatTile icon={Zap} value={formatVolume(weeklyVolume)} label={t('dashboard.stats.volume')} suffix={weightUnit} delay={0.12} />
-              <StatTile icon={Target} value={muscleGroupCount} label={t('dashboard.stats.muscles')} suffix={muscleGroupCount === 1 ? t('dashboard.stats.groupSingular') : t('dashboard.stats.groupPlural')} delay={0.19} trend={muscleTrend} />
-            </div>
-            <div className="mb-2 space-y-2">
-              <ErrorBoundary label="GoalsAlmostComplete">
-                <GoalsAlmostComplete goals={goals} logs={logs} cardioLogs={cardioLogs} limit={1} compact={false} onOpen={() => setGoalsModalOpen(true)} />
-              </ErrorBoundary>
-              <ErrorBoundary label="GoalsProgressStrip">
-                <GoalsProgressStrip goals={goals} logs={logs} onOpen={() => setGoalsModalOpen(true)} />
-              </ErrorBoundary>
-            </div>
-            <div className="mb-2" data-recap-card>
+          <SectionLabel label={tFallback('dashboard.section.progress', 'Your progress')} />
+          {/* Stat tiles moved out to the 'stats' section (its own row, under
+              the hero). What's left here is goals → the week → what to do
+              next, in that order. */}
+          <div className="space-y-2">
+            <ErrorBoundary label="GoalsAlmostComplete">
+              <GoalsAlmostComplete goals={goals} logs={logs} cardioLogs={cardioLogs} limit={1} compact={false} onOpen={() => setGoalsModalOpen(true)} />
+            </ErrorBoundary>
+            <ErrorBoundary label="GoalsProgressStrip">
+              <GoalsProgressStrip goals={goals} logs={logs} onOpen={() => setGoalsModalOpen(true)} />
+            </ErrorBoundary>
+            <div data-recap-card>
               <ErrorBoundary label="WeeklyRecap"><WeeklyRecap logs={logs} cardioLogs={cardioLogs} /></ErrorBoundary>
             </div>
-            <div className="flex flex-wrap items-start gap-2">
-              <div className="flex-1 min-w-[15rem] empty:hidden">
+            {/* Suggestion + memory as a real 2-up from 380px rather than a
+                flex-wrap with a 15rem min: on a 390px phone that min forced
+                them to stack anyway, so the pair never happened where it
+                matters. empty:hidden keeps a card that renders null from
+                leaving half a row of dead space. */}
+            <div className="grid grid-cols-1 min-[380px]:grid-cols-2 gap-2 items-start">
+              <div className="min-w-0 empty:hidden">
                 <ErrorBoundary label="WorkoutSuggestionCard"><WorkoutSuggestionCard logs={logs} cardioLogs={cardioLogs} /></ErrorBoundary>
               </div>
-              <div className="flex-1 min-w-[15rem] empty:hidden">
+              <div className="min-w-0 empty:hidden">
                 <ErrorBoundary label="WorkoutMemoryCard"><WorkoutMemoryCard logs={logs} /></ErrorBoundary>
               </div>
             </div>
-          </Collapsible>
+          </div>
         </React.Fragment>
       );
       case 'actions': {
-        // Single vertical list — top 3 always visible, rest hidden
-        // behind a "Show more" toggle to keep the dashboard compact
-        // (per the "fit in the palm of her hand" goal).
-        const allActions = [
-          { key: 'startWorkout',  to: '/workout', icon: Play,         label: t('dashboard.startWorkout'),
-            iconBg: 'bg-primary/15',  iconColor: 'text-primary' },
+        // 4 × 2 grid. Eight tiles, nothing behind a toggle: the old vertical
+        // list showed three of seven actions and hid the other four, which is
+        // how "Add progress photo" and "Log weight" ended up effectively
+        // undiscoverable on the page that owns them.
+        //
+        // The eighth tile is the widget library — the entry point the
+        // 'customize' section used to be the only route to.
+        const actions = [
+          { key: 'startWorkout',  to: '/workout', icon: Play, accent: true,
+            label: t('dashboard.startWorkout') },
           { key: 'myWeek',        icon: CalendarDays, label: tFallback('dashboard.myWeek', 'My Week'),
-            iconBg: 'bg-info/15',    iconColor: 'text-info',
             onClick: () => setWeekModalOpen(true) },
           { key: 'createRegimen', icon: Dumbbell,     label: t('dashboard.createRegimen'),
-            iconBg: 'bg-primary/15',  iconColor: 'text-primary',
             onClick: () => navigate('/workout', { state: { openRegimens: true } }) },
           { key: 'checkProgress', icon: TrendingUp,   label: t('dashboard.checkProgress'),
-            iconBg: 'bg-info/15',    iconColor: 'text-info',
             onClick: () => { window.scrollTo({ top: 0, behavior: 'auto' }); navigate('/progress'); } },
           { key: 'logMeal',       icon: Apple,        label: t('dashboard.logMeal'),
-            iconBg: 'bg-destructive/15',    iconColor: 'text-destructive',
             onClick: () => navigate('/nutrition', { state: { openLogMeal: true } }) },
           { key: 'logWeight',     icon: Scale,        label: tFallback('dashboard.logWeight', 'Log weight'),
-            iconBg: 'bg-primary/15',   iconColor: 'text-primary',
             onClick: () => setLogWeightOpen(true) },
-          { key: 'addPhoto',      icon: Camera,       label: tFallback('dashboard.addPhoto', 'Add progress photo'),
-            iconBg: 'bg-primary/15',    iconColor: 'text-primary',
+          { key: 'addPhoto',      icon: Camera,       label: tFallback('dashboard.addPhotoShort', 'Add photo'),
             onClick: () => setPhotoCaptureOpen(true) },
+          { key: 'widgets',       icon: LayoutGrid,   label: tFallback('dashboard.actions.widgets', 'Widgets'),
+            onClick: () => {
+              try {
+                document.getElementById('dash-widget-library')
+                  ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              } catch { /* older WebViews — no-op */ }
+            } },
         ];
-        const visibleActions = actionsExpanded ? allActions : allActions.slice(0, 3);
-        const hiddenCount = allActions.length - 3;
         return (
           <React.Fragment key="actions">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.22, delay: 0.15 }}>
-              <div className="flex flex-col gap-2">
-                {visibleActions.map((a, i) => (
-                  a.to ? (
-                    <QuickAction key={a.key} to={a.to} icon={a.icon} label={a.label} delay={0.05 + i * 0.03} iconBg={a.iconBg} iconColor={a.iconColor} />
-                  ) : (
-                    <QuickAction key={a.key} icon={a.icon} label={a.label} onClick={a.onClick} delay={0.05 + i * 0.03} iconBg={a.iconBg} iconColor={a.iconColor} />
-                  )
-                ))}
-                {hiddenCount > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => setActionsExpanded(v => !v)}
-                    className="mt-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-muted-foreground hover:text-foreground active:text-foreground hover:bg-secondary/50 active:bg-secondary/50 transition-colors"
-                    aria-expanded={actionsExpanded}
-                  >
-                    <ChevronDown className={`w-3.5 h-3.5 transition-transform ${actionsExpanded ? 'rotate-180' : ''}`} />
-                    {actionsExpanded
-                      ? tFallback('dashboard.actions.showLess', 'Show less')
-                      : tFallback('dashboard.actions.showMore', 'Show {n} more', { n: hiddenCount })}
-                  </button>
-                )}
-              </div>
-            </motion.div>
+            <SectionLabel label={t('dashboard.quickActions')} />
+            <div className="grid grid-cols-4 gap-2">
+              {actions.map((a, i) => (
+                <ActionTile
+                  key={a.key}
+                  to={a.to}
+                  icon={a.icon}
+                  label={a.label}
+                  onClick={a.onClick}
+                  accent={a.accent}
+                  delay={0.04 + i * 0.02}
+                />
+              ))}
+            </div>
           </React.Fragment>
         );
       }
@@ -1418,6 +1340,7 @@ export default function Dashboard() {
       );
       case 'discover': return (
         <React.Fragment key="discover">
+          <SectionLabel label={tFallback('dashboard.section.discover', 'Discover')} />
           <ErrorBoundary label="DiscoveryCards">
             <DiscoveryCards
               logs={rawLogs}
@@ -1449,7 +1372,9 @@ export default function Dashboard() {
       );
       case 'customize': return (
         <React.Fragment key="customize">
+          {/* id is the scroll target for the Widgets action tile. */}
           <motion.div
+            id="dash-widget-library"
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.26, delay: 0.25 }}
@@ -1592,7 +1517,7 @@ export default function Dashboard() {
           userProfile={userProfile}
           user={user}
           onPrimary={() => navigate('/workout')}
-          onReadinessInfo={() => setReadinessInfoOpen(true)}
+          onReadinessInfo={() => openReadiness()}
           navigate={navigate}
           t={t}
           tFallback={tFallback}
@@ -1633,14 +1558,31 @@ export default function Dashboard() {
               the layout icon to switch between hamburger and hotdog.
               Hotdog pairs travel together when reordered. ═══ */}
       <Reorder.Group axis="y" values={dashboardRows.map(r => r.rowKey)} onReorder={handleWidgetReorder} as="div">
-        {dashboardRows.map(row => (
-          <Reorder.Item key={row.rowKey} value={row.rowKey} as="div" dragListener={editMode} className={`relative mb-3${editMode ? ' touch-none select-none' : ''}`}>
+        {dashboardRows.map((row, rowIndex) => {
+          // Two spacing registers only: 8px inside a group, 24px between
+          // sections (CLAUDE.md bans 12–20px, which is exactly what the old
+          // mb-3 was). Exactly ONE 32px break on the page, and it sits
+          // wherever the action block currently ends — the seam between
+          // "do something now" and "here's how it's going". Computed from
+          // the live order so dragging the grid somewhere else moves the
+          // break with it instead of stranding it mid-page.
+          const prevRow = rowIndex > 0 ? dashboardRows[rowIndex - 1] : null;
+          const afterActions = !!prevRow && prevRow.sections.includes('actions');
+          return (
+          <Reorder.Item
+            key={row.rowKey}
+            value={row.rowKey}
+            as="div"
+            dragListener={editMode}
+            className={`relative ${afterActions ? 'mt-8' : ''}${editMode ? ' touch-none select-none' : ''}`}
+          >
             {editMode && (
               <div className="flex items-center gap-2 mt-6 mb-1 px-1">
                 <GripVertical className="w-4 h-4 text-primary/50 cursor-grab active:cursor-grabbing" />
                 {row.sections.map((id, i) => {
                   const layout = sectionLayouts[id] || 'full';
                   const isHalf = layout === 'half';
+                  const isCollapsed = collapsedSections.has(id);
                   return (
                     <React.Fragment key={id}>
                       {i > 0 && <span className="text-micro text-primary/30">+</span>}
@@ -1659,6 +1601,26 @@ export default function Dashboard() {
                         <span className="text-micro font-bold tracking-[0.04em]">
                           {SECTION_LABELS[id]?.(tFallback, t) || id}
                         </span>
+                      </button>
+                      {/* Collapse — the old "Hide / Show all" header on every
+                          section, moved in here beside drag / pair / hide so
+                          normal mode carries content instead of controls. */}
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); toggleCollapsed(id); }}
+                        onPointerDown={(e) => e.stopPropagation()}
+                        title={isCollapsed
+                          ? tFallback('dashboard.showAll', 'Show all')
+                          : tFallback('dashboard.hide', 'Hide')}
+                        aria-label={isCollapsed
+                          ? tFallback('dashboard.showAll', 'Show all')
+                          : tFallback('dashboard.hide', 'Hide')}
+                        aria-expanded={!isCollapsed}
+                        className="flex items-center justify-center w-5 h-5 rounded-sm hover:bg-primary/10 active:bg-primary/20 text-muted-foreground hover:text-foreground active:text-foreground transition-colors"
+                      >
+                        {isCollapsed
+                          ? <ChevronDown className="w-3 h-3" />
+                          : <ChevronUp   className="w-3 h-3" />}
                       </button>
                       {/* Per-section hide button — tapping this removes
                           the section from the user's dashboard. The
@@ -1684,23 +1646,38 @@ export default function Dashboard() {
                 })}
               </div>
             )}
-            <div className={row.sections.length === 2 ? 'flex items-stretch gap-2' : ''}>
+            {/* The 24px inter-section gap lives on THIS div, not on the
+                Reorder.Item, and it carries empty:hidden. Several sections
+                render nothing depending on state (LeagueCard before you join
+                a league, DailyChestCard before it's ready, the friends panel
+                with no friends) and the old markup left a gap behind for
+                each one — margin on a wrapper that was still in the layout.
+                Now an empty section costs zero pixels, while edit mode still
+                shows its control strip so it can be found and reordered. */}
+            <div className={`mb-6 empty:hidden ${row.sections.length === 2 ? 'flex items-stretch gap-2' : ''}`}>
               {row.sections.map(id => {
-                // Default hotdog = 50/50. Readiness in a hotdog row is
-                // a fixed small square (24 = 96px); whichever section
-                // it's paired with takes the remaining flex-1 width.
-                const widthClass = row.sections.length === 2
-                  ? (id === 'readiness' ? 'shrink-0 w-20' : 'flex-1 min-w-0')
-                  : '';
+                // Default hotdog = 50/50. empty:hidden so a half that renders
+                // nothing gives its width back to its partner instead of
+                // leaving a hole.
+                const widthClass = row.sections.length === 2 ? 'flex-1 min-w-0 empty:hidden' : '';
                 return (
                   <div key={id} className={widthClass}>
-                    {renderDashboardSection(id, row.sections.length === 2)}
+                    {collapsedSections.has(id)
+                      ? (
+                        <CollapsedStub
+                          label={SECTION_LABELS[id]?.(tFallback, t) || id}
+                          onExpand={() => toggleCollapsed(id)}
+                          tFallback={tFallback}
+                        />
+                      )
+                      : renderDashboardSection(id, row.sections.length === 2)}
                   </div>
                 );
               })}
             </div>
           </Reorder.Item>
-        ))}
+          );
+        })}
       </Reorder.Group>
 
       {/* ── Prestige prompt — only when at max level ───────────── */}
@@ -1723,136 +1700,24 @@ export default function Dashboard() {
         onClose={() => setLeagueModalOpen(false)}
       />
 
-      {/* Readiness algorithm explainer — opened by tapping the
-          Readiness card. Screenshot feedback ("either remove this
-          button or have it so you can tap it and there's a little
-          prompt that says what is the readiness algorithm"). */}
-      {readinessInfoOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          onClick={() => setReadinessInfoOpen(false)}
-        >
-          <div className="absolute inset-0 bg-black/55 backdrop-blur-[2px]" />
-          <div
-            className="relative z-10 w-full max-w-md rounded-2xl bg-card border border-border shadow-2xl p-6"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-start justify-between gap-3 mb-3">
-              <div>
-                <p className="font-mono text-micro font-bold tracking-[0.04em] text-primary mb-1">How it's calculated</p>
-                <h3 className="font-heading font-bold text-lg leading-tight">Your Readiness score</h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setReadinessInfoOpen(false)}
-                aria-label="Close"
-                className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-secondary/60 active:bg-secondary/60 transition-colors -mt-1 -me-2"
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
-              </button>
-            </div>
-            {/* Live score + label so the header isn't abstract. */}
-            <div className="flex items-baseline gap-2 mb-3">
-              <span className="font-heading font-black text-4xl tabular-nums leading-none">{readiness.score}</span>
-              <span className="text-sm font-bold text-muted-foreground">/ 100 · {readiness.label}</span>
-            </div>
-            <p className="text-sm text-muted-foreground leading-relaxed mb-4">
-              Blended from four signals you log. Here's exactly what went into today's number — each row shows your value, the 0-100 it scored, and the points it added.
-            </p>
-            <ul className="space-y-2.5 mb-4">
-              {(() => {
-                const b = readiness.breakdown || {};
-                const moodLabels = ['Drained', 'Low', 'OK', 'Good', 'Great'];
-                const moodLogged = !!(readiness.mood?.mood || readiness.sleep?.soreness);
-                const rows = [
-                  {
-                    Icon: Moon, name: "Last night's sleep", weight: '40%', d: b.sleep,
-                    value: b.sleep?.logged ? `${b.sleep.value} hr` : null,
-                    // One "Log sleep" button covers hours + quality (both come
-                    // from the sleep log), shown when either is missing.
-                    cta: (!b.sleep?.logged || !b.quality?.logged) ? { label: 'Log sleep', target: 'recovery' } : null,
-                  },
-                  {
-                    Icon: Star, name: 'Sleep quality', weight: '20%', d: b.quality,
-                    value: b.quality?.logged ? `${b.quality.value} / 5` : null,
-                  },
-                  {
-                    Icon: Smile, name: 'Mood / soreness', weight: '25%', d: b.soreness,
-                    value: readiness.mood?.mood
-                      ? moodLabels[Math.max(0, Math.min(4, readiness.mood.mood - 1))]
-                      : (readiness.sleep?.soreness ? `Soreness ${readiness.sleep.soreness}/5` : null),
-                    cta: moodLogged ? null : { label: 'Log mood', target: 'recovery' },
-                  },
-                  {
-                    Icon: Dumbbell, name: 'Days since last workout', weight: '15%', d: b.recency,
-                    value: b.recency?.logged
-                      ? (b.recency.value === 0 ? 'Trained today' : `${b.recency.value} day${b.recency.value === 1 ? '' : 's'} ago`)
-                      : null,
-                    // Always offer the workout route — training is the action
-                    // that moves this signal.
-                    cta: { label: 'Log a workout', target: 'workout' },
-                  },
-                ];
-                return rows.map((r) => (
-                  <li key={r.name} className="flex gap-3 items-start">
-                    {/* Was a 20px emoji (😴 ⭐ 🙂 🏋️). A Lucide glyph in a
-                        muted tile inherits colour and weight, sits on the
-                        text baseline, and renders the same on every OS. */}
-                    <span className="shrink-0 mt-0.5 w-7 h-7 rounded-sm bg-secondary/60 text-muted-foreground flex items-center justify-center">
-                      <r.Icon className="w-3.5 h-3.5" aria-hidden="true" />
-                    </span>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-baseline justify-between gap-2">
-                        <p className="text-sm font-semibold">{r.name}</p>
-                        <p className="text-xs font-bold tabular-nums shrink-0">
-                          {r.d?.logged
-                            ? <span className="text-foreground">{r.value}</span>
-                            : <span className="text-muted-foreground/70 font-medium italic">not logged</span>}
-                        </p>
-                      </div>
-                      {/* Sub-score bar + contribution — the "why". */}
-                      <div className="flex items-center gap-2 mt-1">
-                        <div className="flex-1 h-1.5 rounded-full bg-secondary overflow-hidden">
-                          <div
-                            className={`h-full rounded-full ${r.d?.logged ? 'bg-primary' : 'bg-muted-foreground/30'}`}
-                            style={{ width: `${Math.max(0, Math.min(100, r.d?.score ?? 0))}%` }}
-                          />
-                        </div>
-                        <span className="text-micro font-bold tabular-nums text-muted-foreground shrink-0 w-14 text-end">
-                          +{r.d?.contribution ?? 0} pts
-                        </span>
-                      </div>
-                      <p className="text-micro text-muted-foreground/70 leading-snug mt-0.5">
-                        {r.d?.logged
-                          ? `Scored ${r.d.score}/100 · weighted ${r.weight}`
-                          : `No data yet — using a neutral estimate (${r.d?.score ?? 70}/100). Log it to sharpen your score.`}
-                      </p>
-                      {r.cta && (
-                        <button
-                          type="button"
-                          onClick={() => goLogReadinessSignal(r.cta.target)}
-                          className="mt-1.5 inline-flex items-center gap-0.5 text-micro font-bold text-primary hover:underline"
-                        >
-                          {r.cta.label} <span aria-hidden="true">→</span>
-                        </button>
-                      )}
-                    </div>
-                  </li>
-                ));
-              })()}
-            </ul>
-            <p className="text-micro text-muted-foreground/80 leading-relaxed">
-              These four, weighted together, make your {readiness.score}/100. The more you log (sleep, mood, workouts), the less we estimate — and the more the number reflects you.
-            </p>
-            <button
-              type="button"
-              onClick={() => setReadinessInfoOpen(false)}
-              className="w-full mt-4 py-3 rounded-lg bg-primary text-primary-foreground font-bold text-sm hover:opacity-90 transition-opacity"
-            >
-              Got it
-            </button>
-          </div>
-        </div>
+      {/* Readiness sheet — the score breakdown AND the sleep / mood /
+          steps loggers, opened by the Readiness card in the hero or by any
+          column of the Tonight row. Was a ~130-line inline modal here that
+          explained the score and then pointed at a section further down the
+          page to actually log anything; that section no longer exists, so
+          the controls moved into the sheet and this became one lazy import.
+          Suspense fallback is null: the sheet is the response to a tap, and
+          a skeleton that flashes for one frame reads as a glitch. */}
+      {readinessSheetOpen && (
+        <Suspense fallback={null}>
+          <ReadinessSheet
+            open={readinessSheetOpen}
+            onClose={() => setReadinessSheetOpen(false)}
+            readiness={readiness}
+            focus={readinessFocus}
+            onLogWorkout={() => navigate('/workout')}
+          />
+        </Suspense>
       )}
 
       {/* Dashboard-level quick-action modals.

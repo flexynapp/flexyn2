@@ -23,6 +23,33 @@ export const LAYOUTS_KEY = (uid) => `flexyn.dashSectionLayouts.${uid || 'anon'}`
 const LAYOUT_VERSION = 1;
 
 /**
+ * Reconcile a saved widget order against the current defaults.
+ *
+ * Keeps the user's ordering for sections that still exist, drops ids we no
+ * longer render, and places any NEW section at the index it holds in
+ * `defaults` — not at the end.
+ *
+ * The append-at-the-end version was fine while every new section was a tail
+ * addition, and wrong the first time one wasn't: 'stats' belongs directly
+ * under the hero, so appending it would have put the page's most-glanced
+ * numbers at the very bottom for every user who had ever touched edit mode,
+ * and left them to work out that dragging fixes it.
+ *
+ * @param {string[]} saved
+ * @param {string[]} defaults
+ * @returns {string[]}
+ */
+export function mergeWidgetOrder(saved, defaults) {
+  if (!Array.isArray(saved) || !Array.isArray(defaults)) return [...(defaults || [])];
+  const result = saved.filter((id, i) => defaults.includes(id) && saved.indexOf(id) === i);
+  defaults.forEach((id, defaultIndex) => {
+    if (result.includes(id)) return;
+    result.splice(Math.min(defaultIndex, result.length), 0, id);
+  });
+  return result;
+}
+
+/**
  * Pack the three pieces of edit-mode state into the blob stored in
  * user_profiles.dashboard_layout.
  *

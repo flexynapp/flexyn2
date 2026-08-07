@@ -5,7 +5,7 @@ vi.mock('@/api/db', () => ({ db: { auth: { updateMe: (...a) => updateMe(...a) } 
 
 const {
   packLayout, unpackLayout, writeLayoutToLocal, clearLayoutLocal,
-  queueLayoutSync, flushLayoutSync,
+  queueLayoutSync, flushLayoutSync, mergeWidgetOrder,
   HIDDEN_KEY, ORDER_KEY, LAYOUTS_KEY,
 } = await import('../dashboardLayout');
 
@@ -17,6 +17,52 @@ beforeEach(() => {
 afterEach(() => {
   flushLayoutSync();
   vi.useRealTimers();
+});
+
+describe('mergeWidgetOrder', () => {
+  const DEFAULTS = ['stats', 'actions', 'recovery', 'challenges', 'progress', 'customize'];
+
+  it('keeps the user ordering for sections that still exist', () => {
+    const saved = ['progress', 'challenges', 'actions', 'recovery', 'stats', 'customize'];
+    expect(mergeWidgetOrder(saved, DEFAULTS)).toEqual(saved);
+  });
+
+  it('drops ids we no longer render', () => {
+    const saved = ['actions', 'readiness', 'friends', 'stats'];
+    const out = mergeWidgetOrder(saved, DEFAULTS);
+    expect(out).not.toContain('readiness');
+    expect(out).not.toContain('friends');
+  });
+
+  // The regression this function exists for: 'stats' belongs directly under
+  // the hero. Appending new ids put it at the very bottom for every user who
+  // had ever opened edit mode.
+  it('inserts a new section at its DEFAULT index, not at the end', () => {
+    const saved = ['actions', 'recovery', 'challenges', 'progress', 'customize'];
+    expect(mergeWidgetOrder(saved, DEFAULTS)[0]).toBe('stats');
+  });
+
+  it('keeps several new sections in their default order', () => {
+    const out = mergeWidgetOrder(['challenges', 'customize'], DEFAULTS);
+    // Each missing id lands at its own default index, so 'progress' (4)
+    // slots in ahead of the 'customize' the user already had.
+    expect(out).toEqual(['stats', 'actions', 'recovery', 'challenges', 'progress', 'customize']);
+  });
+
+  it('de-duplicates a corrupted saved order', () => {
+    const out = mergeWidgetOrder(['actions', 'actions', 'stats'], DEFAULTS);
+    expect(out.filter(id => id === 'actions')).toHaveLength(1);
+  });
+
+  it('falls back to the defaults for a non-array saved value', () => {
+    expect(mergeWidgetOrder(null, DEFAULTS)).toEqual(DEFAULTS);
+    expect(mergeWidgetOrder('nope', DEFAULTS)).toEqual(DEFAULTS);
+  });
+
+  it('returns every default exactly once, whatever the input', () => {
+    const out = mergeWidgetOrder(['progress', 'zzz', 'progress'], DEFAULTS);
+    expect([...out].sort()).toEqual([...DEFAULTS].sort());
+  });
 });
 
 describe('packLayout', () => {
