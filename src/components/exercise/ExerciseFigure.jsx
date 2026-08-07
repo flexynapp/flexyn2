@@ -17,7 +17,7 @@
 // convention before authoring a pose.
 
 import React from 'react';
-import { SEG, solve, pts, PROPS } from '@/lib/exerciseFigureGeometry';
+import { SEG, solve, pts, PROPS, anchorFor, propMarkup } from '@/lib/exerciseFigureGeometry';
 
 /**
  * A single posed figure.
@@ -27,12 +27,15 @@ import { SEG, solve, pts, PROPS } from '@/lib/exerciseFigureGeometry';
  * @param {boolean} ground  floor reference line, so a push-up reads as
  *                          horizontal rather than as a person falling over
  */
-export default function ExerciseFigure({ pose = {}, accent = false, className = '' }) {
+export default function ExerciseFigure({ pose = {}, accent = false, anchor = null, className = '' }) {
   const s = solve(pose);
   // Apparatus decides the floor too: a dead hang drawn above a floor line
   // reads as someone standing with their arms up.
   const prop = pose.prop ? PROPS[pose.prop] : null;
   const showFloor = prop ? prop.floor : true;
+  // Held implements follow this frame's hands; fixed ones use the anchor the
+  // triptych carried over from frame one, so the gym does not move.
+  const at = prop ? (prop.held ? anchorFor(pose) : (anchor || anchorFor(pose))) : null;
 
   return (
     <svg
@@ -49,7 +52,7 @@ export default function ExerciseFigure({ pose = {}, accent = false, className = 
         <line x1="12" y1="182" x2="188" y2="182" strokeWidth="2" strokeDasharray="4 6" opacity="0.28" />
       )}
       {prop && (
-        <g opacity="0.55" dangerouslySetInnerHTML={{ __html: prop.draw }} />
+        <g dangerouslySetInnerHTML={{ __html: propMarkup(pose.prop, at, s) }} />
       )}
 
       {/* Far-side limbs first and dimmer, so the figure reads as having depth
@@ -84,12 +87,13 @@ export default function ExerciseFigure({ pose = {}, accent = false, className = 
  */
 export function ExerciseDiagram({ frames = [], labels = [], className = '' }) {
   if (!frames.length) return null;
+  const anchor = anchorFor(frames[0]);
   return (
     <div className={`grid grid-cols-3 gap-2 ${className}`}>
       {frames.map((pose, i) => (
         <figure key={i} className="flex flex-col items-center gap-1 min-w-0">
           <div className="w-full rounded-lg bg-secondary/40 border border-border/50 text-foreground">
-            <ExerciseFigure pose={pose} accent={i === 1} className="w-full h-auto" />
+            <ExerciseFigure pose={pose} accent={i === 1} anchor={anchor} className="w-full h-auto" />
           </div>
           <figcaption className="text-micro text-muted-foreground text-center leading-tight">
             {labels[i] || ['Start', 'Middle', 'End'][i]}

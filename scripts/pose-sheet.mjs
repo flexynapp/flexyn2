@@ -14,15 +14,15 @@
 
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
-import { figureMarkup } from '../src/lib/exerciseFigureGeometry.js';
+import { figureMarkup, anchorFor, PROPS } from '../src/lib/exerciseFigureGeometry.js';
 import { POSES } from '../src/lib/data/exercisePoses.js';
 
 const out = process.argv[2] || 'dist/pose-sheet.html';
 
-const panel = (pose, label, isMiddle) => `
+const panel = (pose, label, isMiddle, anchor) => `
   <figure class="panel">
     <svg viewBox="0 0 200 200" fill="none" stroke-linecap="round" stroke-linejoin="round"
-         class="${isMiddle ? 'mid' : ''}">${figureMarkup(pose, { accent: isMiddle })}</svg>
+         class="${isMiddle ? 'mid' : ''}">${figureMarkup(pose, { accent: isMiddle, anchor })}</svg>
     <figcaption>${label}</figcaption>
   </figure>`;
 
@@ -30,7 +30,8 @@ const rows = Object.entries(POSES).map(([name, { frames, labels }]) => `
   <section class="row">
     <h2>${name}</h2>
     <div class="panels">
-      ${frames.map((p, i) => panel(p, labels?.[i] || ['Start', 'Middle', 'End'][i], i === 1)).join('')}
+      ${(() => { const a = anchorFor(frames[0]);
+         return frames.map((p, i) => panel(p, labels?.[i] || ['Start', 'Middle', 'End'][i], i === 1, a)).join(''); })()}
     </div>
   </section>`).join('');
 
