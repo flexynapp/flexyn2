@@ -1137,10 +1137,25 @@ export default function GymMap({ onClose, onContinue }) {
                       Continue
                     </Button>
                   )
+                ) : myGymIds.has(selected.id) ? (
+                  // ?members=1 opens the directory on arrival, because
+                  // the gym page has no members TAB — it opens on Feed
+                  // and the roster is a modal behind the header. A
+                  // button called "View Members" that lands two taps
+                  // short of members is the same lie "View Hub" told
+                  // onboarding about a route it couldn't reach.
+                  <Button variant="outline" className="flex-1"
+                    onClick={() => navigate(`/gym/${selected.id}?members=1`)}>
+                    View Members
+                  </Button>
                 ) : (
+                  // The roster is members-only (mig 301), so for a gym
+                  // you haven't joined this cannot promise members. The
+                  // page still has something to show — the anonymised
+                  // activity preview and a Join.
                   <Button variant="outline" className="flex-1"
                     onClick={() => navigate(`/gym/${selected.id}`)}>
-                    View Hub
+                    View Gym
                   </Button>
                 )}
               </div>

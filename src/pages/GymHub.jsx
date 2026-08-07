@@ -122,6 +122,16 @@ export default function GymHub() {
     getGymPublicPreview(id).then(p => { if (!cancelled) setPreview(p); });
     return () => { cancelled = true; };
   }, [id]);
+
+  // The map's "View Members" arrives with ?members=1. This page has no
+  // members tab — it opens on Feed and the roster is a modal — so
+  // without this the button lands two taps short of what it promises.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (new URLSearchParams(window.location.search).get('members') === '1') {
+      setMembersOpen(true);
+    }
+  }, [id]);
   const [joining, setJoining] = useState(false);
 
   useEffect(() => {
@@ -219,14 +229,28 @@ export default function GymHub() {
                 {[gym.street_address, gym.city, gym.state_code].filter(Boolean).join(', ')}
               </p>
               <div className="flex items-center gap-3 mt-2 text-xs">
-                <button
-                  type="button"
-                  onClick={() => setMembersOpen(true)}
-                  className="flex items-center gap-1 text-muted-foreground hover:text-foreground active:text-foreground transition-colors"
-                  aria-label="View members"
-                >
-                  <Users className="w-3 h-3" /> <span className="tabular-nums">{gym.member_count}</span> members
-                </button>
+                {/* Tappable only for members. The roster is members-only
+                    since mig 301, and this button sits in the HEADER —
+                    visible to everyone — so a non-member tapping it got
+                    a silently empty directory. That migration's own note
+                    claimed listGymMembers was "only rendered on a
+                    members-only tab", which was wrong: it is right here.
+                    The COUNT stays visible either way; member_count is
+                    public and on the map pins already. */}
+                {(isMember || isOwner) ? (
+                  <button
+                    type="button"
+                    onClick={() => setMembersOpen(true)}
+                    className="flex items-center gap-1 text-muted-foreground hover:text-foreground active:text-foreground transition-colors"
+                    aria-label="View members"
+                  >
+                    <Users className="w-3 h-3" /> <span className="tabular-nums">{gym.member_count}</span> members
+                  </button>
+                ) : (
+                  <span className="flex items-center gap-1 text-muted-foreground">
+                    <Users className="w-3 h-3" /> <span className="tabular-nums">{gym.member_count}</span> members
+                  </span>
+                )}
                 {isOwner && (
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-600 dark:text-amber-300 border border-amber-400/30 font-bold uppercase tracking-wide text-micro">
                     <Crown className="w-2.5 h-2.5" /> Owner
