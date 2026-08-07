@@ -59,7 +59,12 @@ const CAPSULE_META = {
 // drift apart again.
 
 // ─── Capsule card ─────────────────────────────────────────────────────────────
-function CapsuleCard({ capsuleRow, onOpenCapsule }) {
+// Exported for the regression test only — nothing else imports it, and the
+// default export stays the component this module is about. It is exported
+// rather than tested through <UserBag> because reaching this button that way
+// means standing up auth, the query client and two live Supabase reads, none
+// of which are the thing under test: what this card hands the opener.
+export function CapsuleCard({ capsuleRow, onOpenCapsule }) {
   const meta = CAPSULE_META[capsuleRow.capsule_type] ?? CAPSULE_META.standard;
   return (
     <RarityFrame
