@@ -5,14 +5,18 @@
 // markdown-ish string with line breaks; the chat UI renders it with simple
 // whitespace-pre-wrap formatting.
 //
-// Why rule-based instead of an LLM call:
+// These are no longer the Coach's primary path — coach.js asks the
+// `coach-chat` Edge Function first, and this router is what answers when that
+// is unavailable (not deployed, no API key, offline, daily cap reached). It
+// stays because the properties that made it the original choice still hold
+// where it runs:
 //   1. Zero per-message cost — works at any scale
 //   2. Deterministic — same data → same advice
 //   3. No API key required to ship
 //   4. The advice is grounded in actual user data, not LLM hallucination
 //
-// Real LLM integration is layered on top in coach.js for users who configure
-// VITE_ANTHROPIC_API_KEY — see that file.
+// buildCoachContext() at the bottom of this file assembles the same data into
+// the digest the language model reads, so both paths describe one truth.
 
 import { supabase } from '@/api/supabaseClient';
 import { safeSelect } from '@/api/safeSelect';
@@ -587,4 +591,137 @@ export async function respond({ user, intent }) {
     console.warn('[aiCoach] responder threw:', err);
     return "Hmm, something went wrong looking at your data. Try again in a moment.";
   }
+}
+
+// ── LLM context digest ───────────────────────────────────────────────────────
+//
+// The same data the responders above read, assembled once into a compact
+// object for the `coach-chat` Edge Function. Everything the model is allowed
+// to state as fact about this user comes from here — the system prompt tells
+// it never to invent a number, so anything missing from this object is
+// something the coach will say it doesn't know rather than guess at.
+//
+// Three constraints shaped it:
+//
+//   1. **Compact.** It rides in the prompt on every message, so it is capped
+//      at 4 KB server-side. Names and numbers, no raw rows, no set-by-set
+//      history — the model needs enough to be specific, not the database.
+//   2. **No free text from other users.** Nothing here crosses a user
+//      boundary; it is all the caller's own rows.
+//   3. **Fails soft, field by field.** Every section is independently
+//      try/caught. A broken cardio table degrades the cardio line, it does
+//      not blank the whole digest and silently turn the coach generic.
+
+const _n = (v) => (Number.isFinite(Number(v)) ? Number(v) : null);
+
+export async function buildCoachContext({ user, profile = {}, excludeMuscleGroups = [] } = {}) {
+  const ctx = {
+    // Stated up front so the model reports weights in the unit the user
+    // reads everywhere else in the app. Logs are stored in lb.
+    units: profile?.weight_unit === 'kg' ? 'kg' : 'lb',
+    today: format(new Date(), 'yyyy-MM-dd'),
+  };
+
+  ctx.profile = {
+    sex:           profile?.gender || null,
+    age:           _n(profile?.age),
+    bodyweightLb:  _n(profile?.weight_lbs),
+    skillLevel:    profile?.level || profile?.skill || null,
+    goals:         Array.isArray(profile?.fitness_goals) ? profile.fitness_goals : [],
+    nutritionGoal: profile?.nutrition_goal || null,
+    weeklyRateLbs: _n(profile?.weekly_rate_lbs),
+    trainingDaysPerWeek: _n(profile?.days) ?? _n(profile?.daysCount),
+    // Named so the model never suggests a food the user can't eat — the
+    // same rule fuelNote() follows in trainingModifiers.
+    dietaryRestrictions: Array.isArray(profile?.dietary_restrictions) ? profile.dietary_restrictions : [],
+  };
+
+  // Muscle groups an active injury rules out. The model must not program
+  // around these itself (that's the generator's job) but it must not
+  // cheerfully suggest them in prose either.
+  ctx.injuries = { avoidMuscleGroups: excludeMuscleGroups || [] };
+
+  const [workouts, cardio, profileRow] = await Promise.all([
+    _fetchRecentWorkouts(user?.email, 365).catch(() => []),
+    _fetchRecentCardio(user?.email, 14).catch(() => []),
+    _fetchProfile(user?.id).catch(() => null),
+  ]);
+
+  try {
+    const cutoff7  = subDays(new Date(), 7);
+    const cutoff14 = subDays(new Date(), 14);
+    const last7  = workouts.filter(w => new Date(w.date) >= cutoff7);
+    const last14 = workouts.filter(w => new Date(w.date) >= cutoff14);
+
+    const setsByMuscle = { chest: 0, back: 0, shoulders: 0, arms: 0, legs: 0, core: 0 };
+    for (const w of last14) {
+      for (const ex of w.exercises || []) {
+        const grp = classifyExercise(ex.name);
+        if (grp) setsByMuscle[grp] += (ex.sets || []).length;
+      }
+    }
+
+    ctx.training = {
+      sessionsLast7:  last7.length,
+      sessionsLast14: last14.length,
+      daysSinceLastSession: workouts[0]?.date
+        ? differenceInCalendarDays(new Date(), new Date(workouts[0].date))
+        : null,
+      setsByMuscleLast14: setsByMuscle,
+      // Exercise names only. Enough for "you've squatted three times this
+      // week", far short of shipping every set.
+      recentSessions: last14.slice(0, 6).map(w => ({
+        date: w.date ? format(new Date(w.date), 'yyyy-MM-dd') : null,
+        exercises: (w.exercises || []).map(e => e.name).filter(Boolean).slice(0, 10),
+      })),
+    };
+  } catch { ctx.training = null; }
+
+  try {
+    // Same top-set logic prsResponder uses, so the chat and the PR answer
+    // can never disagree about the same lift.
+    const prMap = {};
+    for (const w of workouts) {
+      for (const ex of w.exercises || []) {
+        const name = ex.name?.trim();
+        if (!name) continue;
+        const top = (ex.sets || []).reduce((best, s) => (
+          (Number(s.weight) || 0) > (best?.weight || 0)
+            ? { weight: Number(s.weight), reps: Number(s.reps) }
+            : best
+        ), null);
+        if (!top || top.weight <= 0) continue;
+        if (!prMap[name] || top.weight > prMap[name].weight) {
+          prMap[name] = { weight: top.weight, reps: top.reps, date: w.date };
+        }
+      }
+    }
+    ctx.topLifts = Object.entries(prMap)
+      .sort((a, b) => b[1].weight - a[1].weight)
+      .slice(0, 8)
+      .map(([name, pr]) => ({
+        name,
+        weightLb: pr.weight,
+        reps: pr.reps,
+        date: pr.date ? format(new Date(pr.date), 'yyyy-MM-dd') : null,
+      }));
+  } catch { ctx.topLifts = []; }
+
+  try {
+    ctx.cardioLast14 = {
+      sessions: cardio.length,
+      totalMinutes: Math.round(cardio.reduce((s, c) => s + (Number(c.duration_minutes) || 0), 0)),
+      totalDistanceKm: Math.round(cardio.reduce((s, c) => s + (Number(c.distance_km) || 0), 0) * 10) / 10,
+    };
+  } catch { ctx.cardioLast14 = null; }
+
+  try {
+    ctx.streaks = {
+      workoutStreakDays: _n(profileRow?.workout_streak),
+      longestWorkoutStreakDays: _n(profileRow?.longest_workout_streak),
+      loginStreakDays: _n(profileRow?.login_streak),
+    };
+  } catch { ctx.streaks = null; }
+
+  return ctx;
 }

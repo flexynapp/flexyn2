@@ -12,6 +12,11 @@ const enKeys = {
   'coach.thinking':        'Thinking…',
   'coach.welcome.title':   'Your personal coach',
   'coach.welcome.desc':    'Ask me anything about your training. I read your actual workout data to give you specific advice.',
+  // Shown once the daily cap on model-backed replies is hit. The coach keeps
+  // answering from the rules engine — this explains why it got simpler.
+  // English-only for now; tFallback carries it on the other 14 languages
+  // until a native pass, per the no-machine-translation rule in CLAUDE.md.
+  'coach.capped':          "You've hit today's limit for detailed answers — back to the basics until tomorrow.",
 };
 
 const esKeys = {

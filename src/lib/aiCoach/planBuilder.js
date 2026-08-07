@@ -12,9 +12,11 @@
 //                        Used when the user just wants something to do now.
 //
 // Everything here is rule-based and deterministic (the parser is pure; only
-// buildCoachPlan touches the DB, via generateWorkout's history lookup). If
-// VITE_ANTHROPIC_API_KEY is set, coach.js can polish the intro text — but the
-// plan itself is always generated locally so it works with zero config.
+// buildCoachPlan touches the DB, via generateWorkout's history lookup). The
+// language model in coach.js decides WHETHER a message is a build-me-a-session
+// request and restates the goal, and writes the intro copy — but the session
+// itself is always generated here, so it stays reproducible, saveable, and
+// works with zero config when no model is available.
 
 import { buildStarterRegimen } from '@/lib/data/starterRegimen';
 import { generateWorkout } from './workoutGenerator';

@@ -41,7 +41,7 @@
 
 **Charts/media:** `recharts` (Progress/Body charts — Line/Bar/ResponsiveContainer), hand-rolled SVG (nutrition mini-bars), `html2canvas` (share-card PNG export), `canvas-confetti` (celebrations), `qrcode` (gym signage), `@zxing/browser` (barcode/QR scan), `maplibre-gl` (gym map, cardio routes via OpenFreeMap/MapTiler).
 
-**AI/ML:** `@tensorflow/tfjs` + `@tensorflow/tfjs-backend-webgl` + `@tensorflow-models/pose-detection` (MoveNet, Form Coach); Anthropic Claude API (AI Coach polish + Photo-AI meal recognition, via Edge Functions).
+**AI/ML:** `@tensorflow/tfjs` + `@tensorflow/tfjs-backend-webgl` + `@tensorflow-models/pose-detection` (MoveNet, Form Coach); Anthropic Claude API (AI Coach chat + Photo-AI meal recognition, both via Edge Functions holding the key server-side).
 
 **Dates/i18n:** `date-fns` (+ locale packs), custom i18n splitter (`scripts/split-i18n.mjs`, 15 languages).
 
@@ -245,7 +245,7 @@
 
 ## K. AI COACH
 - **Functional summary:** Chat coach that answers training/nutrition/recovery questions grounded in the user's own data.
-- **Granular mechanics:** `aiCoach/intents.js` (19 regex-matched intents w/ confidence) → `responders.js` (fetches last-14-day workouts/cardio + profile, classifies exercises by muscle group, generates markdown reply) → optional Claude polish (`coach.js`, 8s timeout, ≤150 words, numbers preserved) when `VITE_ANTHROPIC_API_KEY` set; fails closed to rules. Voice input (Web Speech API). Returns `{reply, intent, source:'rules'|'llm'}`.
+- **Granular mechanics:** `coach.js` calls the **`coach-chat` Edge Function** (Anthropic Haiku, key server-side, ≤150 words, 12s timeout, capped at 20 msg/user/day by migration 305). It receives the question, the last 8 turns, and a training digest from `buildCoachContext()` in `responders.js`, and returns structured `{kind, reply, goal}` — `kind:'plan'` hands off to the deterministic `planBuilder` so a generated session stays saveable and reproducible. Replies are written in the user's app language. **On any failure** (not deployed / no key / offline / capped) it falls through to the original `aiCoach/intents.js` regex router → `responders.js`, so the Coach works with zero config. Voice input (Web Speech API). Returns `{reply, intent, source:'llm'|'plan'|'rules', plan?, capped?}`.
 - **UI/deps:** Coach page, CoachChat, StarterPlanHeroCard (Workout); no dedicated table (reads existing entities).
 
 ## L. GYM ECOSYSTEM

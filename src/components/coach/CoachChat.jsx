@@ -15,6 +15,7 @@ import { askCoach, SUGGESTED_PROMPTS } from '@/lib/aiCoach/coach';
 import { useQuery } from '@tanstack/react-query';
 import { db } from '@/api/db';
 import { listActiveInjuries, getExcludedMuscleGroups } from '@/lib/data/injuries';
+import { buildCoachContext } from '@/lib/aiCoach/responders';
 import { GENERATE_PROMPTS } from '@/lib/aiCoach/planBuilder';
 import { parseBoldSegments } from '@/lib/aiCoach/markdownLite';
 import { followUpsFor } from '@/lib/aiCoach/followUps';
@@ -83,6 +84,25 @@ export default function CoachChat({ mode, onSaveRegimen, onStartWorkout }) {
     queryFn:  () => listActiveInjuries(),
     enabled:  !!user?.id,
     staleTime: 5 * 60_000,
+  });
+  const excludeMuscleGroups = useMemo(
+    () => getExcludedMuscleGroups(activeInjuries),
+    [activeInjuries],
+  );
+  // The digest the language model reads instead of guessing. Fetched on mount
+  // rather than inside handleSend so it is already warm when the user finishes
+  // typing — otherwise every message paid for these reads before the request
+  // to the Edge Function even started. Two minutes is well inside a chat
+  // session and no workout can land mid-conversation without the user leaving.
+  const { data: coachContext } = useQuery({
+    queryKey: ['coachContext', user?.id, userProfile?.updated_at],
+    queryFn:  () => buildCoachContext({
+      user,
+      profile: userProfile || {},
+      excludeMuscleGroups,
+    }),
+    enabled:  !!user?.email,
+    staleTime: 2 * 60_000,
   });
   const { tFallback, language } = useLanguage();
   const generateMode = mode === 'generate';
@@ -208,8 +228,25 @@ export default function CoachChat({ mode, onSaveRegimen, onStartWorkout }) {
     try {
       const result = await askCoach(user, text, {
         profile: userProfile || {},
-        excludeMuscleGroups: getExcludedMuscleGroups(activeInjuries),
+        excludeMuscleGroups,
+        coachContext: coachContext || {},
+        language,
+        // The thread so far, so the coach can follow "make it shorter" or
+        // "why?" — the regex router parsed every message with no memory of
+        // the previous one, which is most of why it felt robotic. Error
+        // placeholders are excluded: they are UI state, not things the
+        // coach said.
+        history: messages.filter(m => m.source !== 'error').slice(-8),
       });
+      // The daily cap is the one degradation worth naming. The reply below is
+      // the rule-based one and still useful, but a coach that silently gets
+      // simpler mid-conversation reads as the app breaking.
+      if (result.capped) {
+        toast.info(tFallback(
+          'coach.capped',
+          "You've hit today's limit for detailed answers — back to the basics until tomorrow.",
+        ));
+      }
       const reply = {
         role: 'coach',
         text: result.reply,
