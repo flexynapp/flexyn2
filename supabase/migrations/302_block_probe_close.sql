@@ -1,0 +1,58 @@
+-- 302_block_probe_close.sql
+--
+-- `is_blocked(p_viewer_id, p_author_email)` is EXECUTE-able by anon, and
+-- takes the viewer as a PARAMETER — so anyone, signed out, can ask "does
+-- user X block email Y?" for any pair they can guess.
+--
+-- Verified against production before writing this: with one block seeded
+-- inside a rolled-back transaction, an `anon` caller got `true` for the
+-- real pair and `false` for a control. Who has blocked whom is precisely
+-- the relationship a person blocks someone in order not to advertise.
+--
+-- It is also CLAUDE.md's own documented anti-pattern — "Never gate on a
+-- client-supplied identifier. Migration 108 was a privacy leak from
+-- trusting a client-passed email."
+--
+-- ── Why this is one line and not a policy rewrite ────────────────────
+--
+-- The obvious objection is that revoking from anon breaks anonymous
+-- reads of hub_posts and hub_comments, whose SELECT policies are TO
+-- PUBLIC and call is_blocked. anon does hold SELECT on both tables, so
+-- that looks right — and it is wrong.
+--
+-- Those policies call current_user_email() BEFORE they reach is_blocked,
+-- and current_user_email is granted to authenticated but NOT to anon. An
+-- anonymous reader therefore gets `42501: permission denied for function
+-- current_user_email` and never evaluates the rest. Confirmed by running
+-- the read as anon: it fails on that, not on blocking.
+--
+-- So anonymous feed reads are already impossible, and this revoke costs
+-- nothing. The internal callers are unaffected either way: is_blocked is
+-- reached from enforce_block_on_dm_send, notify_dm_received,
+-- can_view_post and can_view_story, all SECURITY DEFINER, all running as
+-- the owner.
+--
+-- That last point is what rules out the other tempting fix. Those DM
+-- functions call is_blocked with the RECIPIENT's id rather than the
+-- caller's — "does the person I am messaging block me?" — so guarding
+-- the function on `p_viewer_id = auth.uid()` would return false there
+-- and silently switch off block enforcement on DMs. A blocked person
+-- could message you again. Strictly worse than the leak being closed.
+--
+-- ── What this does NOT close ─────────────────────────────────────────
+--
+-- Any AUTHENTICATED user can still probe an arbitrary pair, because the
+-- feed policies need EXECUTE and they call is_blocked directly. Closing
+-- that means a `viewer_is_blocked_by(text)` wrapper that reads auth.uid()
+-- internally, rewriting both policies onto it, and revoking from
+-- authenticated as well. That is a rewrite of the read policies on the
+-- main feed, where a mistake either hides posts or stops blocking
+-- working — deliberately left as its own change rather than smuggled in
+-- behind a one-line revoke.
+--
+-- Worth knowing separately: anon holding SELECT on hub_posts while being
+-- unable to evaluate the policy is a latent trapdoor. Grant anon EXECUTE
+-- on current_user_email one day — for a public profile page, say — and
+-- anonymous feed reads switch on silently.
+
+REVOKE EXECUTE ON FUNCTION public.is_blocked(UUID, TEXT) FROM anon;
