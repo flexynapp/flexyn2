@@ -437,10 +437,11 @@ export default function Dashboard() {
   // directly under the hero.
   const defaultWidgetOrder = [
     'stats',                 // this week / volume / muscles — one card, 3 cols
-    'streak',                // login streak pill + its inline calendar
     'actions',               // 4 × 2 tile grid
     'recovery',              // "Tonight" — sleep · mood · steps
-    'challenges',            // daily quests + streak rescue
+    // Pairing only happens between ADJACENT halves, so the two ids that
+    // should share a row have to sit next to each other here.
+    'streak', 'challenges',  // hotdog pair: login streak beside daily quests
     'chest', 'league',       // hotdog pair: chest beside weekly rank
     'friends',
     'progress',              // goals, weekly recap, suggestion + memory
@@ -506,8 +507,14 @@ export default function Dashboard() {
   // failure mode is unchanged here: a lone half degrades to full width (see
   // dashboardRows), so a new user sees a full-width chest card and no gap.
   const [sectionLayouts, setSectionLayouts] = useState({
-    chest:   'half',
-    league:  'half',
+    // streak + challenges: the login-streak pill is one line tall and was
+    // wasting a full row on its own. Paired, it sits beside Daily Quests and
+    // its inline calendar expands DOWN into the height the quests card
+    // already occupies — space that was empty either way.
+    streak:     'half',
+    challenges: 'half',
+    chest:      'half',
+    league:     'half',
   });
   const toggleSectionLayout = (id) => {
     setSectionLayouts(prev => {
@@ -720,8 +727,10 @@ export default function Dashboard() {
   const handleResetCustomize = () => {
     setWidgetOrder(defaultWidgetOrder);
     setSectionLayouts({
-      chest:  'half',
-      league: 'half',
+      streak:     'half',
+      challenges: 'half',
+      chest:      'half',
+      league:     'half',
     });
     // Reset means reset: a section the user collapsed comes back too.
     setCollapsedSections(new Set());

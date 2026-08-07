@@ -468,6 +468,12 @@
     .cq-stack-y > * {
       padding-block: 0.5rem;
     }
+    /* nowrap is right on a full-width row and an overflow risk in a half
+       slot — "3 days streak" fits English at 168px with ~30px to spare, and
+       a longer locale string would run straight out of the card. */
+    .cq-wrap {
+      white-space: normal;
+    }
     /* A single truncated line ("Train fo…") tells the user nothing. Two
        wrapped lines fit the same 168px and read as the actual quest. */
     .cq-clamp2 {

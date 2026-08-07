@@ -75,7 +75,10 @@ export default function LoginStreakBanner({ variant = 'default' }) {
     >
       <StreakFlame days={streak} size={15} className="shrink-0" />
       <TapToCopy value={`${streak}-day login streak`} label="streak">
-        <span className={`text-xs whitespace-nowrap ${onHero ? 'text-white' : ''}`}>
+        {/* cq-wrap: this pill now shares a row with Daily Quests, so it can
+            be ~168px wide. English fits with room; a longer locale string
+            would overflow, so allow it to wrap in a narrow container only. */}
+        <span className={`text-xs whitespace-nowrap cq-wrap ${onHero ? 'text-white' : ''}`}>
           <span className="font-heading font-bold tabular-nums">
             <AnimatedNumber value={streak} />
           </span>
