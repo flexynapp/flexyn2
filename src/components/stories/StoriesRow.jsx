@@ -185,23 +185,24 @@ function StoryAvatarButton({
               opacity: noteEditorOpen ? 0 : 1,
               pointerEvents: noteEditorOpen ? 'none' : 'auto',
               transition: 'opacity 0.15s',
-              width: 72,
+              // Only the note bubble needs a fixed 72px column to wrap text
+              // in. The empty state is a compact "+ Note" pill that hugs its
+              // own content — a 72px dashed card reads as a placeholder the
+              // size of real content, which is what made it the loudest
+              // thing in the strip while saying the least.
+              ...(group.note ? { width: 72 } : {}),
             }}
+            role="button"
+            aria-label={group.note
+              ? tFallback('stories.editNote', 'Edit your note')
+              : tFallback('stories.addANote', 'Add a note')}
           >
-            <div
-              className={`w-full px-1.5 py-1 rounded-lg cursor-pointer relative ${
-                group.note
-                  ? 'bg-card border border-border shadow-sm'
-                  : 'bg-muted/70 border border-dashed border-border'
-              }`}
-            >
-              <p className={`text-micro leading-tight text-center line-clamp-2 select-none ${
-                group.note ? 'text-foreground' : 'text-muted-foreground/70'
-              }`}>
-                {group.note ? group.note.text : tFallback('stories.addANote', 'Add a note...')}
-              </p>
-              {/* Chat bubble tail — only when note exists */}
-              {group.note && (
+            {group.note ? (
+              <div className="w-full px-1.5 py-1 rounded-lg cursor-pointer relative bg-card border border-border shadow-sm">
+                <p className="text-micro leading-tight text-center line-clamp-2 select-none text-foreground">
+                  {group.note.text}
+                </p>
+                {/* Chat bubble tail — only when note exists */}
                 <div
                   className="absolute top-full start-1/2 -translate-x-1/2 w-0 h-0 pointer-events-none"
                   style={{
@@ -210,8 +211,21 @@ function StoryAvatarButton({
                     borderTop:   '5px solid hsl(var(--card))',
                   }}
                 />
-              )}
-            </div>
+              </div>
+            ) : (
+              /* Same geometry as the "+ Add" pill in QuickAddAvatarItem, so
+                 the two affordances in this strip read as one family. Kept
+                 muted rather than orange: Quick Add is the CTA here, and two
+                 orange pills side by side would compete. */
+              <div
+                className="flex items-center justify-center gap-0.5 px-2 py-1 rounded-xl border border-dashed border-border bg-muted/70 cursor-pointer whitespace-nowrap"
+              >
+                <Plus className="w-2.5 h-2.5 text-muted-foreground stroke-[3]" />
+                <span className="text-micro font-bold text-muted-foreground select-none">
+                  {tFallback('stories.note', 'Note')}
+                </span>
+              </div>
+            )}
           </div>
         )}
 

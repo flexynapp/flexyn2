@@ -2,7 +2,7 @@
 //
 // Instagram-style status note editor.
 //
-// When opened: the "Add a note..." pill smoothly expands from its position in
+// When opened: the "+ Note" pill smoothly expands from its position in
 // the tray into a centered card. Keyboard auto-focuses. Post collapses it back.
 //
 // origin: { top, left, width, height } of the pill in screen coordinates.
