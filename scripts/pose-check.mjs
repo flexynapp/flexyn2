@@ -43,6 +43,39 @@ const FOLDED_OK = new Set(['Dead Bug', 'Cable Crunch', 'Hanging Leg Raise',
                            'Front Squat', 'Back Squat', 'Tricep Dips']);
 const FOLD_MIN_DEG = 55;
 
+// OCCLUSION. A limb lying along the torso renders behind it and the figure
+// appears to have no arms. I hand-fixed this once for standing poses and did
+// not encode it, so Pull-up, Dips and Hanging Leg Raise reproduced it exactly
+// — every hanging pose puts both arms in the torso's line. A lesson that only
+// lives in my head gets relearned; a lesson in this file does not.
+const LIMB_CLEARANCE = 7;
+
+// A head drawn on top of the bar reads as the bar passing through the skull.
+const HEAD_CLEARANCE = 4;
+
+// An arm running straight up past the head is hidden by it — which is why the
+// pull-up and hanging leg raise looked armless even though the torso-clearance
+// check passed. Overhead grips have to be splayed wider than the skull, which
+// is also how people actually grip a bar.
+const HEAD_R = 9;
+
+// Movements where the hands genuinely belong beside the head — a front-squat
+// rack position IS hands at the neck, and a cable crunch holds the rope by the
+// ears. Distorting those to satisfy the check would make the picture wrong in
+// order to make the checker quiet, which is the wrong trade. Exempt with the
+// reason recorded, and keep the check strict for everything else.
+const HANDS_AT_HEAD_OK = new Set(['Front Squat', 'Cable Crunch', 'Goblet Squat']);
+
+// Distance from point to the segment a-b.
+function distToSeg(pt, a, b) {
+  const [px, py] = pt, [ax, ay] = a, [bx, by] = b;
+  const dx = bx - ax, dy = by - ay;
+  const len2 = dx * dx + dy * dy || 1;
+  let t = ((px - ax) * dx + (py - ay) * dy) / len2;
+  t = Math.max(0, Math.min(1, t));
+  return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
+}
+
 let fails = 0, checks = 0;
 const fail = (msg) => { console.log('  ✗ ' + msg); fails++; };
 
@@ -77,6 +110,33 @@ for (const [name, { frames }] of Object.entries(POSES)) {
       if (d > 180) d = 360 - d;
       if (d < FOLD_MIN_DEG) {
         issues.push(`frame ${i + 1}: torso and legs leave the hip ${d.toFixed(0)}deg apart — body is folded (min ${FOLD_MIN_DEG})`);
+      }
+    }
+
+    // Near arm and near leg must be visible against the torso.
+    for (const [label, limb] of [['arm', s.armNear], ['leg', s.legNear]]) {
+      const dMid = distToSeg(limb.mid, s.hip, s.neckBase);
+      const dEnd = distToSeg(limb.end, s.hip, s.neckBase);
+      if (dMid < LIMB_CLEARANCE && dEnd < LIMB_CLEARANCE) {
+        issues.push(`frame ${i + 1}: near ${label} lies along the torso (${dMid.toFixed(0)}/${dEnd.toFixed(0)} clearance, min ${LIMB_CLEARANCE}) — it will render invisible`);
+      }
+    }
+
+    for (const [a, b, what] of (HANDS_AT_HEAD_OK.has(name) ? [] :
+                               [[s.neckBase, s.armNear.mid, 'upper arm'],
+                                [s.armNear.mid, s.armNear.end, 'forearm']])) {
+      const d = distToSeg(s.headPos, a, b);
+      if (d < HEAD_R - 2) {
+        issues.push(`frame ${i + 1}: near ${what} passes through the head (${d.toFixed(0)}, min ${HEAD_R - 2}) — widen the grip`);
+      }
+    }
+
+    // Head must not sit on the apparatus it is meant to hang beneath — except
+    // at the top of a pull-up, where "chin over the bar" is the whole point.
+    if (prop && !prop.held && anchor && name !== 'Pull-up') {
+      const dHead = Math.abs(s.headPos[1] - anchor[1]);
+      if (dHead < 9 + HEAD_CLEARANCE && Math.abs(s.headPos[0] - anchor[0]) < 60) {
+        issues.push(`frame ${i + 1}: head is ${dHead.toFixed(0)} from the ${frames[0].prop} — the bar draws through it`);
       }
     }
 
