@@ -299,7 +299,9 @@ export default function GoalsAlmostComplete({ goals, logs, cardioLogs = [], onOp
                   : 'bg-gradient-to-br from-accent/15 to-accent/5 border-accent/30'
               }`}>
                 <div className="flex flex-col h-full">
-                  <div className={`flex items-start gap-3 ${compact ? 'mb-2' : 'mb-3'}`}>
+                  {/* cq-stack: [40px tile][title + progress] leaves the title
+                      column ~55px in a half-width dashboard slot. */}
+                  <div className={`flex items-start gap-3 cq-stack ${compact ? 'mb-2' : 'mb-3'}`}>
                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${isComplete ? 'bg-green-500/20' : 'bg-accent/20'}`}>
                       {isComplete
                         ? <Trophy className="w-5 h-5 text-green-600" />

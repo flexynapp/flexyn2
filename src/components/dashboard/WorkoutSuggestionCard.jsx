@@ -72,7 +72,10 @@ export default function WorkoutSuggestionCard({ logs = [], cardioLogs = [] }) {
       <Card className="overflow-hidden border-border/60">
         <button
           onClick={() => navigate('/workout')}
-          className="w-full text-start px-4 py-3 flex items-center gap-3 hover:bg-secondary/40 active:bg-secondary/60 transition-colors"
+          // cq-stack: [icon 36][text][arrow 16] with px-4 and two gap-3s
+          // leaves the text column ~60px in a half-width dashboard slot — the
+          // same width that reduced a quest title to "Train fo…".
+          className="w-full text-start px-4 py-3 flex items-center gap-3 hover:bg-secondary/40 active:bg-secondary/60 transition-colors cq-stack"
         >
           <div className="shrink-0 w-9 h-9 rounded-full bg-primary/12 text-primary flex items-center justify-center">
             <FocusIcon className="w-4 h-4" aria-hidden="true" />
@@ -88,7 +91,8 @@ export default function WorkoutSuggestionCard({ logs = [], cardioLogs = [] }) {
               {tFallback(`suggestion.reason.${suggestion.focus}`, suggestion.reason)}
             </p>
           </div>
-          <ArrowRight className="w-4 h-4 shrink-0 text-muted-foreground rtl:scale-x-[-1]" aria-hidden="true" />
+          {/* The whole row is the tap target. */}
+          <ArrowRight className="w-4 h-4 shrink-0 text-muted-foreground rtl:scale-x-[-1] cq-hide" aria-hidden="true" />
         </button>
       </Card>
     </motion.div>

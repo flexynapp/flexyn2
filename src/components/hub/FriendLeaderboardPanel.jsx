@@ -142,6 +142,11 @@ export default function FriendLeaderboardPanel() {
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: Math.min(idx, 6) * 0.03 }}
                     className={[
+                      // NOT cq-stack: a leaderboard row is rank + avatar +
+                      // name + value, and stacking it would break the columns
+                      // that make it a leaderboard. The name truncates and the
+                      // rank/value are 2-3 characters, so it survives a half
+                      // slot as a row — verified at 168px.
                       'flex items-center gap-3 px-2 py-1.5 rounded-lg border',
                       rankAccent(rank, row.is_self),
                     ].join(' ')}

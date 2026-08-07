@@ -166,7 +166,13 @@ function HeroCard({
             negative-margin tuck clipped the pill / its expanded calendar on
             taller slides (progress bar + CTA). Now the pill sits cleanly
             below the dots and the card grows to fit whatever's open. */}
-        <div className="relative p-4 md:p-6 pb-2 md:pb-2 min-h-[264px] md:min-h-[284px]">
+        {/* pe-12 when the carousel has more than one slide: the next-slide
+            button is absolutely positioned over this box, and slide content
+            ran underneath it — "Sun · 3 target" sat behind the chevron on the
+            routine slide. Reserving the gutter fixes it for EVERY slide
+            rather than per-slide, which is what a shared overlay needs; with
+            a single slide there is no button, so no gutter is taken. */}
+        <div className={`relative p-4 md:p-6 pb-2 md:pb-2 min-h-[264px] md:min-h-[284px] ${slideCount > 1 ? 'pe-12 md:pe-14' : ''}`}>
           <HeroSlideshow
             ref={slideshowRef}
             logs={logs}
@@ -185,23 +191,13 @@ function HeroCard({
           />
         </div>
 
-        {/* Login streak lives inside the hero card, beneath the carousel
-            dots. It sits on the dark hero surface (variant="hero" → light
-            text / translucent pill) and its calendar expands inline, so the
-            whole card grows with it rather than pushing sibling cards. */}
-        {/* z-20 + stopping pointerdown here keeps the hero card's drag='x'
-            swipe gesture from swallowing taps on the streak chevron — the
-            banner lives inside the draggable card, so without this the
-            slideshow's drag handler ate the tap and the calendar never
-            expanded. */}
-        <div
-          className="relative z-20 px-4 md:px-6 pb-4 md:pb-5 pt-0"
-          onPointerDown={(e) => e.stopPropagation()}
-        >
-          <ErrorBoundary label="LoginStreakBanner">
-            <LoginStreakBanner variant="default" />
-          </ErrorBoundary>
-        </div>
+        {/* The login streak used to sit here, between the carousel dots and
+            the CTA. Four things stacked inside one band — slide, dots,
+            streak, CTA+readiness — read as crowded, so the streak moved out
+            to its own section ('streak' in widgetOrder), where it is also
+            reorderable and hideable like everything else. That also retired
+            the pointerdown-stopPropagation wrapper it needed to keep the
+            hero's drag gesture from eating taps on its chevron. */}
 
         {/* The "today" row — primary CTA (2/3) + Readiness (1/3) — now sits
             INSIDE the band. It used to be a sibling below it, which made
@@ -353,6 +349,7 @@ const SECTION_LABELS = {
   // three signals you log at the end of the day.
   recovery:     (tF) => tF('dashboard.section.tonight',      'Tonight'),
   stats:        (tF) => tF('dashboard.section.stats',        'This week'),
+  streak:       (tF) => tF('dashboard.section.streak',       'Login streak'),
   challenges:   (tF) => tF('dashboard.section.challenges',   'Challenges'),
   chest:        (tF) => tF('dashboard.section.chest',        'Daily chest'),
   league:       (tF) => tF('dashboard.section.league',       'Weekly rank'),
@@ -440,6 +437,7 @@ export default function Dashboard() {
   // directly under the hero.
   const defaultWidgetOrder = [
     'stats',                 // this week / volume / muscles — one card, 3 cols
+    'streak',                // login streak pill + its inline calendar
     'actions',               // 4 × 2 tile grid
     'recovery',              // "Tonight" — sleep · mood · steps
     'challenges',            // daily quests + streak rescue
@@ -1174,6 +1172,16 @@ export default function Dashboard() {
               <TonightRow readiness={readiness} onOpen={openReadiness} />
             </ErrorBoundary>
           </section>
+        </React.Fragment>
+      );
+      // Moved out of the hero (see HeroCard) — the pill carries its own
+      // "3 days streak" text and expands its calendar inline, so it needs no
+      // section label above it.
+      case 'streak': return (
+        <React.Fragment key="streak">
+          <ErrorBoundary label="LoginStreakBanner">
+            <LoginStreakBanner variant="default" />
+          </ErrorBoundary>
         </React.Fragment>
       );
       // The three weekly figures, promoted out of 'progress' into their own

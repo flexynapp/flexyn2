@@ -92,7 +92,8 @@ export default function WorkoutMemoryCard({ logs = [] }) {
         <Card className="relative overflow-hidden border-border/60 bg-primary/5">
           <button
             onClick={handleTap}
-            className="w-full text-start px-4 py-3 flex items-center gap-3 hover:bg-secondary/30 active:bg-secondary/50 transition-colors"
+            // cq-stack — same [icon][text] squeeze as the suggestion card.
+            className="w-full text-start px-4 py-3 flex items-center gap-3 hover:bg-secondary/30 active:bg-secondary/50 transition-colors cq-stack"
           >
             <div className="shrink-0 w-9 h-9 rounded-full bg-primary/12 text-primary flex items-center justify-center">
               <Calendar className="w-4 h-4" aria-hidden="true" />

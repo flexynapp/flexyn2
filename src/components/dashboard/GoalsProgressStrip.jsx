@@ -99,7 +99,8 @@ export default function GoalsProgressStrip({ goals = [], logs = [], onOpen }) {
         style={onOpen ? { cursor: 'pointer' } : {}}
         className="p-3 md:p-4 border-border/60 bg-primary/5 hover:border-primary/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
       >
-        <div className="flex items-center gap-3">
+        {/* cq-stack — [icon][count + detail] squeezes the same way. */}
+        <div className="flex items-center gap-3 cq-stack">
           <div className="w-9 h-9 rounded-lg bg-primary/15 flex items-center justify-center shrink-0">
             {/* w-4.5/h-4.5 isn't a Tailwind class — was a silent no-op
                 that fell back to the icon's intrinsic 24px and made

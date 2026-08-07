@@ -175,16 +175,21 @@ function StoryAvatarButton({
               bottom: '100%',
               left: '50%',
               transform: 'translateX(-50%)',
-              marginBottom: 6,
+              // 4 rather than 6, with the tighter padding below: the pill
+              // sits above the avatar, so its own height plus this margin is
+              // what pushed its top edge up against the app header with
+              // almost nothing between them. Shrinking it moves the top edge
+              // down and buys that gap back without moving the avatar row.
+              marginBottom: 4,
               zIndex: 10,
               opacity: noteEditorOpen ? 0 : 1,
               pointerEvents: noteEditorOpen ? 'none' : 'auto',
               transition: 'opacity 0.15s',
-              width: 80,
+              width: 72,
             }}
           >
             <div
-              className={`w-full px-2 py-1.5 rounded-xl cursor-pointer relative ${
+              className={`w-full px-1.5 py-1 rounded-lg cursor-pointer relative ${
                 group.note
                   ? 'bg-card border border-border shadow-sm'
                   : 'bg-muted/70 border border-dashed border-border'
@@ -739,7 +744,6 @@ export default function StoriesRow({ onViewProfile } = {}) {
   // previous `ownGroup?.stories.length > 0` gate hid the only entry
   // point for a brand-new user who hadn't posted yet, leaving them
   // with no way to add their first story from this strip.
-  const showAddButton = !uploadMutation.isPending;
 
   return (
     <>
@@ -747,29 +751,12 @@ export default function StoriesRow({ onViewProfile } = {}) {
       <div className="mb-4 -mx-4 md:-mx-6">
         <div className="flex items-end gap-2 px-4 md:px-6 overflow-x-auto pb-1 pt-1 scrollbar-hide">
 
-          {/* Slot 1: "Add Story" — leftmost when own story exists */}
-          {showAddButton && (
-            <motion.button
-              whileTap={{ scale: 0.90 }}
-              onClick={() => fileRef.current?.click()}
-              className="flex flex-col items-center gap-1 shrink-0 focus:outline-none"
-              style={{ minWidth: 68 }}
-              aria-label={tFallback('stories.addAStory', 'Add a story')}
-            >
-              {/* Outer ring rotates; inner Plus stays stationary via counter-rotation */}
-              <div className="relative w-[60px] h-[60px] flex items-center justify-center">
-                <motion.div
-                  className="absolute inset-0 rounded-full border-2 border-dashed border-primary/60"
-                  animate={{ rotate: 360 }}
-                  transition={{ duration: 24, repeat: Infinity, ease: 'linear' }}
-                />
-                <Plus className="w-5 h-5 text-primary relative z-10" />
-              </div>
-              <span className="text-micro font-medium text-muted-foreground w-[68px] text-center truncate">
-                Add Story
-              </span>
-            </motion.button>
-          )}
+          {/* The "Add Story" slot is gone: a dashed ring rotating on a 24s
+              loop, permanently, as the first thing on the home screen — and
+              it duplicated the "+" badge already on the user's own avatar
+              immediately to its right. Two controls for one action, one of
+              them animating forever. The own-avatar "+" is the entry point;
+              the file input below is still driven from there. */}
 
           {/* Crew story circles — shown before friend stories */}
           {crewStoryGroups.map(({ crew, stories }) => {
