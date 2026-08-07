@@ -94,8 +94,13 @@ function NoteBubble({ note, isOwn, isLiked, onLike, onEditOwn }) {
     // wraps a two-word note onto two lines. Sized to the text, capped at the
     // cell width.
     <div className="absolute bottom-full start-1/2 -translate-x-1/2 mb-1.5 z-10 flex flex-col items-center gap-0.5 w-max max-w-[72px]">
+      {/* bg-card, not bg-white. --card IS pure white in the light theme, so
+          this renders identically there — but the literal was also white in
+          the DARK theme, where a friend's note was a white blob on a 9%-
+          lightness background, and in the loot themes that repaint --card.
+          Same tokens as the own-note bubble, so the two match everywhere. */}
       <div
-        className="relative w-full bg-white rounded-lg px-2 py-1 cursor-pointer"
+        className="relative w-full bg-card border border-border rounded-lg px-2 py-1 cursor-pointer"
         onClick={e => { e.stopPropagation(); isOwn ? onEditOwn() : null; }}
         role={isOwn ? 'button' : undefined}
         tabIndex={isOwn ? 0 : undefined}
@@ -104,7 +109,7 @@ function NoteBubble({ note, isOwn, isLiked, onLike, onEditOwn }) {
         } : undefined}
         aria-label={isOwn ? tFallback('stories.editNote', 'Edit your note') : undefined}
       >
-        <p className="text-micro text-black leading-tight text-center line-clamp-2 select-none">
+        <p className="text-micro text-card-foreground leading-tight text-center line-clamp-2 select-none">
           {note.text}
         </p>
         {/* Speech bubble tail */}
@@ -113,7 +118,7 @@ function NoteBubble({ note, isOwn, isLiked, onLike, onEditOwn }) {
           style={{
             borderLeft:  '4px solid transparent',
             borderRight: '4px solid transparent',
-            borderTop:   '5px solid white',
+            borderTop:   '5px solid hsl(var(--card))',
           }}
         />
       </div>
@@ -159,12 +164,25 @@ function StoryAvatarButton({
   // Own avatar always reserves space for the note pill
   const hasTopPill = group.isOwn || !!group.note;
 
+  // How much room the thing above the avatar needs. The two stacks are NOT
+  // the same height: the own pill is just the bubble (or the "+ Note" pill)
+  // plus a 4px margin, but a friend's carries the like button underneath —
+  // bubble + 2px gap + 14px heart row + 6px margin. One shared value of 40
+  // meant a friend's two-line note was clipped 14px at the top by the row's
+  // own overflow, which reads as a rendering glitch rather than a long note.
+  // The row bottom-aligns (items-end), so a taller reserve here only grows
+  // the strip on the screens where a friend actually has a note.
+  // 60, not the 57 the stack actually measures: the extra 3px is slack for
+  // scripts whose glyphs sit taller in the same line-height (the app ships
+  // 15 languages), and it costs nothing — the row is already this tall.
+  const topReserve = group.isOwn ? 40 : 60;
+
   return (
     <motion.button
       whileTap={{ scale: 0.90 }}
       onClick={onPress}
       className="flex flex-col items-center gap-1 shrink-0 focus:outline-none relative"
-      style={{ minWidth: 68, paddingTop: hasTopPill ? 40 : 0 }}
+      style={{ minWidth: 68, paddingTop: hasTopPill ? topReserve : 0 }}
       aria-label={group.isOwn ? tFallback('stories.yourStory', 'Your story') : group.username}
     >
       <div className="relative w-full flex justify-center">
