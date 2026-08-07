@@ -89,9 +89,13 @@ function NoteBubble({ note, isOwn, isLiked, onLike, onEditOwn }) {
   const { tFallback } = useLanguage();
   if (!note) return null;
   return (
-    <div className="absolute bottom-full start-1/2 -translate-x-1/2 mb-1.5 z-10 flex flex-col items-center gap-0.5">
+    // w-max + max-w-[72px] for the same reason as the own-note pill above:
+    // anchored at start-1/2, plain shrink-to-fit only sees half the cell and
+    // wraps a two-word note onto two lines. Sized to the text, capped at the
+    // cell width.
+    <div className="absolute bottom-full start-1/2 -translate-x-1/2 mb-1.5 z-10 flex flex-col items-center gap-0.5 w-max max-w-[72px]">
       <div
-        className="relative max-w-[84px] bg-white rounded-2xl px-2.5 py-1.5 shadow-sm cursor-pointer"
+        className="relative w-full bg-white rounded-lg px-2 py-1 cursor-pointer"
         onClick={e => { e.stopPropagation(); isOwn ? onEditOwn() : null; }}
         role={isOwn ? 'button' : undefined}
         tabIndex={isOwn ? 0 : undefined}
@@ -185,12 +189,17 @@ function StoryAvatarButton({
               opacity: noteEditorOpen ? 0 : 1,
               pointerEvents: noteEditorOpen ? 'none' : 'auto',
               transition: 'opacity 0.15s',
-              // Only the note bubble needs a fixed 72px column to wrap text
-              // in. The empty state is a compact "+ Note" pill that hugs its
-              // own content — a 72px dashed card reads as a placeholder the
-              // size of real content, which is what made it the loudest
-              // thing in the strip while saying the least.
-              ...(group.note ? { width: 72 } : {}),
+              // max-content, NOT shrink-to-fit. A fixed 72px column made
+              // every note as tall as the longest one it could hold, so a
+              // two-word note rendered as a 72×38 block. But simply dropping
+              // the width is worse: this box is anchored at left:50%, so its
+              // shrink-to-fit available width is only HALF the 68px cell —
+              // 34px — and "gym day" collapsed onto two lines at 41×38.
+              // max-content sizes to the unwrapped text and the cap makes it
+              // wrap only when it genuinely must. Short notes land at 24px,
+              // the same height as the empty pill.
+              width: 'max-content',
+              maxWidth: 72,
             }}
             role="button"
             aria-label={group.note
@@ -198,7 +207,10 @@ function StoryAvatarButton({
               : tFallback('stories.addANote', 'Add a note')}
           >
             {group.note ? (
-              <div className="w-full px-1.5 py-1 rounded-lg cursor-pointer relative bg-card border border-border shadow-sm">
+              /* No shadow: a hairline border is the resting elevation here,
+                 and it matches the empty pill beside it. Width comes from
+                 the wrapper's max-content + 72px cap. */
+              <div className="w-full px-2 py-1 rounded-lg cursor-pointer relative bg-card border border-border">
                 <p className="text-micro leading-tight text-center line-clamp-2 select-none text-foreground">
                   {group.note.text}
                 </p>
@@ -216,9 +228,12 @@ function StoryAvatarButton({
               /* Same geometry as the "+ Add" pill in QuickAddAvatarItem, so
                  the two affordances in this strip read as one family. Kept
                  muted rather than orange: Quick Add is the CTA here, and two
-                 orange pills side by side would compete. */
+                 orange pills side by side would compete. `rounded-lg` rather
+                 than the neighbour's `rounded-xl` — both resolve to
+                 var(--radius), and lg is the sanctioned name (tailwind.config
+                 pins xl as a compatibility alias). */
               <div
-                className="flex items-center justify-center gap-0.5 px-2 py-1 rounded-xl border border-dashed border-border bg-muted/70 cursor-pointer whitespace-nowrap"
+                className="flex items-center justify-center gap-0.5 px-2 py-1 rounded-lg border border-dashed border-border bg-muted/70 cursor-pointer whitespace-nowrap"
               >
                 <Plus className="w-2.5 h-2.5 text-muted-foreground stroke-[3]" />
                 <span className="text-micro font-bold text-muted-foreground select-none">
