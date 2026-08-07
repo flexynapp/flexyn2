@@ -4,13 +4,13 @@
 // (idempotent), polls for progress changes, and lets the user claim coin
 // rewards when quests complete.
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card } from '@/components/ui/card';
 import {
-  Coins, Sparkles, CheckCircle2, ChevronUp, ChevronDown,
+  Coins, Sparkles, CheckCircle2,
   UtensilsCrossed, Droplet, Dumbbell, HeartPulse, Megaphone, Bike,
   Camera, Flame, Trophy, Zap, Target,
 } from 'lucide-react';
@@ -49,13 +49,12 @@ function fireAllQuestsConfetti() {
 }
 
 export default function DailyQuestsCard({ onNavigated }) {
-  // Collapsible quest list — chevron at the bottom flips between
-  // "expanded" (default) and "collapsed". When collapsed only the
-  // header row stays on screen (Sparkles + "Daily Quests" + count
-  // + claimable badge), which saves a chunk of vertical space on a
-  // tight phone screen. State is per-session so it doesn't carry
-  // across days.
-  const [collapsed, setCollapsed] = useState(false);
+  // There was a collapse chevron here, and board 07 doesn't draw one. It
+  // existed to buy back vertical space from a card that ran ~220px in a
+  // 171px column; the card is ~150px on its own row now, so the control was
+  // paying for a problem that no longer exists. The section is still
+  // collapsible — and hideable — from edit mode, which is where every other
+  // widget's version of this lives.
   const { user } = useAuth();
   const { t, tFallback } = useLanguage();
   const queryClient = useQueryClient();
@@ -287,36 +286,24 @@ export default function DailyQuestsCard({ onNavigated }) {
 
       {/* 4px between rows, not 8. Board 07 runs them on a 36px pitch: a 28px
           tile against a 30px two-line text block, four apart. */}
-      {!collapsed && (
-        <div className="space-y-1">
-          {annotated.map((q) => (
-            <QuestRow
-              key={q.id}
-              quest={q}
-              onClaim={() => handleClaim(q)}
-              onGo={() => goToQuest(q)}
-              t={t}
-              tFallback={tFallback}
-            />
-          ))}
-        </div>
-      )}
+      <div className="space-y-1">
+        {annotated.map((q) => (
+          <QuestRow
+            key={q.id}
+            quest={q}
+            onClaim={() => handleClaim(q)}
+            onGo={() => goToQuest(q)}
+            t={t}
+            tFallback={tFallback}
+          />
+        ))}
+      </div>
 
-      {!collapsed && claimedCount === annotated.length && (
+      {claimedCount === annotated.length && (
         <div className="mt-3 text-micro text-center text-muted-foreground">
           {t('dashboard.allQuestsClaimed')}
         </div>
       )}
-
-      <button
-        type="button"
-        onClick={() => setCollapsed(c => !c)}
-        aria-label={collapsed ? tFallback('dashboard.expandQuests', 'Expand quests') : tFallback('dashboard.collapseQuests', 'Collapse quests')}
-        aria-expanded={!collapsed}
-        className="w-full mt-2 -mb-1 flex items-center justify-center py-1 rounded-sm text-muted-foreground/60 hover:text-foreground active:text-foreground hover:bg-secondary/40 active:bg-secondary/60 transition-colors"
-      >
-        {collapsed ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronUp className="w-3.5 h-3.5" />}
-      </button>
     </Card>
   );
 }
