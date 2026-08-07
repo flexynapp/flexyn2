@@ -434,7 +434,7 @@ function buildPathSlides({ profile, user, logs }) {
     metricUnit: ' logged',
     metricDecimals: 0,
     sub: 'Open the Workout tab and tap Start. Anything counts — even a 10-minute session.',
-    cta: { label: 'Start workout', to: '/workout' },
+    cta: { label: 'Start workout', to: '/workout?freestyle=1' },
   }];
 
   // Step 2 — weekly cadence based on training_days, with LIVE
@@ -459,7 +459,7 @@ function buildPathSlides({ profile, user, logs }) {
     progressTargetLabelKey: 'hero.progress.target',
     progressTargetLabelVars: { n: weekTarget },
     sub: 'Three a week is the floor where strength builds. Six is the ceiling before recovery suffers.',
-    cta: { label: 'Plan the week', to: '/workout' },
+    cta: { label: 'Plan the week', action: 'planWeek' },
   });
 
   // Step 3 — first PR (timing depends on level)
@@ -528,7 +528,7 @@ function buildPathSlides({ profile, user, logs }) {
       metricUnit: ' lb',
       metricPrefix: '+',
       sub: 'Bench, squat, or deadlift — pick one and chase the next +5 every week.',
-      cta: { label: 'Start tracking', to: '/workout' },
+      cta: { label: 'Start tracking', to: '/workout?freestyle=1' },
     });
   } else if (/endurance|cardio|run/i.test(primaryGoal)) {
     slides.push({
@@ -620,7 +620,7 @@ function buildTelemetrySlides({ logs, cardioLogs, profile }) {
       progressCurrentLabel: `${workoutsThisWeek} done`,
       progressTargetLabel: `${weekTarget} target`,
       sub: workoutsThisWeek > 0 ? 'Keep the week rolling.' : 'Three a week is where strength builds.',
-      cta: { label: 'Plan the week', to: '/workout' },
+      cta: { label: 'Plan the week', action: 'planWeek' },
     },
     {
       id: 'tele:volume', kind: 'telemetry',
@@ -635,7 +635,7 @@ function buildTelemetrySlides({ logs, cardioLogs, profile }) {
       title: 'Workouts logged',
       metricValue: totalLogs, metricUnit: '',
       sub: totalLogs > 0 ? 'Consistency compounds — keep stacking sessions.' : 'Log your first to start the count.',
-      cta: totalLogs > 0 ? null : { label: 'Start a workout', to: '/workout' },
+      cta: totalLogs > 0 ? null : { label: 'Start a workout', to: '/workout?freestyle=1' },
     },
     {
       id: 'tele:level', kind: 'telemetry',
@@ -681,7 +681,7 @@ function buildSuggestionSlides({ logs, followsCount, push }) {
       icon: Dumbbell, iconBg: 'bg-success/20', kicker: 'Get started',
       title: 'Log your first workout',
       sub: 'Two minutes. Just one set. The streak starts today.',
-      cta: { label: 'Start', to: '/workout' },
+      cta: { label: 'Start', to: '/workout?freestyle=1' },
     });
   }
   if (push && push.isSupported && !push.isSubscribed && push.permission !== 'denied') {
@@ -772,7 +772,7 @@ const ICON_BG_TO_HSL = {
 const HeroSlideshow = forwardRef(function HeroSlideshow({
   logs, cardioLogs, goals, profile, user,
   streak, hasWorkedOutToday, daysSinceLast,
-  onPrimary, onSlideCta, onSlidesCountChange, onSlideColorChange,
+  onPrimary, onSlideCta, onPlanWeek, onSlidesCountChange, onSlideColorChange,
   t,
 }, ref) {
   const { tFallback } = useLanguage();
@@ -815,10 +815,14 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
   const mode = pickMode({ achievementSlides, pathSlides, profile, logs });
 
   // CTA dispatch — most slides route; a couple run an in-app action
-  // (enable push, scroll to the weekly-recap share card).
+  // (enable push, scroll to the weekly-recap share card, open My Week).
   const handleCta = (cta) => {
     if (!cta) return;
     if (cta.action === 'enablePush') { push.subscribe?.(); return; }
+    // "Plan the week" opens the SAME My Week calendar the quick-action
+    // tile opens, not /workout. It used to route to the Workout page,
+    // which is where you log a session — not where you lay a week out.
+    if (cta.action === 'planWeek') { onPlanWeek?.(); return; }
     if (cta.action === 'shareWeek') {
       const el = typeof document !== 'undefined' && document.querySelector('[data-recap-card]');
       if (el?.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'start' });

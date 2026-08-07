@@ -28,7 +28,12 @@ const DialogOverlay = React.forwardRef(({ className, ...props }, ref) => (
 ))
 DialogOverlay.displayName = DialogPrimitive.Overlay.displayName
 
-const DialogContent = React.forwardRef(({ className, children, title, ...props }, ref) => (
+// `closeClassName` styles the built-in X for ONE dialog without touching
+// every other dialog in the app. Dialogs with a coloured header (the
+// league tiers, for one) need a different X colour than the default
+// foreground-on-background, and the focus halo reads as a circle drawn
+// around the icon once a touch has focused it.
+const DialogContent = React.forwardRef(({ className, children, title, closeClassName, ...props }, ref) => (
   <DialogPortal>
     <DialogOverlay />
     <DialogPrimitive.Content
@@ -56,7 +61,10 @@ const DialogContent = React.forwardRef(({ className, children, title, ...props }
       ) : null}
       {children}
       <DialogPrimitive.Close
-        className="absolute end-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
+        className={cn(
+          "absolute end-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground",
+          closeClassName
+        )}>
         <X className="h-4 w-4" />
         <span className="sr-only">Close</span>
       </DialogPrimitive.Close>

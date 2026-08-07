@@ -53,7 +53,15 @@ export default function LeagueStandingsModal({ open, onClose }) {
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-2xl max-h-[88vh] overflow-y-auto p-0 gap-0">
+      {/* The X sits on the tier's coloured hero, not on --background, so it
+          takes black rather than the default foreground colour — and no
+          focus halo, which on a touch device stays drawn after the tap and
+          reads as a circle around the icon. Keyboard focus still lands on
+          it; it just isn't ringed. */}
+      <DialogContent
+        className="max-w-2xl max-h-[88vh] overflow-y-auto p-0 gap-0"
+        closeClassName="text-black opacity-100 hover:opacity-100 focus:ring-0 focus:ring-offset-0"
+      >
         {isLoading || !data ? (
           <div className="p-6 space-y-2">
             <Skeleton className="h-24 rounded-lg" />

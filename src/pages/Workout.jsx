@@ -1494,6 +1494,17 @@ export default function Workout() {
     return () => { cancelled = true; };
   }, []);
 
+  // /workout?freestyle=1 — the Dashboard hero's "Start workout" CTAs land
+  // IN a session rather than on this page's picker. "Start" that drops you
+  // on a screen with another Start button on it is a step the user already
+  // took. Same param-stripping as ?scheduled= above so a refresh doesn't
+  // blow away whatever they've logged since.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('freestyle') !== '1') return;
+    startFreestyle();
+    window.history.replaceState({}, '', '/workout');
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleResumeSession = (sessionId) => {
     const session = resumeWorkout(sessionId);
     if (!session) return;

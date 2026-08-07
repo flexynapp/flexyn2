@@ -1599,7 +1599,11 @@ export default function Dashboard() {
           goals={goals}
           userProfile={userProfile}
           user={user}
-          onPrimary={() => navigate('/workout')}
+          // The hero's own button ("Start your first workout" / "Continue
+          // the streak" / "Log another") opens a freestyle session directly.
+          // ?freestyle=1 is handled in Workout.jsx — landing on that page's
+          // picker meant pressing Start twice to start one workout.
+          onPrimary={() => navigate('/workout?freestyle=1')}
           onReadinessInfo={() => openReadiness()}
           onPlanWeek={() => setWeekModalOpen(true)}
           navigate={navigate}
