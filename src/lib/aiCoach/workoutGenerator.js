@@ -44,10 +44,10 @@ const CATALOG = [
   { name: 'Romanian Deadlift',           group: 'legs',      equipment: 'gym',         compound: true,  skillLevel: 2 },
   { name: 'Dumbbell Romanian Deadlift',  group: 'legs',      equipment: 'dumbbells',   compound: true,  skillLevel: 1 },
   { name: 'Leg Press',                   group: 'legs',      equipment: 'gym',         compound: true,  skillLevel: 1 },
-  { name: 'Lunge',                       group: 'legs',      equipment: 'minimal',     compound: true,  skillLevel: 1 },
+  { name: 'Lunge',                       group: 'legs',      equipment: 'bodyweight',  compound: true,  skillLevel: 1 },
   { name: 'Leg Curl',                    group: 'legs',      equipment: 'gym',         compound: false, skillLevel: 1 },
   { name: 'Leg Extension',               group: 'legs',      equipment: 'gym',         compound: false, skillLevel: 1 },
-  { name: 'Calf Raise',                  group: 'legs',      equipment: 'minimal',     compound: false, skillLevel: 1 },
+  { name: 'Calf Raise',                  group: 'legs',      equipment: 'bodyweight',  compound: false, skillLevel: 1 },
 
   // Shoulders
   { name: 'Overhead Press',              group: 'shoulders', equipment: 'gym',         compound: true,  skillLevel: 2 },
@@ -64,10 +64,10 @@ const CATALOG = [
   { name: 'Tricep Dips',                 group: 'arms',      equipment: 'bodyweight',  compound: false, skillLevel: 1 },
 
   // Core
-  { name: 'Plank',                       group: 'core',      equipment: 'bodyweight',  compound: false, skillLevel: 1 },
+  { name: 'Plank',                       group: 'core',      equipment: 'bodyweight',  compound: false, skillLevel: 1, hold: 45 },
   { name: 'Hanging Leg Raise',           group: 'core',      equipment: 'minimal',     compound: false, skillLevel: 2 },
   { name: 'Cable Crunch',                group: 'core',      equipment: 'gym',         compound: false, skillLevel: 1 },
-  { name: 'Russian Twist',               group: 'core',      equipment: 'minimal',     compound: false, skillLevel: 1 },
+  { name: 'Russian Twist',               group: 'core',      equipment: 'bodyweight',  compound: false, skillLevel: 1 },
   { name: 'Dead Bug',                    group: 'core',      equipment: 'bodyweight',  compound: false, skillLevel: 1 },
 ];
 
@@ -102,14 +102,21 @@ const FOCUS_LABELS = {
   core:      'Core',
 };
 
-// Equipment expansion: a user with a "gym" picks gym + dumbbells + minimal +
-// bodyweight; a user with "dumbbells" picks dumbbells + minimal + bodyweight;
-// "bodyweight" only picks bodyweight + minimal.
+// Equipment expansion. 'minimal' means APPARATUS YOU DO NOT OWN — a pull-up
+// bar or parallel bars (Pull-up, Dips, Hanging Leg Raise). It used to also
+// hold Lunge, Calf Raise and Russian Twist, which need nothing at all, and
+// because 'bodyweight' expanded to include 'minimal' so it could reach those
+// three, it dragged the bar work along with them. A user who said they had no
+// equipment was handed Pull-up. Those three are now tagged 'bodyweight', where
+// they always belonged, and 'bodyweight' means exactly that: no equipment.
+//
+// Do not re-add 'minimal' to the bodyweight set. The whole point is that a
+// tag says what a movement NEEDS, not roughly how little it needs.
 function _equipmentFilter(level) {
   switch (level) {
     case 'gym':        return new Set(['gym', 'dumbbells', 'minimal', 'bodyweight']);
     case 'dumbbells':  return new Set(['dumbbells', 'minimal', 'bodyweight']);
-    case 'bodyweight': return new Set(['bodyweight', 'minimal']);
+    case 'bodyweight': return new Set(['bodyweight']);
     case 'minimal':    return new Set(['minimal', 'bodyweight']);
     default:           return new Set(['gym', 'dumbbells', 'minimal', 'bodyweight']);
   }
@@ -434,8 +441,26 @@ export async function generateWorkout({
     // 2 so a "rough day" session is still a real session rather than a token.
     const setCount = Math.max(2, Math.min(5, 3 + mods.setsDelta));
     // Reps: goal drives the character (strength lower, cut/endurance higher).
+    //
+    // An isometric hold is not scored this way and never was — a plank has no
+    // rep. It was landing here as `compound: false` and coming out "3 × 12",
+    // which is not a hard prescription, it is a missing unit. starterRegimen
+    // already knew this ("cardio + breath-heavy exercises don't take a literal
+    // rep target") and worked around it with a high placeholder; this catalog
+    // never learned, so the two generators disagreed about the same exercise.
+    //
+    // `hold` is the prescription in SECONDS. It rides alongside reps rather
+    // than replacing it: 79 non-test files read `set.reps`, and a hold still
+    // has weight 0 so it contributes 0 volume exactly as before. Only the
+    // surfaces that should say "45s" need to know the field exists.
+    const isHold = Number.isFinite(ex.hold) && ex.hold > 0;
     const baseReps = ex.compound ? 8 : 12;
-    const reps = Math.max(3, Math.min(20, baseReps + mods.repDelta));
+    const reps = isHold ? 1 : Math.max(3, Math.min(20, baseReps + mods.repDelta));
+    // Same clamp philosophy as everything else here: the diet / feel nudge
+    // moves the hold, bounded, rather than compounding into a 3-minute plank.
+    const holdSeconds = isHold
+      ? Math.max(15, Math.min(120, ex.hold + (mods.repDelta * 5)))
+      : null;
 
     const histTop = history[ex.name.toLowerCase()];
     let weight = histTop?.weight
@@ -450,10 +475,15 @@ export async function generateWorkout({
     if (weight > 0 && mods.loadMultiplier !== 1) {
       weight = Math.max(5, Math.round((weight * mods.loadMultiplier) / 5) * 5);
     }
-    const sets = Array.from({ length: setCount }, () => ({ weight, reps }));
+    // `holdSeconds` is only present on a hold, so a consumer that has never
+    // heard of it sees the same { weight, reps } shape it always has.
+    const sets = Array.from({ length: setCount }, () => (
+      isHold ? { weight, reps, holdSeconds } : { weight, reps }
+    ));
 
     let note = '';
-    if (histTop) note = `Last hit: ${histTop.weight} lb × ${histTop.reps}.`;
+    if (isHold) note = `Hold for ${holdSeconds}s per set — stop the set when form breaks, not when the clock does.`;
+    else if (histTop) note = `Last hit: ${histTop.weight} lb × ${histTop.reps}.`;
     else if (weight > 0) note = `Suggested start from your bodyweight, experience and demographics — adjust on your first set.`;
     else note = 'Bodyweight only.';
 
@@ -463,6 +493,9 @@ export async function generateWorkout({
       name:    ex.name,
       group:   ex.group,
       sets,
+      // Hoisted to the exercise as well as onto each set: the plan card reads
+      // the exercise to render "3 × 45s" without inspecting set internals.
+      ...(isHold ? { isHold: true, holdSeconds } : {}),
       restSec: Math.max(30, Math.min(240, baseRest + mods.restDeltaSec)),
       note,
       // Where this weight came from, as structured data rather than only as
