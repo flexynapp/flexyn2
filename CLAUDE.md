@@ -401,6 +401,49 @@ July 2026 equipment/storage work was found by dropping a layer:
    `MediaRecorder` over `canvas.captureStream()` for a genuinely decodable
    video), assign via `DataTransfer` to `input.files`, dispatch `change`.
 
+## Deploying an Edge Function — the CLI does not work in this repo
+
+**`supabase functions deploy <name>` fails here, and it fails in a way that
+reads like success if you aren't watching.** There is no
+`supabase/config.toml` in this repo, and CLI 2.109.1 ignores the
+`supabase/.temp/linked-project.json` that *does* carry the right project ref
+(`ebvqxuwfiptcmlkhflfj`). You get:
+
+```
+{"_tag":"Error","error":{"code":"LegacyProjectNotLinkedError",
+ "message":"Cannot find project ref. Have you run supabase link?"}}
+```
+
+Nothing is uploaded. This cost a full cycle on `coach-chat` (Aug 2026): the
+function was written, committed, and believed deployed, and every client call
+404'd — which the client latches as PIPELINE_MISSING and silently falls back
+from, so the app looked fine and the feature was simply absent.
+
+Deploy paths that DO work:
+
+- **The Supabase MCP tool** — `deploy_edge_function` with `project_id`,
+  `name`, `entrypoint_path`, `verify_jwt`, and the file contents. No local
+  auth needed. This is how `coach-chat` v1 shipped.
+- **The dashboard** — Edge Functions → Deploy, paste the source.
+- **The CLI with an explicit ref**, if you have `SUPABASE_ACCESS_TOKEN` or
+  have run `supabase login`:
+  `supabase functions deploy <name> --project-ref ebvqxuwfiptcmlkhflfj --no-verify-jwt`
+
+**Always confirm the deploy landed** with `list_edge_functions` rather than
+trusting the command's exit — check the slug appears and `verify_jwt` matches
+what the function expects. `verify_jwt` must be **false** for anything the
+browser calls directly (`send-push`, `recognize-meal`, `coach-chat`): with it
+on, the CORS preflight (OPTIONS, no Authorization header) is rejected at the
+gateway before the function's own auth gate ever runs. Those functions
+authenticate *inside* the handler — Bearer JWT + `client.auth.getUser()`.
+
+**Verifying a deployed function** is layer 2 of the three layers below: a node
+probe with the anon key from `.env.local` plus `supabase.auth.signInAnonymously()`,
+invoking through `supabase.functions.invoke` exactly as the app does. That
+exercises the real JWT gate and any quota RPCs; MCP/SQL-editor queries run as
+`postgres` and prove nothing about the auth path. Clean up the rows the probe
+writes — an anonymous user still increments quota tables.
+
 ## Database migrations
 
 - All migrations live in `supabase/migrations/NNN_*.sql` in execution order.
