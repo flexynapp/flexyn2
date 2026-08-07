@@ -20,7 +20,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import * as quests from '@/lib/data/quests';
 import * as notifications from '@/lib/data/notifications';
-import { getQuestDefinition, QUEST_DIFFICULTY, questDestinationRoute } from '@/lib/questCatalog';
+import { getQuestDefinition, questDestinationRoute } from '@/lib/questCatalog';
 import { reportError } from '@/lib/reportError';
 
 // questCatalog stores `icon` as a lucide export NAME so that module stays
@@ -261,14 +261,15 @@ export default function DailyQuestsCard({ onNavigated }) {
   // not by each owning a hue.
   return (
     <Card className="p-4 md:p-5">
-      <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
-        <div className="flex items-center gap-2 min-w-0">
-          <Sparkles className="w-4 h-4 text-primary shrink-0" />
-          <h3 className="font-heading font-bold text-sm tracking-tight truncate">{t('dashboard.dailyQuests')}</h3>
-          <span className="text-micro text-muted-foreground tabular-nums shrink-0">
-            {completedCount}/{annotated.length}
-          </span>
-        </div>
+      {/* Board 07: a 14px circle-check, the title, and the count pushed to
+          the card's right padding edge. The count used to sit tight against
+          the title, which read as part of it ("Daily Quests 0/3") rather than
+          as the day's score. The claimable pill isn't in the drawing — it has
+          nothing to show in a resting state — so it takes the slot before the
+          count and the drawn layout is what you see when nothing is ready. */}
+      <div className="flex items-center gap-2 mb-3 flex-wrap">
+        <CheckCircle2 className="w-3.5 h-3.5 text-primary shrink-0" />
+        <h3 className="font-heading font-bold text-sm tracking-tight truncate">{t('dashboard.dailyQuests')}</h3>
         {claimableCoins > 0 && (
           <motion.div
             initial={{ scale: 0.85, opacity: 0 }}
@@ -279,10 +280,15 @@ export default function DailyQuestsCard({ onNavigated }) {
             +{claimableCoins} {t('dashboard.ready')}
           </motion.div>
         )}
+        <span className="ms-auto text-micro text-muted-foreground tabular-nums shrink-0">
+          {completedCount} / {annotated.length}
+        </span>
       </div>
 
+      {/* 4px between rows, not 8. Board 07 runs them on a 36px pitch: a 28px
+          tile against a 30px two-line text block, four apart. */}
       {!collapsed && (
-        <div className="space-y-2">
+        <div className="space-y-1">
           {annotated.map((q) => (
             <QuestRow
               key={q.id}
@@ -320,15 +326,11 @@ function QuestRow({ quest, onClaim, onGo, t, tFallback }) {
   const def = quest.definition;
   const completed = !!quest.completed_at;
   const claimed = !!quest.claimed_at;
-  // Guard quest.target=0 (corrupt seed row) — the bare division would
-  // produce Infinity that clamps to 100% on a zero-progress quest, or
-  // NaN when both are 0, which renders as invalid `width: NaN%`.
-  const target = Number(quest.target) || 0;
-  const progress = Number(quest.progress) || 0;
-  const progressPct = target > 0
-    ? Math.min(100, Math.max(0, Math.round((progress / target) * 100)))
-    : 0;
-  const diffMeta = QUEST_DIFFICULTY[quest.difficulty];
+  // The percentage that used to drive a background fill is gone with it —
+  // board 07 states progress as the fraction and nothing else. That also
+  // retires the quest.target=0 guard it needed (a corrupt seed row made the
+  // bare division Infinity, or NaN when both were 0, and rendered an invalid
+  // `width: NaN%`); the fraction prints those values honestly instead.
   // Look up translated quest copy via the catalog convention `quest.<id>.label/desc`.
   // Falls back to the English label/desc baked into the catalog if the key is
   // missing in the current language.
@@ -351,93 +353,64 @@ function QuestRow({ quest, onClaim, onGo, t, tFallback }) {
         if (e.target !== e.currentTarget) return;
         if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onGo(); }
       } : undefined}
-      className={`relative rounded-lg bg-card border border-border/50 p-3 overflow-hidden ${tappable ? 'cursor-pointer hover:border-border transition-colors' : ''}`}
+      // Board 07 draws a quest as a tile, a title and a progress line sitting
+      // on the card's own surface. No border, no fill, no per-row card — the
+      // bordered row this replaces was a card inside a card (banned outright
+      // in CLAUDE.md) and is most of why three quests needed ~220px to say
+      // three things. Press feedback survives as a tint rather than a border;
+      // -mx-1 px-1 lets that tint sit a little wider than the text instead of
+      // indenting every row to make room for it.
+      className={`relative flex items-center gap-2.5 rounded-lg ${tappable ? 'cursor-pointer -mx-1 px-1 hover:bg-secondary/25 active:bg-secondary/40 transition-colors' : ''}`}
     >
-      {/* Subtle progress bar fill in background.
-          `diffMeta.color` is a bare `var(--x)` reference, so alpha is
-          composed with hsl()'s slash syntax. It used to be a raw hex and
-          this appended '26' / '10' as hex alpha — that string concat
-          silently produces invalid CSS the moment the value stops being a
-          6-digit hex, which is exactly what happened when difficulty
-          colours moved onto tokens. */}
+      {/* 28px, always --primary. Difficulty used to colour this tile green /
+          orange / red — three of the app's four hues spent on a property the
+          quest text already carries, and the drawing uses one accent. */}
       <div
-        className="absolute inset-0 transition-[width] duration-500"
-        style={{
-          width: `${progressPct}%`,
-          background: `linear-gradient(90deg, hsl(${diffMeta.color} / 0.18), hsl(${diffMeta.color} / 0.06))`,
-        }}
+        className="shrink-0 w-7 h-7 rounded-sm bg-primary text-primary-foreground flex items-center justify-center"
         aria-hidden="true"
-      />
-
-      {/* NOT cq-stack. Stacking the icon above the text did fix the ~60px
-          text column, but it took each row from 44px to 98px — and in a
-          PAIRED row that made the quests card ~487px against ~294px full
-          width, so "save space by pairing" cost 129px instead. The icon tile
-          goes instead (cq-hide below): its only job at this width is colour,
-          and the difficulty word it duplicates is already hidden. That hands
-          the title the full 147px, where two clamped lines fit. */}
-      <div className="relative flex items-center gap-3">
-        {/* Was a 24px emoji. The tile takes the difficulty accent, which
-            the emoji could never do — colour now carries "how hard is
-            this" on the icon as well as the pill. */}
-        <div
-          className="shrink-0 w-9 h-9 rounded-sm flex items-center justify-center cq-hide"
-          style={{ backgroundColor: `hsl(${diffMeta.color})`, color: 'white' }}
-          aria-hidden="true"
-        >
-          {(() => {
-            const QuestIcon = QUEST_ICONS[def.icon] || Sparkles;
-            return <QuestIcon className="w-4 h-4" />;
-          })()}
-        </div>
-
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5">
-            {/* cq-clamp2: truncation is right on a full-width row and useless
-                in a half slot, where "Train for 15 minutes" became
-                "Train fo…". Two wrapped lines fit the same width. */}
-            <p className="font-medium text-sm truncate cq-clamp2">{label}</p>
-            {/* Difficulty label is plain muted text. The solid icon tile to
-                the left already carries the difficulty colour, so tinting
-                this too was saying it twice — and `--destructive` measures
-                3.48:1 against the dark card, which fails AA for an 11px
-                label. Muted-foreground clears it at 5.4:1 in both themes. */}
-            {/* cq-hide: in a half-width dashboard slot this shrink-0 chip
-                truncated the quest itself to "Tr…". The icon tile already
-                carries the difficulty as colour, so the word is the
-                redundant half of the pair. See index.css. */}
-            <span className="text-micro font-bold uppercase tracking-wider text-muted-foreground shrink-0 cq-hide">
-              {t(`quest.difficulty.${quest.difficulty}`)}
-            </span>
-          </div>
-          <p className="text-micro text-muted-foreground tabular-nums">
-            {quest.progress}/{quest.target} · {quest.coin_reward} {tFallback('hub.coins', 'coins')}
-          </p>
-        </div>
-
-        <AnimatePresence mode="wait">
-          {claimed ? (
-            <motion.div
-              key="claimed"
-              initial={{ scale: 0.85, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              className="flex items-center gap-1 text-muted-foreground text-xs"
-            >
-              <CheckCircle2 className="w-4 h-4" />
-            </motion.div>
-          ) : completed ? (
-            <motion.button
-              key="claim"
-              initial={{ scale: 0.85, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              onClick={(e) => { e.stopPropagation(); onClaim(); }}
-              className="px-3 py-1 rounded-sm bg-primary text-primary-foreground text-xs font-bold hover:opacity-90 transition-opacity"
-            >
-              {t('dashboard.claim')}
-            </motion.button>
-          ) : null}
-        </AnimatePresence>
+      >
+        {(() => {
+          const QuestIcon = QUEST_ICONS[def.icon] || Sparkles;
+          return <QuestIcon className="w-3.5 h-3.5" />;
+        })()}
       </div>
+
+      <div className="flex-1 min-w-0">
+        {/* cq-clamp2 stays even though this row is full-width by default:
+            the rules behind it only fire inside a .dash-slot under 250px, so
+            it costs nothing here and still catches a user who pairs quests
+            with something by hand in edit mode. */}
+        {/* leading-tight, not the default 20px line box: the drawing gives the
+            title 16px and the progress line 14px, which is what puts the row
+            on a 36px pitch. text-sm's default leading alone added 4px a row. */}
+        <p className="font-medium text-sm leading-tight truncate cq-clamp2">{label}</p>
+        <p className="text-micro text-muted-foreground tabular-nums">
+          {quest.progress} / {quest.target} · {quest.coin_reward} {tFallback('hub.coins', 'coins')}
+        </p>
+      </div>
+
+      <AnimatePresence mode="wait">
+        {claimed ? (
+          <motion.div
+            key="claimed"
+            initial={{ scale: 0.85, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="flex items-center gap-1 text-muted-foreground text-xs"
+          >
+            <CheckCircle2 className="w-4 h-4" />
+          </motion.div>
+        ) : completed ? (
+          <motion.button
+            key="claim"
+            initial={{ scale: 0.85, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            onClick={(e) => { e.stopPropagation(); onClaim(); }}
+            className="px-3 py-1 rounded-sm bg-primary text-primary-foreground text-xs font-bold hover:opacity-90 transition-opacity"
+          >
+            {t('dashboard.claim')}
+          </motion.button>
+        ) : null}
+      </AnimatePresence>
     </motion.div>
   );
 }
