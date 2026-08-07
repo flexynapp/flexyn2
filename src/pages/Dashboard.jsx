@@ -369,6 +369,10 @@ const SECTION_LABELS = {
   chest:        (tF) => tF('dashboard.section.chest',        'Daily chest'),
   league:       (tF) => tF('dashboard.section.league',       'Weekly rank'),
   friends:      (tF) => tF('dashboard.section.friends',      'Friends this week'),
+  // English-only via tFallback, like every other label in this map — the
+  // dashboard.section.* keys are not in any i18n part file. Adding one
+  // translated sibling would be the odd one out, so it follows the group.
+  rescue:       (tF) => tF('dashboard.section.rescue',       'Streak rescue'),
   progress:     (tF) => tF('dashboard.section.progress',     'Your progress'),
   actions:      (tF, t) => t('dashboard.quickActions'),
   journal:      (tF) => tF('dashboard.section.journal',      'Journal'),
@@ -460,6 +464,7 @@ export default function Dashboard() {
                              // as one "today" block, not because they pair
     'chest', 'league',       // hotdog pair: chest beside weekly rank
     'friends',
+    'rescue',                // conditional — "your streak is about to break"
     'progress',              // goals, weekly recap, suggestion + memory
     'journal',
     'discover', 'motivation',
@@ -1305,14 +1310,31 @@ export default function Dashboard() {
           <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.22, delay: 0.15 }}>
             <ErrorBoundary label="DailyQuestsCard"><DailyQuestsCard /></ErrorBoundary>
           </motion.div>
+        </React.Fragment>
+      );
+      // Streak rescue is its own row, below the friend leaderboard, per board
+      // 01. It used to render inside 'challenges', glued 8px under Daily
+      // Quests — which read as a third quest rather than the "you are about to
+      // lose a streak" interrupt it is.
+      //
+      // A section rather than a tail on 'friends': hanging it off another
+      // section means hiding that section silently removes the streak rescue
+      // too, and the one card that saves a run of training is the worst thing
+      // to lose to a decision about a leaderboard.
+      //
+      // No defaults-version bump needed. mergeWidgetOrder splices an id the
+      // user has never seen in at its default index, so existing layouts pick
+      // this up in the right slot on next load.
+      case 'rescue': return (
+        <React.Fragment key="rescue">
+          {/* Rest day means the streak is deliberately paused, so the rescue
+              prompt would be nagging about a choice the user just made. */}
           {!isRestDay && (
-            <div className="mt-2">
-              <StreakRescueCard
-                streakDays={streak}
-                lastWorkoutDate={lastWorkoutDate?.toISOString()}
-                lastMealDate={lastMealDate?.toISOString()}
-              />
-            </div>
+            <StreakRescueCard
+              streakDays={streak}
+              lastWorkoutDate={lastWorkoutDate?.toISOString()}
+              lastMealDate={lastMealDate?.toISOString()}
+            />
           )}
         </React.Fragment>
       );
@@ -1484,6 +1506,18 @@ export default function Dashboard() {
       );
       case 'customize': return (
         <React.Fragment key="customize">
+          {/* Board 01 gives this the same dot + heading + note every other
+              section gets. It was the only section announcing itself
+              differently — DashboardWidgets carried its own <h2> reading
+              "Your Widgets" — so the last thing on the page looked like it
+              belonged to another screen. The <h2> is gone from that component;
+              its edit toggle stays where it was. */}
+          {/* No `note` here, unlike the board. Board 01 draws "Edit layout" as
+              the note because it draws no Edit button; the real component has
+              one, so rendering both put the words "Edit layout" directly above
+              a button reading "Edit" — seen on the rendered page, not reasoned
+              about. The button is the affordance, so the label stays bare. */}
+          <SectionLabel label={tFallback('dashboard.section.customize', 'Widget library')} />
           {/* id is the scroll target for the Widgets action tile. */}
           <motion.div
             id="dash-widget-library"

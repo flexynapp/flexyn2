@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Plus, X, GripVertical, Pencil, Check } from 'lucide-react';
 import WidgetLibrary from './WidgetLibrary';
 import WidgetRenderer, { WIDGET_COMPONENTS } from './WidgetRenderer';
+import { WIDGET_DEFINITIONS } from '@/lib/widgetDefinitions';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useAuth } from '@/lib/AuthContext';
 import { db } from '@/api/db';
@@ -194,8 +195,12 @@ export default function DashboardWidgets({ logs, goals, isLoading, userProfile }
         </motion.div>
       ) : (
         <>
-          <div className="mb-2 flex items-center justify-between gap-2">
-            <h2 className="font-heading font-bold text-lg">{t('dashboard.yourWidgets')}</h2>
+          {/* The heading moved out to the Dashboard's own SectionLabel, so
+              this section announces itself the way every other one does
+              (dot + heading + note) instead of with its own <h2>. The row
+              stays for the edit toggle; justify-end keeps it right-aligned
+              now that nothing sits opposite it. */}
+          <div className="mb-2 flex items-center justify-end gap-2">
             {/* Edit toggle — reveals drag handles + remove controls. Keeps
                 the default view clean (no always-on control clutter) and
                 makes reordering discoverable without relying on hover. */}
@@ -238,6 +243,18 @@ export default function DashboardWidgets({ logs, goals, isLoading, userProfile }
           >
             <Plus className="w-4 h-4" /> {t('dashboard.addWidget')}
           </button>
+
+          {/* Foot line from board 01. The count is read from
+              WIDGET_DEFINITIONS rather than written down: the board draws
+              "12 widgets available" and CLAUDE.md says 16, while the array
+              actually holds 10 — a number that drifts the moment anyone adds
+              a widget, so it has to be derived or it will be wrong again. */}
+          <p className="mt-2 text-micro text-muted-foreground/60 tracking-wide">
+            {tFallback('dashboard.widgetsAvailable', '{n} widgets available')
+              .replace('{n}', String(WIDGET_DEFINITIONS.length))}
+            {' · '}
+            {tFallback('dashboard.dragToReorder', 'drag any section to reorder')}
+          </p>
         </>
       )}
 

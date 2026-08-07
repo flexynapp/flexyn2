@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
-import { Card } from '@/components/ui/card';
 import { Quote, Star, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useAuth } from '@/lib/AuthContext';
@@ -121,17 +120,28 @@ export default function DailyQuote({ editMode = false }) {
           onDragEnd={onDragEnd}
           style={{ touchAction: 'pan-y' }}
         >
-          <Card className="relative overflow-hidden p-5 md:p-6 border-border/60 bg-primary/5 select-none">
-            <Quote className="absolute top-3 end-3 w-5 h-5 text-primary/30" />
-            <p className="font-heading text-base md:text-lg leading-snug text-foreground/90 px-1 sm:px-7 break-words">
+          {/* No card — board 01 and the ledger on board 04 both draw this as a
+              hairline block. "A daily quote isn't something the user arranged,
+              so it doesn't get a surface." The card was breaking the surface
+              rule twice: a card around read-only decoration, and a bg-primary/5
+              tint on top of it. A rule above does the separating the card was
+              really there for.
+
+              sm:px-7 stays: the prev/next chevrons are absolutely positioned at
+              start-0/end-0 of the wrapper and are `hidden sm:flex`, so without
+              that inset they would sit on top of the text at desktop widths.
+              Mobile needs none — the page inset already provides it. */}
+          <div className="border-t border-border pt-4 select-none">
+            <Quote className="w-3.5 h-3.5 text-primary/40 mb-1.5 sm:ms-7" aria-hidden="true" />
+            <p className="font-heading text-base md:text-lg italic leading-snug text-foreground/90 sm:px-7 break-words">
               "{current.text}"
             </p>
             {current.author && (
-              <p className="mt-2 text-xs font-medium tracking-wide text-muted-foreground px-1 sm:px-7">
+              <p className="mt-2 text-xs font-medium tracking-wide text-muted-foreground sm:px-7">
                 — {current.author}
               </p>
             )}
-          </Card>
+          </div>
 
           {/* Chevrons — primarily for desktop; mobile uses the swipe gesture. */}
           {!editMode && ordered.length > 1 && (
@@ -156,20 +166,31 @@ export default function DailyQuote({ editMode = false }) {
           )}
         </motion.div>
 
-        {/* Position hint — keeps swipe discoverable without cluttering the card. */}
-        {ordered.length > 1 && (
-          <div className="mt-2 flex items-center justify-center gap-2">
-            {onDay ? (
-              <span className="text-micro text-muted-foreground/60 tracking-wide">
-                {tFallback('quotes.swipeHint', 'Swipe for more')}
-              </span>
-            ) : (
+        {/* Caption. Board 01 draws one under the quote, and with the card gone
+            it stops being optional: an unlabelled italic line on a bare page
+            reads as a stray string rather than a slot that refills daily.
+            Left-aligned to the quote above it, not centred as the old hint was.
+
+            The board's caption says "tap to shuffle". Tapping does nothing here
+            — paging is a swipe, plus chevrons at desktop widths — so the hint
+            names the control that exists rather than the one that was drawn.
+            Worth settling in the board either way; a caption that teaches the
+            wrong gesture is worse than none. */}
+        <div className="mt-2 flex items-center gap-1.5 sm:px-7">
+          <span className="text-micro text-muted-foreground/60 tracking-wide">
+            {tFallback('quotes.caption', 'Daily quote')}
+          </span>
+          {ordered.length > 1 && (
+            <>
+              <span className="text-micro text-muted-foreground/40" aria-hidden="true">·</span>
               <span className="text-micro text-muted-foreground/60 tracking-wide tabular-nums">
-                {safeIndex + 1} / {ordered.length}
+                {onDay
+                  ? tFallback('quotes.swipeHint', 'Swipe for more')
+                  : `${safeIndex + 1} / ${ordered.length}`}
               </span>
-            )}
-          </div>
-        )}
+            </>
+          )}
+        </div>
       </div>
 
       {/* Edit-mode affordance: add/manage your own quotes that cycle in. */}
