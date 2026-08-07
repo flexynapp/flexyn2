@@ -84,7 +84,20 @@ export default function MoodLogCard() {
         // ambiguity for the next reader and avoids accidentally
         // invalidating any sibling query that might key on
         // ['moodLogToday', user?.id, <other>] in the future.
-        qc.invalidateQueries({ queryKey: ['moodLogToday', user?.id, todayDateKey] });
+        // Invalidate the 2-element PREFIX, not this card's own 3-element key.
+        // React Query prefix-matches downwards only: invalidating
+        // ['moodLogToday', uid] hits both this card's
+        // ['moodLogToday', uid, date] AND useReadiness's ['moodLogToday', uid]
+        // — but invalidating the longer key hits neither the shorter one nor
+        // the score that reads it.
+        //
+        // That was the bug: logging a mood updated this card and nothing else,
+        // so Readiness kept substituting a neutral estimate for mood/soreness
+        // — 25% of the score — and its breakdown said "not logged" while the
+        // emoji sat visibly selected one card above it. SleepLogCard and
+        // StepsLogCard already invalidate the prefix, which is why sleep and
+        // steps reached the score and mood didn't.
+        qc.invalidateQueries({ queryKey: ['moodLogToday', user?.id] });
         // Auto-tag today's journal entry with the mood score so the
         // journal widget (and history log) surface the emoji for that day.
         // Fire-and-forget — journal tagging failure is non-fatal.

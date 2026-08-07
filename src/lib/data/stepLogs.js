@@ -27,11 +27,20 @@ export async function upsertStepLog({ steps, notes }) {
     return { ok: false, reason: 'invalid_steps' };
   }
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user?.id || !user?.email) return { ok: false, reason: 'unauthenticated' };
+  if (!user?.id) return { ok: false, reason: 'unauthenticated' };
+  // Guest (anonymous) sessions have an EMPTY auth email while their profile
+  // row carries guest_<uuid>@flexyn.guest (migration 172's trigger). This
+  // table's user_email is NOT NULL, so the old `|| !user?.email` guard meant
+  // every guest silently got { ok: false } here and NOTHING they logged
+  // saved — sleep, mood and steps all refused, and Readiness went on
+  // substituting a neutral estimate for signals the user had just entered.
+  // Synthesize the same placeholder makeEntity() in api/db.js already uses,
+  // so the identity layer stays consistent.
+  const userEmail = user.email || `guest_${user.id}@flexyn.guest`;
 
   const payload = {
     user_id:    user.id,
-    user_email: user.email,
+    user_email: userEmail,
     date:       todayDateString(),
     steps:      n,
     updated_at: new Date().toISOString(),
