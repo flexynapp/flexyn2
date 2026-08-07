@@ -28,6 +28,21 @@ const AIRBORNE = new Set(['Pull-up', 'Dips', 'Hanging Leg Raise', 'Tricep Dips',
                           'Skull Crusher', 'Incline Dumbbell Press', 'Cable Crunch',
                           'Seated Cable Row', 'Dumbbell Shoulder Press']);
 
+// FOLD. A body whose legs and head leave the hip in the SAME direction is
+// folded in half, not posed. This is what made Inverted Row read as the back
+// going to the bar: torso and legs both ran right of the hip, so the figure
+// was a Z. Geometry checks all passed — every joint was in bounds, the hands
+// were on the bar — because "is this a plausible human" is a different
+// question from "are the numbers legal".
+//
+// Exempt: poses where a tight fold is the exercise.
+const FOLDED_OK = new Set(['Dead Bug', 'Cable Crunch', 'Hanging Leg Raise',
+                           'Russian Twist', 'Leg Press', 'Leg Extension',
+                           'Seated Cable Row', 'Dumbbell Shoulder Press',
+                           'Lat Pulldown', 'Bodyweight Squat', 'Goblet Squat',
+                           'Front Squat', 'Back Squat', 'Tricep Dips']);
+const FOLD_MIN_DEG = 55;
+
 let fails = 0, checks = 0;
 const fail = (msg) => { console.log('  ✗ ' + msg); fails++; };
 
@@ -53,6 +68,15 @@ for (const [name, { frames }] of Object.entries(POSES)) {
       const lowest = Math.max(s.footNear[1], s.footFar[1], s.armNear.end[1]);
       if (Math.abs(lowest - FLOOR_Y) > FLOOR_TOL) {
         issues.push(`frame ${i + 1}: lowest point ${lowest.toFixed(0)}, floor ${FLOOR_Y} (off by ${(lowest - FLOOR_Y).toFixed(0)})`);
+      }
+    }
+
+    if (!FOLDED_OK.has(name)) {
+      const ang = ([x, y]) => Math.atan2(x - s.hip[0], y - s.hip[1]) * 180 / Math.PI;
+      let d = Math.abs(ang(s.neckBase) - ang(s.legNear.end));
+      if (d > 180) d = 360 - d;
+      if (d < FOLD_MIN_DEG) {
+        issues.push(`frame ${i + 1}: torso and legs leave the hip ${d.toFixed(0)}deg apart — body is folded (min ${FOLD_MIN_DEG})`);
       }
     }
 

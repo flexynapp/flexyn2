@@ -138,11 +138,15 @@ export const POSES = {
     { prop: 'parallel-bars', hip: [100, 146], torso: 184, head: 182, handAt: [112, 132], armBend: -1,
       hipNear: 350, hipFar: 346, kneeNear: 300, kneeFar: 296, ankleNear: 90, ankleFar: 90 }) },
 
+  // Face UP under the bar: head to the right, legs running the OTHER way from
+  // the hip to heels planted on the floor. The first version had torso and
+  // legs both leaving the hip rightward, which folded the figure into a Z and
+  // read as the back going to the bar rather than the chest.
   'Inverted Row': { labels: ['Hang under the bar', 'Chest to the bar', 'Lower under control'], frames: rep3(
-    { prop: 'bar-low', hip: [86, 158], torso: 86, head: 86, handAt: [138, 128], armBend: 1,
-      hipNear: 76, hipFar: 80, kneeNear: 42, kneeFar: 46, ankleNear: 90, ankleFar: 90 },
-    { prop: 'bar-low', hip: [86, 146], torso: 86, head: 86, handAt: [138, 128], armBend: 1,
-      hipNear: 62, hipFar: 66, kneeNear: 30, kneeFar: 34, ankleNear: 90, ankleFar: 90 }) },
+    { prop: 'bar-low', hip: [96, 150], torso: 90, head: 90, handAt: [128, 112], armBend: 1,
+      hipNear: 320, hipFar: 324, kneeNear: 300, kneeFar: 304, ankleNear: 90, ankleFar: 90 },
+    { prop: 'bar-low', hip: [96, 142], torso: 90, head: 90, handAt: [128, 112], armBend: 1,
+      hipNear: 323, hipFar: 327, kneeNear: 323, kneeFar: 327, ankleNear: 90, ankleFar: 90 }) },
 
   'Hanging Leg Raise': { labels: ['Dead hang', 'Knees to chest', 'Lower with control'], frames: rep3(
     { prop: 'bar-high', hip: [100, 122], torso: 180, head: 180, handAt: [100, 48], armBend: 1, ...LEGS_STAND },
