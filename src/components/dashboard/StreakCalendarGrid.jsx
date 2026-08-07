@@ -98,7 +98,11 @@ export default function StreakCalendarGrid({ profile, month = new Date() }) {
   return (
     <div className="rounded-lg border border-border bg-card p-3">
       <div className="flex items-baseline justify-between mb-2">
-        <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+        {/* Board 07 draws the month at 11px in FOREGROUND, not 12px muted.
+            Muted put the only label that says what you are looking at behind
+            the day numbers; the drawing has it lead the card and lets the
+            "N days hit" count be the muted half of the pair. */}
+        <p className="text-micro font-bold uppercase tracking-wide text-foreground">
           {format(month, 'MMMM', { locale: dateLocale })}
         </p>
         <p className="text-micro text-muted-foreground tabular-nums">
@@ -120,10 +124,15 @@ export default function StreakCalendarGrid({ profile, month = new Date() }) {
           const key = format(d, 'yyyy-MM-dd');
           const status = cells.get(key);
           const today = isToday(d);
+          // Numeral opacities are the drawing's: a day you missed still reads
+          // at full muted (it happened, and it is information), a day that
+          // hasn't come yet sits back at 40%. The fills were already right —
+          // secondary/40 past, success/25 hit, secondary/20 future — these are
+          // the same four states measured off board 07.
           const cellClass =
-            status === 'future' ? 'bg-secondary/20 text-muted-foreground/30' :
+            status === 'future' ? 'bg-secondary/20 text-muted-foreground/40' :
             status === 'hit'    ? 'bg-success/25 text-success' :
-                                   'bg-secondary/40 text-muted-foreground/60';
+                                   'bg-secondary/40 text-muted-foreground';
           const statusLabel = tFallback(`streakCalendar.status.${status}`, status || 'miss');
           return (
             <motion.div
