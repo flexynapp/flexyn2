@@ -22,6 +22,7 @@ import { motion } from 'framer-motion';
 import { Moon, Star, Smile, Dumbbell, X } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
 import ErrorBoundary from '@/components/ErrorBoundary';
+import ReadinessRing, { readinessColors } from '@/components/dashboard/ReadinessRing';
 import SleepLogCard from '@/components/dashboard/SleepLogCard';
 import MoodLogCard from '@/components/dashboard/MoodLogCard';
 import StepsLogCard from '@/components/dashboard/StepsLogCard';
@@ -129,35 +130,55 @@ export default function ReadinessSheet({ open, onClose, readiness, focus, onLogW
 
           <div className="px-4 md:px-6 pb-4">
             <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-micro font-semibold tracking-[0.04em] text-primary mb-1">
-                  {tFallback('readiness.kicker', 'READINESS · TODAY')}
-                </p>
-                <div className="flex items-baseline gap-2">
-                  <span className="font-heading font-bold text-4xl leading-none tabular-nums">{score}</span>
-                  <span className="text-sm font-semibold text-muted-foreground">
-                    / 100 · {readiness?.label}
-                  </span>
-                </div>
-              </div>
+              <p className="text-micro font-semibold tracking-[0.04em] text-primary">
+                {tFallback('readiness.kicker', 'READINESS · TODAY')}
+              </p>
+              {/* Board 02 gives the close a resting fill rather than one that
+                  only appears on hover — there is no hover on the phones this
+                  ships to, so the control was invisible until tapped. */}
               <button
                 type="button"
                 onClick={onClose}
                 aria-label={tFallback('common.close', 'Close')}
-                className="shrink-0 w-9 h-9 -me-2 rounded-full flex items-center justify-center text-muted-foreground hover:bg-secondary/60 active:bg-secondary/60 transition-colors"
+                className="shrink-0 w-8 h-8 -me-1 rounded-full flex items-center justify-center bg-foreground/[0.08] text-muted-foreground hover:bg-foreground/[0.14] active:bg-foreground/[0.14] transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
+            </div>
+
+            {/* The dial, repeated from the card you tapped to get here — board
+                02 leads with it so the sheet confirms what you opened rather
+                than restating the number in a different shape.
+
+                The score is text-title (20px) where the drawing has 24. The
+                app's type scale has no 24px step and CLAUDE.md forbids
+                inventing a seventh, so it takes the nearest one down. */}
+            <div className="flex items-center gap-3 mt-2">
+              <ReadinessRing score={score} color={readinessColors(readiness?.label).ring}>
+                <span className="font-heading font-black text-title tabular-nums">{score}</span>
+              </ReadinessRing>
+              <div className="min-w-0">
+                <p className="font-heading font-bold text-title leading-tight">{readiness?.label}</p>
+                <p className="text-caption text-muted-foreground leading-snug mt-1">
+                  {tFallback('readiness.blend', 'Blended from four signals. The more you log, the less we estimate.')}
+                </p>
+              </div>
             </div>
 
             {/* ── the three logs ─────────────────────────────────────── */}
             <div className="mt-6">
               <div className="flex items-center gap-2 mb-2 px-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-primary" aria-hidden="true" />
-                <h3 className="font-heading font-bold text-sm tracking-tight">
+                <h3 className="font-heading font-bold text-body tracking-tight">
                   {tFallback('readiness.logHeading', "Log tonight's signals")}
                 </h3>
               </div>
+              {/* Board 02 puts a line here saying what these three controls
+                  are — without it the section is a heading and three cards
+                  the user has already seen collapsed on the page. */}
+              <p className="text-micro text-muted-foreground mb-2 px-1">
+                {tFallback('readiness.logSub', 'Full controls for the three signals the Tonight row shows on the page.')}
+              </p>
               <div className="space-y-2">
                 <div ref={sleepRef}>
                   <ErrorBoundary label="SleepLogCard"><SleepLogCard /></ErrorBoundary>
@@ -173,18 +194,21 @@ export default function ReadinessSheet({ open, onClose, readiness, focus, onLogW
 
             {/* ── why the score is what it is ────────────────────────── */}
             <div className="mt-6 pt-4 border-t border-border">
+              {/* "WHAT MADE YOUR 82", not "…YOUR SCORE". The drawing names
+                  the number the user is looking at, which is the question
+                  this section exists to answer. */}
               <p className="text-micro font-semibold tracking-[0.04em] text-muted-foreground mb-3">
-                {tFallback('readiness.breakdownHeading', 'WHAT MADE YOUR SCORE')}
+                {tFallback('readiness.breakdownHeading', 'WHAT MADE YOUR {n}').replace('{n}', score)}
               </p>
               <ul className="space-y-2.5">
                 {rows.map((r) => (
                   <li key={r.name} className="flex gap-3 items-start">
-                    <span className="shrink-0 mt-0.5 w-7 h-7 rounded-sm bg-secondary/60 text-muted-foreground flex items-center justify-center">
+                    <span className="shrink-0 mt-0.5 w-7 h-7 rounded-sm bg-secondary text-muted-foreground flex items-center justify-center">
                       <r.Icon className="w-3.5 h-3.5" aria-hidden="true" />
                     </span>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-baseline justify-between gap-2">
-                        <p className="text-sm font-semibold">{r.name}</p>
+                        <p className="text-caption font-semibold">{r.name}</p>
                         <p className="text-xs font-bold tabular-nums shrink-0">
                           {r.d?.logged
                             ? <span className="text-foreground">{r.value}</span>
@@ -194,13 +218,19 @@ export default function ReadinessSheet({ open, onClose, readiness, focus, onLogW
                         </p>
                       </div>
                       <div className="flex items-center gap-2 mt-1">
-                        <div className="flex-1 h-1.5 rounded-full bg-secondary overflow-hidden">
+                        {/* 4px on foreground/12, per the drawing. h-1.5 on
+                            --secondary made the track read as a filled bar of
+                            its own next to the tile beside it. */}
+                        <div className="flex-1 h-1 rounded-full bg-foreground/[0.12] overflow-hidden">
                           <div
                             className={`h-full rounded-full ${r.d?.logged ? 'bg-primary' : 'bg-muted-foreground/30'}`}
                             style={{ width: `${Math.max(0, Math.min(100, r.d?.score ?? 0))}%` }}
                           />
                         </div>
-                        <span className="text-micro font-semibold tabular-nums text-muted-foreground shrink-0 w-14 text-end">
+                        {/* Primary, not muted. This is the answer to the
+                            question the section asks, and it was rendering in
+                            the same grey as the weight caption below it. */}
+                        <span className="text-micro font-bold tabular-nums text-primary shrink-0 w-14 text-end">
                           +{r.d?.contribution ?? 0} pts
                         </span>
                       </div>
@@ -232,7 +262,10 @@ export default function ReadinessSheet({ open, onClose, readiness, focus, onLogW
             <button
               type="button"
               onClick={onClose}
-              className="w-full mt-5 rounded-2xl bg-primary text-primary-foreground font-heading font-bold text-body h-12 shadow-md hover:brightness-105 active:scale-[0.98] transition-all"
+              // Drawn at 52px, which is no step on the height scale. --fluid-cta-h
+              // is the app's own answer for exactly this control (clamp 48→56)
+              // and lands on ~52 at the 390pt the board was drawn at.
+              className="w-full mt-5 rounded-2xl bg-primary text-primary-foreground font-heading font-bold text-body h-[var(--fluid-cta-h)] shadow-md hover:brightness-105 active:scale-[0.98] transition-all"
             >
               {tFallback('common.save', 'Save')}
             </button>
