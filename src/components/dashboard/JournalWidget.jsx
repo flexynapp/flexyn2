@@ -49,7 +49,9 @@ export default function JournalWidget({ userId, userEmail }) {
   const mountedRef   = useRef(true);
   const draftRef     = useRef('');
   useEffect(() => { draftRef.current = draft; }, [draft]);
-  useEffect(() => () => {
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
     mountedRef.current = false;
     // If there's a pending autosave when the component unmounts,
     // flush it synchronously instead of dropping the user's last
@@ -81,6 +83,7 @@ export default function JournalWidget({ userId, userEmail }) {
         })();
       }
     }
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

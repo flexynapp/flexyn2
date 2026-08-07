@@ -234,7 +234,7 @@ export default function ReadinessSheet({ open, onClose, readiness, focus, onLogW
               onClick={onClose}
               className="w-full mt-5 rounded-2xl bg-primary text-primary-foreground font-heading font-bold text-body h-12 shadow-md hover:brightness-105 active:scale-[0.98] transition-all"
             >
-              {tFallback('common.done', 'Done')}
+              {tFallback('common.save', 'Save')}
             </button>
           </div>
         </motion.div>

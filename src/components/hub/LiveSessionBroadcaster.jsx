@@ -178,6 +178,7 @@ export default function LiveSessionBroadcaster({ onClose }) {
 
   // Cleanup on unmount
   useEffect(() => {
+    mountedRef.current = true;
     return () => {
       mountedRef.current = false;
       if (broadcastTimerRef.current) clearInterval(broadcastTimerRef.current);

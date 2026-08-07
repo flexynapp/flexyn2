@@ -54,7 +54,14 @@ export function LanguageProvider({ children }) {
   // React 'unmounted update' warning AND the localStorage write under
   // an old user context.
   const mountedRef = useRef(true);
-  useEffect(() => () => { mountedRef.current = false; }, []);
+  // See MoodLogCard for the full story: a cleanup-only mounted flag is false
+  // from the first paint under StrictMode. Here it gated setLanguage() after
+  // its await, so changing language in dev applied neither the state nor the
+  // localStorage write.
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   // On mount, try to read the signed-in user's preferred_language and override local state if set.
   useEffect(() => {

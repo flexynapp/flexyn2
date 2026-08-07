@@ -29,7 +29,18 @@ export default function MoodLogCard() {
   // the guard avoids the duplicate RPC + the brief optimistic flicker.
   const submittingRef = useRef(false);
   const mountedRef = useRef(true);
-  useEffect(() => () => { mountedRef.current = false; }, []);
+  // mountedRef.current = true on SETUP, not just false on cleanup.
+  // React 18 StrictMode (main.jsx) runs effects setup -> cleanup -> setup, so
+  // a cleanup-only flag is FALSE from the first paint in dev and nothing ever
+  // restores it. Everything gated on it then silently no-ops for the entire
+  // session — which is exactly how "steps saves but mood and sleep don't"
+  // happened: the upsert landed, and the invalidateQueries after it was
+  // skipped, so the card never refetched and the value never appeared.
+  // StepsLogCard has no such flag, which is why it looked fine.
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   // Today's local date string drives the query key so a PWA left open
   // across midnight stops treating yesterday's mood as today's. The
@@ -78,25 +89,12 @@ export default function MoodLogCard() {
       const res = await upsertMoodLog({ mood });
       if (!mountedRef.current) return; // bail if unmounted mid-request
       if (res.ok) {
-        // Invalidate the 3-key form to match the query above. Prefix
-        // matching meant the 2-key form ['moodLogToday', user?.id]
-        // technically also worked, but the explicit shape removes the
-        // ambiguity for the next reader and avoids accidentally
-        // invalidating any sibling query that might key on
-        // ['moodLogToday', user?.id, <other>] in the future.
-        // Invalidate the 2-element PREFIX, not this card's own 3-element key.
-        // React Query prefix-matches downwards only: invalidating
-        // ['moodLogToday', uid] hits both this card's
-        // ['moodLogToday', uid, date] AND useReadiness's ['moodLogToday', uid]
-        // — but invalidating the longer key hits neither the shorter one nor
-        // the score that reads it.
-        //
-        // That was the bug: logging a mood updated this card and nothing else,
-        // so Readiness kept substituting a neutral estimate for mood/soreness
-        // — 25% of the score — and its breakdown said "not logged" while the
-        // emoji sat visibly selected one card above it. SleepLogCard and
-        // StepsLogCard already invalidate the prefix, which is why sleep and
-        // steps reached the score and mood didn't.
+        // 2-element PREFIX, not this card's 3-element key: React Query
+        // prefix-matches downwards only, so the shorter form reaches both
+        // this card AND useReadiness's ['moodLogToday', uid]. Invalidating
+        // the longer key reached neither, which is how a logged mood never
+        // got into the Readiness score. Guarded by
+        // src/components/__tests__/logCardInvalidationKeys.test.js.
         qc.invalidateQueries({ queryKey: ['moodLogToday', user?.id] });
         // Auto-tag today's journal entry with the mood score so the
         // journal widget (and history log) surface the emoji for that day.

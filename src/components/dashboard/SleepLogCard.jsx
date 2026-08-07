@@ -45,7 +45,18 @@ export default function SleepLogCard() {
   const [optQuality, setOptQuality] = useState(null);
   const submittingRef = useRef(false);
   const mountedRef = useRef(true);
-  useEffect(() => () => { mountedRef.current = false; }, []);
+  // mountedRef.current = true on SETUP, not just false on cleanup.
+  // React 18 StrictMode (main.jsx) runs effects setup -> cleanup -> setup, so
+  // a cleanup-only flag is FALSE from the first paint in dev and nothing ever
+  // restores it. Everything gated on it then silently no-ops for the entire
+  // session — which is exactly how "steps saves but mood and sleep don't"
+  // happened: the upsert landed, and the invalidateQueries after it was
+  // skipped, so the card never refetched and the value never appeared.
+  // StepsLogCard has no such flag, which is why it looked fine.
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   // Local date key drives the query so a PWA left open across midnight
   // rolls to the new day (same pattern as MoodLogCard).
