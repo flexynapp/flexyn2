@@ -74,7 +74,14 @@ function CapsuleCard({ capsuleRow, onOpenCapsule }) {
       <span className="text-xs font-semibold leading-tight">{meta.name}</span>
       <RarityBadge rarity={meta.rarity} />
       <button
-        onClick={() => onOpenCapsule?.({ ...capsuleRow, ...meta })}
+        // meta FIRST, row LAST. meta is a loot_catalog entry and carries its
+        // own `id` ('cap_premium'), so spreading it second overwrote the
+        // capsule row's UUID — the opener then sent 'cap_premium' to
+        // open_capsule_atomic and Postgres answered `invalid input syntax
+        // for type uuid`. Every capsule opened from a single card failed;
+        // the batch button passes raw rows, which is why "open all" worked
+        // and a lone capsule did not.
+        onClick={() => onOpenCapsule?.({ ...meta, ...capsuleRow })}
         className="mt-1 w-full py-1.5 rounded-lg text-xs font-bold bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
       >
         Open
