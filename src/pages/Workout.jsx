@@ -1994,7 +1994,10 @@ export default function Workout() {
       // GymRivalCard renders its own bordered card per state, so this
       // wrapper is just a positioning context for the info button — no
       // border/bg of its own (that produced a double rose outline).
-      <div className="relative">
+      // data-gym-rival is the scroll target for the ?rival=1 deep link —
+      // the card itself is a switch branch, so the wrapper is what a
+      // querySelector can reach.
+      <div className="relative" data-gym-rival>
         <button type="button"
           onClick={(ev) => { ev.stopPropagation(); setActiveInfo(activeInfo==='nemesis'?null:'nemesis'); }}
           className="absolute top-3 end-3 w-4 h-4 rounded-full border border-border/60 bg-background/80 flex items-center justify-center text-muted-foreground/60 hover:text-foreground active:text-foreground hover:border-border transition-colors z-20">
@@ -2109,6 +2112,8 @@ export default function Workout() {
   //   /workout?freestyle=1    — every "Start a workout" CTA in the app
   //                             (Dashboard hero + its slideshow, the
   //                             Workout tab's Quick log long-press)
+  //   /workout?rival=1        — "Open rival" on the Hub profile's contest
+  //                             rail; scrolls to the card and opens it
   // The route map lives in src/lib/questCatalog.js. Without this handler
   // a user tapping a cardio/goals quest from Dashboard or StatsHub
   // would land on /workout but the corresponding panel wouldn't open
@@ -2137,6 +2142,14 @@ export default function Workout() {
       params.delete('freestyle');
       consumed = true;
     }
+    // The Gym Rival card lives partway down this page, so the Hub's "Open
+    // rival" used to hand the user a page and leave them to find it.
+    let rivalRequested = false;
+    if (params.get('rival') === '1') {
+      rivalRequested = true;
+      params.delete('rival');
+      consumed = true;
+    }
     if (consumed) {
       // Route through react-router's navigate so its internal
       // location state stays in sync. Direct
@@ -2150,7 +2163,23 @@ export default function Workout() {
       // scroll position across the route change, so a quest deep-link
       // (e.g. the cardio quest) otherwise dropped the user into the
       // middle of the newly-opened panel. Scroll after the panel renders.
-      setTimeout(() => { try { window.scrollTo({ top: 0, behavior: 'auto' }); } catch { /* noop */ } }, 0);
+      // ?rival=1 is the exception — it has its own target further down the
+      // page, and scrolling to the top would undo it.
+      setTimeout(() => {
+        try {
+          if (rivalRequested) {
+            document.querySelector('[data-gym-rival]')
+              ?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+            // Opens the rival's detail menu — the thing the Hub CTA named.
+            // A no-op when the card isn't on screen (mid-session, or the
+            // tile hidden in the user's layout), which is the right
+            // failure: they still land on the page they asked for.
+            window.dispatchEvent(new CustomEvent('flexyn:open-rival'));
+          } else {
+            window.scrollTo({ top: 0, behavior: 'auto' });
+          }
+        } catch { /* noop */ }
+      }, 0);
     }
     // `started` and `startFreestyle` are deliberately not deps. The param
     // is the trigger; re-running this because a session opened (or because

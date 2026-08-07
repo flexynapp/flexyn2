@@ -3,7 +3,7 @@
 // Rival"; pending → "confirm / waiting" chip; active → matchup chip;
 // void (this week) → "roll resets in …" chip. All open GymRivalMenu.
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { AnimatePresence } from 'framer-motion';
 import { Target, Loader2, ChevronRight, Clock, AlertTriangle, Trophy, Swords, Dumbbell, Footprints } from 'lucide-react';
@@ -22,6 +22,17 @@ export default function GymRivalCard({ currentUserId }) {
   const qc = useQueryClient();
   const [menuOpen, setMenuOpen] = useState(false);
   const [showDuel, setShowDuel] = useState(false);
+
+  // /workout?rival=1 lands here from the Hub profile's contest rail —
+  // Workout.jsx consumes the param and fires this once the page is up.
+  // An event rather than a prop because this card is rendered deep inside
+  // the start screen's tile switch, and the same hand-off shape is already
+  // used for the Form Coach and the crews section.
+  useEffect(() => {
+    const handler = () => setMenuOpen(true);
+    window.addEventListener('flexyn:open-rival', handler);
+    return () => window.removeEventListener('flexyn:open-rival', handler);
+  }, []);
 
   const { data: assignment, isLoading } = useQuery({
     queryKey:  ['myGymRival', currentUserId],

@@ -1060,8 +1060,10 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
             onOpenLeague={() => setLeaguesOpen(true)}
             // The rival card lives on Workout; the crew war lives in the Hub
             // crews section, which listens for this event (the same hand-off
-            // CrewDMInviteCard uses).
-            onOpenRival={() => navigate('/workout')}
+            // CrewDMInviteCard uses). ?rival=1 scrolls to the card and opens
+            // it — plain /workout left the user to go find the thing they
+            // just tapped.
+            onOpenRival={() => navigate('/workout?rival=1')}
             onOpenWar={() => {
               navigate('/hub');
               if (heroWar?.crewId) {
