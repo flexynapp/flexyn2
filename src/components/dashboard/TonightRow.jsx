@@ -89,7 +89,10 @@ export default function TonightRow({ readiness, onOpen }) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
     >
-      <Card className="py-4 px-1 divide-x divide-border flex items-stretch">
+      {/* cq-stack-y: three columns in a paired half slot give each signal
+          ~50px, which truncates "8,240". Stacked, each keeps its full row.
+          See the .dash-slot / cq-* block in index.css. */}
+      <Card className="py-4 px-1 divide-x divide-border flex items-stretch cq-stack-y">
         <Column
           icon={Moon}
           iconClass="text-info"

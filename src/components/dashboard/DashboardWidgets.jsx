@@ -181,8 +181,14 @@ export default function DashboardWidgets({ logs, goals, isLoading, userProfile }
             </div>
             <h3 className="font-heading font-bold text-base mb-1">{t('dashboard.customizeTitle')}</h3>
             <p className="text-muted-foreground text-xs mb-2">{t('dashboard.customizeDesc')}</p>
-            <Button onClick={() => setLibraryOpen(true)} className="gap-2">
-              <Plus className="w-4 h-4" /> {t('dashboard.addFirstWidget')}
+            {/* max-w-full + wrapping label: this button's intrinsic width is
+                ~195px, so in a half-width dashboard slot (~168px) it hung 40px
+                past the card edge. */}
+            <Button
+              onClick={() => setLibraryOpen(true)}
+              className="gap-2 max-w-full h-auto min-h-10 py-2 whitespace-normal"
+            >
+              <Plus className="w-4 h-4 shrink-0" /> {t('dashboard.addFirstWidget')}
             </Button>
           </Card>
         </motion.div>

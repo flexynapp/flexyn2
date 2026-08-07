@@ -384,6 +384,101 @@
     overflow-wrap: anywhere;
     word-break: break-word;
   }
+
+  /* ── Pair-safe cards — the dashboard "hotdog" layout ─────────────
+     Edit mode lets the user pair ANY two dashboard sections into one
+     row, which on a 375pt phone hands each card ~171px. Cards written
+     for the full row break there in two ways: a text column between a
+     fixed icon and a fixed trailing control gets squeezed to ~25px and
+     wraps one word per line, and a `shrink-0` trailing block lands on
+     top of it.
+
+     A viewport breakpoint cannot fix this — the viewport is the same
+     375pt whether the card is full width or half. The card has to
+     respond to the width it was actually GIVEN, which is what a
+     container query is for. `.dash-slot` goes on the wrapper of each
+     half of a paired row (never on a full-width row, so these rules
+     can never fire there), and a card opts into narrow behaviour with
+     the cq-* classes below.
+
+     Reported from a beta tester (Sean, 2026-08-06) pairing cards in
+     edit mode, and reproduced on the factory chest + weekly-rank pair.
+
+     250px is the threshold because that is where a 2-line title, an
+     icon tile and a pill stop coexisting on one row; a paired half is
+     ~171px at 375pt and ~199px at 430pt, so both land in compact. */
+  .dash-slot {
+    container-type: inline-size;
+  }
+
+  /* ── Labelled sections with nothing to show ──────────────────────
+     A section label ("Your progress", "Discover") is a promise that
+     content follows. Several sections are made entirely of cards that
+     return null depending on state — on a brand-new account with no
+     workouts, GoalsAlmostComplete, GoalsProgressStrip, WeeklyRecap,
+     WorkoutSuggestionCard and WorkoutMemoryCard ALL render null — so
+     the label sat above an empty gap. The section can't know that in
+     advance: each child decides for itself, at render.
+
+     :has() lets the wrapper follow its own body. Body renders no DOM →
+     the whole section, label included, is gone. */
+  .dash-section:has(> .dash-section-body:empty) {
+    display: none;
+  }
+
+  @container (max-width: 250px) {
+    /* row → column, and stop children shrinking to nothing */
+    .cq-stack {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 0.5rem;
+    }
+    /* trailing controls span the card once the row has stacked */
+    .cq-full {
+      width: 100%;
+      justify-content: center;
+      text-align: center;
+    }
+    /* a right-aligned block reads as stranded once stacked */
+    .cq-start {
+      text-align: start;
+    }
+    /* decoration that costs more than it says at this width */
+    .cq-hide {
+      display: none;
+    }
+    /* a 4-up tile grid gives each tile ~33px in a half slot, which stacks
+       every label one word per line. Two columns is the floor that keeps a
+       label like "Log a Meal" on one line. */
+    .cq-cols-2 {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    /* Columns divided by vertical hairlines (the stats strip, the Tonight
+       row) become rows divided by horizontal ones. Tailwind's divide-x put
+       the rule on each child's left border, so the override has to move it
+       to the top border rather than just changing flex-direction. */
+    .cq-stack-y {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    .cq-stack-y > * + * {
+      border-left-width: 0;
+      border-top-width: 1px;
+    }
+    .cq-stack-y > * {
+      padding-block: 0.5rem;
+    }
+    /* A single truncated line ("Train fo…") tells the user nothing. Two
+       wrapped lines fit the same 168px and read as the actual quest. */
+    .cq-clamp2 {
+      white-space: normal;
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      text-overflow: clip;
+    }
+  }
   .select-none-ui {
     -webkit-user-select: none;
     user-select: none;

@@ -113,7 +113,17 @@ export default function DailyChestCard() {
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className="w-full mb-3 flex items-center gap-3 rounded-2xl p-3.5 text-start border border-primary/30 bg-primary/12 hover:bg-primary/20 active:bg-primary/20 transition-colors touch-manipulation disabled:opacity-60"
+      // cq-stack: this row is [icon][text][pill] with the text flexible
+      // between two fixed items. In a paired half (~171px) the text gets
+      // ~25px and wraps one word per line, with the pill on top of it —
+      // see the .dash-slot / cq-* block in index.css. Stacked, each part
+      // gets the full width of the card.
+      //
+      // mb-3 removed: the dashboard row owns spacing now (24px between
+      // sections), and a bottom margin on the card itself both doubled
+      // that gap and stopped the card matching its partner's height in a
+      // paired row. Dashboard is this component's only renderer.
+      className="w-full flex items-center gap-3 rounded-2xl p-3.5 text-start border border-primary/30 bg-primary/12 hover:bg-primary/20 active:bg-primary/20 transition-colors touch-manipulation disabled:opacity-60 cq-stack"
     >
       <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center shrink-0">
         <Gift className="w-5 h-5 text-primary" />
@@ -126,7 +136,7 @@ export default function DailyChestCard() {
           {tFallback('dashboard.dailyChest.subtitle', 'Free capsule + coins — tap to open')}
         </p>
       </div>
-      <span className="shrink-0 px-3 py-1.5 rounded-full bg-primary text-white text-xs font-bold flex items-center gap-1">
+      <span className="shrink-0 px-3 py-1.5 rounded-full bg-primary text-white text-xs font-bold flex items-center justify-center gap-1 cq-full">
         {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : (tFallback('dashboard.dailyChest.open', 'Open'))}
       </span>
     </motion.button>

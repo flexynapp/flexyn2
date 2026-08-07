@@ -377,8 +377,10 @@ function SectionLabel({ label, note }) {
         <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" aria-hidden="true" />
         <h2 className="font-heading font-bold text-sm tracking-tight truncate">{label}</h2>
       </span>
+      {/* cq-hide: the note is the optional half of this row. In a half-width
+          slot it was truncating the heading it annotates ("To…"). */}
       {note && (
-        <span className="text-micro font-semibold text-muted-foreground/70 shrink-0">{note}</span>
+        <span className="text-micro font-semibold text-muted-foreground/70 shrink-0 cq-hide">{note}</span>
       )}
     </div>
   );
@@ -1164,7 +1166,7 @@ export default function Dashboard() {
                   {tFallback('dashboard.section.tonight', 'Tonight')}
                 </h2>
               </span>
-              <span className="text-micro font-semibold text-muted-foreground/70 shrink-0">
+              <span className="text-micro font-semibold text-muted-foreground/70 shrink-0 cq-hide">
                 {tFallback('dashboard.tonight.note', 'feeds your readiness')}
               </span>
             </div>
@@ -1183,7 +1185,7 @@ export default function Dashboard() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
           >
-            <Card className="py-4 px-1 divide-x divide-border flex items-stretch">
+            <Card className="py-4 px-1 divide-x divide-border flex items-stretch cq-stack-y">
               <StatColumn
                 icon={Activity}
                 value={thisWeekLogs.length}
@@ -1249,7 +1251,16 @@ export default function Dashboard() {
           </motion.div>
         </React.Fragment>
       );
-      case 'progress': return (
+      // Every card in this section needs data: goals for the two goal cards,
+      // logs (or cardio logs) for the recap, the suggestion and the memory.
+      // With none of the three, all five render null and the section was a
+      // "Your progress" label above an empty gap — which is what a brand-new
+      // account saw. A label is a promise that content follows, so don't make
+      // it. This is a definite-empty guard, not an emptiness oracle: any one
+      // of the three arrays having rows means something can render.
+      case 'progress': {
+        if (goals.length === 0 && logs.length === 0 && cardioLogs.length === 0) return null;
+        return (
         <React.Fragment key="progress">
           <SectionLabel label={tFallback('dashboard.section.progress', 'Your progress')} />
           {/* Stat tiles moved out to the 'stats' section (its own row, under
@@ -1280,7 +1291,8 @@ export default function Dashboard() {
             </div>
           </div>
         </React.Fragment>
-      );
+        );
+      }
       case 'actions': {
         // 4 × 2 grid. Eight tiles, nothing behind a toggle: the old vertical
         // list showed three of seven actions and hid the other four, which is
@@ -1315,7 +1327,9 @@ export default function Dashboard() {
         return (
           <React.Fragment key="actions">
             <SectionLabel label={t('dashboard.quickActions')} />
-            <div className="grid grid-cols-4 gap-2">
+            {/* cq-cols-2: paired into a half slot, 4 columns give each tile
+                ~33px and every label stacks one word per line. */}
+            <div className="grid grid-cols-4 gap-2 cq-cols-2">
               {actions.map((a, i) => (
                 <ActionTile
                   key={a.key}
@@ -1338,16 +1352,25 @@ export default function Dashboard() {
           </ErrorBoundary>
         </React.Fragment>
       );
+      // DiscoveryCards renders ONE card — the highest-priority one whose
+      // precondition holds — or null when none qualifies or everything has
+      // been dismissed. dash-section-body has exactly that one child, so it
+      // is genuinely :empty in the null case and the CSS in index.css takes
+      // the label down with it.
       case 'discover': return (
         <React.Fragment key="discover">
-          <SectionLabel label={tFallback('dashboard.section.discover', 'Discover')} />
-          <ErrorBoundary label="DiscoveryCards">
-            <DiscoveryCards
-              logs={rawLogs}
-              regimens={rawRegimens}
-              isLoading={logsLoading || regimensLoading}
-            />
-          </ErrorBoundary>
+          <div className="dash-section">
+            <SectionLabel label={tFallback('dashboard.section.discover', 'Discover')} />
+            <div className="dash-section-body">
+              <ErrorBoundary label="DiscoveryCards">
+                <DiscoveryCards
+                  logs={rawLogs}
+                  regimens={rawRegimens}
+                  isLoading={logsLoading || regimensLoading}
+                />
+              </ErrorBoundary>
+            </div>
+          </div>
         </React.Fragment>
       );
       case 'motivation': return (
@@ -1659,7 +1682,16 @@ export default function Dashboard() {
                 // Default hotdog = 50/50. empty:hidden so a half that renders
                 // nothing gives its width back to its partner instead of
                 // leaving a hole.
-                const widthClass = row.sections.length === 2 ? 'flex-1 min-w-0 empty:hidden' : '';
+                //
+                // dash-slot makes this wrapper a container query context, so
+                // a card inside it can lay itself out against ~171px instead
+                // of against the 375pt viewport (which is identical either
+                // way, and is why this was broken for every paired card). Only
+                // on paired rows — a full-width row has no container, so the
+                // compact rules can't fire there. See index.css.
+                const widthClass = row.sections.length === 2
+                  ? 'flex-1 min-w-0 empty:hidden dash-slot'
+                  : '';
                 return (
                   <div key={id} className={widthClass}>
                     {collapsedSections.has(id)

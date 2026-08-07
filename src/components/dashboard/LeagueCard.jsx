@@ -146,7 +146,12 @@ export default function LeagueCard({ onClick, stretch = false }) {
           have. */}
       <Card className={`overflow-hidden border-border/60 theme-card-accent flex flex-col ${stretch ? 'h-full' : ''}`}>
         <div className={`relative ${stretch ? 'flex-1' : ''} px-3 py-2.5 flex items-center`}>
-          <div className="flex items-center gap-2.5 w-full">
+          {/* cq-stack: [medal][tier + rank][days left][chevron] is four
+              items with only one flexible, so a paired half (~171px)
+              truncated the tier to "B.." and dropped the days-left block
+              on top of the rank. Stacked, the title gets the full width.
+              See the .dash-slot / cq-* block in index.css. */}
+          <div className="flex items-center gap-2.5 w-full cq-stack">
             <span
               className="shrink-0 w-8 h-8 rounded-sm flex items-center justify-center"
               style={{ backgroundColor: tier.color, color: onTierColor(tier.color) }}
@@ -212,7 +217,7 @@ export default function LeagueCard({ onClick, stretch = false }) {
             {/* Was an all-caps "LEFT" stacked above the number, which put
                 a shouting label on the least important thing in the row.
                 Number first, quiet word under it. */}
-            <div className="text-end shrink-0">
+            <div className="text-end shrink-0 cq-start">
               <p className="font-heading font-bold text-sm leading-none tabular-nums">
                 {daysLeft}{tFallback('league.daySuffix', 'd')}
               </p>
@@ -220,7 +225,9 @@ export default function LeagueCard({ onClick, stretch = false }) {
                 {tFallback('league.daysLeft', 'Left')}
               </p>
             </div>
-            <ChevronRight className="w-4 h-4 text-muted-foreground/50 shrink-0 rtl:scale-x-[-1]" />
+            {/* The whole card is the tap target; at half width the chevron
+                is the first thing that can go. */}
+            <ChevronRight className="w-4 h-4 text-muted-foreground/50 shrink-0 rtl:scale-x-[-1] cq-hide" />
           </div>
         </div>
 

@@ -136,7 +136,10 @@ function DiscoveryCard({
       transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
     >
       <Card className={`relative overflow-hidden p-4 md:p-5 border-border/60 ${a.bg} ${a.ring}`}>
-        <div className="flex items-start gap-3">
+        {/* cq-stack: paired into a half dashboard slot this row leaves the
+            text ~42px and stacks the headline one word per line. See the
+            .dash-slot / cq-* block in index.css. */}
+        <div className="flex items-start gap-3 cq-stack">
           <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${a.icon}`}>
             <Icon className="w-5 h-5" />
           </div>

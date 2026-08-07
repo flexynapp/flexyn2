@@ -369,7 +369,11 @@ function QuestRow({ quest, onClaim, onGo, t, tFallback }) {
         aria-hidden="true"
       />
 
-      <div className="relative flex items-center gap-3">
+      {/* cq-stack: a quest row sits inside the quests card's padding AND its
+          own, so in a half-width dashboard slot the text column is ~60px —
+          too narrow even for two wrapped lines. Icon above text gives the
+          label the row's full width. See index.css. */}
+      <div className="relative flex items-center gap-3 cq-stack">
         {/* Was a 24px emoji. The tile takes the difficulty accent, which
             the emoji could never do — colour now carries "how hard is
             this" on the icon as well as the pill. */}
@@ -386,13 +390,20 @@ function QuestRow({ quest, onClaim, onGo, t, tFallback }) {
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
-            <p className="font-medium text-sm truncate">{label}</p>
+            {/* cq-clamp2: truncation is right on a full-width row and useless
+                in a half slot, where "Train for 15 minutes" became
+                "Train fo…". Two wrapped lines fit the same width. */}
+            <p className="font-medium text-sm truncate cq-clamp2">{label}</p>
             {/* Difficulty label is plain muted text. The solid icon tile to
                 the left already carries the difficulty colour, so tinting
                 this too was saying it twice — and `--destructive` measures
                 3.48:1 against the dark card, which fails AA for an 11px
                 label. Muted-foreground clears it at 5.4:1 in both themes. */}
-            <span className="text-micro font-bold uppercase tracking-wider text-muted-foreground shrink-0">
+            {/* cq-hide: in a half-width dashboard slot this shrink-0 chip
+                truncated the quest itself to "Tr…". The icon tile already
+                carries the difficulty as colour, so the word is the
+                redundant half of the pair. See index.css. */}
+            <span className="text-micro font-bold uppercase tracking-wider text-muted-foreground shrink-0 cq-hide">
               {t(`quest.difficulty.${quest.difficulty}`)}
             </span>
           </div>

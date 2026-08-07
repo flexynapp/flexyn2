@@ -5,6 +5,17 @@ import pluginReactHooks from "eslint-plugin-react-hooks";
 import pluginUnusedImports from "eslint-plugin-unused-imports";
 
 export default [
+  // Nested git worktrees. A spawned background task checks the repo out at
+  // .claude/worktrees/<name>/, so every source file appears twice — and the
+  // copy under .claude/ matches none of the `files:` globs below (they are
+  // anchored at src/), so it is linted by the bare recommended config with
+  // no plugins registered. The first `eslint-disable-next-line
+  // unused-imports/no-unused-vars` it meets is then an ERROR ("Definition
+  // for rule not found") and `npm run lint` fails on code that is fine in
+  // the tree it belongs to. Ignore them globally: a worktree lints itself.
+  {
+    ignores: [".claude/worktrees/**"],
+  },
   {
     files: [
       "src/components/**/*.{js,mjs,cjs,jsx}",
