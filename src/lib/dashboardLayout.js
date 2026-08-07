@@ -80,7 +80,7 @@ export function mergeWidgetOrder(saved, defaults) {
    one must not imply the other.
    ══════════════════════════════════════════════════════════════════ */
 
-export const LAYOUT_DEFAULTS_VERSION = 3;
+export const LAYOUT_DEFAULTS_VERSION = 4;
 
 /**
  * Move `first` to sit immediately before `second` and mark both 'half', so
@@ -112,6 +112,21 @@ function pairAdjacent(layout, first, second) {
   };
 }
 
+/**
+ * Drop the named sections out of any pairing by marking them 'full'.
+ *
+ * The order is left exactly as the user has it: pairing needs two adjacent
+ * ids that are BOTH 'half', so removing the half is the whole job, and a
+ * lone 'half' degrades to full width in dashboardRows anyway.
+ */
+function unpairSections(layout, ...ids) {
+  const layouts = { ...(layout.sectionLayouts || {}) };
+  const halves = ids.filter(id => layouts[id] === 'half');
+  if (halves.length === 0) return { layout, changed: false };
+  halves.forEach(id => { layouts[id] = 'full'; });
+  return { layout: { ...layout, sectionLayouts: layouts }, changed: true };
+}
+
 const LAYOUT_MIGRATIONS = [
   {
     to: 2,
@@ -134,6 +149,26 @@ const LAYOUT_MIGRATIONS = [
     to: 3,
     name: 'pair-streak-with-quests-repair',
     apply: (layout) => pairAdjacent(layout, 'streak', 'challenges'),
+  },
+  // ...and v4 takes it back out. Measured on a real phone, the pair hands
+  // the quests card a ~171px column: every quest title wraps to two lines
+  // and three rows read as three cards stacked inside a card. Quests are
+  // three lines of text and want the width; the streak's calendar is a grid
+  // that was fine full-width before v2. Undoing the pairing is the fix, not
+  // a third pass at the row.
+  //
+  // Running from 0 therefore pairs and then unpairs, which looks silly and
+  // is the correct cost of the rule above: dv=3 is already stamped on real
+  // devices, and that stamp is the only thing that tells them they need
+  // this step. Rewriting v2/v3 in place would reach nobody.
+  //
+  // Someone who paired these two themselves after v3 gets unpaired here.
+  // Unavoidable — the layout records the pairing, not who chose it — and
+  // symmetric with v2 having forced it on everyone in the first place.
+  {
+    to: 4,
+    name: 'unpair-streak-and-quests',
+    apply: (layout) => unpairSections(layout, 'streak', 'challenges'),
   },
 ];
 

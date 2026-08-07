@@ -76,14 +76,47 @@ describe('applyLayoutMigrations', () => {
     sectionLayouts: { chest: 'half', league: 'half' },
   });
 
-  it('moves streak next to challenges and halves both', () => {
+  // v2/v3 paired these two and v4 unpairs them again, so a run from 0 ends
+  // full-width. The ORDER change from v2 stands: streak still lands beside
+  // challenges, which is where the defaults put them either way — v4 only
+  // takes back the halving.
+  it('leaves streak and challenges full-width, adjacent, after the whole chain', () => {
     const { layout, version, applied } = applyLayoutMigrations(legacy(), 0);
     const i = layout.widgetOrder.indexOf('streak');
     expect(layout.widgetOrder[i + 1]).toBe('challenges');
-    expect(layout.sectionLayouts.streak).toBe('half');
-    expect(layout.sectionLayouts.challenges).toBe('half');
+    expect(layout.sectionLayouts.streak).toBe('full');
+    expect(layout.sectionLayouts.challenges).toBe('full');
     expect(version).toBe(LAYOUT_DEFAULTS_VERSION);
     expect(applied).toContain('pair-streak-with-quests');
+    expect(applied).toContain('unpair-streak-and-quests');
+  });
+
+  // The users this step exists for: already stamped v3, so v2/v3 never
+  // re-run and the pairing is only reachable from here.
+  it('unpairs a layout sitting on version 3', () => {
+    const paired = {
+      hiddenSections: [],
+      widgetOrder: ['stats', 'streak', 'challenges', 'journal'],
+      sectionLayouts: { streak: 'half', challenges: 'half', chest: 'half', league: 'half' },
+    };
+    const { layout, applied } = applyLayoutMigrations(paired, 3);
+    expect(applied).toEqual(['unpair-streak-and-quests']);
+    expect(layout.sectionLayouts.streak).toBe('full');
+    expect(layout.sectionLayouts.challenges).toBe('full');
+    // Someone else's pairing is not this step's business.
+    expect(layout.sectionLayouts.chest).toBe('half');
+    expect(layout.sectionLayouts.league).toBe('half');
+    expect(layout.widgetOrder).toEqual(paired.widgetOrder);
+  });
+
+  it('reports no change when the sections are already full-width', () => {
+    const unpaired = {
+      hiddenSections: [],
+      widgetOrder: ['streak', 'challenges'],
+      sectionLayouts: { streak: 'full', challenges: 'full' },
+    };
+    const { applied } = applyLayoutMigrations(unpaired, 3);
+    expect(applied).toEqual([]);
   });
 
   it('leaves every other section where the user put it', () => {
@@ -122,11 +155,16 @@ describe('applyLayoutMigrations', () => {
     expect(again.layout).toEqual(current);
   });
 
+  // Idempotence is about the LAYOUT, and that still holds exactly. What no
+  // longer holds is `applied` being empty on a re-run: v2 sees the pair
+  // adjacent but no longer halved (v4 unhalved it) and re-halves, then v4
+  // unhalves again. Same bytes out, so the caller's only cost is hydrating
+  // state it already had — but the chain does churn, and a step added later
+  // that ISN'T outcome-stable would show up here first.
   it('is idempotent when re-run from version 0', () => {
     const once = applyLayoutMigrations(legacy(), 0).layout;
     const twice = applyLayoutMigrations(once, 0);
-    expect(twice.layout.widgetOrder).toEqual(once.widgetOrder);
-    expect(twice.applied).toEqual([]);
+    expect(twice.layout).toEqual(once);
   });
 
   it('skips a step whose sections are absent entirely', () => {

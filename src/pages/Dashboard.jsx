@@ -456,7 +456,8 @@ export default function Dashboard() {
     'recovery',              // "Tonight" — sleep · mood · steps
     // Pairing only happens between ADJACENT halves, so the two ids that
     // should share a row have to sit next to each other here.
-    'streak', 'challenges',  // hotdog pair: login streak beside daily quests
+    'streak', 'challenges',  // both full-width; adjacent because they read
+                             // as one "today" block, not because they pair
     'chest', 'league',       // hotdog pair: chest beside weekly rank
     'friends',
     'progress',              // goals, weekly recap, suggestion + memory
@@ -522,12 +523,12 @@ export default function Dashboard() {
   // failure mode is unchanged here: a lone half degrades to full width (see
   // dashboardRows), so a new user sees a full-width chest card and no gap.
   const [sectionLayouts, setSectionLayouts] = useState({
-    // streak + challenges: the login-streak pill is one line tall and was
-    // wasting a full row on its own. Paired, it sits beside Daily Quests and
-    // its inline calendar expands DOWN into the height the quests card
-    // already occupies — space that was empty either way.
-    streak:     'half',
-    challenges: 'half',
+    // streak + challenges USED to be paired here. A half slot is ~171px at
+    // 375pt, and Daily Quests is three lines of text: every title wrapped to
+    // two lines and the card ran ~500px to say three things. It is a full
+    // row again (defaults v4 unpairs it for existing users too). chest +
+    // league stay paired — both are single-figure cards that genuinely do
+    // waste a row on their own.
     chest:      'half',
     league:     'half',
   });
@@ -742,8 +743,6 @@ export default function Dashboard() {
   const handleResetCustomize = () => {
     setWidgetOrder(defaultWidgetOrder);
     setSectionLayouts({
-      streak:     'half',
-      challenges: 'half',
       chest:      'half',
       league:     'half',
     });
