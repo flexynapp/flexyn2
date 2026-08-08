@@ -232,6 +232,14 @@ function HeroCard({
       <motion.div
         drag={slideCount > 1 ? 'x' : false}
         dragConstraints={{ left: 0, right: 0 }}
+        // A thumb swipe is never purely horizontal. Without direction lock,
+        // Framer tracks both axes while `touch-action: pan-y` has already
+        // promised the browser it may scroll vertically — so a swipe with any
+        // downward drift can be claimed as a page scroll and the slide never
+        // advances. That reads as "swipe doesn't work" on a phone while a
+        // clean horizontal drag in a test passes. Direction lock commits to
+        // one axis within the first few pixels and keeps the gesture.
+        dragDirectionLock
         dragElastic={0.18}
         onDragEnd={handleDragEnd}
         className="relative overflow-hidden -mx-4 md:-mx-6 rounded-b-2xl bg-muted dark:bg-card text-foreground touch-pan-y"
