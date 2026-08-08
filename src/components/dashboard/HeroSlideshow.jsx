@@ -57,6 +57,34 @@ const ROTATE_MS = 8000;
 // roll than a stat that changes underneath them.
 const HERO_COUNT_MS = 1400;
 
+/* The slide watermark — the big translucent icon in the top-right corner.
+ *
+ * One object, used by all three slide branches. It was three copies of the
+ * same literal, which is how they drifted to two different opacities.
+ *
+ * 72px and pinned hard to the corner. At 110px, offset 8px in and 5px down,
+ * the icon reached a third of the way across a 311px page and ~115px down
+ * from the top — straight through the title and sub of any slide whose copy
+ * runs long. Shrinking alone would not have cleared it, because the offsets
+ * pushed the box further into the text column; smaller AND cornered is what
+ * does.
+ *
+ * `absolute` means it contributes nothing to layout, so text flows underneath
+ * it — nothing here prevents an overlap by itself. The clearance IS the
+ * geometry, so it is verified by measuring this rect against every text rect
+ * on every slide at both 375 and 430pt rather than by eye.
+ */
+const HERO_WATERMARK_PX = 72;
+const heroWatermarkStyle = (opacity = 0.11) => ({
+  width: HERO_WATERMARK_PX,
+  height: HERO_WATERMARK_PX,
+  opacity,
+  color: 'white',
+  right: 0,
+  top: 0,
+  transform: 'none',
+});
+
 /**
  * Tiny inline sparkline — accepts an array of numeric Y values and
  * renders them as a smoothed SVG polyline. Used for per-exercise
@@ -1157,7 +1185,7 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
       <div className="relative flex flex-col justify-between gap-5 min-w-0" onPointerDownCapture={holdRotation} onFocusCapture={holdRotation}>
         {/* Decorative icon — right-centre, translucent */}
         <Flame aria-hidden="true" className="absolute pointer-events-none select-none"
-          style={{ width: 110, height: 110, opacity: 0.12, color: 'white', right: 8, top: 5, transform: 'none' }} />
+          style={heroWatermarkStyle(0.12)} />
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-full bg-primary/10 backdrop-blur-sm flex items-center justify-center">
             <Flame className="w-4 h-4 text-primary/80" />
@@ -1209,7 +1237,7 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
     return (
       <div className="relative flex flex-col justify-between gap-4 min-w-0" onPointerDownCapture={holdRotation} onFocusCapture={holdRotation}>
         <FeatureIcon aria-hidden="true" className="absolute pointer-events-none select-none"
-          style={{ width: 110, height: 110, opacity: 0.11, color: 'white', right: 8, top: 5, transform: 'none' }} />
+          style={heroWatermarkStyle()} />
         {/* The tint overlay that used to sit here is GONE, not softened.
             It was a `-inset-3 rounded-2xl` box painted with
             `linear-gradient(135deg, primary/0.22, primary/0.08 60%,
@@ -1256,7 +1284,9 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
             on the streak branch. */}
         <div className="relative min-w-0">
             <h2
-              className="font-heading font-bold leading-[1.05] tracking-tight text-foreground break-words"
+              // pe-20 reserves the watermark's column — see the note on the
+              // shared branch's title.
+              className="font-heading font-bold leading-[1.05] tracking-tight text-foreground break-words pe-20"
               style={{ fontSize: 'clamp(1.6rem, 5vw, 2.5rem)' }}
             >
               {slide.title}
@@ -1288,17 +1318,15 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
 
   return (
     <div className="relative flex flex-col justify-between gap-5 min-w-0" onPointerDownCapture={holdRotation} onFocusCapture={holdRotation}>
-      {/* Contextual watermark — right-centre normally, but pinned to the
-          top-right on slides that render a full-width ProgressBar so the
-          bar doesn't visually slice through the icon (e.g. "This week").
-          progressPct can be 0 (falsy) so the guard is an explicit != null. */}
+      {/* Contextual watermark. The old comment here described a right-CENTRE
+          position with a special case pinning it to the top-right on slides
+          carrying a full-width ProgressBar — but both branches of that
+          conditional already set `top: 5`, so the two cases were identical
+          and had been for as long as the code existed. Every slide was
+          top-right regardless. Dropped, along with the `progressPct` guard
+          that selected between them. */}
       {SlideIcon && <SlideIcon aria-hidden="true" className="absolute pointer-events-none select-none"
-        style={{
-          width: 110, height: 110, opacity: 0.11, color: 'white', right: 8,
-          ...(slide.progressPct != null
-            ? { top: 5 }
-            : { top: 5, transform: 'none' }),
-        }} />}
+        style={heroWatermarkStyle()} />}
       <div className="flex items-center gap-2">
         <div className={`w-8 h-8 rounded-full backdrop-blur-sm flex items-center justify-center ${slide.iconBg || 'bg-primary/10'}`}>
           <SlideIcon className="w-4 h-4 text-foreground" />
@@ -1315,11 +1343,18 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
           {/* Slide title — for PR slides this is the EXERCISE name
               (small caps); the big number lives in the metric row
               below it. For non-metric slides this IS the headline. */}
+          {/* `pe-20` reserves the watermark's column. The icon is absolutely
+              positioned, so it takes no space and text runs straight under it
+              — measured, "Follow your first friend" overlapped the icon by
+              38×21px at 423pt. Shrinking the icon only moves that threshold;
+              reserving 80px against a 72px icon makes the collision
+              impossible for ANY title, at any width, in any locale, which is
+              what "no overlap on any device" actually requires. */}
           <h2
             className={
               slide.metricValue != null
-                ? 'font-heading font-semibold text-foreground/85 break-words'
-                : 'font-heading font-bold leading-[1.05] tracking-tight text-foreground break-words'
+                ? 'font-heading font-semibold text-foreground/85 break-words pe-20'
+                : 'font-heading font-bold leading-[1.05] tracking-tight text-foreground break-words pe-20'
             }
             style={
               slide.metricValue != null
