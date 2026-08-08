@@ -972,6 +972,12 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
   }, [trackW, slides.length, x]);
 
   const SETTLE = { type: 'spring', stiffness: 420, damping: 40, mass: 0.8 };
+  // Roughly how long that spring takes to come to rest. It only gates
+  // re-entry, so it wants to be a little longer than the visible motion
+  // rather than exact — short enough that a deliberate second swipe still
+  // feels immediate.
+  const SETTLE_MS = 340;
+  const settleUntilRef = useRef(0);
 
   /* Advance one page.
    *
@@ -995,6 +1001,23 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
    */
   const page = (dir) => {
     if (slides.length < 2 || !trackW) return;
+    // ONE page per gesture. Reported from a device: a single swipe moved
+    // two slides. Two things can do that and the guard covers both.
+    //
+    // The auto-rotate timer is the race. It is scheduled on every idx
+    // change, and a drag that lands in the last few milliseconds before it
+    // fires gets its own page() plus the timer's — the pause set on
+    // dragStart arrives too late to cancel a timeout already in flight.
+    //
+    // A second onDragEnd from a re-entrant gesture would do the same.
+    //
+    // Time-based rather than a boolean the settle clears: a flag cleared in
+    // onComplete goes stale the moment an animation is interrupted, and a
+    // stuck flag means the carousel silently stops accepting swipes. A
+    // deadline cannot stick.
+    if (Date.now() < settleUntilRef.current) return;
+    settleUntilRef.current = Date.now() + SETTLE_MS;
+
     setIdx((i) => (i + dir + slides.length) % slides.length);
     x.set(x.get() + dir * trackW);
     animate(x, -trackW, SETTLE);
@@ -1402,6 +1425,14 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
           dragDirectionLock
           dragElastic={0.12}
           dragConstraints={{ left: -2 * pageW, right: 0 }}
+          // Framer runs an inertia animation on release by default, aimed at
+          // the drag constraints. Those span TWO pages here, so a flick threw
+          // its own momentum at `x` while page()'s spring was pulling the
+          // other way — the momentum wins the tail of the gesture and coasts
+          // a full extra page. On screen that is a single swipe advancing two
+          // slides, which is exactly what got reported. The settle is the
+          // only thing that should move the track after release.
+          dragMomentum={false}
           onDragStart={holdRotation}
           onDragEnd={handleTrackDragEnd}
         >
