@@ -97,11 +97,17 @@ function HeroCard({
   const [slideCount, setSlideCount] = useState(0);
   // Per-slide accent. Each slide reports its own HSL colour up via
   // onSlideColorChange (orange for streak, purple for duels, pink for
-  // stories, cyan for cardio…). It used to paint an animated radial
-  // gradient mesh across the whole band; that is a decorative gradient,
-  // which is on CLAUDE.md's banned list and was most of why the hero read
-  // as one more generated card. The slide identity is worth keeping, so it
-  // survives as a 2px solid rule along the top edge of the band instead.
+  // stories, cyan for cardio…). It drives three things below: the 2px
+  // identity rule, the tint that falls off under it, and the pagination
+  // dots inside the slideshow.
+  //
+  // History, because this has moved twice. It began as an ANIMATED radial
+  // gradient mesh across the band and was cut to a bare 2px rule — the
+  // animation and the mesh are the generated-UI tells CLAUDE.md names, and
+  // that was most of why the hero read as one more card. The tint below is
+  // not that mesh coming back: it is static, it is one linear falloff, and
+  // it is on the band precisely so it has no edge to be sloppy about. The
+  // thing being avoided is decoration with a visible seam, not colour.
   const [slideColor, setSlideColor] = useState(null);
   const handleDragEnd = (_e, info) => {
     if (slideCount <= 1) return;
@@ -135,10 +141,63 @@ function HeroCard({
         onDragEnd={handleDragEnd}
         className="relative overflow-hidden -mx-4 md:-mx-6 rounded-b-2xl bg-muted dark:bg-card text-foreground touch-pan-y"
       >
-        {/* Slide identity — a 2px solid rule, not a gradient wash. */}
+        {/* Accent tint. This lives on the BAND, and that placement is the
+            whole reason it has no edges — it is not a softer version of
+            the box that used to sit on the feature slide.
+
+            A gradient shows an edge wherever its alpha is still non-zero
+            at the element's boundary. The old overlay was a floating
+            `-inset-3` box inside the slide, so three of its four sides
+            were boundaries in the middle of the band and it read as an
+            orange rectangle. The band has no such sides:
+
+              · left / right — `-mx-4` bleeds past the page inset to the
+                viewport edges, and `overflow-hidden` clips there. Paint
+                runs off the screen instead of stopping at a line.
+              · top — meets the 2px identity rule below, which is
+                deliberate chrome. The rule renders AFTER this div so it
+                stays crisp rather than being washed by the tint.
+              · bottom — alpha reaches 0 at 55% of the band's height, so
+                the rounded bottom corners carry no tint at all and the
+                band ends in flat --card the way it always did.
+
+            Percentage stop, not a fixed height: the band is min-h-[330px]
+            but grows for a taller slide, and a px falloff would drift up
+            the card when it does.
+
+            Ends at `/ 0` — the same hue at zero alpha — never the
+            `transparent` keyword. `transparent` is rgba(0,0,0,0), so the
+            ramp would interpolate toward transparent BLACK and pick up
+            the muddy darkening that made the old one look dirty.
+
+            Uses the slide's own accent rather than a hardcoded --primary,
+            so it agrees with the rule and the dots instead of staying
+            orange on a purple slide. */}
         <div
           aria-hidden="true"
-          className="absolute inset-x-0 top-0 h-0.5 pointer-events-none transition-colors"
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background: `linear-gradient(to bottom, hsl(${slideColor || 'var(--primary)'} / 0.14) 0%, hsl(${slideColor || 'var(--primary)'} / 0) 55%)`,
+          }}
+        />
+
+        {/* Slide identity — a 2px solid rule. Renders after the tint so
+            the tint cannot wash it out.
+
+            NO `transition-colors` on either of these, and that is load
+            bearing rather than an omission. Transitioning a
+            background-color whose value is `hsl(var(--x))` does not
+            work: the inline style updates on every slide, the computed
+            colour never leaves whatever it first painted, and the rule
+            sits frozen on slide one's accent forever. Measured across a
+            rotation — inline went --info → --success → --primary while
+            the computed value stayed rgb(82,165,224) the whole way;
+            dropping the class made it track exactly. The tint escaped it
+            only by accident, because it paints a gradient and
+            transition-colors does not cover background-image. */}
+        <div
+          aria-hidden="true"
+          className="absolute inset-x-0 top-0 h-0.5 pointer-events-none"
           style={{ background: `hsl(${slideColor || 'var(--primary)'})` }}
         />
 
