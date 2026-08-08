@@ -680,6 +680,29 @@ govern hierarchy, which tokens can't encode.
 - **No gradient as decoration, no glassmorphism.** `bg-gradient-to-*` and
   `backdrop-blur` are both on the published list of signals designers use to
   identify generated UI. Neither is how you make something look designed.
+- **`mix-blend-mode` does not survive the trip to iOS Safari** (2026-08-08).
+  The dashboard hero carried a dither-grain layer — a stitched `feTurbulence`
+  tile at 0.11 opacity under `mix-blend-mode: overlay`, with `isolation:
+  isolate` on the band to confine the blend. In desktop Chrome it measured
+  exactly as designed (sd 1.80 against the real band colour, mean shift
+  −0.33). On an iPhone it rendered as a **warm box with a hard horizontal
+  edge** at ~60% of the band height — the knee of the layer's own mask.
+  Removing the layer fixed it. Blend modes plus a stacking context are a
+  known divergence; treat anything relying on them as unverifiable until it
+  has been seen on a phone.
+  The wider lesson, which cost several rounds: **that grain existed to fix
+  8-bit banding on a 6-bit + FRC desktop MONITOR.** This app ships to iOS and
+  Android only. A fix aimed at a device no user has is worth nothing, and
+  here it was worth less than nothing. Check which device a rendering
+  complaint came from before building for it.
+- **Absolute positioning does not create clearance.** The hero's watermark
+  icon is `absolute`, so it occupies no space and text flows underneath it
+  however small it gets — shrinking only moves the width at which a long
+  title collides again. Reserve the column instead (`pe-20` against a 72px
+  icon). And measure overlap with `Range.getClientRects()` over TEXT NODES,
+  not element rects: a block `<h2>` spans the full column even when the word
+  inside it is "Stories", which reported all 9 slides colliding when only one
+  actually did.
 - **Data must be earned.** A number gets screen space only with trend, history or
   comparison attached. A bare figure in a box is decoration.
 
