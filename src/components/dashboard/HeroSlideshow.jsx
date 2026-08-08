@@ -963,12 +963,14 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
     return () => ro.disconnect();
   }, [slides.length]);
 
-  // Park the track on the middle page when the WIDTH changes. Deliberately
-  // not keyed on idx: page() below moves the index itself and then animates,
-  // so re-parking on every index change would snap the track to rest and
-  // eat the transition it just started.
+  // Re-park on a WIDTH change only. idx is read through a ref rather than
+  // taken as a dependency: settle() below moves the index and animates in
+  // the same breath, so re-running this on idx would snap the track to rest
+  // and eat the transition it just started.
+  const idxRef = useRef(0);
+  idxRef.current = idx;
   useEffect(() => {
-    if (slides.length > 1) x.set(-trackW);
+    if (slides.length > 1) x.set(-idxRef.current * trackW);
   }, [trackW, slides.length, x]);
 
   const SETTLE = { type: 'spring', stiffness: 420, damping: 40, mass: 0.8 };
@@ -979,26 +981,38 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
   const SETTLE_MS = 340;
   const settleUntilRef = useRef(0);
 
-  /* Advance one page.
+  /* settle — move to a slide index and animate the track to match.
    *
-   * The index is committed FIRST and `x` is shifted by exactly one page to
-   * compensate, so the pixels on screen do not change at that instant — the
-   * page that was sliding in from the right becomes the middle page, drawn
-   * at the same offset it already occupied. Only then does the spring run,
-   * carrying the track the rest of the way to rest.
+   * THE STUTTER THIS REPLACES. The previous version mounted a three-slide
+   * WINDOW (prev / current / next) and kept the track parked on the middle
+   * one, so committing an index re-keyed every page into a different slot
+   * and `x` had to shift a whole page to compensate. Those two changes go
+   * through DIFFERENT schedulers — `setIdx` lands on React's, `x.set` on
+   * Framer's rAF render loop — so they do not land on the same frame. In
+   * the gap the browser paints the old window at the new offset, or the
+   * reverse: a one-frame jump of exactly one page width, on every turn.
+   * "The pixels do not change at that instant" was only ever true if both
+   * were applied atomically, and nothing made them atomic.
    *
-   * The obvious shape is the opposite: animate, then commit in onComplete.
-   * I wrote it that way first and it is a trap. An animation that never
-   * completes — interrupted by the next swipe, or a tab backgrounded
-   * mid-flight where rAF stops — leaves the index un-committed and the
-   * track parked off-centre, i.e. a carousel showing half of two slides
-   * with no way back. Committing up front means the worst case is a
-   * transition that gets cut short, which is invisible.
+   * The track now holds EVERY slide and rests at `-idx * trackW`. Changing
+   * idx no longer moves any slide between DOM slots — the pages are static
+   * and only the transform moves them. So there is nothing to compensate
+   * for, which means there is no compensation left to mis-time. The class
+   * of bug is gone rather than tuned.
    *
-   * The `+ dir * trackW` is not a fudge factor. Going forward, the window
-   * shifts so every slide moves one slot LEFT in the track, so the track
-   * must move one page RIGHT to leave the same pixels under the finger.
+   * Index still commits UP FRONT, before the spring. An animation that
+   * never completes — interrupted by the next swipe, or a backgrounded tab
+   * where rAF stops — must not leave the index behind, or the carousel
+   * parks between slides with no way back. Worst case here is a transition
+   * cut short, which is invisible.
    */
+  const settle = (target, { instant = false } = {}) => {
+    if (!trackW) return;
+    setIdx(target);
+    if (instant) { x.set(-target * trackW); return; }
+    animate(x, -target * trackW, SETTLE);
+  };
+
   const page = (dir) => {
     if (slides.length < 2 || !trackW) return;
     // ONE page per gesture. Reported from a device: a single swipe moved
@@ -1018,12 +1032,27 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
     if (Date.now() < settleUntilRef.current) return;
     settleUntilRef.current = Date.now() + SETTLE_MS;
 
-    setIdx((i) => (i + dir + slides.length) % slides.length);
-    x.set(x.get() + dir * trackW);
-    animate(x, -trackW, SETTLE);
+    // CLAMPED, not wrapped — which is what an iOS home screen does. A
+    // linear track cannot wrap without either scrolling all the way back
+    // through every slide or cutting, and both are worse than the rubber
+    // band you get by running out of pages. Auto-rotate handles its own
+    // wrap below, where a cut happens once per cycle instead of per swipe.
+    const target = Math.min(Math.max(idx + dir, 0), slides.length - 1);
+    if (target === idx) { animate(x, -idx * trackW, SETTLE); return; }
+    settle(target);
   };
-  // Auto-rotate reaches page() through this ref — see its declaration above.
-  pageRef.current = page;
+  // Auto-rotate reaches page()/settle() through this ref — see its
+  // declaration above. At the last slide it returns to the first with an
+  // instant reset: the pages are static, so idx and x move together with no
+  // window to re-key, and a cut once per full cycle beats rewinding the
+  // whole track on screen.
+  pageRef.current = () => {
+    if (slides.length < 2 || !trackW) return;
+    if (Date.now() < settleUntilRef.current) return;
+    settleUntilRef.current = Date.now() + SETTLE_MS;
+    if (idx >= slides.length - 1) settle(0, { instant: true });
+    else settle(idx + 1);
+  };
 
   const handleTrackDragEnd = (_e, info) => {
     if (slides.length < 2 || !trackW) return;
@@ -1034,12 +1063,12 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
     // 125px on a 375pt phone, and the same *proportion* on a Pro Max.
     const far = Math.abs(dx) > trackW / 3;
     const flick = Math.abs(vx) > 500;
-    if (!far && !flick) { animate(x, -trackW, SETTLE); return; }
+    if (!far && !flick) { animate(x, -idx * trackW, SETTLE); return; }
     page(dx < 0 ? 1 : -1);
   };
 
   const goTo = (i) => {
-    setIdx(i);
+    settle(i);
     holdRotation();
   };
   // Guard slides.length === 0 — `% 0` returns NaN, and `slides[NaN]`
@@ -1407,9 +1436,6 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
      itself (which is what this used to do) moved the entire hero, which
      is why the old gesture read as a nudge rather than a page turn. */
   const pageW = trackW || 1;
-  const windowed = slides.length > 1
-    ? [slides[(idx - 1 + slides.length) % slides.length], current, slides[(idx + 1) % slides.length]]
-    : [current];
 
   return (
     <div className="relative">
@@ -1424,7 +1450,7 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
           // as a page scroll partway through.
           dragDirectionLock
           dragElastic={0.12}
-          dragConstraints={{ left: -2 * pageW, right: 0 }}
+          dragConstraints={{ left: -(slides.length - 1) * pageW, right: 0 }}
           // Framer runs an inertia animation on release by default, aimed at
           // the drag constraints. Those span TWO pages here, so a flick threw
           // its own momentum at `x` while page()'s spring was pulling the
@@ -1436,12 +1462,12 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
           onDragStart={holdRotation}
           onDragEnd={handleTrackDragEnd}
         >
-          {windowed.map((s, i) => (
+          {slides.map((s, i) => (
             <div
-              // Keyed by POSITION in the window, not by slide id. Keying by
-              // id would remount all three every time idx moves, which
-              // throws away the DOM mid-gesture and kills the animation.
-              key={`page-${i}`}
+              // Keyed by slide id, and safe to be: a slide never changes
+              // slot now, so this key is stable for the life of the list and
+              // nothing remounts mid-gesture.
+              key={s?.id ?? `page-${i}`}
               className="shrink-0"
               style={{ width: slides.length > 1 ? pageW : '100%' }}
             >
