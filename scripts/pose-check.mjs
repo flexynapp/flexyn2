@@ -14,8 +14,15 @@
 //
 // Exit code is non-zero when anything fails, so this can gate a commit.
 
-import { solve, anchorFor, PROPS } from '../src/lib/exerciseFigureGeometry.js';
+import { solve, anchorFor, PROPS, SEG } from '../src/lib/exerciseFigureGeometry.js';
 import { POSES } from '../src/lib/data/exercisePoses.js';
+
+// REACH. `reach()` clamps a target further away than the arm is long, so an
+// unreachable `handAt` does not fail — it quietly puts the hand somewhere else, and
+// every HELD prop hangs off that somewhere else. Bench Press asked for a bar 60 units
+// from a 40-unit arm and got one 20 units from where the pose said, which is exactly
+// the class of defect this file exists to catch: the source reads correct.
+const ARM = SEG.upperArm + SEG.foreArm;
 
 const CONTACT_TOL = 9;    // units; ~half a head
 const FLOOR_Y     = 182;
@@ -66,6 +73,30 @@ const HEAD_R = 9;
 // reason recorded, and keep the check strict for everything else.
 const HANDS_AT_HEAD_OK = new Set(['Front Squat', 'Cable Crunch', 'Goblet Squat']);
 
+// KNEE. A knee is a hinge with one direction of travel, and unlike the elbow it has no
+// shoulder rotation to hide behind — so a knee bending the wrong way is wrong in every
+// projection, not just this one. It is also the failure a person spots instantly and
+// cannot un-see, which is how it was found: on a rendered card, not in the numbers.
+//
+// The figure always faces +x, so flexion always rotates the shin toward -x, which in
+// this convention is a DECREASING angle. Signed angles survive rotation, so the rule
+// holds for a lifter who is upright, prone, supine or hanging upside down — only
+// mirroring the figure would flip it, and exercisePoses.js forbids that.
+//
+// Nine frames failed this on first run: Leg Press (knee dipping below the hip-to-foot
+// line), Cable Crunch (kneeling with the shins running forward, and both feet through
+// the floor), Hanging Leg Raise (shins pointing up), the Lunge's back leg and the
+// Pull-up's far leg. All nine had passed every other check in this file.
+const KNEE_TOL = 6;   // a few degrees of hyperextension is normal and reads fine
+
+const angOf = ([x, y]) => Math.atan2(x, y) * 180 / Math.PI;
+const sub2 = (a, b) => [a[0] - b[0], a[1] - b[1]];
+const wrap = (d) => { while (d > 180) d -= 360; while (d <= -180) d += 360; return d; };
+/** Signed knee flexion in degrees. Negative is a knee doing what a knee does. */
+function flexion(s, side) {
+  return wrap(angOf(sub2(s[side].end, s[side].mid)) - angOf(sub2(s[side].mid, s.hip)));
+}
+
 // Distance from point to the segment a-b.
 function distToSeg(pt, a, b) {
   const [px, py] = pt, [ax, ay] = a, [bx, by] = b;
@@ -110,6 +141,20 @@ for (const [name, { frames }] of Object.entries(POSES)) {
       if (d > 180) d = 360 - d;
       if (d < FOLD_MIN_DEG) {
         issues.push(`frame ${i + 1}: torso and legs leave the hip ${d.toFixed(0)}deg apart — body is folded (min ${FOLD_MIN_DEG})`);
+      }
+    }
+
+    if (pose.handAt) {
+      const d = Math.hypot(pose.handAt[0] - s.neckBase[0], pose.handAt[1] - s.neckBase[1]);
+      if (d > ARM - 0.5) {
+        issues.push(`frame ${i + 1}: handAt (${pose.handAt}) is ${d.toFixed(0)} from the shoulder, arm reaches ${ARM} — it will be silently clamped to (${s.armNear.end[0].toFixed(0)},${s.armNear.end[1].toFixed(0)})`);
+      }
+    }
+
+    for (const [label, side] of [['near', 'legNear'], ['far', 'legFar']]) {
+      const f = flexion(s, side);
+      if (f > KNEE_TOL) {
+        issues.push(`frame ${i + 1}: ${label} knee bends BACKWARDS (${f.toFixed(0)}deg, max +${KNEE_TOL}) — flex the shin toward the back of the leg`);
       }
     }
 

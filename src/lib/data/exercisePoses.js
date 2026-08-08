@@ -61,12 +61,23 @@ const SEATED_LEGS = { hipNear: 88, hipFar: 92, kneeNear: 4, kneeFar: 8, ankleNea
 /** Standing, holding an implement — the pose only varies by where the hands are. */
 const standHold = (prop, handY, extra = {}) => ({
   prop, hip: [100, 131], torso: 180, head: 180,
-  handAt: [118, handY], armBend: -1, ...LEGS_STAND, ...extra,
+  handAt: [115, handY], armBend: -1, ...LEGS_STAND, ...extra,
 });
-/** Lying on a bench, pressing — hands travel vertically. */
-const benchHold = (prop, handY, extra = {}) => ({
-  prop, hip: [126, 150], torso: 272, head: 272, propAt: 'hip',
-  handAt: [104, handY], armBend: 1, ...SUPINE_LEGS, ...extra,
+/**
+ * Lying on a bench, pressing — hands travel vertically.
+ *
+ * NO `propAt`. It said `propAt: 'hip'`, which drew the barbell across the lifter's
+ * WAIST while both arms reached up holding nothing — the identical mistake seatHold
+ * records two comments below, made twice because the note lived on the wrong helper.
+ * Dumbbells hid it: propMarkup draws those from the solved hands and ignores the
+ * anchor entirely, so only the two barbell movements showed the bug.
+ *
+ * The shoulder sits at (92, 151), so a hand may not be more than 40 units from there
+ * — see the REACH check. Every handY here used to exceed it and was silently clamped.
+ */
+const benchHold = (prop, hand, extra = {}) => ({
+  prop, hip: [126, 150], torso: 272, head: 272,
+  handAt: hand, armBend: 1, ...SUPINE_LEGS, ...extra,
 });
 /** Seated on a bench/machine. */
 // Seated. No propAt: the cable or bar must reach the HAND, and anchoring it
@@ -87,7 +98,7 @@ export const POSES = {
       hipNear: 80, hipFar: 74, kneeNear: 340, kneeFar: 334, ankleNear: 90, ankleFar: 90 }) },
 
   'Push-up': { labels: ['Arms locked', 'Chest to floor', 'Press back up'], frames: rep3(
-    { hip: [86, 142], torso: 100, head: 100, handAt: [124, 182], armBend: -1, ...PRONE_LEGS },
+    { hip: [86, 150], torso: 100, head: 100, handAt: [124, 182], armBend: -1, ...PRONE_LEGS },
     { hip: [86, 160], torso: 96, head: 96, handAt: [124, 182], armBend: -1, ...PRONE_LEGS }) },
 
   'Plank': { labels: ['Set the line', 'Hold — hips level', 'Hips sagging (wrong)'], frames: [
@@ -96,18 +107,21 @@ export const POSES = {
     { hip: [86, 158], torso: 95, head: 95, handAt: [140, 182], armBend: -1,
       hipNear: 276, hipFar: 280, kneeNear: 276, kneeFar: 280, ankleNear: 30, ankleFar: 30 },
     { hip: [86, 172], torso: 80, head: 90, handAt: [140, 182], armBend: -1,
-      hipNear: 266, hipFar: 270, kneeNear: 272, kneeFar: 276, ankleNear: 26, ankleFar: 26 } ] },
+      hipNear: 266, hipFar: 270, kneeNear: 266, kneeFar: 270, ankleNear: 26, ankleFar: 26 } ] },
 
+  // The back leg drops STRAIGHT down and the shin runs BACKWARD to the toe. It used
+  // to angle the thigh back and the shin forward, which is a knee bending the wrong
+  // way — see the KNEE check in pose-check.mjs.
   'Lunge': { labels: ['Stand tall', 'Back knee low', 'Push back to stand'], frames: rep3(
     STANDING,
     { hip: [96, 146], torso: 178, head: 178,
       shoulderNear: 16, shoulderFar: 344, elbowNear: 12, elbowFar: 348,
-      hipNear: 52, hipFar: 310, kneeNear: 352, kneeFar: 26, ankleNear: 90, ankleFar: 60 }) },
+      hipNear: 52, hipFar: 2, kneeNear: 352, kneeFar: 275, ankleNear: 90, ankleFar: 320 }) },
 
   'Pike Push-up': { labels: ['Hips high, V shape', 'Crown toward floor', 'Press back up'], frames: rep3(
-    { hip: [112, 118], torso: 300, head: 300, handAt: [70, 182], armBend: -1,
+    { hip: [112, 118], torso: 300, head: 300, handAt: [72, 173], armBend: -1,
       hipNear: 12, hipFar: 16, kneeNear: 12, kneeFar: 16, ankleNear: 90, ankleFar: 90 },
-    { hip: [112, 118], torso: 306, head: 302, handAt: [70, 182], armBend: 1,
+    { hip: [112, 118], torso: 306, head: 302, handAt: [73, 175], armBend: 1,
       hipNear: 12, hipFar: 16, kneeNear: 12, kneeFar: 16, ankleNear: 90, ankleFar: 90 }) },
 
   'Calf Raise': { labels: ['Flat feet', 'Up on the toes', 'Lower under control'], frames: rep3(
@@ -128,14 +142,17 @@ export const POSES = {
       hipNear: 186, hipFar: 130, kneeNear: 96, kneeFar: 120, ankleNear: 40, ankleFar: 40 }) },
 
   // ── Needs a bar / rails ───────────────────────────────────────────────────
+  // Both knees flex BACKWARD. The far leg used to bend forward to splay the two legs
+  // apart for depth, which read as a hyperextended knee; the splay now comes from the
+  // thigh instead, which is where it belongs.
   'Pull-up': { labels: ['Dead hang', 'Chin over the bar', 'Lower to full hang'], frames: rep3(
-    { prop: 'bar-high', hip: [100, 122], torso: 180, head: 202, handAt: [122, 46], armBend: 1, ...LEGS_STAND, kneeNear: 340, kneeFar: 20 },
-    { prop: 'bar-high', hip: [100, 86],  torso: 180, head: 205, handAt: [122, 46], armBend: 1, ...LEGS_STAND, kneeNear: 336, kneeFar: 24 }) },
+    { prop: 'bar-high', hip: [100, 122], torso: 180, head: 202, handAt: [118, 53], armBend: 1, ...LEGS_STAND, kneeNear: 340, hipFar: 20, kneeFar: 356 },
+    { prop: 'bar-high', hip: [100, 86],  torso: 180, head: 205, handAt: [118, 53], armBend: 1, ...LEGS_STAND, kneeNear: 336, hipFar: 23, kneeFar: 355 }) },
 
   'Dips': { labels: ['Support, arms locked', 'Elbows to 90', 'Press back up'], frames: rep3(
-    { prop: 'parallel-bars', hip: [100, 126], torso: 184, head: 182, handAt: [112, 132], armBend: -1,
+    { prop: 'parallel-bars', hip: [100, 126], torso: 184, head: 182, handAt: [111, 129], armBend: -1,
       hipNear: 350, hipFar: 346, kneeNear: 300, kneeFar: 296, ankleNear: 90, ankleFar: 90 },
-    { prop: 'parallel-bars', hip: [100, 146], torso: 184, head: 182, handAt: [112, 132], armBend: -1,
+    { prop: 'parallel-bars', hip: [100, 146], torso: 184, head: 182, handAt: [111, 129], armBend: -1,
       hipNear: 350, hipFar: 346, kneeNear: 300, kneeFar: 296, ankleNear: 90, ankleFar: 90 }) },
 
   // Face UP under the bar: head to the right, legs running the OTHER way from
@@ -148,10 +165,13 @@ export const POSES = {
     { prop: 'bar-low', hip: [96, 142], torso: 90, head: 90, handAt: [128, 112], armBend: 1,
       hipNear: 323, hipFar: 327, kneeNear: 323, kneeFar: 327, ankleNear: 90, ankleFar: 90 }) },
 
+  // Thighs come up to the chest and the shins HANG DOWN from the knees. They used to
+  // point up, which is a knee folding forwards — and it also drew as a closed
+  // rectangle rather than as a pair of legs.
   'Hanging Leg Raise': { labels: ['Dead hang', 'Knees to chest', 'Lower with control'], frames: rep3(
-    { prop: 'bar-high', hip: [100, 122], torso: 180, head: 202, handAt: [122, 46], armBend: 1, ...LEGS_STAND },
-    { prop: 'bar-high', hip: [100, 122], torso: 180, head: 202, handAt: [122, 46], armBend: 1,
-      hipNear: 84, hipFar: 88, kneeNear: 170, kneeFar: 174, ankleNear: 90, ankleFar: 90 }) },
+    { prop: 'bar-high', hip: [100, 122], torso: 180, head: 202, handAt: [118, 53], armBend: 1, ...LEGS_STAND },
+    { prop: 'bar-high', hip: [100, 122], torso: 180, head: 202, handAt: [118, 53], armBend: 1,
+      hipNear: 110, hipFar: 114, kneeNear: 20, kneeFar: 24, ankleNear: 90, ankleFar: 90 }) },
 
   'Tricep Dips': { labels: ['Arms locked, hips off', 'Elbows to 90', 'Press back up'], frames: rep3(
     { prop: 'bench-seat', hip: [110, 142], torso: 190, head: 186, handAt: [86, 140], armBend: 1,
@@ -171,44 +191,44 @@ export const POSES = {
       hipNear: 80, hipFar: 74, kneeNear: 340, kneeFar: 334, ankleNear: 90, ankleFar: 90 }) },
 
   'Romanian Deadlift': { labels: ['Stand, bar at the hips', 'Bar to mid-shin', 'Stand tall'], frames: rep3(
-    standHold('barbell', 134),
-    { prop: 'barbell', hip: [96, 134], torso: 144, head: 150, handAt: [124, 168], armBend: -1,
+    standHold('barbell', 132),
+    { prop: 'barbell', hip: [96, 134], torso: 144, head: 150, handAt: [121, 145], armBend: -1,
       hipNear: 10, hipFar: 4, kneeNear: 350, kneeFar: 344, ankleNear: 90, ankleFar: 90 }) },
 
   'Barbell Row': { labels: ['Hinged, bar hanging', 'Bar to the belly', 'Lower under control'], frames: rep3(
-    { prop: 'barbell', hip: [96, 138], torso: 128, head: 136, handAt: [128, 168], armBend: -1,
+    { prop: 'barbell', hip: [96, 138], torso: 128, head: 136, handAt: [127, 156], armBend: -1,
       hipNear: 8, hipFar: 2, kneeNear: 352, kneeFar: 346, ankleNear: 90, ankleFar: 90 },
     { prop: 'barbell', hip: [96, 138], torso: 128, head: 136, handAt: [126, 140], armBend: -1,
       hipNear: 8, hipFar: 2, kneeNear: 352, kneeFar: 346, ankleNear: 90, ankleFar: 90 }) },
 
   'Overhead Press': { labels: ['Bar at the shoulders', 'Lock out overhead', 'Lower to shoulders'], frames: rep3(
-    standHold('barbell', 100, { handAt: [132, 102] }), standHold('barbell', 62, { armBend: 1, handAt: [136, 66] })) },
+    standHold('barbell', 100, { handAt: [132, 102] }), standHold('barbell', 62, { armBend: 1, handAt: [130, 72] })) },
 
   'Barbell Curl': { labels: ['Arms straight', 'Curl to the shoulders', 'Lower under control'], frames: rep3(
-    standHold('barbell', 140), standHold('barbell', 106)) },
+    standHold('barbell', 133), standHold('barbell', 106)) },
 
   // ── Dumbbells ─────────────────────────────────────────────────────────────
   'Dumbbell Curl': { labels: ['Arms straight', 'Curl up', 'Lower under control'], frames: rep3(
-    standHold('dumbbells', 140), standHold('dumbbells', 106)) },
+    standHold('dumbbells', 133), standHold('dumbbells', 106)) },
 
   'Hammer Curl': { labels: ['Neutral grip, arms straight', 'Curl up', 'Lower under control'], frames: rep3(
-    standHold('dumbbells', 140), standHold('dumbbells', 108)) },
+    standHold('dumbbells', 133), standHold('dumbbells', 108)) },
 
   'Lateral Raise': { labels: ['Arms at your sides', 'Up to shoulder height', 'Lower slowly'], frames: rep3(
-    standHold('dumbbells', 140), standHold('dumbbells', 100, { handAt: [138, 100] })) },
+    standHold('dumbbells', 133), standHold('dumbbells', 100, { handAt: [138, 100] })) },
 
   'Dumbbell Shoulder Press': { labels: ['At the shoulders', 'Press overhead', 'Lower to shoulders'], frames: rep3(
-    seatHold('dumbbells', [112, 118]), seatHold('dumbbells', [138, 82], { armBend: 1 })) },
+    seatHold('dumbbells', [112, 118]), seatHold('dumbbells', [123, 93], { armBend: 1 })) },
 
   'Dumbbell Row': { labels: ['Hinged, arm hanging', 'Elbow to the hip', 'Lower under control'], frames: rep3(
-    { prop: 'dumbbells', hip: [96, 138], torso: 126, head: 134, handAt: [130, 170], armBend: -1,
+    { prop: 'dumbbells', hip: [96, 138], torso: 126, head: 134, handAt: [128, 157], armBend: -1,
       hipNear: 8, hipFar: 2, kneeNear: 352, kneeFar: 346, ankleNear: 90, ankleFar: 90 },
     { prop: 'dumbbells', hip: [96, 138], torso: 126, head: 134, handAt: [126, 142], armBend: -1,
       hipNear: 8, hipFar: 2, kneeNear: 352, kneeFar: 346, ankleNear: 90, ankleFar: 90 }) },
 
   'Dumbbell Romanian Deadlift': { labels: ['Stand, bells at the hips', 'Down to mid-shin', 'Stand tall'], frames: rep3(
-    standHold('dumbbells', 134),
-    { prop: 'dumbbells', hip: [96, 134], torso: 144, head: 150, handAt: [124, 168], armBend: -1,
+    standHold('dumbbells', 132),
+    { prop: 'dumbbells', hip: [96, 134], torso: 144, head: 150, handAt: [121, 145], armBend: -1,
       hipNear: 10, hipFar: 4, kneeNear: 350, kneeFar: 344, ankleNear: 90, ankleFar: 90 }) },
 
   'Goblet Squat': { labels: ['Bell at the chest', 'Hips below knees', 'Drive up'], frames: rep3(
@@ -217,54 +237,66 @@ export const POSES = {
       hipNear: 80, hipFar: 74, kneeNear: 340, kneeFar: 334, ankleNear: 90, ankleFar: 90 }) },
 
   'Incline Dumbbell Press': { labels: ['Bells at the chest', 'Press up and in', 'Lower under control'], frames: rep3(
-    benchHold('dumbbells', 128), benchHold('dumbbells', 94)) },
+    benchHold('dumbbells', [102, 134]), benchHold('dumbbells', [96, 114])) },
 
+  // The press BENDS the elbow; the fly keeps it long and sweeps the whole arm. Drawing
+  // both as a bent-elbow press is what made these two the same picture (Section C).
   'Dumbbell Fly': { labels: ['Arms wide', 'Hug them together', 'Open back out'], frames: rep3(
-    benchHold('dumbbells', 126, { handAt: [130, 126] }), benchHold('dumbbells', 96)) },
+    benchHold('dumbbells', [124, 130]), benchHold('dumbbells', [96, 113])) },
 
   // ── Bench ─────────────────────────────────────────────────────────────────
   'Bench Press': { labels: ['Bar over the chest', 'Bar to the chest', 'Press back up'], frames: rep3(
-    benchHold('barbell', 92), benchHold('barbell', 126)) },
+    benchHold('barbell', [94, 114]), benchHold('barbell', [99, 136])) },
 
+  // The head is to the LEFT, so the bar travelling toward the forehead travels left as
+  // well as down — which is what separates this from a bench press. The locked frame
+  // sits the bar back over the face rather than over the chest for the same reason:
+  // authored at the bench-press lockout it was the SAME PICTURE as a bench press.
   'Skull Crusher': { labels: ['Arms locked', 'Bar toward the forehead', 'Extend back up'], frames: rep3(
-    benchHold('barbell', 94), benchHold('barbell', 118, { armBend: -1 })) },
+    benchHold('barbell', [88, 116]), benchHold('barbell', [80, 136], { armBend: -1 })) },
 
   // ── Machines and cables ───────────────────────────────────────────────────
   'Lat Pulldown': { labels: ['Arms extended overhead', 'Bar to the collarbone', 'Let it rise'], frames: rep3(
-    seatHold('bar-high', [142, 56], { armBend: 1 }), seatHold('bar-high', [142, 56], { armBend: 1, torso: 172 })) },
+    seatHold('bar-pulldown', [116, 86]), seatHold('bar-pulldown', [110, 110], { torso: 176 })) },
 
   'Seated Cable Row': { labels: ['Arms extended', 'Handle to the belly', 'Extend back out'], frames: rep3(
-    seatHold('cable-stack', [140, 140]), seatHold('cable-stack', [104, 138], { torso: 184 })) },
+    seatHold('cable-stack', [127, 133]), seatHold('cable-stack', [104, 138], { torso: 184 })) },
 
   'Cable Crossover': { labels: ['Arms wide', 'Bring them together', 'Open back out'], frames: rep3(
     { prop: 'cable-stack', hip: [92, 131], torso: 176, head: 176, handAt: [132, 108], armBend: -1, ...LEGS_STAND },
     { prop: 'cable-stack', hip: [92, 131], torso: 176, head: 176, handAt: [110, 122], armBend: -1, ...LEGS_STAND }) },
 
   'Face Pull': { labels: ['Arms extended forward', 'Rope to the face', 'Extend back out'], frames: rep3(
-    { prop: 'cable-stack', hip: [92, 131], torso: 180, head: 180, handAt: [132, 100], armBend: -1, ...LEGS_STAND },
+    { prop: 'cable-stack', hip: [92, 131], torso: 180, head: 180, handAt: [131, 100], armBend: -1, ...LEGS_STAND },
     { prop: 'cable-stack', hip: [92, 131], torso: 180, head: 180, handAt: [104, 92], armBend: -1, ...LEGS_STAND }) },
 
   'Tricep Pushdown': { labels: ['Elbows tucked, forearms up', 'Push all the way down', 'Return under control'], frames: rep3(
     { prop: 'cable-stack', hip: [92, 131], torso: 180, head: 180, handAt: [108, 112], armBend: -1, ...LEGS_STAND },
-    { prop: 'cable-stack', hip: [92, 131], torso: 180, head: 180, handAt: [106, 140], armBend: -1, ...LEGS_STAND }) },
+    { prop: 'cable-stack', hip: [92, 131], torso: 180, head: 180, handAt: [104, 134], armBend: -1, ...LEGS_STAND }) },
 
+  // Kneeling means the shins run BACK from the knees along the floor. They used to run
+  // forward, which is a knee bending the wrong way AND put both feet through the floor.
   'Cable Crunch': { labels: ['Kneeling, rope at the head', 'Crunch the ribs down', 'Rise under control'], frames: rep3(
-    { prop: 'cable-stack', hip: [96, 156], torso: 180, head: 180, handAt: [140, 112], armBend: 1,
-      hipNear: 340, hipFar: 344, kneeNear: 80, kneeFar: 84, ankleNear: 90, ankleFar: 90 },
-    { prop: 'cable-stack', hip: [96, 156], torso: 150, head: 144, handAt: [140, 112], armBend: 1,
-      hipNear: 340, hipFar: 344, kneeNear: 80, kneeFar: 84, ankleNear: 90, ankleFar: 90 }) },
+    { prop: 'cable-stack', hip: [96, 156], torso: 180, head: 180, handAt: [134, 113], armBend: 1,
+      hipNear: 342, hipFar: 346, kneeNear: 265, kneeFar: 269, ankleNear: 268, ankleFar: 272 },
+    { prop: 'cable-stack', hip: [96, 156], torso: 150, head: 144, handAt: [134, 113], armBend: 1,
+      hipNear: 342, hipFar: 346, kneeNear: 265, kneeFar: 269, ankleNear: 268, ankleFar: 272 }) },
 
+  // The knee points TOWARD the chest, which for a reclined lifter is up the screen. It
+  // used to dip below the hip-to-foot line — the knee folding backwards — which is the
+  // single most obviously wrong thing in the set. Feet keep their old positions so the
+  // plate still meets them; only the knee moved to the side a knee can reach.
   'Leg Press': { labels: ['Knees bent, feet on the plate', 'Press to near lockout', 'Return under control'], frames: rep3(
     { prop: 'machine', hip: [84, 150], torso: 256, head: 256, propAt: 'foot',
       shoulderNear: 320, shoulderFar: 314, elbowNear: 348, elbowFar: 342,
-      hipNear: 54, hipFar: 58, kneeNear: 132, kneeFar: 136, ankleNear: 200, ankleFar: 200 },
+      hipNear: 130, hipFar: 134, kneeNear: 52, kneeFar: 56, ankleNear: 142, ankleFar: 146 },
     { prop: 'machine', hip: [84, 150], torso: 256, head: 256, propAt: 'foot',
       shoulderNear: 320, shoulderFar: 314, elbowNear: 348, elbowFar: 342,
-      hipNear: 78, hipFar: 82, kneeNear: 84, kneeFar: 88, ankleNear: 176, ankleFar: 176 }) },
+      hipNear: 103, hipFar: 107, kneeNear: 80, kneeFar: 84, ankleNear: 142, ankleFar: 146 }) },
 
   'Leg Extension': { labels: ['Seated, knees bent', 'Straighten the knees', 'Lower under control'], frames: rep3(
-    seatHold('machine', [104, 150], { hip: [86, 146], kneeNear: 4, kneeFar: 8 }),
-    seatHold('machine', [104, 150], { hip: [86, 146], kneeNear: 84, kneeFar: 88 })) },
+    seatHold('machine', [103, 147], { hip: [86, 146], kneeNear: 4, kneeFar: 8 }),
+    seatHold('machine', [103, 147], { hip: [86, 146], kneeNear: 84, kneeFar: 88 })) },
 
   'Leg Curl': { labels: ['Face down, legs straight', 'Heels to the glutes', 'Lower under control'], frames: rep3(
     { prop: 'machine', hip: [96, 150], torso: 100, head: 100, propAt: 'hip',

@@ -132,6 +132,10 @@ export const PROPS = {
   // press plate is at the FEET — those connect through a drawn line or a
   // named joint, not through the hand, and checking them as grips is noise.
   'bar-high':      { held: false, floor: false, kind: 'bar',      span: 58, grip: true },
+  // A pulldown bar TRAVELS — it is the thing the exercise moves. Sharing 'bar-high'
+  // with the pull-up pinned it to frame one, so the bar could never come down and the
+  // whole movement was a seated dead hang. Same drawing, opposite anchoring.
+  'bar-pulldown':  { held: true,  floor: true,  kind: 'bar',      span: 44, grip: true },
   'bar-low':       { held: false, floor: true,  kind: 'bar',      span: 54, grip: true },
   'parallel-bars': { held: false, floor: false, kind: 'parallel', span: 62, grip: true },
   'bench-seat':    { held: false, floor: true,  kind: 'bench',    span: 40, grip: true },
@@ -165,7 +169,7 @@ export function propMarkup(name, anchor, solved) {
   switch (p.kind) {
     case 'bar':
       return g(`<line x1="${n(ax - p.span)}" y1="${n(ay)}" x2="${n(ax + p.span)}" y2="${n(ay)}" stroke-width="7"/>`
-        + (name === 'bar-high'
+        + (name === 'bar-high' || name === 'bar-pulldown'
           ? `<line x1="${n(ax - p.span + 6)}" y1="${n(ay)}" x2="${n(ax - p.span + 6)}" y2="6" stroke-width="4" opacity="0.5"/>`
             + `<line x1="${n(ax + p.span - 6)}" y1="${n(ay)}" x2="${n(ax + p.span - 6)}" y2="6" stroke-width="4" opacity="0.5"/>`
           : `<line x1="${n(ax - p.span)}" y1="${n(ay)}" x2="${n(ax - p.span)}" y2="182" stroke-width="4" opacity="0.4"/>`));
