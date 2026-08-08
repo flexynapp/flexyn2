@@ -17,7 +17,7 @@
 // convention before authoring a pose.
 
 import React from 'react';
-import { SEG, solve, pts, PROPS, anchorFor, propMarkup } from '@/lib/exerciseFigureGeometry';
+import { SEG, solve, pts, PROPS, anchorFor, propMarkup, supportMarkup } from '@/lib/exerciseFigureGeometry';
 
 /**
  * A single posed figure.
@@ -54,6 +54,12 @@ export default function ExerciseFigure({ pose = {}, accent = false, anchor = nul
     >
       {showFloor && (
         <line x1="12" y1="182" x2="188" y2="182" strokeWidth="2" strokeDasharray="4 6" opacity="0.28" />
+      )}
+      {/* What the lifter's weight rests on, behind everything: a bench, a seat,
+          a sled. Drawn before the implement so a barbell reads as being over
+          the chest rather than tangled in the bench. */}
+      {pose.support && (
+        <g dangerouslySetInnerHTML={{ __html: supportMarkup(pose.support, s, pose) }} />
       )}
       {prop && (
         <g dangerouslySetInnerHTML={{ __html: propMarkup(pose.prop, at, s) }} />

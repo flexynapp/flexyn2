@@ -76,7 +76,22 @@ const standHold = (prop, handY, extra = {}) => ({
  * — see the REACH check. Every handY here used to exceed it and was silently clamped.
  */
 const benchHold = (prop, hand, extra = {}) => ({
-  prop, hip: [126, 150], torso: 272, head: 272,
+  prop, support: 'bench-flat', hip: [126, 150], torso: 272, head: 272,
+  handAt: hand, armBend: 1, ...SUPINE_LEGS, ...extra,
+});
+
+/**
+ * Lying on an INCLINE. The bench does not tilt by itself — the LIFTER tilts,
+ * and supportMarkup derives the pad from the head-to-hip line, so the pad
+ * follows. Torso 250 is ~30 degrees off flat; the hip drops to 160 so the
+ * raised head stays inside the viewBox.
+ *
+ * This exists because "Incline Dumbbell Press" was benchHold with different
+ * hand heights, i.e. an incline press with no incline, and it rendered as the
+ * same picture as a flat dumbbell fly.
+ */
+const inclineHold = (prop, hand, extra = {}) => ({
+  prop, support: 'bench-incl', hip: [126, 160], torso: 250, head: 250,
   handAt: hand, armBend: 1, ...SUPINE_LEGS, ...extra,
 });
 /** Seated on a bench/machine. */
@@ -218,7 +233,7 @@ export const POSES = {
     standHold('dumbbells', 133), standHold('dumbbells', 100, { handAt: [138, 100] })) },
 
   'Dumbbell Shoulder Press': { labels: ['At the shoulders', 'Press overhead', 'Lower to shoulders'], frames: rep3(
-    seatHold('dumbbells', [112, 118]), seatHold('dumbbells', [123, 93], { armBend: 1 })) },
+    seatHold('dumbbells', [112, 118], { support: 'seat-back' }), seatHold('dumbbells', [123, 93], { armBend: 1, support: 'seat-back' })) },
 
   'Dumbbell Row': { labels: ['Hinged, arm hanging', 'Elbow to the hip', 'Lower under control'], frames: rep3(
     { prop: 'dumbbells', hip: [96, 138], torso: 126, head: 134, handAt: [128, 157], armBend: -1,
@@ -237,7 +252,7 @@ export const POSES = {
       hipNear: 80, hipFar: 74, kneeNear: 340, kneeFar: 334, ankleNear: 90, ankleFar: 90 }) },
 
   'Incline Dumbbell Press': { labels: ['Bells at the chest', 'Press up and in', 'Lower under control'], frames: rep3(
-    benchHold('dumbbells', [102, 134]), benchHold('dumbbells', [96, 114])) },
+    inclineHold('dumbbells', [106, 132]), inclineHold('dumbbells', [100, 112])) },
 
   // The press BENDS the elbow; the fly keeps it long and sweeps the whole arm. Drawing
   // both as a bent-elbow press is what made these two the same picture (Section C).
@@ -257,10 +272,10 @@ export const POSES = {
 
   // ── Machines and cables ───────────────────────────────────────────────────
   'Lat Pulldown': { labels: ['Arms extended overhead', 'Bar to the collarbone', 'Let it rise'], frames: rep3(
-    seatHold('bar-pulldown', [116, 86]), seatHold('bar-pulldown', [110, 110], { torso: 176 })) },
+    seatHold('bar-pulldown', [116, 86], { support: 'seat-thigh' }), seatHold('bar-pulldown', [110, 110], { torso: 176, support: 'seat-thigh' })) },
 
   'Seated Cable Row': { labels: ['Arms extended', 'Handle to the belly', 'Extend back out'], frames: rep3(
-    seatHold('cable-stack', [127, 133]), seatHold('cable-stack', [104, 138], { torso: 184 })) },
+    seatHold('cable-stack', [127, 133], { support: 'seat-plate' }), seatHold('cable-stack', [104, 138], { torso: 184, support: 'seat-plate' })) },
 
   'Cable Crossover': { labels: ['Arms wide', 'Bring them together', 'Open back out'], frames: rep3(
     { prop: 'cable-stack', hip: [92, 131], torso: 176, head: 176, handAt: [132, 108], armBend: -1, ...LEGS_STAND },
@@ -287,16 +302,16 @@ export const POSES = {
   // single most obviously wrong thing in the set. Feet keep their old positions so the
   // plate still meets them; only the knee moved to the side a knee can reach.
   'Leg Press': { labels: ['Knees bent, feet on the plate', 'Press to near lockout', 'Return under control'], frames: rep3(
-    { prop: 'machine', hip: [84, 150], torso: 256, head: 256, propAt: 'foot',
+    { prop: 'machine', support: 'sled', hip: [84, 150], torso: 256, head: 256, propAt: 'foot',
       shoulderNear: 320, shoulderFar: 314, elbowNear: 348, elbowFar: 342,
       hipNear: 130, hipFar: 134, kneeNear: 52, kneeFar: 56, ankleNear: 142, ankleFar: 146 },
-    { prop: 'machine', hip: [84, 150], torso: 256, head: 256, propAt: 'foot',
+    { prop: 'machine', support: 'sled', hip: [84, 150], torso: 256, head: 256, propAt: 'foot',
       shoulderNear: 320, shoulderFar: 314, elbowNear: 348, elbowFar: 342,
       hipNear: 103, hipFar: 107, kneeNear: 80, kneeFar: 84, ankleNear: 142, ankleFar: 146 }) },
 
   'Leg Extension': { labels: ['Seated, knees bent', 'Straighten the knees', 'Lower under control'], frames: rep3(
-    seatHold('machine', [103, 147], { hip: [86, 146], kneeNear: 4, kneeFar: 8 }),
-    seatHold('machine', [103, 147], { hip: [86, 146], kneeNear: 84, kneeFar: 88 })) },
+    seatHold('machine', [103, 147], { support: 'seat-back' }, { hip: [86, 146], kneeNear: 4, kneeFar: 8 }),
+    seatHold('machine', [103, 147], { support: 'seat-back' }, { hip: [86, 146], kneeNear: 84, kneeFar: 88 })) },
 
   'Leg Curl': { labels: ['Face down, legs straight', 'Heels to the glutes', 'Lower under control'], frames: rep3(
     { prop: 'machine', hip: [96, 150], torso: 100, head: 100, propAt: 'hip',

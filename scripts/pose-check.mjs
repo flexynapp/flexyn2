@@ -97,6 +97,45 @@ function flexion(s, side) {
   return wrap(angOf(sub2(s[side].end, s[side].mid)) - angOf(sub2(s[side].mid, s.hip)));
 }
 
+// SUPPORT. A body whose weight is not on the floor and not hanging from
+// something is resting on apparatus, and that apparatus has to be drawn — a
+// figure supported by nothing reads as falling, not as pressing. Nine
+// exercises shipped that way: bench press, incline press, fly, skull crusher,
+// shoulder press, cable row, pulldown, leg extension and leg press.
+//
+// Two shapes count as "off the floor":
+//
+//   LYING    the torso is nearer horizontal than vertical. |cos| < 0.45 is
+//            about 27 degrees of slack, which is deliberately generous: a
+//            bent-over row sits at 0.59 and must not be flagged, because a
+//            hinge is a standing position and a check that fires on it would
+//            teach people to ignore this one.
+//   SEATED   the thigh is near horizontal, the hip is well clear of the floor,
+//            AND the torso is upright. The floor threshold separates a lat
+//            pulldown (hip 32 units up, on a seat) from a Russian twist (20
+//            units, on the ground).
+//
+//            The torso clause is load-bearing and was added after this check
+//            fired on all four squats. It is not a fudge: the bottom of a
+//            squat IS geometrically a person sitting on an invisible chair —
+//            thigh horizontal, hip well off the floor — and the only thing
+//            that separates it from a seat is that a squatter leans forward
+//            over their feet (146-160 degrees) while someone on a bench sits
+//            up (172-184). A check that flags four correct squats is a check
+//            everyone learns to ignore.
+const TORSO_HORIZ = 0.45;
+const THIGH_HORIZ = 0.42;
+const SEAT_CLEARANCE = 24;
+const UPRIGHT_SLACK = 18;   // degrees either side of a vertical torso
+
+// Weight is carried by something already drawn, or by nothing at all.
+const SUPPORT_NOT_NEEDED = new Set([
+  'Push-up', 'Plank', 'Pike Push-up', 'Dead Bug',  // on the floor
+  'Russian Twist',                                  // sitting on the floor
+  'Inverted Row',                                   // hanging under the bar
+  'Leg Curl',                                       // its machine prop IS the pad
+]);
+
 // Distance from point to the segment a-b.
 function distToSeg(pt, a, b) {
   const [px, py] = pt, [ax, ay] = a, [bx, by] = b;
@@ -141,6 +180,19 @@ for (const [name, { frames }] of Object.entries(POSES)) {
       if (d > 180) d = 360 - d;
       if (d < FOLD_MIN_DEG) {
         issues.push(`frame ${i + 1}: torso and legs leave the hip ${d.toFixed(0)}deg apart — body is folded (min ${FOLD_MIN_DEG})`);
+      }
+    }
+
+    // Hanging from apparatus carries the body too — those props have floor:false.
+    if (!SUPPORT_NOT_NEEDED.has(name) && !pose.support && !(prop && prop.floor === false)) {
+      const torsoDeg = pose.torso ?? 180;
+      const lying = Math.abs(Math.cos(torsoDeg * Math.PI / 180)) < TORSO_HORIZ;
+      const thighDeg = pose.hipNear ?? pose.hipFar ?? 0;
+      const seated = Math.abs(Math.cos(thighDeg * Math.PI / 180)) < THIGH_HORIZ
+                     && (FLOOR_Y - s.hip[1]) > SEAT_CLEARANCE
+                     && Math.abs(torsoDeg - 180) < UPRIGHT_SLACK;
+      if (lying || seated) {
+        issues.push(`frame ${i + 1}: ${lying ? 'lying' : 'seated'} off the floor with no \`support\` — the lifter rests on nothing`);
       }
     }
 

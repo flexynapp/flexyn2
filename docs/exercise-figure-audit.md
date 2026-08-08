@@ -93,19 +93,10 @@ showing the wrong movement teaches them the wrong movement, which is the single 
 feature exists to prevent. Those five need drawings, not aliases.
 
 The generated-workout path is completely covered, which is the path the feature was built for.
-Everything else is not. The 24 undrawn names in `programTemplates.js` are `Squat`, `Deadlift`,
-`Power Clean`, `Chin-up`, `Bicep Curl`, `Sumo Deadlift`, `Incline Bench Press`,
-`Close-Grip Bench Press`, `Dumbbell Press`, `Walking Lunge` and the workout-day labels.
-
-**Two distinct problems hide in that list, and they need different fixes:**
-
-- **Aliases.** `Squat`, `Deadlift`, `Bicep Curl`, `Dumbbell Press` are the same movements as
-  drawn poses under different names. These need a **normalisation layer**, not new drawings —
-  `posesFor()` currently does an exact `POSES[name]` lookup and returns `null` on any miss,
-  so a template that says `Squat` silently shows nothing.
-- **Genuinely undrawn.** `Deadlift`, `Power Clean`, `Chin-up`, `Sumo Deadlift`,
-  `Incline Bench Press` are real movements with no pose. `Deadlift` being absent is notable —
-  it is one of the most-injured lifts in the catalog and the one where a picture earns the most.
+Everything else is not. What remains undrawn in `programTemplates.js` is genuine missing art,
+not naming: `Deadlift`, `Sumo Deadlift`, `Power Clean`, `Chin-up`, `Incline Bench Press`,
+`Close-Grip Bench Press`. **`Deadlift` is the one to draw first** — it is the most-injured lift
+in the catalog and the one where a picture earns the most.
 
 **Pass bar.** Every name reachable from a template, the picker, the autocomplete or a generated
 session either resolves to a pose or resolves to a deliberate, designed empty state. A silent
@@ -136,12 +127,12 @@ worth confirming they fail rather than assuming it):
 
 - **Lateral Raise** — see Section D. The side view shows the arm rising in front of the body.
   It reads as a Front Raise. This is a picture of a different exercise.
-- **Lat Pulldown** — the figure hangs below a high bar with knees tucked and no seat, and the
-  bar does not move. It is a Pull-up as drawn (see Section C).
+- ~~**Lat Pulldown**~~ — was a Pull-up as drawn: no seat, knees tucked, and a bar that could not
+  descend. Fixed (Sections E and G.3); re-test rather than assume.
 - **Back Squat / Front Squat** — the bar renders as a long horizontal beam projecting forward
   from the hands at chest height. Neither reads as a bar on the back or in a front rack.
-- **Leg Press** — a figure lying on the floor pushing a horizontal bar, with no sled, seat,
-  rails or angle. Nothing identifies the machine.
+- ~~**Leg Press**~~ — was a figure on the floor pushing a horizontal bar, with a knee that bent
+  backwards. Now on a `sled` with a reclined pad and a rail. Re-test rather than assume.
 - **Dead Bug** — at card size the limbs-up supine position resolves to an abstract shape.
 
 ---
@@ -218,7 +209,38 @@ than as a bar racked on the back.
 'you need a pull-up bar for this' is visible in the picture."* Apply the same standard to
 benches, seats, racks and sleds.
 
-**FAIL — 9 exercises are performed on a surface that is not drawn:**
+**~~FAIL — 9 exercises~~ FIXED 2026-08-07.**
+
+The blocker was structural, not artistic: a pose had **one** prop slot, and a `held` implement
+suppressed any fixed one, so "barbell in the hands" and "bench under the back" could not both be
+true. Poses now carry a second field, `support`, drawn behind everything else.
+
+**Supports derive from JOINTS, never from coordinates** — the same rule `00dea9b` established for
+props after fixed bar positions missed the hands by 10–36 units. A bench is *"the line from the
+head to the hip, pushed to the far side of the torso"*; a seat is *"the line from the hip to the
+knee, pushed away from the torso"*. Stated that way they follow the pose, which is what let the
+incline bench tilt: **`inclineHold` tilts the LIFTER**, and the pad follows, rather than a second
+number being tuned to match a first.
+
+| Exercise | Support | Was |
+|---|---|---|
+| Bench Press, Dumbbell Fly, Skull Crusher | `bench-flat` | mid-air |
+| Incline Dumbbell Press | `bench-incl` | mid-air, and no incline |
+| Dumbbell Shoulder Press, Leg Extension | `seat-back` | seat and back pad both absent |
+| Lat Pulldown | `seat-thigh` | no seat, no thigh pad |
+| Seated Cable Row | `seat-plate` | no seat, no foot plate |
+| Leg Press | `sled` | a person on the floor pushing a stick |
+
+Gated by `SUPPORT` in `pose-check.mjs`, and **verified by deleting `bench-flat` and watching it
+fail 9 frames** — a check nobody has seen fail is a check nobody knows works.
+
+One clause in that check is worth keeping: it fired on all four squats before the torso term was
+added, and that was the check being wrong rather than the art. **The bottom of a squat IS
+geometrically a person sitting on an invisible chair** — thigh horizontal, hip well clear of the
+floor. What separates them is that a squatter leans forward over their feet (146–160°) while
+someone on a bench sits up (172–184°). Same family as the head-clearance calibration in `a304a21`.
+
+**Original finding, for the record — 9 exercises were performed on a surface that was not drawn:**
 
 | Exercise | Prop drawn | Missing |
 |---|---|---|
@@ -378,7 +400,8 @@ fixing rather than recording:
   `held: true` — so the bar travels with the hands. That closes the 3.3-unit amplitude in
   Section F: the movement is now visible.
 - **Incline Dumbbell Press and Dumbbell Fly** were the same picture (Section C). The press bends
-  the elbow; the fly keeps the arm long and sweeps it. They now differ at frame 1.
+  the elbow; the fly keeps the arm long and sweeps it. They now differ at frame 1 — and since
+  Section E the press is also drawn on an incline, so they differ in the apparatus too.
 
 **One correction to Section C's spec.** It compared frame 2 only, which is too narrow — Incline
 Press and Fly legitimately finish in nearly the same place, and it is frame 1 that distinguishes
@@ -478,9 +501,9 @@ additions, each one a defect this audit actually found:
 |---|---|---|
 | `KNEE` | A knee flexes posteriorly — never more than +6° of hyperextension | ~~9~~ **shipped** |
 | `REACH` | A `handAt` must be inside the arm's 40 units, or it is silently clamped | ~~54~~ **shipped** |
+| `SUPPORT` | A lifter lying or seated off the floor must name a `support` | ~~9~~ **shipped** |
 | `DISTINCT` | No two exercises match on **all three** frames unless their props differ | 1 |
 | `AMPLITUDE` | ≥ 20 units of travel between frames 1 and 2, or a named exemption | 21 |
-| `SUPPORT` | A pose whose torso is horizontal or seated must name a fixed support prop | 9 |
 | `COVERAGE` | Every name in every exercise source resolves through `posesFor()` | 24 |
 | `PLANE` | A pose tagged frontal/transverse must not use the side camera | 4 |
 | `MARKED` | A frame whose label contains "(wrong)" must set the error treatment | 1 |

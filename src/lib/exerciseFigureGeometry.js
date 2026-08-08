@@ -146,6 +146,115 @@ export const PROPS = {
   'dumbbells':     { held: true,  floor: true,  kind: 'dumbbell', span: 9  },
 };
 
+// ── Supports ────────────────────────────────────────────────────────────────
+//
+// The thing the lifter's WEIGHT rests on: a bench, a seat, a sled. Separate
+// from `prop` because a pose needs BOTH — a bench press is a barbell in the
+// hands AND a bench under the back — and `prop` is a single slot whose `held`
+// implements suppress any fixed one. Nine exercises were therefore drawn
+// lying or sitting on nothing, which reads as falling rather than as pressing.
+//
+// Supports derive from JOINTS, never from the hand and never from fixed
+// coordinates. A bench is "the line from the head to the hip, pushed to the
+// far side of the torso"; a seat is "the line from the hip to the knee, pushed
+// away from the torso". Stated that way they follow the pose — the incline
+// bench tilts because the lifter tilts, not because a second number was tuned
+// to match.
+export const SUPPORTS = {
+  'bench-flat':  { kind: 'bench', legs: true },   // lying: head → hip
+  'bench-incl':  { kind: 'bench', legs: true },   // same, and the pose is what tilts
+  'seat-back':   { kind: 'seat', back: true },    // sitting, with an upright back pad
+  'seat-plate':  { kind: 'seat', plate: true },   // sitting, with a foot plate
+  'seat-thigh':  { kind: 'seat', thigh: true },   // sitting, with a thigh restraint
+  'sled':        { kind: 'sled' },                // leg press: back pad on rails
+};
+
+const unitVec = (a, b) => {
+  const dx = b[0] - a[0], dy = b[1] - a[1];
+  const L = Math.hypot(dx, dy) || 1;
+  return [dx / L, dy / L];
+};
+
+/** The normal to a→b pointing AWAY from `from` — i.e. the side to put the pad on. */
+function outwardNormal(a, b, from) {
+  const [ux, uy] = unitVec(a, b);
+  const n = [-uy, ux];
+  const mid = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+  const near = Math.hypot(mid[0] + n[0] - from[0], mid[1] + n[1] - from[1]);
+  const far = Math.hypot(mid[0] - n[0] - from[0], mid[1] - n[1] - from[1]);
+  return near >= far ? n : [-n[0], -n[1]];
+}
+
+/** A padded surface running a→b, pushed `out` along `n`, overhanging by `extend`. */
+function padLine(a, b, n, out, extend = 0) {
+  const [ux, uy] = unitVec(a, b);
+  return [
+    [a[0] - ux * extend + n[0] * out, a[1] - uy * extend + n[1] * out],
+    [b[0] + ux * extend + n[0] * out, b[1] + uy * extend + n[1] * out],
+  ];
+}
+
+const FLOOR_Y = 182;
+const n1 = (v) => v.toFixed(1);
+const seg = (p, q, w) => `<line x1="${n1(p[0])}" y1="${n1(p[1])}" x2="${n1(q[0])}" y2="${n1(q[1])}" stroke-width="${w}"/>`;
+/** A leg dropping to the floor. Skipped when the surface is already on it. */
+const legDown = (p) =>
+  p[1] < FLOOR_Y - 4 ? `<line x1="${n1(p[0])}" y1="${n1(p[1])}" x2="${n1(p[0])}" y2="${FLOOR_Y}" stroke-width="4" opacity="0.5"/>` : '';
+
+/**
+ * Support markup for a solved pose. Drawn BEHIND the figure and dimmer than
+ * it — the lifter is the subject; the bench is why the lifter is not falling.
+ */
+export function supportMarkup(name, s, pose) {
+  const sup = SUPPORTS[name];
+  if (!sup) return '';
+  const torso = pose.torso ?? 180;
+  // Posterior — the side of the torso the body's weight goes into. torso+90
+  // holds for a lifter upright, prone, supine or reclined, because rotating
+  // the whole figure rotates this with it.
+  const post = [Math.sin((torso + 90) * RAD), Math.cos((torso + 90) * RAD)];
+
+  let inner = '';
+  if (sup.kind === 'bench') {
+    // Head to hip, pushed to the far side of the torso.
+    const [p, q] = padLine(s.headPos, s.hip, post, 11, 9);
+    inner = seg(p, q, 9) + (sup.legs ? legDown(p) + legDown(q) : '');
+  } else if (sup.kind === 'seat') {
+    // Hip to knee, pushed away from the torso — a seat is UNDER you, which is
+    // not the same direction as the back pad behind you.
+    const down = outwardNormal(s.hip, s.legNear.mid, s.neckBase);
+    const [p, q] = padLine(s.hip, s.legNear.mid, down, 10, 7);
+    inner = seg(p, q, 9) + legDown(p) + legDown(q);
+    if (sup.back) {
+      // Upright pad behind the spine, from the seat to shoulder height.
+      const [b1, b2] = padLine(s.hip, s.neckBase, post, 11, 2);
+      inner += seg(b1, b2, 7);
+    }
+    if (sup.thigh) {
+      // Thigh restraint — the pad that stops a pulldown lifting you off the seat.
+      const mid = [(s.hip[0] + s.legNear.mid[0]) / 2, (s.hip[1] + s.legNear.mid[1]) / 2];
+      const up = [-down[0], -down[1]];
+      inner += seg([mid[0] + up[0] * 4, mid[1] + up[1] * 4],
+                   [mid[0] + up[0] * 12, mid[1] + up[1] * 12], 7);
+    }
+    if (sup.plate) {
+      // Foot plate, square to the shin so the feet meet it rather than hover.
+      const foot = s.legNear.end;
+      const across = outwardNormal(s.legNear.mid, foot, s.hip);
+      inner += seg([foot[0] + across[0] * 10 + 4, foot[1] + across[1] * 10],
+                   [foot[0] - across[0] * 10 + 4, foot[1] - across[1] * 10], 7);
+    }
+  } else if (sup.kind === 'sled') {
+    // A reclined back pad plus the rail it rides, which is what says "machine"
+    // rather than "person lying on the floor".
+    const [p, q] = padLine(s.headPos, s.hip, post, 11, 8);
+    inner = seg(p, q, 9)
+      + `<line x1="${n1(p[0] - 4)}" y1="${n1(p[1] + 12)}" x2="${n1(q[0] + 26)}" y2="${n1(q[1] + 12)}" stroke-width="3" opacity="0.6"/>`
+      + legDown([p[0] + 2, p[1] + 12]) + legDown([q[0] + 20, q[1] + 12]);
+  }
+  return `<g opacity="0.45">${inner}</g>`;
+}
+
 /** Where a prop hangs off: the near hand, unless the pose names another point. */
 export function anchorFor(pose) {
   const s = solve(pose);
@@ -219,6 +328,7 @@ export function figureMarkup(pose, { accent = false, anchor = null } = {}) {
   const at = prop ? (prop.held ? anchorFor(pose) : (anchor || anchorFor(pose))) : null;
   return `
     ${showFloor ? '<line x1="12" y1="182" x2="188" y2="182" stroke-width="2" stroke-dasharray="4 6" opacity="0.28"/>' : ''}
+    ${pose.support ? supportMarkup(pose.support, s, pose) : ''}
     ${prop ? propMarkup(pose.prop, at, s) : ''}
     <g opacity="0.42" stroke-width="6">
       <polyline points="${pts(s.neckBase, s.armFar.mid, s.armFar.end)}"/>
