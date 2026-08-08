@@ -291,13 +291,6 @@ function HeroCard({
   // it is on the band precisely so it has no edge to be sloppy about. The
   // thing being avoided is decoration with a visible seam, not colour.
   const [slideColor, setSlideColor] = useState(null);
-  const handleDragEnd = (_e, info) => {
-    if (slideCount <= 1) return;
-    const dx = info.offset.x;
-    const vx = info.velocity.x;
-    if (dx < -50 || vx < -500) slideshowRef.current?.next?.();
-    else if (dx > 50 || vx > 500) slideshowRef.current?.prev?.();
-  };
 
   return (
     <motion.div
@@ -316,19 +309,14 @@ function HeroCard({
           light background did not read as dominant, which defeats the whole
           point of letting it bleed. On dark, --card is already lighter than
           --background so it separates on its own. */}
+      {/* The band no longer drags. The gesture moved INTO HeroSlideshow,
+          onto the paged track, because in a paged carousel the pages travel
+          and the chrome does not — dragging the band moved the tint, the
+          fade, the grain and the rule along with the content, which is why
+          the old gesture read as nudging a card rather than turning a page.
+          `touch-pan-y` stays on the class list below: the track needs the
+          browser to leave horizontal gestures alone just as much. */}
       <motion.div
-        drag={slideCount > 1 ? 'x' : false}
-        dragConstraints={{ left: 0, right: 0 }}
-        // A thumb swipe is never purely horizontal. Without direction lock,
-        // Framer tracks both axes while `touch-action: pan-y` has already
-        // promised the browser it may scroll vertically — so a swipe with any
-        // downward drift can be claimed as a page scroll and the slide never
-        // advances. That reads as "swipe doesn't work" on a phone while a
-        // clean horizontal drag in a test passes. Direction lock commits to
-        // one axis within the first few pixels and keeps the gesture.
-        dragDirectionLock
-        dragElastic={0.18}
-        onDragEnd={handleDragEnd}
         // `isolate` is required, not cosmetic: the grain layer below uses
         // mix-blend-mode, which blends with its backdrop across the whole
         // stacking context. Without a new context here it would reach past

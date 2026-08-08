@@ -30,7 +30,7 @@
 // ZERO extra network calls.
 
 import React, { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, animate, useMotionValue } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import {
   Flame, Trophy, TrendingUp, Award, Zap, Sparkles,
@@ -906,9 +906,17 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
   // navigates so they get a beat to read after tapping a dot.
   const [paused, setPaused] = useState(false);
   const pauseTimerRef = useRef(null);
+  // Declared here rather than beside page() so the auto-rotate effect below
+  // isn't reading a binding defined further down the body — see CLAUDE.md's
+  // TDZ note. Assigned on every render once page() exists.
+  const pageRef = useRef(null);
   useEffect(() => {
     if (paused || slides.length <= 1) return;
-    const t = setTimeout(() => setIdx(i => (i + 1) % slides.length), ROTATE_MS);
+    // Through page() rather than setIdx so a rotation GLIDES like a swipe.
+    // Committing the index alone would cut straight to the next slide, and
+    // a carousel that cuts on its own but glides under the thumb reads as
+    // two different components sharing one card.
+    const t = setTimeout(() => pageRef.current?.(1), ROTATE_MS);
     return () => clearTimeout(t);
   }, [idx, paused, slides.length]);
 
@@ -924,14 +932,102 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
     pauseTimerRef.current = setTimeout(() => setPaused(false), 12_000);
   };
 
+  /* ── Paged-track motion ─────────────────────────────────────────────
+     `x` is the track's translation. It rests at -trackW, i.e. showing the
+     middle child of the prev/current/next window, and every commit returns
+     it there instantly while idx moves — see the note at the track. */
+  const trackBoxRef = useRef(null);
+  const [trackW, setTrackW] = useState(0);
+  const x = useMotionValue(0);
+
+  // Measure with a ResizeObserver rather than once on mount: the band is
+  // min-height and full-bleed, so this width changes on rotation and on
+  // any layout shift above it. A stale width leaves the pages a different
+  // size from their container and the resting offset wrong by exactly that
+  // error — measured 343px pages inside a 311px box before this was fixed.
+  //
+  // `slides.length` is in the deps for a specific reason. The parent adds a
+  // `pe-12` gutter for the chevron ONLY once it hears there is more than one
+  // slide, so the container narrows by 48px a beat after mount, when the
+  // data lands. Mounting with `[]` deps measured the pre-gutter width and
+  // kept it. Re-running on the slide count re-measures at exactly the moment
+  // the width can change; the observer then handles rotation and everything
+  // after.
+  useEffect(() => {
+    const el = trackBoxRef.current;
+    if (!el) return;
+    const apply = () => setTrackW(el.clientWidth);
+    apply();
+    const ro = new ResizeObserver(apply);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [slides.length]);
+
+  // Park the track on the middle page when the WIDTH changes. Deliberately
+  // not keyed on idx: page() below moves the index itself and then animates,
+  // so re-parking on every index change would snap the track to rest and
+  // eat the transition it just started.
+  useEffect(() => {
+    if (slides.length > 1) x.set(-trackW);
+  }, [trackW, slides.length, x]);
+
+  const SETTLE = { type: 'spring', stiffness: 420, damping: 40, mass: 0.8 };
+
+  /* Advance one page.
+   *
+   * The index is committed FIRST and `x` is shifted by exactly one page to
+   * compensate, so the pixels on screen do not change at that instant — the
+   * page that was sliding in from the right becomes the middle page, drawn
+   * at the same offset it already occupied. Only then does the spring run,
+   * carrying the track the rest of the way to rest.
+   *
+   * The obvious shape is the opposite: animate, then commit in onComplete.
+   * I wrote it that way first and it is a trap. An animation that never
+   * completes — interrupted by the next swipe, or a tab backgrounded
+   * mid-flight where rAF stops — leaves the index un-committed and the
+   * track parked off-centre, i.e. a carousel showing half of two slides
+   * with no way back. Committing up front means the worst case is a
+   * transition that gets cut short, which is invisible.
+   *
+   * The `+ dir * trackW` is not a fudge factor. Going forward, the window
+   * shifts so every slide moves one slot LEFT in the track, so the track
+   * must move one page RIGHT to leave the same pixels under the finger.
+   */
+  const page = (dir) => {
+    if (slides.length < 2 || !trackW) return;
+    setIdx((i) => (i + dir + slides.length) % slides.length);
+    x.set(x.get() + dir * trackW);
+    animate(x, -trackW, SETTLE);
+  };
+  // Auto-rotate reaches page() through this ref — see its declaration above.
+  pageRef.current = page;
+
+  const handleTrackDragEnd = (_e, info) => {
+    if (slides.length < 2 || !trackW) return;
+    const dx = info.offset.x;
+    const vx = info.velocity.x;
+    // A page turns on distance OR flick. The distance gate is a third of a
+    // page rather than a fixed pixel count so it scales with the device:
+    // 125px on a 375pt phone, and the same *proportion* on a Pro Max.
+    const far = Math.abs(dx) > trackW / 3;
+    const flick = Math.abs(vx) > 500;
+    if (!far && !flick) { animate(x, -trackW, SETTLE); return; }
+    page(dx < 0 ? 1 : -1);
+  };
+
   const goTo = (i) => {
     setIdx(i);
     holdRotation();
   };
   // Guard slides.length === 0 — `% 0` returns NaN, and `slides[NaN]`
   // is undefined which crashes the render path that reads slide.id.
-  const next = () => { if (slides.length > 0) goTo((idx + 1) % slides.length); };
-  const prev = () => { if (slides.length > 0) goTo((idx - 1 + slides.length) % slides.length); };
+  //
+  // These route through page() rather than setting idx directly so the
+  // chevron produces the same travel as a swipe. Setting idx alone would
+  // cut straight to the next slide, which next to a gesture that glides
+  // reads as two different carousels sharing one card.
+  const next = () => { if (slides.length > 1) { holdRotation(); page(1); } };
+  const prev = () => { if (slides.length > 1) { holdRotation(); page(-1); } };
 
   // Cleanup pause timer on unmount.
   useEffect(() => () => {
@@ -960,19 +1056,33 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
   }, [idx, slides, onSlideColorChange]);
 
   // ── Render slide — streak / achievement / path ─────────────────────
-  const slide = slides[idx];
-  if (!slide) return null;
+  const current = slides[idx];
+  if (!current) return null;
 
   // Pagination dots take the current slide's accent so they always match
   // the slide on screen (and follow theme changes, since the fallback is
   // the --primary / --foreground tokens rather than a hard-coded colour).
-  const slideAccent = slide.color || ICON_BG_TO_HSL[slide.iconBg] || null;
+  const slideAccent = current.color || ICON_BG_TO_HSL[current.iconBg] || null;
   const dotStyle = (active) => ({
     background: active
       ? (slideAccent ? `hsl(${slideAccent})` : 'hsl(var(--primary))')
       : (slideAccent ? `hsl(${slideAccent} / 0.25)` : 'hsl(var(--foreground) / 0.25)'),
   });
 
+  /* renderBody — one slide's layout, for ANY slide rather than only the
+     current one.
+
+     That signature change is the whole refactor. The paged track below
+     renders prev / current / next at once so the neighbour is already on
+     screen, partly visible, while the finger is still down — which is
+     impossible while the render path can only draw `slides[idx]`.
+
+     The three pagination-dot rows that used to live one-per-branch are
+     gone from here and hoisted to a single row outside the track. A dot
+     row inside a slide travels WITH that slide, so on a paged carousel
+     you would watch the dots slide off the screen with the page they
+     belong to. */
+  const renderBody = (slide) => {
   // STREAK slide renders with its own chrome (giant N + "day streak"
   // label) — visually distinct so the carousel doesn't blur achievements
   // and the streak into the same template. Keeps the pagination dots
@@ -997,15 +1107,14 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
                   : t('dashboard.hero.kicker.fresh')}
           </span>
         </div>
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={`streak:${streak}`}
-            initial={{ opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-            className="min-w-0"
-          >
+        {/* Plain div, not an AnimatePresence swap. This used to fade the
+            body out and the next one in, because swapping content in place
+            WAS the transition. The track provides the transition now, and a
+            page that also cross-fades its own contents while sliding reads
+            as two animations disagreeing. Worse with `mode="wait"`: exit
+            finishes before enter starts, so the page renders empty for a
+            beat — mid-slide, in full view of the page beside it. */}
+        <div className="min-w-0">
             <div className="flex items-baseline gap-3">
               <span
                 className="font-heading font-bold leading-none tracking-tight tabular-nums"
@@ -1024,29 +1133,7 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
                   ? t('dashboard.hero.subtitle.keepGoing')
                   : t('dashboard.hero.subtitle.startToday')}
             </p>
-          </motion.div>
-        </AnimatePresence>
-        {slides.length > 1 && (
-          <div className="flex items-center gap-1.5">
-            {slides.map((_, i) => (
-              <button
-                key={i}
-                type="button"
-                onClick={() => goTo(i)}
-                aria-label={tFallback('dashboard.hero.slide', `Slide ${i + 1}`)}
-                // 6x6px is an indicator, not a control. `before:` grows the
-                // TAP target vertically without changing the rendered dot or
-                // the row's height — vertical is where the room is, because
-                // nine dots at a full 44px wide would need 396px on a 375px
-                // screen. Horizontal expansion is held to the gap so
-                // neighbouring targets don't overlap and steal each other's
-                // taps.
-                className={`relative h-1.5 rounded-full transition-all before:absolute before:content-[''] before:-inset-y-4 before:-inset-x-0.5 ${i === idx ? 'w-6' : 'w-1.5'}`}
-                style={dotStyle(i === idx)}
-              />
-            ))}
-          </div>
-        )}
+        </div>
       </div>
     );
   }
@@ -1100,15 +1187,9 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
             {slide.kicker}
           </span>
         </div>
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={slide.id}
-            initial={{ opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-            className="relative min-w-0"
-          >
+        {/* No AnimatePresence — the track is the transition. See the note
+            on the streak branch. */}
+        <div className="relative min-w-0">
             <h2
               className="font-heading font-bold leading-[1.05] tracking-tight text-foreground break-words"
               style={{ fontSize: 'clamp(1.6rem, 5vw, 2.5rem)' }}
@@ -1128,29 +1209,7 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
                 <ChevronRight className="w-3.5 h-3.5" />
               </button>
             )}
-          </motion.div>
-        </AnimatePresence>
-        {slides.length > 1 && (
-          <div className="relative flex items-center gap-1.5">
-            {slides.map((_, i) => (
-              <button
-                key={i}
-                type="button"
-                onClick={() => goTo(i)}
-                aria-label={tFallback('dashboard.hero.slide', `Slide ${i + 1}`)}
-                // 6x6px is an indicator, not a control. `before:` grows the
-                // TAP target vertically without changing the rendered dot or
-                // the row's height — vertical is where the room is, because
-                // nine dots at a full 44px wide would need 396px on a 375px
-                // screen. Horizontal expansion is held to the gap so
-                // neighbouring targets don't overlap and steal each other's
-                // taps.
-                className={`relative h-1.5 rounded-full transition-all before:absolute before:content-[''] before:-inset-y-4 before:-inset-x-0.5 ${i === idx ? 'w-6' : 'w-1.5'}`}
-                style={dotStyle(i === idx)}
-              />
-            ))}
-          </div>
-        )}
+        </div>
       </div>
     );
   }
@@ -1185,15 +1244,9 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
         </span>
       </div>
 
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={slide.id}
-          initial={{ opacity: 0, y: 14 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -10 }}
-          transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-          className="min-w-0"
-        >
+      {/* No AnimatePresence — the track is the transition. See the note on
+          the streak branch. */}
+      <div className="min-w-0">
           {/* Slide title — for PR slides this is the EXERCISE name
               (small caps); the big number lives in the metric row
               below it. For non-metric slides this IS the headline. */}
@@ -1303,12 +1356,74 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
               <ChevronRight className="w-3.5 h-3.5" />
             </button>
           )}
-        </motion.div>
-      </AnimatePresence>
+      </div>
 
-      {/* Pagination dots */}
+    </div>
+  );
+  };
+
+  /* ── The paged track ────────────────────────────────────────────────
+     Three slides are mounted — prev, current, next — and the track rests
+     translated to the middle one. Dragging moves the track itself, so the
+     neighbour is genuinely on screen and partly visible under the finger
+     rather than appearing after the gesture ends.
+
+     A WINDOW rather than the whole list. With 5–9 slides a full track
+     would work, but a window of three is what makes wrap-around free:
+     from the last slide, "next" is index 0, and it is simply the right
+     hand child. No cloning, no special-casing the ends.
+
+     After any commit the track jumps back to the middle with `x.set()` —
+     no animation — while `idx` moves by one. The pixels do not change at
+     that instant, so the swap is invisible; it is the same trick a native
+     pager uses to recycle its pages.
+
+     Everything else the band paints — tint, fade, grain, the identity
+     rule, the chevron — stays OUTSIDE this element on purpose. In a paged
+     carousel the pages move and the chrome does not; dragging the band
+     itself (which is what this used to do) moved the entire hero, which
+     is why the old gesture read as a nudge rather than a page turn. */
+  const pageW = trackW || 1;
+  const windowed = slides.length > 1
+    ? [slides[(idx - 1 + slides.length) % slides.length], current, slides[(idx + 1) % slides.length]]
+    : [current];
+
+  return (
+    <div className="relative">
+      <div ref={trackBoxRef} className="overflow-hidden">
+        <motion.div
+          className="flex"
+          style={{ x: slides.length > 1 ? x : 0 }}
+          drag={slides.length > 1 ? 'x' : false}
+          // Same reasoning as the band's old handler: a thumb arcs, and
+          // `touch-action: pan-y` has already promised the browser it may
+          // scroll vertically, so without a lock the gesture gets claimed
+          // as a page scroll partway through.
+          dragDirectionLock
+          dragElastic={0.12}
+          dragConstraints={{ left: -2 * pageW, right: 0 }}
+          onDragStart={holdRotation}
+          onDragEnd={handleTrackDragEnd}
+        >
+          {windowed.map((s, i) => (
+            <div
+              // Keyed by POSITION in the window, not by slide id. Keying by
+              // id would remount all three every time idx moves, which
+              // throws away the DOM mid-gesture and kills the animation.
+              key={`page-${i}`}
+              className="shrink-0"
+              style={{ width: slides.length > 1 ? pageW : '100%' }}
+            >
+              {s ? renderBody(s) : null}
+            </div>
+          ))}
+        </motion.div>
+      </div>
+
+      {/* Pagination dots — one row, outside the track, so they stay put
+          while pages move under them. */}
       {slides.length > 1 && (
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 mt-5">
           {slides.map((s, i) => (
             <button
               // Use slide.id (stable) instead of array index — when
@@ -1319,10 +1434,13 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
               type="button"
               onClick={() => goTo(i)}
               aria-label={tFallback('dashboard.hero.slide', `Slide ${i + 1}`)}
-              // Same tap-target expansion as the other two dot rows — see
-              // the note there. Kept in sync deliberately; three copies of
-              // this row exist because the streak / feature / achievements
-              // slides each own their chrome.
+              // 6x6px is an indicator, not a control. `before:` grows the
+              // TAP target vertically without changing the rendered dot or
+              // the row's height — vertical is where the room is, because
+              // nine dots at a full 44px wide would need 396px on a 375px
+              // screen. Horizontal expansion is held to the gap so
+              // neighbouring targets don't overlap and steal each other's
+              // taps.
               className={`relative h-1.5 rounded-full transition-all before:absolute before:content-[''] before:-inset-y-4 before:-inset-x-0.5 ${i === idx ? 'w-6' : 'w-1.5'}`}
               style={dotStyle(i === idx)}
             />
