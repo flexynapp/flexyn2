@@ -389,7 +389,19 @@ function HeroCard({
             unusually tall slide grows the box — visible, not destructive —
             while every slide in normal rotation is pinned. Re-measure with
             the loop in the browser console before changing it. */}
-        <div className={`relative p-4 md:p-6 pb-2 md:pb-2 min-h-[330px] ${slideCount > 1 ? 'pe-12 md:pe-14' : ''}`}>
+        {/* The chevron gutter used to live HERE, as `pe-12` on this container.
+            It moved into each slide's own root (see HERO_SLIDE_GUTTER in
+            HeroSlideshow) for one reason: this container is the ancestor of
+            the pager's `overflow-hidden` track, so padding here narrows the
+            PAGE, and anything a slide positions at its right edge — the
+            watermark — gets clipped 48px short of the band. That is why the
+            watermark sat 48px from the right while sitting 16px from the top.
+
+            Padding on the slide root instead insets the text without moving
+            the watermark, because an absolutely positioned child resolves
+            `right: 0` against its containing block's PADDING box. Same
+            clearance for the chevron, symmetric corner for the icon. */}
+        <div className="relative p-4 md:p-6 pb-2 md:pb-2 min-h-[330px]">
           <HeroSlideshow
             ref={slideshowRef}
             logs={logs}

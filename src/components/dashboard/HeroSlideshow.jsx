@@ -74,6 +74,24 @@ const HERO_COUNT_MS = 1400;
  * geometry, so it is verified by measuring this rect against every text rect
  * on every slide at both 375 and 430pt rather than by eye.
  */
+/* Chevron clearance, applied to each slide ROOT rather than to the padded
+ * container in Dashboard.
+ *
+ * That container is the ancestor of the pager's `overflow-hidden` track, so
+ * padding there narrows the PAGE — and the watermark, positioned at its
+ * slide's right edge, was clipped 48px short of the band while sitting 16px
+ * from the top. Asymmetric corner.
+ *
+ * Here it insets the text and leaves the icon where it is: an absolutely
+ * positioned child resolves `right: 0` against its containing block's
+ * PADDING box, so padding on the root does not move it.
+ *
+ * Only when there is more than one slide, because that is the only time the
+ * next-slide chevron renders — with one slide the gutter would reserve empty
+ * space for a control that is not there.
+ */
+const HERO_SLIDE_GUTTER = 'pe-12 md:pe-14';
+
 const HERO_WATERMARK_PX = 72;
 const heroWatermarkStyle = (opacity = 0.11) => ({
   width: HERO_WATERMARK_PX,
@@ -974,13 +992,16 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
   // size from their container and the resting offset wrong by exactly that
   // error — measured 343px pages inside a 311px box before this was fixed.
   //
-  // `slides.length` is in the deps for a specific reason. The parent adds a
-  // `pe-12` gutter for the chevron ONLY once it hears there is more than one
-  // slide, so the container narrows by 48px a beat after mount, when the
-  // data lands. Mounting with `[]` deps measured the pre-gutter width and
-  // kept it. Re-running on the slide count re-measures at exactly the moment
-  // the width can change; the observer then handles rotation and everything
-  // after.
+  // `slides.length` stays in the deps, though the reason it was added has
+  // since gone away. The parent used to apply the chevron gutter to the
+  // container holding this track, so the box narrowed 48px a beat after
+  // mount when the data landed — mounting with `[]` deps measured the
+  // pre-gutter width and kept it, which left 343px pages inside a 311px box.
+  // That gutter now lives on each slide root instead (HERO_SLIDE_GUTTER), so
+  // the track's width no longer moves with the slide count.
+  //
+  // Kept anyway: re-measuring when the slide set changes is cheap, and it is
+  // the one moment the surrounding layout is most likely to shift.
   useEffect(() => {
     const el = trackBoxRef.current;
     if (!el) return;
@@ -1182,7 +1203,7 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
   // shared so the user can swipe between streak and milestones.
   if (slide.kind === 'streak') {
     return (
-      <div className="relative flex flex-col justify-between gap-5 min-w-0" onPointerDownCapture={holdRotation} onFocusCapture={holdRotation}>
+      <div className={`relative flex flex-col justify-between gap-5 min-w-0 ${slides.length > 1 ? HERO_SLIDE_GUTTER : ''}`} onPointerDownCapture={holdRotation} onFocusCapture={holdRotation}>
         {/* Decorative icon — right-centre, translucent */}
         <Flame aria-hidden="true" className="absolute pointer-events-none select-none"
           style={heroWatermarkStyle(0.12)} />
@@ -1235,7 +1256,7 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
   if (slide.kind === 'feature') {
     const FeatureIcon = slide.icon || Sparkles;
     return (
-      <div className="relative flex flex-col justify-between gap-4 min-w-0" onPointerDownCapture={holdRotation} onFocusCapture={holdRotation}>
+      <div className={`relative flex flex-col justify-between gap-4 min-w-0 ${slides.length > 1 ? HERO_SLIDE_GUTTER : ''}`} onPointerDownCapture={holdRotation} onFocusCapture={holdRotation}>
         <FeatureIcon aria-hidden="true" className="absolute pointer-events-none select-none"
           style={heroWatermarkStyle()} />
         {/* The tint overlay that used to sit here is GONE, not softened.
@@ -1317,7 +1338,7 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
     : null;
 
   return (
-    <div className="relative flex flex-col justify-between gap-5 min-w-0" onPointerDownCapture={holdRotation} onFocusCapture={holdRotation}>
+    <div className={`relative flex flex-col justify-between gap-5 min-w-0 ${slides.length > 1 ? HERO_SLIDE_GUTTER : ''}`} onPointerDownCapture={holdRotation} onFocusCapture={holdRotation}>
       {/* Contextual watermark. The old comment here described a right-CENTRE
           position with a special case pinning it to the top-right on slides
           carrying a full-width ProgressBar — but both branches of that
