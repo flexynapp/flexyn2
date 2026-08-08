@@ -161,6 +161,93 @@ function heroTintGradient(color) {
  *  value is correct in both light and dark. */
 const HERO_FADE_GRADIENT = stopsToGradient('var(--background)', HERO_FADE_STOPS);
 
+/* Dither grain.
+ *
+ * The curve work above removes the SLOPE discontinuities. It cannot remove
+ * the last one, which is the display: the tint spans ~14 luminance levels
+ * over ~429px, and 8-bit output only holds integers, so the ramp is
+ * physically a staircase of ~14 steps — one tread every 30px. Chrome hides
+ * that by dithering the gradient (measured: neighbouring rows differ by ±1,
+ * widest flat run 6-8px), and on a true 8-bit panel it is invisible.
+ *
+ * A 6-bit + FRC display — most laptop and budget monitors — cannot
+ * reproduce that. It applies its OWN temporal dithering on top, the two
+ * patterns beat against each other, and contour lines appear that are not
+ * in the output. Reported from exactly such a monitor.
+ *
+ * Fixing it in the layer we control means adding noise of our own, at
+ * amplitude above one quantisation step so the panel can never resolve a
+ * flat tread to snap a contour to. Grain is the standard remedy and it is
+ * NOT the decorative-texture the composition rules warn about — it carries
+ * no meaning and at this opacity is not consciously visible; it exists to
+ * defeat quantisation, the same way audio dither does.
+ *
+ * EVERY NUMBER BELOW WAS SOLVED FOR BY MEASUREMENT, because the arithmetic
+ * that looks right gives a layer that does nothing. Three traps, in order:
+ *
+ * 1. Raw feTurbulence is not a grey field. It emits noisy ALPHA as well as
+ *    colour, so the tile is speckle over transparency rather than a
+ *    perturbation — `feFuncA discrete tableValues='1'` flattens it.
+ * 2. Its desaturated mean is 187, not 128. Under `overlay` that lightens
+ *    everything: a colour shift wearing a dither's clothes.
+ * 3. `overlay` against a near-black backdrop compresses hard — its slope is
+ *    2 × backdrop, and this band sits at 0.12, so roughly a quarter of the
+ *    source deviation survives. An opacity picked for a mid-grey backdrop
+ *    lands four times too weak here.
+ *
+ * So the tile is stretched (slope 3) and re-centred (intercept −1.28), then
+ * composited over the REAL band colour in a canvas and read back. Measured
+ * output, per-pixel luminance:
+ *
+ *            dark (--card 25,31,36)      light (--muted)
+ *   sd            1.80                        0.64
+ *   mean shift   −0.33                       −0.12
+ *
+ * One 8-bit step is 1 level, so dark clears the tread it has to break with
+ * room to spare, and the mean barely moves — the band is not quietly
+ * recoloured. Light is the weaker case at 0.64: `overlay` compresses at
+ * both ends of the range and an inline style cannot carry a `dark:`
+ * variant, so one opacity has to serve both. Dark is the theme the banding
+ * was reported on.
+ *
+ * Naive alternatives, for whoever reconsiders this: centring on mid-grey
+ * needs 0.12 opacity for the same sd and costs −3.1 levels of darkening;
+ * `normal` blending gives full amplitude but shifts the mean by ~2 × the sd
+ * it buys. Both were measured before landing on these values.
+ *
+ * 160px tile with `stitchTiles='stitch'` so the repeat seams do not show —
+ * an unstitched turbulence tile has visible edges, which would be a
+ * spectacular own-goal in a change about removing edges.
+ */
+const HERO_NOISE_OPACITY = 0.11;
+const HERO_NOISE_TRANSFER = ['R', 'G', 'B']
+  .map((ch) => `<feFunc${ch} type='linear' slope='3' intercept='-1.28'/>`)
+  .join('');
+const HERO_NOISE_SVG =
+  "<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'>" +
+  "<filter id='n'>" +
+  "<feTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/>" +
+  "<feColorMatrix type='saturate' values='0'/>" +
+  '<feComponentTransfer>' +
+  "<feFuncA type='discrete' tableValues='1'/>" +
+  HERO_NOISE_TRANSFER +
+  '</feComponentTransfer>' +
+  '</filter>' +
+  "<rect width='160' height='160' filter='url(#n)'/>" +
+  '</svg>';
+const HERO_NOISE_URL = `url("data:image/svg+xml,${encodeURIComponent(HERO_NOISE_SVG)}")`;
+
+/* Grain must stop before the band does. The fade below it reaches the page
+ * colour exactly on the bottom edge, so grain painted over that zone would
+ * be speckle sitting on the PAGE — a rectangle of texture with a hard
+ * bottom edge, which is the defect this whole sequence has been removing.
+ * Held flat to 60%, then smoothstepped to nothing by 100%. */
+const HERO_NOISE_MASK = `linear-gradient(to bottom, #000 0%, #000 60%, ${
+  smoothstepStops(1)
+    .map(({ pct, alpha }) => `rgb(0 0 0 / ${alpha}) ${60 + pct * 0.4}%`)
+    .join(', ')
+})`;
+
 function HeroCard({
   streak, hasWorkedOutToday, daysSinceLast,
   logs, cardioLogs, goals, userProfile, user,
@@ -242,7 +329,11 @@ function HeroCard({
         dragDirectionLock
         dragElastic={0.18}
         onDragEnd={handleDragEnd}
-        className="relative overflow-hidden -mx-4 md:-mx-6 rounded-b-2xl bg-muted dark:bg-card text-foreground touch-pan-y"
+        // `isolate` is required, not cosmetic: the grain layer below uses
+        // mix-blend-mode, which blends with its backdrop across the whole
+        // stacking context. Without a new context here it would reach past
+        // the band and tint whatever the page paints behind it.
+        className="relative isolate overflow-hidden -mx-4 md:-mx-6 rounded-b-2xl bg-muted dark:bg-card text-foreground touch-pan-y"
       >
         {/* Accent tint. This lives on the BAND, and that placement is the
             whole reason it has no edges — it is not a softer version of
@@ -301,6 +392,23 @@ function HeroCard({
           aria-hidden="true"
           className="absolute inset-x-0 bottom-0 h-[40%] pointer-events-none"
           style={{ background: HERO_FADE_GRADIENT }}
+        />
+
+        {/* Dither grain — see HERO_NOISE_URL above. Sits AFTER both gradients
+            so it breaks up the quantisation in each of them, and before the
+            rule and content so neither picks up texture. Masked to nothing by
+            the band's bottom edge, where the surface has become the page. */}
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            backgroundImage: HERO_NOISE_URL,
+            backgroundRepeat: 'repeat',
+            opacity: HERO_NOISE_OPACITY,
+            mixBlendMode: 'overlay',
+            maskImage: HERO_NOISE_MASK,
+            WebkitMaskImage: HERO_NOISE_MASK,
+          }}
         />
 
         {/* Slide identity — a 2px solid rule. Renders after the tint so
