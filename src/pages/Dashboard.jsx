@@ -99,22 +99,67 @@ import { getDateLocale } from '@/lib/dateLocales';
  */
 const HERO_TINT_PEAK = 0.14;
 const HERO_TINT_STEPS = 20;
-const HERO_TINT_STOPS = Array.from({ length: HERO_TINT_STEPS + 1 }, (_, i) => {
-  const t = i / HERO_TINT_STEPS;
-  const smoothstep = t * t * (3 - 2 * t);
-  return {
-    pct: +(t * 100).toFixed(1),
-    alpha: +(HERO_TINT_PEAK * (1 - smoothstep)).toFixed(4),
-  };
-});
 
-/** Build the hero's accent falloff for an `H S% L%` triplet or a var(). */
-function heroTintGradient(color) {
-  const stops = HERO_TINT_STOPS.map(
-    ({ pct, alpha }) => `hsl(${color} / ${alpha}) ${pct}%`
-  ).join(', ');
-  return `linear-gradient(to bottom, ${stops})`;
+/**
+ * Smoothstep alpha stops from 0→100%.
+ * `rising: false` (default) falls peak→0; `rising: true` climbs 0→peak.
+ */
+function smoothstepStops(peak, { rising = false } = {}) {
+  return Array.from({ length: HERO_TINT_STEPS + 1 }, (_, i) => {
+    const t = i / HERO_TINT_STEPS;
+    const smoothstep = t * t * (3 - 2 * t);
+    return {
+      pct: +(t * 100).toFixed(1),
+      alpha: +(peak * (rising ? smoothstep : 1 - smoothstep)).toFixed(4),
+    };
+  });
 }
+
+const HERO_TINT_STOPS = smoothstepStops(HERO_TINT_PEAK);
+
+/* Band-to-page fade.
+ *
+ * The band's surface is --card on dark / --muted on light, and the page is
+ * --background. That is a step of 7.65 luminance IN ONE PIXEL across the
+ * full width — measured, and roughly 250× sharper per pixel than anything
+ * the tint above does (~0.03/px). It is the card boundary, and it was the
+ * edge left over once the tint stopped being the problem.
+ *
+ * This scrim paints --background at RISING alpha, reaching a solid 1.0
+ * exactly at the band's bottom edge. So the boundary becomes page colour
+ * meeting page colour, which cannot render a line no matter the contrast.
+ * Painting the page colour rather than fading the band's own alpha is what
+ * makes it theme-agnostic: --background is themed, so one gradient covers
+ * light and dark without a `dark:` variant, which an inline style could not
+ * express anyway.
+ *
+ * Smoothstep again, and here the zero derivative at the START is the load-
+ * bearing half: a linear scrim would begin absorbing colour at a constant
+ * rate from its first pixel, putting a fresh slope discontinuity at the top
+ * of the scrim — trading the edge at the band's bottom for one 30% higher
+ * up. Easing in means the scrim is imperceptible where it begins.
+ *
+ * Consequence worth stating: the hero stops being a card. It has no bottom
+ * edge and its rounded corners no longer read, because the surface dissolves
+ * instead of stopping. `rounded-b-2xl` stays on the band only because it
+ * still clips the tint; it is no longer doing visible work.
+ */
+const HERO_FADE_STOPS = smoothstepStops(1, { rising: true });
+
+/** Build a top-to-bottom gradient from stops, for an `H S% L%` triplet or a var(). */
+function stopsToGradient(color, stops) {
+  const parts = stops.map(({ pct, alpha }) => `hsl(${color} / ${alpha}) ${pct}%`);
+  return `linear-gradient(to bottom, ${parts.join(', ')})`;
+}
+
+/** The hero's accent falloff, keyed to the current slide's colour. */
+function heroTintGradient(color) {
+  return stopsToGradient(color, HERO_TINT_STOPS);
+}
+
+/** The band dissolving into the page. Themed via --background, so one
+ *  value is correct in both light and dark. */
+const HERO_FADE_GRADIENT = stopsToGradient('var(--background)', HERO_FADE_STOPS);
 
 function HeroCard({
   streak, hasWorkedOutToday, daysSinceLast,
@@ -233,6 +278,21 @@ function HeroCard({
           aria-hidden="true"
           className="absolute inset-0 pointer-events-none"
           style={{ background: heroTintGradient(slideColor || 'var(--primary)') }}
+        />
+
+        {/* Band-to-page fade — see HERO_FADE_GRADIENT above. Occupies the
+            bottom 40% so the dissolve is spread over ~170px at the measured
+            429px band height: the surface step is 7.65 luminance, which over
+            that distance is one level per ~22px rather than all of it in a
+            single row.
+
+            AFTER the tint so it also absorbs the tint's own remainder, and
+            BEFORE the content so the CTA row and dots — which sit inside this
+            zone — render at full strength over it rather than being dimmed. */}
+        <div
+          aria-hidden="true"
+          className="absolute inset-x-0 bottom-0 h-[40%] pointer-events-none"
+          style={{ background: HERO_FADE_GRADIENT }}
         />
 
         {/* Slide identity — a 2px solid rule. Renders after the tint so
