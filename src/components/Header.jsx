@@ -1,6 +1,6 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import FlexynLogo from './FlexynLogo';
-import { ChevronLeft, MessageCircle } from 'lucide-react';
+import { ChevronLeft, MessageCircle, Sparkles } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useState, useEffect, useRef } from 'react';
 import { fireLogoTapEgg } from '@/lib/logoTapEgg';
@@ -55,6 +55,7 @@ export default function Header() {
 
   const unreadDM = useUnreadDMCount();
   const onMessages = location.pathname === '/messages';
+  const onCoach = location.pathname === '/coach';
 
 
 
@@ -134,10 +135,33 @@ export default function Header() {
             users learn to glance up here. */}
         <NetworkStatusChip />
         <div className="flex items-center gap-0.5 shrink-0">
-          {/* AI Coach button removed from the mobile top nav per
-              user feedback — it was crowding the bar and the logo
-              was truncating. Still reachable from the Workout page's
-              Coach surface. */}
+          {/* AI Coach. This was removed once for crowding the bar and
+              truncating the logo, and is back by request — mirroring the
+              desktop sidebar's action row, where Coach sits first, ahead of
+              Messages.
+
+              The crowding is handled rather than re-inflicted. The icon
+              cluster is `shrink-0` and the TITLE holds `flex-1 min-w-0
+              truncate`, so the flex line gives way at the title, not at the
+              logo — the logo is `shrink-0` too. On the home route the title
+              collapses to an empty spacer, which is where this 44px comes
+              from. Measured at 375pt after adding it: logo renders at its
+              full intrinsic width, cluster fully visible, nothing clipped.
+
+              `-me-1` closes the gap to Messages the same way the bell and
+              profile are pulled in below; without it the four controls read
+              as three plus a stray. */}
+          <button
+            type="button"
+            onClick={() => navigate('/coach')}
+            aria-label={tFallback('hub.coach.title', 'AI Coach')}
+            className={`group relative h-11 w-11 -me-1 inline-flex items-center justify-center transition-colors ${
+              onCoach ? 'text-primary' : 'text-muted-foreground'
+            }`}
+          >
+            <span className={`absolute inset-y-1.5 inset-x-2.5 rounded-lg transition-colors ${onCoach ? 'bg-primary/10' : 'group-hover:bg-secondary'}`} />
+            <Sparkles className="relative w-5 h-5" />
+          </button>
           <button
             type="button"
             onClick={() => navigate('/messages')}
