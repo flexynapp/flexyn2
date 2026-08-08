@@ -21,6 +21,7 @@ import { formatWeight } from '../../lib/weightUnit';
 import { triggerHaptic } from '@/lib/haptic';
 import { BAR_PRESETS, getActiveBarLbs, setActiveBarLbs } from '@/lib/barInventory';
 import ImplementPicker from './ImplementPicker';
+import ExerciseFormPanel from '@/components/exercise/ExerciseFormPanel';
 import EquipmentThumb from './EquipmentThumb';
 import { IMPLEMENT_TYPE_META } from '@/lib/equipmentCatalog';
 
@@ -320,6 +321,14 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
               ))}
             </div>
           )}
+          {/* Under the name and muscles, above the sets: this is the moment
+              someone is deciding how to move, and it must not sit below the
+              thing they are about to fill in. Renders nothing when the
+              exercise has no drawn pose. */}
+          <ExerciseFormPanel
+            exerciseName={exercise.name || exercise.displayName}
+            className="mt-2"
+          />
           {isBarbell && (
             <div className="flex items-center gap-1.5 mt-1.5">
               <span className="text-micro font-bold uppercase tracking-wide text-muted-foreground">Bar</span>

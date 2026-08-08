@@ -307,10 +307,32 @@ export const POSES = {
       hipNear: 274, hipFar: 278, kneeNear: 190, kneeFar: 194, ankleNear: 130, ankleFar: 130 }) },
 };
 
+// Names the rest of the app uses for a movement that IS drawn, under a
+// different label. Program templates say "Walking Lunge" and "Bicep Curl";
+// the catalog says "Lunge" and "Dumbbell Curl".
+//
+// This list is deliberately tiny and only holds pairs that are the SAME
+// movement. "Squat", "Deadlift", "Chin-up" and "Incline Bench Press" are all
+// tempting and all left out: a back squat is not a bodyweight squat, a
+// conventional deadlift is not a Romanian one, and a chin-up differs from a
+// pull-up in exactly the grip this figure cannot draw. Showing nothing is a
+// visibly empty result the user can act on; showing the wrong movement
+// teaches them to do the wrong movement, which is the one failure this whole
+// feature exists to prevent.
+const ALIASES = {
+  'walking lunge': 'Lunge',
+  'bicep curl': 'Dumbbell Curl',
+  'dumbbell bicep curl': 'Dumbbell Curl',
+};
+
+const BY_LOWER = Object.fromEntries(Object.keys(POSES).map((k) => [k.toLowerCase(), k]));
+
 /** Poses for one exercise, or null when we have not drawn it yet. */
 export function posesFor(exerciseName) {
-  if (!exerciseName) return null;
-  return POSES[exerciseName] || null;
+  if (typeof exerciseName !== 'string') return null;
+  const key = exerciseName.trim().toLowerCase();
+  if (!key) return null;
+  return POSES[BY_LOWER[key] || ALIASES[key]] || null;
 }
 
 /** Exercises that currently have a diagram — used by the contact sheet. */

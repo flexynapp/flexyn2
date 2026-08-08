@@ -40,16 +40,25 @@ hand-fixes, it is more fidelity. Section K is that decision.
 **0.1 — Is it reachable?** `grep -rn "posesFor\|ExerciseDiagram\|ExerciseFigure" src/` excluding
 the two files that define it.
 
-> **FAIL. Zero consumers.** The figure, the geometry, the 39 poses and both scripts exist and
-> are correct, and **nothing in the app renders any of it.** No user has ever seen a single one
-> of these 117 frames. Every finding below is therefore about a feature that is 100% built and
-> 0% delivered — which is also why nothing downstream (theming at real size, i18n, a11y, card
-> layout) has ever been exercised.
+> **~~FAIL. Zero consumers.~~ FIXED 2026-08-07.** It was 100% built and 0% delivered — nothing
+> in the app rendered any of the 117 frames, which is also why nothing downstream (theming at
+> real size, i18n, a11y, card layout) had ever been exercised.
 >
-> Wire it into at least one surface before auditing the rest, or the audit measures a contact
-> sheet rather than a product. Candidate surfaces: `CoachPlanCard` (the AI Coach plan),
-> `ExerciseLogger` (mid-workout, which is when someone actually needs it), and
-> `formcoach/ExercisePicker`.
+> `ExerciseFormPanel` now hosts it on two surfaces:
+>
+> - **`ExerciseLogger`** (Workout), under the exercise name and above the sets — the moment
+>   someone is deciding how to move, and the only surface open while they are under the bar.
+> - **`StarterPlanView`** (the Coach plan's read view), where an unfamiliar lift is still
+>   something you can do something about.
+>
+> **Collapsed by default**, mirroring `EvidencePanel`'s disclosure shape. An expanded triptych
+> costs ~120px of a 390px screen and most people know what a Barbell Row is; the tap is also
+> the clearest signal we get that the picture is wanted. The figure is `React.lazy`, so the
+> geometry only downloads for someone who opens it.
+>
+> **Not wired**: the plan card's *edit* view, whose own comment requires everything to stay
+> visible and one tap away, and `formcoach/ExercisePicker`. Neither is a natural home for a
+> disclosure.
 
 **0.2 — Does the audit look at the shipping renderer?** The contact sheet
 (`scripts/pose-sheet.mjs`) imports the same geometry the component does, so it is faithful for
@@ -68,8 +77,20 @@ real component in the real card, not on the sheet.
 | Source | Names | Drawn | Status |
 |---|---|---|---|
 | `aiCoach/workoutGenerator.js` `CATALOG` | 39 | 39 | **PASS — 100%** |
-| `lib/programTemplates.js` | 39 | 15 | **FAIL — 24 undrawn** |
+| `lib/programTemplates.js` | 39 | 17 | **FAIL — 22 undrawn** |
 | `lib/exerciseTranslations.js` | 59 | 7 | **FAIL** |
+
+**Partly addressed 2026-08-07.** `posesFor()` was an exact `POSES[name]` lookup that returned
+`null` on any miss. It is now case- and whitespace-insensitive and resolves a deliberately tiny
+alias list — `Walking Lunge` → `Lunge`, `Bicep Curl` → `Dumbbell Curl`.
+
+**What was deliberately NOT aliased matters more than what was.** `Squat`, `Deadlift`,
+`Chin-up`, `Incline Bench Press` and `Power Clean` are all tempting one-liners and all wrong: a
+back squat is not a bodyweight squat, a conventional deadlift is not a Romanian one, and a
+chin-up differs from a pull-up in exactly the grip this figure cannot draw (Section C). The
+failure modes are not symmetric — showing nothing is a visibly empty result the user can act on;
+showing the wrong movement teaches them the wrong movement, which is the single thing this
+feature exists to prevent. Those five need drawings, not aliases.
 
 The generated-workout path is completely covered, which is the path the feature was built for.
 Everything else is not. The 24 undrawn names in `programTemplates.js` are `Squat`, `Deadlift`,
@@ -411,18 +432,26 @@ test is run at this size, not larger.
 
 ## Section I — Accessibility and i18n
 
-**I.1 — Screen readers get nothing. FAIL.** `ExerciseFigure` sets both `role="img"` and
-`aria-hidden="true"` (`ExerciseFigure.jsx:44–45`). Those contradict: the element announces
-itself as an image and then removes itself from the tree. There is no `<title>` and no
-`aria-label`. The `<figcaption>` text survives, so a screen-reader user gets three captions and
-no indication they belong to a picture.
+**I.1 — Screen readers got nothing. FIXED 2026-08-07.** `ExerciseFigure` set both `role="img"`
+and `aria-hidden="true"` — a contradiction: the element announced itself as an image and then
+removed itself from the tree. `role` is gone; `aria-hidden` stays, and the `<figcaption>` beside
+each panel is the accessible text, which is the honest arrangement because a stick figure has no
+description the drawing can give that the caption does not give better.
 
-**I.2 — Captions are English-only. FAIL.** `ExerciseDiagram`'s doc comment says *"Labels arrive
-already translated; this component holds no copy of its own"* — but the labels live in
-`exercisePoses.js` as hardcoded English strings (`'Hips below knees'`, `'Chest to floor'`), and
-nothing translates them. In the app's 15 languages this ships English captions to all of them.
-Per CLAUDE.md these are prose on a prominent surface, so machine translation is not an option;
-they need `i18n-exercise.js` part-file keys with `tFallback`.
+The disclosure that hosts it carries `aria-expanded` and an aria-label naming the **exercise**
+(`How to do Barbell Row`) rather than a bare "How to" — on the Workout page every card has one
+of these, so an unnamed control hands a screen-reader user a column of identical buttons. Both
+are asserted in `src/components/__tests__/exerciseFormPanel.test.jsx`.
+
+**I.2 — Captions are English in all 15 languages. OPEN — now the largest gap.**
+`ExerciseDiagram`'s doc comment says *"Labels arrive already translated"*; they never did. The
+cues live in `exercisePoses.js` as hardcoded English (`'Hips below knees'`, `'Chest to floor'`).
+
+The wiring routes every cue through `tFallback('exerciseCues.<slug>.<i>', englishCue)`, so the
+call site is now correct and a translator only has to add the keys — but **no key exists yet, so
+all 15 languages render English today.** Per CLAUDE.md that is the sanctioned interim state
+(English-only beats machine-translated prose, and there is a `TODO(i18n)` at the call site), but
+it is the sanctioned interim state, not done. 117 cues across 39 exercises need a native pass.
 
 **I.3 — The exercise names themselves are untranslated. FAIL, pre-existing.**
 **32 of the 39 drawn exercises have no entry in `EXERCISE_TRANSLATIONS`** — including Back

@@ -41,7 +41,11 @@ export default function ExerciseFigure({ pose = {}, accent = false, anchor = nul
     <svg
       viewBox="0 0 200 200"
       className={className}
-      role="img"
+      // aria-hidden ALONE, with no role. It carried role="img" as well, which
+      // contradicts it — the element announced itself as an image and then
+      // removed itself from the tree. The caption beside it is the accessible
+      // text, and a stick figure has no description this drawing can give that
+      // the caption does not give better.
       aria-hidden="true"
       fill="none"
       stroke={accent ? 'hsl(var(--primary))' : 'currentColor'}
