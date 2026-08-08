@@ -973,12 +973,25 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
     if (slides.length > 1) x.set(-idxRef.current * trackW);
   }, [trackW, slides.length, x]);
 
-  const SETTLE = { type: 'spring', stiffness: 420, damping: 40, mass: 0.8 };
-  // Roughly how long that spring takes to come to rest. It only gates
-  // re-entry, so it wants to be a little longer than the visible motion
-  // rather than exact — short enough that a deliberate second swipe still
-  // feels immediate.
-  const SETTLE_MS = 340;
+  /* Softer and slightly overdamped, after a second judder report.
+   *
+   * 420 stiffness against 40 damping was UNDER-damped for this mass: the
+   * critical value is 2·√(k·m) = 2·√(420 × 0.8) ≈ 36.7, so 40 was only just
+   * over it and the spring arrived fast and hard. On a phone that lands as
+   * a snap at the end of an otherwise smooth drag, which reads as a judder
+   * even when no frame is dropped.
+   *
+   * 260 / 34 / 0.9 sits comfortably past critical (2·√(260 × 0.9) ≈ 30.6),
+   * so it eases in with no overshoot at all. Slower, and deliberately —
+   * the finger has already done the fast part of the travel; the spring
+   * only has to finish it.
+   */
+  const SETTLE = { type: 'spring', stiffness: 260, damping: 34, mass: 0.9 };
+  // Gates re-entry only, so it wants to be a little longer than the visible
+  // motion rather than exact. Raised with the softer spring — a window
+  // shorter than the travel would let a second swipe start mid-settle,
+  // which is the thing this exists to stop.
+  const SETTLE_MS = 420;
   const settleUntilRef = useRef(0);
 
   /* settle — move to a slide index and animate the track to match.
@@ -1449,7 +1462,13 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
           // scroll vertically, so without a lock the gesture gets claimed
           // as a page scroll partway through.
           dragDirectionLock
-          dragElastic={0.12}
+          // No elastic. At 0.12 the track kept moving a fraction of the
+          // finger's travel past the constraints, so at the first and last
+          // slide the drag rubber-banded and then the spring pulled it back
+          // — two motions in opposite directions inside one gesture, which
+          // is the judder at the ends. 0 pins the track to the finger while
+          // it is inside range and stops it dead at the edges.
+          dragElastic={0}
           dragConstraints={{ left: -(slides.length - 1) * pageW, right: 0 }}
           // Framer runs an inertia animation on release by default, aimed at
           // the drag constraints. Those span TWO pages here, so a flick threw
