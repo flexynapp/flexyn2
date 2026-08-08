@@ -66,6 +66,56 @@ import { getDateLocale } from '@/lib/dateLocales';
  *  co-located makes the page easier to read end-to-end.
  * ────────────────────────────────────────────────────────────────── */
 
+/* Hero tint falloff.
+ *
+ * A two-stop `linear-gradient(A 0%, transparent 55%)` still shows a faint
+ * line, and the reason is not the colour — it is the SLOPE. Alpha falls at
+ * a constant rate and then stops falling, instantly, at the final stop.
+ * The value is continuous there but its derivative is not, and human
+ * vision exaggerates exactly that discontinuity (Mach banding: lateral
+ * inhibition in the retina amplifies second-order edges). So the harder
+ * you look at a "smooth" linear scrim, the more clearly you see the line
+ * where it ends — which is what got reported here.
+ *
+ * Smoothstep (3t² − 2t³) has zero derivative at BOTH ends. The tint eases
+ * out from under the identity rule and eases into nothing at the bottom,
+ * with no point anywhere in the band where the rate of change jumps. That
+ * is a property of the curve, not a tuning of the numbers.
+ *
+ * The ramp also runs the FULL height now rather than stopping at 55%.
+ * Terminating early puts the curve's end inside the band; ending at 100%
+ * puts it exactly on the band's own boundary, where a card edge is
+ * expected anyway. Alpha is ~0.004 by 90%, so it is visually gone well
+ * before then regardless.
+ *
+ * The stop COUNT matters for the same reason the curve does. Browsers
+ * interpolate linearly between stops, so the curve ships as a polyline and
+ * every junction is itself a small slope change — the defect this is meant
+ * to remove, reintroduced N times if the stops are too far apart. At 10%
+ * spacing the steepest segment moves 0.021 alpha; at 5% it moves 0.011 —
+ * about 0.0005 per pixel down a 429px band, and only 0.001 per segment at
+ * the two ends, which is the zero-derivative property doing its job.
+ * Measured, not guessed.
+ */
+const HERO_TINT_PEAK = 0.14;
+const HERO_TINT_STEPS = 20;
+const HERO_TINT_STOPS = Array.from({ length: HERO_TINT_STEPS + 1 }, (_, i) => {
+  const t = i / HERO_TINT_STEPS;
+  const smoothstep = t * t * (3 - 2 * t);
+  return {
+    pct: +(t * 100).toFixed(1),
+    alpha: +(HERO_TINT_PEAK * (1 - smoothstep)).toFixed(4),
+  };
+});
+
+/** Build the hero's accent falloff for an `H S% L%` triplet or a var(). */
+function heroTintGradient(color) {
+  const stops = HERO_TINT_STOPS.map(
+    ({ pct, alpha }) => `hsl(${color} / ${alpha}) ${pct}%`
+  ).join(', ');
+  return `linear-gradient(to bottom, ${stops})`;
+}
+
 function HeroCard({
   streak, hasWorkedOutToday, daysSinceLast,
   logs, cardioLogs, goals, userProfile, user,
@@ -157,18 +207,24 @@ function HeroCard({
               · top — meets the 2px identity rule below, which is
                 deliberate chrome. The rule renders AFTER this div so it
                 stays crisp rather than being washed by the tint.
-              · bottom — alpha reaches 0 at 55% of the band's height, so
-                the rounded bottom corners carry no tint at all and the
-                band ends in flat --card the way it always did.
+              · bottom — the falloff ends exactly ON the band's own
+                boundary rather than somewhere inside it, so the curve
+                never terminates in open space. Alpha is ~0.004 by 90%,
+                so the rounded corners are visually untinted regardless.
 
-            Percentage stop, not a fixed height: the band is min-h-[330px]
-            but grows for a taller slide, and a px falloff would drift up
-            the card when it does.
+            Percentages, not fixed heights: the band is min-h-[330px] but
+            grows for a taller slide, and a px falloff would drift up the
+            card when it does.
 
-            Ends at `/ 0` — the same hue at zero alpha — never the
-            `transparent` keyword. `transparent` is rgba(0,0,0,0), so the
-            ramp would interpolate toward transparent BLACK and pick up
-            the muddy darkening that made the old one look dirty.
+            The curve is smoothstep — see heroTintGradient above. A plain
+            two-stop ramp still showed a faint line where it ended, because
+            its SLOPE stops abruptly there even though its colour does not,
+            and Mach banding makes the eye amplify exactly that.
+
+            Every stop is `hsl(C / a)` — the same hue at falling alpha —
+            never the `transparent` keyword. `transparent` is rgba(0,0,0,0),
+            so the ramp would interpolate toward transparent BLACK and pick
+            up the muddy darkening that made the old overlay look dirty.
 
             Uses the slide's own accent rather than a hardcoded --primary,
             so it agrees with the rule and the dots instead of staying
@@ -176,9 +232,7 @@ function HeroCard({
         <div
           aria-hidden="true"
           className="absolute inset-0 pointer-events-none"
-          style={{
-            background: `linear-gradient(to bottom, hsl(${slideColor || 'var(--primary)'} / 0.14) 0%, hsl(${slideColor || 'var(--primary)'} / 0) 55%)`,
-          }}
+          style={{ background: heroTintGradient(slideColor || 'var(--primary)') }}
         />
 
         {/* Slide identity — a 2px solid rule. Renders after the tint so
