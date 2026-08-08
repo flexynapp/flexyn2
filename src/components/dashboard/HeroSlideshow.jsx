@@ -1058,15 +1058,40 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
       <div className="relative flex flex-col justify-between gap-4 min-w-0" onPointerDownCapture={holdRotation} onFocusCapture={holdRotation}>
         <FeatureIcon aria-hidden="true" className="absolute pointer-events-none select-none"
           style={{ width: 110, height: 110, opacity: 0.11, color: 'white', right: 8, top: 5, transform: 'none' }} />
-        {/* Purple overlay that tints the slideshow column without
-            touching the hero's primary chrome. */}
-        <div
-          aria-hidden="true"
-          className="absolute -inset-3 rounded-2xl pointer-events-none"
-          style={{
-            background: 'linear-gradient(135deg, hsl(var(--primary) / 0.22), hsl(var(--primary) / 0.08) 60%, transparent)',
-          }}
-        />
+        {/* The tint overlay that used to sit here is GONE, not softened.
+            It was a `-inset-3 rounded-2xl` box painted with
+            `linear-gradient(135deg, primary/0.22, primary/0.08 60%,
+            transparent)`, and on a phone it read as an orange rectangle
+            floating on the band.
+
+            Softening it does not work, which is worth writing down so
+            nobody re-adds a "fixed" version. A gradient has no visible
+            edge only if its alpha reaches zero before EVERY boundary of
+            the element. A 135deg linear ramp fades along one axis, so
+            the two sides it starts from are painted at full strength
+            right up against the box — the element's own shape, drawn in
+            colour. Re-anchoring it as a radial from the top-left corner
+            moves the problem rather than solving it: peak alpha then
+            sits exactly on the top and left edges. The only geometry
+            that works is a falloff centred well inside the box, which is
+            a blob in the middle of the slide, not a corner wash.
+
+            It also ended at the `transparent` keyword — rgba(0,0,0,0) —
+            so the ramp interpolated orange toward transparent BLACK and
+            picked up muddy darkened tones on the way, which is the grey
+            cast along the fade.
+
+            Removing it is what CLAUDE.md's composition rules already
+            call for: "No gradient as decoration." The hero band made
+            exactly this call once before — see the comment in
+            Dashboard.jsx above `slideColor`, where an animated radial
+            mesh was replaced by a 2px solid rule for the same reason.
+            This overlay was the piece that pass missed.
+
+            The slide keeps plenty of identity without it: the accent
+            icon chip, the accent kicker, the accent pagination dots, and
+            the band's own 2px rule, which already paints this slide's
+            colour along the top edge. */}
         <div className="relative flex items-center gap-2">
           <div className="w-8 h-8 rounded-full bg-primary/25 backdrop-blur-sm flex items-center justify-center">
             <FeatureIcon className="w-4 h-4 text-primary" />
