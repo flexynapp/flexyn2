@@ -126,7 +126,10 @@ export default function SettingsPanel() {
       await userBlocksData.unblockUserFull(email);
       queryClient.invalidateQueries({ queryKey: ['userBlocks', user.id] });
       queryClient.invalidateQueries({ queryKey: ['hubFeed'] });
-      toast.success(`Unblocked ${email}.`);
+      // No address in the toast — the list below it updates, which is the
+      // confirmation that matters, and it does not put someone's email on
+      // screen to say so.
+      toast.success(tFallback('settings.block.removedPlain', 'Unblocked.'));
     } catch (err) {
       toast.error(`Could not unblock: ${err.message || 'try again'}`);
     }
@@ -137,7 +140,7 @@ export default function SettingsPanel() {
       await userMutesData.unmuteUser(user.id, email);
       queryClient.invalidateQueries({ queryKey: ['userMutes', user.id] });
       queryClient.invalidateQueries({ queryKey: ['hubFeed'] });
-      toast.success(`Unmuted ${email}.`);
+      toast.success(tFallback('settings.mute.removedPlain', 'Unmuted.'));
     } catch (err) {
       toast.error(`Could not unmute: ${err.message || 'try again'}`);
     }
@@ -442,7 +445,7 @@ export default function SettingsPanel() {
       setBlockEmail('');
       await loadStoryBlocks();
       queryClient.invalidateQueries({ queryKey: ['storiesFeed'] });
-      toast.success(tFallback('settings.block.added', 'Blocked {email}', { email }));
+      toast.success(tFallback('settings.block.addedPlain', 'Blocked.'));
     } else {
       toast.error(tFallback('settings.block.addFailed', 'Could not add block — try again.'));
     }
@@ -454,7 +457,7 @@ export default function SettingsPanel() {
     if (ok) {
       setStoryBlocks(prev => prev.filter(b => b.blocked_email !== email));
       queryClient.invalidateQueries({ queryKey: ['storiesFeed'] });
-      toast.success(tFallback('settings.block.removed', 'Unblocked {email}', { email }));
+      toast.success(tFallback('settings.block.removedPlain', 'Unblocked.'));
     } else {
       toast.error(tFallback('settings.block.removeFailed', 'Could not remove block.'));
     }

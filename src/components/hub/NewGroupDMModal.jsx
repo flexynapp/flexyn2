@@ -139,15 +139,23 @@ export default function NewGroupDMModal({ open, onClose, onCreated }) {
         {/* Selected chips */}
         {selected.length > 0 && (
           <div className="px-4 pb-2 flex flex-wrap gap-1.5">
-            {selected.map(email => (
-              <button
-                key={email}
-                onClick={() => toggle(email)}
-                className="text-xs px-2 py-0.5 rounded-full bg-primary/15 text-primary border border-primary/30 flex items-center gap-1"
-              >
-                {email} <X className="w-3 h-3" />
-              </button>
-            ))}
+            {/* The chip shows the handle, never the address. `selected` is a
+                list of emails because that is what createGroupConversation
+                takes — but the rows above this already render handle(f), so
+                picking someone turned their @name into their email address
+                on screen. Following someone is not consent to see it. */}
+            {selected.map(email => {
+              const f = follows.find(x => x.email === email);
+              return (
+                <button
+                  key={email}
+                  onClick={() => toggle(email)}
+                  className="text-xs px-2 py-0.5 rounded-full bg-primary/15 text-primary border border-primary/30 flex items-center gap-1"
+                >
+                  {f ? handle(f) : '@athlete'} <X className="w-3 h-3" />
+                </button>
+              );
+            })}
           </div>
         )}
 

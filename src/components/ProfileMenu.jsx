@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/lib/AuthContext';
 import { LogOut, User, Trash2, Settings, ChevronRight, ArrowLeft, X, ShoppingBag, UserCircle, Book, Trophy, ShieldAlert, Building2, Dumbbell } from 'lucide-react';
 import { clearFirstLaunch } from '@/lib/firstLaunch';
+import { handle } from '@/lib/userDisplay';
 import { requestOpenBag } from '@/lib/inventoryFlow';
 import * as capsules from '@/lib/data/capsules';
 import LevelBar from './LevelBar';
@@ -408,7 +409,13 @@ export default function ProfileMenu({ compact = false } = {}) {
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
                           <p className="font-medium text-sm truncate">{user.full_name || 'User'}</p>
-                          <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                          {/* The handle, not the address. This is the user's
+                              own email so it leaks nothing — but it is on
+                              screen whenever the menu is open, which is a
+                              shoulder, a screenshot or a screen share away
+                              from being someone else's. The username
+                              identifies the account just as well. */}
+                          <p className="text-xs text-muted-foreground truncate">{handle(user)}</p>
                         </div>
                         <button
                           onClick={() => { setOpen(false); setView('main'); }}
