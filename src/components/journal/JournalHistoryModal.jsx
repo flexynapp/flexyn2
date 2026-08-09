@@ -11,6 +11,7 @@ import { format, parseISO } from 'date-fns';
 import { X, Loader2, Paperclip, BookOpen } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
 import { listEntries } from '@/lib/data/journal';
+import { provenance } from '@/lib/journalProvenance';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 export default function JournalHistoryModal({ userId, activeDate, onClose, onPick }) {
@@ -77,11 +78,21 @@ export default function JournalHistoryModal({ userId, activeDate, onClose, onPic
                     >
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-micro font-bold uppercase tracking-wide text-muted-foreground">{label}</span>
-                        {e.attachmentCount > 0 && (
-                          <span className="text-micro text-muted-foreground flex items-center gap-0.5">
-                            <Paperclip className="w-3 h-3" /> {e.attachmentCount}
-                          </span>
-                        )}
+                        <span className="flex items-center gap-1.5 shrink-0">
+                          {/* One word, not the full sentence the day screen
+                              shows: in a scannable list the useful fact is
+                              THAT an entry is not a same-day record, and by
+                              how much is a question you answer by opening
+                              it. `marked` is exactly that boolean. */}
+                          {provenance(e).marked && (
+                            <span className="text-micro text-muted-foreground/70">{tFallback('journal.prov.tag', 'edited')}</span>
+                          )}
+                          {e.attachmentCount > 0 && (
+                            <span className="text-micro text-muted-foreground flex items-center gap-0.5">
+                              <Paperclip className="w-3 h-3" /> {e.attachmentCount}
+                            </span>
+                          )}
+                        </span>
                       </div>
                       {e.title && <p className="text-sm font-semibold text-foreground mt-0.5 truncate">{e.title}</p>}
                       {e.snippet && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{e.snippet}</p>}

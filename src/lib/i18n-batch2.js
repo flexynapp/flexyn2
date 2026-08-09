@@ -76,6 +76,14 @@ const enKeys = {
   'journal.yesterday':                 'Yesterday',
   'journal.lockedLabel':               'LOCKED',
   'journal.locked':                    'Entries older than 7 days are read-only.',
+  // Edit marker. One key per phrasing with the count interpolated — never a
+  // key per count, which is a key space no translator can finish.
+  'journal.prov.day':                  '1 day',
+  'journal.prov.days':                 '{n} days',
+  'journal.prov.written':              'Written {d} later',
+  'journal.prov.edited':               'Edited {d} later',
+  'journal.prov.writtenAndEdited':     'Written {d} later, edited since',
+  'journal.prov.tag':                  'edited',
 
   // ── HubChat error toasts ────────────────────────────────────────────
   'hub.chat.attachmentTooLarge': 'Image must be 50 MB or smaller',

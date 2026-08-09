@@ -29,6 +29,7 @@ import {
 import { MOOD_EMOJIS, MOOD_LABELS, upsertMoodLog } from '@/lib/data/moodLogs';
 import { getDayContext, contextChips } from '@/lib/data/dayContext';
 import { editability, EDIT_WINDOW_DAYS } from '@/lib/journalEditWindow';
+import { provenanceLabel } from '@/lib/journalProvenance';
 
 // ── Lightweight markdown renderer (bold + bullets only) ───────────────────────
 function renderInline(text) {
@@ -148,6 +149,8 @@ export default function JournalView({ userId, userEmail, onClose }) {
   const [moodScore, setMoodScore] = useState(null);
   const [moodBusy, setMoodBusy] = useState(false);
   const [dayCtx, setDayCtx] = useState(null);
+  // created_at / updated_at of the loaded row, for the edit marker.
+  const [stamps, setStamps] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -327,6 +330,11 @@ export default function JournalView({ userId, userEmail, onClose }) {
     // a draft only ever holds what this editor can write, and the mood is
     // set elsewhere (MoodLogCard) and could have moved since.
     setMoodScore(entry?.mood_score ?? null);
+    // Provenance is a fact about the SERVER row. An unsynced draft has not
+    // been written yet, so it cannot have amended anything — carrying the
+    // stamps from the entry either way keeps the marker describing what is
+    // actually stored.
+    setStamps(entry ? { entry_date: ds, created_at: entry.created_at, updated_at: entry.updated_at } : null);
     if (useDraft) {
       setTitle(draft.title || '');
       setBody(draft.body || '');
@@ -529,6 +537,8 @@ export default function JournalView({ userId, userEmail, onClose }) {
   };
 
   const hasContent = !!(title.trim() || body.trim() || attachments.length);
+  // Null unless the entry was written or amended after the day it describes.
+  const provLabel = provenanceLabel(stamps, tFallback);
   // "Held offline" is the honest read of the retry state: flush() stashed
   // the snapshot to localStorage and is backing off. It was reported by a
   // single toast, once, and then never again.
@@ -769,6 +779,18 @@ export default function JournalView({ userId, userEmail, onClose }) {
                 style={{ fontFamily: 'inherit' }}
                 data-no-swipe
               />
+            )}
+
+            {/* ── The edit marker. Provenance belongs with the record, at
+                the foot of it — not in the header, where it would compete
+                with the date on every screen while being true on almost
+                none of them. It only exists at all because the 7-day
+                window does: before that every entry was necessarily
+                same-day, so there was nothing to mark. */}
+            {provLabel && (
+              <p className="text-micro text-muted-foreground/70 pt-3" data-no-swipe>
+                {provLabel}
+              </p>
             )}
 
             {/* Attachments */}

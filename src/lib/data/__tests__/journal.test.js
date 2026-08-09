@@ -204,15 +204,20 @@ describe('uploadAttachment — the extension gate', () => {
 describe('listEntries', () => {
   it('reads through safeSelect and derives a snippet without shipping bodies', async () => {
     stage({ data: [
-      { id: '1', entry_date: DAY, title: 'Push day', body: '- **PR** on incline', attachments: [{ url: 'u' }], mood_score: 4 },
+      { id: '1', entry_date: DAY, title: 'Push day', body: '- **PR** on incline', attachments: [{ url: 'u' }],
+        mood_score: 4, created_at: '2026-08-05T20:00:00Z', updated_at: '2026-08-08T09:00:00Z' },
     ] });
     const rows = await journal.listEntries(USER, 365);
 
     expect(rows[0]).toEqual({
       id: '1', entry_date: DAY, title: 'Push day',
       snippet: 'PR on incline', attachmentCount: 1, mood_score: 4,
+      // Passed through RAW, not resolved here: the edit marker has to read
+      // these in the VIEWER's timezone, and the data layer does not know it.
+      created_at: '2026-08-05T20:00:00Z', updated_at: '2026-08-08T09:00:00Z',
     });
     expect(rows[0]).not.toHaveProperty('body');
     expect(calls[0].cols).toContain('mood_score');
+    expect(calls[0].cols).toContain('created_at');
   });
 });

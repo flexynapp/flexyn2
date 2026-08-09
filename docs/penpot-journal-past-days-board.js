@@ -44,10 +44,11 @@
 
 const PAGE = 'Page 2';
 const NAME = 'My Journal — past days (group 09 resolved)';
-// 60 pad + 390 + 10 + 390 (screens, right edge 850) + 10 + 300 rationale
-// + 60 pad. It was 900, which put the entire third column outside the
-// board — every one of its twelve shapes failed the containment pass.
-const BX = 11640, BY = 0, BW = 1220;
+// 60 pad + three 390pt screens at 10pt gaps (right edge 1250) + 10 + 300
+// rationale + 60 pad. It was 900 for two screens, which put the entire
+// rationale column outside the board — all twelve of its shapes failed the
+// containment pass while rendering perfectly in the export.
+const BX = 11640, BY = 0, BW = 1620;
 
 const page = penpotUtils.getPageByName(PAGE);
 if (!page) throw new Error(`page "${PAGE}" not found`);
@@ -197,10 +198,47 @@ const b = screen('screen / past the window · read-only, stated as a rule', BXo,
     { x: 16, y: 760, size: 11, color: C.mutedFg, w: 350, token: 'color.muted-foreground' });
 }
 
-// ── rationale column ──────────────────────────────────────────────
+// ── C · the edit marker ───────────────────────────────────────────
+// Added when the marker shipped. It only exists because the window does:
+// before it every entry was necessarily same-day, so there was nothing to
+// mark. Derived from created_at / updated_at (on the table since migration
+// 145), so no migration, and correct for rows written before it existed.
+const CXo = 860, CYo = 180;
+const c = screen('screen / the edit marker · written after the fact', CXo, CYo);
+{
+  const { T, R, E } = pen(c, CXo, CYo);
+  T('\u2039', { x: 14, y: 12, size: 20, color: C.mutedFg, w: 14, token: 'color.muted-foreground' });
+  T('Back', { x: 30, y: 17, size: 13, color: C.mutedFg, w: 40, token: 'color.muted-foreground' });
+  T('Log', { x: 336, y: 17, size: 13, color: C.mutedFg, w: 38, align: 'right', token: 'color.muted-foreground' });
+  T('Thursday, August 6', { x: 16, y: 48, size: 22, weight: 700, color: C.foreground, w: 270, token: 'color.foreground' });
+  T('3 days ago \u00b7 Saved', { x: 16, y: 84, size: 11, color: C.mutedFg, w: 180, token: 'color.muted-foreground' });
+  E({ x: 330, y: 46, d: 44, fill: C.secondary, strokeStyle: 'solid', token: 'color.secondary', name: 'mood chip / set' });
+  T('\u{1F642}', { x: 341, y: 57, size: 20, w: 24, align: 'center' });
+  R({ x: 0, y: 112, w: 390, h: 1, fill: C.border, token: 'color.border' });
+  T('Squat day', { x: 16, y: 132, size: 17, weight: 700, color: C.foreground, w: 300, token: 'color.foreground' });
+  R({ x: 16, y: 166, w: 168, h: 48, radius: 12, fill: C.secondary, token: 'color.secondary', name: 'toolbar / container' });
+  ['bullets', 'bold', 'dictate', 'attach'].forEach((n, i) =>
+    R({ x: 24 + i * 40, y: 174, w: 32, h: 32, radius: 8, fill: C.card, token: 'color.card', name: `toolbar / ${n} 32` }));
+  T('Wrote this up on Saturday. Everything moved well.', { x: 16, y: 234, size: 13, color: C.foreground, w: 350, token: 'color.foreground' });
+
+  // THE MARKER. Foot of the entry region, muted, one line. It sits below the
+  // editable body rather than under the last line of text because the
+  // textarea reserves min-h-[40vh] — provenance is a footnote about the
+  // entry, not part of it, so the end of the region is where it belongs.
+  T('Written 2 days later', { x: 16, y: 540, size: 11, color: C.mutedFg, opacity: 0.7, w: 300, name: 't / THE EDIT MARKER' });
+
+  R({ x: 16, y: 600, w: 358, h: 1, fill: C.border, token: 'color.border' });
+  T('THREE PHRASINGS, ONE LINE', { x: 16, y: 614, size: 11, weight: 700, color: C.mutedFg, w: 260, token: 'color.muted-foreground' });
+  T('Written 2 days later \u2014 the entry never existed on its own day.\nEdited 3 days later \u2014 same-day entry, amended since.\nWritten 1 day later, edited since \u2014 both.\nSame-day and untouched renders NOTHING; that is the common case.',
+    { x: 16, y: 636, size: 11, color: C.mutedFg, w: 350, token: 'color.muted-foreground' });
+  T('Derived from created_at / updated_at, on the table since migration 145 \u2014 no migration, and correct for rows written before the marker existed. In the Log it collapses to one word: "edited".',
+    { x: 16, y: 716, size: 11, color: C.mutedFg, w: 350, token: 'color.muted-foreground' });
+}
+
+// ── rationale column ──────────────────
 {
   let y = 180;
-  const X = 860;
+  const X = 1260;
   const row = (h, bText) => {
     board.appendChild(txt(h, { x: X, y, size: 12, weight: 700, color: C.foreground, w: 300, token: 'color.foreground' }));
     y += 20;
@@ -221,6 +259,6 @@ const b = screen('screen / past the window · read-only, stated as a rule', BXo,
 board.resize(BW, 1180);   // verified: 0 escapes, 0 rect intersections
 return {
   board: NAME, x: BX, width: BW, height: 1180,
-  screens: 2,
+  screens: 3,
   next: 'Export each 390pt screen on its own and LOOK — the full board scales text to nothing.',
 };

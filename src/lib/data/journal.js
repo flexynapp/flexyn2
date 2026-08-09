@@ -18,7 +18,11 @@ const MISSING = (code) => code === '42883' || code === '42P01' || code === 'PGRS
 export async function getEntry(userId, dateStr) {
   if (!userId || !dateStr) return null;
   const { data, error } = await safeSelect({
-    columns: ['id', 'entry_date', 'title', 'body', 'attachments', 'mood_score', 'updated_at'],
+    // created_at + updated_at drive the edit marker (journalProvenance.js) —
+    // whether the entry was written on its own day or after the fact. Both
+    // have existed since migration 145, which is why the marker needed no
+    // migration and answers correctly for rows written before it existed.
+    columns: ['id', 'entry_date', 'title', 'body', 'attachments', 'mood_score', 'created_at', 'updated_at'],
     build: (cols) => supabase
     .from('journal_entries')
     .select(cols)
@@ -162,7 +166,7 @@ export async function listEntries(userId, limit = 365) {
   // 42703 and the whole journal reads as "No entries yet" — an empty history
   // is indistinguishable from a broken one. `getEntry` was already wrapped.
   const { data, error } = await safeSelect({
-    columns: ['id', 'entry_date', 'title', 'body', 'attachments', 'mood_score'],
+    columns: ['id', 'entry_date', 'title', 'body', 'attachments', 'mood_score', 'created_at', 'updated_at'],
     build: (cols) => supabase
       .from('journal_entries')
       .select(cols)
@@ -180,6 +184,11 @@ export async function listEntries(userId, limit = 365) {
     snippet: (e.body || '').replace(/[#*_>-]/g, '').replace(/\s+/g, ' ').trim().slice(0, 90),
     attachmentCount: Array.isArray(e.attachments) ? e.attachments.length : 0,
     mood_score: e.mood_score ?? null,
+    // Passed through raw rather than resolved here: provenance() has to
+    // convert a timestamptz into the VIEWER's local date, and the data
+    // layer has no business deciding what timezone that is.
+    created_at: e.created_at ?? null,
+    updated_at: e.updated_at ?? null,
   }));
 }
 
