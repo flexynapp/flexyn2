@@ -1686,15 +1686,32 @@ The biggest user-facing additions this session:
   (`generate_my_weekly_review`, with `generate_my_weekly_debrief` left as a
   forwarder), 329 backfills `total_volume`, 330 fixes cardio duration.
 
-  What remains out of scope is only the **cron**: the Edge Function
-  `generateWeeklyDebriefs` is deployed but still inert, so reviews are
-  generated on demand when the user opens the screen rather than pushed on a
-  Sunday. Two things would make the cron run: set `DEBRIEF_CRON_SECRET` as a
-  function secret, then re-add the cron (recipe below). Note the Edge
-  Function still carries the v1 XP formula and reads `total_volume`, so it
-  will disagree with the RPC until it is redeployed — **fix that before
-  scheduling it**, or Sunday's generated row will overwrite a correct one
-  with worse numbers.
+  What remains out of scope is only the **cron**: `generateWeeklyDebriefs` is
+  deployed but not scheduled, so reviews are generated on demand when the user
+  opens the screen rather than pushed on a Sunday. One thing is still needed —
+  set `DEBRIEF_CRON_SECRET` as a function secret, then re-add the cron (recipe
+  below).
+
+  **There is now ONE implementation of the review, and this is the thing to
+  preserve.** The Edge Function used to compute the whole thing itself in
+  TypeScript while the RPC computed it again in SQL, differently — whichever
+  ran last won, so the cron would have overwritten a correct review with worse
+  numbers. That is why it was left unscheduled rather than simply re-added.
+  Migration 331 collapsed both onto one body:
+
+  | | |
+  |---|---|
+  | `generate_weekly_review_for(p_user_id, p_week_start)` | the body — **edit this one** |
+  | `generate_my_weekly_review(p_week_start)` | wrapper, binds `auth.uid()` |
+  | `generate_my_weekly_debrief(p_week_start)` | v1 name, forwards |
+  | `generateWeeklyDebriefs` (v3) | calls the RPC once per active user |
+
+  The Edge Function contains **no arithmetic on purpose**. If a number is
+  wrong it is wrong in the SQL and wrong identically on both paths; do not add
+  a calculation there to fix it. And `generate_weekly_review_for` is REVOKED
+  from `anon` and `authenticated` — it takes the user as a parameter and
+  writes `weekly_debriefs`, so without that REVOKE any signed-in user could
+  overwrite anyone else's review.
 
   Function deploy state, verified 2026-07-31: `POST` with no auth returns
   `401 {"error":"unauthorized"}`, `GET` returns `405`, and the deployed
