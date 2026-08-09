@@ -115,6 +115,35 @@ the SQL editor run as `postgres` and bypass RLS entirely, so a query that
   members** — because the roster is visible to members, so at smaller
   sizes an individual's attendance is derivable by subtraction. The
   threshold is what protects people; omitting names is not.
+- **`public_profiles` is a SECURITY DEFINER view ON PURPOSE, and
+  `get_advisors` will report that as ERROR forever.** Do NOT "fix" it by
+  setting `security_invoker=true`. `user_profiles` has RLS restricting you
+  to your own row, so the view has to run as its owner to see anyone else
+  — and it applies its own predicate instead: `WHERE NOT
+  viewer_is_blocked_by(email)`, plus `full_view := NOT is_private OR id =
+  auth.uid() OR viewer_follows(email)` gating bio, city, website,
+  last_active, XP, level, prestige, lifetime_xp, volume, distance,
+  achievements, streaks, league_tier and trophy_case. Flipping the flag
+  makes the view fall back to that RLS and return ONLY YOUR OWN ROW, so
+  every profile page, leaderboard join and follow suggestion silently goes
+  blank and reads as a data problem rather than a config one.
+  Two things the linter cannot see, and both are why this is safe:
+  `email` is selected in the inner subquery (the helpers key on it) but is
+  NOT in the outer select, so the view has no email column; and `anon` has
+  no SELECT grant, only `authenticated`. `auth.uid()` still resolves to the
+  real viewer inside a definer view — it reads the JWT session setting, not
+  the role — which is the whole reason the predicate works.
+  Verified 2026-08-09 by seeding what production does not have: **0 of 41
+  profiles are private**, so `full_view` had never once been false and a
+  check against live data would have exercised one branch. Seeded and
+  rolled back, as a real authenticated viewer: private + not following →
+  row visible, `bio`/`total_xp`/`workout_streak` all NULL; private +
+  following → both revealed; target blocks viewer → 0 rows; own private
+  profile → full; `anon` → `permission denied for view public_profiles`.
+  Note what stays visible on a private profile by design — username,
+  full_name, avatar_url, country_flag, created_at, equipped cosmetics —
+  because you have to be able to see who someone is in order to follow
+  them. "Private" hides stats and bio, not identity.
 
 **Rewriting an RLS policy: prove equivalence on seeded data.** The live
 hub had 23 public posts, zero followers-only, zero scheduled and zero
