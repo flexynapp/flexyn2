@@ -193,7 +193,21 @@ function ListingCard({
                 // inside a grid of tiles with no other context.
                 aria-label={`Delete listing for ${listing.item_name}`}
                 title="Delete listing"
-                className="shrink-0 w-8 rounded-lg flex items-center justify-center border border-border text-muted-foreground hover:text-red-600 dark:hover:text-red-300 hover:border-red-500/30 hover:bg-red-500/10 active:bg-red-500/10 transition-colors"
+                // 44px, the iOS minimum for a touch target — and 44 in BOTH
+                // axes, which is the whole point of the number. `w-11` gives
+                // the width outright; the height comes from the `after:`
+                // overlay rather than from `h-11`, because this button is a
+                // flex sibling of Cancel and growing it to 44 would stretch
+                // Cancel with it, making the action row on your own listings
+                // 14px taller than the Buy / Offer Trade row on every other
+                // card in the same grid. So the box stays 30px and flush, and
+                // only the tappable area extends 8px past it top and bottom — 46px,
+                // a little over the minimum so hit-testing rounding cannot land
+                // it under.
+                // That overlay lands inside the card's own p-3 padding, so it
+                // covers no other control and is not clipped by the frame's
+                // overflow-hidden.
+                className="shrink-0 w-11 rounded-lg flex items-center justify-center border border-border text-muted-foreground hover:text-red-600 dark:hover:text-red-300 hover:border-red-500/30 hover:bg-red-500/10 active:bg-red-500/10 transition-colors relative after:absolute after:inset-x-0 after:-inset-y-[8px] after:content-['']"
               >
                 <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
               </button>
