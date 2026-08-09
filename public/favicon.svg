@@ -34,8 +34,25 @@
     index.html, and iOS does not honour transparency there at all.
   -->
   <rect x="0" y="0" width="491" height="491" fill="#3F4D5A"/>
-  <!-- +1px to keep the mark centred after the 2px width increase above. -->
-  <g transform="translate(1,0) scale(0.25)" fill="url(#flexynFire)" fill-rule="evenodd">
+  <!--
+    Transforms read left to right.
+
+    translate(245.5,245.5) scale(1.15) translate(-245.5,-245.5)
+      Scales the mark 1.15x about the TILE CENTRE rather than the origin, so
+      it grows in place instead of drifting toward the bottom-right.
+
+      1.15 is not a taste number. A maskable icon must keep its content inside
+      the inner 80% circle — radius 0.40 x canvas — because Android may crop to
+      it. Measured on a 512 render, the furthest painted pixel of the mark sits
+      167.6 from centre against a 204.8 limit, so the hard ceiling is x1.222.
+      1.15 lands at 94% of the safe zone and takes the mark from 46% to 53% of
+      the tile width. Going to 1.20 would be 98% — inside the rule, but with no
+      room for the anti-aliased edge or a future tweak to the artwork.
+
+    translate(1,0)  +1px, to keep the mark centred after the viewBox was
+                    squared from 489 to 491 wide.
+  -->
+  <g transform="translate(245.5,245.5) scale(1.15) translate(-245.5,-245.5) translate(1,0) scale(0.25)" fill="url(#flexynFire)" fill-rule="evenodd">
     <g transform="translate(0.000000,1964.000000) scale(0.100000,-0.100000)">
       <path d="M13127 14393 c-4 -3 -7 -19 -7 -34 0 -18 -7 -32 -20 -39 -17 -9 -20
 -21 -20 -80 0 -59 -3 -71 -20 -80 -16 -8 -20 -21 -20 -60 0 -39 -4 -52 -20
