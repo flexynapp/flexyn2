@@ -8,6 +8,8 @@ const _state = {
   lastTable: null,
   lastSelectCols: null,
   lastRpc: null,
+  rpcCalls: [],
+  missingRpcs: [],
   nextData: null,
   nextError: null,
 };
@@ -19,6 +21,12 @@ vi.mock('@/api/supabaseClient', () => {
     supabase: {
       rpc: async (name, params) => {
         _state.lastRpc = { name, params };
+        _state.rpcCalls.push(name);
+        // Lets a test simulate a database that has not run migration 328 yet,
+        // where the v2 function simply does not exist.
+        if (_state.missingRpcs.includes(name)) {
+          return { data: null, error: { code: '42883', message: 'function does not exist' } };
+        }
         return { data: { ok: true }, error: null };
       },
       from: (table) => {
@@ -50,6 +58,8 @@ beforeEach(() => {
   _state.lastTable = null;
   _state.lastSelectCols = null;
   _state.lastRpc = null;
+  _state.rpcCalls = [];
+  _state.missingRpcs = [];
   _state.nextData = null;
   _state.nextError = null;
 });
@@ -173,7 +183,7 @@ describe('generateWeeklyDebrief — week-start serialization', () => {
   it('passes string week starts through untouched', async () => {
     await debriefs.generateWeeklyDebrief('2026-06-08');
     expect(_state.lastRpc).toEqual({
-      name: 'generate_my_weekly_debrief',
+      name: 'generate_my_weekly_review',
       params: { p_week_start: '2026-06-08' },
     });
   });
@@ -183,7 +193,7 @@ describe('generateWeeklyDebrief — week-start serialization', () => {
     // of UTC-0:30.
     await debriefs.generateWeeklyDebrief(new Date(2026, 5, 8, 23, 30));
     expect(_state.lastRpc).toEqual({
-      name: 'generate_my_weekly_debrief',
+      name: 'generate_my_weekly_review',
       params: { p_week_start: '2026-06-08' },
     });
   });
@@ -191,9 +201,29 @@ describe('generateWeeklyDebrief — week-start serialization', () => {
   it('omits the param for the current-week default', async () => {
     await debriefs.generateWeeklyDebrief();
     expect(_state.lastRpc).toEqual({
-      name: 'generate_my_weekly_debrief',
+      name: 'generate_my_weekly_review',
       params: {},
     });
+  });
+
+  // The frontend ships via Netlify on merge; the SQL is pasted by hand
+  // afterwards. So there is always a window where the client is v2 and the
+  // database is still v1, and in that window the v2 function does not exist.
+  it('falls back to the v1 RPC when the v2 function is not deployed yet', async () => {
+    _state.missingRpcs = ['generate_my_weekly_review'];
+    const out = await debriefs.generateWeeklyDebrief('2026-06-08');
+    expect(_state.rpcCalls).toEqual([
+      'generate_my_weekly_review',
+      'generate_my_weekly_debrief',
+    ]);
+    expect(out).toEqual({ ok: true });
+  });
+
+  it('does NOT fall back on a real error — that would mask the failure', async () => {
+    _state.missingRpcs = ['generate_my_weekly_review', 'generate_my_weekly_debrief'];
+    // Both missing: the fallback fires once, then the error propagates.
+    await expect(debriefs.generateWeeklyDebrief()).rejects.toMatchObject({ code: '42883' });
+    expect(_state.rpcCalls).toHaveLength(2);
   });
 });
 

@@ -92,10 +92,22 @@ export async function generateWeeklyDebrief(weekStart = null) {
           : toLocalDateString(weekStart) }
     : {};
 
-  const { data, error } = await supabase.rpc('generate_my_weekly_debrief', param);
+  // Migration 328 introduced generate_my_weekly_review (schema v2) and left
+  // generate_my_weekly_debrief as a forwarder, so either name works against a
+  // migrated database. We call the v2 name and fall back once on 42883
+  // (undefined_function) / PGRST202 (no such RPC in the schema cache), which
+  // is what a client sees when the frontend has deployed but the SQL has not
+  // yet been pasted in — the normal ordering for this repo.
+  let { data, error } = await supabase.rpc('generate_my_weekly_review', param);
+  if (error && (error.code === '42883' || error.code === 'PGRST202')) {
+    ({ data, error } = await supabase.rpc('generate_my_weekly_debrief', param));
+  }
   if (error) throw error;
   return data;
 }
+
+/** v2 alias — the name the feature actually goes by now. */
+export const generateWeeklyReview = generateWeeklyDebrief;
 
 /**
  * ISO Monday of the week containing `date` (defaults to today).

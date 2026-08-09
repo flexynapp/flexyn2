@@ -1,220 +1,529 @@
 // src/components/debrief/WeeklyDebriefCard.jsx
 //
-// Visually-rich debrief card. Two modes:
-//   normal  — themed card inside the app (respects dark/light mode)
-//   export  — force-dark isolated div suitable for html2canvas PNG capture
+// One week, in full — the body of a Weekly Review.
 //
-// The `exportRef` prop is a React ref you attach to a wrapper div if you
-// want to capture the card with html2canvas. Pass `forExport={true}` to
-// switch to the dark-fixed export theme.
+// Drawn from the Penpot page "Weekly Reviews — dashboard", board A. Board D
+// on that page is the element ledger: every number here names the table it
+// comes from, and the four defects this replaces.
+//
+// WHAT CHANGED FROM THE OLD DEBRIEF CARD
+// --------------------------------------
+// The old card reported lifting only — volume, top lift, a 3-stat row and
+// eight binary muscle-group chips — and two of those numbers were wrong at
+// the source (see migration 328's head). Flexyn logs cardio, steps, food,
+// sleep, mood, body weight, quests, trophies, coins, crews, duels, leagues
+// and gym check-ins, and none of it reached the user's week. It does now.
+//
+// Two rules govern the whole file, both from CLAUDE.md:
+//
+//   • A SECTION WITH NO DATA IS NOT RENDERED. It never renders as zeros.
+//     A 0 reads as a failure the user did not commit — "0 kcal" at someone
+//     who simply doesn't track food is the app calling them lazy. Every
+//     section below is behind a `has*` gate.
+//
+//   • Spacing has two registers and one seam. 24px (`space-y-6`) between
+//     sections; a single 32px break (`pt-8`) between Progression and
+//     Conditioning, separating what you DID from everything around it.
+//     Nothing uses the banned 12–20px middle.
+//
+// Reads BOTH payload shapes: v2's sectioned objects when `schema_version`
+// is 2, and the flat v1 keys otherwise, so a row generated before migration
+// 328 still renders rather than blanking.
 
 import React from 'react';
-import { Flame, Zap, TrendingUp, TrendingDown, Trophy, Dumbbell, Utensils, Star, Minus } from 'lucide-react';
+import {
+  Flame, Trophy, Dumbbell, Star, TrendingUp, TrendingDown, Minus,
+  Utensils, Moon, Users, Swords, Target,
+} from 'lucide-react';
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ── Formatting ────────────────────────────────────────────────────────────
 
-function pct(val) {
-  if (val === null || val === undefined) return null;
-  const n = Number(val);
-  return isNaN(n) ? null : n;
+const n0 = (v) => (v === null || v === undefined || Number.isNaN(Number(v)))
+  ? null : Math.round(Number(v)).toLocaleString('en-US');
+
+const n1 = (v) => (v === null || v === undefined || Number.isNaN(Number(v)))
+  ? null : Number(v).toLocaleString('en-US', { maximumFractionDigits: 1 });
+
+const num = (v) => {
+  const x = Number(v);
+  return Number.isFinite(x) ? x : 0;
+};
+
+/** Metres → miles, one decimal. The app is lbs/miles throughout. */
+const toMiles = (m) => num(m) / 1609.344;
+
+/** Minutes → "1h 52m" / "48m". */
+function hm(mins) {
+  const t = Math.round(num(mins));
+  if (t <= 0) return null;
+  const h = Math.floor(t / 60);
+  const m = t % 60;
+  return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 
-function fmt(n, decimals = 0) {
-  if (n === null || n === undefined) return '—';
-  return Number(n).toLocaleString('en-US', { maximumFractionDigits: decimals });
-}
+// ── Primitives ────────────────────────────────────────────────────────────
 
-function VolumeChange({ val }) {
-  const n = pct(val);
-  if (n === null) return <span className="text-xs opacity-60">first week</span>;
-  if (n === 0) return (
-    <span className="inline-flex items-center gap-0.5 text-xs text-muted-foreground">
-      <Minus className="w-3 h-3" /> same as last week
-    </span>
-  );
-  const up = n > 0;
+function Section({ title, meta, children, seam = false }) {
   return (
-    <span className={`inline-flex items-center gap-0.5 text-xs font-semibold ${up ? 'text-emerald-400' : 'text-rose-400'}`}>
+    <section className={seam ? 'pt-8' : undefined}>
+      <div className="flex items-baseline justify-between gap-2 mb-2">
+        <h3 className="font-heading font-bold text-[15px] text-foreground">{title}</h3>
+        {meta && <span className="text-micro text-muted-foreground text-end">{meta}</span>}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+/** A fixed row of exactly three figures. Count is fixed, so a grid is
+ *  correct here — `tileRow()` is for collections whose count is data. */
+function TripleStat({ items }) {
+  return (
+    <div className="grid grid-cols-3">
+      {items.map((it, i) => (
+        <div key={it.label} className={i > 0 ? 'ps-3 border-s border-border' : undefined}>
+          <p className="font-heading font-bold text-[15px] text-foreground tabular-nums">{it.value}</p>
+          <p className="text-micro text-muted-foreground">{it.label}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Bar({ pct, tone = 'primary', className = '' }) {
+  const w = Math.max(0, Math.min(100, num(pct)));
+  const fill = tone === 'muted' ? 'bg-muted-foreground/60' : 'bg-primary';
+  return (
+    <div className={`h-1.5 rounded-full bg-secondary overflow-hidden ${className}`}>
+      <div className={`h-full rounded-full ${fill}`} style={{ width: `${w}%` }} />
+    </div>
+  );
+}
+
+function Delta({ pct, suffix = 'vs last week' }) {
+  if (pct === null || pct === undefined) return null;
+  const v = Number(pct);
+  if (!Number.isFinite(v)) return null;
+  if (v === 0) {
+    return (
+      <span className="inline-flex items-center gap-1 text-micro font-semibold text-muted-foreground border border-border rounded-full px-2 py-0.5">
+        <Minus className="w-3 h-3" /> level with last week
+      </span>
+    );
+  }
+  const up = v > 0;
+  return (
+    <span className={`inline-flex items-center gap-1 text-micro font-semibold rounded-full px-2 py-0.5 border ${
+      up ? 'text-success border-success/50' : 'text-muted-foreground border-border'
+    }`}>
       {up ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-      {up ? '+' : ''}{n}% vs last week
+      {up ? '+' : ''}{v}% {suffix}
     </span>
   );
 }
 
-function StatPill({ icon: Icon, label, value, color = 'text-primary' }) {
+/** Label · hairline · value. The default row for read-only data — a card
+ *  per fact would be a card in a card (CLAUDE.md). */
+function FactRow({ icon: Icon, label, detail, value, last = false }) {
   return (
-    <div className="flex flex-col items-center gap-1 px-3 py-2 rounded-xl bg-white/5 min-w-0 flex-1">
-      <Icon className={`w-4 h-4 ${color} shrink-0`} />
-      <span className="text-lg font-heading font-bold tabular-nums leading-none">{value}</span>
-      <span className="text-micro text-white/50 text-center leading-tight">{label}</span>
+    <div className={`flex items-center gap-2 py-2.5 ${last ? '' : 'border-b border-border'}`}>
+      {Icon && <Icon className="w-4 h-4 text-primary shrink-0" />}
+      <div className="min-w-0 flex-1">
+        <p className="text-[13px] font-semibold text-foreground truncate">{label}</p>
+        {detail && <p className="text-micro text-muted-foreground truncate">{detail}</p>}
+      </div>
+      {value && (
+        <span className="font-heading font-bold text-[15px] text-foreground tabular-nums shrink-0">{value}</span>
+      )}
     </div>
   );
 }
 
-function MuscleGroupGrid({ trained = [], neglected = [] }) {
-  const all = [
-    'Chest','Back','Shoulders','Biceps','Triceps','Legs','Glutes','Core',
-  ];
-  const trainedSet = new Set(trained.map(m => m.toLowerCase()));
-  return (
-    <div className="flex flex-wrap gap-1.5">
-      {all.map(group => {
-        const hit = trainedSet.has(group.toLowerCase());
-        return (
-          <span
-            key={group}
-            className={`text-micro px-2 py-0.5 rounded-full font-medium border ${
-              hit
-                ? 'bg-primary/20 border-primary/40 text-primary'
-                : 'bg-white/5 border-white/10 text-white/35'
-            }`}
-          >
-            {group}
-          </span>
-        );
-      })}
-    </div>
-  );
-}
-
-// ── Main Card ─────────────────────────────────────────────────────────────────
+// ── Main ──────────────────────────────────────────────────────────────────
 
 export default function WeeklyDebriefCard({ debrief, forExport = false, exportRef }) {
   if (!debrief) return null;
 
-  const d = debrief.data || {};
-  const weekLabel  = debrief.week_label || `Week ${debrief.week_number}, ${debrief.year}`;
-  const epochLabel = debrief.epoch_name || null;
+  const d  = debrief.data || {};
+  // v2 sections, with the flat v1 keys as the fallback so old rows render.
+  const tr = d.training     || {};
+  const co = d.conditioning || {};
+  const fu = d.fuel         || {};
+  const re = d.recovery     || {};
+  const ga = d.game         || {};
+  const pe = d.people       || {};
 
-  const volLbs         = fmt(d.volume_lbs);
-  const changePct      = pct(d.volume_change_pct);
-  const topLiftName    = d.top_lift_name    || null;
-  const topLiftWeight  = d.top_lift_weight  || null;
-  const topLiftReps    = d.top_lift_reps    || null;
-  const topLiftIsPr    = !!d.top_lift_is_pr;
-  const workoutStreak  = d.workout_streak   ?? 0;
-  const workoutsCount  = d.workouts_count   ?? 0;
-  const macroAdh       = d.macro_adherence_pct ?? 0;
-  const macroDays      = d.macro_days_tracked  ?? 0;
-  const aiInsight      = d.ai_insight || '';
-  const xpEarned       = d.xp_earned          ?? 0;
-  const levelStart     = d.level_start         ?? null;
-  const levelEnd       = d.level_end           ?? null;
-  const trained        = d.muscle_groups_trained   || [];
+  const weekLabel = debrief.week_label || `Week ${debrief.week_number}, ${debrief.year}`;
 
-  const levelUp = levelEnd !== null && levelStart !== null && levelEnd > levelStart;
+  // ── Training
+  const sessions   = tr.sessions     ?? d.workouts_count ?? 0;
+  const daysTrained= tr.days_trained ?? null;
+  const dayFlags   = Array.isArray(tr.day_flags) && tr.day_flags.length === 7 ? tr.day_flags : null;
+  const streak     = tr.streak       ?? d.workout_streak ?? 0;
+  const volume     = tr.volume_lbs   ?? d.volume_lbs     ?? 0;
+  const changePct  = tr.change_pct   ?? d.volume_change_pct ?? null;
+  const baseline   = tr.baseline_lbs ?? null;
+  const loadRatio  = tr.load_ratio   ?? null;
+  const sets       = tr.sets ?? null;
+  const reps       = tr.reps ?? null;
+  const duration   = tr.duration_min ?? null;
+  const muscleSets = tr.muscle_sets && typeof tr.muscle_sets === 'object' ? tr.muscle_sets : null;
+  const prCount    = tr.pr_count ?? null;
+  const topLift    = tr.top_lift || {
+    name: d.top_lift_name, weight: d.top_lift_weight,
+    reps: d.top_lift_reps, is_pr: d.top_lift_is_pr,
+  };
 
-  // Export mode uses a hard-coded dark palette so html2canvas captures correctly
-  const cardCls = forExport
-    ? 'w-full max-w-sm mx-auto rounded-2xl overflow-hidden text-white select-none'
-    : 'w-full rounded-2xl overflow-hidden text-white select-none';
+  const hasTraining = sessions > 0 || num(volume) > 0;
 
-  const bgStyle = forExport
-    ? { background: 'linear-gradient(160deg, #0f0f14 0%, #141824 60%, #0a0d18 100%)' }
-    : { background: 'linear-gradient(160deg, #0f0f14 0%, #141824 60%, #0a0d18 100%)' };
+  // ── Conditioning
+  const cardioN    = num(co.sessions);
+  const steps      = num(co.steps);
+  const hasCond    = cardioN > 0 || steps > 0;
+
+  // ── Fuel
+  const fuelDays   = co && (fu.days_logged ?? d.macro_days_tracked ?? 0);
+  const hasFuel    = num(fuelDays) > 0;
+
+  // ── Recovery
+  const sleepNights= num(re.sleep_nights);
+  const moodDays   = num(re.mood_days);
+  const weightEnd  = re.weight_end;
+  const hasRecovery= sleepNights > 0 || moodDays > 0 || weightEnd != null;
+
+  // ── Game — XP always exists, so this section always renders.
+  const xp         = ga.xp_earned ?? d.xp_earned ?? 0;
+  const levelStart = ga.level_start ?? d.level_start ?? null;
+  const levelEnd   = ga.level_end   ?? d.level_end   ?? null;
+  const levelUp    = levelStart != null && levelEnd != null && levelEnd > levelStart;
+
+  // ── People
+  const hasPeople  = !!pe.crew_name || num(pe.duels_played) > 0
+                     || pe.league_rank != null || num(pe.gym_days) > 0;
+
+  const insight    = d.ai_insight || '';
+
+  // Muscle groups, heaviest first — the list IS the balance read.
+  const muscleRows = muscleSets
+    ? Object.entries(muscleSets)
+        .map(([k, v]) => [k, num(v)])
+        .sort((a, b) => b[1] - a[1])
+    : [];
+  const maxSets = muscleRows.length ? muscleRows[0][1] : 0;
+
+  const dayLetters = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
   return (
-    <div ref={exportRef} className={cardCls} style={bgStyle}>
-      {/* ── Header ──────────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-white/10">
+    <div
+      ref={exportRef}
+      className={`w-full rounded-2xl overflow-hidden bg-card border border-border ${forExport ? 'max-w-sm mx-auto' : ''}`}
+    >
+      {/* ── Header ───────────────────────────────────────────────────── */}
+      <div className="flex items-baseline justify-between gap-2 px-4 pt-4">
         <div>
-          <div className="flex items-center gap-1.5">
-            <span className="font-heading font-black text-base tracking-tight text-white">FLEXYN</span>
-            <span className="text-micro font-semibold text-primary/80 uppercase tracking-widest">Debrief</span>
-          </div>
-          {epochLabel && (
-            <span className="text-micro text-primary/60 font-medium">{epochLabel}</span>
-          )}
-        </div>
-        <div className="text-end">
-          <p className="text-sm font-bold text-white">{weekLabel}</p>
+          <p className="font-heading font-black text-lg text-foreground">{weekLabel}</p>
           {d.week_start && d.week_end && (
-            <p className="text-micro text-white/40">
-              {d.week_start} → {d.week_end}
-            </p>
+            <p className="text-micro text-muted-foreground">{d.week_start} → {d.week_end}</p>
           )}
         </div>
+        <span className="text-micro font-bold uppercase tracking-widest text-primary">Flexyn</span>
       </div>
 
-      {/* ── Volume Hero ──────────────────────────────────────────────────── */}
-      <div className="px-4 pt-4 pb-3">
-        <p className="text-micro text-white/40 uppercase tracking-widest font-semibold mb-0.5">Total Volume</p>
-        <div className="flex items-end gap-3">
-          <span className="text-4xl font-heading font-black tabular-nums leading-none text-white">
-            {volLbs}
-          </span>
-          <span className="text-sm text-white/50 mb-1">lbs</span>
-        </div>
-        <div className="mt-1">
-          <VolumeChange val={changePct} />
-        </div>
-      </div>
-
-      {/* ── Top Lift ─────────────────────────────────────────────────────── */}
-      {topLiftName && (
-        <div className="mx-4 mb-3 px-3 py-2.5 rounded-xl bg-white/5 border border-white/10">
-          <div className="flex items-center justify-between gap-2">
-            <div className="min-w-0">
-              <p className="text-micro text-white/40 uppercase tracking-widest font-semibold mb-0.5">Top Lift</p>
-              <p className="text-sm font-bold text-white truncate">{topLiftName}</p>
-              <p className="text-xs text-white/50">
-                {fmt(topLiftWeight)} lbs × {topLiftReps} reps
-              </p>
-            </div>
-            {topLiftIsPr && (
-              <div className="flex flex-col items-center shrink-0">
-                <Trophy className="w-6 h-6 text-yellow-400" />
-                <span className="text-micro font-black text-yellow-400 uppercase tracking-wider">PR!</span>
-              </div>
-            )}
+      {/* ── HERO — the one dominant element, and the only thing that bleeds
+             past the 16px inset. It answers the first question a review has
+             to answer, which is not "how much" but "did you show up". ── */}
+      <div className="mt-4 px-4 py-4 bg-secondary/40 border-y border-border">
+        <p className="text-micro font-bold uppercase tracking-widest text-muted-foreground">
+          {sessions > 0 ? 'You showed up' : 'You rested'}
+        </p>
+        <div className="flex items-end justify-between gap-3 mt-1">
+          <div className="flex items-end gap-2">
+            <span className={`font-heading font-black text-5xl leading-none tabular-nums ${
+              sessions > 0 ? 'text-foreground' : 'text-muted-foreground'
+            }`}>
+              {daysTrained ?? sessions}
+            </span>
+            <span className="text-[13px] text-muted-foreground mb-1">
+              {daysTrained != null ? 'of 7 days' : `session${sessions === 1 ? '' : 's'}`}
+            </span>
           </div>
+          {streak > 0 && (
+            <div className="text-end">
+              <span className="inline-flex items-center gap-1">
+                <Flame className="w-4 h-4 text-primary" />
+                <span className="font-heading font-bold text-xl tabular-nums text-foreground">{streak}</span>
+              </span>
+              <p className="text-micro text-muted-foreground">day streak</p>
+            </div>
+          )}
         </div>
-      )}
 
-      {/* ── 3-Stat Row ───────────────────────────────────────────────────── */}
-      <div className="flex gap-2 px-4 mb-3">
-        <StatPill icon={Flame}    label="Streak"   value={workoutStreak}          color="text-orange-400" />
-        <StatPill icon={Dumbbell} label="Workouts" value={workoutsCount}           color="text-blue-400" />
-        <StatPill icon={Utensils} label="Nutrition" value={`${macroAdh}%`}        color="text-emerald-400" />
-      </div>
-
-      {/* ── Muscle Group Grid ────────────────────────────────────────────── */}
-      <div className="px-4 mb-3">
-        <p className="text-micro text-white/40 uppercase tracking-widest font-semibold mb-2">Muscle Groups</p>
-        <MuscleGroupGrid trained={trained} />
-        {trained.length === 0 && (
-          <p className="text-xs text-white/30 italic">No exercises logged this week</p>
+        {dayFlags && (
+          <div className="grid grid-cols-7 gap-1.5 mt-4">
+            {dayFlags.map((on, i) => (
+              <div key={i}>
+                <div className={`h-1.5 rounded-full ${on ? 'bg-primary' : 'bg-secondary'}`} />
+                <p className={`text-micro text-center mt-1 ${on ? 'text-foreground' : 'text-muted-foreground'}`}>
+                  {dayLetters[i]}
+                </p>
+              </div>
+            ))}
+          </div>
         )}
       </div>
 
-      {/* ── AI Insight ───────────────────────────────────────────────────── */}
-      {aiInsight && (
-        <div className="mx-4 mb-3 px-3 py-2.5 rounded-xl border border-amber-500/30"
-          style={{ background: 'rgba(245, 158, 11, 0.08)' }}>
-          <div className="flex items-start gap-2">
-            <Star className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
-            <p className="text-xs text-white/80 leading-relaxed">{aiInsight}</p>
-          </div>
-        </div>
-      )}
+      {/* ── Body ─────────────────────────────────────────────────────── */}
+      <div className="px-4 py-6 space-y-6">
 
-      {/* ── XP / Level Footer ────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between px-4 pt-3 pb-4 border-t border-white/10">
-        <div className="flex items-center gap-1.5">
-          <Zap className="w-4 h-4 text-yellow-400" />
-          <span className="text-sm font-bold tabular-nums text-white">+{fmt(xpEarned)} XP</span>
-          <span className="text-xs text-white/40">this week</span>
-        </div>
-        {levelEnd !== null && (
-          <div className="flex items-center gap-1.5">
-            {levelUp && <Star className="w-3.5 h-3.5 text-yellow-400" />}
-            <span className="text-xs text-white/50">
-              {levelUp ? (
-                <span className="text-yellow-400 font-semibold">Level {levelEnd} ↑</span>
-              ) : (
-                `Level ${levelEnd}`
+        {/* LOAD */}
+        {hasTraining && (
+          <Section title="Load" meta={baseline ? 'vs your 4-week normal' : null}>
+            <div className="flex items-end gap-2">
+              <span className="font-heading font-black text-3xl leading-none tabular-nums text-foreground">
+                {n0(volume)}
+              </span>
+              <span className="text-[13px] text-muted-foreground mb-0.5">lbs moved</span>
+            </div>
+            <div className="mt-2"><Delta pct={changePct} /></div>
+
+            {/* The acute:chronic shape, stated and NOT prescribed from. The
+                injury-threshold literature did not survive its RCT, so this
+                is context for the lifter, never a warning from the app. */}
+            {loadRatio != null && baseline > 0 && (
+              <div className="mt-2">
+                <Bar pct={(num(volume) / (num(baseline) * 2)) * 100} />
+                <p className="text-micro text-muted-foreground mt-1">
+                  {n1(loadRatio)}× your four-week normal ({n0(baseline)} lbs)
+                </p>
+              </div>
+            )}
+
+            {(sets || reps || duration) && (
+              <div className="mt-2 pt-2 border-t border-border">
+                <TripleStat items={[
+                  { value: n0(sets) ?? '—', label: 'sets' },
+                  { value: n0(reps) ?? '—', label: 'reps' },
+                  { value: hm(duration) ?? '—', label: 'under load' },
+                ]} />
+              </div>
+            )}
+          </Section>
+        )}
+
+        {/* BALANCE — weekly sets per muscle group is the number that governs
+            hypertrophy and the one a lifter can act on. The old card showed
+            eight binary chips, which said trained/not and nothing else. */}
+        {muscleRows.length > 0 && (
+          <Section title="Balance" meta="sets per muscle group">
+            <div className="space-y-2">
+              {muscleRows.map(([group, count]) => {
+                const light = count <= Math.max(2, maxSets * 0.3);
+                return (
+                  <div key={group} className="flex items-center gap-2">
+                    <span className="text-xs text-foreground w-20 shrink-0 truncate">{group}</span>
+                    <Bar pct={maxSets ? (count / maxSets) * 100 : 0} tone={light ? 'muted' : 'primary'} className="flex-1" />
+                    <span className="font-heading font-bold text-[13px] tabular-nums text-foreground w-7 text-end">
+                      {count}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </Section>
+        )}
+
+        {/* PROGRESSION */}
+        {topLift?.name && (
+          <Section title="Progression" meta="heaviest set · records">
+            <div className="flex items-center justify-between gap-2 rounded-xl bg-secondary/40 border border-border px-3 py-2.5">
+              <div className="min-w-0">
+                <p className="font-heading font-bold text-[15px] text-foreground truncate">{topLift.name}</p>
+                <p className="text-xs text-muted-foreground">
+                  {n0(topLift.weight)} lbs × {topLift.reps} reps
+                </p>
+              </div>
+              {topLift.is_pr && (
+                <span className="shrink-0 inline-flex items-center gap-1 text-micro font-bold uppercase tracking-wider text-primary border border-primary/50 rounded-full px-2 py-0.5">
+                  <Trophy className="w-3 h-3" /> New PR
+                </span>
               )}
+            </div>
+            {prCount > 0 && (
+              <p className="text-micro text-muted-foreground mt-2">
+                {prCount} personal record{prCount === 1 ? '' : 's'} this week.
+              </p>
+            )}
+          </Section>
+        )}
+
+        {/* ── The one 32px seam on this screen: what you DID, above;
+               everything that surrounds it, below. ── */}
+
+        {/* CONDITIONING */}
+        {hasCond && (
+          <Section title="Conditioning" meta="cardio · steps" seam>
+            {cardioN > 0 && (
+              <TripleStat items={[
+                { value: n0(cardioN), label: `session${cardioN === 1 ? '' : 's'}` },
+                { value: `${n1(toMiles(co.distance_m))} mi`, label: 'distance' },
+                { value: hm(co.duration_min) ?? '—', label: 'moving' },
+              ]} />
+            )}
+            {steps > 0 && (
+              <div className={cardioN > 0 ? 'mt-2 pt-2 border-t border-border' : undefined}>
+                <div className="flex items-baseline justify-between gap-2">
+                  <span className="font-heading font-bold text-[15px] tabular-nums text-foreground">{n0(steps)}</span>
+                  <span className="text-micro text-muted-foreground">
+                    steps · logged {n0(co.steps_days)} of 7
+                  </span>
+                </div>
+                <Bar pct={(num(co.steps_days) / 7) * 100} className="mt-2" />
+              </div>
+            )}
+          </Section>
+        )}
+
+        {/* FUEL — averaged per DAY LOGGED, not per seven. Dividing a 3-day
+            week by 7 makes honest logging look like undereating. */}
+        {hasFuel && (
+          <Section title="Fuel" meta={`per day logged · ${n0(fuelDays)} of 7`} seam={!hasCond}>
+            {num(fu.avg_calories) > 0 ? (
+              <>
+                <div className="flex items-end gap-2">
+                  <span className="font-heading font-black text-3xl leading-none tabular-nums text-foreground">
+                    {n0(fu.avg_calories)}
+                  </span>
+                  <span className="text-[13px] text-muted-foreground mb-0.5">kcal / day</span>
+                </div>
+                {/* Macros use the chart ramp, not the state hues — they need
+                    mutual distinguishability, not state meaning (CLAUDE.md). */}
+                <div className="flex h-2 rounded-full overflow-hidden mt-3">
+                  {[
+                    ['bg-chart-1', num(fu.avg_protein) * 4],
+                    ['bg-chart-2', num(fu.avg_carbs) * 4],
+                    ['bg-chart-3', num(fu.avg_fat) * 9],
+                  ].map(([cls, kcal], i) => {
+                    const total = num(fu.avg_protein) * 4 + num(fu.avg_carbs) * 4 + num(fu.avg_fat) * 9;
+                    return <div key={i} className={cls} style={{ width: total ? `${(kcal / total) * 100}%` : '0%' }} />;
+                  })}
+                </div>
+                <div className="grid grid-cols-3 mt-2">
+                  {[
+                    ['Protein', fu.avg_protein, 'bg-chart-1'],
+                    ['Carbs',   fu.avg_carbs,   'bg-chart-2'],
+                    ['Fat',     fu.avg_fat,     'bg-chart-3'],
+                  ].map(([label, val, dot]) => (
+                    <div key={label}>
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className={`w-2 h-2 rounded-full ${dot}`} />
+                        <span className="text-micro text-muted-foreground">{label}</span>
+                      </span>
+                      <p className="font-heading font-bold text-[13px] tabular-nums text-foreground">
+                        {n0(val)} g
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <FactRow icon={Utensils} label={`Logged ${n0(fuelDays)} of 7 days`}
+                       detail="No calorie totals on those entries" last />
+            )}
+          </Section>
+        )}
+
+        {/* RECOVERY */}
+        {hasRecovery && (
+          <Section title="Recovery" meta="sleep · mood · body" seam={!hasCond && !hasFuel}>
+            {sleepNights > 0 && (
+              <TripleStat items={[
+                { value: re.sleep_hours != null ? `${n1(re.sleep_hours)}h` : '—', label: 'avg sleep' },
+                { value: re.sleep_quality != null ? n1(re.sleep_quality) : '—', label: 'sleep quality' },
+                { value: re.soreness != null ? n1(re.soreness) : '—', label: 'soreness' },
+              ]} />
+            )}
+            <div className={sleepNights > 0 ? 'mt-2 pt-2 border-t border-border' : undefined}>
+              {moodDays > 0 && (
+                <FactRow icon={Moon} label="Mood" detail={`logged ${n0(moodDays)} day${moodDays === 1 ? '' : 's'}`}
+                         value={`${n1(re.mood_avg)} / 5`} last={weightEnd == null} />
+              )}
+              {weightEnd != null && (
+                <FactRow
+                  icon={Target}
+                  label="Body weight"
+                  detail={re.weight_change != null && num(re.weight_change) !== 0
+                    ? `${num(re.weight_change) > 0 ? '+' : ''}${n1(re.weight_change)} lbs this week`
+                    : 'no change this week'}
+                  value={`${n1(weightEnd)} lbs`}
+                  last
+                />
+              )}
+            </div>
+          </Section>
+        )}
+
+        {/* THE GAME — XP comes from xp_grant_log, the authoritative ledger.
+            The old card printed a number the client invented. */}
+        <Section title="The game" meta="earned this week" seam={!hasCond && !hasFuel && !hasRecovery}>
+          <div className="flex items-end gap-2">
+            <span className="font-heading font-black text-3xl leading-none tabular-nums text-foreground">
+              {n0(xp)}
             </span>
+            <span className="text-[13px] text-muted-foreground mb-0.5">XP</span>
+            {levelUp && (
+              <span className="mb-0.5 ms-auto inline-flex items-center gap-1 text-micro font-bold text-primary">
+                <Star className="w-3 h-3" /> Level {levelEnd}
+              </span>
+            )}
+          </div>
+          {levelEnd != null && !levelUp && (
+            <p className="text-micro text-muted-foreground mt-1">Level {levelEnd}</p>
+          )}
+          {(num(ga.quests_done) > 0 || num(ga.coins) > 0 || num(ga.trophy_count) > 0) && (
+            <div className="mt-2 pt-2 border-t border-border">
+              <TripleStat items={[
+                { value: n0(ga.quests_done) ?? '0', label: 'quests done' },
+                { value: n0(ga.coins) ?? '0',       label: 'coins' },
+                { value: n0(ga.trophy_count) ?? '0',label: `troph${num(ga.trophy_count) === 1 ? 'y' : 'ies'}` },
+              ]} />
+            </div>
+          )}
+        </Section>
+
+        {/* YOUR PEOPLE */}
+        {hasPeople && (
+          <Section title="Your people" meta="crew · duels · league">
+            <div>
+              {pe.crew_name && (
+                <FactRow icon={Users} label={pe.crew_name}
+                         detail={num(pe.crew_messages) > 0 ? `${n0(pe.crew_messages)} messages from you` : 'your crew'} />
+              )}
+              {num(pe.duels_played) > 0 && (
+                <FactRow icon={Swords} label="Duels"
+                         detail={`won ${n0(pe.duels_won)} of ${n0(pe.duels_played)}`}
+                         value={`${num(pe.duels_won)}–${num(pe.duels_played) - num(pe.duels_won)}`} />
+              )}
+              {pe.league_rank != null && (
+                <FactRow icon={Trophy}
+                         label={pe.league_tier ? `${pe.league_tier} league` : 'League'}
+                         detail={`${n0(pe.league_days)} active days · ${n0(pe.league_xp)} weekly XP`}
+                         value={`#${pe.league_rank}`} />
+              )}
+              {num(pe.gym_days) > 0 && (
+                <FactRow icon={Dumbbell} label="Gym check-ins"
+                         detail="days you scanned in at your gym"
+                         value={n0(pe.gym_days)} last />
+              )}
+            </div>
+          </Section>
+        )}
+
+        {/* THE READ — without a sentence that names something specific from
+            the week, everything above is a scoreboard rather than a review. */}
+        {insight && (
+          <div className="rounded-xl bg-secondary/40 border border-border px-3 py-3">
+            <p className="text-micro font-bold uppercase tracking-widest text-primary mb-1">The read</p>
+            <p className="text-[13px] text-foreground leading-relaxed">{insight}</p>
           </div>
         )}
       </div>

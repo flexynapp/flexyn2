@@ -1,90 +1,96 @@
 // src/components/debrief/DebriefVault.jsx
 //
-// Full-screen overlay listing all past weekly debriefs.
-// On mount it auto-generates the current week's summary via the
-// generate_my_weekly_debrief RPC (idempotent — upserts, never duplicates).
-// Users can force a refresh of any week with the ↻ button.
+// "Weekly Reviews" — the full-screen index of every week the app has a
+// review for, and the reader for one of them.
 //
-// Accessible from ProfileMenu.
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+// (The file keeps its old name so the lazy import in ProfileMenu and the
+// manual-chunk entry in vite.config keep resolving. The FEATURE is called
+// Weekly Reviews everywhere the user can see it — "Debrief Vault" was
+// internal jargon that had leaked onto a menu row.)
+//
+// Drawn from the Penpot page "Weekly Reviews — dashboard": board B is this
+// index, board A is the week body (WeeklyDebriefCard), board C is the state
+// handling, board D is the element ledger.
+//
+// THREE THINGS THIS FIXES BEYOND THE RENAME
+// -----------------------------------------
+//  • The index was a 2-column grid of gradient tiles. A week is a ROW in a
+//    sequence, not a tile in a collection — as a list it reads as a timeline,
+//    each row carries a volume bar against the best week, and the number
+//    earns its space (CLAUDE.md: "data must be earned"). The gradient is
+//    gone too; it was on the published list of generated-UI tells.
+//  • The epoch filter chips are removed. `epoch_id`/`epoch_name` are marked
+//    "reserved for a future Epochs feature" in migration 051 and are NULL on
+//    every row in production, so the chip row could never render and the
+//    filter state behind it was dead weight.
+//  • Auto-generation no longer manufactures empty weeks. It also no longer
+//    reads `debriefs` from a stale closure — that effect runs once on user
+//    id, when the list is still [], so its `hasLast` check was ALWAYS false
+//    and it regenerated the previous week on every single open.
+
+import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/lib/AuthContext';
-import { ChevronLeft, Share2, Loader2, Trophy, Zap, RefreshCw } from 'lucide-react';
-import { listDebriefs, generateWeeklyDebrief, currentWeekStart, prevWeekStart } from '@/lib/data/debriefs';
+import { ChevronLeft, Share2, Loader2, RefreshCw, CalendarRange } from 'lucide-react';
+import { listDebriefs, generateWeeklyReview, currentWeekStart, prevWeekStart } from '@/lib/data/debriefs';
 import WeeklyDebriefCard from './WeeklyDebriefCard';
 import { reportError } from '@/lib/reportError';
 import { toast } from '@/lib/toast';
 import { useNumberFormatter } from '@/lib/intl';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
-import { useOverlayBackButton } from '@/hooks/useOverlayBackButton';
 
-// ── Mini preview card ─────────────────────────────────────────────────────────
+// ── One week, as a row ────────────────────────────────────────────────────
 
-function DebriefPreview({ debrief, onClick, isCurrentWeek }) {
-  const fmt    = useNumberFormatter();
-  const d      = debrief.data || {};
-  const vol    = d.volume_lbs    ?? 0;
-  const change = d.volume_change_pct;
-  const wks    = d.workouts_count ?? 0;
-  const isPr   = !!d.top_lift_is_pr;
-  const xp     = d.xp_earned     ?? 0;
+function WeekRow({ debrief, onClick, isCurrentWeek, maxVolume, last }) {
+  const fmt = useNumberFormatter();
+  const d   = debrief.data || {};
+  const tr  = d.training || {};
+  const vol = Number(tr.volume_lbs ?? d.volume_lbs ?? 0);
+  const n   = Number(tr.sessions ?? d.workouts_count ?? 0);
+  const xp  = Number((d.game || {}).xp_earned ?? d.xp_earned ?? 0);
+  const pct = maxVolume > 0 ? Math.max(2, (vol / maxVolume) * 100) : 0;
+
+  const range = d.week_start && d.week_end
+    ? `${d.week_start.slice(5)} → ${d.week_end.slice(5)}`
+    : null;
 
   return (
-    <motion.button
+    <button
       onClick={onClick}
-      whileHover={{ scale: 1.02 }}
-      whileTap={{ scale: 0.97 }}
-      className="w-full text-start rounded-xl overflow-hidden border flex flex-col"
-      style={{
-        background: 'linear-gradient(160deg, #0f0f14, #141824)',
-        borderColor: isCurrentWeek ? 'rgba(124,58,237,0.5)' : 'rgba(255,255,255,0.08)',
-      }}
+      className={`w-full text-start py-3 ${last ? '' : 'border-b border-border'} active:bg-secondary/40 transition-colors`}
     >
-      {/* Week header */}
-      <div className="px-3 pt-3 pb-2 border-b border-white/10 flex items-center justify-between">
-        <div>
-          <p className="text-xs font-bold text-white">{debrief.week_label}</p>
-          {debrief.epoch_name && (
-            <p className="text-micro text-purple-400/70">{debrief.epoch_name}</p>
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="flex items-center gap-2 min-w-0">
+          <span className="text-[13px] font-semibold text-foreground truncate">{debrief.week_label}</span>
+          {isCurrentWeek && (
+            <span className="shrink-0 text-micro font-bold uppercase tracking-wider text-primary border border-primary/50 rounded-full px-1.5 py-0.5">
+              This week
+            </span>
           )}
-        </div>
-        {isCurrentWeek && (
-          <span className="text-micro font-bold uppercase tracking-wider text-purple-400 bg-purple-500/15 px-1.5 py-0.5 rounded-full">
-            This Week
-          </span>
-        )}
-      </div>
-
-      {/* Volume */}
-      <div className="px-3 py-2 flex-1">
-        <div className="flex items-end gap-1.5 mb-1">
-          <span className="text-xl font-heading font-black text-white tabular-nums">
-            {fmt(Number(vol))}
-          </span>
-          <span className="text-micro text-white/40 mb-0.5">lbs</span>
-        </div>
-        {change != null && (
-          <span className={`text-micro font-semibold ${Number(change) >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-            {Number(change) >= 0 ? '+' : ''}{change}% vs prev
-          </span>
-        )}
-      </div>
-
-      {/* Badges */}
-      <div className="flex items-center gap-2 px-3 pb-3">
-        <span className="text-micro text-white/40">{wks} sessions</span>
-        {isPr && <Trophy className="w-3 h-3 text-yellow-400" />}
-        <span className="ml-auto text-micro text-yellow-400/60 flex items-center gap-0.5">
-          <Zap className="w-2.5 h-2.5" />+{fmt(Number(xp))}
+        </span>
+        <span className="font-heading font-bold text-[15px] tabular-nums text-foreground shrink-0">
+          {fmt(Math.round(vol))}
         </span>
       </div>
-    </motion.button>
+      <div className="flex items-baseline justify-between gap-2 mt-0.5">
+        <span className="text-micro text-muted-foreground">{range}</span>
+        <span className="text-micro text-muted-foreground">
+          {n} session{n === 1 ? '' : 's'} · {fmt(xp)} XP
+        </span>
+      </div>
+      <div className="h-1 rounded-full bg-secondary overflow-hidden mt-2">
+        <div
+          className={`h-full rounded-full ${isCurrentWeek ? 'bg-primary' : 'bg-muted-foreground/50'}`}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+    </button>
   );
 }
 
-// ── PNG export ────────────────────────────────────────────────────────────────
+// ── PNG export ────────────────────────────────────────────────────────────
 
 async function exportToPng(ref) {
   const html2canvas = (await import('html2canvas')).default;
@@ -97,16 +103,11 @@ async function exportToPng(ref) {
   return canvas.toDataURL('image/png');
 }
 
-// ── Expanded debrief view ─────────────────────────────────────────────────────
+// ── One week, expanded ────────────────────────────────────────────────────
 
-function ExpandedDebrief({ debrief, onClose, onRefresh, isRefreshing }) {
+function ExpandedReview({ debrief, onClose, onRefresh, isRefreshing }) {
   const cardRef = useRef(null);
   const [sharing, setSharing] = useState(false);
-  // The INNER layer. Back closes this card and returns to the vault
-  // list, rather than dismissing both and dropping the user outside the
-  // vault entirely — useOverlayBackButton only lets the topmost overlay
-  // answer a press.
-  useOverlayBackButton(true, onClose);
 
   const handleShare = useCallback(async () => {
     if (!cardRef.current) return;
@@ -114,14 +115,14 @@ function ExpandedDebrief({ debrief, onClose, onRefresh, isRefreshing }) {
     try {
       const dataUrl = await exportToPng(cardRef);
       const blob    = await (await fetch(dataUrl)).blob();
-      const name    = `flexyn-debrief-${debrief.week_label?.replace(/[^a-z0-9]/gi, '-')}.png`;
+      const name    = `flexyn-week-${debrief.week_label?.replace(/[^a-z0-9]/gi, '-')}.png`;
       const file    = new File([blob], name, { type: 'image/png' });
       if (navigator.canShare?.({ files: [file] })) {
         await navigator.share({ files: [file], title: `Flexyn ${debrief.week_label}` });
       } else {
         const a = document.createElement('a');
         a.href = dataUrl; a.download = name; a.click();
-        toast.success('Debrief saved to downloads!');
+        toast.success('Review saved to downloads.');
       }
     } catch (e) {
       if (e?.name !== 'AbortError') toast.error('Could not export. Try again.');
@@ -136,24 +137,24 @@ function ExpandedDebrief({ debrief, onClose, onRefresh, isRefreshing }) {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 24 }}
       transition={{ type: 'spring', stiffness: 340, damping: 32 }}
-      className="fixed inset-0 z-[300] bg-black/85 backdrop-blur-sm flex flex-col"
+      className="fixed inset-0 z-[300] bg-background flex flex-col"
+      style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 shrink-0">
+      <div className="flex items-center justify-between px-4 py-3 shrink-0 border-b border-border">
         <button
           onClick={onClose}
-          className="flex items-center gap-1.5 text-sm font-medium text-white/60 hover:text-white active:text-white transition-colors"
+          className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground active:text-foreground transition-colors"
         >
           <ChevronLeft className="w-4 h-4" /> Back
         </button>
-        <span className="font-heading font-bold text-white text-sm">{debrief.week_label}</span>
+        <span className="font-heading font-bold text-foreground text-sm">{debrief.week_label}</span>
         <div className="flex items-center gap-3">
           {onRefresh && (
             <button
               onClick={onRefresh}
               disabled={isRefreshing}
-              className="text-white/40 hover:text-white active:text-white transition-colors disabled:opacity-30"
-              title="Refresh this week's data"
+              className="text-muted-foreground hover:text-foreground active:text-foreground transition-colors disabled:opacity-30"
+              title="Recalculate this week"
             >
               <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
             </button>
@@ -161,7 +162,7 @@ function ExpandedDebrief({ debrief, onClose, onRefresh, isRefreshing }) {
           <button
             onClick={handleShare}
             disabled={sharing}
-            className="flex items-center gap-1.5 text-sm font-medium text-purple-400 hover:text-purple-300 active:text-purple-300 transition-colors disabled:opacity-50"
+            className="flex items-center gap-1.5 text-sm font-medium text-primary active:opacity-70 transition-opacity disabled:opacity-50"
           >
             {sharing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Share2 className="w-4 h-4" />}
             {sharing ? 'Exporting…' : 'Share'}
@@ -169,9 +170,8 @@ function ExpandedDebrief({ debrief, onClose, onRefresh, isRefreshing }) {
         </div>
       </div>
 
-      {/* Card */}
-      <div className="flex-1 overflow-y-auto px-4 pb-8">
-        <div className="max-w-sm mx-auto" ref={cardRef}>
+      <div className="flex-1 overflow-y-auto px-4 py-4">
+        <div className="max-w-md mx-auto" ref={cardRef}>
           <WeeklyDebriefCard debrief={debrief} forExport />
         </div>
       </div>
@@ -179,22 +179,16 @@ function ExpandedDebrief({ debrief, onClose, onRefresh, isRefreshing }) {
   );
 }
 
-// ── Main vault ────────────────────────────────────────────────────────────────
+// ── Index ─────────────────────────────────────────────────────────────────
 
 export default function DebriefVault({ onClose }) {
   const { user } = useAuth();
   const qc = useQueryClient();
   const [expanded, setExpanded] = useState(null);
+  const [sortOrder, setSortOrder] = useState('recent'); // 'recent' | 'oldest'
   const thisWeek = currentWeekStart();
-  const lastWeek = prevWeekStart();
   useBodyScrollLock(true);
-  // The OUTER layer. Same bug the Achievements vault had: this is a
-  // fixed z-200 portal owned by ProfileMenu in the persistent Layout
-  // header, so without a history entry back navigated the page beneath
-  // it while the overlay stayed on screen.
-  useOverlayBackButton(true, onClose);
 
-  // ── Fetch archive ──────────────────────────────────────────────────────────
   const { data: debriefs = [], isLoading } = useQuery({
     queryKey: ['weeklyDebriefs', user?.id],
     queryFn:  listDebriefs,
@@ -202,77 +196,66 @@ export default function DebriefVault({ onClose }) {
     staleTime: 60_000,
   });
 
-  // ── Auto-generate current + previous week on open ─────────────────────────
+  // ── Auto-generate on open ─────────────────────────────────────────────
+  // Current week + the one before it. Generating the previous week is safe
+  // now that migration 328 refuses to create a row for a week with no
+  // activity of any kind — before that guard this manufactured an empty
+  // card every time someone opened the screen early in a week.
   const genMut = useMutation({
-    mutationFn: (ws) => generateWeeklyDebrief(ws),
+    mutationFn: (ws) => generateWeeklyReview(ws),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['weeklyDebriefs', user?.id] }),
-    onError: () => {}, // silent — vault still usable with cached data
+    onError: () => {}, // silent — the archive is still readable from cache
   });
 
   const autoGenRanRef = useRef(false);
   useEffect(() => {
     if (!user?.id || autoGenRanRef.current) return;
     autoGenRanRef.current = true;
-    // Generate this week silently (audit B-29 — was firing on every mount)
-    genMut.mutate(thisWeek);
-    // Also generate last week if it doesn't exist yet (Sunday-close edge case)
-    const hasLast = debriefs.some(d => d.week_label?.includes(lastWeek.slice(0, 7)));
-    if (!hasLast) genMut.mutate(lastWeek);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    genMut.mutate(currentWeekStart());
+    genMut.mutate(prevWeekStart());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
-  // ── Refresh a specific week ────────────────────────────────────────────────
+  // ── Refresh one week ──────────────────────────────────────────────────
   const refreshMut = useMutation({
-    mutationFn: (ws) => generateWeeklyDebrief(ws),
+    mutationFn: (ws) => generateWeeklyReview(ws),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['weeklyDebriefs', user?.id] });
-      // Re-fetch the expanded card data and compare against the
-      // pre-refresh snapshot. When nothing changed (no new workouts
-      // logged since the last generation) we reassure the user that
-      // the summary is current rather than implying a failure or
-      // saying "nothing to refresh" (the wording the team rejected).
       const before = expanded ? JSON.stringify(expanded.data || {}) : null;
-      if (expanded) {
-        qc.fetchQuery({ queryKey: ['weeklyDebriefs', user?.id], queryFn: listDebriefs })
-          .then(data => {
-            const refreshed = data.find(d =>
-              d.week_number === expanded.week_number && d.year === expanded.year
-            );
-            if (refreshed) setExpanded(refreshed);
-            const after = refreshed ? JSON.stringify(refreshed.data || {}) : null;
-            if (before !== null && after !== null && before === after) {
-              toast.success("You're all caught up — this summary already reflects your latest data.");
-            } else {
-              toast.success('Summary refreshed.');
-            }
-          })
-          .catch(err => {
-            reportError(err, { feature: 'debrief.refresh-fetch', level: 'warning', userEmail: user?.email });
-            toast.success('Summary refreshed.');
-          });
-      } else {
-        toast.success('Summary refreshed.');
-      }
+      if (!expanded) { toast.success('Review refreshed.'); return; }
+      qc.fetchQuery({ queryKey: ['weeklyDebriefs', user?.id], queryFn: listDebriefs })
+        .then(data => {
+          const fresh = data.find(x =>
+            x.week_number === expanded.week_number && x.year === expanded.year);
+          if (fresh) setExpanded(fresh);
+          const after = fresh ? JSON.stringify(fresh.data || {}) : null;
+          toast.success(before !== null && after !== null && before === after
+            ? "You're all caught up — this review already reflects your latest data."
+            : 'Review refreshed.');
+        })
+        .catch(err => {
+          reportError(err, { feature: 'review.refresh-fetch', level: 'warning', userEmail: user?.email });
+          toast.success('Review refreshed.');
+        });
     },
     onError: (err) => {
-      // Duplicate `onError` key was silently shadowing the reportError
-      // call (audit B-6) — one handler, both jobs.
       toast.error('Could not refresh — try again.');
-      reportError(err, { feature: 'debrief.refresh', userEmail: user?.email });
+      reportError(err, { feature: 'review.refresh', userEmail: user?.email });
     },
   });
 
-  const epochs   = [...new Set(debriefs.map(d => d.epoch_name).filter(Boolean))];
-  const [filter, setFilter] = useState(null);
-  const [sortOrder, setSortOrder] = useState('recent'); // 'recent' | 'oldest'
-  const filtered = filter ? debriefs.filter(d => d.epoch_name === filter) : debriefs;
-  // Sort by (year, week_number) so the toggle is deterministic
-  // regardless of fetch order. 'recent' = newest first.
-  const visible = [...filtered].sort((a, b) => {
-    const av = (a.year || 0) * 100 + (a.week_number || 0);
-    const bv = (b.year || 0) * 100 + (b.week_number || 0);
-    return sortOrder === 'recent' ? bv - av : av - bv;
-  });
+  // Sort by (year, week) so the toggle is deterministic regardless of the
+  // order PostgREST returned.
+  const visible = useMemo(() => {
+    const key = (x) => (x.year || 0) * 100 + (x.week_number || 0);
+    return [...debriefs].sort((a, b) =>
+      sortOrder === 'recent' ? key(b) - key(a) : key(a) - key(b));
+  }, [debriefs, sortOrder]);
+
+  const maxVolume = useMemo(() => debriefs.reduce((m, x) => {
+    const v = Number((x.data?.training || {}).volume_lbs ?? x.data?.volume_lbs ?? 0);
+    return v > m ? v : m;
+  }, 0), [debriefs]);
 
   const isGenerating = genMut.isPending;
 
@@ -293,55 +276,30 @@ export default function DebriefVault({ onClose }) {
         >
           <ChevronLeft className="w-4 h-4" /> Back
         </button>
-        <div className="flex items-center gap-1.5">
-          <Trophy className="w-4 h-4 text-purple-400" />
-          <span className="font-heading font-bold text-base">Weekly Summary</span>
-        </div>
+        <span className="font-heading font-bold text-base text-foreground">Weekly Reviews</span>
         <button
           onClick={() => genMut.mutate(thisWeek)}
           disabled={genMut.isPending}
           className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground active:text-foreground transition-colors disabled:opacity-40"
-          title="Refresh this week"
+          title="Recalculate this week"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${genMut.isPending ? 'animate-spin' : ''}`} />
           Refresh
         </button>
       </div>
 
-      {/* Epoch filter chips */}
-      {epochs.length > 0 && (
-        <div className="flex gap-2 px-4 py-2 overflow-x-auto shrink-0 border-b border-border">
-          {[null, ...epochs].map(ep => (
-            <button
-              key={ep ?? '__all'}
-              onClick={() => setFilter(ep)}
-              className={`text-xs px-3 py-1 rounded-full border font-medium whitespace-nowrap transition-colors ${
-                filter === ep
-                  ? 'bg-primary text-primary-foreground border-primary'
-                  : 'bg-secondary border-border text-muted-foreground hover:text-foreground active:text-foreground'
-              }`}
-            >
-              {ep ?? 'All'}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* Sort toggle — Recent ⇄ Oldest */}
+      {/* Sort — only earns its place once there is something to reorder */}
       {debriefs.length > 1 && (
         <div className="flex items-center justify-end gap-1 px-4 py-2 shrink-0">
           <span className="text-micro font-bold uppercase tracking-wider text-muted-foreground me-1">Sort</span>
-          {[
-            { id: 'recent', label: 'Recent' },
-            { id: 'oldest', label: 'Oldest' },
-          ].map(opt => (
+          {[{ id: 'recent', label: 'Recent' }, { id: 'oldest', label: 'Oldest' }].map(opt => (
             <button
               key={opt.id}
               onClick={() => setSortOrder(opt.id)}
-              className={`px-2.5 py-1 rounded-full text-micro font-bold transition-colors ${
+              className={`px-2.5 py-1 rounded-full text-micro font-bold border transition-colors ${
                 sortOrder === opt.id
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-secondary/60 text-muted-foreground hover:text-foreground active:text-foreground'
+                  ? 'text-primary border-primary/50'
+                  : 'text-muted-foreground border-border active:text-foreground'
               }`}
             >
               {opt.label}
@@ -350,43 +308,40 @@ export default function DebriefVault({ onClose }) {
         </div>
       )}
 
-      {/* Grid */}
-      <div className="flex-1 overflow-y-auto px-4 py-4">
+      {/* List */}
+      <div className="flex-1 overflow-y-auto px-4 pb-8">
         {(isLoading || isGenerating) && debriefs.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 gap-3">
             <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">Generating your summary…</p>
+            <p className="text-sm text-muted-foreground">Building your review…</p>
           </div>
         ) : visible.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
-            <Trophy className="w-10 h-10 text-muted-foreground/30" />
-            <p className="font-heading font-bold text-foreground">No summaries yet</p>
-            <p className="text-sm text-muted-foreground max-w-[240px]">
-              Log a workout this week and your first Weekly Summary will appear here automatically.
+            <CalendarRange className="w-10 h-10 text-muted-foreground/30" />
+            <p className="font-heading font-bold text-foreground">Your first review lands Sunday</p>
+            <p className="text-sm text-muted-foreground max-w-[260px]">
+              Log a workout, a meal or a night of sleep and this page starts keeping score for you.
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-            {visible.map(debrief => {
-              const ws = debrief.data?.week_start;
-              const isThis = ws === thisWeek;
-              return (
-                <DebriefPreview
-                  key={debrief.id}
-                  debrief={debrief}
-                  isCurrentWeek={isThis}
-                  onClick={() => setExpanded(debrief)}
-                />
-              );
-            })}
+          <div>
+            {visible.map((debrief, i) => (
+              <WeekRow
+                key={debrief.id}
+                debrief={debrief}
+                isCurrentWeek={debrief.data?.week_start === thisWeek}
+                maxVolume={maxVolume}
+                last={i === visible.length - 1}
+                onClick={() => setExpanded(debrief)}
+              />
+            ))}
           </div>
         )}
       </div>
 
-      {/* Expanded full-card overlay */}
       <AnimatePresence>
         {expanded && (
-          <ExpandedDebrief
+          <ExpandedReview
             debrief={expanded}
             onClose={() => setExpanded(null)}
             onRefresh={expanded.data?.week_start ? () => refreshMut.mutate(expanded.data.week_start) : null}

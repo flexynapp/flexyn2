@@ -741,6 +741,22 @@ export default function Workout() {
         data = { ...data, exercises: clampedExercises };
       }
 
+      // Persist the session's volume ONTO THE LOG ROW. It was computed a few
+      // lines below as `sessionVolume`, spent crediting the profile's
+      // total_volume_lbs, and then dropped — so `workout_logs.total_volume`
+      // had never been written by anything, on any row, ever. Every reader of
+      // that column was therefore reading a hard zero: the weekly review said
+      // "0 lbs" beside a real session (verified in production — one log
+      // derives to 4,995 lbs and stores 0), My Journal's day chips suppressed
+      // volume entirely, and the gym floor under-reported. The review now
+      // derives volume from the sets so it no longer depends on this, but the
+      // other readers still do, and a denormalised column that nothing writes
+      // is worse than no column at all.
+      //
+      // Computed AFTER the set filtering and the per-group clamp above, so
+      // the stored number matches the sets that actually persist.
+      data = { ...data, total_volume: calculateTotalVolume(data.exercises) };
+
       const workoutLog = await db.entities.WorkoutLog.create(data);
       // Audit C-2 — duplicate detection. The db.js shim returns
       // __duplicate=true when a prior attempt with the same

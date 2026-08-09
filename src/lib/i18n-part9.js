@@ -107,7 +107,7 @@ const missingKeys = {
     'profile.achievements': 'Achievements',
     'profile.myBag': 'My Bag',
     'profile.myJournal': 'My Journal',
-    'profile.debriefVault': 'Debrief Vault',
+    'profile.debriefVault': 'Weekly Reviews',
     'profile.myInjuries': 'My Injuries',
 
     // ── TemplatesModal ─────────────────────────────────────────────────────
