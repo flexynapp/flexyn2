@@ -9,6 +9,18 @@ import {
   RarityBadge, RarityFrame, RarityGlow, CoinAmount,
 } from '@/components/loot/RarityVisuals';
 
+// The width half of MarketplaceFeed's LISTING_ROW — the two only work as a
+// pair, so change them together. The feed's row wraps and centres instead of
+// laying cards out on grid tracks (a grid strands a partial last row on the
+// left), which leaves nothing to size a card, so it carries its own width.
+//
+// A calc rather than a flat percentage because the row is gap-3: at 12px gaps
+// a percentage low enough to survive a narrow phone is visibly thinner than
+// the track it replaces, and one matching the track on a wide phone overflows
+// a narrow one and drops 2-up to 1-up. This reproduces the grid column exactly
+// at any width, less 1px so rounding can't wrap the last card of a full row.
+const FEED_TILE = 'shrink-0 basis-[calc((100%_-_0.75rem)/2_-_1px)] sm:basis-[calc((100%_-_1.5rem)/3_-_1px)]';
+
 export default function ListingCard({
   listing,
   currentUser,
@@ -49,6 +61,7 @@ export default function ListingCard({
       exit={{ opacity: 0, scale: 0.95 }}
       className={[
         'flex flex-col p-3 gap-2 overflow-hidden transition-opacity',
+        FEED_TILE,
         isFeatured ? 'ring-2 ring-amber-400/70' : '',
         recentlySold ? 'pointer-events-none opacity-50' : '',
       ].join(' ')}

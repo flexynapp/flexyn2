@@ -15,6 +15,11 @@ import { RARITY } from '@/lib/lootCatalog';
 import { displayName } from '@/lib/userDisplay';
 import { RarityBadge, RarityFrame } from '@/components/loot/RarityVisuals';
 
+// Same wrapped-and-centred picker as ListItemDialog — see the note there.
+// Row and tile width only work as a pair.
+const PICKER_ROW  = 'flex flex-wrap justify-center gap-2';
+const PICKER_TILE = 'shrink-0 basis-[calc((100%_-_1rem)/3_-_1px)]';
+
 export default function TradeOfferDialog({ open, listing, userItems, user, onClose }) {
   const [selectedOffer, setSelectedOffer] = useState(null);
   const [busy, setBusy]                   = useState(false);
@@ -155,7 +160,7 @@ export default function TradeOfferDialog({ open, listing, userItems, user, onClo
               No eligible stickers to offer.
             </p>
           ) : (
-            <div className="grid grid-cols-3 gap-2 max-h-52 overflow-y-auto">
+            <div className={`${PICKER_ROW} max-h-52 overflow-y-auto`}>
               {eligibleItems.map(item => {
                 const picked = selectedOffer?.id === item.id;
                 return (
@@ -168,6 +173,7 @@ export default function TradeOfferDialog({ open, listing, userItems, user, onClo
                     onClick={() => setSelectedOffer(item)}
                     className={[
                       'flex flex-col items-center p-2 transition-all',
+                      PICKER_TILE,
                       // The old implementation tried to tint the selection
                       // ring with a React `ringColor` style prop, which
                       // isn't a real CSS property — so "picked" was

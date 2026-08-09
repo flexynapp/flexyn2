@@ -32,6 +32,26 @@ import ListItemDialog from './ListItemDialog';
 import TradeOfferDialog from './TradeOfferDialog';
 import BuyConfirmDialog from './BuyConfirmDialog';
 
+// The listings row wraps and centres rather than sitting on grid tracks. A
+// grid packs a partial last row into its LEADING columns, and a marketplace
+// holds however many listings it holds — so any count that isn't a multiple
+// of the column count left its final cards stranded on the left. Same fix as
+// the capsule haul, the collection catalog and the Bag.
+//
+// `items-start` carries over verbatim: in a flex row it stops a card
+// stretching to the tallest card on its line, which is what it did as a grid
+// property and what keeps a short listing from growing to match a tall one.
+//
+// The matching width lives on ListingCard (FEED_TILE, in ListingCard.jsx) —
+// the two halves only work as a pair, and a row with no tile width collapses
+// every card to its content.
+//
+// NOT applied to the bundles row above it. Every BundleCard is `col-span-full`
+// — that grid is a full-width stack, so it has no partial row to centre, and
+// `col-span-full` is a GRID property that a flex container silently ignores.
+// Converting it would collapse each bundle to its content width.
+const LISTING_ROW = 'flex flex-wrap justify-center items-start gap-3';
+
 // The filter bar's sort maps onto listActive's two params. Keeping the
 // SERVER order in sync with the chosen sort matters: listActive caps at 60
 // rows, so "price high→low" has to fetch the 60 most expensive listings,
@@ -464,7 +484,7 @@ export default function MarketplaceFeed() {
             </div>
           )}
 
-          <motion.div layout className="grid grid-cols-2 sm:grid-cols-3 gap-3 items-start">
+          <motion.div layout className={LISTING_ROW}>
             <AnimatePresence>
               {visibleListings.map(listing => (
                 <ListingCard

@@ -24,6 +24,15 @@ import {
   listPublishedListings, listMyPurchasedListingIds, startCheckout,
 } from '@/lib/data/trainerMarket';
 
+// Program cards wrap and centre rather than sitting on grid tracks — a grid
+// strands a partial last row on the left, and the number of published programs
+// is arbitrary. `basis-full` reproduces `grid-cols-1` exactly on a phone (one
+// card per row, so centring is a no-op there); it only takes effect from sm,
+// where an odd count used to leave the last card in the left column. Row and
+// card width only work as a pair.
+const PROGRAM_ROW  = 'flex flex-wrap justify-center gap-3';
+const PROGRAM_CARD = 'shrink-0 basis-full sm:basis-[calc((100%_-_0.75rem)/2_-_1px)]';
+
 export default function TrainerMarket() {
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -131,7 +140,7 @@ export default function TrainerMarket() {
         />
       ) : (
         <ErrorBoundary label="TrainerMarket.grid">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className={PROGRAM_ROW}>
           {listings.map(listing => {
             const owned = ownedIds.has(listing.id);
             const busy = buyingId === listing.id;
@@ -145,7 +154,7 @@ export default function TrainerMarket() {
               <motion.div
                 key={listing.id}
                 whileHover={{ y: -2 }}
-                className="rounded-2xl border border-border bg-card p-4 flex flex-col"
+                className={`rounded-2xl border border-border bg-card p-4 flex flex-col ${PROGRAM_CARD}`}
               >
                 <div className="flex items-start justify-between gap-2 mb-1">
                   <p className="font-heading font-bold text-base leading-tight">{listing.title}</p>
