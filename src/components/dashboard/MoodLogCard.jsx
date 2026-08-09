@@ -13,6 +13,8 @@ import { Card } from '@/components/ui/card';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { upsertMoodLog, getTodayMoodLog, MOOD_EMOJIS, MOOD_LABELS } from '@/lib/data/moodLogs';
+import * as quests from '@/lib/data/quests';
+import { ACTION_TYPES } from '@/lib/questCatalog';
 import { tagMood } from '@/lib/data/journal';
 
 export default function MoodLogCard() {
@@ -101,6 +103,12 @@ export default function MoodLogCard() {
         // Fire-and-forget — journal tagging failure is non-fatal.
         tagMood(user.id, user.email, mood, todayDateKey).catch(() => {});
         qc.invalidateQueries({ queryKey: ['journalEntry', user?.id] });
+        // Quest progress — non-blocking. Safe to fire on every tap: the
+        // quest's target is 1 and recordActions skips rows already at
+        // target, so changing your mood three times still counts once.
+        quests.recordAction(user, ACTION_TYPES.MOOD_LOGGED, 1)
+          .then(() => qc.invalidateQueries({ queryKey: ['dailyQuests'] }))
+          .catch(() => {});
       } else {
         // Revert to the value we showed before the tap, not whatever
         // `today` happens to hold after the await — those can diverge

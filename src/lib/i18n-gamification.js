@@ -85,10 +85,102 @@ export const gamificationI18n = {
     'quest.goal_complete.label':    'Complete a goal',
     'quest.goal_complete.desc':     'Cross the finish line.',
 
-    // Difficulty labels
+    // ── Quest catalog additions, Aug 2026 ────────────────────────────────
+    // TODO(i18n): English-only — needs a native pass for the other 14
+    // locales. Every one of these is reached through the
+    // `t(key) === key ? def.label : t(key)` fallback in the quest row, so a
+    // missing locale renders the catalog's English rather than a raw key.
+    // Do NOT machine-translate these (CLAUDE.md): they are user-facing
+    // prose, not the 37 short equipment labels that got the one exception.
+    'quest.cardio_session.label':   'Log a cardio session',
+    'quest.cardio_session.desc':    'Any distance, any pace.',
+    'quest.log_sleep.label':        "Log last night's sleep",
+    'quest.log_sleep.desc':         'Recovery is training too.',
+    'quest.log_mood.label':         'Check in on how you feel',
+    'quest.log_mood.desc':          'One tap. It sharpens your readiness score.',
+    'quest.steps_5k.label':         'Walk 5,000 steps',
+    'quest.steps_5k.desc':          'Movement between sessions counts.',
+    'quest.hub_react_3.label':      'React to 3 posts',
+    'quest.hub_react_3.desc':       'Back someone else up.',
+    'quest.log_body_metric.label':  'Log a body measurement',
+    'quest.log_body_metric.desc':   'Weight, waist, anything you track.',
+    'quest.workout_30min.label':    'Train for 30 minutes',
+    'quest.workout_30min.desc':     'A solid middle-of-the-week session.',
+    'quest.sets_20.label':          'Finish 20 working sets',
+    'quest.sets_20.desc':           'Volume, counted honestly.',
+    'quest.steps_10k.label':        'Walk 10,000 steps',
+    'quest.steps_10k.desc':         'The classic. Still works.',
+    'quest.hub_comment_2.label':    'Leave 2 comments on Hub',
+    'quest.hub_comment_2.desc':     'Say something worth reading.',
+    'quest.cardio_double.label':    'Log 2 cardio sessions',
+    'quest.cardio_double.desc':     'Morning and evening, or two of anything.',
+    'quest.volume_10k.label':       'Move 10,000 lb of volume',
+    'quest.volume_10k.desc':        'Sets times reps times weight.',
+    'quest.workout_60min.label':    'Train for a full hour',
+    'quest.workout_60min.desc':     'No shortcuts today.',
+    'quest.sets_40.label':          'Finish 40 working sets',
+    'quest.sets_40.desc':           'A long session, or two short ones.',
+    'quest.volume_25k.label':       'Move 25,000 lb of volume',
+    'quest.volume_25k.desc':        'A heavy day, honestly logged.',
+    'quest.steps_15k.label':        'Walk 15,000 steps',
+    'quest.steps_15k.desc':         'On your feet all day.',
+    'quest.crew_workout.label':     'Bank a session for your crew',
+    'quest.crew_workout.desc':      'Complete a workout — the XP goes to the crew too.',
+    'quest.crew_cardio.label':      'Run one for the crew',
+    'quest.crew_cardio.desc':       'Log a cardio session — the XP goes to the crew too.',
+    'quest.crew_chat_3.label':      'Post 3 messages in crew chat',
+    'quest.crew_chat_3.desc':       'A crew that talks is a crew that trains.',
+    'quest.crew_steps_8k.label':    'Walk 8,000 steps for the crew',
+    'quest.crew_steps_8k.desc':     'Steps count for the crew as much as the bar does.',
+
+    // Difficulty labels.
+    //
+    // DEAD as of Aug 2026 — nothing reads `quest.difficulty.*`. The tier chip
+    // in QuestsSheet uses `quests.tier.*` instead, which is where the new
+    // 'crew' value lives. Left in place rather than deleted because the other
+    // 14 languages carry translations for these three and removing them would
+    // move the i18n coverage denominator for no gain; there is deliberately
+    // no `quest.difficulty.crew` to match, because adding a key to a dead
+    // namespace only makes the next person think it's live.
     'quest.difficulty.easy':   'easy',
     'quest.difficulty.medium': 'medium',
     'quest.difficulty.hard':   'hard',
+
+    // ── Quests sheet ─────────────────────────────────────────────────────
+    // TODO(i18n): English-only, same note as above. All reached via
+    // tFallback so a missing locale shows this English, never a key.
+    'quests.kicker':          'DAILY QUESTS · TODAY',
+    'quests.heading':         '{n} to go',
+    'quests.headingPerfect':  'Perfect day',
+    'quests.sub':             'Claim every quest today for the perfect-day bonus and to keep your streak alive.',
+    'quests.subPerfect':      'Everything today is claimed. New set at midnight, your local time.',
+    'quests.streak':          'Day streak',
+    'quests.longest':         'Best run',
+    'quests.perfectDays':     'Perfect days',
+    'quests.streakBroken':    'Your run ended. Claim everything today to start a new one.',
+    'quests.listHeading':     "Today's set",
+    'quests.listSub':         'Tap a quest to go where you can finish it.',
+    'quests.bonusHeading':    'FINISH ALL {n}',
+    'quests.bonusPending':    'Perfect-day bonus',
+    'quests.bonusEarned':     'Perfect-day bonus banked',
+    'quests.bonusAuto':       'Paid automatically when you claim the last one.',
+    'quests.haulHeading':     'BANKED TODAY',
+    'quests.haulCrew':        "A quarter of every quest's XP goes to your crew on top of your own — a crew quest sends all of it. Nothing is taken from you to pay it.",
+    'quests.haulNoCrew':      'Join a crew and a share of every quest you claim goes to their level too — on top of your own XP, not out of it.',
+    'quests.crewShort':       'crew',
+    'quests.crewXp':          'crew XP',
+    'quests.crewBanked':      '{n} XP to your crew',
+    'quests.perfectDayToast': 'Perfect day — {n} day streak',
+    'quests.tier.easy':       'easy',
+    'quests.tier.medium':     'medium',
+    'quests.tier.hard':       'hard',
+    'quests.tier.crew':       'crew',
+    // Under `quests.`, not `dashboard.`, even though the card raises it:
+    // every string added in this pass is English-only pending a native
+    // review, and `dashboard.` is a heavily-translated namespace that the
+    // i18n coverage ratchet cannot exempt without hiding real regressions
+    // in the rest of it.
+    'quests.crewShareToast':  '{rewards} · your crew banks {crewXp} XP',
   },
 
   // ── Spanish ─────────────────────────────────────────────────────────────────

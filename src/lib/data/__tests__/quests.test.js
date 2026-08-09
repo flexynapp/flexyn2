@@ -17,10 +17,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const _state = {
-  // Map of questRowId -> { claimed: bool, reward: number }
+  // Map of questRowId -> { claimed: bool, reward: number, xp?, crewXp? }
   rows: {},
   coins: 0,
   rpcError: null,
+  perfectDay: null,
+  stats: null,
 };
 
 function simulateRpc(p_quest_row_id) {
@@ -43,7 +45,16 @@ function simulateRpc(p_quest_row_id) {
   row.claimed = true;
   _state.coins += row.reward;
   return {
-    data: { success: true, already_claimed: false, coins_awarded: row.reward, new_balance: _state.coins },
+    data: {
+      success: true, already_claimed: false,
+      coins_awarded: row.reward, new_balance: _state.coins,
+      // Migration 316 pays three currencies. `xp_awarded` is what
+      // grant_action_xp ACTUALLY credited after the daily cap, which is why
+      // the fixture lets a row declare a credited amount that differs from
+      // its nominal reward — see the capped-claim test below.
+      xp_awarded: row.xp ?? 0,
+      crew_xp_awarded: row.crewXp ?? 0,
+    },
     error: null,
   };
 }
@@ -53,6 +64,14 @@ vi.mock('@/api/supabaseClient', () => ({
     rpc: async (fnName, args) => {
       if (fnName === 'claim_quest_atomic') {
         return simulateRpc(args?.p_quest_row_id);
+      }
+      if (fnName === 'claim_perfect_day_bonus') {
+        if (_state.rpcError) return { data: null, error: _state.rpcError };
+        return { data: _state.perfectDay, error: null };
+      }
+      if (fnName === 'get_my_quest_stats') {
+        if (_state.rpcError) return { data: null, error: _state.rpcError };
+        return { data: _state.stats, error: null };
       }
       return { data: null, error: { code: '42883', message: `unknown RPC: ${fnName}` } };
     },
@@ -64,7 +83,7 @@ vi.mock('@/api/supabaseClient', () => ({
   },
 }));
 
-const { claimQuest } = await import('../quests');
+const { claimQuest, claimPerfectDayBonus, getQuestStats } = await import('../quests');
 
 const user = { id: 'uid', email: 'u@e.com' };
 
@@ -72,6 +91,8 @@ beforeEach(() => {
   _state.rows = {};
   _state.coins = 100;   // pretend wallet
   _state.rpcError = null;
+  _state.perfectDay = null;
+  _state.stats = null;
 });
 
 describe('claimQuest — happy path', () => {
@@ -106,10 +127,127 @@ describe('claimQuest — happy path', () => {
   });
 });
 
+describe('claimQuest — XP and crew XP (migration 316)', () => {
+  it('reports the XP and crew XP the server credited', async () => {
+    _state.rows['q1'] = { claimed: false, reward: 20, xp: 50, crewXp: 13 };
+    const got = await claimQuest(user, 'q1');
+    expect(got.success).toBe(true);
+    expect(got.xpAwarded).toBe(50);
+    expect(got.crewXpAwarded).toBe(13);
+  });
+
+  // The whole reason claim_quest_atomic returns the credited figure rather
+  // than the row's xp_reward: once the 'daily_quest' cap is spent,
+  // grant_action_xp credits 0 and the claim still succeeds. A client that
+  // rendered the catalog number would toast "+120 XP" over a zero grant.
+  it('reports zero XP for a claim the daily cap swallowed', async () => {
+    _state.rows['q1'] = { claimed: false, reward: 50, xp: 0, crewXp: 0 };
+    const got = await claimQuest(user, 'q1');
+    expect(got.success).toBe(true);
+    expect(got.coinsAwarded).toBe(50);   // coins are uncapped, still paid
+    expect(got.xpAwarded).toBe(0);
+  });
+
+  // A pre-316 host answers without the new keys. The client must read those
+  // as zero, not undefined — `+undefined XP` is what a missing ?? produces.
+  it('defaults the new fields to 0 on a pre-316 host', async () => {
+    _state.rows['q1'] = { claimed: false, reward: 20 };
+    const got = await claimQuest(user, 'q1');
+    expect(got.xpAwarded).toBe(0);
+    expect(got.crewXpAwarded).toBe(0);
+  });
+});
+
+describe('claimPerfectDayBonus', () => {
+  it('returns the bonus and the new streak on success', async () => {
+    _state.perfectDay = {
+      success: true, coins_awarded: 30, xp_awarded: 100,
+      crew_xp_awarded: 50, streak: 7,
+    };
+    const got = await claimPerfectDayBonus(user);
+    expect(got.success).toBe(true);
+    expect(got.coinsAwarded).toBe(30);
+    expect(got.xpAwarded).toBe(100);
+    expect(got.crewXpAwarded).toBe(50);
+    expect(got.streak).toBe(7);
+  });
+
+  // The card fires this speculatively after every claim rather than proving
+  // the day is finished first, so "not yet" has to be an ordinary answer.
+  it('reports not_complete without throwing when quests remain', async () => {
+    _state.perfectDay = { success: false, reason: 'not_complete', claimed: 2, total: 4 };
+    const got = await claimPerfectDayBonus(user);
+    expect(got.success).toBe(false);
+    expect(got.reason).toBe('not_complete');
+    expect(got.coinsAwarded).toBe(0);
+  });
+
+  it('reports already_claimed rather than paying twice', async () => {
+    _state.perfectDay = { success: false, reason: 'already_claimed', streak: 7 };
+    const got = await claimPerfectDayBonus(user);
+    expect(got.success).toBe(false);
+    expect(got.reason).toBe('already_claimed');
+  });
+
+  // A host that predates 316 has no such function. That is not an error
+  // worth surfacing — the bonus simply doesn't exist on that deployment.
+  it('returns a quiet failure on a pre-316 host', async () => {
+    _state.rpcError = { code: 'PGRST202', message: 'function not found' };
+    const got = await claimPerfectDayBonus(user);
+    expect(got.success).toBe(false);
+    expect(got.coinsAwarded).toBe(0);
+  });
+
+  it('returns failure for a missing user without calling the RPC', async () => {
+    const got = await claimPerfectDayBonus(null);
+    expect(got.success).toBe(false);
+  });
+});
+
+describe('getQuestStats', () => {
+  it('maps the RPC payload to camelCase', async () => {
+    _state.stats = {
+      current_streak: 5, longest_streak: 12, perfect_days: 30,
+      quests_claimed: 91, coins_earned: 1200, xp_earned: 3400,
+      crew_xp_earned: 800, bonus_claimed_today: true, is_current: true,
+    };
+    const got = await getQuestStats(user);
+    expect(got.currentStreak).toBe(5);
+    expect(got.longestStreak).toBe(12);
+    expect(got.crewXpEarned).toBe(800);
+    expect(got.bonusClaimedToday).toBe(true);
+    expect(got.isCurrent).toBe(true);
+  });
+
+  // isCurrent is the field the sheet reads, because current_streak KEEPS its
+  // value after a break until the next perfect day overwrites it. Rendering
+  // it raw tells someone they're on a 12-day run four days after they lost
+  // it.
+  it('carries a broken streak through as isCurrent false', async () => {
+    _state.stats = { current_streak: 12, longest_streak: 12, is_current: false };
+    const got = await getQuestStats(user);
+    expect(got.currentStreak).toBe(12);
+    expect(got.isCurrent).toBe(false);
+  });
+
+  it('returns zeroes rather than null when the RPC fails', async () => {
+    _state.rpcError = { code: '42883', message: 'function does not exist' };
+    const got = await getQuestStats(user);
+    expect(got).toEqual({
+      currentStreak: 0, longestStreak: 0, perfectDays: 0, questsClaimed: 0,
+      coinsEarned: 0, xpEarned: 0, crewXpEarned: 0,
+      bonusClaimedToday: false, isCurrent: false,
+    });
+  });
+});
+
 describe('claimQuest — input validation', () => {
   it('returns failure for missing user', async () => {
     const got = await claimQuest(null, 'q1');
-    expect(got).toEqual({ success: false, newCoinBalance: null, coinsAwarded: 0 });
+    expect(got).toEqual({
+      success: false, newCoinBalance: null,
+      coinsAwarded: 0, xpAwarded: 0, crewXpAwarded: 0,
+    });
   });
 
   it('returns failure for missing user.id', async () => {

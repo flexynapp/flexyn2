@@ -19,6 +19,8 @@ import { useAuthorsById, resolveAuthor } from '@/lib/data/useAuthors';
 import ProfanityWarningDialog from '@/components/ProfanityWarningDialog';
 import { containsProfanity } from '@/lib/profanityFilter';
 import * as hubComments from '@/lib/data/hubComments';
+import * as quests from '@/lib/data/quests';
+import { ACTION_TYPES } from '@/lib/questCatalog';
 import * as hubCommentLikes from '@/lib/data/hubCommentLikes';
 import { handle } from '@/lib/userDisplay';
 import ReportDialog from './ReportDialog';
@@ -221,6 +223,12 @@ export default function HubCommentsInline({ post, open, onClose }) {
       setReplyTarget(null);
       queryClient.invalidateQueries({ queryKey: ['hubComments', post.id] });
       queryClient.invalidateQueries({ queryKey: ['hubFeed'] });
+      // Quest progress — non-blocking, fire-and-forget. Replies count: a
+      // reply is a comment, and treating it as a lesser thing would mean the
+      // quest rewards starting conversations over having them.
+      quests.recordAction(user, ACTION_TYPES.HUB_COMMENT, 1)
+        .then(() => queryClient.invalidateQueries({ queryKey: ['dailyQuests'] }))
+        .catch(() => {});
     } catch (err) {
       // Surface the actual cause so we can diagnose RLS / schema issues.
       // The previous swallow-everything catch made every cause look

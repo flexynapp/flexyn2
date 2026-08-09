@@ -12,6 +12,8 @@ import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useAuthorsById, resolveAuthor } from '@/lib/data/useAuthors';
 import * as hubReactions from '@/lib/data/hubReactions';
+import * as quests from '@/lib/data/quests';
+import { ACTION_TYPES } from '@/lib/questCatalog';
 import { reportError } from '@/lib/reportError';
 import * as hubPosts from '@/lib/data/hubPosts';
 import * as stickerReactions from '@/lib/data/stickerReactions';
@@ -543,6 +545,8 @@ function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
   };
   const desiredRef = useRef(undefined);
   const inFlightRef = useRef(false);
+  // One quest credit per card, however many times this post is reacted to.
+  const reactionQuestedRef = useRef(false);
 
   const { data: myReaction } = useQuery({
     queryKey: ['hubReaction', post.id, user?.email],
@@ -615,15 +619,28 @@ function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
   const runWorker = async () => {
     inFlightRef.current = true;
     try {
+      let settled;
       while (desiredRef.current !== undefined) {
         const target = desiredRef.current;
         desiredRef.current = undefined;
         await hubReactions.setReaction(post.id, user.email, target);
+        settled = target;
       }
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['hubReaction', post.id, user.email] }),
         queryClient.invalidateQueries({ queryKey: ['hubFeed'] }),
       ]);
+      // Quest progress — non-blocking. Counted once per card, and only when
+      // the settled state is an actual reaction: `target` is null when the
+      // user is REMOVING one, and the loop above coalesces a burst of taps,
+      // so without both guards a single post could walk a "react to 3 posts"
+      // quest to done by itself.
+      if (settled && !reactionQuestedRef.current) {
+        reactionQuestedRef.current = true;
+        quests.recordAction(user, ACTION_TYPES.HUB_REACTION, 1)
+          .then(() => queryClient.invalidateQueries({ queryKey: ['dailyQuests'] }))
+          .catch(() => {});
+      }
       setPendingReaction(undefined);
     } catch {
       desiredRef.current = undefined;

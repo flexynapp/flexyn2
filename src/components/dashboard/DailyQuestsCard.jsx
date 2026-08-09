@@ -1,19 +1,16 @@
 // src/components/dashboard/DailyQuestsCard.jsx
 //
-// Renders today's three quests on the Dashboard. Auto-creates them on mount
-// (idempotent), polls for progress changes, and lets the user claim coin
-// rewards when quests complete.
+// Renders today's quests on the Dashboard. Auto-creates them on mount
+// (idempotent), polls for progress changes, and lets the user claim coin +
+// XP rewards when quests complete. Tapping the header opens QuestsSheet —
+// the full surface, in the shape ReadinessSheet uses.
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState, Suspense } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card } from '@/components/ui/card';
-import {
-  Coins, Sparkles, CheckCircle2,
-  UtensilsCrossed, Droplet, Dumbbell, HeartPulse, Megaphone, Bike,
-  Camera, Flame, Trophy, Zap, Target,
-} from 'lucide-react';
+import { Coins, CheckCircle2, ChevronRight } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { triggerHaptic } from '@/lib/haptic';
 import { useAuth } from '@/lib/AuthContext';
@@ -21,19 +18,13 @@ import { useLanguage } from '@/lib/LanguageContext';
 import * as quests from '@/lib/data/quests';
 import * as notifications from '@/lib/data/notifications';
 import { getQuestDefinition, questDestinationRoute } from '@/lib/questCatalog';
+import { QuestTile, QuestRewardLine } from '@/components/dashboard/questVisuals';
 import { reportError } from '@/lib/reportError';
 
-// questCatalog stores `icon` as a lucide export NAME so that module stays
-// free of React imports (it's also read by lib/data/quests.js and the
-// server-mirroring tests). Resolution happens here, at the only place that
-// renders a quest row. Explicit map rather than a dynamic lookup on the
-// lucide namespace so tree-shaking can still drop everything unused, and
-// so a typo in the catalog fails loudly in review rather than silently
-// rendering nothing.
-const QUEST_ICONS = {
-  UtensilsCrossed, Droplet, Dumbbell, HeartPulse, Megaphone, Bike,
-  Camera, Flame, Trophy, Zap, Target,
-};
+// Lazy — the sheet is a modal that only mounts on tap, per the lazy-loading
+// rule in CLAUDE.md. It pulls in the stats RPC and the streak strip, none of
+// which the resting card needs.
+const QuestsSheet = React.lazy(() => import('@/components/dashboard/QuestsSheet'));
 
 // Confetti burst when all of the day's quests are complete. Lazy-imports
 // canvas-confetti (its own chunk) and honors reduced-motion.
@@ -59,6 +50,7 @@ export default function DailyQuestsCard({ onNavigated }) {
   const { t, tFallback } = useLanguage();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const [sheetOpen, setSheetOpen] = useState(false);
 
   // Navigate to the page where this quest can be completed. Notifies the
   // parent (e.g. StatsHubModal) so it can close itself first — otherwise
@@ -139,63 +131,118 @@ export default function DailyQuestsCard({ onNavigated }) {
   };
 
   const handleClaimResult = async (result, questRow) => {
-    if (result.success) {
-      // tFallback handles placeholder substitution + missing-key fallback
-       // in one call — the prior `t('...').replace('{coins}', ...)` left the
-       // raw key visible when the language file didn't have the entry,
-       // and the substitution silently no-op'd when the translator used a
-       // different placeholder name. (Audit 08 #M-1.)
+    if (!result.success) {
+      toast.error(t('dashboard.claimError'));
+      return;
+    }
+
+    // One toast, all three currencies. Every number here came back from the
+    // server — xpAwarded in particular is what the daily quest cap actually
+    // credited, not the catalog's nominal figure, so a capped claim reports
+    // the truth instead of promising 120 XP it didn't grant.
+    const parts = [`+${result.coinsAwarded} ${tFallback('hub.coins', 'coins')}`];
+    if (result.xpAwarded > 0) parts.push(`+${result.xpAwarded} XP`);
+    toast.success(
+      tFallback('dashboard.coinsClaimedToast', '+{coins} coins claimed!', { coins: result.coinsAwarded }),
+      {
+        icon: '🪙',
+        description: result.crewXpAwarded > 0
+          ? tFallback('quests.crewShareToast', '{rewards} · your crew banks {crewXp} XP', {
+              rewards: parts.join(' · '), crewXp: result.crewXpAwarded,
+            })
+          : parts.join(' · '),
+      }
+    );
+    queryClient.invalidateQueries({ queryKey: ['dailyQuests'] });
+    queryClient.invalidateQueries({ queryKey: ['questStats', user?.id] });
+    queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
+    // Also invalidate the coin-balance queries that surface in the
+    // Coin Shop modal + Stats Hub hero — the previous list only
+    // refreshed userProfile (which a few surfaces read) but missed
+    // coinShopProfile + statsHubProfile, leaving stale balances
+    // visible right after claim.
+    queryClient.invalidateQueries({ queryKey: ['coinShopProfile', user?.id] });
+    queryClient.invalidateQueries({ queryKey: ['statsHubProfile', user?.id] });
+    // The crew's own level moved if this quest fed it — the crew card and
+    // the crew list both read that number.
+    if (result.crewXpAwarded > 0) {
+      queryClient.invalidateQueries({ queryKey: ['myCrews', user?.id] });
+    }
+    // In-app notification — non-blocking
+    const def = getQuestDefinition(questRow.quest_id);
+    const labelKey = `quest.${questRow.quest_id}.label`;
+    const translatedLabel = t(labelKey);
+    const label = translatedLabel === labelKey ? (def?.label || 'Quest') : translatedLabel;
+    notifications.notifyQuestClaimed({
+      user,
+      questLabel: label,
+      coinsAwarded: result.coinsAwarded,
+      t,
+    })
+      .then(() => queryClient.invalidateQueries({ queryKey: ['notificationsUnread', user?.id] }))
+      .catch(err => reportError(err, {
+        feature: 'dashboard.quest-claim-notification',
+        level: 'warning',
+        userEmail: user?.email,
+      }));
+  };
+
+  // Perfect day: fired after a claim lands, when every quest is claimed.
+  // Called speculatively — the RPC answers `not_complete` / `already_claimed`
+  // rather than raising, so the card doesn't need to prove the day is done
+  // before asking. The ref stops a re-render from asking twice in a row; the
+  // server's per-day idempotence is what actually guarantees one payment.
+  const bonusAskedRef = useRef(false);
+  const askForPerfectDayBonus = async () => {
+    if (bonusAskedRef.current) return;
+    bonusAskedRef.current = true;
+    try {
+      const bonus = await quests.claimPerfectDayBonus(user);
+      if (!bonus.success) return;
+      triggerHaptic('primary');
+      fireAllQuestsConfetti();
+      const extras = [`+${bonus.coinsAwarded} ${tFallback('hub.coins', 'coins')}`];
+      if (bonus.xpAwarded > 0) extras.push(`+${bonus.xpAwarded} XP`);
+      if (bonus.crewXpAwarded > 0) {
+        extras.push(tFallback('quests.crewBanked', '{n} XP to your crew', { n: bonus.crewXpAwarded }));
+      }
       toast.success(
-        tFallback('dashboard.coinsClaimedToast', '+{coins} coins claimed!', { coins: result.coinsAwarded }),
-        { icon: '🪙' }
+        tFallback('quests.perfectDayToast', 'Perfect day — {n} day streak', { n: bonus.streak }),
+        { icon: '🔥', description: extras.join(' · '), duration: 7000 },
       );
-      queryClient.invalidateQueries({ queryKey: ['dailyQuests'] });
+      queryClient.invalidateQueries({ queryKey: ['questStats', user?.id] });
       queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
-      // Also invalidate the coin-balance queries that surface in the
-      // Coin Shop modal + Stats Hub hero — the previous list only
-      // refreshed userProfile (which a few surfaces read) but missed
-      // coinShopProfile + statsHubProfile, leaving stale balances
-      // visible right after claim.
       queryClient.invalidateQueries({ queryKey: ['coinShopProfile', user?.id] });
       queryClient.invalidateQueries({ queryKey: ['statsHubProfile', user?.id] });
-      // In-app notification — non-blocking
-      const def = getQuestDefinition(questRow.quest_id);
-      const labelKey = `quest.${questRow.quest_id}.label`;
-      const translatedLabel = t(labelKey);
-      const label = translatedLabel === labelKey ? (def?.label || 'Quest') : translatedLabel;
-      notifications.notifyQuestClaimed({
-        user,
-        questLabel: label,
-        coinsAwarded: result.coinsAwarded,
-        t,
-      })
-        .then(() => queryClient.invalidateQueries({ queryKey: ['notificationsUnread', user?.id] }))
-        .catch(err => reportError(err, {
-          feature: 'dashboard.quest-claim-notification',
-          level: 'warning',
-          userEmail: user?.email,
-        }));
-    } else {
-      toast.error(t('dashboard.claimError'));
+      if (bonus.crewXpAwarded > 0) {
+        queryClient.invalidateQueries({ queryKey: ['myCrews', user?.id] });
+      }
+    } catch (err) {
+      reportError(err, { feature: 'dashboard.quest-perfect-day', level: 'warning', userEmail: user?.email });
+    } finally {
+      // Re-arm. A failed or not-yet-eligible ask must be retryable when the
+      // next claim lands, or a user who claims their last quest during a
+      // network blip never gets the bonus that day.
+      bonusAskedRef.current = false;
     }
   };
 
   // Completion effects: a top-of-screen "quest complete — tap to claim"
-  // toast the moment a quest crosses into completed, and a confetti burst
-  // when ALL of the day's quests are done. Refs seed on first render so we
+  // toast the moment a quest crosses into completed, and the perfect-day
+  // bonus when every quest is claimed. Refs seed on first render so we
   // don't retroactively fire for quests already completed earlier today.
   const hydratedRef = useRef(false);
   const announcedRef = useRef(new Set());
-  const allDoneRef = useRef(false);
+  const allClaimedRef = useRef(false);
   useEffect(() => {
     if (!rows || rows.length === 0) return;
     const total = rows.length;
-    const completeCount = rows.filter((r) => r.completed_at).length;
+    const claimedCount = rows.filter((r) => r.claimed_at).length;
 
     if (!hydratedRef.current) {
       hydratedRef.current = true;
       rows.forEach((r) => { if (r.completed_at) announcedRef.current.add(r.id); });
-      if (total > 0 && completeCount === total) allDoneRef.current = true;
+      if (total > 0 && claimedCount === total) allClaimedRef.current = true;
       return;
     }
 
@@ -219,12 +266,15 @@ export default function DailyQuestsCard({ onNavigated }) {
       );
     });
 
-    if (total > 0 && completeCount === total && !allDoneRef.current) {
-      allDoneRef.current = true;
-      triggerHaptic('primary');
-      fireAllQuestsConfetti();
-      toast.success(tFallback('dashboard.allQuestsCompleteToast', 'All daily quests complete! 🎉'), { duration: 6000 });
+    // The celebration hangs off CLAIMED, not completed. It used to fire when
+    // the last quest crossed into complete — which is one tap before the day
+    // is actually finished, so the confetti landed while a Claim button was
+    // still sitting there unpressed.
+    if (total > 0 && claimedCount === total && !allClaimedRef.current) {
+      allClaimedRef.current = true;
+      askForPerfectDayBonus();
     }
+    if (claimedCount < total) allClaimedRef.current = false;
     // Keyed on `rows` — the meaningful trigger. handleClaim/t are captured
     // from the render where rows changed, which is current.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -235,19 +285,11 @@ export default function DailyQuestsCard({ onNavigated }) {
   // Drop rows missing a stable id too — the map(key={q.id}) below
   // would collide on `undefined` keys if multiple corrupt rows slip
   // through and we'd lose state on the duplicates.
+  // Order comes from listTodaysQuests (difficultyRank: easy → hard → crew);
+  // annotate preserves it.
   const annotated = rows
     .map(quests.annotateQuest)
     .filter(q => q && q.definition && q.id);
-  // Sort easy → medium → hard. Default unknown difficulties to a high
-  // index so an unmapped value lands at the bottom rather than
-  // producing NaN comparisons (NaN-NaN=NaN, V8 sort surfaces quests
-  // in random order on each render).
-  const sortOrder = { easy: 0, medium: 1, hard: 2 };
-  annotated.sort((a, b) => {
-    const ai = sortOrder[a.difficulty] ?? 99;
-    const bi = sortOrder[b.difficulty] ?? 99;
-    return ai - bi;
-  });
 
   const completedCount = annotated.filter(q => q.completed_at).length;
   const claimedCount = annotated.filter(q => q.claimed_at).length;
@@ -265,8 +307,16 @@ export default function DailyQuestsCard({ onNavigated }) {
           the title, which read as part of it ("Daily Quests 0/3") rather than
           as the day's score. The claimable pill isn't in the drawing — it has
           nothing to show in a resting state — so it takes the slot before the
-          count and the drawn layout is what you see when nothing is ready. */}
-      <div className="flex items-center gap-2 mb-3 flex-wrap">
+          count and the drawn layout is what you see when nothing is ready.
+
+          The whole row is the button into the sheet. A separate "see all"
+          control would be a second tap target on a 36px row for a card whose
+          header is already the only non-quest thing in it. */}
+      <button
+        type="button"
+        onClick={() => setSheetOpen(true)}
+        className="w-full flex items-center gap-2 mb-3 flex-wrap text-start -mx-1 px-1 py-0.5 rounded-lg hover:bg-secondary/25 active:bg-secondary/40 transition-colors"
+      >
         <CheckCircle2 className="w-3.5 h-3.5 text-primary shrink-0" />
         <h3 className="font-heading font-bold text-sm tracking-tight truncate">{t('dashboard.dailyQuests')}</h3>
         {claimableCoins > 0 && (
@@ -279,10 +329,11 @@ export default function DailyQuestsCard({ onNavigated }) {
             +{claimableCoins} {t('dashboard.ready')}
           </motion.div>
         )}
-        <span className="ms-auto text-micro text-muted-foreground tabular-nums shrink-0">
+        <span className="ms-auto flex items-center gap-0.5 text-micro text-muted-foreground tabular-nums shrink-0">
           {completedCount} / {annotated.length}
+          <ChevronRight className="w-3.5 h-3.5 rtl:scale-x-[-1]" aria-hidden="true" />
         </span>
-      </div>
+      </button>
 
       {/* 4px between rows, not 8. Board 07 runs them on a 36px pitch: a 28px
           tile against a 30px two-line text block, four apart. */}
@@ -303,6 +354,18 @@ export default function DailyQuestsCard({ onNavigated }) {
         <div className="mt-3 text-micro text-center text-muted-foreground">
           {t('dashboard.allQuestsClaimed')}
         </div>
+      )}
+
+      {sheetOpen && (
+        <Suspense fallback={null}>
+          <QuestsSheet
+            open
+            onClose={() => setSheetOpen(false)}
+            quests={annotated}
+            onClaim={handleClaim}
+            onGo={(q) => { setSheetOpen(false); goToQuest(q); }}
+          />
+        </Suspense>
       )}
     </Card>
   );
@@ -349,18 +412,7 @@ function QuestRow({ quest, onClaim, onGo, t, tFallback }) {
       // indenting every row to make room for it.
       className={`relative flex items-center gap-2.5 rounded-lg ${tappable ? 'cursor-pointer -mx-1 px-1 hover:bg-secondary/25 active:bg-secondary/40 transition-colors' : ''}`}
     >
-      {/* 28px, always --primary. Difficulty used to colour this tile green /
-          orange / red — three of the app's four hues spent on a property the
-          quest text already carries, and the drawing uses one accent. */}
-      <div
-        className="shrink-0 w-7 h-7 rounded-sm bg-primary text-primary-foreground flex items-center justify-center"
-        aria-hidden="true"
-      >
-        {(() => {
-          const QuestIcon = QUEST_ICONS[def.icon] || Sparkles;
-          return <QuestIcon className="w-3.5 h-3.5" />;
-        })()}
-      </div>
+      <QuestTile icon={def.icon} completed={completed} claimed={claimed} />
 
       <div className="flex-1 min-w-0">
         {/* cq-clamp2 stays even though this row is full-width by default:
@@ -370,19 +422,27 @@ function QuestRow({ quest, onClaim, onGo, t, tFallback }) {
         {/* leading-tight, not the default 20px line box: the drawing gives the
             title 16px and the progress line 14px, which is what puts the row
             on a 36px pitch. text-sm's default leading alone added 4px a row. */}
-        <p className="font-medium text-sm leading-tight truncate cq-clamp2">{label}</p>
-        <p className="text-micro text-muted-foreground tabular-nums">
-          {quest.progress} / {quest.target} · {quest.coin_reward} {tFallback('hub.coins', 'coins')}
+        <p className={`font-medium text-sm leading-tight truncate cq-clamp2 ${claimed ? 'text-muted-foreground line-through decoration-1' : ''}`}>
+          {label}
         </p>
+        <QuestRewardLine
+          quest={quest}
+          tFallback={tFallback}
+          className="block text-micro text-muted-foreground"
+        />
       </div>
 
       <AnimatePresence mode="wait">
         {claimed ? (
+          // Claimed keeps a mark at the end of the row, but it is now the
+          // quiet one: the loud green tile at the START of the row is what
+          // says done, and repeating it here in the same weight would give
+          // the row two focal points.
           <motion.div
             key="claimed"
             initial={{ scale: 0.85, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className="flex items-center gap-1 text-muted-foreground text-xs"
+            className="flex items-center gap-1 text-success text-xs"
           >
             <CheckCircle2 className="w-4 h-4" />
           </motion.div>

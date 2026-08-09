@@ -152,6 +152,38 @@ describe('partial-gap ratchet', () => {
     // prose describing the ranking rules, so CLAUDE.md forbids machine
     // translation; needs a native pass in 14 languages.
     'league.info.',
+    // Daily-quests expansion, 2026-08-09. The sheet's whole copy deck plus
+    // 19 new quest labels/descriptions. All prose (CLAUDE.md forbids
+    // machine-translating it) and all reached through tFallback or the
+    // catalog's English fallback, so a missing locale renders sensible
+    // English rather than a raw key.
+    //
+    // Listed one quest id at a time rather than as a bare `quest.` prefix on
+    // purpose: `quest.` would also exempt the 14 entries that ARE translated
+    // and hide a future regression in them. The "every prefix still has
+    // untranslated keys" test above then forces each line to be deleted as
+    // its translations land, which is the mechanism working.
+    'quests.',
+    'quest.cardio_session.',
+    'quest.log_sleep.',
+    'quest.log_mood.',
+    'quest.steps_5k.',
+    'quest.hub_react_3.',
+    'quest.log_body_metric.',
+    'quest.workout_30min.',
+    'quest.sets_20.',
+    'quest.steps_10k.',
+    'quest.hub_comment_2.',
+    'quest.cardio_double.',
+    'quest.volume_10k.',
+    'quest.workout_60min.',
+    'quest.sets_40.',
+    'quest.volume_25k.',
+    'quest.steps_15k.',
+    'quest.crew_workout.',
+    'quest.crew_cardio.',
+    'quest.crew_chat_3.',
+    'quest.crew_steps_8k.',
   ];
 
   const pending = (k) => AWAITING_TRANSLATION.some(p => k.startsWith(p));

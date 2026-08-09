@@ -1116,12 +1116,30 @@ export default function Workout() {
       // Refetch achievements so the modal reflects newly unlocked ones immediately
       queryClient.invalidateQueries({ queryKey: ['achievements', user?.email] });
 
-      // Quest progress — non-blocking, fire-and-forget
+      // Quest progress — non-blocking, fire-and-forget.
+      //
+      // One recordActions call, not four recordAction calls: each of those
+      // was a full read of the day's quest rows before it could update
+      // anything, so a save that emits four actions cost four round-trips to
+      // do one thing. recordActions reads once and fans out the updates.
+      //
+      // Volume is the CLAMPED session volume — the same figure credited to
+      // the profile above — so a quest and the stat it mirrors can never
+      // disagree about what the session was worth.
       const durationMin = Number(clampedData.duration_minutes) || 0;
-      Promise.all([
-        quests.recordAction(user, ACTION_TYPES.WORKOUT_COMPLETED, 1),
-        durationMin > 0 ? quests.recordAction(user, ACTION_TYPES.WORKOUT_MINUTES, durationMin) : null,
-      ].filter(Boolean))
+      const setCount = (clampedData?.exercises || []).reduce(
+        // Only sets with reps on them. An exercise carries empty set rows
+        // for anything the user laid out and didn't do, and counting those
+        // would complete a 20-set quest off a plan rather than a session.
+        (n, ex) => n + (ex?.sets || []).filter(s => (Number(s?.reps) || 0) > 0).length,
+        0,
+      );
+      quests.recordActions(user, [
+        { type: ACTION_TYPES.WORKOUT_COMPLETED, amount: 1 },
+        { type: ACTION_TYPES.WORKOUT_MINUTES,   amount: durationMin },
+        { type: ACTION_TYPES.SETS_COMPLETED,    amount: setCount },
+        { type: ACTION_TYPES.WORKOUT_VOLUME,    amount: Math.round(result?.sessionVolume || 0) },
+      ])
         .then(() => queryClient.invalidateQueries({ queryKey: ['dailyQuests'] }))
         .catch(() => {});
 

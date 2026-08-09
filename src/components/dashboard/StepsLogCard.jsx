@@ -15,6 +15,8 @@ import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useNumberFormatter } from '@/lib/intl';
 import { upsertStepLog, getTodayStepLog } from '@/lib/data/stepLogs';
+import * as quests from '@/lib/data/quests';
+import { ACTION_TYPES } from '@/lib/questCatalog';
 
 const prefersReducedMotion = () => {
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;
@@ -101,6 +103,19 @@ export default function StepsLogCard() {
       if (res.ok) {
         setDraft('');
         qc.invalidateQueries({ queryKey: ['stepLogToday', user?.id] });
+        // Quest progress — the DELTA, not the new total. This row is an
+        // upsert, so correcting 3,000 to 5,000 is one more save; crediting
+        // the absolute figure each time would count those 3,000 steps twice
+        // and walk a 5k quest to done off a 3k correction. Clamped at zero
+        // so revising a count DOWN doesn't try to subtract (recordActions
+        // drops non-positive amounts, but being explicit is cheaper than
+        // relying on that).
+        const delta = Math.max(0, n - (today?.steps ?? 0));
+        if (delta > 0) {
+          quests.recordAction(user, ACTION_TYPES.STEPS_LOGGED, delta)
+            .then(() => qc.invalidateQueries({ queryKey: ['dailyQuests'] }))
+            .catch(() => {});
+        }
       } else {
         toast.error(tFallback('steps.saveFailed', 'Could not save steps — try again.'));
       }

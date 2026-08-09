@@ -283,11 +283,13 @@ export default function CardioLiveTrackerIndoor({ mode, env, onCancel, onSaved, 
       // .catch(() => {}); now reportError so quest breakage is visible.
       const durSec = Number(payload.duration_seconds) || 0;
       const _user = user;
-      Promise.all([
-        quests.recordAction(_user, ACTION_TYPES.CARDIO_COMPLETED, 1),
-        durSec > 0 ? quests.recordAction(_user, ACTION_TYPES.CARDIO_SECONDS, durSec) : null,
-        prs.length > 0 ? quests.recordAction(_user, ACTION_TYPES.PR_ACHIEVED, prs.length) : null,
-      ].filter(Boolean))
+      // One batched call — recordActions reads the day's quests once and
+      // fans out, where three recordAction calls read them three times.
+      quests.recordActions(_user, [
+        { type: ACTION_TYPES.CARDIO_COMPLETED, amount: 1 },
+        { type: ACTION_TYPES.CARDIO_SECONDS,   amount: durSec },
+        { type: ACTION_TYPES.PR_ACHIEVED,      amount: prs.length },
+      ])
         .then(() => queryClient.invalidateQueries({ queryKey: ['dailyQuests'] }))
         .catch(err => reportError(err, {
           feature: 'cardio.live-indoor.quest-progress',

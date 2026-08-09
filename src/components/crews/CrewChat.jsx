@@ -26,6 +26,8 @@ import CrewMemberDirectory from './CrewMemberDirectory';
 import CrewChallengeCard from './CrewChallengeCard';
 import CrewStatsPanel from './CrewStatsPanel';
 import AvatarCropModal from './AvatarCropModal';
+import * as quests from '@/lib/data/quests';
+import { ACTION_TYPES } from '@/lib/questCatalog';
 
 // ── Crew "hype" triggers ────────────────────────────────────────────────────
 // Posting a hype phrase in crew chat pops a burst of emoji over the thread.
@@ -489,6 +491,13 @@ export default function CrewChat({ crew, onBack, onViewProfile, embedded }) {
       });
       qc.invalidateQueries({ queryKey: ['crewMessages', crew.id] });
       setDraft('');
+      // Quest progress — non-blocking. Only this path, which is a person
+      // typing: roll-call and regimen shares go through sendCrewMessage too,
+      // and counting those would let one tap on "share a regimen" stand in
+      // for talking to your crew.
+      quests.recordAction(user, ACTION_TYPES.CREW_MESSAGE, 1)
+        .then(() => qc.invalidateQueries({ queryKey: ['dailyQuests'] }))
+        .catch(() => {});
       const hypeEmoji = detectHype(trimmed);
       if (hypeEmoji) {
         setHype({ id: Date.now(), emoji: hypeEmoji });

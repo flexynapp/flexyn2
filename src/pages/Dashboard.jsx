@@ -808,6 +808,29 @@ export default function Dashboard() {
     setReadinessSheetOpen(true);
   };
 
+  // ?openReadiness=<signal> — the deep link the sleep / mood / steps daily
+  // quests route to. Without it those three quests were tappable rows that
+  // landed you on the Dashboard with no indication of where to log the thing
+  // they asked for; the loggers live inside this sheet and nowhere else.
+  //
+  // The param is stripped on arrival (replace: true) so a back-nav doesn't
+  // re-open the sheet, matching how Hub handles ?compose=1.
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const signal = params.get('openReadiness');
+    if (!signal) return;
+    openReadiness(['sleep', 'mood', 'steps'].includes(signal) ? signal : null);
+    params.delete('openReadiness');
+    navigate(
+      { pathname: '/dashboard', search: params.toString() ? `?${params.toString()}` : '' },
+      { replace: true },
+    );
+    // openReadiness is stable enough for this — it only sets two pieces of
+    // local state, and re-running on its identity would loop with the
+    // navigate() above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.search, navigate]);
+
   // ── Rest day declaration ──────────────────────────────────────────────────
   // Per-user key (flexyn.<feature>.<userId> per CLAUDE.md) so two users
   // on the same device (family shared phone, sign in/out) don't inherit

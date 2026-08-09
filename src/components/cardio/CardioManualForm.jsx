@@ -367,12 +367,15 @@ export default function CardioManualForm({
       queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
       toast.success(t('cardio.saved'));
 
+      // One batched call — recordActions reads the day's quests once and
+      // fans out, where three recordAction calls read them three times.
+      // Zero/absent amounts are dropped inside, so no filtering here.
       const durSec = Number(payload.duration_seconds) || 0;
-      Promise.all([
-        quests.recordAction(user, ACTION_TYPES.CARDIO_COMPLETED, 1),
-        durSec > 0 ? quests.recordAction(user, ACTION_TYPES.CARDIO_SECONDS, durSec) : null,
-        prCount > 0 ? quests.recordAction(user, ACTION_TYPES.PR_ACHIEVED, prCount) : null,
-      ].filter(Boolean))
+      quests.recordActions(user, [
+        { type: ACTION_TYPES.CARDIO_COMPLETED, amount: 1 },
+        { type: ACTION_TYPES.CARDIO_SECONDS,   amount: durSec },
+        { type: ACTION_TYPES.PR_ACHIEVED,      amount: prCount },
+      ])
         .then(() => queryClient.invalidateQueries({ queryKey: ['dailyQuests'] }))
         .catch(err => reportError(err, { feature: 'cardio.quest-progress', level: 'warning', userEmail: user?.email }));
 

@@ -113,6 +113,17 @@ export default function Hub() {
       params.delete('search');
       changed = true;
     }
+    // ?tab=<feedTab> — the deep link the crew daily quest routes to. It only
+    // accepts the three real sub-tabs: an unknown value used to be
+    // impossible here, and letting one through would blank the feed by
+    // selecting a tab that renders nothing.
+    const tab = params.get('tab');
+    if (tab && ['pump', 'squad', 'crews'].includes(tab)) {
+      setSection('feed');
+      setFeedTab(tab);
+      params.delete('tab');
+      changed = true;
+    }
     const profileEmail = params.get('profile');
     if (profileEmail) {
       // The first effect pass after mount lines up with the

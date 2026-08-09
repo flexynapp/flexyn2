@@ -18,6 +18,8 @@ import { Card } from '@/components/ui/card';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { upsertSleepLog, getTodaySleepLog } from '@/lib/data/sleepLogs';
+import * as quests from '@/lib/data/quests';
+import { ACTION_TYPES } from '@/lib/questCatalog';
 
 // Quick-pick hours. Buckets keep it one-tap; the stored value is a
 // reasonable midpoint so the recovery curve gets a usable number.
@@ -116,6 +118,13 @@ export default function SleepLogCard() {
         // Prefix-invalidate so ReadinessCard (['sleepLogToday', userId])
         // and this card both refetch and the score recomputes.
         qc.invalidateQueries({ queryKey: ['sleepLogToday', user?.id] });
+        // Quest progress — non-blocking. A quality-only tap is still a save
+        // here (it carries the current hours along), and firing on both is
+        // harmless: the quest's target is 1 and recordActions skips rows
+        // already at target.
+        quests.recordAction(user, ACTION_TYPES.SLEEP_LOGGED, 1)
+          .then(() => qc.invalidateQueries({ queryKey: ['dailyQuests'] }))
+          .catch(() => {});
       } else {
         setOptHours(priorHours);
         setOptQuality(priorQuality);

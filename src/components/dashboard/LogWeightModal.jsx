@@ -30,6 +30,8 @@ import { db } from '@/api/db';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
+import * as quests from '@/lib/data/quests';
+import { ACTION_TYPES } from '@/lib/questCatalog';
 import { toLbs, formatWeightNumber } from '@/lib/weightUnit';
 import UnitPill from '@/components/UnitPill';
 import { reportError } from '@/lib/reportError';
@@ -100,6 +102,12 @@ export default function LogWeightModal({ open, onOpenChange, profile }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bodyMetrics', user?.email] });
       queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
+      // Quest progress — non-blocking. Target is 1 and recordActions skips
+      // rows already at target, so correcting a weight later in the day
+      // doesn't credit the quest twice.
+      quests.recordAction(user, ACTION_TYPES.BODY_METRIC_LOGGED, 1)
+        .then(() => queryClient.invalidateQueries({ queryKey: ['dailyQuests'] }))
+        .catch(() => {});
       toast.success(tFallback('bodyMetrics.toast.saved', 'Weight saved'));
       onOpenChange?.(false);
     },
