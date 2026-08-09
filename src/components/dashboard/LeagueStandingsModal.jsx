@@ -4,13 +4,13 @@
 // Promotion zone is highlighted green at the top, demotion zone red at the
 // bottom, holding-position grey in the middle.
 
-import React, { useEffect } from 'react';
+import React, { useState, Suspense } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowUp, ArrowDown, Crown, Trophy } from 'lucide-react';
+import { ArrowUp, ArrowDown, Crown, Trophy, HelpCircle } from 'lucide-react';
 import EmptyState from '@/components/EmptyState';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -18,6 +18,9 @@ import { useNumberFormatter } from '@/lib/intl';
 import * as leagues from '@/lib/data/leagues';
 import * as leagueSeasons from '@/lib/data/leagueSeasons';
 import { MIN_QUALIFIED_TO_MOVE } from '@/lib/leagueTiers';
+// Explainer for the ladder. Lazy — it opens on a tap and most sessions
+// never open it, so it has no business in the dashboard chunk.
+const LeagueInfoSheet = React.lazy(() => import('@/components/dashboard/LeagueInfoSheet'));
 import { differenceInCalendarDays, parseISO } from 'date-fns';
 
 export default function LeagueStandingsModal({ open, onClose }) {
@@ -53,13 +56,13 @@ export default function LeagueStandingsModal({ open, onClose }) {
     staleTime: 60_000,
   });
 
-  // Lock body scroll while open to keep mobile users inside the modal scroller
-  useEffect(() => {
-    if (!open) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = prev; };
-  }, [open]);
+  // No scroll lock here on purpose: this is a Radix <Dialog>, and Radix
+  // pins the page itself (react-remove-scroll). The hand-rolled
+  // body-overflow copy that used to sit here was a second, weaker
+  // mechanism doing the same job — see @/lib/scrollLock for which
+  // surfaces actually need ours.
+
+  const [infoOpen, setInfoOpen] = useState(false);
 
   if (!open) return null;
 
@@ -80,14 +83,20 @@ export default function LeagueStandingsModal({ open, onClose }) {
             {[1, 2, 3, 4, 5].map(i => <Skeleton key={i} className="h-14 rounded-lg" />)}
           </div>
         ) : (
-          <Body data={data} season={season} userId={user?.id} t={t} tFallback={tFallback} fmt={fmt} onOpenMember={openMemberProfile} />
+          <Body data={data} season={season} userId={user?.id} t={t} tFallback={tFallback} fmt={fmt} onOpenMember={openMemberProfile} onOpenInfo={() => setInfoOpen(true)} />
         )}
       </DialogContent>
+
+      {infoOpen && (
+        <Suspense fallback={null}>
+          <LeagueInfoSheet open={infoOpen} onClose={() => setInfoOpen(false)} />
+        </Suspense>
+      )}
     </Dialog>
   );
 }
 
-function Body({ data, season, userId, t, tFallback, fmt, onOpenMember }) {
+function Body({ data, season, userId, t, tFallback, fmt, onOpenMember, onOpenInfo }) {
   // Defensive: if anything's missing, render an empty-state instead of crashing
   if (!data || !data.league || !data.tier || !Array.isArray(data.members)) {
     return (
@@ -122,6 +131,18 @@ function Body({ data, season, userId, t, tFallback, fmt, onOpenMember }) {
             {tier.label} {tFallback('league.title', 'League')}
           </DialogTitle>
         </DialogHeader>
+        {/* The header states the rules of THIS week ("0 qualified — 5 needed")
+            without ever stating the system. This is the way in to the ladder.
+            Sits under the X rather than beside it: 44px target, and the two
+            must not collide at 375pt. */}
+        <button
+          type="button"
+          onClick={onOpenInfo}
+          className="absolute top-12 end-3 w-11 h-11 flex items-center justify-center rounded-full text-black/70 hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/30"
+          aria-label={tFallback('league.info.open', 'How it works')}
+        >
+          <HelpCircle className="w-5 h-5" aria-hidden="true" />
+        </button>
         {/* Season line. The bracket says where you are this week; this says
             what you are playing for over the 28 days, and whether you have
             done enough to collect. Omitted entirely on a host without
@@ -131,7 +152,7 @@ function Body({ data, season, userId, t, tFallback, fmt, onOpenMember }) {
             <span className="text-xs font-semibold text-white/95">{season.name}</span>
             {seasonDaysLeft != null && (
               <span className="text-micro text-white/70">
-                {tFallback('league.seasonEndsIn', 'ends in {n}d', { n: seasonDaysLeft })}
+                {tFallback('league.season.endsIn', 'ends in {n}d', { n: seasonDaysLeft })}
               </span>
             )}
             <span
@@ -140,8 +161,8 @@ function Body({ data, season, userId, t, tFallback, fmt, onOpenMember }) {
               }`}
             >
               {seasonEligible
-                ? tFallback('league.seasonSecured', 'Reward secured')
-                : tFallback('league.seasonProgress', '{n} of {need} weeks', {
+                ? tFallback('league.season.secured', 'Reward secured')
+                : tFallback('league.season.progress', '{n} of {need} weeks', {
                     n: season.weeks_qualified ?? 0,
                     need: season.weeks_needed ?? 2,
                   })}
@@ -189,7 +210,7 @@ function Body({ data, season, userId, t, tFallback, fmt, onOpenMember }) {
             <div className="flex items-center gap-1 text-white/90">
               <span className="text-xs">
                 {tFallback(
-                  'league.bracketHeld',
+                  'league.gate.bracketHeld',
                   '{n} qualified — {need} needed before anyone moves',
                   { n: qualifiedCount, need: MIN_QUALIFIED_TO_MOVE },
                 )}
@@ -281,7 +302,7 @@ function Body({ data, season, userId, t, tFallback, fmt, onOpenMember }) {
                           scored less, and this says why. */}
                       {unranked && (
                         <p className="text-micro text-muted-foreground">
-                          {tFallback('league.notQualified', 'No workout logged this week')}
+                          {tFallback('league.gate.notQualified', 'No workout logged this week')}
                         </p>
                       )}
                     </div>

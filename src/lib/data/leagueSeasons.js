@@ -78,6 +78,128 @@ export async function getLegendBoard(limit = 20) {
 }
 
 /**
+ * The user's most recent COLLECTED season result, for the ceremony.
+ *
+ * Returns null when there is nothing to show — no completed season, or the
+ * user was below the two-week bar and collected nothing. A season they sat
+ * out must not produce a ceremony.
+ *
+ * Deliberately two queries rather than one PostgREST embed. The FK
+ * (`league_season_stats.season_id` -> `league_seasons.id`) does point at an
+ * exposed table so an embed *should* resolve — but this codebase has been
+ * bitten twice by embeds that 400'd with PGRST200 for months without anyone
+ * noticing (see the note on `listLeagueMembers`). This path runs once per
+ * season per user; the extra round trip costs nothing and cannot fail that
+ * way.
+ *
+ * Shape:
+ *   { seasonNumber, seasonName, tier, weeksQualified, seasonXp,
+ *     finalRank, isChampion, trophyId, titleId, capsule, awardedAt }
+ */
+export async function getLastSeasonResult(user) {
+  if (!user?.id) return null;
+  try {
+    const { data: seasons, error: sErr } = await supabase
+      .from('league_seasons')
+      .select('id, season_number, name')
+      .eq('status', 'completed')
+      .order('season_number', { ascending: false })
+      .limit(5);
+    if (sErr || !seasons?.length) return null;
+
+    const byId = Object.fromEntries(seasons.map(s => [s.id, s]));
+
+    const { data: rows, error: rErr } = await supabase
+      .from('league_season_stats')
+      .select('season_id, best_tier, weeks_qualified, season_xp, final_rank, awarded_at')
+      .eq('user_id', user.id)
+      .in('season_id', seasons.map(s => s.id))
+      .not('awarded_at', 'is', null);
+    if (rErr || !rows?.length) return null;
+
+    // Newest completed season the user actually collected in.
+    rows.sort((a, b) =>
+      (byId[b.season_id]?.season_number || 0) - (byId[a.season_id]?.season_number || 0));
+    const row = rows[0];
+    const season = byId[row.season_id];
+    if (!season) return null;
+
+    const tier = row.best_tier || 'bronze';
+    const trophyId = `league_s${season.season_number}_${tier}`;
+    const championId = `league_s${season.season_number}_champion`;
+
+    // The champion trophy is the only way to know they won it — final_rank is
+    // over the whole field, and the champion is the top LEGEND, which is not
+    // the same person when nobody reached Legend.
+    const { data: champRows } = await supabase
+      .from('user_trophies')
+      .select('trophy_id')
+      .eq('user_id', user.id)
+      .eq('trophy_id', championId)
+      .limit(1);
+
+    const isChampion = !!champRows?.length;
+
+    return {
+      seasonNumber: season.season_number,
+      seasonName: season.name,
+      tier,
+      weeksQualified: row.weeks_qualified ?? 0,
+      seasonXp: row.season_xp ?? 0,
+      finalRank: row.final_rank ?? null,
+      isChampion,
+      trophyId: isChampion ? championId : trophyId,
+      titleId: isChampion ? championId : trophyId,
+      capsule: SEASON_CAPSULE[tier] ?? null,
+      awardedAt: row.awarded_at,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Mirrors the capsule ladder in award_league_season_internal (migration 312). */
+const SEASON_CAPSULE = {
+  legend: 'elite',
+  diamond: 'premium',
+  platinum: 'premium',
+  gold: 'standard',
+  silver: null,
+  bronze: null,
+};
+
+/**
+ * Per-device flag for "this result has been shown".
+ *
+ * Follows the `flexyn.<feature>.<userId>` namespace. Per-device rather than
+ * server-side on purpose: seeing your own season result again on a second
+ * device is a feature, not a bug, and it needs no schema.
+ */
+export function seasonResultSeenKey(userId) {
+  return `flexyn.seenSeasonResult.${userId}`;
+}
+
+export function hasSeenSeasonResult(userId, seasonNumber) {
+  if (!userId || seasonNumber == null) return true;
+  try {
+    return localStorage.getItem(seasonResultSeenKey(userId)) === String(seasonNumber);
+  } catch {
+    // Private mode / storage disabled — treat as seen rather than replaying
+    // the ceremony on every single mount.
+    return true;
+  }
+}
+
+export function markSeasonResultSeen(userId, seasonNumber) {
+  if (!userId || seasonNumber == null) return;
+  try {
+    localStorage.setItem(seasonResultSeenKey(userId), String(seasonNumber));
+  } catch {
+    // Nothing to do; worst case the ceremony shows again next mount.
+  }
+}
+
+/**
  * Whole days left in the season, or null when unknown.
  *
  * Counted in whole days rather than rounded: "1 day left" must not appear

@@ -41,6 +41,12 @@ import LoginStreakBanner from '@/components/dashboard/LoginStreakBanner';
 import PushOptInBanner from '@/components/dashboard/PushOptInBanner';
 import IosInstallBanner from '@/components/dashboard/IosInstallBanner';
 import LeagueCard from '@/components/dashboard/LeagueCard';
+// The ceremony is a once-per-season sheet, so it must not sit in the eager
+// dashboard chunk — same reasoning as ReadinessSheet above.
+const SeasonCeremonyModal = React.lazy(() => import('@/components/dashboard/SeasonCeremonyModal'));
+import * as leagueSeasons from '@/lib/data/leagueSeasons';
+import { fireSeasonEndCelebration, OPEN_SEASON_CEREMONY_EVENT } from '@/lib/seasonEndCelebration';
+import { enqueueReveal } from '@/lib/rewardQueue';
 import FriendLeaderboardPanel from '@/components/hub/FriendLeaderboardPanel';
 import DiscoveryCards from '@/components/dashboard/DiscoveryCards';
 import ErrorBoundary from '@/components/ErrorBoundary';
@@ -840,6 +846,58 @@ export default function Dashboard() {
       clearTimeout(t);
     };
   }, [user?.id]);
+
+  // ── Season-end ceremony ───────────────────────────────────────────────────
+  //
+  // Fires once per season per device, on first open after roll-league-seasons
+  // has awarded. Two-step on purpose: the celebration toast lands first and
+  // the sheet only opens if the user taps View. A 28-day payoff deserves to
+  // interrupt, but not to hijack — someone opening the app to log a workout
+  // should be able to keep going.
+  //
+  // Delayed behind the trophy check so the two never collide, and routed
+  // through rewardQueue for the same reason: this is the second place on the
+  // Dashboard where two celebrations can land on one mount.
+  const [seasonResult, setSeasonResult] = useState(null);
+  const [seasonCeremonyOpen, setSeasonCeremonyOpen] = useState(false);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+
+    const t = setTimeout(async () => {
+      if (cancelled) return;
+      const res = await leagueSeasons.getLastSeasonResult(user);
+      if (cancelled || !res) return;
+      // Keep the result around regardless, so the OPEN_SEASON_CEREMONY_EVENT
+      // listener below can still open the sheet on a later tap.
+      setSeasonResult(res);
+      if (leagueSeasons.hasSeenSeasonResult(user.id, res.seasonNumber)) return;
+      leagueSeasons.markSeasonResultSeen(user.id, res.seasonNumber);
+      enqueueReveal(() =>
+        fireSeasonEndCelebration({
+          seasonNumber: res.seasonNumber,
+          tier: res.tier,
+          isChampion: res.isChampion,
+          trophyId: res.trophyId,
+        }),
+      );
+    }, 2600);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [user?.id]);
+
+  // The celebration toast is React-free, so "View" reaches us as a window
+  // event rather than a callback — same indirection prCelebration uses.
+  useEffect(() => {
+    const onOpen = () => setSeasonCeremonyOpen(true);
+    window.addEventListener(OPEN_SEASON_CEREMONY_EVENT, onOpen);
+    return () => window.removeEventListener(OPEN_SEASON_CEREMONY_EVENT, onOpen);
+  }, []);
+
   const handleDeclareRestDay = () => {
     try { localStorage.setItem(restDayKey, '1'); } catch {}
     setIsRestDay(true);
@@ -2170,6 +2228,20 @@ export default function Dashboard() {
             readiness={readiness}
             focus={readinessFocus}
             onLogWorkout={() => navigate('/workout')}
+          />
+        </Suspense>
+      )}
+
+      {/* Season-end ceremony. Same Suspense-null reasoning as the readiness
+          sheet: it opens in response to a tap, so a one-frame skeleton reads
+          as a glitch. */}
+      {seasonCeremonyOpen && seasonResult && (
+        <Suspense fallback={null}>
+          <SeasonCeremonyModal
+            open={seasonCeremonyOpen}
+            onClose={() => setSeasonCeremonyOpen(false)}
+            result={seasonResult}
+            onOpenTrophyCase={() => navigate('/hub?tab=profile')}
           />
         </Suspense>
       )}

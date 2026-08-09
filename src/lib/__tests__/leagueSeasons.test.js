@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { daysLeftInSeason, isSeasonEligible } from '@/lib/data/leagueSeasons';
+import {
+  daysLeftInSeason,
+  isSeasonEligible,
+  hasSeenSeasonResult,
+  markSeasonResultSeen,
+  seasonResultSeenKey,
+} from '@/lib/data/leagueSeasons';
 import { getTrophy, parseSeasonTrophy, TROPHIES, TROPHY_TIERS } from '@/lib/trophyDefinitions';
 
 describe('daysLeftInSeason', () => {
@@ -46,6 +52,52 @@ describe('isSeasonEligible', () => {
   it('is false for a missing season', () => {
     expect(isSeasonEligible(null)).toBe(false);
     expect(isSeasonEligible(undefined)).toBe(false);
+  });
+});
+
+describe('season-result seen flag', () => {
+  const UID = 'u-1';
+  beforeEach(() => localStorage.clear());
+
+  it('is unseen the first time and seen after marking', () => {
+    expect(hasSeenSeasonResult(UID, 3)).toBe(false);
+    markSeasonResultSeen(UID, 3);
+    expect(hasSeenSeasonResult(UID, 3)).toBe(true);
+  });
+
+  it('a NEW season is unseen even after the previous one was marked', () => {
+    markSeasonResultSeen(UID, 3);
+    expect(hasSeenSeasonResult(UID, 4)).toBe(false);
+  });
+
+  it('is namespaced per user, so a shared phone does not swallow a ceremony', () => {
+    markSeasonResultSeen(UID, 3);
+    expect(hasSeenSeasonResult('u-2', 3)).toBe(false);
+    expect(seasonResultSeenKey(UID)).toBe('flexyn.seenSeasonResult.u-1');
+  });
+
+  it('treats missing input as seen rather than replaying forever', () => {
+    expect(hasSeenSeasonResult(null, 3)).toBe(true);
+    expect(hasSeenSeasonResult(UID, null)).toBe(true);
+  });
+
+  it('survives storage being unavailable', () => {
+    // Spy on the INSTANCE, not Storage.prototype — jsdom installs localStorage
+    // as an own property, so a prototype spy silently doesn't intercept and
+    // the test passes against the real implementation instead of the mock.
+    const getSpy = vi.spyOn(window.localStorage, 'getItem').mockImplementation(() => {
+      throw new Error('denied');
+    });
+    const setSpy = vi.spyOn(window.localStorage, 'setItem').mockImplementation(() => {
+      throw new Error('denied');
+    });
+
+    // Private mode must not fire the ceremony on every mount.
+    expect(hasSeenSeasonResult(UID, 3)).toBe(true);
+    expect(() => markSeasonResultSeen(UID, 3)).not.toThrow();
+
+    getSpy.mockRestore();
+    setSpy.mockRestore();
   });
 });
 

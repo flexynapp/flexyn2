@@ -139,6 +139,19 @@ describe('partial-gap ratchet', () => {
     // the first thing every new user reads, so CLAUDE.md forbids machine
     // translation outright. Needs a native pass in 14 languages.
     'onboarding.',
+    // League activity gating — new namespace, migration 310 (2026-08-08).
+    // Qualification and promote/demote zone copy. Named `league.gate.` rather
+    // than dropped loose under `league.` precisely so this exemption cannot
+    // swallow the league keys that ARE translated (daysLeft, topPromoted, …).
+    'league.gate.',
+    // League seasons — new namespace, migration 312 (2026-08-08).
+    'league.season.',
+    // Season-end ceremony — new namespace, migration 312 (2026-08-08).
+    'league.ceremony.',
+    // "How leagues work" explainer — new namespace, 2026-08-09. Long-form
+    // prose describing the ranking rules, so CLAUDE.md forbids machine
+    // translation; needs a native pass in 14 languages.
+    'league.info.',
   ];
 
   const pending = (k) => AWAITING_TRANSLATION.some(p => k.startsWith(p));

@@ -133,31 +133,31 @@ export default function LeagueCard({ onClick, stretch = false }) {
     strip = {
       tone: 'text-primary',
       dot: 'bg-primary',
-      text: tFallback('league.qualifyCta', 'Log a workout to qualify'),
+      text: tFallback('league.gate.qualifyCta', 'Log a workout to qualify'),
     };
   } else if (data.bracketTooSmall) {
     strip = {
       tone: 'text-muted-foreground',
       dot: 'bg-muted-foreground',
-      text: tFallback('league.bracketHeldShort', 'Bracket held this week'),
+      text: tFallback('league.gate.bracketHeldShort', 'Bracket held this week'),
     };
   } else if (myRank && promoteN > 0 && myRank <= promoteN) {
     strip = {
       tone: 'text-success',
       dot: 'bg-success',
-      text: tFallback('league.inPromoteZone', 'Promotion zone · top {n}', { n: promoteN }),
+      text: tFallback('league.gate.inPromoteZone', 'Promotion zone · top {n}', { n: promoteN }),
     };
   } else if (myRank && demoteN > 0 && myRank > qualifiedCount - demoteN) {
     strip = {
       tone: 'text-destructive',
       dot: 'bg-destructive',
-      text: tFallback('league.inDemoteZone', 'Demotion zone · bottom {n}', { n: demoteN }),
+      text: tFallback('league.gate.inDemoteZone', 'Demotion zone · bottom {n}', { n: demoteN }),
     };
   } else if (myRank) {
     strip = {
       tone: 'text-muted-foreground',
       dot: 'bg-muted-foreground',
-      text: tFallback('league.holding', 'Holding position'),
+      text: tFallback('league.gate.holding', 'Holding position'),
     };
   }
 
@@ -228,7 +228,7 @@ export default function LeagueCard({ onClick, stretch = false }) {
                 >
                   {myRank
                     ? `#${myRank}`
-                    : tFallback('league.unranked', 'Unranked')}
+                    : tFallback('league.gate.unranked', 'Unranked')}
                   {myRank && qualifiedCount > 0 && (
                     <span className="text-micro font-normal opacity-75 ms-0.5">/{qualifiedCount}</span>
                   )}
