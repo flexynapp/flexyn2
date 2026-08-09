@@ -11,10 +11,17 @@
 //   self-contained and idempotent — it removes any previous board of the
 //   same name first, so re-running it is safe.
 //
-// The first two groups (ladder card, medallion) were already built in
-// the session of 2026-08-09 before the plugin bridge dropped; this
-// script rebuilds the board from scratch including those, so it does not
-// depend on what is currently on the canvas.
+// GEOMETRY IS VERIFIED, NOT GUESSED. Every slot height here was set by
+// exporting the board as a PNG and looking at it. The first pass passed
+// every structural check — right child counts, nothing out of bounds,
+// exact y-cursor arithmetic — while four groups had their anchors
+// rendered straight through their own captions, because a caption is
+// pinned at `h - 62` and a 3-row stack or a 72pt circle simply ran past
+// it. None of that is visible to a programmatic assertion.
+//
+// So: if you change an anchor's size, offset or count, re-derive the
+// slot height (deepest anchor bottom + ~8pt clearance + the 62pt caption
+// block) AND re-export to look at it. Do not trust the counts.
 
 const PAGE_NAME = 'Page 2';
 const BOARD_NAME = 'Achievements — slots to draw';
@@ -160,8 +167,8 @@ grid([
   { name: 'slot / medallion / 44 vault grid',  d: 44, label: '44 · vault grid',   note: 'The Achievements page grid.' },
   { name: 'slot / medallion / 28 profile rail',d: 28, label: '28 · profile rail', note: 'ProfileBadgeShowcase, 6 across.' },
   { name: 'slot / medallion / 20 inline',      d: 20, label: '20 · inline',       note: 'Next to a name in a list row.' },
-], { w: 210, h: 150, cols: 4, build: (s, it, sx, sy) => {
-  s.appendChild(circle(`anchor / ${it.d}pt medallion`, { x: ax(sx + (210 - it.d) / 2), y: ay(sy + 26), d: it.d }));
+], { w: 210, h: 176, cols: 4, build: (s, it, sx, sy) => {
+  s.appendChild(circle(`anchor / ${it.d}pt medallion`, { x: ax(sx + (210 - it.d) / 2), y: ay(sy + 24), d: it.d }));
 }});
 
 board.appendChild(text('TIER RAMP — five steps. Tier is the only thing separating a 10-workout badge from a 100-workout one, so it has to read at 28pt. These five hexes are TROPHY_TIERS in trophyDefinitions.js, NOT theme tokens — they must not flip with the mode.',
@@ -175,8 +182,8 @@ grid([
   { name: 'slot / tier / legendary', hex: '#A855F7', label: 'Legendary', note: '#A855F7' },
   { name: 'slot / tier / tail',      hex: null,      label: '∞ Tail',    note: 'legendary ramp + ∞ mark' },
   { name: 'slot / tier / locked',    hex: null,      label: 'Locked',    note: 'never earned — keeps its art' },
-], { w: 165, h: 132, cols: 7, gap: 8, build: (s, it, sx, sy) => {
-  s.appendChild(circle('anchor / 44pt medallion', { x: ax(sx + (165 - 44) / 2), y: ay(sy + 20), d: 44 }));
+], { w: 165, h: 142, cols: 7, gap: 8, build: (s, it, sx, sy) => {
+  s.appendChild(circle('anchor / 44pt medallion', { x: ax(sx + (165 - 44) / 2), y: ay(sy + 16), d: 44 }));
   if (it.hex) {
     const chip = penpot.createRectangle();
     chip.name = `swatch / ${it.label} ${it.hex}`;
@@ -192,7 +199,7 @@ grid([
   { name: 'slot / next-up / rail of three', label: 'The default state', note: 'Ranked by % complete. Tapping one should\njump to its ladder.' },
   { name: 'slot / next-up / day one',       label: 'Brand-new account, everything at 0', note: 'Still has to offer three. Which three is a\nproduct call — draw your pick.' },
   { name: 'slot / next-up / one tap away',  label: 'A rung at 90%+', note: 'Worth a louder treatment — this is the\nhook. Same card or a variant?' },
-], { w: 390, h: 210, cols: 3, build: (s, it, sx, sy) => {
+], { w: 390, h: 276, cols: 3, build: (s, it, sx, sy) => {
   for (let i = 0; i < 3; i++) {
     s.appendChild(anchor(`anchor / next-up row ${i + 1} (358×56)`, { x: ax(sx + 16), y: ay(sy + 18 + i * 62), w: 358, h: 56, color: C.card, radius: 12, token: 'color.card' }));
   }
@@ -213,7 +220,7 @@ group('05 · CATEGORY SECTION — 8 groups: Iron · Consistency · Endurance · 
 grid([
   { name: 'slot / category / header + 3 ladders', label: 'Iron — Sessions, Tonnage, Variety', note: 'Group heading + the ladder rows under it.\nHow much weight does the heading carry?' },
   { name: 'slot / category / all 8 collapsed',    label: 'The whole page at a glance', note: '22 ladders is a long scroll. Should groups\ncollapse? Draw the answer.' },
-], { w: 590, h: 300, cols: 2, gap: 20, build: (s, it, sx, sy) => {
+], { w: 590, h: 330, cols: 2, gap: 20, build: (s, it, sx, sy) => {
   s.appendChild(anchor('anchor / section heading', { x: ax(sx + 16), y: ay(sy + 18), w: 200, h: 20, color: C.muted, radius: 4, token: 'color.muted' }));
   for (let i = 0; i < 3; i++) {
     s.appendChild(anchor(`anchor / ladder row ${i + 1} (358×64)`, { x: ax(sx + 16), y: ay(sy + 48 + i * 70), w: 358, h: 64, color: C.card, radius: 12, token: 'color.card' }));
@@ -227,9 +234,9 @@ grid([
   { name: 'slot / unlock / batch',       label: '"17 trophies earned"', note: 'Collapsed summary + View action. Names the\nhighest tier one. Do NOT stack 17 toasts.' },
   { name: 'slot / unlock / tail rung',   label: 'Centurion IV', note: 'An ∞ rung landing. Should it feel different\nfrom a named one?' },
   { name: 'slot / unlock / full screen', label: 'Is a toast even enough?', note: 'A legendary rung may deserve the 72pt\ncelebration treatment instead.' },
-], { w: 290, h: 200, cols: 4, gap: 12, build: (s, it, sx, sy) => {
-  s.appendChild(anchor('anchor / toast (358 scaled to 258)', { x: ax(sx + 16), y: ay(sy + 20), w: 258, h: 64, color: C.card, radius: 12, token: 'color.card' }));
-  s.appendChild(circle('anchor / 72pt medallion', { x: ax(sx + 16 + 93), y: ay(sy + 98), d: 72 }));
+], { w: 290, h: 250, cols: 4, gap: 12, build: (s, it, sx, sy) => {
+  s.appendChild(anchor('anchor / toast (358 scaled to 258)', { x: ax(sx + 16), y: ay(sy + 18), w: 258, h: 64, color: C.card, radius: 12, token: 'color.card' }));
+  s.appendChild(circle('anchor / 72pt medallion', { x: ax(sx + 16 + 93), y: ay(sy + 96), d: 72 }));
 }});
 
 // ── 07 · SURFACE TEST ─────────────────────────────────────────────
@@ -239,7 +246,7 @@ grid([
   { name: 'slot / surface / on background', label: 'on color.background', note: 'The page itself.' },
   { name: 'slot / surface / on secondary',  label: 'on color.secondary', note: 'Inside a Next-up row.' },
   { name: 'slot / surface / locked on card',label: 'locked, on color.card', note: 'The greyed state still has to be legible,\nnot a smudge.' },
-], { w: 290, h: 150, cols: 4, gap: 12, build: (s, it, sx, sy) => {
+], { w: 290, h: 166, cols: 4, gap: 12, build: (s, it, sx, sy) => {
   if (it.name.includes('on card') || it.name.includes('locked')) {
     s.appendChild(anchor('surface / card', { x: ax(sx + 16), y: ay(sy + 16), w: 258, h: 76, color: C.card, radius: 12, token: 'color.card' }));
   }
