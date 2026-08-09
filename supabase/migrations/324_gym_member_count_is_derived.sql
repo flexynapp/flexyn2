@@ -120,6 +120,15 @@ CREATE TRIGGER trg_gym_member_count_guard
 -- ── Reconcile what is already wrong ─────────────────────────────────
 -- CTE-renamed join key rather than a correlated alias.column, per the
 -- paste-safety rule in CLAUDE.md.
+--
+-- The rename is load-bearing for a second reason. gym_members has an `id`
+-- of its own, so a correlated subquery written the obvious way —
+--   (SELECT count(*) FROM public.gym_members WHERE gym_id = id)
+-- — binds `id` to the INNER table, counts rows whose primary key equals
+-- their gym_id, and returns 0 for every gym. It raises nothing and looks
+-- like total data loss. That mistake was made checking THIS migration,
+-- five minutes after writing it. `g_id` cannot collide, so it cannot
+-- silently resolve to the wrong scope.
 WITH real_counts AS (
   SELECT gym_id AS g_id, count(*)::int AS n
     FROM public.gym_members
