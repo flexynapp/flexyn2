@@ -7,23 +7,45 @@
 // that gets printed, laminated and screwed to a gym wall: generate the
 // signage from a dev server and the poster points at http://localhost:5173
 // forever, and nobody finds out until a member scans it and gets nothing.
-// Same for a Netlify deploy preview, which stops resolving the moment the
-// branch is deleted.
+// A Netlify deploy preview is the same failure with a slower fuse, since
+// the host stops resolving when the branch is deleted.
 //
 // So: use the live origin when it is one a stranger's phone can reach, and
-// fall back to production when it isn't.
+// fall back to the configured public origin when it isn't.
 //
-// PRODUCTION_ORIGIN is the one place to change if Flexyn moves to a custom
-// domain. It matches the og:url in index.html; note that a printed poster
-// generated before such a move keeps pointing at the old host, so a domain
-// change means reprinting signage (or a redirect at the old host).
+// ── Which host, and why it is not flexyn.app yet ────────────────────
+//
+// flexyn.app IS the real domain, but as of 2026-08-09 it serves a
+// marketing landing page for the upcoming site (download links,
+// description, reviews) and 404s on every app path. Measured:
+//
+//   https://flexyn.app/                          200  (landing page)
+//   https://flexyn.app/checkin/ABCD2345          404
+//   https://flexyn.app/gym/<uuid>                404
+//   https://flexyn.netlify.app/checkin/ABCD2345  200  (the app)
+//
+// A poster is permanent, so the default stays on the host that answers.
+//
+// TO SWITCH, no code change needed — set VITE_PUBLIC_ORIGIN in the Netlify
+// dashboard (Site configuration → Environment variables), the same way
+// VITE_SUPABASE_URL is set, and redeploy. Before you do, these three paths
+// must resolve to the app on flexyn.app, because the signage QR walks all
+// three:
+//
+//   /checkin/:code   the QR's own target — checks a member in
+//   /gym/:id         where a signed-in scan lands
+//   /p/gym/:id       where a scan with no account lands
+//
+// Posters printed before the switch keep pointing at the old host, so
+// leave flexyn.netlify.app resolving (or redirect it) rather than
+// retiring it.
 
-const PRODUCTION_ORIGIN = 'https://flexyn.netlify.app';
+const FALLBACK_ORIGIN = 'https://flexyn.netlify.app';
 
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '0.0.0.0', '::1', '[::1]']);
 
 /** True for hosts that only resolve on this machine or for a short while. */
-function isEphemeral(hostname) {
+export function isEphemeralHost(hostname) {
   if (!hostname) return true;
   if (LOCAL_HOSTS.has(hostname)) return true;
   if (hostname.endsWith('.local')) return true;
@@ -33,14 +55,33 @@ function isEphemeral(hostname) {
 }
 
 /**
+ * Pure resolver, so the rules are testable without standing up a window.
+ *
+ * @param {{hostname?: string, origin?: string, configured?: string}} input
+ * @returns {string} an https origin with no trailing slash
+ */
+export function resolveOrigin({ hostname, origin, configured } = {}) {
+  // A configured public origin is a deliberate deployment decision and wins
+  // over whatever host this happens to be served from. Ignored unless it is
+  // a plausible https origin — a typo here would be baked into print.
+  const clean = String(configured || '').trim().replace(/\/+$/, '');
+  if (/^https:\/\/[^\s/]+$/.test(clean)) return clean;
+
+  if (!origin || isEphemeralHost(hostname)) return FALLBACK_ORIGIN;
+  return String(origin).replace(/\/+$/, '');
+}
+
+/**
  * The origin to embed in a durable link (printed QR, signage PDF).
  * @returns {string} e.g. "https://flexyn.netlify.app" — never a trailing slash
  */
 export function canonicalOrigin() {
-  if (typeof window === 'undefined' || !window.location) return PRODUCTION_ORIGIN;
+  const configured = import.meta.env?.VITE_PUBLIC_ORIGIN;
+  if (typeof window === 'undefined' || !window.location) {
+    return resolveOrigin({ configured });
+  }
   const { hostname, origin } = window.location;
-  if (!origin || isEphemeral(hostname)) return PRODUCTION_ORIGIN;
-  return origin;
+  return resolveOrigin({ hostname, origin, configured });
 }
 
 /** The URL a gym's signage QR encodes. Scanning it opens that gym in Flexyn. */
