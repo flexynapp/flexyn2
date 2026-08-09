@@ -21,7 +21,7 @@ domain sections. Then history: the May 2026 session journal and the standing
 out-of-scope list are at the BOTTOM because they are the least likely thing a
 contributor needs and the most likely to have gone stale.
 
-Two habits this file exists to enforce, both learned expensively:
+Three habits this file exists to enforce, all learned expensively:
 
 - **Read the installed artefact, not the migration that created it.** A later
   migration redefining a function from a stale template is invisible in the
@@ -31,6 +31,11 @@ Two habits this file exists to enforce, both learned expensively:
   this codebase lives in comments that greps don't read, so a raw count is a
   question, not a conclusion. Four of five findings in one audit shrank or
   inverted on inspection.
+- **Count the populated rows before you trust a denormalised column.**
+  `count(col)` against `count(*)`. Several columns here are NULL or 0 on
+  *every* row because nothing has ever written them, and a reader gets a
+  plausible zero rather than an error — so it never surfaces as a bug. See
+  the section below.
 
 ## INVARIANTS — break these and you ship a security or data bug
 
@@ -432,6 +437,63 @@ July 2026 equipment/storage work was found by dropping a layer:
    without a real file: build a `File` (canvas → `toBlob` for an image,
    `MediaRecorder` over `canvas.captureStream()` for a genuinely decodable
    video), assign via `DataTransfer` to `input.files`, dispatch `change`.
+
+## Denormalised columns nothing writes
+
+**Before trusting any denormalised column, count the populated rows:**
+`SELECT count(*), count(the_column) FROM the_table`. This repo has a standing
+habit of adding a convenience column, reading it everywhere, and never
+wiring the write. The reader then gets a plausible **zero** instead of an
+error, so it never surfaces as a bug — it just makes a feature quietly wrong
+for months.
+
+Found in one pass on 2026-08-09, auditing what the weekly review reads:
+
+| Column | Populated | Consequence |
+|---|---|---|
+| `workout_logs.total_volume` | **0 of 3** | Every weekly review said "0 lbs". `get_gym_leaderboard` ranked members on it and `get_gym_community_progress` summed it into the gym's "lbs moved", so both read zero for every gym since launch. `dayContext.js` had already worked around it. |
+| `cardio_logs.duration_min` | **0 of 5** | The tracker writes `duration_seconds`. Cardio "moving time" was always 0. |
+| `workout_logs.duration_min` | **0 of 3** | No other source for a lifting session, so the UI drops the stat rather than faking it. |
+| `league_members.rank` | **0 of 42** | Only written when a league RESOLVES. Anything gating on it is invisible during the week it describes — which is the only week it matters. Currently has no reader at all. |
+| `nutrition_logs.food_item_id` | **0 of 120** | The food-catalog join has never been exercised. |
+
+`total_volume` is fixed at both ends — `Workout.jsx` persists it on save, and
+migration 329 backfilled the existing rows with the same formula. The weekly
+review derives volume from the `exercises` JSONB regardless, so it is correct
+even on a row that was never written.
+
+**Two shapes, two different causes — don't group them.** *0-of-N* means no
+writer exists. *k-of-N* means a writer exists and one entry path skips it, and
+that is usually NOT a bug: `nutrition_logs.protein` is 6 of 120 because the AI
+recogniser and the full-macro form both write it while quick-add captures
+calories only. Treating that as a dead column would have produced a migration
+that fixed nothing. The correct handling is in the UI — the macro bar is gated
+on a macro total, so a calorie-only week says so instead of drawing a
+zero-width bar over three "0 g" labels.
+
+**A section with no data must not render as zeros.** A `0` reads as a failure
+the user did not commit; "0 kcal" at someone who does not track food is the app
+calling them lazy. Same for a fixed stat row — drop the stats that have nothing
+behind them rather than rendering a permanent column of em dashes.
+
+### Stored volume is RAW — the bar-weight preference is display-only
+
+`include_bar_in_volume` adds ~45 lb per rep on every barbell set. It is a
+**display** choice, and `workout_logs.total_volume` must never carry it:
+`get_gym_leaderboard` ranks members against each other on that column, so a
+user flipping a Settings toggle would climb past someone who lifted identical
+weight. Nobody is cheating; the number just stops meaning one thing.
+
+- **Persisted or spent** — `workout_logs.total_volume`, the `total_volume_lbs`
+  RPC credit, the `WORKOUT_VOLUME` reward action, solo-challenge progress, and
+  the edit/delete reconciliation deltas — all take `includeBarWeight: false`.
+- **Display** — `LiveVolumePill`, the share card and the saved list re-derive
+  from the `exercises` array and honour the preference there.
+
+The weekly review is deliberately preference-blind despite being a personal
+stat: it sits one tap from the gym and crew boards, and a personal number that
+silently disagrees with the comparative number beside it is worse than one that
+is merely raw.
 
 ## Deploying an Edge Function — the CLI does not work in this repo
 
@@ -1573,17 +1635,30 @@ The biggest user-facing additions this session:
   nothing reads/writes it.
 - Server-side profanity check is on `username` only; `bio` is still
   client-only.
-- Weekly Debriefs. **The Edge Function is now DEPLOYED** (2026-07-31,
-  `generateWeeklyDebriefs`, version 1, `verify_jwt: false`). It had been
-  sitting written-but-undeployed in `supabase/functions/` — CLAUDE.md
-  described it as still needing to be built, which was stale. Verified
-  live: `POST` with no auth returns `401 {"error":"unauthorized"}`, `GET`
-  returns `405`, and the deployed source is a byte-for-byte match for the
-  repo file (456 lines, 22,531 bytes, identical SHA-256).
+- ~~Weekly Debriefs.~~ **Shipped 2026-08-09 as "Weekly Reviews" — no longer
+  out of scope.** See the section of that name above. The feature is renamed
+  everywhere the user can see it (the table and RPCs keep the `debrief`
+  names, so no data migration); the vault is an index of week rows rather
+  than a grid of tiles; and it now reports cardio, steps, fuel, sleep, mood,
+  body weight, XP, level, quests, coins, trophies, crews, duels, leagues and
+  gym check-ins instead of lifting alone. Migration 328 is the v2 RPC
+  (`generate_my_weekly_review`, with `generate_my_weekly_debrief` left as a
+  forwarder), 329 backfills `total_volume`, 330 fixes cardio duration.
 
-  It is deployed but **inert**, and two things are still needed to make it
-  run: set `DEBRIEF_CRON_SECRET` as a function secret, then re-add the
-  cron (recipe below). `verify_jwt` is deliberately false because the cron
+  What remains out of scope is only the **cron**: the Edge Function
+  `generateWeeklyDebriefs` is deployed but still inert, so reviews are
+  generated on demand when the user opens the screen rather than pushed on a
+  Sunday. Two things would make the cron run: set `DEBRIEF_CRON_SECRET` as a
+  function secret, then re-add the cron (recipe below). Note the Edge
+  Function still carries the v1 XP formula and reads `total_volume`, so it
+  will disagree with the RPC until it is redeployed — **fix that before
+  scheduling it**, or Sunday's generated row will overwrite a correct one
+  with worse numbers.
+
+  Function deploy state, verified 2026-07-31: `POST` with no auth returns
+  `401 {"error":"unauthorized"}`, `GET` returns `405`, and the deployed
+  source matched the repo file byte for byte (456 lines, identical SHA-256).
+  `verify_jwt` is deliberately false because the cron
   authenticates with `X-Cron-Secret`, which a gateway JWT check would
   reject before the function's own auth gate runs — same posture as
   `send-push`. `SEND_PUSH_TRIGGER_SECRET` and `ANTHROPIC_API_KEY` are
