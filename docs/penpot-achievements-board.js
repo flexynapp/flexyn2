@@ -20,7 +20,36 @@ const PAGE_NAME = 'Page 2';
 const BOARD_NAME = 'Achievements — slots to draw';
 const BX = 7200, BY = 0, BW = 1320, PAD = 60;
 
+// ── SELECT PAGE 2 IN THE PENPOT UI BEFORE RUNNING THIS ────────────
+//
+// createBoard/createText target penpot.currentPage, NOT the page you
+// read with getPageByName. This bit me for real on 2026-08-09: the
+// first build read Page 2 but the tab was showing another page, so a
+// 22-child board landed there at Page 2's x-coordinate — thousands of
+// px from anything on it, and invisible to a findShape scoped to Page
+// 2. There is no cross-page move in the API; the only fix is a rebuild.
+//
+// penpot.openPage() is ASYNC, so asserting currentPage on the very next
+// line is a race that sometimes passes and sometimes throws. Don't
+// assert-and-throw: bail out with a message and let the operator switch
+// pages, which is both reliable and obvious.
+//
+// Two further constraints learned the same day:
+//   • remove() raises "Cannot modify a page that is not currently
+//     active" — you cannot clean up a stray board on another page
+//     without opening that page first.
+//   • The bridge drops on long call sequences. If it dies mid-build,
+//     re-run: this is idempotent on the active page.
 const page = penpotUtils.getPageByName(PAGE_NAME);
+if (!page) throw new Error(`page "${PAGE_NAME}" not found`);
+if (penpot.currentPage.id !== page.id) {
+  return {
+    aborted: true,
+    reason: `Select "${PAGE_NAME}" in the Penpot UI first, then re-run.`,
+    currentPage: penpot.currentPage.name,
+  };
+}
+
 const existing = penpotUtils.findShape(s => s.name === BOARD_NAME, page.root);
 if (existing) existing.remove();
 
