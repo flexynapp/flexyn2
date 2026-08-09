@@ -345,6 +345,7 @@ export default function DailyQuestsCard({ onNavigated }) {
             quest={q}
             onClaim={() => handleClaim(q)}
             onGo={() => goToQuest(q)}
+            onOpenSheet={() => setSheetOpen(true)}
             t={t}
             tFallback={tFallback}
           />
@@ -372,7 +373,33 @@ export default function DailyQuestsCard({ onNavigated }) {
   );
 }
 
-function QuestRow({ quest, onClaim, onGo, t, tFallback }) {
+/**
+ * A quest row is TWO tap targets, and which half you hit decides what happens.
+ *
+ *   [ tile · title · reward line ][ ......... ][ ✓ / Claim ]
+ *   └─────── go to the quest ────┘└─── open the quests sheet ───┘
+ *
+ * It used to be one: the whole row navigated. That made the sheet nearly
+ * unreachable, because the only other way in is the card header — a 20px strip
+ * at the very top of the card — and every other pixel of a four-row card sent
+ * you to another page instead. You had to aim.
+ *
+ * The empty middle is the reason this is a layout change and not just an
+ * onClick move. The text block was `flex-1`, so it stretched across all the
+ * spare width and that apparently-blank grey gap was still the navigate
+ * target. Now the text block sizes to its content and a separate spacer owns
+ * the gap, which is what makes "tap the grey space" mean the sheet.
+ *
+ * `min-w-0` on both the nav zone and the text block is load-bearing: it is
+ * what lets a long title shrink below its intrinsic width so `truncate` can
+ * ellipsis it. Without it a long quest name would push the trailing control
+ * off the row.
+ */
+// Exported for questRowZones.test.jsx. The two-zone split is a layout
+// contract, not just a handler arrangement, and testing it against the real
+// row rather than a reproduction is the only way the test can catch someone
+// putting `flex-1` back on the text block.
+export function QuestRow({ quest, onClaim, onGo, onOpenSheet, t, tFallback }) {
   if (!quest || !quest.definition) return null;
   const def = quest.definition;
   const completed = !!quest.completed_at;
@@ -387,23 +414,22 @@ function QuestRow({ quest, onClaim, onGo, t, tFallback }) {
   // missing in the current language.
   const label = (() => { const k = `quest.${def.id}.label`; const v = t(k); return v === k ? def.label : v; })();
 
-  // Claimed quests are read-only; in-progress and ready-to-claim are tappable
-  // to deep-link the user to where they can complete (or claim) the quest.
-  const tappable = !claimed && onGo;
+  // Claimed quests are read-only — there is nowhere useful to send someone for
+  // a quest they have already finished and banked.
+  const canGo = !claimed && !!onGo;
 
   return (
     <motion.div
       layout
-      role={tappable ? 'button' : undefined}
-      tabIndex={tappable ? 0 : undefined}
-      onClick={tappable ? onGo : undefined}
-      onKeyDown={tappable ? (e) => {
-        // Gate on currentTarget — inner Claim button (when completed)
-        // is focusable, and Enter on it would otherwise also fire onGo
-        // via bubbling, navigating away from the page mid-claim.
-        if (e.target !== e.currentTarget) return;
-        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onGo(); }
-      } : undefined}
+      onClick={onOpenSheet}
+      // Deliberately no role / tabIndex here. Nesting a button inside a button
+      // is invalid, and every action on this row is already keyboard-reachable
+      // without it: the nav zone below is a real control, Claim is a real
+      // button, and the card header opens this same sheet. This handler is a
+      // POINTER affordance — "tap anywhere spare to see the whole thing" —
+      // rather than a second keyboard stop that would just add noise to the
+      // tab order.
+      //
       // Board 07 draws a quest as a tile, a title and a progress line sitting
       // on the card's own surface. No border, no fill, no per-row card — the
       // bordered row this replaces was a card inside a card (banned outright
@@ -411,27 +437,56 @@ function QuestRow({ quest, onClaim, onGo, t, tFallback }) {
       // three things. Press feedback survives as a tint rather than a border;
       // -mx-1 px-1 lets that tint sit a little wider than the text instead of
       // indenting every row to make room for it.
-      className={`relative flex items-center gap-2.5 rounded-lg ${tappable ? 'cursor-pointer -mx-1 px-1 hover:bg-secondary/25 active:bg-secondary/40 transition-colors' : ''}`}
+      className="relative flex items-center gap-2.5 rounded-lg -mx-1 px-1 cursor-pointer active:bg-secondary/20 transition-colors"
     >
-      <QuestTile icon={def.icon} completed={completed} claimed={claimed} />
+      {/* ── Zone 1: go to the quest ──────────────────────────────────────
+          Hugs its content so the spare width beside it belongs to the sheet.
+          Claimed rows keep the same box for alignment but drop the handler,
+          so tapping a finished quest falls through to the sheet like the
+          rest of the row. */}
+      <div
+        role={canGo ? 'button' : undefined}
+        tabIndex={canGo ? 0 : undefined}
+        aria-label={canGo ? tFallback('quests.goTo', 'Go to: {label}', { label }) : undefined}
+        onClick={canGo ? (e) => { e.stopPropagation(); onGo(); } : undefined}
+        onKeyDown={canGo ? (e) => {
+          // Gate on currentTarget so Enter on the Claim button — which is a
+          // focusable descendant when the quest is complete — doesn't also
+          // navigate away mid-claim.
+          if (e.target !== e.currentTarget) return;
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onGo(); }
+        } : undefined}
+        className={`flex items-center gap-2.5 min-w-0 rounded-lg ${
+          canGo ? 'cursor-pointer hover:bg-secondary/30 active:bg-secondary/45 transition-colors' : ''
+        }`}
+      >
+        <QuestTile icon={def.icon} completed={completed} claimed={claimed} />
 
-      <div className="flex-1 min-w-0">
-        {/* cq-clamp2 stays even though this row is full-width by default:
-            the rules behind it only fire inside a .dash-slot under 250px, so
-            it costs nothing here and still catches a user who pairs quests
-            with something by hand in edit mode. */}
-        {/* leading-tight, not the default 20px line box: the drawing gives the
-            title 16px and the progress line 14px, which is what puts the row
-            on a 36px pitch. text-sm's default leading alone added 4px a row. */}
-        <p className={`font-medium text-sm leading-tight truncate cq-clamp2 ${claimed ? 'text-muted-foreground line-through decoration-1' : ''}`}>
-          {label}
-        </p>
-        <QuestRewardLine
-          quest={quest}
-          tFallback={tFallback}
-          className="block text-micro text-muted-foreground"
-        />
+        <div className="min-w-0">
+          {/* cq-clamp2 stays even though this row is full-width by default:
+              the rules behind it only fire inside a .dash-slot under 250px, so
+              it costs nothing here and still catches a user who pairs quests
+              with something by hand in edit mode. */}
+          {/* leading-tight, not the default 20px line box: the drawing gives the
+              title 16px and the progress line 14px, which is what puts the row
+              on a 36px pitch. text-sm's default leading alone added 4px a row. */}
+          <p className={`font-medium text-sm leading-tight truncate cq-clamp2 ${claimed ? 'text-muted-foreground line-through decoration-1' : ''}`}>
+            {label}
+          </p>
+          <QuestRewardLine
+            quest={quest}
+            tFallback={tFallback}
+            className="block text-micro text-muted-foreground"
+          />
+        </div>
       </div>
+
+      {/* ── Zone 2: the grey space ───────────────────────────────────────
+          Takes every pixel the text doesn't, and self-stretch makes it the
+          full row height so the target is the whole gap rather than a thin
+          band on the text's baseline. Clicks fall through to the row's
+          onClick, which opens the sheet. */}
+      <div className="flex-1 self-stretch" aria-hidden="true" />
 
       <AnimatePresence mode="wait">
         {claimed ? (
@@ -439,11 +494,16 @@ function QuestRow({ quest, onClaim, onGo, t, tFallback }) {
           // quiet one: the loud green tile at the START of the row is what
           // says done, and repeating it here in the same weight would give
           // the row two focal points.
+          // No handler: a tap here falls through to the row and opens the
+          // sheet, which is what this mark should do. It is a status glyph,
+          // not a control — there is nothing left to claim on a claimed
+          // quest, so sending someone to the full view is the only sensible
+          // thing a tap on it can mean.
           <motion.div
             key="claimed"
             initial={{ scale: 0.85, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className="flex items-center gap-1 text-success text-xs"
+            className="flex items-center gap-1 text-success text-xs py-1.5 ps-1.5"
           >
             <CheckCircle2 className="w-4 h-4" />
           </motion.div>

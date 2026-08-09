@@ -14,7 +14,17 @@ export default [
   // for rule not found") and `npm run lint` fails on code that is fine in
   // the tree it belongs to. Ignore them globally: a worktree lints itself.
   {
-    ignores: [".claude/worktrees/**"],
+    ignores: [
+      ".claude/worktrees/**",
+      // `docs/` holds prose plus the occasional SCRIPT THAT IS NOT OURS TO
+      // RUN — `penpot-achievements-board.js` is a snippet to paste into
+      // Penpot's `execute_code`, where a bare top-level `return` is both
+      // valid and required. Parsed as an ES module it is a hard error
+      // ("'return' outside of function"), so linting it can never pass and
+      // `npm run lint` fails on main for everyone. Nothing here is bundled
+      // or imported by the app.
+      "docs/**",
+    ],
   },
   {
     files: [

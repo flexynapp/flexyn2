@@ -185,6 +185,12 @@ export const gamificationI18n = {
     // i18n coverage ratchet cannot exempt without hiding real regressions
     // in the rest of it.
     'quests.crewShareToast':  '{rewards} · your crew banks {crewXp} XP',
+    // Screen-reader label for the row's navigate half. Under `quests.` rather
+    // than `dashboard.` for the same reason crewShareToast is: everything
+    // added in this pass is English-only pending a native review, and
+    // `dashboard.` is a well-translated namespace the coverage ratchet cannot
+    // exempt without hiding real regressions elsewhere in it.
+    'quests.goTo':            'Go to: {label}',
   },
 
   // ── Spanish ─────────────────────────────────────────────────────────────────
