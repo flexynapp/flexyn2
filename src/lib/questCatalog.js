@@ -124,6 +124,7 @@ export const ACTION_TYPES = {
 export const QUEST_CATALOG = {
   // ── Easy (8 coins, 20 XP) ─────────────────────────────────────────────────
   log_meal: {
+    family: 'nutrition',
     difficulty: 'easy',
     target: 1,
     actionType: ACTION_TYPES.MEAL_LOGGED,
@@ -133,6 +134,7 @@ export const QUEST_CATALOG = {
     enabled: true,
   },
   drink_water_4: {
+    family: 'hydration',
     difficulty: 'easy',
     target: 4,
     actionType: ACTION_TYPES.WATER_LOGGED,
@@ -142,6 +144,7 @@ export const QUEST_CATALOG = {
     enabled: true,
   },
   workout_15min: {
+    family: 'lifting',
     difficulty: 'easy',
     target: 15,
     actionType: ACTION_TYPES.WORKOUT_MINUTES,
@@ -151,6 +154,7 @@ export const QUEST_CATALOG = {
     enabled: true,
   },
   cardio_10min: {
+    family: 'cardio',
     difficulty: 'easy',
     target: 600, // seconds
     actionType: ACTION_TYPES.CARDIO_SECONDS,
@@ -160,6 +164,7 @@ export const QUEST_CATALOG = {
     enabled: true,
   },
   hub_post: {
+    family: 'social',
     difficulty: 'easy',
     target: 1,
     actionType: ACTION_TYPES.HUB_POST,
@@ -173,6 +178,7 @@ export const QUEST_CATALOG = {
   // CARDIO_SECONDS. So the action fired, matched zero rows and returned. This
   // is the entry that makes the existing call sites mean something.
   cardio_session: {
+    family: 'cardio',
     difficulty: 'easy',
     target: 1,
     actionType: ACTION_TYPES.CARDIO_COMPLETED,
@@ -182,6 +188,7 @@ export const QUEST_CATALOG = {
     enabled: true,
   },
   log_sleep: {
+    family: 'recovery',
     difficulty: 'easy',
     target: 1,
     actionType: ACTION_TYPES.SLEEP_LOGGED,
@@ -191,6 +198,7 @@ export const QUEST_CATALOG = {
     enabled: true,
   },
   log_mood: {
+    family: 'recovery',
     difficulty: 'easy',
     target: 1,
     actionType: ACTION_TYPES.MOOD_LOGGED,
@@ -200,6 +208,7 @@ export const QUEST_CATALOG = {
     enabled: true,
   },
   steps_5k: {
+    family: 'steps',
     difficulty: 'easy',
     target: 5000,
     actionType: ACTION_TYPES.STEPS_LOGGED,
@@ -209,6 +218,7 @@ export const QUEST_CATALOG = {
     enabled: true,
   },
   hub_react_3: {
+    family: 'social',
     difficulty: 'easy',
     target: 3,
     actionType: ACTION_TYPES.HUB_REACTION,
@@ -218,6 +228,7 @@ export const QUEST_CATALOG = {
     enabled: true,
   },
   log_body_metric: {
+    family: 'recovery',
     difficulty: 'easy',
     target: 1,
     actionType: ACTION_TYPES.BODY_METRIC_LOGGED,
@@ -229,6 +240,7 @@ export const QUEST_CATALOG = {
 
   // ── Medium (20 coins, 50 XP) ──────────────────────────────────────────────
   workout_complete: {
+    family: 'lifting',
     difficulty: 'medium',
     target: 1,
     actionType: ACTION_TYPES.WORKOUT_COMPLETED,
@@ -238,6 +250,7 @@ export const QUEST_CATALOG = {
     enabled: true,
   },
   cardio_30min: {
+    family: 'cardio',
     difficulty: 'medium',
     target: 1800, // seconds
     actionType: ACTION_TYPES.CARDIO_SECONDS,
@@ -247,6 +260,7 @@ export const QUEST_CATALOG = {
     enabled: true,
   },
   log_3_meals: {
+    family: 'nutrition',
     difficulty: 'medium',
     target: 3,
     actionType: ACTION_TYPES.MEAL_LOGGED,
@@ -256,6 +270,7 @@ export const QUEST_CATALOG = {
     enabled: true,
   },
   drink_water_8: {
+    family: 'hydration',
     difficulty: 'medium',
     target: 8,
     actionType: ACTION_TYPES.WATER_LOGGED,
@@ -265,6 +280,7 @@ export const QUEST_CATALOG = {
     enabled: true,
   },
   progress_photo: {
+    family: 'photo',
     difficulty: 'medium',
     target: 1,
     actionType: ACTION_TYPES.PROGRESS_PHOTO,
@@ -274,6 +290,7 @@ export const QUEST_CATALOG = {
     enabled: true,
   },
   workout_30min: {
+    family: 'lifting',
     difficulty: 'medium',
     target: 30,
     actionType: ACTION_TYPES.WORKOUT_MINUTES,
@@ -283,6 +300,7 @@ export const QUEST_CATALOG = {
     enabled: true,
   },
   sets_20: {
+    family: 'lifting',
     difficulty: 'medium',
     target: 20,
     actionType: ACTION_TYPES.SETS_COMPLETED,
@@ -292,6 +310,7 @@ export const QUEST_CATALOG = {
     enabled: true,
   },
   steps_10k: {
+    family: 'steps',
     difficulty: 'medium',
     target: 10000,
     actionType: ACTION_TYPES.STEPS_LOGGED,
@@ -301,6 +320,7 @@ export const QUEST_CATALOG = {
     enabled: true,
   },
   hub_comment_2: {
+    family: 'social',
     difficulty: 'medium',
     target: 2,
     actionType: ACTION_TYPES.HUB_COMMENT,
@@ -310,6 +330,7 @@ export const QUEST_CATALOG = {
     enabled: true,
   },
   cardio_double: {
+    family: 'cardio',
     difficulty: 'medium',
     target: 2,
     actionType: ACTION_TYPES.CARDIO_COMPLETED,
@@ -319,6 +340,7 @@ export const QUEST_CATALOG = {
     enabled: true,
   },
   volume_10k: {
+    family: 'lifting',
     difficulty: 'medium',
     target: 10000,
     actionType: ACTION_TYPES.WORKOUT_VOLUME,
@@ -337,6 +359,7 @@ export const QUEST_CATALOG = {
   // landing one, but they're now 2 of 8 rather than 2 of 4, and the six
   // additions are all quests you can choose to complete.
   workout_45min: {
+    family: 'lifting',
     difficulty: 'hard',
     target: 45,
     actionType: ACTION_TYPES.WORKOUT_MINUTES,
@@ -346,6 +369,7 @@ export const QUEST_CATALOG = {
     enabled: true,
   },
   workout_60min: {
+    family: 'lifting',
     difficulty: 'hard',
     target: 60,
     actionType: ACTION_TYPES.WORKOUT_MINUTES,
@@ -355,6 +379,7 @@ export const QUEST_CATALOG = {
     enabled: true,
   },
   cardio_45min: {
+    family: 'cardio',
     difficulty: 'hard',
     target: 2700, // seconds
     actionType: ACTION_TYPES.CARDIO_SECONDS,
@@ -364,6 +389,7 @@ export const QUEST_CATALOG = {
     enabled: true,
   },
   sets_40: {
+    family: 'lifting',
     difficulty: 'hard',
     target: 40,
     actionType: ACTION_TYPES.SETS_COMPLETED,
@@ -373,6 +399,7 @@ export const QUEST_CATALOG = {
     enabled: true,
   },
   volume_25k: {
+    family: 'lifting',
     difficulty: 'hard',
     target: 25000,
     actionType: ACTION_TYPES.WORKOUT_VOLUME,
@@ -382,6 +409,7 @@ export const QUEST_CATALOG = {
     enabled: true,
   },
   steps_15k: {
+    family: 'steps',
     difficulty: 'hard',
     target: 15000,
     actionType: ACTION_TYPES.STEPS_LOGGED,
@@ -391,6 +419,7 @@ export const QUEST_CATALOG = {
     enabled: true,
   },
   hit_pr: {
+    family: 'pr',
     difficulty: 'hard',
     target: 1,
     actionType: ACTION_TYPES.PR_ACHIEVED,
@@ -400,6 +429,7 @@ export const QUEST_CATALOG = {
     enabled: true,
   },
   goal_complete: {
+    family: 'goals',
     difficulty: 'hard',
     target: 1,
     actionType: ACTION_TYPES.GOAL_COMPLETED,
@@ -417,6 +447,7 @@ export const QUEST_CATALOG = {
   // moves because a member showed up. That is the whole point of the tier —
   // the other three are things you do, this is a thing you do FOR someone.
   crew_workout: {
+    family: 'lifting',
     difficulty: 'crew',
     target: 1,
     actionType: ACTION_TYPES.WORKOUT_COMPLETED,
@@ -426,6 +457,7 @@ export const QUEST_CATALOG = {
     enabled: true,
   },
   crew_cardio: {
+    family: 'cardio',
     difficulty: 'crew',
     target: 1,
     actionType: ACTION_TYPES.CARDIO_COMPLETED,
@@ -435,6 +467,7 @@ export const QUEST_CATALOG = {
     enabled: true,
   },
   crew_chat_3: {
+    family: 'social',
     difficulty: 'crew',
     target: 3,
     actionType: ACTION_TYPES.CREW_MESSAGE,
@@ -444,6 +477,7 @@ export const QUEST_CATALOG = {
     enabled: true,
   },
   crew_steps_8k: {
+    family: 'steps',
     difficulty: 'crew',
     target: 8000,
     actionType: ACTION_TYPES.STEPS_LOGGED,
@@ -454,50 +488,46 @@ export const QUEST_CATALOG = {
   },
 };
 
-/**
- * Pick the day's quests for a given user/date pair: 1 easy, 1 medium, 1 hard,
- * plus 1 crew quest when `hasCrew` is true.
- * Deterministic — same (userId, date, hasCrew) always returns the same set.
- *
- * Why deterministic? So the user can't reset by reloading, and so the same set
- * shows on different devices. The picker uses per-difficulty independent hashes
- * of (userId + date + difficulty) so adjacent dates don't produce neighboring
- * indices (which, with small pools of 5, would surface the same quest day after
- * day even though the date had changed — beta tester feedback: "quests have
- * been consistent the whole time"). Mixing the day-of-year separately into
- * the seed ensures even minor date deltas produce large hash shifts.
- *
- * The pools are 11 / 11 / 8 / 4 as of Aug 2026, up from 5 / 5 / 4 / 0. That
- * ratio is most of the fix for the feedback above: with a pool of five, a
- * uniform picker repeats a quest inside a week about as often as not.
- */
-export function pickDailyQuests(userId, dateStr, hasCrew = false) {
-  // Extract YMD numerically so the day-of-year acts as a strong, additive
-  // entropy term separate from the lexical date string. Without this, two
-  // adjacent dates ("2026-05-31" → "2026-06-01") differ in many characters
-  // but the djb2 hash can still produce nearby mod values for small pools.
+// ── The picker ───────────────────────────────────────────────────────────────
+//
+// This was `pool[hash(userId, date, difficulty) % pool.length]`, and it was
+// measurably worse than tossing a coin. Simulated over 200 users × 365 days:
+//
+//     repeat on the NEXT day    23.9%   (uniform random over 11 would be ~9%)
+//     repeat within 3 days      48.0%
+//     days with a same-day dup  25.1%
+//
+// Two independent defects, and the pool expansion fixed neither.
+//
+// 1. A hash mod a pool size is not a uniform shuffle. djb2 over strings that
+//    differ in one or two characters lands in the same buckets far more often
+//    than chance, so consecutive days collided constantly. Bigger pools did
+//    not help because the collisions come from the hash, not the modulus.
+//
+// 2. Nothing stopped two of the day's quests being the same task at different
+//    sizes. "Drink 4 glasses" (easy) alongside "Drink 8 glasses" (medium)
+//    means finishing one finishes both; a 45-minute session cleared four
+//    lifting quests at once. A quarter of all days had at least one such pair.
+//
+// The replacement is a CYCLE ROTATION. Each tier's pool is shuffled once per
+// cycle of `pool.length` days, and the day's index inside that cycle selects
+// the quest. So every quest in a tier appears exactly once before any of them
+// appears twice — the strongest anti-repeat guarantee available without
+// storing history, and it needs no state: cycle and position are both derived
+// from the date.
+//
+// The one weak seam is the boundary between cycles: the last pick of cycle N
+// sitting next to the first pick of cycle N+1. `rotationFor` closes it by
+// forcing the head of each cycle to avoid the tail of the previous one.
+
+const ROTATION_EPOCH_UTC = Date.UTC(2020, 0, 1);
+
+/** Whole days since a fixed epoch. The rotation's clock. */
+function dayIndex(dateStr) {
   const m = String(dateStr).match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  const dayMix = m
-    ? (Number(m[1]) * 366 + Number(m[2]) * 31 + Number(m[3])) * 2654435761 >>> 0
-    : 0;
-
-  const eligible = (diff) =>
-    Object.entries(QUEST_CATALOG)
-      .filter(([, q]) => q.enabled && q.difficulty === diff)
-      .map(([id, q]) => ({ id, ...q }));
-
-  // Per-difficulty seed so easy/medium/hard pick INDEPENDENTLY rather than
-  // (seed, seed+1, seed+2) which clustered picks on small pools.
-  const pick = (difficulty) => {
-    const pool = eligible(difficulty);
-    if (pool.length === 0) return null;
-    const seed = (hashString(`${userId}:${dateStr}:${difficulty}`) ^ dayMix) >>> 0;
-    return pool[seed % pool.length];
-  };
-
-  const picked = [pick('easy'), pick('medium'), pick('hard')];
-  if (hasCrew) picked.push(pick('crew'));
-  return picked.filter(Boolean);
+  if (!m) return 0;
+  const t = Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  return Math.floor((t - ROTATION_EPOCH_UTC) / 86400000);
 }
 
 /** Cheap deterministic string hash (djb2). */
@@ -505,6 +535,220 @@ function hashString(s) {
   let h = 5381;
   for (let i = 0; i < s.length; i++) h = ((h << 5) + h) ^ s.charCodeAt(i);
   return h >>> 0;
+}
+
+/**
+ * mulberry32 — a small, well-distributed PRNG. The point of using a real one
+ * rather than more djb2 arithmetic is that a Fisher-Yates shuffle is only as
+ * uniform as its random source, and the old picker's whole problem was a
+ * source that clustered.
+ */
+function mulberry32(a) {
+  return function next() {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function shuffled(items, seed) {
+  const rnd = mulberry32(seed);
+  const a = items.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(rnd() * (i + 1));
+    const t = a[i]; a[i] = a[j]; a[j] = t;
+  }
+  return a;
+}
+
+/**
+ * The shuffled order for one tier in one cycle, with the cycle boundary
+ * repaired.
+ *
+ * Without the repair, a quest can land at the end of cycle N and the start of
+ * cycle N+1 — a next-day repeat, which is the exact thing this rotation
+ * exists to prevent, and it would happen roughly 1/L of the time per tier.
+ *
+ * `gap` is the minimum separation we insist on across the seam. Elements in
+ * the previous cycle's last `gap - 1` slots are pushed out of this cycle's
+ * first `gap - 1` slots, which is sufficient: an element at previous index j
+ * and current index i is `L + i - j` days apart, so forcing i >= gap-1 for
+ * every j > L-gap gives at least `gap` days. It is capped at half the pool so
+ * there are always enough non-tail entries to fill the head with.
+ */
+// Below this pool size a fresh shuffle every cycle does more harm than good.
+// Reshuffling buys variety in the ORDER, but every reshuffle creates a seam
+// where a quest can land near its own previous outing — and on a short pool
+// you hit a seam constantly. The crew tier is four deep, so it crosses a
+// boundary every four days: measured 6.2% next-day and 37.3% within-three
+// against a fixed loop's guaranteed gap of exactly four.
+//
+// So short pools get ONE permutation per user, cycled forever. The order is
+// then predictable, which is a real cost — but on four items the user has
+// seen the whole set inside a week anyway, and maximum spacing is what was
+// actually asked for.
+const STABLE_ROTATION_BELOW = 6;
+
+function rotationFor(pool, userId, difficulty, cycle) {
+  const L = pool.length;
+  if (L < STABLE_ROTATION_BELOW) {
+    return shuffled(pool, hashString(`${userId}:${difficulty}:stable`));
+  }
+  const perm = shuffled(pool, hashString(`${userId}:${difficulty}:c${cycle}`));
+  if (cycle <= 0 || L < 3) return perm;
+
+  const gap = Math.max(2, Math.min(4, Math.floor(L / 2) + 1));
+  const prev = shuffled(pool, hashString(`${userId}:${difficulty}:c${cycle - 1}`));
+  const tail = new Set(prev.slice(L - (gap - 1)).map(q => q.id));
+
+  for (let p = 0; p <= gap - 2; p++) {
+    if (!tail.has(perm[p].id)) continue;
+    const swapAt = perm.findIndex((q, k) => k >= gap - 1 && !tail.has(q.id));
+    if (swapAt === -1) break; // pool too small to satisfy — keep what we have
+    const t = perm[p]; perm[p] = perm[swapAt]; perm[swapAt] = t;
+  }
+  return perm;
+}
+
+/**
+ * The day this tier last served each quest, by index into `perm`.
+ *
+ * The rotation makes this answerable without storing anything. A quest sitting
+ * at index i of the current cycle was served on day `cycle*L + i` if that day
+ * has already passed; otherwise its most recent outing was wherever it sat in
+ * the PREVIOUS cycle's permutation, on day `(cycle-1)*L + prevIndex`.
+ *
+ * This is what makes a displaced pick safe. When a family collision forces a
+ * tier off its scheduled quest, choosing the least-recently-served alternative
+ * keeps the spacing; choosing the next one in the rotation — which is what
+ * this used to do — serves that quest twice in one cycle and was single-
+ * handedly responsible for ~21% next-day repeats in the easy and medium
+ * tiers while `hard`, which never gets displaced, measured 0.00%.
+ */
+function lastServedDays(perm, prevPerm, at, cycle, L) {
+  const prevIndex = new Map();
+  if (prevPerm) prevPerm.forEach((q, i) => prevIndex.set(q.id, i));
+  return perm.map((q, i) => {
+    if (i < at) return cycle * L + i;               // already served this cycle
+    if (!prevPerm) return -Infinity;                // first cycle — never served
+    return (cycle - 1) * L + prevIndex.get(q.id);   // last seen in the previous
+  });
+}
+
+/** Enabled quests of one difficulty, in stable catalog order. */
+function eligible(difficulty) {
+  return Object.entries(QUEST_CATALOG)
+    .filter(([, q]) => q.enabled && q.difficulty === difficulty)
+    .map(([id, q]) => ({ id, ...q }));
+}
+
+// Tiers are resolved most-constrained first so the tier with the fewest escape
+// routes keeps its rotation intact and the roomy ones absorb the compromise.
+// `hard` is 4 of 8 lifting, so it goes before `medium` and `easy`, which carry
+// seven families each.
+const RESOLVE_ORDER = ['hard', 'medium', 'easy', 'crew'];
+
+// The crew quest is deliberately EXEMPT from the family rule, and it is the
+// one place overlap is a feature rather than a defect.
+//
+// The rule exists to stop a day paying twice for one act — "drink 4 glasses"
+// beside "drink 8 glasses" is a free quest, not a second quest. But a crew
+// quest overlapping your lifting quest is the entire pitch of the tier: the
+// session you were going to do anyway now also moves your crew's level. You
+// are not being asked for extra work, so nothing is being given away.
+//
+// Including crew in the constraint measured badly and for a structural
+// reason: with a pool of four it was displaced off its rotation on a quarter
+// to a half of all days, which on a four-item pool is thrash — 16.8% next-day
+// repeats against `hard`'s 0.00%. Exempting it lets crew follow a clean
+// four-day cycle AND stops it consuming a family that `easy` and `medium`
+// then have to work around.
+const FAMILY_EXEMPT = new Set(['crew']);
+
+/**
+ * Pick the day's quests for a given user/date pair: 1 easy, 1 medium, 1 hard,
+ * plus 1 crew quest when `hasCrew` is true.
+ * Deterministic — same (userId, date, hasCrew) always returns the same set.
+ *
+ * Why deterministic? So the user can't reroll by reloading, and so the same
+ * set shows on every device without being stored anywhere.
+ *
+ * Measured over 200 users × 365 days (see questCatalog.test.js, which runs a
+ * smaller version of the same simulation so a regression fails the suite
+ * rather than being argued about):
+ *
+ *                        before    after
+ *   repeat next day      23.85%    0.84%
+ *   repeat within 3      48.00%    2.13%
+ *   same-family day      25.11%    0.00%
+ *
+ * `hard` and `crew` measure 0.00% next-day; the residual ~1.5% sits in `easy`
+ * and `medium`, which are the tiers that absorb a family displacement.
+ *
+ * The 'same-family day' figure counts easy/medium/hard only — the crew quest
+ * is exempt by design, see FAMILY_EXEMPT.
+ */
+export function pickDailyQuests(userId, dateStr, hasCrew = false) {
+  const day = dayIndex(dateStr);
+  const tiers = hasCrew ? RESOLVE_ORDER : RESOLVE_ORDER.filter(t => t !== 'crew');
+
+  const usedFamilies = new Set();
+  const chosen = {};
+
+  for (const difficulty of tiers) {
+    const pool = eligible(difficulty);
+    if (pool.length === 0) continue;
+    const L = pool.length;
+    const cycle = Math.floor(day / L);
+    const perm = rotationFor(pool, userId, difficulty, cycle);
+    const at = ((day % L) + L) % L;
+
+    const exempt = FAMILY_EXEMPT.has(difficulty);
+    let quest = perm[at];
+    if (!exempt && usedFamilies.has(quest.family)) {
+      // Displaced. Take the eligible quest this tier has gone longest without
+      // serving, not simply the next one along — see lastServedDays. Ties
+      // break on rotation index so the result stays deterministic.
+      const ages = lastServedDays(
+        perm,
+        cycle > 0 ? shuffled(pool, hashString(`${userId}:${difficulty}:c${cycle - 1}`)) : null,
+        at, cycle, L,
+      );
+      // Slots coming up in the next few days. Displacing ONTO one of these
+      // serves that quest twice in quick succession — it runs today as the
+      // substitute and again on its own scheduled day. That was the last
+      // remaining source of next-day repeats once least-recently-served was
+      // in place, and it is why `soon` is excluded before `ages` is consulted
+      // rather than left for the age comparison to sort out: a quest that is
+      // due tomorrow can still be the oldest thing in the pool.
+      const lookahead = Math.max(1, Math.min(3, Math.floor(L / 3)));
+      const soon = new Set();
+      for (let k = 1; k <= lookahead; k++) soon.add((at + k) % L);
+
+      const choose = (avoidSoon) => {
+        let b = -1;
+        for (let i = 0; i < L; i++) {
+          if (i === at || usedFamilies.has(perm[i].family)) continue;
+          if (avoidSoon && soon.has(i)) continue;
+          if (b === -1 || ages[i] < ages[b]) b = i;
+        }
+        return b;
+      };
+      // Prefer a candidate that isn't due imminently; fall back to allowing
+      // one rather than leaving the day a quest short.
+      let best = choose(true);
+      if (best === -1) best = choose(false);
+      // If every other quest in this tier collides too, keep the rotation's
+      // pick. A day with a duplicate beats a day with a missing quest.
+      if (best !== -1) quest = perm[best];
+    }
+    if (!exempt) usedFamilies.add(quest.family);
+    chosen[difficulty] = quest;
+  }
+
+  // Return in display order (easy → medium → hard → crew), not resolve order.
+  return DIFFICULTY_ORDER.map(d => chosen[d]).filter(Boolean);
 }
 
 /** Get full definition for a stored quest_id, including label & reward. */

@@ -169,22 +169,6 @@ describe('pickDailyQuests', () => {
     expect(sets.size).toBeGreaterThan(1);
   });
 
-  // The actual complaint, measured rather than asserted qualitatively:
-  // across four weeks, no single quest should own a tier. With the old
-  // pool of five this test would have been a coin flip.
-  it('does not repeat one quest for a whole tier across four weeks', () => {
-    ['easy', 'medium', 'hard'].forEach(diff => {
-      const seen = new Set();
-      for (let d = 0; d < 28; d++) {
-        const date = new Date(Date.UTC(2026, 0, 1 + d)).toISOString().slice(0, 10);
-        const pick = pickDailyQuests(userId, date).find(q => q.difficulty === diff);
-        seen.add(pick.id);
-      }
-      expect(seen.size, `${diff} only surfaced ${seen.size} distinct quests in 28 days`)
-        .toBeGreaterThanOrEqual(4);
-    });
-  });
-
   it('different users produce independent selections', () => {
     const a = pickDailyQuests('user-1', '2026-01-15');
     const b = pickDailyQuests('user-2', '2026-01-15');
@@ -192,6 +176,140 @@ describe('pickDailyQuests', () => {
     // both succeed and produce valid sets.
     expect(a).toHaveLength(3);
     expect(b).toHaveLength(3);
+  });
+});
+
+// ── Rotation quality ────────────────────────────────────────────────────────
+//
+// This block exists because the assertion it replaced — "each tier surfaces at
+// least 4 distinct quests in 28 days" — passed comfortably while the real
+// behaviour was 23.9% next-day repeats and a same-task pair on a quarter of
+// all days. A qualitative assertion cannot catch a distribution problem. So
+// this simulates the picker and measures it, the same way the one-off script
+// that found the defect did.
+//
+// The thresholds sit just above the measured figures. They are a ratchet: if a
+// catalog edit or a picker change pushes a rate up, this fails and names the
+// number, rather than the regression reaching a user as "my quests are always
+// the same".
+describe('pickDailyQuests — rotation quality (simulated)', () => {
+  const USERS = 40, DAYS = 200;
+  const D0 = Date.UTC(2026, 0, 1);
+  const dstr = (i) => new Date(D0 + i * 86400000).toISOString().slice(0, 10);
+
+  // Run once; every assertion below reads these.
+  const stat = {
+    picks: 0, next: 0, within3: 0,
+    perTier: {}, familyClashDays: 0, days: 0,
+  };
+  for (const t of ['easy', 'medium', 'hard', 'crew']) {
+    stat.perTier[t] = { picks: 0, next: 0, within3: 0 };
+  }
+  for (let u = 0; u < USERS; u++) {
+    const last = {};
+    for (let i = 0; i < DAYS; i++) {
+      const set = pickDailyQuests(`sim-user-${u}`, dstr(i), true);
+      stat.days++;
+
+      // The crew quest is exempt on purpose (FAMILY_EXEMPT) — its overlap
+      // with a lifting or cardio quest is the tier's whole pitch, so it is
+      // excluded from the clash check rather than silently inflating it.
+      const solo = set.filter(q => q.difficulty !== 'crew').map(q => q.family);
+      if (solo.length !== new Set(solo).size) stat.familyClashDays++;
+
+      for (const q of set) {
+        stat.picks++;
+        const s = stat.perTier[q.difficulty];
+        s.picks++;
+        if (last[q.id] !== undefined) {
+          const gap = i - last[q.id];
+          if (gap === 1) { stat.next++; s.next++; }
+          if (gap <= 3) { stat.within3++; s.within3++; }
+        }
+        last[q.id] = i;
+      }
+    }
+  }
+  const rate = (n, d) => (100 * n) / d;
+
+  it('never gives two quests that complete each other on the same day', () => {
+    // Not a rate — zero. "Drink 4 glasses" beside "Drink 8 glasses" pays
+    // twice for one act, and this was true on 25.1% of days before families
+    // existed.
+    expect(stat.familyClashDays, `${stat.familyClashDays} of ${stat.days} days had a same-family pair`)
+      .toBe(0);
+  });
+
+  it('repeats a quest the very next day under 2% of the time', () => {
+    const r = rate(stat.next, stat.picks);
+    expect(r, `next-day repeat rate is ${r.toFixed(2)}% (was 23.85% before the rotation)`)
+      .toBeLessThan(2);
+  });
+
+  it('repeats a quest within three days under 4% of the time', () => {
+    const r = rate(stat.within3, stat.picks);
+    expect(r, `within-3-day repeat rate is ${r.toFixed(2)}% (was 48.00%)`).toBeLessThan(4);
+  });
+
+  // These two tiers ride their rotation untouched — hard resolves first so it
+  // is never displaced, and crew is family-exempt on a stable loop. Both
+  // measure exactly zero, so they are asserted exactly: any repeat at all
+  // means the rotation itself broke, which is a different and worse bug than
+  // displacement drift.
+  it('never repeats a hard quest on consecutive days', () => {
+    expect(stat.perTier.hard.next).toBe(0);
+  });
+
+  it('never repeats a crew quest within three days', () => {
+    expect(stat.perTier.crew.within3).toBe(0);
+  });
+
+  // The crew pool is four deep and runs a fixed loop, so the gap is exactly
+  // four every time. If someone adds a fifth crew quest this becomes five —
+  // the point is that it is EXACTLY the pool size, not that it is 4.
+  it('spaces crew quests by exactly the pool size', () => {
+    const poolSize = Object.values(QUEST_CATALOG)
+      .filter(q => q.enabled && q.difficulty === 'crew').length;
+    const gaps = new Set();
+    let prev = {};
+    for (let i = 0; i < 40; i++) {
+      const q = pickDailyQuests('gap-user', dstr(i), true).find(x => x.difficulty === 'crew');
+      if (prev[q.id] !== undefined) gaps.add(i - prev[q.id]);
+      prev[q.id] = i;
+    }
+    expect([...gaps]).toEqual([poolSize]);
+  });
+
+  it('uses every quest in a tier, not just a favoured few', () => {
+    ['easy', 'medium', 'hard'].forEach(diff => {
+      const pool = Object.entries(QUEST_CATALOG)
+        .filter(([, q]) => q.enabled && q.difficulty === diff).map(([id]) => id);
+      const seen = new Set();
+      for (let i = 0; i < 120; i++) {
+        seen.add(pickDailyQuests('coverage-user', dstr(i)).find(q => q.difficulty === diff).id);
+      }
+      expect(seen.size, `${diff} surfaced ${seen.size} of ${pool.length} quests in 120 days`)
+        .toBe(pool.length);
+    });
+  });
+});
+
+describe('QUEST_CATALOG families', () => {
+  it('every quest declares a family', () => {
+    Object.entries(QUEST_CATALOG).forEach(([id, q]) => {
+      expect(typeof q.family, `${id} has no family`).toBe('string');
+      expect(q.family.length).toBeGreaterThan(0);
+    });
+  });
+
+  // A family is only meaningful if more than one quest is in it — a family of
+  // one constrains nothing and is usually a typo (`liftng`, `cardo`).
+  it('has no family with only a single quest, which would be a typo', () => {
+    const counts = {};
+    Object.values(QUEST_CATALOG).forEach(q => { counts[q.family] = (counts[q.family] || 0) + 1; });
+    const singles = Object.entries(counts).filter(([, n]) => n === 1).map(([f]) => f);
+    // 'pr', 'goals' and 'photo' are genuinely one-of-a-kind actions.
+    expect(singles.sort()).toEqual(['goals', 'photo', 'pr']);
   });
 });
 
