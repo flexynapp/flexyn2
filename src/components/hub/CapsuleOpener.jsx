@@ -725,7 +725,12 @@ function BatchCard({ entry, isBest, delay }) {
   const tint = rarityTint(item.rarity);
   return (
     <motion.div
-      className="relative flex flex-col items-center justify-center rounded-xl border-2 bg-card p-2 gap-1 text-center min-h-[92px]"
+      // basis-31% / basis-18% reproduce the 3-up and 5-up columns the haul
+      // used to get from a grid, a couple of points under an exact third
+      // and fifth so sub-pixel rounding can never bump the last card of a
+      // full row onto its own line. The card owns its width because the
+      // haul now wraps and centres rather than laying out on tracks.
+      className="relative shrink-0 basis-[31%] sm:basis-[18%] flex flex-col items-center justify-center rounded-xl border-2 bg-card p-2 gap-1 text-center min-h-[92px]"
       style={{ borderColor: tint.border, boxShadow: isBest ? tint.glow : undefined }}
       initial={{ scale: 0.6, opacity: 0, y: 8 }}
       animate={{ scale: 1, opacity: 1, y: 0 }}
@@ -1204,7 +1209,16 @@ export default function CapsuleOpener({ capsule, batch, onClaim, onClaimBatch, o
                 {results.length} opened
               </p>
 
-              <div className="relative z-10 w-full grid grid-cols-3 sm:grid-cols-5 gap-2">
+              {/* Wrap-and-centre, NOT a grid. A grid packs a short row into
+                  its leading columns, so a two-capsule open rendered two
+                  cards jammed against the panel's left edge with a dead
+                  third column beside them — and every count that isn't a
+                  multiple of the column count did the same to its LAST row
+                  (4 → 3 + 1 adrift on the left, 10 → 3/3/3 + 1). The haul is
+                  the payoff shot; it has to sit under the centre of the panel
+                  at any count. Cards carry their own width so they stay the
+                  same size whether you opened two or ten. */}
+              <div className="relative z-10 w-full flex flex-wrap justify-center gap-2">
                 {results.map((entry, i) => (
                   <BatchCard
                     key={entry.capsuleId}
