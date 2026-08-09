@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { filterAfterReset } from '@/lib/accountReset';
 import { useLanguage } from '@/lib/LanguageContext';
 import { getDateLocale } from '@/lib/dateLocales';
@@ -34,6 +34,8 @@ import GroupedExerciseTrends from '@/components/progress/GroupedExerciseTrends';
 import TrainingPatternCard from '@/components/progress/TrainingPatternCard';
 import WorkoutCalendarGrid from '@/components/progress/WorkoutCalendarGrid';
 import PageHeader from '@/components/PageHeader';
+import HeroPager from '@/components/HeroPager';
+import { HERO_SLIDE_GUTTER, heroTintGradient, heroWatermarkStyle, heroSlideAccent } from '@/lib/heroChrome';
 import { latestDebrief, generateWeeklyDebrief, currentWeekStart } from '@/lib/data/debriefs';
 import {
   LineChart, Line, BarChart, Bar,
@@ -335,161 +337,139 @@ function AnalyticsTab({ logs }) {
 
 /* ──────────────────────────────────────────────────────────────────
  *  ProgressCarousel — 4 slides (Streak / Workouts / Volume / Level)
- *  with motivational copy per slide. Modeled after the Dashboard
- *  HeroSlideshow:
- *    • auto-rotates every 8s, pauses 12s after manual nav
- *    • swipe left/right snaps to next/prev
- *    • right-edge chevron button (lifted to the wrapper, not inside)
- *    • pagination dots
- *    • each slide has its own accent color (HSL via inline style)
- *  forwardRef so the parent's stat tiles can call .goTo(id) to jump
+ *  with motivational copy per slide.
+ *
+ *  This is now the SAME carousel as the Dashboard hero, not a carousel
+ *  "modeled after" it. It used to be a private copy of the original
+ *  design — one slide cross-fading in place, with `drag` on a card
+ *  pinned by `dragConstraints={{ left: 0, right: 0 }}` so the gesture
+ *  rubber-banded back to where it started and the slide changed after
+ *  the fact. Nothing travelled with the thumb. The Dashboard hero had
+ *  since been rebuilt as a real pager (a track holding every slide,
+ *  translated under the finger, settling on a spring, clamped at the
+ *  ends like an iOS home screen) and the two read as different
+ *  components wearing the same dots.
+ *
+ *  Everything that moves is HeroPager; everything that is painted is
+ *  src/lib/heroChrome.js. What is left here is this page's slide.
+ *
+ *  Two chrome changes came with it, both from CLAUDE.md's composition
+ *  rules: the two blurred radial blobs (one animating on a 9s loop) are
+ *  replaced by the band's smoothstep accent tint plus its 2px identity
+ *  rule — "no gradient as decoration" — and `shadow-sm` is gone, since
+ *  a resting surface is a hairline and nothing else.
+ *
+ *  forwardRef so the parent's stat tiles can call .goToId(id) to jump
  *  the carousel to a specific slide when tapped.
  * ────────────────────────────────────────────────────────────────── */
 
 const ProgressCarousel = forwardRef(function ProgressCarousel({ slides }, ref) {
-  const [idx, setIdx] = useState(0);
-  const [paused, setPaused] = useState(false);
-  const pauseTimerRef = useRef(null);
-
-  const goTo = (i) => {
-    setIdx(i);
-    setPaused(true);
-    if (pauseTimerRef.current) clearTimeout(pauseTimerRef.current);
-    pauseTimerRef.current = setTimeout(() => setPaused(false), 12_000);
-  };
-  const next = () => goTo((idx + 1) % slides.length);
-  const prev = () => goTo((idx - 1 + slides.length) % slides.length);
-
-  // Expose .goToId(id) so parent can wire stat tiles to specific slides.
-  useImperativeHandle(ref, () => ({
-    goToId: (id) => {
-      const i = slides.findIndex(s => s.id === id);
-      if (i >= 0) goTo(i);
-    },
-  }), [slides, goTo]);
-
-  // Auto-rotate.
-  useEffect(() => {
-    if (paused || slides.length <= 1) return;
-    const t = setTimeout(() => setIdx(i => (i + 1) % slides.length), 8000);
-    return () => clearTimeout(t);
-  }, [idx, paused, slides.length]);
-
-  useEffect(() => () => {
-    if (pauseTimerRef.current) clearTimeout(pauseTimerRef.current);
+  const pagerRef = useRef(null);
+  // The band paints the LIVE slide's accent — tint and identity rule —
+  // exactly as the Dashboard hero does. Seeded from slide 0 so the first
+  // paint is already correct rather than flashing brand-orange first.
+  const [accent, setAccent] = useState(() => heroSlideAccent(slides[0]));
+  const handleIndexChange = useCallback((_i, slide) => {
+    setAccent(heroSlideAccent(slide));
   }, []);
 
-  // Swipe
-  const handleDragEnd = (_e, info) => {
-    if (slides.length <= 1) return;
-    const dx = info.offset.x;
-    const vx = info.velocity.x;
-    if (dx < -50 || vx < -500) next();
-    else if (dx > 50 || vx > 500) prev();
-  };
+  useImperativeHandle(ref, () => ({
+    goToId: (id) => pagerRef.current?.goToId(id),
+  }), []);
 
-  const slide = slides[idx];
-  if (!slide) return null;
-  const Icon = slide.icon;
+  const multi = slides.length > 1;
 
   return (
     <div className="relative mb-3">
-      {/* Chevron lifted out of the rounded card so it sits at the
-          dashboard's right edge (matches the hero carousel pattern). */}
-      {slides.length > 1 && (
-        <button
-          type="button"
-          onClick={next}
-          aria-label="Next slide"
-          className="absolute end-3 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-foreground/45 backdrop-blur-sm text-background hover:bg-foreground/60 active:bg-foreground/60 active:scale-95 flex items-center justify-center shadow-md transition-all"
-        >
-          <ChevronRight className="w-4 h-4 rtl:scale-x-[-1]" />
-        </button>
-      )}
-      <motion.div
-        drag={slides.length > 1 ? 'x' : false}
-        dragConstraints={{ left: 0, right: 0 }}
-        dragElastic={0.18}
-        onDragEnd={handleDragEnd}
-        className="relative overflow-hidden rounded-2xl bg-card text-foreground border border-border shadow-sm touch-pan-y"
-      >
-        {/* Per-slide color tint — animates on slide change */}
-        <motion.div
-          key={`mesh-tr-${slide.id}`}
-          initial={{ opacity: 0.5 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.6 }}
-          className="absolute -top-1/3 -end-1/4 w-[120%] h-[140%] rounded-full blur-3xl pointer-events-none"
-          style={{ background: `radial-gradient(circle, hsl(${slide.color} / 0.20), transparent 65%)` }}
+      <div className="relative overflow-hidden rounded-2xl border border-border bg-muted dark:bg-card text-foreground touch-pan-y">
+        {/* Accent tint — the smoothstep falloff from heroChrome, keyed to
+            the slide on screen. Ends exactly on the card's own boundary,
+            so there is no edge in open space for Mach banding to find. */}
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 pointer-events-none"
+          style={{ background: heroTintGradient(accent) }}
         />
-        <motion.div
-          key={`mesh-bl-${slide.id}`}
-          className="absolute -bottom-1/3 -start-1/4 w-[100%] h-[120%] rounded-full blur-3xl pointer-events-none"
-          style={{ background: `radial-gradient(circle, hsl(${slide.color} / 0.12), transparent 70%)` }}
-          animate={{ x: [0, 20, 0], y: [0, -10, 0] }}
-          transition={{ duration: 9, repeat: Infinity, ease: 'easeInOut' }}
+        {/* Slide identity — a 2px solid rule, after the tint so the tint
+            cannot wash it out. NO `transition-colors`: transitioning a
+            background-color whose value is `hsl(var(--x))` does not work,
+            and the rule would sit frozen on slide one's accent forever. */}
+        <div
+          aria-hidden="true"
+          className="absolute inset-x-0 top-0 h-0.5 pointer-events-none"
+          style={{ background: `hsl(${accent})` }}
         />
 
-        <div className="relative p-4 md:p-5 min-h-[120px] flex flex-col justify-between gap-3">
-          {/* Large translucent icon on the right-centre — Lucide symbol,
-              not an emoji, so it scales crisply at any resolution. */}
-          {slide.icon && (() => {
-            const IconComp = slide.icon;
-            return (
-              <IconComp
-                aria-hidden="true"
-                className="absolute end-4 top-[5px] pointer-events-none select-none"
-                style={{ width: 96, height: 96, opacity: 0.12, color: `hsl(${slide.color})` }}
-              />
-            );
-          })()}
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: `hsl(${slide.color} / 0.14)` }}>
-              <Icon className="w-4 h-4" style={{ color: `hsl(${slide.color})` }} />
-            </div>
-            <span className="text-micro font-semibold tracking-[0.18em] uppercase text-muted-foreground">
-              {slide.kicker}
-            </span>
-          </div>
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={slide.id}
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-              className="min-w-0 pe-20"
-            >
-              <h3
-                className="font-heading font-bold leading-none tracking-tight tabular-nums"
-                style={{ fontSize: 'clamp(2rem, 7vw, 3rem)' }}
-              >
-                {slide.value}
-              </h3>
-              <p className="text-sm text-muted-foreground max-w-[36ch] leading-relaxed mt-2">
-                {slide.tip}
-              </p>
-            </motion.div>
-          </AnimatePresence>
-          {slides.length > 1 && (
-            <div className="flex items-center gap-1.5">
-              {slides.map((_, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => goTo(i)}
-                  aria-label={`Slide ${i + 1}`}
-                  className={`h-1.5 rounded-full transition-all ${i === idx ? 'w-6' : 'w-1.5'}`}
-                  style={{ background: i === idx ? `hsl(${slide.color})` : `hsl(${slide.color} / 0.25)` }}
-                />
-              ))}
-            </div>
-          )}
+        {multi && (
+          <button
+            type="button"
+            onClick={() => pagerRef.current?.next?.()}
+            aria-label="Next slide"
+            className="absolute end-3 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-foreground/10 text-foreground hover:bg-foreground/20 active:bg-foreground/20 active:scale-95 flex items-center justify-center transition-all"
+          >
+            <ChevronRight className="w-4 h-4 rtl:scale-x-[-1]" />
+          </button>
+        )}
+
+        {/* min-h holds the card's rhythm on the page. It no longer has to
+            absorb the difference between slides: the pager mounts every
+            slide side by side in one flex row, so the track is already as
+            tall as its tallest page and rotation cannot resize the card. */}
+        <div className="relative p-4 md:p-5 min-h-[150px]">
+          <HeroPager
+            ref={pagerRef}
+            slides={slides}
+            renderSlide={renderProgressSlide}
+            onIndexChange={handleIndexChange}
+            dotsClassName="mt-4"
+            dotLabel={(i) => `Slide ${i + 1}`}
+          />
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 });
+
+/* One slide of the Progress carousel, in the hero's shared layout:
+   corner watermark, icon chip + kicker, the figure, the line of context.
+   The watermark is heroWatermarkStyle — 72px hard in the corner — rather
+   than the 96px inset copy this file used to carry, and the text column
+   reserves it with `pe-20` because an absolutely positioned icon creates
+   no clearance of its own. */
+function renderProgressSlide(slide, { count = 1 } = {}) {
+  const Icon = slide.icon;
+  return (
+    <div className={`relative flex flex-col justify-between gap-5 min-w-0 ${count > 1 ? HERO_SLIDE_GUTTER : ''}`}>
+      {Icon && (
+        <Icon aria-hidden="true" className="absolute pointer-events-none select-none"
+          style={heroWatermarkStyle()} />
+      )}
+      <div className="flex items-center gap-2">
+        <div className="w-8 h-8 rounded-full backdrop-blur-sm flex items-center justify-center" style={{ background: `hsl(${heroSlideAccent(slide)} / 0.2)` }}>
+          <Icon className="w-4 h-4 text-foreground" />
+        </div>
+        <span className="text-micro font-semibold tracking-[0.04em] text-foreground/70">
+          {slide.kicker}
+        </span>
+      </div>
+      {/* No AnimatePresence — the track IS the transition. A page that also
+          cross-fades its own contents while sliding reads as two animations
+          disagreeing, and with `mode="wait"` it renders empty for a beat
+          mid-slide, in full view of the page beside it. */}
+      <div className="min-w-0">
+        <h3
+          className="font-heading font-bold leading-none tracking-tight tabular-nums text-foreground break-words pe-20"
+          style={{ fontSize: 'clamp(2rem, 7vw, 3rem)' }}
+        >
+          {slide.value}
+        </h3>
+        <p className="text-sm text-foreground/60 max-w-[36ch] leading-relaxed mt-3">
+          {slide.tip}
+        </p>
+      </div>
+    </div>
+  );
+}
 
 // ─── Main Progress Page ───────────────────────────────────────────────────────
 
@@ -695,10 +675,21 @@ export default function Progress() {
   ];
 
   // Carousel slides — one per heroStat. Each has a motivational tip
-  // tailored to the user's current state. Color = HSL accent for the
-  // slide's gradient mesh tint. Emoji fills the dead space on the
-  // right of each slide — large + semi-translucent so it reads as
-  // illustration rather than content.
+  // tailored to the user's current state.
+  //
+  // `color` is the slide's accent, and it drives everything the band
+  // paints: the falloff tint, the 2px identity rule, the icon chip and
+  // the pagination dots. One hue per slide, matching the stat tiles
+  // above (streak → primary, workouts → info, volume → success) so the
+  // tile and the slide for the same stat agree — tapping through from
+  // one to the other lands somewhere that looks related.
+  //
+  // Four hues and no more, per CLAUDE.md: these are the budget tokens,
+  // not new colours. Level takes `destructive` as the fourth rather
+  // than repeating orange — it is the app's red, used here for its
+  // position in the rotation, the same way the Dashboard hero's "Share
+  // your week" slide uses it. (`--accent` is a desaturated slate, so as
+  // a full-band tint it reads as dirt rather than as a colour.)
   const carouselSlides = [
     {
       id: 'streak',
@@ -713,7 +704,7 @@ export default function Progress() {
     {
       id: 'workouts',
       icon: Dumbbell,
-      color: 'var(--primary)',
+      color: 'var(--info)',
       kicker: 'Workouts',
       value: `${logs.length}`,
       tip: logs.length === 0
@@ -735,7 +726,7 @@ export default function Progress() {
     {
       id: 'level',
       icon: Zap,
-      color: 'var(--primary)',
+      color: 'var(--destructive)',
       kicker: 'Level',
       value: `Lv ${level}`,
       tip: 'Every workout earns XP. Hit personal bests for bonus XP and watch the bar fill.',

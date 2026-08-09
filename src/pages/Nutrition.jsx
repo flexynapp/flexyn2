@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { filterAfterReset } from '@/lib/accountReset';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { db } from '@/api/db';
@@ -45,6 +45,8 @@ import { getPhotoAiUsedToday, PHOTO_AI_DAILY_CAP } from '@/lib/data/photoAiQuota
 import WeeklyMealPlannerModal from '@/components/nutrition/WeeklyMealPlannerModal';
 import FastingTrackerCard from '@/components/nutrition/FastingTrackerCard';
 import ErrorBoundary from '@/components/ErrorBoundary';
+import HeroPager from '@/components/HeroPager';
+import { HERO_SLIDE_GUTTER, heroTintGradient, heroWatermarkStyle, heroSlideAccent } from '@/lib/heroChrome';
 import { reportError } from '@/lib/reportError';
 import { fireFirstMealCelebration } from '@/lib/firstMealCelebration';
 import { supabase } from '@/api/supabaseClient';
@@ -88,10 +90,15 @@ function NutritionShortcutsCarousel({ onScan, onRecipes, onHistory, onPlans, onP
       id: 'scan',
       icon: ScanLine,
       emoji: '📷',
-      // Feature slides used a private five-hue rotation (orange, emerald,
-      // blue, purple, pink) — one hue per slide, the same pattern the
-      // Dashboard hero carried. The slide IS the feature; the hue said
-      // nothing the title didn't. All five now take the brand accent.
+      // One hue per slide again, and `color` now drives the whole band —
+      // the falloff tint, the 2px identity rule, the icon chip and the
+      // dots — exactly as it does on the Dashboard hero.
+      //
+      // It was a private five-hue rotation (orange, emerald, blue,
+      // purple, pink), then flattened to all-orange to stop the sprawl.
+      // The rotation is back but drawn only from the four budget tokens
+      // in CLAUDE.md, so nothing here invents a colour: primary,
+      // success, info, destructive, then back to primary for the fifth.
       color: 'var(--primary)',
       kicker: 'Scan a barcode',
       title: 'Scan Food',
@@ -103,7 +110,7 @@ function NutritionShortcutsCarousel({ onScan, onRecipes, onHistory, onPlans, onP
       id: 'recipes',
       icon: ChefHat,
       emoji: '🥘',
-      color: 'var(--primary)',
+      color: 'var(--success)',
       kicker: 'Recipes',
       title: 'Recipes',
       tip: 'Build a recipe once, log it in one tap forever. Macros computed from your ingredient list.',
@@ -114,7 +121,7 @@ function NutritionShortcutsCarousel({ onScan, onRecipes, onHistory, onPlans, onP
       id: 'history',
       icon: History,
       emoji: '📖',
-      color: 'var(--primary)',
+      color: 'var(--info)',
       kicker: 'Meal History',
       title: 'Meal History',
       tip: 'Every meal you\'ve logged. Search, filter, and re-log past meals in two taps.',
@@ -125,7 +132,7 @@ function NutritionShortcutsCarousel({ onScan, onRecipes, onHistory, onPlans, onP
       id: 'plans',
       icon: ListChecks,
       emoji: '📋',
-      color: 'var(--primary)',
+      color: 'var(--destructive)',
       kicker: 'Nutrition Plans',
       title: 'Nutrition Plans',
       tip: 'Pre-built macro splits — cut, bulk, recomp, keto, maintenance. Apply one and your goals update.',
@@ -150,135 +157,109 @@ function NutritionShortcutsCarousel({ onScan, onRecipes, onHistory, onPlans, onP
     },
   ];
 
-  const [idx, setIdx] = useState(0);
-  const [paused, setPaused] = useState(false);
-  const pauseTimerRef = useRef(null);
-
-  const goTo = (i) => {
-    setIdx(i);
-    setPaused(true);
-    if (pauseTimerRef.current) clearTimeout(pauseTimerRef.current);
-    pauseTimerRef.current = setTimeout(() => setPaused(false), 12_000);
-  };
-  const next = () => goTo((idx + 1) % slides.length);
-  const prev = () => goTo((idx - 1 + slides.length) % slides.length);
-
-  useEffect(() => {
-    if (paused || slides.length <= 1) return;
-    const t = setTimeout(() => setIdx(i => (i + 1) % slides.length), 8000);
-    return () => clearTimeout(t);
-  }, [idx, paused, slides.length]);
-
-  useEffect(() => () => {
-    if (pauseTimerRef.current) clearTimeout(pauseTimerRef.current);
+  const pagerRef = useRef(null);
+  // The band paints the LIVE slide's accent, exactly as the Dashboard hero
+  // does. Seeded from slide 0 so the first paint is already correct.
+  const [accent, setAccent] = useState(() => heroSlideAccent(slides[0]));
+  const handleIndexChange = useCallback((_i, slide) => {
+    setAccent(heroSlideAccent(slide));
   }, []);
 
-  const handleDragEnd = (_e, info) => {
-    if (slides.length <= 1) return;
-    const dx = info.offset.x;
-    const vx = info.velocity.x;
-    if (dx < -50 || vx < -500) next();
-    else if (dx > 50 || vx > 500) prev();
-  };
-
-  const slide = slides[idx];
-  if (!slide) return null;
-  const Icon = slide.icon;
+  const multi = slides.length > 1;
 
   return (
     <div className="relative mb-3">
-      {slides.length > 1 && (
-        <button
-          type="button"
-          onClick={next}
-          aria-label="Next slide"
-          className="absolute end-3 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-foreground/45 backdrop-blur-sm text-background hover:bg-foreground/60 active:bg-foreground/60 active:scale-95 flex items-center justify-center shadow-md transition-all"
-        >
-          <ChevronRight className="w-4 h-4 rtl:scale-x-[-1]" />
-        </button>
-      )}
-      <motion.div
-        drag={slides.length > 1 ? 'x' : false}
-        dragConstraints={{ left: 0, right: 0 }}
-        dragElastic={0.18}
-        onDragEnd={handleDragEnd}
-        className="relative overflow-hidden rounded-2xl bg-card text-foreground border border-border shadow-sm touch-pan-y"
-      >
-        <motion.div
-          key={`mesh-tr-${slide.id}`}
-          initial={{ opacity: 0.5 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.6 }}
-          className="absolute -top-1/3 -end-1/4 w-[120%] h-[140%] rounded-full blur-3xl pointer-events-none"
-          style={{ background: `radial-gradient(circle, hsl(${slide.color} / 0.20), transparent 65%)` }}
+      <div className="relative overflow-hidden rounded-2xl border border-border bg-muted dark:bg-card text-foreground touch-pan-y">
+        {/* Accent tint + 2px identity rule — the Dashboard band's chrome.
+            Replaces the two blurred radial blobs (one of which animated on
+            a 9s loop forever); see the note on ProgressCarousel and
+            CLAUDE.md's "no gradient as decoration". */}
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 pointer-events-none"
+          style={{ background: heroTintGradient(accent) }}
         />
-        <motion.div
-          key={`mesh-bl-${slide.id}`}
-          className="absolute -bottom-1/3 -start-1/4 w-[100%] h-[120%] rounded-full blur-3xl pointer-events-none"
-          style={{ background: `radial-gradient(circle, hsl(${slide.color} / 0.12), transparent 70%)` }}
-          animate={{ x: [0, 20, 0], y: [0, -10, 0] }}
-          transition={{ duration: 9, repeat: Infinity, ease: 'easeInOut' }}
+        <div
+          aria-hidden="true"
+          className="absolute inset-x-0 top-0 h-0.5 pointer-events-none"
+          style={{ background: `hsl(${accent})` }}
         />
 
-        <div className="relative p-4 md:p-5 min-h-[140px] flex flex-col justify-between gap-3">
-          {/* Large translucent Lucide icon right-of-centre — symbol not emoji */}
-          {Icon && (
-            <Icon
-              aria-hidden="true"
-              className="absolute pointer-events-none select-none"
-              style={{ width: 100, height: 100, opacity: 0.12, color: `hsl(${slide.color})`, right: 16, top: 5, transform: 'none' }}
-            />
-          )}
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: `hsl(${slide.color} / 0.14)` }}>
-              <Icon className="w-4 h-4" style={{ color: `hsl(${slide.color})` }} />
-            </div>
-            <span className="text-micro font-semibold tracking-[0.18em] uppercase text-muted-foreground">
-              {slide.kicker}
-            </span>
-          </div>
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={slide.id}
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-              className="min-w-0 pe-20"
-            >
-              <h3 className="font-heading font-bold leading-none tracking-tight" style={{ fontSize: 'clamp(1.6rem, 5.5vw, 2.25rem)' }}>
-                {slide.title}
-              </h3>
-              <p className="text-sm text-muted-foreground max-w-[36ch] leading-relaxed mt-2">
-                {slide.tip}
-              </p>
-              <button
-                type="button"
-                onClick={slide.onCta}
-                className="inline-flex items-center gap-1 mt-3 px-3 py-1.5 rounded-full backdrop-blur-sm text-caption font-semibold transition-opacity hover:opacity-80"
-                style={{ background: `hsl(${slide.color} / 0.15)`, color: `hsl(${slide.color})` }}
-              >
-                {slide.ctaLabel}
-                <ChevronRight className="w-3.5 h-3.5 rtl:scale-x-[-1]" />
-              </button>
-            </motion.div>
-          </AnimatePresence>
-          {slides.length > 1 && (
-            <div className="flex items-center gap-1.5">
-              {slides.map((_, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => goTo(i)}
-                  aria-label={`Slide ${i + 1}`}
-                  className={`h-1.5 rounded-full transition-all ${i === idx ? 'w-6' : 'w-1.5'}`}
-                  style={{ background: i === idx ? `hsl(${slide.color})` : `hsl(${slide.color} / 0.25)` }}
-                />
-              ))}
-            </div>
-          )}
+        {multi && (
+          <button
+            type="button"
+            onClick={() => pagerRef.current?.next?.()}
+            aria-label="Next slide"
+            className="absolute end-3 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-foreground/10 text-foreground hover:bg-foreground/20 active:bg-foreground/20 active:scale-95 flex items-center justify-center transition-all"
+          >
+            <ChevronRight className="w-4 h-4 rtl:scale-x-[-1]" />
+          </button>
+        )}
+
+        <div className="relative p-4 md:p-5 min-h-[150px]">
+          <HeroPager
+            ref={pagerRef}
+            slides={slides}
+            renderSlide={renderShortcutSlide}
+            onIndexChange={handleIndexChange}
+            dotsClassName="mt-4"
+            dotLabel={(i) => `Slide ${i + 1}`}
+          />
         </div>
-      </motion.div>
+      </div>
+    </div>
+  );
+}
+
+/* One shortcut slide, in the hero's shared layout: corner watermark, icon
+   chip + kicker, title, the line of context, then the CTA pill. The pill
+   sits inside the pager's track and that is safe — Framer only claims a
+   gesture past its drag threshold, so a tap still reaches the button. */
+function renderShortcutSlide(slide, { count = 1 } = {}) {
+  const Icon = slide.icon;
+  return (
+    <div className={`relative flex flex-col justify-between gap-5 min-w-0 ${count > 1 ? HERO_SLIDE_GUTTER : ''}`}>
+      {Icon && (
+        <Icon aria-hidden="true" className="absolute pointer-events-none select-none"
+          style={heroWatermarkStyle()} />
+      )}
+      <div className="flex items-center gap-2">
+        <div className="w-8 h-8 rounded-full backdrop-blur-sm flex items-center justify-center" style={{ background: `hsl(${heroSlideAccent(slide)} / 0.2)` }}>
+          <Icon className="w-4 h-4 text-foreground" />
+        </div>
+        <span className="text-micro font-semibold tracking-[0.04em] text-foreground/70">
+          {slide.kicker}
+        </span>
+      </div>
+      {/* No AnimatePresence — the track is the transition. See the note in
+          renderProgressSlide (src/pages/Progress.jsx). */}
+      <div className="min-w-0">
+        <h3
+          className="font-heading font-bold leading-[1.05] tracking-tight text-foreground break-words pe-20"
+          style={{ fontSize: 'clamp(1.6rem, 5.5vw, 2.25rem)' }}
+        >
+          {slide.title}
+        </h3>
+        <p className="text-sm text-foreground/60 max-w-[36ch] leading-relaxed mt-3">
+          {slide.tip}
+        </p>
+        {/* The pill takes the SLIDE's accent, not `bg-primary/10` like the
+            Dashboard's. The dashboard hero can hold primary because its
+            band is usually orange anyway; here the accent turns over on
+            every slide, and an orange pill on the green Recipes card or
+            the red Plans card is the one element that doesn't belong to
+            the card it sits on. Text stays --foreground rather than the
+            accent so contrast doesn't move with the hue. */}
+        <button
+          type="button"
+          onClick={slide.onCta}
+          style={{ background: `hsl(${heroSlideAccent(slide)} / 0.18)` }}
+          className="inline-flex items-center gap-1 mt-3 px-3 py-1.5 rounded-full backdrop-blur-sm text-caption font-semibold text-foreground transition-opacity hover:opacity-80 active:opacity-80"
+        >
+          {slide.ctaLabel}
+          <ChevronRight className="w-3.5 h-3.5 rtl:scale-x-[-1]" />
+        </button>
+      </div>
     </div>
   );
 }

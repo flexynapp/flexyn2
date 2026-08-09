@@ -29,8 +29,8 @@
 // (logs, cardioLogs, goals, profile, user) so this component adds
 // ZERO extra network calls.
 
-import React, { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
-import { motion, animate, useMotionValue } from 'framer-motion';
+import React, { forwardRef, useCallback, useEffect, useMemo } from 'react';
+import { motion } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import {
   Flame, Trophy, TrendingUp, Award, Zap, Sparkles,
@@ -42,7 +42,16 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { usePushSubscription } from '@/lib/usePushSubscription';
 import { supabase } from '@/api/supabaseClient';
 import AnimatedNumber from '@/components/AnimatedNumber';
+import HeroPager from '@/components/HeroPager';
 import { prefersReducedMotion } from '@/lib/reducedMotion';
+// The chrome — watermark geometry, the chevron gutter and the accent
+// lookup — is shared with the Progress and Nutrition carousels so all
+// three read as the same object. See src/lib/heroChrome.js.
+import {
+  HERO_SLIDE_GUTTER,
+  heroWatermarkStyle,
+  heroSlideAccent,
+} from '@/lib/heroChrome';
 
 const ROTATE_MS = 8000;
 
@@ -57,51 +66,10 @@ const ROTATE_MS = 8000;
 // roll than a stat that changes underneath them.
 const HERO_COUNT_MS = 1400;
 
-/* The slide watermark — the big translucent icon in the top-right corner.
- *
- * One object, used by all three slide branches. It was three copies of the
- * same literal, which is how they drifted to two different opacities.
- *
- * 72px and pinned hard to the corner. At 110px, offset 8px in and 5px down,
- * the icon reached a third of the way across a 311px page and ~115px down
- * from the top — straight through the title and sub of any slide whose copy
- * runs long. Shrinking alone would not have cleared it, because the offsets
- * pushed the box further into the text column; smaller AND cornered is what
- * does.
- *
- * `absolute` means it contributes nothing to layout, so text flows underneath
- * it — nothing here prevents an overlap by itself. The clearance IS the
- * geometry, so it is verified by measuring this rect against every text rect
- * on every slide at both 375 and 430pt rather than by eye.
- */
-/* Chevron clearance, applied to each slide ROOT rather than to the padded
- * container in Dashboard.
- *
- * That container is the ancestor of the pager's `overflow-hidden` track, so
- * padding there narrows the PAGE — and the watermark, positioned at its
- * slide's right edge, was clipped 48px short of the band while sitting 16px
- * from the top. Asymmetric corner.
- *
- * Here it insets the text and leaves the icon where it is: an absolutely
- * positioned child resolves `right: 0` against its containing block's
- * PADDING box, so padding on the root does not move it.
- *
- * Only when there is more than one slide, because that is the only time the
- * next-slide chevron renders — with one slide the gutter would reserve empty
- * space for a control that is not there.
- */
-const HERO_SLIDE_GUTTER = 'pe-12 md:pe-14';
-
-const HERO_WATERMARK_PX = 72;
-const heroWatermarkStyle = (opacity = 0.11) => ({
-  width: HERO_WATERMARK_PX,
-  height: HERO_WATERMARK_PX,
-  opacity,
-  color: 'white',
-  right: 0,
-  top: 0,
-  transform: 'none',
-});
+/* The watermark geometry and the chevron gutter that used to be declared
+ * here now live in src/lib/heroChrome.js, with the measurements that
+ * produced them, because Progress and Nutrition paint the same slide and
+ * had drifted to their own sizes. Imported at the top of this file. */
 
 /**
  * Tiny inline sparkline — accepts an array of numeric Y values and
@@ -789,31 +757,9 @@ function pickMode({ achievementSlides, pathSlides, profile, logs }) {
   return 'streak';
 }
 
-// Maps a slide's iconBg utility to the HSL accent used for its gradient
-// mesh AND its pagination dots, so a slide with no explicit `color`
-// still colours its dots to match. Shared by the color-reporting effect
-// and the dot render below.
-// This was nine entries, each a private HSL triplet — one hue per slide
-// (amber, emerald, purple, orange, cyan, blue, sky, rose, magenta). A
-// carousel where every slide repaints the chrome in its own colour is
-// the "every block gets its own accent" pattern on a timer, and it was
-// the single biggest source of hue sprawl left on the page.
-//
-// Now four entries keyed on the four budget tokens, holding `var(--x)`
-// rather than literals so `hsl(${accent})` and `hsl(${accent} / 0.25)`
-// both still work and the dots theme with everything else.
-//
-// This ALSO fixes a live bug: once the slide `iconBg` values were moved
-// onto tokens, the nine keys collapsed to four DUPLICATES in a JS object
-// literal, so the last one silently won. Every primary-accented slide
-// was resolving to '292 85% 62%' — the leftover magenta — which is why
-// the pagination dots rendered bright pink on an orange-brand app.
-const ICON_BG_TO_HSL = {
-  'bg-primary/20':     'var(--primary)',
-  'bg-success/20':     'var(--success)',
-  'bg-info/20':        'var(--info)',
-  'bg-destructive/20': 'var(--destructive)',
-};
+// The iconBg → accent lookup moved to src/lib/heroChrome.js as
+// `heroSlideAccent(slide)` — the pager needs it for the dots and the band
+// needs it for the tint, so it could not stay private to this file.
 
 const HeroSlideshow = forwardRef(function HeroSlideshow({
   logs, cardioLogs, goals, profile, user,
@@ -944,214 +890,11 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, pathSlides, telemetrySlides, suggestionSlides, achievementSlides]);
 
-  const [idx, setIdx] = useState(0);
-  // Reset to slide 0 if the slide set length shrinks below idx.
-  useEffect(() => { if (idx >= slides.length) setIdx(0); }, [slides.length, idx]);
-
-  // Auto-rotate. Pause via the `paused` state when user manually
-  // navigates so they get a beat to read after tapping a dot.
-  const [paused, setPaused] = useState(false);
-  const pauseTimerRef = useRef(null);
-  // Declared here rather than beside page() so the auto-rotate effect below
-  // isn't reading a binding defined further down the body — see CLAUDE.md's
-  // TDZ note. Assigned on every render once page() exists.
-  const pageRef = useRef(null);
-  useEffect(() => {
-    if (paused || slides.length <= 1) return;
-    // Through page() rather than setIdx so a rotation GLIDES like a swipe.
-    // Committing the index alone would cut straight to the next slide, and
-    // a carousel that cuts on its own but glides under the thumb reads as
-    // two different components sharing one card.
-    const t = setTimeout(() => pageRef.current?.(1), ROTATE_MS);
-    return () => clearTimeout(t);
-  }, [idx, paused, slides.length]);
-
-  // Pause the rotation without moving the slide. Auto-rotate only paused
-  // when the user hit a dot or a chevron, so reaching for the slide's own CTA
-  // raced the timer: an automated click pass lost that race 133 times, and a
-  // thumb is slower than a clicker. Since this card is the largest tap target
-  // on the Dashboard, losing the race means tapping "Log a meal" when you
-  // aimed at "Open a duel". Touching the slide at all now holds it still.
-  const holdRotation = () => {
-    setPaused(true);
-    if (pauseTimerRef.current) clearTimeout(pauseTimerRef.current);
-    pauseTimerRef.current = setTimeout(() => setPaused(false), 12_000);
-  };
-
-  /* ── Paged-track motion ─────────────────────────────────────────────
-     `x` is the track's translation. It rests at -trackW, i.e. showing the
-     middle child of the prev/current/next window, and every commit returns
-     it there instantly while idx moves — see the note at the track. */
-  const trackBoxRef = useRef(null);
-  const [trackW, setTrackW] = useState(0);
-  const x = useMotionValue(0);
-
-  // Measure with a ResizeObserver rather than once on mount: the band is
-  // min-height and full-bleed, so this width changes on rotation and on
-  // any layout shift above it. A stale width leaves the pages a different
-  // size from their container and the resting offset wrong by exactly that
-  // error — measured 343px pages inside a 311px box before this was fixed.
-  //
-  // `slides.length` stays in the deps, though the reason it was added has
-  // since gone away. The parent used to apply the chevron gutter to the
-  // container holding this track, so the box narrowed 48px a beat after
-  // mount when the data landed — mounting with `[]` deps measured the
-  // pre-gutter width and kept it, which left 343px pages inside a 311px box.
-  // That gutter now lives on each slide root instead (HERO_SLIDE_GUTTER), so
-  // the track's width no longer moves with the slide count.
-  //
-  // Kept anyway: re-measuring when the slide set changes is cheap, and it is
-  // the one moment the surrounding layout is most likely to shift.
-  useEffect(() => {
-    const el = trackBoxRef.current;
-    if (!el) return;
-    const apply = () => setTrackW(el.clientWidth);
-    apply();
-    const ro = new ResizeObserver(apply);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [slides.length]);
-
-  // Re-park on a WIDTH change only. idx is read through a ref rather than
-  // taken as a dependency: settle() below moves the index and animates in
-  // the same breath, so re-running this on idx would snap the track to rest
-  // and eat the transition it just started.
-  const idxRef = useRef(0);
-  idxRef.current = idx;
-  useEffect(() => {
-    if (slides.length > 1) x.set(-idxRef.current * trackW);
-  }, [trackW, slides.length, x]);
-
-  /* Softer and slightly overdamped, after a second judder report.
-   *
-   * 420 stiffness against 40 damping was UNDER-damped for this mass: the
-   * critical value is 2·√(k·m) = 2·√(420 × 0.8) ≈ 36.7, so 40 was only just
-   * over it and the spring arrived fast and hard. On a phone that lands as
-   * a snap at the end of an otherwise smooth drag, which reads as a judder
-   * even when no frame is dropped.
-   *
-   * 260 / 34 / 0.9 sits comfortably past critical (2·√(260 × 0.9) ≈ 30.6),
-   * so it eases in with no overshoot at all. Slower, and deliberately —
-   * the finger has already done the fast part of the travel; the spring
-   * only has to finish it.
-   */
-  const SETTLE = { type: 'spring', stiffness: 260, damping: 34, mass: 0.9 };
-  // Gates re-entry only, so it wants to be a little longer than the visible
-  // motion rather than exact. Raised with the softer spring — a window
-  // shorter than the travel would let a second swipe start mid-settle,
-  // which is the thing this exists to stop.
-  const SETTLE_MS = 420;
-  const settleUntilRef = useRef(0);
-
-  /* settle — move to a slide index and animate the track to match.
-   *
-   * THE STUTTER THIS REPLACES. The previous version mounted a three-slide
-   * WINDOW (prev / current / next) and kept the track parked on the middle
-   * one, so committing an index re-keyed every page into a different slot
-   * and `x` had to shift a whole page to compensate. Those two changes go
-   * through DIFFERENT schedulers — `setIdx` lands on React's, `x.set` on
-   * Framer's rAF render loop — so they do not land on the same frame. In
-   * the gap the browser paints the old window at the new offset, or the
-   * reverse: a one-frame jump of exactly one page width, on every turn.
-   * "The pixels do not change at that instant" was only ever true if both
-   * were applied atomically, and nothing made them atomic.
-   *
-   * The track now holds EVERY slide and rests at `-idx * trackW`. Changing
-   * idx no longer moves any slide between DOM slots — the pages are static
-   * and only the transform moves them. So there is nothing to compensate
-   * for, which means there is no compensation left to mis-time. The class
-   * of bug is gone rather than tuned.
-   *
-   * Index still commits UP FRONT, before the spring. An animation that
-   * never completes — interrupted by the next swipe, or a backgrounded tab
-   * where rAF stops — must not leave the index behind, or the carousel
-   * parks between slides with no way back. Worst case here is a transition
-   * cut short, which is invisible.
-   */
-  const settle = (target, { instant = false } = {}) => {
-    if (!trackW) return;
-    setIdx(target);
-    if (instant) { x.set(-target * trackW); return; }
-    animate(x, -target * trackW, SETTLE);
-  };
-
-  const page = (dir) => {
-    if (slides.length < 2 || !trackW) return;
-    // ONE page per gesture. Reported from a device: a single swipe moved
-    // two slides. Two things can do that and the guard covers both.
-    //
-    // The auto-rotate timer is the race. It is scheduled on every idx
-    // change, and a drag that lands in the last few milliseconds before it
-    // fires gets its own page() plus the timer's — the pause set on
-    // dragStart arrives too late to cancel a timeout already in flight.
-    //
-    // A second onDragEnd from a re-entrant gesture would do the same.
-    //
-    // Time-based rather than a boolean the settle clears: a flag cleared in
-    // onComplete goes stale the moment an animation is interrupted, and a
-    // stuck flag means the carousel silently stops accepting swipes. A
-    // deadline cannot stick.
-    if (Date.now() < settleUntilRef.current) return;
-    settleUntilRef.current = Date.now() + SETTLE_MS;
-
-    // CLAMPED, not wrapped — which is what an iOS home screen does. A
-    // linear track cannot wrap without either scrolling all the way back
-    // through every slide or cutting, and both are worse than the rubber
-    // band you get by running out of pages. Auto-rotate handles its own
-    // wrap below, where a cut happens once per cycle instead of per swipe.
-    const target = Math.min(Math.max(idx + dir, 0), slides.length - 1);
-    if (target === idx) { animate(x, -idx * trackW, SETTLE); return; }
-    settle(target);
-  };
-  // Auto-rotate reaches page()/settle() through this ref — see its
-  // declaration above. At the last slide it returns to the first with an
-  // instant reset: the pages are static, so idx and x move together with no
-  // window to re-key, and a cut once per full cycle beats rewinding the
-  // whole track on screen.
-  pageRef.current = () => {
-    if (slides.length < 2 || !trackW) return;
-    if (Date.now() < settleUntilRef.current) return;
-    settleUntilRef.current = Date.now() + SETTLE_MS;
-    if (idx >= slides.length - 1) settle(0, { instant: true });
-    else settle(idx + 1);
-  };
-
-  const handleTrackDragEnd = (_e, info) => {
-    if (slides.length < 2 || !trackW) return;
-    const dx = info.offset.x;
-    const vx = info.velocity.x;
-    // A page turns on distance OR flick. The distance gate is a third of a
-    // page rather than a fixed pixel count so it scales with the device:
-    // 125px on a 375pt phone, and the same *proportion* on a Pro Max.
-    const far = Math.abs(dx) > trackW / 3;
-    const flick = Math.abs(vx) > 500;
-    if (!far && !flick) { animate(x, -idx * trackW, SETTLE); return; }
-    page(dx < 0 ? 1 : -1);
-  };
-
-  const goTo = (i) => {
-    settle(i);
-    holdRotation();
-  };
-  // Guard slides.length === 0 — `% 0` returns NaN, and `slides[NaN]`
-  // is undefined which crashes the render path that reads slide.id.
-  //
-  // These route through page() rather than setting idx directly so the
-  // chevron produces the same travel as a swipe. Setting idx alone would
-  // cut straight to the next slide, which next to a gesture that glides
-  // reads as two different carousels sharing one card.
-  const next = () => { if (slides.length > 1) { holdRotation(); page(1); } };
-  const prev = () => { if (slides.length > 1) { holdRotation(); page(-1); } };
-
-  // Cleanup pause timer on unmount.
-  useEffect(() => () => {
-    if (pauseTimerRef.current) clearTimeout(pauseTimerRef.current);
-  }, []);
-
-  // Expose next() so the parent HeroCard can render a chevron at the
-  // OUTER rounded-card edge instead of inside the slideshow column
-  // (which is constrained by the hero's p-6 padding).
-  useImperativeHandle(ref, () => ({ next, prev }), [next, prev]);
+  /* The pager — track, gesture, settle spring, auto-rotation and dots —
+     is HeroPager (src/components/HeroPager.jsx). It used to be ~200 lines
+     inline here, and while it was, Progress and Nutrition ran the older
+     fade-in-place carousel instead: same dots, completely different
+     gesture. Sharing the engine is what keeps the three in step. */
 
   // Report slide-count changes up so the parent can show/hide the
   // chevron button reactively.
@@ -1159,29 +902,18 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
     onSlidesCountChange?.(slides.length);
   }, [slides.length, onSlidesCountChange]);
 
-  // Per-slide color reporting — parent (HeroCard) paints the hero's
-  // gradient mesh in the current slide's accent. Color falls back
-  // from explicit slide.color → iconBg lookup → null (uses primary).
-  useEffect(() => {
-    const slide = slides[idx];
-    if (!slide) { onSlideColorChange?.(null); return; }
-    if (slide.color) { onSlideColorChange?.(slide.color); return; }
-    onSlideColorChange?.(ICON_BG_TO_HSL[slide.iconBg] || null);
-  }, [idx, slides, onSlideColorChange]);
-
-  // ── Render slide — streak / achievement / path ─────────────────────
-  const current = slides[idx];
-  if (!current) return null;
-
-  // Pagination dots take the current slide's accent so they always match
-  // the slide on screen (and follow theme changes, since the fallback is
-  // the --primary / --foreground tokens rather than a hard-coded colour).
-  const slideAccent = current.color || ICON_BG_TO_HSL[current.iconBg] || null;
-  const dotStyle = (active) => ({
-    background: active
-      ? (slideAccent ? `hsl(${slideAccent})` : 'hsl(var(--primary))')
-      : (slideAccent ? `hsl(${slideAccent} / 0.25)` : 'hsl(var(--foreground) / 0.25)'),
-  });
+  // Per-slide colour reporting — the parent (HeroCard) paints the band's
+  // tint and its 2px identity rule in the current slide's accent, and the
+  // pager paints its dots the same way. HeroPager hands the live slide
+  // back through onIndexChange; heroSlideAccent resolves explicit
+  // slide.color → iconBg lookup → the brand token.
+  //
+  // useCallback, not an inline arrow: HeroPager re-runs its reporting
+  // effect when this identity changes, and a fresh function every render
+  // would fire it on every render of this component.
+  const handleIndexChange = useCallback((_i, slide) => {
+    onSlideColorChange?.(slide ? heroSlideAccent(slide) : null);
+  }, [onSlideColorChange]);
 
   /* renderBody — one slide's layout, for ANY slide rather than only the
      current one.
@@ -1196,14 +928,14 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
      row inside a slide travels WITH that slide, so on a paged carousel
      you would watch the dots slide off the screen with the page they
      belong to. */
-  const renderBody = (slide) => {
+  const renderBody = (slide, { count = 1 } = {}) => {
   // STREAK slide renders with its own chrome (giant N + "day streak"
   // label) — visually distinct so the carousel doesn't blur achievements
   // and the streak into the same template. Keeps the pagination dots
   // shared so the user can swipe between streak and milestones.
   if (slide.kind === 'streak') {
     return (
-      <div className={`relative flex flex-col justify-between gap-5 min-w-0 ${slides.length > 1 ? HERO_SLIDE_GUTTER : ''}`} onPointerDownCapture={holdRotation} onFocusCapture={holdRotation}>
+      <div className={`relative flex flex-col justify-between gap-5 min-w-0 ${count > 1 ? HERO_SLIDE_GUTTER : ''}`}>
         {/* Decorative icon — right-centre, translucent */}
         <Flame aria-hidden="true" className="absolute pointer-events-none select-none"
           style={heroWatermarkStyle(0.12)} />
@@ -1256,7 +988,7 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
   if (slide.kind === 'feature') {
     const FeatureIcon = slide.icon || Sparkles;
     return (
-      <div className={`relative flex flex-col justify-between gap-4 min-w-0 ${slides.length > 1 ? HERO_SLIDE_GUTTER : ''}`} onPointerDownCapture={holdRotation} onFocusCapture={holdRotation}>
+      <div className={`relative flex flex-col justify-between gap-4 min-w-0 ${count > 1 ? HERO_SLIDE_GUTTER : ''}`}>
         <FeatureIcon aria-hidden="true" className="absolute pointer-events-none select-none"
           style={heroWatermarkStyle()} />
         {/* The tint overlay that used to sit here is GONE, not softened.
@@ -1338,7 +1070,7 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
     : null;
 
   return (
-    <div className={`relative flex flex-col justify-between gap-5 min-w-0 ${slides.length > 1 ? HERO_SLIDE_GUTTER : ''}`} onPointerDownCapture={holdRotation} onFocusCapture={holdRotation}>
+    <div className={`relative flex flex-col justify-between gap-5 min-w-0 ${count > 1 ? HERO_SLIDE_GUTTER : ''}`}>
       {/* Contextual watermark. The old comment here described a right-CENTRE
           position with a special case pinning it to the top-right on slides
           carrying a full-width ProgressBar — but both branches of that
@@ -1483,103 +1215,19 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
   );
   };
 
-  /* ── The paged track ────────────────────────────────────────────────
-     Three slides are mounted — prev, current, next — and the track rests
-     translated to the middle one. Dragging moves the track itself, so the
-     neighbour is genuinely on screen and partly visible under the finger
-     rather than appearing after the gesture ends.
-
-     A WINDOW rather than the whole list. With 5–9 slides a full track
-     would work, but a window of three is what makes wrap-around free:
-     from the last slide, "next" is index 0, and it is simply the right
-     hand child. No cloning, no special-casing the ends.
-
-     After any commit the track jumps back to the middle with `x.set()` —
-     no animation — while `idx` moves by one. The pixels do not change at
-     that instant, so the swap is invisible; it is the same trick a native
-     pager uses to recycle its pages.
-
-     Everything else the band paints — tint, fade, grain, the identity
-     rule, the chevron — stays OUTSIDE this element on purpose. In a paged
-     carousel the pages move and the chrome does not; dragging the band
-     itself (which is what this used to do) moved the entire hero, which
-     is why the old gesture read as a nudge rather than a page turn. */
-  const pageW = trackW || 1;
-
+  /* The track, the gesture and the dots are HeroPager's. `ref` is forwarded
+     straight through: the parent HeroCard holds it only to call .next() from
+     the chevron it renders at the band's edge, and the pager exposes exactly
+     that. */
   return (
-    <div className="relative">
-      <div ref={trackBoxRef} className="overflow-hidden">
-        <motion.div
-          className="flex"
-          style={{ x: slides.length > 1 ? x : 0 }}
-          drag={slides.length > 1 ? 'x' : false}
-          // Same reasoning as the band's old handler: a thumb arcs, and
-          // `touch-action: pan-y` has already promised the browser it may
-          // scroll vertically, so without a lock the gesture gets claimed
-          // as a page scroll partway through.
-          dragDirectionLock
-          // No elastic. At 0.12 the track kept moving a fraction of the
-          // finger's travel past the constraints, so at the first and last
-          // slide the drag rubber-banded and then the spring pulled it back
-          // — two motions in opposite directions inside one gesture, which
-          // is the judder at the ends. 0 pins the track to the finger while
-          // it is inside range and stops it dead at the edges.
-          dragElastic={0}
-          dragConstraints={{ left: -(slides.length - 1) * pageW, right: 0 }}
-          // Framer runs an inertia animation on release by default, aimed at
-          // the drag constraints. Those span TWO pages here, so a flick threw
-          // its own momentum at `x` while page()'s spring was pulling the
-          // other way — the momentum wins the tail of the gesture and coasts
-          // a full extra page. On screen that is a single swipe advancing two
-          // slides, which is exactly what got reported. The settle is the
-          // only thing that should move the track after release.
-          dragMomentum={false}
-          onDragStart={holdRotation}
-          onDragEnd={handleTrackDragEnd}
-        >
-          {slides.map((s, i) => (
-            <div
-              // Keyed by slide id, and safe to be: a slide never changes
-              // slot now, so this key is stable for the life of the list and
-              // nothing remounts mid-gesture.
-              key={s?.id ?? `page-${i}`}
-              className="shrink-0"
-              style={{ width: slides.length > 1 ? pageW : '100%' }}
-            >
-              {s ? renderBody(s) : null}
-            </div>
-          ))}
-        </motion.div>
-      </div>
-
-      {/* Pagination dots — one row, outside the track, so they stay put
-          while pages move under them. */}
-      {slides.length > 1 && (
-        <div className="flex items-center gap-1.5 mt-5">
-          {slides.map((s, i) => (
-            <button
-              // Use slide.id (stable) instead of array index — when
-              // slides shift order (e.g. a PR slide demotes itself by
-              // age), index-keyed buttons retain stale DOM state and
-              // animations played for the wrong destination dot.
-              key={s?.id ?? `dot-${i}`}
-              type="button"
-              onClick={() => goTo(i)}
-              aria-label={tFallback('dashboard.hero.slide', `Slide ${i + 1}`)}
-              // 6x6px is an indicator, not a control. `before:` grows the
-              // TAP target vertically without changing the rendered dot or
-              // the row's height — vertical is where the room is, because
-              // nine dots at a full 44px wide would need 396px on a 375px
-              // screen. Horizontal expansion is held to the gap so
-              // neighbouring targets don't overlap and steal each other's
-              // taps.
-              className={`relative h-1.5 rounded-full transition-all before:absolute before:content-[''] before:-inset-y-4 before:-inset-x-0.5 ${i === idx ? 'w-6' : 'w-1.5'}`}
-              style={dotStyle(i === idx)}
-            />
-          ))}
-        </div>
-      )}
-    </div>
+    <HeroPager
+      ref={ref}
+      slides={slides}
+      rotateMs={ROTATE_MS}
+      renderSlide={renderBody}
+      onIndexChange={handleIndexChange}
+      dotLabel={(i) => tFallback('dashboard.hero.slide', `Slide ${i + 1}`)}
+    />
   );
 });
 

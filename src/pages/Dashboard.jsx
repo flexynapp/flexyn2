@@ -64,6 +64,7 @@ import { fromLbs } from '@/lib/weightUnit';
 import { useNumberFormatter } from '@/lib/intl';
 import { parseLocalDate } from '@/lib/dateUtils';
 import { getDateLocale } from '@/lib/dateLocales';
+import { heroTintGradient, HERO_FADE_GRADIENT } from '@/lib/heroChrome';
 
 
 /* ──────────────────────────────────────────────────────────────────
@@ -72,100 +73,12 @@ import { getDateLocale } from '@/lib/dateLocales';
  *  co-located makes the page easier to read end-to-end.
  * ────────────────────────────────────────────────────────────────── */
 
-/* Hero tint falloff.
- *
- * A two-stop `linear-gradient(A 0%, transparent 55%)` still shows a faint
- * line, and the reason is not the colour — it is the SLOPE. Alpha falls at
- * a constant rate and then stops falling, instantly, at the final stop.
- * The value is continuous there but its derivative is not, and human
- * vision exaggerates exactly that discontinuity (Mach banding: lateral
- * inhibition in the retina amplifies second-order edges). So the harder
- * you look at a "smooth" linear scrim, the more clearly you see the line
- * where it ends — which is what got reported here.
- *
- * Smoothstep (3t² − 2t³) has zero derivative at BOTH ends. The tint eases
- * out from under the identity rule and eases into nothing at the bottom,
- * with no point anywhere in the band where the rate of change jumps. That
- * is a property of the curve, not a tuning of the numbers.
- *
- * The ramp also runs the FULL height now rather than stopping at 55%.
- * Terminating early puts the curve's end inside the band; ending at 100%
- * puts it exactly on the band's own boundary, where a card edge is
- * expected anyway. Alpha is ~0.004 by 90%, so it is visually gone well
- * before then regardless.
- *
- * The stop COUNT matters for the same reason the curve does. Browsers
- * interpolate linearly between stops, so the curve ships as a polyline and
- * every junction is itself a small slope change — the defect this is meant
- * to remove, reintroduced N times if the stops are too far apart. At 10%
- * spacing the steepest segment moves 0.021 alpha; at 5% it moves 0.011 —
- * about 0.0005 per pixel down a 429px band, and only 0.001 per segment at
- * the two ends, which is the zero-derivative property doing its job.
- * Measured, not guessed.
+/* The hero band's tint + fade gradients, the smoothstep maths behind them
+ * and the reasoning for both now live in src/lib/heroChrome.js — imported
+ * at the top of this file. They moved because the Progress and Nutrition
+ * carousels paint the same band and had their own, older treatment (two
+ * blurred radial blobs, one animating on a 9s loop).
  */
-const HERO_TINT_PEAK = 0.14;
-const HERO_TINT_STEPS = 20;
-
-/**
- * Smoothstep alpha stops from 0→100%.
- * `rising: false` (default) falls peak→0; `rising: true` climbs 0→peak.
- */
-function smoothstepStops(peak, { rising = false } = {}) {
-  return Array.from({ length: HERO_TINT_STEPS + 1 }, (_, i) => {
-    const t = i / HERO_TINT_STEPS;
-    const smoothstep = t * t * (3 - 2 * t);
-    return {
-      pct: +(t * 100).toFixed(1),
-      alpha: +(peak * (rising ? smoothstep : 1 - smoothstep)).toFixed(4),
-    };
-  });
-}
-
-const HERO_TINT_STOPS = smoothstepStops(HERO_TINT_PEAK);
-
-/* Band-to-page fade.
- *
- * The band's surface is --card on dark / --muted on light, and the page is
- * --background. That is a step of 7.65 luminance IN ONE PIXEL across the
- * full width — measured, and roughly 250× sharper per pixel than anything
- * the tint above does (~0.03/px). It is the card boundary, and it was the
- * edge left over once the tint stopped being the problem.
- *
- * This scrim paints --background at RISING alpha, reaching a solid 1.0
- * exactly at the band's bottom edge. So the boundary becomes page colour
- * meeting page colour, which cannot render a line no matter the contrast.
- * Painting the page colour rather than fading the band's own alpha is what
- * makes it theme-agnostic: --background is themed, so one gradient covers
- * light and dark without a `dark:` variant, which an inline style could not
- * express anyway.
- *
- * Smoothstep again, and here the zero derivative at the START is the load-
- * bearing half: a linear scrim would begin absorbing colour at a constant
- * rate from its first pixel, putting a fresh slope discontinuity at the top
- * of the scrim — trading the edge at the band's bottom for one 30% higher
- * up. Easing in means the scrim is imperceptible where it begins.
- *
- * Consequence worth stating: the hero stops being a card. It has no bottom
- * edge and its rounded corners no longer read, because the surface dissolves
- * instead of stopping. `rounded-b-2xl` stays on the band only because it
- * still clips the tint; it is no longer doing visible work.
- */
-const HERO_FADE_STOPS = smoothstepStops(1, { rising: true });
-
-/** Build a top-to-bottom gradient from stops, for an `H S% L%` triplet or a var(). */
-function stopsToGradient(color, stops) {
-  const parts = stops.map(({ pct, alpha }) => `hsl(${color} / ${alpha}) ${pct}%`);
-  return `linear-gradient(to bottom, ${parts.join(', ')})`;
-}
-
-/** The hero's accent falloff, keyed to the current slide's colour. */
-function heroTintGradient(color) {
-  return stopsToGradient(color, HERO_TINT_STOPS);
-}
-
-/** The band dissolving into the page. Themed via --background, so one
- *  value is correct in both light and dark. */
-const HERO_FADE_GRADIENT = stopsToGradient('var(--background)', HERO_FADE_STOPS);
 
 /* Dither grain lived here and is gone — see the note at its old render
  * site below for why. Kept as a pointer rather than a deleted block so the
