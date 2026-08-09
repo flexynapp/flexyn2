@@ -28,6 +28,7 @@ import {
   listMyOrganizations, createOrganization, joinOrganizationByCode, leaveOrganization,
   listChallenges, createChallenge, deleteChallenge, getOrgAnalytics, getMemberCount,
 } from '@/lib/data/organizations';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 const METRICS = [
   { id: 'workouts',    label: 'Total workouts' },
@@ -422,6 +423,9 @@ function OrgHub({ org, isAdmin, onLeave, onNewChallenge }) {
 
 // ── New challenge modal ───────────────────────────────────────────────
 function ChallengeFormModal({ orgId, onClose, onSaved }) {
+  // Only mounted while open (see the `challengeOpen &&` gate at its call
+  // site), so the lock runs for this component's whole lifetime.
+  useBodyScrollLock();
   const [title, setTitle] = useState('');
   const [metric, setMetric] = useState('workouts');
   const [target, setTarget] = useState('');

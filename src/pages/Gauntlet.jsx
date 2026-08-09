@@ -27,6 +27,7 @@ import {
 import GauntletPath from '@/components/gauntlet/GauntletPath';
 import WeeklyGauntletCard from '@/components/gauntlet/WeeklyGauntletCard';
 import GauntletStatsModal from '@/components/gauntlet/GauntletStatsModal';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 // Challenge-type readable label — stored as i18n keys + fallbacks; resolved
 // at render-time via t() so the same map works for every locale.
@@ -196,6 +197,9 @@ export default function Gauntlet() {
   const [statsModal, setStatsModal]               = useState(null);
   // { seq: number, available: boolean } — set when user taps a chest
   const [chestModal,  setChestModal]              = useState(null);
+  // Two modals over a page that scrolls — hold it for either. See
+  // @/lib/scrollLock.
+  useBodyScrollLock(!!selectedChallenge || !!chestModal);
 
   // ── Data ──────────────────────────────────────────────────────────────────
   const { data: challenges = [] } = useQuery({

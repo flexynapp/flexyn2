@@ -24,6 +24,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 export default function TwoFactorSection() {
   const [loading, setLoading] = useState(true);
@@ -31,6 +32,10 @@ export default function TwoFactorSection() {
   const [modalOpen, setModalOpen] = useState(false);
   const [enrolling, setEnrolling] = useState(false);
   const [enrollment, setEnrollment] = useState(null); // { factorId, qr, secret }
+  // Hold the page behind the enrollment modal — see @/lib/scrollLock. The
+  // condition mirrors the `modalOpen && enrollment` render gate below, so
+  // the lock and the overlay come and go together.
+  useBodyScrollLock(modalOpen && !!enrollment);
   const [code, setCode] = useState('');
   const [verifying, setVerifying] = useState(false);
   const [disableOpen, setDisableOpen] = useState(false);

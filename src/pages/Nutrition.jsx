@@ -61,6 +61,7 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { useSettings } from '@/lib/SettingsContext';
 import { useNumberFormatter } from '@/lib/intl';
 import { useLocation } from 'react-router-dom';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 // Helpers for water entries — encode oz in food_name so the value survives
 // even when the water_oz DB column doesn't exist (migration 006 not applied).
@@ -369,6 +370,9 @@ export default function Nutrition() {
   // with a restore button) in customize mode.
   const [hiddenWidgets, setHiddenWidgets] = useState([]);
   const [showScanner, setShowScanner] = useState(false);
+  // The barcode scanner is a full-screen overlay on a long scrolling page —
+  // hold the page behind it. See @/lib/scrollLock.
+  useBodyScrollLock(showScanner);
   const [scannerStatus, setScannerStatus] = useState('idle');
   const [scannerError, setScannerError] = useState(null);
   const [scannedProduct, setScannedProduct] = useState(null);
