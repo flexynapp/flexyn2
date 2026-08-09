@@ -122,6 +122,11 @@ const todayStr = () => format(new Date(), 'yyyy-MM-dd');
 // the save then throws away without saying so.
 const MAX_ATTACHMENTS = 12;
 
+// Failed saves back off 5s -> 10s -> 20s -> 40s -> 60s and then STOP, so a
+// structural failure (RLS, quota, banned content) cannot loop forever.
+// Reaching this cap is what 'stalled' means.
+const MAX_SAVE_RETRIES = 5;
+
 
 export default function JournalView({ userId, userEmail, onClose }) {
   // Pin the page behind this overlay — see @/lib/scrollLock.
@@ -158,16 +163,25 @@ export default function JournalView({ userId, userEmail, onClose }) {
   const [dayCtx, setDayCtx] = useState(null);
   // created_at / updated_at of the loaded row, for the edit marker.
   const [stamps, setStamps] = useState(null);
-  // Whether this day's writing is sitting in localStorage waiting on a
-  // retry. STATE, not a derived read of dirtyRef / retryCountRef: refs do
-  // not trigger a render, so the old version only ever appeared if some
-  // other state change happened to repaint at the right instant, and it
-  // could not clear itself when the retry finally landed. An indicator
-  // that is right by coincidence is worse than none — this is a subtler
-  // version of the bug it was written to fix (a single toast, once).
-  const [heldOffline, setHeldOffline] = useState(false);
+  // ONE explicit save state rather than booleans that can disagree:
+  //
+  //   idle     nothing to report
+  //   saving   a write is in flight
+  //   saved    the server has it
+  //   held     the write failed and a retry IS scheduled
+  //   stalled  the write failed and we have STOPPED retrying
+  //
+  // `held` and `stalled` were the same screen, which was the last silent
+  // state left on this surface: after five failures the backoff gives up
+  // and nothing schedules another attempt, yet the UI went on saying
+  // "Held offline" — describing a retry that was never coming.
+  //
+  // State and not a derived read of dirtyRef / retryCountRef, because refs
+  // do not trigger a render: an earlier version of this only appeared if
+  // some other state change happened to repaint at the right instant, and
+  // could not clear itself once a retry landed.
+  const [saveState, setSaveState] = useState('idle');
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [listening, setListening] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -257,7 +271,7 @@ export default function JournalView({ userId, userEmail, onClose }) {
     const snap = snapshotRef.current;
     savingRef.current = true;
     dirtyRef.current = false;
-    setSaving(true);
+    setSaveState('saving');
     let res = { ok: false };
     try {
       res = await upsertEntry(userId, userEmail, {
@@ -274,7 +288,7 @@ export default function JournalView({ userId, userEmail, onClose }) {
       try { localStorage.removeItem(draftKey(snap.dateStr)); } catch { /* ignore */ }
       failToastShownRef.current = false;
       retryCountRef.current = 0;
-      setHeldOffline(false);
+      setSaveState('saved');
     } else {
       // Stash + re-arm so the next debounce retries. Persisting under a
       // dated key lets a separate session also pick the draft up if the
@@ -288,7 +302,6 @@ export default function JournalView({ userId, userEmail, onClose }) {
         }));
       } catch { /* private mode / quota */ }
       dirtyRef.current = true;
-      setHeldOffline(true);
       if (!failToastShownRef.current) {
         failToastShownRef.current = true;
         toast.error(tFallback('journal.saveFailed', "Couldn't save — we'll keep retrying. Your writing is held locally."));
@@ -299,7 +312,7 @@ export default function JournalView({ userId, userEmail, onClose }) {
       // that calls flush() again with the current snapshot. Cap to 5
       // retries (with exponential backoff up to 60s) so a structural
       // failure — quota, RLS, banned content — doesn't loop forever.
-      if (retryCountRef.current < 5) {
+      if (retryCountRef.current < MAX_SAVE_RETRIES) {
         retryCountRef.current += 1;
         const delay = Math.min(5000 * Math.pow(2, retryCountRef.current - 1), 60000);
         if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
@@ -307,11 +320,27 @@ export default function JournalView({ userId, userEmail, onClose }) {
           retryTimerRef.current = null;
           setRetryNonce(n => n + 1);
         }, delay);
+        setSaveState('held');
+      } else {
+        // Out of retries. Nothing further happens on its own, so the
+        // screen must stop implying otherwise and hand the user a way
+        // back in. The draft is on disk either way.
+        setSaveState('stalled');
       }
     }
-    setSaving(false);
     savingRef.current = false;
   }, [userId, userEmail, tFallback]);
+
+  // Manual retry from the stalled state. Resets the budget rather than
+  // making one more doomed attempt on an exhausted counter — the user
+  // tapping this is new information (they think the network is back), so
+  // the backoff deserves to start over rather than fail once and stop.
+  const retrySave = useCallback(() => {
+    retryCountRef.current = 0;
+    failToastShownRef.current = false;
+    dirtyRef.current = true;
+    setRetryNonce(n => n + 1);
+  }, []);
 
   // Clear any pending retry timer on unmount so we don't bump state on
   // an unmounted component (silent in React 18 but still a leak).
@@ -362,14 +391,17 @@ export default function JournalView({ userId, userEmail, onClose }) {
       setAttachments(Array.isArray(draft.attachments) ? draft.attachments : []);
       // Re-arm so the autosave retries the unsynced draft.
       dirtyRef.current = true;
-      // A draft only exists because a save failed, so this day is held.
-      setHeldOffline(true);
+      // A draft only exists because a save failed, so this day is unsynced.
+      // Retries reset with the day — a fresh open deserves a fresh budget.
+      retryCountRef.current = 0;
+      setSaveState('held');
     } else {
       setTitle(entry?.title || '');
       setBody(entry?.body || '');
       setAttachments(Array.isArray(entry?.attachments) ? entry.attachments : []);
       dirtyRef.current = false;
-      setHeldOffline(false);
+      retryCountRef.current = 0;
+      setSaveState('idle');
     }
     setLoading(false);
     loadingRef.current = false;
@@ -727,11 +759,31 @@ export default function JournalView({ userId, userEmail, onClose }) {
                 honest half of a permanent three-clause footer sentence. */}
             <div className="flex items-center gap-2 ps-1">
               <span className={`text-micro ${isToday ? 'text-primary font-semibold' : 'text-muted-foreground'}`}>{relativeLabel}</span>
-              {saving
-                ? <span className="text-micro text-muted-foreground flex items-center gap-1"><Loader2 className="w-2.5 h-2.5 animate-spin" /> {tFallback('journal.saving', 'Saving…')}</span>
-                : heldOffline
-                  ? <span className="text-micro text-destructive">{tFallback('journal.held', 'Held offline')}</span>
-                  : hasContent && <span className="text-micro text-muted-foreground">{tFallback('journal.saved', 'Saved')}</span>}
+              {saveState === 'saving' && (
+                <span className="text-micro text-muted-foreground flex items-center gap-1">
+                  <Loader2 className="w-2.5 h-2.5 animate-spin" /> {tFallback('journal.saving', 'Saving…')}
+                </span>
+              )}
+              {saveState === 'held' && (
+                <span className="text-micro text-destructive">{tFallback('journal.held', 'Held offline')}</span>
+              )}
+              {/* Stalled is the only save state that needs the USER. It gets
+                  a control rather than a label, because after the backoff
+                  gives up nothing else will ever move this day forward —
+                  and it says the writing is safe, because it is: the draft
+                  is on disk under flexyn.journalDraft.<uid>.<date>. */}
+              {saveState === 'stalled' && (
+                <button
+                  onClick={retrySave}
+                  data-no-swipe
+                  className="text-micro text-destructive font-semibold underline underline-offset-2 decoration-destructive/40"
+                >
+                  {tFallback('journal.notSaved', 'Not saved — tap to retry')}
+                </button>
+              )}
+              {saveState === 'saved' && hasContent && (
+                <span className="text-micro text-muted-foreground">{tFallback('journal.saved', 'Saved')}</span>
+              )}
             </div>
           </div>
 
