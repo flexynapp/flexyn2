@@ -430,7 +430,25 @@ export default function Layout() {
           scrollable empty void below short pages (Marketplace, Workout,
           etc.). Letting main size to its content removes that dead space;
           short pages simply end and the fixed bottom nav stays put. */}
-      <main className="lg:ms-64 flex flex-col pt-[56px] pb-[calc(4rem+env(safe-area-inset-bottom))] lg:pb-0 overscroll-y-none">
+      {/* pt has to carry the safe-area inset, not just the 56px bar.
+          Header.jsx is `fixed top-0` with `paddingTop: env(safe-area-inset-top)`
+          around an h-14 row, so its real height is 56 + inset — 115px on a
+          Dynamic Island iPhone, 56px on a desktop where the inset is 0. This
+          padded a flat 56px, so on every notched phone the top ~59px of EVERY
+          page sat underneath the header.
+
+          It hid for so long because most pages open with a heading or a card
+          whose top 59px is empty anyway. The Dashboard's stories rail is
+          where it shows: the rail is `items-end`, so a note bubble or a
+          "+ Add" pill extends UPWARD from the avatars — straight into the
+          band under the header. Scrolling to the top left the pills invisible
+          and the avatar circles clipped, and only an overscroll bounce
+          revealed them.
+
+          Everything else that positions against the header already had this
+          right — ProfileMenu, FollowerActivityBanner, the Hub and Gauntlet
+          sub-headers all add the inset. This was the one that didn't. */}
+      <main className="lg:ms-64 flex flex-col pt-[calc(56px+env(safe-area-inset-top))] pb-[calc(4rem+env(safe-area-inset-bottom))] lg:pb-0 overscroll-y-none">
         <Header />
         <PullToRefresh>
           {/* AnimatedRoutes owns the <Outlet /> — it keys the routed page

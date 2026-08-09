@@ -129,7 +129,12 @@ export default function MarketFilterBar({
     // row and left a sliver of the rarity chips. A sticky control that
     // disappears the moment you scroll is worse than a non-sticky one.
     // The header is hidden from lg up, hence the reset.
-    <div className="sticky top-14 lg:top-0 z-30 -mx-4 px-4 py-2 bg-background/95 backdrop-blur-sm border-b border-border">
+    //
+    // The offset carries the safe-area inset too, for the same reason it is
+    // 56 and not 0: the header's real height is 56 + env(safe-area-inset-top),
+    // so a bare `top-14` re-created the original bug 59px higher up on every
+    // notched phone — the bar stuck underneath the header instead of below it.
+    <div className="sticky top-[calc(3.5rem+env(safe-area-inset-top))] lg:top-0 z-30 -mx-4 px-4 py-2 bg-background/95 backdrop-blur-sm border-b border-border">
       {/* Row 1 — chips scroll, sort does NOT.
           The sort <select> used to sit inside this scroll container with
           `ms-auto`, which aligns to the SCROLL width rather than the visible

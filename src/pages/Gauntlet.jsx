@@ -324,8 +324,17 @@ export default function Gauntlet() {
     // (We just show the detail card; stats modal is reserved for when you first complete)
   }
 
+  // pt-[73px] = the fixed sub-header below (61px measured) + 12px of
+  // breathing room, and nothing else. It was 120px, which is 61 + 59 — the
+  // Dynamic Island's safe-area inset baked in as a literal, because Layout's
+  // <main> was not carrying it. Now that main pads 56px + inset, this only
+  // has to clear the sub-header itself; leaving it at 120 would open a 59px
+  // hole at the top of the page on exactly the phones it was tuned for. Hub
+  // solves the same problem by measuring (see the comment on its
+  // contentPadTop) because its sub-header changes height between sections;
+  // this one doesn't.
   return (
-    <div className="px-0 pt-[120px] pb-24 max-w-3xl mx-auto">
+    <div className="px-0 pt-[73px] pb-24 max-w-3xl mx-auto">
       {/* ── Fixed sub-header ─────────────────────────────────────────────── */}
       <div className="fixed start-0 end-0 z-20 bg-background/95 backdrop-blur-md border-b border-border top-[calc(56px+env(safe-area-inset-top))] lg:top-[env(safe-area-inset-top)] lg:start-64">
         <div className="max-w-3xl mx-auto px-4 md:px-6 pt-3 pb-3 flex items-center gap-3">
