@@ -684,12 +684,18 @@ export default function Progress() {
   // tile and the slide for the same stat agree — tapping through from
   // one to the other lands somewhere that looks related.
   //
-  // Four hues and no more, per CLAUDE.md: these are the budget tokens,
-  // not new colours. Level takes `destructive` as the fourth rather
-  // than repeating orange — it is the app's red, used here for its
-  // position in the rotation, the same way the Dashboard hero's "Share
-  // your week" slide uses it. (`--accent` is a desaturated slate, so as
-  // a full-band tint it reads as dirt rather than as a colour.)
+  // Budget tokens only, per CLAUDE.md — nothing here invents a hue.
+  //
+  // Level repeats `primary` rather than taking a fourth colour, and that
+  // is deliberate (kegan, 2026-08-09). It was briefly `destructive`, on
+  // the reasoning that four slides should get four hues; red reads fine
+  // on the dark band, but Level is a progression, not a warning, and
+  // orange is what the app already uses for it everywhere else — the
+  // LevelBar, the Lv pill, the level-up capsule. A repeated hue costs
+  // less than a wrong one. Don't "finish" the rotation.
+  //
+  // `--accent` is not the escape hatch either: it is a desaturated
+  // slate, so as a full-band tint it reads as dirt rather than colour.
   const carouselSlides = [
     {
       id: 'streak',
@@ -726,7 +732,7 @@ export default function Progress() {
     {
       id: 'level',
       icon: Zap,
-      color: 'var(--destructive)',
+      color: 'var(--primary)',
       kicker: 'Level',
       value: `Lv ${level}`,
       tip: 'Every workout earns XP. Hit personal bests for bonus XP and watch the bar fill.',
