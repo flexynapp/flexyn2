@@ -454,13 +454,40 @@ Found in one pass on 2026-08-09, auditing what the weekly review reads:
 | `workout_logs.total_volume` | **0 of 3** | Every weekly review said "0 lbs". `get_gym_leaderboard` ranked members on it and `get_gym_community_progress` summed it into the gym's "lbs moved", so both read zero for every gym since launch. `dayContext.js` had already worked around it. |
 | `cardio_logs.duration_min` | **0 of 5** | The tracker writes `duration_seconds`. Cardio "moving time" was always 0. |
 | `workout_logs.duration_min` | **0 of 3** | No other source for a lifting session, so the UI drops the stat rather than faking it. |
-| `league_members.rank` | **0 of 42** | Only written when a league RESOLVES. Anything gating on it is invisible during the week it describes — which is the only week it matters. Currently has no reader at all. |
+| `league_members.rank` | **0 of 42** | **Not one of these — see the third shape below.** The writer exists and is correct; its precondition has never been met. Also currently has no reader. |
 | `nutrition_logs.food_item_id` | **0 of 120** | The food-catalog join has never been exercised. |
 
 `total_volume` is fixed at both ends — `Workout.jsx` persists it on save, and
 migration 329 backfilled the existing rows with the same formula. The weekly
 review derives volume from the `exercises` JSONB regardless, so it is correct
 even on a row that was never written.
+
+**A third shape, and the most deceptive: the writer exists and has never
+been REACHED.** `league_members.rank` sits in the table above because it
+measures 0 of 42, and it does not belong to either cause.
+`resolve_league_bracket_internal` does write it — `ORDER BY weekly_xp DESC
+NULLS LAST, joined_at ASC`, incrementing a counter — but only inside the loop
+over members with `qualified = TRUE`, and qualifying in bronze takes one
+training day in the week. Across seven resolved leagues `qualified` has been
+**0 every time**, because the entire database holds 3 workout logs and 5
+cardio logs. Every member fell through to the unqualified branch, took
+`outcome = 'unranked'`, and kept a NULL rank. Nothing needs building: one
+member of the current week already has two active days, so the next Monday
+rollover writes this column's first non-NULL value in the app's history.
+
+Reading the code proves the writer exists. Reading the data proves it never
+ran. Both are true, and either one alone sends you the wrong way — a migration
+to "add the missing writer" would have duplicated working code. **Check whether
+the writer's PRECONDITION has ever held**, which here is one query:
+`SELECT count(*) FILTER (WHERE qualified) FROM league_members`.
+
+**Unrelated hazard found in the same look:** all seven historical leagues were
+resolved in a single catch-up sweep on 2026-08-09, months after their week
+ends. `roll_weekly_leagues` resolves every unresolved past league it finds, and
+`resolve_league_bracket_internal` sends a notification per promotion, demotion
+and shield. Nobody qualified, so nothing fired — but a backlog like that would
+otherwise deliver months of backdated league results to every member at once.
+Check the backlog before running it.
 
 **Two shapes, two different causes — don't group them.** *0-of-N* means no
 writer exists. *k-of-N* means a writer exists and one entry path skips it, and
