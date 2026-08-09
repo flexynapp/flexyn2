@@ -4,140 +4,219 @@
 // lock for the whole app — every sheet, menu, panel and modal we built by
 // hand goes through `useBodyScrollLock`, which calls in here.
 //
-// Why not just `body { overflow: hidden }` — which is what this app did for
-// a year, in a hook and in seven hand-rolled copies of it:
+// ── Why not `body { overflow: hidden }` on its own ──────────────────────
+// That is what this app did for a year, in a hook and in seven copy-pasted
+// duplicates of it, and it does not hold on iOS: Safari keeps panning the
+// document under a `fixed` overlay because a touch drag is not governed by
+// overflow. It is also a *propagation* rule — the body's overflow only
+// reaches the viewport while the root element's overflow is `visible` — so
+// anything that touches html's overflow silently un-locks the page.
 //
-//   • It is a *propagation* rule, not a lock. The body's overflow only
-//     reaches the viewport while the root element's own overflow is
-//     `visible`; anything that touches `html`'s overflow (a theme layer, a
-//     vendor's scroll-lock style tag, a stray utility class) silently
-//     un-locks the page and nothing anywhere reports it.
-//   • On iOS it does not stop a touch drag of the document. Safari keeps
-//     panning the page under a `fixed` overlay, which is exactly the bug
-//     this file exists to fix: a drag inside a menu that has nothing left
-//     to scroll — or no scrollable content at all — falls through and
-//     scrolls the Dashboard behind it.
-//   • It loses the scroll position whenever anything else re-lays out the
-//     document while the overlay is open.
+// ── Why not pin the body with `position: fixed` ─────────────────────────
+// The obvious fix is `position: fixed; top: -scrollY`, and it does stop the
+// page dead. It was tried here and reverted, because pinning RELAYOUTS the
+// whole document and that has consequences no screenshot shows:
 //
-// So: pin the body with `position: fixed` at `top: -scrollY`. A fixed body
-// contributes nothing to the document's scrollable overflow, so there is no
-// scroll left to steal — no touch, wheel, keyboard or programmatic path
-// moves the page. `top` holds the page visually exactly where it was, which
-// matters because several of our menus (ProfileMenu especially) have no
-// backdrop and the page is still visible around them: a jump would be
-// obvious. On release the offset is handed back to `window.scrollTo`.
+//   • `window.scrollY` becomes 0 while an overlay is open, with no scroll
+//     event to announce it. Everything that reads it is then wrong —
+//     Layout's auto-hiding bottom nav and BackToTopButton both do, and the
+//     nav ended up hidden with the button stranded on top of an open sheet.
+//   • The document's scrollable overflow collapses to the viewport, so the
+//     `window.scrollTo` that hands the position back on release depends on
+//     the engine having re-laid-out the document synchronously first.
+//     Chrome does. WebKit is where the sheet came back with the page
+//     scrolled to the bottom and the sheet gone.
+//   • Every `fixed` overlay is measured against a document that just
+//     changed shape underneath it, mid-gesture.
 //
-// Reference counting is what makes it safe to stack: a sheet opened from
-// inside another sheet must not un-lock the page when the inner one closes.
-// The snapshot is taken on the 0→1 transition and restored on 1→0 only, so
-// N nested overlays produce exactly one lock and one restore.
+// ── What this does instead ─────────────────────────────────────────────
+// The same thing Radix's dialogs do — they use `react-remove-scroll`, they
+// are already in this app, and they hold on the device this bug was
+// reported from. Two parts, neither of which moves the document:
 //
-// Note that `position: fixed` on the body does NOT create a containing block
-// for fixed descendants — only transform/filter/perspective/contain do — so
-// every `fixed inset-0` overlay in the app keeps positioning against the
-// viewport while this is active.
+//   1. `body { overflow: hidden }` (+ a scrollbar gutter on desktop).
+//      Kills wheel, keyboard and scrollbar scrolling of the page. The
+//      scroll POSITION is untouched, so `window.scrollY` stays honest and
+//      there is nothing to restore on release.
+//   2. Non-passive `touchmove` / `wheel` listeners that cancel any gesture
+//      with nowhere to go. A drag inside the overlay's own scroller still
+//      scrolls it; a drag on the page behind — or one that has run the
+//      overlay's scroller to its end — is cancelled instead of chaining.
+//      This is the half that actually stops iOS.
+//
+// Reference counting makes it safe to stack: a sheet opened from inside
+// another sheet must not un-lock the page when the inner one closes, so the
+// styles are applied on the 0→1 transition and removed on 1→0 only.
 
 // Widest plausible platform scrollbar. Anything above this is the viewport
-// being scaled, not a gutter to reserve — see the measurement below.
+// being scaled rather than a gutter to reserve — measured in the in-app
+// browser pane mid-resize it read 48px, which as padding would have
+// indented the whole page every time a menu opened.
 const MAX_GUTTER = 32;
 
 let depth = 0;
 let saved = null;
+let touchX = 0;
+let touchY = 0;
 
 function canLock() {
   return typeof document !== 'undefined' && !!document.body;
 }
 
 /**
- * Pin the document. Idempotent per caller: pair every call with exactly one
- * `unlockBodyScroll()`. Returns nothing — callers should not need to know
- * whether they were the one that actually applied the styles.
+ * Can this element still scroll `delta` along `axis`? Only elements that
+ * actually opt into scrolling count — a `visible`/`hidden` box with
+ * overflowing content is not a scroller, it is a clip.
+ */
+function canScroll(el, style, axis, delta) {
+  const overflow = axis === 'y' ? style.overflowY : style.overflowX;
+  if (overflow !== 'auto' && overflow !== 'scroll' && overflow !== 'overlay') return false;
+
+  const max = axis === 'y'
+    ? el.scrollHeight - el.clientHeight
+    : el.scrollWidth - el.clientWidth;
+  if (max <= 1) return false;
+
+  const pos = axis === 'y' ? el.scrollTop : el.scrollLeft;
+  // 1px of slack: sub-pixel layout leaves scrollTop a hair short of max on
+  // plenty of real content, and treating that as "still has room" is the
+  // safe direction — it lets a real scroll through rather than eating it.
+  return delta < 0 ? pos > 1 : pos < max - 1;
+}
+
+/**
+ * Would the browser itself pan this element along `axis`? If not, some
+ * script owns the gesture — framer-motion's `drag`, our pull-to-dismiss
+ * handle, maplibre's canvas, the avatar cropper — and cancelling the
+ * touchmove underneath it would fight that library for the same finger.
+ *
+ * The map is why this is axis-aware rather than a `=== 'none'` check.
+ * maplibre marks its canvas `touch-action: pinch-zoom` while drag-pan is
+ * on: not `none`, but it still means "I handle dragging". Against the
+ * simpler check every pan of the gym map would have been cancelled.
+ * Conversely `useSwipeToDelete` sets `pan-y`, which really does mean the
+ * browser still owns vertical — so a downward drag there must still be
+ * judged on whether anything can scroll.
+ */
+function browserPansAxis(touchAction, axis) {
+  // jsdom reports '' for unset; a real engine always computes a keyword.
+  const value = touchAction || 'auto';
+  if (value === 'auto' || value === 'manipulation') return true;
+  return axis === 'y'
+    ? /\bpan-(y|up|down)\b/.test(value)
+    : /\bpan-(x|left|right)\b/.test(value);
+}
+
+/**
+ * Does this gesture have anywhere to go that ISN'T the page? Walks up from
+ * the touch target looking for a scroller with room left in the gesture's
+ * dominant axis, stopping at <body> — the document is exactly what we are
+ * refusing to scroll.
+ */
+function gestureHasRoom(target, dx, dy) {
+  const axis = Math.abs(dy) >= Math.abs(dx) ? 'y' : 'x';
+  const delta = axis === 'y' ? dy : dx;
+  if (delta === 0) return true;
+
+  let el = target instanceof Element ? target : null;
+  while (el && el !== document.body && el !== document.documentElement) {
+    const style = getComputedStyle(el);
+    if (!browserPansAxis(style.touchAction, axis)) return true;
+    if (canScroll(el, style, axis, delta)) return true;
+    el = el.parentElement;
+  }
+  return false;
+}
+
+function onTouchStart(e) {
+  if (e.touches.length !== 1) return;
+  touchX = e.touches[0].clientX;
+  touchY = e.touches[0].clientY;
+}
+
+function onTouchMove(e) {
+  // Two fingers is a pinch-zoom. Accessibility, not scrolling — never
+  // interfere with it.
+  if (e.touches.length !== 1) return;
+  const dx = touchX - e.touches[0].clientX;
+  const dy = touchY - e.touches[0].clientY;
+  if (gestureHasRoom(e.target, dx, dy)) return;
+  if (e.cancelable) e.preventDefault();
+}
+
+function onWheel(e) {
+  if (gestureHasRoom(e.target, e.deltaX, e.deltaY)) return;
+  if (e.cancelable) e.preventDefault();
+}
+
+// `passive: false` is the whole point — a passive listener may not
+// preventDefault, which is the only thing that stops the page on iOS.
+const NON_PASSIVE = { passive: false, capture: false };
+
+/**
+ * Hold the page still. Pair every call with exactly one
+ * `unlockBodyScroll()`; nesting is reference-counted.
  */
 export function lockBodyScroll() {
   if (!canLock()) return;
 
   depth += 1;
-  if (depth > 1) return; // already pinned by an overlay further out
+  if (depth > 1) return; // already held by an overlay further out
 
   const body = document.body;
   const html = document.documentElement;
-  const scrollY = window.scrollY || html.scrollTop || 0;
 
-  // Desktop only: `html` keeps the platform scrollbar (index.css excludes
-  // html/body from the app-wide scrollbar hiding). Pinning the body removes
-  // it, so reserve the same gutter as padding or the whole page shifts
+  // Desktop only: html keeps the platform scrollbar (index.css excludes
+  // html/body from the app-wide scrollbar hiding), and hiding the overflow
+  // takes it away. Reserve the same width as padding or the page jumps
   // sideways the moment a menu opens. iOS reports 0 here and pays nothing.
-  //
-  // Clamped to MAX_GUTTER because this difference is only a *scrollbar* when
-  // nothing else is scaling the viewport. Measured in the in-app browser
-  // pane mid-resize it read 48px — innerWidth 423 against clientWidth 375 —
-  // which as padding would have indented the whole page by half a thumb's
-  // width. A real platform scrollbar is 15–17px and never approaches 32.
   const rawGutter = window.innerWidth - html.clientWidth;
   const gutter = rawGutter > 0 && rawGutter <= MAX_GUTTER ? rawGutter : 0;
 
   saved = {
-    scrollY,
-    body: {
-      position: body.style.position,
-      top: body.style.top,
-      left: body.style.left,
-      right: body.style.right,
-      width: body.style.width,
-      overflow: body.style.overflow,
-      paddingRight: body.style.paddingRight,
-    },
-    htmlOverflow: html.style.overflow,
-    htmlScrollBehavior: html.style.scrollBehavior,
+    overflow: body.style.overflow,
+    paddingRight: body.style.paddingRight,
   };
 
-  body.style.position = 'fixed';
-  body.style.top = `-${scrollY}px`;
-  body.style.left = '0';
-  body.style.right = '0';
-  body.style.width = '100%';
+  // Deliberately NOT setting overscroll-behavior here, which is what Radix's
+  // copy of this does. index.css already pins `body { overscroll-behavior:
+  // none }` app-wide, and `none` is the stricter of the two — writing an
+  // inline `contain` would override the stylesheet with something weaker
+  // for exactly as long as an overlay is open.
   body.style.overflow = 'hidden';
   if (gutter > 0) {
     // Preflight sets border-box on everything, so this shrinks the content
     // box rather than widening the element.
     body.style.paddingRight = `${gutter}px`;
   }
-  html.style.overflow = 'hidden';
+
+  document.addEventListener('touchstart', onTouchStart, NON_PASSIVE);
+  document.addEventListener('touchmove', onTouchMove, NON_PASSIVE);
+  document.addEventListener('wheel', onWheel, NON_PASSIVE);
 }
 
 /**
- * Release one lock. The page only moves again — and only returns to its
- * scroll position — once the outermost overlay has released.
+ * Release one lock. The page only moves again once the outermost overlay
+ * has released. Nothing is scrolled here — the position was never taken
+ * away, which is the point of doing it this way.
  */
 export function unlockBodyScroll() {
   if (!canLock() || depth === 0) return;
 
   depth -= 1;
-  if (depth > 0) return; // an overlay further out still wants it pinned
+  if (depth > 0) return; // an overlay further out still wants it held
 
   const snapshot = saved;
   saved = null;
+
+  document.removeEventListener('touchstart', onTouchStart, NON_PASSIVE);
+  document.removeEventListener('touchmove', onTouchMove, NON_PASSIVE);
+  document.removeEventListener('wheel', onWheel, NON_PASSIVE);
+
   if (!snapshot) return;
-
   const body = document.body;
-  const html = document.documentElement;
-
-  body.style.position = snapshot.body.position;
-  body.style.top = snapshot.body.top;
-  body.style.left = snapshot.body.left;
-  body.style.right = snapshot.body.right;
-  body.style.width = snapshot.body.width;
-  body.style.overflow = snapshot.body.overflow;
-  body.style.paddingRight = snapshot.body.paddingRight;
-  html.style.overflow = snapshot.htmlOverflow;
-
-  // Restore before the browser can paint the un-pinned page at scroll 0.
-  // Forced to `auto` in case a smooth-scroll rule is ever added to html —
-  // animating back to where the user already was reads as a bug.
-  html.style.scrollBehavior = 'auto';
-  window.scrollTo(0, snapshot.scrollY);
-  html.style.scrollBehavior = snapshot.htmlScrollBehavior;
+  body.style.overflow = snapshot.overflow;
+  body.style.paddingRight = snapshot.paddingRight;
 }
 
 /** True while at least one overlay holds the lock. Exposed for tests. */
@@ -147,6 +226,11 @@ export function isBodyScrollLocked() {
 
 /** Test-only escape hatch — drops every outstanding lock. */
 export function __resetBodyScrollLock() {
+  if (canLock()) {
+    document.removeEventListener('touchstart', onTouchStart, NON_PASSIVE);
+    document.removeEventListener('touchmove', onTouchMove, NON_PASSIVE);
+    document.removeEventListener('wheel', onWheel, NON_PASSIVE);
+  }
   depth = 0;
   saved = null;
 }

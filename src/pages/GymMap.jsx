@@ -34,7 +34,6 @@ import {
 import { toast } from '@/lib/toast';
 import GymLeaderboard from '@/components/gyms/GymLeaderboard';
 import { useAuth } from '@/lib/AuthContext';
-import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 // ── Constants ──────────────────────────────────────────────────────────
 const US_CENTER        = [-98.5795, 39.8283];
@@ -228,8 +227,11 @@ function buildOsmPin({ gym, onClick, signal }) {
  *   is actually theirs: before that there is nothing to continue FROM.
  */
 export default function GymMap({ onClose, onContinue }) {
-  // Pin the page behind this overlay — see @/lib/scrollLock.
-  useBodyScrollLock();
+  // No useBodyScrollLock here, deliberately. This is a ROUTE (/gym-map) as
+  // well as an onboarding overlay, and it is `fixed inset-0` either way —
+  // there is no page behind it to hold. Taking the lock would hold it for
+  // the whole time the user is on the map, and the lock's touch handling
+  // would be arbitrating gestures against maplibre's canvas for every pan.
   const navigate = useNavigate();
   const { user } = useAuth();
 

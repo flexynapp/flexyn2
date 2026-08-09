@@ -9,9 +9,15 @@
 //
 // Pass the overlay's own visibility as `active`, not a bare `true`, unless
 // the component unmounts when it closes. Locks are reference-counted, so a
-// sheet opened from inside another sheet is safe: the page stays pinned
-// until the outermost one closes, and lands back on the same scroll
-// position it started from.
+// sheet opened from inside another sheet is safe: the page stays held until
+// the outermost one closes.
+//
+// The overlay's OWN scrolling keeps working — the lock cancels a gesture
+// only when it has nowhere left to go. So a sheet scrolls normally, and the
+// drag that runs it to either end stops there instead of taking the page
+// with it. The page's scroll position is never moved, so nothing that reads
+// `window.scrollY` (Layout's auto-hiding nav, BackToTopButton) sees a lie
+// while an overlay is open.
 //
 // Hook order rule: this is a hook, so it has to run above any early
 // `if (!open) return null`. That's what the `active` argument is for.
