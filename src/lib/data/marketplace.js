@@ -102,34 +102,24 @@ export async function purchaseListing(listingId) {
  * the second one failed (network blip, tab close), the item was
  * orphaned — invisible in the user's bag AND can't be re-listed.
  *
- * The pre-078 fallback below only flips the LISTING row. It used to rely
- * on the caller running `inventory.setListed(false)` afterwards to release
- * the inventory row — but that call could never succeed (user_inventory
- * has no client UPDATE policy), so it has been removed from the callers.
- * On a host old enough to miss mig 078 a cancelled listing therefore
- * leaves is_listed=true behind. That is strictly better than the old
- * behaviour, where the same hosts ALSO showed the user an error toast on
- * every successful cancel — and mig 078 is deployed here, so the fallback
- * is unreachable in practice.
+ * The RPC is now the ONLY path. A pre-078 fallback used to sit here that
+ * flipped `status` directly, and migration 319 removed the policy it needed:
+ * `marketplace: sellers can update own listings` was an unrestricted UPDATE,
+ * so it also let a seller re-price a live listing under a buyer, repoint it
+ * at a different item, or hand themselves the admin-only `is_featured`. The
+ * table takes no direct client writes at all now.
+ *
+ * Keeping the fallback would have been worse than removing it: with the
+ * policy gone the UPDATE matches no rows and PostgREST reports success, so a
+ * failed cancel would have looked exactly like a successful one. A missing
+ * RPC throws instead.
  */
 export async function cancelListing(listingId) {
   if (!listingId) return;
   const { error } = await supabase.rpc('cancel_marketplace_listing', {
     p_listing_id: listingId,
   });
-  if (!error) return;
-  if (error.code !== '42883' && error.code !== '42P01') {
-    throw error;
-  }
-
-  // Legacy fallback for pre-078 hosts: flips the listing only. Releasing
-  // the inventory row is not possible from the client (no UPDATE policy),
-  // so on such a host the item keeps is_listed=true — see the note above.
-  const { error: updateErr } = await supabase
-    .from('marketplace_listings')
-    .update({ status: 'cancelled' })
-    .eq('id', listingId);
-  if (updateErr) throw updateErr;
+  if (error) throw error;
 }
 
 /**
@@ -231,14 +221,10 @@ export async function priceStatsForItem(itemId, limit = 20) {
   };
 }
 
-/**
- * Mark a listing as completed (called after a successful purchase/trade).
- */
-export async function completeListing(listingId) {
-  if (!listingId) return;
-  const { error } = await supabase
-    .from('marketplace_listings')
-    .update({ status: 'completed' })
-    .eq('id', listingId);
-  if (error) throwReported(error, 'marketplace');
-}
+// `completeListing()` was removed by migration 319. Its doc comment claimed it
+// was "called after a successful purchase/trade" and it had ZERO callers —
+// purchase_listing, purchase_bundle and respond_to_trade_offer each set
+// status='completed' inside their own transaction, which is the only place it
+// can be set correctly. As an exported direct UPDATE it was a standing
+// invitation to mark a listing sold without a sale, and 319 closed the policy
+// it depended on.
