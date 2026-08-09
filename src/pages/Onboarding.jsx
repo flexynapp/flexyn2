@@ -21,7 +21,8 @@ import { containsProfanity } from '@/lib/profanityFilter';
 import { grantWelcomeCapsule } from '@/lib/data/capsules';
 import { buildStarterRegimen, ensureStarterRegimen } from '@/lib/data/starterRegimen';
 import { ensureOnboardingCardioGoal } from '@/lib/data/onboardingCardioGoal';
-import StarterPlanView from '@/components/workout/StarterPlanView';
+import StarterPlanCoachCard from '@/components/onboarding/StarterPlanCoachCard';
+import { askStarterPlanCoach } from '@/lib/aiCoach/starterPlanCoach';
 import { reportError } from '@/lib/reportError';
 import { isDuplicateUsernameError, isProfaneUsernameError } from '@/lib/onboardingErrors';
 import { escapeLikePattern } from '@/lib/sqlPattern';
@@ -311,7 +312,10 @@ const LOADING_TASKS = [
   'Calibrating progression',
   'Pairing exercises to equipment',
   'Stress-testing recovery',
-  'Locking in week one',
+  // Last, and the only one that names something happening off the device:
+  // this step now waits on a real request to the Coach (see LoadingStep), so
+  // it is the line that can genuinely take a moment.
+  'Asking your AI Coach',
 ];
 
 /* ═══════════════════════════════════════════════════════════════
@@ -2943,14 +2947,49 @@ function HomeGymStep({ step, total, value, onChange, onNext, onBack, onSkip }) {
    STEP 6: LOADING
 ═══════════════════════════════════════════════════════════════ */
 
-function LoadingStep({ onDone }) {
+// Hard ceiling on how long the Coach may hold up the reveal, on top of the
+// ~4.3 s the task list already takes. askStarterPlanCoach has its own 8 s
+// timeout; this is the belt to that braces, because the one thing onboarding
+// must never do is strand somebody on a spinner at the last step.
+const COACH_WAIT_CEILING_MS = 4_000;
+
+/**
+ * @param {function} onDone   advance to the reveal
+ * @param {function} onCoach  receives { reply, model } if the Coach answered.
+ *                            Never called on failure — the reveal simply
+ *                            renders the plan on its own, as it always did.
+ */
+function LoadingStep({ onDone, onCoach }) {
   const { tFallback } = useLanguage();
   const [step, setStep] = useState(0);
+  // The request is in flight while the task list plays, so in the common case
+  // it has already landed by the time the list finishes and costs nothing.
+  const [coachPending, setCoachPending] = useState(true);
+
+  // Kicked off exactly once. `onCoach` is a fresh closure on every parent
+  // render, so it is deliberately not a dependency — re-running this would
+  // spend another turn of the user's daily Coach quota per render.
+  useEffect(() => {
+    let cancelled = false;
+    const settle = () => { if (!cancelled) setCoachPending(false); };
+
+    const ceiling = setTimeout(settle, COACH_WAIT_CEILING_MS);
+    onCoach?.().finally(() => { clearTimeout(ceiling); settle(); });
+
+    return () => { cancelled = true; clearTimeout(ceiling); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     if (step >= LOADING_TASKS.length) { const t = setTimeout(onDone, 600); return () => clearTimeout(t); }
+    // Hold ON the last line, with its spinner still turning, rather than
+    // completing the list and freezing on a screen of ticks. That row reads
+    // "Asking your AI Coach", so a beat of waiting there is the thing it
+    // names rather than a stall.
+    if (step === LOADING_TASKS.length - 1 && coachPending) return undefined;
     const t = setTimeout(() => setStep(s => s + 1), 720);
     return () => clearTimeout(t);
-  }, [step, onDone]);
+  }, [step, onDone, coachPending]);
 
   return (
     <div className="flex flex-col items-center justify-center h-full gap-4">
@@ -3028,7 +3067,7 @@ function fillNodes(template, values) {
   });
 }
 
-function RevealStep({ data, onNext, saving = false, previewRegimen = null }) {
+function RevealStep({ data, onNext, saving = false, previewRegimen = null, coachIntro = null }) {
   const { tFallback } = useLanguage();
   const goalIds = Array.isArray(data.goal) ? data.goal : (data.goal ? [data.goal] : []);
   const primaryGoal = GOALS.find(g => g.id === goalIds[0]) || GOALS[0];
@@ -3113,7 +3152,11 @@ function RevealStep({ data, onNext, saving = false, previewRegimen = null }) {
             <div className="text-caption text-muted-foreground">
               {tFallback('onboarding.reveal.planMeta', 'Saved to Workout → Regimens')}
             </div>
-            <StarterPlanView regimen={previewRegimen} />
+            <StarterPlanCoachCard
+              regimen={previewRegimen}
+              coachReply={coachIntro?.reply || null}
+              coachModel={coachIntro?.model || null}
+            />
           </motion.div>
         )}
       </div>
@@ -3226,7 +3269,10 @@ const SIGN_IN_GATE_KEY = 'fn-onboarding-signin-gate';
 export default function Onboarding() {
   const navigate = useNavigate();
   const { isAuthenticated, isLoadingAuth, checkUserAuth, user } = useAuth();
-  const { tFallback } = useLanguage();
+  // `language` as well as tFallback: the Coach writes the starter-plan intro
+  // in whatever language the app is set to, and the Edge Function needs to be
+  // told which one.
+  const { tFallback, language } = useLanguage();
   const { setWeightUnit } = useWeightUnit();
 
   const [stepIdx, setStepIdx] = useState(0);
@@ -3371,6 +3417,33 @@ export default function Onboarding() {
     }),
     [data.goal, data.level, data.days, data.assessment, data.sharpen?.cardioEvent, data.sharpen?.strengthFocus, data.onboardingInjuries, data.stats?.age, data.stats?.gender, data.stats?.weightKg, data.stats?.heightCm]
   );
+
+  // The AI Coach's write-up of that plan. Null until the loading step asks for
+  // it, and null forever if the Coach is unreachable — the reveal renders the
+  // plan on its own in that case, exactly as it did before this existed.
+  //
+  // The EXERCISES are not the model's. buildStarterRegimen above owns those,
+  // because they get persisted, filtered against injuries and capped by age,
+  // and they have to be reproducible. This is the same split coach.js runs
+  // everywhere else: the model writes, the builder builds.
+  const [coachIntro, setCoachIntro] = useState(null);
+  const coachAsked = useRef(false);
+
+  // Returns a promise so LoadingStep can wait on it. Guarded because every
+  // call spends one of the user's daily Coach turns (migration 305), and
+  // React 18's StrictMode double-mounts effects in development.
+  const requestCoachIntro = useCallback(async () => {
+    if (coachAsked.current) return;
+    coachAsked.current = true;
+    try {
+      const res = await askStarterPlanCoach({ draft: data, language });
+      if (res.ok) setCoachIntro({ reply: res.reply, model: res.model });
+    } catch (err) {
+      // askStarterPlanCoach is soft by contract; this is the belt to that
+      // brace. A Coach failure must never cost the user their onboarding.
+      reportError(err, { feature: 'onboarding.starter-coach' });
+    }
+  }, [data, language]);
 
   // Force Iron Orange theme during onboarding so new/reset users always see
   // the default look regardless of any previously-saved theme.
@@ -4021,7 +4094,7 @@ export default function Onboarding() {
                 />
               )}
 
-              {stepName === 'loading' && <LoadingStep onDone={next} />}
+              {stepName === 'loading' && <LoadingStep onDone={next} onCoach={requestCoachIntro} />}
 
               {stepName === 'reveal' && (
                 <RevealStep
@@ -4029,6 +4102,7 @@ export default function Onboarding() {
                   onNext={handleRevealNext}
                   saving={saving}
                   previewRegimen={previewRegimen}
+                  coachIntro={coachIntro}
                 />
               )}
 

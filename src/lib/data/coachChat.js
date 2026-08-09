@@ -126,6 +126,12 @@ export async function askCoachLLM({
       kind: data.kind === 'plan' ? 'plan' : 'answer',
       reply: String(data.reply),
       goal: String(data.goal || ''),
+      // Which model actually answered. The function has always sent this back
+      // on `usage`; it was dropped here. Onboarding attributes the starter
+      // plan's write-up on screen, and an attribution that isn't read from the
+      // response is a claim rather than a fact — if MODEL changes in the
+      // function, the label has to change with it.
+      model: data.usage?.model ? String(data.usage.model) : null,
     };
   } catch (err) {
     if (controller.signal.aborted) return { ok: false, error: 'TIMEOUT' };

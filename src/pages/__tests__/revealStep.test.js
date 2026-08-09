@@ -106,7 +106,7 @@ describe('reveal step', () => {
     expect(I18N).not.toContain("'onboarding.reveal.welcome'");
     expect(I18N).not.toContain("'onboarding.reveal.defaultName'");
     // The heading is the first thing under the logo/coach bar.
-    expect(step.indexOf('<motion.h1')).toBeLessThan(step.indexOf('<StarterPlanView'));
+    expect(step.indexOf('<motion.h1')).toBeLessThan(step.indexOf('<StarterPlanCoachCard'));
     expect(step.indexOf('<motion.h1')).toBeGreaterThan(step.indexOf('<RevealCoachButton'));
   });
 
@@ -125,7 +125,7 @@ describe('reveal step', () => {
     // planMeta is the block's only line of copy, and it sits directly on the
     // sections rather than under a title.
     const block = step.slice(step.indexOf('previewExercises.length > 0'));
-    expect(block.indexOf('reveal.planMeta')).toBeLessThan(block.indexOf('<StarterPlanView'));
+    expect(block.indexOf('reveal.planMeta')).toBeLessThan(block.indexOf('<StarterPlanCoachCard'));
   });
 
   it('interpolates the summary rather than hardcoding the numbers', () => {
@@ -154,6 +154,19 @@ describe('reveal step', () => {
     expect(step).toContain('<Confetti');
     expect(step).toContain('onboarding.reveal.cta');
     expect(step).toContain('onboarding.reveal.saving');
-    expect(step).toContain('<StarterPlanView');
+    expect(step).toContain('<StarterPlanCoachCard');
+  });
+
+  it('hands the plan to the coach wrapper without letting it pick exercises', () => {
+    // The reveal presents the plan as the AI Coach's suggestion, but the
+    // regimen passed in is still the one buildStarterRegimen produced and
+    // onboarding persists. If these ever diverge, the screen is advertising a
+    // plan the user does not receive.
+    const step = revealStep();
+    const card = step.slice(step.indexOf('<StarterPlanCoachCard'));
+    expect(card.slice(0, card.indexOf('/>'))).toContain('regimen={previewRegimen}');
+    // The model's contribution is prose and an attribution, nothing else.
+    expect(card.slice(0, card.indexOf('/>'))).toContain('coachReply=');
+    expect(card.slice(0, card.indexOf('/>'))).toContain('coachModel=');
   });
 });
