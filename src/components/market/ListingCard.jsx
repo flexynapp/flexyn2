@@ -1,11 +1,13 @@
 // src/components/market/ListingCard.jsx
 // One marketplace listing tile. Split out of MarketplaceFeed.jsx.
 
+import { memo } from 'react';
 import { motion } from 'framer-motion';
 import { Coins, Zap, Lock, Heart, Star } from 'lucide-react';
 import * as itemSoldCounts from '@/lib/data/itemSoldCounts';
 import { displayName } from '@/lib/userDisplay';
 import { tileRow } from '@/lib/tileRows';
+import { listItemMotion } from '@/lib/listMotion';
 import {
   RarityBadge, RarityFrame, RarityGlow, CoinAmount,
 } from '@/components/loot/RarityVisuals';
@@ -14,7 +16,13 @@ import {
 // same helper, so the pair cannot drift — see src/lib/tileRows.js.
 const FEED_TILE = tileRow({ gap: 3, cols: 2, smCols: 3 }).item;
 
-export default function ListingCard({
+// memo() is load-bearing, not a micro-optimisation. The feed re-renders on
+// every unrelated piece of its own state — the refresh spinner, the detail
+// sheet opening, a heart being tapped on ONE card — and without this each of
+// those re-rendered all 60 tiles while framer was mid-flight. It only holds
+// as long as MarketplaceFeed keeps handing down stable callbacks; see the
+// `cardProps` memo there.
+function ListingCard({
   listing,
   currentUser,
   flexCoins,
@@ -48,16 +56,18 @@ export default function ListingCard({
     <RarityFrame
       rarity={listing.item_rarity}
       as={motion.div}
-      layout
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.95 }}
+      // Position-only layout, popLayout-friendly enter/exit, and the dimming
+      // for a sold tile expressed as an animation target rather than an
+      // `opacity-50` class — framer writes opacity inline and inline beats a
+      // class, so the class it used to carry never applied and the SOLD
+      // stamp sat at full brightness. Full reasoning in src/lib/listMotion.js.
+      {...listItemMotion({ dim: recentlySold })}
       className={[
-        'flex flex-col p-3 gap-2 overflow-hidden transition-opacity',
+        'flex flex-col p-3 gap-2 overflow-hidden',
         FEED_TILE,
         isFeatured ? 'ring-2 ring-amber-400/70' : '',
-        recentlySold ? 'pointer-events-none opacity-50' : '',
-      ].join(' ')}
+        recentlySold ? 'pointer-events-none' : '',
+      ].filter(Boolean).join(' ')}
     >
       {/* Featured ribbon (mig 122) */}
       {isFeatured && (
@@ -191,3 +201,5 @@ export default function ListingCard({
     </RarityFrame>
   );
 }
+
+export default memo(ListingCard);

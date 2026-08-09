@@ -6,6 +6,7 @@
 import { motion } from 'framer-motion';
 import { Package, Lock } from 'lucide-react';
 import { displayName } from '@/lib/userDisplay';
+import { listItemMotion } from '@/lib/listMotion';
 import { useNumberFormatter } from '@/lib/intl';
 import { RarityBadge, CoinAmount } from '@/components/loot/RarityVisuals';
 
@@ -19,10 +20,10 @@ export default function BundleCard({ bundle, listings, currentUser, flexCoins, o
 
   return (
     <motion.div
-      layout
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.95 }}
+      // Same shape as ListingCard — see src/lib/listMotion.js. `col-span-full`
+      // is why this row stayed a grid rather than moving to tileRow(): a flex
+      // container silently ignores it.
+      {...listItemMotion()}
       className="col-span-full rounded-xl border-2 border-amber-400/50 bg-card p-4 gap-3 flex flex-col relative overflow-hidden"
     >
       {/* Bundle badge */}

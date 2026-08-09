@@ -9,8 +9,8 @@
 
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { AnimatePresence } from 'framer-motion';
+import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { ShoppingBag, Heart, Package, SearchX } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { useAuth } from '@/lib/AuthContext';
@@ -32,6 +32,7 @@ import ListItemDialog from './ListItemDialog';
 import TradeOfferDialog from './TradeOfferDialog';
 import BuyConfirmDialog from './BuyConfirmDialog';
 import { tileRow } from '@/lib/tileRows';
+import { LIST_PRESENCE } from '@/lib/listMotion';
 
 // The listings feed: 2 cards per row on a phone, 3 from sm, wrapped and
 // centred — a marketplace holds however many listings it holds, so a partial
@@ -43,7 +44,23 @@ import { tileRow } from '@/lib/tileRows';
 // so that row is a full-width stack with no partial row to centre — and
 // `col-span-full` is a GRID property a flex container silently ignores, so
 // converting it would collapse each bundle to its content width.
-const LISTING_ROW = tileRow({ gap: 3, cols: 2, smCols: 3, align: 'start' }).row;
+//
+// `relative` is required, not cosmetic: AnimatePresence runs in popLayout
+// mode here, which absolutely-positions an exiting card from its measured
+// offsetTop/offsetLeft. Those are relative to the nearest POSITIONED
+// ancestor, so a static row sends every exiting card to coordinates measured
+// against something further up the tree.
+const LISTING_ROW = `${tileRow({ gap: 3, cols: 2, smCols: 3, align: 'start' }).row} relative`;
+
+// Stable empty values. A `= []` / `= new Map()` default in a destructured
+// useQuery result allocates a NEW one on every render, which changes the
+// identity every child sees — enough on its own to defeat memo() on all 60
+// cards and to re-run any effect that depends on the list.
+const NO_LISTINGS = [];
+const NO_COUNTS   = new Map();
+const NO_SAVED    = new Set();
+const NO_BUNDLES  = [];
+const NOOP = () => {};
 
 // The filter bar's sort maps onto listActive's two params. Keeping the
 // SERVER order in sync with the chosen sort matters: listActive caps at 60
@@ -96,12 +113,28 @@ export default function MarketplaceFeed() {
 
   // ── Data fetching ──────────────────────────────────────────────────────────
   const [sortBy, sortDir] = SORT_TO_QUERY[filters.sort] ?? SORT_TO_QUERY.recent;
-  const { data: rawListings, isLoading: loadingListings, isError: listingsError, refetch } = useQuery({
+  const {
+    data: rawListings, isLoading: loadingListings, isError: listingsError,
+    isPlaceholderData, refetch,
+  } = useQuery({
     queryKey: ['marketplaceListings', sortBy, sortDir],
     queryFn:  () => marketplace.listActive(60, sortBy, sortDir),
     staleTime: 15_000,
+    // Sort is part of the query key, so changing it is a DIFFERENT query with
+    // no cache of its own: the grid unmounted to a spinner and remounted the
+    // whole thing a moment later. That full teardown is the harshest
+    // transition on this screen and it fires on a control the user is likely
+    // to try more than once. keepPreviousData holds the current rows on
+    // screen and swaps them in place when the new order lands.
+    placeholderData: keepPreviousData,
   });
-  const listings = Array.isArray(rawListings) ? rawListings : [];
+  // useMemo, not a bare ternary: `Array.isArray(x) ? x : []` mints a fresh
+  // array on every render in the not-yet-loaded case, and this value is both
+  // an effect dependency and a prop on 60 memoized children.
+  const listings = useMemo(
+    () => (Array.isArray(rawListings) ? rawListings : NO_LISTINGS),
+    [rawListings]
+  );
 
   // Sold-counts lookup — one bulk query for every visible listing's item_id.
   // Re-runs only when the set of visible item_ids changes.
@@ -109,7 +142,7 @@ export default function MarketplaceFeed() {
     () => Array.from(new Set(listings.map(l => l.item_id).filter(Boolean))),
     [listings]
   );
-  const { data: soldCountMap = new Map() } = useQuery({
+  const { data: soldCountMap = NO_COUNTS } = useQuery({
     queryKey: ['itemSoldCounts', visibleItemIds.join(',')],
     queryFn:  () => itemSoldCounts.countsFor(visibleItemIds),
     enabled:  visibleItemIds.length > 0,
@@ -124,7 +157,7 @@ export default function MarketplaceFeed() {
 
   // Wishlist (mig 121). Toggle is optimistic via setQueryData so the heart
   // fills/unfills instantly.
-  const { data: savedIds = new Set() } = useQuery({
+  const { data: savedIds = NO_SAVED } = useQuery({
     queryKey: ['marketplaceWishlist', user?.id],
     queryFn:  async () => {
       const rows = await wishlist.listMine(user.id);
@@ -133,9 +166,14 @@ export default function MarketplaceFeed() {
     enabled:   !!user?.id,
     staleTime: 60_000,
   });
+  // Reads the current wishlist out of the cache rather than closing over
+  // `savedIds`. Closing over it put savedIds in the deps array, so every
+  // heart tap minted a new callback → new cardProps → a re-render of all 60
+  // tiles to change one heart. Each card still gets its own `isSaved` prop,
+  // so memo() lets exactly the tapped card re-render.
   const handleToggleSave = useCallback(async (listingId) => {
     if (!user?.id || !listingId) return;
-    const currentlySaved = savedIds.has(listingId);
+    const currentlySaved = !!qc.getQueryData(['marketplaceWishlist', user.id])?.has(listingId);
     qc.setQueryData(['marketplaceWishlist', user.id], (prev) => {
       const next = new Set(prev || []);
       if (currentlySaved) next.delete(listingId); else next.add(listingId);
@@ -151,10 +189,10 @@ export default function MarketplaceFeed() {
       });
       toast.error('Could not update wishlist — try again.');
     }
-  }, [user?.id, savedIds, qc]);
+  }, [user?.id, qc]);
 
   // Bundle deals (mig 134).
-  const { data: activeBundles = [] } = useQuery({
+  const { data: activeBundles = NO_BUNDLES } = useQuery({
     queryKey: ['marketplaceBundles'],
     queryFn: marketplace.listActiveBundles,
     staleTime: 60_000,
@@ -206,6 +244,13 @@ export default function MarketplaceFeed() {
   // one — those are the just-sold (or cancelled) ones. Mark them for a 5s
   // sold-fade overlay, then clean them up.
   useEffect(() => {
+    // Only diff against data the server actually returned. Before
+    // keepPreviousData a sort change emptied `listings` for the duration of
+    // the refetch, so this read "all 60 listings just disappeared" and swept
+    // every id into recentlySold — 60 state writes and a 5s timer, on a tap
+    // that sold nothing. The guard keeps that true if the query ever has no
+    // data again (first load, error).
+    if (!Array.isArray(rawListings)) return;
     const prevIds = new Set(previousListingsRef.current.map(l => l.id));
     const currIds = new Set(listings.map(l => l.id));
     const disappeared = [...prevIds].filter(id => !currIds.has(id));
@@ -232,7 +277,7 @@ export default function MarketplaceFeed() {
     }, 5000);
     previousListingsRef.current = listings;
     return () => clearTimeout(timer);
-  }, [listings]);
+  }, [listings, rawListings]);
 
   const { data: rawMyItems } = useQuery({
     queryKey: ['userInventory', user?.email],
@@ -418,21 +463,55 @@ export default function MarketplaceFeed() {
   );
   const filtersActive = activeFilterCount(filters) > 0;
 
-  // Shared props for every ListingCard so the three render sites (featured
-  // rail, main grid, sold-fade) can't drift apart.
-  const cardProps = {
+  // Shared props for every ListingCard so the render sites (main grid,
+  // sold-fade) can't drift apart.
+  //
+  // Every handler is a useCallback and the object itself is a useMemo — that
+  // is what makes memo() on ListingCard actually hold. These were inline
+  // arrow functions in a fresh object literal, so the object's identity
+  // changed on EVERY render of this component, and this component re-renders
+  // for the refresh spinner, the detail sheet, a purchase, a wishlist tap and
+  // five queries settling. Each of those re-rendered all 60 tiles, and when
+  // one lands mid-filter it re-renders them while framer is animating them.
+  const handleBuyClick = useCallback((l) => {
+    if (user?.email) addRecentlyViewed(user.email, l);
+    setBuyTarget(l);
+  }, [user?.email]);
+  const handleTradeClick = useCallback((l) => {
+    if (user?.email) addRecentlyViewed(user.email, l);
+    setTradeTarget(l);
+  }, [user?.email]);
+  const handleOpenDetail = useCallback((l) => {
+    if (user?.email) addRecentlyViewed(user.email, l);
+    setDetailTarget(l);
+  }, [user?.email]);
+
+  const cardProps = useMemo(() => ({
     currentUser: user,
     flexCoins,
     onCancel: handleCancel,
-    onBuy: (l) => { if (user?.email) addRecentlyViewed(user.email, l); setBuyTarget(l); },
-    onOfferTrade: (l) => { if (user?.email) addRecentlyViewed(user.email, l); setTradeTarget(l); },
+    onBuy: handleBuyClick,
+    onOfferTrade: handleTradeClick,
     onSellerClick: handleSellerClick,
     onToggleSave: handleToggleSave,
-    onOpenDetail: (l) => {
-      if (user?.email) addRecentlyViewed(user.email, l);
-      setDetailTarget(l);
-    },
-  };
+    onOpenDetail: handleOpenDetail,
+  }), [
+    user, flexCoins, handleCancel, handleBuyClick, handleTradeClick,
+    handleSellerClick, handleToggleSave, handleOpenDetail,
+  ]);
+
+  // A sold-fade tile is inert, so it overrides every handler with the SAME
+  // noop rather than a fresh `() => {}` per render — an inline noop is a new
+  // function identity each time and would re-render those tiles continuously
+  // for the whole 5 seconds they are on screen.
+  const soldCardProps = useMemo(() => ({
+    ...cardProps,
+    recentlySold: true,
+    onBuy: NOOP,
+    onCancel: NOOP,
+    onOfferTrade: NOOP,
+    onOpenDetail: undefined,
+  }), [cardProps]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -515,8 +594,8 @@ export default function MarketplaceFeed() {
                   Bundle deals
                 </h3>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                <AnimatePresence>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 relative">
+                <AnimatePresence {...LIST_PRESENCE}>
                   {activeBundles
                     .filter(b => bundleMap.has(b.id) && bundleMap.get(b.id).some(l => l.listing_type === 'sale'))
                     .map(bundle => (
@@ -535,8 +614,23 @@ export default function MarketplaceFeed() {
             </div>
           )}
 
-          <motion.div layout className={LISTING_ROW}>
-            <AnimatePresence>
+          {/* The row is a plain div. It used to be `<motion.div layout>`,
+              which added a projection node whose only job was animating the
+              row's own height — so while 40 cards flew toward their new
+              slots, the container they were flying into was moving too.
+              With exits out of flow the row can just snap to its new height.
+
+              `isPlaceholderData` is the sort-change window: the rows on
+              screen are the previous sort's, correct but about to reorder.
+              A light dim says "this is being replaced" without the teardown
+              a spinner caused. Safe as a CSS transition here — nothing on
+              this element is framer-animated any more. */}
+          <div
+            className={`${LISTING_ROW} transition-opacity duration-150 ${
+              isPlaceholderData ? 'opacity-60' : 'opacity-100'
+            }`}
+          >
+            <AnimatePresence {...LIST_PRESENCE}>
               {visibleListings.map(listing => (
                 <ListingCard
                   key={listing.id}
@@ -558,17 +652,12 @@ export default function MarketplaceFeed() {
                     listing={listing}
                     soldCount={soldCountMap.get(listing.item_id) || 0}
                     isSaved={savedIds.has(listing.id)}
-                    {...cardProps}
-                    recentlySold
+                    {...soldCardProps}
                     boughtByMe={boughtByMeIds.has(listing.id)}
-                    onBuy={() => {}}
-                    onCancel={() => {}}
-                    onOfferTrade={() => {}}
-                    onOpenDetail={undefined}
                   />
                 ))}
             </AnimatePresence>
-          </motion.div>
+          </div>
 
           {/* Filtered everything out — distinct from "marketplace is quiet",
               and the fix is one tap rather than "come back later". */}
