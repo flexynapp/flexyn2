@@ -2,14 +2,20 @@
 //
 // Community Gym-vs-Gym leaderboard.
 //
-// Ranks every active gym by 7-day workout activity using:
+// Ranks active gyms WITH AT LEAST FIVE MEMBERS by 7-day workout
+// activity:
 //   score = workout_count × LOG(active_members + 1)
 //
 // This rewards gyms where many DIFFERENT members are training, not just
 // one person logging dozens of sessions. LOG-damping prevents giants
 // from running away from smaller-but-active gyms.
 //
-// Data: get_gym_vs_gym_leaderboard() RPC (migration 142).
+// The five-member floor is a privacy boundary, not a quality bar (mig
+// 301, applied here by mig 327): below it, a gym's weekly activity is
+// one identifiable person's attendance, because the roster is visible
+// to members and the rest comes out by subtraction.
+//
+// Data: get_gym_vs_gym_leaderboard() RPC (migrations 142 / 327).
 // TanStack Query staleTime: 15 minutes — leaderboard positions don't
 // need to be real-time; a 15-min cache keeps RPCs cheap.
 //
@@ -169,7 +175,9 @@ export default function GymLeaderboard({ isAuthed = false, onGymPress }) {
         <div>
           <p className="font-heading font-bold">No gyms ranked yet</p>
           <p className="text-sm text-muted-foreground mt-1">
-            Once Flexyn members log workouts at their gyms, the leaderboard will come alive.
+            A gym joins the board once five of its members are on Flexyn — that&apos;s
+            the point where a week of training says something about the gym rather
+            than about one person.
           </p>
         </div>
       </div>
