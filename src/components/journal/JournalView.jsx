@@ -28,6 +28,7 @@ import {
 } from '@/lib/data/journal';
 import { MOOD_EMOJIS, MOOD_LABELS, upsertMoodLog } from '@/lib/data/moodLogs';
 import { getDayContext, contextChips } from '@/lib/data/dayContext';
+import { editability, EDIT_WINDOW_DAYS } from '@/lib/journalEditWindow';
 
 // ── Lightweight markdown renderer (bold + bullets only) ───────────────────────
 function renderInline(text) {
@@ -113,6 +114,7 @@ import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 const todayStr = () => format(new Date(), 'yyyy-MM-dd');
 
+
 export default function JournalView({ userId, userEmail, onClose }) {
   // Pin the page behind this overlay — see @/lib/scrollLock.
   useBodyScrollLock();
@@ -128,6 +130,17 @@ export default function JournalView({ userId, userEmail, onClose }) {
     activeDate,
     activeDate.getFullYear() === new Date().getFullYear() ? 'EEEE, MMMM d' : 'EEEE, MMMM d yyyy',
   );
+
+  // Declared here, at the top, and NOT next to the other derived values
+  // further down: goPrev, toggleDictation and onPickFiles all read them, and
+  // a `const` read above its declaration line is the TDZ trap CLAUDE.md
+  // documents — dev mode hides it, minified production re-orders and throws.
+  const { daysAgo, readOnly } = editability(dateStr, todayStr());
+  const relativeLabel = daysAgo === 0
+    ? tFallback('profile.journal.today', 'Today')
+    : daysAgo === 1
+      ? tFallback('journal.yesterday', 'Yesterday')
+      : tFallback('journal.daysAgo', `${daysAgo} days ago`, { n: daysAgo });
 
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
@@ -366,6 +379,11 @@ export default function JournalView({ userId, userEmail, onClose }) {
   // When entryDates is still loading (empty Set) we fall back to -1 day so the
   // UI still responds, and the skip behaviour kicks in once the Set resolves.
   const goPrev = () => {
+    // Inside the edit window, step one day at a time. Skipping exists so you
+    // never land on a page you can only stare at — but a blank day you can
+    // WRITE ON is the whole point of the window, and skipping past yesterday
+    // because you haven't written it yet is exactly backwards.
+    if (daysAgo < EDIT_WINDOW_DAYS) { goToDay(subDays(activeDate, 1)); return; }
     if (entryDates.size > 0) {
       // Find the most-recent entry date strictly before today's dateStr.
       const earlier = [...entryDates].filter(s => s < dateStr).sort();
@@ -381,6 +399,11 @@ export default function JournalView({ userId, userEmail, onClose }) {
   };
   const goNext = () => {
     if (isToday) return;
+    // Symmetric with goPrev: inside the window, step one day. Without this
+    // the arrows disagree — back goes day-by-day into the window and forward
+    // vaults straight to today, so stepping back three days and forward one
+    // skipped the two writable days in between.
+    if (daysAgo <= EDIT_WINDOW_DAYS) { goToDay(addDays(activeDate, 1)); return; }
     if (entryDates.size > 0) {
       const todayStr2 = format(new Date(), 'yyyy-MM-dd');
       // Find the earliest entry date strictly after dateStr and not in the future.
@@ -460,7 +483,7 @@ export default function JournalView({ userId, userEmail, onClose }) {
   };
   const toggleDictation = () => {
     if (listening) { stopDictation(); return; }
-    if (!isToday) { toast.message(tFallback('journal.readOnlyPast', 'Switch to today to write.')); return; }
+    if (readOnly) { toast.message(tFallback('journal.locked', 'Entries older than 7 days are read-only.')); return; }
     setListening(true);
     let finalChunk = '';
     dictationRef.current = startDictation({
@@ -490,7 +513,7 @@ export default function JournalView({ userId, userEmail, onClose }) {
     const files = Array.from(e.target.files || []);
     e.target.value = '';
     if (files.length === 0) return;
-    if (!isToday) { toast.message(tFallback('journal.readOnlyPast', 'Switch to today to write.')); return; }
+    if (readOnly) { toast.message(tFallback('journal.locked', 'Entries older than 7 days are read-only.')); return; }
     setUploading(true);
     for (const file of files.slice(0, 12 - attachments.length)) {
       if (file.size > 10 * 1024 * 1024) { toast.error(tFallback('journal.fileTooBig', `${file.name} is over 10 MB.`)); continue; }
@@ -505,7 +528,6 @@ export default function JournalView({ userId, userEmail, onClose }) {
     dirtyRef.current = true;
   };
 
-  const readOnly = !isToday;
   const hasContent = !!(title.trim() || body.trim() || attachments.length);
   // "Held offline" is the honest read of the retry state: flush() stashed
   // the snapshot to localStorage and is backing off. It was reported by a
@@ -547,11 +569,11 @@ export default function JournalView({ userId, userEmail, onClose }) {
   // mood here that the dashboard denies. upsertMoodLog is today-only by
   // construction, which matches this control being disabled on past days.
   const setMood = async (score) => {
-    if (!isToday || !userId) return;
+    if (readOnly || !userId) return;
     const previous = moodScore;
     setMoodScore(score);           // optimistic
     setMoodBusy(true);
-    const res = await upsertMoodLog({ mood: score }).catch(() => ({ ok: false }));
+    const res = await upsertMoodLog({ mood: score, date: dateStr }).catch(() => ({ ok: false }));
     if (res?.ok) {
       await tagMood(userId, userEmail, score, dateStr).catch(() => {});
     } else {
@@ -619,7 +641,7 @@ export default function JournalView({ userId, userEmail, onClose }) {
             {/* Save state lives with the day now. It used to be the only
                 honest half of a permanent three-clause footer sentence. */}
             <div className="flex items-center gap-2 ps-1">
-              {isToday && <span className="text-micro text-primary font-semibold">{tFallback('profile.journal.today', 'Today')}</span>}
+              <span className={`text-micro ${isToday ? 'text-primary font-semibold' : 'text-muted-foreground'}`}>{relativeLabel}</span>
               {saving
                 ? <span className="text-micro text-muted-foreground flex items-center gap-1"><Loader2 className="w-2.5 h-2.5 animate-spin" /> {tFallback('journal.saving', 'Saving…')}</span>
                 : heldOffline
@@ -630,7 +652,7 @@ export default function JournalView({ userId, userEmail, onClose }) {
 
           <MoodChip
             score={moodScore}
-            editable={isToday}
+            editable={!readOnly}
             busy={moodBusy}
             onPick={setMood}
             tFallback={tFallback}
@@ -722,6 +744,20 @@ export default function JournalView({ userId, userEmail, onClose }) {
                 ) : (
                   <MarkdownBody text={body} placeholder={tFallback('profile.journal.placeholderPast', 'No entry for this day.')} />
                 )}
+
+                {/* The rule, stated. Removing the controls and saying nothing
+                    was the old behaviour on every past day, and an absence of
+                    affordances reads as the app being broken rather than as a
+                    boundary — the standard the League seasons board set for
+                    locked and dead-end states. */}
+                <div className="border-t border-border mt-8 pt-3">
+                  <p className="text-micro font-bold tracking-[0.06em] text-muted-foreground">
+                    {tFallback('journal.lockedLabel', 'LOCKED')}
+                  </p>
+                  <p className="text-sm text-foreground mt-1">
+                    {tFallback('journal.locked', 'Entries older than 7 days are read-only.')}
+                  </p>
+                </div>
               </div>
             ) : (
               <textarea
@@ -793,7 +829,10 @@ export default function JournalView({ userId, userEmail, onClose }) {
           {!readOnly && !body.trim() && chips.length > 0 && (
             <div className="px-4 pb-3 pt-8 shrink-0" data-no-swipe>
               <p className="text-micro font-bold tracking-[0.06em] text-muted-foreground">
-                {tFallback('journal.fromToday', 'FROM TODAY')}
+                {/* The query is already keyed to the active day — only the
+                    label has to follow it, or a chip from last Tuesday's
+                    session is announced as today's. */}
+                {isToday ? tFallback('journal.fromToday', 'FROM TODAY') : tFallback('journal.fromThatDay', 'FROM THAT DAY')}
               </p>
               <div className="border-t border-border mt-1.5 pt-2 flex flex-wrap gap-2">
                 {chips.map(c => (

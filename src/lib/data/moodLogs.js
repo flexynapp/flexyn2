@@ -14,12 +14,24 @@ export const MOOD_EMOJIS = ['😩', '😐', '🙂', '😄', '🔥'];
 export const MOOD_LABELS = ['Awful', 'Meh', 'Okay', 'Good', 'On fire'];
 
 /**
- * Upsert today's mood. mood is 1-5 (matches MOOD_EMOJIS index + 1).
+ * Upsert a day's mood. mood is 1-5 (matches MOOD_EMOJIS index + 1).
+ *
+ * `date` defaults to today, which is every caller except My Journal — it
+ * lets you edit a day inside its 7-day window, and without a date here
+ * that window would have meant "edit yesterday's words but not
+ * yesterday's mood". Guarded rather than trusted: a malformed string or a
+ * future date is refused instead of silently writing to today, because a
+ * mood attributed to the wrong day is worse than one that failed to save.
  */
-export async function upsertMoodLog({ mood, notes } = {}) {
+export async function upsertMoodLog({ mood, notes, date } = {}) {
   if (typeof mood !== 'number' || mood < 1 || mood > 5) {
     return { ok: false, reason: 'invalid_mood' };
   }
+  const today = todayDateString();
+  if (date != null && (!/^\d{4}-\d{2}-\d{2}$/.test(date) || date > today)) {
+    return { ok: false, reason: 'invalid_date' };
+  }
+  const entryDate = date || today;
   const { data: { user } } = await supabase.auth.getUser();
   if (!user?.id) return { ok: false, reason: 'unauthenticated' };
   // Guest (anonymous) sessions have an EMPTY auth email while their profile
@@ -35,7 +47,7 @@ export async function upsertMoodLog({ mood, notes } = {}) {
   const payload = {
     user_id:    user.id,
     user_email: userEmail,
-    date:       todayDateString(),
+    date:       entryDate,
     mood:       Math.round(mood),
     updated_at: new Date().toISOString(),
   };

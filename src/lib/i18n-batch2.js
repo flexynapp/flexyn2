@@ -71,7 +71,11 @@ const enKeys = {
   'journal.feltLabel':                 'You felt',
   'journal.moodOnly':                  'Logged from the dashboard. Nothing written for this day.',
   'journal.fromToday':                 'FROM TODAY',
+  'journal.fromThatDay':               'FROM THAT DAY',
   'journal.fromTodayHint':             'Tap one to write it as a line.',
+  'journal.yesterday':                 'Yesterday',
+  'journal.lockedLabel':               'LOCKED',
+  'journal.locked':                    'Entries older than 7 days are read-only.',
 
   // ── HubChat error toasts ────────────────────────────────────────────
   'hub.chat.attachmentTooLarge': 'Image must be 50 MB or smaller',
