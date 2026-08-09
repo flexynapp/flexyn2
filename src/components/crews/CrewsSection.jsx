@@ -2,24 +2,32 @@
 //
 // Main Crews entry point rendered inside Hub when feedTab === 'crews'.
 // States: empty (no crews) → crew list → crew page → creation flow → discovery
-// Tabs: "My Crews" | "Discover" | "Battles"
+// Tabs: "My Crew" | "Discover" | "Top"
+//
+// There used to be a fourth tab, "Battles". It was dropped when the Top board
+// landed: a war belongs to ONE crew, and both halves of that tab already live
+// on the Crew page — CrewBattleEntry on its Home tab, CrewLeaguePanel on its
+// League tab. It was a second route to surfaces you reach by tapping your
+// crew, and four tabs do not fit a 375px phone.
 
-import React, { useState } from 'react';
+import React, { useState, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Shield, Plus, ChevronRight, Loader2, Swords, Globe2 } from 'lucide-react';
+import { Shield, Plus, ChevronRight, Loader2, Trophy, Globe2 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/lib/AuthContext';
+import { useLanguage } from '@/lib/LanguageContext';
 import * as crewsData from '@/lib/data/crews';
 import { useNumberFormatter } from '@/lib/intl';
-import CrewLeaguePanel from '@/components/crews/CrewLeaguePanel';
 import { crewLevelProgress } from '@/lib/data/crewSeasons';
 import CrewPage from './CrewPage';
-import CrewBattleEntry from './CrewBattleEntry';
 import CrewCreationFlow from './CrewCreationFlow';
 import CrewMemberDots from './CrewMemberDots';
 import CrewSuggestionRail from './CrewSuggestionRail';
 import CrewDiscovery from './CrewDiscovery';
 import ChatViewportFrame from '@/components/ChatViewportFrame';
+
+// Only mounts when the tab is opened — kept out of the Hub chunk.
+const CrewTopBoard = React.lazy(() => import('./CrewTopBoard'));
 
 // ── Crew list card ────────────────────────────────────────────────────────────
 
@@ -119,63 +127,15 @@ function CrewCard({ crew, onClick, currentUserId }) {
   );
 }
 
-// ── Battles tab ───────────────────────────────────────────────────────────────
-//
-// CrewBattleEntry moved to its own file so the Crew page can render the same
-// three war states without importing back from this module. See
-// CrewBattleEntry.jsx for why that direction matters.
-
-
-function BattlesView({ myCrews, currentUserId }) {
-  if (myCrews.length === 0) {
-    return (
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col items-center justify-center py-20 px-8 text-center"
-      >
-        <div className="w-16 h-16 rounded-3xl bg-rose-500/10 flex items-center justify-center mb-4">
-          <Swords className="w-8 h-8 text-rose-500" />
-        </div>
-        <p className="font-heading font-bold text-lg mb-2">No Crews Yet</p>
-        <p className="text-sm text-muted-foreground">
-          Join or create a crew first, then challenge rival crews to weekly XP battles.
-        </p>
-      </motion.div>
-    );
-  }
-
-  return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className="pt-2 lg:pb-6"
-    >
-      <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
-        Each crew can enter one battle at a time. The crew that earns the most XP in 7 days wins.
-      </p>
-      {myCrews.map(crew => (
-        <React.Fragment key={crew.id}>
-          {/* Standings first, then the war entry — where you stand is the
-              context that makes "enter battle" mean something. Self-hides
-              until migration 248 seats the crew in a division. */}
-          <CrewLeaguePanel crewId={crew.id} crewName={crew.name} />
-          <CrewBattleEntry crew={crew} currentUserId={currentUserId} />
-        </React.Fragment>
-      ))}
-    </motion.div>
-  );
-}
-
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function CrewsSection({ initialCrewId }) {
   const { user } = useAuth();
+  const { tFallback } = useLanguage();
   const qc = useQueryClient();
-  const [activeCrew,  setActiveCrew]  = useState(null);
-  const [creating,    setCreating]    = useState(false);
-  const [discovering, setDiscovering] = useState(false);
-  const [warTab,      setWarTab]      = useState('crews'); // 'crews' | 'discover' | 'battles'
+  const [activeCrew, setActiveCrew] = useState(null);
+  const [creating,   setCreating]   = useState(false);
+  const [warTab,     setWarTab]     = useState('crews'); // 'crews' | 'discover' | 'top'
 
   const { data: myCrews = [], isLoading } = useQuery({
     queryKey: ['myCrews', user?.id],
@@ -230,20 +190,9 @@ export default function CrewsSection({ initialCrewId }) {
     );
   }
 
-  // ── Discovery ─────────────────────────────────────────────────────────────────
-  if (discovering) {
-    return (
-      <ChatViewportFrame>
-        <CrewDiscovery
-          onBack={() => setDiscovering(false)}
-          onJoined={() => {
-            setDiscovering(false);
-            qc.invalidateQueries({ queryKey: ['myCrews', user?.id] });
-          }}
-        />
-      </ChatViewportFrame>
-    );
-  }
+  // Discovery used to have a full-screen mode of its own, entered from the
+  // no-crew empty state. It is a tab now and reachable from every state, so
+  // the second route was removed rather than left as a duplicate.
 
   // ── Loading ───────────────────────────────────────────────────────────────────
   if (isLoading) {
@@ -254,49 +203,12 @@ export default function CrewsSection({ initialCrewId }) {
     );
   }
 
-  // ── Empty state (no crews) ────────────────────────────────────────────────────
-  if (myCrews.length === 0) {
-    return (
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.25 }}
-        className="flex flex-col items-center justify-center py-16 px-8 text-center"
-      >
-        <div
-          className="w-20 h-20 rounded-3xl flex items-center justify-center mb-5"
-          style={{ background: 'hsl(var(--primary) / 0.1)' }}
-        >
-          <Shield className="w-10 h-10" style={{ color: 'hsl(var(--primary))' }} />
-        </div>
-        <h3 className="font-heading font-bold text-xl mb-2">Your Crews</h3>
-        <p className="text-sm text-muted-foreground leading-relaxed mb-8">
-          Create a private group with up to 16 friends. Share workouts, post roll calls, and fuel each other with XP.
-        </p>
-        <div className="flex gap-3">
-          <motion.button
-            whileTap={{ scale: 0.96 }}
-            onClick={() => setDiscovering(true)}
-            className="px-5 py-3 rounded-2xl font-bold text-sm flex items-center gap-2 border border-border text-foreground"
-          >
-            <Globe2 className="w-4 h-4" />
-            Discover
-          </motion.button>
-          <motion.button
-            whileTap={{ scale: 0.96 }}
-            onClick={() => setCreating(true)}
-            className="px-5 py-3 rounded-2xl font-bold text-white text-sm flex items-center gap-2"
-            style={{ background: 'hsl(var(--primary))' }}
-          >
-            <Plus className="w-4 h-4" />
-            Create a Crew
-          </motion.button>
-        </div>
-      </motion.div>
-    );
-  }
-
-  // ── Crews list + Discover + Battles tabs ──────────────────────────────────────
+  // ── Crews list + Discover + Top tabs ──────────────────────────────────────────
+  //
+  // Having no crew used to return early, before the tab strip — so the one
+  // person with the most reason to browse the directory and the board was the
+  // only person who could not reach them. The empty state is now the content of
+  // the first tab rather than the whole surface.
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -325,13 +237,13 @@ export default function CrewsSection({ initialCrewId }) {
           Discover
         </button>
         <button
-          onClick={() => setWarTab('battles')}
+          onClick={() => setWarTab('top')}
           className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-semibold rounded-lg transition-colors ${
-            warTab === 'battles' ? 'bg-rose-500 text-white shadow-sm' : 'text-muted-foreground hover:text-foreground active:text-foreground'
+            warTab === 'top' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground active:text-foreground'
           }`}
         >
-          <Swords className="w-3.5 h-3.5" />
-          Battles
+          <Trophy className="w-3.5 h-3.5" />
+          Top
         </button>
       </div>
 
@@ -348,33 +260,64 @@ export default function CrewsSection({ initialCrewId }) {
                 the user isn't yet in. Self-hides when no suggestions
                 are available or when the user dismissed it. Activates
                 the crew_war notification surface for users who'd
-                otherwise never join a crew. */}
+                otherwise never join a crew.
+
+                It fed on get_suggested_crews, which returned zero rows for
+                every caller from migration 159 until 308 repaired it — so
+                this had never once rendered. */}
             <CrewSuggestionRail />
 
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-heading font-bold text-base">My Crews</h3>
-              {/* One crew per user (migration 252) — createCrew is refused
-                  server-side, so offering the button would only produce a
-                  toast. My Crews only renders when you have one, so this is
-                  effectively always hidden; it stays for the grandfathered
-                  multi-crew accounts that predate the rule. */}
-              {myCrews.length === 0 && (
-                <motion.button
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => setCreating(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-white"
-                  style={{ background: 'hsl(var(--primary))' }}
+            {myCrews.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 px-8 text-center">
+                <div
+                  className="w-20 h-20 rounded-3xl flex items-center justify-center mb-2"
+                  style={{ background: 'hsl(var(--primary) / 0.1)' }}
                 >
-                  <Plus className="w-3.5 h-3.5" />
-                  New
-                </motion.button>
-              )}
-            </div>
-            <div className="space-y-2.5">
-              {myCrews.map(crew => (
-                <CrewCard key={crew.id} crew={crew} onClick={() => setActiveCrew(crew)} currentUserId={user?.id} />
-              ))}
-            </div>
+                  <Shield className="w-10 h-10" style={{ color: 'hsl(var(--primary))' }} />
+                </div>
+                <h3 className="font-heading font-bold text-xl">
+                  {tFallback('crew.empty.title', 'Your Crews')}
+                </h3>
+                <p className="text-sm text-muted-foreground leading-relaxed mt-2 mb-6">
+                  {tFallback(
+                    'crew.empty.body',
+                    'A group of up to 16 who train together and go to war with other crews. Share workouts, post roll calls, and fuel each other with XP.',
+                  )}
+                </p>
+                <div className="flex gap-2">
+                  <motion.button
+                    whileTap={{ scale: 0.96 }}
+                    onClick={() => setWarTab('discover')}
+                    className="px-5 py-3 rounded-2xl font-bold text-sm flex items-center gap-2 border border-border text-foreground"
+                  >
+                    <Globe2 className="w-4 h-4" />
+                    {tFallback('crew.empty.discover', 'Discover')}
+                  </motion.button>
+                  <motion.button
+                    whileTap={{ scale: 0.96 }}
+                    onClick={() => setCreating(true)}
+                    className="px-5 py-3 rounded-2xl font-bold text-white text-sm flex items-center gap-2"
+                    style={{ background: 'hsl(var(--primary))' }}
+                  >
+                    <Plus className="w-4 h-4" />
+                    {tFallback('crew.empty.create', 'Create a Crew')}
+                  </motion.button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="font-heading font-bold text-base">
+                    {tFallback('crew.mine', 'My Crews')}
+                  </h3>
+                </div>
+                <div className="space-y-2">
+                  {myCrews.map(crew => (
+                    <CrewCard key={crew.id} crew={crew} onClick={() => setActiveCrew(crew)} currentUserId={user?.id} />
+                  ))}
+                </div>
+              </>
+            )}
           </motion.div>
         )}
 
@@ -388,6 +331,7 @@ export default function CrewsSection({ initialCrewId }) {
           >
             {/* Inline discovery (for users already in crews) */}
             <CrewDiscovery
+              inline
               onBack={() => setWarTab('crews')}
               onJoined={() => {
                 qc.invalidateQueries({ queryKey: ['myCrews', user?.id] });
@@ -397,15 +341,17 @@ export default function CrewsSection({ initialCrewId }) {
           </motion.div>
         )}
 
-        {warTab === 'battles' && (
+        {warTab === 'top' && (
           <motion.div
-            key="battles"
+            key="top"
             initial={{ opacity: 0, x: 8 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: 8 }}
             transition={{ duration: 0.15 }}
           >
-            <BattlesView myCrews={myCrews} currentUserId={user?.id} />
+            <Suspense fallback={null}>
+              <CrewTopBoard />
+            </Suspense>
           </motion.div>
         )}
       </AnimatePresence>

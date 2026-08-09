@@ -1,33 +1,62 @@
 // src/components/crews/CrewDiscovery.jsx
 //
-// Discover and join public crews.
-// Shown as the "Discover" tab in CrewsSection when the user has no crew
-// or explicitly switches to discovery.
+// The public Crews directory — every crew that has opted into is_public,
+// with its member count, combined volume, level and war record.
+//
+// This used to read the crews table directly from the browser, which could
+// never work for two of the five numbers on a row: crew_members SELECT is
+// is_crew_member(crew_id) (mig 048), so a member count for a crew you are not
+// in is unreachable, and nothing aggregated volume per crew at all. The row
+// branched on a `_memberCount` that nothing ever set, so every result in
+// production read "up to 16" and the "Full" state was dead code. Migration 308
+// moves the whole read server-side.
+//
+// The action swaps by state rather than greying out — Join / Requested / Full
+// / Your crew. Habitica's publicGuildItem.vue does the same, and a disabled
+// button is a dead end where a swapped one is information.
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Globe2, Plus, Loader2, ArrowLeft, Shield } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/lib/AuthContext';
+import { useLanguage } from '@/lib/LanguageContext';
 import * as crewsData from '@/lib/data/crews';
+import { listPublicCrews, joinStateFor } from '@/lib/data/crewDirectory';
 import { toast } from '@/lib/toast';
 import { useNumberFormatter } from '@/lib/intl';
 
-// Matches the crew list card and the Crew page header: crest, name, then
-// one text line for identity and one for scale. No icon beside the count —
-// see docs/profile-ui-premium-research.md.
-function CrewResult({ crew, onJoin, alreadyJoining, blocked }) {
-  const fmt = useNumberFormatter();
-  const known = typeof crew._memberCount === 'number';
-  const max   = crew.max_capacity ?? 16;
-  const full  = known && crew._memberCount >= max;
-  const disabled = full || alreadyJoining || blocked;
+const SORTS = [
+  { key: 'volume',  label: 'Volume' },
+  { key: 'members', label: 'Members' },
+  { key: 'level',   label: 'Level' },
+  { key: 'new',     label: 'New' },
+];
+
+// Matches the crew list card and the Crew page header: crest, name, then one
+// text line for identity and one for standing. No icon beside a count — see
+// docs/profile-ui-premium-research.md.
+function CrewResult({ crew, onJoin, joining, inACrew, requested, tFallback, fmt }) {
+  const state    = joinStateFor(crew, { inACrew, requested });
+  const count    = Number(crew.member_count ?? 0);
+  const cap      = Number(crew.max_capacity ?? 16);
+  const volume   = Number(crew.total_volume_lbs ?? 0);
+  const trophies = Number(crew.trophies ?? 0);
+
+  const LABEL = {
+    join:      ['crew.discover.join',      'Join'],
+    requested: ['crew.discover.requested', 'Requested'],
+    full:      ['crew.discover.full',      'Full'],
+    member:    ['crew.discover.yours',     'Your crew'],
+  };
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
-      className="flex items-center gap-3 p-4 rounded-2xl bg-card"
+      className={`flex items-center gap-2 p-4 rounded-2xl ${
+        crew.is_member ? 'bg-primary/[0.07]' : 'bg-card'
+      }`}
     >
       <div
         className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 overflow-hidden"
@@ -43,39 +72,88 @@ function CrewResult({ crew, onJoin, alreadyJoining, blocked }) {
           {crew.name}
         </p>
 
-        <p className="text-xs text-muted-foreground mt-0.5 truncate">
+        {/* Identity and scale. */}
+        <p className="text-xs text-muted-foreground truncate">
           {crew.tag ? <>#{crew.tag} · </> : null}
-          {known ? `${fmt(crew._memberCount)} of ${fmt(max)}` : `up to ${fmt(max)}`}
-          {full ? ' · full' : ''}
+          <span className="tabular-nums">{fmt(count)}</span>
+          {' '}{tFallback('crew.discover.of', 'of')}{' '}
+          <span className="tabular-nums">{fmt(cap)}</span>
+          {Number.isFinite(Number(crew.crew_level)) && (
+            <> · {tFallback('crew.discover.lvl', 'Lvl')} {crew.crew_level}</>
+          )}
+        </p>
+
+        {/* Standing. Text, hierarchy from weight and colour — never tiles.
+            Volume is the headline metric, so it leads; it reads as a dash
+            rather than a proud zero until the crew has lifted something. */}
+        <p className="text-xs text-muted-foreground truncate">
+          {volume > 0
+            ? <>
+                <span className="font-bold text-foreground tabular-nums">
+                  {fmt(volume, { notation: 'compact', maximumFractionDigits: 1 })}
+                </span>
+                {' '}{tFallback('crew.discover.lifted', 'lbs lifted')}
+              </>
+            : tFallback('crew.discover.noVolume', 'no volume logged yet')}
+          {trophies > 0 && (
+            <> · <span className="font-bold text-foreground tabular-nums">{fmt(trophies)}</span>
+              {' '}{tFallback('crew.discover.trophies', 'trophies')}</>
+          )}
+          {Number(crew.wars_won ?? 0) + Number(crew.wars_lost ?? 0) > 0 && (
+            <> · <span className="tabular-nums">{crew.wars_won}–{crew.wars_lost}</span></>
+          )}
         </p>
 
         {crew.description && (
-          <p className="text-xs text-muted-foreground/80 truncate mt-1">{crew.description}</p>
+          <p className="text-xs text-muted-foreground/80 truncate">{crew.description}</p>
         )}
       </div>
 
-      <motion.button
-        whileTap={disabled ? undefined : { scale: 0.94 }}
-        onClick={() => !disabled && onJoin(crew.id)}
-        disabled={disabled}
-        className="shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-white disabled:opacity-40 transition-opacity"
-        style={{ background: 'hsl(var(--primary))' }}
-      >
-        {alreadyJoining
-          ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-          : <Plus className="w-3.5 h-3.5" />
-        }
-        {full ? 'Full' : 'Join'}
-      </motion.button>
+      {/* The control swaps by state. `blocked` renders nothing at all — the
+          sentence above the list already says you're in a crew, and a row of
+          greyed buttons only repeats it once per crew. */}
+      {state !== 'blocked' && (
+        <motion.button
+          whileTap={state === 'join' ? { scale: 0.94 } : undefined}
+          onClick={() => state === 'join' && onJoin(crew.id)}
+          disabled={state !== 'join'}
+          className={`shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-opacity ${
+            state === 'join'
+              ? 'text-white'
+              : 'text-muted-foreground bg-secondary'
+          }`}
+          style={state === 'join' ? { background: 'hsl(var(--primary))' } : undefined}
+        >
+          {joining
+            ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            : state === 'join' ? <Plus className="w-3.5 h-3.5" /> : null}
+          {tFallback(...LABEL[state])}
+        </motion.button>
+      )}
     </motion.div>
   );
 }
 
-export default function CrewDiscovery({ onBack, onJoined }) {
+export default function CrewDiscovery({ onBack, onJoined, inline = false }) {
   const { user } = useAuth();
+  const { tFallback } = useLanguage();
+  const fmt = useNumberFormatter();
   const qc = useQueryClient();
-  const [query, setQuery]   = useState('');
+  const [query, setQuery]       = useState('');
+  const [debounced, setDebounced] = useState('');
+  const [sort, setSort]         = useState('volume');
   const [joiningId, setJoiningId] = useState(null);
+  // Migration 250 queues a join on a private crew rather than seating you, so
+  // the row has to remember it asked. Session-scoped on purpose: the server is
+  // the authority and a refetch will show membership once a leader approves.
+  const [requestedIds, setRequestedIds] = useState(() => new Set());
+
+  // The search is an RPC now, not a table read — one round trip per keystroke
+  // is not acceptable.
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(query), 250);
+    return () => clearTimeout(t);
+  }, [query]);
 
   // One crew per user (migration 252). The server refuses either way, but a
   // Join button that always errors is worse than one that says why.
@@ -88,65 +166,71 @@ export default function CrewDiscovery({ onBack, onJoined }) {
   const inACrew = myCrews.length > 0;
 
   const { data: results = [], isFetching } = useQuery({
-    queryKey: ['crewDiscovery', query],
-    queryFn:  () => crewsData.searchPublicCrews(query, user?.id),
+    queryKey: ['crewDirectory', debounced, sort],
+    queryFn:  () => listPublicCrews({ query: debounced, sort, limit: 30 }),
     staleTime: 15_000,
-    enabled: true,
   });
 
   const joinMut = useMutation({
     mutationFn: (crewId) => crewsData.joinCrew(crewId, user.id),
     onMutate:   (crewId) => setJoiningId(crewId),
-    onSuccess:  (res) => {
+    onSuccess:  (res, crewId) => {
       setJoiningId(null);
-      qc.invalidateQueries({ queryKey: ['crewDiscovery'] });
+      qc.invalidateQueries({ queryKey: ['crewDirectory'] });
 
-      // Migration 250: a private crew queues you for approval instead of
-      // seating you. Claiming "you joined" and then showing no crew would
-      // read as a bug, so the three outcomes get three different messages.
+      // Three outcomes, three sentences. Claiming "you joined" and then
+      // showing no crew would read as a bug.
       if (res?.status === 'requested') {
-        toast.success('Request sent', {
-          description: 'A crew leader will approve or decline it.',
+        setRequestedIds(prev => new Set(prev).add(crewId));
+        toast.success(tFallback('crew.discover.requestSent', 'Request sent'), {
+          description: tFallback('crew.discover.requestBody', 'A crew leader will approve or decline it.'),
         });
         return;
       }
       if (res?.status === 'pending') {
-        toast.info('Your request is still waiting on a leader.');
+        setRequestedIds(prev => new Set(prev).add(crewId));
+        toast.info(tFallback('crew.discover.stillPending', 'Your request is still waiting on a leader.'));
         return;
       }
 
-      toast.success('You joined the Crew! 🎉');
+      toast.success(tFallback('crew.discover.joined', 'You joined the Crew! 🎉'));
       qc.invalidateQueries({ queryKey: ['myCrews', user?.id] });
       onJoined?.();
     },
     onError: (err) => {
-      toast.error('Could not join crew', { description: err.message });
+      toast.error(tFallback('crew.discover.joinFailed', 'Could not join crew'), { description: err.message });
       setJoiningId(null);
     },
   });
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="flex items-center gap-2.5 px-4 py-3 border-b border-border shrink-0">
-        <button onClick={onBack} className="text-muted-foreground">
-          <ArrowLeft className="w-5 h-5" />
-        </button>
-        <div className="flex items-center gap-1.5">
-          <Globe2 className="w-4 h-4 text-muted-foreground" />
-          <h2 className="font-heading font-bold text-base">Discover Crews</h2>
+      {/* Rendered as a tab inside CrewsSection there is already a tab strip
+          above, so the back header would be a second one saying the same
+          thing. Same `inline` idiom as CrewMemberDirectory. */}
+      {!inline && (
+        <div className="flex items-center gap-2 px-4 py-3 border-b border-border shrink-0">
+          <button onClick={onBack} className="text-muted-foreground" aria-label={tFallback('crew.back', 'Back')}>
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <div className="flex items-center gap-1.5">
+            <Globe2 className="w-4 h-4 text-muted-foreground" />
+            <h2 className="font-heading font-bold text-base">
+              {tFallback('crew.discover.title', 'Discover Crews')}
+            </h2>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Search */}
-      <div className="px-4 py-3 shrink-0">
+      <div className={`shrink-0 ${inline ? 'pb-2' : 'px-4 py-3'}`}>
         <div className="relative">
           <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input
             type="text"
             value={query}
             onChange={e => setQuery(e.target.value)}
-            placeholder="Search by name or #tag…"
+            placeholder={tFallback('crew.discover.search', 'Search by name or #tag…')}
             className="w-full ps-9 pe-4 py-2.5 rounded-xl border border-border bg-secondary/50 text-sm focus:outline-none focus:border-primary/50 placeholder:text-muted-foreground"
           />
           {isFetching && (
@@ -155,26 +239,60 @@ export default function CrewDiscovery({ onBack, onJoined }) {
         </div>
       </div>
 
+      {/* Sort — one row, four short labels. */}
+      <div className={`shrink-0 flex gap-1 p-1 bg-secondary rounded-xl ${inline ? 'mb-2' : 'mx-4 mb-2'}`}>
+        {SORTS.map(s => (
+          <button
+            key={s.key}
+            onClick={() => setSort(s.key)}
+            className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-colors ${
+              sort === s.key
+                ? 'bg-card text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground active:text-foreground'
+            }`}
+            aria-pressed={sort === s.key}
+          >
+            {tFallback(`crew.discover.sort.${s.key}`, s.label)}
+          </button>
+        ))}
+      </div>
+
       {inACrew && (
-        <p className="px-4 pb-3 text-xs text-muted-foreground leading-relaxed shrink-0">
-          You're already in {myCrews[0]?.name ?? 'a Crew'}. Leave it from the Crew
-          page to join another — one crew at a time keeps a war score honest.
+        <p className={`text-xs text-muted-foreground leading-relaxed shrink-0 pb-2 ${inline ? '' : 'px-4'}`}>
+          {tFallback('crew.discover.alreadyIn', "You're already in")}{' '}
+          {myCrews[0]?.name ?? tFallback('crew.discover.aCrew', 'a Crew')}
+          {'. '}
+          {tFallback(
+            'crew.discover.leaveFirst',
+            'Leave it from the Crew page to join another — one crew at a time keeps a war score honest.',
+          )}
         </p>
       )}
 
       {/* Results */}
-      <div className="flex-1 overflow-y-auto px-4 pb-6 space-y-2.5">
+      <div className={`flex-1 overflow-y-auto pb-6 space-y-2 ${inline ? '' : 'px-4'}`}>
         {!isFetching && results.length === 0 && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="text-center py-14"
+            className="text-center py-14 px-4"
           >
-            <Globe2 className="w-10 h-10 text-muted-foreground/40 mx-auto mb-3" />
-            <p className="text-sm font-semibold text-muted-foreground">No public crews found</p>
-            {query && (
-              <p className="text-xs text-muted-foreground mt-1">Try a different name or tag</p>
-            )}
+            <Globe2 className="w-10 h-10 text-muted-foreground/40 mx-auto mb-2" />
+            <p className="font-heading font-bold text-base">
+              {query
+                ? tFallback('crew.discover.noMatch', 'No crews match that')
+                : tFallback('crew.discover.emptyTitle', 'No public crews yet')}
+            </p>
+            {/* "No results" is a dead end at a moment when it is always true.
+                Say what a crew is and what fixes it. */}
+            <p className="text-sm text-muted-foreground leading-relaxed mt-2">
+              {query
+                ? tFallback('crew.discover.noMatchBody', 'Try a different name or tag.')
+                : tFallback(
+                    'crew.discover.emptyBody',
+                    'A Crew is up to 16 people who train together and go to war with other crews. Crews only appear here once a leader makes one public — create one, or make yours public from the Crew page.',
+                  )}
+            </p>
           </motion.div>
         )}
         <AnimatePresence initial={false}>
@@ -183,8 +301,11 @@ export default function CrewDiscovery({ onBack, onJoined }) {
               key={crew.id}
               crew={crew}
               onJoin={(id) => joinMut.mutate(id)}
-              alreadyJoining={joiningId === crew.id && joinMut.isPending}
-              blocked={inACrew}
+              joining={joiningId === crew.id && joinMut.isPending}
+              inACrew={inACrew}
+              requested={requestedIds.has(crew.id)}
+              tFallback={tFallback}
+              fmt={fmt}
             />
           ))}
         </AnimatePresence>
