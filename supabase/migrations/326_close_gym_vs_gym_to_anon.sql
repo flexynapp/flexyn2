@@ -1,0 +1,45 @@
+-- ── 326 · the gym-vs-gym board stops answering anon ─────────────────
+--
+-- get_gym_vs_gym_leaderboard is SECURITY DEFINER and EXECUTE-able by
+-- anon, which makes it the last anon-reachable door into gym data after
+-- mig 325 closed the table. It returns, for every active gym with a
+-- workout in the last 7 days:
+--
+--   gym_name · logo_url · city · state_code · member_count ·
+--   active_members · workout_count · score
+--
+-- That is not an oversight. Mig 142 granted it TO anon deliberately, and
+-- mig 213 — which stripped anon EXECUTE from 85 definer functions — named
+-- it on a four-function keep list as "intentional public surface". This
+-- migration reverses that decision, for two reasons that did not exist
+-- when 142 made it:
+--
+--   1. NOTHING ANONYMOUS CALLS IT. The only caller is GymLeaderboard.jsx,
+--      mounted once, inside GymMap, on /gym-map — a route below every
+--      public-path bypass in App.jsx. The anon grant has been an open
+--      door to a room nobody walks through.
+--
+--   2. MIG 301 CHANGED THE RULE IT WAS GRANTED UNDER. 301 decided gym
+--      activity is previewable without identity only above a five-member
+--      threshold, because below that an individual's attendance is
+--      derivable by subtraction. get_gym_public_preview honours that.
+--      This function predates it and honours nothing: it publishes
+--      active_members for a gym of any size, to anyone, for every gym at
+--      once.
+--
+-- authenticated and service_role keep EXECUTE. REVOKE FROM anon alone
+-- would do nothing here — anon holds this via the default PUBLIC grant,
+-- the exact trap mig 213's header calls out — so PUBLIC goes first and
+-- authenticated is re-granted explicitly.
+--
+-- STILL OPEN, deliberately, because it changes what users see rather than
+-- what strangers can reach: reason 2 above applies to authenticated
+-- callers too. A signed-in non-member can still read a one-member gym's
+-- weekly attendance off this board. Applying 301's five-member floor here
+-- is the consistent fix, but it would empty the board in production
+-- today — both live gyms have one member — so it wants a product call,
+-- not a quiet migration.
+
+REVOKE EXECUTE ON FUNCTION public.get_gym_vs_gym_leaderboard(INT) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.get_gym_vs_gym_leaderboard(INT) FROM anon;
+GRANT  EXECUTE ON FUNCTION public.get_gym_vs_gym_leaderboard(INT) TO authenticated;
