@@ -130,7 +130,7 @@ export async function downloadSignageKit(gym) {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
     doc.setTextColor(MUTE.r, MUTE.g, MUTE.b);
-    doc.text('Open Flexyn → My Gyms → scan or enter the code above.', cx, y, { align: 'center' });
+    doc.text('Open Flexyn → My Gym → scan or enter the code above.', cx, y, { align: 'center' });
 
     // Placement label (bottom-left, for the owner's own reference)
     doc.setFontSize(8);

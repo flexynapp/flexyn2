@@ -202,10 +202,10 @@ export default function GymHub() {
     >
       <button
         type="button"
-        onClick={() => navigate('/my-gyms')}
+        onClick={() => navigate('/my-gym')}
         className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground active:text-foreground mb-3"
       >
-        <ArrowLeft className="w-4 h-4" /> My Gyms
+        <ArrowLeft className="w-4 h-4" /> My Gym
       </button>
 
       {/* Header card */}
@@ -324,7 +324,7 @@ export default function GymHub() {
                   const res = await leaveGym(gym.id);
                   if (res.ok) {
                     toast.success('Left gym.');
-                    navigate('/my-gyms');
+                    navigate('/my-gym');
                   } else {
                     toast.error("Couldn't leave — try again.");
                   }

@@ -129,7 +129,6 @@ const Notifications = lazy(() => import('./pages/Notifications'));
 const AdminReports = lazy(() => import('./pages/AdminReports'));
 const TradeHistory = lazy(() => import('./pages/TradeHistory'));
 const RegisterGym  = lazy(() => import('./pages/RegisterGym'));
-const MyGyms       = lazy(() => import('./pages/MyGyms'));
 const MyGym        = lazy(() => import('./pages/MyGym'));
 const GymHub       = lazy(() => import('./pages/GymHub'));
 const GymMap       = lazy(() => import('./pages/GymMap'));
@@ -451,7 +450,11 @@ const AuthenticatedApp = () => {
               : <ComingSoon title="Corporate Wellness" blurb="Team challenges and company leaderboards are still being built." />
           } />
           <Route path="/register-gym" element={<ErrorBoundary label="RegisterGym"><Suspense fallback={<PageLoader />}><RegisterGym /></Suspense></ErrorBoundary>} />
-          <Route path="/my-gyms"      element={<ErrorBoundary label="MyGyms"><Suspense fallback={<PageLoader />}><MyGyms /></Suspense></ErrorBoundary>} />
+          {/* /my-gyms merged into /my-gym on 2026-08-09 — one page, one
+              profile-menu entry. It redirects rather than 404s because the
+              8-character Flexyn Code printed on gym signage tells people to
+              open it, and printed signage can't be recalled. */}
+          <Route path="/my-gyms"      element={<Navigate to="/my-gym" replace />} />
           <Route path="/my-gym"       element={<ErrorBoundary label="MyGym"><Suspense fallback={<PageLoader />}><MyGym /></Suspense></ErrorBoundary>} />
           <Route path="/gym/:id"      element={<ErrorBoundary label="GymHub"><Suspense fallback={<PageLoader />}><GymHub /></Suspense></ErrorBoundary>} />
           <Route path="/gym-map"      element={<ErrorBoundary label="GymMap"><Suspense fallback={<PageLoader />}><GymMap /></Suspense></ErrorBoundary>} />

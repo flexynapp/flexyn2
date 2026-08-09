@@ -143,7 +143,7 @@ export default function GymSignageCard({ open, onClose, gym }) {
           </p>
 
           <p className="text-center text-xs text-slate-500 mt-6">
-            Open the Flexyn app → My Gyms → tap the scan icon or type the code above.
+            Open the Flexyn app → My Gym → tap the scan icon or type the code above.
           </p>
         </div>
 

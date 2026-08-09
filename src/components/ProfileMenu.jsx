@@ -135,9 +135,9 @@ export default function ProfileMenu({ compact = false } = {}) {
 
   // Close the journal overlay whenever the route changes.
   //
-  // My Journal is a global overlay; My Gyms is a route. Without this, opening
+  // My Journal is a global overlay; My Gym is a route. Without this, opening
   // one and then the other left BOTH on screen at once — the journal floating
-  // over the My Gyms page — which reads as the app breaking rather than as two
+  // over the My Gym page — which reads as the app breaking rather than as two
   // surfaces coexisting. Nothing else in the menu has this problem because
   // every other entry navigates.
   //
@@ -501,12 +501,14 @@ export default function ProfileMenu({ compact = false } = {}) {
                         <ChevronRight className="w-4 h-4 text-muted-foreground" />
                       </div>
                     </button>
-                    {/* My Gym (singular) — the ONE gym the user trains
-                        at, picked in onboarding. Sits above My Gyms
-                        because it's the daily-use surface: their floor's
-                        leaderboard and community progress. My Gyms
-                        (plural) below is the management list of every
-                        gym they've ever joined. */}
+                    {/* My Gym — the single entry point to everything gym.
+                        This used to be two rows one line apart, "My Gym"
+                        and "My Gyms", and the only thing distinguishing
+                        them was the plural: one held the floor you train
+                        on, the other the list of gyms you'd joined. Both
+                        are /my-gym now — the gym you train at up top, every
+                        other one you've joined below a break, with joining,
+                        the map and the owner flow at the foot. */}
                     <button
                       onClick={() => {
                         setOpen(false);
@@ -517,25 +519,6 @@ export default function ProfileMenu({ compact = false } = {}) {
                       <div className="flex items-center gap-2">
                         <Dumbbell className="w-4 h-4 text-orange-500" />
                         {tFallback('profile.myGym', 'My Gym')}
-                      </div>
-                      <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                    </button>
-                    {/* My Gyms — entry point into the gym business
-                        ecosystem. Lands the user on their joined-gyms
-                        dashboard with a code-entry box + a "Browse map"
-                        link in the header. Owner-specific surfaces
-                        (Register your gym, Manage business) live one
-                        screen deeper. */}
-                    <button
-                      onClick={() => {
-                        setOpen(false);
-                        navigate('/my-gyms');
-                      }}
-                      className="w-full flex items-center justify-between px-4 py-3 text-sm hover:bg-secondary active:bg-secondary transition-colors border-t border-border"
-                    >
-                      <div className="flex items-center gap-2">
-                        <Building2 className="w-4 h-4 text-primary" />
-                        {tFallback('profile.myGyms', 'My Gyms')}
                       </div>
                       <ChevronRight className="w-4 h-4 text-muted-foreground" />
                     </button>
@@ -602,10 +585,10 @@ export default function ProfileMenu({ compact = false } = {}) {
                         home for the same light/dark switch that Settings ›
                         Preferences owns. Two controls for one setting on
                         adjacent screens is a maintenance trap, not a
-                        shortcut — both wrote `setDarkMode`, so they could not
-                        disagree, but any future change had to be made twice.
-                        Settings is the discoverable home; this menu
-                        navigates there. */}
+                        shortcut — the picker and the Settings row both wrote
+                        `setDarkMode`, so they could not disagree, but any
+                        future change had to be made twice. Settings is the
+                        discoverable home; this menu navigates there. */}
                     <button
                       onClick={() => { setOpen(false); setSignOutOpen(true); }}
                       className="w-full flex items-center gap-2 px-4 py-3 text-sm hover:bg-secondary active:bg-secondary transition-colors border-t border-border"

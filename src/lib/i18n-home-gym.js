@@ -8,12 +8,12 @@
 //
 // Notes for whoever translates this:
 //
-//   • myGym.title vs profile.myGyms — "My Gym" (singular) is the ONE
-//     gym the user trains at; "My Gyms" (plural, in i18n-gym*.js) is the
-//     list of every gym they've joined. If a language collapses these
-//     into the same phrase, two different menu items become identical.
-//     Prefer something like "My home gym" over a bare singular if that
-//     is what disambiguates in your language.
+//   • myGym.title — "My Gym" is now BOTH: the one gym the user trains at
+//     (the top of the page) and every gym they've joined (below the
+//     break). It was two pages and two menu entries, "My Gym" and "My
+//     Gyms", until 2026-08-09. A singular title is right — the page leads
+//     with the one gym — but if your language forces a choice, favour the
+//     reading that covers both over a strict singular.
 //
 //   • myGym.communityNote — "community gym" is a status, not a category
 //     of gym: it means members added it and the business hasn't claimed
@@ -32,7 +32,9 @@ export default {
     'profile.myGym': 'My Gym',
 
     'myGym.title': 'My Gym',
-    'myGym.subtitle': 'Your home gym and the people who train there.',
+    // Covers the whole page, not just the hero — the joined-gyms list
+    // moved under here when /my-gyms was folded in.
+    'myGym.subtitle': "Your floor, your people, and every gym you've joined.",
 
     'myGym.communityProgress': 'Community progress',
 
@@ -48,8 +50,11 @@ export default {
     'myGym.emptyCta': 'Find my gym',
 
     'myGym.pickTitle': 'Which gym do you train at?',
+    // "Tap it", not "Pick it": one tap commits here, with an Undo on the
+    // toast. The old wording implied a second, confirming step that the
+    // screen no longer has.
     'myGym.pickBody':
-      "Pick it below and you'll get a leaderboard with everyone else who trains there — plus a bubble on the Flexyn map. You can change it any time.",
+      "Tap it below and you'll get a leaderboard with everyone else who trains there — plus a bubble on the Flexyn map. You can change it any time.",
     // No radius claim here on purpose — the picker states the distance it
     // actually searched directly above this line. This one had said "within
     // a few kilometres", which stopped being true when the search started
