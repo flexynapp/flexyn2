@@ -481,6 +481,20 @@ to "add the missing writer" would have duplicated working code. **Check whether
 the writer's PRECONDITION has ever held**, which here is one query:
 `SELECT count(*) FILTER (WHERE qualified) FROM league_members`.
 
+Two traps inside that one function, both of which produced a wrong prediction
+before being checked:
+
+- **`league_members.active_days` is an OUTPUT, not an input.** Reading it on an
+  unresolved league gives 0 for everyone and looks like "nobody trained". The
+  resolver COMPUTES it — `public.league_active_days(user_id, week_start,
+  week_end)` — and writes it back before qualifying anyone, so a stored zero
+  only means the league has not resolved yet. Call the function to find out who
+  will qualify; do not read the column. That is the same failure this section
+  documents, inverted: a derived value mistaken for a source.
+- **`c_min_bracket` (5) gates only `v_promote_n` / `v_demote_n`, not the rank
+  loop.** A bracket with one qualified member promotes and demotes nobody and
+  still writes `rank = 1`. Reading "bracket too small" as "no rank" is wrong.
+
 **Unrelated hazard found in the same look:** all seven historical leagues were
 resolved in a single catch-up sweep on 2026-08-09, months after their week
 ends. `roll_weekly_leagues` resolves every unresolved past league it finds, and
