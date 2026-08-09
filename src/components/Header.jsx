@@ -134,6 +134,34 @@ export default function Header() {
             reconnect, so usually invisible. When something feels broken,
             users learn to glance up here. */}
         <NetworkStatusChip />
+        {/* The right-hand cluster — Coach · Messages · Bell · Profile.
+            EVEN OPTICAL GAPS, which is not the same as even margins, and
+            getting the two confused is what made this row look wrong.
+
+            The four glyphs are 20 / 20 / 20 / 36px wide inside identical
+            44px tap boxes, so matching the boxes' spacing leaves the
+            avatar visibly tighter than the icons. What the eye reads is
+            the whitespace BETWEEN glyphs, and every pair is now 16px:
+
+              centre-to-centre = (glyphA + glyphB) / 2 + 16
+              margin           = centre-to-centre − 44 − 2 (the gap-0.5)
+
+            → Coach→Messages 36 (-me-2.5) · Messages→Bell 36 (-ms-2.5)
+              Bell→Profile 44 (-ms-0.5)
+
+            Before this the row ran 42 / 30 / 38 — Coach adrift, the middle
+            pair crammed. The 44px pitch that would stop the tap boxes
+            overlapping entirely does not fit: the lockup is 141px wide at
+            h-11, and four non-overlapping boxes need 184px, which is 6px
+            more than a 375pt iPhone SE has left. So the boxes still
+            overlap — by 8px now rather than 14 — and the overlap no longer
+            crosses any glyph. Coach's glyph ends 12px inside its box and
+            Messages' box begins 36px along, so nothing of Coach falls in
+            Messages' half; same for the bell. Measured at 375pt, where the
+            whole header now runs 345px of the 375 available.
+
+            `z-10` on Messages is still load-bearing for the badge — see
+            the note there. */}
         <div className="flex items-center gap-0.5 shrink-0">
           {/* AI Coach. This was removed once for crowding the bar and
               truncating the logo, and is back by request — mirroring the
@@ -148,14 +176,17 @@ export default function Header() {
               from. Measured at 375pt after adding it: logo renders at its
               full intrinsic width, cluster fully visible, nothing clipped.
 
-              `-me-1` closes the gap to Messages the same way the bell and
-              profile are pulled in below; without it the four controls read
-              as three plus a stray. */}
+              This carried `-me-1`, which is where the misalignment came
+              from. See the spacing note above the cluster: -1 leaves 42px
+              between this icon's centre and Messages' where the rest of the
+              row sits at 30, so the eye reads Coach as a stray beside a
+              group of three rather than as the first of four. It is now
+              `-me-2.5`, the same pull every other control in the row gets. */}
           <button
             type="button"
             onClick={() => navigate('/coach')}
             aria-label={tFallback('hub.coach.title', 'AI Coach')}
-            className={`group relative h-11 w-11 -me-1 inline-flex items-center justify-center transition-colors ${
+            className={`group relative h-11 w-11 -me-2.5 inline-flex items-center justify-center transition-colors ${
               onCoach ? 'text-primary' : 'text-muted-foreground'
             }`}
           >
@@ -206,12 +237,14 @@ export default function Header() {
             )}
           </button>
           {/* Negative inline-start margins pull the bell + profile toward
-              the messages icon. The bell gets a larger pull (-ms-4) than the
-              profile (-ms-2) because the profile's avatar glyph is 36px vs
-              the 20px icons — matching the *center* spacing left the DMs↔bell
-              whitespace visibly wider than bell↔profile. This equalises the
-              actual gap the eye reads. Tap areas stay full size. */}
-          <div className="-ms-4">
+              the messages icon. The bell gets a larger pull (-ms-2.5) than
+              the profile (-ms-0.5) because the profile's avatar glyph is
+              36px vs the 20px icons — matching the *center* spacing would
+              leave the DMs↔bell whitespace visibly wider than bell↔profile.
+              Both come out of the one formula documented above the cluster;
+              they were -ms-4 / -ms-2, which equalised the gap at 10px and
+              overlapped the tap boxes by 14px in the process. */}
+          <div className="-ms-2.5">
             <NotificationBell />
           </div>
           {/* Profile menu — the LevelBar pill that used to hang below
@@ -222,7 +255,7 @@ export default function Header() {
                 • the ProfileMenu dropdown
                 • the /profile page (LevelBar shown full size)
                 • the Hub profile sub-view (existing card) */}
-          <div className="relative -ms-2">
+          <div className="relative -ms-0.5">
             <ProfileMenu compact />
           </div>
         </div>
