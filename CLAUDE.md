@@ -501,6 +501,32 @@ writes — an anonymous user still increments quota tables.
   `055_first_workout_capsule_flag.sql` — both pairs touch disjoint
   tables, so the alphabetical execution order is harmless). Don't add
   a third file at the same number — renumber instead.
+- **"Free" has TWO answers and you need the pessimistic one.** Neither
+  place you'd naturally look is complete on a shared checkout:
+  `ls supabase/migrations` **overstates** what's taken (it shows files
+  that are untracked or committed-but-unpushed, which nobody else can
+  see) and `git ls-tree origin/main` **understates** it (it misses
+  exactly those). The safe number is one past the max across **both**:
+
+  ```bash
+  { ls supabase/migrations; git ls-tree --name-only origin/main supabase/migrations/ | sed 's#.*/##'; } | grep -oE '^[0-9]{3}' | sort -n | tail -1
+  ```
+
+  This is not hypothetical and it recurs. On 2026-08-09 one session
+  broadcast "the next genuinely free number is 329, not 328 — 328 exists
+  locally unpushed, so `ls` shows it and origin/main does not." Within
+  the hour 328 and 329 had both landed on `origin/main` and 330 existed
+  as an untracked local file, so the answer was 331 and the advice would
+  have collided with a *pushed* migration. The session that wrote it had
+  correctly identified the trap one number earlier and still got caught
+  by it, because a number that is free is only free until someone else
+  takes it. (330 was then pushed in the minutes it took to write this
+  paragraph, which is the point made twice: the answer moves under you,
+  and only the pessimistic view is ever safe to act on.)
+  **Re-derive it at the moment you create the file, not when
+  you start the task**, and prefer colliding with your own unpushed work
+  over someone else's pushed work — the first is a rename, the second is
+  a rename plus a conversation.
 
 ## Profile cache — invalidating `['userProfile']` does NOT refresh it
 
