@@ -129,6 +129,49 @@ describe('useOverlayBackButton — nested overlays', () => {
     expect(outer).toHaveBeenCalledTimes(1);
   });
 
+  it('handles a sub-VIEW that toggles, not just a second mounted overlay', () => {
+    // InjuryForm's shape: one overlay whose inner registration is active
+    // only while the New form is showing. Backing out of New must not
+    // consume the overlay's own entry, or the next press navigates the
+    // page underneath — the original bug, reintroduced one level down.
+    const close = vi.fn();
+    const toList = vi.fn();
+    const { rerender } = renderHook(
+      ({ isNew }) => {
+        useOverlayBackButton(true, close);
+        useOverlayBackButton(isNew, toList);
+      },
+      { initialProps: { isNew: true } },
+    );
+
+    act(() => { window.dispatchEvent(new PopStateEvent('popstate')); });
+    expect(toList).toHaveBeenCalledTimes(1);
+    expect(close).not.toHaveBeenCalled();
+
+    rerender({ isNew: false });          // onClose flipped the view to list
+    expect(backSpy).not.toHaveBeenCalled();   // popstate already dropped it
+
+    act(() => { window.dispatchEvent(new PopStateEvent('popstate')); });
+    expect(close).toHaveBeenCalledTimes(1);
+  });
+
+  it('drops the sub-view entry when it is left by chevron rather than back', () => {
+    const close = vi.fn();
+    const toList = vi.fn();
+    const { rerender } = renderHook(
+      ({ isNew }) => {
+        useOverlayBackButton(true, close);
+        useOverlayBackButton(isNew, toList);
+      },
+      { initialProps: { isNew: true } },
+    );
+    rerender({ isNew: false });          // chevron: setView('list')
+    expect(backSpy).toHaveBeenCalledTimes(1);
+    act(() => { window.dispatchEvent(new PopStateEvent('popstate')); });
+    expect(toList).not.toHaveBeenCalled();
+    expect(close).toHaveBeenCalledTimes(1);
+  });
+
   it('leaves no stale registration behind, so a later solo overlay still works', () => {
     const { o, i } = mountBoth();
     i.unmount();

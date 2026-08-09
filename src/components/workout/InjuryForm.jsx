@@ -14,6 +14,7 @@ import { reportError } from '@/lib/reportError';
 import { format, addDays, differenceInDays } from 'date-fns';
 import * as injuries from '@/lib/data/injuries';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { useOverlayBackButton } from '@/hooks/useOverlayBackButton';
 
 const MUSCLE_GROUPS = ['Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps', 'Legs', 'Glutes', 'Core'];
 
@@ -131,6 +132,21 @@ export default function InjuryForm({ onClose }) {
   const [notes, setNotes] = useState('');
   const [injuredAt, setInjuredAt] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [recoveryDate, setRecoveryDate] = useState('');
+
+  // Back mirrors the header chevron exactly: from the New form it
+  // returns to the list, and from the list it closes. Two registrations,
+  // not one, because they are two real levels — with a single history
+  // entry, backing out of the New form would consume it and the NEXT
+  // press would navigate the page underneath while this overlay stayed
+  // on screen, which is the bug being fixed in the first place.
+  //
+  // Backing out of the New form does NOT discard what was typed: the
+  // field state is only reset in logMutation.onSuccess, and this
+  // component stays mounted, so reopening New still has it. Closing the
+  // whole overlay does drop it — same as the chevron has always done,
+  // and it takes a deliberate second press from the list to get there.
+  useOverlayBackButton(true, onClose);
+  useOverlayBackButton(view === 'new', () => setView('list'));
 
   // ── Data ───────────────────────────────────────────────────────────────────
   // Distinct key from InjuryBanner's ['injuries','active',uid]: this query
