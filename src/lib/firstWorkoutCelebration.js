@@ -26,6 +26,13 @@ const CONFETTI_COLORS = ['#f97316', '#fb923c', '#fbbf24', '#22c55e', '#3b82f6', 
  * @param {number} [opts.xpGained]      - XP awarded by the save flow.
  * @param {string} [opts.userEmail]     - For Sentry user tag.
  */
+// How long the toast stays up. Exported and RETURNED because this helper is
+// enqueued through rewardQueue, which holds the next celebration for exactly
+// this long so the two toasts never stack. Change it here and the queue
+// follows; hard-code it in the toast call and the queue silently goes back
+// to overlapping them.
+export const TOAST_MS = 6000;
+
 export function fireFirstWorkoutCelebration({ xpGained = 0, userEmail } = {}) {
   // Triple buzz then a longer pulse — distinct from goal-completion
   // (15/50/15) so a returning user can tell which milestone fired.
@@ -34,7 +41,7 @@ export function fireFirstWorkoutCelebration({ xpGained = 0, userEmail } = {}) {
   const xpLine = xpGained > 0 ? ` · +${xpGained} XP` : '';
   toast.success(`🎉 First workout logged${xpLine}`, {
     description: "You're officially training with Flexyn. Keep the momentum going.",
-    duration: 6000,
+    duration: TOAST_MS,
   });
 
   // Skip confetti if the user opted out of motion.
@@ -66,4 +73,7 @@ export function fireFirstWorkoutCelebration({ xpGained = 0, userEmail } = {}) {
       data: { xpGained, userEmail: userEmail || null },
     });
   } catch { /* ignore */ }
+
+  // Tells rewardQueue how long to hold before the next celebration.
+  return TOAST_MS;
 }

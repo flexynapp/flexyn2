@@ -41,6 +41,14 @@ import * as Sentry from '@sentry/react';
  */
 export const OPEN_PR_SHARE_EVENT = 'flexyn-open-pr-share';
 
+// How long the toast stays up — longer than the regular workout-saved toast
+// because the Share action needs a window big enough to be tappable.
+// Exported and RETURNED because this helper is enqueued through rewardQueue,
+// which holds the next celebration for exactly this long so the toasts never
+// stack. This is also why the value must not be truncated to tighten the
+// sequence: shortening it shortens the window to tap Share.
+export const TOAST_MS = 8000;
+
 // Gold / crimson / amber — strength colors. Distinct from:
 //   goal:           green/yellow
 //   first-workout:  orange/green/blue/purple (rainbow)
@@ -59,7 +67,10 @@ const CONFETTI_COLORS = ['#fbbf24', '#f59e0b', '#dc2626', '#b45309', '#fde68a', 
  * @param {string}  [opts.userEmail] — Sentry tag
  */
 export function firePRCelebration({ prs = [], unit = 'lb', userEmail } = {}) {
-  if (!Array.isArray(prs) || prs.length === 0) return;
+  // 0, not undefined: nothing was shown, so the queue should fall through to
+  // its confetti/haptic floor rather than holding a full toast duration for a
+  // celebration that never rendered.
+  if (!Array.isArray(prs) || prs.length === 0) return 0;
 
   // Heavy-thud haptic — distinct from the lighter / longer patterns
   // used by goal / first-workout / first-meal celebrations.
@@ -83,8 +94,7 @@ export function firePRCelebration({ prs = [], unit = 'lb', userEmail } = {}) {
     description: deltaRounded > 0
       ? `Up +${deltaRounded} ${unit} from your previous best.`
       : 'You just topped your previous best.',
-    duration: 8000, // longer than the regular workout-saved toast — the
-                    // share action needs a bigger window to be tappable
+    duration: TOAST_MS,
     action: {
       label: 'Share',
       onClick: () => {
@@ -146,4 +156,7 @@ export function firePRCelebration({ prs = [], unit = 'lb', userEmail } = {}) {
       },
     });
   } catch { /* ignore */ }
+
+  // Tells rewardQueue how long to hold before the next celebration.
+  return TOAST_MS;
 }

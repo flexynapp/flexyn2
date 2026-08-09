@@ -18,7 +18,7 @@ import { BrowserRouter as Router, Route, Routes, useParams, Navigate } from 'rea
 import PageNotFound from './lib/PageNotFound';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
-import { ThemeProvider } from '@/lib/ThemeContext';
+import { ThemeProvider, useTheme } from '@/lib/ThemeContext';
 import { SettingsProvider } from '@/lib/SettingsContext';
 import { LanguageProvider } from '@/lib/LanguageContext';
 import { WeightUnitProvider } from '@/lib/WeightUnitContext';
@@ -145,6 +145,36 @@ const Profile     = lazy(() => import('./pages/Profile'));
 // "content loading" without matching any one page exactly. Rendered in the
 // normal content flow (not fixed) so it sits inside the Layout chrome that's
 // already painted (header + bottom nav), matching where the real page lands.
+// The toast host. A component rather than an inline <SonnerToaster> because
+// it has to read the app's theme, and App() is the thing that RENDERS
+// <ThemeProvider> — a hook there would be outside its own provider.
+//
+// Two things are being fixed here, and they are separate:
+//
+//   • `theme`. sonner's Toaster defaults to theme="light" and only consults
+//     prefers-color-scheme when you pass theme="system". Nothing was passed,
+//     so every toast rendered stock white chrome on the dark app. "system"
+//     would not have fixed it either: dark mode here is ThemeContext state
+//     persisted to `fn-dark-mode` and the user's profile, so an OS-light /
+//     app-dark user would still have got a white toast. The app's own
+//     boolean is the only correct source.
+//
+//   • the surface colours, which are bound to tokens in index.css so toasts
+//     track whichever ThemeSelector theme is active, not just light/dark.
+//
+// `bottom` clears the fixed bottom nav including its home-indicator inset —
+// see the --above-nav note in index.css.
+function ThemedToaster() {
+  const { darkMode } = useTheme();
+  return (
+    <SonnerToaster
+      position="bottom-center"
+      theme={darkMode ? 'dark' : 'light'}
+      style={{ bottom: 'var(--above-nav)' }}
+    />
+  );
+}
+
 function PageLoader() {
   return (
     <div
@@ -470,14 +500,7 @@ function App() {
         <Router>
           <AuthenticatedApp />
         </Router>
-        {/* `bottom` was a flat calc(4rem + 16px) = 80px, which ignored the
-            home-indicator inset the bottom nav pads itself with. The nav is
-            67px + env(safe-area-inset-bottom), so at a 34px inset it stands
-            101px tall and every celebration toast covered the top 21px of the
-            nav's tabs — sonner's z-index beats the nav's z-30, so it painted
-            over them rather than sliding underneath. --above-nav is the shared
-            fix; see the note beside it in index.css. */}
-        <SonnerToaster position="bottom-center" style={{ bottom: 'var(--above-nav)' }} />
+        <ThemedToaster />
       </QueryClientProvider>
     </RestTimerProvider>
     </AuthProvider>
