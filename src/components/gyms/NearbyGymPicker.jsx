@@ -270,9 +270,15 @@ export default function NearbyGymPicker({
     );
   }
 
+  // These transient states carry NO surface of their own. They are not
+  // objects on the page, they are the picker mid-thought — and this
+  // component renders inside a card on /my-gym, so a bordered box here
+  // was a card inside a card, which the UI rules ban outright. Onboarding
+  // mounts it on a bare background, where centred text reads fine without
+  // a border. The caller owns the surface; the picker owns the content.
   if (status === 'denied' || status === 'failed') {
     return (
-      <div className="rounded-2xl border border-border bg-card p-4 text-center">
+      <div className="py-4 text-center">
         <p className="text-sm font-semibold mb-1">
           {status === 'denied' ? 'Location is off' : "Couldn't load gyms"}
         </p>
@@ -306,7 +312,7 @@ export default function NearbyGymPicker({
     const lookupBroke = osmFailed;
     return (
       <>
-      <div className="rounded-2xl border border-border bg-card p-4 text-center">
+      <div className="py-4 text-center">
         <p className="text-sm font-semibold mb-1">
           {lookupBroke ? "Couldn't search for gyms" : 'No gyms found nearby'}
         </p>

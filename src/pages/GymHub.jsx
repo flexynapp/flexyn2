@@ -5,15 +5,16 @@
 //   • Events     — upcoming events (gym_events)
 //   • Leaderboard — local ranking by volume / XP / streak
 //
-// Header: gym name + city/state + member count + Flexyn Code (shown
-// to the owner, hidden from regular members for cleanliness).
+// Header: gym name + location (when it has one) + member count, then
+// the Flexyn Code + QR on any gym that has members — see mig 325 for
+// why that is not owner-only.
 
 import React, { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   ArrowLeft, Building2, Users, MapPin, Trophy, Calendar, MessageSquare,
-  Loader2, Plus, Crown, Printer, Share2, Pencil, LogOut, Trash2, Dumbbell,
+  Loader2, Plus, Crown, Share2, Pencil, LogOut, Trash2, Dumbbell,
   CheckCircle2, QrCode,
 } from 'lucide-react';
 import { leaveGym, getGymPublicPreview } from '@/lib/data/gymBusinesses';
@@ -264,10 +265,17 @@ export default function GymHub() {
             </div>
             <div className="flex-1 min-w-0">
               <h1 className="font-heading text-xl font-bold tracking-tight">{gym.name}</h1>
-              <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                <MapPin className="w-3 h-3" />
-                {[gym.street_address, gym.city, gym.state_code].filter(Boolean).join(', ')}
-              </p>
+              {/* Only when there IS a location. A community gym promoted
+                  from OpenStreetMap often has no address at all, and this
+                  rendered unconditionally — so those gyms showed a map pin
+                  pointing at an empty string, which reads as a failed load
+                  rather than as a gym nobody has filled in yet. */}
+              {[gym.street_address, gym.city, gym.state_code].filter(Boolean).length > 0 && (
+                <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                  <MapPin className="w-3 h-3 shrink-0" />
+                  {[gym.street_address, gym.city, gym.state_code].filter(Boolean).join(', ')}
+                </p>
+              )}
               <div className="flex items-center gap-3 mt-2 text-xs">
                 {/* Tappable only for members. The roster is members-only
                     since mig 301, and this button sits in the HEADER —
@@ -284,11 +292,13 @@ export default function GymHub() {
                     className="flex items-center gap-1 text-muted-foreground hover:text-foreground active:text-foreground transition-colors"
                     aria-label="View members"
                   >
-                    <Users className="w-3 h-3" /> <span className="tabular-nums">{gym.member_count}</span> members
+                    <Users className="w-3 h-3" /> <span className="tabular-nums">{gym.member_count}</span>
+                    {(gym.member_count === 1 ? ' member' : ' members')}
                   </button>
                 ) : (
                   <span className="flex items-center gap-1 text-muted-foreground">
-                    <Users className="w-3 h-3" /> <span className="tabular-nums">{gym.member_count}</span> members
+                    <Users className="w-3 h-3" /> <span className="tabular-nums">{gym.member_count}</span>
+                    {(gym.member_count === 1 ? ' member' : ' members')}
                   </span>
                 )}
                 {isOwner && (
@@ -297,41 +307,48 @@ export default function GymHub() {
                   </span>
                 )}
               </div>
-              {/* The Flexyn Code, and the QR built from it, used to be
-                  owner-only. A community gym has no owner BY DESIGN
-                  (mig 275) — nobody claimed the business — so its code
-                  was generated at promotion and then shown to nobody,
-                  which is the same as not having one. It now appears on
-                  any gym that has members: a code's only power is "join
-                  this gym", it is printed on the wall of the building it
-                  belongs to, and someone has to be able to print it.
-                  `isMember` is in the condition because member_count is a
-                  denormalised counter and a stale zero must not hide the
-                  code from a person standing in the gym. */}
-              {gym.flexyn_code && (isOwner || isMember || (gym.member_count ?? 0) > 0) && (
-                <div className="mt-3 rounded-xl bg-primary/8 border border-primary/20 p-2.5">
-                  <p className="text-micro font-bold uppercase tracking-wider text-primary mb-0.5">
-                    {isOwner ? 'Your Flexyn Code' : 'Flexyn Code'}
-                  </p>
-                  <p className="font-mono text-lg tracking-[0.3em] font-bold text-foreground">{gym.flexyn_code}</p>
-                  <p className="text-micro text-muted-foreground mt-1 mb-2">
-                    {isOwner
-                      ? 'Print this. Members scan or type it inside the gym to join.'
-                      : 'Scan or type this inside the gym to join. Print the signage and put it on the wall.'}
-                  </p>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setSignageOpen(true)}
-                    className="gap-1.5 h-7"
-                  >
-                    {isOwner ? <Printer className="w-3 h-3" /> : <QrCode className="w-3 h-3" />}
-                    {isOwner ? 'Open printable signage' : 'QR code & printable signage'}
-                  </Button>
-                </div>
-              )}
             </div>
           </div>
+
+          {/* The Flexyn Code, and the QR built from it, used to be
+              owner-only. A community gym has no owner BY DESIGN (mig 275)
+              — nobody claimed the business — so its code was generated at
+              promotion and then shown to nobody, which is the same as not
+              having one. It now appears on any gym that has members: a
+              code's only power is "join this gym", it is printed on the
+              wall of the building it belongs to, and someone has to be
+              able to get it there. `isMember` is in the condition because
+              member_count is a denormalised counter and a stale zero must
+              not hide the code from a person standing in the gym.
+
+              It sits OUTSIDE the header's flex row on purpose. Inside it,
+              it was a child of the text column beside the 56px logo, so
+              its left edge started 68px in while the action row below
+              began at the card's padding — two stacked blocks in one card
+              with two different left edges, which is what reads as the
+              page being crooked. */}
+          {gym.flexyn_code && (isOwner || isMember || (gym.member_count ?? 0) > 0) && (
+            <div className="mt-3 rounded-xl bg-primary/8 border border-primary/20 p-2.5">
+              <p className="text-micro font-bold uppercase tracking-wider text-primary mb-0.5">
+                {isOwner ? 'Your Flexyn Code' : 'Flexyn Code'}
+              </p>
+              <p className="font-mono text-lg tracking-[0.3em] font-bold text-foreground">{gym.flexyn_code}</p>
+              <p className="text-micro text-muted-foreground mt-1 mb-2">
+                {isOwner
+                  ? 'Members scan or type this inside the gym to join.'
+                  : 'Scan or type this inside the gym to join.'}
+              </p>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setSignageOpen(true)}
+                className="gap-1.5 h-7"
+              >
+                <QrCode className="w-3 h-3" />
+                QR code &amp; signage
+              </Button>
+            </div>
+          )}
 
           {/* Action row — share / edit (owner) / leave (member) */}
           <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border/60">
@@ -405,8 +422,12 @@ export default function GymHub() {
           events / leaderboard are RLS-empty anyway. Skip the tabs
           entirely and render a clean "join to unlock" preview
           instead. Owners always count as members for this check. */}
+      {/* p-4, not p-5. The header card above it is p-4, so a 20px inset
+          here put the two cards' contents on left edges 4px apart — close
+          enough to look like a mistake rather than a choice, which is
+          exactly how a page reads as crooked. */}
       {membershipChecked && !isMember && !isOwner && (
-        <div className="rounded-2xl border border-dashed border-primary/40 bg-primary/5 p-5 text-center">
+        <div className="rounded-2xl border border-dashed border-primary/40 bg-primary/5 p-4 text-center">
           {/* Activity WITHOUT identity (mig 301). This used to be a flat
               "join to unlock", which asks someone to commit to a gym
               before telling them whether anyone trains there. */}

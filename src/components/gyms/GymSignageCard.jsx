@@ -1,26 +1,31 @@
 // src/components/gyms/GymSignageCard.jsx
 //
-// Printable in-gym signage. Renders a big QR (encoded with the
-// Flexyn Code as the data URL) + the 8-char code in mono type, sized
-// to print clean on US Letter / A4 at a useful eye-distance.
+// In-gym signage: a big QR plus the 8-char Flexyn Code in mono type,
+// sized to stay legible at arm's length whether it's on a phone screen
+// or taped to a wall.
 //
-// Opened from the Flexyn Code block in Gym Hub → modal renders →
-// browser print dialog produces a quarter-page poster. Not owner-only:
-// a community gym has no owner by design (mig 275), so anyone at a gym
-// with members can print its signage.
+// Opened from the Flexyn Code block in Gym Hub. Not owner-only: a
+// community gym has no owner by design (mig 275), so anyone at a gym
+// with members can get its signage out.
 //
-// The QR encodes `flexyn://gym/<CODE>` so a generic QR reader on a
-// member's phone opens the Flexyn app (when installed) or shows the
-// code as fallback text. The in-app QrCodeScanner accepts both bare
-// codes and this deep-link form.
+// The QR encodes the CHECK-IN URL — <canonical origin>/checkin/<CODE>,
+// see appOrigin.js — not a flexyn:// scheme. A PWA cannot register a
+// custom scheme, so a camera-app scan of flexyn:// would open nothing;
+// an https URL opens, checks the member in, and lands them on that
+// gym's page. The in-app QrCodeScanner still pulls the bare code out of
+// that path.
+//
+// Two actions, both full width, both doable from a phone: Share (the
+// image, through the OS sheet) and Save. There is no Print button and no
+// PDF kit — those were desktop actions on an app that ships to the App
+// Store and Play Store.
 
 import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { createPortal } from 'react-dom';
-import { X, Printer, Download, Loader2, FileText } from 'lucide-react';
+import { X, Share2, Download, Loader2 } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { Button } from '@/components/ui/button';
-import { downloadSignageKit, SIGNAGE_PLACEMENT_COUNT } from '@/lib/gymSignageKit';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { gymCheckinUrl } from '@/lib/appOrigin';
 
@@ -59,24 +64,11 @@ export default function GymSignageCard({ open, onClose, gym }) {
     return () => { cancelled = true; };
   }, [open, gym?.flexyn_code]);
 
-  const [buildingKit, setBuildingKit] = useState(false);
+  const [sharing, setSharing] = useState(false);
 
   if (!open || !gym) return null;
 
-  const handleKit = async () => {
-    if (buildingKit) return;
-    setBuildingKit(true);
-    const res = await downloadSignageKit(gym);
-    setBuildingKit(false);
-    if (res.ok) {
-      toast.success(`Signage kit downloaded — ${SIGNAGE_PLACEMENT_COUNT} posters.`);
-    } else {
-      toast.error("Couldn't build the PDF kit — try again.");
-    }
-  };
-
-  const handlePrint = () => window.print();
-  const handleDownload = () => {
+  const handleSave = () => {
     if (!pngUrl) return;
     const a = document.createElement('a');
     a.href = pngUrl;
@@ -84,6 +76,38 @@ export default function GymSignageCard({ open, onClose, gym }) {
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
+  };
+
+  // Share the QR itself, as a file, so the receiving app gets an image it
+  // can display rather than a link it has to fetch. On iOS the resulting
+  // sheet carries "Save Image", which is the only route a web app has to
+  // the camera roll — there is no browser API that writes to Photos.
+  const handleShare = async () => {
+    if (!pngUrl || sharing) return;
+    setSharing(true);
+    try {
+      const blob = await (await fetch(pngUrl)).blob();
+      const file = new File([blob], `flexyn-${gym.flexyn_code}.png`, { type: 'image/png' });
+      const text = `Join ${gym.name} on Flexyn — scan this, or type ${gym.flexyn_code} in the app.`;
+
+      if (navigator.canShare?.({ files: [file] }) && navigator.share) {
+        await navigator.share({ files: [file], title: gym.name, text });
+      } else if (navigator.share) {
+        // Sharing files isn't supported here — send the link instead, which
+        // resolves to this gym either way.
+        await navigator.share({ title: gym.name, text, url: gymCheckinUrl(gym.flexyn_code) });
+      } else {
+        handleSave();
+      }
+    } catch (err) {
+      // Dismissing the share sheet is a decision, not a failure.
+      if (err?.name !== 'AbortError') {
+        toast.error("Couldn't share the code — saving it instead.");
+        handleSave();
+      }
+    } finally {
+      setSharing(false);
+    }
   };
 
   return createPortal(
@@ -95,11 +119,17 @@ export default function GymSignageCard({ open, onClose, gym }) {
       <motion.div
         initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-md bg-card border border-border rounded-2xl shadow-2xl flex flex-col print:max-w-none print:border-0 print:shadow-none print:rounded-none"
+        // max-h + a scrolling middle, because this modal is 743px tall and
+        // an iPhone SE viewport is 667. Unbounded, it centred itself at
+        // top: -40 — the close button off the top of the screen, "Save to
+        // Camera Roll" clipped 19px off the bottom, and nothing scrollable
+        // in between, so the only way out was a backdrop tap you had to
+        // guess at. Header and actions stay pinned; the poster scrolls.
+        className="w-full max-w-md max-h-[calc(100dvh-2rem)] bg-card border border-border rounded-2xl shadow-2xl flex flex-col overflow-hidden print:max-w-none print:max-h-none print:border-0 print:shadow-none print:rounded-none print:overflow-visible"
       >
         {/* Modal chrome — hidden on print */}
-        <div className="flex items-center justify-between px-4 pt-4 pb-2 print:hidden">
-          <h2 className="font-heading font-bold text-base">Gym signage</h2>
+        <div className="flex items-center justify-between px-4 pt-4 pb-2 shrink-0 print:hidden">
+          <h2 className="font-heading font-bold text-base">Gym Signage</h2>
           <button
             type="button"
             onClick={onClose}
@@ -113,7 +143,7 @@ export default function GymSignageCard({ open, onClose, gym }) {
         {/* Printable surface — A4 / letter quarter-page friendly */}
         <div
           id="gym-signage-print-area"
-          className="bg-white text-black p-8 mx-auto print:p-12 print:m-0"
+          className="bg-white text-black p-8 mx-auto overflow-y-auto print:p-12 print:m-0 print:overflow-visible"
           style={{ width: '100%', maxWidth: '480px' }}
         >
           <p className="text-center text-xs font-bold uppercase tracking-[0.3em] text-slate-500">
@@ -149,23 +179,19 @@ export default function GymSignageCard({ open, onClose, gym }) {
           </p>
         </div>
 
-        {/* Actions — hidden on print */}
-        <div className="p-4 print:hidden space-y-2">
-          {/* Primary: one-click multi-poster PDF kit */}
-          <Button onClick={handleKit} disabled={generating || buildingKit} className="w-full gap-2">
-            {buildingKit ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
-            {buildingKit ? 'Building kit…' : `Download print kit (PDF · ${SIGNAGE_PLACEMENT_COUNT} posters)`}
+        {/* Actions — hidden on print.
+            Two, both full width, both things you can do from a phone. The
+            PDF kit and the Print button that used to live here were desktop
+            actions on an app that ships to the App Store and Play Store. */}
+        <div className="p-4 shrink-0 print:hidden space-y-2">
+          <Button onClick={handleShare} disabled={generating || !pngUrl || sharing} className="w-full gap-2">
+            {sharing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Share2 className="w-4 h-4" />}
+            Share
           </Button>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={handleDownload} disabled={!pngUrl} className="flex-1 gap-2">
-              <Download className="w-4 h-4" />
-              PNG
-            </Button>
-            <Button variant="outline" onClick={handlePrint} disabled={generating} className="flex-1 gap-2">
-              <Printer className="w-4 h-4" />
-              Print
-            </Button>
-          </div>
+          <Button variant="outline" onClick={handleSave} disabled={!pngUrl} className="w-full gap-2">
+            <Download className="w-4 h-4" />
+            Save to Camera Roll
+          </Button>
         </div>
       </motion.div>
 
