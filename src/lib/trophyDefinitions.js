@@ -100,6 +100,23 @@ export const LADDERS = {
 
   capsule:   { name: 'Capsules',        category: 'collection', signal: 'capsulesOpened',  unit: 'capsules', tailBase: 100,     tailStep: 100,     tailName: 'Vault Keeper' },
   relic:     { name: 'Legendaries',     category: 'collection', signal: 'legendaries',     unit: 'items',    tailBase: 25,      tailStep: 25,      tailName: 'Mythic Vault' },
+  coins:     { name: 'Coins earned',    category: 'collection', signal: 'coinsEarned',     unit: 'coins',    tailBase: 100000,  tailStep: 100000,  tailName: 'Tycoon' },
+  market:    { name: 'Marketplace',     category: 'collection', signal: 'marketSales',     unit: 'sales',    tailBase: 50,      tailStep: 50,      tailName: 'Merchant' },
+
+  // Nutrition had NO ladder at all until now, which was a real gap: the
+  // retired achievements catalog carried six nutrition badges and the
+  // trophy engine replaced them with nothing.
+  meals:     { name: 'Meals logged',    category: 'nutrition',  signal: 'meals',           unit: 'meals',    tailBase: 1000,    tailStep: 1000,    tailName: 'Meal Prepper' },
+  ndays:     { name: 'Days logged',     category: 'nutrition',  signal: 'nutritionDays',   unit: 'days',     tailBase: 365,     tailStep: 365,     tailName: 'Year of Logging' },
+
+  sleep:     { name: 'Sleep',           category: 'recovery',   signal: 'sleepLogs',       unit: 'nights',   tailBase: 100,     tailStep: 100,     tailName: 'Recovery Focused' },
+  journal:   { name: 'Journal',         category: 'recovery',   signal: 'journalEntries',  unit: 'entries',  tailBase: 50,      tailStep: 50,      tailName: 'Chronicler' },
+  debrief:   { name: 'Weekly debriefs', category: 'recovery',   signal: 'debriefs',        unit: 'weeks',    tailBase: 52,      tailStep: 52,      tailName: 'Year Reviewed' },
+
+  regimen:   { name: 'Programming',     category: 'workout',    signal: 'regimens',        unit: 'regimens', tailBase: 25,      tailStep: 25,      tailName: 'Program Director' },
+  duelplay:  { name: 'Duels fought',    category: 'duel',       signal: 'duelsPlayed',     unit: 'duels',    tailBase: 100,     tailStep: 100,     tailName: 'Veteran of the Pit' },
+  comments:  { name: 'Comments',        category: 'social',     signal: 'comments',        unit: 'comments', tailBase: 100,     tailStep: 100,     tailName: 'Pillar of the Hub' },
+  followers: { name: 'Followers',       category: 'social',     signal: 'followers',       unit: 'followers', tailBase: 200,    tailStep: 200,     tailName: 'Figurehead' },
 };
 
 // Group labels for the page, in display order.
@@ -107,6 +124,8 @@ export const TROPHY_CATEGORIES = [
   { id: 'workout',    name: 'Iron',        emoji: '🏋️' },
   { id: 'streak',     name: 'Consistency', emoji: '🔥' },
   { id: 'cardio',     name: 'Endurance',   emoji: '🏃' },
+  { id: 'nutrition',  name: 'Fuel',        emoji: '🥗' },
+  { id: 'recovery',   name: 'Recovery',    emoji: '🌙' },
   { id: 'level',      name: 'Progression', emoji: '⚡' },
   { id: 'duel',       name: 'Arena',       emoji: '⚔️' },
   { id: 'crew',       name: 'Crew',        emoji: '🛡️' },
@@ -224,7 +243,11 @@ export const TROPHIES = [
 
   // ── Crew ────────────────────────────────────────────────────────
   { id: 'crew_squad',      category: 'crew',    ladder: 'crew',      threshold: 1,       tier: 'bronze',    emoji: '🛡️', name: 'Squad Member',      description: 'Joined your first crew.' },
-  { id: 'crewwar_1',       category: 'crew',    ladder: 'crewwar',   threshold: 1,       tier: 'bronze',    emoji: '🚩', name: 'Enlisted',          description: 'Contributed to your first crew war.' },
+  // The one non-capstone gate, and it is causal rather than arbitrary:
+  // you cannot contribute to a crew war without being in a crew, so
+  // anyone who qualifies for this necessarily already holds crew_squad.
+  { id: 'crewwar_1',       category: 'crew',    ladder: 'crewwar',   threshold: 1,       tier: 'bronze',    emoji: '🚩', name: 'Enlisted',          description: 'Contributed to your first crew war.',
+    requires: ['crew_squad'] },
   { id: 'crewwar_10',      category: 'crew',    ladder: 'crewwar',   threshold: 10,      tier: 'silver',    emoji: '⚔️', name: 'War Veteran',       description: 'Contributed to 10 crew wars.' },
   { id: 'crewwar_50',      category: 'crew',    ladder: 'crewwar',   threshold: 50,      tier: 'gold',      emoji: '🏰', name: 'Warlord',           description: 'Contributed to 50 crew wars.' },
 
@@ -248,6 +271,106 @@ export const TROPHIES = [
   { id: 'relic_1',         category: 'collection', ladder: 'relic',   threshold: 1,      tier: 'gold',      emoji: '🌟', name: 'Legendary Find',    description: 'Owned your first legendary item.' },
   { id: 'relic_5',         category: 'collection', ladder: 'relic',   threshold: 5,      tier: 'platinum',  emoji: '💫', name: 'Legend Collector',  description: 'Owned 5 legendary items.' },
   { id: 'relic_25',        category: 'collection', ladder: 'relic',   threshold: 25,     tier: 'legendary', emoji: '🔮', name: 'Mythic Vault',      description: 'Owned 25 legendary items.' },
+
+  // ── Collection · coins & marketplace ────────────────────────────
+  { id: 'coin_1k',         category: 'collection', ladder: 'coins',   threshold: 1000,   tier: 'bronze',    emoji: '🪙', name: 'Pocket Change',     description: 'Earned 1,000 Flex coins.' },
+  { id: 'coin_10k',        category: 'collection', ladder: 'coins',   threshold: 10000,  tier: 'silver',    emoji: '💰', name: 'Saver',             description: 'Earned 10,000 Flex coins.' },
+  { id: 'coin_100k',       category: 'collection', ladder: 'coins',   threshold: 100000, tier: 'gold',      emoji: '🏦', name: 'Tycoon',            description: 'Earned 100,000 Flex coins.' },
+
+  { id: 'market_1',        category: 'collection', ladder: 'market',  threshold: 1,      tier: 'bronze',    emoji: '🏷️', name: 'First Sale',        description: 'Sold an item on the marketplace.' },
+  { id: 'market_10',       category: 'collection', ladder: 'market',  threshold: 10,     tier: 'silver',    emoji: '🤝', name: 'Trader',            description: 'Sold 10 items.' },
+  { id: 'market_50',       category: 'collection', ladder: 'market',  threshold: 50,     tier: 'gold',      emoji: '🏪', name: 'Merchant',          description: 'Sold 50 items.' },
+
+  // ── Fuel · meals ────────────────────────────────────────────────
+  { id: 'meal_1',          category: 'nutrition',  ladder: 'meals',   threshold: 1,      tier: 'bronze',    emoji: '🥗', name: 'First Plate',       description: 'Logged your first meal.' },
+  { id: 'meal_50',         category: 'nutrition',  ladder: 'meals',   threshold: 50,     tier: 'silver',    emoji: '🍽️', name: 'Tracker',           description: 'Logged 50 meals.' },
+  { id: 'meal_250',        category: 'nutrition',  ladder: 'meals',   threshold: 250,    tier: 'gold',      emoji: '📊', name: 'Macro Aware',       description: 'Logged 250 meals.' },
+  { id: 'meal_1000',       category: 'nutrition',  ladder: 'meals',   threshold: 1000,   tier: 'platinum',  emoji: '👨‍🍳', name: 'Meal Prepper',      description: 'Logged 1,000 meals.' },
+
+  // ── Fuel · days logged ──────────────────────────────────────────
+  { id: 'nday_7',          category: 'nutrition',  ladder: 'ndays',   threshold: 7,      tier: 'bronze',    emoji: '📆', name: 'First Week',        description: 'Logged food on 7 separate days.' },
+  { id: 'nday_30',         category: 'nutrition',  ladder: 'ndays',   threshold: 30,     tier: 'silver',    emoji: '🗓️', name: 'Full Month',        description: 'Logged food on 30 separate days.' },
+  { id: 'nday_100',        category: 'nutrition',  ladder: 'ndays',   threshold: 100,    tier: 'gold',      emoji: '💯', name: 'Hundred Days',      description: 'Logged food on 100 separate days.' },
+  { id: 'nday_365',        category: 'nutrition',  ladder: 'ndays',   threshold: 365,    tier: 'platinum',  emoji: '🎊', name: 'Year of Logging',   description: 'Logged food on 365 separate days.' },
+
+  // ── Recovery ────────────────────────────────────────────────────
+  { id: 'sleep_7',         category: 'recovery',   ladder: 'sleep',   threshold: 7,      tier: 'bronze',    emoji: '😴', name: 'Rested',            description: 'Logged 7 nights of sleep.' },
+  { id: 'sleep_30',        category: 'recovery',   ladder: 'sleep',   threshold: 30,     tier: 'silver',    emoji: '🌙', name: 'Sleep Tracker',     description: 'Logged 30 nights of sleep.' },
+  { id: 'sleep_100',       category: 'recovery',   ladder: 'sleep',   threshold: 100,    tier: 'gold',      emoji: '🛌', name: 'Recovery Focused',  description: 'Logged 100 nights of sleep.' },
+
+  { id: 'journal_1',       category: 'recovery',   ladder: 'journal', threshold: 1,      tier: 'bronze',    emoji: '📓', name: 'Dear Diary',        description: 'Wrote your first journal entry.' },
+  { id: 'journal_10',      category: 'recovery',   ladder: 'journal', threshold: 10,     tier: 'silver',    emoji: '✍️', name: 'Reflective',        description: 'Wrote 10 journal entries.' },
+  { id: 'journal_50',      category: 'recovery',   ladder: 'journal', threshold: 50,     tier: 'gold',      emoji: '📚', name: 'Chronicler',        description: 'Wrote 50 journal entries.' },
+
+  { id: 'debrief_1',       category: 'recovery',   ladder: 'debrief', threshold: 1,      tier: 'bronze',    emoji: '📈', name: 'Week in Review',    description: 'Received your first weekly debrief.' },
+  { id: 'debrief_10',      category: 'recovery',   ladder: 'debrief', threshold: 10,     tier: 'silver',    emoji: '📉', name: 'Ten Weeks',         description: 'Received 10 weekly debriefs.' },
+  { id: 'debrief_52',      category: 'recovery',   ladder: 'debrief', threshold: 52,     tier: 'gold',      emoji: '🗂️', name: 'Year Reviewed',     description: 'Received 52 weekly debriefs.' },
+
+  // ── Iron · programming ──────────────────────────────────────────
+  // Names carried over from the retired achievements catalog so the
+  // copy people may already have seen survives the migration.
+  { id: 'regimen_1',       category: 'workout',    ladder: 'regimen', threshold: 1,      tier: 'bronze',    emoji: '🏗️', name: 'Regimen Builder',   description: 'Created your first workout regimen.' },
+  { id: 'regimen_5',       category: 'workout',    ladder: 'regimen', threshold: 5,      tier: 'silver',    emoji: '📚', name: 'Playlist Master',   description: 'Created 5 different regimens.' },
+  { id: 'regimen_10',      category: 'workout',    ladder: 'regimen', threshold: 10,     tier: 'gold',      emoji: '🏢', name: 'Regimen Architect', description: 'Created 10 different regimens.' },
+  { id: 'regimen_25',      category: 'workout',    ladder: 'regimen', threshold: 25,     tier: 'platinum',  emoji: '🏛️', name: 'Program Director',  description: 'Created 25 different regimens.' },
+
+  // ── Arena · duels fought ────────────────────────────────────────
+  // Separate from duels WON on purpose: a ladder that only rewards
+  // winning punishes the person who needs the encouragement most.
+  { id: 'duelplay_1',      category: 'duel',       ladder: 'duelplay', threshold: 1,     tier: 'bronze',    emoji: '🤝', name: 'Stepped Up',        description: 'Fought your first duel.' },
+  { id: 'duelplay_25',     category: 'duel',       ladder: 'duelplay', threshold: 25,    tier: 'silver',    emoji: '🥊', name: 'Regular Contender', description: 'Fought 25 duels.' },
+  { id: 'duelplay_100',    category: 'duel',       ladder: 'duelplay', threshold: 100,   tier: 'gold',      emoji: '🏟️', name: 'Veteran of the Pit', description: 'Fought 100 duels.' },
+
+  // ── Community · comments & followers ────────────────────────────
+  { id: 'comment_1',       category: 'social',     ladder: 'comments', threshold: 1,     tier: 'bronze',    emoji: '💭', name: 'Chimed In',         description: 'Left your first comment.' },
+  { id: 'comment_25',      category: 'social',     ladder: 'comments', threshold: 25,    tier: 'silver',    emoji: '🗣️', name: 'Conversationalist', description: 'Left 25 comments.' },
+  { id: 'comment_100',     category: 'social',     ladder: 'comments', threshold: 100,   tier: 'gold',      emoji: '🏛️', name: 'Pillar of the Hub', description: 'Left 100 comments.' },
+
+  { id: 'follower_1',      category: 'social',     ladder: 'followers', threshold: 1,    tier: 'bronze',    emoji: '👋', name: 'First Follower',    description: 'Someone followed you.' },
+  { id: 'follower_10',     category: 'social',     ladder: 'followers', threshold: 10,   tier: 'silver',    emoji: '👥', name: 'Getting Known',     description: '10 followers.' },
+  { id: 'follower_50',     category: 'social',     ladder: 'followers', threshold: 50,   tier: 'gold',      emoji: '📣', name: 'Influencer',        description: '50 followers.' },
+  { id: 'follower_200',    category: 'social',     ladder: 'followers', threshold: 200,  tier: 'platinum',  emoji: '👑', name: 'Figurehead',        description: '200 followers.' },
+
+  // ── MASTERY · the capstones ─────────────────────────────────────
+  //
+  // These are the reason the prerequisite engine exists. A capstone has
+  // NO numeric criterion of its own — it is earned purely by owning the
+  // trophies named in `requires`, which are the top rungs of a whole
+  // category. Until then it is LOCKED: it does not appear in a ladder,
+  // it is not offered under Next up, and the server will not grant it.
+  //
+  // Every prerequisite here is strictly implied by the capstone itself,
+  // which is the rule for adding any new gate: never require something
+  // a qualifying user might not have. A gate that CAN be missed is a
+  // permanently unearnable badge, and there is no way to tell the two
+  // apart from the outside.
+  { id: 'capstone_iron',       category: 'capstone', capstone: true, tier: 'legendary', emoji: '⚒️', name: 'Iron Master',      description: 'Topped every Iron ladder.',
+    requires: ['centurion', 'tonnage_million', 'variety_100', 'regimen_25'] },
+  { id: 'capstone_consistency', category: 'capstone', capstone: true, tier: 'legendary', emoji: '🔗', name: 'Unbreakable',     description: 'Topped every Consistency ladder.',
+    requires: ['streak_eternal', 'longevity_24', 'quest_500', 'perfect_100'] },
+  { id: 'capstone_endurance',  category: 'capstone', capstone: true, tier: 'legendary', emoji: '🫁', name: 'Ironlung',         description: 'Topped every Endurance ladder.',
+    requires: ['cardio_marathon', 'distance_1000k', 'cross_8'] },
+  { id: 'capstone_nutrition',  category: 'capstone', capstone: true, tier: 'legendary', emoji: '🍎', name: 'Fully Fuelled',    description: 'Topped every Fuel ladder.',
+    requires: ['meal_1000', 'nday_365'] },
+  { id: 'capstone_recovery',   category: 'capstone', capstone: true, tier: 'legendary', emoji: '🌿', name: 'Well Recovered',   description: 'Topped every Recovery ladder.',
+    requires: ['sleep_100', 'journal_50', 'debrief_52'] },
+  { id: 'capstone_progression', category: 'capstone', capstone: true, tier: 'legendary', emoji: '🌠', name: 'Ascended',        description: 'Topped every Progression ladder.',
+    requires: ['level_apex', 'prestige_5', 'goal_50'] },
+  { id: 'capstone_arena',      category: 'capstone', capstone: true, tier: 'legendary', emoji: '🏆', name: 'Undisputed',       description: 'Topped every Arena ladder.',
+    requires: ['duel_immortal', 'duelplay_100', 'bounty_50', 'gauntlet_path'] },
+  { id: 'capstone_community',  category: 'capstone', capstone: true, tier: 'legendary', emoji: '🧱', name: 'Cornerstone',      description: 'Topped every Crew and Community ladder.',
+    requires: ['crewwar_50', 'post_200', 'comment_100', 'follower_200', 'checkin_365'] },
+  { id: 'capstone_collection', category: 'capstone', capstone: true, tier: 'legendary', emoji: '🗝️', name: 'Curator',          description: 'Topped every Collection ladder.',
+    requires: ['capsule_100', 'relic_25', 'coin_100k', 'market_50'] },
+
+  // The only two-level chain in the catalog: it requires the other
+  // nine capstones, each of which requires its own ladder tops. That is
+  // what the grant engine's fixpoint loop exists for — one call has to
+  // resolve the whole chain, or this would need two visits to unlock.
+  { id: 'capstone_apex',       category: 'capstone', capstone: true, tier: 'legendary', emoji: '♾️', name: 'Flexyn Complete',  description: 'Earned every other capstone.',
+    requires: ['capstone_iron', 'capstone_consistency', 'capstone_endurance', 'capstone_nutrition',
+               'capstone_recovery', 'capstone_progression', 'capstone_arena', 'capstone_community',
+               'capstone_collection'] },
 ];
 
 export const TROPHY_BY_ID = Object.fromEntries(TROPHIES.map(t => [t.id, t]));
@@ -406,6 +529,50 @@ export function nextRung(ladderId, value = 0) {
   if (ladder.tailBase == null) return null;
   const k = Math.floor((value - ladder.tailBase) / ladder.tailStep) + 1;
   return parseLadderTail(`${ladderId}_x${Math.min(Math.max(k, 1), TAIL_CAP)}`);
+}
+
+// ── Prerequisites ─────────────────────────────────────────────────
+//
+// A trophy carrying `requires: [id, …]` is LOCKED until every one of
+// those is earned. Locked means genuinely unobtainable, not merely
+// hidden: migration 324 refuses to grant it even when the numeric
+// threshold is met, so the gate cannot be walked around by hitting the
+// number first. The page keeps locked entries out of the ladders and
+// out of Next up, and counts them in the Locked row instead.
+//
+// Adding a new gate has one rule, and it is not a style preference:
+// **never require something a qualifying user might not have.** A gate
+// that can be missed produces a permanently unearnable badge, and from
+// the outside that is indistinguishable from a bug. Every gate here is
+// strictly implied by the thing it gates.
+
+/** Capstones — earned purely by prerequisite, with no numeric criterion. */
+export const CAPSTONES = TROPHIES.filter(t => t.capstone);
+
+/** True when every prerequisite of `trophy` is in `earnedIds`. */
+export function isUnlocked(trophy, earnedIds) {
+  const reqs = trophy?.requires;
+  if (!reqs || !reqs.length) return true;
+  const owned = earnedIds instanceof Set ? earnedIds : new Set(earnedIds || []);
+  return reqs.every(id => owned.has(id));
+}
+
+/** The prerequisites of `trophy`, each resolved and marked done / not. */
+export function requirementsFor(trophy, earnedIds) {
+  const owned = earnedIds instanceof Set ? earnedIds : new Set(earnedIds || []);
+  return (trophy?.requires || []).map(id => {
+    const req = getTrophy(id);
+    return { id, name: req?.name || id, emoji: req?.emoji || '🔒', done: owned.has(id) };
+  });
+}
+
+/**
+ * Everything still locked for this user: not earned, and with at least
+ * one prerequisite outstanding. This is what the Locked row counts.
+ */
+export function lockedTrophies(earnedIds) {
+  const owned = earnedIds instanceof Set ? earnedIds : new Set(earnedIds || []);
+  return TROPHIES.filter(t => !owned.has(t.id) && !isUnlocked(t, owned));
 }
 
 /**

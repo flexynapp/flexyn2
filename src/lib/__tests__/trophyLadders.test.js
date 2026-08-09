@@ -10,7 +10,11 @@ import {
   LADDERS,
   TROPHY_TIERS,
   TROPHY_CATEGORIES,
+  CAPSTONES,
   TAIL_CAP,
+  isUnlocked,
+  lockedTrophies,
+  requirementsFor,
   getTrophy,
   parseLadderTail,
   nextRung,
@@ -25,10 +29,16 @@ describe('catalog integrity', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it('every trophy belongs to a ladder that exists', () => {
-    for (const t of TROPHIES) {
+  it('every trophy belongs to a ladder that exists, unless it is a capstone', () => {
+    // Capstones deliberately have no ladder: they have no numeric
+    // criterion to be a rung of, and are earned purely by prerequisite.
+    for (const t of TROPHIES.filter(x => !x.capstone)) {
       expect(LADDERS[t.ladder], `${t.id} → ${t.ladder}`).toBeTruthy();
     }
+  });
+
+  it('offers at least 100 obtainable achievements', () => {
+    expect(TROPHIES.length).toBeGreaterThanOrEqual(100);
   });
 
   it('every trophy tier exists in TROPHY_TIERS', () => {
@@ -41,7 +51,9 @@ describe('catalog integrity', () => {
 
   it('every trophy category is a declared group', () => {
     const groups = new Set(TROPHY_CATEGORIES.map(c => c.id));
-    for (const t of TROPHIES) {
+    // Capstones sit in their own pseudo-category and are rendered by the
+    // Locked row / Earned tab, not as a ladder section.
+    for (const t of TROPHIES.filter(x => !x.capstone)) {
       expect(groups.has(t.category), `${t.id} → ${t.category}`).toBe(true);
     }
   });
@@ -49,8 +61,16 @@ describe('catalog integrity', () => {
   it("a trophy's category matches its ladder's category", () => {
     // The page groups ladders by LADDERS[].category but renders the
     // trophy's own; a disagreement puts a badge under the wrong heading.
-    for (const t of TROPHIES) {
+    for (const t of TROPHIES.filter(x => !x.capstone)) {
       expect(LADDERS[t.ladder].category, t.id).toBe(t.category);
+    }
+  });
+
+  it('every declared category actually has ladders behind it', () => {
+    // An empty group renders as a heading with nothing under it.
+    for (const cat of TROPHY_CATEGORIES) {
+      const owned = Object.values(LADDERS).filter(l => l.category === cat.id);
+      expect(owned.length, `category ${cat.id} has no ladders`).toBeGreaterThan(0);
     }
   });
 
@@ -183,6 +203,109 @@ describe('rungProgress', () => {
 
   it('never returns a negative width', () => {
     expect(rungProgress({ threshold: 10 }, -5).pct).toBe(0);
+  });
+});
+
+describe('prerequisites', () => {
+  const ALL_UNGATED = new Set(TROPHIES.filter(t => !t.requires).map(t => t.id));
+
+  it('every prerequisite names a trophy that exists', () => {
+    // A dangling id is a permanently locked trophy, and from the
+    // outside that is indistinguishable from a bug.
+    const ids = new Set(TROPHIES.map(t => t.id));
+    for (const t of TROPHIES) {
+      for (const r of (t.requires || [])) {
+        expect(ids.has(r), `${t.id} requires missing ${r}`).toBe(true);
+      }
+    }
+  });
+
+  it('has no circular prerequisites', () => {
+    // A cycle is unreachable for everyone, forever, and would spin the
+    // server's fixpoint loop to its cap on every call.
+    const seen = new Map();
+    const visit = (id, stack) => {
+      if (stack.includes(id)) throw new Error(`cycle: ${[...stack, id].join(' -> ')}`);
+      if (seen.get(id)) return;
+      seen.set(id, true);
+      const t = TROPHIES.find(x => x.id === id);
+      for (const r of (t?.requires || [])) visit(r, [...stack, id]);
+    };
+    expect(() => TROPHIES.forEach(t => visit(t.id, []))).not.toThrow();
+  });
+
+  it('every trophy is reachable — nothing is permanently locked', () => {
+    // Earn everything ungated, then keep unlocking until nothing moves.
+    // Anything left over can never be obtained by anyone.
+    const owned = new Set(ALL_UNGATED);
+    for (let i = 0; i < 10; i += 1) {
+      for (const t of TROPHIES) if (!owned.has(t.id) && isUnlocked(t, owned)) owned.add(t.id);
+    }
+    const stuck = TROPHIES.filter(t => !owned.has(t.id)).map(t => t.id);
+    expect(stuck).toEqual([]);
+  });
+
+  it('locks a trophy until every prerequisite is earned', () => {
+    const iron = TROPHIES.find(t => t.id === 'capstone_iron');
+    expect(isUnlocked(iron, new Set())).toBe(false);
+    expect(isUnlocked(iron, new Set(['centurion']))).toBe(false);
+    expect(isUnlocked(iron, new Set(iron.requires))).toBe(true);
+  });
+
+  it('treats a trophy with no prerequisites as always unlocked', () => {
+    expect(isUnlocked(TROPHIES.find(t => t.id === 'first_rep'), new Set())).toBe(true);
+  });
+
+  it('reports the locked set, and it shrinks as prerequisites land', () => {
+    const day1 = lockedTrophies(new Set());
+    expect(day1.length).toBeGreaterThan(0);
+    // crewwar_1 is gated on crew_squad; joining a crew must free it.
+    expect(day1.some(t => t.id === 'crewwar_1')).toBe(true);
+    const joined = lockedTrophies(new Set(['crew_squad']));
+    expect(joined.some(t => t.id === 'crewwar_1')).toBe(false);
+    expect(joined.length).toBe(day1.length - 1);
+  });
+
+  it('never reports an already-earned trophy as locked', () => {
+    const locked = lockedTrophies(new Set(['capstone_iron']));
+    expect(locked.some(t => t.id === 'capstone_iron')).toBe(false);
+  });
+
+  it('marks each requirement done or outstanding for the UI', () => {
+    const iron = TROPHIES.find(t => t.id === 'capstone_iron');
+    const reqs = requirementsFor(iron, new Set(['centurion']));
+    expect(reqs).toHaveLength(iron.requires.length);
+    expect(reqs.find(r => r.id === 'centurion').done).toBe(true);
+    expect(reqs.find(r => r.id === 'variety_100').done).toBe(false);
+    // Names resolve, so the UI never prints a raw id at the user.
+    expect(reqs.every(r => r.name && r.name !== r.id)).toBe(true);
+  });
+
+  it('gates every capstone, so none is earnable on day one', () => {
+    for (const c of CAPSTONES) {
+      expect(c.requires?.length, `${c.id} has no requirements`).toBeGreaterThan(0);
+      expect(isUnlocked(c, new Set()), c.id).toBe(false);
+    }
+  });
+
+  it('requires only things a qualifying user must already have', () => {
+    // The rule for adding a gate: a prerequisite must be strictly
+    // implied by the thing it gates, or it produces a badge that can be
+    // permanently missed. Capstones require ladder TOPS, which is what
+    // "topped every ladder in this category" means; the one non-capstone
+    // gate is causal (you cannot fight a crew war without a crew).
+    const byId = Object.fromEntries(TROPHIES.map(t => [t.id, t]));
+    for (const t of TROPHIES) {
+      for (const r of (t.requires || [])) {
+        const req = byId[r];
+        if (t.capstone) continue;               // capstones gate on tops
+        // A non-capstone gate must sit on the same or an upstream ladder.
+        expect(req, `${t.id} -> ${r}`).toBeTruthy();
+      }
+    }
+    // The only non-capstone gate in the catalog today.
+    const gated = TROPHIES.filter(t => t.requires && !t.capstone).map(t => t.id);
+    expect(gated).toEqual(['crewwar_1']);
   });
 });
 

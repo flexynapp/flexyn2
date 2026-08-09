@@ -40,6 +40,9 @@ import {
   nextRung,
   rungProgress,
   getTrophy,
+  isUnlocked,
+  lockedTrophies,
+  requirementsFor,
 } from '@/lib/trophyDefinitions';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useDateFormatter, useNumberFormatter } from '@/lib/intl';
@@ -98,6 +101,11 @@ function LadderRow({ ladderId, earnedIds, signal, fmtNum }) {
   // A ladder with no live rung has genuinely ended (the deliberate dead
   // ends). Say so, rather than rendering an empty progress bar.
   const finished = !live;
+  // A ladder whose next rung is gated shows the gate instead of a bar.
+  // Rendering "0 / 1 wars" at someone who is not in a crew reads as a
+  // task they are failing rather than one they have not opened yet.
+  const gated = !!live && !isUnlocked(live, earnedIds);
+  const gate = gated ? requirementsFor(live, earnedIds).filter((r) => !r.done) : [];
 
   const prog = live ? rungProgress(live, signal) : null;
 
@@ -122,6 +130,13 @@ function LadderRow({ ladderId, earnedIds, signal, fmtNum }) {
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <Check className="w-3.5 h-3.5 text-success" />
           Ladder complete.
+        </div>
+      ) : gated ? (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Lock className="w-3.5 h-3.5 shrink-0" />
+          <span className="truncate">
+            Unlocks with {gate.map((r) => r.name).join(', ')}
+          </span>
         </div>
       ) : (
         <div className="flex items-start gap-2">
@@ -230,14 +245,21 @@ export default function AchievementsTab({ trophies = [], progress = {}, user = n
       .map((id) => {
         const value = signalFor(id);
         const rung = nextRung(id, value);
-        if (!rung) return null;
+        // Locked rungs are not "next" — offering something the server
+        // would refuse to grant is worse than offering nothing.
+        if (!rung || !isUnlocked(rung, earnedIds)) return null;
         return { ladderId: id, rung, value, pct: rungProgress(rung, value).pct };
       })
       .filter(Boolean);
     candidates.sort((a, b) => b.pct - a.pct);
     return candidates.slice(0, NEXT_UP_COUNT);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [progress]);
+  }, [progress, earnedIds]);
+
+  // Everything still gated behind an unearned prerequisite. Counted and
+  // listed at the bottom so the catalog's depth is visible without
+  // padding the ladders with entries nobody can act on yet.
+  const locked = useMemo(() => lockedTrophies(earnedIds), [earnedIds]);
 
   const earnedRows = useMemo(() => {
     // Rows carry earned_at; resolve each through getTrophy so generated
@@ -356,6 +378,63 @@ export default function AchievementsTab({ trophies = [], progress = {}, user = n
                 </div>
               );
             })}
+
+            {/* Locked — the last row on the page. These are gated behind
+                other achievements rather than a number, so they carry
+                what unlocks them instead of a progress bar. */}
+            {locked.length > 0 && (
+              <div>
+                <h3 className="font-heading font-bold text-sm mb-1 flex items-center justify-between">
+                  <span>
+                    <Lock className="inline w-3.5 h-3.5 me-1.5 align-[-2px]" aria-hidden="true" />
+                    {tFallback('progress.locked', 'Locked')}
+                  </span>
+                  <span className="text-xs font-normal text-muted-foreground tabular-nums">
+                    {locked.length}
+                  </span>
+                </h3>
+                <div className="rounded-xl bg-card px-3">
+                  {locked.map((t) => {
+                    const reqs = requirementsFor(t, earnedIds);
+                    const done = reqs.filter((r) => r.done).length;
+                    return (
+                      <div key={t.id} className="py-3 border-b border-border last:border-b-0">
+                        <div className="flex items-start gap-2">
+                          <Medallion trophy={t} earned={false} size={28} />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-baseline justify-between gap-2">
+                              <span className="text-sm font-semibold truncate">{t.name}</span>
+                              <span className="text-xs text-muted-foreground tabular-nums shrink-0">
+                                {done} / {reqs.length}
+                              </span>
+                            </div>
+                            <p className="text-xs text-muted-foreground">{t.description}</p>
+                            {/* Naming the outstanding requirements is the
+                                whole point — a locked badge with no stated
+                                route is just a tease. */}
+                            <div className="flex flex-wrap gap-1 mt-1.5">
+                              {reqs.map((r) => (
+                                <span
+                                  key={r.id}
+                                  className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-micro ${
+                                    r.done
+                                      ? 'bg-success/15 text-success'
+                                      : 'bg-muted text-muted-foreground'
+                                  }`}
+                                >
+                                  {r.done ? <Check className="w-2.5 h-2.5" /> : <Lock className="w-2.5 h-2.5" />}
+                                  {r.name}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </motion.div>
         ) : (
           <motion.div
