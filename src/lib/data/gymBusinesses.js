@@ -123,9 +123,10 @@ export async function leaveGym(gymId) {
  * on a gym wall used to hit a bare sign-in prompt that never named the gym
  * they were standing in.
  *
- * Safe for `anon`: gym_businesses carries a "Public can view active gyms"
- * SELECT policy, so this reads nothing the map doesn't already show — and
- * the code itself is printed on the wall being scanned.
+ * Goes through get_gym_id_by_code (mig 325) rather than reading the table.
+ * The blanket anon SELECT policy is gone — it exposed every gym's join
+ * code, street address, phone and coordinates to anyone holding the anon
+ * key, which ships in the bundle. The RPC returns identity only.
  *
  * @returns {Promise<{id: string, name: string}|null>} null on a bad code,
  *          an unknown code, an inactive gym, or a failed lookup.
@@ -133,14 +134,27 @@ export async function leaveGym(gymId) {
 export async function getGymByCode(code) {
   const cleaned = String(code || '').trim().toUpperCase().replace(/[^A-HJ-NP-Z2-9]/g, '');
   if (cleaned.length !== 8) return null;
-  const { data, error } = await supabase
-    .from('gym_businesses')
-    .select('id, name')
-    .eq('flexyn_code', cleaned)
-    .eq('is_active', true)
-    .maybeSingle();
+  const { data, error } = await supabase.rpc('get_gym_id_by_code', { p_code: cleaned });
   if (error) return null;
-  return data || null;
+  return (Array.isArray(data) ? data[0] : data) || null;
+}
+
+/**
+ * The public card for one gym: what a signed-out visitor may see.
+ *
+ * Name, city, photos and member count — never the join code, the
+ * coordinates or the contact details. Backs both this app's /p/gym/:id
+ * and, once it is live, the same path on the marketing site.
+ *
+ * @returns {Promise<object|null>} null when the gym is unknown, inactive
+ *          or the lookup failed; callers that must tell those apart
+ *          should check `error` themselves.
+ */
+export async function getGymPublicCard(gymId) {
+  if (!gymId) return null;
+  const { data, error } = await supabase.rpc('get_gym_public_card', { p_gym_id: gymId });
+  if (error) throw error;
+  return (Array.isArray(data) ? data[0] : data) || null;
 }
 
 /** "My Gyms" dashboard query — joined gyms with full gym row inline. */

@@ -9,10 +9,13 @@
 // and are prompted to join Flexyn. Authenticated users get a prominent
 // "Enter Hub" button that takes them to the full /gym/:id experience.
 //
-// Data:
-//   • gym_businesses: anon SELECT allowed by migration 142 policy.
-//   • gym_members: anon SELECT allowed by migration 142 policy.
-//     We read count(*) only — no PII exposed.
+// Data: get_gym_public_card(id) — one anon-callable RPC (mig 325).
+//
+// It used to SELECT gym_businesses directly, under a blanket anon policy
+// that also handed out every gym's join code, street address, phone and
+// coordinates to anyone with the anon key. That policy is gone; the card
+// is the subset a signed-out visitor has a use for. Nothing else on this
+// page reads the database.
 
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -23,7 +26,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/AuthContext';
-import { supabase } from '@/api/supabaseClient';
+import { getGymPublicCard } from '@/lib/data/gymBusinesses';
 
 // Amenity slug → display label
 const AMENITY_LABELS = {
@@ -62,17 +65,18 @@ export default function PublicGymLanding() {
     if (!id) { setNotFound(true); return; }
     let cancelled = false;
     setLoadFailed(false);
-    supabase
-      .from('gym_businesses')
-      .select('id, name, logo_url, cover_url, city, state_code, member_count, amenities, photo_urls, is_active')
-      .eq('id', id)
-      .maybeSingle()
-      .then(({ data, error }) => {
+    // Through get_gym_public_card (mig 325), not the table. The blanket
+    // anon SELECT this used to rely on handed out every gym's join code,
+    // street address, phone and coordinates to anyone with the anon key —
+    // which is in the bundle. The card is the subset a signed-out visitor
+    // has any use for, and inactive gyms return no row at all, so the
+    // is_active check that used to live here now lives in the function.
+    getGymPublicCard(id)
+      .then((data) => {
         if (cancelled) return;
-        // A query error is a failed lookup, not an absent gym. Only a clean
-        // response with no row — or an inactive one — means "not found".
-        if (error) { setLoadFailed(true); return; }
-        if (!data || !data.is_active) { setNotFound(true); return; }
+        // A thrown error is a failed lookup, not an absent gym. Only a
+        // clean response with no row means "not found".
+        if (!data) { setNotFound(true); return; }
         setGym(data);
       })
       // THE FIX. There was no catch here, so a network failure rejected the
