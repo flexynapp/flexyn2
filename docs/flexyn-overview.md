@@ -16,7 +16,7 @@ leaderboards (friend / global / gym / league) → post to the Hub feed
 
 Five top-level routes (Dashboard, Workout, Hub, Progress, Nutrition)
 plus four hoisted destinations (Messages, Market, Coach, Onboarding)
-and now a gym sub-ecosystem (/my-gyms, /gym/:id, /gym-map,
+and now a gym sub-ecosystem (/my-gym, /gym/:id, /gym-map,
 /register-gym, /admin/gyms). 15 supported languages. iOS / Android /
 desktop installable PWA.
 
@@ -91,7 +91,9 @@ regimen, goal, milestone). Peer-to-peer coin gifting.
   search by name/city, 25 demo gyms seeded across US metros
 - QR scanner for the join-by-code flow
 - Owner printable signage (QR + code on quarter-page poster)
-- "My Gyms" dashboard with near-you discovery rail
+- "My Gym" — one page for the gym you train at (leaderboard +
+  community progress) and every gym you've joined. /my-gyms was
+  folded into it on 2026-08-09 and redirects there.
 - Owner edit-gym surface (logo / cover / description / hours /
   amenities / gallery / contact info / map pin)
 - Push notification to owner on member join
@@ -134,6 +136,7 @@ Each "wave" is one product theme shipped over a handful of commits.
   bounce, AnimatedNumber + TapToCopy rollout)
 - **Wave U** — gym foundation: schema + lib (mig 135), Register Gym,
   My Gyms, Gym Hub, national map, admin verification dashboard
+  (My Gyms merged into My Gym, 2026-08-09)
 - **Wave V** — discover, admin, QR scan, printable signage
 - **Wave W** — owner edit, leave gym, share gym, member-join
   notifications (mig 136)

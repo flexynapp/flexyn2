@@ -1382,6 +1382,21 @@ the ONE that is theirs.
   identical to a dead button. That is most of why this feature took four
   rounds to land. They still pass an Undo action, which is the right
   affordance for a one-tap commit regardless of the policy.
+- **`/my-gym` and `/my-gyms` are one page as of 2026-08-09.** They were
+  two routes behind two profile-menu rows a single line apart, told apart
+  only by the plural, and both reachable only from that menu. `MyGym.jsx`
+  now holds both halves: the gym you train at (leaderboard, community
+  progress) above a single 32px break, every OTHER gym you've joined
+  below it with join-by-code, the map and the owner CTA. `/my-gyms`
+  **redirects** and must keep doing so — the 8-character Flexyn Code
+  printed on gym signage tells people to open it, and printed signage
+  can't be recalled. The design is the Penpot page "My Gym — one page
+  (merge of /my-gym + /my-gyms)"; board C is the element ledger.
+  Two things that fall out of the merge: the joined list filters out the
+  home gym (setting a home gym joins it, so without the filter everyone
+  sees their gym twice), and the separate geolocated "Near you" rail is
+  gone because it only appeared when you had joined no gyms — which now
+  means the picker is on screen doing the same lookup.
 - **Tapping a gym in the My Gym picker SAVES it — no confirm step.** It
   was select-then-press-a-button, and the selected row's ✓ read as
   "saved" when it only meant "highlighted", so a pick sat uncommitted
