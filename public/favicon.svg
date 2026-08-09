@@ -1,4 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 489 491" width="489" height="491" role="img" aria-label="Flexyn">
+<!--
+  viewBox squared to 491×491 (was 489×491). An icon slot is square, and the
+  default preserveAspectRatio letterboxes a non-square viewBox to fit — which
+  left ~1px transparent slivers down the left and right edges, the same
+  white-halo defect as the rounded corners below, just thinner.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 491 491" width="491" height="491" role="img" aria-label="Flexyn">
   <!--
     Flexyn app icon, Iron Orange theme. Symbol auto-traced from the original
     artwork (exact shape preserved), rebuilt as vector for crisp edges at any size.
@@ -12,8 +18,24 @@
       <stop offset="100%" stop-color="#c2410c"/>
     </linearGradient>
   </defs>
-  <rect x="5" y="5" width="479" height="481" rx="40" fill="#3F4D5A"/>
-  <g transform="scale(0.25)" fill="url(#flexynFire)" fill-rule="evenodd">
+  <!--
+    FULL-BLEED, and deliberately not rounded. This rect used to be inset 5px
+    with rx="40", so the tile carried its own rounded corners and everything
+    outside them was transparent. Every platform that masks an app icon then
+    composited that transparency over WHITE, which is the white border you see
+    around the tile once Flexyn is installed to a home screen.
+
+    Rounding is the operating system's job — iOS, Android and desktop each
+    apply their own corner radius, and they differ. Supply a square, opaque
+    tile and let the OS cut it; supply a pre-rounded one and you get the
+    platform's radius with your radius showing through as a halo.
+
+    This file is also referenced as an apple-touch-icon fallback in
+    index.html, and iOS does not honour transparency there at all.
+  -->
+  <rect x="0" y="0" width="491" height="491" fill="#3F4D5A"/>
+  <!-- +1px to keep the mark centred after the 2px width increase above. -->
+  <g transform="translate(1,0) scale(0.25)" fill="url(#flexynFire)" fill-rule="evenodd">
     <g transform="translate(0.000000,1964.000000) scale(0.100000,-0.100000)">
       <path d="M13127 14393 c-4 -3 -7 -19 -7 -34 0 -18 -7 -32 -20 -39 -17 -9 -20
 -21 -20 -80 0 -59 -3 -71 -20 -80 -16 -8 -20 -21 -20 -60 0 -39 -4 -52 -20
