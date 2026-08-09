@@ -5,21 +5,14 @@ import { motion } from 'framer-motion';
 import { Coins, Zap, Lock, Heart, Star } from 'lucide-react';
 import * as itemSoldCounts from '@/lib/data/itemSoldCounts';
 import { displayName } from '@/lib/userDisplay';
+import { tileRow } from '@/lib/tileRows';
 import {
   RarityBadge, RarityFrame, RarityGlow, CoinAmount,
 } from '@/components/loot/RarityVisuals';
 
-// The width half of MarketplaceFeed's LISTING_ROW — the two only work as a
-// pair, so change them together. The feed's row wraps and centres instead of
-// laying cards out on grid tracks (a grid strands a partial last row on the
-// left), which leaves nothing to size a card, so it carries its own width.
-//
-// A calc rather than a flat percentage because the row is gap-3: at 12px gaps
-// a percentage low enough to survive a narrow phone is visibly thinner than
-// the track it replaces, and one matching the track on a wide phone overflows
-// a narrow one and drops 2-up to 1-up. This reproduces the grid column exactly
-// at any width, less 1px so rounding can't wrap the last card of a full row.
-const FEED_TILE = 'shrink-0 basis-[calc((100%_-_0.75rem)/2_-_1px)] sm:basis-[calc((100%_-_1.5rem)/3_-_1px)]';
+// The width half of MarketplaceFeed's listings row. Same spec passed to the
+// same helper, so the pair cannot drift — see src/lib/tileRows.js.
+const FEED_TILE = tileRow({ gap: 3, cols: 2, smCols: 3 }).item;
 
 export default function ListingCard({
   listing,

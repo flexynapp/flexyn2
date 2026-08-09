@@ -14,6 +14,7 @@ import { LOOT_FRAMES } from '@/lib/lootFrames';
 // LOOT_TITLES is still used by pickItemForRoll for title items.
 import { LOOT_TITLES } from '@/lib/lootTitles';
 import { THEMES_ENABLED } from '@/lib/featureFlags';
+import { tileRow } from '@/lib/tileRows';
 import { supabase } from '@/api/supabaseClient';
 import { triggerHaptic } from '@/lib/haptic';
 import StickerDisplay from './StickerDisplay';
@@ -26,6 +27,11 @@ import CapsuleStreak from './CapsuleStreak';
 const CollectionModal = lazy(() => import('@/components/loot/CollectionModal'));
 
 // ─── Constants ────────────────────────────────────────────────────────────────
+// The batch haul: 3 cards per row on a phone, 5 from sm. Wrapped and centred
+// rather than laid out on grid tracks — see src/lib/tileRows.js for why every
+// collection in the app is built this way.
+const HAUL = tileRow({ gap: 2, cols: 3, smCols: 5 });
+
 const CARD_W     = 130; // px
 const CARD_GAP   = 12;  // px
 // Stride is derived per-reel now (CapsuleReel takes a cardW), because a
@@ -725,12 +731,7 @@ function BatchCard({ entry, isBest, delay }) {
   const tint = rarityTint(item.rarity);
   return (
     <motion.div
-      // basis-31% / basis-18% reproduce the 3-up and 5-up columns the haul
-      // used to get from a grid, a couple of points under an exact third
-      // and fifth so sub-pixel rounding can never bump the last card of a
-      // full row onto its own line. The card owns its width because the
-      // haul now wraps and centres rather than laying out on tracks.
-      className="relative shrink-0 basis-[31%] sm:basis-[18%] flex flex-col items-center justify-center rounded-xl border-2 bg-card p-2 gap-1 text-center min-h-[92px]"
+      className={`relative ${HAUL.item} flex flex-col items-center justify-center rounded-xl border-2 bg-card p-2 gap-1 text-center min-h-[92px]`}
       style={{ borderColor: tint.border, boxShadow: isBest ? tint.glow : undefined }}
       initial={{ scale: 0.6, opacity: 0, y: 8 }}
       animate={{ scale: 1, opacity: 1, y: 0 }}
@@ -1209,16 +1210,9 @@ export default function CapsuleOpener({ capsule, batch, onClaim, onClaimBatch, o
                 {results.length} opened
               </p>
 
-              {/* Wrap-and-centre, NOT a grid. A grid packs a short row into
-                  its leading columns, so a two-capsule open rendered two
-                  cards jammed against the panel's left edge with a dead
-                  third column beside them — and every count that isn't a
-                  multiple of the column count did the same to its LAST row
-                  (4 → 3 + 1 adrift on the left, 10 → 3/3/3 + 1). The haul is
-                  the payoff shot; it has to sit under the centre of the panel
-                  at any count. Cards carry their own width so they stay the
-                  same size whether you opened two or ten. */}
-              <div className="relative z-10 w-full flex flex-wrap justify-center gap-2">
+              {/* The haul is the payoff shot, so it sits under the centre of
+                  the panel at any count — see HAUL at the top of this file. */}
+              <div className={`relative z-10 w-full ${HAUL.row}`}>
                 {results.map((entry, i) => (
                   <BatchCard
                     key={entry.capsuleId}

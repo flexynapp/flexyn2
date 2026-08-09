@@ -44,6 +44,7 @@ import {
 } from '@/lib/collection';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { RarityBadge, rarityTint, CoinAmount } from './RarityVisuals';
+import { tileRow } from '@/lib/tileRows';
 
 // Tiers that get the premium treatment — gradient, glow, sheen. Kept
 // deliberately short: if everything shimmers, nothing does.
@@ -55,19 +56,10 @@ const FILTERS = [
   { id: 'missing', label: 'Missing' },
 ];
 
-// The tile grid is wrapped-and-centred rather than a `grid-cols-3`. A grid
-// packs a partial row into its LEADING columns, and this screen renders one
-// grid per rarity tier — so every tier whose count isn't a multiple of the
-// column count left its last row hanging off the left edge, seven times down
-// a single scroll. Wrapping centres each row at any count.
-//
-// The tiles carry their own width now that there are no tracks to size them.
-// 31% / 18% reproduce the 3-up and 5-up columns the grid gave, a couple of
-// points under an exact third and fifth so sub-pixel rounding can't bump the
-// last tile of a full row onto its own line. Both halves must move together:
-// a ROW without a TILE width collapses every tile to its content.
-const TILE_ROW  = 'flex flex-wrap justify-center gap-2';
-const TILE_SIZE = 'shrink-0 basis-[31%] sm:basis-[18%]';
+// One row per rarity tier, so a partial last row was the rule rather than the
+// exception here — five of the six tiers hold fewer than five items. Wrapped
+// and centred at 3 per row on a phone, 5 from sm; see src/lib/tileRows.js.
+const TILE = tileRow({ gap: 2, cols: 3, smCols: 5 });
 
 // ─── Completion ring ──────────────────────────────────────────────────────────
 /**
@@ -158,7 +150,7 @@ function Slot({ item, onSelect, index }) {
       transition={{ duration: 0.25, delay: Math.min(index, 18) * 0.012 }}
       whileTap={{ scale: 0.94 }}
       aria-label={`${item.name} — ${locked ? 'not collected' : 'collected'}, ${tint.label}`}
-      className={`group relative overflow-hidden rounded-xl p-2 flex flex-col items-center justify-center text-center gap-1.5 min-h-[92px] transition-shadow ${TILE_SIZE} ${
+      className={`group relative overflow-hidden rounded-xl p-2 flex flex-col items-center justify-center text-center gap-1.5 min-h-[92px] transition-shadow ${TILE.item} ${
         premium ? 'coll-sheen' : ''
       }`}
       style={{
@@ -581,9 +573,9 @@ export default function CollectionModal({ open, onClose, initialTab = 'stickers'
                 {/* Grid */}
                 <div className="flex-1 overflow-y-auto px-4 pb-3 space-y-5">
                   {isLoading ? (
-                    <div className={TILE_ROW}>
+                    <div className={TILE.row}>
                       {Array.from({ length: 15 }).map((_, i) => (
-                        <div key={i} className={`h-[92px] rounded-xl bg-secondary/40 animate-pulse ${TILE_SIZE}`} />
+                        <div key={i} className={`h-[92px] rounded-xl bg-secondary/40 animate-pulse ${TILE.item}`} />
                       ))}
                     </div>
                   ) : visibleCount === 0 ? (
@@ -644,7 +636,7 @@ export default function CollectionModal({ open, onClose, initialTab = 'stickers'
                             {group.owned}/{group.total}
                           </span>
                         </div>
-                        <div className={TILE_ROW}>
+                        <div className={TILE.row}>
                           {group.items.map((item, i) => (
                             <Slot key={item.id} item={item} index={i} onSelect={setSelected} />
                           ))}

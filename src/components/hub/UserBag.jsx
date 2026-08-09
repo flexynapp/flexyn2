@@ -31,6 +31,7 @@ import StickerDisplay from './StickerDisplay';
 import { reportError } from '@/lib/reportError';
 import CoinShopModal from './CoinShopModal';
 import { useNumberFormatter } from '@/lib/intl';
+import { tileRow } from '@/lib/tileRows';
 
 // Lazy — the Collection pulls in every catalog (themes alone is ~800
 // lines) and only mounts on an explicit tap.
@@ -58,35 +59,15 @@ const CAPSULE_META = {
 // loot primitives so the Bag, the Marketplace and the Capsule Opener can't
 // drift apart again.
 
-// Tile rows wrap and centre instead of sitting on grid tracks. A grid packs
-// a partial last row into its LEADING columns, so any inventory whose count
-// isn't a multiple of the column count left its final tiles hard against the
-// left edge — and an inventory count is arbitrary by nature, so that was the
-// common case rather than the edge case. Same fix as the capsule haul and the
-// collection catalog.
-//
-// The width is a calc rather than a flat percentage because these rows use
-// gap-3, not gap-2. At 12px gaps a percentage low enough to survive a 320px
-// phone is visibly narrower than the track it replaces, and one that matches
-// the track on a big phone overflows a small one and wraps 3-up down to 2.
-// The calc reproduces the grid column exactly at every width — minus 1px, so
-// sub-pixel rounding can't bump the last tile of a FULL row onto its own line.
-// Row and width must move together: a row with no tile width collapses every
-// tile to its content.
-const TILE_ROW = 'flex flex-wrap justify-center gap-3';
-// 3-up on a phone, 4-up from sm — capsules, stickers, themes.
-const TILE_3_4 = 'shrink-0 basis-[calc((100%_-_1.5rem)/3_-_1px)] sm:basis-[calc((100%_-_2.25rem)/4_-_1px)]';
-// 2-up on a phone, 3-up from sm — frames, which carry a bigger avatar.
-const TILE_2_3 = 'shrink-0 basis-[calc((100%_-_0.75rem)/2_-_1px)] sm:basis-[calc((100%_-_1.5rem)/3_-_1px)]';
-
-// Titles are list ROWS, not tiles, so they get their own pair: gap-2 rather
-// than gap-3, and full width on a phone. `basis-full` makes the phone case a
-// single column exactly as `grid-cols-1` did — one item per row, so centring
-// is a no-op there and the left reading edge is untouched. It only bites at
-// sm and up, where an odd title count used to leave the last row sitting in
-// the left column.
-const LIST_ROW  = 'flex flex-wrap justify-center gap-2';
-const LIST_ITEM = 'shrink-0 basis-full sm:basis-[calc((100%_-_0.5rem)/2_-_1px)]';
+// An inventory count is arbitrary by nature, so a partial last row was the
+// common case in every one of these — see src/lib/tileRows.js for what a grid
+// did with one and why they all wrap and centre now.
+const TILE  = tileRow({ gap: 3, cols: 3, smCols: 4 }); // capsules, stickers, themes
+const FRAME = tileRow({ gap: 3, cols: 2, smCols: 3 }); // frames — bigger avatar
+// Titles are list ROWS, not tiles: one per row on a phone, so centring is a
+// no-op there and the left reading edge is untouched. It only takes effect
+// from sm, where an odd count used to leave the last row in the left column.
+const TITLE = tileRow({ gap: 2, cols: 1, smCols: 2 });
 
 // ─── Capsule card ─────────────────────────────────────────────────────────────
 // Exported for the regression test only — nothing else imports it, and the
@@ -103,7 +84,7 @@ export function CapsuleCard({ capsuleRow, onOpenCapsule }) {
       layout
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
-      className={`flex flex-col items-center p-3 gap-2 text-center ${TILE_3_4}`}
+      className={`flex flex-col items-center p-3 gap-2 text-center ${TILE.item}`}
     >
       <CapsuleIcon type={capsuleRow.capsule_type || 'standard'} size={56} />
       <span className="text-xs font-semibold leading-tight">{meta.name}</span>
@@ -171,7 +152,7 @@ function StickerGroupCard({ group, onSell, selling }) {
       layout
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
-      className={`flex flex-col items-center p-3 gap-2 text-center ${TILE_3_4}`}
+      className={`flex flex-col items-center p-3 gap-2 text-center ${TILE.item}`}
     >
       {/* Duplicate count badge */}
       {count > 1 && (
@@ -235,7 +216,7 @@ function ThemeCard({ item, activeLootThemeId, onApply }) {
       // feedback without animating the entire grid.
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
-      className={`flex flex-col items-center p-3 gap-2 text-center ${TILE_3_4} ${isActive ? 'shadow-lg shadow-primary/20' : ''}`}
+      className={`flex flex-col items-center p-3 gap-2 text-center ${TILE.item} ${isActive ? 'shadow-lg shadow-primary/20' : ''}`}
     >
       {/* Preview swatches */}
       {lootTheme?.preview && (
@@ -390,7 +371,7 @@ function TitleList({ items, userId }) {
   });
 
   return (
-    <div className={LIST_ROW}>
+    <div className={TITLE.row}>
       {unique.map(item => {
         const isEquipped = equippedId === item.item_id;
         const tint = rarityTint(item.item_rarity);
@@ -398,7 +379,7 @@ function TitleList({ items, userId }) {
           <button
             key={item.id}
             onClick={() => equip(item.item_id)}
-            className={`flex items-center gap-3 p-3 rounded-lg border transition-colors text-start ${LIST_ITEM} ${
+            className={`flex items-center gap-3 p-3 rounded-lg border transition-colors text-start ${TITLE.item} ${
               isEquipped ? 'border-primary bg-primary/10' : 'border-border bg-secondary/50 hover:bg-secondary active:bg-secondary'
             }`}
           >
@@ -507,7 +488,7 @@ function FrameList({ items, userId }) {
   });
 
   return (
-    <div className={TILE_ROW}>
+    <div className={FRAME.row}>
       {unique.map(item => {
         const isEquipped = equippedId === item.item_id;
         const frameDef = getLootFrameById(item.item_id);
@@ -516,7 +497,7 @@ function FrameList({ items, userId }) {
           <button
             key={item.id}
             onClick={() => equip(item.item_id)}
-            className={`flex flex-col items-center gap-2 p-3 rounded-lg border transition-colors ${TILE_2_3} ${
+            className={`flex flex-col items-center gap-2 p-3 rounded-lg border transition-colors ${FRAME.item} ${
               isEquipped ? 'border-primary bg-primary/10' : 'border-border bg-secondary/50 hover:bg-secondary active:bg-secondary'
             }`}
           >
@@ -948,7 +929,7 @@ export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBat
                         </button>
                       );
                     })}
-                  <motion.div layout className={TILE_ROW}>
+                  <motion.div layout className={TILE.row}>
                     {fCapsules.map(row => (
                       <CapsuleCard key={row.id} capsuleRow={row} onOpenCapsule={onOpenCapsule} />
                     ))}
@@ -987,7 +968,7 @@ export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBat
                           : `Sell all duplicates · ${duplicateSales.length} extra · ${COIN} ${duplicateTotal}`}
                     </button>
                   )}
-                  <motion.div layout className={TILE_ROW}>
+                  <motion.div layout className={TILE.row}>
                     {fStickerGroups.map(group => (
                       <StickerGroupCard
                         key={group[0].item_id}
@@ -1024,7 +1005,7 @@ export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBat
                       : 'Themes are coming soon.'}
                 />
               ) : (
-                <motion.div layout className={TILE_ROW}>
+                <motion.div layout className={TILE.row}>
                   {fThemes.map(item => (
                     <ThemeCard
                       key={item.id}

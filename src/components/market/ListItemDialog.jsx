@@ -13,15 +13,11 @@ import * as marketplace from '@/lib/data/marketplace';
 import { RARITY } from '@/lib/lootCatalog';
 import { displayName } from '@/lib/userDisplay';
 import { RarityBadge, RarityFrame, COIN } from '@/components/loot/RarityVisuals';
+import { tileRow } from '@/lib/tileRows';
 
-// The sticker picker wraps and centres rather than sitting on grid tracks — a
-// grid strands a partial last row against the left edge, and how many unlisted
-// stickers you hold is arbitrary, so that was the usual case. Row and tile
-// width only work as a pair. gap-2 here, 3-up at every width; the calc
-// reproduces the grid column exactly, less 1px so rounding can't wrap the last
-// tile of a full row.
-const PICKER_ROW  = 'flex flex-wrap justify-center gap-2';
-const PICKER_TILE = 'shrink-0 basis-[calc((100%_-_1rem)/3_-_1px)]';
+// The sticker picker — 3 per row at every width. How many unlisted stickers
+// you hold is arbitrary, so a partial last row was the usual case.
+const PICKER = tileRow({ gap: 2, cols: 3 });
 
 export default function ListItemDialog({ open, onClose, userItems, user, onSuccess }) {
   const qc = useQueryClient();
@@ -148,14 +144,14 @@ export default function ListItemDialog({ open, onClose, userItems, user, onSucce
                   No stickers available to list. Open capsules to get more!
                 </div>
               ) : (
-                <div className={`${PICKER_ROW} max-h-64 overflow-y-auto`}>
+                <div className={`${PICKER.row} max-h-64 overflow-y-auto`}>
                   {unlistedItems.map(item => (
                     <RarityFrame
                       key={item.id}
                       rarity={item.item_rarity}
                       as="button"
                       onClick={() => { setSelected(item); setStep('configure'); }}
-                      className={`flex flex-col items-center p-2 transition-transform hover:scale-105 ${PICKER_TILE}`}
+                      className={`flex flex-col items-center p-2 transition-transform hover:scale-105 ${PICKER.item}`}
                     >
                       <span className="text-3xl">{item.item_emoji}</span>
                       <span className="text-micro font-semibold mt-1 text-center leading-tight">
