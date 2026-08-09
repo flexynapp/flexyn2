@@ -223,37 +223,26 @@ export default defineConfig({
           // inside the Debrief Vault modal.
           if (id.includes('html2canvas')) return undefined;
 
-          // jspdf (~250 KB) is dynamic-imported by gymSignageKit.js ONLY (the
-          // gym-signage PDF export — a rare admin action). Without this
-          // explicit `undefined` the vendor-misc catch-all below pulls it into
-          // the always-loaded entry bundle, defeating the dynamic import — the
-          // exact bug fixed for html2canvas/maplibre above, missed for jspdf.
-          // With it, jspdf lands in a lazy chunk loaded only when a user
-          // actually generates signage. ~250 KB off every cold start.
-          if (id.includes('node_modules/jspdf')) return undefined;
-
-          // …and jspdf's OWN dependencies, which is the half that was missed.
+          // ── jspdf and its transitives used to be carved out here ──
           //
-          // Excluding `jspdf` moves jspdf. It does not move canvg, dompurify
-          // or pako, which jspdf pulls in for SVG rendering, HTML sanitising
-          // and deflate. Those three fell through to the vendor-misc
-          // catch-all below and shipped in the eager critical path on every
-          // cold start — 385 KB raw / ~110 KB gz — for a gym-signage PDF
-          // export almost nobody triggers. Nothing in src/ imports any of
-          // them directly; they are transitive only, so they belong wherever
-          // jspdf lands.
+          // jspdf was dynamic-imported by gymSignageKit.js and nothing else,
+          // and it dragged canvg, dompurify, fast-png and pako behind it —
+          // 385 KB raw / ~110 KB gz that the vendor-misc catch-all shipped
+          // eagerly on every cold start for a PDF export almost nobody
+          // triggered. Five `return undefined` lines fixed that.
           //
-          // This is the bulk of the "~200 KB of vendor-misc nobody could
-          // account for" from the August 2026 bundle audit. Measured with
-          // `npm run analyze`: canvg 165 KB, dompurify 115 KB, pako 104 KB.
-          if (id.includes('node_modules/canvg')) return undefined;
-          if (id.includes('node_modules/dompurify')) return undefined;
-          if (id.includes('node_modules/pako')) return undefined;
-          // pako arrives through fast-png, not through jspdf directly, so
-          // excluding pako alone left it anchored to fast-png in the eager
-          // chunk. fast-png has exactly one dependent in this tree — jspdf —
-          // so it belongs on the same lazy path.
-          if (id.includes('node_modules/fast-png')) return undefined;
+          // The gym-signage sheet went Share + Save on 2026-08-09, the PDF
+          // kit went with it, and `npm uninstall jspdf` took all five out of
+          // the tree. `npm why` confirmed every one traced back to jspdf
+          // alone and nothing in src/ imported them directly, so the
+          // exclusions had nothing left to match. Deleted rather than left
+          // as a comment-shaped fossil.
+          //
+          // The lesson they encode is still live and applies to the
+          // html2canvas rule above and the TF.js rules below: excluding a
+          // library from the catch-all moves THAT LIBRARY, not its
+          // dependencies. If you dynamic-import something heavy, check what
+          // it pulls in — the transitive half is the half that gets missed.
 
           // Pose-detection / TF.js — already lazy-loaded by analyzeForm, but
           // pin to its own chunks so it definitely doesn't bleed into entry.
