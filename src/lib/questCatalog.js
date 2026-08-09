@@ -92,13 +92,11 @@ export const ACTION_TYPES = {
   // gives check-in a screen, not before. The `cardio_completed` type spent
   // months emitted-but-unsubscribed for the mirror-image reason.
   CREW_MESSAGE:       'crew_message_sent',
-  // NOTE: no `crew_fuel_sent` type either, for the same reason. Sending XP
-  // fuel is a real feature on the DATA side — `fireXpFuel` in
-  // src/lib/data/crews.js, and CrewMessageItem renders and claims an
-  // 'xp_fuel' message — but fireXpFuel has ZERO callers anywhere in the app,
-  // so no user can send one. A quest for it would be uncompletable. That
-  // missing send affordance is worth fixing on its own; when it lands, this
-  // is the quest to add.
+  // Added Aug 2026, once CrewChat's composer grew the button that makes it
+  // reachable. This type was deliberately absent before that: `fireXpFuel`
+  // had zero callers, so a quest for it would have been uncompletable — the
+  // same reason there is still no `gym_checkin` type, above.
+  CREW_FUEL_SENT:     'crew_fuel_sent',
 };
 
 /**
@@ -466,6 +464,21 @@ export const QUEST_CATALOG = {
     icon: 'Users',
     enabled: true,
   },
+  // The sixth, and the only crew quest that asks for something you would not
+  // otherwise be doing — the other five ride a workout, a run, a walk or a
+  // conversation you were having anyway. Fuel is a pure gift: you spend a tap,
+  // somebody else banks the XP, and mig 298 makes it impossible to claim your
+  // own. That is the tier's whole idea in one action.
+  crew_fuel_2: {
+    family: 'fuel',
+    difficulty: 'crew',
+    target: 2,
+    actionType: ACTION_TYPES.CREW_FUEL_SENT,
+    label: 'Drop 2 XP fuel for your crew',
+    description: 'Leave XP in chat for someone else to claim.',
+    icon: 'Flame',
+    enabled: true,
+  },
   crew_chat_3: {
     family: 'social',
     difficulty: 'crew',
@@ -608,7 +621,19 @@ function shuffled(items, seed) {
 // then predictable, which is a real cost — but on a handful of items the user
 // has seen the whole set inside a week anyway, and maximum spacing is what was
 // actually asked for.
-const STABLE_ROTATION_BELOW = 6;
+//
+// The threshold is "a pool that cycles inside a week", i.e. six or fewer.
+// That is the point where predictable order stops being a meaningful cost,
+// because the user sees every quest in the tier within seven days either way.
+// Above it, order variety starts earning its keep and the per-cycle reshuffle
+// takes over. `hard` at eight sits just outside on purpose.
+//
+// It was 6 when the crew tier held four quests. A sixth crew quest pushed the
+// pool to exactly six, which under the old value would have silently flipped
+// crew from a guaranteed gap to a reshuffled one — a regression in the exact
+// property this tier was tuned for, caused by adding content rather than by
+// touching the picker.
+const STABLE_ROTATION_BELOW = 7;
 
 function rotationFor(pool, userId, difficulty, cycle) {
   const L = pool.length;
@@ -826,6 +851,7 @@ const ROUTE_BY_ACTION = {
   // back to 'trends', which is not where the measurement form is.
   [ACTION_TYPES.BODY_METRIC_LOGGED]: '/progress?tab=body',
   [ACTION_TYPES.CREW_MESSAGE]:       '/hub?tab=crews',
+  [ACTION_TYPES.CREW_FUEL_SENT]:     '/hub?tab=crews',
 };
 
 /** Where should tapping this quest take the user? Returns a route string or null. */

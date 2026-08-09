@@ -134,6 +134,8 @@ export const gamificationI18n = {
     'quest.crew_steps_8k.desc':     'Steps count for the crew as much as the bar does.',
     'quest.crew_volume_15k.label':  'Move 15,000 lb for the crew',
     'quest.crew_volume_15k.desc':   'Every pound you lift today counts toward the crew.',
+    'quest.crew_fuel_2.label':      'Drop 2 XP fuel for your crew',
+    'quest.crew_fuel_2.desc':       'Leave XP in chat for someone else to claim.',
 
     // Difficulty labels.
     //

@@ -14,7 +14,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft, Users, Send, Paperclip, X, Loader2, Camera, Dumbbell,
-  Clock, Eye, Plus, BarChart3, PinOff, Megaphone, MessageCircle, Shield, Upload,
+  Clock, Eye, Plus, BarChart3, PinOff, Megaphone, MessageCircle, Shield, Upload, Zap,
 } from 'lucide-react';
 import EmptyState from '@/components/EmptyState';
 import { toast } from '@/lib/toast';
@@ -431,6 +431,7 @@ export default function CrewChat({ crew, onBack, onViewProfile, embedded }) {
   const shareRef       = useRef(false);
   const assignRef      = useRef(false);
   const pinRef         = useRef(false);
+  const fuelRef        = useRef(false);
   const equipRef       = useRef(false);
 
   const handleSend = async () => {
@@ -536,6 +537,44 @@ export default function CrewChat({ crew, onBack, onViewProfile, embedded }) {
       toast.success('Roll Call sent!');
     } catch { toast.error('Could not send Roll Call.'); }
     finally { rollCallRef.current = false; }
+  };
+
+  // Drop an XP-fuel banner for the rest of the crew to claim.
+  //
+  // The claim half of this shipped in May and the send half never did, so the
+  // banner existed in chat with nobody able to create one. This is that half.
+  const handleFireFuel = async () => {
+    if (fuelRef.current) return;
+    // You cannot claim your own fuel (migration 298 — that rule is what stops
+    // a crew of one being a private XP faucet). So in a solo crew the button
+    // would post a banner nobody on earth can claim. Say so instead of
+    // spending the send.
+    if (members.length < 2) {
+      toast.info('Fuel is for your crew to claim — and you can\'t claim your own. Invite someone first.');
+      return;
+    }
+    fuelRef.current = true;
+    try {
+      const left = await crewsData.xpFuelSendsLeftToday(crew.id, user.id);
+      if (left <= 0) {
+        toast.info('You\'ve dropped all your fuel for today — back tomorrow.');
+        return;
+      }
+      await crewsData.fireXpFuel(crew.id, user.id, user.username || 'Someone');
+      qc.invalidateQueries({ queryKey: ['crewMessages', crew.id] });
+      toast.success(`Fuel dropped — ${crewsData.CREW_XP_FUEL_AMOUNT} XP for the crew to claim.`, {
+        description: left > 1 ? `${left - 1} more today.` : 'That was your last one today.',
+      });
+      // Quest progress — non-blocking. This is the action the crew_fuel_2
+      // quest keys on, and it only exists because this button does.
+      quests.recordAction(user, ACTION_TYPES.CREW_FUEL_SENT, 1)
+        .then(() => qc.invalidateQueries({ queryKey: ['dailyQuests'] }))
+        .catch(() => {});
+    } catch {
+      toast.error('Could not drop fuel — try again.');
+    } finally {
+      fuelRef.current = false;
+    }
   };
 
   const handleShareRegimen = async (regimen) => {
@@ -847,6 +886,19 @@ export default function CrewChat({ crew, onBack, onViewProfile, embedded }) {
           title="Share / assign regimen"
         >
           <Dumbbell className="w-4 h-4" />
+        </button>
+
+        {/* XP Fuel. Takes the accent where the other composer actions are
+            muted — it is the only one that hands something to the rest of the
+            crew, and the banner it posts is drawn in --primary too, so the
+            control and its result match. */}
+        <button
+          onClick={handleFireFuel}
+          className="w-9 h-9 rounded-full bg-primary/12 flex items-center justify-center text-primary hover:bg-primary/20 active:bg-primary/20 transition-colors shrink-0"
+          title="Drop XP fuel for the crew"
+          aria-label="Drop XP fuel for the crew"
+        >
+          <Zap className="w-4 h-4" />
         </button>
 
         <textarea

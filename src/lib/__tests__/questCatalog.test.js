@@ -308,8 +308,9 @@ describe('QUEST_CATALOG families', () => {
     const counts = {};
     Object.values(QUEST_CATALOG).forEach(q => { counts[q.family] = (counts[q.family] || 0) + 1; });
     const singles = Object.entries(counts).filter(([, n]) => n === 1).map(([f]) => f);
-    // 'pr', 'goals' and 'photo' are genuinely one-of-a-kind actions.
-    expect(singles.sort()).toEqual(['goals', 'photo', 'pr']);
+    // These four are genuinely one-of-a-kind actions, not typos. 'fuel' is
+    // the crew-only gift action; the other three are single-shot milestones.
+    expect(singles.sort()).toEqual(['fuel', 'goals', 'photo', 'pr']);
   });
 });
 

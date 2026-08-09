@@ -449,6 +449,60 @@ export async function hasClonedRegimen(regimenId, userEmail) {
 
 // ── XP Fuel ───────────────────────────────────────────────────────────────────
 
+// How many fuel drops one member may post to one crew in a day.
+//
+// This is a SPAM guard, not an economy guard, and the distinction matters.
+// The economy is already closed on the claim side: migration 298 caps
+// `crew_xp_fuel` at 100 XP/day per claimer, so the total XP a crew can absorb
+// is members × 100 no matter how many banners get posted. What an uncapped
+// button would buy is a chat full of banners, which is a moderation problem.
+//
+// It is also only a CLIENT guard. `crew_messages_insert` (mig 048) is
+// `sender_id = auth.uid() AND is_crew_member(crew_id)` and does not constrain
+// message_type, so a crafted request can still post fuel past this. That is
+// acceptable precisely because the claim cap means doing so wins nothing —
+// but if fuel ever starts paying the SENDER, this has to move server-side.
+export const XP_FUEL_SENDS_PER_DAY = 3;
+
+/**
+ * How many more fuel drops this member may post to this crew today.
+ *
+ * Returns the cap on any read failure rather than 0 — a blip should not
+ * silently disable the button and leave the user tapping a dead control.
+ * The worst case is one extra banner, which the claim cap already neuters.
+ */
+export async function xpFuelSendsLeftToday(crewId, senderId) {
+  if (!crewId || !senderId) return 0;
+  try {
+    const since = new Date();
+    since.setHours(0, 0, 0, 0);
+    const { count, error } = await supabase
+      .from('crew_messages')
+      .select('id', { count: 'exact', head: true })
+      .eq('crew_id', crewId)
+      .eq('sender_id', senderId)
+      .eq('message_type', 'xp_fuel')
+      .gte('created_at', since.toISOString());
+    if (error) return XP_FUEL_SENDS_PER_DAY;
+    return Math.max(0, XP_FUEL_SENDS_PER_DAY - (count ?? 0));
+  } catch {
+    return XP_FUEL_SENDS_PER_DAY;
+  }
+}
+
+/**
+ * Post an XP-fuel banner to crew chat for other members to claim.
+ *
+ * This had ZERO callers from May 2026 until Aug 2026 — the claim half was
+ * fully built (CrewMessageItem renders the banner, claim_crew_xp_fuel grants
+ * the XP atomically, migration 298 hardened the pricing) against a send half
+ * that no screen ever invoked. So the feature existed end to end in the code
+ * and could not be started by a user. CrewChat's composer now calls it.
+ *
+ * The `xp` in the body is DISPLAY ONLY and the server ignores it — mig 298
+ * prices a claim from a SQL constant precisely because this JSON is written
+ * by the sender's browser. Don't reintroduce it as an argument.
+ */
 export async function fireXpFuel(crewId, senderId, senderName) {
   return sendCrewMessage(
     crewId,
