@@ -43,6 +43,25 @@ export async function upsertEntry(userId, userEmail, { entryDate, title, body, a
 
   const isEmpty = !cleanTitle && !cleanBody.trim() && atts.length === 0;
   if (isEmpty) {
+    // Empty WRITTEN content does not mean the row is empty. `tagMood` (and
+    // MoodLogCard behind it) creates a row carrying only a mood_score, and
+    // this branch used to DELETE it — so tapping a mood on the dashboard and
+    // then clearing the journal text threw the mood away with no warning and
+    // no way to notice. Half of production's journal rows are mood-only, so
+    // this was live on every one of them.
+    //
+    // Clear the written fields where a mood is attached; delete only when the
+    // row would genuinely hold nothing. `.not('mood_score','is',null)` keeps
+    // it to one statement per branch and stays paste-safe (single table, bare
+    // columns).
+    const { data: cleared } = await supabase
+      .from('journal_entries')
+      .update({ title: null, body: null, attachments: [], updated_at: new Date().toISOString() })
+      .eq('user_id', userId)
+      .eq('entry_date', entryDate)
+      .not('mood_score', 'is', null)
+      .select('id');
+    if (cleared && cleared.length > 0) return { ok: true, cleared: true };
     await supabase.from('journal_entries').delete()
       .eq('user_id', userId).eq('entry_date', entryDate);
     return { ok: true, deleted: true };
@@ -67,18 +86,90 @@ export async function upsertEntry(userId, userEmail, { entryDate, title, body, a
 }
 
 /**
+ * Write ONLY the body for a day, leaving title / attachments / mood_score
+ * alone. Same shape as `tagMood` below, and it exists for the same reason.
+ *
+ * JournalWidget (the dashboard quick-write) has no title or attachment UI,
+ * so it used to call `upsertEntry` with whatever `title` / `attachments` it
+ * happened to have cached from react-query — `null` and `[]` on its unmount
+ * flush. That upsert then overwrote a real title with NULL: verified against
+ * a seeded row, "Push day — felt strong" became NULL after one widget save.
+ * A surface that cannot edit a field must not send that field.
+ */
+export async function saveBody(userId, userEmail, dateStr, body) {
+  if (!userId || !dateStr) return { ok: false };
+  const cleanBody = (body || '').slice(0, 20000);
+
+  const { data: updated, error: updateErr } = await supabase
+    .from('journal_entries')
+    .update({ body: cleanBody, updated_at: new Date().toISOString() })
+    .eq('user_id', userId)
+    .eq('entry_date', dateStr)
+    .select('id, title, attachments, mood_score');
+
+  if (updateErr) {
+    if (MISSING(updateErr.code)) return { ok: false, error: 'PIPELINE_MISSING' };
+    return { ok: false, error: updateErr.message };
+  }
+
+  if (updated && updated.length > 0) {
+    // The row survives unless clearing the body left nothing at all in it.
+    const row = updated[0];
+    const bare = !cleanBody.trim()
+      && !row.title
+      && !row.mood_score
+      && !(Array.isArray(row.attachments) && row.attachments.length > 0);
+    if (bare) {
+      await supabase.from('journal_entries').delete()
+        .eq('user_id', userId).eq('entry_date', dateStr);
+      return { ok: true, deleted: true };
+    }
+    return { ok: true };
+  }
+
+  // No row yet. Don't create one for an empty body — that is what put bare
+  // dates in the history log.
+  if (!cleanBody.trim()) return { ok: true, noop: true };
+
+  const { error: insertErr } = await supabase
+    .from('journal_entries')
+    .insert({
+      user_id:     userId,
+      user_email:  userEmail || null,
+      entry_date:  dateStr,
+      body:        cleanBody,
+      attachments: [],
+      updated_at:  new Date().toISOString(),
+    });
+
+  if (insertErr) {
+    if (MISSING(insertErr.code)) return { ok: false, error: 'PIPELINE_MISSING' };
+    return { ok: false, error: insertErr.message };
+  }
+  return { ok: true };
+}
+
+/**
  * History log: every day with an entry, newest first. Returns a light
  * shape (no body) for the scrollable list; the day view fetches the
  * full entry on tap.
  */
 export async function listEntries(userId, limit = 365) {
   if (!userId) return [];
-  const { data, error } = await supabase
-    .from('journal_entries')
-    .select('id, entry_date, title, body, attachments, mood_score')
-    .eq('user_id', userId)
-    .order('entry_date', { ascending: false })
-    .limit(limit);
+  // safeSelect, because `mood_score` only arrived in migration 165 and this
+  // read is what BOTH the history log and JournalView's skip-empty day
+  // navigation are built on. Unwrapped, a host missing that column answers
+  // 42703 and the whole journal reads as "No entries yet" — an empty history
+  // is indistinguishable from a broken one. `getEntry` was already wrapped.
+  const { data, error } = await safeSelect({
+    columns: ['id', 'entry_date', 'title', 'body', 'attachments', 'mood_score'],
+    build: (cols) => supabase
+      .from('journal_entries')
+      .select(cols)
+      .eq('user_id', userId)
+      .order('entry_date', { ascending: false })
+      .limit(limit),
+  });
   if (error) return [];
   // Derive a one-line snippet for the list without shipping full bodies
   // around (body is already capped at 20k so this is fine).

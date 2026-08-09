@@ -14,7 +14,7 @@ import { BookOpen, ChevronDown, ChevronUp } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
-import { getEntry, upsertEntry } from '@/lib/data/journal';
+import { getEntry, saveBody } from '@/lib/data/journal';
 import { MOOD_EMOJIS } from '@/lib/data/moodLogs';
 
 // Derive today's date string in local time (same logic as MoodLogCard).
@@ -66,19 +66,20 @@ export default function JournalWidget({ userId, userEmail }) {
       if (pending != null) {
         (async () => {
           try {
-            // Best-effort — fire the upsert without expecting a
+            // Best-effort — fire the write without expecting a
             // re-render. The autosave path will pick it up on next
             // mount via the normal query refresh.
-            const { upsertEntry } = await import('@/lib/data/journal');
+            //
+            // saveBody, not upsertEntry: this call site has no title and
+            // no attachments to send, and the old upsert sent its absence
+            // as NULL / [] — silently wiping both off any day the user had
+            // titled or attached to in the full editor.
+            const { saveBody } = await import('@/lib/data/journal');
             const todayStr = (() => {
               const d = new Date();
               return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
             })();
-            await upsertEntry(uid, email, {
-              entryDate: todayStr,
-              body: pending,
-              attachments: [],
-            });
+            await saveBody(uid, email, todayStr, pending);
           } catch { /* unmount flush is best-effort */ }
         })();
       }
@@ -99,21 +100,20 @@ export default function JournalWidget({ userId, userEmail }) {
     setDraft(entry?.body || '');
   }, [entry?.body, expanded]);
 
+  // Body only. Echoing `entry?.title` / `entry?.attachments` back looked
+  // like preservation but was the opposite: `entry` is a react-query
+  // snapshot with a 60s staleTime, so a title written in JournalView and a
+  // widget save a moment later raced, and the stale `null` won.
   const handleSave = useCallback(async (body) => {
     if (!uid) return;
     setSaving(true);
     try {
-      await upsertEntry(uid, email, {
-        entryDate:   todayStr,
-        title:       entry?.title || null,
-        body,
-        attachments: entry?.attachments || [],
-      });
+      await saveBody(uid, email, todayStr, body);
       qc.invalidateQueries({ queryKey: ['journalEntry', uid] });
     } finally {
       if (mountedRef.current) setSaving(false);
     }
-  }, [uid, email, todayStr, entry, qc]);
+  }, [uid, email, todayStr, qc]);
 
   // Auto-save 1 s after last keystroke.
   const handleChange = (e) => {

@@ -54,8 +54,14 @@ const enKeys = {
   'profile.journal.today':             'Today',
   'profile.journal.placeholderToday':  'How was your session today? Log your lifts, notes, or how you felt…',
   'profile.journal.placeholderPast':   'No entry for this day.',
-  'profile.journal.footerToday':       'Auto-saved · Use ← to browse past entries',
-  'profile.journal.footerPast':        'Read-only · Navigate to today to write',
+  // English only. The other 14 blocks still describe the arrow buttons as the
+  // only way to move between days, which was true when they were written and
+  // is now merely incomplete — swipe and the Log button came later. Incomplete
+  // in the reader's own language beats accurate in a language they don't
+  // read, so those stay until a native pass; machine-translating prose is out
+  // (CLAUDE.md, i18n discipline).
+  'profile.journal.footerToday':       'Auto-saved · swipe left/right to change days · tap Log for history',
+  'profile.journal.footerPast':        'Read-only · swipe or use ← → to browse · tap Log for history',
 
   // ── HubChat error toasts ────────────────────────────────────────────
   'hub.chat.attachmentTooLarge': 'Image must be 50 MB or smaller',

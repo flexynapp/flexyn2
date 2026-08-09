@@ -13,6 +13,7 @@
 // One-time migration of legacy localStorage entries runs on first open.
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format, subDays, addDays } from 'date-fns';
 import {
@@ -440,7 +441,17 @@ export default function JournalView({ userId, userEmail, onClose }) {
 
   const readOnly = !isToday;
 
-  return (
+  // Portal to <body>. This is not cosmetic: ProfileMenu is rendered INSIDE
+  // `Header.jsx`'s mobile bar, which carries `backdrop-blur-md`, and a
+  // non-`none` backdrop-filter makes an element a containing block for
+  // `position: fixed` descendants. So `fixed inset-0` resolved against the
+  // 56px header instead of the viewport and the whole editor rendered as a
+  // 56px translucent sliver on every phone — measured 56px vs 812px on a
+  // 375×812 viewport, and full-height the moment the header's blur was
+  // removed. Desktop was unaffected because that header is `lg:hidden`,
+  // which is why it survived being looked at. DebriefVault and InjuryForm,
+  // the sibling overlays in the same menu, both already portal.
+  return createPortal(
     <motion.div
       initial={{ opacity: 0, y: 32 }}
       animate={{ opacity: 1, y: 0 }}
@@ -526,7 +537,15 @@ export default function JournalView({ userId, userEmail, onClose }) {
               <button onClick={() => fileRef.current?.click()} title="Attach" className="w-8 h-8 rounded-md hover:bg-secondary active:bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground active:text-foreground">
                 {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Paperclip className="w-4 h-4" />}
               </button>
-              <input ref={fileRef} type="file" multiple accept="image/*,.pdf,.txt,.heic" className="hidden" onChange={onPickFiles} />
+              {/* Only the types `ATTACHMENT_MIMES` in journal.js will actually
+                  pin a contentType for, which is also what the `uploads`
+                  bucket's allowed_mime_types permits. It read
+                  `image/*,.pdf,.txt,.heic`, so the picker offered PDFs and
+                  text files that the uploader then refused — the user saw a
+                  file chooser accept their file and a "couldn't upload"
+                  toast a second later. Widening this again means widening
+                  BOTH gates in the same change (see CLAUDE.md, Storage). */}
+              <input ref={fileRef} type="file" multiple accept=".jpg,.jpeg,.png,.webp,.gif,.heic,.heif,.avif" className="hidden" onChange={onPickFiles} />
               {listening && <span className="text-micro text-red-500 font-semibold ms-1 animate-pulse">{tFallback('journal.listening', 'Listening…')}</span>}
             </div>
           )}
@@ -585,9 +604,16 @@ export default function JournalView({ userId, userEmail, onClose }) {
           {/* Footer hint */}
           <div className="px-4 py-2 border-t border-border shrink-0">
             <p className="text-micro text-muted-foreground text-center">
+              {/* `profile.journal.*`, not `journal.*`. The translated strings
+                  have lived under the `profile.` prefix in i18n-batch2.js
+                  since the feature shipped; the code asked for the bare key,
+                  which exists in no part file, so all 15 languages fell
+                  through to the English fallback and 14 translations sat
+                  unreachable. The rest of this screen's `journal.*` keys are
+                  genuinely untranslated — see the i18n note in CLAUDE.md. */}
               {readOnly
-                ? tFallback('journal.footerPast', 'Read-only · swipe or use ← → to browse · tap Log for history')
-                : tFallback('journal.footerToday', 'Auto-saved · swipe left/right to change days · tap Log for history')}
+                ? tFallback('profile.journal.footerPast', 'Read-only · swipe or use ← → to browse · tap Log for history')
+                : tFallback('profile.journal.footerToday', 'Auto-saved · swipe left/right to change days · tap Log for history')}
             </p>
           </div>
         </div>
@@ -603,6 +629,7 @@ export default function JournalView({ userId, userEmail, onClose }) {
           />
         )}
       </AnimatePresence>
-    </motion.div>
+    </motion.div>,
+    document.body,
   );
 }
