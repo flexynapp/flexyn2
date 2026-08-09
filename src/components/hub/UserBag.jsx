@@ -79,6 +79,15 @@ const TILE_3_4 = 'shrink-0 basis-[calc((100%_-_1.5rem)/3_-_1px)] sm:basis-[calc(
 // 2-up on a phone, 3-up from sm — frames, which carry a bigger avatar.
 const TILE_2_3 = 'shrink-0 basis-[calc((100%_-_0.75rem)/2_-_1px)] sm:basis-[calc((100%_-_1.5rem)/3_-_1px)]';
 
+// Titles are list ROWS, not tiles, so they get their own pair: gap-2 rather
+// than gap-3, and full width on a phone. `basis-full` makes the phone case a
+// single column exactly as `grid-cols-1` did — one item per row, so centring
+// is a no-op there and the left reading edge is untouched. It only bites at
+// sm and up, where an odd title count used to leave the last row sitting in
+// the left column.
+const LIST_ROW  = 'flex flex-wrap justify-center gap-2';
+const LIST_ITEM = 'shrink-0 basis-full sm:basis-[calc((100%_-_0.5rem)/2_-_1px)]';
+
 // ─── Capsule card ─────────────────────────────────────────────────────────────
 // Exported for the regression test only — nothing else imports it, and the
 // default export stays the component this module is about. It is exported
@@ -381,7 +390,7 @@ function TitleList({ items, userId }) {
   });
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+    <div className={LIST_ROW}>
       {unique.map(item => {
         const isEquipped = equippedId === item.item_id;
         const tint = rarityTint(item.item_rarity);
@@ -389,7 +398,7 @@ function TitleList({ items, userId }) {
           <button
             key={item.id}
             onClick={() => equip(item.item_id)}
-            className={`flex items-center gap-3 p-3 rounded-lg border transition-colors text-start ${
+            className={`flex items-center gap-3 p-3 rounded-lg border transition-colors text-start ${LIST_ITEM} ${
               isEquipped ? 'border-primary bg-primary/10' : 'border-border bg-secondary/50 hover:bg-secondary active:bg-secondary'
             }`}
           >
