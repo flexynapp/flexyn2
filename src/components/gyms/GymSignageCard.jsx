@@ -22,6 +22,7 @@ import { toast } from '@/lib/toast';
 import { Button } from '@/components/ui/button';
 import { downloadSignageKit, SIGNAGE_PLACEMENT_COUNT } from '@/lib/gymSignageKit';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { gymCheckinUrl } from '@/lib/appOrigin';
 
 export default function GymSignageCard({ open, onClose, gym }) {
   // Pin the page behind this overlay — see @/lib/scrollLock.
@@ -39,8 +40,7 @@ export default function GymSignageCard({ open, onClose, gym }) {
       try {
         const QRCode = (await import('qrcode')).default;
         if (cancelled) return;
-        const origin = (typeof window !== 'undefined' && window.location.origin) || 'https://flexyn.netlify.app';
-        const dataUrl = await QRCode.toDataURL(`${origin}/checkin/${gym.flexyn_code}`, {
+        const dataUrl = await QRCode.toDataURL(gymCheckinUrl(gym.flexyn_code), {
           errorCorrectionLevel: 'H',
           margin: 1,
           width: 600,

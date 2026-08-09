@@ -114,6 +114,35 @@ export async function leaveGym(gymId) {
   return { ok: !error };
 }
 
+/**
+ * Resolve a Flexyn Code to the gym it belongs to, WITHOUT joining and
+ * without an account.
+ *
+ * This is the signed-out half of a signage scan. `join_gym_by_code` and
+ * `check_in_to_gym` both require auth, so a stranger who scans the poster
+ * on a gym wall used to hit a bare sign-in prompt that never named the gym
+ * they were standing in.
+ *
+ * Safe for `anon`: gym_businesses carries a "Public can view active gyms"
+ * SELECT policy, so this reads nothing the map doesn't already show — and
+ * the code itself is printed on the wall being scanned.
+ *
+ * @returns {Promise<{id: string, name: string}|null>} null on a bad code,
+ *          an unknown code, an inactive gym, or a failed lookup.
+ */
+export async function getGymByCode(code) {
+  const cleaned = String(code || '').trim().toUpperCase().replace(/[^A-HJ-NP-Z2-9]/g, '');
+  if (cleaned.length !== 8) return null;
+  const { data, error } = await supabase
+    .from('gym_businesses')
+    .select('id, name')
+    .eq('flexyn_code', cleaned)
+    .eq('is_active', true)
+    .maybeSingle();
+  if (error) return null;
+  return data || null;
+}
+
 /** "My Gyms" dashboard query — joined gyms with full gym row inline. */
 export async function listMyGyms(userId) {
   if (!userId) return [];

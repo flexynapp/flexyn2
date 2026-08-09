@@ -16,6 +16,8 @@
 // No html2canvas round-trip — each poster is drawn straight onto the
 // page, so text is sharp at any print size.
 
+import { gymCheckinUrl } from '@/lib/appOrigin';
+
 const PLACEMENTS = [
   {
     id: 'front-desk',
@@ -58,12 +60,15 @@ export async function downloadSignageKit(gym) {
   }
 
   // High-EC QR so it survives print + glare. Encodes the /checkin/<CODE>
-  // web URL: a phone-camera scan opens the check-in page (1.2x XP day),
-  // and the in-app scanner still extracts the 8-char code from the path.
-  const origin = (typeof window !== 'undefined' && window.location.origin) || 'https://flexyn.netlify.app';
+  // web URL, built from the CANONICAL origin rather than wherever this was
+  // generated — a poster is permanent and http://localhost:5173 on a gym
+  // wall is a dead sign. A phone-camera scan checks the member in and lands
+  // on that gym's page; a stranger with no account lands on its public one.
+  // The in-app scanner still extracts the 8-char code from the path.
+
   let qrDataUrl;
   try {
-    qrDataUrl = await QRCode.toDataURL(`${origin}/checkin/${gym.flexyn_code}`, {
+    qrDataUrl = await QRCode.toDataURL(gymCheckinUrl(gym.flexyn_code), {
       errorCorrectionLevel: 'H', margin: 1, width: 900,
       color: { dark: '#0f0f2a', light: '#ffffff' },
     });

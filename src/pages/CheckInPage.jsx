@@ -10,6 +10,7 @@ import { CheckCircle2, Loader2, AlertTriangle, Dumbbell, Zap } from 'lucide-reac
 import { useAuth } from '@/lib/AuthContext';
 import { db } from '@/api/db';
 import { checkInWithCode, GYM_CHECKIN_XP_MULTIPLIER } from '@/lib/data/gymCheckins';
+import { getGymByCode } from '@/lib/data/gymBusinesses';
 
 export default function CheckInPage() {
   const { code } = useParams();
@@ -25,7 +26,25 @@ export default function CheckInPage() {
   // forever after the first code, so a second scan never registered.
   useEffect(() => {
     if (isLoadingAuth) return;
-    if (!user) { setStatus('unauth'); return; }
+    // Signed out — almost always someone who does not have Flexyn scanning
+    // the poster on the wall in front of them. Checking in is meaningless
+    // without an account, but "which gym is this?" is exactly what they
+    // asked, so send them to that gym's public page (it carries the sign-up
+    // CTA). The bare sign-in prompt below is only the fallback for a code
+    // that resolves to nothing.
+    if (!user) {
+      if (ran.current === code) return;
+      ran.current = code;
+      (async () => {
+        const gym = await getGymByCode(code);
+        if (gym?.id && typeof window !== 'undefined') {
+          window.location.replace(`/p/gym/${gym.id}`);
+          return;
+        }
+        setStatus('unauth');
+      })();
+      return;
+    }
     if (ran.current === code) return;
     ran.current = code;
     setStatus('pending');
