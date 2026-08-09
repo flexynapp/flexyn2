@@ -1,0 +1,41 @@
+-- 311_crews_read_authenticated_only.sql
+--
+-- Scope the crews SELECT policy to `authenticated`. It is TO PUBLIC today, so
+-- every public crew is readable signed out.
+--
+-- WHAT WAS MEASURED (2026-08-08, after migration 308 landed)
+--
+--   * pg_policy.polroles for crews_select_merged is {0} -- PUBLIC, which
+--     includes anon. Migration 065 created the policy with no TO clause, and
+--     217's catalog-driven merge preserved the roles it found.
+--   * anon holds SELECT on public.crews.
+--   * The USING expression leads with an unguarded `is_public = true`.
+--
+-- Those three together mean the gate is open, but with zero public crews in
+-- production nothing was leaking yet, so a plain count proves nothing. Flipping
+-- one crew to is_public inside a transaction and reading as anon returned the
+-- row by name; the transaction was rolled back. This is the same shape as the
+-- hole migration 303 closed on the hub feed, found the same way.
+--
+-- WHAT IT WOULD HAVE EXPOSED
+--
+-- Every column of a public crew to anyone holding the publishable key and no
+-- session: name, tag, description, avatar, the whole 248 progression block, the
+-- 251 treasury balance -- and created_by, a raw auth.users UUID for the crew's
+-- founder. Not an email, but a stable identifier that joins to anything else an
+-- anonymous caller can reach.
+--
+-- Nothing legitimately reads this table signed out. Every from('crews') call
+-- lives in src/lib/data/crews.js, reached only from surfaces inside the auth
+-- gate, and the four routes that render without a session (DuelInviteLanding,
+-- PublicProfile, PublicGymLanding, Legal) never touch it. The directory and
+-- board added in 308 are SECURITY DEFINER RPCs granted to authenticated only,
+-- so they are unaffected -- they were already the correct door.
+--
+-- ALTER POLICY, not DROP + CREATE. It changes the roles without restating the
+-- expression, which matters here more than usual: that expression carries
+-- `cm.crew_id`, `cm.user_id` and `crews.id`, exactly the short alias.column
+-- tokens the paste pipeline mangles into `<` (CLAUDE.md workflow rule 7).
+-- Retyping it by hand is how this policy would get broken.
+
+ALTER POLICY "crews_select_merged" ON public.crews TO authenticated;
