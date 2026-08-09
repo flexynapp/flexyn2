@@ -89,6 +89,9 @@ const enKeys = {
   'journal.historyFailedTitle':        "Couldn't load your log",
   'journal.historyFailedBody':         'Your entries are safe — this is us, not you.',
   'journal.retry':                     'Try again',
+  // Attachments: both of these replace a silent no-op.
+  'journal.attachCap':                 'You can attach up to {n} files a day.',
+  'journal.attachDropped':             '{n} not attached — that would pass the {max}-file limit.',
 
   // ── HubChat error toasts ────────────────────────────────────────────
   'hub.chat.attachmentTooLarge': 'Image must be 50 MB or smaller',

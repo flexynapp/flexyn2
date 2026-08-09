@@ -30,16 +30,9 @@ import { MOOD_EMOJIS, MOOD_LABELS, upsertMoodLog } from '@/lib/data/moodLogs';
 import { getDayContext, contextChips } from '@/lib/data/dayContext';
 import { editability, EDIT_WINDOW_DAYS } from '@/lib/journalEditWindow';
 import { provenanceLabel } from '@/lib/journalProvenance';
+import { tileRow } from '@/lib/tileRows';
+import { insertDictation } from '@/lib/journalDictation';
 
-// ── Lightweight markdown renderer (bold + bullets only) ───────────────────────
-function renderInline(text) {
-  const parts = text.split(/(\*\*[^*\n]+\*\*)/g);
-  return parts.map((p, i) =>
-    /^\*\*[^*\n]+\*\*$/.test(p)
-      ? <strong key={i}>{p.slice(2, -2)}</strong>
-      : <React.Fragment key={i}>{p}</React.Fragment>
-  );
-}
 // ── Mood chip ─────────────────────────────────────────────────────────────────
 // mood_score has been on journal_entries since migration 165 and shown
 // nowhere on this screen — written by a tap on the dashboard's MoodLogCard
@@ -118,30 +111,16 @@ function MoodEntry({ score, tFallback, explain }) {
   );
 }
 
-function MarkdownBody({ text, placeholder }) {
-  if (!text || !text.trim()) return <p className="text-muted-foreground/50 text-sm">{placeholder}</p>;
-  const lines = text.split('\n');
-  const nodes = [];
-  let listItems = [];
-  const flushList = () => {
-    if (listItems.length) { nodes.push(<ul key={`ul-${nodes.length}`} className="list-disc list-inside space-y-0.5 my-1">{listItems}</ul>); listItems = []; }
-  };
-  lines.forEach((line, i) => {
-    if (/^[-*]\s/.test(line)) {
-      listItems.push(<li key={i} className="text-sm leading-relaxed">{renderInline(line.slice(2))}</li>);
-    } else {
-      flushList();
-      if (line.trim() === '') { nodes.push(<div key={i} className="h-3" />); }
-      else { nodes.push(<p key={i} className="text-sm leading-relaxed">{renderInline(line)}</p>); }
-    }
-  });
-  flushList();
-  return <div className="space-y-0.5">{nodes}</div>;
-}
+import MarkdownBody from './MarkdownBody';
 import JournalHistoryModal from './JournalHistoryModal';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 const todayStr = () => format(new Date(), 'yyyy-MM-dd');
+
+// Matches the server-side cap in upsertEntry, which slices to 12 before
+// writing. Two places, one number — if they drift, the UI accepts files
+// the save then throws away without saying so.
+const MAX_ATTACHMENTS = 12;
 
 
 export default function JournalView({ userId, userEmail, onClose }) {
@@ -192,6 +171,8 @@ export default function JournalView({ userId, userEmail, onClose }) {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [listening, setListening] = useState(false);
   const [uploading, setUploading] = useState(false);
+  // Names of files mid-upload, rendered as placeholder chips.
+  const [pending, setPending] = useState([]);
   // Retry-after-failure tick. When `flush()` fails it schedules a 5s
   // retry by bumping this counter, which re-fires the autosave debounce
   // effect (retryNonce is in its deps). Without this, `dirtyRef = true`
@@ -216,6 +197,8 @@ export default function JournalView({ userId, userEmail, onClose }) {
   const bodyRef = useRef(null);
   const fileRef = useRef(null);
   const dictationRef = useRef(null);
+  // Where dictated text goes, captured when the mic is tapped.
+  const dictationCaretRef = useRef(null);
   const dirtyRef = useRef(false);
   // Synchronous guard against overlapping saves. The autosave debounce,
   // goToDay's pre-flush, and the unmount-flush can all fire concurrently
@@ -534,6 +517,8 @@ export default function JournalView({ userId, userEmail, onClose }) {
     if (listening) { stopDictation(); return; }
     if (readOnly) { toast.message(tFallback('journal.locked', 'Entries older than 7 days are read-only.')); return; }
     setListening(true);
+    const ta = bodyRef.current;
+    dictationCaretRef.current = ta && document.activeElement === ta ? ta.selectionStart : null;
     let finalChunk = '';
     dictationRef.current = startDictation({
       onResult: ({ transcript, isFinal }) => {
@@ -541,8 +526,12 @@ export default function JournalView({ userId, userEmail, onClose }) {
           finalChunk = transcript.trim();
           if (finalChunk) {
             setBody(prev => {
-              const sep = prev && !prev.endsWith(' ') && !prev.endsWith('\n') ? ' ' : '';
-              return prev + sep + finalChunk;
+              const next = insertDictation(prev, dictationCaretRef.current, finalChunk);
+              // Walk the caret forward so the NEXT chunk continues after
+              // this one rather than re-inserting at the original point,
+              // which would reverse the sentence.
+              dictationCaretRef.current = next.caret;
+              return next.text;
             });
             dirtyRef.current = true;
           }
@@ -563,13 +552,40 @@ export default function JournalView({ userId, userEmail, onClose }) {
     e.target.value = '';
     if (files.length === 0) return;
     if (readOnly) { toast.message(tFallback('journal.locked', 'Entries older than 7 days are read-only.')); return; }
+
+    // Hitting the cap used to do NOTHING: the chooser opened, you picked a
+    // photo, and the app silently discarded it — `slice(0, 12 - 12)` is an
+    // empty list. Worse, a day somehow holding more than 12 gave a NEGATIVE
+    // end index, and `slice(0, -1)` drops the LAST item rather than taking
+    // none, so it would have uploaded all but one of them.
+    const room = MAX_ATTACHMENTS - attachments.length;
+    if (room <= 0) {
+      toast.message(tFallback('journal.attachCap', `You can attach up to ${MAX_ATTACHMENTS} files a day.`, { n: MAX_ATTACHMENTS }));
+      return;
+    }
+    const accepted = files.slice(0, room);
+    const dropped = files.length - accepted.length;
+    if (dropped > 0) {
+      toast.message(tFallback('journal.attachDropped', `${dropped} not attached — that would pass the ${MAX_ATTACHMENTS}-file limit.`, { n: dropped, max: MAX_ATTACHMENTS }));
+    }
+
+    // Placeholder chips while the uploads run. They used to happen behind a
+    // single spinner on the attach button, so picking four photos looked
+    // like nothing was happening until they appeared one at a time.
+    setPending(accepted.map(f => f.name));
     setUploading(true);
-    for (const file of files.slice(0, 12 - attachments.length)) {
-      if (file.size > 10 * 1024 * 1024) { toast.error(tFallback('journal.fileTooBig', `${file.name} is over 10 MB.`)); continue; }
+    for (const file of accepted) {
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error(tFallback('journal.fileTooBig', `${file.name} is over 10 MB.`));
+        setPending(prev => prev.filter(n => n !== file.name));
+        continue;
+      }
       const att = await uploadAttachment(userId, file);
       if (att) { setAttachments(prev => [...prev, att]); dirtyRef.current = true; }
       else toast.error(tFallback('journal.uploadFailed', `Couldn't upload ${file.name}.`));
+      setPending(prev => prev.filter(n => n !== file.name));
     }
+    setPending([]);
     setUploading(false);
   };
   // Drop the reference AND the blob. Removing only the array entry left the
@@ -590,6 +606,7 @@ export default function JournalView({ userId, userEmail, onClose }) {
   // Keyed on CONTENT, not on editability — that conflation is what the edit
   // window broke. No words + a mood = the mood is the entry, on any day.
   const showMoodEntry = !body.trim() && !!moodScore;
+  const attachRow = tileRow({ gap: 2, cols: 3 });
   // Null unless the entry was written or amended after the day it describes.
   const provLabel = provenanceLabel(stamps, tFallback);
   // "Held offline" is the honest read of the retry state: flush() stashed
@@ -841,19 +858,26 @@ export default function JournalView({ userId, userEmail, onClose }) {
               </p>
             )}
 
-            {/* Attachments */}
-            {attachments.length > 0 && (
-              <div className="flex flex-wrap gap-2 py-3" data-no-swipe>
+            {/* Attachments. tileRow(), not a fixed 80px flex-wrap: the COUNT
+                comes from data, which is exactly the test CLAUDE.md sets for
+                this. Three-up tiles fill the column instead of leaving a
+                ragged 80px strip with dead space to the right, and the tiles
+                get bigger on a phone into the bargain.
+
+                Widths are literals in tileRows.js and cannot be built at
+                runtime — Tailwind only emits classes it can read in source. */}
+            {(attachments.length > 0 || pending.length > 0) && (
+              <div className={`${attachRow.row} py-3`} data-no-swipe>
                 {attachments.map(att => {
                   const isImg = (att.type || '').startsWith('image/');
                   return (
-                    <div key={att.url} className="relative group">
+                    <div key={att.url} className={`${attachRow.item} relative group`}>
                       {isImg ? (
                         <a href={att.url} target="_blank" rel="noreferrer">
-                          <img src={att.url} alt={att.name} className="w-20 h-20 rounded-lg object-cover border border-border" loading="lazy" />
+                          <img src={att.url} alt={att.name} className="w-full aspect-square rounded-lg object-cover border border-border" loading="lazy" />
                         </a>
                       ) : (
-                        <a href={att.url} target="_blank" rel="noreferrer" className="w-20 h-20 rounded-lg border border-border bg-secondary/40 flex flex-col items-center justify-center gap-1 p-1 text-center">
+                        <a href={att.url} target="_blank" rel="noreferrer" className="w-full aspect-square rounded-lg border border-border bg-secondary/40 flex flex-col items-center justify-center gap-1 p-1 text-center">
                           <FileText className="w-5 h-5 text-muted-foreground" />
                           <span className="text-micro text-muted-foreground truncate w-full">{att.name}</span>
                         </a>
@@ -870,6 +894,17 @@ export default function JournalView({ userId, userEmail, onClose }) {
                     </div>
                   );
                 })}
+                {/* One placeholder per file still uploading, in the grid
+                    itself. A spinner on the attach button could not say HOW
+                    MANY were coming, so picking four photos read as nothing
+                    happening until they appeared one at a time. */}
+                {pending.map(name => (
+                  <div key={`pending-${name}`} className={`${attachRow.item}`}>
+                    <div className="w-full aspect-square rounded-lg border border-dashed border-border bg-secondary/20 flex items-center justify-center">
+                      <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>
