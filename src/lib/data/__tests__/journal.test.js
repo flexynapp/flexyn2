@@ -51,6 +51,11 @@ function makeChain(table) {
 }
 
 const uploaded = [];
+const removed = [];
+// Default: the object existed and was removed. Tests override it to assert
+// the 200-with-nothing case, which Storage answers when a SELECT cannot see
+// the target.
+let removeResult = { data: [{ name: 'ok' }], error: null };
 vi.mock('@/api/supabaseClient', () => ({
   supabase: {
     from: (table) => makeChain(table),
@@ -60,6 +65,7 @@ vi.mock('@/api/supabaseClient', () => ({
           uploaded.push({ path, name: file.name, contentType: opts?.contentType });
           return { error: null };
         },
+        remove: async (paths) => { removed.push(paths); return removeResult; },
         getPublicUrl: (p) => ({ data: { publicUrl: `https://cdn.test/${p}` } }),
       }),
     },
@@ -81,6 +87,8 @@ const DAY = '2026-08-05';
 beforeEach(() => {
   calls.length = 0;
   uploaded.length = 0;
+  removed.length = 0;
+  removeResult = { data: [{ name: 'ok' }], error: null };
   queue = [];
 });
 
@@ -198,6 +206,41 @@ describe('uploadAttachment — the extension gate', () => {
     expect(await journal.uploadAttachment(USER, { name: 'notes.txt', size: 10 })).toBeNull();
     expect(await journal.uploadAttachment(USER, { name: 'evil.svg', size: 10 })).toBeNull();
     expect(uploaded).toHaveLength(0);
+  });
+});
+
+describe('deleteAttachment — the orphaned-blob fix', () => {
+  it('derives the storage path from the public URL and removes it', async () => {
+    const res = await journal.deleteAttachment(
+      `https://x.supabase.co/storage/v1/object/public/uploads/${USER}/journal/1786-abc.png`);
+    expect(res).toEqual({ ok: true, path: `${USER}/journal/1786-abc.png` });
+    expect(removed).toEqual([[`${USER}/journal/1786-abc.png`]]);
+  });
+
+  it('strips a query string and decodes the path', async () => {
+    await journal.deleteAttachment(
+      'https://x.supabase.co/storage/v1/object/public/uploads/u1/journal/my%20shot.png?t=123');
+    expect(removed[0]).toEqual(['u1/journal/my shot.png']);
+  });
+
+  it('treats 200-with-an-empty-array as FAILURE, not success', async () => {
+    // Storage resolves a delete's targets with a SELECT first, so a caller
+    // that cannot see the object gets 200 and an empty list. Reading the
+    // error here would report success while orphaning the blob — which is
+    // the exact bug this function was written to end.
+    removeResult = { data: [], error: null };
+    const res = await journal.deleteAttachment(
+      'https://x.supabase.co/storage/v1/object/public/uploads/u1/journal/a.png');
+    expect(res).toEqual({ ok: false, reason: 'removed_nothing' });
+  });
+
+  it('refuses anything that is not an uploads URL rather than guessing a path', async () => {
+    for (const bad of [null, undefined, 42, '', 'https://evil.test/a.png',
+                       'https://x.supabase.co/storage/v1/object/public/avatars/u1/a.png']) {
+      const res = await journal.deleteAttachment(bad);
+      expect(res.ok).toBe(false);
+    }
+    expect(removed).toHaveLength(0);
   });
 });
 

@@ -24,7 +24,7 @@ import { toast } from '@/lib/toast';
 import { useLanguage } from '@/lib/LanguageContext';
 import { startDictation, isVoiceInputSupported } from '@/lib/voiceInput';
 import {
-  getEntry, upsertEntry, uploadAttachment, migrateLocalEntries, listEntries, tagMood,
+  getEntry, upsertEntry, uploadAttachment, deleteAttachment, migrateLocalEntries, listEntries, tagMood,
 } from '@/lib/data/journal';
 import { MOOD_EMOJIS, MOOD_LABELS, upsertMoodLog } from '@/lib/data/moodLogs';
 import { getDayContext, contextChips } from '@/lib/data/dayContext';
@@ -90,6 +90,34 @@ function MoodChip({ score, editable, busy, onPick, tFallback }) {
   );
 }
 
+// ── A mood IS an entry, on ANY day ────────────────────────────────────────────
+// This block used to live inside the read-only branch, which was fine while
+// `readOnly = !isToday` meant every past day was read-only. The 7-day edit
+// window then made days 1–7 editable and they silently fell out of it — so a
+// mood-only day, which is half of production's rows, went back to rendering a
+// blank placeholder for exactly the week a user is most likely to open. It is
+// keyed on the CONTENT (no words, a mood) rather than on editability now,
+// which is what it was always describing.
+//
+// `explain` only on a read-only day: the sub-line tells you why the page is
+// otherwise empty, and where a textarea sits underneath, its placeholder is
+// already saying it better.
+function MoodEntry({ score, tFallback, explain }) {
+  return (
+    <div className="py-2">
+      <p className="text-3xl leading-none">{MOOD_EMOJIS[score - 1]}</p>
+      <p className="font-heading font-bold text-lg text-foreground mt-3">
+        {tFallback('journal.feltLabel', 'You felt')} {tFallback(`mood.label.${score}`, MOOD_LABELS[score - 1])}
+      </p>
+      {explain && (
+        <p className="text-sm text-muted-foreground mt-1">
+          {tFallback('journal.moodOnly', 'Logged from the dashboard. Nothing written for this day.')}
+        </p>
+      )}
+    </div>
+  );
+}
+
 function MarkdownBody({ text, placeholder }) {
   if (!text || !text.trim()) return <p className="text-muted-foreground/50 text-sm">{placeholder}</p>;
   const lines = text.split('\n');
@@ -151,6 +179,14 @@ export default function JournalView({ userId, userEmail, onClose }) {
   const [dayCtx, setDayCtx] = useState(null);
   // created_at / updated_at of the loaded row, for the edit marker.
   const [stamps, setStamps] = useState(null);
+  // Whether this day's writing is sitting in localStorage waiting on a
+  // retry. STATE, not a derived read of dirtyRef / retryCountRef: refs do
+  // not trigger a render, so the old version only ever appeared if some
+  // other state change happened to repaint at the right instant, and it
+  // could not clear itself when the retry finally landed. An indicator
+  // that is right by coincidence is worse than none — this is a subtler
+  // version of the bug it was written to fix (a single toast, once).
+  const [heldOffline, setHeldOffline] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -255,6 +291,7 @@ export default function JournalView({ userId, userEmail, onClose }) {
       try { localStorage.removeItem(draftKey(snap.dateStr)); } catch { /* ignore */ }
       failToastShownRef.current = false;
       retryCountRef.current = 0;
+      setHeldOffline(false);
     } else {
       // Stash + re-arm so the next debounce retries. Persisting under a
       // dated key lets a separate session also pick the draft up if the
@@ -268,6 +305,7 @@ export default function JournalView({ userId, userEmail, onClose }) {
         }));
       } catch { /* private mode / quota */ }
       dirtyRef.current = true;
+      setHeldOffline(true);
       if (!failToastShownRef.current) {
         failToastShownRef.current = true;
         toast.error(tFallback('journal.saveFailed', "Couldn't save — we'll keep retrying. Your writing is held locally."));
@@ -341,11 +379,14 @@ export default function JournalView({ userId, userEmail, onClose }) {
       setAttachments(Array.isArray(draft.attachments) ? draft.attachments : []);
       // Re-arm so the autosave retries the unsynced draft.
       dirtyRef.current = true;
+      // A draft only exists because a save failed, so this day is held.
+      setHeldOffline(true);
     } else {
       setTitle(entry?.title || '');
       setBody(entry?.body || '');
       setAttachments(Array.isArray(entry?.attachments) ? entry.attachments : []);
       dirtyRef.current = false;
+      setHeldOffline(false);
     }
     setLoading(false);
     loadingRef.current = false;
@@ -531,18 +572,29 @@ export default function JournalView({ userId, userEmail, onClose }) {
     }
     setUploading(false);
   };
+  // Drop the reference AND the blob. Removing only the array entry left the
+  // file in the uploads bucket forever, unreferenced and invisible.
+  //
+  // Order matters: the UI drops it first, so the removal never appears to
+  // hang on a network call the user did not ask for. The blob delete is
+  // best-effort and deliberately not awaited into the render path — if it
+  // fails we are exactly where we were before this existed (an orphan), and
+  // deleteAttachment logs the reason rather than failing silently.
   const removeAttachment = (url) => {
     setAttachments(prev => prev.filter(a => a.url !== url));
     dirtyRef.current = true;
+    deleteAttachment(url).catch(() => { /* best-effort; already logged */ });
   };
 
   const hasContent = !!(title.trim() || body.trim() || attachments.length);
+  // Keyed on CONTENT, not on editability — that conflation is what the edit
+  // window broke. No words + a mood = the mood is the entry, on any day.
+  const showMoodEntry = !body.trim() && !!moodScore;
   // Null unless the entry was written or amended after the day it describes.
   const provLabel = provenanceLabel(stamps, tFallback);
   // "Held offline" is the honest read of the retry state: flush() stashed
   // the snapshot to localStorage and is backing off. It was reported by a
   // single toast, once, and then never again.
-  const heldOffline = !saving && dirtyRef.current && retryCountRef.current > 0;
 
   // ── The day's own facts, for the empty state ──────────────────────────
   // Fetched per day and only when there is a blank page to fill. Failure is
@@ -556,11 +608,17 @@ export default function JournalView({ userId, userEmail, onClose }) {
     return () => { cancelled = true; };
   }, [userId, dateStr, readOnly]);
 
+  // The mood is withheld from the starter chips exactly when it is already
+  // rendering as content above — otherwise the screen says "You felt Good"
+  // as a heading and offers "Felt 😄 Good" as a chip two inches below it,
+  // which reads as a bug rather than as two affordances.
   const chips = React.useMemo(() => contextChips(
     dayCtx,
-    moodScore ? { score: moodScore, emoji: MOOD_EMOJIS[moodScore - 1], label: tFallback(`mood.label.${moodScore}`, MOOD_LABELS[moodScore - 1]) } : null,
+    moodScore && !showMoodEntry
+      ? { score: moodScore, emoji: MOOD_EMOJIS[moodScore - 1], label: tFallback(`mood.label.${moodScore}`, MOOD_LABELS[moodScore - 1]) }
+      : null,
     (key, english) => tFallback(key, english),
-  ), [dayCtx, moodScore, tFallback]);
+  ), [dayCtx, moodScore, showMoodEntry, tFallback]);
 
   // Append a chip as a line of the entry, at the end, and mark dirty so the
   // normal autosave picks it up. No special save path — a tapped chip is
@@ -736,21 +794,8 @@ export default function JournalView({ userId, userEmail, onClose }) {
           <div className="flex-1 px-4 overflow-y-auto">
             {readOnly ? (
               <div className="min-h-[40vh] py-1" data-no-swipe>
-                {/* A mood IS an entry — the smallest one there is. This day
-                    used to say "No entry for this day" while the row it was
-                    reading held a mood_score, and that is not an edge case:
-                    six of production's twelve journal rows are mood-only,
-                    written by a tap on the dashboard. */}
-                {!body.trim() && moodScore ? (
-                  <div className="py-2">
-                    <p className="text-3xl leading-none">{MOOD_EMOJIS[moodScore - 1]}</p>
-                    <p className="font-heading font-bold text-lg text-foreground mt-3">
-                      {tFallback('journal.feltLabel', 'You felt')} {tFallback(`mood.label.${moodScore}`, MOOD_LABELS[moodScore - 1])}
-                    </p>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      {tFallback('journal.moodOnly', 'Logged from the dashboard. Nothing written for this day.')}
-                    </p>
-                  </div>
+                {showMoodEntry ? (
+                  <MoodEntry score={moodScore} tFallback={tFallback} explain />
                 ) : (
                   <MarkdownBody text={body} placeholder={tFallback('profile.journal.placeholderPast', 'No entry for this day.')} />
                 )}
@@ -770,6 +815,8 @@ export default function JournalView({ userId, userEmail, onClose }) {
                 </div>
               </div>
             ) : (
+              <>
+              {showMoodEntry && <MoodEntry score={moodScore} tFallback={tFallback} />}
               <textarea
                 ref={bodyRef}
                 value={body}
@@ -779,6 +826,7 @@ export default function JournalView({ userId, userEmail, onClose }) {
                 style={{ fontFamily: 'inherit' }}
                 data-no-swipe
               />
+              </>
             )}
 
             {/* ── The edit marker. Provenance belongs with the record, at

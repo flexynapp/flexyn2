@@ -90,6 +90,48 @@ export async function upsertEntry(userId, userEmail, { entryDate, title, body, a
 }
 
 /**
+ * Delete an attachment's blob from the uploads bucket, given its public URL.
+ *
+ * Removing a chip used to drop the entry from the JSONB array and leave the
+ * file in storage forever — invisible, unreferenced, and counting against a
+ * 50 MB-per-file Free-plan bucket nobody is watching.
+ *
+ * Two things this has to get right, both from CLAUDE.md's Storage section:
+ *   • `remove()` resolves its targets with a SELECT first, so it answers
+ *     **200 with an empty array** when the caller cannot see the object —
+ *     success and "removed nothing" are the same response. Migration 273
+ *     restored a SELECT scoped to the caller's own uid prefix, and journal
+ *     paths are `<uid>/journal/…`, so this is inside it. The returned array
+ *     is checked rather than the error, because the error is the wrong
+ *     signal.
+ *   • The path must be derived from the URL, not stored separately. There
+ *     is one source of truth for where a blob lives and it is the URL the
+ *     upload returned.
+ */
+export async function deleteAttachment(url) {
+  if (typeof url !== 'string') return { ok: false, reason: 'no_url' };
+  // .../storage/v1/object/public/uploads/<uid>/journal/<file>
+  const marker = '/object/public/uploads/';
+  const at = url.indexOf(marker);
+  if (at === -1) return { ok: false, reason: 'not_an_uploads_url' };
+  const path = decodeURIComponent(url.slice(at + marker.length).split('?')[0]);
+  if (!path) return { ok: false, reason: 'empty_path' };
+
+  const { data, error } = await supabase.storage.from('uploads').remove([path]);
+  if (error) {
+    console.warn('[journal] attachment delete failed:', path, error);
+    return { ok: false, reason: error.message };
+  }
+  if (!Array.isArray(data) || data.length === 0) {
+    // The 200-with-nothing case. Log it: silently orphaning the blob here
+    // is exactly the behaviour this function exists to end.
+    console.warn('[journal] attachment delete removed nothing (RLS?):', path);
+    return { ok: false, reason: 'removed_nothing' };
+  }
+  return { ok: true, path };
+}
+
+/**
  * Write ONLY the body for a day, leaving title / attachments / mood_score
  * alone. Same shape as `tagMood` below, and it exists for the same reason.
  *
