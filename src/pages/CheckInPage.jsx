@@ -35,6 +35,21 @@ export default function CheckInPage() {
         const res = await checkInWithCode(code);
         if (!res?.ok) { setStatus('error'); return; }
         setGymName(res.gym_name || '');
+        // The QR's destination is the gym's own page. Checking in is what
+        // the scan DOES; it isn't somewhere to be left standing. The result
+        // rides along in ?checkin= so GymHub can still announce the 1.2x
+        // day and offer "Start your workout".
+        //
+        // A hard replace, not navigate(): App.jsx picks this route tree off
+        // window.location.pathname without subscribing to it, so a
+        // client-side push would change the URL and leave this page mounted
+        // underneath it. `replace` also keeps /checkin/<CODE> out of history
+        // — a back tap should not re-run a check-in.
+        if (res.gym_id && typeof window !== 'undefined') {
+          window.location.replace(`/gym/${res.gym_id}?checkin=${res.already ? 'already' : 'ok'}`);
+          return;
+        }
+        // No gym id came back — stay put rather than navigating nowhere.
         setStatus(res.already ? 'already' : 'ok');
       } catch {
         setStatus('error');

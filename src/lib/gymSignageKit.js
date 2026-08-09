@@ -1,6 +1,7 @@
 // src/lib/gymSignageKit.js
 //
-// One-click "Signage Kit" PDF generator for gym owners. Produces a
+// One-click "Signage Kit" PDF generator, reachable by anyone at a gym
+// that has members — a community gym has no owner to do it. Produces a
 // multi-page, print-ready US-Letter PDF: one quarter-page poster per
 // high-traffic placement (front desk / locker room / squat rack),
 // each with the gym's QR, the 8-char Flexyn Code, and a gamified

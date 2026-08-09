@@ -14,8 +14,10 @@ import { motion } from 'framer-motion';
 import {
   ArrowLeft, Building2, Users, MapPin, Trophy, Calendar, MessageSquare,
   Loader2, Plus, Crown, Printer, Share2, Pencil, LogOut, Trash2, Dumbbell,
+  CheckCircle2, QrCode,
 } from 'lucide-react';
 import { leaveGym, getGymPublicPreview } from '@/lib/data/gymBusinesses';
+import { GYM_CHECKIN_XP_MULTIPLIER } from '@/lib/data/gymCheckins';
 
 const GymSignageCard = lazy(() => import('@/components/gyms/GymSignageCard'));
 const GymFeedTab            = lazy(() => import('@/components/gyms/GymFeedTab'));
@@ -132,6 +134,26 @@ export default function GymHub() {
       setMembersOpen(true);
     }
   }, [id]);
+
+  // A printed-signage QR scan lands on /checkin/<CODE>, which checks the
+  // user in and then forwards here — the gym's own page is the thing worth
+  // arriving at, and checking in is what the scan DOES rather than where it
+  // goes. The result rides along in ?checkin= so the 1.2x day still gets
+  // announced instead of being swallowed by the redirect.
+  const [checkin, setCheckin] = useState(null); // 'ok' | 'already' | null
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const v = params.get('checkin');
+    if (v !== 'ok' && v !== 'already') return;
+    setCheckin(v);
+    // Strip the param. Otherwise a refresh — or this URL being shared —
+    // re-announces a check-in that happened once, hours ago.
+    params.delete('checkin');
+    const qs = params.toString();
+    window.history.replaceState({}, '', `${window.location.pathname}${qs ? `?${qs}` : ''}`);
+  }, [id]);
+
   const [joining, setJoining] = useState(false);
 
   useEffect(() => {
@@ -208,6 +230,24 @@ export default function GymHub() {
         <ArrowLeft className="w-4 h-4" /> My Gym
       </button>
 
+      {/* Arrived from a signage QR scan — say what the scan bought you. */}
+      {checkin && (
+        <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 mb-4 flex items-center gap-2">
+          <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="font-heading font-bold text-sm">
+              {checkin === 'already' ? "You're already checked in" : 'Checked in'}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {GYM_CHECKIN_XP_MULTIPLIER}x XP on today&apos;s workouts.
+            </p>
+          </div>
+          <Button size="sm" onClick={() => navigate('/workout')} className="shrink-0 gap-2">
+            <Dumbbell className="w-3.5 h-3.5" /> Start
+          </Button>
+        </div>
+      )}
+
       {/* Header card */}
       <div className="rounded-2xl overflow-hidden border border-border bg-card mb-4">
         {gym.cover_url && (
@@ -257,12 +297,27 @@ export default function GymHub() {
                   </span>
                 )}
               </div>
-              {isOwner && (
+              {/* The Flexyn Code, and the QR built from it, used to be
+                  owner-only. A community gym has no owner BY DESIGN
+                  (mig 275) — nobody claimed the business — so its code
+                  was generated at promotion and then shown to nobody,
+                  which is the same as not having one. It now appears on
+                  any gym that has members: a code's only power is "join
+                  this gym", it is printed on the wall of the building it
+                  belongs to, and someone has to be able to print it.
+                  `isMember` is in the condition because member_count is a
+                  denormalised counter and a stale zero must not hide the
+                  code from a person standing in the gym. */}
+              {gym.flexyn_code && (isOwner || isMember || (gym.member_count ?? 0) > 0) && (
                 <div className="mt-3 rounded-xl bg-primary/8 border border-primary/20 p-2.5">
-                  <p className="text-micro font-bold uppercase tracking-wider text-primary mb-0.5">Your Flexyn Code</p>
+                  <p className="text-micro font-bold uppercase tracking-wider text-primary mb-0.5">
+                    {isOwner ? 'Your Flexyn Code' : 'Flexyn Code'}
+                  </p>
                   <p className="font-mono text-lg tracking-[0.3em] font-bold text-foreground">{gym.flexyn_code}</p>
                   <p className="text-micro text-muted-foreground mt-1 mb-2">
-                    Print this. Members scan or type it inside the gym to join.
+                    {isOwner
+                      ? 'Print this. Members scan or type it inside the gym to join.'
+                      : 'Scan or type this inside the gym to join. Print the signage and put it on the wall.'}
                   </p>
                   <Button
                     size="sm"
@@ -270,8 +325,8 @@ export default function GymHub() {
                     onClick={() => setSignageOpen(true)}
                     className="gap-1.5 h-7"
                   >
-                    <Printer className="w-3 h-3" />
-                    Open printable signage
+                    {isOwner ? <Printer className="w-3 h-3" /> : <QrCode className="w-3 h-3" />}
+                    {isOwner ? 'Open printable signage' : 'QR code & printable signage'}
                   </Button>
                 </div>
               )}

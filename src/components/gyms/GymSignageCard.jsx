@@ -4,8 +4,10 @@
 // Flexyn Code as the data URL) + the 8-char code in mono type, sized
 // to print clean on US Letter / A4 at a useful eye-distance.
 //
-// Owner taps "Print signage" inside their Gym Hub → modal renders →
-// browser print dialog produces a quarter-page poster.
+// Opened from the Flexyn Code block in Gym Hub → modal renders →
+// browser print dialog produces a quarter-page poster. Not owner-only:
+// a community gym has no owner by design (mig 275), so anyone at a gym
+// with members can print its signage.
 //
 // The QR encodes `flexyn://gym/<CODE>` so a generic QR reader on a
 // member's phone opens the Flexyn app (when installed) or shows the
