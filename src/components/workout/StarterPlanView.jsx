@@ -77,12 +77,18 @@ export default function StarterPlanView({ regimen, cardioDefaultOpen = true, str
         defaultOpen={cardioDefaultOpen}
       >
         {cardio.map((ex, i) => (
-          <div key={`c-${i}`} className="flex items-center gap-3 rounded-xl bg-secondary/40 px-3 py-2.5">
-            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: 'hsl(217 91% 60%)' }} />
-            <div className="flex-1 min-w-0">
-              <p className="font-semibold text-label leading-tight truncate">{ex.displayName || ex.name}</p>
-              {ex.detail && <p className="text-micro text-muted-foreground mt-0.5">{ex.detail}</p>}
+          <div key={`c-${i}`} className="rounded-xl bg-secondary/40 px-3 py-2.5">
+            <div className="flex items-center gap-3">
+              <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: 'hsl(217 91% 60%)' }} />
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-label leading-tight truncate">{ex.displayName || ex.name}</p>
+                {ex.detail && <p className="text-micro text-muted-foreground mt-0.5">{ex.detail}</p>}
+              </div>
             </div>
+            {/* The modality, not the session — `ex.detail` above already says
+                how far and how fast. A first-time runner still benefits from
+                being told what "easy" means. */}
+            <ExerciseFormPanel exerciseName={ex.name || ex.displayName} className="mt-2" />
           </div>
         ))}
       </Section>
@@ -111,7 +117,7 @@ export default function StarterPlanView({ regimen, cardioDefaultOpen = true, str
             </div>
             {/* Reading the plan is when you find out a lift is unfamiliar, and
                 it is the one moment before the session where you can still do
-                something about it. Renders nothing for undrawn exercises. */}
+                something about it. Every catalog exercise carries one. */}
             <ExerciseFormPanel exerciseName={ex.name || ex.displayName} className="mt-2" />
           </div>
         ))}

@@ -323,8 +323,8 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
           )}
           {/* Under the name and muscles, above the sets: this is the moment
               someone is deciding how to move, and it must not sit below the
-              thing they are about to fill in. Renders nothing when the
-              exercise has no drawn pose. */}
+              thing they are about to fill in. Renders nothing only for a
+              custom exercise the user typed in themselves. */}
           <ExerciseFormPanel
             exerciseName={exercise.name || exercise.displayName}
             className="mt-2"
