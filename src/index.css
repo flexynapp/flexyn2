@@ -274,6 +274,34 @@
     --fluid-cta-h: clamp(3rem, calc(6.6 * var(--vhu)), 3.5rem);        /* pinned CTA      48→56 */
     --fluid-cta-gap: clamp(0.5rem, calc(1.8 * var(--vhu)), 1rem);      /* above the CTA    8→16 */
 
+    /* ── Clearing the bottom nav ──────────────────────────────────────
+       Anything that floats above Layout.jsx's fixed bottom nav must clear
+       BOTH the nav and the home-indicator inset the nav pads itself with
+       (see the `paddingBottom: calc(0.25rem + env(safe-area-inset-bottom))`
+       on that <nav>). Three surfaces needed this and all three invented
+       their own constant; two of them were wrong on every notched iPhone:
+
+         Toaster (App.jsx)      bottom: calc(4rem + 16px)
+         BackToTopButton        bottom: max(env(safe-area-inset-bottom), 80px)
+
+       Both resolve to a flat 80px. The nav is 67px + inset, so at the 34px
+       inset an iPhone X–15 reports it is 101px tall and the toast overlapped
+       its tabs by 21px — and sonner's z-index beats the nav's z-30, so the
+       toast covered the nav rather than sliding under it. BackToTopButton's
+       `max()` is the subtler of the two: its comment says "plus safe-area
+       inset", but max(34px, 80px) is 80px, so it never added anything on any
+       device that has an inset. `max` where `calc` was meant.
+
+       67px is MEASURED, not derived — getBoundingClientRect on the real nav
+       at a zero inset. Re-measure it if the nav's padding or icon slot
+       changes; the tabs are pt-1 + a 36px icon slot + label + pb-1.
+
+       --nav-h          the nav's true occupied height on this device
+       --above-nav      the nav plus the standard 16px float gap
+    */
+    --nav-h: calc(67px + env(safe-area-inset-bottom));
+    --above-nav: calc(var(--nav-h) + 16px);
+
     /* THE ONE VALUE HERE THAT CLAMPS AGAINST WIDTH, and it has to.
        Every heading above is a question of three to five words, so its line
        count doesn't move and sizing it against height is right. The reveal

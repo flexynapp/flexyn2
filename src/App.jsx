@@ -470,7 +470,14 @@ function App() {
         <Router>
           <AuthenticatedApp />
         </Router>
-        <SonnerToaster position="bottom-center" style={{ bottom: 'calc(4rem + 16px)' }} />
+        {/* `bottom` was a flat calc(4rem + 16px) = 80px, which ignored the
+            home-indicator inset the bottom nav pads itself with. The nav is
+            67px + env(safe-area-inset-bottom), so at a 34px inset it stands
+            101px tall and every celebration toast covered the top 21px of the
+            nav's tabs — sonner's z-index beats the nav's z-30, so it painted
+            over them rather than sliding underneath. --above-nav is the shared
+            fix; see the note beside it in index.css. */}
+        <SonnerToaster position="bottom-center" style={{ bottom: 'var(--above-nav)' }} />
       </QueryClientProvider>
     </RestTimerProvider>
     </AuthProvider>

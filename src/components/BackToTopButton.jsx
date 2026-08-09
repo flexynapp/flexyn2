@@ -48,11 +48,15 @@ export default function BackToTopButton() {
           exit={{ opacity: 0, scale: 0.6 }}
           transition={{ type: 'spring', stiffness: 380, damping: 26 }}
           onClick={handleClick}
-          // 80px above the bottom tab bar so it doesn't overlap on mobile,
-          // plus safe-area inset for iPhones with home-indicator gestures.
+          // Clears the bottom tab bar, home-indicator inset included.
+          // This used to read `max(env(safe-area-inset-bottom), 80px)` and the
+          // comment beside it claimed it added the inset — it never did. Every
+          // inset a device reports is smaller than 80px, so the max() always
+          // picked 80 and the button overlapped the nav on exactly the phones
+          // the inset exists for. `max` where `calc` was meant.
           className="fixed end-4 z-30 w-12 h-12 rounded-full bg-card/95 backdrop-blur-sm border border-border shadow-lg flex items-center justify-center text-foreground hover:bg-secondary active:bg-secondary transition-colors lg:bottom-6"
           style={{
-            bottom: 'max(env(safe-area-inset-bottom), 80px)',
+            bottom: 'var(--above-nav)',
           }}
           aria-label="Back to top"
           type="button"
