@@ -1382,6 +1382,24 @@ the ONE that is theirs.
   identical to a dead button. That is most of why this feature took four
   rounds to land. They still pass an Undo action, which is the right
   affordance for a one-tap commit regardless of the policy.
+- **A trigger that writes ANOTHER table runs as the invoking role, and
+  RLS drops that write in silence** (mig 324). `gym_businesses.member_count`
+  had drifted — 2 against 1 real row — because joining and leaving are not
+  symmetric: joins go through `join_gym_by_code` / `set_home_gym_*`, all
+  SECURITY DEFINER, so the counter trigger inherited the definer context and
+  incremented; leaving is a direct client DELETE, so the trigger ran as
+  `authenticated` and its `UPDATE public.gym_businesses` matched **zero**
+  rows against the `owner_id = auth.uid()` policy. The DELETE succeeded, the
+  count didn't move, nothing raised. On a community gym (`owner_id` NULL) the
+  counter could never come down at all. Fixed by making the trigger SECURITY
+  DEFINER **and** deriving the value with `count(*)` rather than `±1`, so
+  drift from any cause heals on the next join. A `BEFORE UPDATE OF
+  member_count` guard recomputes it too, because owners may update their own
+  gym row and that number is on every public map pin.
+  Two things to carry forward: **an incremented counter can only ever be as
+  correct as every increment before it** — derive it if the table is small
+  enough to afford it. And **test a trigger's side effect as the role that
+  fires it**; as `postgres` this behaved perfectly for months.
 - **`/my-gym` and `/my-gyms` are one page as of 2026-08-09.** They were
   two routes behind two profile-menu rows a single line apart, told apart
   only by the plural, and both reachable only from that menu. `MyGym.jsx`
