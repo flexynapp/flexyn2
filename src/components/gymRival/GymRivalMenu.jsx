@@ -22,6 +22,7 @@ import { formatDistance } from '@/lib/distanceUnit';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { formatWeight } from '@/lib/weightUnit';
 import { useNumberFormatter } from '@/lib/intl';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 // Higher of two numbers: true = user wins, false = rival, null = tie.
 const cmp = (a, b) => { const x = Number(a) || 0, y = Number(b) || 0; return x === y ? null : x > y; };
@@ -66,6 +67,8 @@ function StatRow({ icon: Icon, label, userVal, rivalVal, userWins }) {
 }
 
 export default function GymRivalMenu({ open, onClose, assignment, currentUserId, onReroll, rerolling, onDecline, declining, onChallenge }) {
+  // Pin the page behind this overlay — see @/lib/scrollLock.
+  useBodyScrollLock(open);
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { distanceUnit } = useDistanceUnit();

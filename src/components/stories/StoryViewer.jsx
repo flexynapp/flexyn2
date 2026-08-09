@@ -33,6 +33,7 @@ import AddToHighlightModal from './AddToHighlightModal';
 import * as storiesData from '@/lib/data/stories';
 import { cdnImageUrl, cdnFallbackSrc } from '@/lib/imageCdn';
 import StoryOverlayRenderer from './StoryOverlayRenderer';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 const STORY_DURATION_MS = 8000;
 
@@ -208,6 +209,8 @@ export default function StoryViewer({
   onRemoveFromHighlight,
 }) {
   const queryClient = useQueryClient();
+  // Pin the page behind this overlay — see @/lib/scrollLock.
+  useBodyScrollLock(open);
   const navigate = useNavigate();
   // Re-render every 60s so the expiration countdown ticks down.
   const [, setCountdownTick] = useState(0);

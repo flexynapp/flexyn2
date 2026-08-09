@@ -21,6 +21,7 @@ import * as crewRxns from '@/lib/data/crewMessageReactions';
 import { supabase } from '@/api/supabaseClient';
 import { triggerHaptic } from '@/lib/haptic';
 import { playSound, SOUND } from '@/lib/playSound';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 // Quick emoji strip in long-press context menu (same set as DM reactions)
 const QUICK_EMOJIS = ['👍', '❤️', '😂', '🔥', '😮'];
@@ -154,6 +155,8 @@ function TextMessage({ msg, senderProfile, isOwn, currentUserId, isCurrentModera
   const [reacted, setReacted] = useState(() => loadFire(msg.id, currentUserId));
   const [animating, setAnimating] = useState(false);
   const [showContext, setShowContext] = useState(false);
+  // Pin the page behind this overlay — see @/lib/scrollLock.
+  useBodyScrollLock(showContext);
   // Optimistic emoji reactions state: { [emoji]: { count, myReacted } }
   const [optimisticRxns, setOptimisticRxns] = useState(null);
   const tint = isOwn ? '' : senderBubbleColor(msg.sender_id);

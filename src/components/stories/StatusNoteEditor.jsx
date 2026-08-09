@@ -11,6 +11,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import { Loader2 } from 'lucide-react';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 const CARD_W  = Math.min(typeof window !== 'undefined' ? window.innerWidth * 0.9 : 340, 380);
 const CARD_H  = 280;
@@ -29,6 +30,8 @@ function getTarget() {
 }
 
 export default function StatusNoteEditor({ existingNote, origin, onPost, onDelete, onClose }) {
+  // Pin the page behind this overlay — see @/lib/scrollLock.
+  useBodyScrollLock();
   const [text,     setText]     = useState(existingNote?.text ?? '');
   const [saving,   setSaving]   = useState(false);
   const [deleting, setDeleting] = useState(false);

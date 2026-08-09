@@ -19,11 +19,14 @@ import { useNumberFormatter } from '@/lib/intl';
 import { useAutofocusOnOpen } from '@/hooks/useAutofocusOnOpen';
 import { usePullToDismiss } from '@/hooks/usePullToDismiss';
 import { useLanguage } from '@/lib/LanguageContext';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 const QUICK_AMOUNTS = [25, 100, 500, 1000];
 const MAX_MESSAGE_LEN = 120;
 
 export default function GiftCoinsModal({ open, onClose, recipient }) {
+  // Pin the page behind this overlay — see @/lib/scrollLock.
+  useBodyScrollLock(open);
   const { user, refreshUser } = useAuth();
   const { tFallback } = useLanguage();
   const fmt = useNumberFormatter();

@@ -22,6 +22,7 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Pause, Play, RotateCcw, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Trophy } from 'lucide-react';
 import AnimatedNumber from '@/components/AnimatedNumber';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 // ── Board geometry ────────────────────────────────────────────────────
 const GRID = 17;
@@ -218,6 +219,8 @@ function fireConfetti(colors, big) {
 }
 
 export default function SnakeGameModal({ open, onClose, userId }) {
+  // Pin the page behind this overlay — see @/lib/scrollLock.
+  useBodyScrollLock(open);
   const canvasRef = useRef(null);
   const snakeRef = useRef([]);
   const dirRef = useRef(DIRECTIONS.right);

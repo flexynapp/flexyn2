@@ -8,6 +8,7 @@
 // barbell racks, stack 45 lb per pass. Personal best persists per user.
 
 import React, { useEffect, useRef, useState } from 'react';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 // Ambient white embers drifting up over the blue gym backdrop.
 function makeEmbers() {
@@ -21,6 +22,8 @@ function makeEmbers() {
 }
 
 export default function HeavyBirdModal({ onClose, userId, onUnlockCosmetic }) {
+  // Pin the page behind this overlay — see @/lib/scrollLock.
+  useBodyScrollLock();
   const canvasRef = useRef(null);
   const storageKey = `flexyn.heavyBirdHighScore.${userId || 'anon'}`;
   const [highScore, setHighScore] = useState(() => {

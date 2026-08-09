@@ -16,6 +16,7 @@ import { format, subDays } from 'date-fns';
 import { Dumbbell, ArrowRight, Sparkles, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/lib/toast';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 // ── Comeback session generator ────────────────────────────────────────────────
 // Pulls exercises the user has done before from the 30 days prior to absence.
@@ -102,6 +103,8 @@ function buildComebackSession(workoutLogs, daysSince, userProfile = {}) {
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function ComebackScreen({ daysSince, workoutLogs = [], userProfile = {}, onStartSession, onSkip }) {
+  // Pin the page behind this overlay — see @/lib/scrollLock.
+  useBodyScrollLock();
   const [loading, setLoading] = useState(false);
 
   const weekLabel = format(new Date(), "'Week of' MMM d");

@@ -30,6 +30,7 @@ import CreatorAnalyticsPanel from './CreatorAnalyticsPanel';
 import { getLootTitleById } from '@/lib/lootTitles';
 import { getLootFrameById } from '@/lib/lootFrames';
 import { cdnImageUrl, cdnFallbackSrc } from '@/lib/imageCdn';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 // ── Hashtag renderer ──────────────────────────────────────────────────────────
 // Splits post body on #word tokens and renders each as a tappable chip.
@@ -580,6 +581,8 @@ function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
 
   // ── Long-press avatar preview ─────────────────────────────────────────────
   const [avatarPreviewOpen, setAvatarPreviewOpen] = useState(false);
+  // Pin the page behind this overlay — see @/lib/scrollLock.
+  useBodyScrollLock(avatarPreviewOpen);
   const avatarLongPressRef = useRef(null);
 
   const startAvatarLongPress = useCallback(() => {

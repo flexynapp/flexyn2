@@ -14,6 +14,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import ThemePicker from './ThemePicker';
 import LanguagePicker from './LanguagePicker';
 import { useLanguage } from '@/lib/LanguageContext';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import SettingsPanel from './SettingsPanel';
 import AccountDeletedScreen from './AccountDeletedScreen';
 import { OPEN_ACHIEVEMENTS_EVENT } from '@/lib/achievementsFlow';
@@ -169,6 +170,14 @@ export default function ProfileMenu({ compact = false } = {}) {
     setOpen(false);
     setView('main');
   }, [location.pathname]);
+
+  // The panel is a scroll container floating over a live page — it has no
+  // backdrop, so the Dashboard/Hub behind it is both visible and, until
+  // this, still scrollable. A drag that the panel couldn't consume (its
+  // content fits, or it's already at an end) fell straight through and
+  // moved the page instead, which is what "the menu stays put and the
+  // background scrolls" looks like. Pin the page for as long as it's open.
+  useBodyScrollLock(open);
 
   // Esc-to-close on the open drawer (audit C-14).
   useEffect(() => {

@@ -1,8 +1,11 @@
 // src/components/ProfanityWarningDialog.jsx
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 export default function ProfanityWarningDialog({ open, onContinue }) {
+  // Pin the page behind this overlay — see @/lib/scrollLock.
+  useBodyScrollLock(open);
   return (
     <AnimatePresence>
       {open && (

@@ -15,12 +15,15 @@ import { RARITY } from '@/lib/lootCatalog';
 import { displayName } from '@/lib/userDisplay';
 import { RarityBadge, RarityFrame } from '@/components/loot/RarityVisuals';
 import { tileRow } from '@/lib/tileRows';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 // The sticker picker — 3 per row at every width. How many unlisted stickers
 // you hold is arbitrary, so a partial last row was the usual case.
 const PICKER = tileRow({ gap: 2, cols: 3 });
 
 export default function TradeOfferDialog({ open, listing, userItems, user, onClose }) {
+  // Pin the page behind this overlay — see @/lib/scrollLock.
+  useBodyScrollLock(open && !!listing);
   const [selectedOffer, setSelectedOffer] = useState(null);
   const [busy, setBusy]                   = useState(false);
 

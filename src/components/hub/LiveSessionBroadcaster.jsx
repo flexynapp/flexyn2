@@ -15,8 +15,11 @@ import * as hubLiveSessions from '@/lib/data/hubLiveSessions';
 import { db } from '@/api/db';
 import { toast } from '@/lib/toast';
 import { format } from 'date-fns';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 export default function LiveSessionBroadcaster({ onClose }) {
+  // Pin the page behind this overlay — see @/lib/scrollLock.
+  useBodyScrollLock();
   const { user } = useAuth();
   const { tFallback } = useLanguage();
   const [phase, setPhase]       = useState('setup');   // 'setup' | 'live' | 'ending'

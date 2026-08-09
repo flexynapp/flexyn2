@@ -37,6 +37,7 @@ import StoryViewer from './StoryViewer';
 import StoryPreviewSheet from './StoryPreviewSheet';
 import StatusNoteEditor from './StatusNoteEditor';
 import { reportError } from '@/lib/reportError';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 // ── Video duration guard ──────────────────────────────────────────────────────
 
@@ -546,6 +547,8 @@ export default function StoriesRow({ onViewProfile } = {}) {
   }, [feedData?.likedNoteIds]);
 
   const [crewStoryViewerOpen, setCrewStoryViewerOpen] = useState(null); // { crew, stories, idx }
+  // Pin the page behind this overlay — see @/lib/scrollLock.
+  useBodyScrollLock(!!crewStoryViewerOpen);
 
   const { data: crewStoryGroups = [] } = useQuery({
     queryKey: ['crewStoriesFeed', user?.id],

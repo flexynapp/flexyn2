@@ -15,6 +15,7 @@ import { supabase } from '@/api/supabaseClient';
 import { selectProfiles } from '@/lib/data/users';
 import { useAuth } from '@/lib/AuthContext';
 import { toast } from '@/lib/toast';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 // ── Duel type config ──────────────────────────────────────────────────────────
 
@@ -144,6 +145,8 @@ export default function CreateDuelModal({
   onCreated,
 }) {
   const { user } = useAuth();
+  // Pin the page behind this overlay — see @/lib/scrollLock.
+  useBodyScrollLock();
 
   const [step,         setStep]         = useState(initialOpponentId ? 'configure' : 'pick');
   const [opponent,     setOpponent]     = useState(

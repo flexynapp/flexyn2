@@ -23,6 +23,7 @@ import { toast } from '@/lib/toast';
 import { useAuth } from '@/lib/AuthContext';
 import * as recipes from '@/lib/data/nutritionRecipes';
 import RecipeBuilderModal from './RecipeBuilderModal';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 // Per-serving calorie headline for a recipe row.
 function perServingCals(recipe) {
@@ -90,6 +91,8 @@ function RecipeDetails({ recipe }) {
 }
 
 export default function RecipesHubModal({ open, onClose, userProfile }) {
+  // Pin the page behind this overlay — see @/lib/scrollLock.
+  useBodyScrollLock(open);
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [tab, setTab] = useState('mine');           // 'mine' | 'discover'

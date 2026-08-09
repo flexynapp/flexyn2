@@ -10,6 +10,7 @@ import { useNumberFormatter } from '@/lib/intl';
 import { useAuth } from '@/lib/AuthContext';
 import { db } from '@/api/db';
 import { submitDuelResult } from '@/lib/data/duels';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 // Sum weight × reps across a workout log — the volume the duel compares.
 // The server (submit_duel_result_atomic, mig 159) recomputes this from the
@@ -35,6 +36,8 @@ function StatPill({ label, value, highlight }) {
 }
 
 export default function DuelDetailSheet({ duel, currentUserId, opponentProfile, onCancel, onClose }) {
+  // Pin the page behind this overlay — see @/lib/scrollLock.
+  useBodyScrollLock(!!duel);
   const fmt = useNumberFormatter();
   const { user } = useAuth();
   const qc = useQueryClient();

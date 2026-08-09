@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { FRONT_GROUPS, BACK_GROUPS } from './muscleAnatomy';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 /* ============================================================
    FLEXYN · Muscle heat-map  (Body Heat Map design, wired to
@@ -221,6 +222,8 @@ function Segmented({ options, value, onChange, mono = true }) {
 
 /* ---- detail sheet (fixed bottom-sheet overlay) ----------- */
 function DetailSheet({ muscles, id, range, onClose }) {
+  // Pin the page behind this overlay — see @/lib/scrollLock.
+  useBodyScrollLock(!!id);
   if (!id) return null;
   const m = muscles[id];
   const fatigue = (100 - m.recovery) / 100;

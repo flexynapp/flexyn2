@@ -8,6 +8,7 @@ import { X, ArrowRight } from 'lucide-react';
 import { getTier } from '@/lib/xpTier';
 import Particles from '@/components/Particles';
 import { useLanguage } from '@/lib/LanguageContext';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 function getTierColors(level) {
   if (level >= 91) return ['#fbbf24', '#f97316', '#ef4444']; // Legendary
@@ -16,6 +17,8 @@ function getTierColors(level) {
 }
 
 export default function LevelUpOverlay({ event, onDismiss }) {
+  // Pin the page behind this overlay — see @/lib/scrollLock.
+  useBodyScrollLock(!!event);
   const { t } = useLanguage();
   const dismissTimerRef = useRef(null);
   const reducedMotion = typeof window !== 'undefined'

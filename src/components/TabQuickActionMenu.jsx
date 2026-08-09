@@ -17,8 +17,11 @@
 import { useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createPortal } from 'react-dom';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 export default function TabQuickActionMenu({ open, anchorRect, actions, onClose }) {
+  // Pin the page behind this overlay — see @/lib/scrollLock.
+  useBodyScrollLock(open);
   const menuRef = useRef(null);
 
   // Close on outside click / Escape.

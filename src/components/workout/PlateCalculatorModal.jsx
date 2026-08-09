@@ -14,8 +14,11 @@ import PlateDiagram from './PlateDiagram';
 import { BAR_PRESETS, getActiveBarLbs, setActiveBarLbs, platesPerSide } from '@/lib/barInventory';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { toLbs, formatWeightNumber } from '@/lib/weightUnit';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 export default function PlateCalculatorModal({ open, onClose, initialWeightLbs = null }) {
+  // Pin the page behind this overlay — see @/lib/scrollLock.
+  useBodyScrollLock(open);
   const { weightUnit } = useWeightUnit();
   const [barLbs, setBarLbs] = useState(() => getActiveBarLbs());
   const [input, setInput] = useState(() =>

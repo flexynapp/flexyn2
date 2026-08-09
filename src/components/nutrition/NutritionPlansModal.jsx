@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/card';
 import { PLAN_TEMPLATES, PLAN_COLORS, scalePlan, adaptPlan, loadRestrictions } from '@/lib/nutritionPlans';
 import { calculateDailyValues } from '@/lib/nutritionDefaults';
 import { isNutritionOnboardingComplete } from '@/lib/nutritionOnboardingGate';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 /* ─── Macro bar ──────────────────────────────────────────────────────────── */
 function MacroBar({ protein, carbs, fat }) {
@@ -485,6 +486,8 @@ export function NutritionPlansPanel({ userProfile, onStartOnboarding, trainingFu
 
 /* ─── Main modal ─────────────────────────────────────────────────────────── */
 export default function NutritionPlansModal({ open, onClose, userProfile, onStartOnboarding, trainingFuel, onApplyFuel }) {
+  // Pin the page behind this overlay — see @/lib/scrollLock.
+  useBodyScrollLock(open);
   const handleClose = () => {
     onClose();
   };

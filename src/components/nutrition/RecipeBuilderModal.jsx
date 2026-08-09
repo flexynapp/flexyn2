@@ -25,6 +25,7 @@ import {
   INGREDIENT_UNITS, DEFAULT_UNIT, MICRO_PRESETS, MICRO_UNITS,
 } from '@/lib/data/nutritionRecipes';
 import { db } from '@/api/db';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 // Factory rather than module-level shared object so each row gets a
 // fresh reference — eliminates a class of subtle aliasing bugs and
@@ -67,6 +68,8 @@ function NumField({ caption, value, onChange, max, className = '' }) {
 }
 
 export default function RecipeBuilderModal({ open, onClose, editingRecipe = null }) {
+  // Pin the page behind this overlay — see @/lib/scrollLock.
+  useBodyScrollLock(open);
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [name, setName]         = useState('');

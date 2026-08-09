@@ -14,12 +14,15 @@ import { RARITY } from '@/lib/lootCatalog';
 import { displayName } from '@/lib/userDisplay';
 import { RarityBadge, RarityFrame, COIN } from '@/components/loot/RarityVisuals';
 import { tileRow } from '@/lib/tileRows';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 // The sticker picker — 3 per row at every width. How many unlisted stickers
 // you hold is arbitrary, so a partial last row was the usual case.
 const PICKER = tileRow({ gap: 2, cols: 3 });
 
 export default function ListItemDialog({ open, onClose, userItems, user, onSuccess }) {
+  // Pin the page behind this overlay — see @/lib/scrollLock.
+  useBodyScrollLock(open);
   const qc = useQueryClient();
   const [step, setStep]               = useState('pick');   // 'pick' | 'configure'
   const [selectedItem, setSelected]   = useState(null);

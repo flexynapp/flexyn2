@@ -26,10 +26,13 @@ import ReadinessRing, { readinessColors } from '@/components/dashboard/Readiness
 import SleepLogCard from '@/components/dashboard/SleepLogCard';
 import MoodLogCard from '@/components/dashboard/MoodLogCard';
 import StepsLogCard from '@/components/dashboard/StepsLogCard';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 const MOOD_LABELS = ['Drained', 'Low', 'OK', 'Good', 'Great'];
 
 export default function ReadinessSheet({ open, onClose, readiness, focus, onLogWorkout }) {
+  // Pin the page behind this overlay — see @/lib/scrollLock.
+  useBodyScrollLock(open);
   const { tFallback } = useLanguage();
   const sleepRef = useRef(null);
   const moodRef = useRef(null);

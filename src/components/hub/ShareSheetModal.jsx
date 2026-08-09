@@ -20,6 +20,7 @@ import { useLanguage } from '@/lib/LanguageContext';
 import * as hubMessages from '@/lib/data/hubMessages';
 import { getMyCrews, sendCrewMessage } from '@/lib/data/crews';
 import { toast } from '@/lib/toast';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 // ── Twitter/X SVG icon ───────────────────────────────────────────────────────
 function XIcon({ size = 16 }) {
@@ -40,6 +41,8 @@ function WhatsAppIcon({ size = 16 }) {
 }
 
 export default function ShareSheetModal({ post, open, onClose }) {
+  // Pin the page behind this overlay — see @/lib/scrollLock.
+  useBodyScrollLock(open);
   const { user } = useAuth();
   const { tFallback } = useLanguage();
   const [tab, setTab]         = useState('external'); // 'dm' | 'crew' | 'external'

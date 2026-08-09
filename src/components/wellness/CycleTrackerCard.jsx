@@ -20,8 +20,11 @@ import * as cycleLogs from '@/lib/data/cycleLogs';
 import { db } from '@/api/db';
 import { computeCycleState } from '@/lib/cyclePhase';
 import { format } from 'date-fns';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 function LogStartModal({ open, onClose, onSubmit, submitting }) {
+  // Pin the page behind this overlay — see @/lib/scrollLock.
+  useBodyScrollLock(open);
   const [date, setDate] = useState(() => format(new Date(), 'yyyy-MM-dd'));
   const [notes, setNotes] = useState('');
   if (!open) return null;

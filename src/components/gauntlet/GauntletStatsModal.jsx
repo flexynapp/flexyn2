@@ -5,6 +5,7 @@ import { useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Share2, Trophy, Star, Zap } from 'lucide-react';
 import { useNumberFormatter } from '@/lib/intl';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 function StatPill({ label, value, accent }) {
   return (
@@ -37,6 +38,8 @@ export default function GauntletStatsModal({
 }) {
   const cardRef = useRef(null);
   const fmt = useNumberFormatter();
+  // Pin the page behind this overlay — see @/lib/scrollLock.
+  useBodyScrollLock(open);
 
   const { completion_rate_pct = 0, attempt_count = 0, completion_count = 0, user_rank = null } = stats;
 

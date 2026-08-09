@@ -18,10 +18,13 @@ import { useAuth } from '@/lib/AuthContext';
 import { handle } from '@/lib/userDisplay';
 import * as hubFollows from '@/lib/data/hubFollows';
 import { createGroupConversation } from '@/lib/data/hubMessages';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 const MAX_OTHERS = 9;
 
 export default function NewGroupDMModal({ open, onClose, onCreated }) {
+  // Pin the page behind this overlay — see @/lib/scrollLock.
+  useBodyScrollLock(open);
   const { user } = useAuth();
   const [title, setTitle] = useState('');
   const [query, setQuery] = useState('');

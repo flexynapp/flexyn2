@@ -12,8 +12,11 @@ import { toast } from '@/lib/toast';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { listMyQuotes, addQuote, removeQuote, MAX_CUSTOM_QUOTES } from '@/lib/data/customQuotes';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 export default function CustomQuotesModal({ open, onClose }) {
+  // Pin the page behind this overlay — see @/lib/scrollLock.
+  useBodyScrollLock(open);
   const { user } = useAuth();
   const { tFallback } = useLanguage();
   const qc = useQueryClient();

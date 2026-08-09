@@ -13,8 +13,11 @@ import { X as XIcon, Play, Moon, CalendarDays, Settings2 } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { getActiveRoutine, todayIndex, DAY_NAMES, DAY_NAMES_FULL } from '@/lib/data/routines';
 import MyRoutineSheet from './MyRoutineSheet';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 export default function RoutineCalendarModal({ open, onClose }) {
+  // Pin the page behind this overlay — see @/lib/scrollLock.
+  useBodyScrollLock(open);
   const { user } = useAuth();
   const navigate = useNavigate();
   const [editOpen, setEditOpen] = useState(false);

@@ -4,8 +4,11 @@
 
 import { motion } from 'framer-motion';
 import { RarityBadge, CoinAmount } from '@/components/loot/RarityVisuals';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 export default function BuyConfirmDialog({ open, listing, onClose, onConfirm, busy }) {
+  // Pin the page behind this overlay — see @/lib/scrollLock.
+  useBodyScrollLock(open && !!listing);
   if (!open || !listing) return null;
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">

@@ -28,6 +28,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { reportError } from '@/lib/reportError';
 import * as notifications from '@/lib/data/notifications';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 // Notification types that a real human triggered. Used for the
 // "Friends" tab filter. Mirrors the `social` bucket in migration
@@ -74,12 +75,7 @@ export default function NotificationPanel({ open, onClose }) {
 
   // Lock body scroll while the panel is open so the page behind doesn't
   // scroll when the user is mid-swipe inside the panel on mobile.
-  useEffect(() => {
-    if (!open) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = prev; };
-  }, [open]);
+  useBodyScrollLock(open);
 
   // Mark all read once they've been displayed. Depend on user?.id (a primitive)
   // rather than the user object reference, so an unrelated auth refresh that

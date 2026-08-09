@@ -19,8 +19,11 @@ import { X, Printer, Download, Loader2, FileText } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { Button } from '@/components/ui/button';
 import { downloadSignageKit, SIGNAGE_PLACEMENT_COUNT } from '@/lib/gymSignageKit';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 export default function GymSignageCard({ open, onClose, gym }) {
+  // Pin the page behind this overlay — see @/lib/scrollLock.
+  useBodyScrollLock(open && !!gym);
   const canvasRef = useRef(null);
   const [generating, setGenerating] = useState(true);
   const [pngUrl, setPngUrl] = useState(null);

@@ -12,6 +12,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Clock, Wifi, X } from 'lucide-react';
 import { AMENITY_META } from '@/lib/gymAmenities';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 const DAY_ORDER = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 const DAY_LABEL = { mon: 'Mon', tue: 'Tue', wed: 'Wed', thu: 'Thu', fri: 'Fri', sat: 'Sat', sun: 'Sun' };
@@ -44,6 +45,8 @@ function hasAnyHours(hours) {
 export default function GymAboutCard({ gym }) {
   const [expandedDay, setExpandedDay] = useState(false);
   const [lightbox, setLightbox] = useState(null); // { url, idx }
+  // Pin the page behind this overlay — see @/lib/scrollLock.
+  useBodyScrollLock(!!lightbox);
 
   const hours      = gym?.hours || {};
   const amenities  = Array.isArray(gym?.amenities)  ? gym.amenities  : [];

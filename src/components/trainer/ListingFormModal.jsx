@@ -15,8 +15,11 @@ import { toast } from '@/lib/toast';
 import { db } from '@/api/db';
 import { calculateSplit, formatCents, dollarsToCents } from '@/lib/trainerSplit';
 import { createListing, updateListing } from '@/lib/data/trainerMarket';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 export default function ListingFormModal({ open, onClose, listing, trainerId, userEmail, onSaved }) {
+  // Pin the page behind this overlay — see @/lib/scrollLock.
+  useBodyScrollLock(open);
   const editing = !!listing;
   const [title, setTitle] = useState(listing?.title || '');
   const [description, setDescription] = useState(listing?.description || '');

@@ -14,6 +14,7 @@ import DemoSection from './DemoSection';
 import FeedbackPanel from './FeedbackPanel';
 import { useLanguage } from '@/lib/LanguageContext';
 import { analyzeForm, prewarmDetector } from '@/lib/formCoach/analyzeForm';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 // Plain framer-motion portal (NOT Radix). Same pattern as
 // ProfanityWarningDialog/WorkoutGeneratorModal — sidesteps Radix's
@@ -33,17 +34,14 @@ export default function FormCoachModal({ open, onClose }) {
     if (open) prewarmDetector();
   }, [open]);
 
-  // Lock body scroll while open + Esc-to-close
+  useBodyScrollLock(open);
+
+  // Esc-to-close
   useEffect(() => {
-    if (!open) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+    if (!open) return undefined;
     const onKey = (e) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', onKey);
-    return () => {
-      document.body.style.overflow = prev;
-      window.removeEventListener('keydown', onKey);
-    };
+    return () => window.removeEventListener('keydown', onKey);
   }, [open, onClose]);
 
   const handleCapture = async (imageDataUrl) => {

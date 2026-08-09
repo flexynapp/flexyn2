@@ -2,11 +2,14 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, Check } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 export default function LanguagePicker({ variant = 'inline', onSelect, iconOnly = false }) {
   const { language, setLanguage, SUPPORTED_LANGUAGES, currentLanguage } = useLanguage();
   const [open, setOpen] = useState(false);
   const [dropdownStyle, setDropdownStyle] = useState({});
+  // Pin the page behind this overlay — see @/lib/scrollLock.
+  useBodyScrollLock(open && variant !== 'inline');
   const containerRef = useRef(null);
   const triggerRef = useRef(null);
 

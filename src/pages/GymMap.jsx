@@ -34,6 +34,7 @@ import {
 import { toast } from '@/lib/toast';
 import GymLeaderboard from '@/components/gyms/GymLeaderboard';
 import { useAuth } from '@/lib/AuthContext';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 // ── Constants ──────────────────────────────────────────────────────────
 const US_CENTER        = [-98.5795, 39.8283];
@@ -227,6 +228,8 @@ function buildOsmPin({ gym, onClick, signal }) {
  *   is actually theirs: before that there is nothing to continue FROM.
  */
 export default function GymMap({ onClose, onContinue }) {
+  // Pin the page behind this overlay — see @/lib/scrollLock.
+  useBodyScrollLock();
   const navigate = useNavigate();
   const { user } = useAuth();
 

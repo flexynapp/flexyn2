@@ -16,6 +16,7 @@ import {
 } from '@/lib/data/progressPhotos';
 import { reportError } from '@/lib/reportError';
 import PhotoCompareSlider from './PhotoCompareSlider';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 export default function ProgressPhotosTab() {
   const { t, tFallback, language } = useLanguage();
@@ -23,6 +24,8 @@ export default function ProgressPhotosTab() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [lightbox, setLightbox] = useState(null);
+  // Pin the page behind this overlay — see @/lib/scrollLock.
+  useBodyScrollLock(!!lightbox);
   const [confirmId, setConfirmId] = useState(null);
   const [compareMode, setCompareMode] = useState(false);
 

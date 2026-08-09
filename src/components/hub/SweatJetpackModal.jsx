@@ -25,6 +25,7 @@
 //   "tree disappears as soon as it touches the edge."
 
 import { useEffect, useRef, useState } from 'react';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 const W = 640;
 const H = 360;
@@ -105,6 +106,8 @@ function cityBuildingAt(idx) {
 }
 
 export default function SweatJetpackModal({ onClose, userId }) {
+  // Pin the page behind this overlay — see @/lib/scrollLock.
+  useBodyScrollLock();
   const canvasRef = useRef(null);
   const wrapperRef = useRef(null);
   const storageKey  = `flexyn.sweatJetpackHighScore.${userId || 'anon'}`;

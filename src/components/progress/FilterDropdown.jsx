@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ChevronDown, Check } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 function SubAccordion({ label, value, items, onChange, open, onToggle }) {
   const selectedLabel = items.find(i => i.value === value)?.label;
@@ -50,6 +51,8 @@ export default function FilterDropdown({
   const { t } = useLanguage();
   const [open, setOpen] = useState(false);
   const [openSub, setOpenSub] = useState(null); // 'regimen' | 'timeRange' | 'muscleGroup' | null
+  // Pin the page behind this overlay — see @/lib/scrollLock.
+  useBodyScrollLock(open);
   const [dropdownPos, setDropdownPos] = useState({});
   const triggerRef = useRef(null);
   const dropdownRef = useRef(null);

@@ -26,6 +26,7 @@ import { detectNewPRs, PR_LABELS } from '@/lib/cardioPRs';
 import { useProfanityGuard, hasAnyProfanity } from '@/lib/useProfanityGuard';
 import ProfanityWarningDialog from '@/components/ProfanityWarningDialog';
 import { bestVO2max } from '@/lib/cardioVO2max';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 function deriveType(mode, env) {
   return `${mode}_${env}`;
@@ -96,6 +97,8 @@ export default function CardioManualForm({
 
   const [saving, setSaving] = useState(false);
   const [speedWarning, setSpeedWarning] = useState(null);
+  // Pin the page behind this overlay — see @/lib/scrollLock.
+  useBodyScrollLock(!!speedWarning);
 
   const isSwim = mode === 'swimming';
   const isBiking = mode === 'biking';

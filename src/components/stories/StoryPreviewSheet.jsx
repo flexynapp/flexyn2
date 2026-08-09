@@ -23,6 +23,7 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2, Pipette, Smile, X as XIcon, Pencil, Type, Trash2, Undo2, Move } from 'lucide-react';
 import { toast } from '@/lib/toast';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 const EMOJI_PALETTE = [
   '🔥','💪','🏋️','🏃','🥇','🎯','⚡','🚀',
@@ -102,6 +103,8 @@ export function contrastOn(color) {
 }
 
 export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfirm, onCancel }) {
+  // Pin the page behind this overlay — see @/lib/scrollLock.
+  useBodyScrollLock();
   // Unified movable overlays: text + emoji. Normalized x/y (0..1 of the frame).
   const [overlays, setOverlays] = useState([]);
   const [selectedId, setSelectedId] = useState(null);

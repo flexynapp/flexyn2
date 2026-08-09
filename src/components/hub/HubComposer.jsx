@@ -46,6 +46,7 @@ import { toast } from '@/lib/toast';
 import { NoWorkoutsIllustration } from '@/components/emptyStateIllustrations';
 import CharCountIndicator from '@/components/ui/CharCountIndicator';
 import { compressImage } from '@/lib/imageCompress';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 // Trim a GPS track down to ~250 points so the map render stays fast
 // and the post payload stays under reasonable size limits. Preserves
@@ -213,13 +214,9 @@ export default function HubComposer({ onClose }) {
   const queryClient = useQueryClient();
   const fmt = useNumberFormatter();
 
-  // Lock body scroll when composer is open
-  useEffect(() => {
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = 'unset';
-    };
-  }, []);
+  // Lock body scroll when composer is open. The composer only exists while
+  // it's open, so the lock runs for the component's whole lifetime.
+  useBodyScrollLock();
 
   const [step, setStep] = useState('pick');
   const [selected, setSelected] = useState(null);

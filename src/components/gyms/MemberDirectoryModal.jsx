@@ -12,8 +12,11 @@ import { format, parseISO } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { listGymMembers } from '@/lib/data/gymBusinesses';
 import EmptyState from '@/components/EmptyState';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 export default function MemberDirectoryModal({ open, onClose, gymId, gymOwnerId }) {
+  // Pin the page behind this overlay — see @/lib/scrollLock.
+  useBodyScrollLock(open);
   const navigate = useNavigate();
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);

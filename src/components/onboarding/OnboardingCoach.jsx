@@ -25,6 +25,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, Send, X, Check } from 'lucide-react';
 import { answerOnboarding, introFor, promptsFor, hasCoachFor } from '@/lib/aiCoach/onboardingCoach';
 import { parseBoldSegments } from '@/lib/aiCoach/markdownLite';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 const MAX_INPUT = 500;
 
@@ -78,6 +79,8 @@ function CoachLine({ text }) {
  *                            render as plain advice with no Apply button.
  */
 export function OnboardingCoachSheet({ open, onClose, stepId, draft = {}, onApply }) {
+  // Pin the page behind this overlay — see @/lib/scrollLock.
+  useBodyScrollLock(open);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [applied, setApplied] = useState({});

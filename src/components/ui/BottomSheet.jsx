@@ -21,10 +21,11 @@
  *   snapPoints boolean           — future: multi-snap (not yet implemented)
  *   className string             — extra classes on the panel
  */
-import React, { useEffect, useRef } from 'react';
+import React, { useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
 import { X } from 'lucide-react';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 // Velocity threshold for swipe-to-dismiss (px/s)
 const VELOCITY_THRESHOLD = 300;
@@ -43,12 +44,7 @@ export default function BottomSheet({
   const opacity = useTransform(y, [0, 300], [1, 0]);
 
   // Prevent body scroll when sheet is open
-  useEffect(() => {
-    if (!open) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = prev; };
-  }, [open]);
+  useBodyScrollLock(open);
 
   const handleDragEnd = (_e, info) => {
     if (info.velocity.y >= VELOCITY_THRESHOLD || info.offset.y >= DISTANCE_THRESHOLD) {

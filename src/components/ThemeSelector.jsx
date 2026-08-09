@@ -13,6 +13,7 @@ import { LOOT_THEMES } from '@/lib/lootThemes';
 import * as inventory from '@/lib/data/inventory';
 import { isVerified } from '@/lib/verifiedUsers';
 import { toast } from '@/lib/toast';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 // Rarity colour tokens
 const RARITY_COLORS = {
@@ -25,6 +26,8 @@ const RARITY_COLORS = {
 };
 
 export default function ThemeSelector({ open, onClose }) {
+  // Pin the page behind this overlay — see @/lib/scrollLock.
+  useBodyScrollLock(open);
   const { t, tFallback } = useLanguage();
   const { themeId, setThemeId, lootThemeId, setLootThemeId } = useTheme();
   const { user } = useAuth();

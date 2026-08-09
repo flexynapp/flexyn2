@@ -19,6 +19,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createPortal } from 'react-dom';
 import { X, Loader2, AlertTriangle, ScanLine } from 'lucide-react';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 const CODE_RE = /[A-HJ-NP-Z2-9]{8}/;
 
@@ -45,6 +46,8 @@ function extractCode(raw) {
 }
 
 export default function QrCodeScanner({ open, onClose, onDetect }) {
+  // Pin the page behind this overlay — see @/lib/scrollLock.
+  useBodyScrollLock(open);
   const videoRef    = useRef(null);
   const readerRef   = useRef(null);
   const controlsRef = useRef(null);

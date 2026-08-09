@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { X, CheckCircle2, Flame, Beef, Wheat, Droplets, Activity } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 const MACRO_ROWS = [
   { key: 'calories',       labelKey: 'nutrition.macros.calories',    unit: 'cal', color: '#f97316', bg: 'rgba(249,115,22,0.1)',  icon: Flame },
@@ -59,6 +60,8 @@ function resolveVal(macroKey, n) {
 }
 
 export default function BarcodeResultModal({ product, onCancel, onLog, isLogging }) {
+  // Pin the page behind this overlay — see @/lib/scrollLock.
+  useBodyScrollLock(!!product);
   const { t } = useLanguage();
   const [tab, setTab] = useState('macros');
   if (!product) return null;

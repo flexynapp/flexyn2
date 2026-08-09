@@ -53,6 +53,7 @@ import StatusNoteEditor from '@/components/stories/StatusNoteEditor';
 import * as storiesData from '@/lib/data/stories';
 import { listEarned as listEarnedTrophies } from '@/lib/data/trophies';
 import { safeExternalUrl } from '@/lib/safeUrl';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 const GiftCoinsModal = lazy(() => import('./GiftCoinsModal'));
 const CreateDuelModal = lazy(() => import('@/components/duels/CreateDuelModal'));
@@ -2093,12 +2094,7 @@ function FollowingModal({ type, ids, onClose, onSelectUser }) {
   const { t } = useLanguage();
 
   // Lock body scroll when modal is open
-  useEffect(() => {
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = 'unset';
-    };
-  }, []);
+  useBodyScrollLock();
 
   const { data: allUsers = [] } = useQuery({
     queryKey: ['hubProfileUsers', ids],

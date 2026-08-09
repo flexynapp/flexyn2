@@ -1,20 +1,30 @@
 // src/hooks/useBodyScrollLock.js
 //
-// Stops the page underneath a modal/sheet from scrolling while the modal
-// is open. Mount-time: snapshot the current `body.overflow` and clamp it
-// to `hidden`. Unmount: restore. Same idea Radix Dialog uses internally —
-// we just need it for the modals we built ourselves (custom `fixed inset-0`
-// overlays that aren't Radix Dialogs).
+// Stops the page underneath a menu / sheet / modal from scrolling while it
+// is open. This is the ONLY thing a hand-rolled overlay should call — the
+// mechanics (and the long explanation of why `body { overflow: hidden }`
+// isn't enough) live in `@/lib/scrollLock`.
 //
-// Pass `active=false` to no-op (e.g. when the modal isn't visible yet).
+//   useBodyScrollLock(open);
+//
+// Pass the overlay's own visibility as `active`, not a bare `true`, unless
+// the component unmounts when it closes. Locks are reference-counted, so a
+// sheet opened from inside another sheet is safe: the page stays pinned
+// until the outermost one closes, and lands back on the same scroll
+// position it started from.
+//
+// Hook order rule: this is a hook, so it has to run above any early
+// `if (!open) return null`. That's what the `active` argument is for.
 
 import { useEffect } from 'react';
+import { lockBodyScroll, unlockBodyScroll } from '@/lib/scrollLock';
 
 export function useBodyScrollLock(active = true) {
   useEffect(() => {
-    if (!active || typeof document === 'undefined') return undefined;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = prev; };
+    if (!active) return undefined;
+    lockBodyScroll();
+    return unlockBodyScroll;
   }, [active]);
 }
+
+export default useBodyScrollLock;

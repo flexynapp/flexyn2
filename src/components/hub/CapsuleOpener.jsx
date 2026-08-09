@@ -21,6 +21,7 @@ import { triggerHaptic } from '@/lib/haptic';
 import StickerDisplay from './StickerDisplay';
 import CapsuleRarityOdds from './CapsuleRarityOdds';
 import CapsuleStreak from './CapsuleStreak';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 // The capsule's "what's in here?" link now opens the same Collection
 // surface as the Marketplace and the Bag, so the odds you just read
@@ -984,18 +985,14 @@ export default function CapsuleOpener({ capsule, batch, onClaim, onClaimBatch, o
     ? results.reduce((a, b) => (rarityRank(b.item.rarity) > rarityRank(a.item.rarity) ? b : a)).capsuleId
     : null;
 
-  // Scroll lock — capture the ORIGINAL overflow value once at mount
-  // and restore it once at unmount. The previous combined effect's
-  // dep on [phase, onClose] meant every phase change ran cleanup +
-  // re-setup; on the second run the "prevOverflow" captured the
-  // 'hidden' value the FIRST run had set, leaking 'hidden' into the
-  // restore path and leaving the body un-scrollable after the modal
-  // closed.
-  useEffect(() => {
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = prevOverflow; };
-  }, []);
+  // Scroll lock — held for the opener's whole lifetime, deliberately NOT
+  // keyed on `phase`. A dep on [phase, onClose] used to re-run the whole
+  // effect on every phase change, and the second run's snapshot captured
+  // the 'hidden' the first run had set — which leaked into the restore and
+  // left the body un-scrollable after the modal closed. The shared lock is
+  // reference-counted, so a stray extra lock/unlock pair can no longer
+  // strand the page like that, but there's still no reason to churn it.
+  useBodyScrollLock();
 
   // Escape-to-close. Keyboard-only users previously had no way to
   // dismiss this overlay because it's a raw <div> rather than a Radix

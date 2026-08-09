@@ -10,6 +10,7 @@ import { toast } from '@/lib/toast';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { fileReport, checkAlreadyReported } from '@/lib/data/hubReports';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 const REASONS = [
   { value: 'harassment',     labelKey: 'report.reason.harassment'     },
@@ -28,6 +29,8 @@ const REASONS = [
  * @param {string}            reportedAuthorEmail
  */
 export default function ReportDialog({ open, onClose, reportedType, reportedId, reportedAuthorEmail }) {
+  // Pin the page behind this overlay — see @/lib/scrollLock.
+  useBodyScrollLock(open);
   const { t } = useLanguage();
   const { user } = useAuth();
 

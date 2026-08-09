@@ -32,6 +32,7 @@ import { reportError } from '@/lib/reportError';
 import CoinShopModal from './CoinShopModal';
 import { useNumberFormatter } from '@/lib/intl';
 import { tileRow } from '@/lib/tileRows';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 // Lazy — the Collection pulls in every catalog (themes alone is ~800
 // lines) and only mounts on an explicit tap.
@@ -543,6 +544,8 @@ function FrameList({ items, userId }) {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBatch }) {
+  // Pin the page behind this overlay — see @/lib/scrollLock.
+  useBodyScrollLock(open);
   const { user } = useAuth();
   const { lootThemeId, setLootThemeId } = useTheme();
   const qc = useQueryClient();

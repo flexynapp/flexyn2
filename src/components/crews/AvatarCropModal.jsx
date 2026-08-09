@@ -13,11 +13,14 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { X, ZoomIn, ZoomOut, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 const PREVIEW_SIZE = 260; // px — the circular viewport diameter
 const OUTPUT_SIZE  = 512; // px — exported canvas size
 
 export default function AvatarCropModal({ file, onCrop, onClose }) {
+  // Pin the page behind this overlay — see @/lib/scrollLock.
+  useBodyScrollLock();
   const [imgSrc,  setImgSrc]  = useState(null);
   const [zoom,    setZoom]     = useState(1);          // 1x – 3x
   const [offset,  setOffset]   = useState({ x: 0, y: 0 }); // pan in px (screen-space)

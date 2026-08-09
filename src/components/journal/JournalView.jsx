@@ -56,10 +56,13 @@ function MarkdownBody({ text, placeholder }) {
   return <div className="space-y-0.5">{nodes}</div>;
 }
 import JournalHistoryModal from './JournalHistoryModal';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 const todayStr = () => format(new Date(), 'yyyy-MM-dd');
 
 export default function JournalView({ userId, userEmail, onClose }) {
+  // Pin the page behind this overlay — see @/lib/scrollLock.
+  useBodyScrollLock();
   const { tFallback } = useLanguage();
   const [activeDate, setActiveDate] = useState(() => new Date());
   const dateStr = format(activeDate, 'yyyy-MM-dd');

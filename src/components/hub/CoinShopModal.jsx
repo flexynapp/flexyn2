@@ -17,6 +17,7 @@ import { useNumberFormatter } from '@/lib/intl';
 import { supabase } from '@/api/supabaseClient';
 import { SHOP_CATALOG, purchaseItem, getCapsuleOdds, BEST_VALUE_SKU } from '@/lib/data/coinShop';
 import CapsuleIcon from '@/components/loot/CapsuleIcon';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 /**
  * Shop row icon. Capsule SKUs draw the real capsule; everything else
@@ -63,6 +64,8 @@ const SKU_TO_CAMEL = {
 // that let any client mint Elite Capsules for free. A client-side privilege
 // test is not a security boundary.
 export default function CoinShopModal({ open, onClose }) {
+  // Pin the page behind this overlay — see @/lib/scrollLock.
+  useBodyScrollLock(open);
   const { user } = useAuth();
   const { t, tFallback } = useLanguage();
   const queryClient = useQueryClient();

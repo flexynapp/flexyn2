@@ -22,6 +22,7 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { useNumberFormatter } from '@/lib/intl';
 import { claimReferral } from '@/lib/data/referrals';
 import { reportError } from '@/lib/reportError';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 // Codes are 6 chars (see migration 089's generator). Normalising here means
 // "abc 123" and "ABC-123" both work — people retype these from memory.
@@ -38,16 +39,13 @@ export default function ReferralSheet({
   const [claiming, setClaiming] = useState(false);
   const [claimedOk, setClaimedOk] = useState(false);
 
+  useBodyScrollLock(open);
+
   useEffect(() => {
     if (!open) return undefined;
     const onKey = (e) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', onKey);
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      window.removeEventListener('keydown', onKey);
-      document.body.style.overflow = prev;
-    };
+    return () => window.removeEventListener('keydown', onKey);
   }, [open, onClose]);
 
   const handleRedeem = async () => {

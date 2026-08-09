@@ -11,6 +11,7 @@ import { getTier } from '@/lib/xpTier';
 import { Skeleton } from '@/components/ui/skeleton';
 import * as hubFollows from '@/lib/data/hubFollows';
 import * as hubPosts from '@/lib/data/hubPosts';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 // Per-user key (recent searches store other users' email/username/avatar —
 // a global key bled that PII to the next account on a shared device).
@@ -52,6 +53,8 @@ function removeRecentSearch(userId, id) {
 }
 
 export default function HubSearchOverlay({ open, onClose, onSelectUser, onSelectPost = null }) {
+  // Pin the page behind this overlay — see @/lib/scrollLock.
+  useBodyScrollLock(open);
   const { t } = useLanguage();
   const { user: currentUser } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');

@@ -20,8 +20,11 @@ import {
   listMyRoutines, createRoutine, updateRoutine, deleteRoutine, setActiveRoutine,
   TEMPLATES, FOCUS_OPTIONS, DAY_NAMES_FULL, emptyWeek, todayIndex, MAX_ROUTINES,
 } from '@/lib/data/routines';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 export default function MyRoutineSheet({ open, onClose }) {
+  // Pin the page behind this overlay — see @/lib/scrollLock.
+  useBodyScrollLock(open);
   const { user } = useAuth();
   const qc = useQueryClient();
   const [view, setView] = useState('list');     // 'list' | 'edit'
