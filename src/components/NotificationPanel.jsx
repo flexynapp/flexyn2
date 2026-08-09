@@ -448,6 +448,22 @@ export default function NotificationPanel({ open, onClose }) {
               </ul>
             )}
           </div>
+
+          {/* "See all" — the way back to /notifications after the inbox icon
+              came off the header. It sits OUTSIDE the scrolling list on
+              purpose: as a last row it would be unreachable exactly when it
+              is wanted, at the bottom of fifty notifications. Closes the
+              panel first so the back gesture from the route returns the user
+              to wherever they were, not to an open panel. */}
+          <div className="border-t border-border bg-card">
+            <button
+              type="button"
+              onClick={() => { onClose(); navigate('/notifications'); }}
+              className="w-full py-3 text-sm font-semibold text-primary hover:bg-secondary/60 active:bg-secondary/60 transition-colors"
+            >
+              {tFallback('notifications.seeAll', 'See all')}
+            </button>
+          </div>
         </motion.div>
       </motion.div>
       )}
