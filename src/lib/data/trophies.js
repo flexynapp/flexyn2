@@ -13,6 +13,7 @@ import { safeSelect } from '@/api/safeSelect';
 
 import { toast } from '@/lib/toast';
 import { getTrophy } from '@/lib/trophyDefinitions';
+import { requestOpenAchievements } from '@/lib/achievementsFlow';
 
 export async function listEarned(userIdOrEmail, byEmail = false) {
   if (!userIdOrEmail) return [];
@@ -40,6 +41,28 @@ export async function listEarned(userIdOrEmail, byEmail = false) {
   }
 }
 
+/**
+ * Raw progress signals for the current user — the numerators behind every
+ * ladder's progress bar. Keys match `signal` in LADDERS
+ * (src/lib/trophyDefinitions.js); the RPC is migration 323.
+ *
+ * Takes no user argument on purpose: the RPC reads auth.uid() itself, so
+ * there is no parameter to spoof. That means it can only ever answer for
+ * the signed-in user — a foreign profile shows earned trophies, never
+ * someone else's progress toward unearned ones.
+ */
+export async function getProgress() {
+  try {
+    const { data, error } = await supabase.rpc('get_trophy_progress');
+    // 42883 = migration 323 not applied yet. An empty object degrades to
+    // "0 / target" bars rather than blanking the page.
+    if (error) return {};
+    return (data && typeof data === 'object') ? data : {};
+  } catch {
+    return {};
+  }
+}
+
 export async function grantEligible() {
   try {
     const { data, error } = await supabase.rpc('grant_eligible_trophies');
@@ -54,18 +77,49 @@ export async function grantEligible() {
   }
 }
 
-// Convenience: grant + toast each newly earned trophy. Use after
-// workout save / streak update / level up.
+// Convenience: grant + celebrate. Use after workout save / streak update
+// / level up.
+//
+// This used to fire one toast per trophy in a loop, which was fine while
+// the catalog was 18 flat badges that unlocked one at a time. Migration
+// 323 changed that: it grants RETROACTIVELY, so the first call after it
+// ships hands an established user everything they have already earned —
+// realistically 10–20 at once. Twenty stacked toasts is not a
+// celebration, it is a wall the user has to wait out, and sonner would
+// drop most of them anyway.
+//
+// So: one or two, toast them individually because each is its own
+// moment. Three or more, collapse into a single summary that names the
+// best one — tier order, then the first returned — and sends them to the
+// vault to see the rest.
+const TIER_RANK = { bronze: 1, silver: 2, gold: 3, platinum: 4, legendary: 5 };
+
 export async function checkAndCelebrate() {
   const res = await grantEligible();
   if (!res.ok || !res.newlyGranted.length) return res;
-  for (const id of res.newlyGranted) {
-    const trophy = getTrophy(id);
-    if (!trophy) continue;
-    toast.success(`${trophy.emoji} Trophy earned: ${trophy.name}`, {
-      description: trophy.description,
-      duration: 5000,
-    });
+
+  const trophies = res.newlyGranted.map(getTrophy).filter(Boolean);
+  if (!trophies.length) return res;
+
+  if (trophies.length <= 2) {
+    for (const trophy of trophies) {
+      toast.success(`${trophy.emoji} Trophy earned: ${trophy.name}`, {
+        description: trophy.description,
+        duration: 5000,
+      });
+    }
+    return res;
   }
+
+  const best = trophies.reduce((a, b) =>
+    (TIER_RANK[b.tier] || 0) > (TIER_RANK[a.tier] || 0) ? b : a);
+  toast.success(`${best.emoji} ${trophies.length} trophies earned`, {
+    description: `${best.name} and ${trophies.length - 1} more.`,
+    duration: 6000,
+    action: {
+      label: 'View',
+      onClick: () => { try { requestOpenAchievements(); } catch { /* no-op */ } },
+    },
+  });
   return res;
 }

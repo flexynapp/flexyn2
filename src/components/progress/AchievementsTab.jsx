@@ -1,73 +1,199 @@
 // src/components/progress/AchievementsTab.jsx
 //
-// Inline (non-modal) version of AchievementsModal. Mounts directly inside the
-// Progress page tab grid so achievements feel like a first-class section
-// rather than a hidden popup.
+// The Achievements surface, rendered inside AchievementsVault.
+//
+// ── What changed and why ──────────────────────────────────────────
+//
+// This used to read `public.achievements` against the 26 definitions in
+// achievementDefinitions.js. That table had no server grant path —
+// migration 189 removed the client INSERT policy to stop badge forgery
+// and nothing replaced it — so production held ONE row across every
+// user, an `xp_250` that wasn't even in the catalog. The page rendered
+// "1 / 26" with an empty Completed tab and 26 progress bars frozen at
+// zero. Every one of those badges was unobtainable.
+//
+// It now reads `user_trophies`, which is server-granted against real SQL
+// criteria (migrations 167 + 323), and is organised by LADDER rather
+// than by flat category:
+//
+//   • "Next up" leads — the three closest rungs across every ladder.
+//     This is the answer to "what do I do now", and it is always
+//     populated because ladders have infinite tails.
+//   • Each ladder shows ONE live rung plus the ones already earned.
+//     Clearing a rung doesn't leave a gap; the next rung moves into the
+//     same slot, so there is never a finished-looking wall.
+//   • The counter is named-rungs-earned over named-rungs-total. Tail
+//     rungs are excluded on purpose — a denominator that grows forever
+//     reads as a collection you can never finish.
 
 import React, { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Trophy, Lock, Star, LockKeyhole, Share2, Loader2 } from 'lucide-react';
+import { Trophy, Lock, Check, Share2, Loader2, Infinity as InfinityIcon } from 'lucide-react';
 import { toast } from '@/lib/toast';
-import { ACHIEVEMENT_DEFINITIONS } from '@/lib/achievementDefinitions';
-import { useLanguage } from '@/lib/LanguageContext';
-import { useAuth } from '@/lib/AuthContext';
 import { shareAchievementPost } from '@/lib/data/shareAchievement';
-import { useDateFormatter } from '@/lib/intl';
+import {
+  TROPHIES,
+  TROPHY_TIERS,
+  TROPHY_CATEGORIES,
+  LADDERS,
+  rungsFor,
+  nextRung,
+  rungProgress,
+  getTrophy,
+} from '@/lib/trophyDefinitions';
+import { useLanguage } from '@/lib/LanguageContext';
+import { useDateFormatter, useNumberFormatter } from '@/lib/intl';
 import EmptyState from '@/components/EmptyState';
 
-// Four of these six used to be raw yellow / emerald / purple / orange
-// while the other two were already tokens — the file was half-migrated.
-// They now collapse onto three budget values, and several categories
-// share one. That's fine and deliberate: this is a background TINT on a
-// card that already shows the achievement's icon and title, so the
-// colour was never the thing telling you which category you're looking
-// at. Don't reintroduce a per-category hue to "fix" the duplication.
-const CATEGORY_COLORS = {
-  workout:    'bg-primary/10 text-primary',
-  regimen:    'bg-accent/10 text-accent',
-  goal:       'bg-primary/10 text-primary',
-  nutrition:  'bg-success/10 text-success',
-  milestone:  'bg-primary/10 text-primary',
-  cardio:     'bg-primary/10 text-primary',
-};
+// How many "closest rung" cards lead the page. Three is enough to offer a
+// choice without turning the top of the page into a second full list.
+const NEXT_UP_COUNT = 3;
 
-export default function AchievementsTab({ achievements = [] }) {
+function TierStripe({ tier }) {
+  const meta = TROPHY_TIERS[tier] || TROPHY_TIERS.bronze;
+  return (
+    <span
+      aria-hidden="true"
+      className="absolute inset-x-0 bottom-0"
+      style={{ height: 2, background: meta.color }}
+    />
+  );
+}
+
+function Medallion({ trophy, earned, size = 44 }) {
+  return (
+    <div
+      className={`relative shrink-0 rounded-xl flex items-center justify-center overflow-hidden ${
+        earned ? 'bg-secondary/40' : 'bg-muted/50'
+      }`}
+      style={{ width: size, height: size }}
+    >
+      <span
+        className="leading-none"
+        style={{
+          fontSize: Math.round(size * 0.52),
+          // Locked badges keep their own art rather than becoming a
+          // generic padlock — you should be able to see what you're
+          // working toward, not just that something exists.
+          ...(earned ? {} : { filter: 'grayscale(1) brightness(0.5)', opacity: 0.75 }),
+        }}
+      >
+        {trophy.emoji}
+      </span>
+      {earned && <TierStripe tier={trophy.tier} />}
+    </div>
+  );
+}
+
+/**
+ * One ladder. Shows every earned rung as a medallion row, then the ONE
+ * rung currently in play with its progress bar.
+ */
+function LadderRow({ ladderId, earnedIds, signal, fmtNum }) {
+  const ladder = LADDERS[ladderId];
+  const rungs = rungsFor(ladderId);
+  const earned = rungs.filter((r) => earnedIds.has(r.id));
+  const live = nextRung(ladderId, signal);
+  const isTail = !!live?.isTail;
+  // A ladder with no live rung has genuinely ended (the deliberate dead
+  // ends). Say so, rather than rendering an empty progress bar.
+  const finished = !live;
+
+  const prog = live ? rungProgress(live, signal) : null;
+
+  return (
+    <div className="py-3 border-b border-border last:border-b-0">
+      <div className="flex items-baseline justify-between gap-2 mb-2">
+        <span className="text-sm font-semibold">{ladder.name}</span>
+        <span className="text-xs text-muted-foreground tabular-nums">
+          {earned.length} / {rungs.length}
+        </span>
+      </div>
+
+      {earned.length > 0 && (
+        <div className="flex flex-wrap gap-1 mb-2">
+          {earned.map((r) => (
+            <Medallion key={r.id} trophy={r} earned size={28} />
+          ))}
+        </div>
+      )}
+
+      {finished ? (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Check className="w-3.5 h-3.5 text-success" />
+          Ladder complete.
+        </div>
+      ) : (
+        <div className="flex items-start gap-2">
+          <Medallion trophy={live} earned={false} size={28} />
+          <div className="flex-1 min-w-0">
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="text-xs font-medium truncate">
+                {live.name}
+                {isTail && (
+                  <InfinityIcon className="inline w-3 h-3 ms-1 align-[-1px] text-muted-foreground" />
+                )}
+              </span>
+              {/* A binary rung is a yes/no, not a count. Rendering
+                  "0 / 1" on it reads as a broken progress bar. */}
+              {!live.binary && (
+                <span className="text-xs text-muted-foreground tabular-nums shrink-0">
+                  {fmtNum(Math.min(Math.round(signal), prog.target))} / {fmtNum(prog.target)}
+                  {ladder.unit ? ` ${ladder.unit}` : ''}
+                </span>
+              )}
+            </div>
+            {!live.binary && (
+              <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden mt-1.5">
+                <div
+                  className="h-full bg-primary transition-[width] duration-500"
+                  style={{ width: `${prog.pct}%` }}
+                />
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function AchievementsTab({ trophies = [], progress = {}, user = null }) {
   const { t, tFallback } = useLanguage();
-  const { user } = useAuth();
   const fmtDate = useDateFormatter();
-  const [activeSubTab, setActiveSubTab] = useState('active');
-  // Tracks the achievement_id currently being shared so the button can
-  // disable + show a spinner. Single-flight — only one share at a time.
+  const fmtNum = useNumberFormatter();
+  const [tab, setTab] = useState('progress');
+  // Single-flight: only one share in the air at a time.
   const [sharingId, setSharingId] = useState(null);
 
-  const handleShareAchievement = async (ach) => {
+  const handleShare = async (trophy, row) => {
     if (sharingId) return;
-    setSharingId(ach.achievement_id);
+    setSharingId(row.trophy_id);
     let res;
     try {
       res = await shareAchievementPost({
         user,
+        // shareAchievementPost predates trophies and speaks the old
+        // achievement shape. Adapt rather than fork it — the payload it
+        // builds is what HubPostCard already knows how to render.
         achievement: {
-          ...ach,
-          name:        tFallback(ach.nameKey,        ach.name),
-          description: tFallback(ach.descriptionKey, ach.description),
+          achievement_id: trophy.id,
+          name:           trophy.name,
+          description:    trophy.description,
+          icon:           trophy.emoji,
+          unlockedDate:   row.earned_at,
         },
       });
     } catch (err) {
-      // shareAchievementPost is expected to return { ok, error } but
-      // a network blip can still throw — without this catch the user
-      // saw nothing on failure and the sharingId state never cleared,
-      // permanently locking the share button. Report so observability
-      // catches a real regression.
+      // A network blip throws rather than returning { ok }. Without this
+      // the button stayed spinning forever and the user saw nothing.
       try {
         const { reportError } = await import('@/lib/reportError');
         reportError(err, {
           feature: 'achievements.share',
           level: 'warning',
           userEmail: user?.email,
-          achievementId: ach.achievement_id,
+          trophyId: trophy.id,
         });
       } catch { /* reportError unavailable */ }
       res = { ok: false, error: err?.message || 'network' };
@@ -85,61 +211,50 @@ export default function AchievementsTab({ achievements = [] }) {
     }
   };
 
-  const achievementMap = useMemo(() => {
-    const map = {};
-    achievements.forEach((a) => { map[a.achievement_id] = a; });
-    return map;
-  }, [achievements]);
+  const earnedIds = useMemo(
+    () => new Set(trophies.map((r) => r.trophy_id)),
+    [trophies],
+  );
 
-  const categorized = useMemo(() => {
-    const cats = { workout: [], regimen: [], goal: [], nutrition: [], milestone: [], cardio: [] };
-    ACHIEVEMENT_DEFINITIONS.forEach((def) => {
-      const userAch = achievementMap[def.achievement_id];
-      if (cats[def.category]) {
-        cats[def.category].push({
-          ...def,
-          id: userAch?.id,
-          // The achievements table only has `unlocked_at` (row presence =
-          // unlocked); the old `unlocked`/`unlocked_date` columns never
-          // existed, so every badge rendered locked. Treat a fetched row
-          // as unlocked and use unlocked_at for the date.
-          unlocked: !!userAch,
-          unlockedDate: userAch?.unlocked_at,
-          progress: userAch?.progress || 0,
-        });
-      }
-    });
-    Object.keys(cats).forEach(cat => {
-      cats[cat].sort((a, b) => (a.unlocked === b.unlocked ? 0 : a.unlocked ? 1 : -1));
-    });
-    return cats;
-  }, [achievementMap]);
+  const signalFor = (ladderId) => {
+    const key = LADDERS[ladderId]?.signal;
+    const raw = key ? progress[key] : 0;
+    return Number(raw) || 0;
+  };
 
-  const activeAch = useMemo(() => {
-    const out = {};
-    Object.keys(categorized).forEach(c => { out[c] = categorized[c].filter(a => !a.unlocked); });
-    return out;
-  }, [categorized]);
+  // "Next up" — the closest rungs by completion percentage, across every
+  // ladder. Ladders sitting at 0 are included (a brand-new user has to be
+  // offered something) but rank below anything already started.
+  const nextUp = useMemo(() => {
+    const candidates = Object.keys(LADDERS)
+      .map((id) => {
+        const value = signalFor(id);
+        const rung = nextRung(id, value);
+        if (!rung) return null;
+        return { ladderId: id, rung, value, pct: rungProgress(rung, value).pct };
+      })
+      .filter(Boolean);
+    candidates.sort((a, b) => b.pct - a.pct);
+    return candidates.slice(0, NEXT_UP_COUNT);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [progress]);
 
-  const completedAch = useMemo(() => {
-    const out = {};
-    Object.keys(categorized).forEach(c => { out[c] = categorized[c].filter(a => a.unlocked); });
-    return out;
-  }, [categorized]);
+  const earnedRows = useMemo(() => {
+    // Rows carry earned_at; resolve each through getTrophy so generated
+    // tail ids and league season trophies render alongside catalog ones.
+    return trophies
+      .map((row) => ({ row, trophy: getTrophy(row.trophy_id) }))
+      .filter((x) => x.trophy);
+  }, [trophies]);
 
-  const displayData = activeSubTab === 'active' ? activeAch : completedAch;
-  // The achievements table stores ONLY unlocked rows (presence = unlocked,
-  // there's no `unlocked` boolean column). The previous version filtered
-  // by `a.unlocked` which is undefined on every row, so the header
-  // permanently showed "0 / total" even when the user had unlocks.
-  // (Audit 11 #2.)
-  const unlockedCount = achievements.length;
-  const totalCount = ACHIEVEMENT_DEFINITIONS.length;
-  const progressPct = totalCount > 0 ? Math.round((unlockedCount / totalCount) * 100) : 0;
+  const namedTotal = TROPHIES.length;
+  const namedEarned = earnedRows.filter((x) => !x.trophy.isTail && !x.trophy.season).length;
+  const pct = namedTotal > 0 ? Math.round((namedEarned / namedTotal) * 100) : 0;
+  const extra = earnedRows.length - namedEarned;
 
   return (
     <div>
-      {/* Header — collection progress bar */}
+      {/* Collection header */}
       <div className="mb-6">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
@@ -147,173 +262,147 @@ export default function AchievementsTab({ achievements = [] }) {
             <h2 className="font-heading font-bold text-lg">{t('progress.achievements')}</h2>
           </div>
           <span className="text-xs text-muted-foreground tabular-nums">
-            {unlockedCount} / {totalCount}
+            {namedEarned} / {namedTotal}
+            {/* Tails and season trophies sit outside the denominator, so
+                they'd silently vanish from the count without this. */}
+            {extra > 0 && ` +${extra}`}
           </span>
         </div>
         <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
           <div
-            className="h-full bg-gradient-to-r from-primary to-primary transition-[width] duration-500"
-            style={{ width: `${progressPct}%` }}
+            className="h-full bg-primary transition-[width] duration-500"
+            style={{ width: `${pct}%` }}
           />
         </div>
       </div>
 
-      {/* Sub-tabs: active / completed */}
-      <div className="flex gap-2 border-b border-border mb-6">
-        <button
-          onClick={() => setActiveSubTab('active')}
-          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-            activeSubTab === 'active'
-              ? 'border-primary text-primary'
-              : 'border-transparent text-muted-foreground hover:text-foreground active:text-foreground'
-          }`}
-        >
-          {t('progress.activeAchievements')}
-        </button>
-        <button
-          onClick={() => setActiveSubTab('completed')}
-          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-            activeSubTab === 'completed'
-              ? 'border-primary text-primary'
-              : 'border-transparent text-muted-foreground hover:text-foreground active:text-foreground'
-          }`}
-        >
-          {t('progress.completedAchievements')}
-        </button>
-      </div>
-
-      <div className="space-y-6">
-        {Object.entries(displayData).map(([category, cats]) => {
-          if (cats.length === 0) return null;
-          return (
-            <div key={category}>
-              <h3 className="font-heading font-bold text-sm mb-3 capitalize">
-                {tFallback(`achievementDefs.cat.${category}`, category)}
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {/* In Progress ↔ Completed swaps every card in this grid, so
-                    under the default sync mode all of the outgoing cards held
-                    their cells while the incoming set was appended below —
-                    the grid grew to roughly double height and then collapsed
-                    back once the exits unmounted. popLayout takes them out of
-                    flow immediately, so the new set lands where it belongs on
-                    the first frame. The grid spaces with `gap`, not `space-y`
-                    margins, which is what makes this safe — see
-                    src/lib/listMotion.js. */}
-                <AnimatePresence mode="popLayout">
-                  {cats.map((ach) => (
-                    <motion.div
-                      key={ach.achievement_id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                    >
-                      <Card
-                        className={`p-4 border-none shadow-sm transition-all ${
-                          ach.unlocked ? `${CATEGORY_COLORS[category]} bg-opacity-20` : 'bg-muted/50'
-                        }`}
-                      >
-                        <div className="flex items-start gap-3">
-                          <div className="relative flex-shrink-0 w-10 h-10 flex items-center justify-center">
-                            {/* Always show the actual icon; grey + desaturate when locked */}
-                            <span
-                              className="text-3xl leading-none"
-                              style={!ach.unlocked ? {
-                                filter: 'grayscale(1) brightness(0.45)',
-                                opacity: 0.7,
-                              } : {}}
-                            >
-                              {ach.icon}
-                            </span>
-                            {/* Small lock badge pinned to bottom-right corner */}
-                            {!ach.unlocked && (
-                              <span className="absolute -bottom-1 -end-1 w-4 h-4 rounded-full bg-muted border border-border flex items-center justify-center shadow-sm">
-                                <LockKeyhole className="w-2.5 h-2.5 text-muted-foreground" />
-                              </span>
-                            )}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-start justify-between gap-2">
-                              <div>
-                                <p className="font-semibold text-sm">{tFallback(ach.nameKey, ach.name)}</p>
-                                <p className={`text-xs mt-0.5 ${
-                                  ach.unlocked ? 'text-muted-foreground' : 'text-muted-foreground/70'
-                                }`}>
-                                  {tFallback(ach.descriptionKey, ach.description)}
-                                </p>
-                              </div>
-                              {ach.unlocked && (
-                                <Badge className="text-xs bg-success text-white shrink-0">
-                                  <Star className="w-2.5 h-2.5 me-1" /> +{ach.xp_reward} XP
-                                </Badge>
-                              )}
-                            </div>
-                            {!ach.unlocked && ach.target > 1 && (
-                              <div className="mt-2">
-                                <div className="flex justify-between items-center mb-1">
-                                  <span className="text-xs text-muted-foreground tabular-nums">
-                                    {Math.round(ach.progress)} / {ach.target}
-                                  </span>
-                                  <span className="text-xs font-medium tabular-nums">
-                                    {Math.round((ach.progress / ach.target) * 100)}%
-                                  </span>
-                                </div>
-                                <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
-                                  <div
-                                    className="h-full bg-primary transition-all duration-300"
-                                    style={{
-                                      width: `${Math.min((ach.progress / ach.target) * 100, 100)}%`,
-                                    }}
-                                  />
-                                </div>
-                              </div>
-                            )}
-                            {ach.unlocked && ach.unlockedDate && (
-                              <div className="flex items-center justify-between gap-2 mt-2">
-                                <p className="text-xs text-muted-foreground">
-                                  {t('progress.unlockedOn')}{' '}
-                                  {fmtDate(ach.unlockedDate)}
-                                </p>
-                                <button
-                                  type="button"
-                                  onClick={() => handleShareAchievement(ach)}
-                                  disabled={sharingId === ach.achievement_id}
-                                  className="flex items-center gap-1 px-2 py-0.5 rounded-md text-micro font-bold uppercase tracking-wide text-primary hover:bg-primary/10 active:bg-primary/10 transition-colors disabled:opacity-50"
-                                  aria-label="Share to Hub"
-                                >
-                                  {sharingId === ach.achievement_id
-                                    ? <Loader2 className="w-3 h-3 animate-spin" />
-                                    : <Share2 className="w-3 h-3" />}
-                                  Share
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </Card>
-                    </motion.div>
-                  ))}
-                </AnimatePresence>
+      {/* Next up — the whole point of the ladder structure. */}
+      {tab === 'progress' && nextUp.length > 0 && (
+        <div className="mb-6">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">
+            {tFallback('progress.nextUp', 'Next up')}
+          </h3>
+          <div className="space-y-2">
+            {nextUp.map(({ ladderId, rung, value, pct: p }) => (
+              <div key={ladderId} className="flex items-center gap-2 rounded-xl bg-secondary/30 p-2">
+                <Medallion trophy={rung} earned={false} size={36} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold truncate">{rung.name}</p>
+                  <p className="text-xs text-muted-foreground truncate">{rung.description}</p>
+                  <div className="w-full h-1 bg-muted rounded-full overflow-hidden mt-1.5">
+                    <div className="h-full bg-primary" style={{ width: `${p}%` }} />
+                  </div>
+                </div>
+                {!rung.binary && (
+                  <span className="text-xs text-muted-foreground tabular-nums shrink-0">
+                    {Math.round(p)}%
+                  </span>
+                )}
               </div>
-            </div>
-          );
-        })}
+            ))}
+          </div>
+        </div>
+      )}
 
-        {activeSubTab === 'active' && Object.values(displayData).every(arr => arr.length === 0) && (
-          <EmptyState
-            icon={Trophy}
-            title={tFallback('progress.allCompletedTitle', 'Everything unlocked!')}
-            body={t('progress.allCompleted')}
-          />
-        )}
-        {activeSubTab === 'completed' && Object.values(displayData).every(arr => arr.length === 0) && (
-          <EmptyState
-            icon={Lock}
-            title={tFallback('progress.noneCompletedTitle', 'No badges yet')}
-            body={t('progress.noneCompleted')}
-          />
-        )}
+      {/* Tabs */}
+      <div className="flex gap-2 border-b border-border mb-6">
+        {[
+          ['progress', tFallback('progress.activeAchievements', 'In progress')],
+          ['earned', tFallback('progress.completedAchievements', 'Earned')],
+        ].map(([id, label]) => (
+          <button
+            key={id}
+            onClick={() => setTab(id)}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              tab === id
+                ? 'border-primary text-primary'
+                : 'border-transparent text-muted-foreground hover:text-foreground active:text-foreground'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
       </div>
+
+      <AnimatePresence mode="popLayout">
+        {tab === 'progress' ? (
+          <motion.div
+            key="progress"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            className="space-y-6"
+          >
+            {TROPHY_CATEGORIES.map((cat) => {
+              const ladderIds = Object.keys(LADDERS).filter((id) => LADDERS[id].category === cat.id);
+              if (!ladderIds.length) return null;
+              return (
+                <div key={cat.id}>
+                  <h3 className="font-heading font-bold text-sm mb-1">
+                    <span className="me-1.5" aria-hidden="true">{cat.emoji}</span>
+                    {cat.name}
+                  </h3>
+                  <div className="rounded-xl bg-card px-3">
+                    {ladderIds.map((id) => (
+                      <LadderRow
+                        key={id}
+                        ladderId={id}
+                        earnedIds={earnedIds}
+                        signal={signalFor(id)}
+                        fmtNum={fmtNum}
+                      />
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </motion.div>
+        ) : (
+          <motion.div
+            key="earned"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+          >
+            {earnedRows.length === 0 ? (
+              <EmptyState
+                icon={Lock}
+                title={tFallback('progress.noneCompletedTitle', 'No badges yet')}
+                body={t('progress.noneCompleted')}
+              />
+            ) : (
+              <div className="space-y-2">
+                {earnedRows.map(({ row, trophy }) => (
+                  <div key={row.trophy_id} className="flex items-center gap-3 rounded-xl bg-card p-3">
+                    <Medallion trophy={trophy} earned size={44} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold truncate">{trophy.name}</p>
+                      <p className="text-xs text-muted-foreground truncate">{trophy.description}</p>
+                      {row.earned_at && (
+                        <p className="text-xs text-muted-foreground/80 mt-0.5">
+                          {t('progress.unlockedOn')} {fmtDate(row.earned_at)}
+                        </p>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleShare(trophy, row)}
+                      disabled={sharingId === row.trophy_id}
+                      className="flex items-center gap-1 px-2 py-1 rounded-md text-micro font-bold uppercase tracking-wide text-primary hover:bg-primary/10 active:bg-primary/10 transition-colors disabled:opacity-50 shrink-0"
+                      aria-label={`Share ${trophy.name} to Hub`}
+                    >
+                      {sharingId === row.trophy_id
+                        ? <Loader2 className="w-3 h-3 animate-spin" />
+                        : <Share2 className="w-3 h-3" />}
+                      Share
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

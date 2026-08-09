@@ -4,6 +4,7 @@
 // excluded from regional leaderboards until they update their profile.
 import { db } from '@/api/db';
 import { grantForAchievementMilestone } from '@/lib/data/capsules';
+import { listEarned } from '@/lib/data/trophies';
 
 // v3 — bumped to force one-time re-run that also grants achievement-milestone
 // capsules to pre-existing users (added in migration 022). Without this bump
@@ -34,20 +35,15 @@ export async function backfillLeaderboardStatsOnce(userEmail) {
   } catch { /* ignore */ }
 
   try {
-    // Filter by user_id, not created_by: server-granted achievements (mig
-    // 189) stamp created_by='' for guests, so the email filter missed
-    // them; user_id is populated by BOTH writers (entity create + RPC).
-    const achievements = me?.id
-      ? await db.entities.Achievement.filter({ user_id: me.id })
-      : await db.entities.Achievement.filter({ created_by: userEmail });
-
-    // Every row in `achievements` IS an unlocked achievement (rows are
-    // inserted at unlock time, with unlocked_at). The old predicate
-    // `a.unlocked` referenced a column that never existed, so this always
-    // computed 0 — and then CLOBBERED a nonzero
-    // achievements_unlocked_count back to 0 on the next line, zeroing the
-    // user on the achievements leaderboard.
-    const unlockedCount = achievements.length;
+    // Counts TROPHIES, not the retired `achievements` table. Migration
+    // 323 merged the two badge systems onto user_trophies; the old table
+    // has no grant path (mig 189 removed the client INSERT policy and
+    // nothing server-side replaced it), so counting it put every user on
+    // the achievements leaderboard at zero.
+    const earned = me?.id
+      ? await listEarned(me.id)
+      : await listEarned(userEmail, true);
+    const unlockedCount = earned.length;
 
     if ((Number(me?.achievements_unlocked_count) || 0) !== unlockedCount) {
       await db.auth.updateMe({ achievements_unlocked_count: unlockedCount });

@@ -26,22 +26,20 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { useLanguage } from '@/lib/LanguageContext';
-import { db } from '@/api/db';
-import { ACHIEVEMENT_DEFINITIONS } from '@/lib/achievementDefinitions';
+import { getTrophy, TROPHY_TIERS } from '@/lib/trophyDefinitions';
+import { listEarned } from '@/lib/data/trophies';
 import { requestOpenAchievements } from '@/lib/achievementsFlow';
 
 const MAX_BADGES = 6;
 
-// Build a lookup map once at module load — O(1) match for each row.
-const DEF_BY_ID = ACHIEVEMENT_DEFINITIONS.reduce((acc, def) => {
-  acc[def.achievement_id] = def;
-  return acc;
-}, {});
-
 function Badge({ row, onTap, tappable }) {
-  const def = DEF_BY_ID[row.achievement_id];
-  const icon = def?.icon || '🏆';
-  const name = def?.nameKey || row.name || row.achievement_id;
+  // getTrophy resolves catalog rungs, generated ladder tails
+  // (`sessions_x2`) and league season trophies alike, so the rail shows
+  // whatever the user actually holds.
+  const trophy = getTrophy(row.trophy_id);
+  const icon = trophy?.emoji || '🏆';
+  const name = trophy?.name || row.trophy_id;
+  const tierMeta = trophy ? (TROPHY_TIERS[trophy.tier] || TROPHY_TIERS.bronze) : null;
 
   return (
     <button
@@ -58,17 +56,23 @@ function Badge({ row, onTap, tappable }) {
           language rather than two competing treatments. */}
       <div
         className={[
-          'w-14 h-14 rounded-xl flex items-center justify-center text-2xl bg-secondary/40',
+          'relative w-14 h-14 rounded-xl flex items-center justify-center text-2xl bg-secondary/40 overflow-hidden',
           tappable ? 'transition-transform hover:scale-105' : '',
         ].join(' ')}
       >
         <span aria-hidden="true">{icon}</span>
+        {/* Same 2px tier stripe the trophy grid uses, so the rail and the
+            grid read as one collection language rather than two. */}
+        {tierMeta && (
+          <span
+            aria-hidden="true"
+            className="absolute inset-x-0 bottom-0"
+            style={{ height: 2, background: tierMeta.color }}
+          />
+        )}
       </div>
       <span className="text-xs text-muted-foreground text-center leading-tight line-clamp-2 max-w-[60px]">
-        {/* Display name: prefer definition i18n key (Best for client
-            lookup), fall back to denormalized row name, then to the
-            achievement_id itself as a last-resort label. */}
-        {def ? row.name || row.achievement_id : name}
+        {name}
       </span>
     </button>
   );
@@ -85,16 +89,9 @@ export default function ProfileBadgeShowcase({ userEmail, userId, isOwn }) {
     queryKey: ['profileBadges', userId ?? userEmail],
     queryFn: async () => {
       if (!userId && !userEmail) return [];
-      try {
-        const list = await db.entities.Achievement.filter(
-          userId ? { user_id: userId } : { created_by: userEmail },
-          '-unlocked_at',
-          MAX_BADGES,
-        );
-        return Array.isArray(list) ? list : [];
-      } catch {
-        return [];
-      }
+      // listEarned already returns newest-first; take the freshest few.
+      const list = await listEarned(userId || userEmail, !userId);
+      return (Array.isArray(list) ? list : []).slice(0, MAX_BADGES);
     },
     enabled: !!(userId || userEmail),
     staleTime: 60_000,

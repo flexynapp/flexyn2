@@ -284,7 +284,7 @@ describe('ProfileActions', () => {
 describe('ProfileTrophies', () => {
   const earned = [{ trophy_id: TROPHIES[0].id }, { trophy_id: TROPHIES[1].id }];
 
-  it('renders a locked frame for every trophy not yet earned', () => {
+  it('caps locked frames so the grid stays a shape, not a wall', () => {
     const { container } = render(
       <ProfileTrophies
         isSelf={false}
@@ -296,9 +296,15 @@ describe('ProfileTrophies', () => {
         tFallback={tFallback}
       />
     );
+    // The exact remaining count lives in the header; the frames only have
+    // to say "there is more". This used to render one frame per unearned
+    // trophy, which was fine at a catalog of 18 — migration 323 took it
+    // to 73, and 71 padlocks buries the two earned badges above them.
     expect(screen.getByText(`2 / ${TROPHIES.length}`)).toBeTruthy();
     const locks = container.querySelectorAll('.opacity-25');
-    expect(locks).toHaveLength(TROPHIES.length - 2);
+    expect(locks.length).toBeGreaterThan(0);
+    expect(locks.length).toBeLessThanOrEqual(10);
+    expect(locks.length).toBeLessThan(TROPHIES.length - 2);
   });
 
   it('shows the empty-state copy rather than a wall of locks at zero', () => {

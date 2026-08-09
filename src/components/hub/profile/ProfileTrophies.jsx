@@ -39,7 +39,17 @@ export default function ProfileTrophies({
   tFallback,
 }) {
   const earnedIds = new Set(earnedTrophies.map((row) => row.trophy_id));
-  const lockedCount = Math.max(0, TROPHIES.length - earnedIds.size);
+  // Locked frames show the SHAPE of what's left — "8/24 with fifteen empty
+  // frames says something 8/24 alone doesn't". Migration 323 took the
+  // catalog from 18 to 73, and 65 padlocks is no longer a shape, it's a
+  // wall of grey that buries the earned ones above it. Two rows of five
+  // is enough to read as "there is more"; the count in the header carries
+  // the exact number.
+  const MAX_LOCKED_FRAMES = 10;
+  const lockedCount = Math.min(
+    MAX_LOCKED_FRAMES,
+    Math.max(0, TROPHIES.length - earnedIds.size),
+  );
   const showCase = isSelf || (trophyVisible && trophyCase.some((slot) => slot?.value));
 
   return (

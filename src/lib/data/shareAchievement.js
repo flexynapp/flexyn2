@@ -10,6 +10,8 @@ import * as hubPosts from './hubPosts';
 
 const POST_TYPE = 'achievement';
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /**
  * Share an unlocked achievement to Hub as a public post.
  *
@@ -32,6 +34,15 @@ export async function shareAchievementPost({ user, achievement }) {
     xp_reward:      achievement.xp_reward || null,
   };
   const friendly = `🏆 Unlocked: ${snapshot.name}`;
+  // `hub_posts.linked_entity_id` is a UUID column, but a badge id is a
+  // slug ('first_rep', 'sessions_x2'). Sending one raises 22P02 and the
+  // whole share fails — which nobody ever saw, because until migration
+  // 323 no achievement could be unlocked to share in the first place.
+  // The id the renderer actually reads is in the snapshot; the column is
+  // for real entity links.
+  const linkedId = UUID_RE.test(achievement.achievement_id)
+    ? achievement.achievement_id
+    : null;
   try {
     const post = await hubPosts.create({
       author_email:           user.email,
@@ -44,7 +55,7 @@ export async function shareAchievementPost({ user, achievement }) {
       dislike_count:          0,
       comment_count:          0,
       linked_entity_type:     'achievement',
-      linked_entity_id:       achievement.achievement_id,
+      linked_entity_id:       linkedId,
       linked_entity_snapshot: snapshot,
     });
     return { ok: true, postId: post?.id || null };

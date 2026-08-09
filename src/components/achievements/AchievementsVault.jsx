@@ -27,9 +27,9 @@ import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/lib/AuthContext';
-import { db } from '@/api/db';
 import { ChevronLeft, Trophy } from 'lucide-react';
 import AchievementsTab from '@/components/progress/AchievementsTab';
+import { listEarned, getProgress, grantEligible } from '@/lib/data/trophies';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 // The OPEN_ACHIEVEMENTS_EVENT constant + requestOpenAchievements helper
@@ -40,12 +40,33 @@ import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 export default function AchievementsVault({ onClose }) {
   const { user } = useAuth();
   useBodyScrollLock(true);
-  // user_id, not created_by: server-granted achievements (mig 189) stamp
-  // created_by='' for guests — the email filter hid them from the vault.
-  const { data: achievements = [] } = useQuery({
-    queryKey: ['achievements', user?.id],
-    queryFn: () => db.entities.Achievement.filter({ user_id: user.id }),
+
+  // Opening the vault is a grant checkpoint. The criteria are evaluated
+  // server-side from live stats, so anything earned since the last check
+  // lands before the page paints its counts — otherwise you finish a
+  // 50th workout, open Achievements to look at the badge, and it isn't
+  // there until something else happens to call the RPC.
+  //
+  // grantEligible() runs first and the trophy list keys off its
+  // completion, so the two can't race into showing a stale board.
+  const { data: granted } = useQuery({
+    queryKey: ['trophyGrant', user?.id],
+    queryFn: grantEligible,
     enabled: !!user?.id,
+    staleTime: 30_000,
+  });
+
+  const { data: trophies = [] } = useQuery({
+    queryKey: ['trophies', user?.id, granted?.newlyGranted?.length ?? 0],
+    queryFn: () => listEarned(user.id),
+    enabled: !!user?.id && !!granted,
+  });
+
+  const { data: progress = {} } = useQuery({
+    queryKey: ['trophyProgress', user?.id],
+    queryFn: getProgress,
+    enabled: !!user?.id,
+    staleTime: 30_000,
   });
 
   return createPortal(
@@ -78,7 +99,7 @@ export default function AchievementsVault({ onClose }) {
           already handles category tabs, locked/unlocked split,
           and empty states. */}
       <div className="flex-1 overflow-y-auto px-4 py-4">
-        <AchievementsTab achievements={achievements} />
+        <AchievementsTab trophies={trophies} progress={progress} user={user} />
       </div>
     </motion.div>,
     document.body,
