@@ -1950,6 +1950,25 @@ export default function Dashboard() {
             value={row.rowKey}
             as="div"
             dragListener={editMode}
+            // `layout` defaults to TRUE on Reorder.Item, and outside edit mode
+            // it is pure downside. Reorder's projection is built for drag
+            // reordering — a stable list where only the ORDER changes. Here the
+            // list MEMBERSHIP changes as each query resolves: sections render
+            // null until their data lands, so `dashboardRows` is rebuilt several
+            // times in the first second. Project across two different lists and
+            // a row can be left holding a delta it never resolves — the row
+            // keeps its flow box while painting somewhere else, so a gap opens
+            // where it belongs and it lands on top of the two rows below.
+            //
+            // That is the Discover-on-top-of-the-quote overlap. Measured in
+            // isolation against framer-motion 11.18.2: with `layout` on, the
+            // row settles at a permanent translateY of -320px after the row
+            // list changes twice; with it off, 0px across repeated churn.
+            //
+            // Editing keeps it, because that is when rows genuinely reorder and
+            // the animation is the whole point. Nothing reorders outside edit
+            // mode — `dragListener` is already gated the same way.
+            layout={editMode}
             className={`relative ${afterActions ? 'mt-8' : ''}${editMode ? ' touch-none select-none' : ''}`}
           >
             {editMode && (
