@@ -25,7 +25,7 @@
 // from, and a support reply can point at one.
 
 import { lazy, Suspense } from 'react';
-import { useParams, useNavigate, Navigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import {
   ArrowLeft, SlidersHorizontal, Bell, Dumbbell, HeartPulse,
   Lock, UserCog, Info, Loader2,
@@ -108,6 +108,7 @@ const SECTIONS = [
 export default function Settings() {
   const { section: slug } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { t, tFallback } = useLanguage();
 
   const section = slug ? SECTIONS.find(s => s.slug === slug) : null;
@@ -118,16 +119,37 @@ export default function Settings() {
 
   const title = section ? tFallback(...section.title) : t('profile.settings');
 
+  // Is this the first location the router has seen — i.e. is there nothing
+  // of ours behind us to go back to?
+  //
+  // `key === 'default'` is react-router's marker for the session's initial
+  // entry, which is what someone deep-linking `/settings/privacy` from a
+  // support reply gets. `window.history.length` cannot answer this: it
+  // counts the whole TAB, so arriving from a search result reads as 2 and
+  // `navigate(-1)` would walk out of the app instead of into the Dashboard.
+  // `settingsRoot` carries the same fact across the one replace below.
+  const atSessionStart = location.key === 'default' || !!location.state?.settingsRoot;
+
   const goBack = () => {
-    // From a subpage, back always means the index — even for a user who
-    // deep-linked straight here and has no history to pop.
-    if (section) { navigate('/settings'); return; }
-    // From the index, back means wherever they came from. A user who
-    // arrived by URL has an empty history, where `navigate(-1)` silently
-    // no-ops — fall back to a safe parent route so the button always does
-    // something.
-    if (window.history.length > 1) navigate(-1);
-    else navigate('/dashboard');
+    // A subpage POPS the index rather than pushing it.
+    //
+    // Pushing is what broke back-from-the-index, and it was reproducible:
+    // caller → index → subpage → back left the stack at
+    // [caller, /settings, /settings/x, /settings], so the index's own
+    // navigate(-1) went to `/settings/x`. You tapped Back on Settings and
+    // landed back inside Settings. Popping keeps it [caller, /settings], so
+    // one more Back reaches the caller — and it makes this arrow agree with
+    // the hardware back button, which it previously did not.
+    if (section) {
+      if (atSessionStart) navigate('/settings', { replace: true, state: { settingsRoot: true } });
+      else navigate(-1);
+      return;
+    }
+    // From the index, back means the page they were looking at before
+    // Settings. With nothing of ours behind us, fall back to a safe parent
+    // rather than leaving the app.
+    if (atSessionStart) navigate('/dashboard');
+    else navigate(-1);
   };
 
   return (
