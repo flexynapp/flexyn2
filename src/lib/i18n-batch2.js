@@ -62,6 +62,16 @@ const enKeys = {
   // (CLAUDE.md, i18n discipline).
   'profile.journal.footerToday':       'Auto-saved · swipe left/right to change days · tap Log for history',
   'profile.journal.footerPast':        'Read-only · swipe or use ← → to browse · tap Log for history',
+  // v2 of the day screen. English only for now, like the rest of this
+  // screen's `journal.*` keys — a native pass is owed on the lot, and
+  // machine-translating is out (CLAUDE.md, i18n discipline).
+  'journal.saved':                     'Saved',
+  'journal.held':                      'Held offline',
+  'journal.setMood':                   'Log a mood',
+  'journal.feltLabel':                 'You felt',
+  'journal.moodOnly':                  'Logged from the dashboard. Nothing written for this day.',
+  'journal.fromToday':                 'FROM TODAY',
+  'journal.fromTodayHint':             'Tap one to write it as a line.',
 
   // ── HubChat error toasts ────────────────────────────────────────────
   'hub.chat.attachmentTooLarge': 'Image must be 50 MB or smaller',

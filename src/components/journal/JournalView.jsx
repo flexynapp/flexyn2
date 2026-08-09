@@ -17,15 +17,17 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format, subDays, addDays } from 'date-fns';
 import {
-  ChevronLeft, ChevronRight, Book, List, Bold, Mic, MicOff,
-  Paperclip, X, Loader2, History, FileText,
+  ChevronLeft, ChevronRight, List, Bold, Mic, MicOff,
+  Paperclip, X, Loader2, History, FileText, Plus,
 } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { useLanguage } from '@/lib/LanguageContext';
 import { startDictation, isVoiceInputSupported } from '@/lib/voiceInput';
 import {
-  getEntry, upsertEntry, uploadAttachment, migrateLocalEntries, listEntries,
+  getEntry, upsertEntry, uploadAttachment, migrateLocalEntries, listEntries, tagMood,
 } from '@/lib/data/journal';
+import { MOOD_EMOJIS, MOOD_LABELS, upsertMoodLog } from '@/lib/data/moodLogs';
+import { getDayContext, contextChips } from '@/lib/data/dayContext';
 
 // ── Lightweight markdown renderer (bold + bullets only) ───────────────────────
 function renderInline(text) {
@@ -36,6 +38,56 @@ function renderInline(text) {
       : <React.Fragment key={i}>{p}</React.Fragment>
   );
 }
+// ── Mood chip ─────────────────────────────────────────────────────────────────
+// mood_score has been on journal_entries since migration 165 and shown
+// nowhere on this screen — written by a tap on the dashboard's MoodLogCard
+// and read by nothing here. It sits on the day now, dashed when unset.
+//
+// Tapping expands the SAME five steps MoodLogCard uses; a second scale would
+// be a second answer to the same question.
+function MoodChip({ score, editable, busy, onPick, tFallback }) {
+  const [open, setOpen] = useState(false);
+  const emoji = score ? MOOD_EMOJIS[score - 1] : null;
+
+  if (open && editable) {
+    return (
+      <div className="flex items-center gap-1" data-no-swipe>
+        {MOOD_EMOJIS.map((e, i) => (
+          <button
+            key={e}
+            onClick={() => { setOpen(false); onPick(i + 1); }}
+            aria-label={tFallback(`mood.label.${i + 1}`, MOOD_LABELS[i])}
+            className={`w-8 h-8 rounded-full flex items-center justify-center text-lg transition-colors ${
+              score === i + 1 ? 'bg-secondary' : 'hover:bg-secondary active:bg-secondary'
+            }`}
+          >
+            {e}
+          </button>
+        ))}
+      </div>
+    );
+  }
+
+  const label = score
+    ? `${tFallback('journal.feltLabel', 'You felt')} ${tFallback(`mood.label.${score}`, MOOD_LABELS[score - 1])}`
+    : tFallback('journal.setMood', 'Log a mood');
+
+  return (
+    <button
+      onClick={() => editable && setOpen(true)}
+      disabled={!editable && !score}
+      aria-label={label}
+      title={label}
+      data-no-swipe
+      className={`w-11 h-11 shrink-0 rounded-full flex items-center justify-center text-xl transition-colors ${
+        emoji ? 'bg-secondary' : 'border border-dashed border-border text-muted-foreground'
+      } ${editable ? 'active:opacity-70' : ''}`}
+    >
+      {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : (emoji || <Plus className="w-4 h-4" />)}
+    </button>
+  );
+}
+
 function MarkdownBody({ text, placeholder }) {
   if (!text || !text.trim()) return <p className="text-muted-foreground/50 text-sm">{placeholder}</p>;
   const lines = text.split('\n');
@@ -68,11 +120,21 @@ export default function JournalView({ userId, userEmail, onClose }) {
   const [activeDate, setActiveDate] = useState(() => new Date());
   const dateStr = format(activeDate, 'yyyy-MM-dd');
   const isToday = dateStr === todayStr();
-  const displayDate = format(activeDate, 'EEEE, MMMM d yyyy');
+  // Year only when it isn't this one. At text-xl "Wednesday, September 30
+  // 2026" is ~380pt against a 375pt phone once the two day arrows and the
+  // 44pt mood chip are counted, so it truncated — and the year is noise on
+  // a screen whose whole subject is which day you are on.
+  const displayDate = format(
+    activeDate,
+    activeDate.getFullYear() === new Date().getFullYear() ? 'EEEE, MMMM d' : 'EEEE, MMMM d yyyy',
+  );
 
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [attachments, setAttachments] = useState([]);
+  const [moodScore, setMoodScore] = useState(null);
+  const [moodBusy, setMoodBusy] = useState(false);
+  const [dayCtx, setDayCtx] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -248,6 +310,10 @@ export default function JournalView({ userId, userEmail, onClose }) {
     const serverTime = entry?.updated_at ? new Date(entry.updated_at).getTime() : 0;
     const draftTime  = draft?.savedAt || 0;
     const useDraft   = draft && (!entry || draftTime > serverTime);
+    // mood_score always comes from the SERVER row, never from the draft —
+    // a draft only ever holds what this editor can write, and the mood is
+    // set elsewhere (MoodLogCard) and could have moved since.
+    setMoodScore(entry?.mood_score ?? null);
     if (useDraft) {
       setTitle(draft.title || '');
       setBody(draft.body || '');
@@ -440,6 +506,60 @@ export default function JournalView({ userId, userEmail, onClose }) {
   };
 
   const readOnly = !isToday;
+  const hasContent = !!(title.trim() || body.trim() || attachments.length);
+  // "Held offline" is the honest read of the retry state: flush() stashed
+  // the snapshot to localStorage and is backing off. It was reported by a
+  // single toast, once, and then never again.
+  const heldOffline = !saving && dirtyRef.current && retryCountRef.current > 0;
+
+  // ── The day's own facts, for the empty state ──────────────────────────
+  // Fetched per day and only when there is a blank page to fill. Failure is
+  // silent by design: no chips is a fine empty state, an error is not.
+  useEffect(() => {
+    let cancelled = false;
+    if (!userId || readOnly) { setDayCtx(null); return undefined; }
+    getDayContext(userId, dateStr)
+      .then(ctx => { if (!cancelled) setDayCtx(ctx); })
+      .catch(() => { if (!cancelled) setDayCtx(null); });
+    return () => { cancelled = true; };
+  }, [userId, dateStr, readOnly]);
+
+  const chips = React.useMemo(() => contextChips(
+    dayCtx,
+    moodScore ? { score: moodScore, emoji: MOOD_EMOJIS[moodScore - 1], label: tFallback(`mood.label.${moodScore}`, MOOD_LABELS[moodScore - 1]) } : null,
+    (key, english) => tFallback(key, english),
+  ), [dayCtx, moodScore, tFallback]);
+
+  // Append a chip as a line of the entry, at the end, and mark dirty so the
+  // normal autosave picks it up. No special save path — a tapped chip is
+  // just typing the user didn't have to do.
+  const appendLine = (line) => {
+    setBody(prev => {
+      const sep = !prev ? '' : prev.endsWith('\n') ? '' : '\n';
+      return `${prev}${sep}${line}`;
+    });
+    dirtyRef.current = true;
+  };
+
+  // Setting a mood from here has to write BOTH tables. MoodLogCard writes
+  // mood_logs (which Readiness and the dashboard read) and then tags
+  // journal_entries.mood_score; writing only the journal row would show a
+  // mood here that the dashboard denies. upsertMoodLog is today-only by
+  // construction, which matches this control being disabled on past days.
+  const setMood = async (score) => {
+    if (!isToday || !userId) return;
+    const previous = moodScore;
+    setMoodScore(score);           // optimistic
+    setMoodBusy(true);
+    const res = await upsertMoodLog({ mood: score }).catch(() => ({ ok: false }));
+    if (res?.ok) {
+      await tagMood(userId, userEmail, score, dateStr).catch(() => {});
+    } else {
+      setMoodScore(previous);
+      toast.error(tFallback('mood.saveFailed', 'Could not save mood — try again.'));
+    }
+    setMoodBusy(false);
+  };
 
   // Portal to <body>. This is not cosmetic: ProfileMenu is rendered INSIDE
   // `Header.jsx`'s mobile bar, which carries `backdrop-blur-md`, and a
@@ -462,61 +582,91 @@ export default function JournalView({ userId, userEmail, onClose }) {
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
-        <button onClick={onClose} className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground active:text-foreground transition-colors">
-          <ChevronLeft className="w-4 h-4" /> {tFallback('profile.journal.back', 'Back')}
-        </button>
-        <div className="flex items-center gap-1.5">
-          <Book className="w-4 h-4 text-primary" />
-          <span className="font-heading font-bold text-base">{tFallback('profile.journal.title', 'My Journal')}</span>
+      {/* ── The day. One block, and the only dominant thing on the screen.
+          It replaces two strips: an app-title row that just repeated the
+          menu row you tapped to get here, and a separate date bar. That
+          was 106pt of chrome with no focal point between them — the
+          exact "consistency without hierarchy" CLAUDE.md calls the
+          generated-UI tell. The date now carries the page. */}
+      <div className="px-4 pt-2 pb-3 border-b border-border shrink-0">
+        <div className="flex items-center justify-between">
+          <button onClick={onClose} className="flex items-center gap-1 -ms-1 py-1 text-sm font-medium text-muted-foreground hover:text-foreground active:text-foreground transition-colors">
+            <ChevronLeft className="w-4 h-4" /> {tFallback('profile.journal.back', 'Back')}
+          </button>
+          <button
+            onClick={() => setHistoryOpen(true)}
+            className="flex items-center gap-1 py-1 text-sm text-muted-foreground hover:text-foreground active:text-foreground transition-colors"
+            data-no-swipe
+          >
+            <History className="w-4 h-4" /> {tFallback('journal.log', 'Log')}
+          </button>
         </div>
-        <button
-          onClick={() => setHistoryOpen(true)}
-          className="flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground active:text-foreground transition-colors"
-          data-no-swipe
-        >
-          <History className="w-4 h-4" /> {tFallback('journal.log', 'Log')}
-        </button>
-      </div>
 
-      {/* Date navigation */}
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-border shrink-0 bg-secondary/20">
-        <button onClick={goPrev} className="p-1.5 rounded-lg hover:bg-secondary active:bg-secondary transition-colors" aria-label="Previous day" data-no-swipe>
-          <ChevronLeft className="w-4 h-4" />
-        </button>
-        <div className="text-center">
-          <p className="text-sm font-bold text-foreground">{displayDate}</p>
-          <div className="flex items-center justify-center gap-2 mt-0.5">
-            {isToday && <span className="text-micro text-primary font-semibold">{tFallback('profile.journal.today', 'Today')}</span>}
-            {saving && <span className="text-micro text-muted-foreground flex items-center gap-1"><Loader2 className="w-2.5 h-2.5 animate-spin" /> {tFallback('journal.saving', 'Saving…')}</span>}
+        <div className="flex items-end justify-between gap-2 mt-2">
+          <div className="min-w-0">
+            <div className="flex items-center gap-1">
+              <button onClick={goPrev} className="-ms-1.5 p-1.5 rounded-lg text-muted-foreground hover:bg-secondary active:bg-secondary transition-colors" aria-label="Previous day" data-no-swipe>
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <h2 className="font-heading font-bold text-xl text-foreground truncate">{displayDate}</h2>
+              {/* opacity-30, not opacity-0: hiding it on today collapsed the
+                  row's shape and the date jumped sideways when you navigated
+                  off today and back. */}
+              <button onClick={goNext} disabled={isToday} className="p-1.5 rounded-lg text-muted-foreground hover:bg-secondary active:bg-secondary transition-colors disabled:opacity-30" aria-label="Next day" data-no-swipe>
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+            {/* Save state lives with the day now. It used to be the only
+                honest half of a permanent three-clause footer sentence. */}
+            <div className="flex items-center gap-2 ps-1">
+              {isToday && <span className="text-micro text-primary font-semibold">{tFallback('profile.journal.today', 'Today')}</span>}
+              {saving
+                ? <span className="text-micro text-muted-foreground flex items-center gap-1"><Loader2 className="w-2.5 h-2.5 animate-spin" /> {tFallback('journal.saving', 'Saving…')}</span>
+                : heldOffline
+                  ? <span className="text-micro text-destructive">{tFallback('journal.held', 'Held offline')}</span>
+                  : hasContent && <span className="text-micro text-muted-foreground">{tFallback('journal.saved', 'Saved')}</span>}
+            </div>
           </div>
+
+          <MoodChip
+            score={moodScore}
+            editable={isToday}
+            busy={moodBusy}
+            onPick={setMood}
+            tFallback={tFallback}
+          />
         </div>
-        <button onClick={goNext} disabled={isToday} className="p-1.5 rounded-lg hover:bg-secondary active:bg-secondary transition-colors disabled:opacity-30" aria-label="Next day" data-no-swipe>
-          <ChevronRight className="w-4 h-4" />
-        </button>
       </div>
 
       {loading ? (
         <div className="flex-1 flex items-center justify-center"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
       ) : (
         <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Title */}
-          <div className="px-4 pt-3 shrink-0">
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => onTitleChange(e.target.value)}
-              readOnly={readOnly}
-              placeholder={readOnly ? (title ? '' : tFallback('journal.noTitle', 'Untitled')) : tFallback('journal.titlePlaceholder', 'Title your day…')}
-              className="w-full bg-transparent font-heading font-bold text-lg text-foreground focus:outline-none placeholder:text-muted-foreground/40"
-              data-no-swipe
-            />
-          </div>
+          {/* Title. A read-only day with no title renders NOTHING here —
+              it used to show an "Untitled" placeholder, which is a label
+              for an absence, sitting above the actual content and reading
+              like a field the user failed to fill in. 0 of production's 12
+              rows have a title, so that placeholder was the normal case. */}
+          {(!readOnly || title) && (
+            <div className="px-4 pt-3 shrink-0">
+              <input
+                type="text"
+                value={title}
+                onChange={(e) => onTitleChange(e.target.value)}
+                readOnly={readOnly}
+                placeholder={tFallback('journal.titlePlaceholder', 'Title your day…')}
+                className="w-full bg-transparent font-heading font-bold text-lg text-foreground focus:outline-none placeholder:text-muted-foreground/40"
+                data-no-swipe
+              />
+            </div>
+          )}
 
-          {/* Formatting toolbar — today only */}
+          {/* Formatting toolbar — today only. Grouped on a `secondary`
+              surface rather than four icons floating on the page: it is
+              interactive, so it earns one, and a naked row of glyphs
+              belonged to nothing. */}
           {!readOnly && (
-            <div className="flex items-center gap-1 px-4 py-2 shrink-0" data-no-swipe>
+            <div className="flex items-center gap-1 mx-4 my-2 px-1.5 py-1.5 w-fit rounded-lg bg-secondary shrink-0" data-no-swipe>
               <button onClick={() => applyFormat('bullet')} title="Bullet list" className="w-8 h-8 rounded-md hover:bg-secondary active:bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground active:text-foreground">
                 <List className="w-4 h-4" />
               </button>
@@ -554,7 +704,24 @@ export default function JournalView({ userId, userEmail, onClose }) {
           <div className="flex-1 px-4 overflow-y-auto">
             {readOnly ? (
               <div className="min-h-[40vh] py-1" data-no-swipe>
-                <MarkdownBody text={body} placeholder={tFallback('profile.journal.placeholderPast', 'No entry for this day.')} />
+                {/* A mood IS an entry — the smallest one there is. This day
+                    used to say "No entry for this day" while the row it was
+                    reading held a mood_score, and that is not an edge case:
+                    six of production's twelve journal rows are mood-only,
+                    written by a tap on the dashboard. */}
+                {!body.trim() && moodScore ? (
+                  <div className="py-2">
+                    <p className="text-3xl leading-none">{MOOD_EMOJIS[moodScore - 1]}</p>
+                    <p className="font-heading font-bold text-lg text-foreground mt-3">
+                      {tFallback('journal.feltLabel', 'You felt')} {tFallback(`mood.label.${moodScore}`, MOOD_LABELS[moodScore - 1])}
+                    </p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {tFallback('journal.moodOnly', 'Logged from the dashboard. Nothing written for this day.')}
+                    </p>
+                  </div>
+                ) : (
+                  <MarkdownBody text={body} placeholder={tFallback('profile.journal.placeholderPast', 'No entry for this day.')} />
+                )}
               </div>
             ) : (
               <textarea
@@ -601,21 +768,49 @@ export default function JournalView({ userId, userEmail, onClose }) {
             )}
           </div>
 
-          {/* Footer hint */}
-          <div className="px-4 py-2 border-t border-border shrink-0">
-            <p className="text-micro text-muted-foreground text-center">
-              {/* `profile.journal.*`, not `journal.*`. The translated strings
-                  have lived under the `profile.` prefix in i18n-batch2.js
-                  since the feature shipped; the code asked for the bare key,
-                  which exists in no part file, so all 15 languages fell
-                  through to the English fallback and 14 translations sat
-                  unreachable. The rest of this screen's `journal.*` keys are
-                  genuinely untranslated — see the i18n note in CLAUDE.md. */}
-              {readOnly
-                ? tFallback('profile.journal.footerPast', 'Read-only · swipe or use ← → to browse · tap Log for history')
-                : tFallback('profile.journal.footerToday', 'Auto-saved · swipe left/right to change days · tap Log for history')}
-            </p>
-          </div>
+          {/* ── FROM TODAY. The void, filled with what the app already
+              knows. The journal sits directly on top of workout_logs and
+              sleep_logs and read neither — it offered a blank page to
+              someone whose session it had just recorded.
+
+              Three rules this must keep:
+              • Every chip is a fact from a row. Nothing is estimated and
+                nothing is generated. Production carries NULL title and
+                NULL duration_min on 100% of workout rows, so a chip set
+                assuming those columns would have rendered "· min" at
+                everybody — see the head of dayContext.js.
+              • It renders only while the body is EMPTY. It is an
+                empty-state affordance, not a permanent context rail; a
+                rail would be one more thing competing with the writing.
+              • The 32pt break above it is this screen's ONE gap-8
+                (CLAUDE.md): the seam between writing and context.
+
+              The permanent three-clause footer instruction it replaces
+              ("Auto-saved · swipe left/right to change days · tap Log for
+              history") was on screen before a word was written; the only
+              part of it carrying information is the save state, which now
+              sits under the date where the user is already looking. */}
+          {!readOnly && !body.trim() && chips.length > 0 && (
+            <div className="px-4 pb-3 pt-8 shrink-0" data-no-swipe>
+              <p className="text-micro font-bold tracking-[0.06em] text-muted-foreground">
+                {tFallback('journal.fromToday', 'FROM TODAY')}
+              </p>
+              <div className="border-t border-border mt-1.5 pt-2 flex flex-wrap gap-2">
+                {chips.map(c => (
+                  <button
+                    key={c.key}
+                    onClick={() => appendLine(c.line)}
+                    className="px-3 py-1.5 rounded-lg border border-border text-sm text-foreground hover:bg-secondary active:bg-secondary transition-colors"
+                  >
+                    {c.label}
+                  </button>
+                ))}
+              </div>
+              <p className="text-micro text-muted-foreground mt-2">
+                {tFallback('journal.fromTodayHint', 'Tap one to write it as a line.')}
+              </p>
+            </div>
+          )}
         </div>
       )}
 
