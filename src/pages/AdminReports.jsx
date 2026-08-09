@@ -20,7 +20,7 @@
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ShieldAlert, Check, Trash2, X, ChevronLeft, AlertTriangle, Bug } from 'lucide-react';
 import { toast } from '@/lib/toast';
@@ -69,6 +69,9 @@ export default function AdminReports() {
   // Hooks must run on every render — the !isAdmin early-return is
   // placed AFTER all hooks below to honor the rules-of-hooks.
   const { data: reports = [], isLoading, refetch } = useQuery({
+    // Kind and tab are both in the key, so every tab press dropped the list
+    // to three skeletons and rebuilt it. Same fix as the other boards.
+    placeholderData: keepPreviousData,
     queryKey: ['adminReports', reportKind, activeTab],
     queryFn:  () => isBug
       ? listBugReports({ status: activeTab })

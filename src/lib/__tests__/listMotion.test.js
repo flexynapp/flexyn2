@@ -143,6 +143,33 @@ describe('the leaderboard swap stays a swap', () => {
   });
 });
 
+describe('control-driven mode="wait" swaps stay under 0.15s', () => {
+  // 0.18 is the app's house duration and is right for the ~19 one-shot banner
+  // enter/exits that use it — those pay it once. A mode="wait" swap pays it
+  // twice, so the same number becomes ~0.36s of dead time on a tab press.
+  //
+  // pages/Hub.jsx is DELIBERATELY not in this list: Kegan kept its main
+  // section tabs at 0.18 (2026-08-09). Don't "fix" it.
+  const files = [
+    'src/pages/Coach.jsx',
+    'src/pages/Workout.jsx',
+    'src/components/dashboard/WidgetLibrary.jsx',
+  ];
+
+  for (const f of files) {
+    it(`${f} pays at most 0.15s per half`, () => {
+      const s = code(f);
+      for (const m of s.matchAll(/<AnimatePresence[^>]*mode=["']wait["'][^>]*>/g)) {
+        const end = s.indexOf('</AnimatePresence>', m.index);
+        const body = s.slice(m.index + m[0].length, end === -1 ? undefined : end);
+        const ds = [...body.matchAll(/transition=\{\{[^}]*duration:\s*([\d.]+)/g)]
+          .map(x => Number(x[1]));
+        for (const d of ds) expect(d).toBeLessThanOrEqual(0.15);
+      }
+    });
+  }
+});
+
 // The two rules from listMotion.js, enforced across the app. A sweep found 12
 // candidate collections and only 4 wanted popLayout; both of these mistakes
 // are silent — nothing throws, and a screenshot of a settled page looks fine.

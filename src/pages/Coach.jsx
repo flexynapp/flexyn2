@@ -104,7 +104,11 @@ export default function Coach() {
             initial={{ opacity: 0, x: tab === 0 ? -24 : 24 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: tab === 0 ? 24 : -24 }}
-            transition={{ duration: 0.18, ease: 'easeOut' }}
+            // 0.1, not the app's usual 0.18: mode="wait" SERIALISES exit and
+            // enter, so this number is paid twice — 0.18 meant ~0.36s of dead
+            // time after a tap or a swipe on a panel that is drag-driven. The
+            // 0.18 elsewhere is on one-shot banner enter/exits, paid once.
+            transition={{ duration: 0.1, ease: 'easeOut' }}
             drag="x"
             dragDirectionLock
             dragConstraints={{ left: 0, right: 0 }}

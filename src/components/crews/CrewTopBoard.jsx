@@ -20,7 +20,7 @@
 //     less true than an honest one
 
 import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { Shield, Trophy, Loader2 } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -101,10 +101,17 @@ export default function CrewTopBoard() {
   const fmt = useNumberFormatter();
   const [metric, setMetric] = useState('volume');
 
-  const { data: board, isLoading } = useQuery({
+  const { data: board, isLoading, isFetching } = useQuery({
     queryKey: ['crewTopBoard', metric],
     queryFn:  () => getTopCrews({ metric, limit: 25 }),
     staleTime: 60_000,
+    // The metric is in the key, so each pill was a different query with no
+    // cache — isLoading went true and the early return below replaced the
+    // whole section, INCLUDING the metric switch itself. The control you
+    // just pressed vanished under your finger and came back a moment later
+    // with the section fading in from scratch. keepPreviousData holds the
+    // board and the pills in place; the refetch shows as a dim instead.
+    placeholderData: keepPreviousData,
   });
 
   const rows = board?.rows ?? [];
@@ -172,7 +179,17 @@ export default function CrewTopBoard() {
             </p>
           )}
 
-          <div>
+          {/* The dim goes on the rows, NOT on the metric switch above and
+              NOT on the <motion.section> wrapper: the control you just
+              pressed should stay crisp, and framer animates the section's
+              opacity inline, where a class would lose to it and its CSS
+              transition would fight every frame. This div is plain, so a
+              class transition is the right tool here. */}
+          <div
+            className={`transition-opacity duration-150 ${
+              isFetching ? 'opacity-60' : 'opacity-100'
+            }`}
+          >
             {rows.map((row, i) => {
               const prev = i === 0 ? null : rows[i - 1];
               // Non-contiguous ranks are the point: the server sends the top N

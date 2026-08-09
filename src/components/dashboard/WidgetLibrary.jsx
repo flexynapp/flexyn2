@@ -52,7 +52,8 @@ export default function WidgetLibrary({ open, onClose, onSelect, onRemove, activ
             initial={{ opacity: 0, y: 4 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
-            transition={{ duration: 0.18, ease: 'easeOut' }}
+            // 0.1 because mode="wait" pays it twice — see Coach.jsx.
+            transition={{ duration: 0.1, ease: 'easeOut' }}
             className="grid grid-cols-1 md:grid-cols-2 gap-3"
           >
             {filteredWidgets.map((widget) => {

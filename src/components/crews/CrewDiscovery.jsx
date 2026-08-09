@@ -18,7 +18,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Globe2, Plus, Loader2, ArrowLeft, Shield } from 'lucide-react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import * as crewsData from '@/lib/data/crews';
@@ -169,6 +169,13 @@ export default function CrewDiscovery({ onBack, onJoined, inline = false }) {
     queryKey: ['crewDirectory', debounced, sort],
     queryFn:  () => listPublicCrews({ query: debounced, sort, limit: 30 }),
     staleTime: 15_000,
+    // Both the sort pill and the debounced search term are in the key, so
+    // each was a different query with no cache: `results` fell back to []
+    // and the list emptied to nothing — the empty state is suppressed while
+    // fetching, so you got a blank panel — before repopulating. Keep the
+    // current results up; the spinner already in the search field is the
+    // signal that a new set is coming.
+    placeholderData: keepPreviousData,
   });
 
   const joinMut = useMutation({
