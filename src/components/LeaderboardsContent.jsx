@@ -7,7 +7,7 @@
 // The component owns its own data fetch, board selection, and rendering.
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -171,11 +171,21 @@ export default function LeaderboardsContent({ active = true }) {
   // widened the RPC past volume/xp/sessions). Ranking used to happen in the
   // browser for the all-time boards, which meant pulling the entire user
   // table down to every viewer on every open.
-  const { data: rpcResult, isLoading: isLoadingRpcRaw } = useQuery({
+  const {
+    data: rpcResult, isLoading: isLoadingRpcRaw, isFetching: isFetchingRpc,
+  } = useQuery({
     queryKey: ['periodLeaderboard', serverBoard, period],
     queryFn:  () => getPeriodLeaderboard({ board: serverBoard, period, limit: 100 }),
     enabled:  active,
     staleTime: 60_000,
+    // Board and period are both in the key, so every segment tap and every
+    // period change was a DIFFERENT query with no cache: the whole list was
+    // replaced by five skeletons and then rebuilt. That teardown is most of
+    // what makes switching boards feel choppy, and it fires on the control
+    // people press most on this screen. Keep the current board on screen and
+    // swap it when the next one lands. useDelayedLoading's 250ms gate hid
+    // this for a warm cache but could not help a cold one.
+    placeholderData: keepPreviousData,
   });
   const rpcRows = rpcResult?.rows ?? [];
   // A pre-257 host can't serve the all-time boards. The frontend deploys
@@ -463,7 +473,18 @@ export default function LeaderboardsContent({ active = true }) {
       {/* Body — min-w-0 for the same grid-column reason as the header above. */}
       <div className="p-4 sm:p-5 md:p-6 min-w-0">
         {myRow && (
-          <motion.div key={`me-${activeBoard}`} layout initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="mb-5">
+          // Fades with the board below it, on the same 0.1s, so a segment tap
+          // is ONE change of state rather than two things moving separately.
+          // `layout` is gone — this is a single block with no siblings to
+          // reflow against, so it was a projection node measuring itself for
+          // nothing — and so is the y:-8 slide, which re-ran on every tap.
+          <motion.div
+            key={`me-${activeBoard}`}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.1 }}
+            className="mb-5"
+          >
             <Card className="p-4 bg-primary/5 border-2 border-primary/30">
               <div className="flex items-center gap-3">
                 <div className="w-11 h-11 rounded-xl bg-primary/20 flex items-center justify-center shrink-0 font-heading font-bold text-primary">
@@ -508,14 +529,27 @@ export default function LeaderboardsContent({ active = true }) {
             <p className="text-sm text-muted-foreground mt-1">{t('leaderboards.emptyDesc')}</p>
           </div>
         ) : (
+          // mode="wait" is right for a full content swap — two boards must
+          // never overlap — but it SERIALISES the two halves: the outgoing
+          // board had to finish 0.25s of exit before the incoming one was
+          // allowed to mount, then spent another 0.25s entering. Half a
+          // second of a control feeling unresponsive, before the per-row
+          // stagger below even started. 0.1s each way reads as a crisp swap;
+          // the y-offset is gone because a board switch is a change of
+          // content, not a movement of it, and translating 100 rows was the
+          // most expensive part of the least useful gesture.
           <AnimatePresence mode="wait">
             <motion.div
               key={`${activeBoard}:${period}`}
               className="space-y-2"
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.25 }}
+              initial={{ opacity: 0 }}
+              // The refetch dim is an animation TARGET, not an `opacity-60`
+              // class. framer writes opacity inline on this element and
+              // inline beats a class, so the class would never apply and its
+              // `transition-opacity` would fight every frame framer wrote.
+              animate={{ opacity: isFetchingRpc ? 0.6 : 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.1 }}
             >
               {/* Podium — the top three, with graduated blocks and the
                   crown/trophy/flame badges. Previously ranks 1-3 were
@@ -532,7 +566,7 @@ export default function LeaderboardsContent({ active = true }) {
                   100-row list that needed a sticky "Your rank" pill plus
                   row-suppression logic to stop the user appearing twice —
                   and which never showed who they were actually chasing. */}
-              {rows.map((entry, idx) => {
+              {rows.map((entry) => {
                 if (entry.type === 'ellipsis') {
                   return (
                     <button
@@ -552,12 +586,20 @@ export default function LeaderboardsContent({ active = true }) {
                 const delta = rankDeltas[row.id];
 
                 return (
-                  <motion.div
-                    key={row.id}
-                    initial={{ opacity: 0, x: -16 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: Math.min(idx, 10) * 0.04 }}
-                  >
+                  // A plain div. Every row used to slide in from x:-16 with
+                  // `delay: min(idx, 10) * 0.04` — up to 400ms of rows
+                  // cascading in one after another, re-run on EVERY board and
+                  // period change. That is a first-paint flourish being used
+                  // as the response to a button press: the board you asked
+                  // for arrives in pieces over half a second, which reads as
+                  // the app struggling rather than as polish. The keyed
+                  // parent above already fades the whole board in as one
+                  // unit, so these animations were redundant as well as
+                  // slow — and dropping them takes ~15 motion components and
+                  // their projection work out of every switch.
+                  // FriendLeaderboardPanel hit this exact bug and its comment
+                  // says the same thing.
+                  <div key={row.id}>
                     {/* No podium ring here any more — ranks 1-3 don't reach
                         this list, they render in LeaderboardPodium above. */}
                     <Card className={`p-3 border-none shadow-sm transition-all ${
@@ -599,7 +641,7 @@ export default function LeaderboardsContent({ active = true }) {
                         </div>
                       </div>
                     </Card>
-                  </motion.div>
+                  </div>
                 );
               })}
 

@@ -121,6 +121,28 @@ describe('the marketplace grid keeps the shape', () => {
   });
 });
 
+describe('the leaderboard swap stays a swap', () => {
+  const board = code('src/components/LeaderboardsContent.jsx');
+
+  it('does not stagger rows by index', () => {
+    // A per-row `delay: idx * n` is a first-paint flourish. Inside a block
+    // that is re-keyed on every board and period change it runs again on each
+    // tap, so the board you asked for arrives in pieces over half a second.
+    // FriendLeaderboardPanel had the same bug and removed it for the same
+    // reason. The keyed parent already fades the whole board in as one unit.
+    expect(board).not.toMatch(/delay:\s*Math\.min\(\s*idx/);
+    expect(board).not.toMatch(/delay:\s*idx\s*\*/);
+  });
+
+  it('keeps the swap short — mode="wait" costs exit + enter, not one of them', () => {
+    // Both halves are serialised, so the number here is paid twice.
+    const durations = [...board.matchAll(/transition=\{\{\s*duration:\s*([\d.]+)/g)]
+      .map(m => Number(m[1]));
+    expect(durations.length).toBeGreaterThan(0);
+    expect(Math.max(...durations)).toBeLessThanOrEqual(0.15);
+  });
+});
+
 // The two rules from listMotion.js, enforced across the app. A sweep found 12
 // candidate collections and only 4 wanted popLayout; both of these mistakes
 // are silent — nothing throws, and a screenshot of a settled page looks fine.

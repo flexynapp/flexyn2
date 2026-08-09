@@ -122,3 +122,34 @@ describe('LeaderboardsContent — caller below the top 100', () => {
     expect(screen.queryByText(/Outside the top/)).toBeNull();
   });
 });
+
+describe('LeaderboardsContent — switching board', () => {
+  it('keeps the current board on screen instead of tearing it down to skeletons', async () => {
+    // Board is part of the query key, so every segment tap used to be a
+    // different query with no cache: the list was replaced by five skeletons
+    // and rebuilt. That teardown is what made the segmented control feel
+    // choppy. placeholderData: keepPreviousData is what this asserts.
+    const { getPeriodLeaderboard } = await import('@/lib/data/periodLeaderboard');
+    const { container } = renderBoard();
+    await screen.findByText('Show all 100');
+
+    // Hold the next fetch open so the mid-switch frame is observable.
+    let release;
+    getPeriodLeaderboard.mockImplementationOnce(() => new Promise((resolve) => {
+      release = () => resolve({
+        rows: mockRows(100).map(r => ({ ...r, full_name: `Lifter ${r.rank}` })),
+        supported: true,
+      });
+    }));
+
+    fireEvent.click(screen.getByRole('button', { name: /Volume/ }));
+
+    // Mid-switch: no skeletons, and the board you were reading is still there.
+    expect(container.querySelectorAll('.animate-pulse')).toHaveLength(0);
+    expect(screen.getByText('Athlete 4')).toBeInTheDocument();
+
+    release();
+    expect(await screen.findByText('Lifter 4')).toBeInTheDocument();
+    expect(screen.queryByText('Athlete 4')).toBeNull();
+  });
+});
