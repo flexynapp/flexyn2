@@ -44,6 +44,7 @@ vi.mock('@/lib/data/marketplace', () => ({
   purchaseBundle: vi.fn(async () => ({})),
   createListing: vi.fn(async () => ({})),
   cancelListing: vi.fn(async () => ({})),
+  deleteListing: vi.fn(async () => ({ deleted: true })),
 }));
 vi.mock('@/lib/data/inventory', () => ({ listItems: vi.fn(async () => []) }));
 vi.mock('@/lib/data/itemSoldCounts', () => ({
@@ -65,9 +66,10 @@ vi.mock('react-router-dom', () => ({ useNavigate: () => vi.fn() }));
 // The card is the assertion surface: it reports its id and whether it is
 // rendering as a sold-fade tile.
 vi.mock('../ListingCard', () => ({
-  default: ({ listing, recentlySold, onCancel }) => (
+  default: ({ listing, recentlySold, onCancel, onDelete }) => (
     <div data-testid={`card-${listing.id}`} data-sold={recentlySold ? 'yes' : 'no'}>
       <button data-testid={`cancel-${listing.id}`} onClick={() => onCancel?.(listing)} />
+      <button data-testid={`delete-${listing.id}`} onClick={() => onDelete?.(listing)} />
     </div>
   ),
 }));
@@ -175,6 +177,25 @@ describe('sold-fade — cancelling your own listing', () => {
     // It simply leaves. No stamp — the toast already says what happened, and
     // "SOLD" would be a false statement to the one person who knows it isn't.
     await waitFor(() => expect(screen.queryByTestId('card-l3')).toBeNull());
+    expect(soldCards()).toEqual([]);
+  });
+});
+
+describe('sold-fade — deleting your own listing', () => {
+  it('does not tell the seller it SOLD', async () => {
+    // Delete removes the row, and a row that vanishes is the only thing the
+    // diffing effect can see — same trap as cancel. Without the id being
+    // recorded first, deleting your own listing stamps a red SOLD across it.
+    const { qc } = renderFeed();
+    await screen.findByTestId('card-l2');
+
+    recentRows = [1, 3, 4, 5];
+    await act(async () => {
+      screen.getByTestId('delete-l2').click();
+      await qc.invalidateQueries({ queryKey: ['marketplaceListings'] });
+    });
+
+    await waitFor(() => expect(screen.queryByTestId('card-l2')).toBeNull());
     expect(soldCards()).toEqual([]);
   });
 });

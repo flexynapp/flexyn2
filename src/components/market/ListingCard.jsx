@@ -3,7 +3,7 @@
 
 import { memo } from 'react';
 import { motion } from 'framer-motion';
-import { Zap, Lock, Heart, Star } from 'lucide-react';
+import { Zap, Lock, Heart, Star, Trash2 } from 'lucide-react';
 import FlexCoinIcon from '@/components/FlexCoinIcon';
 import * as itemSoldCounts from '@/lib/data/itemSoldCounts';
 import { displayName } from '@/lib/userDisplay';
@@ -29,6 +29,7 @@ function ListingCard({
   flexCoins,
   onBuy,
   onCancel,
+  onDelete,
   onOfferTrade,
   recentlySold = false,
   boughtByMe = false,
@@ -170,12 +171,34 @@ function ListingCard({
       {/* Actions */}
       <div className="flex flex-col gap-1.5 relative z-10 mt-auto">
         {isMine ? (
-          <button
-            onClick={() => onCancel(listing)}
-            className="w-full py-1.5 rounded-lg text-xs font-bold text-red-600 dark:text-red-300 bg-red-500/10 border border-red-500/30 hover:bg-red-500/20 active:bg-red-500/20 transition-colors"
-          >
-            Cancel
-          </button>
+          // Cancel and Delete both hand the item back; the difference is
+          // whether the listing stays in your history. Cancel is the one you
+          // reach for, so it keeps the full-width weight and Delete is a
+          // compact icon beside it — two red blocks side by side would give a
+          // 168px-wide card two competing destructive emphases and no answer
+          // to which is the normal move. Delete stays muted until touched.
+          <div className="flex items-stretch gap-1.5">
+            <button
+              onClick={() => onCancel(listing)}
+              className="flex-1 py-1.5 rounded-lg text-xs font-bold text-red-600 dark:text-red-300 bg-red-500/10 border border-red-500/30 hover:bg-red-500/20 active:bg-red-500/20 transition-colors"
+            >
+              Cancel
+            </button>
+            {onDelete && (
+              <button
+                type="button"
+                onClick={() => onDelete(listing)}
+                // Icon-only, so the name has to come from the label. "Delete
+                // listing" rather than "Delete" — a screen reader hits this
+                // inside a grid of tiles with no other context.
+                aria-label={`Delete listing for ${listing.item_name}`}
+                title="Delete listing"
+                className="shrink-0 w-8 rounded-lg flex items-center justify-center border border-border text-muted-foreground hover:text-red-600 dark:hover:text-red-300 hover:border-red-500/30 hover:bg-red-500/10 active:bg-red-500/10 transition-colors"
+              >
+                <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
+              </button>
+            )}
+          </div>
         ) : isSale ? (
           <button
             onClick={() => onBuy(listing)}
