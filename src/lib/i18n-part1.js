@@ -284,6 +284,11 @@ export const translations_p1 = {
     'levelUp.skip': 'Skip',
     'levelUp.fromTo': 'Level {from} → Level {to}',
     'levelUp.tierUnlocked': '{tier} tier',
+    // TODO(i18n): English only. The overlay had these two labels hardcoded
+    // in English, so nothing regresses while the other 14 languages are
+    // outstanding — but they are the last untranslated strings on that card.
+    'levelUp.from': 'From',
+    'levelUp.to': 'To',
   },
   es: {
     'app.name': 'Flexyn',

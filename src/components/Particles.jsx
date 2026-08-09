@@ -65,15 +65,24 @@ function BurstRing({ color, delay, radius }) {
   );
 }
 
-export default function Particles({ type, burst = false }) {
-  if (type === 'none') return null;
+export default function Particles({ type, burst = false, burstColors: burstColorsProp }) {
+  // `type: 'none'` is Bronze and Silver — levels 1-20. It means "this tier
+  // has no ambient sparkle", which is authored intent (see `wear` in
+  // xpTier.js: the bottom of the ladder is worn, not decorated). It is NOT
+  // meant to cancel the one-shot level-up burst, but the early return did
+  // exactly that — so every user below level 21 got an overlay with no
+  // motion in it at all, which is most users and all new ones.
+  if (type === 'none' && !burst) return null;
 
-  const dots = DOT_CONFIG[type] || DOT_CONFIG.default;
-  const burstColors = type === 'golden'
+  const dots = type === 'none' ? [] : (DOT_CONFIG[type] || DOT_CONFIG.default);
+  // A tier with no ambient config has no palette of its own, so the caller
+  // supplies one — otherwise Bronze and Silver would burst in the default
+  // blue/green, which belongs to no tier on the ladder.
+  const burstColors = burstColorsProp || (type === 'golden'
     ? ['#fbbf24', '#f97316', '#fcd34d', '#fb923c']
     : type === 'sparkle'
     ? ['#c084fc', '#818cf8', '#a78bfa', '#e879f9']
-    : ['#60a5fa', '#34d399', '#a78bfa', '#f87171'];
+    : ['#60a5fa', '#34d399', '#a78bfa', '#f87171']);
 
   // The ambient floaters loop forever. Driving that with framer-motion means a
   // JS rAF tick per dot, per frame — and this component renders in several

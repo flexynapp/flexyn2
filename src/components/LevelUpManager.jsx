@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/lib/toast';
 import { db } from '@/api/db';
@@ -189,5 +189,11 @@ export default function LevelUpManager() {
     return () => window.removeEventListener('flexyn:capsule-granted', handler);
   }, [queryClient, user?.email]);
 
-  return <LevelUpOverlay event={event} onDismiss={() => setEvent(null)} />;
+  // Stable identity. The overlay holds this in a ref so an inline arrow no
+  // longer restarts its auto-dismiss timer, but this component re-renders
+  // on every profile refetch and a fresh callback per render is the kind of
+  // thing the next effect to depend on it will trip over too.
+  const dismiss = useCallback(() => setEvent(null), []);
+
+  return <LevelUpOverlay event={event} onDismiss={dismiss} />;
 }
