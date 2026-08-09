@@ -88,3 +88,36 @@ export function canonicalOrigin() {
 export function gymCheckinUrl(flexynCode) {
   return `${canonicalOrigin()}/checkin/${flexynCode}`;
 }
+
+/**
+ * The marketing site, when it is ready to receive traffic from the app.
+ *
+ * flexyn.app is the front door — what the app is, the App Store and Play
+ * links, reviews. Someone who scans a gym poster without an account wants
+ * that page, not the app's own read-only gym view: they cannot use
+ * anything the app would show them until they install it.
+ *
+ * Returns null until VITE_MARKETING_ORIGIN is set, because as of
+ * 2026-08-09 flexyn.app 404s on /p/gym/:id — handing a scanner a 404 is
+ * worse than the app page they get today. Set it in Netlify once that
+ * route exists, and the handoff turns on with no release.
+ *
+ * @returns {string|null} an https origin with no trailing slash, or null
+ */
+export function marketingOrigin() {
+  const clean = String(import.meta.env?.VITE_MARKETING_ORIGIN || '').trim().replace(/\/+$/, '');
+  return /^https:\/\/[^\s/]+$/.test(clean) ? clean : null;
+}
+
+/**
+ * Where to send someone who has no account and wants to know what this
+ * gym is. The marketing site when it can take them, this app's own public
+ * gym page otherwise.
+ *
+ * @param {string} gymId
+ * @returns {string} absolute URL, or an app-relative path
+ */
+export function publicGymUrl(gymId) {
+  const marketing = marketingOrigin();
+  return marketing ? `${marketing}/p/gym/${gymId}` : `/p/gym/${gymId}`;
+}

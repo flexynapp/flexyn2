@@ -11,6 +11,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { db } from '@/api/db';
 import { checkInWithCode, GYM_CHECKIN_XP_MULTIPLIER } from '@/lib/data/gymCheckins';
 import { getGymByCode } from '@/lib/data/gymBusinesses';
+import { publicGymUrl } from '@/lib/appOrigin';
 
 export default function CheckInPage() {
   const { code } = useParams();
@@ -28,17 +29,20 @@ export default function CheckInPage() {
     if (isLoadingAuth) return;
     // Signed out — almost always someone who does not have Flexyn scanning
     // the poster on the wall in front of them. Checking in is meaningless
-    // without an account, but "which gym is this?" is exactly what they
-    // asked, so send them to that gym's public page (it carries the sign-up
-    // CTA). The bare sign-in prompt below is only the fallback for a code
-    // that resolves to nothing.
+    // without an account, and so is most of what the app could show them,
+    // so send them to that gym's public page: the marketing site once
+    // VITE_MARKETING_ORIGIN is set (App Store / Play links live there), and
+    // this app's own /p/gym until then. See publicGymUrl.
+    //
+    // The bare sign-in prompt below is only the fallback for a code that
+    // resolves to nothing.
     if (!user) {
       if (ran.current === code) return;
       ran.current = code;
       (async () => {
         const gym = await getGymByCode(code);
         if (gym?.id && typeof window !== 'undefined') {
-          window.location.replace(`/p/gym/${gym.id}`);
+          window.location.replace(publicGymUrl(gym.id));
           return;
         }
         setStatus('unauth');

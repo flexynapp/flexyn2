@@ -3,8 +3,8 @@
 // Tested through the pure resolver rather than by stubbing window.location:
 // the interesting logic is "which host is durable", not how it is read.
 
-import { describe, it, expect } from 'vitest';
-import { resolveOrigin, isEphemeralHost } from '@/lib/appOrigin';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { resolveOrigin, isEphemeralHost, marketingOrigin, publicGymUrl } from '@/lib/appOrigin';
 
 const FALLBACK = 'https://flexyn.netlify.app';
 
@@ -70,5 +70,35 @@ describe('resolveOrigin', () => {
   it('falls back with no window and no config', () => {
     expect(resolveOrigin()).toBe(FALLBACK);
     expect(resolveOrigin({})).toBe(FALLBACK);
+  });
+});
+
+describe('the marketing handoff — where a scanner with no account goes', () => {
+  afterEach(() => { vi.unstubAllEnvs(); });
+
+  it('stays inside the app until the marketing site is configured', () => {
+    // flexyn.app 404s on /p/gym today. Unset means "not ready", and a
+    // scanner keeps getting the app page that actually renders.
+    vi.stubEnv('VITE_MARKETING_ORIGIN', '');
+    expect(marketingOrigin()).toBeNull();
+    expect(publicGymUrl('abc-123')).toBe('/p/gym/abc-123');
+  });
+
+  it('hands off to the marketing site once it is set', () => {
+    vi.stubEnv('VITE_MARKETING_ORIGIN', 'https://flexyn.app');
+    expect(marketingOrigin()).toBe('https://flexyn.app');
+    expect(publicGymUrl('abc-123')).toBe('https://flexyn.app/p/gym/abc-123');
+  });
+
+  it('strips a trailing slash rather than emitting a doubled path', () => {
+    vi.stubEnv('VITE_MARKETING_ORIGIN', 'https://flexyn.app/');
+    expect(publicGymUrl('abc-123')).toBe('https://flexyn.app/p/gym/abc-123');
+  });
+
+  it('ignores a value that is not a bare https origin', () => {
+    for (const bad of ['flexyn.app', 'http://flexyn.app', 'https://flexyn.app/p', '  ']) {
+      vi.stubEnv('VITE_MARKETING_ORIGIN', bad);
+      expect(marketingOrigin()).toBeNull();
+    }
   });
 });

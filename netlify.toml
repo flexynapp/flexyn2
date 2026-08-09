@@ -16,6 +16,13 @@
 #                          /gym/:id and /p/gym/:id resolve to the app
 #                          there; flexyn.app 404s on all three as of
 #                          2026-08-09. See src/lib/appOrigin.js.)
+#   VITE_MARKETING_ORIGIN (optional. Set to https://flexyn.app once the
+#                          landing site serves /p/gym/:id. Someone who
+#                          scans a gym poster WITHOUT an account is then
+#                          handed to the landing page — the store links
+#                          are what they need — instead of the app's own
+#                          read-only gym view. Unset = keep them in the
+#                          app, which is what works today.)
 # Never hardcode secrets here — this file is committed to version control.
 
 [[redirects]]
