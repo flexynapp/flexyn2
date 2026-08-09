@@ -79,6 +79,7 @@ const C = {
   // looks deliberate and is the kind of thing an export does not
   // obviously catch.
   success: rc('color.success'),
+  primary: rc('color.primary'),
 };
 const ax = (dx) => BX + dx, ay = (dy) => BY + dy;
 
@@ -201,6 +202,88 @@ function medallion(o) {
   return parts;
 }
 
+// ── THE LADDER CARD ───────────────────────────────────────────────
+//
+// Drawn 2026-08-09. Mirrors LadderRow in AchievementsTab.jsx rather than
+// inventing a layout: header (ladder name + earned/total), the earned
+// medallions, then the ONE live rung with its bar.
+//
+// Card heights VARY by state (68–134) and that is correct — a locked
+// ladder has no medallion row and no bar, so padding it to a uniform
+// height would invent empty space the real component never renders.
+function ladderCard(o) {
+  const W = 358, PADX = 12, x = o.x, parts = [];
+  const earned = o.earned || [];
+  const bodyTop = 12 + 18 + 8;
+  const rowsH = earned.length ? 28 + 8 : 0;
+  const clearedH = o.cleared ? 20 : 0;
+  const liveH = (o.state === 'complete' || o.state === 'locked') ? 18 : 28;
+  const H = bodyTop + rowsH + clearedH + liveH + 12;
+
+  const rect = (name, r) => {
+    const sh = penpot.createRectangle();
+    sh.name = name; sh.x = r.x; sh.y = r.y; sh.resize(r.w, r.h);
+    sh.borderRadius = r.radius || 0;
+    sh.fills = [{ fillColor: r.color, fillOpacity: 1 }];
+    sh.strokes = [];
+    if (r.token) { const k = tok(r.token); if (k) sh.applyToken(k, ['fill']); }
+    return sh;
+  };
+  const label = (chars, t) => {
+    const sh = penpot.createText(chars);
+    sh.x = t.x; sh.y = t.y; sh.growType = 'fixed';
+    sh.resize(t.w, t.h || 18);
+    sh.fontSize = String(t.size || 12);
+    sh.fontFamily = 'Work Sans';
+    if (t.bold) sh.fontWeight = '600';
+    sh.align = t.align || 'left';
+    sh.verticalAlign = 'center';
+    sh.fills = [{ fillColor: t.color || C.mutedFg, fillOpacity: 1 }];
+    try { sh.getRange(0, sh.characters.length).align = t.align || 'left'; } catch { /* noop */ }
+    if (t.token) { const k = tok(t.token); if (k) sh.applyToken(k, ['fill']); }
+    return sh;
+  };
+
+  parts.push(rect('card / surface', { x, y: o.y, w: W, h: H, radius: 12, color: C.card, token: 'color.card' }));
+  parts.push(label(o.ladder, { x: x + PADX, y: o.y + 12, w: 200, size: 14, bold: true, color: C.foreground, token: 'color.foreground' }));
+  parts.push(label(o.count, { x: x + W - PADX - 90, y: o.y + 12, w: 90, size: 12, align: 'right', color: C.mutedFg, token: 'color.muted-foreground' }));
+
+  let cy = o.y + bodyTop;
+  earned.forEach((t, i) => { medallion({ size: 28, tier: t, x: x + PADX + i * 32, y: cy }).forEach(sh => parts.push(sh)); });
+  if (earned.length) cy += 36;
+
+  // "Just cleared" has to LOOK different from "in progress". The two were
+  // structurally identical and differed only in their data, which is
+  // exactly the moment that slot exists to design.
+  if (o.cleared) {
+    parts.push(label('\u2713  ' + o.cleared + ' cleared', { x: x + PADX, y: cy, w: 280, size: 12, bold: true, color: C.success }));
+    cy += 20;
+  }
+
+  if (o.state === 'complete') {
+    parts.push(label('\u2713  Ladder complete.', { x: x + PADX, y: cy, w: 260, size: 12, color: C.success }));
+  } else if (o.state === 'locked') {
+    parts.push(label('\uD83D\uDD12  Unlocks with ' + o.unlockWith, { x: x + PADX, y: cy, w: 300, size: 12, color: C.mutedFg, token: 'color.muted-foreground' }));
+  } else {
+    medallion({ size: 28, tier: o.tier, locked: true, tail: !!o.tail, x: x + PADX, y: cy }).forEach(sh => parts.push(sh));
+    const bx = x + PADX + 36, bw = W - PADX * 2 - 36;
+    // Readout gets 135, not 110: "247 / 300 workouts" wrapped at 110 and
+    // the second line landed on top of the progress bar.
+    const RO = 135;
+    parts.push(label(o.rung, { x: bx, y: cy, w: bw - RO - 8, size: 12, bold: true, color: C.foreground, token: 'color.foreground' }));
+    if (o.readout) parts.push(label(o.readout, { x: bx + bw - RO, y: cy, w: RO, size: 12, align: 'right', color: C.mutedFg, token: 'color.muted-foreground' }));
+    if (o.pct != null) {
+      parts.push(rect('bar / track', { x: bx, y: cy + 22, w: bw, h: 6, radius: 3, color: C.muted, token: 'color.muted' }));
+      parts.push(rect('bar / fill', { x: bx, y: cy + 22, w: Math.max(4, Math.round(bw * o.pct)), h: 6, radius: 3, color: C.primary, token: 'color.primary' }));
+    } else {
+      // A binary rung has no bar — "0 / 1" on a yes/no reads as a broken
+      // progress bar, which is the note already on that slot.
+      parts.push(label('not yet \u2014 no count to show', { x: bx, y: cy + 18, w: bw, size: 11, color: C.mutedFg, token: 'color.muted-foreground' }));
+    }
+  }
+  return parts;
+}
+
 function group(label) {
   board.appendChild(text(label, { x: ax(PAD), y: ay(y), size: 12, color: C.foreground, w: 1200, bold: true, token: 'color.foreground' }));
   y += 30;
@@ -241,14 +324,16 @@ y += 108;
 group('01 · LADDER CARD — the core unit. 358 wide (390 page − 16 inset each side). One card per LADDER, showing the rung in play.');
 note('The locked and dead-end cards follow the League seasons rule for edge states: "each must read as a rule, not a failure."');
 grid([
-  { name: 'slot / ladder-card / in progress',   label: 'Sessions · 47 / 50 → Committed', note: 'The default. Bar + next rung named.' },
-  { name: 'slot / ladder-card / just cleared',  label: 'Committed cleared → Centurion',  note: 'The moment that matters: the rung falls and\nthe next takes its place in the SAME card.' },
-  { name: 'slot / ladder-card / into the tail', label: 'Centurion III · 300 workouts',   note: 'Past the last named rung. Generated id\n(sessions_x2). Needs an infinity treatment.' },
-  { name: 'slot / ladder-card / binary rung',   label: 'Gauntlet Cleared — yes / no',    note: 'No bar: not a count. Must NOT render\n"5 / 999" here.' },
-  { name: 'slot / ladder-card / ladder locked', label: 'Crew wars — not in a crew yet',  note: 'A RULE, not a failure. Reads as "available\nlater", never as "you missed this".' },
-  { name: 'slot / ladder-card / dead end',      label: 'Distance PB · marathon is the top', note: 'A RULE, not a failure. Deliberately terminal;\nmust not look broken or unfinished.' },
-], { w: 390, h: 196, cols: 3, build: (s, it, sx, sy) => {
-  s.appendChild(anchor('anchor / ladder card 358', { x: ax(sx + 16), y: ay(sy + 18), w: 358, h: 96, color: C.card, radius: 12, token: 'color.card' }));
+  { name: 'slot / ladder-card / in progress', card: { ladder: 'Sessions', count: '2 / 4', earned: ['bronze','silver'], tier: 'gold', rung: 'Committed', readout: '47 / 50 workouts', pct: 0.94, state: 'progress' },   label: 'Sessions · 47 / 50 → Committed', note: 'The default. Bar + next rung named.' },
+  { name: 'slot / ladder-card / just cleared', card: { ladder: 'Sessions', count: '3 / 4', earned: ['bronze','silver','gold'], cleared: 'Committed', tier: 'platinum', rung: 'Centurion', readout: '50 / 100 workouts', pct: 0.50, state: 'progress' },  label: 'Committed cleared → Centurion',  note: 'The moment that matters: the rung falls and\nthe next takes its place in the SAME card.' },
+  { name: 'slot / ladder-card / into the tail', card: { ladder: 'Sessions', count: '4 / 4', earned: ['bronze','silver','gold','platinum'], tier: 'legendary', tail: true, rung: 'Centurion III', readout: '247 / 300 workouts', pct: 0.82, state: 'progress' }, label: 'Centurion III · 300 workouts',   note: 'Past the last named rung. Generated id\n(sessions_x2). Needs an infinity treatment.' },
+  { name: 'slot / ladder-card / binary rung', card: { ladder: 'Gauntlet', count: '1 / 2', earned: ['bronze'], tier: 'gold', rung: 'Gauntlet Cleared', pct: null, state: 'progress' },   label: 'Gauntlet Cleared — yes / no',    note: 'No bar: not a count. Must NOT render\n"5 / 999" here.' },
+  { name: 'slot / ladder-card / ladder locked', card: { ladder: 'Crew wars', count: '0 / 3', earned: [], state: 'locked', unlockWith: 'Squad Member' }, label: 'Crew wars — not in a crew yet',  note: 'A RULE, not a failure. Reads as "available\nlater", never as "you missed this".' },
+  { name: 'slot / ladder-card / dead end', card: { ladder: 'Distance PB', count: '4 / 4', earned: ['bronze','silver','gold','legendary'], state: 'complete' },      label: 'Distance PB · marathon is the top', note: 'A RULE, not a failure. Deliberately terminal;\nmust not look broken or unfinished.' },
+], { w: 390, h: 220, cols: 3, build: (s, it, sx, sy) => {
+  // 220 not 196: the real card needs 114pt and the caption is pinned at
+  // h-62, which left only 108.
+  ladderCard({ x: ax(sx + 16), y: ay(sy + 18), ...it.card }).forEach(sh => s.appendChild(sh));
 }});
 
 // ── 02 · MEDALLION ────────────────────────────────────────────────
