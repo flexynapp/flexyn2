@@ -2898,7 +2898,15 @@ export default function Workout() {
               const oldVolume = calculateTotalVolume(editingLog?.exercises || []);
               const newVolume = calculateTotalVolume(data?.exercises || []);
               const delta = newVolume - oldVolume;
-              await db.entities.WorkoutLog.update(id, data);
+              // total_volume rides along with the exercises that produced it.
+              // EditWorkoutModal's payload carries only the fields it edits,
+              // so an edit used to rewrite `exercises` and leave the
+              // denormalised column at its pre-edit value — and that column
+              // is what get_gym_leaderboard ranks members on and what
+              // get_gym_community_progress sums into the gym's "lbs moved".
+              // Same number as the delta above, so the row and the profile
+              // can't disagree about the same edit.
+              await db.entities.WorkoutLog.update(id, { ...data, total_volume: newVolume });
               if (delta !== 0) {
                 try {
                   await supabase.rpc('increment_user_volume', { p_delta: delta });
@@ -3540,7 +3548,8 @@ export default function Workout() {
             const oldVolume = calculateTotalVolume(editingLog?.exercises || []);
             const newVolume = calculateTotalVolume(data?.exercises || []);
             const delta = newVolume - oldVolume;
-            await db.entities.WorkoutLog.update(id, data);
+            // Writes total_volume for the same reason the idle-view copy does.
+            await db.entities.WorkoutLog.update(id, { ...data, total_volume: newVolume });
             if (delta !== 0) {
               try {
                 await supabase.rpc('increment_user_volume', { p_delta: delta });
