@@ -11,7 +11,6 @@ import * as capsules from '@/lib/data/capsules';
 import LevelBar from './LevelBar';
 import { toast } from '@/lib/toast';
 import { motion, AnimatePresence } from 'framer-motion';
-import ThemePicker from './ThemePicker';
 import LanguagePicker from './LanguagePicker';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
@@ -599,7 +598,14 @@ export default function ProfileMenu({ compact = false } = {}) {
                       </div>
                       <ChevronRight className="w-4 h-4 text-muted-foreground" />
                     </button>
-                    <ThemePicker />
+                    {/* Appearance used to sit here as <ThemePicker />, a second
+                        home for the same light/dark switch that Settings ›
+                        Preferences owns. Two controls for one setting on
+                        adjacent screens is a maintenance trap, not a
+                        shortcut — both wrote `setDarkMode`, so they could not
+                        disagree, but any future change had to be made twice.
+                        Settings is the discoverable home; this menu
+                        navigates there. */}
                     <button
                       onClick={() => { setOpen(false); setSignOutOpen(true); }}
                       className="w-full flex items-center gap-2 px-4 py-3 text-sm hover:bg-secondary active:bg-secondary transition-colors border-t border-border"
