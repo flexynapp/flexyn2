@@ -15,7 +15,6 @@
 // for them is true.
 
 import React, { useMemo, useState } from 'react';
-import { maskEmail } from '@/lib/userDisplay';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -190,12 +189,19 @@ export default function TradeHistory() {
 }
 
 function TradeRow({ trade, authorsById, onCancel, busy }) {
-  // Real trades resolve a live @username from the user id. Legacy trades
-  // only ever carried an email, so they stay masked — rendering a raw
-  // address (or even its local-part) would leak it.
+  // Real trades resolve a live @username from the user id.
+  //
+  // Legacy trades came from DMs, which carry an email and no user_id. Those
+  // used to render maskEmail(), i.e. "keg•••@gmail.com" — which is still
+  // somebody's address: it shows the domain and enough of the local part to
+  // identify a person you already know, in a list about a trade they made
+  // with you. public_profiles deliberately does not expose email, so there
+  // is no client-side path from that address to a username, and there is no
+  // version of "show it a bit less" that is safe. These rows are
+  // unattributed instead.
   const counterparty = trade.real
     ? resolveAuthor(authorsById, trade.counterpartyId).handle
-    : (trade.counterpartyEmail ? maskEmail(trade.counterpartyEmail) : 'unknown');
+    : 'a trader';
 
   const youGive = trade.iAmSender ? trade.myItem    : trade.theirItem;
   const youGet  = trade.iAmSender ? trade.theirItem : trade.myItem;
