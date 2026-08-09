@@ -81,8 +81,17 @@ export default function MarketplaceFeed() {
   const [detailTarget, setDetailTarget] = useState(null);
 
   const [refreshing, setRefreshing] = useState(false);
+  // Set to true in the effect BODY, not just at useRef init. React's
+  // StrictMode double-invokes effects in dev: mount → cleanup → mount. A
+  // cleanup-only ref latches false on that first synthetic unmount and never
+  // recovers, so the settle timer below would decline to clear the spinner
+  // and the refresh icon would spin forever — in dev only, which is exactly
+  // where it would be mistaken for a hung request.
   const mountedRef = useRef(true);
-  useEffect(() => () => { mountedRef.current = false; }, []);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
 
   // ── Data fetching ──────────────────────────────────────────────────────────
