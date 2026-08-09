@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { Clock, RotateCcw, Hash } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
 import { muscleKey, translateExerciseName } from '@/lib/exerciseTranslations';
+import ExerciseFormPanel from '@/components/exercise/ExerciseFormPanel';
 
 export default function RegimenDetailView({ regimen }) {
   const { t, language } = useLanguage();
@@ -58,6 +59,17 @@ export default function RegimenDetailView({ regimen }) {
               {ex.notes && (
                 <p className="text-xs text-muted-foreground italic mt-1">{ex.notes}</p>
               )}
+              {/* Reading a saved regimen is the calm moment to find out a lift
+                  is unfamiliar — before you are stood in front of a rack with
+                  a timer running. This is also where onboarding's starter plan
+                  lands ("Saved to Workout → Regimens"), so it is the surface
+                  most likely to be someone's first look at a movement they
+                  have never done. Collapsed, so a list of eight costs nothing
+                  to anyone who already knows them. */}
+              <ExerciseFormPanel
+                exerciseName={ex.name || ex.displayName}
+                className="mt-2"
+              />
             </div>
           </div>
         );

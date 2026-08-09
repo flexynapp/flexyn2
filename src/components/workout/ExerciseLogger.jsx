@@ -321,14 +321,6 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
               ))}
             </div>
           )}
-          {/* Under the name and muscles, above the sets: this is the moment
-              someone is deciding how to move, and it must not sit below the
-              thing they are about to fill in. Renders nothing only for a
-              custom exercise the user typed in themselves. */}
-          <ExerciseFormPanel
-            exerciseName={exercise.name || exercise.displayName}
-            className="mt-2"
-          />
           {isBarbell && (
             <div className="flex items-center gap-1.5 mt-1.5">
               <span className="text-micro font-bold uppercase tracking-wide text-muted-foreground">Bar</span>
@@ -387,6 +379,22 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
           )}
         </div>
       </div>
+
+      {/* Under the name and muscles, above the sets: this is the moment
+          someone is deciding how to move, and it must not sit below the
+          thing they are about to fill in.
+
+          OUTSIDE the header, not inside its left column. That column is a
+          content-sized flex child sharing a row with the PR badge, so the
+          disclosure rendered at about 60% of the card's width while every
+          block under it ran full-bleed — fine while it only appeared on the
+          39 drawn movements, obviously wrong now that it appears on all of
+          them. Renders nothing only for a custom exercise the user typed in
+          themselves. */}
+      <ExerciseFormPanel
+        exerciseName={exercise.name || exercise.displayName}
+        className="mb-3"
+      />
 
       {totalVolume > 0 && (
         <div className="flex justify-end mb-2">
