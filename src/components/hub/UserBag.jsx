@@ -106,6 +106,22 @@ export function CapsuleCard({ capsuleRow, onOpenCapsule }) {
   );
 }
 
+/**
+ * Label for the sticker sell button.
+ *
+ * "extra" is a claim that a copy survives the sale. With one in the group
+ * there is no extra — selling it empties the slot — so the old fixed
+ * "Sell extra" was offering to sell the user's only Diamond as a spare.
+ *
+ * Keyed on the GROUP size, not on how many are unlisted: owning two where
+ * one is already listed still leaves a copy behind, so that one is an extra.
+ *
+ * Exported for the test; same pattern as MarketFilterBar's applyFilters.
+ */
+export function sellLabelFor(count) {
+  return count > 1 ? 'Sell extra' : 'Sell';
+}
+
 // ─── Sticker group card (shows duplicates + sell button) ──────────────────────
 function StickerGroupCard({ group, onSell, selling }) {
   // `group` is an array of inventory rows for the same item_id.
@@ -121,7 +137,7 @@ function StickerGroupCard({ group, onSell, selling }) {
   // we forced keeping one copy; per product the user can sell ANY item,
   // "even if it's really small.")
   const canSell  = unlisted.length >= 1;
-  const extras   = unlisted.length; // number available to sell
+  const sellLabel = sellLabelFor(count);
 
   // Two-step confirm: first click arms the button, second executes.
   const [armed, setArmed] = useState(false);
@@ -189,7 +205,7 @@ function StickerGroupCard({ group, onSell, selling }) {
             'Confirm sell?'
           ) : (
             <span className="flex items-center justify-center gap-1">
-              Sell extra · {COIN} {price}
+              {sellLabel} · {COIN} {price}
             </span>
           )}
         </button>

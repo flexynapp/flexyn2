@@ -80,6 +80,10 @@ export default function MarketplaceFeed() {
   // sheet is the read step, buyTarget is the commit step.
   const [detailTarget, setDetailTarget] = useState(null);
 
+  const [refreshing, setRefreshing] = useState(false);
+  const mountedRef = useRef(true);
+  useEffect(() => () => { mountedRef.current = false; }, []);
+
 
   // ── Data fetching ──────────────────────────────────────────────────────────
   const [sortBy, sortDir] = SORT_TO_QUERY[filters.sort] ?? SORT_TO_QUERY.recent;
@@ -232,6 +236,50 @@ export default function MarketplaceFeed() {
 
   const flexCoins = user?.flex_coins ?? 0;
 
+  // ── Refresh ────────────────────────────────────────────────────────────────
+  //
+  // The header's refresh button used to be `() => refetch()`, which reloaded
+  // ONE of the five queries this view is built from. Everything else on the
+  // screen — bundle deals, sold counts, the wishlist hearts, and the "List
+  // Item · N" count that comes from your inventory — kept whatever it had
+  // cached, so "refresh" refreshed part of the page and the rest silently
+  // disagreed with the server until its own staleTime expired.
+  //
+  // invalidateQueries rather than refetch(): listings are keyed by
+  // ['marketplaceListings', sortBy, sortDir], so refetch() only reloaded the
+  // sort you happened to be on and left the other two cached. Invalidating
+  // the prefix refetches the mounted one and marks the rest stale.
+  //
+  // MIN_SPIN_MS: a warm refetch resolves in well under 100ms, which renders
+  // as a single frame of spin — indistinguishable from nothing happening.
+  // Holding the spinner briefly is the whole point of the control.
+  const MIN_SPIN_MS = 450;
+  const handleRefresh = useCallback(async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    const startedAt = Date.now();
+    try {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ['marketplaceListings'] }),
+        qc.invalidateQueries({ queryKey: ['marketplaceBundles'] }),
+        qc.invalidateQueries({ queryKey: ['itemSoldCounts'] }),
+        qc.invalidateQueries({ queryKey: ['marketplaceWishlist', user?.id] }),
+        qc.invalidateQueries({ queryKey: ['userInventory', user?.email] }),
+      ]);
+    } catch (err) {
+      // The listings query renders its own error state, so this is only
+      // worth reporting — not worth a second toast on top of it.
+      reportError(err, {
+        feature: 'marketplace.refresh', level: 'warning', userEmail: user?.email,
+      });
+    } finally {
+      const elapsed = Date.now() - startedAt;
+      const settle = () => { if (mountedRef.current) setRefreshing(false); };
+      if (elapsed < MIN_SPIN_MS) setTimeout(settle, MIN_SPIN_MS - elapsed);
+      else settle();
+    }
+  }, [refreshing, qc, user?.id, user?.email]);
+
   // ── Undo a cancel ──────────────────────────────────────────────────────────
   //
   // Declared ABOVE handleCancel on purpose: handleCancel names it in its
@@ -381,7 +429,8 @@ export default function MarketplaceFeed() {
     <div className="flex flex-col gap-4">
       <MarketplaceHeader
         flexCoins={flexCoins}
-        onRefresh={() => refetch()}
+        onRefresh={handleRefresh}
+        refreshing={refreshing}
         onList={() => setShowListDialog(true)}
         onOpenTradeHistory={() => navigate('/market/trades')}
         listableCount={listableCount}

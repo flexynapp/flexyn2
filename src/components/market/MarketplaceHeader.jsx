@@ -59,7 +59,7 @@ export function DriftParticles({ particles }) {
 // to MarketFilterBar, next to the type/rarity/affordability controls it
 // belongs with — which also lets this banner shrink to a single row.
 export default function MarketplaceHeader({
-  flexCoins, onRefresh, onList, listableCount = 0, onOpenTradeHistory,
+  flexCoins, onRefresh, refreshing = false, onList, listableCount = 0, onOpenTradeHistory,
 }) {
   const fmt = useNumberFormatter();
   const bannerRef = useRef(null);
@@ -111,12 +111,22 @@ export default function MarketplaceHeader({
           {/* This is the page's only <h1> — Market.jsx deliberately doesn't
               render one (see the comment there). */}
           <h1 className="font-heading font-bold text-lg">Marketplace</h1>
+          {/* The icon SPINS while the refetch is in flight, and the button
+              disables itself. Without that this control was unfalsifiable:
+              the common case is that nothing has changed since the last
+              load, so the grid re-renders identically and a working refresh
+              was pixel-identical to a dead button — the same shape of bug
+              as the suppressed toasts (see the toast-policy section of
+              CLAUDE.md). The spin is what says "I checked". */}
           <button
             onClick={onRefresh}
+            disabled={refreshing}
             aria-label="Refresh listings"
-            className="text-muted-foreground hover:text-foreground active:text-foreground transition-colors p-1 rounded-lg hover:bg-secondary active:bg-secondary"
+            aria-busy={refreshing}
+            title="Refresh listings"
+            className="text-muted-foreground hover:text-foreground active:text-foreground transition-colors p-1 rounded-lg hover:bg-secondary active:bg-secondary disabled:opacity-100"
           >
-            <RefreshCw className="w-4 h-4" />
+            <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
           </button>
           {/* Trade history — the consolidated timeline of every trade offer
               the viewer sent or received (reads the existing hub_messages
