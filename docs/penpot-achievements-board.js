@@ -74,6 +74,11 @@ const C = {
   card: rc('color.card'), border: rc('color.border'),
   secondary: rc('color.secondary'), muted: rc('color.muted'),
   mutedFg: rc('color.muted-foreground'),
+  // Used by the "met" requirement chip in group 09. Without it that
+  // anchor fills with `undefined` and renders as a default grey, which
+  // looks deliberate and is the kind of thing an export does not
+  // obviously catch.
+  success: rc('color.success'),
 };
 const ax = (dx) => BX + dx, ay = (dy) => BY + dy;
 
@@ -283,6 +288,74 @@ grid([
     s.appendChild(anchor('anchor / empty block (358x96)', { x: ax(sx + 16), y: ay(sy + 18), w: 358, h: 96, color: C.muted, radius: 12, token: 'color.muted' }));
   }
 }});
+
+// ── 09 · CAPSTONE + LOCKED ────────────────────────────────────────
+group('09 · CAPSTONE + LOCKED — the prerequisite tier. These are gated by OTHER achievements rather than a number, so none of the progress-bar vocabulary applies.');
+note('A capstone has NO numeric criterion. It is earned purely by holding the top rung of every ladder in its category, and capstone_apex requires the other nine —\nthe only two-level chain in the catalog. 10 capstones + crewwar_1 means 11 sit locked on day one. The server refuses to grant a locked trophy even when the\nnumber is met, so this is a real state, not a UI affordance: whatever you draw here is what "you cannot have this yet, and here is exactly why" looks like.');
+
+// The apex slot is TALLER than its three siblings on purpose. 358pt
+// fits five chips at a 66pt pitch, and apex has nine requirements, so
+// it needs two chip rows and a taller card. Drawing five and captioning
+// it "9" would hide the only thing this slot is for — that the apex
+// capstone does not fit the standard capstone card, which is a decision
+// to make rather than a detail to round off.
+const CAPSTONES_SLOTS = [
+  { name: 'slot / capstone / locked',   h: 210, chips: 4, label: 'Iron Master — 1 of 4', note: 'The common case. Silhouette + the four\nrequirements, one met.' },
+  { name: 'slot / capstone / one away', h: 210, chips: 4, label: 'Iron Master — 3 of 4', note: 'The motivating state. Worth being louder\nthan the row above?' },
+  { name: 'slot / capstone / earned',   h: 210, chips: 4, label: 'Iron Master — earned', note: 'Legendary tier. Should feel like the biggest\nbadge on the page.' },
+  { name: 'slot / capstone / apex',     h: 268, chips: 9, label: 'Flexyn Complete — 9 requirements', note: 'Requires the other nine capstones. Nine chips\nis a lot: does it need a different shape?' },
+];
+CAPSTONES_SLOTS.forEach((it, i) => {
+  const col = i % 3, row = Math.floor(i / 3);
+  const sx = PAD + col * (390 + 15);
+  const sy = y + row * (210 + 34);
+  const s = slot(it.name, { x: ax(sx), y: ay(sy), w: 390, h: it.h });
+  board.appendChild(s);
+  s.appendChild(anchor('anchor / capstone card 358', { x: ax(sx + 16), y: ay(sy + 16), w: 358, h: it.chips > 5 ? 172 : 116, color: C.card, radius: 12, token: 'color.card' }));
+  s.appendChild(circle('anchor / 28pt medallion', { x: ax(sx + 28), y: ay(sy + 28), d: 28 }));
+  for (let c = 0; c < it.chips; c += 1) {
+    const cr = Math.floor(c / 5), cc = c % 5;
+    s.appendChild(anchor(`anchor / requirement chip ${c + 1}`, { x: ax(sx + 28 + cc * 66), y: ay(sy + 100 + cr * 26), w: 60, h: 18, color: C.muted, radius: 6, token: 'color.muted' }));
+  }
+  s.appendChild(text(it.label, { x: ax(sx + 16), y: ay(sy + it.h - 62), size: 11, color: C.foreground, w: 358, token: 'color.foreground' }));
+  s.appendChild(text(it.note, { x: ax(sx + 16), y: ay(sy + it.h - 44), size: 10, color: C.mutedFg, w: 358, token: 'color.muted-foreground' }));
+});
+// Second row is the tall apex slot, so advance by ITS height.
+y += (210 + 34) + (268 + 34) + 20;
+
+note('LOCKED ROW — the last thing on the page. Titled "Locked" with the count, then one entry per gated achievement carrying its requirements.');
+grid([
+  { name: 'slot / locked-row / default',   label: '"Locked   11" + entries', note: 'Day one for everyone: 10 capstones + crewwar_1.\nHeader count, then the list.' },
+  { name: 'slot / locked-row / entry',     label: 'One entry, close up', note: '28 medallion, name, x / y count, and a chip per\nrequirement — done chips vs outstanding.' },
+  { name: 'slot / locked-row / all clear', label: 'Nothing locked left', note: 'The row disappears entirely today. Should it\ninstead say something? Your call.' },
+], { w: 390, h: 280, cols: 3, build: (s, it, sx, sy) => {
+  s.appendChild(anchor('anchor / section header (358x22)', { x: ax(sx + 16), y: ay(sy + 16), w: 358, h: 22, color: C.muted, radius: 4, token: 'color.muted' }));
+  for (let r = 0; r < 2; r += 1) {
+    s.appendChild(anchor(`anchor / locked entry ${r + 1} (358x76)`, { x: ax(sx + 16), y: ay(sy + 46 + r * 84), w: 358, h: 76, color: C.card, radius: 12, token: 'color.card' }));
+    s.appendChild(circle(`anchor / 28pt medallion ${r + 1}`, { x: ax(sx + 28), y: ay(sy + 56 + r * 84), d: 28 }));
+  }
+}});
+
+note('REQUIREMENT CHIP — the smallest new element, and the one carrying the whole idea. It has to say "met" or "not met" at 11px next to four siblings.');
+[
+  { name: 'slot / chip / outstanding', w: 210, n: 1, ok: false, label: 'Not met', note: 'muted surface + lock glyph' },
+  { name: 'slot / chip / met',         w: 210, n: 1, ok: true,  label: 'Met',     note: 'success tint + check glyph' },
+  { name: 'slot / chip / row of four', w: 390, n: 4, ok: null,  label: 'Four in a row, 1 met', note: 'The real density. Do they wrap?' },
+].forEach((it, i) => {
+  const sx = PAD + i * (210 + 15);
+  const s = slot(it.name, { x: ax(sx), y: ay(y), w: it.w, h: 120 });
+  board.appendChild(s);
+  for (let c = 0; c < it.n; c += 1) {
+    const met = it.ok === true || (it.ok === null && c === 0);
+    s.appendChild(anchor(`anchor / chip ${c + 1} (60x18)`, {
+      x: ax(sx + 16 + c * 66), y: ay(y + 26), w: 60, h: 18,
+      color: met ? C.success : C.muted, radius: 6, token: met ? 'color.success' : 'color.muted',
+    }));
+  }
+  s.appendChild(text(it.label, { x: ax(sx + 16), y: ay(y + 120 - 62), size: 11, color: C.foreground, w: it.w - 32, token: 'color.foreground' }));
+  s.appendChild(text(it.note, { x: ax(sx + 16), y: ay(y + 120 - 44), size: 10, color: C.mutedFg, w: it.w - 32, token: 'color.muted-foreground' }));
+});
+y += 120 + 34 + 20;
 
 board.resize(BW, y + 40);
 
