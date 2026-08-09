@@ -527,6 +527,11 @@ writes — an anonymous user still increments quota tables.
   you start the task**, and prefer colliding with your own unpushed work
   over someone else's pushed work — the first is a rename, the second is
   a rename plus a conversation.
+- **Never quote a free number to another session.** All three sessions
+  above sent each other a number that had expired by the time it was
+  read, which is not three mistakes but one: a broadcast number is stale
+  on arrival, because "free" decays the instant anybody pushes. Send the
+  command, or send what you took — never send what you think is next.
 
 ## Profile cache — invalidating `['userProfile']` does NOT refresh it
 
