@@ -216,6 +216,9 @@ See: `~/.claude/projects/C--Flexyn/memory/feedback_parallel_sync.md`.
   than `@/api/db`.
 - New component → `src/components/<area>/<Name>.jsx`. Components for
   Dashboard go in `dashboard/`, hub in `hub/`, etc.
+- A row of things whose COUNT comes from data → `tileRow()` from
+  `src/lib/tileRows.js`, never `grid-cols-N`. See the rule in the UI
+  composition section below.
 - New lib helper → `src/lib/<helper>.js`. If it's a celebration, mirror
   one of the existing `*Celebration.js` files.
 - Anything that changes what the AI Coach programs → `src/lib/aiCoach/`,
@@ -667,6 +670,32 @@ govern hierarchy, which tokens can't encode.
   `shadow-md`, for interactive or genuinely floating surfaces. `shadow-sm` adds
   nothing a hairline doesn't; `shadow-xl`/`2xl` on a 390px viewport is a tell,
   not depth. **Coloured shadows are banned.**
+- **`grid-cols-N` is for a fixed count. A collection uses `tileRow()`**
+  (`src/lib/tileRows.js`), which wraps and centres. A grid packs a partial row
+  into its LEADING columns — correct for a table, wrong for a collection: two
+  capsule pulls sat against the left edge of the reveal panel with a dead third
+  column beside them, and so did the last row of every count that wasn't a
+  multiple of the column count. The same defect was live in the collection
+  catalog (once per rarity tier, five of six tiers), five of the Bag's six
+  grids and four of the marketplace's seven. **The test is whether the COUNT is
+  decided by data**: a 5-tab bar, a 2-block rail and a 3-item daily drop stay
+  grids, because they have no partial row to centre.
+  Three things a contributor has to know before touching this:
+  - **`tileRow()` returns `{ row, item }` and you need BOTH.** A row with no
+    tile width collapses every tile to its content; a width with no row does
+    nothing. Two files can share a row by passing the same spec (the listings
+    feed does — `MarketplaceFeed` and `ListingCard`) rather than copying a
+    string.
+  - **Widths are literals and cannot be generated.** Tailwind's scanner reads
+    source text, so a basis class built by interpolating a gap and a column
+    count emits NO css and the tile silently falls back to content width. A new
+    shape means adding an entry to `ITEMS`; `tileRows.test.js` re-derives every
+    width from its own key so a wrong calc fails the suite.
+  - **Grep for `col-span-*` before converting a grid.** It is a grid-only
+    property that a flex container silently ignores. The marketplace's bundle
+    row looks identical to the listings row but every `BundleCard` is
+    `col-span-full`, so converting it would have collapsed each bundle to its
+    content width with nothing raised anywhere.
 - **Radius is `sm` / `lg` / `2xl` / `full`**, per the roles documented at
   `tailwind.config.js:48–71`. `xl` and `md` are compatibility aliases pinned to
   existing values — **never reach for them in new code**, and don't add a sixth.
