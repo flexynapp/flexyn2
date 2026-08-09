@@ -15,6 +15,7 @@ import { LOOT_FRAMES } from '@/lib/lootFrames';
 import { LOOT_TITLES } from '@/lib/lootTitles';
 import { THEMES_ENABLED } from '@/lib/featureFlags';
 import { tileRow } from '@/lib/tileRows';
+import { buildLabel, copyDiagnostics } from '@/lib/buildInfo';
 import { supabase } from '@/api/supabaseClient';
 import { triggerHaptic } from '@/lib/haptic';
 import StickerDisplay from './StickerDisplay';
@@ -852,6 +853,17 @@ export default function CapsuleOpener({ capsule, batch, onClaim, onClaimBatch, o
   // should be allowed to sit there.
   const handleEncoreSettled = useCallback(() => setEncoreSettled(true), []);
 
+  // Tapping the build stamp copies the full diagnostic block — hash, build
+  // date, UA, URL — which is what a bug report actually needs. The three
+  // outcomes are worded here rather than inside copyDiagnostics() so the
+  // "unavailable" case can point at the label that IS on screen.
+  const handleCopyBuild = useCallback(async () => {
+    const result = await copyDiagnostics();
+    if (result === 'ok') toast.success('Copied build info to clipboard.');
+    else if (result === 'unavailable') toast.error('Clipboard unavailable — the build is shown on the button.');
+    else toast.error('Could not copy — your browser blocked clipboard access.');
+  }, []);
+
   useEffect(() => {
     if (phase !== 'encore' || !encoreSettled) return;
     const t = setTimeout(() => setPhase('revealing'), 900);
@@ -1447,6 +1459,25 @@ export default function CapsuleOpener({ capsule, batch, onClaim, onClaimBatch, o
           )}
 
         </AnimatePresence>
+
+        {/* Build stamp — on EVERY phase, deliberately, not just idle.
+            The REVEAL is the screenshot someone sends when this modal looks
+            wrong, and one of those cost a full round trip: the layout fix was
+            already live and the device was on a service-worker-cached bundle,
+            which the screenshot had no way to show. Reading the hash off the
+            picture answers that in one step instead of five (Settings →
+            scroll → tap → paste → compare).
+            Sits outside AnimatePresence so it doesn't animate in and out with
+            each phase, and below the CTA so it never competes with it. 11px
+            is the app-wide floor from index.css — muted, never smaller. */}
+        <button
+          type="button"
+          onClick={handleCopyBuild}
+          className="relative z-10 block w-full pb-3 text-center text-micro text-muted-foreground/50 hover:text-muted-foreground active:text-muted-foreground transition-colors"
+          aria-label="Copy build diagnostic info to clipboard"
+        >
+          {buildLabel()}
+        </button>
       </motion.div>
 
       {catalogOpen && (

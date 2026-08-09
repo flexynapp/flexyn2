@@ -42,3 +42,32 @@ export function diagnosticString() {
     `url: ${typeof window !== 'undefined' ? window.location.href : 'unknown'}`,
   ].join('\n');
 }
+
+/**
+ * Put `diagnosticString()` on the clipboard. Returns the outcome rather than
+ * toasting, so each surface can word its own message.
+ *
+ * @returns {Promise<'ok'|'unavailable'|'blocked'>}
+ *
+ * The missing-API branch is explicit and load-bearing. Writing this as
+ * `navigator.clipboard?.writeText(...)` resolves to `Promise<undefined>` when
+ * the API is absent — insecure-context HTTP, or an older browser — so the
+ * caller reports "Copied!" over an empty clipboard, which is worse than
+ * failing, because the user then pastes stale content into a bug report and
+ * nobody can tell. (Audit 14 #30.)
+ *
+ * NOTE: `SettingsPanel.jsx` still carries its own inline copy of this logic.
+ * It was mid-edit in another session when this was extracted, and staging it
+ * would have committed that unrelated work-in-progress. Fold it in when the
+ * file is free — two copies of a clipboard-detection quirk is exactly the
+ * shape of thing that drifts.
+ */
+export async function copyDiagnostics() {
+  if (!globalThis.navigator?.clipboard?.writeText) return 'unavailable';
+  try {
+    await globalThis.navigator.clipboard.writeText(diagnosticString());
+    return 'ok';
+  } catch {
+    return 'blocked';
+  }
+}
