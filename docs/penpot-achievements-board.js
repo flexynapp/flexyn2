@@ -140,9 +140,21 @@ function circle(name, o) {
 // so the plate stays bound to color.secondary and still flips with the
 // Mode theme. A pre-blended hex would look right in dark and wrong in
 // light.
-const TIERS = { bronze: '#CD7F32', silver: '#C0C0C0', gold: '#FFD700', platinum: '#7BE0E0', legendary: '#A855F7' };
-const RING  = { bronze: 0.030, silver: 0.036, gold: 0.042, platinum: 0.048, legendary: 0.055 };
-const TINT  = { bronze: 0.16,  silver: 0.18,  gold: 0.20,  platinum: 0.22,  legendary: 0.26 };
+// Ring uses the canonical TROPHY_TIERS hex, because that is code truth.
+// The TINT is free to use its own surface colour, and gold needs one:
+// #FFD700 has B=0, so blended at a low alpha over the #262E36 plate it
+// lands on (81,80,43) — R and G equal with blue pulled BELOW the base,
+// which is olive by definition. #FFC400 is warmer, so R leads G.
+//
+// Tint alpha is TUNED PER HUE, not ramped. A linear ramp assumed every
+// hue carries the same weight at the same alpha and they do not: yellow
+// needs far more coverage to read as itself, achromatic silver needs
+// least. Tier ORDER is carried by hue identity — the way the loot
+// rarity ramp already works — not by making higher tiers louder.
+const TIERS    = { bronze: '#CD7F32', silver: '#C0C0C0', gold: '#FFD700', platinum: '#7BE0E0', legendary: '#A855F7' };
+const RING     = { bronze: 0.030, silver: 0.036, gold: 0.042, platinum: 0.048, legendary: 0.055 };
+const TINT_HEX = { bronze: '#CD7F32', silver: '#C0C0C0', gold: '#FFC400', platinum: '#7BE0E0', legendary: '#A855F7' };
+const TINT_A   = { bronze: 0.24,  silver: 0.20,  gold: 0.40,  platinum: 0.24,  legendary: 0.30 };
 
 function medallion(o) {
   const S = o.size, tier = o.tier, locked = !!o.locked, tail = !!o.tail;
@@ -167,7 +179,7 @@ function medallion(o) {
     const inset = Math.ceil(ringW);            // inset so the ring edge stays crisp
     tint.x = o.x + inset; tint.y = o.y + inset; tint.resize(S - inset * 2, S - inset * 2);
     tint.borderRadius = Math.max(1, r - inset);
-    tint.fills = [{ fillColor: TIERS[tier] || TIERS.bronze, fillOpacity: TINT[tier] || 0.16 }];
+    tint.fills = [{ fillColor: TINT_HEX[tier] || TIERS[tier] || TIERS.bronze, fillOpacity: TINT_A[tier] || 0.24 }];
     tint.strokes = [];
     parts.push(tint);
   }
@@ -242,7 +254,7 @@ grid([
 // ── 02 · MEDALLION ────────────────────────────────────────────────
 group('02 · MEDALLION — the badge itself. Draw ONE and it has to survive all four sizes; the 20 is the one that breaks.');
 note('ONE PLATE GEOMETRY, TWO VARIABLES — the rule already set on the League seasons board: "no new artwork per season; a profile\ncarrying four of these reads as a history." Here the two variables are the LADDER ICON and the TIER COLOURWAY. There are 73 named\nrungs plus generated tails, so per-badge artwork is not an option even if it were desirable — and a collection only reads as a\nhistory if the plate is constant.');
-note('DRAWN 2026-08-09 — plate: rounded square, radius 0.27S, fill color.secondary (color.muted when locked). Tier is carried by a RING (inner stroke, tier hex,\nweight 0.030S bronze rising to 0.055S legendary) PLUS a TINT layer inset by the ring width at 16% bronze rising to 26% legendary. The tint is the load-bearing\npart and it is not decoration: a ring alone put the whole five-tier ramp inside a 0.8px spread at 44pt, which is under what an eye resolves, so tier was really\nbeing carried by hue — and hue collapses at 20pt and for anyone colour-blind. Silver was the proof: #C0C0C0 as a 1.5px ring is indistinguishable from\ncolor.border. The tint is a SEPARATE layer rather than a second fill so the plate stays bound to color.secondary and still flips with the Mode theme.\nIcon is the ladder glyph at 0.5S, rising to 0.58S at 20pt where the ring otherwise eats the plate. At 20pt this is a PRESENCE indicator, not an identifier —\nyou should read "gold badge", not which one. Locked keeps its own art at 45% on a muted plate, so you can see what you are working toward.\nNo gradient, no glassmorphism, no coloured shadow — per the UI rules in CLAUDE.md, those are the tells being removed, not ways to make this look designed.');
+note('DRAWN 2026-08-09 — plate: rounded square, radius 0.27S, fill color.secondary (color.muted when locked). Tier is carried by a RING (inner stroke, the canonical\nTROPHY_TIERS hex, 0.030S bronze to 0.055S legendary) PLUS a TINT layer inset by the ring width. The tint is the load-bearing part: a ring alone put the whole\nfive-tier ramp inside a 0.8px spread at 44pt, under what an eye resolves, so tier was really being carried by hue — and hue collapses at 20pt and for anyone\ncolour-blind. Silver was the proof: #C0C0C0 as a 1.5px ring is indistinguishable from color.border.\nTINT ALPHA IS TUNED PER HUE, NOT RAMPED — bronze 24%, silver 20%, GOLD 40%, platinum 24%, legendary 30%. A linear ramp assumed every hue carries the same\nweight at the same alpha and they do not: yellow needs far more coverage to read as itself, achromatic silver needs least. Gold also takes its own tint hex\n(#FFC400, warmer) because #FFD700 has B=0 — blended at 20% over the plate it landed on (81,80,43), R and G equal with blue pulled BELOW the base, which is\nolive by definition. The warmer hex plus the higher alpha gives (125,106,32): R leads G by 19 and it reads gold. Tier ORDER is carried by hue identity, the\nway the loot rarity ramp already works — not by making higher tiers louder.\nThe tint is a SEPARATE layer, not a second fill, so the plate stays bound to color.secondary and flips with the Mode theme. Icon is the ladder glyph at 0.5S,\nrising to 0.58S at 20pt where the ring otherwise eats the plate; at 20pt this is a PRESENCE indicator, not an identifier. Locked keeps its own art at 45%.\nNo gradient, no glassmorphism, no coloured shadow — per CLAUDE.md those are the tells being removed, not ways to make this look designed.');
 grid([
   { name: 'slot / medallion / 72 celebration',  d: 72, label: '72 · celebration',  note: 'Unlock moment, centre screen.' },
   { name: 'slot / medallion / 44 vault grid',   d: 44, label: '44 · vault grid',   note: 'The Achievements page grid.' },
