@@ -15,7 +15,7 @@ import React, { useRef } from 'react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, act } from '@testing-library/react';
 import OneShotTooltip from '@/components/OneShotTooltip';
-import { TOOLTIP } from '@/lib/tooltipRegistry';
+import { TOOLTIP, markTooltipSeen, resetAllSeenTooltips } from '@/lib/tooltipRegistry';
 
 const ID = Object.values(TOOLTIP)[0];
 
@@ -171,5 +171,22 @@ describe('OneShotTooltip — a scroll is not a tap', () => {
     flush();
 
     expect(tooltipBox()).toHaveStyle({ top: '388px' });
+  });
+});
+
+describe('OneShotTooltip — coming back after a reset', () => {
+  it('re-arms an already-mounted instance, without a reload', () => {
+    // The bottom-nav hint is mounted in Layout for the whole session, so
+    // clearing the flag alone would have meant "reset, then relaunch the
+    // app". Settings fires an event; this is the half that listens.
+    markTooltipSeen(ID);
+    render(<Harness placement="top" />);
+    open();
+    expect(screen.queryByText('hint text')).toBeNull();  // already seen
+
+    act(() => { resetAllSeenTooltips(); });
+    open();
+
+    expect(screen.getByText('hint text')).toBeInTheDocument();
   });
 });

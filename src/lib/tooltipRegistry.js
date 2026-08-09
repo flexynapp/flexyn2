@@ -47,6 +47,12 @@ export const TOOLTIP = {
 
 const LS_PREFIX = 'flexyn.seenTooltip.';
 
+/**
+ * Fired on `window` when Settings → Help resets the hints. OneShotTooltip
+ * listens so an already-mounted instance re-arms without a page reload.
+ */
+export const TOOLTIPS_RESET_EVENT = 'flexyn:tooltips-reset';
+
 export function hasSeenTooltip(id) {
   if (!id) return true;
   try { return localStorage.getItem(LS_PREFIX + id) === '1'; } catch { return false; }
@@ -57,18 +63,50 @@ export function markTooltipSeen(id) {
   try { localStorage.setItem(LS_PREFIX + id, '1'); } catch { /* best-effort */ }
 }
 
-/**
- * Wipe ALL seen-tooltip flags for this device. Useful for QA + debug
- * paths so we can re-trigger the first-time experience without
- * creating a new account.
- */
-export function resetAllSeenTooltips() {
+/** Every seen-tooltip key currently on this device. */
+function seenKeys() {
+  const keys = [];
   try {
-    const keys = [];
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
       if (k && k.startsWith(LS_PREFIX)) keys.push(k);
     }
+  } catch { /* Safari private mode — treat as none seen */ }
+  return keys;
+}
+
+/**
+ * How many hints this device has already burned. Settings uses it to
+ * disable the reset row rather than offer a control that does nothing —
+ * and to tell the user how many will come back.
+ */
+export function countSeenTooltips() {
+  return seenKeys().length;
+}
+
+/**
+ * Wipe ALL seen-tooltip flags for this device, so every hint fires once
+ * more. Exposed in Settings → Help ("Show one-time tips again"): the
+ * hints are deliberately once-per-device forever, which is the right
+ * default and a dead end the moment you want to see one again — on a new
+ * phone, after showing someone the app, or to check a hint still points
+ * where it should.
+ *
+ * Returns how many flags were cleared so the caller can say so.
+ */
+export function resetAllSeenTooltips() {
+  const keys = seenKeys();
+  try {
     keys.forEach((k) => localStorage.removeItem(k));
   } catch { /* ignore */ }
+  // Clearing the flag is not enough on its own. A mounted OneShotTooltip
+  // checks `hasSeenTooltip` once, in an effect that only re-runs when its
+  // id or anchor changes — so the hint anchored to the bottom nav, which
+  // lives in Layout and stays mounted for the whole session, would not come
+  // back until the next full reload. Announce the reset so every mounted
+  // tooltip re-arms and the row does what its label says.
+  try {
+    window.dispatchEvent(new Event(TOOLTIPS_RESET_EVENT));
+  } catch { /* no window — tests, SSR */ }
+  return keys.length;
 }

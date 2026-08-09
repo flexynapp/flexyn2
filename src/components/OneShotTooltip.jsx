@@ -36,7 +36,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createPortal } from 'react-dom';
-import { hasSeenTooltip, markTooltipSeen } from '@/lib/tooltipRegistry';
+import { hasSeenTooltip, markTooltipSeen, TOOLTIPS_RESET_EVENT } from '@/lib/tooltipRegistry';
 
 const DEFAULT_DELAY = 600;
 const DEFAULT_DURATION = 3000;
@@ -67,6 +67,19 @@ export default function OneShotTooltip({
   const [rect, setRect] = useState(null);
   const fired = useRef(false);
 
+  // Bumped by Settings → Help → "Show one-time tips again". The effect below
+  // reads localStorage once and its deps are the id and the anchor, so an
+  // instance that has already decided not to fire never reconsiders — and
+  // the bottom-nav hint lives in Layout, mounted for the whole session, so
+  // "reset" would have meant "reset, then relaunch the app". Re-arming on
+  // the event is what makes the row's label true.
+  const [rearm, setRearm] = useState(0);
+  useEffect(() => {
+    const onReset = () => { fired.current = false; setRearm((n) => n + 1); };
+    window.addEventListener(TOOLTIPS_RESET_EVENT, onReset);
+    return () => window.removeEventListener(TOOLTIPS_RESET_EVENT, onReset);
+  }, []);
+
   useEffect(() => {
     if (fired.current) return;
     if (!id) return;
@@ -83,7 +96,8 @@ export default function OneShotTooltip({
     }, delayMs);
 
     return () => clearTimeout(showTimer);
-  }, [id, anchorRef, delayMs]);
+    // `rearm` is in the deps precisely so a reset re-runs this.
+  }, [id, anchorRef, delayMs, rearm]);
 
   // Follow the anchor for as long as we're visible.
   //

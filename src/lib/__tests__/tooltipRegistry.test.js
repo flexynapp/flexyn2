@@ -17,10 +17,12 @@
 // So: every registered ID must have a mount site. This asserts the pairing,
 // which is the thing that actually broke.
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { TOOLTIP } from '@/lib/tooltipRegistry';
+import {
+  TOOLTIP, countSeenTooltips, resetAllSeenTooltips, markTooltipSeen, hasSeenTooltip,
+} from '@/lib/tooltipRegistry';
 
 const SRC = resolve(process.cwd(), 'src');
 
@@ -79,5 +81,55 @@ describe('tooltip registry — every registered hint is actually mounted', () =>
     // A stale reference is `undefined` at runtime, and OneShotTooltip's
     // `if (!id) return` swallows it — so this fails silently too.
     expect(unknown).toEqual([]);
+  });
+});
+
+// ── The reset path ────────────────────────────────────────────────────────
+//
+// The hints are once-per-device forever, which is the right default and a
+// dead end the moment you want one back — on a new phone, showing someone
+// the app, or checking a hint still points where it should.
+// `resetAllSeenTooltips` existed for exactly that from the start and had
+// ZERO callers until Settings → Help got a row, so nothing had ever
+// exercised it. These cover what that row depends on: an honest count (it
+// decides whether the row is even tappable) and a wipe that reports what it
+// actually did.
+
+describe('tooltip registry — bringing the hints back', () => {
+  const ID_A = Object.values(TOOLTIP)[0];
+  const ID_B = Object.values(TOOLTIP)[1];
+
+  beforeEach(() => localStorage.clear());
+  afterEach(() => localStorage.clear());
+
+  it('counts nothing on a device that has seen nothing', () => {
+    expect(countSeenTooltips()).toBe(0);
+    expect(resetAllSeenTooltips()).toBe(0);
+  });
+
+  it('counts only seen hints, and clears every one', () => {
+    markTooltipSeen(ID_A);
+    markTooltipSeen(ID_B);
+    expect(countSeenTooltips()).toBe(2);
+    expect(hasSeenTooltip(ID_A)).toBe(true);
+
+    expect(resetAllSeenTooltips()).toBe(2);
+    expect(countSeenTooltips()).toBe(0);
+    expect(hasSeenTooltip(ID_A)).toBe(false);
+    expect(hasSeenTooltip(ID_B)).toBe(false);
+  });
+
+  it('leaves every other localStorage key alone', () => {
+    // The wipe is prefix-scoped. It shares localStorage with the rest of the
+    // app's per-device state (flexyn.restDay.*, flexyn.onboardingState.*,
+    // the sign-out preserve set), and a broad clear here would quietly log
+    // someone out of their own preferences.
+    localStorage.setItem('flexyn.restDay.abc.2026-08-09', '1');
+    localStorage.setItem('unrelated', 'keep me');
+    markTooltipSeen(ID_A);
+
+    expect(resetAllSeenTooltips()).toBe(1);
+    expect(localStorage.getItem('flexyn.restDay.abc.2026-08-09')).toBe('1');
+    expect(localStorage.getItem('unrelated')).toBe('keep me');
   });
 });

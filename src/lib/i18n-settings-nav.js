@@ -104,6 +104,10 @@ export const settingsNavI18n = {
     'settings.export.hint':        'Everything on your account, as a JSON file',
     'settings.admin.reportQueue':  'Open report queue',
     'settings.build.hint':         'Tap to copy build info for a support ticket',
+    'settings.tips.reset':         'Show one-time tips again',
+    'settings.tips.resetHint':     'The hints that appear once and never again — long-press shortcuts, double-tap to react',
+    'settings.tips.resetNone':     'No tips to bring back — none have shown on this device yet',
+    'settings.tips.resetDone':     'Tips reset. They will show again the next time you reach each one.',
 
     // ── Quiet hours a11y labels ───────────────────────────────────────
     'settings.quiet.startLabel': 'Quiet hours start (24-hour clock)',
