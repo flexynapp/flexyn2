@@ -609,37 +609,31 @@ function shuffled(items, seed) {
  * every j > L-gap gives at least `gap` days. It is capped at half the pool so
  * there are always enough non-tail entries to fill the head with.
  */
-// Below this pool size a fresh shuffle every cycle does more harm than good.
-// Reshuffling buys variety in the ORDER, but every reshuffle creates a seam
-// where a quest can land near its own previous outing — and on a short pool
-// you hit a seam constantly. The crew tier is the short one, so it crosses a
-// boundary every few days: measured at four entries it took 6.2% next-day and
-// 37.3% within-three, against a fixed loop's guaranteed gap of exactly the
-// pool size.
+// REMOVED: a `STABLE_ROTATION_BELOW` fixed-loop path for short pools. It is
+// worth recording why, because the measurement that justified it was real and
+// still pointed the wrong way.
 //
-// So short pools get ONE permutation per user, cycled forever. The order is
-// then predictable, which is a real cost — but on a handful of items the user
-// has seen the whole set inside a week anyway, and maximum spacing is what was
-// actually asked for.
+// Short pools cross a cycle seam often, and each seam is where a quest can
+// land near its own previous outing. Giving a short pool ONE permutation per
+// user, cycled forever, removes every seam: the gap becomes exactly the pool
+// length, and crew measured a flawless 0.00% next-day and 0.00% within-three.
 //
-// The threshold is "a pool that cycles inside a week", i.e. six or fewer.
-// That is the point where predictable order stops being a meaningful cost,
-// because the user sees every quest in the tier within seven days either way.
-// Above it, order variety starts earning its keep and the per-cycle reshuffle
-// takes over. `hard` at eight sits just outside on purpose.
+// That number was the wrong thing to optimise. Over a year and 40 users the
+// same configuration produced **39 distinct orderings out of 2400 cycles** —
+// one fixed sequence per user, repeated until they quit. A user cannot see a
+// repeat rate, but they can absolutely see that Tuesday is always the crew
+// walk. The metric was perfect and the experience was a loop.
 //
-// It was 6 when the crew tier held four quests. A sixth crew quest pushed the
-// pool to exactly six, which under the old value would have silently flipped
-// crew from a guaranteed gap to a reshuffled one — a regression in the exact
-// property this tier was tuned for, caused by adding content rather than by
-// touching the picker.
-const STABLE_ROTATION_BELOW = 7;
+// So every pool reshuffles every cycle now, and the seam is handled by the
+// boundary repair below rather than avoided. Crew went 0.00% -> 2.79%
+// next-day (a repeat about every five weeks) and 39 -> 2174 distinct
+// orderings. Repeating occasionally is fine; being predictable is not.
+//
+// If a pool ever gets short enough for this to hurt, the fix is more quests in
+// that tier, not a fixed order.
 
 function rotationFor(pool, userId, difficulty, cycle) {
   const L = pool.length;
-  if (L < STABLE_ROTATION_BELOW) {
-    return shuffled(pool, hashString(`${userId}:${difficulty}:stable`));
-  }
   const perm = shuffled(pool, hashString(`${userId}:${difficulty}:c${cycle}`));
   if (cycle <= 0 || L < 3) return perm;
 
@@ -719,17 +713,23 @@ const FAMILY_EXEMPT = new Set(['crew']);
  * Why deterministic? So the user can't reroll by reloading, and so the same
  * set shows on every device without being stored anywhere.
  *
+ * The goal is NOT the lowest possible repeat rate — it is that the set never
+ * feels predictable. Those are different targets and they pull apart at the
+ * short end of the pool range; see the note above rotationFor for the version
+ * of this that scored 0.00% by handing every user the same fixed sequence.
+ *
  * Measured over 200 users × 365 days (see questCatalog.test.js, which runs a
  * smaller version of the same simulation so a regression fails the suite
  * rather than being argued about):
  *
  *                        before    after
- *   repeat next day      23.85%    0.84%
- *   repeat within 3      48.00%    2.13%
+ *   repeat next day      23.85%    1.55%
+ *   repeat within 3      48.00%    6.27%
  *   same-family day      25.11%    0.00%
  *
- * `hard` and `crew` measure 0.00% next-day; the residual ~1.5% sits in `easy`
- * and `medium`, which are the tiers that absorb a family displacement.
+ * And the figure that matters as much as either: over a year, essentially
+ * every cycle of every tier comes out in a different order — 1320/1320 for
+ * easy and medium, 1756/1800 for hard, 2174/2400 for crew.
  *
  * The 'same-family day' figure counts easy/medium/hard only — the crew quest
  * is exempt by design, see FAMILY_EXEMPT.

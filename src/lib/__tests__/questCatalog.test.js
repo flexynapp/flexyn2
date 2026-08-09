@@ -240,44 +240,52 @@ describe('pickDailyQuests — rotation quality (simulated)', () => {
       .toBe(0);
   });
 
-  it('repeats a quest the very next day under 2% of the time', () => {
+  it('repeats a quest the very next day under 3% of the time', () => {
     const r = rate(stat.next, stat.picks);
     expect(r, `next-day repeat rate is ${r.toFixed(2)}% (was 23.85% before the rotation)`)
-      .toBeLessThan(2);
+      .toBeLessThan(3);
   });
 
-  it('repeats a quest within three days under 4% of the time', () => {
+  it('repeats a quest within three days under 8% of the time', () => {
     const r = rate(stat.within3, stat.picks);
-    expect(r, `within-3-day repeat rate is ${r.toFixed(2)}% (was 48.00%)`).toBeLessThan(4);
+    expect(r, `within-3-day repeat rate is ${r.toFixed(2)}% (was 48.00%)`).toBeLessThan(8);
   });
 
-  // These two tiers ride their rotation untouched — hard resolves first so it
-  // is never displaced, and crew is family-exempt on a stable loop. Both
-  // measure exactly zero, so they are asserted exactly: any repeat at all
-  // means the rotation itself broke, which is a different and worse bug than
-  // displacement drift.
+  // `hard` resolves first, so it is never displaced by a family clash and
+  // rides its rotation untouched. It measures exactly zero, so it is asserted
+  // exactly: any consecutive repeat there means the rotation itself broke,
+  // which is a different and worse bug than displacement drift.
   it('never repeats a hard quest on consecutive days', () => {
     expect(stat.perTier.hard.next).toBe(0);
   });
 
-  it('never repeats a crew quest within three days', () => {
-    expect(stat.perTier.crew.within3).toBe(0);
-  });
-
-  // The crew pool is four deep and runs a fixed loop, so the gap is exactly
-  // four every time. If someone adds a fifth crew quest this becomes five —
-  // the point is that it is EXACTLY the pool size, not that it is 4.
-  it('spaces crew quests by exactly the pool size', () => {
-    const poolSize = Object.values(QUEST_CATALOG)
-      .filter(q => q.enabled && q.difficulty === 'crew').length;
-    const gaps = new Set();
-    let prev = {};
-    for (let i = 0; i < 40; i++) {
-      const q = pickDailyQuests('gap-user', dstr(i), true).find(x => x.difficulty === 'crew');
-      if (prev[q.id] !== undefined) gaps.add(i - prev[q.id]);
-      prev[q.id] = i;
+  // THE ONE THAT MATTERS, and the one whose absence let a real regression
+  // through. A previous version handed short pools a single fixed permutation
+  // cycled forever. It scored a flawless 0.00% on both rates above — and gave
+  // every user the same six crew quests in the same order until they quit.
+  // Repeat rate cannot see that; this can.
+  //
+  // A user cannot perceive a percentage. They can perceive "Tuesday is always
+  // the crew walk". So the rotation's real contract is that the ORDER keeps
+  // changing, and that is what is asserted here.
+  it('does not hand a tier the same running order twice', () => {
+    for (const diff of ['easy', 'medium', 'hard', 'crew']) {
+      const L = Object.values(QUEST_CATALOG)
+        .filter(q => q.enabled && q.difficulty === diff).length;
+      const orders = new Set();
+      let cycles = 0;
+      for (let u = 0; u < 12; u++) {
+        const seq = [];
+        for (let i = 0; i < L * 8; i++) {
+          seq.push(pickDailyQuests(`order-u${u}`, dstr(i), true).find(q => q.difficulty === diff).id);
+        }
+        for (let s = 0; s + L <= seq.length; s += L) { orders.add(seq.slice(s, s + L).join('>')); cycles++; }
+      }
+      // Comfortably above the degenerate case, which is exactly `12` — one
+      // fixed order per user, no matter how many cycles run.
+      expect(orders.size, `${diff} produced only ${orders.size} distinct orders across ${cycles} cycles`)
+        .toBeGreaterThan(cycles * 0.6);
     }
-    expect([...gaps]).toEqual([poolSize]);
   });
 
   it('uses every quest in a tier, not just a favoured few', () => {
