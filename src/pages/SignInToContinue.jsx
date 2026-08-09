@@ -125,8 +125,17 @@ export default function SignInToContinue({
     // process is nice but this sucks." Tightened spacing too — the
     // justify-between layout was pushing the heading + auth buttons to
     // opposite poles of the viewport, leaving a huge blank middle.
+    // `.safe-page`, not `px-6 pb-10 pt-6`. This screen escapes Layout — it is
+    // an early return in App.jsx, above everything Layout provides — so it is
+    // `fixed inset-0` against a `viewport-fit=cover` viewport and owns its own
+    // edges. The flat 24px top put the logo's top edge at 56pt on a Dynamic
+    // Island iPhone, which is 3pt short of where the island ends: the hero
+    // read as jammed into the status bar with dead space left at the bottom.
+    // CLAUDE.md names this exact class of bug — anything positioning its own
+    // edges outside Layout needs the insets, and `.safe-page` is the shell
+    // that carries them (top AND bottom, over the fluid padding scale).
     <div
-      className="fixed inset-0 bg-background flex flex-col items-center px-6 pb-10 pt-6 overflow-y-auto"
+      className="fixed inset-0 bg-background flex flex-col items-center safe-page overflow-y-auto"
       style={{ minHeight: '100dvh' }}
     >
       {/* Decorative gradient blobs — mirrors Aurora */}
