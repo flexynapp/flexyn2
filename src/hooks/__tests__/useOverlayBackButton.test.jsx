@@ -84,3 +84,58 @@ describe('useOverlayBackButton', () => {
     expect(() => renderHook(() => useOverlayBackButton(true, onClose))).not.toThrow();
   });
 });
+
+describe('useOverlayBackButton — nested overlays', () => {
+  // The Debrief Vault stacks: a list at z-200, and expanding a week puts
+  // a second overlay over it at z-300. A popstate is delivered to EVERY
+  // window listener, so without a stack both would close on one press and
+  // the user would land outside the vault, skipping the list.
+  let backSpy;
+  beforeEach(() => {
+    vi.spyOn(window.history, 'pushState');
+    backSpy = vi.spyOn(window.history, 'back').mockImplementation(() => {});
+  });
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  const mountBoth = () => {
+    const outer = vi.fn(), inner = vi.fn();
+    const o = renderHook(() => useOverlayBackButton(true, outer));
+    const i = renderHook(() => useOverlayBackButton(true, inner));
+    return { outer, inner, o, i };
+  };
+
+  it('closes only the innermost overlay on the first back', () => {
+    const { outer, inner } = mountBoth();
+    act(() => { window.dispatchEvent(new PopStateEvent('popstate')); });
+    expect(inner).toHaveBeenCalledTimes(1);
+    expect(outer).not.toHaveBeenCalled();
+  });
+
+  it('closes the outer overlay on the second back, once the inner has gone', () => {
+    const { outer, inner, i } = mountBoth();
+    act(() => { window.dispatchEvent(new PopStateEvent('popstate')); });
+    i.unmount();                       // inner closed, its entry already popped
+    act(() => { window.dispatchEvent(new PopStateEvent('popstate')); });
+    expect(inner).toHaveBeenCalledTimes(1);
+    expect(outer).toHaveBeenCalledTimes(1);
+  });
+
+  it('hands control back to the outer overlay when the inner closes by chevron', () => {
+    const { outer, inner, i } = mountBoth();
+    i.unmount();                       // dismissed from inside the app
+    expect(backSpy).toHaveBeenCalledTimes(1);   // its own entry dropped
+    act(() => { window.dispatchEvent(new PopStateEvent('popstate')); });
+    expect(inner).not.toHaveBeenCalled();
+    expect(outer).toHaveBeenCalledTimes(1);
+  });
+
+  it('leaves no stale registration behind, so a later solo overlay still works', () => {
+    const { o, i } = mountBoth();
+    i.unmount();
+    o.unmount();
+    const solo = vi.fn();
+    renderHook(() => useOverlayBackButton(true, solo));
+    act(() => { window.dispatchEvent(new PopStateEvent('popstate')); });
+    expect(solo).toHaveBeenCalledTimes(1);
+  });
+});

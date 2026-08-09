@@ -46,6 +46,22 @@
 
 import { useEffect, useRef } from 'react';
 
+// ── Nesting ───────────────────────────────────────────────────────
+//
+// Overlays stack: the Debrief Vault opens a list at z-200 and expanding
+// a week puts a second overlay over it at z-300. Back has to close the
+// TOP one and leave the one underneath alone.
+//
+// That does not happen by itself. A popstate is delivered to every
+// listener on the window, so two mounted instances would both close on
+// one press — you would tap back on an expanded debrief and land outside
+// the vault entirely, skipping the list.
+//
+// So instances register here, innermost last, and a popstate is handled
+// only by whichever is on top. Module scope is right for this: it is one
+// browser history and one back button, so there is exactly one stack.
+const stack = [];
+
 export function useOverlayBackButton(active, onClose) {
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
@@ -55,6 +71,7 @@ export function useOverlayBackButton(active, onClose) {
     if (typeof window === 'undefined' || !window.history) return undefined;
 
     let popped = false;
+    const entry = {};
     try {
       window.history.pushState({ __flexynOverlay: true }, '');
     } catch {
@@ -63,15 +80,21 @@ export function useOverlayBackButton(active, onClose) {
       // overlay entirely.
       return undefined;
     }
+    stack.push(entry);
 
     const onPop = () => {
+      // Not the top overlay? The press belongs to whoever is above us.
+      if (stack[stack.length - 1] !== entry) return;
       popped = true;
+      stack.pop();
       try { onCloseRef.current?.(); } catch { /* caller's problem */ }
     };
     window.addEventListener('popstate', onPop);
 
     return () => {
       window.removeEventListener('popstate', onPop);
+      const i = stack.indexOf(entry);
+      if (i !== -1) stack.splice(i, 1);
       if (!popped) {
         try { window.history.back(); } catch { /* nothing to undo */ }
       }

@@ -18,6 +18,7 @@ import { reportError } from '@/lib/reportError';
 import { toast } from '@/lib/toast';
 import { useNumberFormatter } from '@/lib/intl';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { useOverlayBackButton } from '@/hooks/useOverlayBackButton';
 
 // ── Mini preview card ─────────────────────────────────────────────────────────
 
@@ -101,6 +102,11 @@ async function exportToPng(ref) {
 function ExpandedDebrief({ debrief, onClose, onRefresh, isRefreshing }) {
   const cardRef = useRef(null);
   const [sharing, setSharing] = useState(false);
+  // The INNER layer. Back closes this card and returns to the vault
+  // list, rather than dismissing both and dropping the user outside the
+  // vault entirely — useOverlayBackButton only lets the topmost overlay
+  // answer a press.
+  useOverlayBackButton(true, onClose);
 
   const handleShare = useCallback(async () => {
     if (!cardRef.current) return;
@@ -182,6 +188,11 @@ export default function DebriefVault({ onClose }) {
   const thisWeek = currentWeekStart();
   const lastWeek = prevWeekStart();
   useBodyScrollLock(true);
+  // The OUTER layer. Same bug the Achievements vault had: this is a
+  // fixed z-200 portal owned by ProfileMenu in the persistent Layout
+  // header, so without a history entry back navigated the page beneath
+  // it while the overlay stayed on screen.
+  useOverlayBackButton(true, onClose);
 
   // ── Fetch archive ──────────────────────────────────────────────────────────
   const { data: debriefs = [], isLoading } = useQuery({
