@@ -58,6 +58,27 @@ const CAPSULE_META = {
 // loot primitives so the Bag, the Marketplace and the Capsule Opener can't
 // drift apart again.
 
+// Tile rows wrap and centre instead of sitting on grid tracks. A grid packs
+// a partial last row into its LEADING columns, so any inventory whose count
+// isn't a multiple of the column count left its final tiles hard against the
+// left edge — and an inventory count is arbitrary by nature, so that was the
+// common case rather than the edge case. Same fix as the capsule haul and the
+// collection catalog.
+//
+// The width is a calc rather than a flat percentage because these rows use
+// gap-3, not gap-2. At 12px gaps a percentage low enough to survive a 320px
+// phone is visibly narrower than the track it replaces, and one that matches
+// the track on a big phone overflows a small one and wraps 3-up down to 2.
+// The calc reproduces the grid column exactly at every width — minus 1px, so
+// sub-pixel rounding can't bump the last tile of a FULL row onto its own line.
+// Row and width must move together: a row with no tile width collapses every
+// tile to its content.
+const TILE_ROW = 'flex flex-wrap justify-center gap-3';
+// 3-up on a phone, 4-up from sm — capsules, stickers, themes.
+const TILE_3_4 = 'shrink-0 basis-[calc((100%_-_1.5rem)/3_-_1px)] sm:basis-[calc((100%_-_2.25rem)/4_-_1px)]';
+// 2-up on a phone, 3-up from sm — frames, which carry a bigger avatar.
+const TILE_2_3 = 'shrink-0 basis-[calc((100%_-_0.75rem)/2_-_1px)] sm:basis-[calc((100%_-_1.5rem)/3_-_1px)]';
+
 // ─── Capsule card ─────────────────────────────────────────────────────────────
 // Exported for the regression test only — nothing else imports it, and the
 // default export stays the component this module is about. It is exported
@@ -73,7 +94,7 @@ export function CapsuleCard({ capsuleRow, onOpenCapsule }) {
       layout
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
-      className="flex flex-col items-center p-3 gap-2 text-center"
+      className={`flex flex-col items-center p-3 gap-2 text-center ${TILE_3_4}`}
     >
       <CapsuleIcon type={capsuleRow.capsule_type || 'standard'} size={56} />
       <span className="text-xs font-semibold leading-tight">{meta.name}</span>
@@ -141,7 +162,7 @@ function StickerGroupCard({ group, onSell, selling }) {
       layout
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
-      className="flex flex-col items-center p-3 gap-2 text-center"
+      className={`flex flex-col items-center p-3 gap-2 text-center ${TILE_3_4}`}
     >
       {/* Duplicate count badge */}
       {count > 1 && (
@@ -205,7 +226,7 @@ function ThemeCard({ item, activeLootThemeId, onApply }) {
       // feedback without animating the entire grid.
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
-      className={`flex flex-col items-center p-3 gap-2 text-center ${isActive ? 'shadow-lg shadow-primary/20' : ''}`}
+      className={`flex flex-col items-center p-3 gap-2 text-center ${TILE_3_4} ${isActive ? 'shadow-lg shadow-primary/20' : ''}`}
     >
       {/* Preview swatches */}
       {lootTheme?.preview && (
@@ -477,7 +498,7 @@ function FrameList({ items, userId }) {
   });
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+    <div className={TILE_ROW}>
       {unique.map(item => {
         const isEquipped = equippedId === item.item_id;
         const frameDef = getLootFrameById(item.item_id);
@@ -486,7 +507,7 @@ function FrameList({ items, userId }) {
           <button
             key={item.id}
             onClick={() => equip(item.item_id)}
-            className={`flex flex-col items-center gap-2 p-3 rounded-lg border transition-colors ${
+            className={`flex flex-col items-center gap-2 p-3 rounded-lg border transition-colors ${TILE_2_3} ${
               isEquipped ? 'border-primary bg-primary/10' : 'border-border bg-secondary/50 hover:bg-secondary active:bg-secondary'
             }`}
           >
@@ -918,7 +939,7 @@ export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBat
                         </button>
                       );
                     })}
-                  <motion.div layout className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                  <motion.div layout className={TILE_ROW}>
                     {fCapsules.map(row => (
                       <CapsuleCard key={row.id} capsuleRow={row} onOpenCapsule={onOpenCapsule} />
                     ))}
@@ -957,7 +978,7 @@ export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBat
                           : `Sell all duplicates · ${duplicateSales.length} extra · ${COIN} ${duplicateTotal}`}
                     </button>
                   )}
-                  <motion.div layout className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                  <motion.div layout className={TILE_ROW}>
                     {fStickerGroups.map(group => (
                       <StickerGroupCard
                         key={group[0].item_id}
@@ -994,7 +1015,7 @@ export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBat
                       : 'Themes are coming soon.'}
                 />
               ) : (
-                <motion.div layout className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                <motion.div layout className={TILE_ROW}>
                   {fThemes.map(item => (
                     <ThemeCard
                       key={item.id}
