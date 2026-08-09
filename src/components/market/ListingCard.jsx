@@ -3,7 +3,8 @@
 
 import { memo } from 'react';
 import { motion } from 'framer-motion';
-import { Coins, Zap, Lock, Heart, Star } from 'lucide-react';
+import { Zap, Lock, Heart, Star } from 'lucide-react';
+import FlexCoinIcon from '@/components/FlexCoinIcon';
 import * as itemSoldCounts from '@/lib/data/itemSoldCounts';
 import { displayName } from '@/lib/userDisplay';
 import { tileRow } from '@/lib/tileRows';
@@ -144,7 +145,7 @@ function ListingCard({
       <div className="flex justify-center relative z-10">
         {isSale ? (
           <span className="flex items-center gap-1 text-micro font-bold bg-amber-500/20 text-amber-600 dark:text-amber-300 border border-amber-400/30 rounded-full px-2 py-0.5">
-            <Coins className="w-3 h-3" /> For Sale
+            <FlexCoinIcon size={12} /> For Sale
           </span>
         ) : (
           <span className="flex items-center gap-1 text-micro font-bold bg-blue-500/20 text-blue-600 dark:text-blue-300 border border-blue-400/30 rounded-full px-2 py-0.5">

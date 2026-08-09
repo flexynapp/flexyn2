@@ -11,7 +11,8 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { createPortal } from 'react-dom';
-import { X, Coins, Send, Loader2 } from 'lucide-react';
+import { X, Send, Loader2 } from 'lucide-react';
+import FlexCoinIcon from '@/components/FlexCoinIcon';
 import { toast } from '@/lib/toast';
 import { useAuth } from '@/lib/AuthContext';
 import { giftCoins } from '@/lib/data/coinGifts';
@@ -95,7 +96,7 @@ export default function GiftCoinsModal({ open, onClose, recipient }) {
         </div>
         <div className="flex items-center justify-between px-4 pt-2 pb-2 sm:pt-4">
           <h2 className="font-heading font-bold text-base flex items-center gap-2">
-            <Coins className="w-4 h-4 text-primary" />
+            <FlexCoinIcon size={16} />
             {tFallback('gift.title', 'Send a gift')}
           </h2>
           <button onClick={onClose} aria-label="Close"

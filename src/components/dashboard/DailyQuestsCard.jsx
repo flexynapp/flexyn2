@@ -10,7 +10,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card } from '@/components/ui/card';
-import { Coins, CheckCircle2, ChevronRight } from 'lucide-react';
+import { CheckCircle2, ChevronRight } from 'lucide-react';
+import FlexCoinIcon from '@/components/FlexCoinIcon';
 import { toast } from '@/lib/toast';
 import { triggerHaptic } from '@/lib/haptic';
 import { useAuth } from '@/lib/AuthContext';
@@ -325,7 +326,7 @@ export default function DailyQuestsCard({ onNavigated }) {
             animate={{ scale: 1, opacity: 1 }}
             className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/15 text-primary text-micro font-bold"
           >
-            <Coins className="w-3 h-3" />
+            <FlexCoinIcon size={12} />
             +{claimableCoins} {t('dashboard.ready')}
           </motion.div>
         )}

@@ -13,6 +13,7 @@ import * as marketplace from '@/lib/data/marketplace';
 import { RARITY } from '@/lib/lootCatalog';
 import { displayName } from '@/lib/userDisplay';
 import { RarityBadge, RarityFrame, COIN } from '@/components/loot/RarityVisuals';
+import FlexCoinIcon from '@/components/FlexCoinIcon';
 import { tileRow } from '@/lib/tileRows';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
@@ -207,7 +208,7 @@ export default function ListItemDialog({ open, onClose, userItems, user, onSucce
                     Asking Price (Flex Coins)
                   </label>
                   <div className="flex items-center gap-2 bg-secondary/50 border border-border rounded-xl px-3 py-2">
-                    <span>{COIN}</span>
+                    <FlexCoinIcon size={16} />
                     <input
                       id="listing-price"
                       type="number" inputMode="decimal"

@@ -23,10 +23,17 @@
 
 import { RARITY } from '@/lib/lootCatalog';
 import { useNumberFormatter } from '@/lib/intl';
+import FlexCoinIcon from '@/components/FlexCoinIcon';
 
 // The one true coin glyph. The Item Index and Daily Drop used to render
 // prices with ⚡ while the Bag and Marketplace used 🪙 — same currency,
 // two symbols, on screens one tap apart.
+//
+// This is now the STRING form only, for the places a component can't go:
+// toast titles, template literals, plain-string catalog rows. Anywhere the
+// coin occupies an icon slot in JSX, use `FlexCoinIcon` — same split as
+// CAPSULE_GLYPH vs CapsuleIcon, and for the same reason (emoji art is
+// per-vendor, so the currency looked like a different object per device).
 export const COIN = '🪙';
 
 /** Catalog metadata for a rarity, falling back to `common`. */
@@ -144,8 +151,12 @@ export function RarityGlow({ rarity, className = '' }) {
 export function CoinAmount({ value, className = '' }) {
   const fmt = useNumberFormatter();
   return (
-    <span className={`whitespace-nowrap tabular-nums ${className}`}>
-      {COIN} {fmt(Number(value) || 0)}
+    <span className={`inline-flex items-center gap-1 whitespace-nowrap tabular-nums ${className}`}>
+      {/* 1em so the mark tracks whatever type size the price is set in —
+          this renders inside everything from a 11px badge to a 20px
+          confirm-dialog total. */}
+      <FlexCoinIcon size="1em" className="shrink-0" />
+      {fmt(Number(value) || 0)}
     </span>
   );
 }

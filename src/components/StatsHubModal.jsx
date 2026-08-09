@@ -9,8 +9,8 @@
 // destinations all have their own homes in ProfileMenu, and duplicating
 // them here made the modal a second navigation menu rather than a stats
 // view. The header's coin balance keeps its shop entry — the one that
-// belongs on a stats surface — now as a pill rather than the underlined
-// 11px text link it shipped as.
+// belongs on a stats surface — and IS it: the balance itself is the
+// button, rather than the underlined 11px text link it shipped as.
 
 import React, { useEffect, useState } from 'react';
 // useNavigate import removed — the remaining destinations use local state
@@ -20,8 +20,9 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import * as VisuallyHidden from '@radix-ui/react-visually-hidden';
 import {
-  Trophy, Coins, ChevronRight,
+  Trophy, ChevronRight,
 } from 'lucide-react';
+import FlexCoinIcon from '@/components/FlexCoinIcon';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useNumberFormatter } from '@/lib/intl';
@@ -202,46 +203,35 @@ export default function StatsHubModal({ open, onClose }) {
                   )}
                 </div>
               </div>
-              {/* Coins */}
-              <div className="shrink-0 flex flex-col items-end">
-                <div className="flex items-center gap-1.5 justify-end">
-                  <Coins className="w-4 h-4" aria-hidden="true" />
-                  <span className="font-heading font-bold text-2xl tabular-nums leading-none">{fmtNum(coins)}</span>
-                </div>
-                {/* This was an 11px underlined text link. An underline is what
-                    you reach for when you can't afford a button, and this is
-                    the only route to the shop on the surface where someone
-                    has just looked at their balance — so it can afford one.
-                    A solid pill also gives it a real touch target; the link
-                    was 11px tall on a phone.
+              {/* Coins — balance AND shop entry, one control.
+                  It shipped as a balance with an 11px underlined "Open shop"
+                  link beneath it: two elements stacked in the narrowest
+                  column of the row, competing with the equipped title for
+                  width, and an underline is what you reach for when you
+                  can't afford a button. Tapping your balance to go buy more
+                  is what every game with a currency does, so the balance IS
+                  the button — one element, a real 44px target, and the
+                  column no longer needs to be tall enough for two things.
 
-                    White pill, pinned dark label: the hero gradient runs
-                    fuchsia to violet, where white-on-translucent-white lands
-                    around 2.6:1. Same treatment as the level-up card's
-                    Continue button, so "solid action on a coloured surface"
-                    means one thing across the app. */}
-                <button
-                  onClick={() => setShopOpen(true)}
-                  className="group relative mt-1 h-11 inline-flex items-center"
-                >
-                  {/* 44px tap box, smaller visible pill inside — the same
-                      shape Header.jsx uses for its icon buttons, so the
-                      thumb target doesn't dictate how heavy the control
-                      looks. */}
-                  {/* "Shop", not "Open shop": the pill has to sit in the same
-                      column as the balance, and this row also holds the
-                      equipped title, which truncates. At "Open shop" the pill
-                      is wider than the balance above it and takes 32px off
-                      the title — "THE CHOSEN ONE" became "THE CHOSEN…". At
-                      one word it is narrower than the balance, so the column
-                      is exactly as wide as it is today and the title keeps
-                      every pixel it has now. */}
-                  <span className="inline-flex items-center gap-0.5 h-9 ps-3.5 pe-2.5 rounded-full bg-white/95 group-hover:bg-white group-active:bg-white text-slate-900 text-xs font-heading font-bold shadow-md transition-colors">
-                    {tFallback('statsHub.shop', 'Shop')}
-                    <ChevronRight className="w-3.5 h-3.5" aria-hidden="true" />
-                  </span>
-                </button>
-              </div>
+                  White pill with a pinned dark number: the hero gradient
+                  runs fuchsia to violet, where white on translucent white
+                  lands around 2.6:1. Same treatment as the level-up card's
+                  Continue button, so "solid action on a coloured surface"
+                  means one thing across the app. */}
+              <button
+                onClick={() => setShopOpen(true)}
+                aria-label={tFallback('statsHub.balanceShop', '{n} Flex Coins. Open shop.').replace('{n}', fmtNum(coins))}
+                className="group relative shrink-0 h-11 inline-flex items-center"
+              >
+                {/* 44px tap box, smaller visible pill inside — the same shape
+                    Header.jsx uses for its icon buttons, so the thumb target
+                    doesn't dictate how heavy the control looks. */}
+                <span className="inline-flex items-center gap-1.5 h-9 ps-2 pe-1.5 rounded-full bg-white/95 group-hover:bg-white group-active:bg-white shadow-md transition-colors">
+                  <FlexCoinIcon size={20} />
+                  <span className="font-heading font-bold text-lg tabular-nums leading-none text-slate-900">{fmtNum(coins)}</span>
+                  <ChevronRight className="w-4 h-4 text-slate-500" aria-hidden="true" />
+                </span>
+              </button>
             </div>
             {/* XP progress bar — always shown, even when title is displayed
                 (title replaced the inline XP text but the bar is still useful). */}

@@ -9,7 +9,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Target, Swords, RefreshCw, Loader2, Dumbbell, Footprints, Trophy, Coins, Package, Check, Clock, AlertTriangle, Award } from 'lucide-react';
+import { X, Target, Swords, RefreshCw, Loader2, Dumbbell, Footprints, Trophy, Package, Check, Clock, AlertTriangle, Award } from 'lucide-react';
+import FlexCoinIcon from '@/components/FlexCoinIcon';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/lib/toast';
@@ -249,7 +250,7 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
                 {myResult === 'win' && (
                   <div className="mt-5 flex items-center gap-4">
                     <div className="text-center"><Trophy className="w-4 h-4 text-primary mx-auto mb-1" /><p className="font-heading font-black text-base tabular-nums">{fmt(reward.xp)}</p><p className="text-micro text-muted-foreground">XP</p></div>
-                    <div className="text-center"><Coins className="w-4 h-4 text-primary mx-auto mb-1" /><p className="font-heading font-black text-base tabular-nums">{fmt(reward.coins)}</p><p className="text-micro text-muted-foreground">Coins</p></div>
+                    <div className="text-center"><FlexCoinIcon size={16} className="mx-auto mb-1" /><p className="font-heading font-black text-base tabular-nums">{fmt(reward.coins)}</p><p className="text-micro text-muted-foreground">Coins</p></div>
                     <div className="text-center"><Package className="w-4 h-4 text-primary mx-auto mb-1" /><p className="font-heading font-black text-base tabular-nums">{reward.capsules}</p><p className="text-micro text-muted-foreground">Capsules</p></div>
                   </div>
                 )}
@@ -405,7 +406,7 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
                   </div>
                   <div className="grid grid-cols-3 gap-2 text-center">
                     <div><Trophy className="w-4 h-4 text-primary mx-auto mb-1" /><p className="font-heading font-black text-base tabular-nums">{fmt(reward.xp)}</p><p className="text-micro text-muted-foreground">XP</p></div>
-                    <div><Coins className="w-4 h-4 text-primary mx-auto mb-1" /><p className="font-heading font-black text-base tabular-nums">{fmt(reward.coins)}</p><p className="text-micro text-muted-foreground">Coins</p></div>
+                    <div><FlexCoinIcon size={16} className="mx-auto mb-1" /><p className="font-heading font-black text-base tabular-nums">{fmt(reward.coins)}</p><p className="text-micro text-muted-foreground">Coins</p></div>
                     <div><Package className="w-4 h-4 text-primary mx-auto mb-1" /><p className="font-heading font-black text-base tabular-nums">{reward.capsules}</p><p className="text-micro text-muted-foreground">Capsules</p></div>
                   </div>
                   <p className="text-micro text-muted-foreground mt-3 text-center">Higher net rating when the week ends takes the prize.</p>

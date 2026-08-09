@@ -8,7 +8,7 @@ import { motion } from 'framer-motion';
 import { ShoppingBag, RefreshCw, ArrowUpDown, Package } from 'lucide-react';
 import { requestOpenBag } from '@/lib/inventoryFlow';
 import { useNumberFormatter } from '@/lib/intl';
-import { COIN } from '@/components/loot/RarityVisuals';
+import FlexCoinIcon from '@/components/FlexCoinIcon';
 
 // Ambient drift particles. `tone` resolves against the live theme rather
 // than the old hardcoded violet hexes, which were invisible against a
@@ -143,7 +143,7 @@ export default function MarketplaceHeader({
         </div>
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1.5 bg-amber-400 rounded-full px-3 py-1.5">
-            <span className="text-base">{COIN}</span>
+            <FlexCoinIcon size={18} />
             <span className="text-amber-950 font-bold text-sm tabular-nums">{fmt(flexCoins)}</span>
           </div>
           {/* My Bag — opens the bag drawer through the global OPEN_BAG_EVENT

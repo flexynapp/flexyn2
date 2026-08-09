@@ -9,7 +9,8 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Coins, X, Loader2, Sparkles } from 'lucide-react';
+import { X, Loader2, Sparkles } from 'lucide-react';
+import FlexCoinIcon from '@/components/FlexCoinIcon';
 import { toast } from '@/lib/toast';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -161,7 +162,7 @@ export default function CoinShopModal({ open, onClose }) {
             <div>
               <h2 className="font-heading font-bold text-base">{t('shop.title')}</h2>
               <div className="flex items-center gap-1.5 mt-0.5">
-                <Coins className="w-3.5 h-3.5 text-primary" />
+                <FlexCoinIcon size={14} />
                 <span className="font-bold tabular-nums text-sm">{fmt(balance)}</span>
                 <span className="text-micro text-muted-foreground">{t('shop.balance')}</span>
               </div>
@@ -310,7 +311,7 @@ function ShopRow({ item, balance, busy, onBuy, fmt, t }) {
               was happening and users would tap again, blocked by busySku
               but with no feedback explaining why. */}
           {busy && <Loader2 className="w-3 h-3 animate-spin" />}
-          <Coins className="w-3 h-3" />
+          <FlexCoinIcon size={12} />
           <span className="tabular-nums">{fmt(item.price)}</span>
         </button>
       </div>

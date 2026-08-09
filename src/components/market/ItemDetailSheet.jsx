@@ -17,7 +17,8 @@ import { useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
-import { X, Coins, Zap, Lock, Heart, TrendingUp, Store } from 'lucide-react';
+import { X, Zap, Lock, Heart, TrendingUp, Store } from 'lucide-react';
+import FlexCoinIcon from '@/components/FlexCoinIcon';
 import * as marketplace from '@/lib/data/marketplace';
 import * as itemSoldCounts from '@/lib/data/itemSoldCounts';
 import { findCatalogItem } from '@/lib/lootCatalog';
@@ -172,7 +173,7 @@ export default function ItemDetailSheet({
           <div className="flex items-center justify-between">
             {isSale ? (
               <span className="flex items-center gap-1.5 text-amber-600 dark:text-amber-300 font-bold text-xl">
-                <Coins className="w-4 h-4" />
+                <FlexCoinIcon size={16} />
                 <CoinAmount value={listing.asking_price ?? 0} />
               </span>
             ) : (

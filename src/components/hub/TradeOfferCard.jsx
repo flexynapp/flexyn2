@@ -21,7 +21,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowRightLeft, Check, X, Coins, Info, ShieldCheck } from 'lucide-react';
+import { ArrowRightLeft, Check, X, Info, ShieldCheck } from 'lucide-react';
+import FlexCoinIcon from '@/components/FlexCoinIcon';
 import { toast } from '@/lib/toast';
 import { RARITY } from '@/lib/lootCatalog';
 import { sendMessage } from '@/lib/data/hubMessages';
@@ -243,7 +244,7 @@ export default function TradeOfferCard({ payload, isMine, user, conversationId, 
           </span>
           {theirItem?.price ? (
             <span className="flex items-center gap-1 text-micro text-muted-foreground">
-              <Coins className="w-2.5 h-2.5" />
+              <FlexCoinIcon size={10} />
               {theirItem.price}
             </span>
           ) : null}
