@@ -184,6 +184,7 @@ describe('partial-gap ratchet', () => {
     'quest.crew_cardio.',
     'quest.crew_chat_3.',
     'quest.crew_steps_8k.',
+    'quest.crew_volume_15k.',
   ];
 
   const pending = (k) => AWAITING_TRANSLATION.some(p => k.startsWith(p));

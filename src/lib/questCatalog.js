@@ -486,6 +486,25 @@ export const QUEST_CATALOG = {
     icon: 'Footprints',
     enabled: true,
   },
+  // The fifth. A four-quest pool put the crew tier on a four-day loop — the
+  // shortest cycle of any tier and the only one a user would notice as a
+  // pattern. Five is a 25% longer gap for one entry.
+  //
+  // It uses WORKOUT_VOLUME rather than a new action type on purpose: volume is
+  // already emitted by the workout save, so this is reachable the day it
+  // ships. The two crew quests that were designed and cut — send XP fuel, gym
+  // check-in — both failed exactly that test, and a quest nobody can complete
+  // makes the loop worse, not longer.
+  crew_volume_15k: {
+    family: 'lifting',
+    difficulty: 'crew',
+    target: 15000,
+    actionType: ACTION_TYPES.WORKOUT_VOLUME,
+    label: 'Move 15,000 lb for the crew',
+    description: 'Every pound you lift today counts toward the crew.',
+    icon: 'Weight',
+    enabled: true,
+  },
 };
 
 // ── The picker ───────────────────────────────────────────────────────────────
@@ -580,13 +599,14 @@ function shuffled(items, seed) {
 // Below this pool size a fresh shuffle every cycle does more harm than good.
 // Reshuffling buys variety in the ORDER, but every reshuffle creates a seam
 // where a quest can land near its own previous outing — and on a short pool
-// you hit a seam constantly. The crew tier is four deep, so it crosses a
-// boundary every four days: measured 6.2% next-day and 37.3% within-three
-// against a fixed loop's guaranteed gap of exactly four.
+// you hit a seam constantly. The crew tier is the short one, so it crosses a
+// boundary every few days: measured at four entries it took 6.2% next-day and
+// 37.3% within-three, against a fixed loop's guaranteed gap of exactly the
+// pool size.
 //
 // So short pools get ONE permutation per user, cycled forever. The order is
-// then predictable, which is a real cost — but on four items the user has
-// seen the whole set inside a week anyway, and maximum spacing is what was
+// then predictable, which is a real cost — but on a handful of items the user
+// has seen the whole set inside a week anyway, and maximum spacing is what was
 // actually asked for.
 const STABLE_ROTATION_BELOW = 6;
 
@@ -659,11 +679,11 @@ const RESOLVE_ORDER = ['hard', 'medium', 'easy', 'crew'];
 // are not being asked for extra work, so nothing is being given away.
 //
 // Including crew in the constraint measured badly and for a structural
-// reason: with a pool of four it was displaced off its rotation on a quarter
-// to a half of all days, which on a four-item pool is thrash — 16.8% next-day
-// repeats against `hard`'s 0.00%. Exempting it lets crew follow a clean
-// four-day cycle AND stops it consuming a family that `easy` and `medium`
-// then have to work around.
+// reason: it was displaced off its rotation on a quarter to a half of all
+// days, which on a pool this short is thrash — 16.8% next-day repeats against
+// `hard`'s 0.00%. Exempting it lets crew follow a clean once-per-pool-length
+// cycle AND stops it consuming a family that `easy` and `medium` then have to
+// work around.
 const FAMILY_EXEMPT = new Set(['crew']);
 
 /**

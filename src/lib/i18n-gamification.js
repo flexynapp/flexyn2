@@ -132,6 +132,8 @@ export const gamificationI18n = {
     'quest.crew_chat_3.desc':       'A crew that talks is a crew that trains.',
     'quest.crew_steps_8k.label':    'Walk 8,000 steps for the crew',
     'quest.crew_steps_8k.desc':     'Steps count for the crew as much as the bar does.',
+    'quest.crew_volume_15k.label':  'Move 15,000 lb for the crew',
+    'quest.crew_volume_15k.desc':   'Every pound you lift today counts toward the crew.',
 
     // Difficulty labels.
     //
