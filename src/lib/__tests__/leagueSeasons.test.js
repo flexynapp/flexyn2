@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   daysLeftInSeason,
+  daysUntilSeason,
+  isPreSeason,
   isSeasonEligible,
   hasSeenSeasonResult,
   markSeasonResultSeen,
@@ -52,6 +54,48 @@ describe('isSeasonEligible', () => {
   it('is false for a missing season', () => {
     expect(isSeasonEligible(null)).toBe(false);
     expect(isSeasonEligible(undefined)).toBe(false);
+  });
+});
+
+describe('pre-season — Season 1 opens 2026-10-01 (migration 317)', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-08-09T12:00:00Z'));
+  });
+  afterEach(() => vi.useRealTimers());
+
+  const PRE = {
+    pre_season: true, season_number: 1, name: 'Season 1 · Foundation',
+    starts_at: '2026-10-01T00:00:00Z', ends_at: '2026-10-29T00:00:00Z',
+    weeks_qualified: 0, weeks_needed: 2,
+  };
+
+  it('counts whole days up to the opening', () => {
+    // 2026-08-09 -> 2026-10-01 is 52.5 days; ceil, because "starts in 52d"
+    // must not arrive a day early.
+    expect(daysUntilSeason(PRE)).toBe(53);
+  });
+
+  it('is only a pre-season while the flag is set', () => {
+    expect(isPreSeason(PRE)).toBe(true);
+    expect(isPreSeason({ ...PRE, pre_season: false })).toBe(false);
+    expect(isPreSeason(null)).toBe(false);
+  });
+
+  it('returns null for a season that has already opened', () => {
+    expect(daysUntilSeason({ ...PRE, pre_season: false })).toBeNull();
+    expect(daysUntilSeason(null)).toBeNull();
+  });
+
+  it('reads 0 once the start has passed but the flag has not cleared', () => {
+    vi.setSystemTime(new Date('2026-10-02T00:00:00Z'));
+    expect(daysUntilSeason(PRE)).toBe(0);
+  });
+
+  it('nobody is season-eligible during the pre-season', () => {
+    // No week can have been banked yet, so the header must never promise a
+    // reward that is not being accrued.
+    expect(isSeasonEligible(PRE)).toBe(false);
   });
 });
 

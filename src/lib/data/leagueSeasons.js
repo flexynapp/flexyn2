@@ -216,6 +216,28 @@ export function daysLeftInSeason(season) {
 }
 
 /**
+ * Whole days until a scheduled season opens, or null if it has already begun.
+ *
+ * Season 1 is dated 2026-10-01 (migration 317), so between deploy and launch
+ * `getMySeason` returns a `pre_season` payload rather than nothing. Reporting
+ * NULL there would make the standings header drop the season line entirely,
+ * which is indistinguishable from the feature not being deployed.
+ */
+export function daysUntilSeason(season) {
+  if (!season?.pre_season || !season?.starts_at) return null;
+  const start = new Date(season.starts_at);
+  if (Number.isNaN(start.getTime())) return null;
+  const ms = start.getTime() - Date.now();
+  if (ms <= 0) return 0;
+  return Math.ceil(ms / 86_400_000);
+}
+
+/** True while a season is scheduled but has not opened yet. */
+export function isPreSeason(season) {
+  return !!season?.pre_season;
+}
+
+/**
  * Will this user collect anything when the season rolls?
  *
  * Mirrors `c_min_weeks` in roll_league_seasons: two qualifying weeks of four.

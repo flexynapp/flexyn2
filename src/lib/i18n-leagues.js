@@ -35,6 +35,9 @@ const enKeys = {
   'league.season.endsIn':     'ends in {n}d',
   'league.season.secured':    'Reward secured',
   'league.season.progress':   '{n} of {need} weeks',
+  'league.season.startsIn':   'starts in {n}d',
+  'league.season.notStarted': 'not started yet',
+  'league.season.preSeason':  'Pre-season',
   // "How leagues work" explainer
   'league.info.title':        'How leagues work',
   'league.info.intro':        'Every Monday you join a bracket of up to 30 people at your tier. You are ranked by the XP you earn that week.',

@@ -118,7 +118,9 @@ function Body({ data, season, userId, t, tFallback, fmt, onOpenMember, onOpenInf
   const bracketTooSmall = !!data.bracketTooSmall;
   const endDate  = parseISO(league.week_end + 'T23:59:59');
   const daysLeft = Math.max(0, differenceInCalendarDays(endDate, new Date()) + 1);
+  const preSeason = leagueSeasons.isPreSeason(season);
   const seasonDaysLeft = leagueSeasons.daysLeftInSeason(season);
+  const seasonDaysUntil = leagueSeasons.daysUntilSeason(season);
   const seasonEligible = leagueSeasons.isSeasonEligible(season);
 
   return (
@@ -150,17 +152,30 @@ function Body({ data, season, userId, t, tFallback, fmt, onOpenMember, onOpenInf
         {season?.season_number != null && (
           <div className="mt-1 flex items-center gap-2 flex-wrap">
             <span className="text-xs font-semibold text-white/95">{season.name}</span>
-            {seasonDaysLeft != null && (
+            {/* Pre-season counts DOWN to the opening rather than reporting a
+                progress bar nobody can move yet. Weekly promotion still runs
+                throughout — only the season reward is waiting. */}
+            {preSeason ? (
               <span className="text-micro text-white/70">
-                {tFallback('league.season.endsIn', 'ends in {n}d', { n: seasonDaysLeft })}
+                {seasonDaysUntil != null
+                  ? tFallback('league.season.startsIn', 'starts in {n}d', { n: seasonDaysUntil })
+                  : tFallback('league.season.notStarted', 'not started yet')}
               </span>
+            ) : (
+              seasonDaysLeft != null && (
+                <span className="text-micro text-white/70">
+                  {tFallback('league.season.endsIn', 'ends in {n}d', { n: seasonDaysLeft })}
+                </span>
+              )
             )}
             <span
               className={`text-micro font-bold px-1.5 py-0.5 rounded-full ${
                 seasonEligible ? 'bg-white/25 text-white' : 'bg-black/25 text-white/85'
               }`}
             >
-              {seasonEligible
+              {preSeason
+                ? tFallback('league.season.preSeason', 'Pre-season')
+                : seasonEligible
                 ? tFallback('league.season.secured', 'Reward secured')
                 : tFallback('league.season.progress', '{n} of {need} weeks', {
                     n: season.weeks_qualified ?? 0,
