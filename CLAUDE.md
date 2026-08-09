@@ -703,6 +703,22 @@ govern hierarchy, which tokens can't encode.
   not element rects: a block `<h2>` spans the full column even when the word
   inside it is "Stories", which reported all 9 slides colliding when only one
   actually did.
+- **`Reorder.Item` enables `layout` by default, and that is wrong for a list
+  whose MEMBERSHIP changes** (2026-08-08). Reorder's projection assumes a
+  stable list where only the ORDER moves — the drag case. Dashboard's rows are
+  not that: sections render null until their query resolves, so
+  `dashboardRows` is rebuilt several times in the first second after mount.
+  Project across two different lists and a row can be left holding a delta it
+  never resolves — it keeps its flow box while painting somewhere else, so a
+  gap opens where it belongs and it lands on top of the rows below. That is
+  the bug where Discover drew an empty band and then painted its card on top
+  of the daily quote and the install banner. Fix is `layout={editMode}`:
+  nothing reorders outside edit mode, and `dragListener` was already gated the
+  same way. **A nested `layout` child is the obvious suspect and usually is
+  not it** — `DiscoveryCards.jsx` has one and measured identically with and
+  without. Measure the *row*, not the card: read the computed transform on
+  each element and compare painted rect against flow position. A stuck
+  translate is unambiguous where a screenshot only shows you the collision.
 - **Data must be earned.** A number gets screen space only with trend, history or
   comparison attached. A bare figure in a box is decoration.
 
