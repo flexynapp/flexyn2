@@ -64,7 +64,7 @@ const ALLOWED = new Map([
   ['src/pages/Onboarding.jsx',               'own fixed 100svh shell, already overflow-hidden'],
   ['src/pages/GymMap.jsx',                   'route AND overlay, fixed inset-0 either way; the lock would also arbitrate gestures against maplibre — see the note in the file'],
   ['src/components/ThemeAnimationLayer.jsx', 'pointer-events-none decoration'],
-  ['src/components/OneShotTooltip.jsx',      'a tooltip, not a menu — holding the page for one would be wrong'],
+  ['src/components/OneShotTooltip.jsx',      'a tooltip, not a menu — holding the page for one would be wrong; it tracks its anchor through the scroll instead'],
   ['src/components/ui/dialog.jsx',           'the Radix primitive itself'],
   ['src/components/ui/alert-dialog.jsx',     'the Radix primitive itself'],
   ['src/components/ui/drawer.jsx',           'the vaul primitive itself'],
