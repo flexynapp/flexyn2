@@ -1686,11 +1686,32 @@ The biggest user-facing additions this session:
   (`generate_my_weekly_review`, with `generate_my_weekly_debrief` left as a
   forwarder), 329 backfills `total_volume`, 330 fixes cardio duration.
 
-  What remains out of scope is only the **cron**: `generateWeeklyDebriefs` is
-  deployed but not scheduled, so reviews are generated on demand when the user
-  opens the screen rather than pushed on a Sunday. One thing is still needed —
-  set `DEBRIEF_CRON_SECRET` as a function secret, then re-add the cron (recipe
-  below).
+  **The cron is SCHEDULED but returns 401** — `cron.job` id 26,
+  `weekly-reviews-generator`, `0 20 * * 0`, calling `kick_weekly_reviews()`
+  (migration 332). It is deliberately left scheduled in a failing state, so
+  do not read its existence as "working".
+
+  One step remains and it cannot be done from SQL or MCP: set
+  `DEBRIEF_CRON_SECRET` as an **Edge Function secret** (dashboard → Edge
+  Functions → Secrets) to match the Vault entry `debrief_cron_secret`. There
+  is no tool path to function secrets — deploy/get/list are all that exist.
+  Until then every Sunday run 401s and generates nothing. Reviews still
+  generate on demand when a user opens the screen, so the app is fine; only
+  the Sunday push is dormant.
+
+  ```sql
+  -- the value to paste (keeps it out of any transcript)
+  SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'debrief_cron_secret';
+  -- then prove it, because the cron's own status never will:
+  SELECT public.kick_weekly_reviews();   -- wait ~10s
+  SELECT status_code, content FROM net._http_response ORDER BY id DESC LIMIT 1;
+  ```
+
+  `200 {"ok":true,…}` is working; `401` means the two values differ; `404`
+  would mean the URL is wrong. **`net._http_response` is the only place this
+  shows** — `net.http_post` queues, so the job records 'succeeded' either
+  way. That is the precise mechanism by which the previous incarnation of
+  this job failed every Sunday for ten weeks unnoticed.
 
   **There is now ONE implementation of the review, and this is the thing to
   preserve.** The Edge Function used to compute the whole thing itself in
