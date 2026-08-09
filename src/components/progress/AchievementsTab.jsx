@@ -191,7 +191,16 @@ export default function AchievementsTab({ achievements = [] }) {
                 {tFallback(`achievementDefs.cat.${category}`, category)}
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <AnimatePresence>
+                {/* In Progress ↔ Completed swaps every card in this grid, so
+                    under the default sync mode all of the outgoing cards held
+                    their cells while the incoming set was appended below —
+                    the grid grew to roughly double height and then collapsed
+                    back once the exits unmounted. popLayout takes them out of
+                    flow immediately, so the new set lands where it belongs on
+                    the first frame. The grid spaces with `gap`, not `space-y`
+                    margins, which is what makes this safe — see
+                    src/lib/listMotion.js. */}
+                <AnimatePresence mode="popLayout">
                   {cats.map((ach) => (
                     <motion.div
                       key={ach.achievement_id}

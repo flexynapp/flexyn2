@@ -65,6 +65,30 @@
 // to the nearest positioned ancestor — leave the row static and exiting
 // cards jump to coordinates measured against something further up the tree.
 //
+// ── TWO RULES BEFORE YOU APPLY THIS ANYWHERE ELSE ───────────────────────────
+//
+// A sweep of the app found 12 candidate collections and only 4 wanted this.
+// Applying it mechanically would have broken most of the rest, so check both:
+//
+// **1. Does the exit collapse `height`?** Then popLayout is WRONG and `sync`
+//    is already correct. `exit={{ opacity: 0, height: 0 }}` is a deliberate
+//    in-flow collapse: the row shrinks and everything below slides up to
+//    meet it. popLayout takes the row out of flow, so there is nothing left
+//    to collapse and the rows below snap instead. The set logger, the cardio
+//    segment list, the meal list, the crew join queue and the resume-session
+//    list all rely on this. Leave them alone. This module is for collections
+//    that FADE OUT IN PLACE and need their neighbours to reflow around them.
+//
+// **2. Does the container space with `space-y-*`?** Then convert it to
+//    `flex flex-col gap-*` first — same pixels, different mechanism.
+//    `space-y` puts a `margin-top` on every child after the first, and
+//    framer pins an exiting child with `top: <its offsetTop>` while adding
+//    `position/width/height/top/left` — but NOT `margin: 0`. offsetTop
+//    already includes that margin, so it lands twice and the card visibly
+//    drops by one space step the instant it starts to leave. A `gap` belongs
+//    to the parent, so it cannot double-count. Flex/grid `gap` is safe;
+//    `space-y` is not.
+//
 // Reduced motion needs no handling here: App.jsx wraps the tree in
 // `<MotionConfig reducedMotion="user">`, which strips transforms and opacity
 // for anyone who has asked the OS for less movement.

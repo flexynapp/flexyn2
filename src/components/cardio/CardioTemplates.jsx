@@ -105,12 +105,23 @@ export default function CardioTemplates({ onApply }) {
 
   return (
     <motion.div
-      className="space-y-3"
+      // `flex flex-col gap-3`, not `space-y-3` — same 12px, different
+      // mechanism, and the mechanism matters below. space-y puts a
+      // margin-top on every child after the first; popLayout pins an
+      // exiting child with `top: <its offsetTop>`, and offsetTop ALREADY
+      // includes that margin, so the margin gets applied twice and the
+      // card drops 12px the instant it starts to leave. `gap` is the
+      // parent's, not the child's, so it can't double-count.
+      className="flex flex-col gap-3"
       initial="hidden"
       animate="visible"
       variants={{ visible: { transition: { staggerChildren: 0.06 } } }}
     >
-      <AnimatePresence>
+      {/* Deleting a template used to leave its card holding a full-height
+          slot while it slid away, and only then did the cards below jump up
+          to close the gap. popLayout drops it out of flow on the first
+          frame so they glide instead. */}
+      <AnimatePresence mode="popLayout">
         {templates.map(tpl => {
           const Icon = typeIcon(tpl.type);
           const iconClass = typeColor(tpl.type);
@@ -125,7 +136,9 @@ export default function CardioTemplates({ onApply }) {
               key={tpl.id}
               variants={itemVariants}
               exit="exit"
-              layout
+              // A template card's height is fixed by its content and does
+              // not change when the list refilters; only where it sits does.
+              layout="position"
             >
               <Card className="overflow-hidden">
                 <div className="flex items-center">

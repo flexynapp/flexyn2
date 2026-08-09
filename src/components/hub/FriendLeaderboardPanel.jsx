@@ -140,8 +140,15 @@ export default function FriendLeaderboardPanel() {
         {!isLoading && rows.length > 0 && (
           // isFetching, not isLoading: a mode switch now keeps the old rows and
           // dims them for the fetch instead of tearing the list down.
-          <div className={`space-y-1 transition-opacity duration-150 ${isFetching ? 'opacity-60' : 'opacity-100'}`}>
-            <AnimatePresence initial={false}>
+          // `flex flex-col gap-1` rather than `space-y-1`: popLayout below
+          // pins an exiting row at its own offsetTop, which already counts
+          // space-y's margin-top, so the margin would land twice and the row
+          // would drop 4px as it left. Same 4px, applied by the parent.
+          <div className={`flex flex-col gap-1 transition-opacity duration-150 ${isFetching ? 'opacity-60' : 'opacity-100'}`}>
+            {/* popLayout: a friend dropping off the board releases their row
+                immediately so the ranks below close up in one move, rather
+                than waiting out the fade and then jumping. */}
+            <AnimatePresence mode="popLayout" initial={false}>
               {rows.map((row, idx) => {
                 const rank = idx + 1;
                 const initial = (row.username || '?').slice(0, 1).toUpperCase();
@@ -154,7 +161,10 @@ export default function FriendLeaderboardPanel() {
                     // every switch, so seven rows cascaded in from the left one
                     // after another — correct for a first paint, jittery as a
                     // response to a tab press.
-                    layout={!reduceMotion}
+                    // "position": a row's height is fixed, only its rank
+                    // moves, so the size half of an unqualified `layout` was
+                    // measuring a delta that is always zero.
+                    layout={reduceMotion ? false : 'position'}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}

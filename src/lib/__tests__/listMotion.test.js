@@ -5,10 +5,39 @@
 // shows up in a screenshot of a settled page — they only show while the grid
 // is mid-transition.
 
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { resolve, join } from 'node:path';
 import { describe, it, expect } from 'vitest';
 import { LIST_PRESENCE, listItemMotion } from '@/lib/listMotion';
+
+/** Every .jsx under src/, tests excluded. */
+function jsxFiles(dir = resolve(process.cwd(), 'src'), out = []) {
+  for (const name of readdirSync(dir)) {
+    const p = join(dir, name);
+    if (statSync(p).isDirectory()) {
+      if (name !== '__tests__') jsxFiles(p, out);
+    } else if (name.endsWith('.jsx')) out.push(p);
+  }
+  return out;
+}
+
+/** Body of each `<AnimatePresence …>` block, with its opening attributes. */
+function presenceBlocks(s) {
+  const found = [];
+  for (const m of s.matchAll(/<AnimatePresence([^>]*)>/g)) {
+    let depth = 1;
+    let i = m.index + m[0].length;
+    while (depth && i < s.length) {
+      const open = s.indexOf('<AnimatePresence', i);
+      const close = s.indexOf('</AnimatePresence>', i);
+      if (close === -1) break;
+      if (open !== -1 && open < close) { depth++; i = open + 16; }
+      else { depth--; i = close + 18; }
+    }
+    found.push({ attrs: m[1], body: s.slice(m.index + m[0].length, i), at: m.index });
+  }
+  return found;
+}
 
 const src = (p) => readFileSync(resolve(process.cwd(), p), 'utf8');
 
@@ -89,5 +118,57 @@ describe('the marketplace grid keeps the shape', () => {
 
   it('keeps the previous sort on screen while the next one loads', () => {
     expect(feed).toMatch(/placeholderData: keepPreviousData/);
+  });
+});
+
+// The two rules from listMotion.js, enforced across the app. A sweep found 12
+// candidate collections and only 4 wanted popLayout; both of these mistakes
+// are silent — nothing throws, and a screenshot of a settled page looks fine.
+describe('popLayout is only used where it is correct', () => {
+  const files = jsxFiles();
+
+  it('finds files to check', () => {
+    expect(files.length).toBeGreaterThan(100);
+  });
+
+  it('is never used on a list whose exit collapses height', () => {
+    // `exit={{ opacity: 0, height: 0 }}` is a deliberate in-flow collapse —
+    // the row shrinks and its neighbours slide up to meet it. popLayout takes
+    // the row out of flow, so there is nothing left to collapse and the
+    // neighbours snap instead.
+    const offenders = [];
+    for (const f of files) {
+      for (const b of presenceBlocks(readFileSync(f, 'utf8'))) {
+        if (!b.attrs.includes('popLayout')) continue;
+        if (/exit=\{\{[^}]*\bheight\b/.test(b.body)) {
+          offenders.push(f.replace(process.cwd() + '/', ''));
+        }
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  it('is never used inside a space-y container', () => {
+    // space-y puts margin-top on each child after the first. popLayout pins
+    // an exiting child at `top: <its offsetTop>` and does not zero margins,
+    // and offsetTop already counts that margin — so it lands twice and the
+    // item drops one space step as it leaves. flex/grid `gap` belongs to the
+    // parent and cannot double-count.
+    const offenders = [];
+    for (const f of files) {
+      const s = readFileSync(f, 'utf8');
+      for (const b of presenceBlocks(s)) {
+        if (!b.attrs.includes('popLayout')) continue;
+        // The nearest className above the presence tag is its container.
+        const before = s.slice(Math.max(0, b.at - 600), b.at);
+        const classNames = [...before.matchAll(/className=(?:"([^"]*)"|\{`([^`]*)`\})/g)];
+        const nearest = classNames.at(-1);
+        const cls = nearest ? (nearest[1] ?? nearest[2]) : '';
+        if (/\bspace-y-\d/.test(cls)) {
+          offenders.push(`${f.replace(process.cwd() + '/', '')} → ${cls.trim().slice(0, 60)}`);
+        }
+      }
+    }
+    expect(offenders).toEqual([]);
   });
 });

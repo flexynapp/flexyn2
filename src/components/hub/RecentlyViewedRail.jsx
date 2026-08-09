@@ -54,7 +54,12 @@ export default function RecentlyViewedRail({ userEmail, listings = [], onSelect 
         </button>
       </div>
       <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-thin">
-        <AnimatePresence initial={false}>
+        {/* popLayout so a cleared or expired entry leaves the rail's flow at
+            once and the tiles after it slide left immediately, instead of
+            holding an empty slot for the length of the fade and then
+            snapping. Safe here because the rail spaces with flex `gap`, not
+            `space-y` margins — see src/lib/listMotion.js. */}
+        <AnimatePresence mode="popLayout" initial={false}>
           {recents.map((entry) => {
             const live = liveById.get(entry.id);
             const isGone = !live || live.status !== 'active';
@@ -62,7 +67,11 @@ export default function RecentlyViewedRail({ userEmail, listings = [], onSelect 
             return (
               <motion.div
                 key={entry.id}
-                layout
+                // Position only — a rail tile is a fixed w-20 and never
+                // changes size, so unqualified `layout` was paying for a
+                // size measurement and a scale-correction pass over every
+                // child to animate a delta that is always zero.
+                layout="position"
                 initial={{ opacity: 0, scale: 0.85 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.85 }}
