@@ -19,6 +19,7 @@ import * as marketplace from '@/lib/data/marketplace';
 import * as inventory   from '@/lib/data/inventory';
 import * as itemSoldCounts from '@/lib/data/itemSoldCounts';
 import * as wishlist from '@/lib/data/marketplaceWishlist';
+import * as bundles from '@/lib/data/marketplaceBundles';
 import { getFlexCoins } from '@/lib/data/coinShop';
 import { addRecentlyViewed } from '@/lib/recentlyViewedListings';
 import CoinShopModal from '@/components/hub/CoinShopModal';
@@ -30,6 +31,7 @@ import ListingCard from './ListingCard';
 import BundleCard, { bundlePrice } from './BundleCard';
 import ItemDetailSheet from './ItemDetailSheet';
 import ListItemDialog from './ListItemDialog';
+import CreateBundleDialog from './CreateBundleDialog';
 import TradeOfferDialog from './TradeOfferDialog';
 import BuyConfirmDialog from './BuyConfirmDialog';
 import { tileRow } from '@/lib/tileRows';
@@ -78,7 +80,8 @@ export default function MarketplaceFeed() {
   const qc       = useQueryClient();
   const navigate = useNavigate();
 
-  const [showListDialog, setShowListDialog] = useState(false);
+  const [showListDialog,   setShowListDialog]   = useState(false);
+  const [showBundleDialog, setShowBundleDialog] = useState(false);
   const [tradeTarget,    setTradeTarget]    = useState(null);
   const [buyTarget,      setBuyTarget]      = useState(null);
   const [buyBusy,        setBuyBusy]        = useState(false);
@@ -275,6 +278,54 @@ export default function MarketplaceFeed() {
       toast.error(msg);
     }
   }, [user?.id, user?.email, qc]);
+
+  // ── Bundling your own listings ─────────────────────────────────────────────
+  //
+  // Mig 134 shipped the table, the RPC and the buyer's card, and step 2 of
+  // its own flow — attaching listings to a bundle — never got a UI, which is
+  // why production has carried zero bundle rows since. This is that half.
+  //
+  // Keyed off listBySeller rather than the feed's `listings`: listActive caps
+  // at 60 and sorts, so a seller with items outside that page would be
+  // offered only some of their own listings to bundle, with no way to tell
+  // which were missing.
+  const { data: myListings = NO_LISTINGS } = useQuery({
+    queryKey: ['myListings', user?.id],
+    queryFn:  () => marketplace.listBySeller(user.id),
+    enabled:  !!user?.id,
+    staleTime: 30_000,
+  });
+  // Sale, live, and not already in a bundle — exactly what set_listing_bundle
+  // will accept, so the picker can't offer something the RPC then refuses.
+  const bundleableListings = useMemo(
+    () => myListings.filter(l =>
+      l.status === 'active' && l.listing_type === 'sale' && !l.bundle_id),
+    [myListings]
+  );
+
+  const refreshBundleViews = useCallback(async () => {
+    await Promise.all([
+      qc.invalidateQueries({ queryKey: ['marketplaceListings'] }),
+      qc.invalidateQueries({ queryKey: ['marketplaceBundles'] }),
+      qc.invalidateQueries({ queryKey: ['myListings', user?.id] }),
+    ]);
+  }, [qc, user?.id]);
+
+  // Breaking up a bundle deletes the row; the FK is ON DELETE SET NULL, so
+  // the listings unlink themselves and come back to the grid individually.
+  const handleCancelBundle = useCallback(async (bundle) => {
+    try {
+      await bundles.cancelBundle(bundle.id);
+      await refreshBundleViews();
+      toast.success('Bundle broken up — those listings are on their own again.');
+    } catch (err) {
+      reportError(err, {
+        feature: 'marketplace.cancel-bundle', level: 'warning',
+        userEmail: user?.email, bundleId: bundle?.id,
+      });
+      toast.error('Could not break up that bundle — try again.');
+    }
+  }, [refreshBundleViews, user?.email]);
 
   // Featured listings no longer get their own rail above the grid. They
   // rendered there AND again in the grid below — every featured listing
@@ -515,6 +566,54 @@ export default function MarketplaceFeed() {
     }
   }, [qc, user?.email, handleUndoCancel]);
 
+  // ── Delete listing ─────────────────────────────────────────────────────────
+  //
+  // Cancel keeps the row as a record that you listed the thing; delete removes
+  // it. Both hand the item back, so from the bag they look the same — the
+  // difference is whether it stays in your listing history.
+  //
+  // delete_my_listing (mig 321) is the only path: the raw DELETE policy left
+  // user_inventory.is_listed TRUE, which hid the item from the bag AND blocked
+  // re-listing it, and stranded any pending trade offer's escrow.
+  //
+  // Undo re-lists rather than un-deleting, exactly as handleUndoCancel does —
+  // same terms, new row. That is what makes a confirm step unnecessary on a
+  // control this small: the way back is one tap, in the toast.
+  const handleDelete = useCallback(async (listing) => {
+    try {
+      await marketplace.deleteListing(listing.id);
+      // Same reason as handleCancel, and the same ordering requirement: the
+      // row is about to vanish from the feed, and a vanished row is what the
+      // sold-fade effect reads as a sale. Without this, deleting your own
+      // listing stamps a red SOLD across it.
+      cancelledIdsRef.current.add(listing.id);
+      await qc.invalidateQueries({ queryKey: ['marketplaceListings'] });
+      await qc.invalidateQueries({ queryKey: ['userInventory', user?.email] });
+      toast.success('Listing deleted.', {
+        action: {
+          label: 'Undo',
+          onClick: () => { void handleUndoCancel(listing); },
+        },
+      });
+    } catch (err) {
+      reportError(err, {
+        feature: 'marketplace.delete-listing', level: 'warning',
+        userEmail: user?.email, listingId: listing?.id,
+      });
+      // The RPC's two refusals are both worth saying plainly rather than
+      // flattening into "try again" — one is not an error the user can act on
+      // by retrying, and the other means the item is not theirs any more.
+      const msg = err?.message || '';
+      if (/completed_sale_cannot_be_deleted/.test(msg)) {
+        toast.error("That one sold — a completed sale stays on the record.");
+      } else if (/not_your_listing/.test(msg)) {
+        toast.error("That isn't your listing.");
+      } else {
+        toast.error('Could not delete — try again.');
+      }
+    }
+  }, [qc, user?.email, handleUndoCancel]);
+
   // ── Buy item ───────────────────────────────────────────────────────────────
   // Server-atomic via the purchase_listing RPC (mig 025): locks the listing,
   // validates the buyer can afford it, deducts buyer coins, credits seller,
@@ -618,10 +717,14 @@ export default function MarketplaceFeed() {
       // filtering for epics.
       if (filters.rarities.length > 0
         && !saleRows.some(l => filters.rarities.includes(l.item_rarity))) return false;
-      if (filters.affordable && flexCoins < bundlePrice(b, rows).price) return false;
+      // "Can afford" is a question about buying, and you never buy your own
+      // bundle — hiding it there would make a seller's own deal vanish from
+      // their view with no way to break it up.
+      const mine = !!user?.id && b.seller_user_id === user.id;
+      if (!mine && filters.affordable && flexCoins < bundlePrice(b, rows).price) return false;
       return true;
     });
-  }, [activeBundles, bundleMap, filters, flexCoins]);
+  }, [activeBundles, bundleMap, filters, flexCoins, user?.id]);
 
   // Sold-fade rows, put through the SAME predicate as the live grid. They
   // used to render unfiltered, so a "Trade only" grid could show a sold Buy
@@ -665,13 +768,14 @@ export default function MarketplaceFeed() {
     currentUser: user,
     flexCoins,
     onCancel: handleCancel,
+    onDelete: handleDelete,
     onBuy: handleBuyClick,
     onOfferTrade: handleTradeClick,
     onSellerClick: handleSellerClick,
     onToggleSave: handleToggleSave,
     onOpenDetail: handleOpenDetail,
   }), [
-    user, flexCoins, handleCancel, handleBuyClick, handleTradeClick,
+    user, flexCoins, handleCancel, handleDelete, handleBuyClick, handleTradeClick,
     handleSellerClick, handleToggleSave, handleOpenDetail,
   ]);
 
@@ -684,6 +788,7 @@ export default function MarketplaceFeed() {
     recentlySold: true,
     onBuy: NOOP,
     onCancel: NOOP,
+    onDelete: NOOP,
     onOfferTrade: NOOP,
     onOpenDetail: undefined,
   }), [cardProps]);
@@ -771,6 +876,23 @@ export default function MarketplaceFeed() {
         </div>
       ) : (
         <>
+          {/* Bundle your own listings. Deliberately NOT a card or a banner:
+              this page was already criticised for the amount of chrome
+              between the user and the listings, and most viewers are buyers
+              for whom this is noise. It appears only for someone holding two
+              or more bundleable listings — i.e. only when the tap would
+              actually do something. */}
+          {bundleableListings.length >= bundles.BUNDLE_MIN_LISTINGS && !filters.saved && (
+            <button
+              type="button"
+              onClick={() => setShowBundleDialog(true)}
+              className="self-start -mt-1 mb-1 flex items-center gap-1.5 text-micro font-bold text-amber-600 dark:text-amber-300 hover:underline"
+            >
+              <Package className="w-3.5 h-3.5" />
+              Bundle {bundleableListings.length} of your listings →
+            </button>
+          )}
+
           {/* Bundle deal rows (mig 134) — browse view only. Bundled items
               are excluded from the regular grid below. */}
           {visibleBundles.length > 0 && (
@@ -791,6 +913,7 @@ export default function MarketplaceFeed() {
                       currentUser={user}
                       flexCoins={flexCoins}
                       onBuyBundle={handleBuyBundle}
+                      onCancelBundle={handleCancelBundle}
                     />
                   ))}
                 </AnimatePresence>
@@ -908,6 +1031,15 @@ export default function MarketplaceFeed() {
             userItems={myItems}
             user={user}
             onSuccess={() => setShowListDialog(false)}
+          />
+        )}
+        {showBundleDialog && (
+          <CreateBundleDialog
+            open={showBundleDialog}
+            onClose={() => setShowBundleDialog(false)}
+            listings={bundleableListings}
+            user={user}
+            onSuccess={() => { void refreshBundleViews(); }}
           />
         )}
         {tradeTarget && (

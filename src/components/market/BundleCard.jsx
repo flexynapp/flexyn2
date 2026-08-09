@@ -33,7 +33,9 @@ export function bundlePrice(bundle, rows) {
   return { total, price: Math.max(1, Math.round(total * (1 - bundle.discount_pct / 100))) };
 }
 
-export default function BundleCard({ bundle, listings, currentUser, flexCoins, onBuyBundle }) {
+export default function BundleCard({
+  bundle, listings, currentUser, flexCoins, onBuyBundle, onCancelBundle,
+}) {
   const fmt = useNumberFormatter();
   // seller_user_id, not seller_email — the same guest hole ListingCard and
   // ItemDetailSheet both document and fixed. create_marketplace_listing
@@ -63,7 +65,14 @@ export default function BundleCard({ bundle, listings, currentUser, flexCoins, o
       <div>
         <p className="font-heading font-bold text-sm pe-24">{bundle.title}</p>
         <p className="text-muted-foreground text-micro mt-0.5">
-          by {displayName(bundle)} · {saleListings.length} item{saleListings.length === 1 ? '' : 's'}
+          {/* The name comes off a LISTING, not the bundle.
+              marketplace_bundles has no seller_username column — it carries
+              seller_user_id and seller_email only — and displayName never
+              surfaces an email, so `displayName(bundle)` fell through every
+              field it checks and every bundle on the page read "by Athlete".
+              Since mig 320 the sold set is restricted to the bundle owner's
+              own listings, so any of them carries the right name. */}
+          by {displayName(saleListings[0] ?? bundle)} · {saleListings.length} item{saleListings.length === 1 ? '' : 's'}
         </p>
       </div>
 
@@ -91,7 +100,27 @@ export default function BundleCard({ bundle, listings, currentUser, flexCoins, o
         </span>
       </div>
 
-      {!isMine && (
+      {isMine ? (
+        /* Your own bundle rendered as a dead end: no button at all, on a
+           card that still advertised a price. The owner needs both halves —
+           what they actually net (the discount is theirs to fund since mig
+           320, and the number above is what the BUYER pays) and a way back
+           out, since bundling is otherwise irreversible from the UI. */
+        <div className="flex flex-col gap-2">
+          <p className="text-micro text-muted-foreground">
+            Your bundle · you receive <CoinAmount value={discountedPrice} /> of the{' '}
+            <CoinAmount value={totalPrice} /> listed
+          </p>
+          {onCancelBundle && (
+            <button
+              onClick={() => onCancelBundle(bundle)}
+              className="w-full py-2 rounded-lg text-sm font-bold text-red-600 dark:text-red-300 bg-red-500/10 border border-red-500/30 hover:bg-red-500/20 active:bg-red-500/20 transition-colors"
+            >
+              Break up bundle
+            </button>
+          )}
+        </div>
+      ) : (
         <button
           onClick={() => onBuyBundle(bundle, listings, discountedPrice)}
           disabled={!canAfford}
