@@ -199,9 +199,17 @@ export async function saveBody(userId, userEmail, dateStr, body) {
  * History log: every day with an entry, newest first. Returns a light
  * shape (no body) for the scrollable list; the day view fetches the
  * full entry on tap.
+ *
+ * Returns `{ ok, rows }`, NOT a bare array. It used to answer `[]` for
+ * both "you have never written anything" and "the read failed", so the
+ * Log rendered the same empty state either way — telling someone with a
+ * full journal that they had none, and inviting them to start. An empty
+ * state is a claim about the world and it is only sayable when the read
+ * actually succeeded. (Same rule the gym picker follows for "there are
+ * no gyms near you" — see CLAUDE.md, Home gym.)
  */
 export async function listEntries(userId, limit = 365) {
-  if (!userId) return [];
+  if (!userId) return { ok: false, rows: [] };
   // safeSelect, because `mood_score` only arrived in migration 165 and this
   // read is what BOTH the history log and JournalView's skip-empty day
   // navigation are built on. Unwrapped, a host missing that column answers
@@ -216,10 +224,10 @@ export async function listEntries(userId, limit = 365) {
       .order('entry_date', { ascending: false })
       .limit(limit),
   });
-  if (error) return [];
+  if (error) return { ok: false, rows: [] };
   // Derive a one-line snippet for the list without shipping full bodies
   // around (body is already capped at 20k so this is fine).
-  return (data || []).map(e => ({
+  const rows = (data || []).map(e => ({
     id: e.id,
     entry_date: e.entry_date,
     title: e.title,
@@ -232,6 +240,7 @@ export async function listEntries(userId, limit = 365) {
     created_at: e.created_at ?? null,
     updated_at: e.updated_at ?? null,
   }));
+  return { ok: true, rows };
 }
 
 // Extension → pinned MIME. Mirrors SAFE_MIMES in src/api/db.js: the

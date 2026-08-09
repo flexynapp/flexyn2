@@ -250,8 +250,9 @@ describe('listEntries', () => {
       { id: '1', entry_date: DAY, title: 'Push day', body: '- **PR** on incline', attachments: [{ url: 'u' }],
         mood_score: 4, created_at: '2026-08-05T20:00:00Z', updated_at: '2026-08-08T09:00:00Z' },
     ] });
-    const rows = await journal.listEntries(USER, 365);
+    const { ok, rows } = await journal.listEntries(USER, 365);
 
+    expect(ok).toBe(true);
     expect(rows[0]).toEqual({
       id: '1', entry_date: DAY, title: 'Push day',
       snippet: 'PR on incline', attachmentCount: 1, mood_score: 4,
@@ -262,5 +263,21 @@ describe('listEntries', () => {
     expect(rows[0]).not.toHaveProperty('body');
     expect(calls[0].cols).toContain('mood_score');
     expect(calls[0].cols).toContain('created_at');
+  });
+
+  it('distinguishes a FAILED read from an empty log', async () => {
+    // These returned the same `[]` before, so the Log rendered "No entries
+    // yet" at someone whose journal was merely unreachable — a claim about
+    // the user made from a fact about us.
+    stage({ error: { code: '42P01' } });
+    expect(await journal.listEntries(USER, 365)).toEqual({ ok: false, rows: [] });
+
+    stage({ data: [] });
+    expect(await journal.listEntries(USER, 365)).toEqual({ ok: true, rows: [] });
+  });
+
+  it('is not ok without a user — absence of an answer, not an empty one', async () => {
+    expect(await journal.listEntries(null)).toEqual({ ok: false, rows: [] });
+    expect(calls).toHaveLength(0);
   });
 });

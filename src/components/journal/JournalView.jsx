@@ -208,7 +208,7 @@ export default function JournalView({ userId, userEmail, onClose }) {
   const [entryDates, setEntryDates] = useState(new Set());
   useEffect(() => {
     if (!userId) return;
-    listEntries(userId, 365).then(rows => {
+    listEntries(userId, 365).then(({ rows }) => {
       setEntryDates(new Set(rows.map(r => r.entry_date)));
     }).catch(() => {});
   }, [userId]);

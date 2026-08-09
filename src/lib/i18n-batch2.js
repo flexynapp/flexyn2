@@ -84,6 +84,11 @@ const enKeys = {
   'journal.prov.edited':               'Edited {d} later',
   'journal.prov.writtenAndEdited':     'Written {d} later, edited since',
   'journal.prov.tag':                  'edited',
+  // The Log's failed read — deliberately NOT the empty state. "No entries
+  // yet" is a claim about the user; this is a claim about us.
+  'journal.historyFailedTitle':        "Couldn't load your log",
+  'journal.historyFailedBody':         'Your entries are safe — this is us, not you.',
+  'journal.retry':                     'Try again',
 
   // ── HubChat error toasts ────────────────────────────────────────────
   'hub.chat.attachmentTooLarge': 'Image must be 50 MB or smaller',
