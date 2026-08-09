@@ -123,6 +123,34 @@ export async function cancelListing(listingId) {
 }
 
 /**
+ * Delete one of your own listings outright, rather than cancelling it.
+ *
+ * Cancel keeps the row (status='cancelled') as a record that you listed the
+ * thing; delete removes it. Both release the item back to your bag — that is
+ * the part a plain `DELETE` could never do, which is why migration 321 took
+ * the raw DELETE policy away and put the capability here instead. The RPC
+ * also cancels any pending trade offer aimed at the listing and releases the
+ * offerer's escrowed item, so deleting cannot strand someone else's sticker.
+ *
+ * Refuses on a COMPLETED listing: the item is the buyer's by then, and
+ * priceStatsForItem reads completed rows to answer "what has this sold for" —
+ * the panel the next seller prices against. Errors surface as
+ * `completed_sale_cannot_be_deleted` / `not_your_listing`.
+ *
+ * Returns `{ deleted, listing_id, inventory_id, offers_cancelled }`, or
+ * `{ deleted: false, already_gone: true }` if it had gone already — a second
+ * tap on a slow connection is not an error.
+ */
+export async function deleteListing(listingId) {
+  if (!listingId) return null;
+  const { data, error } = await supabase.rpc('delete_my_listing', {
+    p_listing_id: listingId,
+  });
+  if (error) throw error;
+  return data;
+}
+
+/**
  * Get all listings created by a specific seller, any status, newest first.
  */
 export async function listBySeller(sellerUserId) {
