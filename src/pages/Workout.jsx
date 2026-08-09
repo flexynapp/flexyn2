@@ -601,12 +601,38 @@ export default function Workout() {
     enabled: !!user?.email,
   });
 
-  // Centralized in src/lib/workoutVolume.js so the live pill, save
-  // mutation, and downstream displays all share the same formula
-  // (and honor the user's include_bar_in_volume preference — audit
-  // C-3).
+  // ── The STORED volume is raw. Do not re-add the preference here. ──
+  //
+  // Formula lives in src/lib/workoutVolume.js so the live pill and the
+  // save mutation can't drift apart (audit C-3). What differs is the
+  // OPTION: this helper deliberately passes includeBarWeight: false.
+  //
+  // include_bar_in_volume adds 45 lb per rep on every barbell set. That
+  // is a fine thing for a person to want to SEE — the live pill honours
+  // it at line ~2997, and the share card and saved list re-derive it
+  // from the exercises array. It is not a fine thing to STORE, because
+  // every value this helper produces is either compared across users or
+  // spent:
+  //
+  //   • workout_logs.total_volume  → get_gym_leaderboard ranks members
+  //     against each other on it, and get_gym_community_progress sums it
+  //     into the gym's "lbs moved"
+  //   • user_profiles.total_volume_lbs → gym rival, profile stats
+  //   • the WORKOUT_VOLUME reward action → XP
+  //   • solo-challenge progress → challenge targets
+  //
+  // Preference-aware storage would mean a display toggle in Settings
+  // climbs your gym's volume leaderboard past someone who lifted the
+  // same weight, and earns more XP for it. Nobody would be cheating; the
+  // number would just stop meaning one thing. Raw here, preference at
+  // display time. (Kegan's call, 2026-08-09 — flagged by the Weekly
+  // Reviews session, which found the column had never been written at
+  // all. Latent when decided: 0 of 43 profiles had the flag on.)
+  //
+  // This also keeps the column equal to migration 329's backfill by
+  // construction rather than by luck.
   const calculateTotalVolume = (exList) =>
-    computeTotalVolume(exList, { includeBarWeight: !!userProfile?.include_bar_in_volume });
+    computeTotalVolume(exList, { includeBarWeight: false });
 
   // InjuryBanner fetches its own data internally — this query is unused.
   useQuery({
