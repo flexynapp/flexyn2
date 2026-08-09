@@ -19,6 +19,7 @@ import * as marketplace from '@/lib/data/marketplace';
 import * as inventory   from '@/lib/data/inventory';
 import * as itemSoldCounts from '@/lib/data/itemSoldCounts';
 import * as wishlist from '@/lib/data/marketplaceWishlist';
+import { getFlexCoins } from '@/lib/data/coinShop';
 import { addRecentlyViewed } from '@/lib/recentlyViewedListings';
 import CoinShopModal from '@/components/hub/CoinShopModal';
 import RecentlyViewedRail from '@/components/hub/RecentlyViewedRail';
@@ -26,7 +27,7 @@ import MarketplaceHeader from './MarketplaceHeader';
 import TodayRail from './TodayRail';
 import MarketFilterBar, { DEFAULT_FILTERS, applyFilters, activeFilterCount } from './MarketFilterBar';
 import ListingCard from './ListingCard';
-import BundleCard from './BundleCard';
+import BundleCard, { bundlePrice } from './BundleCard';
 import ItemDetailSheet from './ItemDetailSheet';
 import ListItemDialog from './ListItemDialog';
 import TradeOfferDialog from './TradeOfferDialog';
@@ -83,13 +84,27 @@ export default function MarketplaceFeed() {
   const [buyBusy,        setBuyBusy]        = useState(false);
   const [shopOpen,       setShopOpen]       = useState(false);
 
-  // Sold-fade tracking — listing IDs that just disappeared from the active
-  // feed. We render the SOLD overlay for ~5s before the listing actually
-  // collapses out of the grid. boughtByMe is separate so a self-buy gets
-  // the warmer YOURS! variant.
-  const [recentlySold,  setRecentlySold]  = useState(() => new Set());
+  // Sold-fade tracking — the listing ROWS that just disappeared from the
+  // active feed. We render the SOLD overlay for ~5s before the listing
+  // actually collapses out of the grid. boughtByMe is separate so a self-buy
+  // gets the warmer YOURS! variant.
+  //
+  // This holds the rows themselves, not just their ids, and that is the fix
+  // for a feature that had never once rendered. It used to keep a Set of ids
+  // and re-read the vanished rows out of previousListingsRef at render time,
+  // on the stated assumption that the ref was "always one render behind". It
+  // wasn't: the effect below flagged the ids and overwrote the ref in the
+  // SAME pass, so by the time the flagged render ran, the ref already held
+  // the post-sale list and the filter `recentlySold.has(l.id) && !listings
+  // .find(...)` could not match anything. No SOLD stamp, no YOURS!, ever.
+  // A ref is not a snapshot — if you need the old value at render time,
+  // store it.
+  const [soldFading,    setSoldFading]    = useState(() => new Map()); // id → row
   const [boughtByMeIds, setBoughtByMeIds] = useState(() => new Set());
   const previousListingsRef = useRef([]);
+  // Which server query previousListingsRef was captured from — see the
+  // sort-change guard in the diffing effect.
+  const feedQueryKeyRef = useRef(null);
 
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
 
@@ -113,6 +128,11 @@ export default function MarketplaceFeed() {
 
   // ── Data fetching ──────────────────────────────────────────────────────────
   const [sortBy, sortDir] = SORT_TO_QUERY[filters.sort] ?? SORT_TO_QUERY.recent;
+  // Identity of the server query behind `listings`. Declared here rather than
+  // beside its only consumer because the sold-fade effect names it in a deps
+  // array, and a deps array is evaluated synchronously — declared later this
+  // is the TDZ ReferenceError described above handleUndoCancel.
+  const feedQueryKey = `${sortBy}|${sortDir}`;
   const {
     data: rawListings, isLoading: loadingListings, isError: listingsError,
     isPlaceholderData, refetch,
@@ -224,11 +244,19 @@ export default function MarketplaceFeed() {
       await qc.invalidateQueries({ queryKey: ['marketplaceListings'] });
       await qc.invalidateQueries({ queryKey: ['marketplaceBundles'] });
       await qc.invalidateQueries({ queryKey: ['userInventory', user.email] });
+      await qc.invalidateQueries({ queryKey: ['flexCoins', user.id] });
     } catch (err) {
-      const msg = err.message?.includes('insufficient_coins')
-        ? 'Not enough coins for this bundle.'
-        : err.message?.includes('bundle_not_available')
-        ? 'This bundle is no longer available.'
+      // Every branch the RPC can raise gets its own line. The two that were
+      // missing both landed on "try again", which is advice that cannot
+      // work: retrying your own bundle fails identically forever, and so
+      // does one whose listings have all sold.
+      const raw = err.message || '';
+      const msg =
+          raw.includes('insufficient_coins')      ? 'Not enough coins for this bundle.'
+        : raw.includes('bundle_not_available')    ? 'This bundle is no longer available.'
+        : raw.includes('cannot_buy_own_bundle')   ? "That's your own bundle — you can't buy it."
+        : raw.includes('bundle_empty')            ? 'Everything in this bundle has already sold.'
+        : raw.includes('bundle_not_found')        ? 'This bundle is no longer available.'
         : 'Could not purchase bundle — try again.';
       toast.error(msg);
     }
@@ -247,37 +275,48 @@ export default function MarketplaceFeed() {
     // Only diff against data the server actually returned. Before
     // keepPreviousData a sort change emptied `listings` for the duration of
     // the refetch, so this read "all 60 listings just disappeared" and swept
-    // every id into recentlySold — 60 state writes and a 5s timer, on a tap
+    // every id into the sold set — 60 state writes and a 5s timer, on a tap
     // that sold nothing. The guard keeps that true if the query ever has no
     // data again (first load, error).
     if (!Array.isArray(rawListings)) return;
-    const prevIds = new Set(previousListingsRef.current.map(l => l.id));
+
+    const previous     = previousListingsRef.current;
+    const previousKey  = feedQueryKeyRef.current;
+    previousListingsRef.current = listings;
+    feedQueryKeyRef.current     = feedQueryKey;
+
+    // A sort change is a DIFFERENT query over the same market, not a change
+    // in the market. listActive caps at 60 rows, so above that cap the two
+    // pages legitimately hold different listings and diffing across them
+    // reports everything the new sort dropped as "just sold" — up to a full
+    // grid of SOLD stamps on a tap that sold nothing. Resync and wait for
+    // the next same-key render. (Invisible while the sold-fade was dead;
+    // it is not any more.)
+    if (previousKey !== null && previousKey !== feedQueryKey) return;
+
     const currIds = new Set(listings.map(l => l.id));
-    const disappeared = [...prevIds].filter(id => !currIds.has(id));
-    if (disappeared.length === 0) {
-      previousListingsRef.current = listings;
-      return;
-    }
-    setRecentlySold(prev => {
-      const next = new Set(prev);
-      disappeared.forEach(id => next.add(id));
+    const gone    = previous.filter(l => !currIds.has(l.id));
+    if (gone.length === 0) return;
+
+    setSoldFading(prev => {
+      const next = new Map(prev);
+      gone.forEach(l => next.set(l.id, l));
       return next;
     });
     const timer = setTimeout(() => {
-      setRecentlySold(prev => {
-        const next = new Set(prev);
-        disappeared.forEach(id => next.delete(id));
+      setSoldFading(prev => {
+        const next = new Map(prev);
+        gone.forEach(l => next.delete(l.id));
         return next;
       });
       setBoughtByMeIds(prev => {
         const next = new Set(prev);
-        disappeared.forEach(id => next.delete(id));
+        gone.forEach(l => next.delete(l.id));
         return next;
       });
     }, 5000);
-    previousListingsRef.current = listings;
     return () => clearTimeout(timer);
-  }, [listings, rawListings]);
+  }, [listings, rawListings, feedQueryKey]);
 
   const { data: rawMyItems } = useQuery({
     queryKey: ['userInventory', user?.email],
@@ -288,7 +327,32 @@ export default function MarketplaceFeed() {
   const myItems = Array.isArray(rawMyItems) ? rawMyItems : [];
   const listableCount = myItems.filter(i => !i.is_listed && i.item_type === 'sticker').length;
 
-  const flexCoins = user?.flex_coins ?? 0;
+  // ── Coin balance ───────────────────────────────────────────────────────────
+  //
+  // NOT `user.flex_coins`. That is a bootstrap snapshot: AuthContext reads the
+  // profile once at sign-in and refreshes it only on an auth event or the
+  // loot-equipped / theme-changed events, none of which this screen fires. So
+  // every coin-dependent control here — the header balance, the "Can afford"
+  // filter, each card's Buy button, each BundleCard's Buy bundle button — kept
+  // the pre-transaction number after a purchase, a bundle buy or a daily-chest
+  // claim, and Refresh could not fix it either. The visible failure was a Buy
+  // button that looked affordable and came back `insufficient_coins`.
+  //
+  // The invalidations on ['userProfile', email] scattered through this file
+  // never addressed it: nothing here reads that query, and per the profile
+  // cache rules in CLAUDE.md refetching it hands back the same cached object
+  // anyway. This is its own key so `handleRefresh` and every mutation below
+  // can invalidate it explicitly.
+  //
+  // Falls back to the snapshot, never to 0 — 0 disables every Buy button on
+  // the page, which is a worse wrong answer than a stale one.
+  const { data: liveCoins } = useQuery({
+    queryKey: ['flexCoins', user?.id],
+    queryFn:  () => getFlexCoins(user.id),
+    enabled:  !!user?.id,
+    staleTime: 15_000,
+  });
+  const flexCoins = liveCoins ?? user?.flex_coins ?? 0;
 
   // ── Refresh ────────────────────────────────────────────────────────────────
   //
@@ -319,6 +383,11 @@ export default function MarketplaceFeed() {
         qc.invalidateQueries({ queryKey: ['itemSoldCounts'] }),
         qc.invalidateQueries({ queryKey: ['marketplaceWishlist', user?.id] }),
         qc.invalidateQueries({ queryKey: ['userInventory', user?.email] }),
+        // The balance is a query now precisely so it can be in this list.
+        // It's the number the "Can afford" filter and every Buy button are
+        // gated on, so a refresh that skipped it left the most consequential
+        // value on the page as the one thing the button couldn't reload.
+        qc.invalidateQueries({ queryKey: ['flexCoins', user?.id] }),
       ]);
     } catch (err) {
       // The listings query renders its own error state, so this is only
@@ -426,6 +495,7 @@ export default function MarketplaceFeed() {
       await qc.invalidateQueries({ queryKey: ['marketplaceListings'] });
       await qc.invalidateQueries({ queryKey: ['userInventory', user.email] });
       await qc.invalidateQueries({ queryKey: ['userProfile', user.email] });
+      await qc.invalidateQueries({ queryKey: ['flexCoins', user.id] });
       toast.success(`You bought ${buyTarget.item_emoji} ${buyTarget.item_name}!`);
       setBuyTarget(null);
     } catch (err) {
@@ -449,12 +519,18 @@ export default function MarketplaceFeed() {
     }
   }, [buyTarget, user, qc]);
 
-  // Saved is a filter now, not a separate view. Bundled listings are always
-  // excluded from the grid because they're rendered as bundle cards above.
-  const viewListings = useMemo(() => {
-    const base = listings.filter(l => !bundledListingIds.has(l.id));
-    return filters.saved ? base.filter(l => savedIds.has(l.id)) : base;
-  }, [listings, savedIds, filters.saved, bundledListingIds]);
+  // Everything the grid could show before ANY filter runs. Bundled listings
+  // are always excluded because they're rendered as bundle cards above.
+  const browsableListings = useMemo(
+    () => listings.filter(l => !bundledListingIds.has(l.id)),
+    [listings, bundledListingIds]
+  );
+
+  // Saved is a filter now, not a separate view.
+  const viewListings = useMemo(
+    () => (filters.saved ? browsableListings.filter(l => savedIds.has(l.id)) : browsableListings),
+    [browsableListings, savedIds, filters.saved]
+  );
 
   // …then narrow by the filter bar and float featured to the top.
   const visibleListings = useMemo(
@@ -462,6 +538,63 @@ export default function MarketplaceFeed() {
     [viewListings, filters, flexCoins]
   );
   const filtersActive = activeFilterCount(filters) > 0;
+
+  // How many of the listings ON THIS PAGE are saved — not how many rows the
+  // wishlist holds. `savedIds.size` counts every listing the viewer has ever
+  // hearted, including ones that have since sold, so the chip read
+  // "Saved (12)" and tapping it showed three. The chip's number has to be
+  // the number of cards the tap produces.
+  const savedHereCount = useMemo(
+    () => browsableListings.reduce((n, l) => n + (savedIds.has(l.id) ? 1 : 0), 0),
+    [browsableListings, savedIds]
+  );
+
+  // Rarities actually on the market, so the bar can stop offering tiers that
+  // can only ever return nothing.
+  const availableRarities = useMemo(() => {
+    const s = new Set();
+    browsableListings.forEach(l => { if (l.item_rarity) s.add(l.item_rarity); });
+    return s;
+  }, [browsableListings]);
+
+  // Bundles obeyed nothing but the Saved filter: "Can afford" with 40 coins
+  // still left a 900-coin bundle sitting above the grid, and a rarity or
+  // Buy/Trade filter left it there too. A control that narrows the grid but
+  // not the row above it reads as broken, so the same filters apply — with
+  // the two that need a bundle-shaped reading spelled out.
+  const visibleBundles = useMemo(() => {
+    if (filters.saved) return NO_BUNDLES;
+    // A bundle is a coin purchase, so Trade excludes it outright.
+    if (filters.type === 'trade') return NO_BUNDLES;
+    return activeBundles.filter(b => {
+      const rows = bundleMap.get(b.id);
+      if (!rows) return false;
+      const saleRows = rows.filter(l => l.listing_type === 'sale');
+      if (saleRows.length === 0) return false;
+      // Rarity matches if ANY item in the bundle qualifies — you're buying
+      // the whole set, so one epic is reason enough to show it to someone
+      // filtering for epics.
+      if (filters.rarities.length > 0
+        && !saleRows.some(l => filters.rarities.includes(l.item_rarity))) return false;
+      if (filters.affordable && flexCoins < bundlePrice(b, rows).price) return false;
+      return true;
+    });
+  }, [activeBundles, bundleMap, filters, flexCoins]);
+
+  // Sold-fade rows, put through the SAME predicate as the live grid. They
+  // used to render unfiltered, so a "Trade only" grid could show a sold Buy
+  // tile, and a sold card could sit directly under "Nothing matches those
+  // filters" — a card the filter says isn't there.
+  const soldFadeListings = useMemo(() => {
+    if (soldFading.size === 0) return NO_LISTINGS;
+    const live = new Set(listings.map(l => l.id));
+    const rows = [...soldFading.values()].filter(
+      l => !live.has(l.id) && !bundledListingIds.has(l.id));
+    return applyFilters(
+      filters.saved ? rows.filter(l => savedIds.has(l.id)) : rows,
+      filters, flexCoins,
+    );
+  }, [soldFading, listings, bundledListingIds, filters, savedIds, flexCoins]);
 
   // Shared props for every ListingCard so the render sites (main grid,
   // sold-fade) can't drift apart.
@@ -526,7 +659,14 @@ export default function MarketplaceFeed() {
 
       <TodayRail
         user={user}
-        onClaimed={() => qc.invalidateQueries({ queryKey: ['userProfile', user.email] })}
+        onClaimed={() => {
+          // The chest pays coins, so the balance has to move — this used to
+          // invalidate only ['userProfile'], which nothing on this screen
+          // reads, so claiming left the header on the pre-claim number.
+          qc.invalidateQueries({ queryKey: ['userProfile', user.email] });
+          qc.invalidateQueries({ queryKey: ['flexCoins', user.id] });
+          qc.invalidateQueries({ queryKey: ['userInventory', user.email] });
+        }}
         onOpenShop={() => setShopOpen(true)}
       />
 
@@ -534,8 +674,13 @@ export default function MarketplaceFeed() {
         filters={filters}
         onChange={setFilters}
         resultCount={visibleListings.length}
-        totalCount={viewListings.length}
-        savedCount={savedIds.size}
+        // The count before ANY narrowing, Saved included. It used to be
+        // viewListings.length, which already had Saved applied — so with
+        // Saved on, the row read "3 of 3 listings" and the denominator
+        // stopped meaning anything.
+        totalCount={browsableListings.length}
+        savedCount={savedHereCount}
+        availableRarities={availableRarities}
       />
 
       {/* Listings grid */}
@@ -565,7 +710,7 @@ export default function MarketplaceFeed() {
             Browse marketplace →
           </button>
         </div>
-      ) : listings.length === 0 && recentlySold.size === 0 ? (
+      ) : listings.length === 0 && soldFading.size === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
           <ShoppingBag className="w-12 h-12 text-muted-foreground/50" />
           <p className="font-heading font-bold">Marketplace is quiet</p>
@@ -586,7 +731,7 @@ export default function MarketplaceFeed() {
         <>
           {/* Bundle deal rows (mig 134) — browse view only. Bundled items
               are excluded from the regular grid below. */}
-          {!filters.saved && activeBundles.some(b => bundleMap.has(b.id)) && (
+          {visibleBundles.length > 0 && (
             <div className="mb-4">
               <div className="flex items-center gap-1.5 mb-2 px-1">
                 <Package className="w-3.5 h-3.5 text-amber-500" />
@@ -596,19 +741,16 @@ export default function MarketplaceFeed() {
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 relative">
                 <AnimatePresence {...LIST_PRESENCE}>
-                  {activeBundles
-                    .filter(b => bundleMap.has(b.id) && bundleMap.get(b.id).some(l => l.listing_type === 'sale'))
-                    .map(bundle => (
-                      <BundleCard
-                        key={bundle.id}
-                        bundle={bundle}
-                        listings={bundleMap.get(bundle.id) || []}
-                        currentUser={user}
-                        flexCoins={flexCoins}
-                        onBuyBundle={handleBuyBundle}
-                      />
-                    ))
-                  }
+                  {visibleBundles.map(bundle => (
+                    <BundleCard
+                      key={bundle.id}
+                      bundle={bundle}
+                      listings={bundleMap.get(bundle.id) || []}
+                      currentUser={user}
+                      flexCoins={flexCoins}
+                      onBuyBundle={handleBuyBundle}
+                    />
+                  ))}
                 </AnimatePresence>
               </div>
             </div>
@@ -640,33 +782,35 @@ export default function MarketplaceFeed() {
                   {...cardProps}
                 />
               ))}
-              {/* Sold-fade cards — re-render the just-removed listings from
-                  the previous snapshot with the SOLD overlay for ~5s before
-                  they collapse out. previousListingsRef is always one render
-                  behind, so it still holds the pre-sale data. */}
-              {previousListingsRef.current
-                .filter(l => recentlySold.has(l.id) && !listings.find(x => x.id === l.id))
-                .map(listing => (
-                  <ListingCard
-                    key={`sold-${listing.id}`}
-                    listing={listing}
-                    soldCount={soldCountMap.get(listing.item_id) || 0}
-                    isSaved={savedIds.has(listing.id)}
-                    {...soldCardProps}
-                    boughtByMe={boughtByMeIds.has(listing.id)}
-                  />
-                ))}
+              {/* Sold-fade cards — the just-removed listings, held on screen
+                  with the SOLD overlay for ~5s before they collapse out. The
+                  rows come from soldFading, which captured them at the moment
+                  they vanished; see the note on that state for why reading
+                  them back out of previousListingsRef never worked. */}
+              {soldFadeListings.map(listing => (
+                <ListingCard
+                  key={`sold-${listing.id}`}
+                  listing={listing}
+                  soldCount={soldCountMap.get(listing.item_id) || 0}
+                  isSaved={savedIds.has(listing.id)}
+                  {...soldCardProps}
+                  boughtByMe={boughtByMeIds.has(listing.id)}
+                />
+              ))}
             </AnimatePresence>
           </div>
 
           {/* Filtered everything out — distinct from "marketplace is quiet",
               and the fix is one tap rather than "come back later". */}
-          {visibleListings.length === 0 && filtersActive && (
+          {visibleListings.length === 0 && soldFadeListings.length === 0 && filtersActive && (
             <div className="flex flex-col items-center justify-center py-14 gap-3 text-center">
               <SearchX className="w-10 h-10 text-muted-foreground/50" />
               <p className="font-heading font-bold">Nothing matches those filters</p>
               <p className="text-muted-foreground text-sm max-w-xs">
-                {viewListings.length} listing{viewListings.length === 1 ? '' : 's'} available — try widening the search.
+                {/* browsableListings, not viewListings: the button below
+                    clears Saved too, so this has to promise what clearing
+                    actually reveals. */}
+                {browsableListings.length} listing{browsableListings.length === 1 ? '' : 's'} available — try widening the search.
               </p>
               <button
                 type="button"

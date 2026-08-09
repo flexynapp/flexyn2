@@ -101,6 +101,32 @@ export const BEST_VALUE_SKU = (() => {
 })();
 
 /**
+ * The viewer's CURRENT coin balance, read straight from the server.
+ *
+ * `useAuth().user.flex_coins` is NOT this. AuthContext fetches the profile
+ * once at sign-in and re-reads it only on an auth event or the
+ * `flexyn:loot-equipped` / `flexyn:theme-changed` events — so on any screen
+ * that spends coins, the snapshot is stale from the first purchase onward.
+ * Anything gating a control on affordability has to read the live value or
+ * it keeps offering a purchase the server has already made impossible.
+ *
+ * Returns `null` — not 0 — when there's no user or the read fails, so the
+ * caller can fall back to whatever it already had. Falling back to 0 would
+ * disable every Buy button on the page, which is a worse wrong answer than
+ * a stale one.
+ */
+export async function getFlexCoins(userId) {
+  if (!userId) return null;
+  const { data, error } = await supabase
+    .from('user_profiles')
+    .select('flex_coins')
+    .eq('id', userId)
+    .maybeSingle();
+  if (error) return null;
+  return data?.flex_coins ?? 0;
+}
+
+/**
  * Buy a single SKU. Returns { success, newBalance, granted, error }.
  *
  * Atomic path via `purchase_shop_item` RPC (migration 031). The RPC owns

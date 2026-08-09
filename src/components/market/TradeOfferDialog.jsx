@@ -37,6 +37,19 @@ export default function TradeOfferDialog({ open, listing, userItems, user, onClo
       toast.error('This listing is missing its item — refresh and try again.');
       return;
     }
+    // A guest seller's listing carries seller_email = '' (mig 025 stamps it
+    // from auth.email(), which is empty for a guest), and every DM call
+    // below is keyed by email — so the offer message has nowhere to go.
+    //
+    // This has to bail BEFORE createOffer, which escrows the item
+    // server-side: escrowing and then failing to deliver leaves the item
+    // locked behind an offer nobody can see or answer. Resolving a guest's
+    // address needs an RPC — public_profiles exposes id and username, no
+    // email — so this is a hard stop until that lands.
+    if (!listing.seller_email) {
+      toast.error("Can't reach this seller — trade offers aren't available on their listings yet.");
+      return;
+    }
     setBusy(true);
     try {
       // Create the REAL offer first. This escrows your item server-side

@@ -90,6 +90,12 @@ describe('refresh scope — every query the view reads', () => {
     ['itemSoldCounts', 'a,b'],
     ['marketplaceWishlist', 'user-1'],
     ['userInventory', 'kegan@example.com'],
+    // The coin balance. It is a query at all BECAUSE it has to be in this
+    // list: it used to be read off useAuth().user, a snapshot AuthContext
+    // takes once at sign-in, so the number gating "Can afford" and every
+    // Buy button was the one value on the page that no control could
+    // reload — including this button.
+    ['flexCoins', 'user-1'],
   ];
   const INVALIDATED = [
     ['marketplaceListings'],
@@ -97,6 +103,7 @@ describe('refresh scope — every query the view reads', () => {
     ['itemSoldCounts'],
     ['marketplaceWishlist', 'user-1'],
     ['userInventory', 'kegan@example.com'],
+    ['flexCoins', 'user-1'],
   ];
 
   // react-query matches an invalidation against a query when the

@@ -115,6 +115,10 @@ export default function CoinShopModal({ open, onClose }) {
         toast.success(t('shop.purchasedToast').replace('{item}', displayName), { icon: item.icon });
         queryClient.invalidateQueries({ queryKey: ['coinShopProfile'] });
         queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
+        // The Marketplace opens this modal over itself (TodayRail → Open
+        // shop) and gates its Buy buttons on ['flexCoins']. Without this the
+        // shop spends coins the feed underneath still thinks you have.
+        queryClient.invalidateQueries({ queryKey: ['flexCoins', user?.id] });
         queryClient.invalidateQueries({ queryKey: ['userCapsules', user?.email] });
         queryClient.invalidateQueries({ queryKey: ['userCapsulesCount', user?.email] });
         queryClient.invalidateQueries({ queryKey: ['loginStreakProfile'] });

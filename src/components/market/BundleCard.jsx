@@ -10,11 +10,40 @@ import { listItemMotion } from '@/lib/listMotion';
 import { useNumberFormatter } from '@/lib/intl';
 import { RarityBadge, CoinAmount } from '@/components/loot/RarityVisuals';
 
+/**
+ * What a bundle costs, mirroring purchase_bundle (mig 134).
+ *
+ * SALE listings only. The RPC sums `status='active' AND listing_type='sale'`,
+ * so counting a trade listing here advertises a price above the one actually
+ * charged — and a trade item shown in the bundle's emoji row implies it comes
+ * with the purchase, which it does not.
+ *
+ * Still an ESTIMATE, and knowingly so: `rows` is whatever the 60-row listings
+ * page happened to contain, so a bundle with items outside that page renders
+ * low. The RPC's `paid_price` is the authoritative number and is what the
+ * success toast reports. Making this exact needs the bundle's own listings
+ * fetched by bundle_id rather than filtered out of the feed page.
+ *
+ * Exported so the card and the feed's "Can afford" filter can't drift.
+ */
+export function bundlePrice(bundle, rows) {
+  const total = (rows ?? [])
+    .filter(l => l.listing_type === 'sale')
+    .reduce((sum, l) => sum + (l.asking_price ?? 0), 0);
+  return { total, price: Math.max(1, Math.round(total * (1 - bundle.discount_pct / 100))) };
+}
+
 export default function BundleCard({ bundle, listings, currentUser, flexCoins, onBuyBundle }) {
   const fmt = useNumberFormatter();
-  const isMine = bundle.seller_email === currentUser?.email;
-  const totalPrice = listings.reduce((sum, l) => sum + (l.asking_price ?? 0), 0);
-  const discountedPrice = Math.max(1, Math.round(totalPrice * (1 - bundle.discount_pct / 100)));
+  // seller_user_id, not seller_email — the same guest hole ListingCard and
+  // ItemDetailSheet both document and fixed. create_marketplace_listing
+  // stamps seller_email from auth.email(), which is '' for a guest account,
+  // so this comparison never matched and a guest saw "Buy bundle" on their
+  // own bundle. purchase_bundle then raises cannot_buy_own_bundle — a dead
+  // end with no way back to cancelling it.
+  const isMine = !!currentUser?.id && bundle.seller_user_id === currentUser.id;
+  const saleListings = listings.filter(l => l.listing_type === 'sale');
+  const { total: totalPrice, price: discountedPrice } = bundlePrice(bundle, listings);
   const savings = totalPrice - discountedPrice;
   const canAfford = flexCoins >= discountedPrice;
 
@@ -34,13 +63,14 @@ export default function BundleCard({ bundle, listings, currentUser, flexCoins, o
       <div>
         <p className="font-heading font-bold text-sm pe-24">{bundle.title}</p>
         <p className="text-muted-foreground text-micro mt-0.5">
-          by {displayName(bundle)} · {listings.length} item{listings.length === 1 ? '' : 's'}
+          by {displayName(bundle)} · {saleListings.length} item{saleListings.length === 1 ? '' : 's'}
         </p>
       </div>
 
-      {/* Item emoji row */}
+      {/* Item emoji row — sale listings only, matching what the purchase
+          actually transfers. */}
       <div className="flex flex-wrap gap-2">
-        {listings.map(l => (
+        {saleListings.map(l => (
           <div key={l.id} className="flex flex-col items-center gap-0.5">
             <span className="text-2xl">{l.item_emoji}</span>
             <RarityBadge rarity={l.item_rarity} size="sm" />

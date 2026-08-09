@@ -88,11 +88,27 @@ function byFeaturedThen(tiebreak) {
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
-export default function MarketFilterBar({ filters, onChange, resultCount, totalCount, savedCount = 0 }) {
+export default function MarketFilterBar({
+  filters, onChange, resultCount, totalCount, savedCount = 0, availableRarities,
+}) {
   const activeCount = activeFilterCount(filters);
 
-  // Only offer rarities that exist in the catalog, in ladder order.
-  const rarityKeys = useMemo(() => Object.keys(RARITY), []);
+  // Rarities that are actually ON THE MARKET, in catalog ladder order.
+  //
+  // This used to render all seven tiers unconditionally, so most of them
+  // were guaranteed dead taps — a market holding common/rare/epic still
+  // offered Mythic and Animated, and every one of those taps landed on
+  // "Nothing matches those filters". A filter that can only fail isn't a
+  // filter. A tier the viewer has already SELECTED always survives the cut,
+  // or turning it back off would mean clearing every filter.
+  //
+  // An empty/absent set means "caller doesn't know yet" (first load, above
+  // the loading spinner) — show the full ladder rather than an empty row.
+  const rarityKeys = useMemo(() => {
+    const all = Object.keys(RARITY);
+    if (!availableRarities || availableRarities.size === 0) return all;
+    return all.filter(r => availableRarities.has(r) || filters.rarities.includes(r));
+  }, [availableRarities, filters.rarities]);
 
   const set = (patch) => onChange({ ...filters, ...patch });
 
@@ -104,7 +120,16 @@ export default function MarketFilterBar({ filters, onChange, resultCount, totalC
   };
 
   return (
-    <div className="sticky top-0 z-30 -mx-4 px-4 py-2 bg-background/95 backdrop-blur-sm border-b border-border">
+    // `top-14`, not `top-0`. Header.jsx is `lg:hidden fixed top-0 z-40` at
+    // h-14 (56px) and /market is one of its CHILD_ROUTES, so on every phone
+    // it paints over this bar's z-30. Layout's <main> has no overflow, so
+    // the window is the scrollport and `top-0` pins here at viewport y=0 —
+    // i.e. underneath 56px of opaque header. This bar is ~68px tall, so
+    // scrolling the grid swallowed the whole Buy/Trade/Can-afford/Saved/Sort
+    // row and left a sliver of the rarity chips. A sticky control that
+    // disappears the moment you scroll is worse than a non-sticky one.
+    // The header is hidden from lg up, hence the reset.
+    <div className="sticky top-14 lg:top-0 z-30 -mx-4 px-4 py-2 bg-background/95 backdrop-blur-sm border-b border-border">
       {/* Row 1 — chips scroll, sort does NOT.
           The sort <select> used to sit inside this scroll container with
           `ms-auto`, which aligns to the SCROLL width rather than the visible
@@ -192,7 +217,10 @@ export default function MarketFilterBar({ filters, onChange, resultCount, totalC
 
       {/* Row 2 — rarity chips. Seven tiers don't fit 375px, so the rail
           scrolls; the mask fades the last chip out instead of slicing it
-          mid-word, which reads as a broken layout rather than a hint. */}
+          mid-word, which reads as a broken layout rather than a hint.
+          Hidden below two chips: a rail offering the only rarity on the
+          market narrows nothing, it just costs a row. */}
+      {rarityKeys.length > 1 && (
       <div
         className="flex items-center gap-1.5 mt-1.5 overflow-x-auto scrollbar-hide"
         style={{
@@ -222,6 +250,7 @@ export default function MarketFilterBar({ filters, onChange, resultCount, totalC
           );
         })}
       </div>
+      )}
 
       {/* Row 3 — result count + clear, only once something is filtering */}
       {activeCount > 0 && (
