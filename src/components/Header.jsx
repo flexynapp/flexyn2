@@ -166,12 +166,24 @@ export default function Header() {
             type="button"
             onClick={() => navigate('/messages')}
             aria-label={tFallback('hub.messages.title', 'Messages')}
-            className={`group relative h-11 w-11 inline-flex items-center justify-center transition-colors ${
+            className={`group relative z-10 h-11 w-11 inline-flex items-center justify-center transition-colors ${
               onMessages ? 'text-primary' : 'text-muted-foreground'
             }`}
           >
             {/* Highlight is an inner pill (not the full w-11 tap box) so it
                 fits the tight icon spacing without overlapping the bell. */}
+            {/* `z-10` is load-bearing, not decoration. The bell's wrapper
+                carries -ms-4, so the two 44px tap boxes genuinely OVERLAP by
+                14px (Messages 259–303, bell 289–333 at 375pt). The bell is
+                the later sibling, so without this it won the whole overlap
+                and took 10 of the 16px of the unread badge below with it —
+                measured with elementFromPoint: the badge's centre and right
+                edge both opened Notifications. Raising Messages hands that
+                strip back; the bell keeps everything from its own icon's
+                left edge (301) rightward, losing 2px it never drew on.
+                The real fix is for the boxes not to overlap at all, which
+                needs 44px between centres — they are 30px apart today, so
+                that is a header layout change, not a z-index one. */}
             <span className={`absolute inset-y-1.5 inset-x-2.5 rounded-lg transition-colors ${onMessages ? 'bg-primary/10' : 'group-hover:bg-secondary'}`} />
             <MessageCircle className="relative w-5 h-5" />
             {unreadDM > 0 && (

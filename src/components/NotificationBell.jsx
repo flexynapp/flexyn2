@@ -40,6 +40,13 @@ export default function NotificationBell() {
   // counts so the home-screen icon reflects the full "attention needed"
   // total. Clears to 0 when both counts drop to zero. Gracefully no-ops
   // on browsers that don't support the API (iOS Safari < 16.4, desktop).
+  //
+  // This sum is only correct because `unreadCount` excludes PUSH_ONLY_TYPES.
+  // Migration 181 inserts a `dm_received` notification for every DM, so
+  // before that filter existed one message incremented BOTH terms and the
+  // home-screen badge read 2. If you ever add a type here that another
+  // surface also counts, add it to PUSH_ONLY_TYPES or this double-counts
+  // again — and the home screen is where it is least visible.
   const totalBadge = count + dmUnread;
   useEffect(() => {
     if (!('setAppBadge' in navigator)) return;

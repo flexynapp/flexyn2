@@ -50,6 +50,29 @@ export const NOTIFICATION_TYPES = {
   REPORT_RESOLVED:      'report_resolved',
 };
 
+// ── Push-only types ──────────────────────────────────────────────────────
+// Rows the server inserts SOLELY so the migration 034 trigger fans out a
+// push. A different surface already owns the thing in-app, so counting
+// them here reports the same event twice.
+//
+// `dm_received` (migration 181) is the case that forced this: every DM
+// inserts a notifications row AND increments the Messages unread count,
+// so one message lit both header badges, and NotificationBell's
+// `count + dmUnread` handed the PWA Badging API a 2 for it. The row still
+// has to exist — it is what delivers the DM push — it just must not be
+// counted or listed by the surface that doesn't own it.
+//
+// The panel never knew about the type either: it is absent from
+// ALL_KNOWN_TYPES in NotificationPanel.jsx, so each row also reported an
+// "Unmapped notification types" error to Sentry. Filtering at the data
+// layer fixes the count, the list and that report in one place.
+//
+// Add a type here ONLY when another surface is the canonical one. If a
+// type belongs in the bell, teach NotificationPanel about it instead.
+export const PUSH_ONLY_TYPES = ['dm_received'];
+
+const PUSH_ONLY_FILTER = `(${PUSH_ONLY_TYPES.join(',')})`;
+
 const DEFAULT_LIMIT = 50;
 
 // This module deliberately does NOT use safeSelect, and it used to carry
@@ -66,6 +89,7 @@ export async function listForUser(user, limit = DEFAULT_LIMIT) {
     .from('notifications')
     .select('*')
     .eq('user_id', user.id)
+    .not('type', 'in', PUSH_ONLY_FILTER)
     .order('created_at', { ascending: false })
     .limit(limit);
   if (error) {
@@ -82,7 +106,8 @@ export async function unreadCount(user) {
     .from('notifications')
     .select('id', { count: 'exact', head: true })
     .eq('user_id', user.id)
-    .eq('is_read', false);
+    .eq('is_read', false)
+    .not('type', 'in', PUSH_ONLY_FILTER);
   if (error) return 0;
   return count ?? 0;
 }
