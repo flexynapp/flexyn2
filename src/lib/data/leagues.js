@@ -1,22 +1,43 @@
 // src/lib/data/leagues.js
 //
-// Weekly League data layer. Lazy lifecycle:
+// Weekly League data layer. Lifecycle, as of migration 310:
 //
-//   • On any XP-earning action, recordWeeklyXp(user, amount) is called.
-//   • That function ensures the user is in a league for the current week
-//     (creates a new league with capacity if none has room), then adds the
-//     XP to their member row.
-//   • On read (getMyLeague), if the active league's week_end has passed and
-//     it isn't yet resolved, we run the rollover: rank members, promote
-//     top N, demote bottom N, award rewards, set is_resolved=true, and the
-//     user is auto-placed into a new league for the new week on next action.
+//   • On any XP-earning action, recordWeeklyXp(user) is called. It ensures
+//     the user is placed in this week's bracket, then asks the server to
+//     RE-DERIVE their standing from the XP ledger.
+//   • Rollover is owned by pg_cron (`roll-weekly-leagues`, Mondays 00:10
+//     UTC). The client neither triggers nor participates in it.
 //
-// All times use the user's local week (Monday → Sunday). UTC week would be
-// fine in theory, but UX-wise users expect "this week" to mean their week.
+// ── Two things this module used to do, and must never do again ──────────────
+//
+// 1. IT USED TO TRIGGER RESOLUTION ON READ, and that path was dead code.
+//    getMyLeague() carried `if (!league.is_resolved && weekEnd < new Date())`,
+//    but migration 242 made ensure_my_league() always return a bracket for the
+//    CURRENT week — whose week_end is always the coming Sunday. The branch was
+//    unreachable from the day 242 landed, so no bracket ever resolved: verified
+//    2026-08-08 against production, 8 leagues since May, `rank` non-null on
+//    zero rows. Resolution is a cron's job because it must happen for brackets
+//    nobody opens the app to look at.
+//
+// 2. IT USED TO TELL THE SERVER HOW MUCH XP TO ADD. increment_league_xp took a
+//    client-supplied amount — clamped (2k/call, 150k/week) but still asserted
+//    by the browser, and weekly_xp was an independent counter rather than a
+//    projection of anything real. 75 calls bought 150,000 weekly XP with no
+//    workout. sync_my_weekly_league() takes no amount and derives the standing
+//    from SUM(xp_grant_log.amount) inside the bracket week, the same shape
+//    migration 297 used for the monthly board. There is no number here for a
+//    client to inflate.
+//
+// Week boundaries, capacity and tier are all decided server-side.
 
 import { supabase } from '@/api/supabaseClient';
-import { getTier } from '@/lib/leagueTiers';
-import { notifyLeagueResolution } from './notifications';
+import {
+  getTier,
+  isQualified,
+  promoteCount,
+  demoteCount,
+  MIN_QUALIFIED_TO_MOVE,
+} from '@/lib/leagueTiers';
 import { reportError } from '@/lib/reportError';
 
 // The local-week helpers (currentWeekRange / fmtDate) and the
@@ -66,13 +87,18 @@ export async function ensureCurrentLeague(user) {
 }
 
 /**
- * Add `amount` XP to the user's current-week league standing. No-ops if the
- * user can't be placed in a league (auth issue, etc).
+ * Re-derive the user's weekly AND monthly league standings from the XP ledger.
  *
- * Uses the atomic increment_league_xp RPC (migration 027) so concurrent
- * XP-earning events on the same user don't lose updates via the previous
- * read-modify-write pattern. Falls back to the legacy non-atomic path
- * only when the RPC isn't available (pre-migration).
+ * `amount` is accepted and ignored. Callers pass what they just granted, and
+ * keeping the parameter means the four call sites (Workout plus the three
+ * cardio surfaces) did not have to change — but nothing is sent to the server.
+ * The RPCs read `xp_grant_log` themselves, so the client cannot overstate a
+ * standing even by accident. It is used only as a "was anything earned?" guard
+ * so a zero-XP action doesn't cost two round trips.
+ *
+ * Ordering matters: xp_grant_log is written upstream by grant_action_xp
+ * (migration 188) before this runs, so the SUM both RPCs derive already
+ * includes the XP that triggered this call.
  */
 export async function recordWeeklyXp(user, amount) {
   if (!user?.id || !amount || amount <= 0) return;
@@ -80,74 +106,30 @@ export async function recordWeeklyXp(user, amount) {
   if (!ctx) return;
 
   try {
-    const { error } = await supabase.rpc('increment_league_xp', {
-      p_league_member_id: ctx.member.id,
-      p_amount: amount,
-    });
-    if (!error) {
-      // Monthly board rides along on the weekly write. This is the one place
-      // the app already knows "XP was just earned", and all four callers
-      // (Workout + the three cardio surfaces) route through here — wiring it
-      // at the call sites instead would have been four edits that can drift.
-      //
-      // Ordering matters: xp_grant_log is written upstream by grant_action_xp
-      // (mig 188) before this runs, so the SUM the RPC derives already
-      // includes the XP that triggered this call.
-      //
-      // Not awaited — a monthly-standing write must not delay the caller, and
-      // syncMonthlyLeague swallows its own failures.
-      syncMonthlyLeague(user);
-      return;
-    }
-    if (error.code === '42883' || error.code === '42P01') {
-      // RPC missing — fall through to legacy path.
-      console.warn('[leagues] xp RPC missing, falling back');
-    } else {
-      // Real RPC failure (RLS, network, etc). Previously silently
-      // returned with only a console.warn; now also surface to Sentry
-      // so we can see the failure pattern. User's weekly XP didn't
-      // land but they got no UI signal — at least the operator sees it.
+    const { error } = await supabase.rpc('sync_my_weekly_league');
+    // 42883 / 42P01 — host predates migration 310. The weekly board simply
+    // isn't syncing yet; not worth a Sentry event, and the monthly board
+    // below is unaffected.
+    if (error && error.code !== '42883' && error.code !== '42P01') {
       reportError(error, {
-        feature: 'leagues.recordWeeklyXp.rpc',
+        feature: 'leagues.recordWeeklyXp.sync',
         level: 'warning',
         userEmail: user.email,
-        amount,
       });
-      return;
     }
   } catch (err) {
     if (err?.code !== '42883' && err?.code !== '42P01') {
       reportError(err, {
-        feature: 'leagues.recordWeeklyXp.rpc-throw',
+        feature: 'leagues.recordWeeklyXp.sync-throw',
         level: 'warning',
         userEmail: user.email,
-        amount,
       });
-      return;
     }
   }
 
-  // The legacy read-modify-write fallback that used to live here is gone.
-  //
-  // It did `UPDATE league_members SET weekly_xp = <read value + amount>`
-  // straight from the browser, which required a permissive user-facing
-  // UPDATE policy on the table. That policy constrained WHICH ROW you
-  // could touch (your own) but not WHICH COLUMNS, so any signed-in user
-  // could set their own weekly_xp to an arbitrary number and forge league
-  // standings — and league placement pays out through
-  // claim_league_resolution / distribute_league_rewards. Migration 245
-  // drops the policy and adds an update guard, so this path could no
-  // longer work anyway.
-  //
-  // Nothing is lost: it was only ever reached when increment_league_xp
-  // was missing (42883 / 42P01), and that RPC is deployed. XP now has
-  // exactly one writer, server-side and atomic.
-  reportError(new Error('increment_league_xp unavailable; weekly XP not recorded'), {
-    feature: 'leagues.recordWeeklyXp.rpc-missing',
-    level: 'warning',
-    userEmail: user.email,
-    amount,
-  });
+  // Not awaited — a monthly-standing write must not delay the caller, and
+  // syncMonthlyLeague swallows its own failures.
+  syncMonthlyLeague(user);
 }
 
 /**
@@ -259,150 +241,85 @@ export async function getMyLeague(user) {
   const ctx = await ensureCurrentLeague(user);
   if (!ctx) return null;
 
-  // If the league's week has ended and it's not resolved yet, resolve it now.
-  // We then re-place the user into a new league for the current week.
-  const weekEnd = new Date(ctx.league.week_end + 'T23:59:59');
-  if (!ctx.league.is_resolved && weekEnd < new Date()) {
-    await _resolveLeague(ctx.league.id);
-    // Re-place into a fresh league
-    return getMyLeague(user);
-  }
+  // NOTE: there is deliberately no resolve-on-read here. Rollover belongs to
+  // the `roll-weekly-leagues` cron (migration 310) because a bracket has to
+  // settle whether or not anyone in it opens the app. The branch that used to
+  // sit at this spot could never fire — see the module header.
 
-  const members = await listLeagueMembers(ctx.league.id);
-  // Look up the user's rank. findIndex returns -1 when not found, so guard
-  // explicitly and return null in that case (UI uses null to render an em-dash).
-  const idx = members.findIndex(m => m.user_id === user.id);
-  const myRank = idx >= 0 ? idx + 1 : null;
+  const tierId = ctx.league.tier;
+  const tier = getTier(tierId);
+  const raw = await listLeagueMembers(ctx.league.id);
+
+  // Qualified members rank above every unqualified one, regardless of XP.
+  // listLeagueMembers orders by weekly_xp alone, which would seat an idle
+  // account with incidental XP above someone who actually trained.
+  const members = raw
+    .map(m => ({ ...m, isQualified: isQualified(tierId, m) }))
+    .sort((a, b) => {
+      if (a.isQualified !== b.isQualified) return a.isQualified ? -1 : 1;
+      return (b.weekly_xp || 0) - (a.weekly_xp || 0);
+    })
+    // Rank is a property of the qualified field only. Unqualified members
+    // carry null so the UI renders "Unranked" instead of a losing position in
+    // a contest they were not entered in.
+    .map((m, i, arr) => ({
+      ...m,
+      rankInBracket: m.isQualified
+        ? arr.slice(0, i + 1).filter(x => x.isQualified).length
+        : null,
+    }));
+
+  const qualifiedCount = members.filter(m => m.isQualified).length;
+  const me = members.find(m => m.user_id === user.id) || null;
 
   return {
     league: ctx.league,
     member: ctx.member,
     members,
-    myRank,
+    myRank: me?.rankInBracket ?? null,
+    myQualified: me?.isQualified ?? false,
+    myActiveDays: Number(me?.active_days) || 0,
     totalMembers: members.length,
-    tier: getTier(ctx.league.tier),
+    qualifiedCount,
+    promoteN: promoteCount(tierId, qualifiedCount),
+    demoteN: demoteCount(tierId, qualifiedCount),
+    bracketTooSmall: qualifiedCount < MIN_QUALIFIED_TO_MOVE,
+    tier,
   };
 }
 
 /**
- * Resolve a finished league: rank members, apply promotions/demotions, award
- * rewards, mark as resolved.
+ * The user's shield stock and current decay counter.
  *
- * Idempotency: uses the claim_league_resolution RPC (migration 027) which
- * atomically flips is_resolved=true and returns the league row ONLY if
- * this caller is the first to claim it. Subsequent callers see null and
- * bail without double-awarding coins/capsules. Pre-migration fallback
- * uses the old read-check-then-write which has a small race window where
- * two clients could both pass the guard.
+ * Shields are paid (three per account for life) and there is no client grant
+ * path — `grant_league_shield` is service_role-only, for a future
+ * receipt-validating Edge Function. This read is all the client gets.
  */
-async function _resolveLeague(leagueId) {
-  let league = null;
-
-  // Atomic claim — only the FIRST caller proceeds.
+export async function getMyShields(user) {
+  if (!user?.id) return null;
   try {
-    const { data, error } = await supabase.rpc('claim_league_resolution', {
-      p_league_id: leagueId,
-    });
-    if (!error) {
-      if (!data) return; // someone else claimed it — bail
-      league = data;
-    } else if (error.code === '42883' || error.code === '42P01') {
-      console.warn('[leagues] claim RPC missing, falling back to non-atomic guard');
-    } else {
-      console.warn('[leagues] claim RPC failed:', error);
-      return;
-    }
-  } catch (err) {
-    if (err?.code !== '42883' && err?.code !== '42P01') {
-      console.warn('[leagues] claim RPC threw:', err);
-      return;
-    }
+    const { data, error } = await supabase.rpc('my_league_shields');
+    if (error) return null;
+    return data ?? null;
+  } catch {
+    return null;
   }
-
-  if (!league) {
-    // Legacy fallback — small race window remains but better than nothing.
-    const { data: row } = await supabase
-      .from('leagues')
-      .select('*')
-      .eq('id', leagueId)
-      .maybeSingle();
-    if (!row || row.is_resolved) return;
-    league = row;
-  }
-
-  // Run the entire reward distribution server-side via the atomic
-  // SECURITY DEFINER RPC (migration 067). The audit caught that the
-  // previous client-side fan-out silently no-op'd on every cross-user
-  // user_profiles / league_members UPDATE because RLS scopes those
-  // tables to auth.uid() = id / user_id. Only the resolver themselves
-  // ever received their tier change / coins / capsule. Other members
-  // got the notification but no payout.
-  //
-  // The RPC streams back (user_id, user_email, outcome, from_tier,
-  // new_tier, coins_awarded, capsule) per member so we can still
-  // dispatch language-aware notifications via
-  // notify_league_resolution_for. Idempotent — second call sees
-  // populated ranks and returns zero rows.
-  let distributions = [];
-  try {
-    const { data, error } = await supabase.rpc('distribute_league_rewards', {
-      p_league_id: leagueId,
-    });
-    if (error) {
-      // 42883 / 42P01 = pre-migration host (067 not yet applied).
-      // No fallback path: the previous client-side distribution silently
-      // no-op'd on RLS for every non-resolver row anyway, so attempting
-      // the same code path here would just confirm the same broken
-      // behavior the RPC was built to replace. Bail loudly instead.
-      if (error.code === '42883' || error.code === '42P01') {
-        console.warn(
-          '[leagues] distribute_league_rewards missing — apply migration 067 to enable league reward payouts.'
-        );
-        return;
-      }
-      console.warn('[leagues] distribute_league_rewards failed:', error);
-      return;
-    }
-    distributions = data || [];
-  } catch (err) {
-    console.warn('[leagues] distribute_league_rewards threw:', err);
-    return;
-  }
-
-  // Dispatch per-member notifications using the existing language-aware
-  // RPC. Skip silent middle-of-pack holds (outcome=stay, no coins) to
-  // avoid notification spam.
-  await Promise.all(distributions.map(async (d) => {
-    const noteworthy =
-      d.outcome === 'promote' || d.outcome === 'demote' || d.coins_awarded > 0;
-    if (!noteworthy) return;
-
-    const fromTier = getTier(d.from_tier).label;
-    const toTier   = getTier(d.new_tier).label;
-    const { error: rpcError } = await supabase.rpc('notify_league_resolution_for', {
-      p_user_id:   d.user_id,
-      p_outcome:   d.outcome,
-      p_from_tier: fromTier,
-      p_to_tier:   toTier,
-      p_coins:     d.coins_awarded || 0,
-      p_capsule:   d.capsule || null,
-    });
-    if (rpcError && (rpcError.code === '42883' || rpcError.code === '42P01')) {
-      // Pre-migration host — fall back to the legacy client-rendered
-      // English text. Better than dropping the notification.
-      await notifyLeagueResolution({
-        user: { id: d.user_id, email: d.user_email },
-        outcome: d.outcome,
-        fromTier,
-        toTier,
-        coinsAwarded:  d.coins_awarded,
-        capsuleAwarded: d.capsule,
-      });
-    } else if (rpcError) {
-      console.warn('[leagues] notify_league_resolution_for failed:', rpcError);
-    }
-  }));
 }
+
+// _resolveLeague() lived here and is gone. It ran the entire rollover from
+// the browser: claim_league_resolution, distribute_league_rewards, then a
+// per-member notify fan-out. Two things were wrong with that, beyond its
+// trigger being unreachable (see the module header):
+//
+//   • A bracket only settled if a member happened to open the app after the
+//     week ended. Brackets full of lapsed users — exactly the ones that need
+//     resolving — would never settle at all.
+//   • It made every client a privileged actor. distribute_league_rewards had
+//     to be EXECUTE-able by `authenticated` for this to work, which meant any
+//     signed-in user could POST to it and settle a bracket early.
+//
+// Migration 310 moves all of it server-side behind `roll-weekly-leagues`,
+// and revokes the resolver from every client role.
 
 /**
  * The user's most recently-resolved league (last week). Used to show "you

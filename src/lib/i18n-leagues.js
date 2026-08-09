@@ -18,6 +18,18 @@ const enKeys = {
   'league.promoteZone':      'Promotion zone',
   'league.demoteZone':       'Demotion zone',
   'league.holdingPosition':  'Holding position',
+  // Qualification + zone states (migration 310). English-only for now; all
+  // are reached through tFallback so other locales render English rather
+  // than a raw key until a native pass lands.
+  // TODO(i18n): needs a native pass for the other 14 locales.
+  'league.unranked':         'Unranked',
+  'league.qualifyCta':       'Log a workout to qualify',
+  'league.notQualified':     'No workout logged this week',
+  'league.holding':          'Holding position',
+  'league.inPromoteZone':    'Promotion zone · top {n}',
+  'league.inDemoteZone':     'Demotion zone · bottom {n}',
+  'league.bracketHeldShort': 'Bracket held this week',
+  'league.bracketHeld':      '{n} qualified — {need} needed before anyone moves',
 
   // League standings modal
   'league.title':            'League',

@@ -116,11 +116,50 @@ export default function LeagueCard({ onClick, stretch = false }) {
     ? Math.max(0, differenceInCalendarDays(endDate, new Date()) + 1)
     : 0;
 
-  // Note: promotion/demotion zone visual indicators were planned but
-  // never wired into this compact card — the full standings modal
-  // surfaces them instead. Removed the dead promoteRank / demoteRank /
-  // inPromoteZone / inDemoteZone locals that were computed every render
-  // and never read.
+  // Status strip. The zone indicators were computed here and never read for
+  // months; they render now, because with migration 310 they mean something.
+  //
+  // Ordering is deliberate — qualification outranks position. Someone who has
+  // not trained is not in a zone at all, and telling them "#3, promotion zone"
+  // when they will finish Unranked is the single most misleading thing this
+  // card could say.
+  const qualified = data.myQualified;
+  const promoteN = Number(data.promoteN) || 0;
+  const demoteN = Number(data.demoteN) || 0;
+  const qualifiedCount = Number(data.qualifiedCount) || 0;
+
+  let strip = null;
+  if (!qualified) {
+    strip = {
+      tone: 'text-primary',
+      dot: 'bg-primary',
+      text: tFallback('league.qualifyCta', 'Log a workout to qualify'),
+    };
+  } else if (data.bracketTooSmall) {
+    strip = {
+      tone: 'text-muted-foreground',
+      dot: 'bg-muted-foreground',
+      text: tFallback('league.bracketHeldShort', 'Bracket held this week'),
+    };
+  } else if (myRank && promoteN > 0 && myRank <= promoteN) {
+    strip = {
+      tone: 'text-success',
+      dot: 'bg-success',
+      text: tFallback('league.inPromoteZone', 'Promotion zone · top {n}', { n: promoteN }),
+    };
+  } else if (myRank && demoteN > 0 && myRank > qualifiedCount - demoteN) {
+    strip = {
+      tone: 'text-destructive',
+      dot: 'bg-destructive',
+      text: tFallback('league.inDemoteZone', 'Demotion zone · bottom {n}', { n: demoteN }),
+    };
+  } else if (myRank) {
+    strip = {
+      tone: 'text-muted-foreground',
+      dot: 'bg-muted-foreground',
+      text: tFallback('league.holding', 'Holding position'),
+    };
+  }
 
   return (
     <motion.button
@@ -187,9 +226,11 @@ export default function LeagueCard({ onClick, stretch = false }) {
                   animate={{ y: 0, opacity: 1 }}
                   transition={{ type: 'spring', stiffness: 400, damping: 22 }}
                 >
-                  #{myRank ?? tFallback('common.dash', '—')}
-                  {totalMembers > 0 && (
-                    <span className="text-micro font-normal opacity-75 ms-0.5">/{totalMembers}</span>
+                  {myRank
+                    ? `#${myRank}`
+                    : tFallback('league.unranked', 'Unranked')}
+                  {myRank && qualifiedCount > 0 && (
+                    <span className="text-micro font-normal opacity-75 ms-0.5">/{qualifiedCount}</span>
                   )}
                 </motion.span>
 
@@ -230,6 +271,17 @@ export default function LeagueCard({ onClick, stretch = false }) {
             <ChevronRight className="w-4 h-4 text-muted-foreground/50 shrink-0 rtl:scale-x-[-1] cq-hide" />
           </div>
         </div>
+
+        {/* Status strip — qualification first, then zone. Hairline above it,
+            no fill: this is state, not a surface of its own. */}
+        {strip && (
+          <div className="shrink-0 px-2.5 py-1 border-t border-border/50 flex items-center gap-1.5 min-w-0">
+            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${strip.dot}`} aria-hidden="true" />
+            <span className={`text-micro font-semibold truncate ${strip.tone}`}>
+              {strip.text}
+            </span>
+          </div>
+        )}
 
         {/* Global standing.
             The league is a weekly bracket of up to 30 people; this is the

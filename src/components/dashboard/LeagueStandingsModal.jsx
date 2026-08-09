@@ -16,6 +16,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useNumberFormatter } from '@/lib/intl';
 import * as leagues from '@/lib/data/leagues';
+import { MIN_QUALIFIED_TO_MOVE } from '@/lib/leagueTiers';
 import { differenceInCalendarDays, parseISO } from 'date-fns';
 
 export default function LeagueStandingsModal({ open, onClose }) {
@@ -87,8 +88,14 @@ function Body({ data, userId, t, tFallback, fmt, onOpenMember }) {
     );
   }
   const { league, tier, members, totalMembers } = data;
-  const promoteN = tier.promote;
-  const demoteN  = tier.demote;
+  // Zone sizes are proportional to the QUALIFIED field and computed by the
+  // data layer, which mirrors migration 310. Reading tier.promote here — an
+  // absolute count that no longer exists — is what let a 6-person bracket
+  // render "top 10 promote" over every row on the board.
+  const qualifiedCount = Number(data.qualifiedCount) || 0;
+  const promoteN = Number(data.promoteN) || 0;
+  const demoteN  = Number(data.demoteN) || 0;
+  const bracketTooSmall = !!data.bracketTooSmall;
   const endDate  = parseISO(league.week_end + 'T23:59:59');
   const daysLeft = Math.max(0, differenceInCalendarDays(endDate, new Date()) + 1);
 
@@ -136,6 +143,20 @@ function Body({ data, userId, t, tFallback, fmt, onOpenMember }) {
               </span>
             </div>
           )}
+          {/* Below the minimum qualified field nobody moves, in either
+              direction. Saying so is the difference between "the league is
+              broken" and "the league has a rule". */}
+          {bracketTooSmall && (
+            <div className="flex items-center gap-1 text-white/90">
+              <span className="text-xs">
+                {tFallback(
+                  'league.bracketHeld',
+                  '{n} qualified — {need} needed before anyone moves',
+                  { n: qualifiedCount, need: MIN_QUALIFIED_TO_MOVE },
+                )}
+              </span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -151,10 +172,14 @@ function Body({ data, userId, t, tFallback, fmt, onOpenMember }) {
           <AnimatePresence>
             <div className="space-y-1.5">
               {members.map((m, idx) => {
-                const rank = idx + 1;
+                // Unqualified members carry rankInBracket === null and render
+                // as "Unranked". They are not competing, so they can be in
+                // neither zone no matter where they sit in the list.
+                const rank = m.rankInBracket ?? null;
+                const unranked = !m.isQualified;
                 const isMe = m.user_id === userId;
-                const isPromote = promoteN > 0 && rank <= promoteN;
-                const isDemote  = demoteN > 0 && rank >= totalMembers - demoteN + 1;
+                const isPromote = !unranked && promoteN > 0 && rank <= promoteN;
+                const isDemote  = !unranked && demoteN > 0 && rank > qualifiedCount - demoteN;
                 const isFirst = rank === 1;
 
                 const interactive = !isMe && m.email;
@@ -180,12 +205,17 @@ function Body({ data, userId, t, tFallback, fmt, onOpenMember }) {
                         ? 'bg-success/5 border-success/20'
                         : isDemote
                         ? 'bg-destructive/5 border-destructive/20'
+                        : unranked
+                        ? 'bg-transparent border-border/30'
                         : 'bg-card border-border/40',
+                      unranked ? 'opacity-60' : '',
                     ].join(' ')}
                   >
                     <div className="w-8 flex items-center justify-center">
                       {isFirst ? (
                         <Crown className="w-4 h-4 text-primary" />
+                      ) : unranked ? (
+                        <span className="text-xs text-muted-foreground/50" aria-hidden="true">—</span>
                       ) : (
                         <span className="font-heading font-bold text-xs tabular-nums text-muted-foreground">
                           #{rank}
@@ -207,6 +237,14 @@ function Body({ data, userId, t, tFallback, fmt, onOpenMember }) {
                           ? tFallback('progress.you', 'You')
                           : (m.username || m.user?.username || 'Athlete')}
                       </p>
+                      {/* The one line that makes the rule legible: a member
+                          with XP but no session is sitting below people who
+                          scored less, and this says why. */}
+                      {unranked && (
+                        <p className="text-micro text-muted-foreground">
+                          {tFallback('league.notQualified', 'No workout logged this week')}
+                        </p>
+                      )}
                     </div>
                     <div className="text-end">
                       <p className="font-heading font-bold text-sm tabular-nums">
