@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSettings } from '@/lib/SettingsContext';
 import { useLanguage } from '@/lib/LanguageContext';
-import { maskEmail } from '@/lib/userDisplay';
+import { handle } from '@/lib/userDisplay';
+import { useAuthorsById } from '@/lib/data/useAuthors';
 import { Bell, BellRing, Dumbbell, Languages, Ruler, Pause, Timer, Sparkles, Circle, Bug, Scale, User, Check, X, Loader2, Flame, Target, Trophy, Users, Star, Heart, MessageCircle, Lock, Globe, ShieldOff, UserX, ChevronDown, ChevronUp, Swords, Vibrate, Volume2, Moon, BellOff } from 'lucide-react';
 import { getMyQuietHours, setMyQuietHours, formatHour12 } from '@/lib/data/quietHours';
 import { setGymRivalOptOut } from '@/lib/data/gymRival';
@@ -34,7 +35,18 @@ import { differenceInYears } from 'date-fns';
 import { usePushSubscription } from '@/lib/usePushSubscription';
 import { toast } from '@/lib/toast';
 
+// A blocked / muted row identifies an account WITHOUT its address. The id
+// comes from migration 309's triggers; it is NULL when the blocked email
+// never had an account, and in that case there is no name to show — the
+// address is not a fallback, which is the whole point.
+function blockedLabel(byId, id) {
+  const u = id ? byId[id] : null;
+  return u ? handle(u) : 'an account';
+}
+
 export default function SettingsPanel() {
+  // Resolves blocked_id / muted_id to a live @username.
+  const authorsById = useAuthorsById();
   const { t, tFallback } = useLanguage();
   const { distanceUnit, setDistanceUnit } = useDistanceUnit();
   const [bugReportOpen, setBugReportOpen] = useState(false);
@@ -1265,7 +1277,7 @@ export default function SettingsPanel() {
                     <div key={b.blocked_email} className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-1.5 min-w-0">
                         <UserX className="w-3 h-3 text-muted-foreground shrink-0" />
-                        <span className="text-micro text-foreground truncate">{maskEmail(b.blocked_email)}</span>
+                        <span className="text-micro text-foreground truncate">{blockedLabel(authorsById, b.blocked_id)}</span>
                       </div>
                       <button
                         onClick={() => handleUnblock(b.blocked_email)}
@@ -1452,7 +1464,7 @@ export default function SettingsPanel() {
           <ul className="space-y-1.5">
             {myBlocks.map(b => (
               <li key={b.blocked_email} className="flex items-center justify-between gap-2 text-xs p-2 rounded-lg bg-secondary/40">
-                <span className="text-foreground truncate">{maskEmail(b.blocked_email)}</span>
+                <span className="text-foreground truncate">{blockedLabel(authorsById, b.blocked_id)}</span>
                 <button
                   onClick={() => handleUnblockFull(b.blocked_email)}
                   className="px-2 py-0.5 rounded text-micro font-bold uppercase tracking-wide border border-border hover:bg-secondary active:bg-secondary"
@@ -1487,7 +1499,7 @@ export default function SettingsPanel() {
           <ul className="space-y-1.5">
             {myRequestBlocks.map(b => (
               <li key={b.blocked_email} className="flex items-center justify-between gap-2 text-xs p-2 rounded-lg bg-secondary/40">
-                <span className="text-foreground truncate">{maskEmail(b.blocked_email)}</span>
+                <span className="text-foreground truncate">{blockedLabel(authorsById, b.blocked_id)}</span>
                 <button
                   onClick={() => handleAllowRequestsAgain(b.blocked_email)}
                   className="px-2 py-0.5 rounded text-micro font-bold uppercase tracking-wide border border-border hover:bg-secondary active:bg-secondary shrink-0"
@@ -1512,7 +1524,7 @@ export default function SettingsPanel() {
           <ul className="space-y-1.5">
             {myMutes.map(m => (
               <li key={m.muted_email} className="flex items-center justify-between gap-2 text-xs p-2 rounded-lg bg-secondary/40">
-                <span className="text-foreground truncate">{maskEmail(m.muted_email)}</span>
+                <span className="text-foreground truncate">{blockedLabel(authorsById, m.muted_id)}</span>
                 <button
                   onClick={() => handleUnmute(m.muted_email)}
                   className="px-2 py-0.5 rounded text-micro font-bold uppercase tracking-wide border border-border hover:bg-secondary active:bg-secondary"

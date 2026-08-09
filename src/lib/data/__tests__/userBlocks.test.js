@@ -26,7 +26,7 @@ describe('listBlocks', () => {
     expect(fromSpy).not.toHaveBeenCalled();
   });
 
-  it('selects blocked_email + created_at scoped to the user', async () => {
+  it('selects blocked_email + blocked_id + created_at scoped to the user', async () => {
     const order = vi.fn().mockResolvedValue({
       data: [{ blocked_email: 'b@x.com', created_at: '2025-01-01' }],
       error: null,
@@ -37,7 +37,9 @@ describe('listBlocks', () => {
 
     const rows = await listBlocks('u1');
     expect(fromSpy).toHaveBeenCalledWith('user_blocks');
-    expect(select).toHaveBeenCalledWith('blocked_email, created_at');
+    // blocked_id is what Settings renders a handle from — the list must
+    // never fall back to showing the address (migration 309).
+    expect(select).toHaveBeenCalledWith('blocked_email, blocked_id, created_at');
     expect(eq).toHaveBeenCalledWith('blocker_id', 'u1');
     expect(rows).toHaveLength(1);
   });

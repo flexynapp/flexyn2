@@ -16,7 +16,10 @@ import { safeSelect } from '@/api/safeSelect';
 export async function listBlocks(userId) {
   if (!userId) return [];
   const { data, error } = await safeSelect({
-    columns: ['blocked_email', 'created_at'],
+    // blocked_id so Settings can name the account instead of showing its
+    // address. Populated by the trigger in migration 309; NULL for a block
+    // on an email with no Flexyn account.
+    columns: ['blocked_email', 'blocked_id', 'created_at'],
     build: (cols) => supabase
       .from('user_blocks')
       .select(cols)

@@ -9,7 +9,7 @@ export async function getStoryBlocks(userId) {
   if (!userId) return [];
   const { data } = await supabase
     .from('story_blocks')
-    .select('blocked_email, created_at')
+    .select('blocked_email, blocked_id, created_at')
     .eq('blocker_id', userId)
     .order('created_at', { ascending: false });
   return data ?? [];
