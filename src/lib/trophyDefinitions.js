@@ -59,6 +59,56 @@ export const TROPHIES = [
 
 export const TROPHY_BY_ID = Object.fromEntries(TROPHIES.map(t => [t.id, t]));
 
+// ── League season trophies ────────────────────────────────────────────────
+//
+// These cannot live in TROPHIES, because a new one is minted every 28 days
+// and a static catalog would need editing on every roll. They are resolved
+// from the id instead: `league_s{n}_{tier}` and `league_s{n}_champion`, both
+// written by award_league_season_internal (migration 312).
+//
+// `TROPHIES.length` is the denominator for the "12 / 40 earned" counter on
+// the profile, so season trophies are deliberately NOT added to it — an
+// unreachable denominator that grows forever would make the collection look
+// permanently unfinished.
+
+const SEASON_TROPHY_RE = /^league_s(\d+)_(bronze|silver|gold|platinum|diamond|legend|champion)$/;
+
+// TROPHY_TIERS has no `diamond` step, so diamond borrows platinum's ramp and
+// both legend and champion take `legendary`.
+const SEASON_TIER_MAP = {
+  bronze: 'bronze', silver: 'silver', gold: 'gold',
+  platinum: 'platinum', diamond: 'platinum',
+  legend: 'legendary', champion: 'legendary',
+};
+
+const SEASON_EMOJI = {
+  bronze: '🥉', silver: '🥈', gold: '🥇',
+  platinum: '💠', diamond: '💎', legend: '👑', champion: '👑',
+};
+
+/** Parsed season trophy, or null if `id` isn't one. */
+export function parseSeasonTrophy(id) {
+  const m = SEASON_TROPHY_RE.exec(id || '');
+  if (!m) return null;
+  const season = Number(m[1]);
+  const kind = m[2];
+  const isChampion = kind === 'champion';
+  const label = kind.charAt(0).toUpperCase() + kind.slice(1);
+  return {
+    id,
+    season,
+    kind,
+    isChampion,
+    category: 'league',
+    tier: SEASON_TIER_MAP[kind] || 'bronze',
+    emoji: SEASON_EMOJI[kind] || '🎖️',
+    name: isChampion ? `Champion, S${season}` : `Season ${season} ${label}`,
+    description: isChampion
+      ? `Won season ${season} outright. Minted once — nobody else can earn this one.`
+      : `Reached ${label} in season ${season}.`,
+  };
+}
+
 export function getTrophy(id) {
-  return TROPHY_BY_ID[id] || null;
+  return TROPHY_BY_ID[id] || parseSeasonTrophy(id) || null;
 }

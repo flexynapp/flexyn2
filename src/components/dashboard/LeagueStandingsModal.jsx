@@ -16,6 +16,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useNumberFormatter } from '@/lib/intl';
 import * as leagues from '@/lib/data/leagues';
+import * as leagueSeasons from '@/lib/data/leagueSeasons';
 import { MIN_QUALIFIED_TO_MOVE } from '@/lib/leagueTiers';
 import { differenceInCalendarDays, parseISO } from 'date-fns';
 
@@ -40,6 +41,16 @@ export default function LeagueStandingsModal({ open, onClose }) {
     queryFn: () => leagues.getMyLeague(user),
     enabled: !!user?.id && open,
     staleTime: 15_000,
+  });
+
+  // Season rides alongside the bracket rather than inside it: the week decides
+  // where you move, the season decides what you keep. Returns null on a host
+  // without migration 312, and the header simply omits the line.
+  const { data: season } = useQuery({
+    queryKey: ['myLeagueSeason', user?.id],
+    queryFn: () => leagueSeasons.getMySeason(user),
+    enabled: !!user?.id && open,
+    staleTime: 60_000,
   });
 
   // Lock body scroll while open to keep mobile users inside the modal scroller
@@ -69,14 +80,14 @@ export default function LeagueStandingsModal({ open, onClose }) {
             {[1, 2, 3, 4, 5].map(i => <Skeleton key={i} className="h-14 rounded-lg" />)}
           </div>
         ) : (
-          <Body data={data} userId={user?.id} t={t} tFallback={tFallback} fmt={fmt} onOpenMember={openMemberProfile} />
+          <Body data={data} season={season} userId={user?.id} t={t} tFallback={tFallback} fmt={fmt} onOpenMember={openMemberProfile} />
         )}
       </DialogContent>
     </Dialog>
   );
 }
 
-function Body({ data, userId, t, tFallback, fmt, onOpenMember }) {
+function Body({ data, season, userId, t, tFallback, fmt, onOpenMember }) {
   // Defensive: if anything's missing, render an empty-state instead of crashing
   if (!data || !data.league || !data.tier || !Array.isArray(data.members)) {
     return (
@@ -98,6 +109,8 @@ function Body({ data, userId, t, tFallback, fmt, onOpenMember }) {
   const bracketTooSmall = !!data.bracketTooSmall;
   const endDate  = parseISO(league.week_end + 'T23:59:59');
   const daysLeft = Math.max(0, differenceInCalendarDays(endDate, new Date()) + 1);
+  const seasonDaysLeft = leagueSeasons.daysLeftInSeason(season);
+  const seasonEligible = leagueSeasons.isSeasonEligible(season);
 
   return (
     <>
@@ -109,6 +122,32 @@ function Body({ data, userId, t, tFallback, fmt, onOpenMember }) {
             {tier.label} {tFallback('league.title', 'League')}
           </DialogTitle>
         </DialogHeader>
+        {/* Season line. The bracket says where you are this week; this says
+            what you are playing for over the 28 days, and whether you have
+            done enough to collect. Omitted entirely on a host without
+            migration 312 rather than rendering a placeholder. */}
+        {season?.season_number != null && (
+          <div className="mt-1 flex items-center gap-2 flex-wrap">
+            <span className="text-xs font-semibold text-white/95">{season.name}</span>
+            {seasonDaysLeft != null && (
+              <span className="text-micro text-white/70">
+                {tFallback('league.seasonEndsIn', 'ends in {n}d', { n: seasonDaysLeft })}
+              </span>
+            )}
+            <span
+              className={`text-micro font-bold px-1.5 py-0.5 rounded-full ${
+                seasonEligible ? 'bg-white/25 text-white' : 'bg-black/25 text-white/85'
+              }`}
+            >
+              {seasonEligible
+                ? tFallback('league.seasonSecured', 'Reward secured')
+                : tFallback('league.seasonProgress', '{n} of {need} weeks', {
+                    n: season.weeks_qualified ?? 0,
+                    need: season.weeks_needed ?? 2,
+                  })}
+            </span>
+          </div>
+        )}
         <div className="mt-3 flex items-center gap-4 text-sm flex-wrap">
           <div className="flex items-center gap-1.5">
             <Trophy className="w-4 h-4" />

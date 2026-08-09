@@ -30,6 +30,11 @@ const enKeys = {
   'league.inDemoteZone':     'Demotion zone · bottom {n}',
   'league.bracketHeldShort': 'Bracket held this week',
   'league.bracketHeld':      '{n} qualified — {need} needed before anyone moves',
+  // Seasons (migration 312) — English-only, reached via tFallback.
+  // TODO(i18n): needs a native pass for the other 14 locales.
+  'league.seasonEndsIn':     'ends in {n}d',
+  'league.seasonSecured':    'Reward secured',
+  'league.seasonProgress':   '{n} of {need} weeks',
 
   // League standings modal
   'league.title':            'League',

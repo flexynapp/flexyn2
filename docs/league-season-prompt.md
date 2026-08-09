@@ -436,7 +436,7 @@ tier is the current standing. Confirm before building.
 | Stranded brackets | **Void them.** Confirmed. |
 | XP thresholds | `min_xp = 0`; gate on workout count. Forced by the ledger. |
 | Champion artwork | Generative plate — season numeral + tier colourway. |
-| Soft reset | **Still open.** Only blocks Phase 3. |
+| Soft reset | **Yes — everyone drops one tier at season start,** floor Bronze. |
 
 ### The Shield is priced in real money, and there is no way to take it yet
 
@@ -566,7 +566,32 @@ confirm as role `authenticated` that the function is *not* callable.
 30-member, and exactly-5-qualified. Assert no 0-XP member is ever promoted in
 any of them.
 
-### Phase 3 — Seasons, titles, trophies *(migration 312)*
+### ✅ SHIPPED — migration 312 (Phase 3)
+
+Seasons, titles, trophies, the champion, the Legend board and the soft reset.
+Verified in `BEGIN … ROLLBACK` against production with a seeded 6-person
+season — one Legend on 4 qualifying weeks, one Legend on 3, a Gold on 3, a
+Bronze on exactly 2, plus one member on 1 week and one who never qualified:
+
+| Assertion | Result |
+|---|---|
+| awarded | 4 — the ones at or above the 2-week bar |
+| under-bar awarded | **0** — the 1-week and 0-week members got nothing |
+| trophies minted | 5 |
+| champion trophies | **1** |
+| titles | 5 — `Champion, S1`, `Season 1 Legend/Gold/Bronze` |
+| final rank 1 | the top-XP Legend |
+| Legends after reset | **0** — soft reset applied |
+| next season | opened as `Season 2 · Ascent` |
+
+Client: `leagueSeasons.js` (read-only), season line in the standings header
+with a "Reward secured" / "n of 2 weeks" chip, season trophies resolved from
+their id in `trophyDefinitions.js`, and `seasonEndCelebration.js` as the
+**eighth** celebration helper with its own signature — haptic
+`[60,40,60,40,200]`, a falling curtain rather than a burst, 🎖️ / 👑. Checked
+against all seven existing helpers; nothing collides. 3,210 tests pass.
+
+### Phase 3 — original plan *(shipped in 312)*
 
 1. `league_seasons (id, season_number, name, starts_at, ends_at, status)` —
    copy the `crew_seasons` shape and its single-winner roll pattern verbatim.
