@@ -136,6 +136,7 @@ const GymMap       = lazy(() => import('./pages/GymMap'));
 const AdminGyms    = lazy(() => import('./pages/AdminGyms'));
 const GymEdit      = lazy(() => import('./pages/GymEdit'));
 const Profile     = lazy(() => import('./pages/Profile'));
+const Settings    = lazy(() => import('./pages/Settings'));
 
 // Fallback shown while a lazy page chunk loads. Instead of a bare spinner
 // we render grey placeholder blocks with a sweeping sheen (skeleton-shimmer)
@@ -423,6 +424,12 @@ const AuthenticatedApp = () => {
           <Route path="/bounties"  element={<ErrorBoundary label="Bounties"><Suspense fallback={<PageLoader />}><Bounties /></Suspense></ErrorBoundary>} />
           <Route path="/gauntlet"  element={<ErrorBoundary label="Gauntlet"><Suspense fallback={<PageLoader />}><Gauntlet /></Suspense></ErrorBoundary>} />
           <Route path="/notifications" element={<ErrorBoundary label="Notifications"><Suspense fallback={<PageLoader />}><Notifications /></Suspense></ErrorBoundary>} />
+          {/* Settings is an index plus seven subpages. Two routes rather
+              than an optional `:section?` param, which react-router only
+              honours from 6.5 — this shape works on every version and the
+              page reads the param either way. */}
+          <Route path="/settings"          element={<ErrorBoundary label="Settings"><Suspense fallback={<PageLoader />}><Settings /></Suspense></ErrorBoundary>} />
+          <Route path="/settings/:section" element={<ErrorBoundary label="Settings"><Suspense fallback={<PageLoader />}><Settings /></Suspense></ErrorBoundary>} />
           <Route path="/admin/reports" element={<ErrorBoundary label="AdminReports"><Suspense fallback={<PageLoader />}><AdminReports /></Suspense></ErrorBoundary>} />
           <Route path="/market/trades" element={<ErrorBoundary label="TradeHistory"><Suspense fallback={<PageLoader />}><TradeHistory /></Suspense></ErrorBoundary>} />
           <Route path="/trainer/studio" element={

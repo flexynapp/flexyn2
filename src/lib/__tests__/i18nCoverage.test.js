@@ -186,6 +186,52 @@ describe('partial-gap ratchet', () => {
     'quest.crew_steps_8k.',
     'quest.crew_volume_15k.',
     'quest.crew_fuel_2.',
+    // Settings moved out of the ProfileMenu dropdown onto its own route
+    // (/settings + seven subpages), 2026-08-09. 67 keys in
+    // src/lib/i18n-settings-nav.js: the index rows and their one-line
+    // hints, the group headings inside each subpage, and — this is most of
+    // them — strings that were HARDCODED ENGLISH inline in the old
+    // SettingsPanel and had no key at all ("Private profile", "Blocked
+    // users", "Muted users", "My reports", "Default story visibility",
+    // "Body Stats", "Privacy"). So these keys don't reduce what a Spanish
+    // user can read; they make previously-unreachable copy translatable.
+    // All prose, so CLAUDE.md forbids machine-translating it, and every
+    // call site is `tFallback(key, 'English')`.
+    //
+    // Prefixes are narrow ON PURPOSE. A bare `settings.` would exempt the
+    // whole namespace and hide a regression in the ~40 settings keys that
+    // ARE translated — verified that each prefix below catches only the new
+    // keys and nothing else.
+    'settings.section.',
+    'settings.group.',
+    'settings.stat.',
+    'settings.sex.',
+    'settings.appearance.',
+    'settings.privateProfile.',
+    'settings.hideFromSearch.',
+    'settings.blockedUsers.',
+    'settings.mutedUsers.',
+    'settings.myReports.',
+    'settings.export.',
+    'settings.admin.',
+    'settings.build.',
+    // The rest sit inside namespaces that already hold translated keys, so
+    // they are listed exactly rather than by prefix.
+    'settings.inAppAlerts.hint',
+    'settings.cycleTracking.hint',
+    'settings.gymRival.title',
+    'settings.gymRival.desc',
+    'settings.story.defaultVisibility',
+    'settings.story.friendsOnly',
+    'settings.story.public',
+    'settings.story.blockedAccounts',
+    'settings.block.placeholder',
+    'settings.block.action',
+    'settings.block.empty',
+    'settings.block.undo',
+    'settings.mute.undo',
+    'settings.quiet.startLabel',
+    'settings.quiet.endLabel',
   ];
 
   const pending = (k) => AWAITING_TRANSLATION.some(p => k.startsWith(p));

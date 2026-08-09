@@ -1,11 +1,14 @@
-// Mount smoke test for SettingsPanel.
+// Mount smoke test for every Settings subpage.
 //
-// SettingsPanel is the whole body of the Settings view in ProfileMenu, it
-// pulls in ~20 modules, and it is only reachable two taps deep — so a
-// render-time throw here shows up to users as "the settings menu is blank"
-// and nothing else. This test mounts it with every dependency stubbed and
-// asserts it produces output, so that failure mode is caught in CI instead
-// of on a phone.
+// Settings is reached two taps deep and each subpage pulls in ~20 modules,
+// so a render-time throw in one shows up to users as "that settings page is
+// blank" and nothing else — no error, no toast. This test mounts all seven
+// with every dependency stubbed and asserts each produces output.
+//
+// It replaces settingsPanelSmoke.test.jsx, which covered the single
+// 1,585-line SettingsPanel this was split out of. The split is exactly why
+// the test has to be per-section now: mounting one page no longer proves
+// the other six even parse.
 
 import { describe, it, expect, vi } from 'vitest';
 import { render } from '@testing-library/react';
@@ -42,7 +45,13 @@ vi.mock('@/lib/usePushSubscription', () => ({
   }),
 }));
 vi.mock('@/api/db', () => ({
-  db: { auth: { me: vi.fn(async () => ({ id: 'me', email: 'me@x.com', notification_prefs: {} })), updateMe: vi.fn() } },
+  db: {
+    auth: {
+      me: vi.fn(async () => ({ id: 'me', email: 'me@x.com', notification_prefs: {} })),
+      updateMe: vi.fn(),
+      patchCache: vi.fn(),
+    },
+  },
 }));
 vi.mock('@/api/supabaseClient', () => ({
   supabase: { from: () => ({ update: () => ({ eq: async () => ({ error: null }) }) }), rpc: async () => ({ error: null }) },
@@ -71,16 +80,43 @@ vi.mock('framer-motion', () => ({
   }),
 }));
 
-const { default: SettingsPanel } = await import('../SettingsPanel');
+const SECTIONS = {
+  PreferencesSection:   (await import('../settings/PreferencesSection')).default,
+  NotificationsSection: (await import('../settings/NotificationsSection')).default,
+  TrainingSection:      (await import('../settings/TrainingSection')).default,
+  BodySection:          (await import('../settings/BodySection')).default,
+  PrivacySection:       (await import('../settings/PrivacySection')).default,
+  AccountSection:       (await import('../settings/AccountSection')).default,
+  AboutSection:         (await import('../settings/AboutSection')).default,
+};
 
-describe('SettingsPanel', () => {
-  it('renders without throwing', () => {
-    const qc = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
-    const { container } = render(
-      React.createElement(MemoryRouter, null,
-        React.createElement(QueryClientProvider, { client: qc },
-          React.createElement(SettingsPanel)))
-    );
-    expect(container.textContent.length).toBeGreaterThan(0);
+const mount = (Component) => {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
+  return render(
+    React.createElement(MemoryRouter, null,
+      React.createElement(QueryClientProvider, { client: qc },
+        React.createElement(Component)))
+  );
+};
+
+describe('Settings sections', () => {
+  for (const [name, Component] of Object.entries(SECTIONS)) {
+    it(`${name} renders without throwing`, () => {
+      const { container } = mount(Component);
+      expect(container.textContent.length).toBeGreaterThan(0);
+    });
+  }
+
+  // Every toggle in here is a `role="switch"` button whose hit area must
+  // clear 44px — the whole reason Settings got its own route. `min-h-11` is
+  // the class that guarantees it, so assert on the class rather than on a
+  // computed height jsdom won't lay out.
+  it('gives every switch a 44px row', () => {
+    const { container } = mount(SECTIONS.PreferencesSection);
+    const switches = container.querySelectorAll('[role="switch"]');
+    expect(switches.length).toBeGreaterThan(0);
+    for (const el of switches) {
+      expect(el.className).toMatch(/min-h-11|h-11/);
+    }
   });
 });

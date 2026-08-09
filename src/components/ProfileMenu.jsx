@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { db } from '@/api/db';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/lib/AuthContext';
-import { LogOut, User, Trash2, Settings, ChevronRight, ArrowLeft, X, ShoppingBag, UserCircle, Book, Trophy, ShieldAlert, Building2, Dumbbell } from 'lucide-react';
+import { LogOut, User, Trash2, Settings, ChevronRight, X, ShoppingBag, UserCircle, Book, Trophy, ShieldAlert, Building2, Dumbbell } from 'lucide-react';
 import { clearFirstLaunch } from '@/lib/firstLaunch';
 import { handle } from '@/lib/userDisplay';
 import { requestOpenBag } from '@/lib/inventoryFlow';
@@ -15,7 +15,6 @@ import ThemePicker from './ThemePicker';
 import LanguagePicker from './LanguagePicker';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
-import SettingsPanel from './SettingsPanel';
 import AccountDeletedScreen from './AccountDeletedScreen';
 import { OPEN_ACHIEVEMENTS_EVENT } from '@/lib/achievementsFlow';
 import { isVerified } from '@/lib/verifiedUsers';
@@ -121,7 +120,6 @@ export default function ProfileMenu({ compact = false } = {}) {
   const location = useLocation();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
-  const [view, setView] = useState('main'); // 'main' | 'settings'
   const [isDeleting, setIsDeleting] = useState(false);
   const [accountDeleted, setAccountDeleted] = useState(false);
   // Synchronous double-tap guard on the most destructive action in the
@@ -157,18 +155,16 @@ export default function ProfileMenu({ compact = false } = {}) {
   const [signOutOpen, setSignOutOpen] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const ref = useRef(null);
-  // The panel itself is the scroll container (max-h + overflow-y-auto).
-  // Swapping main <-> settings keeps whatever scrollTop the previous view
-  // was at, which drops you into the middle of the new one. Reset to the
-  // top on every view change so Settings always opens at its header.
+  // The panel itself is the scroll container (max-h + overflow-y-auto), and
+  // it stays mounted between opens, so it keeps whatever scrollTop it was
+  // left at. Reset on every open so the menu always starts at its header.
   const panelRef = useRef(null);
   useEffect(() => {
     if (panelRef.current) panelRef.current.scrollTop = 0;
-  }, [view, open]);
+  }, [open]);
 
   useEffect(() => {
     setOpen(false);
-    setView('main');
   }, [location.pathname]);
 
   // The panel is a scroll container floating over a live page — it has no
@@ -182,7 +178,7 @@ export default function ProfileMenu({ compact = false } = {}) {
   // Esc-to-close on the open drawer (audit C-14).
   useEffect(() => {
     if (!open) return;
-    const onKey = (e) => { if (e.key === 'Escape') { setOpen(false); setView('main'); } };
+    const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [open]);
@@ -288,7 +284,6 @@ export default function ProfileMenu({ compact = false } = {}) {
       if (t?.closest?.('[data-radix-popper-content-wrapper]')) return;
 
       setOpen(false);
-      setView('main');
     };
     // iOS Safari doesn't reliably synthesize `mousedown` on background
     // taps; listen to `touchstart` in parallel (audit B-14).
@@ -322,7 +317,7 @@ export default function ProfileMenu({ compact = false } = {}) {
   return (
     <div className="relative" ref={ref}>
       <button
-        onClick={() => { setOpen(v => !v); setView('main'); }}
+        onClick={() => setOpen(v => !v)}
         className={compact
           // Header: a plain h-11 w-11 icon button so it lines up with the
           // messages + bell buttons (no extra padding/margin/name).
@@ -397,17 +392,18 @@ export default function ProfileMenu({ compact = false } = {}) {
             className="fixed start-4 end-4 top-[calc(3.5rem+env(safe-area-inset-top)+0.5rem)] max-h-[calc(100vh-4rem-env(safe-area-inset-top))] lg:fixed lg:start-0 lg:right-auto lg:top-[calc(11.5rem+env(safe-area-inset-top))] lg:mt-0 lg:max-h-[calc(100vh-12rem-env(safe-area-inset-top))] lg:w-64 bg-card border border-border rounded-xl shadow-xl z-[100] overflow-hidden overflow-y-auto"
           >
             {user ? (
-              // Deliberately NOT an <AnimatePresence mode="wait">. That kept
-              // the outgoing view mounted until its exit animation finished
-              // and only THEN mounted the incoming one, so tapping Settings
-              // left the card completely empty for the whole exit — a spring
-              // with no fixed duration, which stretches out badly on a slow
-              // phone. Users read that empty card as "the settings menu is
-              // blank." Swapping on a keyed enter-only animation means the
-              // new view is on screen the same frame the old one leaves, so
-              // the card is never empty.
-              <>
-                {view === 'main' && (
+              // This menu has ONE view. It used to have two — main and an
+              // inline Settings panel — and if a second is ever added here,
+              // do not reach for <AnimatePresence mode="wait">: it keeps the
+              // outgoing view mounted until its exit finishes and only then
+              // mounts the incoming one, so the card sat completely empty
+              // for the whole exit spring. On a slow phone users read that
+              // as "the settings menu is blank." A keyed enter-only
+              // animation puts the new view on screen the same frame the
+              // old one leaves.
+              //
+              // Settings itself now lives at /settings — see pages/Settings.jsx
+              // for why it outgrew this 361px-wide dropdown.
                   <motion.div
                     key="main"
                     initial={{ opacity: 0, x: -20 }}
@@ -427,7 +423,7 @@ export default function ProfileMenu({ compact = false } = {}) {
                           <p className="text-xs text-muted-foreground truncate">{handle(user)}</p>
                         </div>
                         <button
-                          onClick={() => { setOpen(false); setView('main'); }}
+                          onClick={() => setOpen(false)}
                           className="p-1 rounded-md hover:bg-secondary active:bg-secondary transition-colors shrink-0 text-muted-foreground"
                           aria-label="Close menu"
                         >
@@ -458,7 +454,7 @@ export default function ProfileMenu({ compact = false } = {}) {
                       <ChevronRight className="w-4 h-4 text-muted-foreground" />
                     </button>
                     <button
-                      onClick={() => setView('settings')}
+                      onClick={() => { setOpen(false); navigate('/settings'); }}
                       className="w-full flex items-center justify-between px-4 py-3 text-sm hover:bg-secondary active:bg-secondary transition-colors border-t border-border"
                     >
                       <div className="flex items-center gap-2">
@@ -621,28 +617,6 @@ export default function ProfileMenu({ compact = false } = {}) {
                       </button>
                     </div>
                   </motion.div>
-                )}
-
-                {view === 'settings' && (
-                  <motion.div
-                    key="settings"
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ type: 'spring', stiffness: 450, damping: 35 }}
-                  >
-                    <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
-                      <button
-                        onClick={() => setView('main')}
-                        className="p-1 rounded-md hover:bg-secondary active:bg-secondary transition-colors"
-                      >
-                        <ArrowLeft className="w-4 h-4" />
-                      </button>
-                      <p className="font-medium text-sm">{t('profile.settings')}</p>
-                    </div>
-                    <SettingsPanel />
-                  </motion.div>
-                )}
-              </>
             ) : (
               <button
                 onClick={() => db.auth.redirectToLogin()}
