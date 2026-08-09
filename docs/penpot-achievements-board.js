@@ -124,6 +124,71 @@ function circle(name, o) {
   const k = tok('color.secondary'); if (k) e.applyToken(k, ['fill']);
   return e;
 }
+// ── THE MEDALLION ─────────────────────────────────────────────────
+//
+// Drawn 2026-08-09. One plate geometry, two variables — the ladder ICON
+// and the tier COLOURWAY — per the rule set on the League seasons board.
+//
+// Tier is carried by a RING plus a TINT, and the tint is the
+// load-bearing half. A ring alone put the whole five-tier ramp inside a
+// 0.8px spread at 44pt, which is under what an eye resolves, so tier was
+// really being carried by hue — and hue collapses at 20pt and for anyone
+// colour-blind. Silver was the proof: #C0C0C0 as a 1.5px ring is
+// indistinguishable from color.border.
+//
+// The tint is a SEPARATE layer rather than a second fill on the plate,
+// so the plate stays bound to color.secondary and still flips with the
+// Mode theme. A pre-blended hex would look right in dark and wrong in
+// light.
+const TIERS = { bronze: '#CD7F32', silver: '#C0C0C0', gold: '#FFD700', platinum: '#7BE0E0', legendary: '#A855F7' };
+const RING  = { bronze: 0.030, silver: 0.036, gold: 0.042, platinum: 0.048, legendary: 0.055 };
+const TINT  = { bronze: 0.16,  silver: 0.18,  gold: 0.20,  platinum: 0.22,  legendary: 0.26 };
+
+function medallion(o) {
+  const S = o.size, tier = o.tier, locked = !!o.locked, tail = !!o.tail;
+  const parts = [];
+  const ringW = locked ? Math.max(1, 0.023 * S) : (RING[tier] || RING.bronze) * S;
+  const r = Math.round(0.27 * S);
+
+  const plate = penpot.createRectangle();
+  plate.name = `medallion ${S} / plate`;
+  plate.x = o.x; plate.y = o.y; plate.resize(S, S);
+  plate.borderRadius = r;
+  plate.fills = [{ fillColor: locked ? C.muted : C.secondary, fillOpacity: 1 }];
+  { const k = tok(locked ? 'color.muted' : 'color.secondary'); if (k) plate.applyToken(k, ['fill']); }
+  plate.strokes = [{ strokeColor: locked ? C.border : (TIERS[tier] || TIERS.bronze), strokeOpacity: 1,
+                     strokeStyle: 'solid', strokeWidth: ringW, strokeAlignment: 'inner' }];
+  if (locked) { const k = tok('color.border'); if (k) plate.applyToken(k, ['strokeColor']); }
+  parts.push(plate);
+
+  if (!locked) {
+    const tint = penpot.createRectangle();
+    tint.name = `medallion ${S} / tier tint`;
+    const inset = Math.ceil(ringW);            // inset so the ring edge stays crisp
+    tint.x = o.x + inset; tint.y = o.y + inset; tint.resize(S - inset * 2, S - inset * 2);
+    tint.borderRadius = Math.max(1, r - inset);
+    tint.fills = [{ fillColor: TIERS[tier] || TIERS.bronze, fillOpacity: TINT[tier] || 0.16 }];
+    tint.strokes = [];
+    parts.push(tint);
+  }
+
+  const icon = penpot.createText(tail ? '∞' : (o.glyph || '🏋️'));
+  icon.name = `medallion ${S} / icon`;
+  icon.growType = 'fixed';
+  icon.x = o.x; icon.y = o.y; icon.resize(S, S);
+  // Small sizes take a proportionally LARGER glyph: below ~28 the ring
+  // eats the plate. At 20pt this is a presence indicator, not an
+  // identifier — you should read "gold badge", not which one.
+  const iconScale = tail ? 0.46 : (S <= 20 ? 0.58 : S <= 28 ? 0.54 : 0.5);
+  icon.fontSize = String(Math.round(iconScale * S));
+  icon.fontFamily = 'Work Sans';
+  icon.align = 'center'; icon.verticalAlign = 'center';
+  icon.fills = [{ fillColor: locked ? C.mutedFg : (tail ? TIERS.legendary : C.foreground), fillOpacity: locked ? 0.45 : 1 }];
+  try { icon.getRange(0, icon.characters.length).align = 'center'; } catch { /* single glyph */ }
+  parts.push(icon);
+  return parts;
+}
+
 function group(label) {
   board.appendChild(text(label, { x: ax(PAD), y: ay(y), size: 12, color: C.foreground, w: 1200, bold: true, token: 'color.foreground' }));
   y += 30;
@@ -177,26 +242,27 @@ grid([
 // ── 02 · MEDALLION ────────────────────────────────────────────────
 group('02 · MEDALLION — the badge itself. Draw ONE and it has to survive all four sizes; the 20 is the one that breaks.');
 note('ONE PLATE GEOMETRY, TWO VARIABLES — the rule already set on the League seasons board: "no new artwork per season; a profile\ncarrying four of these reads as a history." Here the two variables are the LADDER ICON and the TIER COLOURWAY. There are 73 named\nrungs plus generated tails, so per-badge artwork is not an option even if it were desirable — and a collection only reads as a\nhistory if the plate is constant.');
+note('DRAWN 2026-08-09 — plate: rounded square, radius 0.27S, fill color.secondary (color.muted when locked). Tier is carried by a RING (inner stroke, tier hex,\nweight 0.030S bronze rising to 0.055S legendary) PLUS a TINT layer inset by the ring width at 16% bronze rising to 26% legendary. The tint is the load-bearing\npart and it is not decoration: a ring alone put the whole five-tier ramp inside a 0.8px spread at 44pt, which is under what an eye resolves, so tier was really\nbeing carried by hue — and hue collapses at 20pt and for anyone colour-blind. Silver was the proof: #C0C0C0 as a 1.5px ring is indistinguishable from\ncolor.border. The tint is a SEPARATE layer rather than a second fill so the plate stays bound to color.secondary and still flips with the Mode theme.\nIcon is the ladder glyph at 0.5S, rising to 0.58S at 20pt where the ring otherwise eats the plate. At 20pt this is a PRESENCE indicator, not an identifier —\nyou should read "gold badge", not which one. Locked keeps its own art at 45% on a muted plate, so you can see what you are working toward.\nNo gradient, no glassmorphism, no coloured shadow — per the UI rules in CLAUDE.md, those are the tells being removed, not ways to make this look designed.');
 grid([
   { name: 'slot / medallion / 72 celebration',  d: 72, label: '72 · celebration',  note: 'Unlock moment, centre screen.' },
   { name: 'slot / medallion / 44 vault grid',   d: 44, label: '44 · vault grid',   note: 'The Achievements page grid.' },
   { name: 'slot / medallion / 28 profile rail', d: 28, label: '28 · profile rail', note: 'ProfileBadgeShowcase, 6 across.' },
   { name: 'slot / medallion / 20 inline',       d: 20, label: '20 · inline',       note: 'Next to a name in a list row.' },
 ], { w: 210, h: 176, cols: 4, build: (s, it, sx, sy) => {
-  s.appendChild(circle(`anchor / ${it.d}pt medallion`, { x: ax(sx + (210 - it.d) / 2), y: ay(sy + 24), d: it.d }));
+  medallion({ size: it.d, tier: 'gold', x: ax(sx + (210 - it.d) / 2), y: ay(sy + 24) }).forEach(sh => s.appendChild(sh));
 }});
 
 note('TIER RAMP — five steps. Tier is the only thing separating a 10-workout badge from a 100-workout one, so it has to read at 28pt.\nThese five hexes are TROPHY_TIERS in trophyDefinitions.js, NOT theme tokens — they must not flip with the mode.');
 grid([
-  { name: 'slot / tier / bronze',    hex: '#CD7F32', label: 'Bronze',    note: '#CD7F32' },
-  { name: 'slot / tier / silver',    hex: '#C0C0C0', label: 'Silver',    note: '#C0C0C0' },
-  { name: 'slot / tier / gold',      hex: '#FFD700', label: 'Gold',      note: '#FFD700' },
-  { name: 'slot / tier / platinum',  hex: '#7BE0E0', label: 'Platinum',  note: '#7BE0E0' },
-  { name: 'slot / tier / legendary', hex: '#A855F7', label: 'Legendary', note: '#A855F7' },
-  { name: 'slot / tier / tail',      hex: null,      label: 'Tail (infinite)', note: 'legendary ramp + infinity mark' },
-  { name: 'slot / tier / locked',    hex: null,      label: 'Locked',    note: 'never earned — keeps its own art' },
+  { name: 'slot / tier / bronze',    tier: 'bronze',    hex: '#CD7F32', label: 'Bronze',    note: '#CD7F32' },
+  { name: 'slot / tier / silver',    tier: 'silver',    hex: '#C0C0C0', label: 'Silver',    note: '#C0C0C0' },
+  { name: 'slot / tier / gold',      tier: 'gold',      hex: '#FFD700', label: 'Gold',      note: '#FFD700' },
+  { name: 'slot / tier / platinum',  tier: 'platinum',  hex: '#7BE0E0', label: 'Platinum',  note: '#7BE0E0' },
+  { name: 'slot / tier / legendary', tier: 'legendary', hex: '#A855F7', label: 'Legendary', note: '#A855F7' },
+  { name: 'slot / tier / tail',      tier: 'legendary', tail: true,  hex: null, label: 'Tail (infinite)', note: 'legendary ramp + infinity mark' },
+  { name: 'slot / tier / locked',    tier: 'bronze',    locked: true, hex: null, label: 'Locked',    note: 'never earned — keeps its own art' },
 ], { w: 165, h: 142, cols: 7, gap: 8, build: (s, it, sx, sy) => {
-  s.appendChild(circle('anchor / 44pt medallion', { x: ax(sx + (165 - 44) / 2), y: ay(sy + 16), d: 44 }));
+  medallion({ size: 44, tier: it.tier, locked: it.locked, tail: it.tail, x: ax(sx + (165 - 44) / 2), y: ay(sy + 16) }).forEach(sh => s.appendChild(sh));
   if (it.hex) {
     const chip = penpot.createRectangle();
     chip.name = `swatch / ${it.label} ${it.hex}`;
@@ -253,7 +319,7 @@ grid([
   { name: 'slot / unlock / full screen', label: 'When does a sheet beat a toast?', note: 'League rule: a full sheet is reserved for the only\nmoment that pays something permanent. Rungs are\nfrequent — so which, if any, escalate?' },
 ], { w: 390, h: 250, cols: 3, build: (s, it, sx, sy) => {
   s.appendChild(anchor('anchor / toast 343 (375 − 2×16)', { x: ax(sx + 24), y: ay(sy + 18), w: 343, h: 64, color: C.card, radius: 12, token: 'color.card' }));
-  s.appendChild(circle('anchor / 72pt medallion', { x: ax(sx + (390 - 72) / 2), y: ay(sy + 96), d: 72 }));
+  medallion({ size: 72, tier: it.name.indexOf('tail') >= 0 ? 'legendary' : 'gold', tail: it.name.indexOf('tail') >= 0, x: ax(sx + (390 - 72) / 2), y: ay(sy + 96) }).forEach(sh => s.appendChild(sh));
 }});
 
 // ── 07 · SURFACE TEST ─────────────────────────────────────────────
@@ -270,7 +336,7 @@ grid([
   if (it.name.indexOf('secondary') >= 0) {
     s.appendChild(anchor('surface / secondary', { x: ax(sx + 16), y: ay(sy + 16), w: 258, h: 76, color: C.secondary, radius: 12, token: 'color.secondary' }));
   }
-  s.appendChild(circle('anchor / 44pt medallion', { x: ax(sx + 16 + 107), y: ay(sy + 32), d: 44 }));
+  medallion({ size: 44, tier: 'gold', locked: it.name.indexOf('locked') >= 0, x: ax(sx + 16 + 107), y: ay(sy + 32) }).forEach(sh => s.appendChild(sh));
 }});
 
 // ── 08 · ENTRY POINT + EMPTY STATES ───────────────────────────────
@@ -312,7 +378,7 @@ CAPSTONES_SLOTS.forEach((it, i) => {
   const s = slot(it.name, { x: ax(sx), y: ay(sy), w: 390, h: it.h });
   board.appendChild(s);
   s.appendChild(anchor('anchor / capstone card 358', { x: ax(sx + 16), y: ay(sy + 16), w: 358, h: it.chips > 5 ? 172 : 116, color: C.card, radius: 12, token: 'color.card' }));
-  s.appendChild(circle('anchor / 28pt medallion', { x: ax(sx + 28), y: ay(sy + 28), d: 28 }));
+  medallion({ size: 28, tier: 'legendary', locked: it.name.indexOf('earned') < 0, glyph: it.name.indexOf('apex') >= 0 ? '\u267E\uFE0F' : '\u2692\uFE0F', x: ax(sx + 28), y: ay(sy + 28) }).forEach(sh => s.appendChild(sh));
   for (let c = 0; c < it.chips; c += 1) {
     const cr = Math.floor(c / 5), cc = c % 5;
     s.appendChild(anchor(`anchor / requirement chip ${c + 1}`, { x: ax(sx + 28 + cc * 66), y: ay(sy + 100 + cr * 26), w: 60, h: 18, color: C.muted, radius: 6, token: 'color.muted' }));
@@ -332,7 +398,7 @@ grid([
   s.appendChild(anchor('anchor / section header (358x22)', { x: ax(sx + 16), y: ay(sy + 16), w: 358, h: 22, color: C.muted, radius: 4, token: 'color.muted' }));
   for (let r = 0; r < 2; r += 1) {
     s.appendChild(anchor(`anchor / locked entry ${r + 1} (358x76)`, { x: ax(sx + 16), y: ay(sy + 46 + r * 84), w: 358, h: 76, color: C.card, radius: 12, token: 'color.card' }));
-    s.appendChild(circle(`anchor / 28pt medallion ${r + 1}`, { x: ax(sx + 28), y: ay(sy + 56 + r * 84), d: 28 }));
+    medallion({ size: 28, tier: 'legendary', locked: true, x: ax(sx + 28), y: ay(sy + 56 + r * 84) }).forEach(sh => s.appendChild(sh));
   }
 }});
 
