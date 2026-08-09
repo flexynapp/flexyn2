@@ -105,6 +105,20 @@ export default function MarketplaceFeed() {
   // Which server query previousListingsRef was captured from — see the
   // sort-change guard in the diffing effect.
   const feedQueryKeyRef = useRef(null);
+  // Listings the seller pulled themselves. A cancel and a sale look identical
+  // from the diffing effect — the row is simply not in the next payload — so
+  // handleCancel records the id and the effect subtracts it. Without this,
+  // cancelling stamps a red SOLD across your own item at the same moment the
+  // toast says "Pulled it back." Nothing sold, and the seller is the one
+  // person who knows that.
+  const cancelledIdsRef = useRef(new Set());
+  // Pending sold-fade expiries. Owned here rather than by the effect's
+  // cleanup so a re-render cannot cancel one — see the note at the setTimeout.
+  const soldTimersRef = useRef(new Set());
+  useEffect(() => () => {
+    soldTimersRef.current.forEach(clearTimeout);
+    soldTimersRef.current.clear();
+  }, []);
 
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
 
@@ -280,6 +294,16 @@ export default function MarketplaceFeed() {
     // data again (first load, error).
     if (!Array.isArray(rawListings)) return;
 
+    // `listings` still belongs to the PREVIOUS sort while the new one loads —
+    // that is what keepPreviousData does. The key below changes on the tap,
+    // the data a render later, so without this the refs get the new key
+    // stamped onto the old page, and when the new page lands the key guard
+    // sees a match and diffs across the sort boundary anyway. The guard was
+    // one render short of working: a sort change still stamped every row the
+    // new page dropped as SOLD, which is the exact thing it was added to
+    // stop. Wait for data that actually belongs to this key.
+    if (isPlaceholderData) return;
+
     const previous     = previousListingsRef.current;
     const previousKey  = feedQueryKeyRef.current;
     previousListingsRef.current = listings;
@@ -294,8 +318,13 @@ export default function MarketplaceFeed() {
     // it is not any more.)
     if (previousKey !== null && previousKey !== feedQueryKey) return;
 
-    const currIds = new Set(listings.map(l => l.id));
-    const gone    = previous.filter(l => !currIds.has(l.id));
+    const currIds  = new Set(listings.map(l => l.id));
+    const vanished = previous.filter(l => !currIds.has(l.id));
+    // A row the seller pulled is not a sale — see cancelledIdsRef. Consume
+    // the marker once the row has actually left, so a later genuine sale of
+    // a re-listed item still stamps.
+    const gone = vanished.filter(l => !cancelledIdsRef.current.has(l.id));
+    vanished.forEach(l => cancelledIdsRef.current.delete(l.id));
     if (gone.length === 0) return;
 
     setSoldFading(prev => {
@@ -303,7 +332,17 @@ export default function MarketplaceFeed() {
       gone.forEach(l => next.set(l.id, l));
       return next;
     });
+    // Each batch expires on its own timer, tracked in a ref and cleared only
+    // on unmount. This effect used to `return () => clearTimeout(timer)`,
+    // which cancels the pending expiry on EVERY re-run — and the next run
+    // usually has nothing to fade, so it returns before scheduling a
+    // replacement. Any real change to the feed inside the 5s window (someone
+    // else lists an item, a second cancel) therefore stranded the previous
+    // batch in soldFading permanently: a SOLD tile that never leaves the
+    // grid. An identical refetch hides this, because React Query's structural
+    // sharing keeps the array identity and the effect never re-runs at all.
     const timer = setTimeout(() => {
+      soldTimersRef.current.delete(timer);
       setSoldFading(prev => {
         const next = new Map(prev);
         gone.forEach(l => next.delete(l.id));
@@ -315,8 +354,8 @@ export default function MarketplaceFeed() {
         return next;
       });
     }, 5000);
-    return () => clearTimeout(timer);
-  }, [listings, rawListings, feedQueryKey]);
+    soldTimersRef.current.add(timer);
+  }, [listings, rawListings, feedQueryKey, isPlaceholderData]);
 
   const { data: rawMyItems } = useQuery({
     queryKey: ['userInventory', user?.email],
@@ -446,6 +485,9 @@ export default function MarketplaceFeed() {
   const handleCancel = useCallback(async (listing) => {
     try {
       await marketplace.cancelListing(listing.id);
+      // Marked BEFORE the invalidation that makes the row vanish, so the
+      // diffing effect can tell this from a sale. Order matters.
+      cancelledIdsRef.current.add(listing.id);
       // cancel_marketplace_listing (mig 078) clears is_listed in the same
       // transaction. The client cannot write it — user_inventory has no
       // UPDATE policy — so the old `inventory.setListed(false)` here threw
