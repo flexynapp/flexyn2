@@ -35,13 +35,22 @@ import { differenceInYears } from 'date-fns';
 import { usePushSubscription } from '@/lib/usePushSubscription';
 import { toast } from '@/lib/toast';
 
-// A blocked / muted row identifies an account WITHOUT its address. The id
-// comes from migration 309's triggers; it is NULL when the blocked email
-// never had an account, and in that case there is no name to show — the
-// address is not a fallback, which is the whole point.
-function blockedLabel(byId, id) {
-  const u = id ? byId[id] : null;
-  return u ? handle(u) : 'an account';
+// A blocked / muted row identifies an account WITHOUT its address.
+//
+// The username is snapshotted at block time (migration 314) rather than
+// joined live, because this list has to name someone the viewer has cut
+// off, from a settings screen that loads no feed. Driving it on a device
+// with a real block is what settled it: the live path resolved nothing and
+// every row read "an account".
+//
+// The live record still wins when it is there, so a rename shows through;
+// the snapshot is the floor, not the answer. Neither falls back to the
+// address — a row with no name is "an account", which is the whole point.
+function blockedLabel(byId, id, snapshotUsername) {
+  const live = id ? byId[id] : null;
+  if (live) return handle(live);
+  if (snapshotUsername) return `@${snapshotUsername}`;
+  return 'an account';
 }
 
 export default function SettingsPanel() {
@@ -1277,7 +1286,7 @@ export default function SettingsPanel() {
                     <div key={b.blocked_email} className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-1.5 min-w-0">
                         <UserX className="w-3 h-3 text-muted-foreground shrink-0" />
-                        <span className="text-micro text-foreground truncate">{blockedLabel(authorsById, b.blocked_id)}</span>
+                        <span className="text-micro text-foreground truncate">{blockedLabel(authorsById, b.blocked_id, b.blocked_username)}</span>
                       </div>
                       <button
                         onClick={() => handleUnblock(b.blocked_email)}
@@ -1464,7 +1473,7 @@ export default function SettingsPanel() {
           <ul className="space-y-1.5">
             {myBlocks.map(b => (
               <li key={b.blocked_email} className="flex items-center justify-between gap-2 text-xs p-2 rounded-lg bg-secondary/40">
-                <span className="text-foreground truncate">{blockedLabel(authorsById, b.blocked_id)}</span>
+                <span className="text-foreground truncate">{blockedLabel(authorsById, b.blocked_id, b.blocked_username)}</span>
                 <button
                   onClick={() => handleUnblockFull(b.blocked_email)}
                   className="px-2 py-0.5 rounded text-micro font-bold uppercase tracking-wide border border-border hover:bg-secondary active:bg-secondary"
@@ -1499,7 +1508,7 @@ export default function SettingsPanel() {
           <ul className="space-y-1.5">
             {myRequestBlocks.map(b => (
               <li key={b.blocked_email} className="flex items-center justify-between gap-2 text-xs p-2 rounded-lg bg-secondary/40">
-                <span className="text-foreground truncate">{blockedLabel(authorsById, b.blocked_id)}</span>
+                <span className="text-foreground truncate">{blockedLabel(authorsById, b.blocked_id, b.blocked_username)}</span>
                 <button
                   onClick={() => handleAllowRequestsAgain(b.blocked_email)}
                   className="px-2 py-0.5 rounded text-micro font-bold uppercase tracking-wide border border-border hover:bg-secondary active:bg-secondary shrink-0"
@@ -1524,7 +1533,7 @@ export default function SettingsPanel() {
           <ul className="space-y-1.5">
             {myMutes.map(m => (
               <li key={m.muted_email} className="flex items-center justify-between gap-2 text-xs p-2 rounded-lg bg-secondary/40">
-                <span className="text-foreground truncate">{blockedLabel(authorsById, m.muted_id)}</span>
+                <span className="text-foreground truncate">{blockedLabel(authorsById, m.muted_id, m.muted_username)}</span>
                 <button
                   onClick={() => handleUnmute(m.muted_email)}
                   className="px-2 py-0.5 rounded text-micro font-bold uppercase tracking-wide border border-border hover:bg-secondary active:bg-secondary"

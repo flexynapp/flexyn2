@@ -17,7 +17,7 @@ export async function listMutes(userId) {
   if (!userId) return [];
   const { data, error } = await safeSelect({
     // muted_id — see the note in userBlocks.listBlocks (migration 309).
-    columns: ['muted_email', 'muted_id', 'created_at'],
+    columns: ['muted_email', 'muted_id', 'muted_username', 'created_at'],
     build: (cols) => supabase
       .from('user_mutes')
       .select(cols)

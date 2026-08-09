@@ -82,8 +82,8 @@ describe('the reads survive a column the database does not have yet', () => {
 
     const rows = await listBlocks('u1');
 
-    expect(columnsSeen[0]).toBe('blocked_email, blocked_id, created_at');
-    expect(columnsSeen[1]).toBe('blocked_email, blocked_id');
+    expect(columnsSeen[0]).toBe('blocked_email, blocked_id, blocked_username, created_at');
+    expect(columnsSeen[1]).toBe('blocked_email, blocked_id, blocked_username');
     // Before the wiring this returned [] — "you have blocked nobody",
     // which is a different and much worse answer than "I can't show you
     // when you blocked them".
@@ -97,7 +97,7 @@ describe('the reads survive a column the database does not have yet', () => {
     ]);
 
     expect(await listMutes('u1')).toEqual([{ muted_email: 'a@b.c' }]);
-    expect(columnsSeen).toEqual(['muted_email, muted_id, created_at', 'muted_email, muted_id']);
+    expect(columnsSeen).toEqual(['muted_email, muted_id, muted_username, created_at', 'muted_email, muted_id, muted_username']);
   });
 
   it('cycleLogs.listMine keeps the period history when `notes` is missing', async () => {

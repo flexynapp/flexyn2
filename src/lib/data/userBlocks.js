@@ -19,7 +19,9 @@ export async function listBlocks(userId) {
     // blocked_id so Settings can name the account instead of showing its
     // address. Populated by the trigger in migration 309; NULL for a block
     // on an email with no Flexyn account.
-    columns: ['blocked_email', 'blocked_id', 'created_at'],
+    // blocked_username is the snapshot Settings renders (migration 314);
+    // blocked_id stays for anything that needs to link to the account.
+    columns: ['blocked_email', 'blocked_id', 'blocked_username', 'created_at'],
     build: (cols) => supabase
       .from('user_blocks')
       .select(cols)
