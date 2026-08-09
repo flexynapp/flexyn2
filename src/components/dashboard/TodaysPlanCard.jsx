@@ -9,17 +9,19 @@
 //   - User has only 1 regimen (no rotation to infer)
 //   - User already worked out today (done state instead)
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Card } from '@/components/ui/card';
 import {
-  ArrowRight, CheckCircle2,
+  ArrowRight, CheckCircle2, ChevronDown,
   Dumbbell, Grip, Footprints, Mountain, HeartPulse, Target, Zap,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { startOfDay } from 'date-fns';
 import { parseLocalDate } from '@/lib/dateUtils';
 import { useLanguage } from '@/lib/LanguageContext';
+import { translateExerciseName } from '@/lib/exerciseTranslations';
+import ExerciseFormPanel from '@/components/exercise/ExerciseFormPanel';
 
 // Map exercise muscle groups → plan day label
 const MUSCLE_TO_LABEL = {
@@ -88,7 +90,8 @@ function inferDayLabel(regimen) {
 
 export default function TodaysPlanCard({ regimens = [], logs = [], hasWorkedOutToday = false }) {
   const navigate = useNavigate();
-  const { tFallback } = useLanguage();
+  const { tFallback, language } = useLanguage();
+  const [listOpen, setListOpen] = useState(false);
 
   const todaysPlan = useMemo(() => {
     if (!regimens.length) return null;
@@ -145,7 +148,8 @@ export default function TodaysPlanCard({ regimens = [], logs = [], hasWorkedOutT
   // get the inline fallback so the surface never shows a key code.
   const labelSlug = (info.label || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
   const translatedLabel = tFallback(`todaysPlan.label.${labelSlug}`, info.label);
-  const exerciseCount = regimen.exercises?.length || 0;
+  const exercises = Array.isArray(regimen.exercises) ? regimen.exercises : [];
+  const exerciseCount = exercises.length;
 
   return (
     <motion.div
@@ -194,6 +198,63 @@ export default function TodaysPlanCard({ regimens = [], logs = [], hasWorkedOutT
             <ArrowRight className="w-4 h-4 shrink-0 text-muted-foreground rtl:scale-x-[-1]" />
           )}
         </button>
+
+        {/* What's actually in today's session, and how to do it.
+
+            A SIBLING of the navigation button, never a child of it — the row
+            above is one big <button>, and nesting the disclosure inside it
+            would be invalid HTML and would swallow the tap into a navigation.
+
+            Collapsed by default, so the widget's resting height grows by one
+            32px row and nothing else. This is a dashboard widget whose job is
+            to be glanceable; the exercise list is a second question ("what am
+            I actually doing?") that only the person asking it should pay for.
+            The count in the line above is what makes the disclosure worth
+            opening, so it stays the summary. */}
+        {exercises.length > 0 && (
+          <div className="border-t border-border/60">
+            <button
+              type="button"
+              onClick={() => setListOpen((o) => !o)}
+              aria-expanded={listOpen}
+              className="w-full flex items-center gap-2 px-3 py-2 text-start hover:bg-secondary/40 active:bg-secondary/60 transition-colors"
+            >
+              <span className="flex-1 min-w-0 text-micro font-semibold text-muted-foreground">
+                {tFallback('todaysPlan.whatsInIt', "What's in it")}
+              </span>
+              <ChevronDown
+                className={`w-3.5 h-3.5 shrink-0 text-muted-foreground transition-transform ${listOpen ? 'rotate-180' : ''}`}
+              />
+            </button>
+
+            {listOpen && (
+              // Hairline dividers, not a card per exercise. These are
+              // read-only rows inside a widget shell, and the house rule is
+              // that a card marks a discrete user-arranged object — nesting
+              // one per lift here would be a card in a card.
+              <ul className="px-3 pb-2.5 divide-y divide-border/40">
+                {exercises.map((ex, i) => (
+                  <li key={i} className="py-2 first:pt-0">
+                    <div className="flex items-baseline gap-2">
+                      <span className="flex-1 min-w-0 text-label font-semibold truncate">
+                        {ex.displayName || translateExerciseName(ex.name, language)}
+                      </span>
+                      {ex.target_sets > 0 && ex.target_reps > 0 && (
+                        <span className="shrink-0 font-mono text-micro font-bold tabular-nums text-muted-foreground">
+                          {ex.target_sets} × {ex.target_reps}
+                        </span>
+                      )}
+                    </div>
+                    <ExerciseFormPanel
+                      exerciseName={ex.name || ex.displayName}
+                      className="mt-1.5"
+                    />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
       </Card>
     </motion.div>
   );
