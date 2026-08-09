@@ -202,6 +202,25 @@ export async function purchaseBundle(bundleId) {
  * listings. Powers the Item Detail sheet's "what does this go for?" block
  * and the suggested-price hint when listing.
  *
+ * BUNDLED SALES ARE EXCLUDED, and that is the point of the bundle_id
+ * filter. A completed listing records `asking_price`, which is what it was
+ * LISTED at — and for a standalone sale that is also what the buyer paid,
+ * because purchase_listing charges asking_price exactly. A bundle does not
+ * work that way: purchase_bundle charges the discounted total for the whole
+ * basket, so at a 40% discount every item in it reports a price 40% above
+ * what anyone actually paid. Feeding those into the median quietly inflates
+ * the number the next seller prices against, and inflates it most for the
+ * items that get bundled most.
+ *
+ * The alternative is to allocate the basket price back across its items
+ * pro-rata and record that. It is not obviously better: a bundle clears at a
+ * basket price and any per-item split is a rule we invented, so it would
+ * turn a wrong number into a made-up one. What this block answers is "what
+ * do standalone sales of this go for", which is exactly the comparable a
+ * seller pricing a single listing needs. If bundle sales should be
+ * represented, that wants a real `sold_price` column written at sale time,
+ * not arithmetic at read time.
+ *
  * CAVEAT worth knowing before you build on this: marketplace_listings has
  * no sold_at / updated_at column, only created_at (when the item was
  * LISTED). So `recent` is ordered by listing date, not sale date — close
@@ -222,6 +241,7 @@ export async function priceStatsForItem(itemId, limit = 20) {
     .eq('item_id', itemId)
     .eq('status', 'completed')
     .eq('listing_type', 'sale')
+    .is('bundle_id', null)
     .not('asking_price', 'is', null)
     .order('created_at', { ascending: false })
     .limit(limit);
