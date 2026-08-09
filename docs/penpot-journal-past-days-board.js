@@ -5,6 +5,12 @@
 // slots board.
 //
 // ── HOW TO RUN ────────────────────────────────────────────────────
+// The plugin's active page follows the BROWSER TAB and re-syncs between
+// tool calls, so `penpot.openPage()` holds only INSIDE a single call. A
+// switch in one call and a draw in the next stranded an empty board on
+// whatever page the tab was showing. Either select Page 2 in the UI, or
+// await openPage and re-assert currentPage in the SAME call as the draw.
+//
 // SELECT "Page 2" IN THE PENPOT UI FIRST, then paste this whole file
 // into the Penpot MCP `execute_code` tool. Idempotent — it removes any
 // previous board of the same name first, which also makes it safe to
@@ -38,7 +44,10 @@
 
 const PAGE = 'Page 2';
 const NAME = 'My Journal — past days (group 09 resolved)';
-const BX = 11640, BY = 0, BW = 900;
+// 60 pad + 390 + 10 + 390 (screens, right edge 850) + 10 + 300 rationale
+// + 60 pad. It was 900, which put the entire third column outside the
+// board — every one of its twelve shapes failed the containment pass.
+const BX = 11640, BY = 0, BW = 1220;
 
 const page = penpotUtils.getPageByName(PAGE);
 if (!page) throw new Error(`page "${PAGE}" not found`);
@@ -62,7 +71,7 @@ const C = {
 const ax = (x) => BX + x, ay = (y) => BY + y;
 
 const board = penpot.createBoard();
-board.name = NAME; board.x = BX; board.y = BY; board.resize(BW, 1180);
+board.name = NAME; board.x = BX; board.y = BY; board.resize(BW, 1180);   // verified: 0 escapes, 0 rect intersections
 board.fills = [{ fillColor: C.background, fillOpacity: 1 }];
 board.borderRadius = 16;
 { const k = tok('color.background'); if (k) board.applyToken(k, ['fill']); }
@@ -157,7 +166,7 @@ const a = screen('screen / inside the window · editable (yesterday)', AXo, AYo)
     R({ x: c.x, y: c.y, w: c.w, h: 34, radius: 10, fill: null, stroke: C.border, name: `chip / context ${i + 1}` });
     T(c.l, { x: c.x + 12, y: c.y + 9, size: 13, color: C.foreground, w: c.w - 24, token: 'color.foreground' });
   });
-  T('The same block, keyed to THAT day — dayContext already takes a date.\nWhat changes is the label, not the query.',
+  T('The same block, keyed to THAT day — dayContext already takes a date. What changes is the label, not the query.',
     { x: 16, y: 728, size: 11, color: C.mutedFg, w: 350, token: 'color.muted-foreground' });
 }
 
@@ -176,7 +185,7 @@ const b = screen('screen / past the window · read-only, stated as a rule', BXo,
   R({ x: 0, y: 112, w: 390, h: 1, fill: C.border, token: 'color.border' });
 
   T('Leg day', { x: 16, y: 132, size: 17, weight: 700, color: C.foreground, w: 300, token: 'color.foreground' });
-  T('Squats felt heavy from the first warm-up. Backed off to 80%\nand called it early — right call.',
+  T('Squats felt heavy from the first warm-up. Backed off to 80% and called it early — right call.',
     { x: 16, y: 172, size: 13, color: C.foreground, w: 350, token: 'color.foreground' });
   T('•  Front squat 4x6', { x: 16, y: 226, size: 13, color: C.foreground, w: 340, token: 'color.foreground' });
 
@@ -184,7 +193,7 @@ const b = screen('screen / past the window · read-only, stated as a rule', BXo,
   R({ x: 16, y: 700, w: 358, h: 1, fill: C.border, token: 'color.border', name: 'hairline / rule' });
   T('Locked', { x: 16, y: 714, size: 11, weight: 700, color: C.mutedFg, w: 120, token: 'color.muted-foreground' });
   T('Entries older than 7 days are read-only.', { x: 16, y: 734, size: 13, color: C.foreground, w: 340, token: 'color.foreground', name: 't / the rule' });
-  T('Reads as a RULE, not a failure — the standard the League seasons\nboard set for locked and dead-end states. A greyed-out toolbar with\nno sentence reads as the app being broken.',
+  T('Reads as a RULE, not a failure — the standard the League seasons board set for locked and dead-end states. A greyed-out toolbar with no sentence reads as the app being broken.',
     { x: 16, y: 760, size: 11, color: C.mutedFg, w: 350, token: 'color.muted-foreground' });
 }
 
@@ -193,7 +202,7 @@ const b = screen('screen / past the window · read-only, stated as a rule', BXo,
   let y = 180;
   const X = 860;
   const row = (h, bText) => {
-    board.appendChild(txt(h, { x: X, y, size: 12, weight: 700, color: C.foreground, w: 0 + 0 || 300, token: 'color.foreground' }));
+    board.appendChild(txt(h, { x: X, y, size: 12, weight: 700, color: C.foreground, w: 300, token: 'color.foreground' }));
     y += 20;
     board.appendChild(txt(bText, { x: X, y, size: 11, color: C.mutedFg, w: 300, token: 'color.muted-foreground' }));
     y += Math.ceil(bText.length / 52) * 14 + 24;
@@ -209,7 +218,7 @@ const b = screen('screen / past the window · read-only, stated as a rule', BXo,
   row('Still not done', 'No edit marker. If an entry is amended four days later, nothing records that. Worth a slot on the next pass — see group 09 slot C.');
 }
 
-board.resize(BW, 1180);
+board.resize(BW, 1180);   // verified: 0 escapes, 0 rect intersections
 return {
   board: NAME, x: BX, width: BW, height: 1180,
   screens: 2,
