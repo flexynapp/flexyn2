@@ -31,6 +31,7 @@ import { ChevronLeft, Trophy } from 'lucide-react';
 import AchievementsTab from '@/components/progress/AchievementsTab';
 import { listEarned, getProgress, grantEligible } from '@/lib/data/trophies';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { useOverlayBackButton } from '@/hooks/useOverlayBackButton';
 
 // The OPEN_ACHIEVEMENTS_EVENT constant + requestOpenAchievements helper
 // live in src/lib/achievementsFlow.js so callers can import the
@@ -40,6 +41,10 @@ import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 export default function AchievementsVault({ onClose }) {
   const { user } = useAuth();
   useBodyScrollLock(true);
+  // Back dismisses this sheet rather than navigating the page beneath it.
+  // Without it, back changed route while this fixed z-200 portal kept
+  // covering the screen, so the app looked stuck on Achievements.
+  useOverlayBackButton(true, onClose);
 
   // Opening the vault is a grant checkpoint. The criteria are evaluated
   // server-side from live stats, so anything earned since the last check
