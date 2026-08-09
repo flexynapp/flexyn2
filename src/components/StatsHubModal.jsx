@@ -8,8 +8,9 @@
 // Achievements / Bag & Capsules / Coin Shop nav tiles were removed. Those
 // destinations all have their own homes in ProfileMenu, and duplicating
 // them here made the modal a second navigation menu rather than a stats
-// view. The header's coin balance keeps its "Open shop" link, which is
-// the one shop entry point that belongs on a stats surface.
+// view. The header's coin balance keeps its shop entry — the one that
+// belongs on a stats surface — now as a pill rather than the underlined
+// 11px text link it shipped as.
 
 import React, { useEffect, useState } from 'react';
 // useNavigate import removed — the remaining destinations use local state
@@ -34,6 +35,7 @@ import LeaderboardsModal from '@/components/LeaderboardsModal';
 import CoinShopModal from '@/components/hub/CoinShopModal';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import AvatarUploader from '@/components/AvatarUploader';
+import prefersReducedMotion from '@/lib/reducedMotion';
 import { getLootTitleById } from '@/lib/lootTitles';
 import { getLootFrameById } from '@/lib/lootFrames';
 import { RARITY } from '@/lib/lootCatalog';
@@ -125,6 +127,20 @@ export default function StatsHubModal({ open, onClose }) {
   const initialsSource = (profile?.username || user?.username || user?.email || '').trim();
   const initials = (initialsSource ? initialsSource.slice(0, 2) : '?').toUpperCase();
 
+  // The XP rail fills from 0 each time the modal opens, the same way
+  // ProfileTierBanner's does — a progress bar that arrives already at its
+  // width has no way of telling you it IS a progress bar. Reset on close so
+  // reopening replays it rather than snapping.
+  const progressPercent = Math.min(100, levelInfo.progressPercent || 0);
+  const reduceMotion = prefersReducedMotion();
+  const [railWidth, setRailWidth] = useState(0);
+  useEffect(() => {
+    if (!open) { setRailWidth(0); return undefined; }
+    if (reduceMotion) { setRailWidth(progressPercent); return undefined; }
+    const id = requestAnimationFrame(() => setRailWidth(progressPercent));
+    return () => cancelAnimationFrame(id);
+  }, [open, progressPercent, reduceMotion]);
+
   return (
     <>
       <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
@@ -145,8 +161,12 @@ export default function StatsHubModal({ open, onClose }) {
               HubPostCard, AND in this Stats Hub. Radix DialogContent
               ships its own close X — we don't add a second one. */}
           <div className="relative bg-gradient-to-br from-primary via-fuchsia-500 to-violet-500 level-card-aurora px-5 pt-5 pb-6 text-white">
+            {/* The eyebrow names the HERO, which is the level lockup — not
+                the modal, which also holds leaderboards, league and quests.
+                The screen-reader DialogTitle above keeps the modal's own
+                name for that reason. */}
             <p className="text-micro uppercase tracking-[0.2em] font-bold opacity-80 mb-3">
-              {tFallback('statsHub.title', 'Your stats')}
+              {tFallback('statsHub.levelEyebrow', 'Your level')}
             </p>
             <div className="flex items-start justify-between gap-3">
               {/* Avatar + level + title */}
@@ -183,16 +203,43 @@ export default function StatsHubModal({ open, onClose }) {
                 </div>
               </div>
               {/* Coins */}
-              <div className="text-end shrink-0">
+              <div className="shrink-0 flex flex-col items-end">
                 <div className="flex items-center gap-1.5 justify-end">
-                  <Coins className="w-4 h-4" />
-                  <span className="font-heading font-bold text-2xl tabular-nums">{fmtNum(coins)}</span>
+                  <Coins className="w-4 h-4" aria-hidden="true" />
+                  <span className="font-heading font-bold text-2xl tabular-nums leading-none">{fmtNum(coins)}</span>
                 </div>
+                {/* This was an 11px underlined text link. An underline is what
+                    you reach for when you can't afford a button, and this is
+                    the only route to the shop on the surface where someone
+                    has just looked at their balance — so it can afford one.
+                    A solid pill also gives it a real touch target; the link
+                    was 11px tall on a phone.
+
+                    White pill, pinned dark label: the hero gradient runs
+                    fuchsia to violet, where white-on-translucent-white lands
+                    around 2.6:1. Same treatment as the level-up card's
+                    Continue button, so "solid action on a coloured surface"
+                    means one thing across the app. */}
                 <button
                   onClick={() => setShopOpen(true)}
-                  className="mt-1 text-micro underline underline-offset-2 opacity-90 hover:opacity-100"
+                  className="group relative mt-1 h-11 inline-flex items-center"
                 >
-                  {tFallback('statsHub.openShop', 'Open shop')}
+                  {/* 44px tap box, smaller visible pill inside — the same
+                      shape Header.jsx uses for its icon buttons, so the
+                      thumb target doesn't dictate how heavy the control
+                      looks. */}
+                  {/* "Shop", not "Open shop": the pill has to sit in the same
+                      column as the balance, and this row also holds the
+                      equipped title, which truncates. At "Open shop" the pill
+                      is wider than the balance above it and takes 32px off
+                      the title — "THE CHOSEN ONE" became "THE CHOSEN…". At
+                      one word it is narrower than the balance, so the column
+                      is exactly as wide as it is today and the title keeps
+                      every pixel it has now. */}
+                  <span className="inline-flex items-center gap-0.5 h-9 ps-3.5 pe-2.5 rounded-full bg-white/95 group-hover:bg-white group-active:bg-white text-slate-900 text-xs font-heading font-bold shadow-md transition-colors">
+                    {tFallback('statsHub.shop', 'Shop')}
+                    <ChevronRight className="w-3.5 h-3.5" aria-hidden="true" />
+                  </span>
                 </button>
               </div>
             </div>
@@ -206,8 +253,11 @@ export default function StatsHubModal({ open, onClose }) {
               )}
               <div className="h-2 rounded-full bg-white/20 overflow-hidden">
                 <div
-                  className="h-full bg-white"
-                  style={{ width: `${Math.min(100, levelInfo.progressPercent || 0)}%` }}
+                  className="h-full bg-white rounded-full"
+                  style={{
+                    width: `${railWidth}%`,
+                    transition: reduceMotion ? undefined : 'width 0.7s cubic-bezier(0.22, 1, 0.36, 1)',
+                  }}
                 />
               </div>
             </div>
