@@ -138,19 +138,10 @@ export async function askStarterPlanCoach({ draft = {}, language = 'en' } = {}) 
   const reply = String(res.reply || '').trim();
   if (!reply) return { ok: false, error: 'EMPTY_REPLY' };
 
+  // `model` is not rendered anywhere — the reveal used to attribute the
+  // write-up on screen and no longer does (see StarterPlanCoachCard). It stays
+  // on the return because it is what actually answered, which is the thing you
+  // want in hand when a reply reads oddly and the Edge Function's MODEL
+  // constant has moved since.
   return { ok: true, reply, model: res.model || null };
-}
-
-/**
- * Human-readable name for a model id, for the attribution line.
- * Unknown ids fall back to the raw id rather than a guess — the label has to
- * track whatever the Edge Function actually ran.
- */
-export function modelLabel(model) {
-  if (!model) return null;
-  const id = String(model);
-  if (/^claude-haiku/.test(id)) return 'Claude Haiku';
-  if (/^claude-sonnet/.test(id)) return 'Claude Sonnet';
-  if (/^claude-opus/.test(id)) return 'Claude Opus';
-  return id;
 }

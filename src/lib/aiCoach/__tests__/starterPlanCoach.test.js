@@ -5,7 +5,7 @@ vi.mock('@/lib/data/coachChat', () => ({
   askCoachLLM: (...args) => askCoachLLM(...args),
 }));
 
-const { askStarterPlanCoach, buildOnboardingContext, modelLabel } =
+const { askStarterPlanCoach, buildOnboardingContext } =
   await import('@/lib/aiCoach/starterPlanCoach');
 
 const DRAFT = {
@@ -119,23 +119,5 @@ describe('askStarterPlanCoach', () => {
     askCoachLLM.mockResolvedValue({ ok: true, kind: 'plan', reply: 'x', model: null });
     await askStarterPlanCoach({ draft: DRAFT });
     expect(askCoachLLM.mock.calls[0][0].timeoutMs).toBeLessThanOrEqual(8000);
-  });
-});
-
-describe('modelLabel', () => {
-  it('names the model the function actually ran', () => {
-    expect(modelLabel('claude-haiku-4-5')).toBe('Claude Haiku');
-    expect(modelLabel('claude-sonnet-5')).toBe('Claude Sonnet');
-  });
-
-  it('falls back to the raw id rather than guessing a friendly name', () => {
-    // If MODEL in the Edge Function changes to something unrecognised, the
-    // attribution must go stale visibly, not silently keep saying "Haiku".
-    expect(modelLabel('some-future-model')).toBe('some-future-model');
-  });
-
-  it('is null when nothing answered, so no badge is rendered', () => {
-    expect(modelLabel(null)).toBeNull();
-    expect(modelLabel(undefined)).toBeNull();
   });
 });

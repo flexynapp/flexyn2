@@ -17,18 +17,23 @@
 // visual language is deliberately the same — Sparkles mark, primary-tinted
 // hairline, plan underneath — so the two read as one feature.
 //
-// ── Attribution is conditional, and that is the point ───────────────────────
+// ── No model attribution ────────────────────────────────────────────────────
 //
-// The model line renders ONLY when a model actually replied. The Coach's whole
-// pipeline is built to degrade to deterministic output when the Edge Function
-// is absent (see starterPlanCoach.js), and a badge that says "Claude Haiku"
-// over a plan Haiku never saw is a lie the user has no way to detect.
+// This carried a "Written by Claude Haiku" line under the prose. It is gone
+// (kegan, 2026-08-08): the reveal is a payoff screen, and naming the vendor on
+// it makes the plan read as machine output at the exact moment the user is
+// meant to feel it was made for them. "AI Coach" is what the app calls this
+// everywhere else, and it is what the header already says.
+//
+// If it ever comes back, it must stay conditional on a model having actually
+// replied — the pipeline degrades to deterministic output whenever the Edge
+// Function is absent, and a badge naming a model that never saw the plan is a
+// lie the user has no way to detect.
 
 import React from 'react';
 import { Sparkles } from 'lucide-react';
 import StarterPlanView from '@/components/workout/StarterPlanView';
 import { parseBoldSegments } from '@/lib/aiCoach/markdownLite';
-import { modelLabel } from '@/lib/aiCoach/starterPlanCoach';
 
 /** The coach's prose. Supports the one construct the app renders: **bold**. */
 function CoachProse({ text }) {
@@ -47,13 +52,10 @@ function CoachProse({ text }) {
 }
 
 /**
- * @param {object}      regimen  the starter regimen being previewed and saved
+ * @param {object}      regimen     the starter regimen being previewed and saved
  * @param {string|null} coachReply  the model's intro, or null on any fallback
- * @param {string|null} coachModel  model id from the reply, for attribution
  */
-export default function StarterPlanCoachCard({ regimen, coachReply = null, coachModel = null }) {
-  const label = modelLabel(coachModel);
-
+export default function StarterPlanCoachCard({ regimen, coachReply = null }) {
   return (
     <div className="rounded-2xl border border-primary/25 bg-primary/[0.04] p-2.5 space-y-2.5">
       <div className="flex items-center gap-2.5 px-1 pt-0.5">
@@ -82,11 +84,6 @@ export default function StarterPlanCoachCard({ regimen, coachReply = null, coach
         // on the screen does not get to depend on an animation finishing.
         <div className="px-1 space-y-1.5">
           <CoachProse text={coachReply} />
-          {label && (
-            <p className="text-micro text-muted-foreground/80">
-              Written by {label}
-            </p>
-          )}
         </div>
       )}
 

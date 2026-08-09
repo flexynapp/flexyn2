@@ -3155,7 +3155,6 @@ function RevealStep({ data, onNext, saving = false, previewRegimen = null, coach
             <StarterPlanCoachCard
               regimen={previewRegimen}
               coachReply={coachIntro?.reply || null}
-              coachModel={coachIntro?.model || null}
             />
           </motion.div>
         )}

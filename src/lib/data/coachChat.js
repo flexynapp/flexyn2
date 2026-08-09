@@ -127,10 +127,9 @@ export async function askCoachLLM({
       reply: String(data.reply),
       goal: String(data.goal || ''),
       // Which model actually answered. The function has always sent this back
-      // on `usage`; it was dropped here. Onboarding attributes the starter
-      // plan's write-up on screen, and an attribution that isn't read from the
-      // response is a claim rather than a fact — if MODEL changes in the
-      // function, the label has to change with it.
+      // on `usage` and it was dropped here, so a caller had no way to tell
+      // which tier produced a reply — which is exactly what you want to know
+      // when one reads oddly and the function's MODEL constant has moved.
       model: data.usage?.model ? String(data.usage.model) : null,
     };
   } catch (err) {

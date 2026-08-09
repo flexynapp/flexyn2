@@ -163,10 +163,22 @@ describe('reveal step', () => {
     // onboarding persists. If these ever diverge, the screen is advertising a
     // plan the user does not receive.
     const step = revealStep();
-    const card = step.slice(step.indexOf('<StarterPlanCoachCard'));
-    expect(card.slice(0, card.indexOf('/>'))).toContain('regimen={previewRegimen}');
-    // The model's contribution is prose and an attribution, nothing else.
-    expect(card.slice(0, card.indexOf('/>'))).toContain('coachReply=');
-    expect(card.slice(0, card.indexOf('/>'))).toContain('coachModel=');
+    const card = step.slice(step.indexOf('<StarterPlanCoachCard'), step.indexOf('/>', step.indexOf('<StarterPlanCoachCard')));
+    expect(card).toContain('regimen={previewRegimen}');
+    // The model's contribution is prose and nothing else.
+    expect(card).toContain('coachReply=');
+  });
+
+  it('does not name the model on the payoff screen', () => {
+    // "Written by Claude Haiku" sat under the coach's prose. Naming the
+    // vendor makes the plan read as machine output at the exact moment it is
+    // meant to read as something made for this person. (kegan, 2026-08-08)
+    const card = readFileSync('src/components/onboarding/StarterPlanCoachCard.jsx', 'utf8');
+    // The render body only — the file head deliberately records the removal
+    // and the condition any future attribution has to meet.
+    const body = card.slice(card.indexOf('export default function'));
+    expect(body).not.toContain('Written by');
+    expect(card).not.toContain('modelLabel');
+    expect(revealStep()).not.toContain('coachModel');
   });
 });
