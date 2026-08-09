@@ -75,15 +75,26 @@ function Section({ title, meta, children, seam = false }) {
   );
 }
 
-/** A fixed row of exactly three figures. Count is fixed, so a grid is
- *  correct here — `tileRow()` is for collections whose count is data. */
-function TripleStat({ items }) {
+/** A row of one to three figures, hairline-separated.
+ *
+ *  Takes `items` already filtered to the ones that HAVE data — a stat with
+ *  nothing behind it is dropped rather than rendered as an em dash. Half the
+ *  columns this reads are NULL on every row in production (workout duration
+ *  0/3, sleep soreness 0/7, sleep quality 1/7), so a fixed three-up grid
+ *  meant a permanent row of dashes.
+ *
+ *  Flex rather than `grid-cols-{n}`: the count comes from data, and Tailwind
+ *  scans source TEXT, so an interpolated column count emits no CSS at all
+ *  (CLAUDE.md). Basis is even because each item is `flex-1`. */
+function StatRow({ items }) {
+  const shown = items.filter(it => it && it.value !== null && it.value !== undefined);
+  if (shown.length === 0) return null;
   return (
-    <div className="grid grid-cols-3">
-      {items.map((it, i) => (
-        <div key={it.label} className={i > 0 ? 'ps-3 border-s border-border' : undefined}>
+    <div className="flex">
+      {shown.map((it, i) => (
+        <div key={it.label} className={`flex-1 min-w-0 ${i > 0 ? 'ps-3 border-s border-border' : ''}`}>
           <p className="font-heading font-bold text-[15px] text-foreground tabular-nums">{it.value}</p>
-          <p className="text-micro text-muted-foreground">{it.label}</p>
+          <p className="text-micro text-muted-foreground truncate">{it.label}</p>
         </div>
       ))}
     </div>
@@ -182,8 +193,11 @@ export default function WeeklyDebriefCard({ debrief, forExport = false, exportRe
   const hasCond    = cardioN > 0 || steps > 0;
 
   // ── Fuel
-  const fuelDays   = co && (fu.days_logged ?? d.macro_days_tracked ?? 0);
+  const fuelDays   = fu.days_logged ?? d.macro_days_tracked ?? 0;
   const hasFuel    = num(fuelDays) > 0;
+  // Energy from the macros we actually have, used both to size the stacked
+  // bar and to decide whether it is worth drawing at all.
+  const macroKcal  = num(fu.avg_protein) * 4 + num(fu.avg_carbs) * 4 + num(fu.avg_fat) * 9;
 
   // ── Recovery
   const sleepNights= num(re.sleep_nights);
@@ -300,10 +314,14 @@ export default function WeeklyDebriefCard({ debrief, forExport = false, exportRe
 
             {(sets || reps || duration) && (
               <div className="mt-2 pt-2 border-t border-border">
-                <TripleStat items={[
-                  { value: n0(sets) ?? '—', label: 'sets' },
-                  { value: n0(reps) ?? '—', label: 'reps' },
-                  { value: hm(duration) ?? '—', label: 'under load' },
+                {/* `duration` is workout_logs.duration_min, which is NULL on
+                    100% of production rows and has no other source for a
+                    lifting session — so it drops out rather than sitting
+                    there as a permanent em dash. */}
+                <StatRow items={[
+                  { value: n0(sets), label: 'sets' },
+                  { value: n0(reps), label: 'reps' },
+                  { value: hm(duration), label: 'under load' },
                 ]} />
               </div>
             )}
@@ -363,10 +381,10 @@ export default function WeeklyDebriefCard({ debrief, forExport = false, exportRe
         {hasCond && (
           <Section title="Conditioning" meta="cardio · steps" seam>
             {cardioN > 0 && (
-              <TripleStat items={[
+              <StatRow items={[
                 { value: n0(cardioN), label: `session${cardioN === 1 ? '' : 's'}` },
-                { value: `${n1(toMiles(co.distance_m))} mi`, label: 'distance' },
-                { value: hm(co.duration_min) ?? '—', label: 'moving' },
+                { value: num(co.distance_m) > 0 ? `${n1(toMiles(co.distance_m))} mi` : null, label: 'distance' },
+                { value: hm(co.duration_min), label: 'moving' },
               ]} />
             )}
             {steps > 0 && (
@@ -396,34 +414,47 @@ export default function WeeklyDebriefCard({ debrief, forExport = false, exportRe
                   <span className="text-[13px] text-muted-foreground mb-0.5">kcal / day</span>
                 </div>
                 {/* Macros use the chart ramp, not the state hues — they need
-                    mutual distinguishability, not state meaning (CLAUDE.md). */}
-                <div className="flex h-2 rounded-full overflow-hidden mt-3">
-                  {[
-                    ['bg-chart-1', num(fu.avg_protein) * 4],
-                    ['bg-chart-2', num(fu.avg_carbs) * 4],
-                    ['bg-chart-3', num(fu.avg_fat) * 9],
-                  ].map(([cls, kcal], i) => {
-                    const total = num(fu.avg_protein) * 4 + num(fu.avg_carbs) * 4 + num(fu.avg_fat) * 9;
-                    return <div key={i} className={cls} style={{ width: total ? `${(kcal / total) * 100}%` : '0%' }} />;
-                  })}
-                </div>
-                <div className="grid grid-cols-3 mt-2">
-                  {[
-                    ['Protein', fu.avg_protein, 'bg-chart-1'],
-                    ['Carbs',   fu.avg_carbs,   'bg-chart-2'],
-                    ['Fat',     fu.avg_fat,     'bg-chart-3'],
-                  ].map(([label, val, dot]) => (
-                    <div key={label}>
-                      <span className="inline-flex items-center gap-1.5">
-                        <span className={`w-2 h-2 rounded-full ${dot}`} />
-                        <span className="text-micro text-muted-foreground">{label}</span>
-                      </span>
-                      <p className="font-heading font-bold text-[13px] tabular-nums text-foreground">
-                        {n0(val)} g
-                      </p>
+                    mutual distinguishability, not state meaning (CLAUDE.md).
+                    The whole block is behind a macro total, because macros are
+                    optional on the food form: protein is set on 6 of 120
+                    production rows. Without the gate, a week of calorie-only
+                    logging drew an empty bar over three "0 g" labels, which
+                    reads as a rendering failure rather than as "you logged
+                    calories and not macros". */}
+                {macroKcal > 0 ? (
+                  <>
+                    <div className="flex h-2 rounded-full overflow-hidden mt-3">
+                      {[
+                        ['bg-chart-1', num(fu.avg_protein) * 4],
+                        ['bg-chart-2', num(fu.avg_carbs) * 4],
+                        ['bg-chart-3', num(fu.avg_fat) * 9],
+                      ].map(([cls, kcal], i) => (
+                        <div key={i} className={cls} style={{ width: `${(kcal / macroKcal) * 100}%` }} />
+                      ))}
                     </div>
-                  ))}
-                </div>
+                    <div className="grid grid-cols-3 mt-2">
+                      {[
+                        ['Protein', fu.avg_protein, 'bg-chart-1'],
+                        ['Carbs',   fu.avg_carbs,   'bg-chart-2'],
+                        ['Fat',     fu.avg_fat,     'bg-chart-3'],
+                      ].map(([label, val, dot]) => (
+                        <div key={label}>
+                          <span className="inline-flex items-center gap-1.5">
+                            <span className={`w-2 h-2 rounded-full ${dot}`} />
+                            <span className="text-micro text-muted-foreground">{label}</span>
+                          </span>
+                          <p className="font-heading font-bold text-[13px] tabular-nums text-foreground">
+                            {n0(val)} g
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-micro text-muted-foreground mt-2">
+                    Calories logged without macros this week.
+                  </p>
+                )}
               </>
             ) : (
               <FactRow icon={Utensils} label={`Logged ${n0(fuelDays)} of 7 days`}
@@ -435,11 +466,14 @@ export default function WeeklyDebriefCard({ debrief, forExport = false, exportRe
         {/* RECOVERY */}
         {hasRecovery && (
           <Section title="Recovery" meta="sleep · mood · body" seam={!hasCond && !hasFuel}>
+            {/* quality is set on 1 of 7 production rows and soreness on 0 of
+                7 — both are optional fields on the sleep form, so they drop
+                out individually rather than dashing out the whole row. */}
             {sleepNights > 0 && (
-              <TripleStat items={[
-                { value: re.sleep_hours != null ? `${n1(re.sleep_hours)}h` : '—', label: 'avg sleep' },
-                { value: re.sleep_quality != null ? n1(re.sleep_quality) : '—', label: 'sleep quality' },
-                { value: re.soreness != null ? n1(re.soreness) : '—', label: 'soreness' },
+              <StatRow items={[
+                { value: re.sleep_hours != null ? `${n1(re.sleep_hours)}h` : null, label: 'avg sleep' },
+                { value: re.sleep_quality != null ? n1(re.sleep_quality) : null, label: 'sleep quality' },
+                { value: re.soreness != null ? n1(re.soreness) : null, label: 'soreness' },
               ]} />
             )}
             <div className={sleepNights > 0 ? 'mt-2 pt-2 border-t border-border' : undefined}>
@@ -481,10 +515,11 @@ export default function WeeklyDebriefCard({ debrief, forExport = false, exportRe
           )}
           {(num(ga.quests_done) > 0 || num(ga.coins) > 0 || num(ga.trophy_count) > 0) && (
             <div className="mt-2 pt-2 border-t border-border">
-              <TripleStat items={[
-                { value: n0(ga.quests_done) ?? '0', label: 'quests done' },
-                { value: n0(ga.coins) ?? '0',       label: 'coins' },
-                { value: n0(ga.trophy_count) ?? '0',label: `troph${num(ga.trophy_count) === 1 ? 'y' : 'ies'}` },
+              <StatRow items={[
+                { value: num(ga.quests_done)  > 0 ? n0(ga.quests_done)  : null, label: 'quests done' },
+                { value: num(ga.coins)        > 0 ? n0(ga.coins)        : null, label: 'coins' },
+                { value: num(ga.trophy_count) > 0 ? n0(ga.trophy_count) : null,
+                  label: `troph${num(ga.trophy_count) === 1 ? 'y' : 'ies'}` },
               ]} />
             </div>
           )}
@@ -503,11 +538,19 @@ export default function WeeklyDebriefCard({ debrief, forExport = false, exportRe
                          detail={`won ${n0(pe.duels_won)} of ${n0(pe.duels_played)}`}
                          value={`${num(pe.duels_won)}–${num(pe.duels_played) - num(pe.duels_won)}`} />
               )}
-              {pe.league_rank != null && (
+              {/* Gated on the league EXISTING, not on `rank`. league_members.rank
+                  is NULL on all 42 production rows because it is only written
+                  when the league resolves at week end — so gating on it hid the
+                  league from every user for the entire week they were competing
+                  in it, which is the only week it matters. Rank renders when
+                  there is one; before that the weekly XP is the live number. */}
+              {(pe.league_tier || pe.league_xp != null || pe.league_rank != null) && (
                 <FactRow icon={Trophy}
                          label={pe.league_tier ? `${pe.league_tier} league` : 'League'}
-                         detail={`${n0(pe.league_days)} active days · ${n0(pe.league_xp)} weekly XP`}
-                         value={`#${pe.league_rank}`} />
+                         detail={num(pe.league_days) > 0
+                           ? `${n0(pe.league_days)} active days · ${n0(pe.league_xp)} weekly XP`
+                           : `${n0(pe.league_xp)} weekly XP`}
+                         value={pe.league_rank != null ? `#${pe.league_rank}` : null} />
               )}
               {num(pe.gym_days) > 0 && (
                 <FactRow icon={Dumbbell} label="Gym check-ins"
