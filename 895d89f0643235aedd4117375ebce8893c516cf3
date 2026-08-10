@@ -1,0 +1,14 @@
+CORRECTION (2026-08-10): the claim that favicon.ico 'had been a single 48' is wrong.
+
+The original file already contained 16/32/48 entries. I read PIL's
+Image.open(...).size — which reports only the LARGEST entry, (48,48) — as if it
+were the whole file, and concluded browsers were downscaling a lone 48 for the
+URL bar. They were not. Verified against git: the pre-change ico reports
+sizes [(16,16),(32,32),(48,48)].
+
+What the rebuild actually changed stands and was still worth doing: the tile
+recolour, and the 16px entry now rendering from the sparkle-free master. The
+stated REASON for rebuilding it was simply false.
+
+General lesson: PIL's .size on a multi-image format (ICO, TIFF, GIF) describes
+one frame, not the container. Use im.ico.sizes() for ICO.
