@@ -2709,7 +2709,7 @@ function InjuryHistoryStep({ step, total, value, onChange, onNext, onBack, onSki
             (Audit 13 #26.) */}
         {value.length >= 5 && (
           <p className="text-xs text-muted-foreground rounded-xl border border-border bg-card px-3 py-2 mt-3">
-            {tFallback('onboarding.injury.capReached', "You've logged the max of 5. Add more later in Progress → Recovery.")}
+            {tFallback('onboarding.injury.capReached', "You've logged the max of 5. Add more later from Profile → My Injuries.")}
           </p>
         )}
         {value.length < 5 && (
@@ -3861,12 +3861,16 @@ export default function Onboarding() {
               // TELL the user. This is the one side effect whose absence they
               // will go looking for: they listed injuries specifically so the
               // plan would work around them, and a silent failure means they
-              // open Progress → Recovery to an empty list and conclude the app
-              // lost them. The toast lands on the dashboard they're being
+              // open their injury list to find it empty and conclude the app
+              // lost them. (Both these strings used to name "Progress →
+              // Recovery", which is not a route and never has been — there is
+              // no Recovery tab on Progress. The form lives behind Profile →
+              // My Injuries and the Workout tab's Recovery Mode banner.)
+              // The toast lands on the dashboard they're being
               // navigated to, and `warning` is always delivered under the
               // current toast policy. (Audit 18 #8.)
               toast.warning(
-                tFallback('onboarding.toast.injuriesFailed', "We couldn't save your injury history — add it from Progress → Recovery so your plan works around it."),
+                tFallback('onboarding.toast.injuriesFailed', "We couldn't save your injury history — add it from Profile → My Injuries so your plan works around it."),
                 { duration: 7000 },
               );
             });

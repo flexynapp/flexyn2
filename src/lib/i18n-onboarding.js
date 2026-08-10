@@ -211,7 +211,7 @@ export const onboardingI18n = {
     'onboarding.injury.kicker': 'Any injuries? · optional',
     'onboarding.injury.heading': "We'll work around them from day one.",
     'onboarding.injury.sub': "Moderate and serious injuries are excluded from your starter plan; mild ones stay in with an ease-in note. Skip if you're all good.",
-    'onboarding.injury.capReached': "You've logged the max of 5. Add more later in Progress → Recovery.",
+    'onboarding.injury.capReached': "You've logged the max of 5. Add more later from Profile → My Injuries.",
     'onboarding.injury.muscleGroup': 'Muscle group',
     'onboarding.injury.severity': 'Severity',
     'onboarding.injury.severity.mild': 'Mild',
@@ -281,6 +281,6 @@ export const onboardingI18n = {
     'onboarding.toast.partialSave': 'Some profile details could not be saved — finish setup from Settings later.',
     'onboarding.toast.offline': "You're offline — reconnect and tap Save again.",
     'onboarding.toast.saveFailed': 'Could not save your profile{code}. Tap Save to retry{detail}',
-    'onboarding.toast.injuriesFailed': "We couldn't save your injury history — add it from Progress → Recovery so your plan works around it.",
+    'onboarding.toast.injuriesFailed': "We couldn't save your injury history — add it from Profile → My Injuries so your plan works around it.",
   },
 };

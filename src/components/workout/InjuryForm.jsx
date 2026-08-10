@@ -18,10 +18,21 @@ import { useOverlayBackButton } from '@/hooks/useOverlayBackButton';
 
 const MUSCLE_GROUPS = ['Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps', 'Legs', 'Glutes', 'Core'];
 
+// Each option states what it DOES, not only how it feels. Severity is the one
+// control here that changes someone's training, and all three descriptions
+// used to describe the sensation instead — "Mild: some soreness, can train
+// around it" while `getExcludedMuscleGroups` removes the group from every
+// generated session at ANY severity, mild included. The app was promising to
+// train around something it was in fact taking out.
+//
+// Mild and moderate were also the identical `text-primary` chip, so the choice
+// that decides whether a body part disappears from your sessions looked like
+// it made no difference. Muted / primary / destructive now reads as a ramp,
+// inside the four-hue budget.
 const SEVERITY_OPTIONS = [
-  { id: 'mild',     label: 'Mild',     desc: 'Some soreness, can train around it',           color: 'text-primary border-primary/30 bg-primary/10' },
-  { id: 'moderate', label: 'Moderate', desc: 'Pain during movement, needs rest',              color: 'text-primary border-primary/30 bg-primary/10' },
-  { id: 'serious',  label: 'Serious',  desc: 'Sharp pain or structural concern — avoid area', color: 'text-destructive border-destructive/30 bg-destructive/10' },
+  { id: 'mild',     label: 'Mild',     desc: 'Sore. That area comes out until you clear it',       color: 'text-foreground border-border bg-secondary' },
+  { id: 'moderate', label: 'Moderate', desc: 'Hurts to move. That area comes out',                 color: 'text-primary border-primary/30 bg-primary/10' },
+  { id: 'serious',  label: 'Serious',  desc: 'Sharp pain — that area and what it helps move go',   color: 'text-destructive border-destructive/30 bg-destructive/10' },
 ];
 
 const STATUS_ICON = {
