@@ -414,11 +414,15 @@ const EXERCISE_LIBRARY = [
   { name: 'Towel Pull-Up', muscles: ['Back', 'Biceps'] },
   { name: 'Wrist Roller', muscles: ['Back'] },
 
-  // Neck
-  { name: 'Lying Neck Curl', muscles: ['Full Body'] },
-  { name: 'Lying Neck Extension', muscles: ['Full Body'] },
-  { name: 'Prone Neck Bridge', muscles: ['Full Body'] },
-  { name: 'Supine Neck Bridge', muscles: ['Full Body'] },
+  // Neck. Tagged 'Traps' rather than 'Full Body': there is no neck group in
+  // the taxonomy, and the heat-map now spreads 'Full Body' across all nine
+  // coarse groups (it was dropped in silence before, which hid this), so
+  // three sets of neck curls used to read the whole body as fatigued. Traps
+  // is the nearest real mover and already resolves to Back everywhere.
+  { name: 'Lying Neck Curl', muscles: ['Traps'] },
+  { name: 'Lying Neck Extension', muscles: ['Traps'] },
+  { name: 'Prone Neck Bridge', muscles: ['Traps'] },
+  { name: 'Supine Neck Bridge', muscles: ['Traps'] },
 
   // Cardio
   { name: 'Rowing Machine', muscles: ['Cardio', 'Back', 'Legs'] },

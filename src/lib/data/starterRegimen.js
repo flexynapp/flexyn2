@@ -377,9 +377,17 @@ export function buildStarterRegimen({ goals, level, daysCount, assessment, cardi
   // Cardio here is running, jumping rope and mountain climbers — leg-driven
   // and braced through the trunk — so it counts as legs and core rather than
   // as nothing.
+  // Traps is the third such tag, and it arrived the same way: the four neck
+  // exercises were retagged off 'Full Body' (which had them loading all eight
+  // groups) onto the nearest real mover. Left bare it would have swung the
+  // filter the other way — 'Traps' matches no injury group, so a serious back
+  // injury stopped excluding neck bridges and the every-region-flagged plan
+  // answered with three of them. It loads the back, and that is what the
+  // heat-map already resolves it to.
   const IMPLIED_LOAD = {
     'Full Body': ['Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps', 'Legs', 'Glutes', 'Core'],
     Cardio: ['Legs', 'Core'],
+    Traps: ['Back'],
   };
   const loads = (muscle) => [muscle, ...(IMPLIED_LOAD[muscle] || [])];
   const trains = (name, set) => EX(name).muscles.some(m => loads(m).some(g => set.has(g)));
