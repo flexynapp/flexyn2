@@ -868,6 +868,9 @@ govern hierarchy, which tokens can't encode.
   ratio, which is what makes the two registers read as distinct rather than as
   drift. Tuned tighter than the 32/40 the literature suggests because this app is
   deliberately dense; the ratio is what matters, not the absolute.
+  **On a surface converted to the fluid scale, `--fluid-section` supersedes
+  this** — see the reconciliation at the end of the fluid-scale section. This
+  rule governs values you TYPE; the scale governs values a viewport computes.
 - **Exactly one `gap-8` (32px) per page.** On Dashboard it sits below
   `TodaysPlan` — the seam between *action* (above) and *state* (below). A second
   break means neither reads as the break.
@@ -1024,6 +1027,46 @@ crowding is a wrapping problem, not a scaling one. And only onboarding is
 converted so far; the rest of the app still uses fixed values and is fine
 because it scrolls inside Layout rather than pinning a CTA to the viewport
 bottom. Convert a surface when it has to *end* at a fixed point.
+
+**A PARTIAL conversion is a legitimate outcome, and usually the right one.**
+Progress (2026-08-10) took `--fluid-pad-y` and `--fluid-section` and nothing
+else: it scrolls inside Layout, so it needs neither its type nor its component
+heights clamped. Four things stayed fixed there and the reasoning generalises —
+**a floor is not a gap** (48px tap targets are the Apple HIG minimum), **the
+one `gap-8` seam must not shrink with the gaps it exists to stand apart from**
+(holding it while sections compress makes the ratio *better* on a small screen:
+32:16 is 2× against 32:22 on a Pro Max), **type already sitting on the 11px
+floor has nowhere to go**, and **a horizontal literal that another rule depends
+on has to stay literal** (that page's `px-4` is what its full-bleed band's
+`-mx-4` cancels; making one fluid silently breaks the bleed).
+
+Measure before converting. Progress was already fine on an SE — no overflow,
+nothing clipped — and the conversion bought 24px, or 1.7%. That is a real
+result and a small one; the value was that the page moves with the device
+rather than being drawn for one. Don't promise a screen back.
+
+### The fluid scale beats the two-register rule (kegan, 2026-08-10)
+
+These two rules contradict each other and the contradiction is real, not a
+misreading. `--fluid-section` is `clamp(12px, …, 24px)`, so it interpolates
+straight through the 12–20px middle register that the composition rules ban
+outright. On Progress at 667px it lands on **16px — a banned value, arrived at
+by a sanctioned mechanism.**
+
+**The scale wins.** The reconciliation: the two-register rule exists to stop
+someone reaching for `gap-4` because 24 "felt like too much" — it polices
+*arbitrary values chosen by hand*. A clamped value is neither arbitrary nor
+chosen by hand; it is one endpoint of a range whose endpoints ARE 12 and 24,
+both legal. The registers govern what you type. The scale governs what a
+viewport computes from what you typed.
+
+So: **on a converted surface, `--fluid-section` is correct even where it
+resolves into the banned middle. On an unconverted surface the ban stands in
+full** — `gap-3`/`gap-4`/`gap-5` remain wrong, because there the 16px really
+is a hand-picked in-between.
+
+Don't "fix" a fluid gap that measures 16px, and don't cite the register rule
+against the scale in review.
 
 **Verify at 667 as well as 932.** A layout that fits a Pro Max tells you
 nothing. Render the surface in an iframe at each device height (an iframe, not
