@@ -293,8 +293,10 @@ function buildCardioSessions({ event, speed, distance, level, targets } = {}) {
  * @param {Object} [input.assessment]  - Fitness self-assessment (mig 129); raises
  *                                       the effective level for capable athletes.
  * @param {string} [input.cardioPreference] - running|cycling|jump_rope (endurance).
- * @param {Array}  [input.injuries]    - [{muscleGroup, severity}]; moderate/serious
- *                                       excluded, mild flagged with a caution note.
+ * @param {Array}  [input.injuries]    - [{muscleGroup, severity}]; EVERY severity
+ *                                       is excluded, mild included, so the plan
+ *                                       agrees with what the generator does from
+ *                                       the second session onwards.
  * @param {number} [input.age]         - Caps volume for older lifters (55+ / 65+).
  * @param {number} [input.bodyFatPct]  - High BF on a strength/muscle goal adds
  *                                       a conditioning exercise.
@@ -327,16 +329,33 @@ export function buildStarterRegimen({ goals, level, daysCount, assessment, cardi
     : [];
   if (focus.length) exerciseNames = [...focus, ...exerciseNames.filter(n => !focus.includes(n))];
 
-  // ── Injuries. Severity-aware: MODERATE/SERIOUS regions are excluded outright
-  // (the injury step promises we work around them); MILD regions stay but get a
-  // "ease in" note. Safety valve: if exclusion would empty the plan, keep the
-  // exercises hitting the fewest injured areas so it's never empty.
+  // ── Injuries. EVERY severity is excluded, mild included.
+  //
+  // Mild used to stay in with an "Ease in — mild legs flagged." note, on the
+  // reasoning that soreness is trainable. The problem was never that reading —
+  // it was that the runtime generator disagreed with it. `getExcludedMuscleGroups`
+  // drops the region at every severity, so a user who reported a mild knee got
+  // a starter plan containing squats and then, from the very next session
+  // onwards, never saw a leg exercise again. One of the two had to move, and
+  // moving the generator would have meant weakening injury protection on the
+  // surface people actually train from.
+  //
+  // Safety valve below still applies and matters MORE now: with mild excluded
+  // too, more users can exclude their way to an empty plan, so if filtering
+  // would leave fewer than two exercises we keep the three that hit the fewest
+  // injured areas rather than hand back nothing.
+  //
+  // Be honest about what that valve does when it fires: it hands back work on
+  // areas the user flagged. Measured with five injuries across all five
+  // regions, the plan comes back as Overhead Press / Barbell Row / Pull-Up —
+  // against a serious shoulder and a moderate back. That was already true; it
+  // is simply reachable more often now. It also quietly contradicts the
+  // onboarding promise that anything you flag comes out. Worth a decision on
+  // its own: a "we can't build you a plan around all of this, here's mobility
+  // instead" branch is probably the right answer, and is not this change.
   const injList = Array.isArray(injuries) ? injuries : [];
   const excludeSet = new Set(
-    injList.filter(i => (i?.severity || 'moderate') !== 'mild').map(i => (i && i.muscleGroup) || i).filter(Boolean),
-  );
-  const cautionSet = new Set(
-    injList.filter(i => i?.severity === 'mild').map(i => i && i.muscleGroup).filter(Boolean),
+    injList.map(i => (i && i.muscleGroup) || i).filter(Boolean),
   );
   const trains = (name, set) => EX(name).muscles.some(m => set.has(m));
   if (excludeSet.size) {
@@ -406,7 +425,6 @@ export function buildStarterRegimen({ goals, level, daysCount, assessment, cardi
         targetReps = Math.min(targetReps, 8);
       }
     }
-    const cautionMuscle = libEntry.muscles.find(m => cautionSet.has(m));
     return {
       name,
       displayName: name,
@@ -417,14 +435,19 @@ export function buildStarterRegimen({ goals, level, daysCount, assessment, cardi
       muscle_group: libEntry.muscles[0],
       target_sets: sets,
       target_reps: targetReps,
-      notes: cautionMuscle ? `Ease in — mild ${cautionMuscle.toLowerCase()} flagged.` : '',
+      // No note. This used to carry "Ease in — mild X flagged." for a region
+      // the plan had deliberately kept; nothing reaches this branch any more,
+      // because a mild region is excluded like every other severity.
+      notes: '',
     };
   });
 
   // Real running sessions for cardio goals, scaled by target event + level.
-  // Injury-safe: a moderate/serious injury to a muscle running works (legs,
-  // core) drops the running block — the injury step promises we work around it,
-  // so the runner-support strength stands in instead of pounding a hurt knee.
+  // Injury-safe: an injury to a muscle running works (legs, core) drops the
+  // running block — the injury step promises we work around it, so the
+  // runner-support strength stands in instead of pounding a hurt knee. Now
+  // that mild is excluded too, a mild knee drops the running block as well,
+  // which is the same call the rest of the plan makes.
   const cardioSafe = !(excludeSet.size && trains('Running', excludeSet));
   const cardioTargets = current5kSec > 0 ? runningTargets(current5kSec) : null;
   const cardioExercises = cardioWanted && cardioSafe

@@ -34,11 +34,14 @@ describe('buildOnboardingContext', () => {
     expect(ctx.profile.bodyweightLb).toBe(150); // 68 kg
   });
 
-  it('lists only the injuries the plan actually excludes', () => {
-    // Mild regions stay in the plan with a caution note (see
-    // buildStarterRegimen), so telling the coach to avoid them would have it
-    // announce it worked around work the card visibly contains.
-    expect(buildOnboardingContext(DRAFT).injuries.avoidMuscleGroups).toEqual(['Shoulders']);
+  it('lists every injury, because the plan now excludes every severity', () => {
+    // This used to drop the mild ones: buildStarterRegimen kept a mild region
+    // with a caution note, so naming it would have had the coach announce it
+    // was avoiding work the card visibly contained. The plan excludes mild
+    // now, and leaving the filter in would invert that bug — the coach would
+    // talk about training a region the plan had just removed.
+    expect(buildOnboardingContext(DRAFT).injuries.avoidMuscleGroups)
+      .toEqual(['Shoulders', 'Legs']);
   });
 
   it('omits the injuries block entirely when there are none', () => {

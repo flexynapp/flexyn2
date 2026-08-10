@@ -59,12 +59,14 @@ export function buildOnboardingContext(draft = {}) {
     .filter(Boolean)
     .map((g) => GOAL_PHRASES[g] || g);
 
+  // Every injury the user reported, at every severity. This used to drop the
+  // mild ones, because buildStarterRegimen kept a mild region with a caution
+  // note and naming it would have had the coach announce it was avoiding work
+  // the card visibly contained. The plan now excludes mild too, so the reason
+  // is gone — and leaving the filter in would invert the original bug: the
+  // coach would talk about training a region the plan had just removed.
   const avoid = (Array.isArray(draft.onboardingInjuries) ? draft.onboardingInjuries : [])
-    // Mild injuries are trained around with a caution note rather than
-    // excluded (see buildStarterRegimen), so naming them here would have the
-    // coach announce it is avoiding work the plan actually contains.
-    .filter((i) => i && (i.severity || 'moderate') !== 'mild')
-    .map((i) => i.muscleGroup)
+    .map((i) => i && i.muscleGroup)
     .filter(Boolean);
 
   const profile = {

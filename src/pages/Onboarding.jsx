@@ -2662,7 +2662,7 @@ function InjuryHistoryStep({ step, total, value, onChange, onNext, onBack, onSki
           accentWord="around"
         />
         <p className="text-sm text-muted-foreground mt-1 mb-5">
-          {tFallback('onboarding.injury.sub', "Moderate and serious injuries are excluded from your starter plan; mild ones stay in with an ease-in note. Skip if you're all good.")}
+          {tFallback('onboarding.injury.sub', "Anything you flag comes out of your plan until you clear it, whatever the severity. Skip if you're all good.")}
         </p>
 
         {/* Logged injuries */}

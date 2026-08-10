@@ -210,7 +210,7 @@ export const onboardingI18n = {
     /* ── Injury step ─────────────────────────────────────────────── */
     'onboarding.injury.kicker': 'Any injuries? · optional',
     'onboarding.injury.heading': "We'll work around them from day one.",
-    'onboarding.injury.sub': "Moderate and serious injuries are excluded from your starter plan; mild ones stay in with an ease-in note. Skip if you're all good.",
+    'onboarding.injury.sub': "Anything you flag comes out of your plan until you clear it, whatever the severity. Skip if you're all good.",
     'onboarding.injury.capReached': "You've logged the max of 5. Add more later from Profile → My Injuries.",
     'onboarding.injury.muscleGroup': 'Muscle group',
     'onboarding.injury.severity': 'Severity',

@@ -350,15 +350,51 @@ describe('buildStarterRegimen — secondary goals → accessory', () => {
   });
 });
 
-describe('buildStarterRegimen — injury severity nuance', () => {
-  it('a MILD injury keeps the exercise but flags it with an ease-in note', () => {
+// Severity used to change WHETHER a region was excluded: moderate and serious
+// were dropped, mild stayed in with an "Ease in — mild legs flagged." note. It
+// no longer does, and the reason is agreement rather than caution. The runtime
+// generator (`getExcludedMuscleGroups`) has always dropped the region at every
+// severity, so a user reporting a mild knee got a starter plan with squats in
+// it and then never saw a leg exercise again from the second session onwards.
+// One of the two had to move; moving the generator would have meant weakening
+// injury protection on the surface people actually train from.
+describe('buildStarterRegimen — every severity is excluded', () => {
+  it('a MILD injury is excluded, same as the rest', () => {
     const r = buildStarterRegimen({
       goals: ['strength'], level: 'consistent', daysCount: 5,
       injuries: [{ muscleGroup: 'Legs', severity: 'mild' }],
     });
-    const legExercise = r.exercises.find(e => e.muscle_groups.includes('Legs'));
-    expect(legExercise).toBeTruthy(); // not excluded
-    expect(legExercise.notes).toMatch(/ease in/i);
+    for (const ex of r.exercises) {
+      expect(ex.muscle_groups).not.toContain('Legs');
+    }
+  });
+
+  it('no exercise carries an ease-in note any more', () => {
+    const r = buildStarterRegimen({
+      goals: ['strength'], level: 'consistent', daysCount: 5,
+      injuries: [{ muscleGroup: 'Legs', severity: 'mild' }],
+    });
+    for (const ex of r.exercises) {
+      expect(ex.notes || '').not.toMatch(/ease in/i);
+    }
+  });
+
+  it('still returns a usable plan when the exclusions would empty it', () => {
+    // The safety valve matters more now: with mild excluded too, more users
+    // can exclude their way to nothing. Handing back an empty starter plan to
+    // someone who just finished onboarding is worse than handing back the
+    // exercises that touch the fewest injured areas.
+    const r = buildStarterRegimen({
+      goals: ['strength'], level: 'consistent', daysCount: 5,
+      injuries: [
+        { muscleGroup: 'Legs', severity: 'mild' },
+        { muscleGroup: 'Chest', severity: 'mild' },
+        { muscleGroup: 'Back', severity: 'moderate' },
+        { muscleGroup: 'Shoulders', severity: 'serious' },
+        { muscleGroup: 'Core', severity: 'mild' },
+      ],
+    });
+    expect(r.exercises.length).toBeGreaterThan(0);
   });
 
   it('a MODERATE injury is excluded outright (no note, no exercise)', () => {
