@@ -227,16 +227,75 @@ SELECT 'bio profanity trigger (054)', count(*), '1'
 
 ## Migrations that need no SQL — what they DO need
 
-The push pipeline isn't only SQL — see the table below for the other
-moving parts. The full step-by-step is in
+Two pipelines here are not only SQL. **Nothing in this section lives in
+`supabase/migrations/`** — replaying every migration into a fresh project
+gets you the functions and crons and none of the config below, so each
+one comes back wired to a dead endpoint. Treat this table as the
+prerequisite list whenever a project is rebuilt or a cron "runs" without
+doing anything.
+
+The push step-by-step is in
 [`docs/push-notifications-setup.md`](push-notifications-setup.md).
 
-| Layer | What | Where to set it |
-|---|---|---|
-| Client | `VITE_VAPID_PUBLIC_KEY` | `.env` locally + Netlify env vars |
-| Edge Function | `VAPID_*` and `SEND_PUSH_TRIGGER_SECRET` | Supabase dashboard → Project Settings → Edge Functions → Secrets |
-| Edge Function deploy | `send-push` | Supabase dashboard → Edge Functions → Deploy from UI |
-| Vault | `send_push_url`, `send_push_secret` | SQL Editor → `SELECT vault.create_secret(...)` |
+| Pipeline | Layer | What | Where to set it |
+|---|---|---|---|
+| Push | Client | `VITE_VAPID_PUBLIC_KEY` | `.env` locally + Netlify env vars |
+| Push | Edge Function | `VAPID_*` and `SEND_PUSH_TRIGGER_SECRET` | Supabase dashboard → Project Settings → Edge Functions → Secrets |
+| Push | Edge Function deploy | `send-push` | Supabase dashboard → Edge Functions → Deploy from UI |
+| Push | Vault | `send_push_url`, `send_push_secret` | SQL Editor → `SELECT vault.create_secret(...)` |
+| Weekly reviews | Edge Function | `DEBRIEF_CRON_SECRET` | `supabase secrets set` (see CLAUDE.md) |
+| Weekly reviews | Vault | `debrief_func_url`, `debrief_cron_secret` | SQL Editor → `SELECT vault.create_secret(...)` |
+| Storage GC | Edge Function | `STORAGE_GC_SECRET` | `supabase secrets set` (see CLAUDE.md) |
+| Storage GC | Edge Function deploy | `storage-gc` | MCP `deploy_edge_function`, or dashboard |
+| Storage GC | Vault | `storage_gc_url`, `storage_gc_secret` | SQL Editor → `SELECT vault.create_secret(...)` |
+
+**A vault URL must carry the project ref, and a placeholder there fails
+in a way nothing reports.** `storage_gc_url` shipped as
+`https://YOUR-PROJECT-REF.functions.supabase.co/storage-gc` — the
+template was never substituted. That hostname still resolves, so the
+request reaches Supabase's functions gateway and comes back
+`400 Project not specified.` into `net._http_response`, which nobody
+reads. The cron logged `succeeded` every five minutes for as long as it
+had existed. Correct form, matching `send_push_url`:
+
+```
+https://<project-ref>.functions.supabase.co/<function-slug>
+```
+
+Two cheap checks that would have caught it, both worth running after any
+rebuild:
+
+```sql
+-- every vault URL should contain the project ref
+SELECT name, length(decrypted_secret) AS len,
+       position('<project-ref>' in decrypted_secret) > 0 AS has_ref
+FROM vault.decrypted_secrets
+WHERE decrypted_secret LIKE 'https://%';
+
+-- a shared secret should look generated, not typed
+SELECT name, length(decrypted_secret) AS len
+FROM vault.decrypted_secrets
+WHERE name LIKE '%secret%';
+```
+
+The URL lengths cluster tightly (60–73) when they are right, and every
+shared secret should be **64** — a 32-byte hex string. `storage_gc_secret`
+sat at 23 next to two siblings at 64, and it did not match what the
+function had; the vault and the Edge Function env are two separate places
+and nothing reconciles them. Rotate both together:
+
+```sql
+SELECT vault.update_secret(
+         (SELECT id FROM vault.secrets WHERE name = 'storage_gc_secret'),
+         encode(extensions.gen_random_bytes(32), 'hex'),
+         'storage_gc_secret'
+       );
+```
+
+then push the new value into the function without printing it, using the
+`supabase db query --linked` → `supabase secrets set` chain documented in
+CLAUDE.md. Rotating breaks the old secret immediately, so the cron returns
+401 until the second half lands.
 
 ---
 
