@@ -3,13 +3,23 @@
 // Builds "Injuries & Recovery — resolved" on its own page.
 //
 // ── HOW TO RUN ────────────────────────────────────────────────────
-// Paste into the Penpot MCP plugin console. Creates the page if it does
-// not exist, then SELECT that page in the Penpot UI and re-run — the
-// plugin's active page follows the browser tab and re-syncs between
-// calls, so `openPage()` only holds inside a single call. Idempotent:
-// it removes any previous board of the same name, which makes it safe
-// to re-run after a bridge timeout (a timed-out call may still have
-// landed its writes).
+// Paste into the Penpot MCP plugin console. On the first run it creates
+// the page and stops. Then SELECT "Injuries & Recovery" in the Penpot
+// UI and run it again to draw. Idempotent: it removes any previous
+// board of the same name, so it is safe to re-run after a bridge
+// timeout (a timed-out call may still have landed its writes).
+//
+// **`penpot.openPage()` does NOT move the plugin's active page, not
+// even inside the same call.** The journal board scripts say it "holds
+// INSIDE a single call"; that is wrong for this API version and it is
+// an expensive thing to get wrong — `createBoard()` draws on whatever
+// page is active, so a script that trusts openPage silently builds its
+// whole board on top of someone else's page. That happened here, on
+// "Weekly Reviews — dashboard", and had to be removed by hand. The
+// active page follows the BROWSER TAB and only re-syncs BETWEEN calls,
+// and a page that is not active cannot be modified at all ("Cannot
+// modify a page that is not currently active"). Hence the hard assert
+// below: fail loudly on the wrong page rather than draw on it.
 //
 // ── WHAT THE AUDIT FOUND, AND WHAT THIS ANSWERS ───────────────────
 // Six injuries exist in production. Every design decision below is
@@ -234,15 +244,21 @@ const BXo = 460, BYo = 180;
   // Each row states the CONSEQUENCE, because that is the only thing the
   // choice actually controls. Today all three say only how it feels, and
   // two of them are drawn in the identical primary chip.
-  const sevRow = (label, consequence, color, fill, selected) => {
-    R({ x: 16, y, w: 358, h: 60, radius: 12, fill: fill === null ? null : fill, fillOpacity: fill === null ? 0 : 0.12, stroke: selected ? color : C.border, name: `severity / ${label}` });
-    T(label, { x: 32, y: y + 12, size: 14, weight: 700, color: selected ? color : C.foreground, w: 200 });
+  // ONLY the selected row carries a fill. An earlier pass tinted moderate and
+  // serious by their own hue to make the three "visibly different", and the
+  // render showed the obvious problem straight away: two rows looked selected
+  // at once. Severity identity rides on the LABEL colour; the fill is
+  // selection state and nothing else. (Found by exporting the sheet and
+  // looking at it, which is the only way this kind of thing shows up.)
+  const sevRow = (label, consequence, color, selected) => {
+    R({ x: 16, y, w: 358, h: 60, radius: 12, fill: selected ? color : null, fillOpacity: selected ? 0.12 : 0, stroke: selected ? color : C.border, name: `severity / ${label}` });
+    T(label, { x: 32, y: y + 12, size: 14, weight: 700, color, w: 200 });
     T(consequence, { x: 32, y: y + 33, size: 12, color: C.mutedFg, w: 326, token: 'color.muted-foreground' });
     y += 68;
   };
-  sevRow('Mild', 'PROPOSED: stays in, at lighter loads.', C.mutedFg, null, false);
-  sevRow('Moderate', 'That area comes out of your sessions.', C.primary, C.primary, false);
-  sevRow('Serious', 'That area and everything it helps move comes out.', C.destructive, C.destructive, true);
+  sevRow('Mild', 'PROPOSED: stays in, at lighter loads.', C.mutedFg, false);
+  sevRow('Moderate', 'That area comes out of your sessions.', C.primary, false);
+  sevRow('Serious', 'That area and everything it helps move comes out.', C.destructive, true);
   y += 4;
 
   T('HOW LONG', { x: 16, y, size: 11, weight: 700, color: C.mutedFg, w: 200, token: 'color.muted-foreground' });
