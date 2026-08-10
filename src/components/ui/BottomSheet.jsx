@@ -21,7 +21,7 @@
  *   snapPoints boolean           — future: multi-snap (not yet implemented)
  *   className string             — extra classes on the panel
  */
-import React, { useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
 import { X } from 'lucide-react';
@@ -42,13 +42,26 @@ export default function BottomSheet({
   className = '',
 }) {
   const y = useMotionValue(0);
-  const opacity = useTransform(y, [0, 300], [1, 0]);
+  // Backdrop fade tied to how far the sheet has been dragged down. Applied
+  // to its own element — see the backdrop below for why it cannot share
+  // one with the enter/exit fade.
+  const dragFade = useTransform(y, [0, 300], [1, 0]);
 
   // A full-height slide is the largest movement this app makes. Under
   // `prefers-reduced-motion` it cross-fades in place instead — the sheet
   // still DRAGS, because dragging is a gesture the user drives, not an
   // animation played at them.
   const reduced = prefersReducedMotion();
+
+  // Drives the backdrop's CSS fade. Starts false on mount so the first
+  // paint is transparent and the transition has somewhere to travel from.
+  const [shown, setShown] = useState(false);
+  useEffect(() => {
+    if (!open) { setShown(false); return; }
+    // Next frame, so the browser paints opacity 0 before it sees 1.
+    const raf = requestAnimationFrame(() => setShown(true));
+    return () => cancelAnimationFrame(raf);
+  }, [open]);
 
   // Prevent body scroll when sheet is open
   useBodyScrollLock(open);
@@ -65,18 +78,37 @@ export default function BottomSheet({
     <AnimatePresence>
       {open && (
         <>
-          {/* Backdrop */}
-          <motion.div
+          {/* Backdrop — CSS fade over a motion-value fade, two elements.
+              It was ONE div carrying both `style={{ opacity }}` (the
+              drag-linked value) and initial/animate/exit opacity keyframes.
+              Framer will not own one property twice, so the element sat at
+              its `initial` and rendered `opacity: 0` FOREVER — on every
+              sheet in the app, not just this one. Measured in the browser
+              (computed 0, inline `opacity: 0`, flat across a second), not
+              inferred, and it survived a full reload.
+              Nothing threw and nothing looked obviously broken: the sheet
+              opens, and a tap on the invisible layer still dismisses it.
+              What was missing is the only thing that says the page behind
+              is inert — most of what makes a sheet read as a raised
+              surface rather than as more page.
+              The enter fade is now plain CSS rather than framer. Splitting
+              the two properties across two elements was not enough on its
+              own: a bare `initial`/`animate` opacity pair on the outer
+              element still never ran here, while the panel's `y` animates
+              normally beside it. CSS has no such ambiguity, and the
+              multiplication of the two layers' opacities is free.
+              `backdrop-blur-sm` went with it — glassmorphism is on the
+              banned list in docs/ui-craft-prompt.md, and a layer that has
+              never once been visible cannot regress by losing it. */}
+          <div
             key="bs-backdrop"
-            className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm"
-            style={{ opacity }}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.22 }}
+            className="fixed inset-0 z-[200] transition-opacity duration-200"
+            style={{ opacity: shown ? 1 : 0 }}
             onClick={onClose}
             aria-hidden="true"
-          />
+          >
+            <motion.div className="absolute inset-0 bg-black/60" style={{ opacity: dragFade }} />
+          </div>
 
           {/* Sheet panel */}
           <motion.div
