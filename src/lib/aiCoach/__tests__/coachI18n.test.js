@@ -13,6 +13,7 @@ import { describe, it, expect } from 'vitest';
 import { interpolate, enT, asT } from '@/lib/aiCoach/coachI18n';
 import { buildTrainingModifiers, fuelNote } from '@/lib/aiCoach/trainingModifiers';
 import { respond } from '@/lib/aiCoach/responders';
+import { answerOnboarding, OB, NUT } from '@/lib/aiCoach/onboardingCoach';
 
 /** A stub that IGNORES the English fallback, the way a real locale does. */
 const es = (key, _english, vars) => interpolate(`[${key}]`, vars);
@@ -141,5 +142,66 @@ describe('rules-engine replies route through keys and default to English', () =>
       user: {}, intent: { id: 'rest_day' }, t: () => { throw new Error('boom'); },
     });
     expect(typeof reply).toBe('string');
+  });
+});
+
+// ── onboardingCoach.js ──────────────────────────────────────────────────────
+
+describe('onboarding coach: inference branches route through keys', () => {
+  // These are the `recommend` / `free` replies — the ones that read what
+  // someone typed and propose a selection. They interpolate label maps and
+  // day names, so they are where a half-extraction shows up as an English
+  // noun inside a translated sentence.
+  const ask = (stepId, message, t) =>
+    answerOnboarding({ stepId, draft: { level: 'newbie', currentLbs: 200, targetLbs: 180 }, message, t, language: 'es' });
+
+  it.each([
+    [OB.GOAL, 'I want to get stronger', 'coach.onboarding.goal'],
+    [OB.EXPERIENCE, "I've been lifting for 3 years", 'coach.onboarding.level'],
+    [NUT.GOAL, 'I want to drop some weight', 'coach.onboarding.nutritionGoal'],
+    [NUT.ACTIVITY, 'I sit at a desk all day', 'coach.onboarding.activity'],
+  ])('%s infers and answers entirely in keys', (stepId, message, prefix) => {
+    const { reply, apply } = ask(stepId, message, es);
+    expect(reply).toContain(`[${prefix}.`);
+    // The label the user taps has to be translated too — it was the one
+    // user-visible string here that is not prose.
+    if (apply) expect(apply.label).toMatch(/^\[coach\.onboarding\./);
+  });
+
+  it('leaves the applied VALUE alone while translating its label', () => {
+    // Translation must never reach the thing being selected.
+    const en = ask(NUT.ACTIVITY, 'I sit at a desk all day');
+    const loc = ask(NUT.ACTIVITY, 'I sit at a desk all day', es);
+    expect(loc.apply.field).toBe(en.apply.field);
+    expect(loc.apply.value).toBe(en.apply.value);
+    expect(loc.apply.value).toBe('sedentary');
+  });
+
+  it('is inert with no translator', () => {
+    const { reply, apply } = ask(OB.GOAL, 'I want to get stronger');
+    expect(reply).toContain('That reads as **Build strength**');
+    expect(apply.label).toBe('Select Build strength');
+  });
+
+  it('localizes the weekday names it suggests, not just the sentence', () => {
+    // `DAY_NAMES` is a hardcoded English array; the reply and the apply
+    // label both have to come from Intl, and they have to MATCH each other —
+    // the comment above DAY_NAMES records what shipped when they did not.
+    const { reply, apply } = answerOnboarding({
+      stepId: OB.DAYS, draft: { level: 'newbie' }, message: 'how many days should I train?',
+      language: 'de',
+    });
+    expect(apply.value).toEqual([0, 2, 4]);
+    // Asserted against Intl's own output rather than a literal — the exact
+    // abbreviation (with or without a trailing period) varies by ICU
+    // version, and pinning it would make this fail on a Node upgrade for a
+    // reason that has nothing to do with the code.
+    const de = [0, 2, 4].map(i => new Intl.DateTimeFormat('de', { weekday: 'short' })
+      .format(new Date(2024, 0, 1 + i))).join(', ');
+    expect(apply.label).toContain(de);
+    // The reply and the label must agree — DAY_NAMES' own comment records
+    // that a coach which SAID one set of days and SELECTED another shipped.
+    expect(reply).toContain(de);
+    expect(apply.label).not.toContain('Mon, Wed, Fri');
   });
 });

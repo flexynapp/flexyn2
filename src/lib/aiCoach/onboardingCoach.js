@@ -1,4 +1,5 @@
 import { asT } from './coachI18n';
+import { formatList, formatDate } from '@/lib/intlFormat';
 // src/lib/aiCoach/onboardingCoach.js
 //
 // The AI Coach, for people who don't have any data yet.
@@ -64,6 +65,24 @@ export const NUTRITION_STEP_IDS = [
    drop 20 lbs") far more often than they ask a clean question, so
    the describe-yourself path has to be first-class, not a fallback.
 ═══════════════════════════════════════════════════════════════ */
+
+// Label maps carry keys; `lbl()` below resolves one with the caller's
+// translator. They are interpolated INTO replies, so leaving them English
+// would put raw English nouns inside a translated sentence.
+const lbl = (T, keys, map, k) => T(keys[k], map[k] || k);
+
+const GOAL_LABEL_KEYS = Object.fromEntries(
+  ['strength','muscle','lose','speed','endurance','mobility'].map(k => [k, `coach.onboarding.goalLabel.${k}`]),
+);
+const LEVEL_LABEL_KEYS = Object.fromEntries(
+  ['newbie','returning','consistent','advanced'].map(k => [k, `coach.onboarding.levelLabel.${k}`]),
+);
+const ACTIVITY_LABEL_KEYS = Object.fromEntries(
+  ['sedentary','light','moderate','very','extra'].map(k => [k, `coach.onboarding.activityLabel.${k}`]),
+);
+const NUTRITION_GOAL_LABEL_KEYS = Object.fromEntries(
+  ['lose','maintain','gain'].map(k => [k, `coach.onboarding.nutritionGoalLabel.${k}`]),
+);
 
 const GOAL_LABELS = {
   strength:  'Build strength',
@@ -217,17 +236,27 @@ const ASKS_SKIP           = /\b(skip|do i have to|can i (skip|leave|come back)|i
 
 const listGoals = (ids) => (ids || []).map(id => GOAL_LABELS[id]).filter(Boolean);
 
-function goalRecommendation(draft, message) {
+function goalRecommendation(draft, message, t, language = 'en') {
+  const T = asT(t);
   const inferred = inferGoals(message);
   if (inferred.length) {
     const picked = inferred.slice(0, 3);
+    const names = picked.map(k => lbl(T, GOAL_LABEL_KEYS, GOAL_LABELS, k));
     return {
-      reply: `That reads as **${listGoals(picked).join('** and **')}**. You can tick more than one — the plan blends them rather than picking a winner, so a strength + lose-fat combination keeps the bar heavy and takes the volume down instead of turning every session into cardio.`,
-      apply: { field: 'goal', value: picked, label: `Select ${listGoals(picked).join(' + ')}` },
+      reply: T('coach.onboarding.goal.inferred',
+        'That reads as **{goals}**. You can tick more than one — the plan blends them rather than picking a winner, so a strength + lose-fat combination keeps the bar heavy and takes the volume down instead of turning every session into cardio.',
+        { goals: formatList(names, language) }),
+      // `apply.label` is on a button the user taps, so it needs the same
+      // treatment as the reply — it was the one user-visible string in this
+      // module that is not prose.
+      apply: {
+        field: 'goal', value: picked,
+        label: T('coach.onboarding.goal.apply', 'Select {goals}', { goals: names.join(' + ') }),
+      },
     };
   }
   return {
-    reply: [
+    reply: T('coach.onboarding.goal.menu', [
       'Pick by the outcome you want six months from now, not by what you think you should say:',
       '',
       '• **Build strength** — heavy compounds, low reps. Numbers on the bar go up.',
@@ -240,22 +269,27 @@ function goalRecommendation(draft, message) {
       'Tick as many as apply — the plan averages them. Four or more and progress on each one gets slow, which is the only reason to hold back.',
       '',
       "If you'd rather just tell me what you're after in your own words, do that and I'll set it for you.",
-    ].join('\n'),
+    ].join('\n')),
   };
 }
 
-function levelRecommendation(draft, message) {
+function levelRecommendation(draft, message, t, language = 'en') {
+  const T = asT(t);
   const inferred = inferLevel(message);
   if (inferred) {
-    const why = {
-      newbie:     "we start light and spend the first weeks on form, which is what makes the later jumps possible",
-      returning:  "we ramp gently — coming back at your old numbers is the single most common way people get hurt in week one",
-      consistent: "real progressive overload and periodization from the start",
-      advanced:   "specificity and training blocks, because the easy gains are already banked",
-    }[inferred];
+    const why = T(`coach.onboarding.level.why.${inferred}`, {
+      newbie:     'we start light and spend the first weeks on form, which is what makes the later jumps possible',
+      returning:  'we ramp gently — coming back at your old numbers is the single most common way people get hurt in week one',
+      consistent: 'real progressive overload and periodization from the start',
+      advanced:   'specificity and training blocks, because the easy gains are already banked',
+    }[inferred]);
+    const name = lbl(T, LEVEL_LABEL_KEYS, LEVEL_LABELS, inferred);
     return {
-      reply: `Sounds like **${LEVEL_LABELS[inferred]}** — ${why}.`,
-      apply: { field: 'level', value: inferred, label: `Select ${LEVEL_LABELS[inferred]}` },
+      reply: T('coach.onboarding.level.inferred', 'Sounds like **{level}** — {why}.', { level: name, why }),
+      apply: {
+        field: 'level', value: inferred,
+        label: T('coach.onboarding.level.apply', 'Select {level}', { level: name }),
+      },
     };
   }
   return {
@@ -287,18 +321,48 @@ const DAY_SPREADS = {
   5: [0, 1, 2, 4, 5],  // Mon, Tue, Wed, Fri, Sat
 };
 
-function daysRecommendation(draft) {
+// Monday-first localized weekday abbreviations. 2024-01-01 was a Monday, so
+// offsetting from it keeps DAY_SPREADS' Monday-first indices meaningful in
+// every locale. DAY_NAMES above stays as the English fallback.
+function dayNames(language) {
+  const monday = new Date(2024, 0, 1);
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    return formatDate(d, language, { weekday: 'short' });
+  });
+}
+
+function daysRecommendation(draft, message, t, language = 'en') {
+  const T = asT(t);
   const level = draft?.level;
   const goals = Array.isArray(draft?.goal) ? draft.goal : (draft?.goal ? [draft.goal] : []);
   const count = level === 'advanced' ? 5 : level === 'consistent' ? 4 : 3;
   const spread = DAY_SPREADS[count];
   const runner = goals.includes('speed') || goals.includes('endurance');
   const note = runner
-    ? ' Since you picked a running goal, these are the days the plan has something scheduled — easy runs can sit on the gaps without counting against recovery.'
-    : ' The rest days between sessions are doing real work; a muscle grows on the day off, not the day you trained it.';
+    ? T('coach.onboarding.days.noteRunner',
+        ' Since you picked a running goal, these are the days the plan has something scheduled — easy runs can sit on the gaps without counting against recovery.')
+    : T('coach.onboarding.days.noteRest',
+        ' The rest days between sessions are doing real work; a muscle grows on the day off, not the day you trained it.');
+  const names = dayNames(language);
+  // A day LIST, not a conjunction — "Mon, Wed, and Fri" reads wrong on a
+  // schedule, and the label has to match the reply exactly (the comment
+  // above DAY_NAMES explains what happens when they disagree).
+  const dayList = spread.map(i => names[i] || DAY_NAMES[i]).join(', ');
   return {
-    reply: `For **${LEVEL_LABELS[level] || 'where you are now'}**, ${count} days a week is the honest answer — enough to progress, few enough that a busy week doesn't break the streak. **${spread.map(i => DAY_NAMES[i]).join(', ')}** spreads them out.${note}\n\nPick whatever actually fits your week instead, though. The schedule you keep beats the schedule that's optimal.`,
-    apply: { field: 'days', value: spread, label: `Select ${spread.map(i => DAY_NAMES[i]).join(', ')}` },
+    reply: T('coach.onboarding.days.reply',
+      "For **{level}**, {count} days a week is the honest answer — enough to progress, few enough that a busy week doesn't break the streak. **{days}** spreads them out.{note}\n\nPick whatever actually fits your week instead, though. The schedule you keep beats the schedule that's optimal.",
+      {
+        level: level
+          ? lbl(T, LEVEL_LABEL_KEYS, LEVEL_LABELS, level)
+          : T('coach.onboarding.days.levelUnknown', 'where you are now'),
+        count, days: dayList, note,
+      }),
+    apply: {
+      field: 'days', value: spread,
+      label: T('coach.onboarding.days.apply', 'Select {days}', { days: dayList }),
+    },
   };
 }
 
@@ -326,23 +390,38 @@ export function suggestTargetDate({ currentLbs, targetLbs, today = new Date() })
   return { weeks, perWeek: Math.round(perWeek * 100) / 100, date, delta };
 }
 
-function targetRecommendation(draft) {
+function targetRecommendation(draft, message, t, language = 'en') {
+  const T = asT(t);
   const { currentLbs, targetLbs } = draft || {};
   const s = suggestTargetDate({ currentLbs, targetLbs });
   if (!s) {
     return {
-      reply: [
+      reply: T('coach.onboarding.target.noTarget', [
         'Put in the weight you want to reach and I will work out a date that gets you there without wrecking the process.',
         '',
         'The rates worth staying inside: about **1% of bodyweight per week** coming down, and about **0.5 lb per week** going up. Faster than that going down and you start losing muscle along with the fat; faster going up and most of what you add is fat.',
-      ].join('\n'),
+      ].join('\n')),
     };
   }
-  const dir = s.delta < 0 ? 'down' : 'up';
   const iso = `${s.date.getFullYear()}-${String(s.date.getMonth() + 1).padStart(2, '0')}-${String(s.date.getDate()).padStart(2, '0')}`;
+  // `toLocaleDateString(undefined, …)` read the BROWSER's locale, not the
+  // app's — the defect intlFormat exists to stop, and it appeared twice in
+  // this one function.
+  const longDate  = formatDate(s.date, language, { month: 'long', day: 'numeric', year: 'numeric' });
+  const shortDate = formatDate(s.date, language, { month: 'short', day: 'numeric', year: 'numeric' });
+  // "down"/"up" is a word inside a sentence, so it cannot stay a bare
+  // ternary — several languages inflect the surrounding clause with it.
+  const dir = s.delta < 0
+    ? T('coach.onboarding.target.down', 'down')
+    : T('coach.onboarding.target.up', 'up');
   return {
-    reply: `${Math.abs(Math.round(s.delta))} lb ${dir} at a sustainable **${s.perWeek} lb/week** is about **${s.weeks} weeks** — roughly ${s.date.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}.\n\nYou can set a nearer date, but the app will clamp the daily calories at a floor rather than take you somewhere unsafe, so a very aggressive date mostly just makes the projection wrong.`,
-    apply: { field: 'targetDate', value: iso, label: `Set target date to ${s.date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}` },
+    reply: T('coach.onboarding.target.reply',
+      '{lbs} lb {dir} at a sustainable **{rate} lb/week** is about **{weeks} weeks** — roughly {date}.\n\nYou can set a nearer date, but the app will clamp the daily calories at a floor rather than take you somewhere unsafe, so a very aggressive date mostly just makes the projection wrong.',
+      { lbs: Math.abs(Math.round(s.delta)), dir, rate: s.perWeek, weeks: s.weeks, date: longDate }),
+    apply: {
+      field: 'targetDate', value: iso,
+      label: T('coach.onboarding.target.apply', 'Set target date to {date}', { date: shortDate }),
+    },
   };
 }
 
@@ -374,7 +453,8 @@ const GUIDES = {
     // `goalRecommendation` in directly would swallow every question on this
     // step — it always returns a reply — so "what's the difference between
     // strength and muscle" would get the generic list instead of the answer.
-    free: (message, draft) => (inferGoals(message).length ? goalRecommendation(draft, message) : null),
+    free: (message, draft, T, language) =>
+      (inferGoals(message).length ? goalRecommendation(draft, message, T, language) : null),
   },
 
   [OB.SHARPEN]: {
@@ -401,7 +481,8 @@ const GUIDES = {
     explain: (_d, T) => T('coach.onboarding.experience.explain',
       "It sets the loads you start at, and nothing else. Aim too high and your first sessions are too heavy to complete with good form; aim low and you spend one extra week ramping. When in doubt, go lower — the plan raises the weight as soon as you're finishing sets easily."),
     recommend: levelRecommendation,
-    free: (message, draft) => (inferLevel(message) ? levelRecommendation(draft, message) : null),
+    free: (message, draft, T, language) =>
+      (inferLevel(message) ? levelRecommendation(draft, message, T, language) : null),
   },
 
   [OB.AGE]: {
@@ -448,8 +529,8 @@ const GUIDES = {
     explain: (_d, T) => T('coach.onboarding.days.explain',
       "This sets how your plan is split. Three days is usually full-body; four or five moves to an upper/lower or push/pull split. Rest days aren't idle time — the adaptation happens on them."),
     recommend: daysRecommendation,
-    free: (message, draft) => (
-      /\b(\d)\s*(days?|x|times)\b/i.test(message) ? daysRecommendation(draft) : null
+    free: (message, draft, T, language) => (
+      /\b(\d)\s*(days?|x|times)\b/i.test(message) ? daysRecommendation(draft, message, T, language) : null
     ),
   },
 
@@ -524,12 +605,24 @@ const GUIDES = {
     ],
     explain: (_d, T) => T('coach.onboarding.goal.explain',
       "**Lose** puts you under maintenance, **Gain** puts you over, **Maintain** sits at it. The macros shift too — protein goes up in a deficit specifically to protect the muscle you already have."),
-    recommend: (draft, message) => {
+    recommend: (draft, message, T) => {
       const g = inferNutritionGoal(message);
       if (g) {
+        const name = lbl(T, NUTRITION_GOAL_LABEL_KEYS, NUTRITION_GOAL_LABELS, g);
+        // The trailing clause is its own key per branch rather than a
+        // ternary spliced into a template — a translator needs the whole
+        // sentence, and two of the three read very differently.
+        const tail = T(`coach.onboarding.nutritionGoal.tail.${g}`, {
+          lose: " Protein goes up while you're in a deficit — that's what keeps the weight you lose from including muscle.",
+          gain: ' Slow is the whole trick here — a big surplus adds fat faster than it adds muscle.',
+          maintain: ' Maintenance is also the right pick if you want to recomp: same weight, better composition.',
+        }[g] || '');
         return {
-          reply: `**${NUTRITION_GOAL_LABELS[g]}** it is.${g === 'lose' ? " Protein goes up while you're in a deficit — that's what keeps the weight you lose from including muscle." : g === 'gain' ? ' Slow is the whole trick here — a big surplus adds fat faster than it adds muscle.' : ' Maintenance is also the right pick if you want to recomp: same weight, better composition.'}`,
-          apply: { field: 'goal', value: g, label: `Select ${NUTRITION_GOAL_LABELS[g]}` },
+          reply: T('coach.onboarding.nutritionGoal.reply', '**{goal}** it is.{tail}', { goal: name, tail }),
+          apply: {
+            field: 'goal', value: g,
+            label: T('coach.onboarding.nutritionGoal.apply', 'Select {goal}', { goal: name }),
+          },
         };
       }
       return {
@@ -574,12 +667,20 @@ const GUIDES = {
     ],
     explain: (_d, T) => T('coach.onboarding.activity.explain',
       "This multiplies your BMR into a daily burn, and it's the single biggest lever on your calorie target — one level out is a few hundred calories a day. Count your whole day, not just the gym: a nurse on their feet for twelve hours out-burns a desk worker who lifts four times a week."),
-    recommend: (draft, message) => {
+    recommend: (draft, message, T) => {
       const a = inferActivity(message);
       if (a) {
+        const name = lbl(T, ACTIVITY_LABEL_KEYS, ACTIVITY_LABELS, a);
+        const tail = a === 'sedentary'
+          ? T('coach.onboarding.activity.tailSedentary',
+              " Don't feel bad about it — most people sit for work, and picking it honestly gets you a target that works rather than one that quietly stalls.")
+          : '';
         return {
-          reply: `That's **${ACTIVITY_LABELS[a]}**.${a === 'sedentary' ? " Don't feel bad about it — most people sit for work, and picking it honestly gets you a target that works rather than one that quietly stalls." : ''}`,
-          apply: { field: 'activity', value: a, label: `Select ${ACTIVITY_LABELS[a]}` },
+          reply: T('coach.onboarding.activity.reply', "That's **{level}**.{tail}", { level: name, tail }),
+          apply: {
+            field: 'activity', value: a,
+            label: T('coach.onboarding.activity.apply', 'Select {level}', { level: name }),
+          },
         };
       }
       return {

@@ -246,12 +246,64 @@ const enKeys = {
 
 
   // ── Onboarding coach (src/lib/aiCoach/onboardingCoach.js) ───────────────
-  // TODO(i18n): English only. PARTIAL — the step intros, explainers and
-  // starter prompts are extracted; the `recommend` / `skip` / `free`
-  // branches (the replies that infer from what the user typed) are still
-  // literals in that file. Every guide function already takes the
-  // translator as its last argument, so converting one is a local edit.
+  // TODO(i18n): English only, per the no-machine-translation rule.
+  //
+  // Covers the step intros and starter prompts, and the `recommend` / `skip`
+  // / `free` branches — the replies that infer from what someone typed, plus
+  // the `apply.label` on the button they tap to accept one.
+  //
+  // The label maps (goal / level / activity / nutrition-goal) are keys
+  // because they are interpolated INTO those replies: leaving them English
+  // would put a raw English noun inside a translated sentence, which is the
+  // failure this whole series exists to remove.
+  //
+  // Still literal: several multi-line `explain` bodies whose text lives in a
+  // joined array rather than a single literal. They are the same mechanical
+  // shape as the ones above and need no structural work.
   'coach.onboarding.fallbackIntro': "Ask me anything about this step — or tell me about yourself and I'll fill it in.",
+  'coach.onboarding.goal.inferred': 'That reads as **{goals}**. You can tick more than one — the plan blends them rather than picking a winner, so a strength + lose-fat combination keeps the bar heavy and takes the volume down instead of turning every session into cardio.',
+  'coach.onboarding.goal.apply': 'Select {goals}',
+  'coach.onboarding.level.inferred': 'Sounds like **{level}** — {why}.',
+  'coach.onboarding.level.apply': 'Select {level}',
+  'coach.onboarding.days.noteRunner': ' Since you picked a running goal, these are the days the plan has something scheduled — easy runs can sit on the gaps without counting against recovery.',
+  'coach.onboarding.days.noteRest': ' The rest days between sessions are doing real work; a muscle grows on the day off, not the day you trained it.',
+  'coach.onboarding.days.reply': "For **{level}**, {count} days a week is the honest answer — enough to progress, few enough that a busy week doesn't break the streak. **{days}** spreads them out.{note}\n\nPick whatever actually fits your week instead, though. The schedule you keep beats the schedule that's optimal.",
+  'coach.onboarding.days.levelUnknown': 'where you are now',
+  'coach.onboarding.days.apply': 'Select {days}',
+  'coach.onboarding.target.down': 'down',
+  'coach.onboarding.target.up': 'up',
+  'coach.onboarding.target.reply': '{lbs} lb {dir} at a sustainable **{rate} lb/week** is about **{weeks} weeks** — roughly {date}.\n\nYou can set a nearer date, but the app will clamp the daily calories at a floor rather than take you somewhere unsafe, so a very aggressive date mostly just makes the projection wrong.',
+  'coach.onboarding.target.apply': 'Set target date to {date}',
+  'coach.onboarding.nutritionGoal.reply': '**{goal}** it is.{tail}',
+  'coach.onboarding.nutritionGoal.apply': 'Select {goal}',
+  'coach.onboarding.activity.tailSedentary': " Don't feel bad about it — most people sit for work, and picking it honestly gets you a target that works rather than one that quietly stalls.",
+  'coach.onboarding.activity.reply': "That's **{level}**.{tail}",
+  'coach.onboarding.activity.apply': 'Select {level}',
+  'coach.onboarding.goalLabel.strength': 'Build strength',
+  'coach.onboarding.goalLabel.muscle': 'Add muscle',
+  'coach.onboarding.goalLabel.lose': 'Lose fat',
+  'coach.onboarding.goalLabel.speed': 'Run faster',
+  'coach.onboarding.goalLabel.endurance': 'Run further',
+  'coach.onboarding.goalLabel.mobility': 'Move better',
+  'coach.onboarding.levelLabel.newbie': 'New',
+  'coach.onboarding.levelLabel.returning': 'Returning',
+  'coach.onboarding.levelLabel.consistent': 'Consistent',
+  'coach.onboarding.levelLabel.advanced': 'Advanced',
+  'coach.onboarding.activityLabel.sedentary': 'Sedentary',
+  'coach.onboarding.activityLabel.light': 'Lightly active',
+  'coach.onboarding.activityLabel.moderate': 'Moderately active',
+  'coach.onboarding.activityLabel.very': 'Very active',
+  'coach.onboarding.activityLabel.extra': 'Extra active',
+  'coach.onboarding.nutritionGoalLabel.lose': 'Lose weight',
+  'coach.onboarding.nutritionGoalLabel.maintain': 'Maintain weight',
+  'coach.onboarding.nutritionGoalLabel.gain': 'Gain weight',
+  'coach.onboarding.level.why.newbie': 'we start light and spend the first weeks on form, which is what makes the later jumps possible',
+  'coach.onboarding.level.why.returning': 'we ramp gently — coming back at your old numbers is the single most common way people get hurt in week one',
+  'coach.onboarding.level.why.consistent': 'real progressive overload and periodization from the start',
+  'coach.onboarding.level.why.advanced': 'specificity and training blocks, because the easy gains are already banked',
+  'coach.onboarding.nutritionGoal.tail.lose': "Protein goes up while you're in a deficit — that's what keeps the weight you lose from including muscle.",
+  'coach.onboarding.nutritionGoal.tail.gain': 'Slow is the whole trick here — a big surplus adds fat faster than it adds muscle.',
+  'coach.onboarding.nutritionGoal.tail.maintain': 'Maintenance is also the right pick if you want to recomp: same weight, better composition.',
   'coach.onboarding.welcome.intro': "I'm your coach. I'll be here on every step — ask me what a question means, or just describe yourself and I'll fill it in.",
   'coach.onboarding.welcome.prompt.what': 'What is this setup for?',
   'coach.onboarding.welcome.prompt.long': 'How long does it take?',
