@@ -1,6 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+// CoachPlanCard reads useLanguage() now that its copy goes through
+// tFallback, so it needs the provider the same way every other translated
+// component in the app does.
+import { LanguageProvider } from '@/lib/LanguageContext';
 import CoachPlanCard from '../coach/CoachPlanCard';
 
 vi.mock('@/lib/toast', () => ({ toast: { error: vi.fn() } }));
@@ -59,12 +63,12 @@ function renderCard(overrides = {}) {
   const onPlanChange = vi.fn();
   let plan = makePlan();
   const view = render(
-    <MemoryRouter><CoachPlanCard plan={plan} onPlanChange={onPlanChange} {...overrides} /></MemoryRouter>,
+    <MemoryRouter><LanguageProvider><CoachPlanCard plan={plan} onPlanChange={onPlanChange} {...overrides} /></LanguageProvider></MemoryRouter>,
   );
   const rerenderWithLatest = () => {
     plan = onPlanChange.mock.calls.at(-1)[0];
     view.rerender(
-      <MemoryRouter><CoachPlanCard plan={plan} onPlanChange={onPlanChange} {...overrides} /></MemoryRouter>,
+      <MemoryRouter><LanguageProvider><CoachPlanCard plan={plan} onPlanChange={onPlanChange} {...overrides} /></LanguageProvider></MemoryRouter>,
     );
     return plan;
   };
@@ -190,7 +194,7 @@ describe('CoachPlanCard — editing a session in chat', () => {
   });
 
   it('still edits without an onPlanChange handler, just not durably', () => {
-    render(<MemoryRouter><CoachPlanCard plan={makePlan()} /></MemoryRouter>);
+    render(<MemoryRouter><LanguageProvider><CoachPlanCard plan={makePlan()} /></LanguageProvider></MemoryRouter>);
     enterEditMode();
     fireEvent.click(screen.getByRole('button', { name: /swap Bench Press/i }));
     expect(screen.getByText('Incline Dumbbell Press')).toBeTruthy();
@@ -198,7 +202,7 @@ describe('CoachPlanCard — editing a session in chat', () => {
 
   it('offers no edit affordance on a weekly plan', () => {
     const plan = { ...makePlan(), kind: 'plan', workout: null };
-    render(<MemoryRouter><CoachPlanCard plan={plan} /></MemoryRouter>);
+    render(<MemoryRouter><LanguageProvider><CoachPlanCard plan={plan} /></LanguageProvider></MemoryRouter>);
     expect(screen.queryByRole('button', { name: /edit workout/i })).toBeNull();
   });
 
@@ -222,7 +226,7 @@ describe('CoachPlanCard — scheduling a session', () => {
 
   it('offers no scheduling on a weekly plan — a plan already is a schedule', () => {
     const plan = { ...makePlan(), kind: 'plan', workout: null };
-    render(<MemoryRouter><CoachPlanCard plan={plan} /></MemoryRouter>);
+    render(<MemoryRouter><LanguageProvider><CoachPlanCard plan={plan} /></LanguageProvider></MemoryRouter>);
     expect(screen.queryByRole('button', { name: /schedule it/i })).toBeNull();
   });
 
@@ -233,9 +237,9 @@ describe('CoachPlanCard — scheduling a session', () => {
     openScheduler();
     fireEvent.click(screen.getByRole('button', { name: 'Tomorrow' }));
     fireEvent.click(screen.getByRole('button', { name: /Evening/ }));
-    fireEvent.click(screen.getByRole('button', { name: /remind me tomorrow at 6pm/i }));
+    fireEvent.click(screen.getByRole('button', { name: /remind me tomorrow at 6\s*PM/i }));
 
-    await screen.findByRole('button', { name: /tomorrow, 6pm/i });
+    await screen.findByRole('button', { name: /tomorrow,\s*6\s*PM/i });
     expect(scheduleWorkoutMock).toHaveBeenCalledWith({
       date: '2026-08-06',
       hour: 18,
@@ -255,7 +259,7 @@ describe('CoachPlanCard — scheduling a session', () => {
 
     openScheduler();
     fireEvent.click(screen.getByRole('button', { name: /remind me/i }));
-    await screen.findByRole('button', { name: /,\s*7am/i });
+    await screen.findByRole('button', { name: /,\s*7\s*AM/i });
     expect(scheduleWorkoutMock.mock.calls.at(-1)[0].workout.exercises.map(e => e.name))
       .toEqual(['Bench Press']);
   });
@@ -275,7 +279,7 @@ describe('CoachPlanCard — scheduling a session', () => {
     vi.setSystemTime(new Date(2026, 7, 5, 23, 30, 0)); // nothing left today
     renderCard();
     openScheduler();
-    expect(screen.getByRole('button', { name: /remind me tomorrow at 7am/i }).disabled).toBe(false);
+    expect(screen.getByRole('button', { name: /remind me tomorrow at 7\s*AM/i }).disabled).toBe(false);
   });
 
   it('surfaces a failure inline, where the fix is', async () => {

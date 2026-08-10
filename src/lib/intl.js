@@ -1,6 +1,6 @@
 // src/lib/intl.js
 //
-// Locale-aware number + date formatting helpers.
+// Locale-aware number + date + list formatting HOOKS.
 //
 // Why this file exists: places across the app were calling
 // `.toLocaleString()` and `.toLocaleDateString()` with no locale
@@ -13,24 +13,21 @@
 //
 // The hooks below pull the active language from LanguageContext and
 // return formatters bound to it. Use them anywhere user-visible
-// numbers or dates render.
+// numbers, dates or lists render.
+//
+// **The pure implementations live in `./intlFormat`**, which imports no
+// React and no context. That split is load-bearing, not tidiness: this
+// file imports LanguageContext → `@/api/db` → a module-scope
+// `supabase.auth.onAuthStateChange` listener, so importing it from a data
+// module or from the pure aiCoach generators breaks any test that stubs the
+// supabase client. Outside a React component, import `./intlFormat`.
+// Re-exported here so `@/lib/intl` keeps working for every existing caller.
 
 import { useMemo } from 'react';
 import { useLanguage } from '@/lib/LanguageContext';
+import { formatNumber, formatDate, formatList } from '@/lib/intlFormat';
 
-// Our internal language codes are ISO 639-1 ("en", "es", "zh", "ar"…)
-// which Intl APIs accept directly. The few that need region tagging
-// for proper formatting are mapped here:
-//   • zh → zh-CN (Mainland-style numerals + Han calendar conventions)
-//   • pt → pt-BR (Brazil is the larger user base)
-const LOCALE_OVERRIDES = {
-  zh: 'zh-CN',
-  pt: 'pt-BR',
-};
-
-function toBcp47(lang) {
-  return LOCALE_OVERRIDES[lang] || lang || 'en';
-}
+export { formatNumber, formatDate, formatList, toBcp47 } from '@/lib/intlFormat';
 
 /**
  * Returns a number formatter bound to the app's current language.
@@ -42,19 +39,7 @@ function toBcp47(lang) {
  */
 export function useNumberFormatter() {
   const { language } = useLanguage();
-  return useMemo(() => {
-    const locale = toBcp47(language);
-    return (n, opts) => {
-      if (n == null || Number.isNaN(Number(n))) return '';
-      try {
-        return new Intl.NumberFormat(locale, opts).format(Number(n));
-      } catch {
-        // Some browsers throw on unrecognized locales; fall back to en-US
-        // rather than crash render.
-        return new Intl.NumberFormat('en-US', opts).format(Number(n));
-      }
-    };
-  }, [language]);
+  return useMemo(() => (n, opts) => formatNumber(n, language, opts), [language]);
 }
 
 /**
@@ -66,19 +51,7 @@ export function useNumberFormatter() {
  */
 export function useDateFormatter() {
   const { language } = useLanguage();
-  return useMemo(() => {
-    const locale = toBcp47(language);
-    return (d, opts) => {
-      if (d == null) return '';
-      const date = d instanceof Date ? d : new Date(d);
-      if (Number.isNaN(date.getTime())) return '';
-      try {
-        return new Intl.DateTimeFormat(locale, opts).format(date);
-      } catch {
-        return new Intl.DateTimeFormat('en-US', opts).format(date);
-      }
-    };
-  }, [language]);
+  return useMemo(() => (d, opts) => formatDate(d, language, opts), [language]);
 }
 
 /**
@@ -93,62 +66,9 @@ export function useDateFormatter() {
  * Why this is not `arr.join(', ')`: the separator is locale data, not
  * punctuation. Arabic joins with `و` and Japanese with `、`, so a hardcoded
  * comma is wrong in both — and English needs the "and" that a join can
- * never produce. Same class of bug as `.toLocaleString()` with no locale,
- * which is what this file exists for.
+ * never produce.
  */
 export function useListFormatter() {
   const { language } = useLanguage();
   return useMemo(() => (items, opts) => formatList(items, language, opts), [language]);
-}
-
-/**
- * Non-hook version for callers that already know the language (e.g.
- * data-layer helpers that receive `language` as an arg).
- */
-export function formatNumber(n, language, opts) {
-  if (n == null || Number.isNaN(Number(n))) return '';
-  const locale = toBcp47(language);
-  try {
-    return new Intl.NumberFormat(locale, opts).format(Number(n));
-  } catch {
-    return new Intl.NumberFormat('en-US', opts).format(Number(n));
-  }
-}
-
-/**
- * Non-hook list formatter. `useListFormatter` is a thin wrapper over this.
- *
- * It exists separately because the AI Coach's text generators
- * (`src/lib/aiCoach/*`) are pure modules — no React, no imports of `@/api/db`
- * — so they take `language` as an argument and cannot call a hook.
- *
- * Always `type: 'conjunction'`. `type: 'unit'` looks like the right choice
- * for a bare enumeration and is not: it emits NO separator in Chinese and
- * still injects "und"/"et" in German and French. See
- * `src/lib/__tests__/listFormatter.test.js`, which pins that measurement.
- */
-export function formatList(items, language, opts) {
-  const list = (items || []).filter(Boolean).map(String);
-  if (list.length === 0) return '';
-  const locale = toBcp47(language);
-  // Intl.ListFormat is ES2021 and absent on older WebViews. A plain join is
-  // a worse separator, not a broken screen, so degrade rather than throw.
-  if (typeof Intl.ListFormat !== 'function') return list.join(', ');
-  try {
-    return new Intl.ListFormat(locale, { style: 'long', type: 'conjunction', ...opts }).format(list);
-  } catch {
-    return new Intl.ListFormat('en-US', { style: 'long', type: 'conjunction', ...opts }).format(list);
-  }
-}
-
-export function formatDate(d, language, opts) {
-  if (d == null) return '';
-  const date = d instanceof Date ? d : new Date(d);
-  if (Number.isNaN(date.getTime())) return '';
-  const locale = toBcp47(language);
-  try {
-    return new Intl.DateTimeFormat(locale, opts).format(date);
-  } catch {
-    return new Intl.DateTimeFormat('en-US', opts).format(date);
-  }
 }

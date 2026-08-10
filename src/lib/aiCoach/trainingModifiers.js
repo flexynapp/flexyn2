@@ -34,7 +34,7 @@
 // byte-identical to what it was before this module existed.
 
 import { asT } from './coachI18n';
-import { formatList } from '@/lib/intl';
+import { formatList } from '@/lib/intlFormat';
 
 // Every note below carries `noteKey` beside its English. The English stays
 // in the table rather than moving to i18n-coach.js alone, because it is the

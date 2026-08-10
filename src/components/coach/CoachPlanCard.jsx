@@ -24,6 +24,8 @@
 // representations is planBuilder's `withEditedWorkout`. This file only decides
 // which option is showing.
 
+import { useLanguage } from '@/lib/LanguageContext';
+import { useListFormatter } from '@/lib/intl';
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
@@ -45,6 +47,7 @@ const MIN_SETS = 1;
 const MAX_SETS = 5;
 
 export default function CoachPlanCard({ plan, onSaveRegimen, onStartWorkout, onPlanChange }) {
+  const { tFallback, language } = useLanguage();
   const navigate = useNavigate();
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -125,7 +128,7 @@ export default function CoachPlanCard({ plan, onSaveRegimen, onStartWorkout, onP
         title: activePlan.title,
         workout: activePlan.workout,
       });
-      setScheduledFor(`${scheduleDayLabel(date)}, ${formatHour(hour)}`);
+      setScheduledFor(`${scheduleDayLabel(date, language, tFallback)}, ${formatHour(hour, language)}`);
       setSchedulerOpen(false);
     } catch (err) {
       // Inline rather than a toast: the user is looking at this card, and the
@@ -168,7 +171,9 @@ export default function CoachPlanCard({ plan, onSaveRegimen, onStartWorkout, onP
             type="button"
             onClick={() => setEditing((e) => !e)}
             aria-pressed={editing}
-            aria-label={editing ? 'Finish editing workout' : 'Edit workout'}
+            aria-label={editing
+              ? tFallback('coach.plan.editDoneAria', 'Finish editing workout')
+              : tFallback('coach.plan.editAria', 'Edit workout')}
             className={[
               'shrink-0 inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-micro font-semibold transition-colors',
               editing
@@ -177,7 +182,7 @@ export default function CoachPlanCard({ plan, onSaveRegimen, onStartWorkout, onP
             ].join(' ')}
           >
             {editing ? <Check className="w-3.5 h-3.5" /> : <Pencil className="w-3.5 h-3.5" />}
-            {editing ? 'Done' : 'Edit'}
+            {editing ? tFallback('coach.plan.done', 'Done') : tFallback('coach.plan.edit', 'Edit')}
           </button>
         )}
       </div>
@@ -223,7 +228,9 @@ export default function CoachPlanCard({ plan, onSaveRegimen, onStartWorkout, onP
             <Flame className="w-4 h-4" />
           </span>
           <span className="flex-1 min-w-0">
-            <span className="block text-label font-semibold leading-tight">Fuel your training</span>
+            <span className="block text-label font-semibold leading-tight">
+              {tFallback('coach.plan.fuel', 'Fuel your training')}
+            </span>
             <span className="block text-micro text-muted-foreground mt-0.5">
               ~+{activePlan.fuel.perRunDayKcal} kcal · +{activePlan.fuel.addCarbsG}g carbs on run days
             </span>
@@ -304,7 +311,9 @@ export default function CoachPlanCard({ plan, onSaveRegimen, onStartWorkout, onP
         ) : (
           <Save className="w-3.5 h-3.5" />
         )}
-        {saved ? 'Saved to Regimens' : 'Save as regimen'}
+        {saved
+          ? tFallback('coach.plan.saved', 'Saved to Regimens')
+          : tFallback('coach.plan.save', 'Save as regimen')}
       </button>
     </motion.div>
   );
@@ -324,15 +333,26 @@ export default function CoachPlanCard({ plan, onSaveRegimen, onStartWorkout, onP
 // read this, and expanding it is the action of someone already suspicious —
 // which is precisely when the answer needs to be available.
 function EvidencePanel({ evidence, exercises }) {
+  const { tFallback } = useLanguage();
+  const fmtList = useListFormatter();
   const [open, setOpen] = useState(false);
   const { seededFromHistory, estimatedCount, bodyweightCount } = evidenceForExercises(exercises);
 
   // One line that is true at a glance, so the collapsed state still says
   // something rather than just advertising a disclosure.
+  // Counts get .one/.other keys rather than an inline `s` — English is the
+  // only language where appending one letter is a plural rule.
+  const plural = (base, n, one, other, vars) =>
+    tFallback(`${base}.${n === 1 ? 'one' : 'other'}`, n === 1 ? one : other, { n, ...vars });
+
   const summary = evidence.logsRead > 0
-    ? `${evidence.logsRead} logged session${evidence.logsRead === 1 ? '' : 's'}`
-      + (seededFromHistory.length ? ` · ${seededFromHistory.length} lift${seededFromHistory.length === 1 ? '' : 's'} from your history` : '')
-    : 'No logged sessions yet — weights are estimates';
+    ? plural('coach.plan.evidence.summary', evidence.logsRead,
+        '{n} logged session', '{n} logged sessions')
+      + (seededFromHistory.length
+        ? ' · ' + plural('coach.plan.evidence.fromHistory', seededFromHistory.length,
+            '{n} lift from your history', '{n} lifts from your history')
+        : '')
+    : tFallback('coach.plan.evidence.none', 'No logged sessions yet — weights are estimates');
 
   return (
     <div className="mt-2.5 rounded-xl border border-border bg-secondary/30 overflow-hidden">
@@ -344,7 +364,9 @@ function EvidencePanel({ evidence, exercises }) {
       >
         <Info className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
         <span className="flex-1 min-w-0">
-          <span className="block text-micro font-semibold leading-tight">What this is based on</span>
+          <span className="block text-micro font-semibold leading-tight">
+            {tFallback('coach.plan.evidence.title', 'What this is based on')}
+          </span>
           <span className="block text-micro text-muted-foreground mt-0.5 truncate">{summary}</span>
         </span>
         <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
@@ -352,41 +374,59 @@ function EvidencePanel({ evidence, exercises }) {
 
       {open && (
         <div className="px-3 pb-2.5 space-y-2 text-micro leading-snug">
-          <Fact label="Your training log">
+          <Fact label={tFallback('coach.plan.evidence.log', 'Your training log')}>
             {evidence.logsRead > 0
-              ? `${evidence.logsRead} session${evidence.logsRead === 1 ? '' : 's'} in the last ${evidence.historyWindowDays} days`
-                + (evidence.latestLogDate ? `, most recent ${evidence.latestLogDate}` : '')
-              : `Nothing logged in the last ${evidence.historyWindowDays} days`}
+              ? plural('coach.plan.evidence.logValue', evidence.logsRead,
+                  '{n} session in the last {days} days', '{n} sessions in the last {days} days',
+                  { days: evidence.historyWindowDays })
+                + (evidence.latestLogDate
+                  ? tFallback('coach.plan.evidence.mostRecent', ', most recent {date}',
+                      { date: evidence.latestLogDate })
+                  : '')
+              : tFallback('coach.plan.evidence.logNone', 'Nothing logged in the last {days} days',
+                  { days: evidence.historyWindowDays })}
           </Fact>
 
           {/* The checkable part. Naming the lift and the actual set means the
               user can verify the claim against their own log instead of
               taking "personalized" on faith. */}
           {seededFromHistory.length > 0 && (
-            <Fact label="Weights from your own sets">
+            <Fact label={tFallback('coach.plan.evidence.weights', 'Weights from your own sets')}>
               {seededFromHistory.map((s) => `${s.name} ${s.weight} lb × ${s.reps}`).join(' · ')}
             </Fact>
           )}
 
           {estimatedCount > 0 && (
-            <Fact label="Estimated">
-              {estimatedCount} lift{estimatedCount === 1 ? '' : 's'} you haven't logged — sized from your
-              bodyweight ({evidence.bodyweightLbs} lb), experience ({evidence.skillLevel})
-              {evidence.demographics?.age ? ` and age (${evidence.demographics.age})` : ''}.
-              Adjust on your first set and the next session uses your real number.
+            <Fact label={tFallback('coach.plan.evidence.estimated', 'Estimated')}>
+              {plural('coach.plan.evidence.estimatedValue', estimatedCount,
+                "{n} lift you haven't logged — sized from your bodyweight ({lbs} lb), experience ({level})",
+                "{n} lifts you haven't logged — sized from your bodyweight ({lbs} lb), experience ({level})",
+                { lbs: evidence.bodyweightLbs, level: evidence.skillLevel })}
+              {evidence.demographics?.age
+                ? tFallback('coach.plan.evidence.andAge', ' and age ({age})',
+                    { age: evidence.demographics.age })
+                : ''}
+              {'. '}
+              {tFallback('coach.plan.evidence.adjustHint',
+                'Adjust on your first set and the next session uses your real number.')}
             </Fact>
           )}
 
           {bodyweightCount > 0 && (
-            <Fact label="Bodyweight">{bodyweightCount} movement{bodyweightCount === 1 ? '' : 's'} with no external load</Fact>
+            <Fact label={tFallback('coach.plan.evidence.bodyweight', 'Bodyweight')}>
+              {plural('coach.plan.evidence.bodyweightValue', bodyweightCount,
+                '{n} movement with no external load', '{n} movements with no external load')}
+            </Fact>
           )}
 
-          <Fact label="Settings used">
+          <Fact label={tFallback('coach.plan.evidence.settings', 'Settings used')}>
             {[evidence.equipment, `${evidence.skillLevel} level`].filter(Boolean).join(' · ')}
           </Fact>
 
           {evidence.excludedGroups?.length > 0 && (
-            <Fact label="Excluded for injury">{evidence.excludedGroups.join(', ')}</Fact>
+            <Fact label={tFallback('coach.plan.evidence.excluded', 'Excluded for injury')}>
+              {fmtList(evidence.excludedGroups)}
+            </Fact>
           )}
         </div>
       )}
@@ -403,8 +443,11 @@ function Fact({ label, children }) {
 }
 
 /** The chosen day, read back the way it was offered ("Today", "Thu"). */
-function scheduleDayLabel(dateKey) {
-  return daySlots().find((d) => d.date === dateKey)?.label || dateKey;
+function scheduleDayLabel(dateKey, language, tFallback) {
+  const slot = daySlots(new Date(), language).find((d) => d.date === dateKey);
+  if (!slot) return dateKey;
+  // Weekday slots have no key — Intl already produced them in-language.
+  return slot.labelKey ? tFallback(slot.labelKey, slot.label) : slot.label;
 }
 
 // Day and hour as two rows of chips rather than a datetime input.
@@ -416,7 +459,8 @@ function scheduleDayLabel(dateKey) {
 // a modal, which is a lot of friction to charge for a commitment the user is
 // only weakly committed to at this point.
 function SchedulePicker({ scheduling, onCancel, onConfirm }) {
-  const days = daySlots();
+  const { tFallback, language } = useLanguage();
+  const days = daySlots(new Date(), language);
   const [day, setDay] = useState(days[1].date);   // Tomorrow — the safest default
   const [hour, setHour] = useState(HOUR_SLOTS[0].hour);
 
@@ -428,11 +472,18 @@ function SchedulePicker({ scheduling, onCancel, onConfirm }) {
 
   return (
     <div className="mt-2.5 rounded-xl border border-primary/25 bg-card p-3">
-      <p className="text-micro font-semibold text-muted-foreground mb-2">When are you doing this?</p>
+      <p className="text-micro font-semibold text-muted-foreground mb-2">
+        {tFallback('coach.plan.when', 'When are you doing this?')}
+      </p>
 
       <div className="flex gap-1.5 mb-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {days.map((d) => (
-          <Chip key={d.id} active={day === d.date} onClick={() => setDay(d.date)} label={d.label} />
+          <Chip
+            key={d.id}
+            active={day === d.date}
+            onClick={() => setDay(d.date)}
+            label={d.labelKey ? tFallback(d.labelKey, d.label) : d.label}
+          />
         ))}
       </div>
 
@@ -443,7 +494,7 @@ function SchedulePicker({ scheduling, onCancel, onConfirm }) {
             active={hour === s.hour}
             disabled={past(s.hour)}
             onClick={() => setHour(s.hour)}
-            label={`${s.label} · ${formatHour(s.hour)}`}
+            label={`${tFallback(s.labelKey, s.label)} · ${formatHour(s.hour, language)}`}
           />
         ))}
       </div>
@@ -454,7 +505,7 @@ function SchedulePicker({ scheduling, onCancel, onConfirm }) {
           onClick={onCancel}
           className="rounded-lg px-3 py-2 text-caption font-semibold text-muted-foreground hover:text-foreground active:text-foreground transition-colors"
         >
-          Cancel
+          {tFallback('coach.plan.cancel', 'Cancel')}
         </button>
         <button
           type="button"
@@ -463,7 +514,12 @@ function SchedulePicker({ scheduling, onCancel, onConfirm }) {
           className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg bg-primary text-primary-foreground text-caption font-semibold py-2 transition-opacity active:opacity-80 disabled:opacity-50"
         >
           {scheduling ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CalendarClock className="w-3.5 h-3.5" />}
-          {chosenIsPast ? 'That time has passed' : `Remind me ${scheduleDayLabel(day).toLowerCase()} at ${formatHour(hour)}`}
+          {chosenIsPast
+            ? tFallback('coach.plan.timePassed', 'That time has passed')
+            : tFallback('coach.plan.remindMe', 'Remind me {day} at {time}', {
+                day: scheduleDayLabel(day, language, tFallback).toLowerCase(),
+                time: formatHour(hour, language),
+              })}
         </button>
       </div>
     </div>
@@ -494,6 +550,7 @@ function Chip({ active, disabled, onClick, label }) {
 // might want to change has to be visible and one tap away, and a section that
 // can be collapsed can hide the exercise you came here to remove.
 function ExerciseEditor({ exercises, onSwap, onRemove, onSets }) {
+  const { tFallback } = useLanguage();
   return (
     <div className="rounded-2xl border border-border bg-card divide-y divide-border overflow-hidden">
       {exercises.map((ex, i) => {
@@ -520,7 +577,7 @@ function ExerciseEditor({ exercises, onSwap, onRemove, onSets }) {
                 type="button"
                 onClick={() => onSets(i, -1)}
                 disabled={sets <= MIN_SETS}
-                aria-label={`One less set of ${ex.name}`}
+                aria-label={tFallback('coach.plan.setLess', 'One less set of {name}', { name: ex.name })}
                 className="p-1.5 text-muted-foreground hover:text-foreground active:text-foreground disabled:opacity-30 transition-colors"
               >
                 <Minus className="w-3.5 h-3.5" />
@@ -532,7 +589,7 @@ function ExerciseEditor({ exercises, onSwap, onRemove, onSets }) {
                 type="button"
                 onClick={() => onSets(i, 1)}
                 disabled={sets >= MAX_SETS}
-                aria-label={`One more set of ${ex.name}`}
+                aria-label={tFallback('coach.plan.setMore', 'One more set of {name}', { name: ex.name })}
                 className="p-1.5 text-muted-foreground hover:text-foreground active:text-foreground disabled:opacity-30 transition-colors"
               >
                 <Plus className="w-3.5 h-3.5" />
@@ -545,8 +602,10 @@ function ExerciseEditor({ exercises, onSwap, onRemove, onSets }) {
               disabled={!canSwap}
               // Named rather than "Swap" alone: with several rows on screen a
               // screen-reader user otherwise gets a column of identical buttons.
-              aria-label={`Swap ${ex.name} for another ${ex.group || 'exercise'}`}
-              title={canSwap ? `Swap for another ${ex.group || 'exercise'}` : 'No alternative available'}
+              aria-label={tFallback('coach.plan.swapAria', 'Swap {name} for another {group}', { name: ex.name, group: ex.group || tFallback('coach.plan.exercise', 'exercise') })}
+              title={canSwap
+                ? tFallback('coach.plan.swapTitle', 'Swap for another {group}', { group: ex.group || tFallback('coach.plan.exercise', 'exercise') })
+                : tFallback('coach.plan.noAlternative', 'No alternative available')}
               className="shrink-0 p-1.5 rounded-lg bg-secondary/60 text-muted-foreground hover:text-foreground active:text-foreground disabled:opacity-30 transition-colors"
             >
               <RefreshCw className="w-3.5 h-3.5" />
@@ -556,7 +615,7 @@ function ExerciseEditor({ exercises, onSwap, onRemove, onSets }) {
               type="button"
               onClick={() => onRemove(i)}
               disabled={exercises.length <= 1}
-              aria-label={`Remove ${ex.name}`}
+              aria-label={tFallback('coach.plan.remove', 'Remove {name}', { name: ex.name })}
               className="shrink-0 p-1.5 rounded-lg bg-secondary/60 text-muted-foreground hover:text-destructive active:text-destructive disabled:opacity-30 transition-colors"
             >
               <X className="w-3.5 h-3.5" />

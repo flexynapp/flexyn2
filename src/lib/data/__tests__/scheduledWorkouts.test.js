@@ -61,9 +61,31 @@ describe('daySlots', () => {
 });
 
 describe('formatHour', () => {
-  it.each([[0, '12am'], [7, '7am'], [12, '12pm'], [13, '1pm'], [18, '6pm'], [23, '11pm']])(
-    'renders %i as %s', (h, expected) => expect(formatHour(h)).toBe(expected),
+  // Was a hardcoded 12-hour am/pm string — English convention wearing a
+  // number, on a label that renders inside a translated Coach sentence.
+  // Now Intl picks the clock from the locale.
+  it.each([[0, '12 AM'], [7, '7 AM'], [12, '12 PM'], [13, '1 PM'], [18, '6 PM'], [23, '11 PM']])(
+    'renders %i as %s in English', (h, expected) => expect(formatHour(h, 'en')).toBe(expected),
   );
+
+  it('uses a 24-hour clock where the locale does', () => {
+    // Most of the 15 languages we ship write 19:00, not 7pm. This is the
+    // whole reason the parameter exists.
+    expect(formatHour(19, 'de')).toBe('19 Uhr');
+    expect(formatHour(19, 'fr')).toBe('19 h');
+    expect(formatHour(19, 'ja')).toBe('19時');
+  });
+
+  it('defaults to English when no language is passed', () => {
+    // Every call site threads `language`; this keeps an un-threaded caller
+    // rendering something sane rather than the browser's locale.
+    expect(formatHour(7)).toBe('7 AM');
+  });
+
+  it('normalizes out-of-range hours instead of producing an invalid date', () => {
+    expect(formatHour(24, 'en')).toBe('12 AM');
+    expect(formatHour(-1, 'en')).toBe('11 PM');
+  });
 });
 
 describe('slotIsPast', () => {

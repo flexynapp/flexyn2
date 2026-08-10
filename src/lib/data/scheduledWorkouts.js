@@ -7,6 +7,7 @@
 // migration header for why an absolute timestamp would be the wrong shape.
 // Everything here therefore works in local time and never touches UTC.
 
+import { formatDate } from '@/lib/intlFormat';
 import { supabase } from '@/api/supabaseClient';
 
 /** Local YYYY-MM-DD. `toISOString()` would return the UTC date, which is the
@@ -101,16 +102,21 @@ export async function cancelScheduledWorkout(id) {
 
 /** The day choices offered on the card. Today is deliberately included: the
  *  most common real answer to "when?" is "later today". */
-export function daySlots(now = new Date()) {
-  const dayName = (d) => d.toLocaleDateString(undefined, { weekday: 'short' });
+export function daySlots(now = new Date(), language = 'en') {
+  // `toLocaleDateString(undefined, …)` reads the BROWSER's locale, not the
+  // app's — the exact bug src/lib/intl.js exists to prevent, and it put an
+  // English weekday inside an otherwise-translated Coach sentence.
+  const dayName = (d) => formatDate(d, language, { weekday: 'short' });
   const at = (offset) => {
     const d = new Date(now);
     d.setDate(d.getDate() + offset);
     return d;
   };
   return [
-    { id: 'today', label: 'Today', date: localDateKey(at(0)) },
-    { id: 'tomorrow', label: 'Tomorrow', date: localDateKey(at(1)) },
+    // Today/Tomorrow are words, so they carry a key. The two weekday slots
+    // come from Intl and need none.
+    { id: 'today', label: 'Today', labelKey: 'coach.schedule.today', date: localDateKey(at(0)) },
+    { id: 'tomorrow', label: 'Tomorrow', labelKey: 'coach.schedule.tomorrow', date: localDateKey(at(1)) },
     { id: 'day2', label: dayName(at(2)), date: localDateKey(at(2)) },
     { id: 'day3', label: dayName(at(3)), date: localDateKey(at(3)) },
   ];
@@ -119,18 +125,21 @@ export function daySlots(now = new Date()) {
 /** Hour choices. Four covers the shape of most training days without turning
  *  the picker into a clock; the point is to commit to a slot, not to a minute. */
 export const HOUR_SLOTS = [
-  { id: 'morning', label: 'Morning', hour: 7 },
-  { id: 'midday', label: 'Midday', hour: 12 },
-  { id: 'evening', label: 'Evening', hour: 18 },
-  { id: 'night', label: 'Night', hour: 20 },
+  { id: 'morning', label: 'Morning', labelKey: 'coach.schedule.morning', hour: 7 },
+  { id: 'midday',  label: 'Midday',  labelKey: 'coach.schedule.midday',  hour: 12 },
+  { id: 'evening', label: 'Evening', labelKey: 'coach.schedule.evening', hour: 18 },
+  { id: 'night',   label: 'Night',   labelKey: 'coach.schedule.night',   hour: 20 },
 ];
 
 /** "7am" / "12pm" / "6pm" — the hour as the user reads it back. */
-export function formatHour(hour) {
+export function formatHour(hour, language = 'en') {
   const h = ((Number(hour) % 24) + 24) % 24;
-  const suffix = h < 12 ? 'am' : 'pm';
-  const display = h % 12 === 0 ? 12 : h % 12;
-  return `${display}${suffix}`;
+  // Intl picks 12h vs 24h from the locale — most of the 15 languages we ship
+  // write 19:00, not 7pm. The old hardcoded am/pm was English convention
+  // wearing a number.
+  const d = new Date(2000, 0, 1, h, 0, 0);
+  return formatDate(d, language, { hour: 'numeric', minute: undefined })
+    || `${h % 12 === 0 ? 12 : h % 12}${h < 12 ? 'am' : 'pm'}`;
 }
 
 /**
