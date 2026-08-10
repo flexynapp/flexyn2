@@ -16,6 +16,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format, subDays, addDays } from 'date-fns';
+import { useDateFormatter } from '@/lib/intl';
 import {
   ChevronLeft, ChevronRight, List, Bold, Mic, MicOff,
   Paperclip, X, Loader2, History, FileText,
@@ -102,10 +103,17 @@ export default function JournalView({ userId, userEmail, onClose, initialDate })
   // 2026" is ~380pt against a 375pt phone once the two day arrows and the
   // 44pt mood chip are counted, so it truncated — and the year is noise on
   // a screen whose whole subject is which day you are on.
-  const displayDate = format(
-    activeDate,
-    activeDate.getFullYear() === new Date().getFullYear() ? 'EEEE, MMMM d' : 'EEEE, MMMM d yyyy',
-  );
+  // Intl, not date-fns. `format()` has no locale bound, so this header read
+  // "Sunday, August 9" on a screen where everything around it was Spanish —
+  // and wiring date-fns locales would mean importing 15 locale bundles into
+  // the startup path. Intl is in the platform and already knows all 15.
+  const fmtDate = useDateFormatter();
+  const displayDate = fmtDate(activeDate, {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    ...(activeDate.getFullYear() === new Date().getFullYear() ? {} : { year: 'numeric' }),
+  });
 
   // Declared here, at the top, and NOT next to the other derived values
   // further down: goPrev, toggleDictation and onPickFiles all read them, and
@@ -571,13 +579,13 @@ export default function JournalView({ userId, userEmail, onClose, initialDate })
     setUploading(true);
     for (const file of accepted) {
       if (file.size > 10 * 1024 * 1024) {
-        toast.error(tFallback('journal.fileTooBig', `${file.name} is over 10 MB.`));
+        toast.error(tFallback('journal.fileTooBig', `${file.name} is over 10 MB.`, { name: file.name }));
         setPending(prev => prev.filter(n => n !== file.name));
         continue;
       }
       const att = await uploadAttachment(userId, file);
       if (att) { setAttachments(prev => [...prev, att]); dirtyRef.current = true; }
-      else toast.error(tFallback('journal.uploadFailed', `Couldn't upload ${file.name}.`));
+      else toast.error(tFallback('journal.uploadFailed', `Couldn't upload ${file.name}.`, { name: file.name }));
       setPending(prev => prev.filter(n => n !== file.name));
     }
     setPending([]);
@@ -629,7 +637,12 @@ export default function JournalView({ userId, userEmail, onClose, initialDate })
     moodScore && !showMoodEntry
       ? { score: moodScore, emoji: MOOD_EMOJIS[moodScore - 1], label: tFallback(`mood.label.${moodScore}`, MOOD_LABELS[moodScore - 1]) }
       : null,
-    (key, english) => tFallback(key, english),
+    // Pass VARS through. This dropped the third argument, which was
+    // invisible in English — the fallback is a template literal that has
+    // already interpolated — and rendered a literal "{n}" the moment a
+    // translation existed: "Dormiste {n} h". Caught by looking at the
+    // screen in Spanish, not by any test.
+    (key, english, vars) => tFallback(key, english, vars),
   ), [dayCtx, moodScore, showMoodEntry, tFallback]);
 
   // Append a chip as a line of the entry, at the end, and mark dirty so the

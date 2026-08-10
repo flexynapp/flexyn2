@@ -808,6 +808,41 @@ callers pass no action isn't being filtered, it's being switched off.
     `src/lib/__tests__/i18nEquipment.test.js`. **This is not a precedent**
     — don't machine-translate prose, onboarding, or marketing, and don't
     add a second exception without asking.
+  - **A second exception now exists, and it was asked for**:
+    `src/lib/i18n-journal.js` (2026-08-09, Kegan chose the split over
+    English-only or full MT). It is the SAME shape as the equipment file —
+    self-marked, `REVIEW_PENDING`, guarded by
+    `src/lib/__tests__/i18nJournal.test.js` — with one addition worth
+    copying: an exported **`ENGLISH_ONLY`** listing the 14 prose keys that
+    are deliberately English in every language, and a test asserting no
+    non-English block defines any of them. That inverts the usual failure:
+    a future pass cannot quietly fill a sentence in, because doing so fails
+    the suite rather than looking like progress. The split line is short
+    labels vs. full sentences, and a test checks that too (a held key that
+    reads like a label fails).
+
+- **A translation without its vars renders a hole, and English cannot show
+  you that.** The standard call is `tFallback(key, 'English {n}', { n })` —
+  three arguments. Any wrapper in between must forward all three.
+  `JournalView` passed `(key, english) => tFallback(key, english)` and
+  rendered a literal **"Dormiste {n} h"** in Spanish while English was
+  perfect, because the English fallback is a template literal that has
+  already interpolated. **Every test stub in this repo is
+  `(key, english) => english`**, which has the identical blind spot — it
+  returns the pre-interpolated fallback and passes either way. When a string
+  carries a placeholder, test it with a stub that ignores the fallback and
+  interpolates a template (see `dayContext.test.js` / `journalProvenance.test.js`);
+  otherwise the bug is invisible until someone switches language.
+
+- **Dates are not covered by translation keys.** `date-fns` `format()` binds
+  no locale, so "Sunday, August 9" survives every translation pass — the
+  journal header, its month rules and its Log rows all read English under a
+  fully-Spanish screen. Fix with **`useDateFormatter()` / `formatDate()`
+  from `src/lib/intl.js`** (`Intl.DateTimeFormat`, already language-bound),
+  never by importing date-fns locales: that is 15 locale bundles on the
+  startup path to reproduce something the platform already has. Keep
+  `format(d, 'yyyy-MM-dd')` as-is where the output is a KEY rather than
+  text — those must not move with the locale.
 
 ## UI composition — the rules that stop it looking generated
 

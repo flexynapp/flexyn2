@@ -51,6 +51,30 @@ const USER = 'user-1';
 const DAY = '2026-08-09';
 const t = (key, english) => english;
 
+// A stub that behaves like a REAL non-English locale: it ignores the English
+// fallback entirely and interpolates the vars into a template, exactly as
+// getTranslation does once a key is translated.
+//
+// This exists because `(key, english) => english` — the stub above, and the
+// one every other test in this repo uses — cannot see a dropped `vars`
+// argument. The English fallback is a template literal that has ALREADY
+// interpolated, so the assertion passes whether or not the caller passed
+// vars. JournalView's t-wrapper dropped its third argument for exactly that
+// reason and rendered a literal "Dormiste {n} h" the moment Spanish existed.
+const tES = (key, _english, vars) => {
+  const TPL = {
+    'journal.ctx.exercises': 'ES:{n} ejercicios',
+    'journal.ctx.sets': 'ES:{n} series',
+    'journal.ctx.minutes': 'ES:{n} min',
+    'journal.ctx.volume': 'ES:{n} lb',
+    'journal.ctx.sleep': 'ES:dormiste {n} h',
+    'journal.ctx.mood': 'ES:sentiste {emoji} {label}',
+  };
+  const tpl = TPL[key];
+  if (!tpl) return _english;
+  return tpl.replace(/\{(\w+)\}/g, (m, name) => (vars && name in vars ? String(vars[name]) : m));
+};
+
 beforeEach(() => { calls.length = 0; staged = {}; });
 
 // A row shaped exactly like production: no title, no duration_min, no
@@ -148,5 +172,25 @@ describe('contextChips — a fact with no value produces no chip', () => {
   it('offers the mood on a day with no workout and no sleep', () => {
     const chips = contextChips({ workout: null, sleepHours: null }, { score: 5, emoji: '🔥', label: 'On fire' }, t);
     expect(chips).toEqual([{ key: 'mood', label: 'Felt 🔥 On fire', line: 'Felt 🔥 On fire' }]);
+  });
+});
+
+describe('every chip passes its vars through', () => {
+  // The failure this catches is invisible in English and invisible to the
+  // other stub: a chip whose label carries a placeholder but whose call site
+  // forgot the vars object renders "{n}" at every non-English user.
+  it('leaves no unsubstituted placeholder in a translated locale', () => {
+    const ctx = {
+      workouts: [{ exercises: 2, sets: 5, minutes: 23, volume: 4325 }],
+      sleepHours: 7.5,
+    };
+    const chips = contextChips(ctx, { score: 4, emoji: '\u{1F604}', label: 'Muy bien' }, tES);
+    expect(chips.length).toBeGreaterThan(0);
+    for (const c of chips) {
+      expect(c.label, `chip "${c.label}" has an unsubstituted placeholder`).not.toMatch(/\{\w+\}/);
+    }
+    // And prove the stub is actually translating, not falling through to the
+    // English fallback — otherwise this test would pass on a broken wrapper.
+    expect(chips.every((c) => c.label.startsWith('ES:'))).toBe(true);
   });
 });

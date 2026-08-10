@@ -24,6 +24,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import { format, parseISO } from 'date-fns';
+import { useDateFormatter } from '@/lib/intl';
 import { X, Loader2, Paperclip, BookOpen, RefreshCw } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
 import { listEntries } from '@/lib/data/journal';
@@ -32,30 +33,36 @@ import { provenance } from '@/lib/journalProvenance';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 // Year only when it isn't this one — the same rule the day header uses.
-function monthLabel(d) {
-  return format(d, d.getFullYear() === new Date().getFullYear() ? 'MMMM' : 'MMMM yyyy');
+// Formatted through Intl rather than date-fns so the month name follows the
+// app's language; `format()` carries no locale and would say "August" under
+// a Spanish UI.
+function monthLabel(d, fmtDate) {
+  return fmtDate(d, {
+    month: 'long',
+    ...(d.getFullYear() === new Date().getFullYear() ? {} : { year: 'numeric' }),
+  });
 }
 
 /** Rows are already newest-first from the query, so a single pass groups
  *  them without sorting again — and preserves that order inside each
  *  month, which a keyed object would not guarantee. */
-function groupByMonth(rows) {
+function groupByMonth(rows, fmtDate) {
   const out = [];
   rows.forEach((e) => {
     let d;
     try { d = parseISO(e.entry_date); } catch { d = null; }
     const key = d && !Number.isNaN(d.getTime()) ? format(d, 'yyyy-MM') : 'unknown';
     if (!out.length || out[out.length - 1].key !== key) {
-      out.push({ key, label: d ? monthLabel(d) : '', rows: [] });
+      out.push({ key, label: d ? monthLabel(d, fmtDate) : '', rows: [] });
     }
     out[out.length - 1].rows.push(e);
   });
   return out;
 }
 
-function EntryRow({ e, isActive, onPick, tFallback }) {
+function EntryRow({ e, isActive, onPick, tFallback, fmtDate }) {
   let label = e.entry_date;
-  try { label = format(parseISO(e.entry_date), 'EEE, MMM d'); } catch { /* keep raw */ }
+  try { label = fmtDate(parseISO(e.entry_date), { weekday: 'short', month: 'short', day: 'numeric' }); } catch { /* keep raw */ }
 
   const hasWords = !!(e.title || e.snippet);
   const mood = e.mood_score ? MOOD_EMOJIS[e.mood_score - 1] : null;
@@ -144,7 +151,8 @@ export default function JournalHistoryModal({ userId, activeDate, onClose, onPic
     return () => { cancelled = true; };
   }, [load]);
 
-  const groups = useMemo(() => groupByMonth(entries), [entries]);
+  const fmtDate = useDateFormatter();
+  const groups = useMemo(() => groupByMonth(entries, fmtDate), [entries, fmtDate]);
 
   return createPortal(
     <motion.div
@@ -213,6 +221,7 @@ export default function JournalHistoryModal({ userId, activeDate, onClose, onPic
                       isActive={e.entry_date === activeDate}
                       onPick={onPick}
                       tFallback={tFallback}
+                      fmtDate={fmtDate}
                     />
                   ))}
                 </ul>

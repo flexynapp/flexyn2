@@ -62,47 +62,6 @@ const enKeys = {
   // (CLAUDE.md, i18n discipline).
   'profile.journal.footerToday':       'Auto-saved · swipe left/right to change days · tap Log for history',
   'profile.journal.footerPast':        'Read-only · swipe or use ← → to browse · tap Log for history',
-  // v2 of the day screen. English only for now, like the rest of this
-  // screen's `journal.*` keys — a native pass is owed on the lot, and
-  // machine-translating is out (CLAUDE.md, i18n discipline).
-  'journal.saved':                     'Saved',
-  'journal.held':                      'Held offline',
-  'journal.setMood':                   'Log a mood',
-  'journal.feltLabel':                 'You felt',
-  'journal.moodOnly':                  'Logged from the dashboard. Nothing written for this day.',
-  'journal.fromToday':                 'FROM TODAY',
-  'journal.fromThatDay':               'FROM THAT DAY',
-  'journal.fromTodayHint':             'Tap one to write it as a line.',
-  'journal.yesterday':                 'Yesterday',
-  'journal.lockedLabel':               'LOCKED',
-  'journal.locked':                    'Entries older than 7 days are read-only.',
-  // Edit marker. One key per phrasing with the count interpolated — never a
-  // key per count, which is a key space no translator can finish.
-  'journal.prov.day':                  '1 day',
-  'journal.prov.days':                 '{n} days',
-  'journal.prov.written':              'Written {d} later',
-  'journal.prov.edited':               'Edited {d} later',
-  'journal.prov.writtenAndEdited':     'Written {d} later, edited since',
-  'journal.prov.tag':                  'edited',
-  // The Log's failed read — deliberately NOT the empty state. "No entries
-  // yet" is a claim about the user; this is a claim about us.
-  'journal.historyFailedTitle':        "Couldn't load your log",
-  'journal.historyFailedBody':         'Your entries are safe — this is us, not you.',
-  'journal.retry':                     'Try again',
-  // Attachments: both of these replace a silent no-op.
-  'journal.attachCap':                 'You can attach up to {n} files a day.',
-  'journal.attachDropped':             '{n} not attached — that would pass the {max}-file limit.',
-  'journal.notSaved':                  'Not saved — tap to retry',
-  // The widget's route into the full editor — the thing it never had.
-  'journal.openFull':                  'Open journal',
-  // Board 02's drawn label for the Readiness sheet CTA. English-only like
-  // the rest of this batch; the native pass is deferred by decision.
-  'readiness.saveClose':               'Save & close',
-  // Three signals since sleep quality stopped being a scored input with no
-  // control. New keys rather than edits so the old four-signal strings do
-  // not linger, mistranslated, in 15 languages.
-  'readiness.blend3':                  'Blended from three signals. The more you log, the less we estimate.',
-  'readiness.allLogged3':              'Nothing estimated today — all three signals are logged.',
 
   // ── HubChat error toasts ────────────────────────────────────────────
   'hub.chat.attachmentTooLarge': 'Image must be 50 MB or smaller',

@@ -112,3 +112,45 @@ describe('provenanceLabel', () => {
       .toBe('Written 1 day later, edited since');
   });
 });
+
+describe('the label interpolates, in a language that is not English', () => {
+  // Same guard as dayContext's: the `(key, english) => english` stub above
+  // returns a fallback that has ALREADY interpolated via template literal, so
+  // it cannot see a caller that drops its vars. Under a real translation the
+  // hole is visible — "Escrito {d} despues" — and that is what shipped until
+  // JournalView's t-wrapper stopped discarding its third argument.
+  const tES = (key, english, vars) => {
+    const TPL = {
+      'journal.prov.day': '1 dia',
+      'journal.prov.days': '{n} dias',
+      'journal.prov.written': 'Escrito {d} despues',
+      'journal.prov.edited': 'Editado {d} despues',
+      'journal.prov.writtenAndEdited': 'Escrito {d} despues, editado desde entonces',
+    };
+    const tpl = TPL[key];
+    if (!tpl) return english;
+    return tpl.replace(/\{(\w+)\}/g, (m, name) => (vars && name in vars ? String(vars[name]) : m));
+  };
+
+  const late = (writtenDays) => ({
+    entry_date: '2026-08-01',
+    created_at: `2026-08-0${1 + writtenDays}T12:00:00Z`,
+    updated_at: `2026-08-0${1 + writtenDays}T12:00:00Z`,
+  });
+
+  it('leaves no {d} or {n} in any phrasing', () => {
+    for (const days of [1, 3]) {
+      const label = provenanceLabel(late(days), tES);
+      expect(label, `${days}-day-late entry produced no label`).toBeTruthy();
+      expect(label, `unsubstituted placeholder in "${label}"`).not.toMatch(/\{\w+\}/);
+      expect(label.startsWith('Escrito')).toBe(true);
+    }
+  });
+
+  it('nests the day count INSIDE the sentence, not beside it', () => {
+    // `days()` is itself a translated string passed as {d}. A wrapper that
+    // drops vars breaks the outer sentence and the inner count separately.
+    expect(provenanceLabel(late(3), tES)).toBe('Escrito 3 dias despues');
+  });
+});
+
