@@ -395,9 +395,16 @@ export function buildStarterRegimen({ goals, level, daysCount, assessment, cardi
   // Walk, Fat Bar Deadlift, Towel Pull-Up — kept their own 'Back' tag and are
   // still excluded through it, which is why nothing here has to fake it.
   // 'Full Body' lists every injurable region, so it gained 'Forearms' when
-  // that became one. Not a formality: you grip the bar on every clean and
-  // snatch, and without it a forearm injury would leave the Olympic lifts —
-  // the most grip-intensive things in the library — perfectly eligible.
+  // that became one. It is a CONSISTENCY GUARD and changes no plan today —
+  // the commit that added it claimed otherwise and was wrong. Swept all 512
+  // injury subsets across three severities and five goals: 7,680 plans,
+  // byte-identical with and without it. The reason is that no Full Body
+  // exercise is reachable here at all. The curated goal pools hold none, and
+  // the full-library fallback only opens once so much is flagged that the
+  // other eight entries have already excluded every clean and snatch.
+  // Keep it anyway — without it 'Full Body' means "everything except the
+  // grip", which is false, and it would become a live bug the moment an
+  // Olympic lift enters a goal pool.
   const IMPLIED_LOAD = {
     'Full Body': ['Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps', 'Forearms', 'Legs', 'Glutes', 'Core'],
     Cardio: ['Legs', 'Core'],
