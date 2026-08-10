@@ -107,21 +107,23 @@ y += 16;
 // who finds it inconvenient.
 const DECISIONS = [
   ['Duration chips, not a date picker',
-   '0 of 6 production injuries carry an estimated_recovery_date, and that one empty field silences the 3-day warning, the clearance prompt, the countdown and Extend. Four taps, and "Not sure" still books a check-in.'],
+   '0 of 6 production injuries carry an estimated_recovery_date, and that one empty field silenced the 3-day warning, the clearance prompt, the countdown and Extend. SHIPPED as a stopgap: the check-in now fires on the injury AGE (7/14/28 days by severity) so it works without a date at all. Chips are still the better ask.'],
   ['Severity states its consequence',
-   'It decides whether a body part leaves every session. Both mild and moderate were the identical primary chip, so the choice looked like decoration. Muted / primary / destructive reads as a ramp, inside the four-hue budget.'],
+   'It decides whether a body part leaves every session. Both mild and moderate were the identical primary chip, so the choice looked like decoration. Muted / primary / destructive reads as a ramp, inside the four-hue budget. SHIPPED.'],
   ['A "what it changed" screen',
-   'The largest automatic change the app makes to your training, and the only one that never explained itself. Naming the removed lifts is also the only way a user can catch a mis-tap.'],
+   'Sheet C. The largest automatic change the app makes to your training, and the only one that never explained itself. Naming the removed lifts is also the only way a user can catch a mis-tap. NOT BUILT - this board is the spec.'],
   ['The list leads with cost, not label',
-   '"Shoulders, serious" is a receipt for something they already know. "8 exercises are out" is the fact that exists nowhere else — and it only became true on 2026-08-09, when the exclusion finally matched the catalog.'],
+   '"Shoulders, serious" is a receipt for something they already know. "8 exercises are out" is the fact that exists nowhere else - and it only became true on 2026-08-09, when the exclusion finally matched the catalog. NOT BUILT.'],
   ['Cleared injuries collapse',
-   'History under a live list competes with the thing that is currently changing your training. One row, one tap.'],
+   'History under a live list competes with the thing that is currently changing your training. One row, one tap. NOT BUILT.'],
   ['Mild is excluded, everywhere',
    'Settled both ends. The generator always removed a mild region; buildStarterRegimen kept it with an "Ease in" note, so a mild knee got squats on day one and never again. The starter plan now excludes every severity, onboarding says so, and the coach names mild injuries in its avoid-list.'],
-  ['OPEN - the empty-plan valve',
-   'If exclusions leave under two exercises the plan keeps the three hitting the fewest injured areas, so it hands back work on flagged regions - measured at five injuries: Overhead Press, Barbell Row, Pull-Up against a serious shoulder. Reachable more often now, and it contradicts "anything you flag comes out". Probably wants a "here is mobility instead" branch.'],
+  ['The empty-plan valve widens, not lowers',
+   'It kept "the three exercises hitting the fewest injured areas" - fewest, not none - so it programmed regions the user had just flagged. Now it searches the goal pool, then every curated pool, then the whole library, requiring NO injured area. Full Body and Cardio are not injury groups, so they slipped every filter: they now expand to what they load.'],
   ['"Progress > Recovery" is not a route',
    'Onboarding named it twice and there is no such tab. Both strings now point at Profile > My Injuries. If Injuries ever becomes a real route, this design is the page.'],
+  ['The note reaches the coach',
+   'The field says "Any context for your coach" and the coach never saw it. Now sent with area, severity and age. Verified against claude-haiku-4-5: asked about overhead press on a serious shoulder it answered "your LEFT shoulder" - a detail that exists only in the note. Whitespace is collapsed both sides; the digest is newline-delimited and this is its only free text.'],
 ];
 
 for (const [h, b] of DECISIONS) {

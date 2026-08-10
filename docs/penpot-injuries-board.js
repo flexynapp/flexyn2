@@ -31,13 +31,17 @@
 //
 //   1. 0 OF 6 CARRY AN estimated_recovery_date. The field is an
 //      unlabelled date picker offered with no reason to fill it, so
-//      nobody does — and it is the trigger for the ENTIRE check-in
+//      nobody does — and it WAS the trigger for the ENTIRE check-in
 //      system. The 3-day warning, the clearance prompt, the "Nd until
-//      recovery" line and the Extend-date control are all live, all
-//      correct, and not one of them has ever fired for any user. Four
-//      duration chips replace the picker; "Not sure" still schedules a
-//      check-in, because the honest answer must not switch the feature
-//      off.
+//      recovery" line and the Extend-date control were all live, all
+//      correct, and not one of them had ever fired for any user, while
+//      three injuries sat open 26, 59 and 75 days with nothing offering
+//      the muscle group back.
+//      FIXED IN CODE 2026-08-10 without waiting for this design: the
+//      check-in now fires on the injury's AGE (7/14/28 days by
+//      severity) and "Still hurts" is one tap. The duration chips on
+//      sheet B are still the better ask — they make the countdown and
+//      the 3-day warning work too — but the one-way door is closed.
 //   2. MILD AND MODERATE ARE THE SAME COLOUR. Both severity chips are
 //      `text-primary border-primary/30 bg-primary/10`, so the choice
 //      that decides whether a body part is removed from every session
@@ -57,13 +61,13 @@
 //      injury actually costs, which is only honest once it costs
 //      something.
 //
-// The one thing here that is NOT resolved is marked PROPOSED on sheet
-// B: making `mild` train-around-at-reduced-load instead of removing the
-// group. It is what InjuryForm's own description promises ("Some
-// soreness, can train around it"), what onboarding promises, and what
-// starterPlanCoach already does — but the runtime generator removes the
-// group at every severity, and its test pins that deliberately. It
-// changes injury protection, so it needs a human yes.
+// Every decision on the board is now settled — see the DECISIONS column
+// for which ones SHIPPED and which are still spec. Sheets A and C are
+// the unbuilt ones: the list that leads with what an injury COSTS, and
+// the "what it changed" screen. The mild question that used to sit here
+// as PROPOSED was decided the other way — mild removes the area, same
+// as moderate, everywhere — so sheet B carries the strings the app
+// actually ships rather than a proposal.
 
 const PAGE = 'Injuries & Recovery';
 const NAME = 'Injuries & Recovery — resolved';
@@ -355,22 +359,24 @@ const CXo = 860, CYo = 180;
   y += 16;
   [
     ['Duration chips, not a date picker',
-     '0 of 6 production injuries carry an estimated_recovery_date, and that one empty field silences the 3-day warning, the clearance prompt, the countdown and Extend. Four taps, and "Not sure" still books a check-in.'],
+     '0 of 6 production injuries carry an estimated_recovery_date, and that one empty field silenced the 3-day warning, the clearance prompt, the countdown and Extend. SHIPPED as a stopgap: the check-in now fires on the injury AGE (7/14/28 days by severity) so it works without a date at all. Chips are still the better ask.'],
     ['Severity states its consequence',
-     'It decides whether a body part leaves every session. Mild and moderate are currently the same primary chip, so the choice looks like decoration. Outline / filled / destructive — three weights, no fifth hue.'],
+     'It decides whether a body part leaves every session. Both mild and moderate were the identical primary chip, so the choice looked like decoration. Muted / primary / destructive reads as a ramp, inside the four-hue budget. SHIPPED.'],
     ['A "what it changed" screen',
-     'The largest automatic change the app makes to your training, and the only one that never explained itself. Naming the removed lifts is also the only way a user can catch a mis-tap.'],
+     'Sheet C. The largest automatic change the app makes to your training, and the only one that never explained itself. Naming the removed lifts is also the only way a user can catch a mis-tap. NOT BUILT - this board is the spec.'],
     ['The list leads with cost, not label',
-     '"Shoulders · serious" is a receipt for something they already know. "8 exercises are out" is the fact that exists nowhere else — and it only became true on 2026-08-09.'],
+     '"Shoulders, serious" is a receipt for something they already know. "8 exercises are out" is the fact that exists nowhere else - and it only became true on 2026-08-09, when the exclusion finally matched the catalog. NOT BUILT.'],
     ['Cleared injuries collapse',
-     'History under a live list competes with the thing that is currently changing your training. One row, one tap.'],
+     'History under a live list competes with the thing that is currently changing your training. One row, one tap. NOT BUILT.'],
     ['Mild is excluded, everywhere',
      'Settled both ends. The generator always removed a mild region; buildStarterRegimen kept it with an "Ease in" note, so a mild knee got squats on day one and never again. The starter plan now excludes every severity, onboarding says so, and the coach names mild injuries in its avoid-list.'],
-    ['OPEN — the empty-plan valve',
-     'If exclusions leave under two exercises the plan keeps the three hitting the fewest injured areas, so it hands back work on flagged regions — measured at five injuries: Overhead Press, Barbell Row, Pull-Up against a serious shoulder. Reachable more often now, and it contradicts "anything you flag comes out". Probably wants a "here is mobility instead" branch.'],
-    ['Fix "Progress → Recovery"',
-     'Onboarding names that route twice and it does not exist. Either point both strings at Profile → My Injuries, or give Injuries a real route. Copy is cheaper.'],
-  ].forEach(([h, b]) => {
+    ['The empty-plan valve widens, not lowers',
+     'It kept "the three exercises hitting the fewest injured areas" - fewest, not none - so it programmed regions the user had just flagged. Now it searches the goal pool, then every curated pool, then the whole library, requiring NO injured area. Full Body and Cardio are not injury groups, so they slipped every filter: they now expand to what they load.'],
+    ['"Progress > Recovery" is not a route',
+     'Onboarding named it twice and there is no such tab. Both strings now point at Profile > My Injuries. If Injuries ever becomes a real route, this design is the page.'],
+    ['The note reaches the coach',
+     'The field says "Any context for your coach" and the coach never saw it. Now sent with area, severity and age. Verified against claude-haiku-4-5: asked about overhead press on a serious shoulder it answered "your LEFT shoulder" - a detail that exists only in the note. Whitespace is collapsed both sides; the digest is newline-delimited and this is its only free text.'],
+].forEach(([h, b]) => {
     board.appendChild(txt(h, { x: X, y, size: 12, weight: 700, color: C.foreground, w: 300, token: 'color.foreground' }));
     y += 20;
     board.appendChild(txt(b, { x: X, y, size: 11, color: C.mutedFg, w: 300, token: 'color.muted-foreground' }));
