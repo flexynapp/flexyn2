@@ -84,7 +84,9 @@ export default function PWAInstallPrompt() {
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: 80, opacity: 0 }}
           transition={{ type: 'spring', stiffness: 380, damping: 32 }}
-          className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] start-3 end-3 lg:left-auto lg:end-6 lg:bottom-6 lg:max-w-sm z-[60] rounded-2xl bg-card border border-border shadow-xl p-3 flex items-center gap-3"
+          // The desktop end inset tracks the capped shell, so the banner
+          // docks to the app's corner rather than the monitor's. See index.css.
+          className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] start-3 end-3 lg:left-auto lg:end-[calc(var(--shell-inset)+1.5rem)] lg:bottom-6 lg:max-w-sm z-[60] rounded-2xl bg-card border border-border shadow-xl p-3 flex items-center gap-3"
           role="dialog"
           aria-label="Install Flexyn"
         >

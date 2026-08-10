@@ -402,9 +402,44 @@
 
        256px sidebar + 1024px (max-w-5xl) content + breathing room.
        `--shell-inset` is 0 below the cap, so nothing about the phone,
-       tablet or laptop layout moves. */
+       tablet or laptop layout moves.
+
+       EVERY PIECE OF FIXED CHROME MUST POSITION AGAINST THESE, not against
+       the viewport. The sidebar moved inward when the shell was capped and
+       nothing else did, so above 1500px each of them detached from the app
+       it belongs to: the profile menu opened against the monitor's left
+       bezel ~270px away from the sidebar it drops out of, and the Hub and
+       Gauntlet sub-headers ran the full width of the monitor — measured at
+       2560, a bar from 256 to 2560 under a shell that ends at 2023. That is
+       invisible on every phone, tablet and laptop, because below the cap
+       these are 0 and `start-64` and `--shell-content-start` are the same
+       number. Test fixed chrome at a width past --shell-max or you cannot
+       have seen the bug.
+
+       `100%`, NOT `100vw`. Both are "the viewport width" and only one of
+       them agrees with the `mx-auto` that centres the content: `100vw`
+       includes the classic desktop scrollbar and a content box does not, so
+       at a 15px scrollbar this put the sidebar 7.5px to the RIGHT of the
+       column's own centring — and the column's first 7.5px rendered
+       underneath it. A percentage inside a custom property is substituted
+       verbatim and resolved at the point of USE, which for a `position:
+       fixed` consumer is the initial containing block: the viewport minus
+       its scrollbars, the same box `mx-auto` measures against.
+
+       THAT RESOLUTION RULE IS ALSO THE CONSTRAINT — these are for
+       `position: fixed` elements ONLY. On a statically positioned element
+       the same `100%` resolves against that element's own containing block
+       and yields a number that means nothing.
+
+       --shell-inset          the shell's left/right edge
+       --shell-content-start  past the 256px (w-64) sidebar — where the
+                              content column begins. Use this instead of
+                              hand-rolling `calc(var(--shell-inset) + 16rem)`
+                              at each call site; the sidebar's width lives
+                              here, once. */
     --shell-max: 1500px;
-    --shell-inset: max(0px, calc((100vw - var(--shell-max)) / 2));
+    --shell-inset: max(0px, calc((100% - var(--shell-max)) / 2));
+    --shell-content-start: calc(var(--shell-inset) + 16rem);
 
     /* ── Clearing the bottom nav ──────────────────────────────────────
        Anything that floats above Layout.jsx's fixed bottom nav must clear

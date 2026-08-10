@@ -205,7 +205,12 @@ export default function Hub() {
       className="px-4 md:px-6 lg:pb-6 max-w-3xl mx-auto"
     >
       {/* Fixed Hub sub-header */}
-      <div ref={subHeaderRef} className="fixed start-0 end-0 z-20 bg-background/95 backdrop-blur-md border-b border-border top-[calc(56px+env(safe-area-inset-top))] lg:top-[env(safe-area-inset-top)] lg:start-64">
+      {/* `lg:start-64` pinned this 256px from the MONITOR's edge, not from the
+          shell's — so past --shell-max the bar started ~270px left of the
+          sidebar and ran to the far right bezel, a full-width band under a
+          centred app. Both edges now track the shell. Unchanged below the cap,
+          where the vars are 0 and --shell-content-start IS 16rem. */}
+      <div ref={subHeaderRef} className="fixed start-0 end-0 z-20 bg-background/95 backdrop-blur-md border-b border-border top-[calc(56px+env(safe-area-inset-top))] lg:top-[env(safe-area-inset-top)] lg:start-[var(--shell-content-start)] lg:end-[var(--shell-inset)]">
         <div className="max-w-3xl mx-auto px-4 md:px-6 pt-3 pb-3">
 
           {/* Title row */}

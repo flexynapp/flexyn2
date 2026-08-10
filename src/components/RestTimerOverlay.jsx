@@ -42,7 +42,11 @@ export default function RestTimerOverlay() {
 
   return (
     <div
-      className="fixed start-0 end-0 z-40 pointer-events-none px-3 lg:start-64"
+      // Both edges track the capped shell rather than the monitor, so the
+      // timer stays centred over the content column instead of over the whole
+      // display. `mx-auto max-w-md` below centres inside whatever this spans —
+      // which is exactly why the span has to be right. See index.css.
+      className="fixed start-0 end-0 z-40 pointer-events-none px-3 lg:start-[var(--shell-content-start)] lg:end-[var(--shell-inset)]"
       style={{
         bottom: 'calc(4rem + env(safe-area-inset-bottom) + 0.5rem)',
       }}

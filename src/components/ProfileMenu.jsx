@@ -376,7 +376,14 @@ export default function ProfileMenu({ compact = false } = {}) {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.92, y: -10 }}
             transition={{ type: 'spring', stiffness: 450, damping: 35 }}
-            className="fixed start-4 end-4 top-[calc(3.5rem+env(safe-area-inset-top)+0.5rem)] max-h-[calc(100vh-4rem-env(safe-area-inset-top))] lg:fixed lg:start-0 lg:right-auto lg:top-[calc(11.5rem+env(safe-area-inset-top))] lg:mt-0 lg:max-h-[calc(100vh-12rem-env(safe-area-inset-top))] lg:w-64 bg-card border border-border rounded-xl shadow-xl z-[100] overflow-hidden overflow-y-auto"
+            // `lg:start-[var(--shell-inset)]`, not `lg:start-0`: this drops out
+            // of the sidebar, and the sidebar sits at the capped shell's left
+            // edge rather than the monitor's. At 0 the menu opened against the
+            // bezel — 530px from its own trigger on a 2560 display — while
+            // reading as a panel belonging to a nav bar that was nowhere near
+            // it. The var is 0 below --shell-max, so every narrower screen is
+            // unchanged. See the shell comment in index.css.
+            className="fixed start-4 end-4 top-[calc(3.5rem+env(safe-area-inset-top)+0.5rem)] max-h-[calc(100vh-4rem-env(safe-area-inset-top))] lg:fixed lg:start-[var(--shell-inset)] lg:right-auto lg:top-[calc(11.5rem+env(safe-area-inset-top))] lg:mt-0 lg:max-h-[calc(100vh-12rem-env(safe-area-inset-top))] lg:w-64 bg-card border border-border rounded-xl shadow-xl z-[100] overflow-hidden overflow-y-auto"
           >
             {user ? (
               // This menu has ONE view. It used to have two — main and an

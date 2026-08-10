@@ -54,10 +54,20 @@ export default function BackToTopButton() {
           // inset a device reports is smaller than 80px, so the max() always
           // picked 80 and the button overlapped the nav on exactly the phones
           // the inset exists for. `max` where `calc` was meant.
-          className="fixed end-4 z-30 w-12 h-12 rounded-full bg-card/95 backdrop-blur-sm border border-border shadow-lg flex items-center justify-center text-foreground hover:bg-secondary active:bg-secondary transition-colors lg:bottom-6"
-          style={{
-            bottom: 'var(--above-nav)',
-          }}
+          //
+          // `bottom` is a CLASS, not an inline style. It used to be inline
+          // beside a `lg:bottom-6`, and an inline style beats any class no
+          // matter the breakpoint — so the desktop value had never once
+          // applied and the button floated 83px up from the bottom, clearing
+          // a bottom nav that is `lg:hidden` and therefore not there. Written
+          // as an arbitrary value both halves are classes and the cascade
+          // resolves them in the order they read.
+          //
+          // The end inset tracks the capped shell so the button sits at the
+          // app's right edge rather than the monitor's — 530px adrift on a
+          // 2560 display otherwise. 0 below --shell-max, so mobile is
+          // unchanged and keeps the bare `end-4`.
+          className="fixed end-4 lg:end-[calc(var(--shell-inset)+1rem)] bottom-[var(--above-nav)] lg:bottom-6 z-30 w-12 h-12 rounded-full bg-card/95 backdrop-blur-sm border border-border shadow-lg flex items-center justify-center text-foreground hover:bg-secondary active:bg-secondary transition-colors"
           aria-label="Back to top"
           type="button"
         >

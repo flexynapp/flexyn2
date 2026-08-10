@@ -336,7 +336,10 @@ export default function Gauntlet() {
   return (
     <div className="px-0 pt-[73px] pb-24 max-w-3xl mx-auto">
       {/* ── Fixed sub-header ─────────────────────────────────────────────── */}
-      <div className="fixed start-0 end-0 z-20 bg-background/95 backdrop-blur-md border-b border-border top-[calc(56px+env(safe-area-inset-top))] lg:top-[env(safe-area-inset-top)] lg:start-64">
+      {/* Both edges track the capped shell — see the same note on Hub's
+          sub-header and the shell comment in index.css. `lg:start-64` measured
+          from the monitor, which past --shell-max is not where the sidebar is. */}
+      <div className="fixed start-0 end-0 z-20 bg-background/95 backdrop-blur-md border-b border-border top-[calc(56px+env(safe-area-inset-top))] lg:top-[env(safe-area-inset-top)] lg:start-[var(--shell-content-start)] lg:end-[var(--shell-inset)]">
         <div className="max-w-3xl mx-auto px-4 md:px-6 pt-3 pb-3 flex items-center gap-3">
           <button
             type="button"
