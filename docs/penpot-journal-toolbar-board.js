@@ -182,16 +182,23 @@ const CXo = 860, CYo = 180;
   P.R({ x: 0, y: 44, w: 390, h: 1, fill: C.border, token: 'color.border' });
 
   let y = 62;
-  const pair = (typed, rendered, note) => {
+  const pair = (typed, rendered, note, opts = {}) => {
     P.T(typed, { x: 16, y, size: 12, color: C.mutedFg, w: 350, token: 'color.muted-foreground', name: `typed / ${typed.slice(0, 16)}` });
-    P.T(rendered, { x: 16, y: y + 18, size: 14, weight: 700, color: C.foreground, w: 350, token: 'color.foreground' });
+    const r = P.T(rendered, { x: 16, y: y + 18, size: 14, weight: opts.boldWord ? 400 : 700, color: C.foreground, w: 350, token: 'color.foreground' });
+    if (opts.boldWord) {
+      const i = rendered.indexOf(opts.boldWord);
+      if (i >= 0) { try { r.getRange(i, i + opts.boldWord.length).fontWeight = '700'; } catch (e) { /* range not ready */ } }
+    }
     if (note) P.T(note, { x: 16, y: y + 40, size: 11, color: C.mutedFg, w: 350, token: 'color.muted-foreground' });
     y += note ? 74 : 54;
   };
   pair('# Deload week', 'Deload week', 'One weight for every level — the title field above already owns the ramp.');
   pair('- Bench 3x5', '•  Bench 3x5');
   pair('1. Squats', '1.  Squats', 'Numbers become list markers, not text.');
-  pair('Hit a **PR** today', 'Hit a PR today', 'Bold is what the toolbar emits.');
+  // Drawn with the WHOLE line bold at first, which is the one thing this row
+  // exists to disprove: `**PR**` bolds the word INSIDE normal text. A spec
+  // sheet about inline emphasis has to show inline emphasis.
+  pair('Hit a **PR** today', 'Hit a PR today', 'Bold is what the toolbar emits.', { boldWord: 'PR' });
 
   P.R({ x: 16, y: y + 6, w: 358, h: 1, fill: C.border, token: 'color.border' });
   P.T('WHAT MUST NOT — the two false positives that matter in a lifting journal', { x: 16, y: y + 22, size: 11, weight: 700, color: C.mutedFg, w: 350, token: 'color.muted-foreground' });

@@ -143,7 +143,10 @@ const AX = 60, AY = 180;
   };
   monthHeader('AUGUST');
   row('SUN, AUG 9', 'Push day — felt strong', 'Bench 3x5 @ 185. Everything moved well.', '\u{1F4CE} 2', true);
-  row('SAT, AUG 8', null, 'Wrote this up the next morning. Squats moved well.', 'edited');
+  // Untitled rows lead with their snippet — 0 of 12 production rows carry a
+  // title, so this is the NORMAL shape. Drawn as the muted second line at
+  // first, which contradicted the code and was only visible in an export.
+  row('SAT, AUG 8', 'Wrote this up the next morning. Squats moved well.', null, 'edited');
   row('THU, AUG 6', '\u{1F604}  You felt Good', null, null);
   row('SUN, AUG 2', 'Easy 5k', 'Legs heavy.', 'edited');
   monthHeader('JULY');
