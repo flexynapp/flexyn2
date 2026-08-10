@@ -438,6 +438,32 @@ describe('partial-gap ratchet', () => {
     'progress.nextUp',
     'progress.locked',
     'progress.noneCompletedTitle',
+    // Notifications sheet, 2026-08-10. NEW English copy, not a regression:
+    // no language lost a key here, and the rest of `i18n-notifications.js`
+    // stays complete across all 15 — including three strings this change
+    // ADDED in every language by reusing values a human had already
+    // translated elsewhere (`notifications.tab.achievements`,
+    // `notifications.group.today`, `notifications.group.yesterday`).
+    //
+    // These thirteen had no equivalent anywhere in the corpus, and prose +
+    // chrome may not be machine-translated without sign-off, so they ship
+    // English behind `tFallback` and are listed here awaiting a native pass.
+    // Listed individually, per the note above: `notifications.` would
+    // exempt the ~50 translated keys in the same namespace and hide a real
+    // regression in them.
+    'notifications.tab.competitive',
+    'notifications.tab.reminders',
+    'notifications.group.earlier',
+    'notifications.newCount',
+    'notifications.more',
+    'notifications.settings',
+    'notifications.chooseAlerts',
+    'notifications.loadOlder',
+    'notifications.empty.filteredTitle',
+    'notifications.empty.filteredDesc',
+    'notifications.clearAllConfirmTitle',
+    'notifications.clearAllConfirmDesc',
+    'notifications.clearAllConfirmHidden',
   ];
 
   const pending = (k) => AWAITING_TRANSLATION.some(p => k.startsWith(p));

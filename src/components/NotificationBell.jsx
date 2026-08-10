@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Bell } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
@@ -60,11 +61,31 @@ export default function NotificationBell() {
   const handleOpen = () => {
     setOpen(true);
     // Optimistically clear the badge — the actual mark-all-read happens inside
-    // the panel, but the user expects the badge to drop the moment they open.
+    // the panel (on EXIT, see the comment there), but the user expects the
+    // badge to drop the moment they open.
     if (count > 0) {
       queryClient.setQueryData(['notificationsUnread', user?.id], 0);
     }
   };
+
+  // `/notifications` was its own page until 2026-08-10; it now redirects to
+  // `/dashboard?notifications=1` and this is what turns that param into an
+  // open sheet. The param is stripped straight away so a back-navigation or
+  // a refresh doesn't re-open a sheet the user has already dismissed.
+  const location = useLocation();
+  const navigate = useNavigate();
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (!params.has('notifications')) return;
+    params.delete('notifications');
+    const rest = params.toString();
+    navigate({ pathname: location.pathname, search: rest ? `?${rest}` : '' }, { replace: true });
+    setOpen(true);
+    if (count > 0) queryClient.setQueryData(['notificationsUnread', user?.id], 0);
+    // `count` is read for the optimistic badge clear only — re-running this
+    // when it changes would re-open the sheet on every poll.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.search, location.pathname, navigate]);
 
   if (!user?.id) return null;
 

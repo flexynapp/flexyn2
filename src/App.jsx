@@ -125,7 +125,6 @@ const TrainerStudio = lazy(() => import('./pages/TrainerStudio'));
 const TrainerMarket = lazy(() => import('./pages/TrainerMarket'));
 const CorporatePortal = lazy(() => import('./pages/CorporatePortal'));
 const Coach     = lazy(() => import('./pages/Coach'));
-const Notifications = lazy(() => import('./pages/Notifications'));
 const AdminReports = lazy(() => import('./pages/AdminReports'));
 const TradeHistory = lazy(() => import('./pages/TradeHistory'));
 const RegisterGym  = lazy(() => import('./pages/RegisterGym'));
@@ -422,7 +421,14 @@ const AuthenticatedApp = () => {
           <Route path="/duels"     element={<ErrorBoundary label="Duels"><Suspense fallback={<PageLoader />}><Duels /></Suspense></ErrorBoundary>} />
           <Route path="/bounties"  element={<ErrorBoundary label="Bounties"><Suspense fallback={<PageLoader />}><Bounties /></Suspense></ErrorBoundary>} />
           <Route path="/gauntlet"  element={<ErrorBoundary label="Gauntlet"><Suspense fallback={<PageLoader />}><Gauntlet /></Suspense></ErrorBoundary>} />
-          <Route path="/notifications" element={<ErrorBoundary label="Notifications"><Suspense fallback={<PageLoader />}><Notifications /></Suspense></ErrorBoundary>} />
+          {/* /notifications merged into the bell sheet on 2026-08-10 — one
+              surface, one type→category map. The page and the panel rendered
+              the same table with different classifications, and the drift
+              was invisible: `coin_gift` was in neither list. It redirects
+              rather than 404s because the route is old enough to be in
+              someone's history, and `?notifications=1` is what NotificationBell
+              reads to open the sheet on arrival. */}
+          <Route path="/notifications" element={<Navigate to="/dashboard?notifications=1" replace />} />
           {/* Settings is an index plus seven subpages. Two routes rather
               than an optional `:section?` param, which react-router only
               honours from 6.5 — this shape works on every version and the

@@ -1,0 +1,134 @@
+// src/lib/notificationCatalog.js
+//
+// The ONE place a notification type is classified.
+//
+// There used to be two, and they disagreed. `NotificationPanel.jsx` carried
+// `FRIEND_TYPES` (24 types across 2 tabs) plus a separate inline
+// `ALL_KNOWN_TYPES` used only to report drift to Sentry; `pages/Notifications.jsx`
+// carried `TYPE_TO_TAB` (31 types across 5 tabs). Adding a server-side type
+// meant remembering three lists in two files, so nobody did: `coin_gift` was
+// in NONE of them, which meant six live rows reported "Unmapped notification
+// types" to Sentry on every panel open AND fell into the page's catch-all
+// "system" tab, where a gift from another human is exactly wrong.
+//
+// Rules for anything added here:
+//
+//   • A type gets exactly one category. If it belongs in two, the category
+//     set is wrong, not the type.
+//   • An UNKNOWN type is not an error for the user — it still renders, it
+//     still counts under All, and it takes the neutral treatment. It is only
+//     an error for us, which is what `isKnownType` is for.
+//   • Categories are a filter over what already arrived. They are NOT the
+//     per-category push preferences in Settings (mig 036/083), which are a
+//     different, singular-keyed vocabulary — streak / quests / league /
+//     social / achievements / engagement / competitive. Don't unify them:
+//     "should this reach my phone" and "show me these now" are different
+//     questions, and the prefs list is server-side and versioned.
+
+export const CATEGORY = {
+  SOCIAL:       'social',
+  COMPETITIVE:  'competitive',
+  ACHIEVEMENTS: 'achievements',
+  REMINDERS:    'reminders',
+};
+
+// Category → the hue its row tile is tinted with. Four hues, unchanged:
+// `muted` is the neutral, not a fifth colour.
+export const CATEGORY_HUE = {
+  [CATEGORY.SOCIAL]:       'info',
+  [CATEGORY.COMPETITIVE]:  'primary',
+  [CATEGORY.ACHIEVEMENTS]: 'success',
+  [CATEGORY.REMINDERS]:    'muted',
+};
+
+// The filter row, in display order. `all` is not a category — it is the
+// absence of a filter, which is why it has no entry in TYPE_CATEGORY.
+//
+// TODO(i18n): `competitive` and `reminders` are English in all 15 languages
+// — no existing key in the corpus carries either word, and machine
+// translation is not allowed on prose or chrome without sign-off (see the
+// i18n section of CLAUDE.md). `all` and `friends` reuse the panel's existing
+// fully-translated keys; `achievements` reuses the value already translated
+// for `leaderboards.achievements`.
+export const FILTERS = [
+  { id: 'all',                     labelKey: 'notifications.tab.all',          label: 'All' },
+  { id: CATEGORY.SOCIAL,           labelKey: 'notifications.tab.friends',      label: 'Friends' },
+  { id: CATEGORY.COMPETITIVE,      labelKey: 'notifications.tab.competitive',  label: 'Competitive' },
+  { id: CATEGORY.ACHIEVEMENTS,     labelKey: 'notifications.tab.achievements', label: 'Achievements' },
+  { id: CATEGORY.REMINDERS,        labelKey: 'notifications.tab.reminders',    label: 'Reminders' },
+];
+
+// Every type this app has ever inserted, including the ones only a cron or
+// a SECURITY DEFINER RPC writes. Grouped by the migration that introduced
+// them so a future reader can find the server side.
+const TYPE_CATEGORY = {
+  // ── social ── another human did this to you
+  friend_post:              CATEGORY.SOCIAL,   // 017
+  friend_follow:            CATEGORY.SOCIAL,   // 017
+  comment_reply:            CATEGORY.SOCIAL,   // 041
+  post_reaction:            CATEGORY.SOCIAL,   // 041
+  sticker_reaction:         CATEGORY.SOCIAL,   // 041
+  trade_offer:              CATEGORY.SOCIAL,   // 041
+  post_like:                CATEGORY.SOCIAL,   // 063
+  crew_everyone:            CATEGORY.SOCIAL,   // 063
+  coin_gift:                CATEGORY.SOCIAL,   // live in prod, previously in NO list
+
+  // ── competitive ── someone is racing you
+  duel_invite:              CATEGORY.COMPETITIVE, // 065
+  duel_result:              CATEGORY.COMPETITIVE, // 065
+  bounty_claim:             CATEGORY.COMPETITIVE, // 069
+  bounty_beaten:            CATEGORY.COMPETITIVE, // 069
+  crew_war_started:         CATEGORY.COMPETITIVE, // 069
+  crew_war_resolved:        CATEGORY.COMPETITIVE, // 069
+  nemesis_assigned:         CATEGORY.COMPETITIVE, // 081
+  nemesis_overthrown:       CATEGORY.COMPETITIVE, // 102
+  crew_challenge_started:   CATEGORY.COMPETITIVE, // 103
+  crew_challenge_completed: CATEGORY.COMPETITIVE, // 103
+  weekly_gauntlet_started:  CATEGORY.COMPETITIVE, // 082 — a race, not a nudge
+
+  // ── achievements ── you earned something
+  quest_claimed:            CATEGORY.ACHIEVEMENTS,
+  streak_milestone:         CATEGORY.ACHIEVEMENTS,
+  league_promoted:          CATEGORY.ACHIEVEMENTS,
+  league_demoted:           CATEGORY.ACHIEVEMENTS,
+  league_held:              CATEGORY.ACHIEVEMENTS,
+  pr_set:                   CATEGORY.ACHIEVEMENTS,
+  capsule_earned:           CATEGORY.ACHIEVEMENTS,
+  coin_milestone:           CATEGORY.ACHIEVEMENTS,
+  referral_success:         CATEGORY.ACHIEVEMENTS,
+  gauntlet_completed:       CATEGORY.ACHIEVEMENTS,
+  gauntlet_path_completed:  CATEGORY.ACHIEVEMENTS,
+  streak_rescue_available:  CATEGORY.ACHIEVEMENTS,
+  weekly_review_ready:      CATEGORY.ACHIEVEMENTS, // 331/332
+
+  // ── reminders ── we are asking you for something
+  streak_break_warning:     CATEGORY.REMINDERS,  // 035
+  welcome_back:             CATEGORY.REMINDERS,  // 037
+  quest_expiry_warning:     CATEGORY.REMINDERS,  // 037
+  memory_reengagement:      CATEGORY.REMINDERS,  // 089
+  workout_reminder:         CATEGORY.REMINDERS,  // 276
+  report_resolved:          CATEGORY.REMINDERS,  // admin → you
+};
+
+/** The category for a type, or null when we've never heard of it. */
+export function categoryFor(type) {
+  return (type && TYPE_CATEGORY[type]) || null;
+}
+
+/** False means the catalog has drifted behind the server. */
+export function isKnownType(type) {
+  return !!type && Object.prototype.hasOwnProperty.call(TYPE_CATEGORY, type);
+}
+
+/** The hue for a row's tile. Unknown types take the neutral. */
+export function hueFor(type) {
+  return CATEGORY_HUE[categoryFor(type)] || 'muted';
+}
+
+/** Does a row belong under the given filter id? `all` always matches. */
+export function matchesFilter(type, filterId) {
+  if (!filterId || filterId === 'all') return true;
+  return categoryFor(type) === filterId;
+}
+
+export const KNOWN_TYPES = Object.freeze(Object.keys(TYPE_CATEGORY));
