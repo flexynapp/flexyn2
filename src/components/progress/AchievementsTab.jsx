@@ -45,7 +45,7 @@ import {
   requirementsFor,
 } from '@/lib/trophyDefinitions';
 import { useLanguage } from '@/lib/LanguageContext';
-import { useDateFormatter, useNumberFormatter } from '@/lib/intl';
+import { useDateFormatter, useListFormatter, useNumberFormatter } from '@/lib/intl';
 import EmptyState from '@/components/EmptyState';
 
 // How many "closest rung" cards lead the page. Three is enough to offer a
@@ -92,7 +92,7 @@ function Medallion({ trophy, earned, size = 44 }) {
  * One ladder. Shows every earned rung as a medallion row, then the ONE
  * rung currently in play with its progress bar.
  */
-function LadderRow({ ladderId, earnedIds, signal, fmtNum }) {
+function LadderRow({ ladderId, earnedIds, signal, fmtNum, fmtList, tFallback }) {
   const ladder = LADDERS[ladderId];
   const rungs = rungsFor(ladderId);
   const earned = rungs.filter((r) => earnedIds.has(r.id));
@@ -134,8 +134,15 @@ function LadderRow({ ladderId, earnedIds, signal, fmtNum }) {
       ) : gated ? (
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <Lock className="w-3.5 h-3.5 shrink-0" />
+          {/* Was a bare English literal with a hardcoded `, ` separator, in a
+              component whose other three strings ARE translated. Both halves
+              had to move: localizing the separator inside an untranslated
+              sentence would have produced a mixed-script line, which is worse
+              than a consistent English one. */}
           <span className="truncate">
-            Unlocks with {gate.map((r) => r.name).join(', ')}
+            {tFallback('progress.unlocksWith', 'Unlocks with {items}', {
+              items: fmtList(gate.map((r) => r.name)),
+            })}
           </span>
         </div>
       ) : (
@@ -177,6 +184,7 @@ export default function AchievementsTab({ trophies = [], progress = {}, user = n
   const { t, tFallback } = useLanguage();
   const fmtDate = useDateFormatter();
   const fmtNum = useNumberFormatter();
+  const fmtList = useListFormatter();
   const [tab, setTab] = useState('progress');
   // Single-flight: only one share in the air at a time.
   const [sharingId, setSharingId] = useState(null);
@@ -372,6 +380,8 @@ export default function AchievementsTab({ trophies = [], progress = {}, user = n
                         earnedIds={earnedIds}
                         signal={signalFor(id)}
                         fmtNum={fmtNum}
+                        fmtList={fmtList}
+                        tFallback={tFallback}
                       />
                     ))}
                   </div>

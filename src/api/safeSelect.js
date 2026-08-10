@@ -102,6 +102,10 @@ export async function safeSelect({ columns, build }) {
   // assume the query is broken in a way we can't fix and return
   // whatever the latest error was.
   for (let attempt = 0; attempt < 20; attempt++) {
+    // NOT a display list — this is the PostgREST `select=` column list, and
+    // its separator is protocol. A locale-aware list formatter here (the
+    // 2026-08-10 i18n sweep converted several `.join(', ')` call sites) would
+    // send `id، وname` to the API and break every read in the app.
     const result = await build(active.join(', '));
     if (!result?.error) return result;
     const missing = identifyMissingColumn(result.error, active);

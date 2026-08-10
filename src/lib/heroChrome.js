@@ -103,6 +103,9 @@ const HERO_FADE_STOPS = smoothstepStops(1, { rising: true });
 /** Build a top-to-bottom gradient from stops, for an `H S% L%` triplet or a var(). */
 export function stopsToGradient(color, stops) {
   const parts = stops.map(({ pct, alpha }) => `hsl(${color} / ${alpha}) ${pct}%`);
+  // NOT a display list — CSS `linear-gradient()` separates its colour stops
+  // with a comma by grammar. Never route this through a locale list
+  // formatter; the declaration would simply fail to parse.
   return `linear-gradient(to bottom, ${parts.join(', ')})`;
 }
 

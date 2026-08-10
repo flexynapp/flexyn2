@@ -32,6 +32,11 @@ export const translations_p4 = {
     'progress.of': 'of',
     'progress.unlocked': 'unlocked',
     'progress.unlockedOn': 'Unlocked on',
+    // TODO(i18n): English only — the other keys in this block ship in all 15
+    // languages, this one arrived later (2026-08-10) and needs a native pass.
+    // `{items}` is a formatted list, so whoever translates it must keep the
+    // placeholder rather than splitting the sentence around a comma.
+    'progress.unlocksWith': 'Unlocks with {items}',
     'progress.allCompleted': 'All achievements unlocked!',
     'progress.activeAchievements': 'Active Achievements',
     'progress.completedAchievements': 'Completed Achievements',
