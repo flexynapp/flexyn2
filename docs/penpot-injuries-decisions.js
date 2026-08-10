@@ -116,8 +116,10 @@ const DECISIONS = [
    '"Shoulders, serious" is a receipt for something they already know. "8 exercises are out" is the fact that exists nowhere else — and it only became true on 2026-08-09, when the exclusion finally matched the catalog.'],
   ['Cleared injuries collapse',
    'History under a live list competes with the thing that is currently changing your training. One row, one tap.'],
-  ['OPEN — mild trains around, or not',
-   'buildStarterRegimen keeps a mild region and attaches an "Ease in" note. The runtime generator removes it at every severity. So onboarding is true of the starter plan and false of every session after it. A behaviour split, not a copy bug.'],
+  ['Mild is excluded, everywhere',
+   'Settled both ends. The generator always removed a mild region; buildStarterRegimen kept it with an "Ease in" note, so a mild knee got squats on day one and never again. The starter plan now excludes every severity, onboarding says so, and the coach names mild injuries in its avoid-list.'],
+  ['OPEN - the empty-plan valve',
+   'If exclusions leave under two exercises the plan keeps the three hitting the fewest injured areas, so it hands back work on flagged regions - measured at five injuries: Overhead Press, Barbell Row, Pull-Up against a serious shoulder. Reachable more often now, and it contradicts "anything you flag comes out". Probably wants a "here is mobility instead" branch.'],
   ['"Progress > Recovery" is not a route',
    'Onboarding named it twice and there is no such tab. Both strings now point at Profile > My Injuries. If Injuries ever becomes a real route, this design is the page.'],
 ];

@@ -364,8 +364,10 @@ const CXo = 860, CYo = 180;
      '"Shoulders · serious" is a receipt for something they already know. "8 exercises are out" is the fact that exists nowhere else — and it only became true on 2026-08-09.'],
     ['Cleared injuries collapse',
      'History under a live list competes with the thing that is currently changing your training. One row, one tap.'],
-    ['OPEN — the starter plan disagrees',
-     'DECIDED for the runtime: mild removes the area, and InjuryForm now says so. Still split underneath — buildStarterRegimen keeps a mild region with an "Ease in" note, so onboarding is true of the starter plan and false of every session after it.'],
+    ['Mild is excluded, everywhere',
+     'Settled both ends. The generator always removed a mild region; buildStarterRegimen kept it with an "Ease in" note, so a mild knee got squats on day one and never again. The starter plan now excludes every severity, onboarding says so, and the coach names mild injuries in its avoid-list.'],
+    ['OPEN — the empty-plan valve',
+     'If exclusions leave under two exercises the plan keeps the three hitting the fewest injured areas, so it hands back work on flagged regions — measured at five injuries: Overhead Press, Barbell Row, Pull-Up against a serious shoulder. Reachable more often now, and it contradicts "anything you flag comes out". Probably wants a "here is mobility instead" branch.'],
     ['Fix "Progress → Recovery"',
      'Onboarding names that route twice and it does not exist. Either point both strings at Profile → My Injuries, or give Injuries a real route. Copy is cheaper.'],
   ].forEach(([h, b]) => {
