@@ -39,8 +39,18 @@ describe('the rule', () => {
 
   it('never asks for a long weekday — that is the form that clipped', () => {
     for (const d of [new Date(2026, 0, 1), new Date(2025, 11, 24)]) {
-      expect(dayHeaderFormat(d, NOW).weekday).toBe('short');
+      expect(dayHeaderFormat(d, NOW).weekday).not.toBe('long');
     }
+  });
+
+  it('drops the weekday entirely once the year has to be shown', () => {
+    // The two halves of one rule: show the tokens that DISCRIMINATE at that
+    // distance. Inside this year every date shares the year, so it is noise
+    // and the weekday earns its width. Outside it the reverse holds — and
+    // keeping both put pt-BR 2pt over the box, which is how a truncated
+    // year gets back onto the screen.
+    expect(dayHeaderFormat(new Date(2026, 0, 1), NOW).weekday).toBe('short');
+    expect(dayHeaderFormat(new Date(2025, 11, 24), NOW).weekday).toBeUndefined();
   });
 
   it('shortens the month only when the year is also being shown', () => {
@@ -52,11 +62,13 @@ describe('the rule', () => {
 });
 
 describe('what it produces, in every supported language', () => {
-  it('always renders a weekday, a day and a month', () => {
+  it('always renders a day number, in both branches', () => {
     for (const lang of LANGS) {
-      const s = new Intl.DateTimeFormat(lang, dayHeaderFormat(NOW, NOW)).format(NOW);
-      expect(s.trim(), `${lang} produced nothing`).not.toBe('');
-      expect(/\d/.test(s), `${lang} has no day number: "${s}"`).toBe(true);
+      for (const d of [NOW, new Date(2025, 11, 24)]) {
+        const s = new Intl.DateTimeFormat(lang, dayHeaderFormat(d, NOW)).format(d);
+        expect(s.trim(), `${lang} produced nothing`).not.toBe('');
+        expect(/\d/.test(s), `${lang} has no day number: "${s}"`).toBe(true);
+      }
     }
   });
 
@@ -75,7 +87,7 @@ describe('what it produces, in every supported language', () => {
     // A weak proxy for width, deliberately loose — it exists to catch a
     // format change that balloons the string (a long weekday coming back
     // takes pt-BR from 24 characters to 38), not to police a few px.
-    const BUDGET = 30;
+    const BUDGET = 27;
     for (const lang of LANGS) {
       for (const d of [NOW, new Date(2025, 10, 24)]) {
         const s = new Intl.DateTimeFormat(lang, dayHeaderFormat(d, NOW)).format(d);
