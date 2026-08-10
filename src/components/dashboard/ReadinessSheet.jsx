@@ -28,6 +28,7 @@ import MoodLogCard from '@/components/dashboard/MoodLogCard';
 import StepsLogCard from '@/components/dashboard/StepsLogCard';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { MOOD_LABELS } from '@/lib/data/moodLogs';
+import { requestCommitDailyLogs } from '@/lib/dailyLogCommit';
 
 // The mood scale is MOOD_LABELS in moodLogs.js — Awful / Meh / Okay / Good
 // / On fire — and this file had its own: Drained / Low / OK / Good / Great.
@@ -273,8 +274,17 @@ export default function ReadinessSheet({ open, onClose, readiness, focus, onLogW
 
             <button
               type="button"
-              onClick={onClose}
-              // "Close", not "Save". This button has only ever called onClose:
+              // Board 02 draws this as "Save & close", and that label is
+              // right — it was the BEHAVIOUR that was wrong. The cards are
+              // asked to flush before the sheet goes, so a typed step count
+              // is written rather than dropped.
+              //
+              // An event rather than a blur: blur needs the element to hold
+              // real focus, and a backgrounded document dispatches no focus
+              // events at all. "True as long as the browser cooperates" is
+              // not a promise worth making about someone's data.
+              onClick={() => { requestCommitDailyLogs(); onClose(); }}
+              // It shipped labelled "Save" while only calling onClose:
               // every control in the sheet commits on its own (mood on tap,
               // sleep on interaction, steps on blur/Enter/its own check). A
               // full-width primary CTA reading "Save" over three self-saving
@@ -282,21 +292,15 @@ export default function ReadinessSheet({ open, onClose, readiness, focus, onLogW
               // sits directly above it with a REAL save button, so typing a
               // count and reaching for the biggest save-looking control on
               // screen dismissed the sheet and dropped the number. The steps
-              // input commits on blur now too; this label stops lying.
-              //
-              // `common.close` rather than a new `common.done`: it is already
-              // translated in 7 languages and it is the truthful verb, where a
-              // new key would be English-everywhere and the i18n pass is
-              // deliberately deferred. Board 02 could not be consulted for the
-              // drawn label — the Penpot bridge was down — so this takes the
-              // label that cannot misdescribe what the control does.
+              // input commits on blur, and this handler forces that blur, so
+              // the drawn promise is kept rather than reworded away.
               //
               // Drawn at 52px, which is no step on the height scale. --fluid-cta-h
               // is the app's own answer for exactly this control (clamp 48→56)
               // and lands on ~52 at the 390pt the board was drawn at.
               className="w-full mt-5 rounded-2xl bg-primary text-primary-foreground font-heading font-bold text-body h-[var(--fluid-cta-h)] shadow-md hover:brightness-105 active:scale-[0.98] transition-all"
             >
-              {tFallback('common.close', 'Close')}
+              {tFallback('readiness.saveClose', 'Save & close')}
             </button>
           </div>
         </motion.div>

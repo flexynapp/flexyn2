@@ -5,7 +5,7 @@
 // today's value displayed once logged with tap-to-edit. Numeric quick
 // entry (no wearable sync — that's the separate native-app effort).
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { toast } from '@/lib/toast';
@@ -15,6 +15,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useNumberFormatter } from '@/lib/intl';
 import { upsertStepLog, getTodayStepLog } from '@/lib/data/stepLogs';
+import { useCommitDailyLogOnRequest } from '@/lib/dailyLogCommit';
 import * as quests from '@/lib/data/quests';
 import { ACTION_TYPES } from '@/lib/questCatalog';
 
@@ -89,6 +90,7 @@ export default function StepsLogCard() {
 
   const logged = today?.steps ?? null;
 
+
   const save = async (val) => {
     const n = Math.round(Number(val));
     if (!Number.isFinite(n) || n < 0) {
@@ -124,6 +126,17 @@ export default function StepsLogCard() {
       setSaving(false);
     }
   };
+
+  // Flush on request, declared AFTER `save` — reading a const above its own
+  // declaration line is the TDZ trap CLAUDE.md documents, and lint caught it
+  // when this sat higher up. The Readiness sheet's "Save & close" dispatches
+  // this before dismissing, so a typed count is committed without depending
+  // on a blur, which needs real focus and produces nothing in a backgrounded
+  // document. useCallback so the listener always sees the current draft.
+  useCommitDailyLogOnRequest(useCallback(() => {
+    if (draft) save(draft);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft]));
 
   if (!user?.id) return null;
 

@@ -95,6 +95,9 @@ const enKeys = {
   'journal.notSaved':                  'Not saved — tap to retry',
   // The widget's route into the full editor — the thing it never had.
   'journal.openFull':                  'Open journal',
+  // Board 02's drawn label for the Readiness sheet CTA. English-only like
+  // the rest of this batch; the native pass is deferred by decision.
+  'readiness.saveClose':               'Save & close',
 
   // ── HubChat error toasts ────────────────────────────────────────────
   'hub.chat.attachmentTooLarge': 'Image must be 50 MB or smaller',
