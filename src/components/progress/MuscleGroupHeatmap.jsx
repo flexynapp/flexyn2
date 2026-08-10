@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { FRONT_GROUPS, BACK_GROUPS } from './muscleAnatomy';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -240,13 +240,35 @@ const LEG_GROUPS = new Set(['hamstrings', 'calves']);
    reaches that: a 430px Pro Max column works out at 373. */
 const FIGURE_MAX_H = 430;
 
-function Figure({ groups, viewBox, getFill, sel, onSel, vid, mirrorAxis }) {
+/* The figure is the feature, and until now a screen reader could not reach
+   any of it: fourteen `<g onClick>` groups with no role, no name and no tab
+   stop, inside an SVG that announced nothing. Colour carried 100% of the
+   information and colour cannot be heard.
+
+   Each group is now a real button — role, accessible name, tab stop, and
+   Enter/Space — and the three purely decorative layers (the neutral base,
+   the top-light, the guide outlines) are hidden from the tree so the same
+   body is not announced four times over.
+
+   `labelFor` is passed in rather than computed here because the label has
+   to state the muscle's VALUE, and Figure has no access to the dataset —
+   it is handed fills, not numbers. */
+function Figure({ groups, viewBox, getFill, sel, onSel, vid, mirrorAxis, labelFor, figureLabel }) {
   const mirrorT = mirrorAxis ? `translate(${2 * mirrorAxis},0) scale(-1,1)` : null;
   const legMirror = (grp) => mirrorT && LEG_GROUPS.has(grp.g);
   const allPaths = groups.flatMap((grp) => grp.paths);
   const legPaths = mirrorT ? groups.filter((g) => LEG_GROUPS.has(g.g)).flatMap((g) => g.paths) : [];
+  // Space scrolls the page by default, so activating a muscle with it would
+  // also jump the view out from under the person who just pressed it.
+  const onKey = (e, k, active) => {
+    if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return;
+    e.preventDefault();
+    e.stopPropagation();
+    onSel(active ? null : k);
+  };
   return (
-    <svg viewBox={viewBox} preserveAspectRatio="xMidYMid meet" style={{ width: '100%', height: 'auto', maxHeight: FIGURE_MAX_H, overflow: 'visible' }}>
+    <svg viewBox={viewBox} preserveAspectRatio="xMidYMid meet" role="group" aria-label={figureLabel}
+      style={{ width: '100%', height: 'auto', maxHeight: FIGURE_MAX_H, overflow: 'visible' }}>
       <defs>
         <mask id={`bm-${vid}`}>
           {allPaths.map((d, i) => <path key={i} d={d} fill="#fff" />)}
@@ -260,7 +282,7 @@ function Figure({ groups, viewBox, getFill, sel, onSel, vid, mirrorAxis }) {
       </defs>
 
       {/* 1 · neutral body base */}
-      <g style={{ fill: NEUTRAL_FILL, stroke: NEUTRAL_STROKE }} strokeWidth="0.8" strokeLinejoin="round">
+      <g aria-hidden="true" style={{ fill: NEUTRAL_FILL, stroke: NEUTRAL_STROKE }} strokeWidth="0.8" strokeLinejoin="round">
         {allPaths.map((d, i) => <path key={i} d={d} />)}
         {mirrorT && <g transform={mirrorT}>{legPaths.map((d, i) => <path key={`mb${i}`} d={d} />)}</g>}
       </g>
@@ -272,7 +294,9 @@ function Figure({ groups, viewBox, getFill, sel, onSel, vid, mirrorAxis }) {
         const dim = sel && !active;
         return (
           <g key={k}
+            role="button" tabIndex={0} aria-label={labelFor(k)} aria-expanded={active}
             onClick={(e) => { e.stopPropagation(); onSel(active ? null : k); }}
+            onKeyDown={(e) => onKey(e, k, active)}
             style={{
               cursor: 'pointer', opacity: dim ? 0.32 : 1, transition: 'opacity .35s, fill .55s ease',
               fill: getFill(k), stroke: HEAT_STROKE,
@@ -286,12 +310,12 @@ function Figure({ groups, viewBox, getFill, sel, onSel, vid, mirrorAxis }) {
       })}
 
       {/* 3 · dimensional top-light, clipped to the body */}
-      <g mask={`url(#bm-${vid})`} style={{ pointerEvents: 'none', mixBlendMode: 'soft-light' }}>
+      <g aria-hidden="true" mask={`url(#bm-${vid})`} style={{ pointerEvents: 'none', mixBlendMode: 'soft-light' }}>
         <rect x="-100" y="-100" width="2000" height="2000" fill={`url(#hl-${vid})`} />
       </g>
 
       {/* 4 · guide outlines per clickable group */}
-      <g fill="none" strokeLinejoin="round" style={{ pointerEvents: 'none' }}>
+      <g aria-hidden="true" fill="none" strokeLinejoin="round" style={{ pointerEvents: 'none' }}>
         {groups.map((grp) => {
           const active = sel === grp.g;
           const dim = sel && !active;
@@ -364,9 +388,53 @@ const volumeText = (lbs, unit) => {
 function DetailSheet({ muscles, id, rangeLabel, onClose, weightUnit }) {
   // Pin the page behind this overlay — see @/lib/scrollLock.
   useBodyScrollLock(!!id);
-  // Both hooks sit above the early return — a conditional hook changes the
+  // Every hook sits above the early return — a conditional hook changes the
   // hook count between renders and React throws.
   const { tFallback } = useLanguage();
+  const closeRef = useRef(null);
+  const returnRef = useRef(null);
+
+  /* A modal a keyboard cannot leave is worse than no modal. This does the
+     three things the sheet was missing:
+
+     • Escape closes it. It was a fixed overlay with no key handling at all,
+       so the only exit was tapping — fine on a phone, a trap otherwise.
+     • Focus moves in on open and RETURNS to whatever opened it on close.
+       Without the return, dismissing the sheet drops focus to the top of
+       the document and you re-traverse the page to get back to the muscle
+       you were reading.
+     • Tab cycles within the sheet rather than wandering the page behind it,
+       which is inert anyway (the scroll is locked and it is aria-hidden to
+       nothing — the sheet is not portalled, so hiding the rest would mean
+       hiding its own ancestor). `aria-modal` states the intent; the Tab
+       wrap is what enforces it. */
+  useEffect(() => {
+    if (!id) return undefined;
+    returnRef.current = document.activeElement;
+    // Focus the close button rather than the panel: it is a real control,
+    // so the name is announced and Enter does the obvious thing.
+    closeRef.current?.focus();
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') { e.stopPropagation(); onClose(); return; }
+      if (e.key !== 'Tab') return;
+      const panel = closeRef.current?.closest('[role="dialog"]');
+      if (!panel) return;
+      const stops = panel.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+      if (!stops.length) return;
+      const first = stops[0], last = stops[stops.length - 1];
+      if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      // The opener can be gone by now (mode switch unmounts the figure), so
+      // only restore focus to something still in the document.
+      const back = returnRef.current;
+      if (back && document.contains(back)) back.focus();
+    };
+  }, [id, onClose]);
+
   if (!id) return null;
   const m = muscles[id];
   const fatigue = (100 - m.recovery) / 100;
@@ -391,15 +459,23 @@ function DetailSheet({ muscles, id, rangeLabel, onClose, weightUnit }) {
       position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'flex-end',
       background: 'rgba(15,18,24,0.4)', backdropFilter: 'blur(2px)', animation: 'bh-fade .2s ease',
     }}>
-      <div onClick={(e) => e.stopPropagation()} style={{
-        width: '100%', background: 'hsl(var(--card))',
-        borderTopLeftRadius: 26, borderTopRightRadius: 26,
-        padding: '14px 18px calc(30px + env(safe-area-inset-bottom))',
-        boxShadow: '0 -12px 40px rgba(0,0,0,0.18)', animation: 'bh-rise .32s cubic-bezier(0.16,1,0.3,1)',
-      }}>
-        <div style={{ width: 38, height: 5, borderRadius: 3, background: 'hsl(var(--border))', margin: '0 auto 16px' }} />
+      <div role="dialog" aria-modal="true" aria-labelledby={`bh-title-${id}`}
+        onClick={(e) => e.stopPropagation()} style={{
+          width: '100%', background: 'hsl(var(--card))',
+          borderTopLeftRadius: 26, borderTopRightRadius: 26,
+          padding: '14px 18px calc(30px + env(safe-area-inset-bottom))',
+          boxShadow: '0 -12px 40px rgba(0,0,0,0.18)', animation: 'bh-rise .32s cubic-bezier(0.16,1,0.3,1)',
+        }}>
+        <div aria-hidden="true" style={{ width: 38, height: 5, borderRadius: 3, background: 'hsl(var(--border))', margin: '0 auto 16px' }} />
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <div style={{ position: 'relative', width: 76, height: 76, flexShrink: 0 }}>
+          {/* `role="img"` + a label, rather than aria-hidden: the recovery
+              number lives INSIDE this wrapper, so hiding it would drop the
+              sheet's headline figure. Read as-is it announces "100 RECOV",
+              which is the ring's caption, not a sentence — the label says
+              it once, properly, and role="img" makes the parts beneath it
+              presentational. */}
+          <div role="img" aria-label={tFallback('bodyMap.a11y.recoveredPct', '{pct}% recovered', { pct: m.recovery })}
+            style={{ position: 'relative', width: 76, height: 76, flexShrink: 0 }}>
             <svg width="76" height="76" style={{ transform: 'rotate(-90deg)' }}>
               <circle cx="38" cy="38" r={r} fill="none" stroke="hsl(var(--secondary))" strokeWidth="7" />
               <circle cx="38" cy="38" r={r} fill="none" stroke={lerpStops(REC_STOPS, fatigue)} strokeWidth="7"
@@ -419,7 +495,7 @@ function DetailSheet({ muscles, id, rangeLabel, onClose, weightUnit }) {
                 ? tFallback('bodyMap.detail.daysAgo', '{n}d ago', { n: m.last })
                 : tFallback('bodyMap.detail.untrained', 'untrained')}
             </Kicker>
-            <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 26, letterSpacing: '-0.03em', lineHeight: 1.05, marginTop: 3 }}>{muscleName(tFallback, m, id)}</div>
+            <div id={`bh-title-${id}`} style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 26, letterSpacing: '-0.03em', lineHeight: 1.05, marginTop: 3 }}>{muscleName(tFallback, m, id)}</div>
             <div style={{
               display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 8, padding: '4px 10px', borderRadius: 999,
               background: statusTint,
@@ -467,11 +543,14 @@ function DetailSheet({ muscles, id, rangeLabel, onClose, weightUnit }) {
           </div>
         )}
 
-        <button onClick={onClose} style={{
-          width: '100%', marginTop: 20, padding: 14, minHeight: 44, borderRadius: 14, border: 'none', cursor: 'pointer',
-          background: 'hsl(var(--primary))', color: 'hsl(var(--primary-foreground))',
-          fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 800, letterSpacing: '0.16em',
-        }}>{tFallback('bodyMap.detail.close', 'CLOSE')}</button>
+        {/* Named beyond its visible word: "CLOSE" alone is ambiguous once a
+            screen reader has moved away from the title that gives it scope. */}
+        <button ref={closeRef} onClick={onClose}
+          aria-label={tFallback('bodyMap.a11y.closeDetail', 'Close muscle details')} style={{
+            width: '100%', marginTop: 20, padding: 14, minHeight: 44, borderRadius: 14, border: 'none', cursor: 'pointer',
+            background: 'hsl(var(--primary))', color: 'hsl(var(--primary-foreground))',
+            fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 800, letterSpacing: '0.16em',
+          }}>{tFallback('bodyMap.detail.close', 'CLOSE')}</button>
       </div>
     </div>
   );
@@ -494,6 +573,22 @@ export default function MuscleGroupHeatmap({ logs }) {
   const muscles = useMemo(() => buildMuscles(logs, RANGE_DAYS[range]), [logs, range]);
   const maxVol = useMemo(() => Math.max(1, ...FINE_IDS.map((id) => muscles[id].vol)), [muscles]);
   const getFill = (id) => colorFor(muscles, id, mode, maxVol);
+
+  /* The accessible name for a muscle on the figure. It has to carry the
+     VALUE, because for a sighted user the fill is the value — announcing
+     only "Chest" would hand a screen-reader user a body diagram with every
+     number stripped out. Mode decides which number, since the two are not
+     interchangeable: 100% recovered and 0 lb are both "nothing logged". */
+  const muscleLabel = (id) => {
+    const m = muscles[id];
+    const name = muscleName(tFallback, m, id);
+    const detail = mode === 'recovery'
+      ? tFallback('bodyMap.a11y.muscleRecovery', '{muscle}, {pct}% recovered', { muscle: name, pct: m.recovery })
+      : tFallback('bodyMap.a11y.muscleVolume', '{muscle}, {vol} {unit}', {
+        muscle: name, vol: volumeText(m.vol, weightUnit), unit: weightUnit === 'lbs' ? 'lb' : weightUnit,
+      });
+    return `${detail}, ${tFallback('bodyMap.a11y.opensDetail', 'shows details')}`;
+  };
 
   const ranked = useMemo(
     () => [...FINE_IDS].sort((a, b) => intensityOf(muscles, b, mode, maxVol) - intensityOf(muscles, a, mode, maxVol)),
@@ -567,12 +662,14 @@ export default function MuscleGroupHeatmap({ logs }) {
         }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0 }}>
             {[
-              { k: 'front', label: tFallback('bodyMap.figure.front', 'FRONT'), F: FrontFigure },
-              { k: 'back', label: tFallback('bodyMap.figure.back', 'BACK'), F: BackFigure },
-            ].map(({ k, label, F }) => (
+              { k: 'front', label: tFallback('bodyMap.figure.front', 'FRONT'), F: FrontFigure,
+                a11y: tFallback('bodyMap.a11y.figureFront', 'Front view, {n} muscles', { n: FRONT_GROUPS.length }) },
+              { k: 'back', label: tFallback('bodyMap.figure.back', 'BACK'), F: BackFigure,
+                a11y: tFallback('bodyMap.a11y.figureBack', 'Back view, {n} muscles', { n: BACK_GROUPS.length }) },
+            ].map(({ k, label, F, a11y }) => (
               <div key={k} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                 <div style={{ width: '100%' }}>
-                  <F getFill={getFill} sel={sel} onSel={setSel} />
+                  <F getFill={getFill} sel={sel} onSel={setSel} labelFor={muscleLabel} figureLabel={a11y} />
                 </div>
                 <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, fontWeight: 800, letterSpacing: '0.22em', color: 'hsl(var(--muted-foreground))', marginTop: 4 }}>{label}</div>
               </div>
@@ -581,7 +678,9 @@ export default function MuscleGroupHeatmap({ logs }) {
 
           {/* legend */}
           <div style={{ marginTop: 10, padding: '0 8px' }}>
-            <div style={{
+            {/* The ramp itself carries no value — its two ends are labelled
+                in text underneath, and those stay readable. */}
+            <div aria-hidden="true" style={{
               height: 8, borderRadius: 999, marginBottom: 6,
               background: mode === 'recovery'
                 ? 'linear-gradient(90deg, hsl(150 46% 44%), hsl(104 44% 46%), hsl(44 90% 52%), hsl(22 92% 53%), hsl(2 82% 52%))'
@@ -611,25 +710,33 @@ export default function MuscleGroupHeatmap({ logs }) {
           const col = colorFor(muscles, id, mode, maxVol);
           const valTxt = mode === 'recovery' ? `${m.recovery}%` : volumeText(m.vol, weightUnit);
           return (
-            <div key={id} onClick={() => setSel(id)} style={{
+            /* A real <button>, not a div: these rows open the same sheet the
+               figure does, so they need the same keyboard and the same role.
+               `type="button"` matters — a bare button inside any future form
+               defaults to submit. Width/alignment/font are reset because a
+               button does not inherit them. */
+            <button key={id} type="button" onClick={() => setSel(id)} style={{
               display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', minHeight: 44, cursor: 'pointer',
+              width: '100%', textAlign: 'start', font: 'inherit', color: 'inherit',
+              border: 'none', borderRadius: 0,
               borderBottom: i < ranked.length - 1 ? '1px solid hsl(var(--border))' : 'none',
               background: sel === id ? 'hsl(var(--secondary))' : 'transparent', transition: 'background .2s',
             }}>
-              <span style={{ width: 11, height: 11, borderRadius: 3, background: col, flexShrink: 0 }} />
+              <span aria-hidden="true" style={{ width: 11, height: 11, borderRadius: 3, background: col, flexShrink: 0 }} />
               <div style={{ width: 84, flexShrink: 0 }}>
                 <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 13.5, letterSpacing: '-0.01em', color: 'hsl(var(--foreground))' }}>{muscleName(tFallback, m, id)}</div>
                 {/* CSS uppercase, not `toUpperCase()`: the JS one is
                     locale-blind and gets Turkish i → I instead of İ. */}
                 <div style={{ fontFamily: 'var(--font-mono)', fontSize: 8.5, fontWeight: 700, letterSpacing: '0.1em', color: 'hsl(var(--muted-foreground))', textTransform: 'uppercase' }}>{regionName(tFallback, m.region)}</div>
               </div>
-              <div style={{ flex: 1, height: 6, borderRadius: 999, background: 'hsl(var(--secondary))', overflow: 'hidden' }}>
+              {/* The bar restates the number beside it — decorative here. */}
+              <div aria-hidden="true" style={{ flex: 1, height: 6, borderRadius: 999, background: 'hsl(var(--secondary))', overflow: 'hidden' }}>
                 <div style={{ height: '100%', width: `${Math.max(6, t * 100)}%`, background: col, borderRadius: 999, transition: 'width .5s, background .5s' }} />
               </div>
               <div style={{ width: 46, textAlign: 'right', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14, fontVariantNumeric: 'tabular-nums', color: 'hsl(var(--foreground))' }}>
                 {valTxt}{mode === 'volume' && <span style={{ fontSize: 9, color: 'hsl(var(--muted-foreground))', fontWeight: 600 }}> {weightUnit === 'lbs' ? 'lb' : weightUnit}</span>}
               </div>
-            </div>
+            </button>
           );
         })}
       </div>

@@ -171,6 +171,32 @@ export const bodyMapTranslations = {
     // ── The one word no shared namespace carries ────────────────────────
     // See the header: every other muscle and region resolves elsewhere.
     'bodyMap.muscle.lowerBack':        'Lower Back',
+
+    // ── Screen-reader only ──────────────────────────────────────────────
+    // The two silhouettes are the whole feature and a screen reader could
+    // not reach them: fourteen `<g onClick>` groups, no role, no label, no
+    // tab stop. These are what VoiceOver now announces. They are NOT
+    // visible anywhere, so they carry the state the colour was carrying —
+    // a fill is not information you can hear.
+    //
+    // The muscle label leads with the name because that is what someone
+    // swiping the figure is looking for; the number qualifies it. Both
+    // modes get their own string rather than one with a swapped suffix,
+    // since word order between a percentage and a weight is not the same
+    // in every language.
+    'bodyMap.a11y.figureFront':        'Front view, {n} muscles',
+    'bodyMap.a11y.figureBack':         'Back view, {n} muscles',
+    'bodyMap.a11y.muscleRecovery':     '{muscle}, {pct}% recovered',
+    'bodyMap.a11y.muscleVolume':       '{muscle}, {vol} {unit}',
+    // Appended to a muscle's label so the gesture is discoverable — a
+    // button that says only "Chest, 40% recovered" does not tell you it
+    // opens anything.
+    'bodyMap.a11y.opensDetail':        'shows details',
+    'bodyMap.a11y.closeDetail':        'Close muscle details',
+    // The detail sheet's recovery ring. Its number is real text inside the
+    // ring, so the cluster is named rather than hidden — read raw it says
+    // "100 RECOV", which is a caption, not a sentence.
+    'bodyMap.a11y.recoveredPct':       '{pct}% recovered',
   },
 };
 
