@@ -61,13 +61,20 @@
 //      injury actually costs, which is only honest once it costs
 //      something.
 //
-// Every decision on the board is now settled — see the DECISIONS column
-// for which ones SHIPPED and which are still spec. Sheets A and C are
-// the unbuilt ones: the list that leads with what an injury COSTS, and
-// the "what it changed" screen. The mild question that used to sit here
-// as PROPOSED was decided the other way — mild removes the area, same
-// as moderate, everywhere — so sheet B carries the strings the app
-// actually ships rather than a proposal.
+// ALL THREE SHEETS ARE NOW BUILT (2026-08-10). This board has stopped
+// being a proposal and become a description — so every entry in the
+// DECISIONS column is marked SHIPPED or STILL SPEC, and the sample
+// numbers on sheets A and C are the REAL ones rather than plausible
+// ones: a serious shoulder withholds 13 of the catalog's 39 exercises,
+// and sheet C names all 13. Anything here that cannot be checked
+// against the app is a future bug in the board.
+//
+// Still spec: sheet B's four "how long" chips. The date picker survives,
+// now optional rather than load-bearing.
+//
+// The mild question that used to sit here as PROPOSED was decided the
+// other way — mild removes the area, same as moderate, everywhere — so
+// sheet B carries the strings the app actually ships.
 
 const PAGE = 'Injuries & Recovery';
 const NAME = 'Injuries & Recovery — resolved';
@@ -194,7 +201,7 @@ const AXo = 60, AYo = 180;
   };
 
   injuryCard('Shoulders', 'serious', C.destructive, C.destructive,
-    '8 exercises are out of your sessions', 'Logged 16 days ago', 'check-in due');
+    '13 exercises are out of your sessions', 'Logged 16 days ago', 'check-in due');
   injuryCard('Glutes', 'mild', C.mutedFg, null,
     '3 exercises are out of your sessions', 'Logged 3 days ago', null);
 
@@ -323,20 +330,28 @@ const CXo = 860, CYo = 180;
 
   T('OUT, UNTIL YOU’RE CLEARED', { x: 16, y, size: 11, weight: 700, color: C.mutedFg, w: 300, token: 'color.muted-foreground' });
   y += 24;
-  R({ x: 16, y, w: 358, h: 140, radius: 12, fill: C.card, token: 'color.card', stroke: C.border, name: 'panel / removed' });
+  // The REAL 13 a serious shoulder withholds — shoulders plus its two
+  // synergists, chest and triceps — read off injuryImpact() rather than
+  // chosen to fit the panel. The panel is SIZED TO THE LIST for that reason:
+  // when this was eight sample names at a hardcoded 140 tall, swapping in the
+  // truth pushed three names out of the box and dropped "Still yours" on top
+  // of them. A design that only holds at its sample length is not a design.
   const removed = [
-    'Overhead Press', 'Dumbbell Shoulder Press', 'Lateral Raise', 'Pike Push-up',
-    'Bench Press', 'Incline Dumbbell Press', 'Tricep Pushdown', 'Skull Crusher',
+    'Bench Press', 'Incline Dumbbell Press', 'Push-up', 'Dumbbell Fly',
+    'Cable Crossover', 'Dips', 'Overhead Press', 'Dumbbell Shoulder Press',
+    'Lateral Raise', 'Pike Push-up', 'Tricep Pushdown', 'Skull Crusher', 'Tricep Dips',
   ];
+  const removedH = 16 + Math.ceil(removed.length / 2) * 28 + 8;
+  R({ x: 16, y, w: 358, h: removedH, radius: 12, fill: C.card, token: 'color.card', stroke: C.border, name: 'panel / removed' });
   removed.forEach((n, i) => {
     T(n, { x: 32 + (i % 2) * 168, y: y + 16 + Math.floor(i / 2) * 28, size: 12, color: C.mutedFg, w: 160, token: 'color.muted-foreground' });
   });
-  y += 156;
+  y += removedH + 16;
 
   T('STILL YOURS', { x: 16, y, size: 11, weight: 700, color: C.mutedFg, w: 300, token: 'color.muted-foreground' });
   y += 24;
   R({ x: 16, y, w: 358, h: 76, radius: 12, fill: null, stroke: C.border, name: 'panel / kept' });
-  T('Back  ·  Legs  ·  Core  ·  Biceps', { x: 32, y: y + 16, size: 14, weight: 700, color: C.foreground, w: 326, token: 'color.foreground' });
+  T('Back  ·  Legs  ·  Arms  ·  Core', { x: 32, y: y + 16, size: 14, weight: 700, color: C.foreground, w: 326, token: 'color.foreground' });
   T('Enough for four full sessions a week.', { x: 32, y: y + 40, size: 12, color: C.mutedFg, w: 326, token: 'color.muted-foreground' });
   y += 100;
 
@@ -345,8 +360,8 @@ const CXo = 860, CYo = 180;
   y += 62;
   T('Not now', { x: 16, y: y + 6, size: 13, weight: 500, color: C.mutedFg, w: 358, align: 'center', token: 'color.muted-foreground' });
 
-  T('This screen does not exist. Today logging an injury produces a toast and a banner, and the first time you see what it did is when a workout you did not ask for arrives without the lifts you expected. CLAUDE.md already requires the Coach to explain every automatic change it makes to someone’s training — this is the largest one in the app, and it was the one that never explained itself.',
-    { x: 16, y: 740, size: 11, color: C.mutedFg, w: 358, token: 'color.muted-foreground' });
+  T('BUILT 2026-08-10. Logging an injury used to produce a toast and nothing else; the first time you saw what it did was when a workout arrived without the lifts you expected. The 13 names above are the real ones a serious shoulder withholds.',
+    { x: 16, y: 700, size: 11, color: C.mutedFg, w: 358, token: 'color.muted-foreground' });
 }
 
 // ── decisions ─────────────────────────────────────────────────────
@@ -358,24 +373,28 @@ const CXo = 860, CYo = 180;
   board.appendChild(rect({ x: X, y, w: 300, h: 1, fill: C.border, token: 'color.border' }));
   y += 16;
   [
-    ['Duration chips, not a date picker',
-     '0 of 6 production injuries carry an estimated_recovery_date, and that one empty field silenced the 3-day warning, the clearance prompt, the countdown and Extend. SHIPPED as a stopgap: the check-in now fires on the injury AGE (7/14/28 days by severity) so it works without a date at all. Chips are still the better ask.'],
-    ['Severity states its consequence',
-     'It decides whether a body part leaves every session. Both mild and moderate were the identical primary chip, so the choice looked like decoration. Muted / primary / destructive reads as a ramp, inside the four-hue budget. SHIPPED.'],
-    ['A "what it changed" screen',
-     'Sheet C. The largest automatic change the app makes to your training, and the only one that never explained itself. Naming the removed lifts is also the only way a user can catch a mis-tap. NOT BUILT - this board is the spec.'],
-    ['The list leads with cost, not label',
-     '"Shoulders, serious" is a receipt for something they already know. "8 exercises are out" is the fact that exists nowhere else - and it only became true on 2026-08-09, when the exclusion finally matched the catalog. NOT BUILT.'],
-    ['Cleared injuries collapse',
-     'History under a live list competes with the thing that is currently changing your training. One row, one tap. NOT BUILT.'],
-    ['Mild is excluded, everywhere',
-     'Settled both ends. The generator always removed a mild region; buildStarterRegimen kept it with an "Ease in" note, so a mild knee got squats on day one and never again. The starter plan now excludes every severity, onboarding says so, and the coach names mild injuries in its avoid-list.'],
-    ['The empty-plan valve widens, not lowers',
-     'It kept "the three exercises hitting the fewest injured areas" - fewest, not none - so it programmed regions the user had just flagged. Now it searches the goal pool, then every curated pool, then the whole library, requiring NO injured area. Full Body and Cardio are not injury groups, so they slipped every filter: they now expand to what they load.'],
-    ['"Progress > Recovery" is not a route',
-     'Onboarding named it twice and there is no such tab. Both strings now point at Profile > My Injuries. If Injuries ever becomes a real route, this design is the page.'],
-    ['The note reaches the coach',
-     'The field says "Any context for your coach" and the coach never saw it. Now sent with area, severity and age. Verified against claude-haiku-4-5: asked about overhead press on a serious shoulder it answered "your LEFT shoulder" - a detail that exists only in the note. Whitespace is collapsed both sides; the digest is newline-delimited and this is its only free text.'],
+    ['SHIPPED - the list leads with cost',
+     'Sheet A is built. "Shoulders, serious" is a receipt for something they already know; the exercise count exists nowhere else. It comes from injuryImpact(), which walks the SAME catalog and the SAME group/part test generateWorkout filters on, so the number on screen cannot drift from the lifts actually withheld. Real values: serious shoulder 13 of 39, glutes 3.'],
+    ['SHIPPED - "what it changed"',
+     'Sheet C is built. Logging an injury produced a toast and a banner, and the first time you saw what it did was when a session arrived without the lifts you expected. It now names them, says what is still trainable, and offers the Coach a session around it. The synergist line shows only on a SERIOUS injury - the one case where the list is wider than the area you named.'],
+    ['SHIPPED - cleared injuries collapse',
+     'One row, one tap. History under a live list competes with the thing that is currently changing your training.'],
+    ['SHIPPED - the way out',
+     '0 of 6 injuries carry a recovery date, and that empty field silenced the whole check-in system - three sat open 26, 59 and 75 days with nothing offering the muscle group back. The check-in now fires on the injury AGE (7/14/28 by severity) and "Still hurts" is one tap. The duration chips on sheet B are still the better ask; the one-way door is closed either way.'],
+    ['SHIPPED - severity states its consequence',
+     'Mild and moderate were the identical primary chip, so the choice that decides whether a body part leaves every session looked like decoration. Muted / primary / destructive, inside the four-hue budget.'],
+    ['SHIPPED - mild is excluded, everywhere',
+     'The generator always removed a mild region; buildStarterRegimen kept it with an "Ease in" note, so a mild knee got squats on day one and never again. Both ends now agree, onboarding says so, and the coach names mild injuries in its avoid-list.'],
+    ['SHIPPED - the valve widens, not lowers',
+     'It kept "the three exercises hitting the fewest injured areas" - fewest, not none - so it programmed regions the user had just flagged. Now it searches the goal pool, then every curated pool, then the whole library, requiring NO injured area. Full Body and Cardio are not injury groups and slipped every filter; they now expand to what they load.'],
+    ['SHIPPED - the note reaches the coach',
+     'The field says "Any context for your coach" and the coach never saw it. Verified against claude-haiku-4-5: asked about overhead press on a serious shoulder it answered "your LEFT shoulder" - a detail that exists only in the note. Whitespace is collapsed both sides; the digest is newline-delimited and this is its only free text.'],
+    ['SHIPPED - "Progress > Recovery" is gone',
+     'Onboarding named that route twice and there is no such tab. Both strings now point at Profile > My Injuries.'],
+    ['STILL SPEC - duration chips',
+     'Sheet B four "how long" chips are not built. The date picker is still there, now optional rather than load-bearing. Chips would also make the countdown and the 3-day warning work, which have never run.'],
+    ['NOT VERIFIED ON A DEVICE',
+     'Everything above is lint, build and 3770 tests - including 12 that mount sheets A and C in jsdom and assert what is on screen. None of it has been seen on a phone: the screens sit behind the auth wall in a z-[200] portal. Worth one pass through log > check-in > clear, and one in a non-English locale.'],
 ].forEach(([h, b]) => {
     board.appendChild(txt(h, { x: X, y, size: 12, weight: 700, color: C.foreground, w: 300, token: 'color.foreground' }));
     y += 20;
