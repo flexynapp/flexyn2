@@ -17,6 +17,7 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { muscleKey, getExerciseDisplay } from '@/lib/exerciseTranslations';
 import { fromLbs } from '@/lib/weightUnit';
+import { rollUpToRegions, regionColor } from '@/lib/muscleRegions';
 
 // Exercise Trends Widget
 export function ExerciseTrendsWidget({ logs, isLoading }) {
@@ -68,52 +69,49 @@ export function ExerciseTrendsWidget({ logs, isLoading }) {
   );
 }
 
+// Region names. `other` is Core plus whole-body and cardio work — the
+// label says so rather than saying "Other", because a lifter reading
+// "Other" next to Push/Pull/Legs would reasonably wonder what it hid.
+const REGION_FALLBACK = { push: 'Push', pull: 'Pull', legs: 'Legs', other: 'Core & other' };
+
 // Muscle Groups Widget
 export function MuscleGroupsWidget({ logs, isLoading }) {
-  const { t } = useLanguage();
+  const { t, tFallback } = useLanguage();
+  const regionLabel = (r) => tFallback(`regions.${r}`, REGION_FALLBACK[r] || r);
+  // Rolled up to REGIONS, not left as individual muscles, and the reason
+  // is the colour budget — see src/lib/muscleRegions.js for the
+  // measurements. Three hues is the ceiling a validated categorical
+  // palette can carry here, so twelve muscles could never each have one.
+  //
+  // Two bugs died with the rollup:
+  //
+  //   • `.slice(0, 6)` ran on INSERTION order, not size, so it kept the
+  //     first six groups it happened to encounter and silently dropped
+  //     the rest — including, on a varied week, bigger ones than the six
+  //     it kept. A chart claiming to show your distribution was omitting
+  //     part of it with nothing on screen saying so. Four regions cannot
+  //     overflow, so nothing is dropped now.
+  //   • colour came from `COLORS[hash(name) % COLORS.length]`. That is
+  //     cycling, which a categorical palette must never do — and with
+  //     six slots against six wedges the chance of no collision is
+  //     6!/6⁶ ≈ 1.5%, so ~98% of the time two wedges shared a colour.
+  //     Worse, slot 0 was `--primary` and slot 1 `--chart-1`, which are
+  //     the SAME value in both themes, so it was really five slots.
   const muscleData = useMemo(() => {
     if (!logs?.length) return [];
-
-    const groupMap = {};
+    const byKey = {};
     logs.forEach(log => {
       log.exercises?.forEach(ex => {
         const muscles = ex.muscle_groups || (ex.muscle_group ? [ex.muscle_group] : []);
         muscles.forEach(m => {
-          groupMap[m] = (groupMap[m] || 0) + 1;
+          if (!m) return;
+          const k = muscleKey(m);
+          byKey[k] = (byKey[k] || 0) + 1;
         });
       });
     });
-
-    return Object.entries(groupMap)
-      .map(([name, value]) => ({ name, value }))
-      .slice(0, 6);
+    return rollUpToRegions(byKey);
   }, [logs]);
-
-  // Recharts <Cell fill="..."/> doesn't resolve CSS custom properties
-  // at SVG paint time, so theme-tracking via `hsl(var(--primary))`
-  // worked but the remaining slots had hardcoded hex (#f97316 etc)
-  // that ignored the user's loot theme. Use chart-* CSS variables
-  // (defined in src/index.css with both light + dark variants) so
-  // dark mode also picks up the right palette.
-  const COLORS = [
-    'hsl(var(--primary))',
-    'hsl(var(--chart-1))',
-    'hsl(var(--chart-2))',
-    'hsl(var(--chart-3))',
-    'hsl(var(--chart-4))',
-    'hsl(var(--chart-5))',
-  ];
-  // Stable color assignment by name hash so a muscle group keeps the
-  // same wedge color across re-orderings (previously list order
-  // determined color — adding a new group reshuffled the palette).
-  const hashName = (s) => {
-    let h = 0;
-    for (let i = 0; i < (s || '').length; i++) {
-      h = ((h << 5) - h) + s.charCodeAt(i);
-      h |= 0;
-    }
-    return h;
-  };
 
   return (
     <Card className="p-4">
@@ -136,18 +134,49 @@ export function MuscleGroupsWidget({ logs, isLoading }) {
               paddingAngle={2}
               dataKey="value"
             >
+              {/* Colour follows the REGION — a stable property of the
+                  muscle — never the wedge's rank or its position in the
+                  list. Removing a log cannot repaint the survivors. */}
               {muscleData.map((entry) => (
-                <Cell key={`cell-${entry.name}`} fill={COLORS[Math.abs(hashName(entry.name)) % COLORS.length]} />
+                <Cell
+                  key={`cell-${entry.region}`}
+                  fill={regionColor(entry.region)}
+                  stroke="hsl(var(--card))"
+                  strokeWidth={2}
+                />
               ))}
             </Pie>
-            <Tooltip contentStyle={{ backgroundColor: 'var(--card)', border: '1px solid var(--border)' }} />
+            {/* `var(--card)` was not a colour: these variables hold raw
+                HSL triplets ("210 18% 12%"), so the tooltip has been
+                rendering with no background and no border since it was
+                written. It needs the hsl() wrapper like everything else. */}
+            <Tooltip
+              contentStyle={{
+                background: 'hsl(var(--card))',
+                border: '1px solid hsl(var(--border))',
+                borderRadius: '8px',
+                fontSize: '12px',
+              }}
+              formatter={(value, _n, entry) => [value, regionLabel(entry?.payload?.region)]}
+            />
           </PieChart>
         </ResponsiveContainer>
       )}
+      {/* The named chips are not decoration — they are the secondary
+          encoding the palette's light-mode contrast WARN requires, and
+          they are what keeps identity from resting on colour alone. */}
       <div className="mt-2 flex flex-wrap gap-1">
         {muscleData.map(m => (
-          <span key={m.name} className="text-xs px-2 py-1 rounded bg-secondary text-secondary-foreground">
-            {t(`muscleGroups.${muscleKey(m.name)}`)} ({m.value})
+          <span
+            key={m.region}
+            className="inline-flex items-center gap-1.5 text-xs px-2 py-1 rounded-sm bg-secondary text-secondary-foreground"
+          >
+            <span
+              className="w-2 h-2 rounded-full shrink-0"
+              style={{ background: regionColor(m.region) }}
+              aria-hidden="true"
+            />
+            {regionLabel(m.region)} ({m.value})
           </span>
         ))}
       </div>

@@ -241,6 +241,16 @@ describe('partial-gap ratchet', () => {
     // in 15 languages. The tab looks them up there rather than carrying a
     // second vocabulary, so they stay counted.
     'trends.',
+    // Muscle regions (2026-08-10) — the four buckets the validated colour
+    // encoding can carry, in `src/lib/i18n-regions.js`. A whole new
+    // namespace, all English-only, so this is the sanctioned bare-prefix
+    // case: nothing under `regions.` predates it.
+    //
+    // Four keys, and worth a translator's attention rather than a machine's
+    // despite being short: Push / Pull / Legs is gym vocabulary that most
+    // training traditions already have their own word for, so the right
+    // translation is the term lifters actually use, not a literal one.
+    'regions.',
     // Insights tab (2026-08-10, audit 21). The same shape as `trends.`
     // directly above, and the same sanctioned bare-prefix case: nothing
     // under `insights.` predates this change, so the prefix cannot exempt

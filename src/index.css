@@ -115,6 +115,33 @@
     --chart-3: 26 70% 65%;
     --chart-4: 210 18% 50%;
     --chart-5: 0 72% 51%;
+    /* ── Muscle-region categorical ramp ───────────────────────────────
+       Three hues + a neutral remainder. This is the "needs mutual
+       distinguishability rather than state meaning" case the four-hue
+       rule carves out for macros, so it lives outside the state hues —
+       but unlike --chart-*, these are VALIDATED and the count is a
+       measurement, not a preference.
+
+       Run against the dataviz validator on this app's own card surfaces,
+       with the all-pairs gate (any two wedges can end up side by side):
+
+         5 hues   FAIL   dark: magenta↔aqua ΔE 1.6 under deuteranopia
+         4 hues   FAIL   dark: yellow↔orange ΔE 4.8 deutan / 10.6 normal
+         3 hues   PASS   both modes, worst 9.2 light / 9.4 dark
+
+       So three is the ceiling, and push/pull/legs is what three buys —
+       which is also how a lifter already thinks. --region-other is
+       deliberately BELOW the chroma floor: it is a remainder, not an
+       identity, and reading as grey is the point.
+
+       Light contrast on white is under 3:1 for legs; that is the
+       documented WARN band and it obligates visible labels, which the
+       widget has as named chips under the chart. Do not use these
+       without them. Mapping + reasoning: src/lib/muscleRegions.js. */
+    --region-push:  213 68% 50%;   /* #2A78D6 */
+    --region-pull:  17 82% 56%;    /* #EB6834 */
+    --region-legs:  159 73% 40%;   /* #1BAF7A */
+    --region-other: 210 11% 53%;   /* #7A8794 */
     --radius: 0.75rem;
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 210 18% 25%;
@@ -207,6 +234,13 @@
     --chart-3: 26 70% 68%;
     --chart-4: 210 18% 55%;
     --chart-5: 0 72% 55%;
+    /* Dark is SELECTED, not a flip of light: the same three hues stepped
+       for the dark card and re-validated against it. All five checks pass
+       here including contrast, which is the one light mode warns on. */
+    --region-push:  213 77% 56%;   /* #3987E5 */
+    --region-pull:  17 70% 50%;    /* #D95926 */
+    --region-legs:  159 73% 36%;   /* #199E70 */
+    --region-other: 210 10% 58%;   /* #8A95A0 */
     --sidebar-background: 210 18% 9%;
     --sidebar-foreground: 30 20% 95%;
     --sidebar-primary: 26 90% 52%;
