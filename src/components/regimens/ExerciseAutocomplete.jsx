@@ -6,6 +6,19 @@ import { titleCase } from '@/lib/textCase';
 import { getUsageScores } from '@/lib/recentExerciseUsage';
 import { EQUIPMENT_FILTERS, matchesEquipment } from '@/lib/exerciseEquipment';
 
+// The `muscles` values here are a CONTROLLED VOCABULARY, and nothing in this
+// file enforces it. The same list is enumerated by hand as ALL_MUSCLE_GROUPS
+// in three other files — MuscleGroupSelector.jsx, RegimenForm.jsx and
+// RegimenStorePage.jsx — so a name used here and missing there fails quietly
+// rather than loudly: the tag still RENDERS (the picker does not filter
+// `selected` against that array), but it cannot be re-added once a user
+// removes it, and it is absent from the regimen store's muscle filter.
+//
+// So adding a name that is not already in use means four edits, not one, plus
+// a `muscleKey()` entry in exerciseTranslations.js and a `muscleGroups.<key>`
+// translation — without the last two the chip renders a raw key path. That is
+// the whole reason the neck exercises below took 'Traps' rather than a new
+// neck group: every one of those already existed for it.
 const EXERCISE_LIBRARY = [
   // Chest
   { name: 'Assisted Dip', muscles: ['Chest', 'Triceps'] },
@@ -418,7 +431,11 @@ const EXERCISE_LIBRARY = [
   // the taxonomy, and the heat-map now spreads 'Full Body' across all nine
   // coarse groups (it was dropped in silence before, which hid this), so
   // three sets of neck curls used to read the whole body as fatigued. Traps
-  // is the nearest real mover and already resolves to Back everywhere.
+  // is the nearest real mover and already resolves to Back everywhere —
+  // GROUP_ALIASES in MuscleGroupHeatmap.jsx, and IMPLIED_LOAD in
+  // starterRegimen.js, which needs it or a back injury stops excluding neck
+  // work. It is the eleventh name in the vocabulary; see the note at the head
+  // of this array for the three other files that enumerate it.
   { name: 'Lying Neck Curl', muscles: ['Traps'] },
   { name: 'Lying Neck Extension', muscles: ['Traps'] },
   { name: 'Prone Neck Bridge', muscles: ['Traps'] },
