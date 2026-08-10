@@ -283,6 +283,16 @@ function formatDigest(ctx: Record<string, any> | null | undefined): string {
   // and users leave it blank — so it is rendered only when set. Never let the
   // model infer a recovery date from silence.
   if (Array.isArray(ctx.injuries?.active) && ctx.injuries.active.length) {
+    // `note` is the ONLY free text a user typed that reaches this digest, and
+    // the digest is newline-separated labelled lines — so a note carrying a
+    // newline could forge one the model reads as ours. The client collapses
+    // whitespace before sending; this repeats it rather than trusting that,
+    // because the client is the half an attacker controls. Quoted so the
+    // model can see where the user's words start and stop.
+    const note = (v: unknown) => {
+      const s = String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, 160);
+      return s ? `note "${s}"` : null;
+    };
     out.push('INJURIES: ' + ctx.injuries.active
       .map((i: any) => [
         i.area,
@@ -292,6 +302,7 @@ function formatDigest(ctx: Record<string, any> | null | undefined): string {
         typeof i.recoveryEtaDays === 'number'
           ? (i.recoveryEtaDays <= 0 ? 'recovery date reached' : `${i.recoveryEtaDays}d to est. recovery`)
           : null,
+        note(i.notes),
       ].filter(Boolean).join(' · '))
       .join(' | '));
   }

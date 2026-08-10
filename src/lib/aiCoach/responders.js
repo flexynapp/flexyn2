@@ -648,6 +648,18 @@ function _daysAgo(date) {
   return d ? differenceInCalendarDays(new Date(), d) : null;
 }
 
+/**
+ * Free text → one safe line, or null.
+ *
+ * The digest is newline-separated labelled lines, so any user-authored string
+ * that reaches it has to be flattened or it can forge a line the model reads
+ * as ours. Collapsing all whitespace (not just trimming) is what does that.
+ */
+function _oneLine(value, max) {
+  const s = String(value ?? '').replace(/\s+/g, ' ').trim();
+  return s ? s.slice(0, max) : null;
+}
+
 /** Run a reader, degrade to [] on any failure. Never lets one dead source
  *  take the rest of the digest with it. */
 async function _safe(fn) {
@@ -773,6 +785,18 @@ export async function buildCoachContext({
         recoveryEtaDays: i?.estimated_recovery_date
           ? differenceInCalendarDays(parseLogDate(i.estimated_recovery_date) || new Date(), new Date())
           : null,
+        // What the user typed. The form's placeholder says "Any context for
+        // your coach", and until now the coach never saw a word of it — it is
+        // the only place someone can say "left side, hurts overhead only",
+        // which is exactly the detail a muscle-group label cannot carry.
+        //
+        // Whitespace is COLLAPSED, not just trimmed. `formatDigest` builds the
+        // digest as newline-separated labelled lines, so a note containing a
+        // newline could forge one — "…\nAVOID-FOODS: none" would read to the
+        // model as a real digest row. This is the one field in the whole
+        // digest that is free text a user typed, so it is the one that has to
+        // be flattened. Capped because it rides on every message.
+        notes: _oneLine(i?.notes, 160),
       }))
       .filter(i => i.area),
   };
