@@ -460,6 +460,19 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
     }
   }, [conversations, activeConv?.id]);
 
+  // A conversation asked for by id but not yet in the fetched list — set by
+  // NewGroupDMModal's onCreated. Opens as soon as the refetch delivers the
+  // row; cleared either way so a failed create doesn't leave it armed.
+  const [pendingOpenConvId, setPendingOpenConvId] = useState(null);
+  useEffect(() => {
+    if (!pendingOpenConvId) return;
+    const target = conversations.find(c => c.id === pendingOpenConvId);
+    if (target) {
+      setActiveConv(target);
+      setPendingOpenConvId(null);
+    }
+  }, [conversations, pendingOpenConvId]);
+
   const { data: myCrews = [], isLoading: crewsLoadingRaw } = useQuery({
     queryKey: ['myCrews', user?.id],
     queryFn: () => crewsData.getMyCrews(user.id),
@@ -473,6 +486,18 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
   // the flicker actually makes the app feel slower than no spinner.
   const isLoading = useDelayedLoading(convsLoading);
   const crewsLoading = useDelayedLoading(crewsLoadingRaw);
+
+  // Pinned crews sort to the top, same stable sort the DM list uses. The
+  // crew menu already wrote pinnedCrewIds / mutedCrewIds and toasted, but
+  // nothing read them back: the row never moved, never dimmed and carried
+  // no pin or bell icon, so both actions were toasts over a no-op. That is
+  // exactly the defect audit 10 #4 fixed for DMs; the crew half was missed.
+  const visibleCrews = useMemo(() => {
+    if (pinnedCrewIds.size === 0) return myCrews;
+    return [...myCrews].sort((a, b) =>
+      (pinnedCrewIds.has(b.id) ? 1 : 0) - (pinnedCrewIds.has(a.id) ? 1 : 0)
+    );
+  }, [myCrews, pinnedCrewIds]);
 
   // Resolve each other-participant's DISPLAY profile (username/avatar) by
   // user_id via participant_ids — not by scanning users.list() and matching
@@ -1101,12 +1126,14 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
             onClose={() => setNewGroupOpen(false)}
             onCreated={(convId) => {
               queryClient.invalidateQueries({ queryKey: ['hubConversations', user?.email] });
-              // Open the new thread immediately. Brief delay lets the
-              // refetch land so activeConv has the latest row shape.
-              setTimeout(() => {
-                const target = conversations.find(c => c.id === convId);
-                if (target) setActiveConv(target);
-              }, 250);
+              // Record the id and let the effect above open it when the row
+              // actually arrives. The previous version read `conversations`
+              // inside a setTimeout — a closure over the array as it stood
+              // BEFORE the invalidate, which by definition cannot contain a
+              // conversation created a moment ago. `target` was always
+              // undefined, so creating a group silently landed you back on
+              // the inbox instead of in the new thread.
+              setPendingOpenConvId(convId);
             }}
           />
         </>
@@ -1127,13 +1154,13 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
             />
           ) : (
             <div className="space-y-2">
-              {myCrews.map((crew, i) => (
+              {visibleCrews.map((crew, i) => (
                 <motion.div
                   key={crew.id}
                   initial={{ opacity: 0, y: 4 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.04 }}
-                  className="relative group"
+                  className={`relative group ${mutedCrewIds.has(crew.id) ? 'opacity-60' : ''}`}
                 >
                   <button
                     onClick={() => setActiveCrew(crew)}
@@ -1146,7 +1173,15 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                       <Shield className="w-5 h-5" style={{ color: 'hsl(var(--primary))' }} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-heading font-bold text-sm text-foreground truncate">{crew.name}</p>
+                      <p className="font-heading font-bold text-sm text-foreground truncate flex items-center gap-1.5">
+                        {pinnedCrewIds.has(crew.id) && (
+                          <Pin className="w-3 h-3 text-primary shrink-0" aria-label={tFallback('hub.messages.pinned', 'Pinned')} />
+                        )}
+                        <span className="truncate">{crew.name}</span>
+                        {mutedCrewIds.has(crew.id) && (
+                          <BellOff className="w-3 h-3 text-muted-foreground shrink-0" aria-label={tFallback('hub.messages.muted', 'Muted')} />
+                        )}
+                      </p>
                       <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
                         <Users className="w-3 h-3" />
                         {crew.max_capacity ? `up to ${crew.max_capacity} members` : 'Group Chat'}
@@ -1189,14 +1224,18 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                             className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-secondary/60 active:bg-secondary/60 transition-colors text-start"
                           >
                             <Pin className="w-4 h-4 text-muted-foreground" />
-                            {pinnedCrewIds.has(crew.id) ? 'Unpin Chat' : 'Pin Chat'}
+                            {pinnedCrewIds.has(crew.id)
+                              ? tFallback('hub.messages.unpinChat', 'Unpin Chat')
+                              : tFallback('hub.messages.pinChat', 'Pin Chat')}
                           </button>
                           <button
                             onClick={(e) => { e.stopPropagation(); toggleMuteCrew(crew.id); }}
                             className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-secondary/60 active:bg-secondary/60 transition-colors text-start"
                           >
                             <BellOff className="w-4 h-4 text-muted-foreground" />
-                            {mutedCrewIds.has(crew.id) ? 'Unmute Crew' : 'Mute Crew'}
+                            {mutedCrewIds.has(crew.id)
+                              ? tFallback('hub.messages.unmuteChat', 'Unmute Chat')
+                              : tFallback('hub.messages.muteChat', 'Mute Chat')}
                           </button>
                           <div className="border-t border-border/50 mx-2" />
                           <button

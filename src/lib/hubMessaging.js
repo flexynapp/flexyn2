@@ -34,7 +34,10 @@ export function useUnreadDMCount() {
 // Messages.jsx reads `location.state.pendingChatTarget` to open it.
 export function useStartConversation() {
   const { user } = useAuth();
-  const { t, tFallback } = useLanguage();
+  // `t` was in the deps and `tFallback` — the function actually called — was
+  // not, so every toast in here kept whichever language was active when the
+  // callback was first built.
+  const { tFallback } = useLanguage();
   const navigate = useNavigate();
 
   return useCallback(async (targetUserObj) => {
@@ -82,5 +85,5 @@ export function useStartConversation() {
       }
       throw e;
     }
-  }, [user?.email, t, navigate]);
+  }, [user?.email, tFallback, navigate]);
 }

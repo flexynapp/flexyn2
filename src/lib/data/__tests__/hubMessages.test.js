@@ -8,7 +8,17 @@ const _msgState = {
   lastFilterSort: null,
   lastFilterLimit: null,
   filterReturn: [],
+  createCalls: [],
+  createReturn: { id: 'msg-1' },
 };
+
+// sendMessage reads the signed-in user's display identity out of the
+// profile cache to stamp sender_name / sender_avatar — the columns
+// notify_dm_received builds the recipient's notification from.
+const _profileState = { profile: null };
+vi.mock('@/api/profileCache', () => ({
+  getProfile: () => _profileState.profile,
+}));
 
 // findOrCreateConversation goes through db.entities.HubConversation.
 // `filterByConditions` lets a test stage a different result per lookup
@@ -32,6 +42,11 @@ vi.mock('@/api/db', () => ({
           _msgState.lastFilterLimit = limit;
           return _msgState.filterReturn;
         }),
+        create: vi.fn(async (payload) => {
+          _msgState.createCalls.push(payload);
+          return { ..._msgState.createReturn, ...payload };
+        }),
+        update: vi.fn(async () => ({})),
       },
       HubConversation: {
         filter: vi.fn(async (conditions) => {
@@ -45,6 +60,7 @@ vi.mock('@/api/db', () => ({
           _convState.createCalls.push(payload);
           return _convState.createReturn;
         }),
+        update: vi.fn(async () => ({})),
       },
     },
   },
@@ -105,6 +121,9 @@ beforeEach(() => {
   _msgState.lastFilterSort = null;
   _msgState.lastFilterLimit = null;
   _msgState.filterReturn = [];
+  _msgState.createCalls = [];
+  _msgState.createReturn = { id: 'msg-1' };
+  _profileState.profile = null;
   _sbState.lastTable = null;
   _sbState.lastSelect = null;
   _sbState.lastEq = null;
@@ -323,5 +342,61 @@ describe('unreadCountFor', () => {
     const count = await hubMessages.unreadCountFor(null);
     expect(count).toBe(0);
     expect(_sbState.lastRpc).toBeNull();
+  });
+});
+
+describe('sendMessage — sender identity for notifications', () => {
+  const base = {
+    conversationId: 'conv-1',
+    senderEmail: 'me@x.com',
+    body: 'hey',
+  };
+
+  it('stamps sender_name + sender_avatar from the profile cache', async () => {
+    _profileState.profile = {
+      username: 'liftheavy',
+      avatar_url: 'https://cdn.example/a.png',
+    };
+    await hubMessages.sendMessage(base);
+    const payload = _msgState.createCalls[0];
+    expect(payload.sender_name).toBe('liftheavy');
+    expect(payload.sender_avatar).toBe('https://cdn.example/a.png');
+  });
+
+  // notify_dm_received (mig 181) reads NEW.sender_name and falls back to the
+  // literal 'Someone' when it is blank. Nothing wrote the column for the
+  // app's whole history, so every DM notification ever delivered read
+  // "Someone sent you a message". This asserts the column is populated, not
+  // merely that the insert succeeded.
+  it('never sends a blank sender_name when a username exists', async () => {
+    _profileState.profile = { username: 'liftheavy' };
+    await hubMessages.sendMessage(base);
+    expect(_msgState.createCalls[0].sender_name).toBeTruthy();
+  });
+
+  it('falls back to full_name when there is no username', async () => {
+    _profileState.profile = { full_name: 'Dana R.' };
+    await hubMessages.sendMessage(base);
+    expect(_msgState.createCalls[0].sender_name).toBe('Dana R.');
+  });
+
+  it('omits the columns entirely when the cache is empty', async () => {
+    _profileState.profile = null;
+    await hubMessages.sendMessage(base);
+    const payload = _msgState.createCalls[0];
+    expect('sender_name' in payload).toBe(false);
+    expect('sender_avatar' in payload).toBe(false);
+  });
+
+  it('still stamps the sender on a media-only message', async () => {
+    _profileState.profile = { username: 'liftheavy' };
+    await hubMessages.sendMessage({
+      conversationId: 'conv-1',
+      senderEmail: 'me@x.com',
+      body: '',
+      messageType: 'sticker',
+      stickerId: 'sticker_flex',
+    });
+    expect(_msgState.createCalls[0].sender_name).toBe('liftheavy');
   });
 });

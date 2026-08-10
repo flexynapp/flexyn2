@@ -188,7 +188,13 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
   const [floatingFires, setFloatingFires] = useState([]);
 
   // ── Pinning ────────────────────────────────────────────────────────────────
-  const [pinnedIds, setPinnedIds] = useState(() => new Set());
+  // messageId → the optimistic pin value, held only until the server row
+  // agrees. This was a Set XOR'd against `msg.is_pinned`, which inverted
+  // itself the moment the write landed: pin a message, the row refetches
+  // with is_pinned = true, the id is still in the Set, and `!true` renders
+  // it as UNPINNED again. The badge and the Pinned panel both dropped it
+  // within one 5s poll, so pinning looked like it silently failed.
+  const [pinOverride, setPinOverride] = useState({});
   const [pinnedOpen, setPinnedOpen] = useState(false);
   const [contextMsg, setContextMsg] = useState(null);
   const longPressRef = useRef(null);
@@ -241,6 +247,32 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
       return data || null;
     },
     enabled: !otherUser && !!otherId,
+    staleTime: 60_000,
+  });
+
+  // Every participant's display profile, keyed by user_id. Groups only —
+  // a 1:1 thread already has `resolvedOther` and never labels its bubbles.
+  //
+  // hub_messages.user_id is the sender's auth uid (db.js injects it on every
+  // create; 47/47 production rows carry one), so this is what turns a message
+  // into a name. participant_ids is NOT index-aligned with participant_emails
+  // — mig 216 fills it with `array_agg(id ORDER BY id)` — so pairing the two
+  // arrays positionally would attribute messages to the wrong person.
+  const participantIds = useMemo(
+    () => (conversation?.participant_ids || []).filter(Boolean),
+    [conversation?.participant_ids],
+  );
+  const { data: participantsById = {} } = useQuery({
+    queryKey: ['hubChatParticipants', participantIds.slice().sort().join(',')],
+    queryFn: async () => {
+      const { data } = await users.selectProfiles((from) => from
+        .select('id, username, avatar_url')
+        .in('id', participantIds));
+      const map = {};
+      for (const u of (data ?? [])) map[u.id] = u;
+      return map;
+    },
+    enabled: isGroup && participantIds.length > 0,
     staleTime: 60_000,
   });
 
@@ -667,41 +699,74 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
   }, [cancelLongPress]);
 
   // ── Pin toggle ────────────────────────────────────────────────────────────
-  const isPinned = useCallback((msg) =>
-    pinnedIds.has(msg.id) ? !msg.is_pinned : !!msg.is_pinned, [pinnedIds]);
+  const isPinned = useCallback((msg) => {
+    if (!msg) return false;
+    const pending = pinOverride[msg.id];
+    return pending === undefined ? !!msg.is_pinned : pending;
+  }, [pinOverride]);
+
+  // Retire an override the moment the server row carries the same value.
+  // Keyed on a value string rather than the `messages` array, which is a
+  // fresh reference on every render (dedupeMessages), so this runs only
+  // when a pin state actually changed.
+  const pinSignature = messages.map(m => `${m.id}:${m.is_pinned ? 1 : 0}`).join(',');
+  useEffect(() => {
+    setPinOverride(prev => {
+      const ids = Object.keys(prev);
+      if (ids.length === 0) return prev;
+      const serverValue = new Map(
+        pinSignature.split(',').filter(Boolean).map(pair => {
+          const idx = pair.lastIndexOf(':');
+          return [pair.slice(0, idx), pair.slice(idx + 1) === '1'];
+        })
+      );
+      let changed = false;
+      const next = { ...prev };
+      for (const id of ids) {
+        if (serverValue.has(id) && serverValue.get(id) === next[id]) {
+          delete next[id];
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [pinSignature]);
+
+  // Drop every override on conversation switch — they key on message ids
+  // from the thread being left.
+  useEffect(() => { setPinOverride({}); }, [conversation?.id]);
 
   const handlePinToggle = useCallback(async (msg) => {
     setContextMsg(null);
     const id = msg.id;
     if (!id || String(id).startsWith('temp-')) return;
-    setPinnedIds(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
+    const wasPinned = isPinned(msg);
+    setPinOverride(prev => ({ ...prev, [id]: !wasPinned }));
     try {
-      await hubMessages.togglePinDmMessage(id);
+      // The RPC returns the new value — trust it over a local guess, since
+      // a concurrent toggle from another device makes them disagree.
+      const nowPinned = await hubMessages.togglePinDmMessage(id);
+      setPinOverride(prev => ({ ...prev, [id]: !!nowPinned }));
       queryClient.invalidateQueries({ queryKey: ['hubChat', conversation?.id] });
       // Confirmation toast so the user has a clear signal the pin landed
       // — previously the only feedback was the small pin icon on the
       // bubble, which beta testers were missing entirely and assumed they
       // had to manually exit + refresh.
-      const nowPinned = !msg.is_pinned;
       toast.success(nowPinned
         ? tFallback('hub.chat.pinned', 'Pinned to the conversation')
         : tFallback('hub.chat.unpinned', 'Unpinned'));
     } catch {
-      setPinnedIds(prev => {
-        const next = new Set(prev);
-        if (next.has(id)) next.delete(id); else next.add(id);
+      // Roll the override back to what the server last told us, then
+      // resync in case the failure was a transient that landed anyway.
+      setPinOverride(prev => {
+        const next = { ...prev };
+        delete next[id];
         return next;
       });
-      // Resync with server in case the failure was a transient that
-      // succeeded server-side — avoids leaving the UI desynced after recovery.
       queryClient.invalidateQueries({ queryKey: ['hubChat', conversation?.id] });
       toast.error(tFallback('hub.chat.pinError', 'Could not pin message. Try again.'));
     }
-  }, [conversation?.id, queryClient, tFallback]);
+  }, [conversation?.id, queryClient, tFallback, isPinned]);
 
   // ── Rich-media sends (stickers / GIFs / voice — mig 115) ────────────────
   // Each shares the existing sendMessage path; only message_type and the
@@ -1393,10 +1458,13 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
                           const prev = visibleMessages[i - 1];
                           const sameSenderAsPrev = prev?.sender_email?.toLowerCase() === m.sender_email?.toLowerCase();
                           if (sameSenderAsPrev) return null;
-                          const handle = 'Athlete';
+                          // Was the literal string 'Athlete', so every member
+                          // of a group read as "@Athlete" and there was no way
+                          // to tell who said what. Resolve by sender user_id.
+                          const senderName = participantsById[m.user_id]?.username;
                           return (
                             <p className="text-micro font-bold text-muted-foreground mb-0.5 px-1">
-                              @{handle}
+                              {senderName ? `@${senderName}` : t('hub.profile.anonymousAthlete')}
                             </p>
                           );
                         })()}

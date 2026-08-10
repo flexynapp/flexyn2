@@ -17,6 +17,7 @@ import { toast } from '@/lib/toast';
 import { useAuth } from '@/lib/AuthContext';
 import { handle } from '@/lib/userDisplay';
 import * as hubFollows from '@/lib/data/hubFollows';
+import * as users from '@/lib/data/users';
 import { createGroupConversation } from '@/lib/data/hubMessages';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
@@ -39,15 +40,37 @@ export default function NewGroupDMModal({ open, onClose, onCreated }) {
     }
   }, [open]);
 
+  // listFollowingPairs returns { id, email } — NOT hub_follows rows.
+  //
+  // This used to call listFollowing() and read `.followee_email` /
+  // `.username` / `.avatar_url` off each entry, but that function returns
+  // an Array<string> of emails: every one of those reads was undefined, so
+  // every row fell out of the trailing `.filter(f => f.email)` and the
+  // picker rendered "Follow some people to start a group" at users who
+  // follow plenty of people. Group DMs could not be created at all. Same
+  // defect HubMessages fixed in its partition query (audit 10 #1); this
+  // copy of it was missed.
+  //
+  // Display info is resolved by id against public_profiles — the address
+  // itself is never shown, only used to build the group.
   const { data: follows = [], isLoading } = useQuery({
     queryKey: ['myFollowsForGroupDM', user?.email],
     queryFn:  async () => {
-      const list = await hubFollows.listFollowing(user.email).catch(() => []);
-      return (list || []).map(f => ({
-        email:    (f?.followee_email || f?.followed_email || f?.email || '').toLowerCase(),
-        username: f?.followee_username || f?.username || null,
-        avatar:   f?.followee_avatar_url || f?.avatar_url || null,
-      })).filter(f => f.email);
+      const pairs = await hubFollows.listFollowingPairs(user.email).catch(() => []);
+      if (pairs.length === 0) return [];
+      const ids = pairs.map(p => p.id).filter(Boolean);
+      const byId = {};
+      if (ids.length > 0) {
+        const { data } = await users.selectProfiles((from) => from
+          .select('id, username, avatar_url')
+          .in('id', ids));
+        for (const u of (data ?? [])) byId[u.id] = u;
+      }
+      return pairs.map(p => ({
+        email:    p.email,
+        username: byId[p.id]?.username   || null,
+        avatar:   byId[p.id]?.avatar_url || null,
+      }));
     },
     enabled: !!user?.email && open,
     staleTime: 60_000,

@@ -44,6 +44,31 @@ export const listFollowing = async (email) => {
   return rows.map(r => r.followee_email);
 };
 
+/**
+ * The follow graph as `{ id, email }` pairs.
+ *
+ * listFollowing() returns emails only, which is enough for a membership
+ * check but not for a PICKER: to render someone you need their id (the key
+ * public_profiles is read by), and to address them you need their email
+ * (what create_group_conversation takes). Deriving one from the other is
+ * exactly what mig 220 removed — email is no longer on the view — so a
+ * caller that maps a plain email list into row objects silently gets
+ * nothing. NewGroupDMModal did, and its people list was permanently empty.
+ *
+ * Both columns come off the viewer's OWN hub_follows rows (bidirectionally
+ * filled by mig 208/217), so this reads no email off public_profiles.
+ */
+export const listFollowingPairs = async (email) => {
+  if (!email) return [];
+  const rows = await e().filter({ follower_email: email }, '-created_date', 500).catch(() => []);
+  return rows
+    .map(r => ({
+      id:    r.followee_id || null,
+      email: String(r.followee_email || '').toLowerCase(),
+    }))
+    .filter(p => p.email);
+};
+
 /** List emails of users following the given user (their followers). */
 export const listFollowers = async (email) => {
   if (!email) return [];

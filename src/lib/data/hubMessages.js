@@ -16,6 +16,7 @@
 
 import { db } from '@/api/db';
 import { supabase } from '@/api/supabaseClient';
+import { getProfile } from '@/api/profileCache';
 import { isPollVote } from '@/lib/dmPolls';
 import { reportError } from '@/lib/reportError';
 
@@ -340,9 +341,20 @@ export const listOlderMessages = async (conversationId, beforeCreatedDate, limit
  */
 export const sendMessage = async ({ conversationId, senderEmail, recipientEmail, recipientId, body, attachmentUrl, repliedToMessageId, repliedToSnippet, messageType, stickerId, durationMs }) => {
   if (!conversationId || !senderEmail || (!body && !attachmentUrl && !stickerId)) return null;
+  // sender_name / sender_avatar are what notify_dm_received (mig 181) reads
+  // to build the recipient's notification. NOTHING had ever written them —
+  // 0 of 47 production rows carry either — so dm_received_text fell to its
+  // 'Someone' branch and every DM notification in the app's history reads
+  // "Someone sent you a message", with no avatar. Resolved from the profile
+  // cache here rather than at each of the 12 call sites.
+  const me = getProfile();
+  const senderName   = me?.username || me?.full_name || null;
+  const senderAvatar = me?.avatar_url || null;
   const created = await msg().create({
     conversation_id: conversationId,
     sender_email: senderEmail,
+    ...(senderName   ? { sender_name:   senderName }   : {}),
+    ...(senderAvatar ? { sender_avatar: senderAvatar } : {}),
     // recipient_email is optional metadata — DM delivery, block checks and
     // the dm_received notification all run off the conversation's
     // participant_emails, not this column. id-keyed callers pass
