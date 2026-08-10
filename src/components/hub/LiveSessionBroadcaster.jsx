@@ -16,6 +16,7 @@ import { db } from '@/api/db';
 import { toast } from '@/lib/toast';
 import { format } from 'date-fns';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { DURATION_COLUMN } from '@/lib/workoutDuration';
 
 export default function LiveSessionBroadcaster({ onClose }) {
   // Pin the page behind this overlay — see @/lib/scrollLock.
@@ -149,8 +150,12 @@ export default function LiveSessionBroadcaster({ onClose }) {
           date: format(new Date(), 'yyyy-MM-dd'),
           title: title || 'Live Workout',
           exercises: grouped,
-          duration_minutes: elapsedMin,
-          source: 'live_session',
+          // `duration_min` is the column; this said `duration_minutes` and
+          // was stripped on every live-session save. `source: 'live_session'`
+          // went with it — workout_logs has no `source`, and nothing reads
+          // one, so it was a stripped column and a wasted retry. If live
+          // sessions ever need marking, that needs a column first.
+          [DURATION_COLUMN]: elapsedMin,
         });
         savedToHistory = true;
       } catch (err) {
