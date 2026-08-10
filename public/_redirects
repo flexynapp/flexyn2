@@ -1,0 +1,20 @@
+# SPA catch-all, in the format BOTH Netlify and Cloudflare Pages read.
+#
+# netlify.toml already carries this same rule, and on Netlify its version wins
+# (toml is evaluated before _redirects). This file is not redundant, though:
+# Cloudflare Pages ignores netlify.toml entirely and reads only _redirects, so
+# without it every deep link on a Cloudflare deploy — /workout, /progress, any
+# gym QR landing on /checkin/:code — would 404 on refresh. The app would look
+# fine until someone reloaded a page that was not "/".
+#
+# Keeping both means the repo can be published from either host with no code
+# change, which is the point: build minutes ran out on 2026-08-10 and prebuilt
+# deploys plus a portable config are the way around that.
+#
+# Static files are matched before redirects on both platforms, so this does not
+# shadow /assets/*, /favicon.ico or anything else really present in dist.
+#
+# If a rule is ever added here that Netlify must also honour, add it to
+# netlify.toml too — the toml is what Netlify actually reads first.
+
+/*    /index.html   200
