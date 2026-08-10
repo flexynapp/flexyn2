@@ -9,17 +9,21 @@
 // board of the same name, so it is safe to re-run after a bridge
 // timeout (a timed-out call may still have landed its writes).
 //
-// **`penpot.openPage()` does NOT move the plugin's active page, not
-// even inside the same call.** The journal board scripts say it "holds
-// INSIDE a single call"; that is wrong for this API version and it is
-// an expensive thing to get wrong — `createBoard()` draws on whatever
-// page is active, so a script that trusts openPage silently builds its
-// whole board on top of someone else's page. That happened here, on
-// "Weekly Reviews — dashboard", and had to be removed by hand. The
-// active page follows the BROWSER TAB and only re-syncs BETWEEN calls,
-// and a page that is not active cannot be modified at all ("Cannot
-// modify a page that is not currently active"). Hence the hard assert
-// below: fail loudly on the wrong page rather than draw on it.
+// **`penpot.openPage()` takes effect on the NEXT tool call, never
+// inside the one that calls it.** Measured: call `openPage(p)` and read
+// `penpot.currentPage.name` in the same call and you get the OLD page;
+// read it in the following call and you get `p`. The journal board
+// scripts say it "holds INSIDE a single call", which is exactly
+// backwards, and it is an expensive thing to get wrong — `createBoard()`
+// draws on whatever page is active NOW, so a script that opens a page
+// and immediately draws builds its whole board on top of the previous
+// page. That happened here, on "Weekly Reviews — dashboard", and had to
+// be removed by hand. A page that is not active cannot be modified at
+// all ("Cannot modify a page that is not currently active").
+//
+// So: openPage in one call, draw in the next — and keep the hard assert
+// below either way, because the active page also follows the BROWSER TAB
+// and can drift back between calls on its own.
 //
 // ── WHAT THE AUDIT FOUND, AND WHAT THIS ANSWERS ───────────────────
 // Six injuries exist in production. Every design decision below is
@@ -256,9 +260,13 @@ const BXo = 460, BYo = 180;
     T(consequence, { x: 32, y: y + 33, size: 12, color: C.mutedFg, w: 326, token: 'color.muted-foreground' });
     y += 68;
   };
-  sevRow('Mild', 'PROPOSED: stays in, at lighter loads.', C.mutedFg, false);
-  sevRow('Moderate', 'That area comes out of your sessions.', C.primary, false);
-  sevRow('Serious', 'That area and everything it helps move comes out.', C.destructive, true);
+  // These are the strings InjuryForm now ships. The board floated mild as a
+  // PROPOSAL ("stays in, at lighter loads") until that was decided the other
+  // way — mild removes the area, same as moderate — so the design and the app
+  // say one thing rather than two.
+  sevRow('Mild', 'Sore. That area comes out until you clear it.', C.mutedFg, false);
+  sevRow('Moderate', 'Hurts to move. That area comes out.', C.primary, false);
+  sevRow('Serious', 'Sharp pain - that area and what it helps move go.', C.destructive, true);
   y += 4;
 
   T('HOW LONG', { x: 16, y, size: 11, weight: 700, color: C.mutedFg, w: 200, token: 'color.muted-foreground' });
@@ -356,8 +364,8 @@ const CXo = 860, CYo = 180;
      '"Shoulders · serious" is a receipt for something they already know. "8 exercises are out" is the fact that exists nowhere else — and it only became true on 2026-08-09.'],
     ['Cleared injuries collapse',
      'History under a live list competes with the thing that is currently changing your training. One row, one tap.'],
-    ['PROPOSED — mild trains around',
-     'InjuryForm says "can train around it", onboarding says mild stays in, starterPlanCoach does exactly that. The runtime generator removes the group at every severity and its test pins that on purpose. Changing it weakens protection, so it needs a yes.'],
+    ['OPEN — the starter plan disagrees',
+     'DECIDED for the runtime: mild removes the area, and InjuryForm now says so. Still split underneath — buildStarterRegimen keeps a mild region with an "Ease in" note, so onboarding is true of the starter plan and false of every session after it.'],
     ['Fix "Progress → Recovery"',
      'Onboarding names that route twice and it does not exist. Either point both strings at Profile → My Injuries, or give Injuries a real route. Copy is cheaper.'],
   ].forEach(([h, b]) => {

@@ -8,11 +8,15 @@
 //
 // ── HOW TO RUN ────────────────────────────────────────────────────
 // Select "Injuries & Recovery" in the Penpot UI, then paste this into the
-// plugin console. It asserts the page and refuses to draw anywhere else —
-// `penpot.openPage()` does NOT move the plugin's active page (not even
-// inside one call), and `createBoard`/`createText` land on whatever page IS
-// active, so an unguarded script silently builds on top of another page.
-// That already happened once, to "Weekly Reviews — dashboard".
+// plugin console. It asserts the page and refuses to draw anywhere else.
+//
+// `penpot.openPage()` works, but only from the NEXT call onwards — inside
+// the call that invokes it, `penpot.currentPage` is still the old page, and
+// `createText` lands on whatever page is active NOW. So an unguarded script
+// that opens a page and immediately draws builds on the previous one. That
+// already happened once, to "Weekly Reviews — dashboard". Open in one call,
+// draw in the next, and keep the assert regardless: the active page follows
+// the browser tab and drifts back on its own.
 //
 // Idempotent: removes anything it previously added before adding it again.
 //
