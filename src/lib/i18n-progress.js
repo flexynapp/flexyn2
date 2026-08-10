@@ -85,6 +85,15 @@ export const progressTranslations = {
     'progress.frame.deltaUp':         '↑ {pct}% vs prev',
     'progress.frame.deltaDown':       '↓ {pct}% vs prev',
     'progress.frame.noWorkouts':      'No workouts logged in this period.',
+    // Per-stat comparisons. A figure with no comparison attached is
+    // decoration, not a stat — so each of the three carries its own.
+    // Counts move by a whole number, volume by a percentage; "vs prev"
+    // is stated once, on the first, rather than three times in a row.
+    'progress.frame.deltaCountUp':    '+{n} vs prev',
+    'progress.frame.deltaCountDown':  '−{n} vs prev',
+    'progress.frame.deltaCountSame':  'same as prev',
+    'progress.frame.deltaPctUp':      '+{pct}%',
+    'progress.frame.deltaPctDown':    '−{pct}%',
 
     // ── Hero stat tiles (rendered inside Advanced Analytics) ─────────────
     'progress.stat.streak':           'Streak',
@@ -130,6 +139,13 @@ export const progressTranslations = {
     'progress.lastWorkout.daysAgo':   '{n} days ago',
     'progress.lastWorkout.exercises_one':   '{n} exercise',
     'progress.lastWorkout.exercises_other': '{n} exercises',
+
+    // ── Recent list ──────────────────────────────────────────────────────
+    // One section replacing the last-workout card and the Top PRs rail.
+    // Both are read-only, so they are rows on hairlines rather than
+    // surfaces — see the ledger on the "Progress — proposed layout" page.
+    'progress.recent.title':          'RECENT',
+    'progress.recent.personalBest':   'personal best',
 
     // ── Top PRs rail ─────────────────────────────────────────────────────
     'progress.topPRs.title':          'Top PRs',

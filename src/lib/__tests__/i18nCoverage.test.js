@@ -223,6 +223,9 @@ describe('partial-gap ratchet', () => {
     'progress.pb.',
     'progress.analytics.',
     'progress.review.',
+    // Added with the layout change (2026-08-10): the Recent section that
+    // replaced the last-workout card and the Top PRs rail.
+    'progress.recent.',
     'quests.',
     'quest.cardio_session.',
     'quest.log_sleep.',

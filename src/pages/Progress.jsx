@@ -16,7 +16,7 @@ import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  TrendingUp, BarChart2, Trophy, Sparkles as SparklesIcon,
+  TrendingUp, BarChart2, Trophy,
   Flame, Dumbbell, Camera, Ruler, ChevronRight, Zap, RefreshCw, Lightbulb,
 } from 'lucide-react';
 import BodyMetricsTab from '@/components/progress/BodyMetricsTab';
@@ -54,23 +54,13 @@ const CHART_STYLE = {
   },
 };
 
-// Keyed by muscleKey() output, NOT by the raw column value. The raw
-// value is whatever the exercise row happens to carry ('Chest', 'chest',
-// 'Full Body'), so a raw-keyed map misses on casing and the 'full body'
-// entry never matched anything once muscleKey normalised it to 'fullBody'.
-const MUSCLE_PILL = {
-  chest:     'bg-info/15 text-info border-info/25',
-  back:      'bg-success/15 text-success border-success/25',
-  shoulders: 'bg-primary/15 text-primary border-primary/25',
-  biceps:    'bg-info/15 text-info border-info/25',
-  triceps:   'bg-info/15 text-info border-info/25',
-  legs:      'bg-primary/15 text-primary border-primary/25',
-  glutes:    'bg-primary/15 text-primary border-primary/25',
-  core:      'bg-primary/15 text-primary border-primary/25',
-  fullBody:  'bg-success/15 text-success border-success/25',
-  cardio:    'bg-destructive/15 text-destructive border-destructive/25',
-};
-const MUSCLE_PILL_DEFAULT = 'bg-primary/15 text-primary border-primary/25';
+// The per-muscle pill palette that used to live here is gone with the
+// pills themselves. It mapped ten muscle keys onto four semantic hues,
+// which meant chest and biceps shared `info`, legs and core shared
+// `primary`, and so on — so the colour never identified the muscle, it
+// only decorated the word that already did. The frame's muscle list is
+// now interpunct-separated text. See the ledger on the Penpot page
+// "Progress — proposed layout", board C.
 
 // Timeframe constants (used by the stats-frame toggle in the hero card).
 //
@@ -114,6 +104,28 @@ function formatBigNumber(n) {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000)     return `${(n / 1_000).toFixed(1)}K`;
   return String(Math.round(n));
+}
+
+/**
+ * The comparison line under a stat. Returns null when there is nothing
+ * honest to say — an All Time frame has no prior period, and rendering
+ * "same as prev" against a window that does not exist is worse than
+ * rendering nothing.
+ *
+ * `tone` is a semantic token, never a raw hue: up is success, down is
+ * destructive, flat is muted.
+ */
+function countDelta(current, prev, tFallback) {
+  if (prev == null) return null;
+  // Nothing in either window is not a comparison, it is two absences.
+  // "same as prev" under a 0 reads as the app labouring a point about a
+  // user who has not trained yet.
+  if (current === 0 && prev === 0) return null;
+  const d = current - prev;
+  if (d === 0) return { text: tFallback('progress.frame.deltaCountSame', 'same as prev'), tone: 'text-muted-foreground' };
+  return d > 0
+    ? { text: tFallback('progress.frame.deltaCountUp', '+{n} vs prev', { n: d }), tone: 'text-success' }
+    : { text: tFallback('progress.frame.deltaCountDown', '−{n} vs prev', { n: Math.abs(d) }), tone: 'text-destructive' };
 }
 
 function calcVolume(logs) {
@@ -167,7 +179,7 @@ function PersonalBestsTab({ logs, onViewHistory }) {
     <div className="space-y-3">
       {bests.map((pb, idx) => (
         <motion.div key={pb.name} initial={{ opacity: 0, y: 20, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ type: 'spring', stiffness: 260, damping: 22, delay: idx * 0.05 }}>
-          <Card className="border-none shadow-sm overflow-hidden">
+          <Card className="border border-border shadow-none overflow-hidden">
             <div className="p-4">
               <div className="flex items-center gap-3 mb-3">
                 <motion.div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0" animate={{ scale: [1, 1.15, 1] }} transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut', delay: idx * 0.3 }}>
@@ -312,7 +324,7 @@ function AnalyticsTab({ logs }) {
           { value: volumeByMuscle[0]?.displayGroup || '—', label: t('progress.topMuscleGroup'), color: 'text-success', span: 'col-span-2 md:col-span-1' },
         ].map((stat, i) => (
           <motion.div key={stat.label} initial={{ opacity: 0, y: 16, scale: 0.9 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ type: 'spring', stiffness: 280, damping: 20, delay: i * 0.08 }} whileHover={{ scale: 1.04, y: -2 }} className={stat.span || ''}>
-            <Card className="p-4 border-none shadow-sm text-center h-full">
+            <Card className="p-4 border border-border shadow-none text-center h-full">
               <motion.p className={`font-heading text-2xl font-bold ${stat.color}`} initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 300, damping: 18, delay: i * 0.08 + 0.1 }}>{stat.value}</motion.p>
               <p className="text-xs text-muted-foreground mt-0.5">{stat.label}</p>
             </Card>
@@ -320,7 +332,7 @@ function AnalyticsTab({ logs }) {
         ))}
       </div>
 
-      <Card className="p-5 border-none shadow-sm">
+      <Card className="p-5 border border-border shadow-none">
         <h2 className="font-heading font-bold mb-1">{t('progress.maxWeightOverTime')}</h2>
         <p className="text-xs text-muted-foreground mb-4">{t('progress.maxWeightSubtitle')}</p>
         {weightOverTime.length < 2 ? (
@@ -338,7 +350,7 @@ function AnalyticsTab({ logs }) {
         )}
       </Card>
 
-      <Card className="p-5 border-none shadow-sm">
+      <Card className="p-5 border border-border shadow-none">
         <h2 className="font-heading font-bold mb-1">{t('progress.totalVolumeByMuscle')}</h2>
         <p className="text-xs text-muted-foreground mb-4">{t('progress.totalVolumeDesc')}</p>
         {volumeByMuscle.length === 0 ? (
@@ -358,7 +370,7 @@ function AnalyticsTab({ logs }) {
         )}
       </Card>
 
-      <Card className="p-5 border-none shadow-sm">
+      <Card className="p-5 border border-border shadow-none">
         <div className="flex items-center justify-between mb-1">
           <h2 className="font-heading font-bold">{t('progress.workoutFrequency')}</h2>
           <span className="text-xs font-medium text-primary">{trainedDays} / 30 {t('progress.daysShort')}</span>
@@ -665,6 +677,25 @@ export default function Progress() {
   const lastWeekVolume = useMemo(() => calcVolume(lastWeekLogs), [lastWeekLogs]);
   const volumeDelta    = prevVolume > 0 ? ((frameVolume - prevVolume) / prevVolume) * 100 : null;
 
+  // Workout and cardio counts for the PREVIOUS window, so all three figures
+  // in the stats row can state a comparison rather than only volume. This
+  // number already existed for volume and was rendered once, as a pill in
+  // the card header; a figure with nothing to compare against is decoration.
+  // `null` where the frame is All Time — there is no prior period to a
+  // lifetime, and "same as prev" would be a claim about nothing.
+  const prevFrameWorkouts = FRAME_PREV[statsFrame] === null ? null : prevFrameLogs.length;
+  const prevFrameCardio = useMemo(() => {
+    const days = FRAME_PREV[statsFrame];
+    if (!days) return null;
+    const end   = subDays(new Date(), days);
+    const start = subDays(new Date(), days * 2);
+    return cardioLogs.filter(l => {
+      if (!l.date) return false;
+      const d = parseLocalDate(l.date);
+      return d && d >= start && d < end;
+    }).length;
+  }, [cardioLogs, statsFrame]);
+
   // A session COUNT, not a stats object. It also summed distance, duration
   // and calories on every frame change and nothing ever read any of the
   // three — the card shows one number. Three unread reduces over the full
@@ -872,36 +903,28 @@ export default function Progress() {
         </div>
       ) : (
         <>
-          {/* ── Personal Bests + Advanced Analytics — lifted ABOVE the
-                carousel per user feedback (they were buried inside the
-                Analytics tab, easy to miss). ─────────────────────── */}
-          <div className="flex gap-2 mb-3 flex-wrap">
-            <motion.button
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.97 }}
-              onClick={() => setPersonalBestsModalOpen(true)}
-              className="flex-1 min-w-[10rem] inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-gradient-to-r from-primary/10 to-primary/5 text-primary dark:from-primary/15 dark:to-primary/15 dark:text-primary border border-primary/25 dark:border-primary/25 text-xs font-bold shadow-sm hover:shadow transition-all relative overflow-hidden"
-            >
-              <motion.div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/70 to-white/0" animate={{ x: ['100%', '-100%'] }} transition={{ duration: 2, repeat: Infinity }} />
-              <Trophy className="w-3.5 h-3.5 relative z-10" />
-              <span className="relative z-10">{t('progress.personalBests')}</span>
-            </motion.button>
-            <motion.button
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.97 }}
-              onClick={() => setAdvancedAnalyticsOpen(true)}
-              className="flex-1 min-w-[10rem] inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-gradient-to-r from-success/10 to-success/5 text-success dark:from-success/15 dark:to-success/15 dark:text-success border border-success/25 dark:border-success/25 text-xs font-bold shadow-sm hover:shadow transition-all relative overflow-hidden"
-            >
-              <motion.div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/70 to-white/0" animate={{ x: ['100%', '-100%'] }} transition={{ duration: 2, repeat: Infinity }} />
-              <SparklesIcon className="w-3.5 h-3.5 relative z-10" />
-              <span className="relative z-10">{t('progress.advancedAnalytics')}</span>
-            </motion.button>
-          </div>
+          {/* ── Carousel — the page's ONE dominant element, and the only
+                thing that breaks the page inset.
 
-          {/* ── Carousel — one slide per stat (Streak / Workouts /
-                Volume / Level) with motivational tips. Per-slide
-                color tint, swipe to advance, right-edge chevron. ──── */}
-          <ProgressCarousel slides={carouselSlides} />
+                "One dominant element per screen, and only it may bleed"
+                (CLAUDE.md). It had been one card among many, sitting under
+                two gradient CTAs that asked for a tap before the page had
+                shown anything worth tapping about. Those moved to text
+                links at the end of the Recent list; this became the band.
+
+                The negative margins cancel the page's own px-4 / md:px-6,
+                so the band runs edge to edge. A full-bleed band has no
+                side edges to round or draw, hence rounded-none and
+                border-x-0 — the 2px accent rule inside ProgressCarousel is
+                its identity, exactly as before.
+
+                Design: Penpot page "Progress — proposed layout", board B.
+                The carousel was KEPT there by kegan (2026-08-10) against a
+                proposal to replace it with the activity grid; see the
+                ledger on board C. ─────────────────────────────────────── */}
+          <div className="-mx-4 md:-mx-6 mb-2 [&_.rounded-2xl]:rounded-none [&_.border]:border-x-0">
+            <ProgressCarousel slides={carouselSlides} />
+          </div>
 
           {/* The 4 stat tiles (Streak / Workouts / Volume / Level) that
               used to sit here now live inside the "Advanced Analytics"
@@ -910,16 +933,25 @@ export default function Progress() {
           {/* "You usually train Mon · Wed · Fri at 6:30 PM" — a soft
               pattern-recognition insight. Renders nothing if there
               isn't enough data to call a pattern (see trainingPatterns.js). */}
-          <div className="mb-4">
+          <div className="mb-2">
             <TrainingPatternCard workoutLogs={logs} />
           </div>
+
+          {/* ── The one 32px seam on this page. Above it is who you are
+                right now; below it is what you did and when. "Exactly one
+                gap-8 per page — a second break means neither reads as the
+                break." ──────────────────────────────────────────────── */}
+          <div className="h-8" aria-hidden="true" />
 
           {/* 26-week GitHub-style activity grid. Self-hides on empty
               windows. Drives habit awareness — seeing the streaks-and-
               gaps pattern is more motivating than a workout count.
               Second tap on a trained square → "repeat this workout"
-              flow on the Workout page. */}
-          <div className="mb-4">
+              flow on the Workout page.
+
+              Sits directly under the seam, above the period stats: it is
+              the history the period below summarises. */}
+          <div className="mb-2">
             <WorkoutCalendarGrid
               logs={logs}
               onSelectDay={(log) => {
@@ -935,44 +967,56 @@ export default function Progress() {
             transition={{ delay: 0.18, type: 'spring', stiffness: 260, damping: 22 }}
             className="mb-4"
           >
-            <Card className="p-5 border-none shadow-sm overflow-hidden relative">
-              {/* Background gradient accent */}
-              <div className="absolute top-0 end-0 w-32 h-32 rounded-full blur-3xl opacity-30 pointer-events-none" style={{ background: 'radial-gradient(circle, hsl(var(--primary) / 0.4), transparent 70%)', transform: 'translate(30%, -30%)' }} />
-
+            {/* No shadow and no blur blob. "Resting = hairline border, no
+                shadow; shadow-sm adds nothing a hairline doesn't", and the
+                blurred radial gradient behind the corner was decoration of
+                exactly the kind the composition rules name. */}
+            <Card className="p-5 border border-border shadow-none overflow-hidden">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="font-heading font-black text-base">
                   {tFallback(`progress.frame.${statsFrame}`, FRAME_LABEL_FALLBACK[statsFrame])}
                 </h2>
-                {volumeDelta !== null && (
-                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${volumeDelta >= 0 ? 'bg-success/15 text-success' : 'bg-destructive/15 text-destructive'}`}>
-                    {tFallback(
-                      volumeDelta >= 0 ? 'progress.frame.deltaUp' : 'progress.frame.deltaDown',
-                      volumeDelta >= 0 ? '↑ {pct}% vs prev' : '↓ {pct}% vs prev',
-                      { pct: Math.abs(Math.round(volumeDelta)) },
-                    )}
-                  </span>
-                )}
               </div>
 
+              {/* Each figure states its own change against the previous
+                  window. The single "vs prev" pill that used to sit in the
+                  header spoke only for volume, so two of the three numbers
+                  were bare — and a number with nothing to compare against is
+                  decoration, not a stat. "vs prev" is said once, on the
+                  first column, rather than three times across the row. */}
               <div className="grid grid-cols-3 gap-4 mb-4">
                 <div className="text-center">
                   <p className="font-heading font-black text-2xl text-info">{frameLogs.length}</p>
                   <p className="text-micro text-muted-foreground mt-0.5">{tFallback('progress.frame.workouts', 'Workouts')}</p>
+                  {(() => {
+                    const d = countDelta(frameLogs.length, prevFrameWorkouts, tFallback);
+                    return d ? <p className={`text-micro font-bold mt-0.5 ${d.tone}`}>{d.text}</p> : null;
+                  })()}
                 </div>
                 <div className="text-center">
                   <p className="font-heading font-black text-2xl text-success">
                     {frameVolume > 0 ? formatBigNumber(Math.round(fromLbs(frameVolume, weightUnit))) : '—'}
                   </p>
                   <p className="text-micro text-muted-foreground mt-0.5">{tFallback('progress.frame.volumeLifted', '{unit} lifted', { unit: weightUnit })}</p>
+                  {volumeDelta !== null && (
+                    <p className={`text-micro font-bold mt-0.5 ${volumeDelta >= 0 ? 'text-success' : 'text-destructive'}`}>
+                      {tFallback(
+                        volumeDelta >= 0 ? 'progress.frame.deltaPctUp' : 'progress.frame.deltaPctDown',
+                        volumeDelta >= 0 ? '+{pct}%' : '−{pct}%',
+                        { pct: Math.abs(Math.round(volumeDelta)) },
+                      )}
+                    </p>
+                  )}
                 </div>
                 <div className="text-center">
                   {/* accent, not primary — Workouts above is already primary
                       and the two sat side by side reading as one number. */}
-                  {/* was `weeklyCardio`, an alias kept "for backward
-                      compat" that had exactly one caller — and it said
-                      "weekly" while holding whichever frame is selected. */}
                   <p className="font-heading font-black text-2xl text-accent">{frameCardioSessions || '—'}</p>
                   <p className="text-micro text-muted-foreground mt-0.5">{tFallback('progress.frame.cardio', 'Cardio')}</p>
+                  {(() => {
+                    const d = countDelta(frameCardioSessions, prevFrameCardio, tFallback);
+                    return d ? <p className={`text-micro font-bold mt-0.5 ${d.tone}`}>{d.text}</p> : null;
+                  })()}
                 </div>
               </div>
 
@@ -1000,20 +1044,21 @@ export default function Progress() {
                 return (
                   <>
                     {frameMusclePills.length > 0 ? (
-                      <div className="flex flex-wrap gap-1.5 mb-3">
-                        {frameMusclePills.map(({ key, raw }) => {
-                          const cls = MUSCLE_PILL[key] || MUSCLE_PILL_DEFAULT;
-                          // Same lookup the charts and the filter dropdown
-                          // already use (see volumeByMuscle / muscleGroupItems).
-                          // These pills were printing the raw English column
-                          // value in all 15 languages.
-                          return (
-                            <span key={key} className={`text-micro font-semibold px-2.5 py-0.5 rounded-full border ${cls}`}>
-                              {tFallback(`muscleGroups.${key}`, raw)}
-                            </span>
-                          );
-                        })}
-                      </div>
+                      // Plain text, interpunct-separated, not chips. Three
+                      // bordered pills read as filters you can tap; this is a
+                      // list of what you trained. Losing the borders also
+                      // loses the per-muscle hue, which was decorative — the
+                      // hue said nothing the word didn't.
+                      //
+                      // Same lookup the charts and the filter dropdown already
+                      // use (see volumeByMuscle / muscleGroupItems); these were
+                      // printing the raw English column value in all 15
+                      // languages until audit 20 finding 4.
+                      <p className="text-micro text-muted-foreground mb-3 leading-relaxed">
+                        {frameMusclePills
+                          .map(({ key, raw }) => tFallback(`muscleGroups.${key}`, raw))
+                          .join('  ·  ')}
+                      </p>
                     ) : frameLogs.length === 0 ? (
                       // Gated on frameLogs, NOT on the pill set. It used to
                       // fire whenever the pills were empty, so a session whose
@@ -1046,108 +1091,163 @@ export default function Progress() {
                   </>
                 );
               })()}
+
+              {/* ── Weekly Review, folded in ──────────────────────────────
+                    This was a full stats card lower down, inside the Trends
+                    tab — Volume / Sessions / Streak / PR. So the page had
+                    two period summaries a scroll apart, one a rolling
+                    window and one a real ISO week, and audit 20 finding 7
+                    was the labels disagreeing about which "week" they meant.
+                    Making the labels honest was the code half; this is the
+                    design half — one period section, one place.
+
+                    Only the week label and the insight survive here. The
+                    four figures were the same quantities the row directly
+                    above already shows for the selected frame, and the full
+                    week-by-week vault is still one tap away in
+                    ProfileMenu → Weekly Reviews (DebriefVault), so nothing
+                    is lost — it stops being said twice. */}
+              {latestDebriefData && (
+                <div className="mt-4 pt-4 border-t border-border">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <p className="text-sm font-bold text-foreground">
+                      {latestDebriefData.week_label}
+                    </p>
+                    <button
+                      onClick={() => refetchDebrief()}
+                      className="text-muted-foreground/50 hover:text-muted-foreground active:text-muted-foreground transition-colors shrink-0"
+                      title={tFallback('progress.review.refresh', 'Refresh summary')}
+                      aria-label={tFallback('progress.review.refresh', 'Refresh summary')}
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  {latestDebriefData.data?.ai_insight && (
+                    <p className="text-micro text-muted-foreground leading-relaxed mt-1">
+                      {latestDebriefData.data.ai_insight}
+                    </p>
+                  )}
+                </div>
+              )}
             </Card>
           </motion.div>
 
-          {/* ── Last Workout Callout ──────────────────────────────────────── */}
-          {lastWorkout && (
-            <motion.div
-              initial={{ opacity: 0, x: -12 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.24, type: 'spring', stiffness: 280, damping: 24 }}
-              className="mb-4"
-            >
-              <Card className="px-4 py-3 border-none shadow-sm">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                      <Dumbbell className="w-4 h-4 text-primary" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold leading-tight truncate">
-                        {lastWorkout.regimen_name || tFallback('progress.lastWorkout.freestyle', 'Freestyle Session')}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {/* progress.today / progress.yesterday already ship in
-                            all 15 languages — this line had been hardcoding
-                            the same two words in English. Only the N-days
-                            case needed a new key, and it needs a whole
-                            template rather than progress.ago ("ago"): gluing
-                            a count onto a bare preposition puts the words in
-                            English order in every language. */}
-                        {daysSinceLast === 0
-                          ? t('progress.today')
-                          : daysSinceLast === 1
-                            ? t('progress.yesterday')
-                            : tFallback('progress.lastWorkout.daysAgo', '{n} days ago', { n: daysSinceLast })}
-                        {lastWorkout.exercises?.length
-                          ? ` · ${tFallback(
-                              lastWorkout.exercises.length === 1
-                                ? 'progress.lastWorkout.exercises_one'
-                                : 'progress.lastWorkout.exercises_other',
-                              lastWorkout.exercises.length === 1 ? '{n} exercise' : '{n} exercises',
-                              { n: lastWorkout.exercises.length },
-                            )}`
-                          : ''}
-                      </p>
-                    </div>
-                  </div>
-                  <span className="text-xs text-muted-foreground shrink-0 ms-2">{tFallback('progress.lastWorkout.label', 'Last workout')}</span>
-                </div>
-              </Card>
-            </motion.div>
-          )}
+          {/* ── Recent ──────────────────────────────────────────────────────
+                The last-workout callout and the Top PRs rail were two cards
+                and a horizontal scroller holding four facts between them.
+                Both are read-only and neither is user-arranged, so per
+                CLAUDE.md they get no surface: "cards mark discrete,
+                user-arranged objects — read-only data that is not a widget
+                gets hairline dividers instead."
 
-          {/* ── Top PRs Preview ───────────────────────────────────────────── */}
-          {topPRs.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3, type: 'spring', stiffness: 260, damping: 22 }}
-              className="mb-6"
-            >
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="font-heading font-black text-sm uppercase tracking-wider text-muted-foreground">{tFallback('progress.topPRs.title', 'Top PRs')}</h2>
-                <button
-                  onClick={() => setPersonalBestsModalOpen(true)}
-                  className="text-xs font-semibold text-primary hover:text-primary/80 active:text-primary/80 transition-colors flex items-center gap-0.5"
-                >
-                  {t('progress.all')} <ChevronRight className="w-3.5 h-3.5" />
-                </button>
+                Three things came off with the surfaces. The PR cards' own
+                `bg-gradient-to-br` (gradient as decoration). The horizontal
+                scroller, which hid PRs 3–5 off-screen behind a gesture
+                nothing advertised. And the "All ›" affordance, which is now
+                the "Personal Bests" link at the foot of the same list —
+                one way in rather than two.
+
+                Design: Penpot "Progress — proposed layout", board B. ──── */}
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.24, type: 'spring', stiffness: 260, damping: 22 }}
+            className="mb-6"
+          >
+            {/* The heading and rows are conditional; the two links below are
+                NOT. Nesting them inside the same guard is a regression this
+                change introduced and a browser check caught: on an account
+                with no workouts there is no last session and no PR, so the
+                whole section vanished — and with it the only route to
+                Personal Bests and Advanced Analytics, which the old layout
+                kept above the fold. Both modals carry their own empty
+                states; being unreachable is not one of them. */}
+            {(lastWorkout || topPRs.length > 0) && (
+              <h2 className="font-heading font-black text-micro uppercase tracking-wider text-muted-foreground mb-2">
+                {tFallback('progress.recent.title', 'RECENT')}
+              </h2>
+            )}
+
+            {lastWorkout && (
+              <div className="flex items-baseline justify-between gap-2 py-2 border-b border-border">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold leading-tight truncate">
+                    {lastWorkout.regimen_name || tFallback('progress.lastWorkout.freestyle', 'Freestyle Session')}
+                  </p>
+                  <p className="text-micro text-muted-foreground mt-0.5">
+                    {/* progress.today / progress.yesterday already ship in
+                        all 15 languages — this line had been hardcoding
+                        the same two words in English. Only the N-days
+                        case needed a new key, and it needs a whole
+                        template rather than progress.ago ("ago"): gluing
+                        a count onto a bare preposition puts the words in
+                        English order in every language. */}
+                    {daysSinceLast === 0
+                      ? t('progress.today')
+                      : daysSinceLast === 1
+                        ? t('progress.yesterday')
+                        : tFallback('progress.lastWorkout.daysAgo', '{n} days ago', { n: daysSinceLast })}
+                    {lastWorkout.exercises?.length
+                      ? ` · ${tFallback(
+                          lastWorkout.exercises.length === 1
+                            ? 'progress.lastWorkout.exercises_one'
+                            : 'progress.lastWorkout.exercises_other',
+                          lastWorkout.exercises.length === 1 ? '{n} exercise' : '{n} exercises',
+                          { n: lastWorkout.exercises.length },
+                        )}`
+                      : ''}
+                  </p>
+                </div>
+                <span className="text-micro text-muted-foreground shrink-0">
+                  {tFallback('progress.lastWorkout.label', 'Last workout')}
+                </span>
               </div>
-              <div className="flex gap-3 overflow-x-auto pb-1 -mx-4 px-4 md:mx-0 md:px-0 md:grid md:grid-cols-3 lg:grid-cols-5">
-                {topPRs.map((pr, i) => (
-                  <motion.div
-                    key={pr.name}
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: 0.3 + i * 0.06, type: 'spring', stiffness: 300, damping: 22 }}
-                    whileHover={{ y: -3, scale: 1.03 }}
-                    className="shrink-0 w-36 md:w-auto"
-                  >
-                    <Card className="p-3 border-none shadow-sm bg-gradient-to-br from-primary/8 via-primary/5 to-transparent overflow-hidden relative">
-                      <div className="absolute top-1.5 end-1.5">
-                        <Trophy className="w-3.5 h-3.5 text-primary/60" />
-                      </div>
-                      <p className="text-micro text-muted-foreground font-medium leading-tight mb-1 pe-4 line-clamp-1">{pr.name}</p>
-                      <p className="font-heading font-black text-xl text-primary leading-none">
-                        {formatWeight(pr.weight, weightUnit)}
-                      </p>
-                      {pr.reps > 0 && (
-                        <p className="text-micro text-muted-foreground mt-1">
-                          {tFallback(
-                            pr.reps === 1 ? 'progress.topPRs.repsBest_one' : 'progress.topPRs.repsBest_other',
-                            pr.reps === 1 ? '{n} rep best' : '{n} reps best',
-                            { n: pr.reps },
-                          )}
-                        </p>
-                      )}
-                    </Card>
-                  </motion.div>
-                ))}
-              </div>
-            </motion.div>
-          )}
+            )}
+
+            {topPRs.map(pr => (
+              <button
+                key={pr.name}
+                onClick={() => setPRHistoryExercise(pr.name)}
+                className="w-full flex items-baseline justify-between gap-2 py-2 border-b border-border text-start hover:bg-secondary/40 active:bg-secondary/40 transition-colors"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold leading-tight truncate">{pr.name}</p>
+                  <p className="text-micro text-muted-foreground mt-0.5">
+                    {tFallback('progress.recent.personalBest', 'personal best')}
+                    {pr.reps > 0
+                      ? ` · ${tFallback(
+                          pr.reps === 1 ? 'progress.topPRs.repsBest_one' : 'progress.topPRs.repsBest_other',
+                          pr.reps === 1 ? '{n} rep best' : '{n} reps best',
+                          { n: pr.reps },
+                        )}`
+                      : ''}
+                  </p>
+                </div>
+                <span className="font-heading font-black text-sm text-primary shrink-0 tabular-nums">
+                  {formatWeight(pr.weight, weightUnit)}
+                </span>
+              </button>
+            ))}
+
+            {/* The two CTAs that used to sit above the carousel, as links
+                at the end of the list they belong to. No gradient, no
+                shimmer sweep, and they no longer ask for a tap before the
+                page has shown anything worth tapping about. */}
+            <div className="flex flex-wrap gap-x-6 gap-y-2 pt-2">
+              <button
+                onClick={() => setPersonalBestsModalOpen(true)}
+                className="inline-flex items-center gap-0.5 text-xs font-bold text-primary hover:text-primary/80 active:text-primary/80 transition-colors"
+              >
+                {t('progress.personalBests')} <ChevronRight className="w-3.5 h-3.5 rtl:scale-x-[-1]" />
+              </button>
+              <button
+                onClick={() => setAdvancedAnalyticsOpen(true)}
+                className="inline-flex items-center gap-0.5 text-xs font-bold text-primary hover:text-primary/80 active:text-primary/80 transition-colors"
+              >
+                {t('progress.advancedAnalytics')} <ChevronRight className="w-3.5 h-3.5 rtl:scale-x-[-1]" />
+              </button>
+            </div>
+          </motion.div>
 
           {/* ── Tab Navigation ──────────────────────────────────────────────
               Sized for proper touch targets (min-h ~48px, the Apple HIG
@@ -1222,91 +1322,6 @@ export default function Progress() {
                 {activeTab === 'trends' && (
                   <ErrorBoundary label="ExerciseTrends">
                     <div>
-                      {/* ── Weekly Summary Card ───────────────────────────── */}
-                      {latestDebriefData && (
-                        <motion.div
-                          initial={{ opacity: 0, y: 8 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          // Was a hardcoded dark gradient (#0f0f14 -> #141824) with
-                          // white text, so this card rendered dark in light mode and
-                          // was the only thing on the page that did. Tokens instead:
-                          // it now follows the theme like every other surface, and
-                          // the flat fill matches the "no gradient as decoration"
-                          // rule in CLAUDE.md.
-                          className="rounded-2xl overflow-hidden border border-border bg-card mb-5"
-                        >
-                          {/* Header */}
-                          <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-border">
-                            <div>
-                              <p className="text-micro font-bold uppercase tracking-widest text-primary">{tFallback('progress.review.title', 'Weekly Review')}</p>
-                              <p className="text-sm font-bold text-foreground">{latestDebriefData.week_label}</p>
-                            </div>
-                            <button
-                              onClick={() => refetchDebrief()}
-                              className="text-foreground/30 hover:text-muted-foreground active:text-muted-foreground transition-colors"
-                              title={tFallback('progress.review.refresh', 'Refresh summary')}
-                            >
-                              <RefreshCw className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-
-                          {/* Stats row */}
-                          {(() => {
-                            const d = latestDebriefData.data || {};
-                            // The RPC stores volume in lbs (hence the column
-                            // name). This card printed it raw under a literal
-                            // "lbs" suffix, so a kg user got a pounds number
-                            // labelled lbs — on the one page where every other
-                            // volume already respects weightUnit. Convert here,
-                            // label with the unit. volume_change_pct is a ratio
-                            // and is unit-independent, so it stays as-is.
-                            const vol    = fromLbs(d.volume_lbs ?? 0, weightUnit);
-                            const chg    = d.volume_change_pct;
-                            const wks    = d.workouts_count ?? 0;
-                            const streak = d.workout_streak ?? 0;
-                            const isPr   = !!d.top_lift_is_pr;
-                            const insight = d.ai_insight || '';
-                            return (
-                              <>
-                                <div className="flex divide-x divide-border">
-                                  <div className="flex-1 flex flex-col items-center py-3 gap-0.5">
-                                    <span className="text-xs text-muted-foreground">{tFallback('progress.review.volume', 'Volume')}</span>
-                                    <span className="text-base font-black text-foreground tabular-nums">
-                                      {formatBigNumber(vol)}
-                                      <span className="text-micro font-normal text-muted-foreground ms-0.5">{weightUnit}</span>
-                                    </span>
-                                    {chg != null && (
-                                      <span className={`text-micro font-semibold ${Number(chg) >= 0 ? 'text-success' : 'text-destructive'}`}>
-                                        {Number(chg) >= 0 ? '+' : ''}{chg}%
-                                      </span>
-                                    )}
-                                  </div>
-                                  <div className="flex-1 flex flex-col items-center py-3 gap-0.5">
-                                    <span className="text-xs text-muted-foreground">{tFallback('progress.review.sessions', 'Sessions')}</span>
-                                    <span className="text-base font-black text-foreground">{wks}</span>
-                                  </div>
-                                  <div className="flex-1 flex flex-col items-center py-3 gap-0.5">
-                                    <span className="text-xs text-muted-foreground">{tFallback('progress.review.streak', 'Streak')}</span>
-                                    <span className="text-base font-black text-primary">{streak}d 🔥</span>
-                                  </div>
-                                  {isPr && (
-                                    <div className="flex-1 flex flex-col items-center py-3 gap-0.5">
-                                      <span className="text-xs text-muted-foreground">{tFallback('progress.review.pr', 'PR')}</span>
-                                      <Trophy className="w-4 h-4 text-primary" />
-                                    </div>
-                                  )}
-                                </div>
-                                {insight && (
-                                  <div className="px-4 py-2.5 border-t border-border">
-                                    <p className="text-xs text-muted-foreground italic leading-relaxed">"{insight}"</p>
-                                  </div>
-                                )}
-                              </>
-                            );
-                          })()}
-                        </motion.div>
-                      )}
-
                       <div className="flex justify-start mb-6">
                         <FilterDropdown
                           selectedRegimen={selectedRegimen}
