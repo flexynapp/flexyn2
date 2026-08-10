@@ -110,38 +110,54 @@
     --border: 210 15% 88%;
     --input: 210 15% 88%;
     --ring: 26 90% 50%;
-    --chart-1: 26 90% 50%;
-    --chart-2: 210 18% 35%;
-    --chart-3: 26 70% 65%;
-    --chart-4: 210 18% 50%;
-    --chart-5: 0 72% 51%;
-    /* ── Muscle-region categorical ramp ───────────────────────────────
-       Three hues + a neutral remainder. This is the "needs mutual
-       distinguishability rather than state meaning" case the four-hue
-       rule carves out for macros, so it lives outside the state hues —
-       but unlike --chart-*, these are VALIDATED and the count is a
-       measurement, not a preference.
+    /* ── THE categorical palette — three hues and a neutral ───────────
+       ONE validated set, which everything categorical draws from. This
+       is the "needs mutual distinguishability rather than state meaning"
+       case the four-hue rule carves out; --chart-* and --region-* below
+       are NAMES FOR THESE, not separate ramps. Two ramps invented
+       independently is exactly how the old one drifted.
 
-       Run against the dataviz validator on this app's own card surfaces,
-       with the all-pairs gate (any two wedges can end up side by side):
+       THREE IS A MEASUREMENT, NOT A PREFERENCE. Run against the dataviz
+       validator on this app's own card surfaces, under the all-pairs
+       gate (any two marks can end up side by side):
 
          5 hues   FAIL   dark: magenta↔aqua ΔE 1.6 under deuteranopia
          4 hues   FAIL   dark: yellow↔orange ΔE 4.8 deutan / 10.6 normal
-         3 hues   PASS   both modes, worst 9.2 light / 9.4 dark
+         3 hues   PASS   both modes, worst 11.9 light / 11.2 dark
 
-       So three is the ceiling, and push/pull/legs is what three buys —
-       which is also how a lifter already thinks. --region-other is
-       deliberately BELOW the chroma floor: it is a remainder, not an
-       identity, and reading as grey is the point.
+       A fourth categorical slot is therefore not available. Something
+       that needs a fourth series folds into the neutral remainder or
+       facets — it does not get a new hue here. --cat-neutral sits BELOW
+       the chroma floor on purpose: that is what marks a remainder rather
+       than an identity.
 
-       Light contrast on white is under 3:1 for legs; that is the
-       documented WARN band and it obligates visible labels, which the
-       widget has as named chips under the chart. Do not use these
-       without them. Mapping + reasoning: src/lib/muscleRegions.js. */
-    --region-push:  213 68% 50%;   /* #2A78D6 */
-    --region-pull:  17 82% 56%;    /* #EB6834 */
-    --region-legs:  159 73% 40%;   /* #1BAF7A */
-    --region-other: 210 11% 53%;   /* #7A8794 */
+       Light contrast on white is under 3:1 for cat-1 and cat-3. That is
+       the documented WARN band and it obligates visible labels — every
+       consumer must carry them. Don't use these bare. */
+    --cat-1: 26 90% 50%;       /* #F2700D  orange — the brand hue */
+    --cat-2: 213 68% 50%;      /* #2A78D6  blue */
+    --cat-3: 159 73% 40%;      /* #1BAF7A  aqua */
+    --cat-neutral: 210 11% 53%; /* #7A8794  remainder, not an identity */
+
+    /* Chart slots. FOUR AND FIVE ARE GONE, deliberately: the ramp used
+       to advertise five and only ever had four distinct values, because
+       --chart-1 was bit-for-bit --primary and chart-2/chart-4 were one
+       hue at two lightnesses. It also failed the chroma floor in both
+       modes (chart-2 at C 0.033, chart-4 at 0.043 — those read as grey)
+       and the dark lightness band. Advertising slots that don't
+       discriminate is what let a widget cycle colours onto colliding
+       wedges for months. If you need a fourth, see the note above. */
+    --chart-1: var(--cat-1);
+    --chart-2: var(--cat-2);
+    --chart-3: var(--cat-3);
+
+    /* Muscle regions — the same three hues under domain names. Mapping
+       and the reason it is regions rather than muscles:
+       src/lib/muscleRegions.js */
+    --region-pull:  var(--cat-1);
+    --region-push:  var(--cat-2);
+    --region-legs:  var(--cat-3);
+    --region-other: var(--cat-neutral);
     --radius: 0.75rem;
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 210 18% 25%;
@@ -229,18 +245,31 @@
     --border: 210 18% 20%;
     --input: 210 18% 20%;
     --ring: 26 90% 52%;
-    --chart-1: 26 90% 52%;
-    --chart-2: 210 18% 40%;
-    --chart-3: 26 70% 68%;
-    --chart-4: 210 18% 55%;
-    --chart-5: 0 72% 55%;
-    /* Dark is SELECTED, not a flip of light: the same three hues stepped
-       for the dark card and re-validated against it. All five checks pass
-       here including contrast, which is the one light mode warns on. */
-    --region-push:  213 77% 56%;   /* #3987E5 */
-    --region-pull:  17 70% 50%;    /* #D95926 */
-    --region-legs:  159 73% 36%;   /* #199E70 */
-    --region-other: 210 10% 58%;   /* #8A95A0 */
+    /* Dark is SELECTED, not a flip: the same three hues re-stepped for
+       the dark card and re-validated against it. All five checks pass
+       here, including the contrast that light mode warns on.
+
+       --cat-1 is NOT --primary here and that is the one deliberate break
+       from the brand value. The brand orange measures OKLCH L 0.701 on
+       this surface, above the 0.67 dark ceiling, so it fails the
+       lightness band outright. 45% is the LIGHTEST step of the same hue
+       that lands in band, and it also happens to give the best CVD
+       separation of the passing candidates (11.2 vs 10.0 at 42%). A
+       button and a chart mark are lit differently; this is what "dark is
+       selected" means in practice. */
+    --cat-1: 26 90% 45%;        /* #DA650B */
+    --cat-2: 213 77% 56%;       /* #3987E5 */
+    --cat-3: 159 73% 36%;       /* #199E70 */
+    --cat-neutral: 210 10% 58%; /* #8A95A0 */
+
+    --chart-1: var(--cat-1);
+    --chart-2: var(--cat-2);
+    --chart-3: var(--cat-3);
+
+    --region-pull:  var(--cat-1);
+    --region-push:  var(--cat-2);
+    --region-legs:  var(--cat-3);
+    --region-other: var(--cat-neutral);
     --sidebar-background: 210 18% 9%;
     --sidebar-foreground: 30 20% 95%;
     --sidebar-primary: 26 90% 52%;

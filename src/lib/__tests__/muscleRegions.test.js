@@ -112,17 +112,78 @@ describe('the palette is defined for both themes', () => {
     expect(dark).toContain(`--region-${r}:`);
   });
 
+  it.each(['1', '2', '3', 'neutral'])('--cat-%s has its own step per mode', (n) => {
+    // Dark is SELECTED, not a flip — each mode carries its own value.
+    // --cat-1 in particular is NOT --primary in dark: the brand orange
+    // measures L 0.701 there, above the 0.67 ceiling, so it fails the
+    // lightness band outright and is re-stepped to 45%.
+    expect(light).toMatch(new RegExp(`--cat-${n}:\\s*\\d`));
+    expect(dark).toMatch(new RegExp(`--cat-${n}:\\s*\\d`));
+  });
+
+  it('is ONE palette — chart and region slots share the same values', () => {
+    // Two ramps invented independently is how the old one drifted: the
+    // chart ramp failed the chroma floor in both modes and had --chart-1
+    // bit-for-bit identical to --primary, while nothing checked either.
+    // Both sets now reference --cat-*, so they cannot diverge.
+    for (const mode of [light, dark]) {
+      for (const n of [1, 2, 3]) {
+        expect(mode).toMatch(new RegExp(`--chart-${n}:\\s*var\\(--cat-${n}\\)`));
+      }
+      for (const [region, cat] of [['pull', 1], ['push', 2], ['legs', 3]]) {
+        expect(mode).toMatch(new RegExp(`--region-${region}:\\s*var\\(--cat-${cat}\\)`));
+      }
+      expect(mode).toMatch(/--region-other:\s*var\(--cat-neutral\)/);
+    }
+  });
+
+  it('has NO fourth or fifth categorical slot', () => {
+    // Three is the measured ceiling (see --cat-* in index.css). Slots 4
+    // and 5 existed, did not discriminate, and were what let a widget
+    // cycle colours onto colliding wedges. Their absence is the fix, so
+    // it is the thing worth pinning — a declaration is an invitation.
+    expect(css).not.toMatch(/^\s*--chart-4:/m);
+    expect(css).not.toMatch(/^\s*--chart-5:/m);
+
+    const tw = fs.readFileSync('tailwind.config.js', 'utf8');
+    const chartBlock = tw.slice(tw.indexOf('chart: {'), tw.indexOf('}', tw.indexOf('chart: {')));
+    expect(chartBlock).toContain("'3'");
+    expect(chartBlock).not.toContain("'4'");
+    expect(chartBlock).not.toContain("'5'");
+  });
+
+  it('nothing in the app still reaches for a removed slot', () => {
+    // A stale `text-chart-4` emits no CSS at all now — Tailwind's scanner
+    // finds no such class — so the element silently renders unstyled
+    // rather than failing. That is invisible in review, hence a test.
+    const hits = [];
+    (function walk(dir) {
+      for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+        const p = `${dir}/${e.name}`;
+        // Skip __tests__ — this very file names the removed slots in a
+        // regex, so scanning itself is a guaranteed self-hit.
+        if (e.isDirectory()) { if (e.name !== '__tests__') walk(p); continue; }
+        if (!/\.jsx?$/.test(e.name)) continue;
+        const src = fs.readFileSync(p, 'utf8')
+          .replace(/\/\*[\s\S]*?\*\//g, '')
+          .replace(/^\s*\/\/.*$/gm, '');
+        if (/chart-[45]/.test(src)) hits.push(p);
+      }
+    })('src');
+    expect(hits, `these still use a removed chart slot: ${hits.join(', ')}`).toEqual([]);
+  });
+
   it('declares three hues and exactly one neutral', () => {
     // The neutral is what marks a remainder rather than an identity, and
     // it is the reason only three regions carry a hue. If a fourth hue
     // ever appears here, the all-pairs measurement in muscleRegions.js
     // says it will not be distinguishable — re-run the validator first.
-    const sat = (mode, r) => Number(
-      mode.match(new RegExp(`--region-${r}:\\s*[\\d.]+\\s+([\\d.]+)%`))[1],
+    const sat = (mode, n) => Number(
+      mode.match(new RegExp(`--cat-${n}:\\s*[\\d.]+\\s+([\\d.]+)%`))[1],
     );
     for (const mode of [light, dark]) {
-      expect(sat(mode, 'other')).toBeLessThan(15);
-      for (const r of ['push', 'pull', 'legs']) expect(sat(mode, r)).toBeGreaterThan(50);
+      expect(sat(mode, 'neutral')).toBeLessThan(15);
+      for (const n of [1, 2, 3]) expect(sat(mode, n)).toBeGreaterThan(50);
     }
   });
 });

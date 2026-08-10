@@ -3,12 +3,25 @@ import { Card } from '@/components/ui/card';
 import { CheckCircle2, AlertTriangle, Lightbulb, ShieldAlert } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
 
-const SCORE_COLORS = {
-  excellent: 'text-accent',
-  good: 'text-chart-4',
-  needswork: 'text-chart-5',
-  poor: 'text-destructive',
-};
+// A SCORE_COLORS map used to sit here — excellent / good / needswork /
+// poor against `text-accent` / `text-chart-4` / `text-chart-5` /
+// `text-destructive`. It is gone rather than fixed, for two reasons that
+// only showed up once the chart ramp was audited.
+//
+// It was DEAD: nothing in the file ever read it, so the four-level scale
+// it described had never rendered. And it could not have been wired up
+// safely, because the only thing to key it on is `form_rating`, which is
+// free text — 'Excellent' | 'Good' | 'Needs Work' | 'Poor' from
+// formCoach/rules.js, but also 'No body detected', 'Couldn't analyze'
+// and a translated `t('formcoach.analysisFailed')`. Keying colour off a
+// translatable string means it silently stops matching in 14 languages.
+//
+// It was also two colours pretending to be four: `accent` and `chart-4`
+// are both slate, `chart-5` and `destructive` are both red. So the one
+// distinction the colour existed to make was the one it lost.
+//
+// `overall_score` is a number, so ScoreRing keys on that instead — which
+// is i18n-proof and is the scale users actually see.
 
 function ScoreRing({ score }) {
   const pct = (score / 10) * 100;
@@ -16,7 +29,15 @@ function ScoreRing({ score }) {
   const circ = 2 * Math.PI * r;
   const dash = (pct / 100) * circ;
 
-  const color = score >= 8 ? '#2dd4a0' : score >= 6 ? '#facc15' : score >= 4 ? '#fb923c' : '#ef4444';
+  // The SAME scale as SCORE_COLORS above, which it previously contradicted:
+  // this was four hardcoded hexes — a green, an amber, an orange and a red —
+  // so the ring and the rating text beside it could disagree about the same
+  // score, and one of them was amber, the hue index.css says the system
+  // deliberately does not have. Hardcoded hex also ignores the theme.
+  const color =
+    score >= 6 ? 'hsl(var(--success))'
+    : score >= 4 ? 'hsl(var(--primary))'
+    : 'hsl(var(--destructive))';
 
   return (
     <div className="relative w-20 h-20 flex items-center justify-center">
@@ -76,13 +97,13 @@ export default function FeedbackPanel({ feedback, exercise }) {
         {corrections.length > 0 && (
           <div>
             <div className="flex items-center gap-2 mb-2">
-              <AlertTriangle className="w-4 h-4 text-chart-4" />
+              <AlertTriangle className="w-4 h-4 text-primary" />
               <p className="text-sm font-semibold">{t('formcoach.corrections')}</p>
             </div>
             <ul className="space-y-1.5">
               {corrections.map((c, i) => (
                 <li key={i} className="text-sm text-muted-foreground flex gap-2">
-                  <span className="text-chart-4 mt-0.5">→</span>
+                  <span className="text-primary mt-0.5">→</span>
                   <span>{c}</span>
                 </li>
               ))}

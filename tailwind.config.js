@@ -115,12 +115,16 @@ module.exports = {
   			border: 'hsl(var(--border))',
   			input: 'hsl(var(--input))',
   			ring: 'hsl(var(--ring))',
+  			// Three slots, not five. The count is a measurement — see the
+  			// note over --cat-* in index.css. `chart-4` / `chart-5` were
+  			// removed rather than left unused: an available class is an
+  			// invitation, and the two things reaching for them were using
+  			// the ramp for STATE and for decoration, neither of which is
+  			// what a categorical palette is.
   			chart: {
   				'1': 'hsl(var(--chart-1))',
   				'2': 'hsl(var(--chart-2))',
-  				'3': 'hsl(var(--chart-3))',
-  				'4': 'hsl(var(--chart-4))',
-  				'5': 'hsl(var(--chart-5))'
+  				'3': 'hsl(var(--chart-3))'
   			},
   			sidebar: {
   				DEFAULT: 'hsl(var(--sidebar-background))',

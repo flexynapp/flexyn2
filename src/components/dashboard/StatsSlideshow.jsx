@@ -235,7 +235,7 @@ function buildStatSlides(logs, goals, weightUnit, language) {
     return s;
   })();
   slides.push({
-    id: 'streak', icon: Zap, iconColor: 'text-chart-4', iconBg: 'bg-chart-4/10',
+    id: 'streak', icon: Zap, iconColor: 'text-primary', iconBg: 'bg-primary/10',
     value: streak, label: 'Day Streak',
     sub: streak > 0 ? "You're on fire" : 'Start your streak today',
   });
@@ -246,7 +246,7 @@ function buildStatSlides(logs, goals, weightUnit, language) {
   if (topEx) {
     const topExDisplay = translateExerciseName(topEx[0], language);
     slides.push({
-      id: 'trending', icon: TrendingUp, iconColor: 'text-chart-3', iconBg: 'bg-chart-3/10',
+      id: 'trending', icon: TrendingUp, iconColor: 'text-success', iconBg: 'bg-success/10',
       value: topExDisplay.length > 14 ? topExDisplay.slice(0, 14) + '…' : topExDisplay,
       label: 'Trending This Week', sub: `Logged ${topEx[1]}x this week`, small: true,
     });
