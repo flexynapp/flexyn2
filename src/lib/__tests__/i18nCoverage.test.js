@@ -118,8 +118,8 @@ describe('partial-gap ratchet', () => {
   // extracted OUT of JSX into keys. That penalised the workflow CLAUDE.md
   // prescribes ("ship English-only with a TODO(i18n)") and rewarded leaving
   // copy hardcoded, where no audit could see it at all. The cardio
-  // extraction cost a notch (0.80 → 0.79) for 18 keys; onboarding's 237
-  // would have cost ten points, for a change that took the flow from
+  // extraction cost a notch (0.80 → 0.79) for 18 keys; onboarding's 237 NEW
+  // ones would have cost ten points, for a change that took the flow from
   // untranslatable to translatable and left not one user-visible string
   // different.
   //
@@ -135,9 +135,16 @@ describe('partial-gap ratchet', () => {
   //   • A partial translation does not belong here. Finish it or leave it
   //     counted.
   const AWAITING_TRANSLATION = [
-    // Onboarding flow — extracted from JSX 2026-08-05 (audit 18 #6). 237 keys,
-    // the first thing every new user reads, so CLAUDE.md forbids machine
+    // Onboarding flow — extracted from JSX 2026-08-05 (audit 18 #6). The
+    // first thing every new user reads, so CLAUDE.md forbids machine
     // translation outright. Needs a native pass in 14 languages.
+    //
+    // This prefix exempts the WHOLE namespace, which is **275 keys** today.
+    // The "237" in the preamble above is a different number and is correct:
+    // that extraction ADDED 237 (87 → 324 in one commit, measured against
+    // dfc41585^), which is the cost the old total-coverage metric would have
+    // charged it. The namespace has since been trimmed 324 → 275. Two counts,
+    // both right — don't reconcile them by editing one to match the other.
     //
     // WHEN THIS PREFIX GOES, RAISE `FLOOR` TO 0.80 (kegan, 2026-08-10).
     // Deleting it here is already forced — the stale-prefix guard above
