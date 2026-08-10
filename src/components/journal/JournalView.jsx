@@ -18,70 +18,22 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { format, subDays, addDays } from 'date-fns';
 import {
   ChevronLeft, ChevronRight, List, Bold, Mic, MicOff,
-  Paperclip, X, Loader2, History, FileText, Plus,
+  Paperclip, X, Loader2, History, FileText,
 } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/lib/toast';
 import { useLanguage } from '@/lib/LanguageContext';
 import { startDictation, isVoiceInputSupported } from '@/lib/voiceInput';
 import {
-  getEntry, upsertEntry, uploadAttachment, deleteAttachment, migrateLocalEntries, listEntries, tagMood,
+  getEntry, upsertEntry, uploadAttachment, deleteAttachment, migrateLocalEntries, listEntries,
 } from '@/lib/data/journal';
-import { MOOD_EMOJIS, MOOD_LABELS, upsertMoodLog } from '@/lib/data/moodLogs';
+import { MOOD_EMOJIS, MOOD_LABELS } from '@/lib/data/moodLogs';
+import { logMoodAction } from '@/lib/data/logMoodAction';
 import { getDayContext, contextChips } from '@/lib/data/dayContext';
 import { editability, EDIT_WINDOW_DAYS } from '@/lib/journalEditWindow';
 import { provenanceLabel } from '@/lib/journalProvenance';
 import { tileRow } from '@/lib/tileRows';
 import { insertDictation } from '@/lib/journalDictation';
-
-// ── Mood chip ─────────────────────────────────────────────────────────────────
-// mood_score has been on journal_entries since migration 165 and shown
-// nowhere on this screen — written by a tap on the dashboard's MoodLogCard
-// and read by nothing here. It sits on the day now, dashed when unset.
-//
-// Tapping expands the SAME five steps MoodLogCard uses; a second scale would
-// be a second answer to the same question.
-function MoodChip({ score, editable, busy, onPick, tFallback }) {
-  const [open, setOpen] = useState(false);
-  const emoji = score ? MOOD_EMOJIS[score - 1] : null;
-
-  if (open && editable) {
-    return (
-      <div className="flex items-center gap-1" data-no-swipe>
-        {MOOD_EMOJIS.map((e, i) => (
-          <button
-            key={e}
-            onClick={() => { setOpen(false); onPick(i + 1); }}
-            aria-label={tFallback(`mood.label.${i + 1}`, MOOD_LABELS[i])}
-            className={`w-8 h-8 rounded-full flex items-center justify-center text-lg transition-colors ${
-              score === i + 1 ? 'bg-secondary' : 'hover:bg-secondary active:bg-secondary'
-            }`}
-          >
-            {e}
-          </button>
-        ))}
-      </div>
-    );
-  }
-
-  const label = score
-    ? `${tFallback('journal.feltLabel', 'You felt')} ${tFallback(`mood.label.${score}`, MOOD_LABELS[score - 1])}`
-    : tFallback('journal.setMood', 'Log a mood');
-
-  return (
-    <button
-      onClick={() => editable && setOpen(true)}
-      disabled={!editable && !score}
-      aria-label={label}
-      title={label}
-      data-no-swipe
-      className={`w-11 h-11 shrink-0 rounded-full flex items-center justify-center text-xl transition-colors ${
-        emoji ? 'bg-secondary' : 'border border-dashed border-border text-muted-foreground'
-      } ${editable ? 'active:opacity-70' : ''}`}
-    >
-      {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : (emoji || <Plus className="w-4 h-4" />)}
-    </button>
-  );
-}
 
 // ── A mood IS an entry, on ANY day ────────────────────────────────────────────
 // This block used to live inside the read-only branch, which was fine while
@@ -111,6 +63,7 @@ function MoodEntry({ score, tFallback, explain }) {
   );
 }
 
+import MoodChip from './MoodChip';
 import MarkdownBody from './MarkdownBody';
 import JournalHistoryModal from './JournalHistoryModal';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
@@ -132,6 +85,7 @@ export default function JournalView({ userId, userEmail, onClose, initialDate })
   // Pin the page behind this overlay — see @/lib/scrollLock.
   useBodyScrollLock();
   const { tFallback } = useLanguage();
+  const qc = useQueryClient();
   // `initialDate` lets a caller open straight to a day (YYYY-MM-DD). Parsed
   // as a LOCAL midnight, never `new Date('2026-08-09')`, which the spec
   // reads as UTC and lands on the previous day west of Greenwich.
@@ -699,13 +653,15 @@ export default function JournalView({ userId, userEmail, onClose, initialDate })
     const previous = moodScore;
     setMoodScore(score);           // optimistic
     setMoodBusy(true);
-    const res = await upsertMoodLog({ mood: score, date: dateStr }).catch(() => ({ ok: false }));
-    if (res?.ok) {
-      await tagMood(userId, userEmail, score, dateStr).catch(() => {});
-    } else {
-      setMoodScore(previous);
-      toast.error(tFallback('mood.saveFailed', 'Could not save mood — try again.'));
-    }
+    // logMoodAction, not a bare upsert. This wrote mood_logs and tagged the
+    // journal row and stopped there — two of the five things a logged mood
+    // owes — so a mood set from here did not move the Readiness score, left
+    // the dashboard widget stale, and never credited the MOOD_LOGGED quest.
+    // The same tap paid out from MoodLogCard and not from here.
+    const res = await logMoodAction({
+      user: { id: userId, email: userEmail }, mood: score, date: dateStr, qc, t: tFallback,
+    });
+    if (!res.ok) setMoodScore(previous);
     setMoodBusy(false);
   };
 

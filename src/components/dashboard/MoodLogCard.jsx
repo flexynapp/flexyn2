@@ -8,14 +8,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { toast } from '@/lib/toast';
 import { Card } from '@/components/ui/card';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
-import { upsertMoodLog, getTodayMoodLog, MOOD_EMOJIS, MOOD_LABELS } from '@/lib/data/moodLogs';
-import * as quests from '@/lib/data/quests';
-import { ACTION_TYPES } from '@/lib/questCatalog';
-import { tagMood } from '@/lib/data/journal';
+import { getTodayMoodLog, MOOD_EMOJIS, MOOD_LABELS } from '@/lib/data/moodLogs';
+import { logMoodAction } from '@/lib/data/logMoodAction';
 
 export default function MoodLogCard() {
   const { user } = useAuth();
@@ -88,33 +85,18 @@ export default function MoodLogCard() {
     const priorServerMood = today?.mood ?? null;
     setOptimistic(mood); // optimistic
     try {
-      const res = await upsertMoodLog({ mood });
+      // The five steps a logged mood owes — mood_logs, the Readiness
+      // invalidation, the journal tag, the widget invalidation and the
+      // quest credit — live in one place now, because two of the three
+      // surfaces that log a mood were doing only some of them. See
+      // logMoodAction.js.
+      const res = await logMoodAction({ user, mood, date: todayDateKey, qc, t: tFallback });
       if (!mountedRef.current) return; // bail if unmounted mid-request
-      if (res.ok) {
-        // 2-element PREFIX, not this card's 3-element key: React Query
-        // prefix-matches downwards only, so the shorter form reaches both
-        // this card AND useReadiness's ['moodLogToday', uid]. Invalidating
-        // the longer key reached neither, which is how a logged mood never
-        // got into the Readiness score. Guarded by
-        // src/components/__tests__/logCardInvalidationKeys.test.js.
-        qc.invalidateQueries({ queryKey: ['moodLogToday', user?.id] });
-        // Auto-tag today's journal entry with the mood score so the
-        // journal widget (and history log) surface the emoji for that day.
-        // Fire-and-forget — journal tagging failure is non-fatal.
-        tagMood(user.id, user.email, mood, todayDateKey).catch(() => {});
-        qc.invalidateQueries({ queryKey: ['journalEntry', user?.id] });
-        // Quest progress — non-blocking. Safe to fire on every tap: the
-        // quest's target is 1 and recordActions skips rows already at
-        // target, so changing your mood three times still counts once.
-        quests.recordAction(user, ACTION_TYPES.MOOD_LOGGED, 1)
-          .then(() => qc.invalidateQueries({ queryKey: ['dailyQuests'] }))
-          .catch(() => {});
-      } else {
+      if (!res.ok) {
         // Revert to the value we showed before the tap, not whatever
         // `today` happens to hold after the await — those can diverge
         // when a refetch lands during the in-flight save.
         setOptimistic(priorOptimistic ?? priorServerMood);
-        toast.error(tFallback('mood.saveFailed', 'Could not save mood — try again.'));
       }
     } finally {
       submittingRef.current = false;

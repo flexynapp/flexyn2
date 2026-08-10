@@ -18,6 +18,12 @@
 // mismatch between two files, and a render test would need the real cards, the
 // real hook and a shared QueryClient to reproduce what one regex states
 // directly.
+//
+// Because it scans SOURCE, moving a write to a new file makes this fail even
+// when the behaviour is unchanged — which is what happened when the mood write
+// moved into logMoodAction.js. That is the guard working: it is asserting where
+// the invalidation is, and the answer changed. Point it at the new file; never
+// relax the assertion.
 
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
@@ -27,9 +33,16 @@ import { fileURLToPath } from 'url';
 const SRC = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const read = (rel) => readFileSync(resolve(SRC, rel), 'utf8');
 
-// Cards that write a daily log, and the readers that must hear about it.
+// Where a daily log is WRITTEN, and the readers that must hear about it.
+//
+// Mood is `lib/data/logMoodAction.js`, not MoodLogCard: three surfaces log a
+// mood now (the card, the journal day screen, the dashboard journal widget)
+// and they share one action, because two of them were doing only some of the
+// five things a logged mood owes. This guard follows the invalidation to
+// wherever it lives — if it moves again, move this entry with it rather than
+// deleting the case.
 const WRITERS = [
-  'components/dashboard/MoodLogCard.jsx',
+  'lib/data/logMoodAction.js',
   'components/dashboard/SleepLogCard.jsx',
   'components/dashboard/StepsLogCard.jsx',
 ];
@@ -89,7 +102,7 @@ describe('daily-log cards invalidate a key their readers can hear', () => {
 
   it('mood specifically invalidates the readiness-visible prefix', () => {
     // The regression that prompted this file, stated plainly.
-    const inv = invalidationsIn(read('components/dashboard/MoodLogCard.jsx'))
+    const inv = invalidationsIn(read('lib/data/logMoodAction.js'))
       .filter(k => k.name === 'moodLogToday');
     expect(inv.length).toBeGreaterThan(0);
     for (const k of inv) expect(k.length).toBe(2);

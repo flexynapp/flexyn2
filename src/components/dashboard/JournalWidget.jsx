@@ -15,8 +15,10 @@ import { Card } from '@/components/ui/card';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { getEntry, saveBody } from '@/lib/data/journal';
-import { MOOD_EMOJIS, MOOD_LABELS } from '@/lib/data/moodLogs';
+import { MOOD_LABELS } from '@/lib/data/moodLogs';
 import { requestOpenJournal } from '@/lib/journalOverlay';
+import { logMoodAction } from '@/lib/data/logMoodAction';
+import MoodChip from '@/components/journal/MoodChip';
 
 // Derive today's date string in local time (same logic as MoodLogCard).
 function getTodayStr() {
@@ -138,10 +140,22 @@ export default function JournalWidget({ userId, userEmail }) {
     }
   };
 
+  // Optimistic, with a revert — the same shape MoodLogCard uses, because a
+  // mood tap that appears to do nothing for a second reads as a dead card.
+  const [moodOptimistic, setMoodOptimistic] = useState(null);
+  const [moodBusy, setMoodBusy] = useState(false);
+  const handleMood = async (score) => {
+    const previous = moodOptimistic;
+    setMoodOptimistic(score);
+    setMoodBusy(true);
+    const res = await logMoodAction({ user: { id: uid, email }, mood: score, date: todayStr, qc, t: tFallback });
+    if (!res.ok) setMoodOptimistic(previous);
+    setMoodBusy(false);
+  };
+
   if (!uid) return null;
 
-  const moodScore   = entry?.mood_score ?? null;
-  const moodEmoji   = moodScore ? (MOOD_EMOJIS[moodScore - 1] ?? null) : null;
+  const moodScore   = moodOptimistic ?? entry?.mood_score ?? null;
   const hasContent  = !!(entry?.title || entry?.body?.trim());
   const snippet     = entry?.body
     ? entry.body.replace(/[#*_>-]/g, '').replace(/\s+/g, ' ').trim().slice(0, 100)
@@ -160,7 +174,10 @@ export default function JournalWidget({ userId, userEmail }) {
       transition={{ duration: 0.3 }}
     >
       <Card className="px-3 py-2.5 flex flex-col gap-1.5">
-        {/* Header row */}
+        {/* Header row. The chip is a SIBLING of the expand button, not a
+            child: it is interactive, and nesting a button inside a button
+            is invalid and swallows the inner tap. */}
+        <div className="flex items-center gap-2">
         <button
           type="button"
           onClick={() => {
@@ -174,11 +191,6 @@ export default function JournalWidget({ userId, userEmail }) {
             <span className="text-micro font-bold tracking-[0.04em] text-muted-foreground">
               {tFallback('journal.widgetLabel', "Today's Journal")}
             </span>
-            {moodEmoji && (
-              <span className="text-sm leading-none" title={tFallback('journal.mood', 'Mood')}>
-                {moodEmoji}
-              </span>
-            )}
           </div>
           <div className="shrink-0 flex items-center gap-1 text-muted-foreground/50 group-hover:text-muted-foreground transition-colors">
             {attachmentCount > 0 && (
@@ -189,6 +201,18 @@ export default function JournalWidget({ userId, userEmail }) {
               : <ChevronDown className="w-3.5 h-3.5" />}
           </div>
         </button>
+        {/* The mood was DISPLAY-ONLY here, and its only setter lives inside
+            the Readiness sheet — two taps away behind a ring. Same chip and
+            same action as the journal day screen, so the control, the scale
+            and the five writes are identical wherever you tap it. */}
+        <MoodChip
+          score={moodScore}
+          editable
+          busy={moodBusy}
+          onPick={handleMood}
+          tFallback={tFallback}
+        />
+        </div>
 
         {/* Collapsed preview */}
         {!expanded && !isLoading && (
