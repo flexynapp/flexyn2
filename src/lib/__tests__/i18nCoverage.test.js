@@ -152,6 +152,16 @@ describe('partial-gap ratchet', () => {
     // rather than somewhere it would be read too late. The measurement is
     // in the FLOOR comment below; you do not need to re-derive it.
     'onboarding.',
+    // Body heat map — extracted from JSX 2026-08-10. Progress → Body had
+    // ZERO translation calls: every string on the tab was an English
+    // literal, so all 15 languages already read English there. The keys
+    // change nothing on screen and make the tab translatable for the first
+    // time. Prose (the three headlines and their body copy), so CLAUDE.md
+    // forbids machine translation; needs a native pass in 14 languages.
+    //
+    // Scoped `bodyMap.` and NOT `body.` — `body.` would swallow the
+    // body-metrics namespace next door, which is translated.
+    'bodyMap.',
     // League activity gating — new namespace, migration 310 (2026-08-08).
     // Qualification and promote/demote zone copy. Named `league.gate.` rather
     // than dropped loose under `league.` precisely so this exemption cannot

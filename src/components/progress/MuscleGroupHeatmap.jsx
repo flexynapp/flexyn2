@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { FRONT_GROUPS, BACK_GROUPS } from './muscleAnatomy';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { useLanguage } from '@/lib/LanguageContext';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { fromLbs } from '@/lib/weightUnit';
 
@@ -34,6 +35,41 @@ const FINE_IDS = Object.keys(FINE);
 const PARENT = {};
 Object.entries(COARSE_TO_FINE).forEach(([cg, fs]) => fs.forEach((f) => { PARENT[f] = cg; }));
 
+/* The names above are the ENGLISH data, and they stay that way: buildMuscles
+   is exported and tested, and a locale-dependent data layer would mean the
+   same log produced different objects for different users. Translation
+   happens at render, through these two tables.
+
+   Thirteen of the fourteen muscles already ship in all 15 languages under
+   `muscleGroups.*` — eight other surfaces read them there — so this maps to
+   that namespace rather than restating it. Only `lowerback` has no key
+   there, and only Push/Pull among the regions (Legs and Core do). Those
+   three live in i18n-body-map.js; see its header for how to retire them. */
+const MUSCLE_KEY = {
+  chest: 'muscleGroups.chest', shoulders: 'muscleGroups.shoulders',
+  triceps: 'muscleGroups.triceps', biceps: 'muscleGroups.biceps',
+  forearms: 'muscleGroups.forearms', traps: 'muscleGroups.traps',
+  lats: 'muscleGroups.lats', lowerback: 'bodyMap.muscle.lowerBack',
+  abs: 'muscleGroups.abs', obliques: 'muscleGroups.obliques',
+  glutes: 'muscleGroups.glutes', quads: 'muscleGroups.quads',
+  hamstrings: 'muscleGroups.hamstrings', calves: 'muscleGroups.calves',
+};
+/* Push and Pull come from `regions.*` (i18n-regions.js), which named them
+   for the muscle-group colour encoding. Legs and Core keep their
+   `muscleGroups.*` keys — those already ship in 15 languages, where
+   `regions.*` is English-only — and `regions.other` is deliberately NOT
+   used: it means "core and the things that aren't a push/pull/legs axis",
+   which is a remainder bucket. This tab's fourth region is Core exactly. */
+const REGION_KEY = {
+  Push: 'regions.push', Pull: 'regions.pull',
+  Legs: 'muscleGroups.legs', Core: 'muscleGroups.core',
+};
+/* Both take tFallback rather than calling a hook, so the detail sheet and
+   the list can share them without either owning the lookup. The English
+   name already on the muscle record is the fallback. */
+const muscleName = (tf, m, id) => tf(MUSCLE_KEY[id], m.name);
+const regionName = (tf, region) => tf(REGION_KEY[region], region);
+
 /* Three vocabularies reach this component and only one of them is what
    COARSE_TO_FINE is keyed on. The exercise library (ExerciseAutocomplete)
    writes capitalised coarse names — 'Chest', 'Legs'. The AI Coach
@@ -64,7 +100,17 @@ COARSE_KEYS.forEach((k) => { GROUP_LOOKUP[k.toLowerCase()] = [k]; });
 Object.entries(GROUP_ALIASES).forEach(([k, v]) => { GROUP_LOOKUP[k] = v; });
 const coarseKeysFor = (raw) => GROUP_LOOKUP[String(raw || '').trim().toLowerCase()] || [];
 
-const RANGE_DAYS = { '7D': 7, '30D': 30, '90D': 90 };
+/* The three windows in one place: the id the state holds, the days it
+   means, and the two labels it renders under — the chip, and the short form
+   the ranked-list kicker and the detail sheet's stat tiles print. The short
+   form used to be the raw state id, so '30D' reached the screen untranslated
+   in all 15 languages. */
+const RANGES = [
+  { id: '7D', days: 7, key: 'bodyMap.range.7d', en: '7 DAYS', shortKey: 'bodyMap.rangeShort.7d', shortEn: '7D' },
+  { id: '30D', days: 30, key: 'bodyMap.range.30d', en: '30 DAYS', shortKey: 'bodyMap.rangeShort.30d', shortEn: '30D' },
+  { id: '90D', days: 90, key: 'bodyMap.range.90d', en: '90 DAYS', shortKey: 'bodyMap.rangeShort.90d', shortEn: '90D' },
+];
+const RANGE_DAYS = Object.fromEntries(RANGES.map((r) => [r.id, r.days]));
 
 /* Recovery %: 0 right after training → 100 fully rested, ramping smoothly
    over a muscle-size-dependent window (bigger muscles recover slower). An
@@ -74,7 +120,12 @@ const recoveryPct = (days, region) => (
   days == null ? 100 : Math.min(100, Math.round((days / (RECOV_DAYS[region] || 3)) * 100))
 );
 
-const exName = (ex) => ex.name || ex.exercise_name || ex.exercise || 'Exercise';
+/* A log entry with no name at all. This is a KEY in the top-exercises tally
+   and it comes out of an exported, tested function, so it stays a stable
+   token rather than a translated string — the sheet swaps it for
+   `bodyMap.detail.unnamedExercise` at render. */
+export const UNNAMED_EXERCISE = 'Exercise';
+const exName = (ex) => ex.name || ex.exercise_name || ex.exercise || UNNAMED_EXERCISE;
 
 /* Build the per-muscle dataset from real logs for the active range.
    Exported for tests: this is the only place the three writer
@@ -310,9 +361,12 @@ const volumeText = (lbs, unit) => {
 };
 
 /* ---- detail sheet (fixed bottom-sheet overlay) ----------- */
-function DetailSheet({ muscles, id, range, onClose, weightUnit }) {
+function DetailSheet({ muscles, id, rangeLabel, onClose, weightUnit }) {
   // Pin the page behind this overlay — see @/lib/scrollLock.
   useBodyScrollLock(!!id);
+  // Both hooks sit above the early return — a conditional hook changes the
+  // hook count between renders and React throws.
+  const { tFallback } = useLanguage();
   if (!id) return null;
   const m = muscles[id];
   const fatigue = (100 - m.recovery) / 100;
@@ -325,9 +379,9 @@ function DetailSheet({ muscles, id, range, onClose, weightUnit }) {
      the red measured ~3.3:1, under AA. The tokens already carry a
      per-theme value for exactly this reason, and these are the hues the
      colour budget assigns: earned/on-track, effort, danger. */
-  const status = m.recovery >= 75 ? { t: 'Ready to train', v: '--success' }
-    : m.recovery >= 50 ? { t: 'Recovering', v: '--primary' }
-      : { t: 'Needs rest', v: '--destructive' };
+  const status = m.recovery >= 75 ? { k: 'bodyMap.status.ready', en: 'Ready to train', v: '--success' }
+    : m.recovery >= 50 ? { k: 'bodyMap.status.recovering', en: 'Recovering', v: '--primary' }
+      : { k: 'bodyMap.status.needsRest', en: 'Needs rest', v: '--destructive' };
   const statusColor = `hsl(var(${status.v}))`;
   const statusTint = `hsl(var(${status.v}) / 0.12)`;
   const r = 30, c = 2 * Math.PI * r;
@@ -354,46 +408,60 @@ function DetailSheet({ muscles, id, range, onClose, weightUnit }) {
             </svg>
             <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
               <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 20, letterSpacing: '-0.03em', lineHeight: 1 }}>{m.recovery}</div>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 7.5, fontWeight: 700, letterSpacing: '0.1em', color: 'hsl(var(--muted-foreground))' }}>RECOV</div>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 7.5, fontWeight: 700, letterSpacing: '0.1em', color: 'hsl(var(--muted-foreground))' }}>{tFallback('bodyMap.detail.recov', 'RECOV')}</div>
             </div>
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <Kicker>{m.region}{m.last != null ? ` · ${m.last}d ago` : ' · untrained'}</Kicker>
-            <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 26, letterSpacing: '-0.03em', lineHeight: 1.05, marginTop: 3 }}>{m.name}</div>
+            <Kicker>
+              {regionName(tFallback, m.region)}
+              {' · '}
+              {m.last != null
+                ? tFallback('bodyMap.detail.daysAgo', '{n}d ago', { n: m.last })
+                : tFallback('bodyMap.detail.untrained', 'untrained')}
+            </Kicker>
+            <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 26, letterSpacing: '-0.03em', lineHeight: 1.05, marginTop: 3 }}>{muscleName(tFallback, m, id)}</div>
             <div style={{
               display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 8, padding: '4px 10px', borderRadius: 999,
               background: statusTint,
             }}>
               <span style={{ width: 7, height: 7, borderRadius: 999, background: statusColor }} />
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 800, letterSpacing: '0.08em', color: statusColor }}>{status.t}</span>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 800, letterSpacing: '0.08em', color: statusColor }}>{tFallback(status.k, status.en)}</span>
             </div>
           </div>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8, marginTop: 18 }}>
+          {/* `key` is the id, not the label — a translated label is not a
+              stable React key and would remount the tile on a language
+              change. */}
           {[
-            { l: 'SETS', v: m.sets, u: '' },
-            { l: 'VOLUME', v: volTxt, u: weightUnit === 'lbs' ? 'lb' : weightUnit },
-            { l: 'LAST', v: m.last != null ? m.last : '—', u: m.last != null ? 'd ago' : '' },
+            { k: 'sets', l: tFallback('bodyMap.detail.sets', 'SETS'), v: m.sets, u: '' },
+            { k: 'volume', l: tFallback('bodyMap.detail.volume', 'VOLUME'), v: volTxt, u: weightUnit === 'lbs' ? 'lb' : weightUnit },
+            {
+              k: 'last',
+              l: tFallback('bodyMap.detail.last', 'LAST'),
+              v: m.last != null ? m.last : '—',
+              u: m.last != null ? tFallback('bodyMap.detail.daysAgoUnit', 'd ago') : '',
+            },
           ].map((s) => (
-            <div key={s.l} style={{ background: 'hsl(var(--secondary))', borderRadius: 13, padding: '11px 12px' }}>
+            <div key={s.k} style={{ background: 'hsl(var(--secondary))', borderRadius: 13, padding: '11px 12px' }}>
               <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 19, letterSpacing: '-0.02em', fontVariantNumeric: 'tabular-nums' }}>
                 {s.v}<span style={{ fontSize: 10, fontWeight: 600, color: 'hsl(var(--muted-foreground))', marginLeft: 2 }}>{s.u}</span>
               </div>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 8.5, fontWeight: 700, letterSpacing: '0.14em', color: 'hsl(var(--muted-foreground))', marginTop: 3 }}>{s.l} · {range}</div>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 8.5, fontWeight: 700, letterSpacing: '0.14em', color: 'hsl(var(--muted-foreground))', marginTop: 3 }}>{s.l} · {rangeLabel}</div>
             </div>
           ))}
         </div>
 
         {m.ex.length > 0 && (
           <div style={{ marginTop: 16 }}>
-            <Kicker>Top exercises</Kicker>
+            <Kicker>{tFallback('bodyMap.detail.topExercises', 'Top exercises')}</Kicker>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 9 }}>
               {m.ex.map((e) => (
                 <span key={e} style={{
                   padding: '6px 11px', borderRadius: 999, background: 'hsl(var(--secondary))',
                   fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, color: 'hsl(var(--foreground))',
-                }}>{e}</span>
+                }}>{e === UNNAMED_EXERCISE ? tFallback('bodyMap.detail.unnamedExercise', 'Exercise') : e}</span>
               ))}
             </div>
           </div>
@@ -403,7 +471,7 @@ function DetailSheet({ muscles, id, range, onClose, weightUnit }) {
           width: '100%', marginTop: 20, padding: 14, minHeight: 44, borderRadius: 14, border: 'none', cursor: 'pointer',
           background: 'hsl(var(--primary))', color: 'hsl(var(--primary-foreground))',
           fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 800, letterSpacing: '0.16em',
-        }}>CLOSE</button>
+        }}>{tFallback('bodyMap.detail.close', 'CLOSE')}</button>
       </div>
     </div>
   );
@@ -417,6 +485,11 @@ export default function MuscleGroupHeatmap({ logs }) {
   const [range, setRange] = useState('30D');
   const [sel, setSel] = useState(null);
   const { weightUnit } = useWeightUnit();
+  const { tFallback } = useLanguage();
+  const rangeShort = useMemo(() => {
+    const r = RANGES.find((x) => x.id === range) || RANGES[1];
+    return tFallback(r.shortKey, r.shortEn);
+  }, [range, tFallback]);
 
   const muscles = useMemo(() => buildMuscles(logs, RANGE_DAYS[range]), [logs, range]);
   const maxVol = useMemo(() => Math.max(1, ...FINE_IDS.map((id) => muscles[id].vol)), [muscles]);
@@ -436,30 +509,43 @@ export default function MuscleGroupHeatmap({ logs }) {
       {/* header */}
       <div style={{ padding: '0 2px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-          <Kicker>Progress · Muscle map</Kicker>
+          <Kicker>{tFallback('bodyMap.kicker', 'Progress · Muscle map')}</Kicker>
           <span style={{ flex: 1, height: 1, background: 'hsl(var(--border))' }} />
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9.5, fontWeight: 700, letterSpacing: '0.16em', color: empty ? 'hsl(var(--muted-foreground))' : 'hsl(var(--primary))' }}>{empty ? '○ NO DATA' : '● LIVE'}</span>
+          {/* The glyph stays in the JSX; only the word is translated. */}
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9.5, fontWeight: 700, letterSpacing: '0.16em', color: empty ? 'hsl(var(--muted-foreground))' : 'hsl(var(--primary))' }}>
+            {empty ? `○ ${tFallback('bodyMap.data.noData', 'NO DATA')}` : `● ${tFallback('bodyMap.data.live', 'LIVE')}`}
+          </span>
         </div>
-        <h1 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 30, letterSpacing: '-0.035em', lineHeight: 1.02, color: 'hsl(var(--foreground))' }}>
-          {empty ? <>Your muscle<br />heat map.</> : mode === 'recovery' ? <>{headline} muscle{headline === 1 ? '' : 's'}<br />need{headline === 1 ? 's' : ''} recovery.</> : <>Where your<br />work landed.</>}
+        {/* `pre-line` rather than a hardcoded <br />: the break is now a `\n`
+            inside the string, so a translator can move it to where their
+            text wants to break, or drop it and let the heading wrap. */}
+        <h1 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 30, letterSpacing: '-0.035em', lineHeight: 1.02, color: 'hsl(var(--foreground))', whiteSpace: 'pre-line' }}>
+          {empty
+            ? tFallback('bodyMap.headline.empty', 'Your muscle\nheat map.')
+            : mode === 'recovery'
+              ? tFallback(
+                headline === 1 ? 'bodyMap.headline.recovery.one' : 'bodyMap.headline.recovery.other',
+                headline === 1 ? '{n} muscle\nneeds recovery.' : '{n} muscles\nneed recovery.',
+                { n: headline },
+              )
+              : tFallback('bodyMap.headline.volume', 'Where your\nwork landed.')}
         </h1>
         <p style={{ margin: '10px 0 0', fontSize: 12.5, lineHeight: 1.45, color: 'hsl(var(--muted-foreground))', maxWidth: 320 }}>
           {empty
-            ? 'Log a workout and the muscles you trained light up here — colour shows fatigue so you know what’s ready to hit again.'
+            ? tFallback('bodyMap.body.empty', 'Log a workout and the muscles you trained light up here — colour shows fatigue so you know what’s ready to hit again.')
             : mode === 'recovery'
-              ? 'Colour shows fatigue right now — fresh green muscles are ready, hot ones still need rest before you hit them again.'
-              : 'Colour shows training volume over the selected window — brighter means more work landed there.'}
+              ? tFallback('bodyMap.body.recovery', 'Colour shows fatigue right now — fresh green muscles are ready, hot ones still need rest before you hit them again.')
+              : tFallback('bodyMap.body.volume', 'Colour shows training volume over the selected window — brighter means more work landed there.')}
         </p>
       </div>
 
       {/* controls */}
       <div style={{ padding: '16px 0 0', display: 'flex', flexDirection: 'column', gap: 10 }}>
         <Segmented mono={false} value={mode} onChange={(v) => { setMode(v); setSel(null); }} options={[
-          { id: 'recovery', label: 'Recovery' }, { id: 'volume', label: 'Volume' },
+          { id: 'recovery', label: tFallback('bodyMap.mode.recovery', 'Recovery') },
+          { id: 'volume', label: tFallback('bodyMap.mode.volume', 'Volume') },
         ]} />
-        <Segmented value={range} onChange={setRange} options={[
-          { id: '7D', label: '7 DAYS' }, { id: '30D', label: '30 DAYS' }, { id: '90D', label: '90 DAYS' },
-        ]} />
+        <Segmented value={range} onChange={setRange} options={RANGES.map((r) => ({ id: r.id, label: tFallback(r.key, r.en) }))} />
       </div>
 
       {/* map card */}
@@ -480,12 +566,15 @@ export default function MuscleGroupHeatmap({ logs }) {
           boxShadow: 'var(--mmap-shadow)',
         }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0 }}>
-            {[{ k: 'FRONT', F: FrontFigure }, { k: 'BACK', F: BackFigure }].map(({ k, F }) => (
+            {[
+              { k: 'front', label: tFallback('bodyMap.figure.front', 'FRONT'), F: FrontFigure },
+              { k: 'back', label: tFallback('bodyMap.figure.back', 'BACK'), F: BackFigure },
+            ].map(({ k, label, F }) => (
               <div key={k} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                 <div style={{ width: '100%' }}>
                   <F getFill={getFill} sel={sel} onSel={setSel} />
                 </div>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, fontWeight: 800, letterSpacing: '0.22em', color: 'hsl(var(--muted-foreground))', marginTop: 4 }}>{k}</div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, fontWeight: 800, letterSpacing: '0.22em', color: 'hsl(var(--muted-foreground))', marginTop: 4 }}>{label}</div>
               </div>
             ))}
           </div>
@@ -499,8 +588,8 @@ export default function MuscleGroupHeatmap({ logs }) {
                 : 'linear-gradient(90deg, hsl(214 12% 52%), hsl(32 84% 55%), hsl(26 93% 54%), hsl(12 88% 53%), hsl(2 82% 52%))',
             }} />
             <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--font-mono)', fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', color: 'hsl(var(--muted-foreground))' }}>
-              <span>{mode === 'recovery' ? 'FRESH' : 'LESS'}</span>
-              <span>{mode === 'recovery' ? 'FATIGUED' : 'MORE VOLUME'}</span>
+              <span>{mode === 'recovery' ? tFallback('bodyMap.legend.fresh', 'FRESH') : tFallback('bodyMap.legend.less', 'LESS')}</span>
+              <span>{mode === 'recovery' ? tFallback('bodyMap.legend.fatigued', 'FATIGUED') : tFallback('bodyMap.legend.more', 'MORE VOLUME')}</span>
             </div>
           </div>
         </div>
@@ -508,7 +597,12 @@ export default function MuscleGroupHeatmap({ logs }) {
 
       {/* ranked list */}
       <div style={{ padding: '20px 0 0' }}>
-        <Kicker>{mode === 'recovery' ? 'Recovery by muscle' : 'Volume by muscle'} · {range}</Kicker>
+        <Kicker>
+          {mode === 'recovery'
+            ? tFallback('bodyMap.list.recovery', 'Recovery by muscle')
+            : tFallback('bodyMap.list.volume', 'Volume by muscle')}
+          {' · '}{rangeShort}
+        </Kicker>
       </div>
       <div style={{ margin: '10px 0 0', background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 18, overflow: 'hidden' }}>
         {ranked.map((id, i) => {
@@ -524,8 +618,10 @@ export default function MuscleGroupHeatmap({ logs }) {
             }}>
               <span style={{ width: 11, height: 11, borderRadius: 3, background: col, flexShrink: 0 }} />
               <div style={{ width: 84, flexShrink: 0 }}>
-                <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 13.5, letterSpacing: '-0.01em', color: 'hsl(var(--foreground))' }}>{m.name}</div>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 8.5, fontWeight: 700, letterSpacing: '0.1em', color: 'hsl(var(--muted-foreground))' }}>{m.region.toUpperCase()}</div>
+                <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 13.5, letterSpacing: '-0.01em', color: 'hsl(var(--foreground))' }}>{muscleName(tFallback, m, id)}</div>
+                {/* CSS uppercase, not `toUpperCase()`: the JS one is
+                    locale-blind and gets Turkish i → I instead of İ. */}
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 8.5, fontWeight: 700, letterSpacing: '0.1em', color: 'hsl(var(--muted-foreground))', textTransform: 'uppercase' }}>{regionName(tFallback, m.region)}</div>
               </div>
               <div style={{ flex: 1, height: 6, borderRadius: 999, background: 'hsl(var(--secondary))', overflow: 'hidden' }}>
                 <div style={{ height: '100%', width: `${Math.max(6, t * 100)}%`, background: col, borderRadius: 999, transition: 'width .5s, background .5s' }} />
@@ -538,7 +634,7 @@ export default function MuscleGroupHeatmap({ logs }) {
         })}
       </div>
 
-      <DetailSheet muscles={muscles} id={sel} range={range} weightUnit={weightUnit} onClose={() => setSel(null)} />
+      <DetailSheet muscles={muscles} id={sel} rangeLabel={rangeShort} weightUnit={weightUnit} onClose={() => setSel(null)} />
     </div>
   );
 }
