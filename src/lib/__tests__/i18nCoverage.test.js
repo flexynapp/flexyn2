@@ -138,6 +138,12 @@ describe('partial-gap ratchet', () => {
     // Onboarding flow — extracted from JSX 2026-08-05 (audit 18 #6). 237 keys,
     // the first thing every new user reads, so CLAUDE.md forbids machine
     // translation outright. Needs a native pass in 14 languages.
+    //
+    // WHEN THIS PREFIX GOES, RAISE `FLOOR` TO 0.80 (kegan, 2026-08-10).
+    // Deleting it here is already forced — the stale-prefix guard above
+    // fails otherwise — so this note sits where that edit has to happen
+    // rather than somewhere it would be read too late. The measurement is
+    // in the FLOOR comment below; you do not need to re-derive it.
     'onboarding.',
     // League activity gating — new namespace, migration 310 (2026-08-08).
     // Qualification and promote/demote zone copy. Named `league.gate.` rather
@@ -309,6 +315,17 @@ describe('partial-gap ratchet', () => {
   // now it means a language actually LOST ground on copy we said we'd
   // translate — so translate, don't loosen, and don't reach for
   // AWAITING_TRANSLATION to make it green.
+  //
+  // GOES BACK TO 0.80 WHEN `onboarding.` LEAVES AWAITING_TRANSLATION
+  // (kegan, 2026-08-10). Measured rather than assumed, on the aggregates as
+  // they stand today: 1,690 counted keys, 275 under `onboarding.`, lower
+  // bound `ru` at 79.5%. Translating those 275 adds the same count to both
+  // sides of the ratio, so every language moves UP — `ru` to 82.4%, `ja` to
+  // 84.0%. 0.80 therefore clears with ~2.4 points of headroom, which is the
+  // point: a floor set flush against the minimum re-trips on the next
+  // honest extraction, which is how it came down from 0.80 in the first
+  // place. 0.82 would also pass today; 0.80 is the deliberate, conservative
+  // number, and the one to use.
   const FLOOR = 0.79;
 
   it(`coverage does not regress below ${FLOOR * 100}% in any language`, () => {
