@@ -38,6 +38,20 @@
 -- dead column by intent — migration 005 backfilled it from an older shape —
 -- so a row that has it keeps using it, and duration_seconds is the fallback.
 
+-- SELF-VERIFYING ON PURPOSE (revised 2026-08-10, after the first run of
+-- this file appeared to succeed and changed nothing).
+--
+-- The original ended in RAISE NOTICE. **The Supabase SQL editor does not
+-- surface NOTICE output**, so every outcome — patched, already-patched,
+-- early return — rendered as a bare "Success. No rows returned." The
+-- function was still unpatched afterwards and nothing on screen said so.
+-- That is precisely the silent-success shape the comment above is written
+-- against, reproduced by the fix for it.
+--
+-- So the block now ends in a SELECT that reads the function back and says
+-- OK or FAILED in a row you cannot miss. Verify the OUTPUT, not the
+-- absence of an error.
+
 DO $mig$
 DECLARE
   v_def text;
@@ -46,18 +60,21 @@ BEGIN
     'public.update_solo_challenge_progress(numeric,integer,integer,integer)'::regprocedure
   );
 
-  IF position('COALESCE(SUM(duration_min), 0)' in v_def) = 0 THEN
-    RAISE NOTICE '335: no SUM(duration_min) in update_solo_challenge_progress — already patched, nothing to do';
-    RETURN;
+  IF position('COALESCE(SUM(duration_min), 0)' in v_def) > 0 THEN
+    v_def := replace(
+      v_def,
+      'COALESCE(SUM(duration_min), 0)',
+      'COALESCE(SUM(COALESCE(duration_min, duration_seconds / 60.0)), 0)'
+    );
+    EXECUTE v_def;
   END IF;
-
-  v_def := replace(
-    v_def,
-    'COALESCE(SUM(duration_min), 0)',
-    'COALESCE(SUM(COALESCE(duration_min, duration_seconds / 60.0)), 0)'
-  );
-
-  EXECUTE v_def;
-  RAISE NOTICE '335: cardio_minutes now falls back to duration_seconds';
 END
 $mig$;
+
+SELECT CASE
+         WHEN position('duration_seconds / 60.0' in def) > 0
+           THEN 'OK - cardio_minutes now reads duration_seconds'
+         ELSE 'FAILED - function unchanged, do not close this tab'
+       END AS result
+FROM (SELECT pg_get_functiondef(
+        'public.update_solo_challenge_progress(numeric,integer,integer,integer)'::regprocedure) AS def) s;
