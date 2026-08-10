@@ -110,6 +110,36 @@ export const translations_p4 = {
     'photos.emptyDesc': 'When you save a workout, tap "Log a progress photo?" to capture and store your transformation journey.',
     'photos.countOne': '1 photo saved',
     'photos.countMany': '{{count}} photos saved',
+    // Photos tab revamp (2026-08-10). English-only for now — the rest of
+    // the `photos.*` block is translated, but per the i18n rule in
+    // CLAUDE.md these ship English via tFallback rather than machine-
+    // translated into the other 14 languages.
+    'photos.addPhoto': 'Add photo',
+    'photos.emptyHint': 'Capture where you\'re starting from. Your photos are private to you and stored securely.',
+    'photos.compare': 'Compare',
+    'photos.compareTitle': 'Compare photos',
+    'photos.compareBefore': 'Before',
+    'photos.compareAfter': 'After',
+    'photos.compareChooseBefore': 'Choose before',
+    'photos.compareChooseAfter': 'Choose after',
+    'photos.compareApartOne': '1 day apart',
+    'photos.compareApartMany': '{{count}} days apart',
+    'photos.compareDragHint': 'Drag the divider to compare',
+    'photos.compareEmpty': 'Pick two photos above to compare them.',
+    'photos.viewer': 'Photo viewer',
+    'photos.prev': 'Previous photo',
+    'photos.next': 'Next photo',
+    'photos.position': '{{index}} of {{total}}',
+    // Deliberately no 'photos.close' — the viewer's close button uses
+    // `common.close`, which is the same word and is already translated into
+    // all 15 languages.
+    'photos.deleteConfirm': 'Delete this photo?',
+    'photos.deletePermanent': 'This cannot be undone.',
+    'photos.deleting': 'Deleting…',
+    'photos.loading': 'Loading your photos…',
+    'photos.errorTitle': 'Couldn\'t load your photos',
+    'photos.errorDesc': 'Something went wrong fetching your progress photos.',
+    'photos.deleteError': 'Couldn\'t delete that photo. Please try again.',
   },
   es: {
     'nutrition.macros.calories': 'Calorías',
