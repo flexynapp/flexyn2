@@ -34,7 +34,7 @@ import RegimenReviewsBlock from './RegimenReviewsBlock';
 // neck exercises from the store's muscle filter rather than just from a
 // picker dropdown.
 const ALL_MUSCLE_GROUPS = [
-  'Chest', 'Back', 'Traps', 'Shoulders', 'Biceps', 'Triceps',
+  'Chest', 'Back', 'Traps', 'Shoulders', 'Biceps', 'Triceps', 'Forearms',
   'Legs', 'Glutes', 'Core', 'Full Body', 'Cardio',
 ];
 

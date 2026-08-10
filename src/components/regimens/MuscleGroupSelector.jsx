@@ -12,7 +12,14 @@ import { muscleKey } from '@/lib/exerciseTranslations';
 // get it back. `muscleGroups.traps` already ships in all 15 languages.
 // This array is duplicated in RegimenForm.jsx and RegimenStorePage.jsx;
 // all three have to move together.
-const ALL_MUSCLE_GROUPS = ['Chest', 'Back', 'Traps', 'Shoulders', 'Biceps', 'Triceps', 'Legs', 'Glutes', 'Core', 'Full Body', 'Cardio'];
+//
+// 'Forearms' joined the same way and for the same reason, when the grip and
+// wrist work was retagged off 'Back'. It differs in one respect worth
+// knowing: it was already a coarse group in the heat map with a muscle drawn
+// on the figure, and no exercise had ever carried it — so it was missing
+// HERE while being live everywhere else. Ordered with the arm chain rather
+// than beside Traps, on the same logic that puts Traps next to Back.
+const ALL_MUSCLE_GROUPS = ['Chest', 'Back', 'Traps', 'Shoulders', 'Biceps', 'Triceps', 'Forearms', 'Legs', 'Glutes', 'Core', 'Full Body', 'Cardio'];
 
 export default function MuscleGroupSelector({ selected = [], availableGroups = ALL_MUSCLE_GROUPS, onAdd, onRemove }) {
   const { t } = useLanguage();

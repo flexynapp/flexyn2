@@ -210,13 +210,34 @@ describe('buildStarterRegimen — edge cases / defaults', () => {
   // which load every one of them. An empty block is the honest answer, and
   // ensureStarterRegimen declines to persist it rather than creating a
   // regimen that is a lie either way.
-  it('returns nothing rather than something unsafe when every region is flagged', () => {
+  //
+  // UPDATE: this used to assert length 0, and that stopped being the honest
+  // answer when the grip work was retagged off 'Back' onto 'Forearms'. The
+  // reasoning above turns on "there IS nothing safe to program", and that
+  // premise was itself a product of the mislabel — a seated wrist curl was
+  // only ever excluded by a back injury because it claimed to be back work.
+  // Now the library really does hold something safe, so returning it is the
+  // honest answer and an empty block would be the lie.
+  //
+  // What must NOT weaken is the actual safety rule, and it hasn't: that lives
+  // in 'never programs a flagged region, however many are flagged' above, and
+  // it still passes untouched. This test now pins the weaker, separate claim
+  // that the fallback reaches for genuinely unflagged work rather than
+  // reaching for nothing.
+  it('falls back to genuinely safe work when every region is flagged', () => {
     const r = buildStarterRegimen({
       goals: ['strength'], level: 'consistent', daysCount: 3,
       injuries: ['Chest', 'Back', 'Legs', 'Shoulders', 'Glutes', 'Core', 'Biceps', 'Triceps']
         .map(muscleGroup => ({ muscleGroup, severity: 'serious' })),
     });
-    expect(r.exercises).toHaveLength(0);
+    expect(r.exercises.length).toBeGreaterThan(0);
+    // Asserted as a property rather than by name: any exercise that survives
+    // eight flagged groups must load NOTHING but forearms, so a future entry
+    // that sneaks through on a mislabel fails here instead of passing because
+    // the name list happened to still match.
+    for (const ex of r.exercises) {
+      expect(ex.muscle_groups, `${ex.name} loads more than forearms`).toEqual(['Forearms']);
+    }
   });
 });
 

@@ -384,6 +384,16 @@ export function buildStarterRegimen({ goals, level, daysCount, assessment, cardi
   // injury stopped excluding neck bridges and the every-region-flagged plan
   // answered with three of them. It loads the back, and that is what the
   // heat-map already resolves it to.
+  //
+  // 'Forearms' is the fourth tag outside the injury groups and is DELIBERATELY
+  // absent from this map — the one case where the right answer was to let the
+  // exclusion go. It arrived the same way Traps did, when the grip and wrist
+  // work was retagged off 'Back', so adding it here would have been the
+  // reflex. But a back injury excluding a seated wrist curl was never a rule;
+  // it was a side effect of those exercises being mislabelled as back work.
+  // The grip movements that genuinely load the back — the hangs, Farmers
+  // Walk, Fat Bar Deadlift, Towel Pull-Up — kept their own 'Back' tag and are
+  // still excluded through it, which is why nothing here has to fake it.
   const IMPLIED_LOAD = {
     'Full Body': ['Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps', 'Legs', 'Glutes', 'Core'],
     Cardio: ['Legs', 'Core'],

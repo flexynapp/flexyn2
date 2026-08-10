@@ -411,21 +411,42 @@ const EXERCISE_LIBRARY = [
   { name: 'Seated Calf Raise', muscles: ['Legs'] },
   { name: 'Standing Calf Raise', muscles: ['Legs'] },
 
-  // Forearms & Grip
-  { name: 'Bar Hang', muscles: ['Back'] },
-  { name: 'Barbell Wrist Curl', muscles: ['Back'] },
-  { name: 'Barbell Wrist Curl Behind the Back', muscles: ['Back'] },
-  { name: 'Barbell Wrist Extension', muscles: ['Back'] },
-  { name: 'Dumbbell Wrist Curl', muscles: ['Back'] },
-  { name: 'Dumbbell Wrist Extension', muscles: ['Back'] },
-  { name: 'Farmers Walk', muscles: ['Back', 'Core', 'Legs'] },
-  { name: 'Fat Bar Deadlift', muscles: ['Back', 'Glutes', 'Legs'] },
-  { name: 'Gripper', muscles: ['Back'] },
-  { name: 'One-Handed Bar Hang', muscles: ['Back'] },
-  { name: 'Plate Pinch', muscles: ['Back'] },
-  { name: 'Plate Wrist Curl', muscles: ['Back'] },
-  { name: 'Towel Pull-Up', muscles: ['Back', 'Biceps'] },
-  { name: 'Wrist Roller', muscles: ['Back'] },
+  // Forearms & Grip. Every entry here was tagged 'Back', and 'Forearms' — a
+  // real coarse group, mapped to the `forearms` fine muscle, DRAWN on both
+  // silhouettes in muscleAnatomy.js — was carried by no exercise in the
+  // library and emitted by no writer in the app.
+  //
+  // The one thing that ever lit those forearms was the 21 Olympic lifts,
+  // reaching them through the 'full body' -> COARSE_KEYS spread in the heat
+  // map rather than through any grip work; before that spread existed the
+  // region was dead outright. So unless you clean or snatch, your forearms
+  // had never been anything but cold — while a set of wrist curls lit lats,
+  // lower back and traps instead. Measured over the whole library: forearms
+  // scored 21, exactly the Olympic-lift count, and not one of the 14 entries
+  // in this section contributed to it.
+  //
+  // The split below is what each movement actually loads. A dead hang really
+  // does load the lats, so the two hangs keep 'Back'; the three grip-emphasis
+  // compounds keep the groups they correctly had and gain 'Forearms' beside
+  // them. Only the pure wrist and grip work is Forearms alone.
+  //
+  // Unlike 'Traps', this one deliberately gets NO IMPLIED_LOAD entry in
+  // starterRegimen — see the note there. A back injury excluding a seated
+  // wrist curl was an artefact of the mislabel, not a rule worth keeping.
+  { name: 'Bar Hang', muscles: ['Forearms', 'Back'] },
+  { name: 'Barbell Wrist Curl', muscles: ['Forearms'] },
+  { name: 'Barbell Wrist Curl Behind the Back', muscles: ['Forearms'] },
+  { name: 'Barbell Wrist Extension', muscles: ['Forearms'] },
+  { name: 'Dumbbell Wrist Curl', muscles: ['Forearms'] },
+  { name: 'Dumbbell Wrist Extension', muscles: ['Forearms'] },
+  { name: 'Farmers Walk', muscles: ['Forearms', 'Back', 'Core', 'Legs'] },
+  { name: 'Fat Bar Deadlift', muscles: ['Forearms', 'Back', 'Glutes', 'Legs'] },
+  { name: 'Gripper', muscles: ['Forearms'] },
+  { name: 'One-Handed Bar Hang', muscles: ['Forearms', 'Back'] },
+  { name: 'Plate Pinch', muscles: ['Forearms'] },
+  { name: 'Plate Wrist Curl', muscles: ['Forearms'] },
+  { name: 'Towel Pull-Up', muscles: ['Forearms', 'Back', 'Biceps'] },
+  { name: 'Wrist Roller', muscles: ['Forearms'] },
 
   // Neck. Tagged 'Traps' rather than 'Full Body': there is no neck group in
   // the taxonomy, and the heat-map now spreads 'Full Body' across all nine
@@ -434,8 +455,8 @@ const EXERCISE_LIBRARY = [
   // is the nearest real mover and already resolves to Back everywhere —
   // GROUP_ALIASES in MuscleGroupHeatmap.jsx, and IMPLIED_LOAD in
   // starterRegimen.js, which needs it or a back injury stops excluding neck
-  // work. It is the eleventh name in the vocabulary; see the note at the head
-  // of this array for the three other files that enumerate it.
+  // work. It is one of the names the vocabulary gained rather than inherited;
+  // see the note at the head of this array for the files that enumerate it.
   { name: 'Lying Neck Curl', muscles: ['Traps'] },
   { name: 'Lying Neck Extension', muscles: ['Traps'] },
   { name: 'Prone Neck Bridge', muscles: ['Traps'] },

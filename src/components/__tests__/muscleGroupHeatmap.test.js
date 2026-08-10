@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { buildMuscles } from '@/components/progress/MuscleGroupHeatmap';
+import { EXERCISE_LIBRARY } from '@/components/regimens/ExerciseAutocomplete';
 
 /* The Body page's heat map reads workout_logs.exercises, and THREE
    different writers fill that field with three different vocabularies:
@@ -59,6 +60,35 @@ describe('buildMuscles — muscle-group vocabulary', () => {
   it('ignores a name it does not recognise rather than throwing', () => {
     const m = buildMuscles([log([ex('Treadmill', ['Cardio'])])], 30);
     expect(Object.values(m).every((x) => x.sets === 0)).toBe(true);
+  });
+
+  /* Dedicated grip work credits forearms, not the back. Every exercise in
+     the library's "Forearms & Grip" section was tagged 'Back', so three
+     sets of wrist curls used to mark the lats and lower back as trained
+     and leave the forearms cold. */
+  it('credits forearms for dedicated grip work, and not the back', () => {
+    const wristCurl = EXERCISE_LIBRARY.find((e) => e.name === 'Barbell Wrist Curl');
+    const m = buildMuscles([log([ex(wristCurl.name, wristCurl.muscles)])], 30);
+    expect(m.forearms.sets).toBe(1);
+    expect(m.lats.sets).toBe(0);
+    expect(m.lowerback.sets).toBe(0);
+  });
+
+  /* No region may depend on Olympic lifting to exist.
+     The naive form of this test — log the whole library, assert nothing is
+     cold — PASSES against the bug it was written for, which is why it is
+     written this way instead. 'Full Body' spreads across all nine coarse
+     groups, so the 21 cleans and snatches lit the forearms all by
+     themselves and hid the fact that no grip exercise did. Excluding them
+     is what exposes a region the library cannot otherwise fill: for anyone
+     who does not clean or snatch, that region is dead. */
+  it('fills every muscle on the figure without relying on the Olympic lifts', () => {
+    const noOlympic = EXERCISE_LIBRARY
+      .filter((e) => !e.muscles.includes('Full Body'))
+      .map((e) => ex(e.name, e.muscles));
+    const m = buildMuscles([log(noOlympic)], 30);
+    const cold = Object.keys(m).filter((k) => m[k].sets === 0);
+    expect(cold, 'drawn on the figure, but only a clean or snatch can light it').toEqual([]);
   });
 });
 
