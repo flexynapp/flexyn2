@@ -224,7 +224,14 @@ describe('buildStarterRegimen — edge cases / defaults', () => {
   // it still passes untouched. This test now pins the weaker, separate claim
   // that the fallback reaches for genuinely unflagged work rather than
   // reaching for nothing.
-  it('falls back to genuinely safe work when every region is flagged', () => {
+  // SECOND UPDATE, and it restores the original assertion rather than
+  // replacing it. Making 'Forearms' reportable (InjuryForm / OB_MUSCLES) gave
+  // "every region" a ninth member, so the empty-plan case is reachable again
+  // and is tested below on the full nine. The eight-region case did not stop
+  // being interesting when that happened — it is now the realistic one, since
+  // a user who flags every region EXCEPT their forearms should get the grip
+  // work rather than an empty block — so both are pinned.
+  it('falls back to genuinely safe work when every region BUT forearms is flagged', () => {
     const r = buildStarterRegimen({
       goals: ['strength'], level: 'consistent', daysCount: 3,
       injuries: ['Chest', 'Back', 'Legs', 'Shoulders', 'Glutes', 'Core', 'Biceps', 'Triceps']
@@ -238,6 +245,15 @@ describe('buildStarterRegimen — edge cases / defaults', () => {
     for (const ex of r.exercises) {
       expect(ex.muscle_groups, `${ex.name} loads more than forearms`).toEqual(['Forearms']);
     }
+  });
+
+  it('returns nothing rather than something unsafe when every region is flagged', () => {
+    const r = buildStarterRegimen({
+      goals: ['strength'], level: 'consistent', daysCount: 3,
+      injuries: ['Chest', 'Back', 'Legs', 'Shoulders', 'Glutes', 'Core', 'Biceps', 'Triceps', 'Forearms']
+        .map(muscleGroup => ({ muscleGroup, severity: 'serious' })),
+    });
+    expect(r.exercises).toHaveLength(0);
   });
 });
 

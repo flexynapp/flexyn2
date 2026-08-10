@@ -26,7 +26,14 @@ import { useDateFormatter } from '@/lib/intl';
 // write would silently stop injuries excluding anything. Only the LABEL is
 // localized, out of `i18n-muscle-groups.js`, which already carries these eight
 // in all 15 languages and is the same lookup the onboarding injury step uses.
-const MUSCLE_GROUPS = ['Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps', 'Legs', 'Glutes', 'Core'];
+// The regions a user can report an injury in. 'Forearms' was added when the
+// grip and wrist work was retagged off 'Back': until then a wrist injury was
+// inexpressible, and the only thing keeping wrist curls away from someone who
+// had one was those exercises wrongly claiming to be back work. Retagging them
+// correctly removed that accident, so the protection had to become real.
+// Duplicated as OB_MUSCLES in Onboarding.jsx — the two pickers must agree, or
+// an injury reportable at signup vanishes from the in-app form.
+const MUSCLE_GROUPS = ['Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps', 'Forearms', 'Legs', 'Glutes', 'Core'];
 
 // Each option states what it DOES, not only how it feels. Severity is the one
 // control here that changes someone's training, and all three descriptions

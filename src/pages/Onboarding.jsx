@@ -2625,7 +2625,10 @@ function DaysStep({ days, preferredTime, onDaysChange, onTimeChange, onNext, onB
    dates, max 5 entries.
 ═══════════════════════════════════════════════════════════════ */
 
-const OB_MUSCLES = ['Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps', 'Legs', 'Glutes', 'Core'];
+// Must match MUSCLE_GROUPS in components/workout/InjuryForm.jsx — see the note
+// there for why 'Forearms' is in the list. A region reportable here and absent
+// there is one a user can declare at signup and then never edit again.
+const OB_MUSCLES = ['Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps', 'Forearms', 'Legs', 'Glutes', 'Core'];
 const OB_SEVERITIES = [
   { id: 'mild',     label: 'Mild',     color: 'text-yellow-400 border-yellow-400/40 bg-yellow-400/10' },
   { id: 'moderate', label: 'Moderate', color: 'text-orange-400 border-orange-400/40 bg-orange-400/10' },

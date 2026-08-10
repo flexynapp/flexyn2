@@ -394,8 +394,12 @@ export function buildStarterRegimen({ goals, level, daysCount, assessment, cardi
   // The grip movements that genuinely load the back — the hangs, Farmers
   // Walk, Fat Bar Deadlift, Towel Pull-Up — kept their own 'Back' tag and are
   // still excluded through it, which is why nothing here has to fake it.
+  // 'Full Body' lists every injurable region, so it gained 'Forearms' when
+  // that became one. Not a formality: you grip the bar on every clean and
+  // snatch, and without it a forearm injury would leave the Olympic lifts —
+  // the most grip-intensive things in the library — perfectly eligible.
   const IMPLIED_LOAD = {
-    'Full Body': ['Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps', 'Legs', 'Glutes', 'Core'],
+    'Full Body': ['Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps', 'Forearms', 'Legs', 'Glutes', 'Core'],
     Cardio: ['Legs', 'Core'],
     Traps: ['Back'],
   };
