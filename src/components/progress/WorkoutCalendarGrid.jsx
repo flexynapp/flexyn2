@@ -188,7 +188,11 @@ export default function WorkoutCalendarGrid({ logs = [], onSelectDay }) {
 
         {/* Grid — horizontally scrolls on narrow screens */}
         <div className="overflow-x-auto -mx-1 px-1">
-          <div className="inline-flex gap-[3px]" role="img" aria-label="Workout activity heatmap">
+          {/* The grid is one `role="img"`, so this label is the ONLY thing a
+              screen reader gets for it — the per-day titles below are on
+              children it never reaches. It was the one string on this
+              component that never went through the translation layer. */}
+          <div className="inline-flex gap-[3px]" role="img" aria-label={tFallback('calendar.heatmapLabel', 'Workout activity heatmap')}>
             {columns.map((col, ci) => (
               <div key={ci} className="flex flex-col gap-[3px]">
                 {col.map((day) => (

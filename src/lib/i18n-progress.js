@@ -229,6 +229,67 @@ export const progressTranslations = {
     'progress.review.sessions':       'Sessions',
     'progress.review.streak':         'Streak',
     'progress.review.pr':             'PR',
+
+    // ── PR History modal ─────────────────────────────────────────────────
+    // `PRHistoryModal.jsx`, opened from the Personal Bests sheet. It had
+    // ZERO translation calls — the same defect the Body tab had, on a
+    // smaller surface. `progress.pb.history` ('History') is the BUTTON that
+    // opens it and already existed; these are what it opens onto.
+    'progress.pb.title':              'PR History',
+    'progress.pb.titleFor':           '{name} — PR History',
+    'progress.pb.emptyTitle':         'No data yet',
+    'progress.pb.emptyBody':          'Log this exercise to see your history.',
+    'progress.pb.allTimeBest':        'All-time best',
+    // The clipboard payload behind the all-time figure, and the noun the
+    // shared TapToCopy drops into "Copied {label}".
+    'progress.pb.copyValue':          'All-time PR: {weight}',
+    'progress.pb.copyLabel':          'PR',
+    'progress.pb.prsSet_one':         '{n} PR set',
+    'progress.pb.prsSet_other':       '{n} PRs set',
+    'progress.pb.sessions_one':       '{n} session',
+    'progress.pb.sessions_other':     '{n} sessions',
+    'progress.pb.chartTitle':         'Weight over time',
+    // The series name in the chart's tooltip — it labels the number, so it
+    // reads "225 lb · Weight", not a sentence.
+    'progress.pb.chartSeries':        'Weight',
+    'progress.pb.chartLegend':        '● = new PR at that session',
+    'progress.pb.milestones':         'PR milestones',
+    // Shown instead of a "+15 lb" delta on the very first PR, where there
+    // is no previous best to have beaten.
+    'progress.pb.first':              'first',
+
+    // ── Keys the Progress surfaces CALLED but nothing defined ────────────
+    // Each of these was already a correct `tFallback(key, 'English')` call,
+    // so users saw the right words and nothing looked wrong — but with no
+    // part-file entry the key was invisible to `i18n-audit.mjs` and to
+    // anyone doing a translation pass. English-only, like the rest of this
+    // file; the point is that they can now be found.
+    //
+    // They keep their own namespaces rather than being renamed under
+    // `progress.*`, because the namespace is what the call site reads and
+    // renaming it would be a change to working code for filing's sake. The
+    // `photos.*` pair below sits apart from its siblings in
+    // `i18n-part4.js` for the same reason in reverse — that is a legacy
+    // mega-file, and CLAUDE.md asks for per-domain files, so new keys go
+    // here rather than growing it.
+    'photos.saveError':               "Couldn't save your photo. Please try again.",
+    'photos.closeCamera':             'Close camera',
+    'photos.flipCamera':              'Flip camera',
+    'photos.saving':                  'Saving…',
+    'photos.migratePartial':          "Some progress photos couldn't be moved to secure storage. We'll retry next time.",
+    'photos.capturedAlt':             'Captured progress',
+    'photos.cameraError':             'Failed to access camera',
+    'calendar.future':                'future',
+    'calendar.heatmapLabel':          'Workout activity heatmap',
+    'trainingPattern.kicker':         'Your training rhythm',
+    'achievements.shareSuccess':      'Shared to Hub!',
+    // {reason} arrives from the share call and is itself English — it is a
+    // network/API message, not copy we own. Translating the frame is still
+    // worth it: the sentence around it stops being English too.
+    'achievements.shareFailed':       "Couldn't share: {reason}",
+    'progress.nextUp':                'Next up',
+    'progress.locked':                'Locked',
+    'progress.noneCompletedTitle':    'No badges yet',
   },
 };
 

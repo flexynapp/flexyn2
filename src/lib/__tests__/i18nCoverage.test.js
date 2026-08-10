@@ -231,6 +231,10 @@ describe('partial-gap ratchet', () => {
     'progress.lastWorkout.',
     'progress.topPRs.',
     'progress.pb.',
+    // Also covers the PR History modal, extracted 2026-08-10 — it had zero
+    // translation calls, the same defect as the Body tab on a smaller
+    // surface, and `progress.pb.history` (the button that opens it) was
+    // already here.
     'progress.analytics.',
     'progress.review.',
     // Added with the layout change (2026-08-10): the Recent section that
@@ -404,6 +408,28 @@ describe('partial-gap ratchet', () => {
     'settings.mute.undo',
     'settings.quiet.startLabel',
     'settings.quiet.endLabel',
+    // Progress surfaces, 2026-08-10. These keys were ALREADY being called
+    // — correct `tFallback(key, 'English')` at every site — but no part
+    // file defined them, so they resolved to their inline fallback and were
+    // invisible to both this audit and anyone doing a translation pass. The
+    // copy on screen has not changed; the keys simply exist now, in
+    // `i18n-progress.js`. Listed individually because each namespace has
+    // translated keys elsewhere that a bare prefix would wrongly exempt.
+    'photos.saveError',
+    'photos.closeCamera',
+    'photos.flipCamera',
+    'photos.saving',
+    'photos.migratePartial',
+    'photos.capturedAlt',
+    'photos.cameraError',
+    'calendar.future',
+    'calendar.heatmapLabel',
+    'trainingPattern.kicker',
+    'achievements.shareSuccess',
+    'achievements.shareFailed',
+    'progress.nextUp',
+    'progress.locked',
+    'progress.noneCompletedTitle',
   ];
 
   const pending = (k) => AWAITING_TRANSLATION.some(p => k.startsWith(p));

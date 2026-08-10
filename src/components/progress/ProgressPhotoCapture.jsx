@@ -139,7 +139,11 @@ export default function ProgressPhotoCapture({ open, onOpenChange }) {
       }
       setCameraError(null);
     } catch (err) {
-      setCameraError(err.message || 'Failed to access camera');
+      // `err.message` is the browser's own string and arrives in whatever
+      // language the OS speaks — untranslatable by us, and preferred anyway
+      // because it names the actual reason. Ours is the fallback for when
+      // there is no message at all.
+      setCameraError(err.message || tFallback('photos.cameraError', 'Failed to access camera'));
     }
   };
 
@@ -374,7 +378,7 @@ export default function ProgressPhotoCapture({ open, onOpenChange }) {
                 {capturedImage ? (
                   <motion.img
                     src={capturedImage}
-                    alt="Captured progress"
+                    alt={tFallback('photos.capturedAlt', 'Captured progress')}
                     initial={{ opacity: 0, scale: 1.04 }}
                     animate={{ opacity: 1, scale: 1 }}
                     className="w-full h-full object-cover"

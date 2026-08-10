@@ -9,9 +9,8 @@ import BottomSheet from '@/components/ui/BottomSheet';
 import TapToCopy from '@/components/TapToCopy';
 import { motion } from 'framer-motion';
 import { Trophy, Dumbbell } from 'lucide-react';
-import { format } from 'date-fns';
 import { useLanguage } from '@/lib/LanguageContext';
-import { getDateLocale } from '@/lib/dateLocales';
+import { useDateFormatter } from '@/lib/intl';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { fromLbs, formatWeight } from '@/lib/weightUnit';
 import { parseLocalDate } from '@/lib/dateUtils';
@@ -31,9 +30,16 @@ const CHART_STYLE = {
 };
 
 export default function PRHistoryModal({ open, onClose, exerciseName, logs }) {
-  const { language } = useLanguage();
+  const { tFallback } = useLanguage();
   const { weightUnit } = useWeightUnit();
-  const dateLocale = getDateLocale(language);
+  /* `Intl.DateTimeFormat`, already bound to the language, rather than
+     date-fns `format()` with a pattern. The axis tick used to be
+     `format(d, 'MMM d')` with NO locale at all, so every point on the chart
+     read "Aug 9" in all 15 languages; the milestone rows did pass a locale
+     but pinned month-day-year order through the pattern, which is not how
+     most of those languages write a date. See the date note in CLAUDE.md —
+     and ExerciseTrendChart next door, which is the shape copied here. */
+  const fmtDate = useDateFormatter();
 
   // Build chronological history: one entry per workout session that had this exercise.
   // Each entry has date + max weight that session.
@@ -82,22 +88,24 @@ export default function PRHistoryModal({ open, onClose, exerciseName, logs }) {
   // e.date is a LOCAL 'yyyy-MM-dd' key — parseLocalDate keeps the label
   // on the right calendar day for users west of UTC.
   const chartData = useMemo(() => sessionHistory.map(e => ({
-    date: format(parseLocalDate(e.date), 'MMM d'),
+    date: fmtDate(parseLocalDate(e.date), { month: 'short', day: 'numeric' }),
     weight: Math.round(fromLbs(e.weightLbs, weightUnit) * 10) / 10,
     isPR: e.isPR,
-  })), [sessionHistory, weightUnit]);
+  })), [sessionHistory, weightUnit, fmtDate]);
 
   return (
     <BottomSheet
       open={open}
       onClose={onClose}
-      title={exerciseName ? `${exerciseName} — PR History` : 'PR History'}
+      title={exerciseName
+        ? tFallback('progress.pb.titleFor', '{name} — PR History', { name: exerciseName })
+        : tFallback('progress.pb.title', 'PR History')}
     >
         {sessionHistory.length === 0 ? (
           <div className="text-center py-12">
             <Dumbbell className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
-            <p className="font-heading font-semibold">No data yet</p>
-            <p className="text-sm text-muted-foreground mt-1">Log this exercise to see your history.</p>
+            <p className="font-heading font-semibold">{tFallback('progress.pb.emptyTitle', 'No data yet')}</p>
+            <p className="text-sm text-muted-foreground mt-1">{tFallback('progress.pb.emptyBody', 'Log this exercise to see your history.')}</p>
           </div>
         ) : (
           <div className="space-y-6">
@@ -107,29 +115,44 @@ export default function PRHistoryModal({ open, onClose, exerciseName, logs }) {
                 <Trophy className="w-5 h-5 text-primary" />
               </div>
               <div>
-                <p className="text-xs text-muted-foreground font-medium">All-time best</p>
-                <TapToCopy value={`All-time PR: ${formatWeight(allTimeBest, weightUnit)}`} label="PR">
+                <p className="text-xs text-muted-foreground font-medium">{tFallback('progress.pb.allTimeBest', 'All-time best')}</p>
+                <TapToCopy
+                  value={tFallback('progress.pb.copyValue', 'All-time PR: {weight}', { weight: formatWeight(allTimeBest, weightUnit) })}
+                  label={tFallback('progress.pb.copyLabel', 'PR')}
+                >
                   <p className="font-heading font-black text-2xl text-primary">
                     {formatWeight(allTimeBest, weightUnit)}
                   </p>
                 </TapToCopy>
               </div>
               <div className="ml-auto text-end">
-                <p className="text-xs text-muted-foreground">{prTimeline.length} PRs set</p>
-                <p className="text-xs text-muted-foreground">{sessionHistory.length} sessions</p>
+                <p className="text-xs text-muted-foreground">
+                  {tFallback(
+                    prTimeline.length === 1 ? 'progress.pb.prsSet_one' : 'progress.pb.prsSet_other',
+                    prTimeline.length === 1 ? '{n} PR set' : '{n} PRs set',
+                    { n: prTimeline.length },
+                  )}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {tFallback(
+                    sessionHistory.length === 1 ? 'progress.pb.sessions_one' : 'progress.pb.sessions_other',
+                    sessionHistory.length === 1 ? '{n} session' : '{n} sessions',
+                    { n: sessionHistory.length },
+                  )}
+                </p>
               </div>
             </div>
 
             {/* Line chart */}
             {chartData.length >= 2 && (
               <Card className="p-4 border-none shadow-sm">
-                <p className="text-xs text-muted-foreground font-medium mb-3 uppercase tracking-wide">Weight over time</p>
+                <p className="text-xs text-muted-foreground font-medium mb-3 uppercase tracking-wide">{tFallback('progress.pb.chartTitle', 'Weight over time')}</p>
                 <ResponsiveContainer width="100%" height={200}>
                   <LineChart data={chartData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                     <XAxis dataKey="date" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" interval="preserveStartEnd" />
                     <YAxis tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" domain={['auto', 'auto']} unit={` ${weightUnit}`} width={55} />
-                    <Tooltip {...CHART_STYLE} formatter={(v) => [`${v} ${weightUnit}`, 'Weight']} />
+                    <Tooltip {...CHART_STYLE} formatter={(v) => [`${v} ${weightUnit}`, tFallback('progress.pb.chartSeries', 'Weight')]} />
                     <Line
                       type="monotone"
                       dataKey="weight"
@@ -146,14 +169,14 @@ export default function PRHistoryModal({ open, onClose, exerciseName, logs }) {
                     />
                   </LineChart>
                 </ResponsiveContainer>
-                <p className="text-micro text-muted-foreground mt-2 text-center">● = new PR at that session</p>
+                <p className="text-micro text-muted-foreground mt-2 text-center">{tFallback('progress.pb.chartLegend', '● = new PR at that session')}</p>
               </Card>
             )}
 
             {/* PR milestones */}
             {prTimeline.length > 0 && (
               <div>
-                <p className="text-xs text-muted-foreground font-medium mb-3 uppercase tracking-wide">PR milestones</p>
+                <p className="text-xs text-muted-foreground font-medium mb-3 uppercase tracking-wide">{tFallback('progress.pb.milestones', 'PR milestones')}</p>
                 <div className="space-y-2">
                   {[...prTimeline].reverse().map((pr, idx) => (
                     <motion.div
@@ -175,7 +198,7 @@ export default function PRHistoryModal({ open, onClose, exerciseName, logs }) {
                           {formatWeight(pr.weightLbs, weightUnit)}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {format(parseLocalDate(pr.date), 'MMMM d, yyyy', { locale: dateLocale })}
+                          {fmtDate(parseLocalDate(pr.date), { dateStyle: 'long' })}
                         </p>
                       </div>
                       {pr.prevBest > 0 && (
@@ -184,7 +207,7 @@ export default function PRHistoryModal({ open, onClose, exerciseName, logs }) {
                         </span>
                       )}
                       {pr.prevBest === 0 && (
-                        <span className="text-micro text-muted-foreground shrink-0">first</span>
+                        <span className="text-micro text-muted-foreground shrink-0">{tFallback('progress.pb.first', 'first')}</span>
                       )}
                     </motion.div>
                   ))}
