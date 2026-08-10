@@ -12,6 +12,7 @@ import { db } from '@/api/db';
 import { useAuth } from '@/lib/AuthContext';
 import { format, subDays, eachDayOfInterval, startOfDay, differenceInDays } from 'date-fns';
 import { parseLocalDate } from '@/lib/dateUtils';
+import { workoutTitle } from '@/lib/workoutTitle';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -1190,7 +1191,7 @@ export default function Progress() {
               <div className="flex items-baseline justify-between gap-2 py-2 border-b border-border">
                 <div className="min-w-0">
                   <p className="text-sm font-semibold leading-tight truncate">
-                    {lastWorkout.regimen_name || tFallback('progress.lastWorkout.freestyle', 'Freestyle Session')}
+                    {workoutTitle(lastWorkout) || tFallback('progress.lastWorkout.freestyle', 'Freestyle Session')}
                   </p>
                   <p className="text-micro text-muted-foreground mt-0.5">
                     {/* progress.today / progress.yesterday already ship in

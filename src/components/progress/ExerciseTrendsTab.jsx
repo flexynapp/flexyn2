@@ -5,6 +5,17 @@ import { Card } from '@/components/ui/card';
 import { useLanguage } from '@/lib/LanguageContext';
 import { muscleKey } from '@/lib/exerciseTranslations';
 import { parseLocalDate } from '@/lib/dateUtils';
+// `workoutTitle` reads `title`, tolerating `regimen_name`. This file had
+// its own copy of that expression, written when the read side was the
+// only half that could be fixed from here — `workout_logs` has no
+// `regimen_name` column, so db.js's strip-and-retry dropped it on every
+// save and it was `undefined` on every row. The old filter compared
+// against it directly, which is why picking any regimen filtered the tab
+// to zero logs and showed "you have never logged a workout" to someone
+// looking at their own training history. b5043ac5 fixed the write and
+// gave the column ONE owner; a second local copy of the fallback is
+// exactly the drift that module exists to prevent.
+import { workoutTitle } from '@/lib/workoutTitle';
 import ExerciseTrendRow from './ExerciseTrendRow';
 import TrendFilterChip from './TrendFilterChip';
 
@@ -18,20 +29,6 @@ const FRAME_DAYS = { week: 7, month: 30, year: 365, all: Infinity };
 const FRAME_FALLBACK = {
   week: 'Last 7 Days', month: 'Last 30 Days', year: 'Last 365 Days', all: 'All Time',
 };
-
-/** The name a log was saved under, if any. */
-//
-// `title` is the real column. `regimen_name` is a base44 field name that
-// never made the trip to Supabase — workout_logs has no such column, so
-// db.js's write strip-and-retry drops it on every save and it reads
-// `undefined` on every row. The old filter compared against it directly,
-// which meant selecting any regimen filtered the tab to zero logs and
-// showed the "you have never logged a workout" empty state to someone
-// looking at their own training history.
-//
-// Read both, prefer the real one. When the write side is fixed (see the
-// audit doc) this keeps working without a change here.
-const logName = (log) => log?.title || log?.regimen_name || null;
 
 /**
  * The muscle group an exercise is filed under.
@@ -109,12 +106,12 @@ export default function ExerciseTrendsTab({ logs, frame }) {
    * nothing. An option that cannot produce a result is not offered.
    */
   const workoutNames = useMemo(
-    () => [...new Set(windowLogs.map(logName).filter(Boolean))].sort((a, b) => a.localeCompare(b)),
+    () => [...new Set(windowLogs.map(workoutTitle).filter(Boolean))].sort((a, b) => a.localeCompare(b)),
     [windowLogs],
   );
 
   const namedLogs = useMemo(
-    () => (workout === 'all' ? windowLogs : windowLogs.filter((l) => logName(l) === workout)),
+    () => (workout === 'all' ? windowLogs : windowLogs.filter((l) => workoutTitle(l) === workout)),
     [windowLogs, workout],
   );
 
@@ -222,7 +219,7 @@ export default function ExerciseTrendsTab({ logs, frame }) {
               ]}
             />
           )}
-          {/* Only when a log actually carries a name — see logName above. */}
+          {/* Only when a log actually carries a name — see the workoutTitle note above. */}
           {workoutNames.length > 0 && (
             <TrendFilterChip
               label={tFallback('trends.workoutLabel', 'Workout')}
