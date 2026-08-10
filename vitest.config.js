@@ -36,6 +36,26 @@ export default defineConfig({
         'src/components/ui/**',    // shadcn primitives — not our code
       ],
     },
+    // Vitest defaults to 5s per test, and on this machine that is a source of
+    // FALSE reds rather than a safety net. Several sessions routinely run dev
+    // servers and full suites concurrently, and a loaded run stretches from
+    // ~137s to ~369s — at which point tests that normally take milliseconds
+    // land at 3.7s, 5.3s, 6.1s and start tripping the limit. Observed across
+    // muscleGroupHeatmapA11y, signInExistingAccount and GymEquipmentEditor in
+    // one such run: three unrelated files, no assertion disagreeing with the
+    // code, purely the clock.
+    //
+    // 15s absorbs those with headroom while still catching a genuinely hung
+    // test. Note this is deliberately NOT a fix for a slow test — if
+    // something here ever needs more than a second or two of real work, that
+    // is worth understanding rather than accommodating. Raising this only
+    // stops a busy machine from being reported as a broken build.
+    //
+    // hookTimeout is left at its 10s default, which was never the one
+    // tripping. If beforeEach/afterEach start timing out under the same load,
+    // raise that too rather than assuming this covers it.
+    testTimeout: 15000,
+
     // Show a diff when expect() assertions fail
     reporters: ['verbose'],
     // Group test files by folder in output
