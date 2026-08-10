@@ -5,10 +5,11 @@
  * `tFallback('a.b', 'English')` returns the fallback only when `a.b` exists
  * NOWHERE. The moment a part file defines it, the part file's value is what
  * ships — so editing the English at the call site changes nothing, produces
- * a clean-looking diff, and passes review. The two `progress.*Achievements`
- * entries below are exactly that: someone shortened the headings to "In
- * progress" and "Earned", and users have been reading "Active Achievements"
- * and "Completed Achievements" ever since.
+ * a clean-looking diff, and passes review. That is not hypothetical: this
+ * test shipped with four such edits already broken, and the two segmented-
+ * control labels among them had been showing "Active Achievements" and
+ * "Completed Achievements" long after someone shortened them to "In
+ * progress" and "Earned".
  *
  * It also runs the other way. Adding a part-file entry for a key that was
  * already being called rewrites the screen unless the new value matches the
@@ -49,16 +50,25 @@ function callSites() {
   return out;
 }
 
-// Drift that predates this test. Each is a real defect — the call site's
-// English is what someone meant the user to read — but fixing one means
-// re-translating the key in 15 languages, so it is a copy decision rather
-// than a mechanical change. Shrink this list; never grow it.
-const KNOWN_DRIFT = new Set([
-  'progress.activeAchievements',    // call "In progress"  → screen "Active Achievements"
-  'progress.completedAchievements', // call "Earned"       → screen "Completed Achievements"
-  'photos.takePhoto',               // call "Take photo"   → screen "Take Photo"
-  'photos.tryAgain',                // call "Try again"    → screen "Try Again"
-]);
+// Drift this test is willing to tolerate, with a reason attached.
+//
+// EMPTY, and it should stay that way. The four entries it shipped with are
+// fixed: `progress.activeAchievements` and `.completedAchievements` now say
+// "In progress" and "Earned", and `photos.takePhoto` / `.tryAgain` are in
+// sentence case — in every case the call site's English, which is what
+// someone meant the user to read.
+//
+// Worth recording how that was fixed, because the obvious move is wrong.
+// Changing the English does NOT oblige clearing the translations. The 14
+// non-English values for the achievements pair still render the previous,
+// longer phrasing, and were kept: they describe exactly what the segment
+// holds, so a Spanish reader is correctly served. Deleting them would have
+// forced English on 14 languages to make a register consistent, which is a
+// worse screen for those users today. See the note in i18n-part4.js.
+//
+// Add an entry only with that kind of reasoning written down. Shrink this
+// list; never grow it casually.
+const KNOWN_DRIFT = new Set([]);
 
 describe('a part file cannot silently rewrite what a Progress screen says', () => {
   const sites = callSites();

@@ -38,8 +38,21 @@ export const translations_p4 = {
     // placeholder rather than splitting the sentence around a comma.
     'progress.unlocksWith': 'Unlocks with {items}',
     'progress.allCompleted': 'All achievements unlocked!',
-    'progress.activeAchievements': 'Active Achievements',
-    'progress.completedAchievements': 'Completed Achievements',
+    // These two label a segmented control, and the English was shortened to
+    // "In progress" / "Earned" at the call site — a change that never
+    // reached the screen, because a defined key beats its fallback. Taking
+    // the call site's wording is what makes the edit real.
+    //
+    // The 14 translations below are NOT stale and were deliberately kept.
+    // They render the previous, longer phrasing ("Logros Completados",
+    // "Завершённые достижения"), which still describes exactly what the
+    // segment holds — so a Spanish reader is correctly served, just more
+    // formally than an English one. Clearing them to force this shorter
+    // English on 14 languages would make those users worse off today for
+    // the sake of matching a register. Worth revisiting on the next native
+    // pass, when someone can pick a short form that works in each language.
+    'progress.activeAchievements': 'In progress',
+    'progress.completedAchievements': 'Earned',
     'progress.noneCompleted': 'No completed achievements yet. Keep going!',
     'progress.leaderboard': 'Leaderboard',
     'progress.all': 'All',
@@ -93,11 +106,16 @@ export const translations_p4 = {
     'photos.logPrompt': 'Log a progress photo?',
     'photos.captureTitle': 'Capture Your Progress',
     'photos.captureDesc': 'Would you like to take a progress photo? It will be saved with today\'s date so you can track your transformation over time.',
-    'photos.takePhoto': 'Take Photo',
+    // Sentence case, from the call site. Same reasoning as the two
+    // achievements labels above, but a casing change only — the meaning is
+    // untouched, so every translation below stays correct as written.
+    // Whether a given language wants title case here is that language's
+    // convention, not a mirror of English.
+    'photos.takePhoto': 'Take photo',
     'photos.progressPhoto': 'Progress Photo',
     'photos.preview': 'Preview',
     'photos.cameraDenied': 'Camera access denied. Please allow camera permissions and try again.',
-    'photos.tryAgain': 'Try Again',
+    'photos.tryAgain': 'Try again',
     'photos.retake': 'Retake',
     'photos.savePhoto': 'Save Photo',
     'photos.savedToast': 'Progress photo saved! 📸',
