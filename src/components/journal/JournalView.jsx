@@ -17,6 +17,7 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format, subDays, addDays } from 'date-fns';
 import { useDateFormatter } from '@/lib/intl';
+import { dayHeaderFormat } from '@/lib/journalDateFormat';
 import {
   ChevronLeft, ChevronRight, List, Bold, Mic, MicOff,
   Paperclip, X, Loader2, History, FileText,
@@ -107,13 +108,12 @@ export default function JournalView({ userId, userEmail, onClose, initialDate })
   // "Sunday, August 9" on a screen where everything around it was Spanish —
   // and wiring date-fns locales would mean importing 15 locale bundles into
   // the startup path. Intl is in the platform and already knows all 15.
+  //
+  // The FORMAT lives in journalDateFormat.js with the measurements that
+  // chose it: the full "weekday, month day" runs to 294pt against a 233pt
+  // box, so it clipped in 7 of 15 languages — English among them.
   const fmtDate = useDateFormatter();
-  const displayDate = fmtDate(activeDate, {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-    ...(activeDate.getFullYear() === new Date().getFullYear() ? {} : { year: 'numeric' }),
-  });
+  const displayDate = fmtDate(activeDate, dayHeaderFormat(activeDate, new Date()));
 
   // Declared here, at the top, and NOT next to the other derived values
   // further down: goPrev, toggleDictation and onPickFiles all read them, and
