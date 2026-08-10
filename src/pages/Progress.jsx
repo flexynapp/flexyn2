@@ -884,12 +884,33 @@ export default function Progress() {
   };
 
   // ── Render ────────────────────────────────────────────────────────────────
+  //
+  // Vertical padding and the between-section gaps come off the fluid scale;
+  // the horizontal inset does not. The scale is vertical only — "horizontal
+  // crowding is a wrapping problem, not a scaling one" — and px-4 is also
+  // what the carousel's -mx-4 cancels, so those two have to stay the same
+  // literal or the bleed stops lining up.
+  //
+  // This is a PARTIAL conversion on purpose. Onboarding got the full
+  // treatment because its steps must END at a fixed point, above a pinned
+  // CTA; CLAUDE.md's rule is "convert a surface when it has to end at a
+  // fixed point". Progress scrolls inside Layout, so it needs neither its
+  // type nor its component heights clamped — only its spacing, which is
+  // what turns the 24px section gaps into 12px on an SE.
+  //
+  // Three things are deliberately NOT fluid, all measured at 375×667:
+  //   · the 48px tab targets — that is the Apple HIG floor, not a gap
+  //   · the 32px seam — its entire job is to be the one outlier, so
+  //     shrinking it alongside the gaps it is meant to stand apart from
+  //     defeats it. Sections shrinking to 12 makes the ratio BETTER (2.7×).
+  //   · the 11px type floor, which the scale itself treats as a floor
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.45, ease: 'easeOut' }}
-      className="px-4 pt-4 md:px-6 md:pt-6 lg:pb-6 max-w-5xl mx-auto"
+      className="px-4 md:px-6 lg:pb-6 max-w-5xl mx-auto"
+      style={{ paddingTop: 'var(--fluid-pad-y)' }}
     >
       <PageHeader
         kicker={t('pageHeader.kicker.progress')}
@@ -933,7 +954,7 @@ export default function Progress() {
           {/* "You usually train Mon · Wed · Fri at 6:30 PM" — a soft
               pattern-recognition insight. Renders nothing if there
               isn't enough data to call a pattern (see trainingPatterns.js). */}
-          <div className="mb-2">
+          <div className="mb-2 empty:hidden empty:mb-0">
             <TrainingPatternCard workoutLogs={logs} />
           </div>
 
@@ -951,7 +972,7 @@ export default function Progress() {
 
               Sits directly under the seam, above the period stats: it is
               the history the period below summarises. */}
-          <div className="mb-2">
+          <div className="mb-2 empty:hidden empty:mb-0">
             <WorkoutCalendarGrid
               logs={logs}
               onSelectDay={(log) => {
@@ -965,7 +986,7 @@ export default function Progress() {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.18, type: 'spring', stiffness: 260, damping: 22 }}
-            className="mb-4"
+            style={{ marginBottom: 'var(--fluid-section)' }}
           >
             {/* No shadow and no blur blob. "Resting = hairline border, no
                 shadow; shadow-sm adds nothing a hairline doesn't", and the
@@ -1152,7 +1173,7 @@ export default function Progress() {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.24, type: 'spring', stiffness: 260, damping: 22 }}
-            className="mb-6"
+            style={{ marginBottom: 'var(--fluid-section)' }}
           >
             {/* The heading and rows are conditional; the two links below are
                 NOT. Nesting them inside the same guard is a regression this
@@ -1262,7 +1283,7 @@ export default function Progress() {
               is right here per CLAUDE.md's rule — the count is a fixed 4
               from TAB_META, not decided by data, so there is no partial
               row for tileRow() to centre. */}
-          <div className="mb-6">
+          <div style={{ marginBottom: 'var(--fluid-section)' }}>
             <div className="grid grid-cols-2 gap-2.5">
               {TAB_META.map(tab => {
                 const isActive = activeTab === tab.id;
