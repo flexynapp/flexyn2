@@ -43,16 +43,44 @@ test`. Green at every commit; 3,752 tests across 268 files at the end.
 Production data was queried read-only over MCP for the claims that depend on
 it (see *What production actually holds*).
 
-**Not verified in a browser, on any of the three commits.** This is the gap in
-this report and it is not a small one — the i18n pass alone rewired ~55 call
-sites and moved four visible labels, and none of that has been seen rendered.
-Two different blocks: the first two commits found all five dev-server slots
-held by other chats, and stopping one of theirs was not mine to do; on the
-third a slot had freed and the server started clean, but the Browser pane
-returned `Policy check in progress` for every tool — navigate, read_page,
-console, screenshot — across several retries. **Anyone picking this up should
-open `/progress` first.** The highest-risk change to eyeball is the frame
-label row and the tab bar, because those are the strings whose length changed.
+**Browser-verified after the fact** — `/progress` at 375×812, on an account
+with zero workouts. What that run proves, and what it cannot:
+
+| Verified live | How |
+|---|---|
+| Finding 7 | Header renders **"Last 7 Days"**, not "This Week". |
+| Finding 6 | **"No workouts logged in this period."** renders beside a `0` Workouts tile — gate is on `frameLogs` and firing on the right condition. |
+| Finding 5 | Tab bar renders **Trends / Body / Photos / Insights** (short keys, not the long `progress.tabs.*`); toggle renders **WK MO YR ALL**; all four carousel slides render their tips. |
+| The whole i18n pass | **Zero raw key paths and zero unfilled `{placeholders}`** in the rendered text, checked mechanically over `main.innerText`. No console errors. |
+| The `tFallback` var-forwarding | `Lv 1` interpolates. This is the exact defect class CLAUDE.md records against `JournalView` — a wrapper dropping the third argument, so English looks perfect and Spanish renders a literal `{n}`. Absent here. |
+| English fallback under a real non-English locale | With `fn-language = es`: Spanish appears where translations exist ("TU CAMINO", "Progreso", "Récords Personales", "Tendencias de Ejercicios"), English appears for the new English-only keys, and the raw-key/placeholder sweep is **empty under `es` too**. That is the claim three commit messages made; this is the evidence. |
+
+**Four fixes an empty account cannot exercise** — muscle pills (4), Weekly
+Review volume unit (3), the last-workout callout, and the Top PRs rail. All
+need logged workouts, and production holds three across two users. Not seeded
+— seeding real rows to check a label is not a trade worth making. **These four
+are what to look at on an account with data**, and the Weekly Review's unit is
+the one most likely to still be wrong, since it is the only one whose fix
+depends on a value the page does not compute itself.
+
+#### The preview port is broken repo-wide, and it is not this page's fault
+
+Two earlier attempts failed and were reported in commit messages as a stuck
+`Policy check in progress`. That diagnosis was wrong, and the real one affects
+**every** preview in this repo:
+
+`.claude/launch.json` runs plain `npm run dev`, so vite never receives a
+`--port` flag and binds its own default. The harness's `autoPort` reports an
+assigned port (58536 here) and points the Browser pane at it, but nothing ever
+listens there. `lsof` settled it in one command — this session's vite was on
+`[::1]:5173`, a parallel session's `vite --host` on `*:5173`. Navigating to
+`localhost:5173` worked immediately.
+
+**Curl the port before believing the pane is broken.** `status=000` from curl
+against the advertised port is the tell, and it takes seconds. Two commits
+went out claiming an environment policy block when the server simply was not
+where the harness said. Fixing `launch.json` to pass the port through would
+retire the whole class.
 
 **Penpot was unreachable throughout** (the MCP plugin timed out on a bare
 `1 + 1`), so the requested UI suggestion for this page was never produced.
@@ -179,8 +207,12 @@ Three calls made without asking. Each is cheap to reverse.
 
 ## Open — not fixed, not in scope
 
-- **Browser verification of all three commits.** The single most useful thing
-  the next session can do.
+- **The four data-dependent fixes** (pills, Weekly Review unit, last-workout
+  callout, Top PRs) on an account with logged workouts. Everything else on
+  this page has now been seen rendering — see *Coverage*.
+- **`.claude/launch.json` does not pass a port to vite**, so `autoPort`
+  advertises a port nothing listens on and every preview in this repo points
+  somewhere dead. Out of scope here; worth its own small fix.
 - **The Penpot UI suggestion** for this page, still outstanding.
 - **The subpages.** `InsightsTab` (710 LOC) is the largest unaudited surface
   here, then `ProgressPhotoCapture` (456) and `MuscleGroupHeatmap` (434).
