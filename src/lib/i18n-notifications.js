@@ -9,6 +9,74 @@
 //   1. Add a helper in src/lib/data/notifications.js
 //   2. Add `notifications.row.<type>.title` (+ `.body` if needed) below
 //   3. Translate to other locales as time allows (English is fallback)
+//
+// ⚠️  THIRTEEN KEYS ARE MACHINE TRANSLATED — PENDING NATIVE REVIEW  ⚠️
+//
+// This file is NOT wholesale machine-translated the way i18n-equipment.js
+// is. Everything that predates 2026-08-10 is human copy. The exception is
+// the thirteen keys listed in MACHINE_TRANSLATED below: new strings the
+// one-surface notifications rebuild introduced, with no equivalent anywhere
+// else in the corpus to borrow. Kegan signed these off on 2026-08-10 —
+// the THIRD deliberate exception to CLAUDE.md's "don't ship
+// machine-translated copy" rule, after i18n-equipment.js and
+// i18n-journal.js.
+//
+// Three of the rebuild's new labels are NOT in that list and are not
+// machine copy: `notifications.tab.achievements`, `.group.today` and
+// `.group.yesterday` reuse values a human had already written for
+// `leaderboards.achievements`, `profile.journal.today` and
+// `journal.yesterday`. Prefer that route to the machine every time.
+//
+// What a native reviewer should look at first, because a literal
+// translation loses the meaning:
+//
+//   • `notifications.tab.competitive` labels duels, bounties, crew wars
+//     and nemesis rows — it is the "someone is racing you" bucket, not an
+//     adjective describing a person. Several languages want the noun
+//     (Competición / Wettkampf / 竞技) rather than a literal "competitive".
+//   • `notifications.tab.reminders` is the "we are asking YOU for
+//     something" bucket — streak warnings, welcome-back, quest expiry. It
+//     must not collapse into the generic word for "notification", which is
+//     what the whole screen is called.
+//   • `notifications.empty.filteredDesc` names the All tab. Whatever that
+//     language renders for `notifications.tab.all` has to be the same word
+//     here, or the sentence points at a tab that isn't on screen.
+//   • `notifications.clearAllConfirmHidden` is the only warning a user gets
+//     that a filtered "Clear all" also deletes what they cannot see. If a
+//     language blurs it into a generic "this deletes everything", the
+//     specific fact — {count} rows are hidden right now — is lost.
+//   • `notifications.newCount` renders inside a small pill next to a
+//     section header. Keep it short; a language that needs a full clause
+//     should shorten rather than wrap.
+//   • `notifications.chooseAlerts` is a button, and the English is
+//     deliberately terse ("choose what alerts you"). Prefer natural
+//     imperative phrasing over a literal rendering.
+
+/** The keys below are machine copy. Nothing else in this file is. */
+export const MACHINE_TRANSLATED = [
+  'notifications.tab.competitive',
+  'notifications.tab.reminders',
+  'notifications.group.earlier',
+  'notifications.newCount',
+  'notifications.more',
+  'notifications.settings',
+  'notifications.chooseAlerts',
+  'notifications.loadOlder',
+  'notifications.empty.filteredTitle',
+  'notifications.empty.filteredDesc',
+  'notifications.clearAllConfirmTitle',
+  'notifications.clearAllConfirmDesc',
+  'notifications.clearAllConfirmHidden',
+];
+
+/**
+ * Languages whose MACHINE_TRANSLATED values still await a native pass.
+ * Remove a language here once someone who speaks it has read those
+ * thirteen strings — not when the file merely has values for them.
+ */
+export const REVIEW_PENDING = [
+  'es', 'fr', 'de', 'pt', 'it', 'ja', 'ko', 'zh', 'ar', 'hi', 'ru', 'tr', 'pl', 'nl',
+];
 
 const enKeys = {
   // ── Panel chrome ─────────────────────────────────────────────────────────
@@ -32,8 +100,8 @@ const enKeys = {
   'notifications.tab.achievements': 'Achievements',
   'notifications.group.today':      'Today',
   'notifications.group.yesterday':  'Yesterday',
-  // TODO(i18n): English-only. No key in the corpus carries these words in
-  // the other 14 languages, and machine translation needs sign-off.
+  // Machine-translated into the other 14 on 2026-08-10 with Kegan's
+  // sign-off — see the file header and REVIEW_PENDING.
   'notifications.tab.competitive':         'Competitive',
   'notifications.tab.reminders':           'Reminders',
   'notifications.group.earlier':           'Earlier',
@@ -106,6 +174,19 @@ const esKeys = {
   'notifications.tab.all':            'Todas',
   'notifications.tab.friends':        'Amigos',
   'notifications.tab.achievements': 'Logros',
+  'notifications.tab.competitive':         'Competición',
+  'notifications.tab.reminders':           'Recordatorios',
+  'notifications.group.earlier':           'Anteriores',
+  'notifications.newCount':                '{count} nuevas',
+  'notifications.more':                    'Más opciones',
+  'notifications.settings':                'Ajustes de notificaciones',
+  'notifications.chooseAlerts':            'Elige qué te avisa',
+  'notifications.loadOlder':               'Cargar anteriores',
+  'notifications.empty.filteredTitle':     'Nada en este filtro',
+  'notifications.empty.filteredDesc':      'Hay otras notificaciones en Todas.',
+  'notifications.clearAllConfirmTitle':    '¿Borrar las {count} notificaciones?',
+  'notifications.clearAllConfirmDesc':     'Esta acción no se puede deshacer.',
+  'notifications.clearAllConfirmHidden':   'Se eliminarán todas las notificaciones, incluidas las {count} que oculta el filtro actual.',
   'notifications.group.today':      'Hoy',
   'notifications.group.yesterday':  'Ayer',
 
@@ -202,6 +283,19 @@ const frKeys = {
   'notifications.tab.all':            'Toutes',
   'notifications.tab.friends':        'Amis',
   'notifications.tab.achievements': 'Succès',
+  'notifications.tab.competitive':         'Compétition',
+  'notifications.tab.reminders':           'Rappels',
+  'notifications.group.earlier':           'Plus tôt',
+  'notifications.newCount':                '{count} nouvelles',
+  'notifications.more':                    'Plus d\'options',
+  'notifications.settings':                'Paramètres de notification',
+  'notifications.chooseAlerts':            'Choisir vos alertes',
+  'notifications.loadOlder':               'Charger les plus anciennes',
+  'notifications.empty.filteredTitle':     'Rien dans ce filtre',
+  'notifications.empty.filteredDesc':      'D\'autres notifications vous attendent dans Toutes.',
+  'notifications.clearAllConfirmTitle':    'Supprimer les {count} notifications ?',
+  'notifications.clearAllConfirmDesc':     'Cette action est irréversible.',
+  'notifications.clearAllConfirmHidden':   'Toutes les notifications seront supprimées, y compris les {count} masquées par le filtre actuel.',
   'notifications.group.today':      'Aujourd\'hui',
   'notifications.group.yesterday':  'Hier',
   'notifications.unreadBadge':        '{count} notification non lue',
@@ -263,6 +357,19 @@ const deKeys = {
   'notifications.tab.all':            'Alle',
   'notifications.tab.friends':        'Freunde',
   'notifications.tab.achievements': 'Erfolge',
+  'notifications.tab.competitive':         'Wettkampf',
+  'notifications.tab.reminders':           'Erinnerungen',
+  'notifications.group.earlier':           'Früher',
+  'notifications.newCount':                '{count} neue',
+  'notifications.more':                    'Weitere Optionen',
+  'notifications.settings':                'Benachrichtigungseinstellungen',
+  'notifications.chooseAlerts':            'Benachrichtigungen wählen',
+  'notifications.loadOlder':               'Ältere laden',
+  'notifications.empty.filteredTitle':     'Nichts in diesem Filter',
+  'notifications.empty.filteredDesc':      'Weitere Benachrichtigungen warten unter Alle.',
+  'notifications.clearAllConfirmTitle':    'Alle {count} Benachrichtigungen löschen?',
+  'notifications.clearAllConfirmDesc':     'Das lässt sich nicht rückgängig machen.',
+  'notifications.clearAllConfirmHidden':   'Damit werden alle Benachrichtigungen gelöscht, auch die {count}, die der aktuelle Filter ausblendet.',
   'notifications.group.today':      'Heute',
   'notifications.group.yesterday':  'Gestern',
   'notifications.unreadBadge':        '{count} ungelesene Benachrichtigung',
@@ -324,6 +431,19 @@ const ptKeys = {
   'notifications.tab.all':            'Todas',
   'notifications.tab.friends':        'Amigos',
   'notifications.tab.achievements': 'Conquistas',
+  'notifications.tab.competitive':         'Competição',
+  'notifications.tab.reminders':           'Lembretes',
+  'notifications.group.earlier':           'Anteriores',
+  'notifications.newCount':                '{count} novas',
+  'notifications.more':                    'Mais opções',
+  'notifications.settings':                'Configurações de notificação',
+  'notifications.chooseAlerts':            'Escolha o que avisa',
+  'notifications.loadOlder':               'Carregar anteriores',
+  'notifications.empty.filteredTitle':     'Nada neste filtro',
+  'notifications.empty.filteredDesc':      'Há outras notificações em Todas.',
+  'notifications.clearAllConfirmTitle':    'Apagar as {count} notificações?',
+  'notifications.clearAllConfirmDesc':     'Isso não pode ser desfeito.',
+  'notifications.clearAllConfirmHidden':   'Isso apaga todas as notificações, incluindo as {count} ocultas pelo filtro atual.',
   'notifications.group.today':      'Hoje',
   'notifications.group.yesterday':  'Ontem',
   'notifications.unreadBadge':        '{count} notificação não lida',
@@ -385,6 +505,19 @@ const jaKeys = {
   'notifications.tab.all':            'すべて',
   'notifications.tab.friends':        'フレンド',
   'notifications.tab.achievements': '実績',
+  'notifications.tab.competitive':         '対戦',
+  'notifications.tab.reminders':           'リマインダー',
+  'notifications.group.earlier':           'それ以前',
+  'notifications.newCount':                '新着{count}件',
+  'notifications.more':                    'その他のオプション',
+  'notifications.settings':                '通知設定',
+  'notifications.chooseAlerts':            '通知する内容を選ぶ',
+  'notifications.loadOlder':               '以前の通知を読み込む',
+  'notifications.empty.filteredTitle':     'このフィルターには何もありません',
+  'notifications.empty.filteredDesc':      '他の通知は「すべて」にあります。',
+  'notifications.clearAllConfirmTitle':    '{count}件すべての通知を削除しますか？',
+  'notifications.clearAllConfirmDesc':     'この操作は取り消せません。',
+  'notifications.clearAllConfirmHidden':   '現在のフィルターで非表示の{count}件を含め、すべての通知を削除します。',
   'notifications.group.today':      '今日',
   'notifications.group.yesterday':  '昨日',
   'notifications.unreadBadge':        '未読の通知 {count} 件',
@@ -411,6 +544,19 @@ const itKeys = {
   'notifications.tab.all':            'Tutte',
   'notifications.tab.friends':        'Amici',
   'notifications.tab.achievements': 'Traguardi',
+  'notifications.tab.competitive':         'Competizione',
+  'notifications.tab.reminders':           'Promemoria',
+  'notifications.group.earlier':           'Precedenti',
+  'notifications.newCount':                '{count} nuove',
+  'notifications.more':                    'Altre opzioni',
+  'notifications.settings':                'Impostazioni notifiche',
+  'notifications.chooseAlerts':            'Scegli cosa ti avvisa',
+  'notifications.loadOlder':               'Carica precedenti',
+  'notifications.empty.filteredTitle':     'Niente in questo filtro',
+  'notifications.empty.filteredDesc':      'Altre notifiche ti aspettano in Tutte.',
+  'notifications.clearAllConfirmTitle':    'Eliminare tutte le {count} notifiche?',
+  'notifications.clearAllConfirmDesc':     'L\'operazione non può essere annullata.',
+  'notifications.clearAllConfirmHidden':   'Verranno eliminate tutte le notifiche, comprese le {count} nascoste dal filtro attuale.',
   'notifications.group.today':      'Oggi',
   'notifications.group.yesterday':  'Ieri',
   'notifications.unreadBadge':        '{count} notifica non letta',
@@ -465,6 +611,19 @@ const koKeys = {
   'notifications.tab.all':            '전체',
   'notifications.tab.friends':        '친구',
   'notifications.tab.achievements': '업적',
+  'notifications.tab.competitive':         '대결',
+  'notifications.tab.reminders':           '리마인더',
+  'notifications.group.earlier':           '이전',
+  'notifications.newCount':                '새 {count}개',
+  'notifications.more':                    '옵션 더 보기',
+  'notifications.settings':                '알림 설정',
+  'notifications.chooseAlerts':            '알림 받을 항목 선택',
+  'notifications.loadOlder':               '이전 알림 불러오기',
+  'notifications.empty.filteredTitle':     '이 필터에는 아무것도 없습니다',
+  'notifications.empty.filteredDesc':      '다른 알림은 \'전체\'에 있습니다.',
+  'notifications.clearAllConfirmTitle':    '알림 {count}개를 모두 삭제할까요?',
+  'notifications.clearAllConfirmDesc':     '이 작업은 되돌릴 수 없습니다.',
+  'notifications.clearAllConfirmHidden':   '현재 필터에 가려진 {count}개를 포함해 모든 알림이 삭제됩니다.',
   'notifications.group.today':      '오늘',
   'notifications.group.yesterday':  '어제',
   'notifications.unreadBadge':        '읽지 않은 알림 {count}개',
@@ -519,6 +678,19 @@ const zhKeys = {
   'notifications.tab.all':            '全部',
   'notifications.tab.friends':        '好友',
   'notifications.tab.achievements': '成就',
+  'notifications.tab.competitive':         '竞技',
+  'notifications.tab.reminders':           '提醒',
+  'notifications.group.earlier':           '更早',
+  'notifications.newCount':                '新 {count} 条',
+  'notifications.more':                    '更多选项',
+  'notifications.settings':                '通知设置',
+  'notifications.chooseAlerts':            '选择接收哪些提醒',
+  'notifications.loadOlder':               '加载更早的',
+  'notifications.empty.filteredTitle':     '此筛选下没有内容',
+  'notifications.empty.filteredDesc':      '其他通知在「全部」中。',
+  'notifications.clearAllConfirmTitle':    '清除全部 {count} 条通知？',
+  'notifications.clearAllConfirmDesc':     '此操作无法撤销。',
+  'notifications.clearAllConfirmHidden':   '这将删除所有通知，包括当前筛选隐藏的 {count} 条。',
   'notifications.group.today':      '今天',
   'notifications.group.yesterday':  '昨天',
   'notifications.unreadBadge':        '{count} 条未读通知',
@@ -573,6 +745,19 @@ const arKeys = {
   'notifications.tab.all':            'الكل',
   'notifications.tab.friends':        'الأصدقاء',
   'notifications.tab.achievements': 'الإنجازات',
+  'notifications.tab.competitive':         'المنافسة',
+  'notifications.tab.reminders':           'التذكيرات',
+  'notifications.group.earlier':           'أقدم',
+  'notifications.newCount':                '{count} جديدة',
+  'notifications.more':                    'خيارات أخرى',
+  'notifications.settings':                'إعدادات الإشعارات',
+  'notifications.chooseAlerts':            'اختر ما ينبّهك',
+  'notifications.loadOlder':               'تحميل الأقدم',
+  'notifications.empty.filteredTitle':     'لا شيء في هذا الفلتر',
+  'notifications.empty.filteredDesc':      'توجد إشعارات أخرى ضمن الكل.',
+  'notifications.clearAllConfirmTitle':    'حذف كل الإشعارات ({count})؟',
+  'notifications.clearAllConfirmDesc':     'لا يمكن التراجع عن هذا.',
+  'notifications.clearAllConfirmHidden':   'سيؤدي هذا إلى حذف كل الإشعارات، بما فيها {count} يخفيها الفلتر الحالي.',
   'notifications.group.today':      'اليوم',
   'notifications.group.yesterday':  'أمس',
   'notifications.unreadBadge':        '{count} إشعار غير مقروء',
@@ -627,6 +812,19 @@ const hiKeys = {
   'notifications.tab.all':            'सभी',
   'notifications.tab.friends':        'दोस्त',
   'notifications.tab.achievements': 'उपलब्धियाँ',
+  'notifications.tab.competitive':         'प्रतिस्पर्धा',
+  'notifications.tab.reminders':           'रिमाइंडर',
+  'notifications.group.earlier':           'इससे पहले',
+  'notifications.newCount':                '{count} नई',
+  'notifications.more':                    'और विकल्प',
+  'notifications.settings':                'सूचना सेटिंग्स',
+  'notifications.chooseAlerts':            'चुनें कि क्या सूचित करे',
+  'notifications.loadOlder':               'पुराने लोड करें',
+  'notifications.empty.filteredTitle':     'इस फ़िल्टर में कुछ नहीं',
+  'notifications.empty.filteredDesc':      'अन्य सूचनाएँ \'सभी\' में हैं।',
+  'notifications.clearAllConfirmTitle':    'सभी {count} सूचनाएँ हटाएँ?',
+  'notifications.clearAllConfirmDesc':     'इसे पूर्ववत नहीं किया जा सकता।',
+  'notifications.clearAllConfirmHidden':   'इससे सभी सूचनाएँ हट जाएँगी, जिनमें मौजूदा फ़िल्टर से छिपी {count} भी शामिल हैं।',
   'notifications.group.today':      'आज',
   'notifications.group.yesterday':  'कल',
   'notifications.unreadBadge':        '{count} अपठित सूचना',
@@ -681,6 +879,19 @@ const ruKeys = {
   'notifications.tab.all':            'Все',
   'notifications.tab.friends':        'Друзья',
   'notifications.tab.achievements': 'Достижения',
+  'notifications.tab.competitive':         'Соревнования',
+  'notifications.tab.reminders':           'Напоминания',
+  'notifications.group.earlier':           'Ранее',
+  'notifications.newCount':                '{count} новых',
+  'notifications.more':                    'Другие действия',
+  'notifications.settings':                'Настройки уведомлений',
+  'notifications.chooseAlerts':            'Выбрать уведомления',
+  'notifications.loadOlder':               'Загрузить старые',
+  'notifications.empty.filteredTitle':     'В этом фильтре пусто',
+  'notifications.empty.filteredDesc':      'Другие уведомления — во вкладке «Все».',
+  'notifications.clearAllConfirmTitle':    'Удалить все {count} уведомлений?',
+  'notifications.clearAllConfirmDesc':     'Это действие нельзя отменить.',
+  'notifications.clearAllConfirmHidden':   'Будут удалены все уведомления, включая {count}, скрытые текущим фильтром.',
   'notifications.group.today':      'Сегодня',
   'notifications.group.yesterday':  'Вчера',
   'notifications.unreadBadge':        '{count} непрочитанное уведомление',
@@ -735,6 +946,19 @@ const trKeys = {
   'notifications.tab.all':            'Tümü',
   'notifications.tab.friends':        'Arkadaşlar',
   'notifications.tab.achievements': 'Başarımlar',
+  'notifications.tab.competitive':         'Rekabet',
+  'notifications.tab.reminders':           'Hatırlatıcılar',
+  'notifications.group.earlier':           'Daha önce',
+  'notifications.newCount':                '{count} yeni',
+  'notifications.more':                    'Diğer seçenekler',
+  'notifications.settings':                'Bildirim ayarları',
+  'notifications.chooseAlerts':            'Neyin bildireceğini seç',
+  'notifications.loadOlder':               'Daha eskilerini yükle',
+  'notifications.empty.filteredTitle':     'Bu filtrede hiçbir şey yok',
+  'notifications.empty.filteredDesc':      'Diğer bildirimler Tümü sekmesinde.',
+  'notifications.clearAllConfirmTitle':    '{count} bildirimin tümü silinsin mi?',
+  'notifications.clearAllConfirmDesc':     'Bu işlem geri alınamaz.',
+  'notifications.clearAllConfirmHidden':   'Bu, mevcut filtrenin gizlediği {count} bildirim dahil tüm bildirimleri siler.',
   'notifications.group.today':      'Bugün',
   'notifications.group.yesterday':  'Dün',
   'notifications.unreadBadge':        '{count} okunmamış bildirim',
@@ -789,6 +1013,19 @@ const plKeys = {
   'notifications.tab.all':            'Wszystkie',
   'notifications.tab.friends':        'Znajomi',
   'notifications.tab.achievements': 'Osiągnięcia',
+  'notifications.tab.competitive':         'Rywalizacja',
+  'notifications.tab.reminders':           'Przypomnienia',
+  'notifications.group.earlier':           'Wcześniej',
+  'notifications.newCount':                '{count} nowe',
+  'notifications.more':                    'Więcej opcji',
+  'notifications.settings':                'Ustawienia powiadomień',
+  'notifications.chooseAlerts':            'Wybierz powiadomienia',
+  'notifications.loadOlder':               'Wczytaj starsze',
+  'notifications.empty.filteredTitle':     'Nic w tym filtrze',
+  'notifications.empty.filteredDesc':      'Inne powiadomienia czekają w zakładce Wszystkie.',
+  'notifications.clearAllConfirmTitle':    'Usunąć wszystkie {count} powiadomień?',
+  'notifications.clearAllConfirmDesc':     'Tej operacji nie można cofnąć.',
+  'notifications.clearAllConfirmHidden':   'Usunie to wszystkie powiadomienia, w tym {count} ukryte przez bieżący filtr.',
   'notifications.group.today':      'Dziś',
   'notifications.group.yesterday':  'Wczoraj',
   'notifications.unreadBadge':        '{count} nieprzeczytane powiadomienie',
@@ -843,6 +1080,19 @@ const nlKeys = {
   'notifications.tab.all':            'Alle',
   'notifications.tab.friends':        'Vrienden',
   'notifications.tab.achievements': 'Prestaties',
+  'notifications.tab.competitive':         'Competitie',
+  'notifications.tab.reminders':           'Herinneringen',
+  'notifications.group.earlier':           'Eerder',
+  'notifications.newCount':                '{count} nieuw',
+  'notifications.more':                    'Meer opties',
+  'notifications.settings':                'Meldingsinstellingen',
+  'notifications.chooseAlerts':            'Kies je meldingen',
+  'notifications.loadOlder':               'Oudere laden',
+  'notifications.empty.filteredTitle':     'Niets in dit filter',
+  'notifications.empty.filteredDesc':      'Andere meldingen staan onder Alle.',
+  'notifications.clearAllConfirmTitle':    'Alle {count} meldingen wissen?',
+  'notifications.clearAllConfirmDesc':     'Dit kan niet ongedaan worden gemaakt.',
+  'notifications.clearAllConfirmHidden':   'Hiermee verwijder je alle meldingen, inclusief de {count} die het huidige filter verbergt.',
   'notifications.group.today':      'Vandaag',
   'notifications.group.yesterday':  'Gisteren',
   'notifications.unreadBadge':        '{count} ongelezen melding',

@@ -113,10 +113,19 @@ export default function NotificationPanel({ open, onClose }) {
         queryClient.invalidateQueries({ queryKey: ['notificationsUnread', uid] });
         queryClient.invalidateQueries({ queryKey: ['notificationsList', uid] });
       })
-      .catch(err => reportError(err, {
-        feature: 'notifications.markAllRead', level: 'warning', userEmail: user?.email,
-      }));
-  }, [user, queryClient]);
+      .catch(err => {
+        // The header control is a user-initiated action now that it is
+        // reachable at all, so its failure has to reach the user — the
+        // badge stays lit and nothing explains why otherwise.
+        // `notifications.markAllReadError` has been translated in all 15
+        // since long before this surface could call it: its English half
+        // lives in i18n-batch2.js and the other 14 in i18n-notifications.js.
+        toast.error(tFallback('notifications.markAllReadError', 'Could not mark notifications as read.'));
+        reportError(err, {
+          feature: 'notifications.markAllRead', level: 'warning', userEmail: user?.email,
+        });
+      });
+  }, [user, queryClient, tFallback]);
 
   // Unmount without a close (tab closed, hard navigation). The promise runs
   // to completion either way; only the .then() is at risk, and losing a
