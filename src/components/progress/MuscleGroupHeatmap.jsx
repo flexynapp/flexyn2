@@ -1,6 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { FRONT_GROUPS, BACK_GROUPS } from './muscleAnatomy';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { useWeightUnit } from '@/lib/WeightUnitContext';
+import { fromLbs } from '@/lib/weightUnit';
 
 /* ============================================================
    FLEXYN · Muscle heat-map  (Body Heat Map design, wired to
@@ -32,6 +34,36 @@ const FINE_IDS = Object.keys(FINE);
 const PARENT = {};
 Object.entries(COARSE_TO_FINE).forEach(([cg, fs]) => fs.forEach((f) => { PARENT[f] = cg; }));
 
+/* Three vocabularies reach this component and only one of them is what
+   COARSE_TO_FINE is keyed on. The exercise library (ExerciseAutocomplete)
+   writes capitalised coarse names — 'Chest', 'Legs'. The AI Coach
+   generator writes LOWERCASE ones — 'chest', 'legs' — plus 'arms', which
+   is not a coarse group at all. planBuilder writes the odd fine name
+   ('Quads'). An unrecognised name was dropped in silence, so every
+   Coach-generated session contributed NOTHING to this map, and the
+   headline read "0 muscles need recovery" the day after one.
+
+   Normalise on the way IN rather than fixing each writer: those strings
+   are persisted in workout_logs.exercises, so renaming them at the source
+   is a data migration and would still leave every existing log wrong. */
+const COARSE_KEYS = Object.keys(COARSE_TO_FINE);
+const GROUP_ALIASES = {
+  arms: ['Biceps', 'Triceps'],
+  lats: ['Back'], traps: ['Back'], lowerback: ['Back'], 'lower back': ['Back'],
+  quads: ['Legs'], quadriceps: ['Legs'], hamstrings: ['Legs'], calves: ['Legs'],
+  abs: ['Core'], obliques: ['Core'],
+  delts: ['Shoulders'], deltoids: ['Shoulders'],
+  // An Olympic lift genuinely does train everything, and the library tags
+  // 25 exercises this way — every clean, snatch and jerk was invisible here.
+  'full body': COARSE_KEYS, fullbody: COARSE_KEYS,
+  // 'Cardio' is deliberately absent: it names no lifting muscle, and its
+  // sets carry neither weight nor reps so they're filtered out upstream.
+};
+const GROUP_LOOKUP = {};
+COARSE_KEYS.forEach((k) => { GROUP_LOOKUP[k.toLowerCase()] = [k]; });
+Object.entries(GROUP_ALIASES).forEach(([k, v]) => { GROUP_LOOKUP[k] = v; });
+const coarseKeysFor = (raw) => GROUP_LOOKUP[String(raw || '').trim().toLowerCase()] || [];
+
 const RANGE_DAYS = { '7D': 7, '30D': 30, '90D': 90 };
 
 /* Recovery %: 0 right after training → 100 fully rested, ramping smoothly
@@ -44,8 +76,11 @@ const recoveryPct = (days, region) => (
 
 const exName = (ex) => ex.name || ex.exercise_name || ex.exercise || 'Exercise';
 
-/* Build the per-muscle dataset from real logs for the active range. */
-function buildMuscles(logs, rangeDays) {
+/* Build the per-muscle dataset from real logs for the active range.
+   Exported for tests: this is the only place the three writer
+   vocabularies get reconciled, and a name it fails to recognise costs a
+   whole session in silence rather than throwing. */
+export function buildMuscles(logs, rangeDays) {
   const now = Date.now();
   const coarse = {};
   Object.keys(COARSE_TO_FINE).forEach((g) => { coarse[g] = { sets: 0, vol: 0, last: null, ex: {} }; });
@@ -58,8 +93,16 @@ function buildMuscles(logs, rangeDays) {
       const sets = (ex.sets || []).filter((s) => (Number(s.weight) > 0 || Number(s.reps) > 0));
       if (!sets.length) return;
       const vol = sets.reduce((a, s) => a + (Number(s.weight) || 0) * (Number(s.reps) || 0), 0);
-      const groups = ex.muscle_groups || (ex.muscle_group ? [ex.muscle_group] : []);
-      groups.forEach((g) => {
+      // `?.length`, not `||` — several writers set muscle_groups to an
+      // empty array AND a legacy muscle_group string, and `[]` is truthy,
+      // so `||` never reached the fallback and dropped the whole exercise.
+      const groups = ex.muscle_groups?.length ? ex.muscle_groups
+        : (ex.muscle_group ? [ex.muscle_group] : []);
+      // Aliases collapse: ['Legs','Quads'] both resolve to Legs, and
+      // crediting that exercise's volume to Legs twice would double it.
+      const hit = new Set();
+      groups.forEach((g) => coarseKeysFor(g).forEach((k) => hit.add(k)));
+      hit.forEach((g) => {
         const c = coarse[g];
         if (!c) return;
         // last-trained is all-time (recovery is a "right now" metric)
@@ -110,9 +153,22 @@ const colorFor = (muscles, id, mode, maxVol) => {
 /* ============================================================
    SVG figure — neutral body base, then heat-coloured tracked
    groups, dimensional top-light, and crisp guide outlines.
+
+   Everything that isn't a heat colour reads from the --mmap-*
+   tokens in index.css so the figure follows the user's light /
+   dark choice; the heat ramps above are deliberately fixed, so
+   the same fatigue is the same colour in either theme.
+
+   These are applied through `style`, NOT as fill/stroke
+   presentation attributes: var() is not substituted in a
+   presentation attribute, so `fill="hsl(var(--x))"` renders as
+   an invalid paint and the shape falls back to black.
    ============================================================ */
-const NEUTRAL_FILL = '#dfe4ea';
-const NEUTRAL_STROKE = 'rgba(120,132,148,0.5)';
+const NEUTRAL_FILL = 'hsl(var(--mmap-body))';
+const NEUTRAL_STROKE = 'hsl(var(--mmap-body-edge) / 0.5)';
+const HEAT_STROKE = 'hsl(var(--mmap-ink) / 0.28)';
+const GUIDE_STROKE = 'hsl(var(--mmap-ink) / 0.5)';
+const GUIDE_STROKE_ACTIVE = 'hsl(var(--mmap-ink))';
 const LEG_GROUPS = new Set(['hamstrings', 'calves']);
 
 function Figure({ groups, viewBox, getFill, sel, onSel, vid, mirrorAxis }) {
@@ -135,7 +191,7 @@ function Figure({ groups, viewBox, getFill, sel, onSel, vid, mirrorAxis }) {
       </defs>
 
       {/* 1 · neutral body base */}
-      <g fill={NEUTRAL_FILL} stroke={NEUTRAL_STROKE} strokeWidth="0.8" strokeLinejoin="round">
+      <g style={{ fill: NEUTRAL_FILL, stroke: NEUTRAL_STROKE }} strokeWidth="0.8" strokeLinejoin="round">
         {allPaths.map((d, i) => <path key={i} d={d} />)}
         {mirrorT && <g transform={mirrorT}>{legPaths.map((d, i) => <path key={`mb${i}`} d={d} />)}</g>}
       </g>
@@ -148,8 +204,11 @@ function Figure({ groups, viewBox, getFill, sel, onSel, vid, mirrorAxis }) {
         return (
           <g key={k}
             onClick={(e) => { e.stopPropagation(); onSel(active ? null : k); }}
-            style={{ cursor: 'pointer', opacity: dim ? 0.32 : 1, transition: 'opacity .35s, fill .55s ease' }}
-            fill={getFill(k)} stroke="rgba(11,15,20,0.28)" strokeWidth="0.6" strokeLinejoin="round"
+            style={{
+              cursor: 'pointer', opacity: dim ? 0.32 : 1, transition: 'opacity .35s, fill .55s ease',
+              fill: getFill(k), stroke: HEAT_STROKE,
+            }}
+            strokeWidth="0.6" strokeLinejoin="round"
           >
             {grp.paths.map((d, i) => <path key={i} d={d} />)}
             {legMirror(grp) && <g transform={mirrorT}>{grp.paths.map((d, i) => <path key={`m${i}`} d={d} />)}</g>}
@@ -169,9 +228,11 @@ function Figure({ groups, viewBox, getFill, sel, onSel, vid, mirrorAxis }) {
           const dim = sel && !active;
           return (
             <g key={grp.g}
-              stroke={active ? '#0b0f14' : 'rgba(11,15,20,0.5)'}
               strokeWidth={active ? 3 : 1.3}
-              style={{ opacity: dim ? 0.32 : 1, transition: 'opacity .35s, stroke-width .2s' }}
+              style={{
+                stroke: active ? GUIDE_STROKE_ACTIVE : GUIDE_STROKE,
+                opacity: dim ? 0.32 : 1, transition: 'opacity .35s, stroke-width .2s',
+              }}
             >
               {grp.paths.map((d, i) => <path key={i} d={d} />)}
               {legMirror(grp) && <g transform={mirrorT}>{grp.paths.map((d, i) => <path key={`m${i}`} d={d} />)}</g>}
@@ -220,18 +281,39 @@ function Segmented({ options, value, onChange, mono = true }) {
   );
 }
 
+/* Volume is accumulated in lbs (that is how sets are stored — see the
+   "Stored volume is RAW" note in CLAUDE.md), so it has to be converted
+   for display like every other weight in the app. This card was printing
+   the raw pound figure with a hardcoded "lb" suffix, so a user on kg saw
+   pounds here and kilos everywhere else. */
+const volumeText = (lbs, unit) => {
+  const v = Math.round(fromLbs(lbs, unit));
+  return v >= 1000 ? `${(v / 1000).toFixed(1)}k` : String(v);
+};
+
 /* ---- detail sheet (fixed bottom-sheet overlay) ----------- */
-function DetailSheet({ muscles, id, range, onClose }) {
+function DetailSheet({ muscles, id, range, onClose, weightUnit }) {
   // Pin the page behind this overlay — see @/lib/scrollLock.
   useBodyScrollLock(!!id);
   if (!id) return null;
   const m = muscles[id];
   const fatigue = (100 - m.recovery) / 100;
-  const status = m.recovery >= 75 ? { t: 'Ready to train', c: 'hsl(150 50% 38%)' }
-    : m.recovery >= 50 ? { t: 'Recovering', c: 'hsl(34 90% 46%)' }
-      : { t: 'Needs rest', c: 'hsl(8 78% 50%)' };
+  /* Status colour is a TOKEN, unlike the heat ramp above. Two reasons it
+     had to change: the pill's tint was built by string-patching the solid
+     colour into `hsla(150 50% 38%, 0.12)` — space-separated components
+     with a comma before the alpha is not valid CSS, so the browser
+     dropped the declaration and the pill had no background at all. And
+     the three literals were tuned against a white card; on the dark card
+     the red measured ~3.3:1, under AA. The tokens already carry a
+     per-theme value for exactly this reason, and these are the hues the
+     colour budget assigns: earned/on-track, effort, danger. */
+  const status = m.recovery >= 75 ? { t: 'Ready to train', v: '--success' }
+    : m.recovery >= 50 ? { t: 'Recovering', v: '--primary' }
+      : { t: 'Needs rest', v: '--destructive' };
+  const statusColor = `hsl(var(${status.v}))`;
+  const statusTint = `hsl(var(${status.v}) / 0.12)`;
   const r = 30, c = 2 * Math.PI * r;
-  const volTxt = m.vol >= 1000 ? (m.vol / 1000).toFixed(1) + 'k' : m.vol;
+  const volTxt = volumeText(m.vol, weightUnit);
   return (
     <div onClick={onClose} style={{
       position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'flex-end',
@@ -262,10 +344,10 @@ function DetailSheet({ muscles, id, range, onClose }) {
             <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 26, letterSpacing: '-0.03em', lineHeight: 1.05, marginTop: 3 }}>{m.name}</div>
             <div style={{
               display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 8, padding: '4px 10px', borderRadius: 999,
-              background: status.c.replace('hsl', 'hsla').replace(')', ', 0.12)'),
+              background: statusTint,
             }}>
-              <span style={{ width: 7, height: 7, borderRadius: 999, background: status.c }} />
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 800, letterSpacing: '0.08em', color: status.c }}>{status.t}</span>
+              <span style={{ width: 7, height: 7, borderRadius: 999, background: statusColor }} />
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 800, letterSpacing: '0.08em', color: statusColor }}>{status.t}</span>
             </div>
           </div>
         </div>
@@ -273,7 +355,7 @@ function DetailSheet({ muscles, id, range, onClose }) {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8, marginTop: 18 }}>
           {[
             { l: 'SETS', v: m.sets, u: '' },
-            { l: 'VOLUME', v: volTxt, u: 'lb' },
+            { l: 'VOLUME', v: volTxt, u: weightUnit === 'lbs' ? 'lb' : weightUnit },
             { l: 'LAST', v: m.last != null ? m.last : '—', u: m.last != null ? 'd ago' : '' },
           ].map((s) => (
             <div key={s.l} style={{ background: 'hsl(var(--secondary))', borderRadius: 13, padding: '11px 12px' }}>
@@ -316,6 +398,7 @@ export default function MuscleGroupHeatmap({ logs }) {
   const [mode, setMode] = useState('recovery');   // 'recovery' | 'volume'
   const [range, setRange] = useState('30D');
   const [sel, setSel] = useState(null);
+  const { weightUnit } = useWeightUnit();
 
   const muscles = useMemo(() => buildMuscles(logs, RANGE_DAYS[range]), [logs, range]);
   const maxVol = useMemo(() => Math.max(1, ...FINE_IDS.map((id) => muscles[id].vol)), [muscles]);
@@ -363,10 +446,20 @@ export default function MuscleGroupHeatmap({ logs }) {
 
       {/* map card */}
       <div style={{ padding: '14px 0 0' }}>
+        {/* The stage: a flat panel plus a top-centre sheen, both themed —
+            see the --mmap-* block in index.css. The sheen is a separate
+            layer over a solid colour rather than a three-stop gradient
+            between three literals, because a light theme wants the panel
+            to get DARKER away from the light and a dark theme wants it to
+            get darker too — which is the same rule only if the light is
+            painted on, not baked into the ramp. */}
         <div onClick={() => setSel(null)} style={{
-          background: 'radial-gradient(120% 80% at 50% 8%, #ffffff 0%, #f4f6f9 68%, #eef1f5 100%)',
+          background: 'radial-gradient(120% 80% at 50% 8%, '
+            + 'hsl(var(--mmap-sheen) / var(--mmap-sheen-a)) 0%, '
+            + 'hsl(var(--mmap-sheen) / var(--mmap-sheen-b)) 68%, '
+            + 'transparent 100%), hsl(var(--mmap-stage))',
           border: '1px solid hsl(var(--border))', borderRadius: 22, padding: '20px 6px 14px', position: 'relative',
-          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.9), 0 1px 2px rgba(16,24,40,0.04)',
+          boxShadow: 'var(--mmap-shadow)',
         }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0 }}>
             {[{ k: 'FRONT', F: FrontFigure }, { k: 'BACK', F: BackFigure }].map(({ k, F }) => (
@@ -404,8 +497,7 @@ export default function MuscleGroupHeatmap({ logs }) {
           const m = muscles[id];
           const t = intensityOf(muscles, id, mode, maxVol);
           const col = colorFor(muscles, id, mode, maxVol);
-          const valTxt = mode === 'recovery' ? `${m.recovery}%`
-            : (m.vol >= 1000 ? (m.vol / 1000).toFixed(1) + 'k' : m.vol);
+          const valTxt = mode === 'recovery' ? `${m.recovery}%` : volumeText(m.vol, weightUnit);
           return (
             <div key={id} onClick={() => setSel(id)} style={{
               display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', minHeight: 44, cursor: 'pointer',
@@ -421,14 +513,14 @@ export default function MuscleGroupHeatmap({ logs }) {
                 <div style={{ height: '100%', width: `${Math.max(6, t * 100)}%`, background: col, borderRadius: 999, transition: 'width .5s, background .5s' }} />
               </div>
               <div style={{ width: 46, textAlign: 'right', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14, fontVariantNumeric: 'tabular-nums', color: 'hsl(var(--foreground))' }}>
-                {valTxt}{mode === 'volume' && <span style={{ fontSize: 9, color: 'hsl(var(--muted-foreground))', fontWeight: 600 }}> lb</span>}
+                {valTxt}{mode === 'volume' && <span style={{ fontSize: 9, color: 'hsl(var(--muted-foreground))', fontWeight: 600 }}> {weightUnit === 'lbs' ? 'lb' : weightUnit}</span>}
               </div>
             </div>
           );
         })}
       </div>
 
-      <DetailSheet muscles={muscles} id={sel} range={range} onClose={() => setSel(null)} />
+      <DetailSheet muscles={muscles} id={sel} range={range} weightUnit={weightUnit} onClose={() => setSel(null)} />
     </div>
   );
 }

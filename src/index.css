@@ -132,6 +132,35 @@
     --hero-cta-gradient: linear-gradient(135deg, #fef3c7 0%, #fde68a 25%, #fcd34d 50%, #fbbf24 75%, #f59e0b 100%);
     --hero-cta-text: hsl(28 65% 22%);
     --hero-cta-shadow: 0 14px 28px -8px rgba(245, 158, 11, 0.55), 0 6px 12px -4px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+    /* ── Muscle heat-map stage (MuscleGroupHeatmap.jsx) ───────────────
+       The front/back figures stand on a lit panel, and every colour on
+       that panel was hardcoded light — a white radial, a pale grey body,
+       near-black anatomy outlines — so the one card on the Body page
+       ignored the theme and glared on dark.
+
+       What moves with the theme is the STAGE, the untracked body, and
+       the ink. The heat ramps deliberately do NOT: green-through-red has
+       to mean the same fatigue in both themes, and re-tuning it per theme
+       would make the same muscle read differently depending on a setting
+       that has nothing to do with training.
+
+       The sheen is white in both themes and only its alpha flips — it is
+       a light source, and a light source does not change colour because
+       the room got darker.
+
+       The light values are the hex literals this card shipped with,
+       converted: #eef1f5 stage, #ffffff / 0.35 sheen (which reproduces the
+       old #f4f6f9 mid-stop over that base), #dfe4ea body, rgb(120 132 148)
+       edge, #0b0f14 ink. Light mode is unchanged to the pixel — only dark
+       is new. */
+    --mmap-stage: 214 26% 95%;
+    --mmap-sheen: 0 0% 100%;
+    --mmap-sheen-a: 1;
+    --mmap-sheen-b: 0.35;
+    --mmap-body: 213 21% 90%;
+    --mmap-body-edge: 214 12% 53%;
+    --mmap-ink: 213 29% 6%;
+    --mmap-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 1px 2px rgba(16, 24, 40, 0.04);
   }
 
   .dark {
@@ -193,6 +222,24 @@
     --hero-cta-gradient: linear-gradient(135deg, #fef3c7 0%, #fde68a 25%, #fcd34d 50%, #fbbf24 75%, #f59e0b 100%);
     --hero-cta-text: hsl(28 65% 22%);
     --hero-cta-shadow: 0 16px 32px -10px rgba(245, 158, 11, 0.65), 0 8px 16px -4px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+    /* Muscle heat-map stage, dark. The stage sits ABOVE --card (12%) so
+       the panel still reads as raised, mirroring light mode where it sits
+       just below the white card. The sheen drops to 7% — at light mode's
+       95% it would blow the top of the panel out to near-white.
+
+       The body goes to a mid slate rather than a dark one: it has to read
+       as "untracked", which means legible against the stage without
+       competing with a heat colour, and anything under ~25% lightness
+       just disappears into the panel. Ink flips to the light foreground
+       so the anatomy outlines survive on it. */
+    --mmap-stage: 210 18% 15%;
+    --mmap-sheen: 0 0% 100%;
+    --mmap-sheen-a: 0.07;
+    --mmap-sheen-b: 0.02;
+    --mmap-body: 212 12% 32%;
+    --mmap-body-edge: 212 10% 48%;
+    --mmap-ink: 30 20% 95%;
+    --mmap-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 1px 2px rgba(0, 0, 0, 0.3);
   }
 }
 
