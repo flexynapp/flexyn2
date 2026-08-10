@@ -1,8 +1,13 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import EmptyState from '@/components/EmptyState';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Loader2, MessageCircle, Lock, Shield, ChevronRight, Users, MoreHorizontal, Pin, BellOff, LogOut, Archive, ArchiveRestore, Inbox, Mail, UserPlus, Check, CheckCheck, Eye, Trash2, Ban, Undo2, Search, X } from 'lucide-react';
+import { useLongPress } from '@/hooks/useLongPress';
+import { triggerHaptic } from '@/lib/haptic';
+import OneShotTooltip from '@/components/OneShotTooltip';
+import { TOOLTIP } from '@/lib/tooltipRegistry';
+import RowActionSheet from './RowActionSheet';
 import { format, parseISO, differenceInDays, formatDistanceToNowStrict } from 'date-fns';
 import { useAuth } from '@/lib/AuthContext';
 import { useDelayedLoading } from '@/hooks/useDelayedLoading';
@@ -29,6 +34,34 @@ import { blockUserFull } from '@/lib/data/userBlocks';
 import NewGroupDMModal from './NewGroupDMModal';
 import { filterConversationsByQuery } from '@/lib/dmSearch';
 import { reportError } from '@/lib/reportError';
+
+// A row that opens on tap and offers its quick actions on hold.
+//
+// This is a component rather than a hook call inside the list's .map()
+// because useLongPress is a hook and there is one press timer per row.
+// It wraps the row's existing <button> without touching its contents, so
+// the row markup below is unchanged.
+//
+// `consumeClick` is the load-bearing part: a long-press is followed by a
+// synthesized click, and without swallowing it the row would open the
+// conversation behind the sheet that just opened.
+function LongPressRow({ onTap, onLongPress, innerRef, className, children }) {
+  const longPress = useLongPress(() => {
+    if (!onLongPress) return;
+    triggerHaptic('primary');
+    onLongPress();
+  }, { ms: 400 });
+  return (
+    <button
+      ref={innerRef}
+      onClick={(e) => { if (longPress.consumeClick(e)) onTap?.(e); }}
+      {...(onLongPress ? longPress.bind : {})}
+      className={className}
+    >
+      {children}
+    </button>
+  );
+}
 
 // Instagram-style relative time: "5m", "2h", "Yesterday", "Mon", "May 1"
 function formatInboxTime(dateStr) {
@@ -107,7 +140,12 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, user?.email]);
 
-  const [openMenuId, setOpenMenuId] = useState(null); // conv.id or crew.id
+  // The row whose quick actions are open: { kind: 'dm' | 'crew', row }.
+  //
+  // It holds the ROW OBJECT, not an id or an index. `hubConversations`
+  // refetches every 15s and pinning reorders the list, so an index would
+  // point at a different thread by the time someone taps Archive.
+  const [sheetTarget, setSheetTarget] = useState(null);
   const [pinnedConvIds, setPinnedConvIds] = useState(() => {
     try { return new Set(JSON.parse(localStorage.getItem(LS_KEYS.pinnedConvs) || localStorage.getItem('fn_pinned_convs') || '[]')); } catch { return new Set(); }
   });
@@ -120,17 +158,16 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
   const [mutedCrewIds, setMutedCrewIds] = useState(() => {
     try { return new Set(JSON.parse(localStorage.getItem(LS_KEYS.mutedCrews) || localStorage.getItem('fn_muted_crews') || '[]')); } catch { return new Set(); }
   });
-  const menuRef = useRef(null);
+  // The row the sheet was opened from, so focus goes back where it came
+  // from on close rather than to the top of the document.
+  const sheetOriginRef = useRef(null);
+  // Anchor for the one-shot hint that teaches the gesture.
+  const firstRowRef = useRef(null);
 
-  // Close menu on outside click
-  useEffect(() => {
-    if (!openMenuId) return;
-    const handler = (e) => {
-      if (!menuRef.current?.contains(e.target)) setOpenMenuId(null);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [openMenuId]);
+  const openSheet = useCallback((kind, row, originEl) => {
+    sheetOriginRef.current = originEl || null;
+    setSheetTarget({ kind, row });
+  }, []);
 
   const togglePinConv = useCallback((id) => {
     setPinnedConvIds(prev => {
@@ -139,7 +176,6 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
       try { localStorage.setItem(LS_KEYS.pinnedConvs, JSON.stringify([...next])); } catch {}
       return next;
     });
-    setOpenMenuId(null);
   }, [LS_KEYS.pinnedConvs]);
 
   const toggleMuteConv = useCallback((id) => {
@@ -149,9 +185,10 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
       try { localStorage.setItem(LS_KEYS.mutedConvs, JSON.stringify([...next])); } catch {}
       return next;
     });
-    setOpenMenuId(null);
-    toast.success(mutedConvIds.has(id) ? 'Chat unmuted' : 'Chat muted');
-  }, [mutedConvIds, LS_KEYS.mutedConvs]);
+    toast.success(mutedConvIds.has(id)
+      ? tFallback('hub.messages.unmuted', 'Chat unmuted')
+      : tFallback('hub.messages.muted', 'Chat muted'));
+  }, [mutedConvIds, LS_KEYS.mutedConvs, tFallback]);
 
   const togglePinCrew = useCallback((id) => {
     setPinnedCrewIds(prev => {
@@ -160,7 +197,6 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
       try { localStorage.setItem(LS_KEYS.pinnedCrews, JSON.stringify([...next])); } catch {}
       return next;
     });
-    setOpenMenuId(null);
   }, [LS_KEYS.pinnedCrews]);
 
   const toggleMuteCrew = useCallback((id) => {
@@ -170,21 +206,38 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
       try { localStorage.setItem(LS_KEYS.mutedCrews, JSON.stringify([...next])); } catch {}
       return next;
     });
-    setOpenMenuId(null);
-    toast.success(mutedCrewIds.has(id) ? 'Crew unmuted' : 'Crew muted');
-  }, [mutedCrewIds, LS_KEYS.mutedCrews]);
+    toast.success(mutedCrewIds.has(id)
+      ? tFallback('hub.messages.unmuted', 'Chat unmuted')
+      : tFallback('hub.messages.muted', 'Chat muted'));
+  }, [mutedCrewIds, LS_KEYS.mutedCrews, tFallback]);
 
   const handleLeaveCrew = useCallback(async (crew) => {
-    setOpenMenuId(null);
     if (!user?.id) return;
     try {
       await crewsData.removeMember(crew.id, user.id);
       queryClient.invalidateQueries({ queryKey: ['myCrews', user.id] });
       toast.success(`Left ${crew.name}`);
     } catch {
-      toast.error('Could not leave crew. Try again.');
+      toast.error(tFallback('hub.messages.leaveCrewError', 'Could not leave crew. Try again.'));
     }
-  }, [user?.id, queryClient]);
+  }, [user?.id, queryClient, tFallback]);
+
+  // Archive lives in localStorage, which no React state observes — bumping
+  // archiveVersion is what re-runs the partition memo. The invalidate alone
+  // never moved the row (React Query's structural sharing hands back the
+  // same array when nothing on the server changed, and archiving touches no
+  // server row), which is why only Archive was ever reported broken.
+  const toggleArchiveConv = useCallback((convId) => {
+    if (isArchived(convId, user?.id)) {
+      unarchiveConv(convId, user?.id);
+      toast.success(tFallback('hub.messages.unarchived', 'Conversation unarchived.'));
+    } else {
+      archiveConv(convId, user?.id);
+      toast.success(tFallback('hub.messages.archived', 'Conversation archived.'));
+    }
+    setArchiveVersion(v => v + 1);
+    queryClient.invalidateQueries({ queryKey: ['hubConversations', user?.email] });
+  }, [user?.id, user?.email, queryClient, tFallback]);
 
   const { data: conversations = [], isLoading: convsLoading } = useQuery({
     queryKey: ['hubConversations', user?.email],
@@ -543,6 +596,99 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
     setSearchQuery('');
   }, []);
 
+  // ── Quick-action sheet contents ───────────────────────────────────────────
+  // Declared after `profilesById` because the DM header resolves its handle
+  // through it. Both kinds build the same shape so the sheet stays a dumb
+  // renderer.
+  const sheetHeader = useMemo(() => {
+    if (!sheetTarget) return null;
+    const { kind, row } = sheetTarget;
+    if (kind === 'crew') {
+      return {
+        icon: Shield,
+        label: row.name,
+        sublabel: tFallback('hub.messages.tab.crews', 'Crews'),
+      };
+    }
+    const otherId = (row.participant_ids || []).find(id => id && id !== user?.id) || '';
+    const profile = profilesById[otherId];
+    const username = profile?.username || null;
+    return {
+      avatarUrl: profile?.avatar_url || null,
+      initials: (username || '?').slice(0, 2).toUpperCase(),
+      label: username ? `@${username}` : t('hub.profile.anonymousAthlete'),
+    };
+  }, [sheetTarget, profilesById, user?.id, t, tFallback]);
+
+  const sheetActions = useMemo(() => {
+    if (!sheetTarget) return [];
+    const { kind, row } = sheetTarget;
+    if (kind === 'crew') {
+      return [
+        {
+          id: 'pin',
+          icon: Pin,
+          label: pinnedCrewIds.has(row.id)
+            ? tFallback('hub.messages.unpinChat', 'Unpin Chat')
+            : tFallback('hub.messages.pinChat', 'Pin Chat'),
+          onSelect: () => togglePinCrew(row.id),
+        },
+        {
+          id: 'mute',
+          icon: BellOff,
+          label: mutedCrewIds.has(row.id)
+            ? tFallback('hub.messages.unmuteChat', 'Unmute Chat')
+            : tFallback('hub.messages.muteChat', 'Mute Chat'),
+          onSelect: () => toggleMuteCrew(row.id),
+        },
+        {
+          id: 'leave',
+          icon: LogOut,
+          label: tFallback('hub.messages.leaveCrew', 'Leave crew'),
+          destructive: true,
+          confirmLabel: tFallback('hub.messages.leaveCrewConfirm', 'Confirm leave'),
+          confirmWarning: tFallback('hub.messages.leaveCrewWarning', "You'll need a new invite to rejoin."),
+          onSelect: () => handleLeaveCrew(row),
+        },
+      ];
+    }
+    const archived = isArchived(row.id, user?.id);
+    return [
+      {
+        id: 'pin',
+        icon: Pin,
+        label: pinnedConvIds.has(row.id)
+          ? tFallback('hub.messages.unpinChat', 'Unpin Chat')
+          : tFallback('hub.messages.pinChat', 'Pin Chat'),
+        onSelect: () => togglePinConv(row.id),
+      },
+      {
+        id: 'mute',
+        icon: BellOff,
+        label: mutedConvIds.has(row.id)
+          ? tFallback('hub.messages.unmuteChat', 'Unmute Chat')
+          : tFallback('hub.messages.muteChat', 'Mute Chat'),
+        onSelect: () => toggleMuteConv(row.id),
+      },
+      {
+        id: 'archive',
+        icon: archived ? ArchiveRestore : Archive,
+        label: archived
+          ? tFallback('hub.messages.unarchive', 'Unarchive')
+          : tFallback('hub.messages.archive', 'Archive'),
+        onSelect: () => toggleArchiveConv(row.id),
+      },
+    ];
+  // `isArchived` reads localStorage, which no dependency here observes —
+  // but unlike the partition memo this one does NOT need archiveVersion.
+  // Archiving closes the sheet, and reopening it produces a new
+  // `sheetTarget` object, so the label is always re-read from a fresh
+  // localStorage on the only render where it can be seen.
+  }, [sheetTarget, pinnedConvIds, mutedConvIds, pinnedCrewIds, mutedCrewIds,
+      user?.id, tFallback,
+      togglePinConv, toggleMuteConv, toggleArchiveConv,
+      togglePinCrew, toggleMuteCrew, handleLeaveCrew]);
+
   useEffect(() => {
     if (pendingChatTarget?.conversation?.id) {
       setActiveConv(pendingChatTarget.conversation);
@@ -863,11 +1009,18 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                     transition={{ delay: i * 0.03 }}
                     className={`relative group ${isMuted ? 'opacity-60' : ''}`}
                   >
-                    <button
-                      onClick={() => {
+                    <LongPressRow
+                      innerRef={i === 0 ? firstRowRef : undefined}
+                      onTap={() => {
                         setActiveConv(c);
                         setOpenOtherUser(profile ? { ...profile, email: otherEmail } : { id: otherId, email: otherEmail, username });
                       }}
+                      // Requests rows already carry Accept / Delete / Block
+                      // inline, and pinning a message request is meaningless —
+                      // so that view has no quick actions to offer.
+                      onLongPress={dmView === 'requests'
+                        ? null
+                        : () => openSheet('dm', c, null)}
                       // lg:pe-12 reserves the strip the absolutely-positioned
                       // three-dot menu occupies (32px button, inset end-2).
                       // Without it the delivery-status icon — the last thing
@@ -875,7 +1028,7 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                       // ellipsis, which is what "the eye and ellipses are too
                       // close together" describes. Only on lg, since the menu
                       // itself is hidden below that breakpoint.
-                      className="w-full flex items-center gap-3 p-3 lg:pe-12 rounded-xl hover:bg-secondary/40 active:bg-secondary/60 transition-colors text-start"
+                      className="w-full flex items-center gap-3 p-3 lg:pe-12 rounded-xl hover:bg-secondary/40 active:bg-secondary/60 transition-colors text-start select-none-ui"
                     >
                       <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center shrink-0 font-heading font-bold text-primary text-base overflow-hidden">
                         {profile?.avatar_url ? (
@@ -897,7 +1050,7 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                           </p>
                         </div>
                       </div>
-                    </button>
+                    </LongPressRow>
 
                     {/* Request actions. Only rendered in the Requests view —
                         Accept moves the thread to Inbox by appending the
@@ -1037,81 +1190,23 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                         {unread && <span className="w-2.5 h-2.5 rounded-full bg-primary shrink-0" aria-label="Unread" />}
                       </span>
 
-                    {/* Desktop three-dot menu — lg only.
-                        While THIS row's menu is open the container is pinned
-                        visible instead of riding on group-hover. The popover
-                        opens at top-10 and is ~120px tall, so most of it hangs
-                        below the row it belongs to; anything that breaks the
-                        hover relationship mid-interaction — the list
-                        reordering under the pointer on the 15s refetch, a
-                        re-render, or the pointer crossing a sibling row —
-                        dropped the whole container back to opacity-0 and the
-                        menu vanished before the click landed. Tying visibility
-                        to open state removes that entire class of failure. */}
-                    <div className={`hidden lg:flex relative transition-opacity ${
-                      openMenuId === c.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
-                    }`}>
+                    {/* Pointer-device trigger for the SAME sheet the
+                        long-press opens. A hold is the wrong idiom for a
+                        mouse, but a second menu implementation is how the
+                        two drift apart — so this is a second trigger, not a
+                        second menu. It also retires the popover that used
+                        to live here, which rode on group-hover and vanished
+                        mid-click whenever the 15s refetch reordered the list
+                        under the pointer. */}
+                    {dmView !== 'requests' && (
                       <button
-                        onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === c.id ? null : c.id); }}
-                        className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-secondary active:bg-secondary text-muted-foreground hover:text-foreground active:text-foreground transition-colors"
+                        onClick={(e) => { e.stopPropagation(); openSheet('dm', c, e.currentTarget); }}
+                        aria-label={tFallback('hub.messages.rowActions', 'Conversation options')}
+                        className="hidden lg:flex w-8 h-8 items-center justify-center rounded-lg opacity-0 group-hover:opacity-100 focus:opacity-100 hover:bg-secondary active:bg-secondary text-muted-foreground hover:text-foreground active:text-foreground transition-colors"
                       >
                         <MoreHorizontal className="w-4 h-4" />
                       </button>
-                      <AnimatePresence>
-                        {openMenuId === c.id && (
-                          <motion.div
-                            ref={menuRef}
-                            key="dm-menu"
-                            initial={{ opacity: 0, scale: 0.95, y: -4 }}
-                            animate={{ opacity: 1, scale: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.95, y: -4 }}
-                            transition={{ duration: 0.12 }}
-                            className="absolute end-0 top-10 w-44 bg-card border border-border rounded-xl shadow-lg z-50 overflow-hidden"
-                          >
-                            <button
-                              onClick={(e) => { e.stopPropagation(); togglePinConv(c.id); }}
-                              className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-secondary/60 active:bg-secondary/60 transition-colors text-start"
-                            >
-                              <Pin className="w-4 h-4 text-muted-foreground" />
-                              {pinnedConvIds.has(c.id)
-                                ? (tFallback('hub.messages.unpinChat', 'Unpin Chat'))
-                                : (tFallback('hub.messages.pinChat', 'Pin Chat'))}
-                            </button>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); toggleMuteConv(c.id); }}
-                              className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-secondary/60 active:bg-secondary/60 transition-colors text-start"
-                            >
-                              <BellOff className="w-4 h-4 text-muted-foreground" />
-                              {mutedConvIds.has(c.id)
-                                ? (tFallback('hub.messages.unmuteChat', 'Unmute Chat'))
-                                : (tFallback('hub.messages.muteChat', 'Mute Chat'))}
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (isArchived(c.id, user?.id)) {
-                                  unarchiveConv(c.id, user?.id);
-                                  toast.success('Conversation unarchived.');
-                                } else {
-                                  archiveConv(c.id, user?.id);
-                                  toast.success('Conversation archived.');
-                                }
-                                setOpenMenuId(null);
-                                // The invalidate alone was never enough — see the
-                                // partition memo. This is what actually moves the row.
-                                setArchiveVersion(v => v + 1);
-                                queryClient.invalidateQueries({ queryKey: ['hubConversations', user?.email] });
-                              }}
-                              className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-secondary/60 active:bg-secondary/60 transition-colors text-start"
-                            >
-                              {isArchived(c.id, user?.id)
-                                ? <><ArchiveRestore className="w-4 h-4 text-muted-foreground" /> Unarchive</>
-                                : <><Archive className="w-4 h-4 text-muted-foreground" /> Archive</>}
-                            </button>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </div>
+                    )}
                     </div>
                   </motion.div>
                 );
@@ -1162,9 +1257,10 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                   transition={{ delay: i * 0.04 }}
                   className={`relative group ${mutedCrewIds.has(crew.id) ? 'opacity-60' : ''}`}
                 >
-                  <button
-                    onClick={() => setActiveCrew(crew)}
-                    className="w-full flex items-center gap-3 p-4 rounded-2xl bg-card border border-border text-start hover:bg-secondary/30 active:bg-secondary/50 transition-colors"
+                  <LongPressRow
+                    onTap={() => setActiveCrew(crew)}
+                    onLongPress={() => openSheet('crew', crew, null)}
+                    className="w-full flex items-center gap-3 p-4 rounded-2xl bg-card border border-border text-start hover:bg-secondary/30 active:bg-secondary/50 transition-colors select-none-ui"
                   >
                     <div
                       className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
@@ -1196,64 +1292,41 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                       </p>
                     </div>
                     <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+                  </LongPressRow>
+                  {/* Pointer trigger for the same sheet — see the DM row. */}
+                  <button
+                    onClick={(e) => { e.stopPropagation(); openSheet('crew', crew, e.currentTarget); }}
+                    aria-label={tFallback('hub.messages.rowActions', 'Conversation options')}
+                    className="hidden lg:flex absolute end-2 top-1/2 -translate-y-1/2 w-8 h-8 items-center justify-center rounded-lg opacity-0 group-hover:opacity-100 focus:opacity-100 hover:bg-secondary active:bg-secondary text-muted-foreground hover:text-foreground active:text-foreground transition-colors"
+                  >
+                    <MoreHorizontal className="w-4 h-4" />
                   </button>
-                  {/* Desktop three-dot menu — lg only. Same open-state pin as
-                      the DM rows above, for the same reason. */}
-                  <div className={`hidden lg:flex absolute end-2 top-1/2 -translate-y-1/2 transition-opacity ${
-                    openMenuId === crew.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
-                  }`}>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === crew.id ? null : crew.id); }}
-                      className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-secondary active:bg-secondary text-muted-foreground hover:text-foreground active:text-foreground transition-colors"
-                    >
-                      <MoreHorizontal className="w-4 h-4" />
-                    </button>
-                    <AnimatePresence>
-                      {openMenuId === crew.id && (
-                        <motion.div
-                          ref={menuRef}
-                          key="crew-menu"
-                          initial={{ opacity: 0, scale: 0.95, y: -4 }}
-                          animate={{ opacity: 1, scale: 1, y: 0 }}
-                          exit={{ opacity: 0, scale: 0.95, y: -4 }}
-                          transition={{ duration: 0.12 }}
-                          className="absolute end-0 top-10 w-44 bg-card border border-border rounded-xl shadow-lg z-50 overflow-hidden"
-                        >
-                          <button
-                            onClick={(e) => { e.stopPropagation(); togglePinCrew(crew.id); }}
-                            className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-secondary/60 active:bg-secondary/60 transition-colors text-start"
-                          >
-                            <Pin className="w-4 h-4 text-muted-foreground" />
-                            {pinnedCrewIds.has(crew.id)
-                              ? tFallback('hub.messages.unpinChat', 'Unpin Chat')
-                              : tFallback('hub.messages.pinChat', 'Pin Chat')}
-                          </button>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); toggleMuteCrew(crew.id); }}
-                            className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-secondary/60 active:bg-secondary/60 transition-colors text-start"
-                          >
-                            <BellOff className="w-4 h-4 text-muted-foreground" />
-                            {mutedCrewIds.has(crew.id)
-                              ? tFallback('hub.messages.unmuteChat', 'Unmute Chat')
-                              : tFallback('hub.messages.muteChat', 'Mute Chat')}
-                          </button>
-                          <div className="border-t border-border/50 mx-2" />
-                          <button
-                            onClick={(e) => { e.stopPropagation(); handleLeaveCrew(crew); }}
-                            className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-destructive/10 active:bg-destructive/10 text-destructive transition-colors text-start"
-                          >
-                            <LogOut className="w-4 h-4" />
-                            Leave Chat
-                          </button>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
                 </motion.div>
               ))}
             </div>
           )}
         </>
+      )}
+
+      {/* Row quick actions. One sheet for both kinds of row and both
+          triggers (hold on touch, three-dot on a pointer). */}
+      <RowActionSheet
+        open={!!sheetTarget}
+        onClose={() => setSheetTarget(null)}
+        header={sheetHeader}
+        actions={sheetActions}
+        returnFocusRef={sheetOriginRef}
+      />
+
+      {/* Nothing pointed at the gesture, and a gesture nobody is told about
+          belongs only to whoever wrote it. Gated on there being a row to
+          anchor to: OneShotTooltip fires once on mount and will not re-run
+          when an anchor appears later, so mounting it against an empty
+          inbox would burn the one shot on nothing. */}
+      {tab === 'dms' && dmView !== 'requests' && searchedConvs.length > 0 && (
+        <OneShotTooltip id={TOOLTIP.DM_ROW_LONG_PRESS} anchorRef={firstRowRef} placement="bottom">
+          {tFallback('hub.messages.tooltip.longPress', 'Hold a chat for pin, mute and archive')}
+        </OneShotTooltip>
       )}
     </div>
   );

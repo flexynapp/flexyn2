@@ -26,6 +26,7 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
 import { X } from 'lucide-react';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import prefersReducedMotion from '@/lib/reducedMotion';
 
 // Velocity threshold for swipe-to-dismiss (px/s)
 const VELOCITY_THRESHOLD = 300;
@@ -42,6 +43,12 @@ export default function BottomSheet({
 }) {
   const y = useMotionValue(0);
   const opacity = useTransform(y, [0, 300], [1, 0]);
+
+  // A full-height slide is the largest movement this app makes. Under
+  // `prefers-reduced-motion` it cross-fades in place instead — the sheet
+  // still DRAGS, because dragging is a gesture the user drives, not an
+  // animation played at them.
+  const reduced = prefersReducedMotion();
 
   // Prevent body scroll when sheet is open
   useBodyScrollLock(open);
@@ -80,10 +87,10 @@ export default function BottomSheet({
               y,
               paddingBottom: 'env(safe-area-inset-bottom)',
             }}
-            initial={{ y: '100%' }}
-            animate={{ y: 0 }}
-            exit={{ y: '100%' }}
-            transition={{
+            initial={reduced ? { opacity: 0 } : { y: '100%' }}
+            animate={reduced ? { opacity: 1 } : { y: 0 }}
+            exit={reduced ? { opacity: 0 } : { y: '100%' }}
+            transition={reduced ? { duration: 0.12 } : {
               type: 'spring',
               stiffness: 340,
               damping: 38,

@@ -3,6 +3,16 @@
 Written 2026-08-09, from the Messages audit. Companion to
 `docs/ui-craft-prompt.md` (the composition rules this obeys).
 
+**Status: SHIPPED 2026-08-09, without the Penpot pass** — Kegan chose to
+implement straight from this spec, so there are no boards behind it. The
+board list below is kept as the record of what the surface is made of, not
+as work outstanding. What landed:
+`src/components/hub/RowActionSheet.jsx` (sheet + arm-confirm),
+`LongPressRow` inside `HubMessages.jsx` (trigger),
+`TOOLTIP.DM_ROW_LONG_PRESS` (the hint), and reduced-motion support added to
+`ui/BottomSheet.jsx`. Behaviour is covered by
+`src/components/hub/__tests__/rowActionSheet.test.jsx`.
+
 ## The problem
 
 Pin, Mute, Archive, Unarchive and Leave Crew all live in a three-dot menu

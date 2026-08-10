@@ -41,6 +41,7 @@
 export const TOOLTIP = {
   LONG_PRESS_TABS:    'long-press-tabs',     // bottom-nav long-press quick actions
   DM_DOUBLE_TAP:      'dm-double-tap',       // double-tap-to-react on DM messages
+  DM_ROW_LONG_PRESS:  'dm-row-long-press',   // hold a conversation row for pin/mute/archive
   WORKOUT_SMART_PASTE: 'workout-smart-paste', // paste "225 x 8" into the weight field
   PR_PROXIMITY_BAR:    'pr-proximity-bar',    // the new bar on set rows
 };
