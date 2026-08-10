@@ -152,6 +152,16 @@ describe('partial-gap ratchet', () => {
     // rather than somewhere it would be read too late. The measurement is
     // in the FLOOR comment below; you do not need to re-derive it.
     'onboarding.',
+    // Body heat map — extracted from JSX 2026-08-10. Progress → Body had
+    // ZERO translation calls: every string on the tab was an English
+    // literal, so all 15 languages already read English there. The keys
+    // change nothing on screen and make the tab translatable for the first
+    // time. Prose (the three headlines and their body copy), so CLAUDE.md
+    // forbids machine translation; needs a native pass in 14 languages.
+    //
+    // Scoped `bodyMap.` and NOT `body.` — `body.` would swallow the
+    // body-metrics namespace next door, which is translated.
+    'bodyMap.',
     // League activity gating — new namespace, migration 310 (2026-08-08).
     // Qualification and promote/demote zone copy. Named `league.gate.` rather
     // than dropped loose under `league.` precisely so this exemption cannot
@@ -241,6 +251,16 @@ describe('partial-gap ratchet', () => {
     // in 15 languages. The tab looks them up there rather than carrying a
     // second vocabulary, so they stay counted.
     'trends.',
+    // Muscle regions (2026-08-10) — the four buckets the validated colour
+    // encoding can carry, in `src/lib/i18n-regions.js`. A whole new
+    // namespace, all English-only, so this is the sanctioned bare-prefix
+    // case: nothing under `regions.` predates it.
+    //
+    // Four keys, and worth a translator's attention rather than a machine's
+    // despite being short: Push / Pull / Legs is gym vocabulary that most
+    // training traditions already have their own word for, so the right
+    // translation is the term lifters actually use, not a literal one.
+    'regions.',
     // Insights tab (2026-08-10, audit 21). The same shape as `trends.`
     // directly above, and the same sanctioned bare-prefix case: nothing
     // under `insights.` predates this change, so the prefix cannot exempt
@@ -262,6 +282,29 @@ describe('partial-gap ratchet', () => {
     // design (a localized header breaks whatever script the file is piped
     // into), so they are literals at the call site rather than keys.
     'insights.',
+    // AI Coach generated text (2026-08-10). Narrow prefixes, not a bare
+    // `coach.`, for the reason `league.gate.` is narrow: `coach.title`,
+    // `coach.subtitle`, `coach.placeholder` and the welcome copy ARE
+    // translated in several languages, and a blanket prefix would stop
+    // guarding them.
+    //
+    // These are the coach's own sentences — training advice, not labels — so
+    // CLAUDE.md forbids machine-translating them outright. A wrong
+    // translation here tells someone the wrong thing about lifting in a
+    // deficit or about ligament laxity around ovulation.
+    //
+    // Note the English lives TWICE on purpose: here, and as the tFallback
+    // fallback at the point of use. The generators are pure modules that
+    // cannot reach an i18n file, so the sentence has to travel with the rule
+    // it belongs to. Edit both or they drift.
+    'coach.note.',
+    'coach.goal.',
+    'coach.fuel.',
+    'coach.feel.',
+    'coach.plan.',
+    'coach.schedule.',
+    'coach.reply.',
+    'coach.onboarding.',
     'quests.',
     'quest.cardio_session.',
     'quest.log_sleep.',
