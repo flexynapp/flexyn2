@@ -284,6 +284,54 @@ See: `~/.claude/projects/C--Flexyn/memory/feedback_parallel_sync.md`.
   `npm run test:coverage` — V8 coverage. As of 2026-08-06: **2769 tests
   passing across 198 files**.
 
+**`npx vitest` is NOT `npm run test`, and in a fresh worktree the
+difference is silent.** `npm run test` is `node scripts/split-i18n.mjs &&
+vitest run` — the splitter generates `src/lib/i18n-langs/`, which is
+gitignored and therefore **absent from every new `git worktree`**. Run
+`npx vitest` there and the whole app has zero translations loaded.
+
+Two failure modes, and the second is the dangerous one:
+
+- **Loud**: anything rendering inside `LanguageProvider` fails as a
+  WHOLE FILE. See the provider note below — with no dictionary it never
+  leaves its loading shell, so no child ever mounts and every query in
+  the file fails at once. Easy to misread as a broken component.
+- **Silent**: any test asserting an ENGLISH string passes anyway.
+  `tFallback(key, 'English')` returns the fallback when the key is
+  missing, and a missing key and an empty dictionary are the same thing
+  — so an i18n test can pass against zero translations. This cost a
+  wrong bug report: an a11y file "reproduced" a flake 8 runs out of 8 in
+  a fresh worktree, and after running the splitter the same file passed
+  6 of 6. The reproduction was the missing dictionary, not the bug.
+
+Run `node scripts/split-i18n.mjs` once after creating a worktree, or use
+`npm run test` and accept the extra second.
+
+**`LanguageProvider` renders a loading shell, not your component.** Until
+English plus the active language are loaded it returns a spinner instead
+of `children` — `ready` starts from a module-level cache check and flips
+on a promise. In a cold worker `render(<LanguageProvider><Thing /></…>)`
+therefore yields a spinner, and a synchronous `screen.getBy*` on the next
+line races the bootstrap. It usually wins, because some earlier file in
+the same worker warmed the cache, which is what makes the failure
+intermittent and whole-file rather than reproducible and local. Await
+something that only exists once mounted:
+
+```js
+const show = async () => {
+  render(<LanguageProvider><Thing /></LanguageProvider>);
+  await screen.findByRole('group', { name: /front view/i });
+};
+```
+
+**A whole-file red under load is usually a timeout, not an assertion.**
+The default per-test timeout is 5s, and several sessions run dev servers,
+builds and suites on this machine at once. A run measured 369s against
+137s earlier the same day, and took out one a11y test at 6140ms plus two
+in `signInExistingAccount` and two in `GymEquipmentEditor` — unrelated
+files, all 3.7–5.3s. Check the suite duration before chasing it as a code
+bug.
+
 ## Build guards (don't disable)
 
 The build has an `onwarn` hook in `vite.config.js` that turns specific
