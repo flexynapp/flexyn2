@@ -16,7 +16,7 @@ import { Input } from '@/components/ui/input';
 import { toast } from '@/lib/toast';
 import { triggerHaptic } from '@/lib/haptic';
 import { playSound, SOUND } from '@/lib/playSound';
-import { Play, Save, Plus, Dumbbell, Trash2, Target, Pause, AlertTriangle, Activity, ArrowRight, History, Camera, Sparkles, Globe, Swords, Zap, Trophy, Link2, Calculator, CalendarDays, ChevronDown, LayoutGrid, Shield, Search } from 'lucide-react';
+import { Play, Save, Plus, Dumbbell, Trash2, Target, Pause, AlertTriangle, Activity, ArrowRight, History, Camera, Sparkles, Globe, Swords, Zap, Trophy, Link2, Calculator, LayoutGrid, Shield, Search } from 'lucide-react';
 import PlateCalculatorModal from '@/components/workout/PlateCalculatorModal';
 import { useMultiProfanityGuard, hasAnyProfanity } from '@/lib/useProfanityGuard';
 import ProfanityWarningDialog from '@/components/ProfanityWarningDialog';
@@ -63,8 +63,6 @@ import GoalsAlmostComplete from '@/components/goals/GoalsAlmostComplete';
 import RegimensSection from '@/components/workout/RegimensSection';
 import RegimenStorePage from '@/components/regimens/RegimenStorePage';
 import StarterPlanHeroCard from '@/components/workout/StarterPlanHeroCard';
-import RoutineTodayCard from '@/components/routines/RoutineTodayCard';
-import MyRoutineSheet from '@/components/routines/MyRoutineSheet';
 import FirstWorkoutTutorial, { hasSeenFirstWorkoutTutorial } from '@/components/workout/FirstWorkoutTutorial';
 import PageHeader from '@/components/PageHeader';
 import { useWorkoutSessions, pauseWorkoutSync } from '@/hooks/useWorkoutSessions';
@@ -275,7 +273,6 @@ export default function Workout() {
   const [editingLog, setEditingLog] = useState(null);
   const [goalsModalOpen, setGoalsModalOpen] = useState(false);
   const [regimensOpen, setRegimensOpen] = useState(false);
-  const [routineSheetOpen, setRoutineSheetOpen] = useState(false);
   const [storeOpen, setStoreOpen] = useState(false);
   const [cardioOpen, setCardioOpen] = useState(false);
   const [formCoachOpen, setFormCoachOpen] = useState(false);
@@ -285,7 +282,6 @@ export default function Workout() {
   const [historySearch, setHistorySearch] = useState('');
   const [cardioDetailLog, setCardioDetailLog] = useState(null);
   const [activeInfo, setActiveInfo] = useState(null); // which card's ⓘ tooltip is open
-  const [todayExpanded, setTodayExpanded] = useState(false); // Today chip → expands RoutineTodayCard
   // Gauntlet + Crew Wars: reachable from the hero slideshow.
   // Form Coach: now a button inside the active workout (Freestyle/Regimen).
   // None need a grid tile. Order per user request; the full-width Rival
@@ -1340,68 +1336,6 @@ export default function Workout() {
     setStarted(true);
   };
 
-  // Start today's routine day — pre-load the lifts the user picked, seeded
-  // from history where we have it (progressive-overload tracking continues).
-  const startFromExerciseList = (exList, label) => {
-    setActiveSessionId(`routine-${Date.now()}`);
-    setSelectedRegimen(label ? { name: label } : null);
-    const mapped = (exList || []).map(ex => {
-      const seeded = getLastSetsForExercise(ex.name, 3);
-      const sets = seeded
-        ? seeded.map(s => ({ weight: s.weight ?? null, reps: s.reps ?? null }))
-        : Array.from({ length: 3 }, () => ({ weight: null, reps: null }));
-      return {
-        name: ex.name,
-        muscle_group: Array.isArray(ex.muscles) ? (ex.muscles[0] || '') : '',
-        muscle_groups: Array.isArray(ex.muscles) ? [...ex.muscles] : [],
-        sets,
-      };
-    });
-    setExercises(mapped);
-    setStarted(true);
-  };
-
-  // "Up for a challenge" — append ~2 bonus lifts matching today's focus.
-  // No direct coin/XP grant (that would be farmable); the extra volume earns
-  // its reward through the normal save flow. Pure cherry-on-top.
-  const handleRoutineChallenge = (focus, dayExercises, label) => {
-    const FOCUS_MUSCLES = {
-      push:  ['Chest', 'Shoulders', 'Triceps'],
-      pull:  ['Back', 'Biceps'],
-      legs:  ['Legs', 'Glutes'],
-      upper: ['Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps'],
-      lower: ['Legs', 'Glutes', 'Core'],
-      core:  ['Core'],
-    };
-    const targets = FOCUS_MUSCLES[focus] || [];
-    const owned = new Set((dayExercises || []).map(e => e.name));
-    const pool = EXERCISE_LIBRARY.filter(ex =>
-      !owned.has(ex.name) &&
-      (targets.length === 0 || (ex.muscles || []).some(m => targets.includes(m))),
-    );
-    const picks = [...pool].sort(() => Math.random() - 0.5).slice(0, 2);
-    if (picks.length === 0) { toast.message('Your plan already covers it — no bonus to add.'); return; }
-    const toSession = (ex, setCount) => {
-      const seeded = getLastSetsForExercise(ex.name, setCount);
-      const sets = seeded
-        ? seeded.map(s => ({ weight: s.weight ?? null, reps: s.reps ?? null }))
-        : Array.from({ length: setCount }, () => ({ weight: null, reps: null }));
-      return {
-        name: ex.name,
-        muscle_group: (ex.muscles || [])[0] || '',
-        muscle_groups: ex.muscles || [],
-        sets,
-      };
-    };
-    const base = (dayExercises || []).map(ex => toSession(ex, 3));
-    const bonus = picks.map(ex => toSession(ex, 2));
-    setActiveSessionId(`challenge-${Date.now()}`);
-    setSelectedRegimen(label ? { name: label } : null);
-    setExercises([...base, ...bonus]);
-    setStarted(true);
-    toast.success(`🔥 Bonus added: ${picks.map(e => e.name).join(' + ')} — finish it for extra XP + coins!`);
-  };
-
   const startFreestyle = () => {
     const id = `freestyle-${Date.now()}`;
     setActiveSessionId(id);
@@ -2334,21 +2268,8 @@ export default function Workout() {
         {/* Injury banner — always visible in idle state */}
         <InjuryBanner onOpenForm={() => setInjuryFormOpen(true)} />
 
-        {/* Today chip (left) + active duel/bounty pills + customize button (right) — uniform all breakpoints */}
-        <div className="flex items-center justify-between mb-3">
-          <button
-            type="button"
-            onClick={() => setTodayExpanded(v => !v)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border transition-colors ${
-              todayExpanded
-                ? 'bg-primary/15 border-primary/50 text-primary'
-                : 'bg-primary/8 border-primary/35 text-primary hover:bg-primary/14 active:bg-primary/14 hover:border-primary/55'
-            }`}
-          >
-            <CalendarDays className="w-3 h-3" />
-            <span className="text-micro font-semibold tracking-[0.12em] uppercase">Today</span>
-            <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${todayExpanded ? 'rotate-180' : ''}`} />
-          </button>
+        {/* Active duel/bounty pills + customize button, right-aligned — uniform all breakpoints */}
+        <div className="flex items-center justify-end mb-3">
           <div className="flex items-center gap-1.5">
             {activeDuel && (
               <button type="button" onClick={() => navigate('/duels')}
@@ -2415,16 +2336,6 @@ export default function Workout() {
                 />
               );
             })()}
-
-            {/* My Routine — hidden until Today chip tapped (uniform on all breakpoints) */}
-            <div className={todayExpanded ? 'block' : 'hidden'}>
-              <RoutineTodayCard
-                onStart={(ex, label) => { startFromExerciseList(ex, label); setTodayExpanded(false); }}
-                onOpenRoutines={() => { setRoutineSheetOpen(true); setTodayExpanded(false); }}
-                onChallenge={handleRoutineChallenge}
-              />
-            </div>
-            <MyRoutineSheet open={routineSheetOpen} onClose={() => setRoutineSheetOpen(false)} />
 
             {/* Primary action — Freestyle */}
             {/* Primary action — Freestyle */}
