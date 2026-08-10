@@ -128,6 +128,33 @@ const enKeys = {
   'coach.schedule.midday':   'Midday',
   'coach.schedule.evening':  'Evening',
   'coach.schedule.night':    'Night',
+
+  // ── Rules-engine replies (src/lib/aiCoach/responders.js) ────────────────
+  // TODO(i18n): English only. PARTIAL — the plumbing covers every responder
+  // (each takes `t`), but only the replies below are extracted so far. The
+  // rest are still literals in that file; converting one is a local change
+  // that needs no structural work.
+  //
+  // Multi-line replies are ONE key each, not one per bullet. A translator
+  // has to be free to reorder and rewrap, and a list assembled from
+  // separately-translated fragments cannot be.
+  'coach.reply.error':             'Hmm, something went wrong looking at your data. Try again in a moment.',
+  'coach.reply.overload.needData': 'I need at least 3 sessions of recent data to give you a real answer. Log a few workouts first.',
+  'coach.reply.overload.noRepeat': "I don't see a single exercise repeated 3+ times in your recent log. Repeat a lift across several sessions and I'll have something concrete to say.",
+  'coach.reply.sore.noTraining':   'Soreness without recent training is unusual — could be sleep, stress, or another activity. Hydrate, walk for 20 min, and check back in tomorrow.',
+  'coach.reply.prs.none':          "No workouts logged yet — log a few sessions and I'll surface your PRs.",
+  'coach.reply.prs.noWeights':     "I see workouts but no weighted lifts — bodyweight progress is real, but I can't surface PRs without weights.",
+  'coach.reply.goals.signIn':      'Sign in to see your goals.',
+  'coach.reply.goals.none':        'No active goals. Open the Goals modal to set a PR target — having a number to chase changes how you train.',
+  'coach.reply.goals.error':       "Couldn't load your goals — try opening the Goals modal directly.",
+  'coach.reply.streak.signIn':     'Sign in to see your streaks.',
+  'coach.reply.sleep.none':        "I don't have a sleep log for you today yet. Tap the sleep card on the Dashboard to record last night.",
+  'coach.reply.greeting.hot':      "Welcome back! {n} days of workout streak — you're on fire 🔥. What's on your mind today?",
+  'coach.reply.greeting.streak':   'Good to see you. Day {n} workout streak — keep it alive. What can I help with?',
+  'coach.reply.rest.body':         '**Rest is when adaptation happens.** A few signals you should rest today:\n\n• Trained hard 3+ days in a row\n• Sleeping less than usual\n• Joints (not muscles) hurt\n• Resting heart rate elevated\n\nIf none of these, light activity — 20 min walk, 10 min mobility — beats sitting still. "Active rest" still counts.',
+  'coach.reply.nutrition.body':    '**Three things that move the needle most:**\n\n• **Protein** at every meal — 0.7–1 g per lb of bodyweight per day\n• **Hit your calorie target** — under for fat loss, slight surplus for muscle gain\n• **Vegetables** at lunch and dinner — fiber, micros, fullness\n\nOpen the Nutrition tab to log a meal — even one logged meal trains the habit.',
+  'coach.reply.hydration.body':    'Aim for **8 glasses (64 oz) of water minimum** per day, more if you sweat heavily.\n\nTap the Drink Water buttons in Nutrition — small wins compound. The Drink Water quest pays out coins for hitting 4 or 8 glasses.',
+  'coach.reply.plateau.body':      "**Plateaus mean it's time to change a variable.** Pick one:\n\n• **Volume** — add an extra set or 2 to the stalled lift\n• **Intensity** — drop weight 10% and chase 2 more reps per set\n• **Frequency** — train the lift 2x/week instead of 1x\n• **Variation** — swap to a close cousin (back squat → front squat) for 3 weeks\n\nOne change at a time. Give it 3 weeks before judging.",
 };
 
 const esKeys = {

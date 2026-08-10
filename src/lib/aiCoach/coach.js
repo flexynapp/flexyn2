@@ -148,7 +148,7 @@ async function _rulesReply(user, message, ctx = {}) {
     }
   }
 
-  return { reply: await respond({ user, intent }), intent, source: 'rules' };
+  return { reply: await respond({ user, intent, t: ctx.t, language: ctx.language }), intent, source: 'rules' };
 }
 
 /** Suggested prompts to show on the coach welcome screen. */

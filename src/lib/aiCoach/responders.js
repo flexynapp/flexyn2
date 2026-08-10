@@ -1,3 +1,4 @@
+import { asT } from './coachI18n';
 // src/lib/aiCoach/responders.js
 //
 // Per-intent response generation. Each responder pulls live user data from
@@ -43,6 +44,9 @@ import { formatNumber } from '../intl';
 // Anything that is already a full timestamp still parses normally. Returns
 // null rather than an Invalid Date so a bad row degrades to "no timing"
 // instead of poisoning arithmetic downstream with NaN.
+// `t` is threaded into every responder from askCoach's ctx and defaults to
+// English — see ./coachI18n for why translation arrives as an argument in a
+// module that must stay free of React.
 function parseLogDate(value) {
   if (!value) return null;
   const d = typeof value === 'string' ? parseISO(value) : new Date(value);
@@ -106,7 +110,8 @@ async function _fetchProfile(userId) {
 
 // ── Responders ───────────────────────────────────────────────────────────────
 
-async function whatToTrain({ user }) {
+async function whatToTrain({ user, t, language }) {
+  const T = asT(t);
   const workouts = await _fetchRecentWorkouts(user?.email, 7);
   if (workouts.length === 0) {
     return [
@@ -159,7 +164,8 @@ async function whatToTrain({ user }) {
   return lines.join('\n');
 }
 
-async function progressCheck({ user }) {
+async function progressCheck({ user, t, language }) {
+  const T = asT(t);
   const [thisWeek, lastWeek, profile] = await Promise.all([
     _fetchRecentWorkouts(user?.email, 7),
     (async () => {
@@ -213,10 +219,12 @@ async function progressCheck({ user }) {
   return lines.join('\n');
 }
 
-async function shouldIncrease({ user }) {
+async function shouldIncrease({ user, t, language }) {
+  const T = asT(t);
   const workouts = await _fetchRecentWorkouts(user?.email, 21);
   if (workouts.length < 3) {
-    return "I need at least 3 sessions of recent data to give you a real answer. Log a few workouts first.";
+    return T('coach.reply.overload.needData',
+      "I need at least 3 sessions of recent data to give you a real answer. Log a few workouts first.");
   }
 
   // Group sets by exercise and look for the most-frequent compound
@@ -238,7 +246,8 @@ async function shouldIncrease({ user }) {
   // Find an exercise with ≥3 sessions where top-set reps held or grew at the same weight
   const candidates = Object.entries(byExercise).filter(([, sessions]) => sessions.length >= 3);
   if (candidates.length === 0) {
-    return "I don't see a single exercise repeated 3+ times in your recent log. Repeat a lift across several sessions and I'll have something concrete to say.";
+    return T('coach.reply.overload.noRepeat',
+      "I don't see a single exercise repeated 3+ times in your recent log. Repeat a lift across several sessions and I'll have something concrete to say.");
   }
 
   candidates.sort((a, b) => b[1].length - a[1].length);
@@ -272,11 +281,13 @@ async function shouldIncrease({ user }) {
   ].join('\n');
 }
 
-async function soreness({ user }) {
+async function soreness({ user, t, language }) {
+  const T = asT(t);
   const recent = await _fetchRecentWorkouts(user?.email, 3);
   const last = recent[0];
   if (!last) {
-    return "Soreness without recent training is unusual — could be sleep, stress, or another activity. Hydrate, walk for 20 min, and check back in tomorrow.";
+    return T('coach.reply.sore.noTraining',
+      "Soreness without recent training is unusual — could be sleep, stress, or another activity. Hydrate, walk for 20 min, and check back in tomorrow.");
   }
 
   const lastGroups = new Set();
@@ -298,7 +309,8 @@ async function soreness({ user }) {
   ].join('\n');
 }
 
-async function consistency({ user }) {
+async function consistency({ user, t, language }) {
+  const T = asT(t);
   const last30 = await _fetchRecentWorkouts(user?.email, 30);
   const days = new Set(last30.map(w => w.date));
   const ratio = days.size / 30;
@@ -317,10 +329,12 @@ async function consistency({ user }) {
   return lines.join('\n');
 }
 
-async function prsResponder({ user }) {
+async function prsResponder({ user, t, language }) {
+  const T = asT(t);
   // Personal records by exercise: max single-set weight × reps
   const all = await _fetchRecentWorkouts(user?.email, 365);
-  if (all.length === 0) return "No workouts logged yet — log a few sessions and I'll surface your PRs.";
+  if (all.length === 0) return T('coach.reply.prs.none',
+      "No workouts logged yet — log a few sessions and I'll surface your PRs.");
 
   const prMap = {};
   for (const w of all) {
@@ -339,7 +353,8 @@ async function prsResponder({ user }) {
   const top5 = Object.entries(prMap)
     .sort((a, b) => b[1].weight - a[1].weight)
     .slice(0, 5);
-  if (top5.length === 0) return "I see workouts but no weighted lifts — bodyweight progress is real, but I can't surface PRs without weights.";
+  if (top5.length === 0) return T('coach.reply.prs.noWeights',
+      "I see workouts but no weighted lifts — bodyweight progress is real, but I can't surface PRs without weights.");
 
   const lines = ["**Your top 5 PRs:**"];
   for (const [name, pr] of top5) {
@@ -348,7 +363,8 @@ async function prsResponder({ user }) {
   return lines.join('\n');
 }
 
-async function weakAreas({ user }) {
+async function weakAreas({ user, t, language }) {
+  const T = asT(t);
   const last14 = await _fetchRecentWorkouts(user?.email, 14);
   const tally = { chest: 0, back: 0, shoulders: 0, arms: 0, legs: 0, core: 0 };
   for (const w of last14) {
@@ -370,7 +386,8 @@ async function weakAreas({ user }) {
   return lines.join('\n');
 }
 
-async function cardioSuggest({ user }) {
+async function cardioSuggest({ user, t, language }) {
+  const T = asT(t);
   const cardio = await _fetchRecentCardio(user?.email, 7);
   const totalSec = cardio.reduce((s, c) => s + (Number(c.duration_seconds) || 0), 0);
   const totalMin = Math.round(totalSec / 60);
@@ -391,9 +408,13 @@ async function cardioSuggest({ user }) {
   ].join('\n');
 }
 
-async function restDay() {
-  return [
-    "**Rest is when adaptation happens.** A few signals you should rest today:",
+async function restDay({ t } = {}) {
+  const T = asT(t);
+  // One key for the whole block rather than one per line: a translator has
+  // to be free to reorder and rewrap, and a bullet list assembled from
+  // separately-translated fragments cannot be.
+  return T('coach.reply.rest.body', [
+    '**Rest is when adaptation happens.** A few signals you should rest today:',
     '',
     '• Trained hard 3+ days in a row',
     '• Sleeping less than usual',
@@ -401,36 +422,41 @@ async function restDay() {
     '• Resting heart rate elevated',
     '',
     'If none of these, light activity — 20 min walk, 10 min mobility — beats sitting still. "Active rest" still counts.',
-  ].join('\n');
+  ].join('\n'));
 }
 
-async function nutritionTip({ user }) {
-  return [
-    "**Three things that move the needle most:**",
+async function nutritionTip({ user, t, language }) {
+  const T = asT(t);
+  return T('coach.reply.nutrition.body', [
+    '**Three things that move the needle most:**',
     '',
     '• **Protein** at every meal — 0.7–1 g per lb of bodyweight per day',
     '• **Hit your calorie target** — under for fat loss, slight surplus for muscle gain',
     '• **Vegetables** at lunch and dinner — fiber, micros, fullness',
     '',
     'Open the Nutrition tab to log a meal — even one logged meal trains the habit.',
-  ].join('\n');
+  ].join('\n'));
 }
 
-async function hydration() {
-  return [
-    "Aim for **8 glasses (64 oz) of water minimum** per day, more if you sweat heavily.",
+async function hydration({ t } = {}) {
+  const T = asT(t);
+  return T('coach.reply.hydration.body', [
+    'Aim for **8 glasses (64 oz) of water minimum** per day, more if you sweat heavily.',
     '',
     'Tap the Drink Water buttons in Nutrition — small wins compound. The Drink Water quest pays out coins for hitting 4 or 8 glasses.',
-  ].join('\n');
+  ].join('\n'));
 }
 
-async function goalStatus({ user }) {
-  if (!user?.email) return "Sign in to see your goals.";
+async function goalStatus({ user, t, language }) {
+  const T = asT(t);
+  if (!user?.email) return T('coach.reply.goals.signIn',
+      "Sign in to see your goals.");
   try {
     const goals = await db.entities.Goal.filter({ created_by: user.email }, '-created_date', 50).catch(() => []);
     const active = goals.filter(g => g.status !== 'completed');
     if (active.length === 0) {
-      return "No active goals. Open the Goals modal to set a PR target — having a number to chase changes how you train.";
+      return T('coach.reply.goals.none',
+      "No active goals. Open the Goals modal to set a PR target — having a number to chase changes how you train.");
     }
     const lines = [`**You have ${active.length} active goal${active.length === 1 ? '' : 's'}:**`];
     for (const g of active.slice(0, 5)) {
@@ -439,13 +465,16 @@ async function goalStatus({ user }) {
     }
     return lines.join('\n');
   } catch {
-    return "Couldn't load your goals — try opening the Goals modal directly.";
+    return T('coach.reply.goals.error',
+      "Couldn't load your goals — try opening the Goals modal directly.");
   }
 }
 
-async function streakStatus({ user }) {
+async function streakStatus({ user, t, language }) {
+  const T = asT(t);
   const profile = await _fetchProfile(user?.id);
-  if (!profile) return "Sign in to see your streaks.";
+  if (!profile) return T('coach.reply.streak.signIn',
+      "Sign in to see your streaks.");
   const lines = [];
   if (profile.workout_streak > 0) {
     lines.push(`💪 Workout streak: **${profile.workout_streak} day${profile.workout_streak === 1 ? '' : 's'}** (best: ${profile.longest_workout_streak || profile.workout_streak})`);
@@ -461,8 +490,9 @@ async function streakStatus({ user }) {
   return lines.join('\n');
 }
 
-async function plateau({ user }) {
-  return [
+async function plateau({ user, t, language }) {
+  const T = asT(t);
+  return T('coach.reply.plateau.body', [
     "**Plateaus mean it's time to change a variable.** Pick one:",
     '',
     '• **Volume** — add an extra set or 2 to the stalled lift',
@@ -471,17 +501,22 @@ async function plateau({ user }) {
     '• **Variation** — swap to a close cousin (back squat → front squat) for 3 weeks',
     '',
     'One change at a time. Give it 3 weeks before judging.',
-  ].join('\n');
+  ].join('\n'));
 }
 
-async function greeting({ user }) {
+async function greeting({ user, t, language }) {
+  const T = asT(t);
   const profile = await _fetchProfile(user?.id);
   const streak = profile?.workout_streak || 0;
   if (streak >= 7) {
-    return `Welcome back! ${streak} days of workout streak — you're on fire 🔥. What's on your mind today?`;
+    return T('coach.reply.greeting.hot',
+      "Welcome back! {n} days of workout streak — you're on fire 🔥. What's on your mind today?",
+      { n: streak });
   }
   if (streak > 0) {
-    return `Good to see you. Day ${streak} workout streak — keep it alive. What can I help with?`;
+    return T('coach.reply.greeting.streak',
+      'Good to see you. Day {n} workout streak — keep it alive. What can I help with?',
+      { n: streak });
   }
   return [
     "Hey 👋 I'm your Coach. I can answer:",
@@ -497,11 +532,13 @@ async function greeting({ user }) {
   ].join('\n');
 }
 
-async function help() {
+async function help({ t } = {}) {
+  const T = asT(t);
   return greeting({ user: {} });
 }
 
-async function unknown({ params }) {
+async function unknown({ params, t, language }) {
+  const T = asT(t);
   return [
     "I'm not sure how to help with that yet. I'm best at:",
     '',
@@ -520,7 +557,8 @@ async function unknown({ params }) {
 import { computeRecoveryScore } from '../recoveryScore';
 import { listRecentSleepLogs, getTodaySleepLog } from '../data/sleepLogs';
 
-async function recoveryCheck({ user }) {
+async function recoveryCheck({ user, t, language }) {
+  const T = asT(t);
   // Pull last 7 days of sleep + the most recent workout to compute
   // a recovery score on the same heuristic the Dashboard surfaces use.
   const [recent, latestWorkout] = await Promise.all([
@@ -563,10 +601,12 @@ async function recoveryCheck({ user }) {
   return lines.join('\n');
 }
 
-async function sleepLog({ user }) {
+async function sleepLog({ user, t, language }) {
+  const T = asT(t);
   const todays = await getTodaySleepLog().catch(() => null);
   if (!todays) {
-    return "I don't have a sleep log for you today yet. Tap the sleep card on the Dashboard to record last night.";
+    return T('coach.reply.sleep.none',
+      "I don't have a sleep log for you today yet. Tap the sleep card on the Dashboard to record last night.");
   }
   const lines = [
     `Logged: ${todays.hours}h${todays.quality ? ` (quality ${todays.quality}/5)` : ''}`,
@@ -606,13 +646,14 @@ const RESPONDERS = {
   [INTENTS.UNKNOWN]:         unknown,
 };
 
-export async function respond({ user, intent }) {
+export async function respond({ user, intent, t, language = 'en' }) {
   const fn = RESPONDERS[intent.id] || unknown;
   try {
-    return await fn({ user, intent, params: intent.params });
+    return await fn({ user, intent, params: intent.params, t, language });
   } catch (err) {
     console.warn('[aiCoach] responder threw:', err);
-    return "Hmm, something went wrong looking at your data. Try again in a moment.";
+    return asT(t)('coach.reply.error',
+      'Hmm, something went wrong looking at your data. Try again in a moment.');
   }
 }
 
