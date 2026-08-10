@@ -265,6 +265,25 @@ function formatDigest(ctx: Record<string, any> | null | undefined): string {
   if (bits.length) out.push(`PROFILE: ${bits.join(', ')}`);
   if (list(p.dietaryRestrictions)) out.push(`AVOID-FOODS: ${list(p.dietaryRestrictions)}`);
   if (list(ctx.injuries?.avoidMuscleGroups)) out.push(`AVOID-MUSCLES (injury): ${list(ctx.injuries.avoidMuscleGroups)}`);
+  // The injuries themselves, so the reply can say WHY a group is off the table
+  // and for how long. The avoid-list alone tells the model what to dodge; it
+  // cannot say "your shoulder is serious and three weeks old" without this.
+  // `recoveryEtaDays` is null on almost every real row — the field is optional
+  // and users leave it blank — so it is rendered only when set. Never let the
+  // model infer a recovery date from silence.
+  if (Array.isArray(ctx.injuries?.active) && ctx.injuries.active.length) {
+    out.push('INJURIES: ' + ctx.injuries.active
+      .map((i: any) => [
+        i.area,
+        i.severity ? `${i.severity}` : null,
+        i.status === 'recovering' ? 'recovering' : null,
+        age(i.daysAgo),
+        typeof i.recoveryEtaDays === 'number'
+          ? (i.recoveryEtaDays <= 0 ? 'recovery date reached' : `${i.recoveryEtaDays}d to est. recovery`)
+          : null,
+      ].filter(Boolean).join(' · '))
+      .join(' | '));
+  }
 
   const t = ctx.training;
   if (t) {
@@ -283,7 +302,19 @@ function formatDigest(ctx: Record<string, any> | null | undefined): string {
   }
 
   const c = ctx.cardioLast14;
-  if (c?.sessions) out.push(`CARDIO (14d): ${c.sessions} sessions, ${c.totalMinutes || 0} min, ${c.totalDistanceKm || 0} km`);
+  if (c?.sessions) {
+    // Minutes and distance are omitted by the client when nothing real is
+    // behind them, so they are appended only when present. This used to render
+    // `${c.totalMinutes || 0} min, ${c.totalDistanceKm || 0} km` — and the
+    // client was reading `duration_minutes` / `distance_km`, neither of which
+    // is a column on `cardio_logs`, so it printed "0 min, 0 km" at every
+    // runner in the app and the model repeated it back to them.
+    out.push([
+      `CARDIO (14d): ${c.sessions} sessions`,
+      typeof c.totalMinutes === 'number' ? `${c.totalMinutes} min` : null,
+      typeof c.totalDistanceKm === 'number' ? `${c.totalDistanceKm} km` : null,
+    ].filter(Boolean).join(', '));
+  }
 
   const s = ctx.streaks;
   if (s?.workoutStreakDays != null) {
@@ -382,9 +413,19 @@ Deno.serve(async (req: Request) => {
   // Which prompt blocks are live for THIS user. Derived from the digest, so
   // the rules travel with the data that makes them apply — see the note on
   // buildSystemPrompt. Absent data means the rule has nothing to protect.
+  //
+  // This flag read false for EVERY request from the chat path until 2026-08-09.
+  // The client built `avoidMuscleGroups` from `getExcludedMuscleGroups()`,
+  // which returns a Set, and `JSON.stringify(new Set([...]))` is `{}` — so
+  // `Array.isArray` said no, the injury rules never shipped, and the
+  // AVOID-MUSCLES line never rendered. The client now sends an array. Keep the
+  // `Array.isArray` guard (a non-array here must fail closed, not crash) and
+  // note that a client regression of that shape is silent from in here.
   const flags = {
-    hasInjuries: Array.isArray(rawContext?.injuries?.avoidMuscleGroups)
-      && rawContext.injuries.avoidMuscleGroups.length > 0,
+    hasInjuries: (Array.isArray(rawContext?.injuries?.avoidMuscleGroups)
+      && rawContext.injuries.avoidMuscleGroups.length > 0)
+      || (Array.isArray(rawContext?.injuries?.active)
+        && rawContext.injuries.active.length > 0),
     hasDietary: Array.isArray(rawContext?.profile?.dietaryRestrictions)
       && rawContext.profile.dietaryRestrictions.length > 0,
     isEnglish: languageName === 'English',

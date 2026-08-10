@@ -65,8 +65,11 @@ export default function WorkoutQuickGenerator({ userProfile = {}, onSaveRegimen,
   // and injuries.js has always exported getExcludedMuscleGroups (synergists
   // and all), but nothing ever connected them — so a user with a logged
   // shoulder injury was still handed Overhead Press. This is the wire.
+  // ['injuries','active',uid] — the key InjuryForm's mutations invalidate by
+  // prefix. Under the old ['activeInjuries', uid] nothing invalidated it, so a
+  // just-logged injury did not reach the generator until the staleTime expired.
   const { data: activeInjuries = [] } = useQuery({
-    queryKey: ['activeInjuries', user?.id],
+    queryKey: ['injuries', 'active', user?.id],
     queryFn:  () => listActiveInjuries(),
     enabled:  !!user?.id,
     staleTime: 5 * 60_000,

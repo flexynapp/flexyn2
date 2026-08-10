@@ -18,6 +18,21 @@ import { IDENTITY_MODIFIERS } from './trainingModifiers';
 //   name, group, equipment ('gym'|'dumbbells'|'bodyweight'|'minimal'),
 //   compound (yes = anchor lift, no = accessory),
 //   skillLevel (1=beginner, 2=intermediate, 3=advanced)
+//   part (OPTIONAL) — a finer body part, for injury exclusion only.
+//
+// `part` exists because the injury vocabulary is finer than the catalog's.
+// InjuryForm lets someone report Biceps, Triceps or Glutes; this catalog only
+// ever had six groups, and `arms` holds three curls next to three triceps
+// movements. So `excludeMuscleGroups.has(ex.group)` — the only test there was
+// — matched NOTHING for those three body parts, and a logged biceps tear was
+// still handed Barbell Curl. Three of the eight areas the form offers were
+// inert. Verified against production: of the six injuries on file, one is
+// Glutes and one synergist-expands to biceps, so this was live, not
+// hypothetical.
+//
+// Only `arms` and the glute-dominant hinges carry a part: for every other
+// exercise the group IS the finest thing we know, and inventing a part there
+// would claim precision the catalog does not have.
 const CATALOG = [
   // Push
   { name: 'Bench Press',                 group: 'chest',     equipment: 'gym',         compound: true,  skillLevel: 1 },
@@ -41,10 +56,10 @@ const CATALOG = [
   { name: 'Front Squat',                 group: 'legs',      equipment: 'gym',         compound: true,  skillLevel: 3 },
   { name: 'Goblet Squat',                group: 'legs',      equipment: 'dumbbells',   compound: true,  skillLevel: 1 },
   { name: 'Bodyweight Squat',            group: 'legs',      equipment: 'bodyweight',  compound: true,  skillLevel: 1 },
-  { name: 'Romanian Deadlift',           group: 'legs',      equipment: 'gym',         compound: true,  skillLevel: 2 },
-  { name: 'Dumbbell Romanian Deadlift',  group: 'legs',      equipment: 'dumbbells',   compound: true,  skillLevel: 1 },
+  { name: 'Romanian Deadlift',           group: 'legs',      equipment: 'gym',         compound: true,  skillLevel: 2, part: 'glutes' },
+  { name: 'Dumbbell Romanian Deadlift',  group: 'legs',      equipment: 'dumbbells',   compound: true,  skillLevel: 1, part: 'glutes' },
   { name: 'Leg Press',                   group: 'legs',      equipment: 'gym',         compound: true,  skillLevel: 1 },
-  { name: 'Lunge',                       group: 'legs',      equipment: 'bodyweight',  compound: true,  skillLevel: 1 },
+  { name: 'Lunge',                       group: 'legs',      equipment: 'bodyweight',  compound: true,  skillLevel: 1, part: 'glutes' },
   { name: 'Leg Curl',                    group: 'legs',      equipment: 'gym',         compound: false, skillLevel: 1 },
   { name: 'Leg Extension',               group: 'legs',      equipment: 'gym',         compound: false, skillLevel: 1 },
   { name: 'Calf Raise',                  group: 'legs',      equipment: 'bodyweight',  compound: false, skillLevel: 1 },
@@ -56,12 +71,12 @@ const CATALOG = [
   { name: 'Pike Push-up',                group: 'shoulders', equipment: 'bodyweight',  compound: true,  skillLevel: 2 },
 
   // Arms
-  { name: 'Barbell Curl',                group: 'arms',      equipment: 'gym',         compound: false, skillLevel: 1 },
-  { name: 'Dumbbell Curl',               group: 'arms',      equipment: 'dumbbells',   compound: false, skillLevel: 1 },
-  { name: 'Hammer Curl',                 group: 'arms',      equipment: 'dumbbells',   compound: false, skillLevel: 1 },
-  { name: 'Tricep Pushdown',             group: 'arms',      equipment: 'gym',         compound: false, skillLevel: 1 },
-  { name: 'Skull Crusher',               group: 'arms',      equipment: 'gym',         compound: false, skillLevel: 2 },
-  { name: 'Tricep Dips',                 group: 'arms',      equipment: 'bodyweight',  compound: false, skillLevel: 1 },
+  { name: 'Barbell Curl',                group: 'arms',      equipment: 'gym',         compound: false, skillLevel: 1, part: 'biceps' },
+  { name: 'Dumbbell Curl',               group: 'arms',      equipment: 'dumbbells',   compound: false, skillLevel: 1, part: 'biceps' },
+  { name: 'Hammer Curl',                 group: 'arms',      equipment: 'dumbbells',   compound: false, skillLevel: 1, part: 'biceps' },
+  { name: 'Tricep Pushdown',             group: 'arms',      equipment: 'gym',         compound: false, skillLevel: 1, part: 'triceps' },
+  { name: 'Skull Crusher',               group: 'arms',      equipment: 'gym',         compound: false, skillLevel: 2, part: 'triceps' },
+  { name: 'Tricep Dips',                 group: 'arms',      equipment: 'bodyweight',  compound: false, skillLevel: 1, part: 'triceps' },
 
   // Core
   { name: 'Plank',                       group: 'core',      equipment: 'bodyweight',  compound: false, skillLevel: 1, hold: 45 },
@@ -372,11 +387,16 @@ export async function generateWorkout({
   // Pull recent top-set weights for personalization
   const history = await _historyByExercise(user?.email, 60);
 
-  // Filter catalog by equipment + skill + injury exclusions
+  // Filter catalog by equipment + skill + injury exclusions.
+  //
+  // Both `group` and `part` are tested. The group alone left Biceps, Triceps
+  // and Glutes injuries with no effect at all, because no catalog entry has
+  // ever carried those as its group — see the `part` note on CATALOG.
   const eligible = CATALOG.filter(ex =>
     equipSet.has(ex.equipment) &&
     ex.skillLevel <= maxSkill &&
-    !excludeMuscleGroups.has(ex.group?.toLowerCase())
+    !excludeMuscleGroups.has(ex.group?.toLowerCase()) &&
+    !excludeMuscleGroups.has(ex.part?.toLowerCase())
   );
 
   // Decide how many exercises based on duration:

@@ -144,6 +144,124 @@ describe('buildCoachContext — degrades rather than blanking', () => {
     expect(ctx.injuries.avoidMuscleGroups).toEqual(['shoulders', 'chest']);
   });
 
+  // ── The digest has to survive the wire ─────────────────────────────────────
+  //
+  // Every test above this line passes `excludeMuscleGroups` as an ARRAY. The
+  // app passes a Set — `getExcludedMuscleGroups()` returns one, because that
+  // is what `generateWorkout` wants — and `supabase.functions.invoke` JSON-
+  // serializes the body, where `JSON.stringify(new Set(['chest']))` is `{}`.
+  // So the Edge Function's `Array.isArray(context.injuries.avoidMuscleGroups)`
+  // guard read false on every request ever made, and it drops BOTH the
+  // AVOID-MUSCLES line and the whole injury rules block when that flag is
+  // false. The model was never told about an injury on the chat path.
+  //
+  // These assert on the POST-SERIALIZATION value for that reason: asserting on
+  // the in-memory object is what let this pass for the life of the feature.
+  describe('what the Edge Function actually receives', () => {
+    const overWire = (ctx) => JSON.parse(JSON.stringify(ctx));
+
+    it('serializes a Set of exclusions to a real array, not {}', async () => {
+      filter.mockResolvedValue([]);
+
+      const ctx = await buildCoachContext({
+        user: USER,
+        excludeMuscleGroups: new Set(['shoulders', 'chest', 'triceps']),
+      });
+
+      const wire = overWire(ctx);
+      expect(Array.isArray(wire.injuries.avoidMuscleGroups)).toBe(true);
+      expect(wire.injuries.avoidMuscleGroups).toEqual(['shoulders', 'chest', 'triceps']);
+      // The exact flag the function derives to decide whether to send the
+      // injury rules. This is the assertion that was missing.
+      expect(
+        Array.isArray(wire.injuries?.avoidMuscleGroups) && wire.injuries.avoidMuscleGroups.length > 0
+      ).toBe(true);
+    });
+
+    it('carries severity and age so the reply can say why a group is off', async () => {
+      filter.mockResolvedValue([]);
+
+      const ctx = await buildCoachContext({
+        user: USER,
+        excludeMuscleGroups: new Set(['shoulders', 'chest', 'triceps']),
+        activeInjuries: [
+          { muscle_group: 'Shoulders', severity: 'serious', status: 'active', injured_at: '2026-07-24' },
+        ],
+      });
+
+      const wire = overWire(ctx);
+      expect(wire.injuries.active).toEqual([
+        {
+          area: 'Shoulders',
+          severity: 'serious',
+          status: 'active',
+          daysAgo: 14,
+          recoveryEtaDays: null,
+        },
+      ]);
+    });
+
+    it('reports no recovery date when there is none, rather than inventing one', async () => {
+      filter.mockResolvedValue([]);
+
+      // 0 of the 6 injuries in production carry an estimated_recovery_date —
+      // the field is optional and nobody fills it. A null here is what stops
+      // the model announcing a date the user never set.
+      const ctx = await buildCoachContext({
+        user: USER,
+        excludeMuscleGroups: new Set(['legs']),
+        activeInjuries: [{ muscle_group: 'Legs', severity: 'mild', status: 'active', injured_at: '2026-08-05' }],
+      });
+
+      expect(overWire(ctx).injuries.active[0].recoveryEtaDays).toBeNull();
+      expect(overWire(ctx).injuries.active[0].daysAgo).toBe(2);
+    });
+
+    it('says nothing about injuries when the user has none', async () => {
+      filter.mockResolvedValue([]);
+
+      const wire = overWire(await buildCoachContext({ user: USER }));
+      expect(wire.injuries.avoidMuscleGroups).toEqual([]);
+      expect(wire.injuries.active).toEqual([]);
+    });
+  });
+
+  // ── Cardio read the wrong columns ──────────────────────────────────────────
+  //
+  // `cardio_logs` has no `duration_minutes` and no `distance_km`. The real
+  // columns are `duration_seconds` (what the tracker writes), `duration_min`
+  // and `distance_meters`. Both reads resolved to undefined, so every user who
+  // had ever run was described to the model as "0 min, 0 km".
+  describe('cardio is read from the columns that exist', () => {
+    it('converts duration_seconds and distance_meters', async () => {
+      filter.mockImplementation((q) => Promise.resolve(
+        q && q.created_by
+          ? [
+              { date: '2026-08-06', duration_seconds: 1800, distance_meters: 5200 },
+              { date: '2026-08-03', duration_seconds: 2400, distance_meters: 7000 },
+            ]
+          : []
+      ));
+
+      const ctx = await buildCoachContext({ user: USER });
+      expect(ctx.cardioLast14.sessions).toBe(2);
+      expect(ctx.cardioLast14.totalMinutes).toBe(70);   // (1800+2400)/60
+      expect(ctx.cardioLast14.totalDistanceKm).toBe(12.2);
+    });
+
+    it('falls back to duration_min on an older row', async () => {
+      filter.mockImplementation((q) => Promise.resolve(
+        q && q.created_by ? [{ date: '2026-08-06', duration_min: 45, distance_meters: 0 }] : []
+      ));
+
+      const ctx = await buildCoachContext({ user: USER });
+      expect(ctx.cardioLast14.totalMinutes).toBe(45);
+      // No distance on the row, so no distance in the digest — a 0 km would
+      // read as "you ran and covered nothing".
+      expect(ctx.cardioLast14.totalDistanceKm).toBeUndefined();
+    });
+  });
+
   it('carries dietary restrictions, which gate every food the coach may name', async () => {
     filter.mockResolvedValue([]);
 

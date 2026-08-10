@@ -41,7 +41,6 @@ import WorkoutElapsedChip from '@/components/workout/WorkoutElapsedChip';
 import InjuryBanner from '@/components/workout/InjuryBanner';
 import ComebackScreen from '@/components/workout/ComebackScreen';
 import { useComebackProtocol } from '@/hooks/useComebackProtocol';
-import { listActiveInjuries } from '@/lib/data/injuries';
 import { getActiveDuel } from '@/lib/data/duels';
 import { syncMyCrewWarProgress } from '@/lib/data/crewWars';
 import { syncMyCrewChallengeProgress } from '@/lib/data/crewChallenges';
@@ -634,13 +633,11 @@ export default function Workout() {
   const calculateTotalVolume = (exList) =>
     computeTotalVolume(exList, { includeBarWeight: false });
 
-  // InjuryBanner fetches its own data internally — this query is unused.
-  useQuery({
-    queryKey: ['activeInjuries', user?.id],
-    queryFn: listActiveInjuries,
-    enabled: !!user?.id,
-    staleTime: 60_000,
-  });
+  // (An unused ['activeInjuries', uid] query used to sit here. Its own comment
+  // said InjuryBanner fetches its own data — so this was a second network
+  // request on every Workout load whose result nothing read, under a key
+  // nothing invalidated. It did not even warm the banner's cache: the banner
+  // keys on ['injuries','active',uid].)
 
   const regimens = useMemo(() => filterAfterReset(rawRegimens, userProfile), [rawRegimens, userProfile]);
   const logs = useMemo(() => filterAfterReset(rawLogs, userProfile), [rawLogs, userProfile]);

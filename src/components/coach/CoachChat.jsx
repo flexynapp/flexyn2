@@ -79,8 +79,14 @@ export default function CoachChat({ mode, onSaveRegimen, onStartWorkout }) {
     enabled:  !!user?.email,
     staleTime: 60_000,
   });
+  // Key is ['injuries','active',uid] — the SAME key InjuryBanner uses and the
+  // one InjuryForm's mutations invalidate by prefix. It used to be
+  // ['activeInjuries', uid], which no mutation has ever touched: logging or
+  // clearing an injury left the Coach reading a five-minute-stale copy, so the
+  // session you were handed straight after reporting a bad shoulder could
+  // still contain overhead work. Any new reader of this data must use this key.
   const { data: activeInjuries = [] } = useQuery({
-    queryKey: ['activeInjuries', user?.id],
+    queryKey: ['injuries', 'active', user?.id],
     queryFn:  () => listActiveInjuries(),
     enabled:  !!user?.id,
     staleTime: 5 * 60_000,
@@ -95,11 +101,15 @@ export default function CoachChat({ mode, onSaveRegimen, onStartWorkout }) {
   // to the Edge Function even started. Two minutes is well inside a chat
   // session and no workout can land mid-conversation without the user leaving.
   const { data: coachContext } = useQuery({
-    queryKey: ['coachContext', user?.id, userProfile?.updated_at],
+    // The injury rows are in the key, not just the derived set: two different
+    // injuries can produce the same exclusion list, and the digest now carries
+    // severity and age, so the cached digest has to age out when they change.
+    queryKey: ['coachContext', user?.id, userProfile?.updated_at, activeInjuries.length, [...excludeMuscleGroups].join(',')],
     queryFn:  () => buildCoachContext({
       user,
       profile: userProfile || {},
       excludeMuscleGroups,
+      activeInjuries,
     }),
     enabled:  !!user?.email,
     staleTime: 2 * 60_000,

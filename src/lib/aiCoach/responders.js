@@ -643,7 +643,15 @@ function _daysAgo(date) {
   return d ? differenceInCalendarDays(new Date(), d) : null;
 }
 
-export async function buildCoachContext({ user, profile = {}, excludeMuscleGroups = [] } = {}) {
+export async function buildCoachContext({
+  user,
+  profile = {},
+  excludeMuscleGroups = [],
+  // The rows behind `excludeMuscleGroups`. Optional: a caller that only has
+  // the derived set still gets the avoid-list, just without the severity and
+  // timing detail.
+  activeInjuries = [],
+} = {}) {
   const ctx = {
     // Stated up front so the model reports weights in the unit the user
     // reads everywhere else in the app. Logs are stored in lb.
@@ -668,7 +676,42 @@ export async function buildCoachContext({ user, profile = {}, excludeMuscleGroup
   // Muscle groups an active injury rules out. The model must not program
   // around these itself (that's the generator's job) but it must not
   // cheerfully suggest them in prose either.
-  ctx.injuries = { avoidMuscleGroups: excludeMuscleGroups || [] };
+  //
+  // **This MUST be a plain array.** `getExcludedMuscleGroups()` returns a Set,
+  // which is what `generateWorkout` wants — but this digest is JSON-serialized
+  // by `supabase.functions.invoke`, and `JSON.stringify(new Set(['chest']))`
+  // is `{}`. So the function received `avoidMuscleGroups: {}`, its
+  // `Array.isArray(...)` guard read false, and BOTH the `AVOID-MUSCLES` line
+  // and the entire injury rules block were dropped from every request. The
+  // model has never once been told about an injury on the chat path — while
+  // the onboarding path, which builds the same field with `.map()`, worked
+  // fine. Do not "simplify" this back to passing the Set through.
+  // Insertion order, not sorted: a Set built by getExcludedMuscleGroups is
+  // already deterministic (injuries newest-first, each followed by its
+  // synergists), and re-sorting would churn the existing expectations for no
+  // gain.
+  const _avoid = [...(excludeMuscleGroups || [])].filter(Boolean);
+  ctx.injuries = {
+    avoidMuscleGroups: _avoid,
+    // Severity and age, so the reply can say WHY a group is off the table and
+    // for how long. The exclusion list alone tells the model what to dodge; it
+    // cannot tell someone "your shoulder is 3 weeks old and serious, so we are
+    // still off overhead work" without this.
+    active: (activeInjuries || [])
+      .map(i => ({
+        area:     i?.muscle_group || null,
+        severity: i?.severity || null,
+        status:   i?.status || null,
+        daysAgo:  _daysAgo(i?.injured_at),
+        // Null on almost every real row — the field is optional and nobody
+        // fills it (0 of 6 in production). Emitted only when it is real so the
+        // model never reports a recovery date that does not exist.
+        recoveryEtaDays: i?.estimated_recovery_date
+          ? differenceInCalendarDays(parseLogDate(i.estimated_recovery_date) || new Date(), new Date())
+          : null,
+      }))
+      .filter(i => i.area),
+  };
 
   const [workouts, cardio, profileRow] = await Promise.all([
     _fetchRecentWorkouts(user?.email, 365).catch(() => []),
@@ -744,10 +787,23 @@ export async function buildCoachContext({ user, profile = {}, excludeMuscleGroup
   } catch { ctx.topLifts = []; }
 
   try {
+    // `cardio_logs` has NO `duration_minutes` and NO `distance_km` column.
+    // The real ones are `duration_seconds` (what the tracker writes),
+    // `duration_min` (the older denormalised one) and `distance_meters`. Both
+    // reads resolved to undefined, so this block reported "0 minutes, 0 km"
+    // for every user who had ever run — and the model quotes what it is given,
+    // so it told them so. Checked against the live schema, not guessed.
+    const minutes = Math.round(cardio.reduce((s, c) => (
+      s + (Number(c.duration_seconds) ? Number(c.duration_seconds) / 60 : (Number(c.duration_min) || 0))
+    ), 0));
+    const km = Math.round(cardio.reduce((s, c) => s + (Number(c.distance_meters) || 0) / 1000, 0) * 10) / 10;
     ctx.cardioLast14 = {
       sessions: cardio.length,
-      totalMinutes: Math.round(cardio.reduce((s, c) => s + (Number(c.duration_minutes) || 0), 0)),
-      totalDistanceKm: Math.round(cardio.reduce((s, c) => s + (Number(c.distance_km) || 0), 0) * 10) / 10,
+      // Omitted rather than sent as 0. A zero here is indistinguishable from
+      // "logged a session with no duration", and a stat with nothing behind it
+      // must not render as a zero (CLAUDE.md).
+      ...(minutes > 0 ? { totalMinutes: minutes } : {}),
+      ...(km > 0 ? { totalDistanceKm: km } : {}),
     };
   } catch { ctx.cardioLast14 = null; }
 
