@@ -52,6 +52,11 @@ const num = (v) => {
 /** Metres → miles, one decimal. The app is lbs/miles throughout. */
 const toMiles = (m) => num(m) / 1609.344;
 
+/** Percentage change, or null when there is no baseline to compare against —
+ *  a "+100%" against a week of zero is noise, not information. */
+const pctChange = (now, before) =>
+  num(before) > 0 ? Math.round(((num(now) - num(before)) / num(before)) * 100) : null;
+
 /** Minutes → "1h 52m" / "48m". */
 function hm(mins) {
   const t = Math.round(num(mins));
@@ -191,6 +196,11 @@ export default function WeeklyDebriefCard({ debrief, forExport = false, exportRe
   const cardioN    = num(co.sessions);
   const steps      = num(co.steps);
   const hasCond    = cardioN > 0 || steps > 0;
+  // Seven daily totals, Monday-first. Absent on a v1 payload, so the chart is
+  // behind a null check rather than assumed.
+  const dailySteps = Array.isArray(co.daily_steps) && co.daily_steps.length === 7
+    ? co.daily_steps : null;
+  const maxDay     = dailySteps ? Math.max(...dailySteps.map(num)) : 0;
 
   // ── Fuel
   const fuelDays   = fu.days_logged ?? d.macro_days_tracked ?? 0;
@@ -212,7 +222,12 @@ export default function WeeklyDebriefCard({ debrief, forExport = false, exportRe
   const levelUp    = levelStart != null && levelEnd != null && levelEnd > levelStart;
 
   // ── People
+  // Gated on the league EXISTING, not on `rank` — same trap as the row below,
+  // one level up. league_members.rank is NULL until the league RESOLVES, so a
+  // user competing all week in Bronze with no crew and no duels would have had
+  // the entire section hidden from them for the only week it described.
   const hasPeople  = !!pe.crew_name || num(pe.duels_played) > 0
+                     || !!pe.league_tier || pe.league_xp != null
                      || pe.league_rank != null || num(pe.gym_days) > 0;
 
   const insight    = d.ai_insight || '';
@@ -389,13 +404,52 @@ export default function WeeklyDebriefCard({ debrief, forExport = false, exportRe
             )}
             {steps > 0 && (
               <div className={cardioN > 0 ? 'mt-2 pt-2 border-t border-border' : undefined}>
-                <div className="flex items-baseline justify-between gap-2">
-                  <span className="font-heading font-bold text-[15px] tabular-nums text-foreground">{n0(steps)}</span>
-                  <span className="text-micro text-muted-foreground">
-                    steps · logged {n0(co.steps_days)} of 7
+                {/* The AVERAGE leads, not the total — the move Apple Health makes
+                    on this exact screen, and the right one: a total is only
+                    comparable against a week of identical length and identical
+                    logging, an average is comparable against anything. Divided
+                    by days LOGGED rather than by seven, for the same reason the
+                    fuel section is: steps here are typed in by hand, so a day
+                    with no row means "not recorded", not "did not move". */}
+                <div className="flex items-end gap-2">
+                  <span className="font-heading font-bold text-[15px] tabular-nums text-foreground">
+                    {n0(num(steps) / Math.max(1, num(co.steps_days)))}
                   </span>
+                  <span className="text-micro text-muted-foreground mb-px">steps / day</span>
+                  {num(co.prev_steps) > 0 && (
+                    <span className="ms-auto"><Delta pct={pctChange(steps, co.prev_steps)} /></span>
+                  )}
                 </div>
-                <Bar pct={(num(co.steps_days) / 7) * 100} className="mt-2" />
+
+                {/* Seven daily bars, replacing a progress bar that measured how
+                    many DAYS WERE LOGGED — it looked like progress toward a step
+                    goal and was nothing of the kind. Heights are relative to the
+                    week's own best day; a day with no data is a flat track, which
+                    is visibly different from a day with few steps. */}
+                {dailySteps && (
+                  <div className="grid grid-cols-7 gap-1.5 mt-3">
+                    {dailySteps.map((v, i) => {
+                      const h = maxDay > 0 ? Math.max(2, (num(v) / maxDay) * 28) : 2;
+                      return (
+                        <div key={i}>
+                          <div className="h-7 flex items-end">
+                            <div
+                              className={`w-full rounded-sm ${num(v) > 0 ? 'bg-primary' : 'bg-secondary'}`}
+                              style={{ height: `${h}px` }}
+                            />
+                          </div>
+                          <p className={`text-micro text-center mt-1 ${num(v) > 0 ? 'text-foreground' : 'text-muted-foreground'}`}>
+                            {dayLetters[i]}
+                          </p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                <p className="text-micro text-muted-foreground mt-2">
+                  {n0(steps)} total · {n0(co.steps_days)} day{num(co.steps_days) === 1 ? '' : 's'} logged
+                </p>
               </div>
             )}
           </Section>
