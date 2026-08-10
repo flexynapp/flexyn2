@@ -1,0 +1,22 @@
+CORRECTION (2026-08-10): the closing paragraph of this message is wrong.
+
+It says the backlog should be checked because "resolve_league_bracket_internal
+showed today what a catch-up sweep does when nobody has looked at the queue in
+months". No such sweep happened. The seven historical leagues were never
+resolved at all — migration 310 ends with a one-shot that VOIDS them, because
+resolving stranded brackets under any ruleset would have promoted AFK accounts.
+Verified: all 29 'void' rows carry qualified = NULL, and the resolver always
+stamps that column, so those rows demonstrably never passed through it.
+
+The original claim came from reading leagues.resolved_at as proof the resolver
+had run; the void stamps that column too. Migration 310's own comment predicts
+exactly this misreading.
+
+The notification-burst hazard remains real as a CAUTION — roll_weekly_leagues
+would fire a burst against a genuine backlog — but it has never happened here,
+and it did not 'conceal' the qualification drought. There was only one thing to
+see. See CLAUDE.md (d9f332b1) for the corrected account.
+
+Also superseded: 'Still not scheduled.' The cron is scheduled (job 26) and
+DEBRIEF_CRON_SECRET is set as of 2026-08-10 00:24 UTC; a live run returned
+{ok:true, considered:3, generated:3, skipped:0, failed:0}.
