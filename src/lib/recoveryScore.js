@@ -8,15 +8,31 @@
 // FORMULA
 // ───────
 //   sleep_score      = clamp((hours / 8) * 100, 0, 100)
-//   quality_score    = quality ? (quality / 5) * 100 : 70  (neutral)
 //   soreness_score   = soreness ? ((6 - soreness) / 5) * 100 : 70
 //   recency_score    = clamp(days_since_workout * 30 + 40, 0, 100)
 //                      (0 days = 40, 1 day = 70, 2 days = 100, plateau)
 //
-//   weighted = sleep * 0.4
-//            + quality * 0.2
+//   weighted = sleep * 0.6
 //            + soreness * 0.25
 //            + recency * 0.15
+//
+// SLEEP QUALITY WAS A SEPARATE 20% SIGNAL AND IS NOT ANY MORE. Its input
+// was removed from SleepLogCard on 2026-07-12 (3300cc7f) — "the hours
+// score above already carries the signal" — but the WEIGHT stayed, so
+// quality sat at its neutral 70 forever and contributed a fixed +14 to
+// every score on every day. The measurable effect: a perfect day (8h,
+// no soreness, well rested) could not score above 94, every score carried
+// the same +14 regardless of behaviour, and the Readiness sheet showed a
+// permanent "not logged
+// · log it above to sharpen your score" row pointing at a control that
+// no longer existed.
+//
+// Folding the 20% into sleep duration makes that 2026-07-12 sentence
+// true: hours now genuinely carries the weight quality used to hold.
+// Scores move — a well-slept day rises, a badly-slept one falls — which
+// is the point: the number responds to the input again instead of being
+// dragged toward the middle by a constant. Nothing persists a score
+// (it is derived on read), so there is no backfill.
 //
 // Tiered labels:
 //   ≥ 80  "Primed"
@@ -39,7 +55,6 @@ function clamp(n, lo, hi) {
  *
  * @param {object} inputs
  * @param {number} [inputs.sleepHours]
- * @param {number} [inputs.sleepQuality]    1-5
  * @param {number} [inputs.soreness]        1-5  (5 = very sore = bad)
  * @param {Date|string} [inputs.lastWorkoutAt]
  * @param {Date}   [inputs.now]
@@ -47,7 +62,6 @@ function clamp(n, lo, hi) {
  */
 export function computeRecoveryScore({
   sleepHours,
-  sleepQuality,
   soreness,
   lastWorkoutAt,
   now = new Date(),
@@ -55,11 +69,6 @@ export function computeRecoveryScore({
   // Sleep duration (40% weight).
   const sleepScore = typeof sleepHours === 'number'
     ? clamp((sleepHours / 8) * 100, 0, 100)
-    : 70;
-
-  // Sleep quality (20%). When missing, neutral 70.
-  const qualityScore = typeof sleepQuality === 'number' && sleepQuality > 0
-    ? clamp((sleepQuality / 5) * 100, 0, 100)
     : 70;
 
   // Soreness — INVERTED (5 = very sore → low score). When missing, 70.
@@ -79,8 +88,7 @@ export function computeRecoveryScore({
   }
 
   const weighted =
-    sleepScore     * 0.40 +
-    qualityScore   * 0.20 +
+    sleepScore     * 0.60 +
     sorenessScore  * 0.25 +
     recencyScore   * 0.15;
 
@@ -99,13 +107,12 @@ export function computeRecoveryScore({
     if (!Number.isNaN(d.getTime())) daysSince = Math.max(0, differenceInCalendarDays(now, d));
   }
   // Apportion the point contributions with the largest-remainder method
-  // so the four displayed values sum EXACTLY to `score` — otherwise
+  // so the three displayed values sum EXACTLY to `score` — otherwise
   // independently rounding each (e.g. 17.5→18 and 10.5→11) can make the
   // rows read 71 while the headline says 70, which is exactly the
   // "why is my score that number?" confusion this breakdown exists to kill.
   const parts = [
-    { key: 'sleep',    logged: typeof sleepHours === 'number',                     value: sleepHours ?? null,   sub: sleepScore,    weight: 0.40 },
-    { key: 'quality',  logged: typeof sleepQuality === 'number' && sleepQuality > 0, value: sleepQuality ?? null, sub: qualityScore,  weight: 0.20 },
+    { key: 'sleep',    logged: typeof sleepHours === 'number',              value: sleepHours ?? null, sub: sleepScore,    weight: 0.60 },
     { key: 'soreness', logged: typeof soreness === 'number' && soreness > 0,        value: soreness ?? null,     sub: sorenessScore, weight: 0.25 },
     { key: 'recency',  logged: !!lastWorkoutAt,                                     value: daysSince,            sub: recencyScore,  weight: 0.15 },
   ];

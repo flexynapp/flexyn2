@@ -531,7 +531,6 @@ async function recoveryCheck({ user }) {
   const todays = recent[recent.length - 1] || null;
   const { score, label } = computeRecoveryScore({
     sleepHours:    todays?.hours,
-    sleepQuality:  todays?.quality,
     soreness:      todays?.soreness,
     lastWorkoutAt: latestWorkout?.date,
   });
@@ -854,7 +853,6 @@ export async function buildCoachContext({
     if (lastSleep && _daysAgo(lastSleep.date) != null && _daysAgo(lastSleep.date) <= 1) {
       const { score, label } = computeRecoveryScore({
         sleepHours:    _n(lastSleep.hours) ?? undefined,
-        sleepQuality:  _n(lastSleep.quality) ?? undefined,
         soreness:      _n(lastSleep.soreness) ?? undefined,
         lastWorkoutAt: workouts[0]?.date,
       });

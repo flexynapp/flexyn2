@@ -55,7 +55,6 @@ export function useReadiness(logs = []) {
 
   const { score: rawScore, label, breakdown } = computeRecoveryScore({
     sleepHours:   sleep?.hours,
-    sleepQuality: sleep?.quality,
     soreness:     sorenessProxy,
     lastWorkoutAt,
   });

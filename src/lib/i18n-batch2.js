@@ -98,6 +98,11 @@ const enKeys = {
   // Board 02's drawn label for the Readiness sheet CTA. English-only like
   // the rest of this batch; the native pass is deferred by decision.
   'readiness.saveClose':               'Save & close',
+  // Three signals since sleep quality stopped being a scored input with no
+  // control. New keys rather than edits so the old four-signal strings do
+  // not linger, mistranslated, in 15 languages.
+  'readiness.blend3':                  'Blended from three signals. The more you log, the less we estimate.',
+  'readiness.allLogged3':              'Nothing estimated today — all three signals are logged.',
 
   // ── HubChat error toasts ────────────────────────────────────────────
   'hub.chat.attachmentTooLarge': 'Image must be 50 MB or smaller',

@@ -19,7 +19,7 @@
 
 import React, { useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Moon, Star, Smile, Dumbbell, X } from 'lucide-react';
+import { Moon, Smile, Dumbbell, X } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import ReadinessRing, { readinessColors } from '@/components/dashboard/ReadinessRing';
@@ -70,20 +70,19 @@ export default function ReadinessSheet({ open, onClose, readiness, focus, onLogW
   const b = readiness?.breakdown || {};
   const score = readiness?.score ?? 0;
 
+  // Three signals, not four. Sleep QUALITY was a scored 20% with no input —
+  // its control was removed on 2026-07-12 while its weight stayed, so the
+  // row sat permanently at "not logged · log it above to sharpen your
+  // score" pointing at a control that no longer existed, and contributed a
+  // fixed +14 to every score. Its weight folded into sleep duration, which
+  // is what that commit said was already happening.
   const rows = [
     {
       Icon: Moon,
       name: tFallback('readiness.row.sleep', "Last night's sleep"),
-      weight: '40%',
+      weight: '60%',
       d: b.sleep,
       value: b.sleep?.logged ? `${b.sleep.value} hr` : null,
-    },
-    {
-      Icon: Star,
-      name: tFallback('readiness.row.quality', 'Sleep quality'),
-      weight: '20%',
-      d: b.quality,
-      value: b.quality?.logged ? `${b.quality.value} / 5` : null,
     },
     {
       Icon: Smile,
@@ -173,7 +172,7 @@ export default function ReadinessSheet({ open, onClose, readiness, focus, onLogW
               <div className="min-w-0">
                 <p className="font-heading font-bold text-title leading-tight">{readiness?.label}</p>
                 <p className="text-caption text-muted-foreground leading-snug mt-1">
-                  {tFallback('readiness.blend', 'Blended from four signals. The more you log, the less we estimate.')}
+                  {tFallback('readiness.blend3', 'Blended from three signals. The more you log, the less we estimate.')}
                 </p>
               </div>
             </div>
@@ -267,7 +266,7 @@ export default function ReadinessSheet({ open, onClose, readiness, focus, onLogW
               </ul>
               <p className="text-micro text-muted-foreground/80 leading-relaxed mt-4">
                 {allLogged
-                  ? tFallback('readiness.allLogged', 'Nothing estimated today — all four signals are logged.')
+                  ? tFallback('readiness.allLogged3', 'Nothing estimated today — all three signals are logged.')
                   : tFallback('readiness.footer', 'The more you log, the less we estimate — and the more the number reflects you.')}
               </p>
             </div>
