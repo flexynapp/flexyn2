@@ -17,7 +17,10 @@ import { useMultiProfanityGuard, hasAnyProfanity } from '@/lib/useProfanityGuard
 import ProfanityWarningDialog from '@/components/ProfanityWarningDialog';
 import { toast } from '@/lib/toast';
 
-const ALL_MUSCLE_GROUPS = ['Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps', 'Legs', 'Glutes', 'Core', 'Full Body', 'Cardio'];
+// Keep in step with MuscleGroupSelector.jsx and RegimenStorePage.jsx — the
+// same array, three times. See the note in MuscleGroupSelector for why
+// 'Traps' is here.
+const ALL_MUSCLE_GROUPS = ['Chest', 'Back', 'Traps', 'Shoulders', 'Biceps', 'Triceps', 'Legs', 'Glutes', 'Core', 'Full Body', 'Cardio'];
 
 const TYPE_COLOR  = { superset: 'border-violet-500/40 bg-violet-500/5', circuit: 'border-emerald-500/40 bg-emerald-500/5' };
 const TYPE_BADGE  = { superset: 'text-violet-500 bg-violet-500/10 border-violet-500/25', circuit: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/25' };

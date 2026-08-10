@@ -5,7 +5,14 @@ import { Badge } from '@/components/ui/badge';
 import { useLanguage } from '@/lib/LanguageContext';
 import { muscleKey } from '@/lib/exerciseTranslations';
 
-const ALL_MUSCLE_GROUPS = ['Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps', 'Legs', 'Glutes', 'Core', 'Full Body', 'Cardio'];
+// 'Traps' joined this list when the four neck exercises were retagged off
+// 'Full Body' in EXERCISE_LIBRARY. Without it the picker rendered a Traps
+// tag correctly — `selected` is not filtered against this array — but could
+// not offer it again once removed, so a user could delete the tag and not
+// get it back. `muscleGroups.traps` already ships in all 15 languages.
+// This array is duplicated in RegimenForm.jsx and RegimenStorePage.jsx;
+// all three have to move together.
+const ALL_MUSCLE_GROUPS = ['Chest', 'Back', 'Traps', 'Shoulders', 'Biceps', 'Triceps', 'Legs', 'Glutes', 'Core', 'Full Body', 'Cardio'];
 
 export default function MuscleGroupSelector({ selected = [], availableGroups = ALL_MUSCLE_GROUPS, onAdd, onRemove }) {
   const { t } = useLanguage();

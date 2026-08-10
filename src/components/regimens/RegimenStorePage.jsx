@@ -28,8 +28,13 @@ import RegimenReviewsBlock from './RegimenReviewsBlock';
 
 // All muscle groups the app recognises — hardcoded so the chips are always
 // shown even when the loaded templates don't cover every group.
+// Keep in step with MuscleGroupSelector.jsx and RegimenForm.jsx — the same
+// array, three times. See the note in MuscleGroupSelector for why 'Traps'
+// is here. Here it is the FILTER vocabulary, so omitting it would hide the
+// neck exercises from the store's muscle filter rather than just from a
+// picker dropdown.
 const ALL_MUSCLE_GROUPS = [
-  'Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps',
+  'Chest', 'Back', 'Traps', 'Shoulders', 'Biceps', 'Triceps',
   'Legs', 'Glutes', 'Core', 'Full Body', 'Cardio',
 ];
 
