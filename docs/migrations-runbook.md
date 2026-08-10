@@ -299,6 +299,62 @@ CLAUDE.md. Rotating breaks the old secret immediately, so the cron returns
 
 ---
 
+## `net._http_response` lies about success
+
+The section above is about a cron reporting `succeeded` while doing
+nothing. This is the mirror image, and it bites when you go looking for
+the first problem: **a row in `net._http_response` with `timed_out = true`
+does not mean the work failed.**
+
+`net.http_post`'s `timeout_milliseconds` defaults to **5000**, and a cold
+Supabase Edge Function boot measures **~4.8s** here. pg_net abandons the
+request; the function keeps running and finishes anyway. Measured on
+2026-08-10, the first storage-GC cycle that ever ran:
+
+| Where | What it said |
+|---|---|
+| `net._http_response` id 212 | `Timeout of 5000 ms reached. Total time: 5002.584 ms` |
+| `storage_cleanup_queue.processed_at` | `19:15:05.788`, `last_error` NULL, both blobs gone |
+
+The work completed **0.56s after** the request was recorded as timed out.
+The single row anyone would consult to ask "did it run?" said no, and was
+wrong.
+
+**The rule: verify a dispatch against the thing it was supposed to CHANGE**
+— the queue, the row, the column — never against `net._http_response`
+alone. That table is authoritative for *failure* (a 400 or 401 there is
+real, and it is the only place a dispatch error surfaces) but not for
+*success*.
+
+This is not a livelock. A timed-out cold call still leaves the instance
+warm, so the next firing answers instantly — it self-heals. The cost is
+one misleading row per idle gap, not a stuck job.
+
+Migrations 337 and 339 passed `timeout_milliseconds := 30000` to all four
+callers that existed then. The default is still 5000 and nothing enforces
+this, so **any new `net.http_post` call must pass it explicitly.** The
+worst case is a rarely-invoked function: `kick_weekly_reviews` runs
+`0 20 * * 0`, once a week, so its endpoint is cold on *every* firing —
+guaranteed to take the path the others only risk.
+
+Audit every caller after adding one:
+
+```sql
+SELECT proname,
+       position('timeout_milliseconds' in pg_get_functiondef(oid)) > 0 AS has_timeout
+FROM pg_proc
+WHERE pronamespace::regnamespace::text = 'public'
+  AND prokind = 'f'
+  AND pg_get_functiondef(oid) LIKE '%net.http_post%'
+ORDER BY 1;
+```
+
+Every row should read `true`. The `prokind = 'f'` filter is required, not
+cosmetic — without it `pg_get_functiondef` is handed an aggregate and the
+whole query dies with `42809: "array_agg" is an aggregate function`.
+
+---
+
 ## Smoke tests
 
 Run [`supabase/tests/cron_smoke_tests.sql`](../supabase/tests/cron_smoke_tests.sql)
