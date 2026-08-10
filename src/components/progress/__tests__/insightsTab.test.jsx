@@ -138,9 +138,13 @@ describe('TDEE', () => {
     expect(screen.queryByText(/body weight, height, age/)).toBeNull();
   });
 
-  it('lists every missing field when the profile is empty', () => {
+  it('joins the missing fields as a locale list, not a hardcoded comma', () => {
+    // `.join(', ')` is wrong in Arabic (`و`) and Japanese (`、`), and in
+    // English it cannot produce the "and". The separator is locale data.
+    // English is the one language that makes this look almost right, which
+    // is why it survived — the "and" is the only visible tell here.
     show({ userProfile: USER });
-    expect(screen.getByText('Add your body weight, height, age in Settings to get a TDEE estimate.'))
+    expect(screen.getByText('Add your body weight, height, and age in Settings to get a TDEE estimate.'))
       .toBeInTheDocument();
   });
 });

@@ -16,6 +16,23 @@
  *     weekend across two "active weeks". `parseLocalDate` exists in
  *     src/lib/dateUtils.js for exactly this; use it for any `date` column.
  *
+ * AUDIT 11 STATUS — all six findings against this file are closed, and the
+ * two that are closed by DELETION are recorded here because there is no
+ * longer any code for the annotation to sit next to. A grep for the number
+ * has to land somewhere or the finding gets re-reported forever, which
+ * nearly happened to #7 and #23.
+ *
+ *   #7  fixed — `useEffect([weightUnit, userId])`, see the comment there.
+ *   #22 fixed — 92 keys in `i18n-insights.js`, every string via tFallback.
+ *   #23 fixed — `directionMismatch`, see the comment there.
+ *   #24 OBSOLETE — the arm-asymmetry block it wanted a `created_at`
+ *       tiebreak on is gone; see below. There is nothing left to tiebreak.
+ *   #25 fixed — `fmtDate` from `src/lib/intl.js` rather than the audit's
+ *       suggested `{ locale: dateLocale }`. CLAUDE.md prefers `Intl` over
+ *       importing date-fns locales, so this closes it a different way than
+ *       the suggested-fix column says.
+ *   #26 OBSOLETE — same removed block as #24.
+ *
  *   • **An arm-asymmetry block read columns that do not exist.**
  *     `left_arm_in` / `right_arm_in` / `chest_in` / `waist_in` / `hips_in`
  *     / `*_thigh_in` are not on `body_metrics` and never have been — the
@@ -43,7 +60,7 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '@/lib/LanguageContext';
-import { useDateFormatter, useNumberFormatter } from '@/lib/intl';
+import { useDateFormatter, useListFormatter, useNumberFormatter } from '@/lib/intl';
 import { motion } from 'framer-motion';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -267,6 +284,7 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
   const { tFallback } = useLanguage();
   const fmtDate = useDateFormatter();
   const fmtNum  = useNumberFormatter();
+  const fmtList = useListFormatter();
   const navigate = useNavigate();
   const userId = userProfile?.id;
 
@@ -613,6 +631,9 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
                   )}
                 </p>
                 <p className="text-xs text-muted-foreground mt-0.5">
+                  {/* `fmtDate` is language-bound; date-fns `format` binds no
+                      locale, so this rendered English month names under a
+                      fully-translated screen. (Audit 11 #25.) */}
                   {tFallback('insights.trainingAge.since', 'Training since {date}', {
                     date: fmtDate(trainingAge.firstDate, { dateStyle: 'long' }),
                   })}
@@ -687,10 +708,13 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
         {!tdee.hasData ? (
           <div className="flex flex-col gap-2 items-start">
             <p className="text-sm text-muted-foreground">
+              {/* `fmtList`, not `.join(', ')` — the separator is locale
+                  data. Arabic joins with `و` and Japanese with `、`, and
+                  English gets the "and" a join cannot produce. The last
+                  hardcoded piece of copy in this file. (Audit 11 #22.) */}
               {tFallback('insights.tdee.incomplete', 'Add your {fields} in Settings to get a TDEE estimate.', {
-                fields: tdee.missingFields
-                  .map(f => tFallback(`insights.tdee.field.${f}`, f === 'weight' ? 'body weight' : f))
-                  .join(', '),
+                fields: fmtList(tdee.missingFields
+                  .map(f => tFallback(`insights.tdee.field.${f}`, f === 'weight' ? 'body weight' : f))),
               })}
             </p>
             <Button size="sm" variant="outline" onClick={() => navigate('/settings')}>

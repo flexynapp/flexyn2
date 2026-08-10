@@ -82,6 +82,41 @@ export function useDateFormatter() {
 }
 
 /**
+ * Returns a list formatter bound to the app's current language.
+ *
+ *   const list = useListFormatter();
+ *   list(['body weight', 'height', 'age'])
+ *     // en → "body weight, height, and age"
+ *     // ar → "body weight وheight وage"
+ *     // ja → "body weight、height、age"
+ *
+ * Why this is not `arr.join(', ')`: the separator is locale data, not
+ * punctuation. Arabic joins with `و` and Japanese with `、`, so a hardcoded
+ * comma is wrong in both — and English needs the "and" that a join can
+ * never produce. Same class of bug as `.toLocaleString()` with no locale,
+ * which is what this file exists for.
+ */
+export function useListFormatter() {
+  const { language } = useLanguage();
+  return useMemo(() => {
+    const locale = toBcp47(language);
+    return (items, opts) => {
+      const list = (items || []).filter(Boolean).map(String);
+      if (list.length === 0) return '';
+      // Intl.ListFormat is ES2021 and absent on older WebViews. A plain
+      // join is a worse separator, not a broken screen, so degrade rather
+      // than throw.
+      if (typeof Intl.ListFormat !== 'function') return list.join(', ');
+      try {
+        return new Intl.ListFormat(locale, { style: 'long', type: 'conjunction', ...opts }).format(list);
+      } catch {
+        return new Intl.ListFormat('en-US', { style: 'long', type: 'conjunction', ...opts }).format(list);
+      }
+    };
+  }, [language]);
+}
+
+/**
  * Non-hook version for callers that already know the language (e.g.
  * data-layer helpers that receive `language` as an arg).
  */
