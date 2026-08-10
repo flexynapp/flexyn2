@@ -14,10 +14,16 @@ import { differenceInCalendarDays, parseISO } from 'date-fns';
 import { toast } from '@/lib/toast';
 import { reportError } from '@/lib/reportError';
 import * as injuries from '@/lib/data/injuries';
+import { useLanguage } from '@/lib/LanguageContext';
+
+/** English label -> the muscle-group key `i18n-muscle-groups.js` publishes. */
+const muscleKey = (name) => String(name || '').toLowerCase();
 
 // The check-in. Reached by an explicit recovery date when one exists, and by
 // the injury's AGE when it doesn't — which is every injury in production.
 function ClearancePrompt({ injury, onClear, onSnooze, busy }) {
+  const { tFallback } = useLanguage();
+  const area = tFallback(muscleKey(injury.muscle_group), injury.muscle_group);
   // The copy can no longer say "your estimated recovery date has arrived",
   // because for every injury on file there isn't one — the prompt is now
   // reached by age. It says how long it has been instead, which is the fact
@@ -33,12 +39,14 @@ function ClearancePrompt({ injury, onClear, onSnooze, busy }) {
       className="rounded-lg border border-primary/30 bg-primary/5 px-3 py-3 mb-2"
     >
       <p className="text-sm font-semibold mb-0.5">
-        Still bothering you? — {injury.muscle_group}
+        {tFallback('injuries.checkIn.title', 'Still bothering you? — {area}', { area })}
       </p>
       <p className="text-xs text-muted-foreground mb-3">
         {hasEta
-          ? 'The date you set has arrived. Are you cleared to train?'
-          : `You logged this ${daysOpen === 1 ? 'yesterday' : `${daysOpen} days ago`}, and it's still coming out of your sessions.`}
+          ? tFallback('injuries.checkIn.dateArrived', 'The date you set has arrived. Are you cleared to train?')
+          : daysOpen === 1
+            ? tFallback('injuries.checkIn.ageYesterday', "You logged this yesterday, and it's still coming out of your sessions.")
+            : tFallback('injuries.checkIn.ageDays', "You logged this {days} days ago, and it's still coming out of your sessions.", { days: daysOpen })}
       </p>
       <div className="flex gap-2">
         <Button
@@ -47,7 +55,7 @@ function ClearancePrompt({ injury, onClear, onSnooze, busy }) {
           disabled={busy}
           onClick={() => onClear(injury.id)}
         >
-          <CheckCircle2 className="w-3 h-3" /> I'm cleared
+          <CheckCircle2 className="w-3 h-3" /> {tFallback('injuries.checkIn.cleared', "I'm cleared")}
         </Button>
         {/* One tap. This was a date field, which is the same field nobody
             fills in on the way in — so deferring required typing a date, and
@@ -59,7 +67,7 @@ function ClearancePrompt({ injury, onClear, onSnooze, busy }) {
           disabled={busy}
           onClick={() => onSnooze(injury.id, injury.severity)}
         >
-          Still hurts
+          {tFallback('injuries.checkIn.stillHurts', 'Still hurts')}
         </Button>
       </div>
     </motion.div>
@@ -68,6 +76,7 @@ function ClearancePrompt({ injury, onClear, onSnooze, busy }) {
 
 export default function InjuryBanner({ onOpenForm }) {
   const { user } = useAuth();
+  const { tFallback } = useLanguage();
   const qc = useQueryClient();
 
   // Key MUST be distinct from InjuryForm's ['injuries','all',uid] query.
@@ -87,10 +96,13 @@ export default function InjuryBanner({ onOpenForm }) {
 
   const clearMutation = useMutation({
     mutationFn: injuries.clearInjury,
-    onSuccess: () => { invalidate(); toast.success('Injury cleared. Volume reintroduction starts at 50% for 2 weeks.'); },
+    onSuccess: () => {
+      invalidate();
+      toast.success(tFallback('injuries.toast.clearedVolume', 'Injury cleared. Volume reintroduction starts at 50% for 2 weeks.'));
+    },
     onError: (err) => {
       reportError(err, { feature: 'injuries.clear', level: 'warning', userEmail: user?.email });
-      toast.error('Could not clear injury. Try again.');
+      toast.error(tFallback('injuries.toast.clearFailed', 'Could not clear injury. Try again.'));
     },
   });
 
@@ -104,11 +116,15 @@ export default function InjuryBanner({ onOpenForm }) {
     mutationFn: ({ id, severity }) => injuries.snoozeCheckIn(id, severity),
     onSuccess: (_data, { severity }) => {
       invalidate();
-      toast.success(`Keeping it out of your sessions. We'll ask again in ${injuries.checkInIntervalDays(severity)} days.`);
+      toast.success(tFallback(
+        'injuries.toast.snoozed',
+        "Keeping it out of your sessions. We'll ask again in {days} days.",
+        { days: injuries.checkInIntervalDays(severity) },
+      ));
     },
     onError: (err) => {
       reportError(err, { feature: 'injuries.snooze', level: 'warning', userEmail: user?.email });
-      toast.error('Could not update. Try again.');
+      toast.error(tFallback('injuries.toast.snoozeFailed', 'Could not update. Try again.'));
     },
   });
 
@@ -137,12 +153,17 @@ export default function InjuryBanner({ onOpenForm }) {
       const daysLeft = differenceInCalendarDays(new Date(inj.estimated_recovery_date), new Date());
       const idMarker = ',' + inj.id + ',';
       if (daysLeft === 3 && !warned.includes(idMarker)) {
-        toast.info(`${inj.muscle_group} recovery date in 3 days. How are you feeling?`);
+        toast.info(tFallback('injuries.toast.warnThreeDays', '{area} recovery date in 3 days. How are you feeling?', {
+          area: tFallback(muscleKey(inj.muscle_group), inj.muscle_group),
+        }));
         warned = warned ? warned + inj.id + ',' : ',' + inj.id + ',';
         sessionStorage.setItem(upcomingKey, warned);
       }
     }
-  }, [activeInjuries]);
+    // tFallback is in here rather than suppressed: it changes identity when
+    // the user switches language, and re-running is harmless — the
+    // sessionStorage marker above means an id can only ever be warned once.
+  }, [activeInjuries, tFallback]);
 
   // De-dupe the DISPLAY count by muscle group so the same body part
   // logged more than once (or stale duplicate rows) doesn't inflate the
@@ -184,11 +205,15 @@ export default function InjuryBanner({ onOpenForm }) {
           <ShieldAlert className="w-4 h-4 text-primary shrink-0" />
           <span className="text-sm font-medium text-primary">
             {distinctInjuries.length === 1
-              ? `Recovery Mode — ${distinctInjuries[0].muscle_group}`
-              : `Recovery Mode — ${distinctInjuries.length} active injuries`}
+              ? tFallback('injuries.banner.recoveryMode', 'Recovery Mode — {area}', {
+                  area: tFallback(muscleKey(distinctInjuries[0].muscle_group), distinctInjuries[0].muscle_group),
+                })
+              : tFallback('injuries.banner.recoveryCount', 'Recovery Mode — {count} active injuries', {
+                  count: distinctInjuries.length,
+                })}
           </span>
         </div>
-        <span className="text-xs text-muted-foreground">Manage →</span>
+        <span className="text-xs text-muted-foreground">{tFallback('injuries.banner.manage', 'Manage →')}</span>
       </motion.button>
     </div>
   );

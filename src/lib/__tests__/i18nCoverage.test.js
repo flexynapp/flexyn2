@@ -163,6 +163,25 @@ describe('partial-gap ratchet', () => {
     // and hide a future regression in them. The "every prefix still has
     // untranslated keys" test above then forces each line to be deleted as
     // its translations land, which is the mechanism working.
+    // Injuries / Recovery Mode — new namespace, 2026-08-09. InjuryForm and
+    // InjuryBanner had NO i18n at all: every body part, severity, button,
+    // empty state and toast was hardcoded English in a 15-language app. The
+    // strings are now extracted to `i18n-injuries.js` and reached through
+    // tFallback, so a missing locale renders correct English rather than a
+    // key code — which is strictly better than where this started.
+    //
+    // English-only on purpose. Most of this copy is the app explaining that
+    // it has REMOVED training from someone's plan ("That area comes out until
+    // you clear it", "Those exercises come back into your sessions straight
+    // away"), and a machine translation that lands slightly wrong there reads
+    // as a bug rather than as a coach. CLAUDE.md forbids it for exactly this
+    // shape of copy. Needs a native pass in 14 languages; the file head
+    // carries notes for whoever does it.
+    //
+    // Note this does NOT exempt the muscle-group names — those already ship
+    // in all 15 languages under bare keys (`chest`, `glutes`, …) and both
+    // components look them up there, so they stay counted.
+    'injuries.',
     'quests.',
     'quest.cardio_session.',
     'quest.log_sleep.',

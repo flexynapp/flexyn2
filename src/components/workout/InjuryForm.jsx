@@ -15,7 +15,15 @@ import { format, addDays, differenceInDays } from 'date-fns';
 import * as injuries from '@/lib/data/injuries';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { useOverlayBackButton } from '@/hooks/useOverlayBackButton';
+import { useLanguage } from '@/lib/LanguageContext';
+import { useDateFormatter } from '@/lib/intl';
 
+// The STORED value stays the English name — `injury_logs.muscle_group` is
+// matched by string downstream (getExcludedMuscleGroups lowercases it, the
+// workout generator tests group and part against it), so translating what we
+// write would silently stop injuries excluding anything. Only the LABEL is
+// localized, out of `i18n-muscle-groups.js`, which already carries these eight
+// in all 15 languages and is the same lookup the onboarding injury step uses.
 const MUSCLE_GROUPS = ['Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps', 'Legs', 'Glutes', 'Core'];
 
 // Each option states what it DOES, not only how it feels. Severity is the one
@@ -35,19 +43,26 @@ const SEVERITY_OPTIONS = [
   { id: 'serious',  label: 'Serious',  desc: 'Sharp pain — that area and what it helps move go',   color: 'text-destructive border-destructive/30 bg-destructive/10' },
 ];
 
+/** English label → the muscle-group key `i18n-muscle-groups.js` publishes. */
+const muscleKey = (name) => String(name || '').toLowerCase();
+
 const STATUS_ICON = {
   active:     <AlertTriangle className="w-4 h-4 text-primary" />,
   recovering: <Clock className="w-4 h-4 text-primary" />,
   cleared:    <CheckCircle2 className="w-4 h-4 text-success" />,
 };
 
-const STATUS_COLOR = {
-  active:     'text-primary',
-  recovering: 'text-primary',
-  cleared:    'text-success',
-};
+// (A STATUS_COLOR map sat here with no readers. The card colours status
+// through STATUS_ICON's own classes, so it had never been used.)
 
 function InjuryCard({ injury, onClear, onExtend, onDelete }) {
+  const { tFallback } = useLanguage();
+  // Intl rather than date-fns' 'MMM d': the month name is the only part of
+  // this that carries language, and date-fns would need a locale bundle per
+  // language to say it in anything but English.
+  const fmtDate = useDateFormatter();
+  const shortDate = (d) => fmtDate(d, { month: 'short', day: 'numeric' });
+  const area = tFallback(muscleKey(injury.muscle_group), injury.muscle_group);
   const [extendDate, setExtendDate] = useState('');
   const [showExtend, setShowExtend] = useState(false);
   // Delete was one tap with no confirm and no undo, on a control that silently
@@ -70,16 +85,16 @@ function InjuryCard({ injury, onClear, onExtend, onDelete }) {
       <div className="flex items-start justify-between gap-2 mb-1">
         <div className="flex items-center gap-2">
           {STATUS_ICON[injury.status]}
-          <span className="font-semibold text-sm">{injury.muscle_group}</span>
+          <span className="font-semibold text-sm">{area}</span>
           <span className={`text-xs font-medium capitalize px-1.5 py-0.5 rounded-full border ${
             SEVERITY_OPTIONS.find(s => s.id === injury.severity)?.color || ''
           }`}>
-            {injury.severity}
+            {tFallback(`injuries.severity.${injury.severity}`, injury.severity)}
           </span>
         </div>
         <button
           onClick={() => setConfirmDelete(true)}
-          aria-label={`Delete ${injury.muscle_group} injury`}
+          aria-label={tFallback('injuries.delete.aria', 'Delete {area} injury', { area })}
           className="p-1 text-muted-foreground hover:text-destructive active:text-destructive transition-colors"
         >
           <Trash2 className="w-3.5 h-3.5" />
@@ -94,9 +109,10 @@ function InjuryCard({ injury, onClear, onExtend, onDelete }) {
       {confirmDelete ? (
         <div className="mt-1">
           <p className="text-xs text-muted-foreground mb-2">
-            Delete this {injury.muscle_group.toLowerCase()} entry? {isActive
-              ? 'Those exercises come back into your sessions straight away.'
-              : 'It leaves your history for good.'}
+            {tFallback('injuries.delete.question', 'Delete this {area} entry?', { area: area.toLowerCase() })}{' '}
+            {isActive
+              ? tFallback('injuries.delete.activeWarning', 'Those exercises come back into your sessions straight away.')
+              : tFallback('injuries.delete.clearedWarning', 'It leaves your history for good.')}
           </p>
           <div className="flex gap-2">
             <Button
@@ -105,14 +121,14 @@ function InjuryCard({ injury, onClear, onExtend, onDelete }) {
               className="flex-1 text-xs h-8"
               onClick={() => setConfirmDelete(false)}
             >
-              Cancel
+              {tFallback('injuries.delete.cancel', 'Cancel')}
             </Button>
             <Button
               size="sm"
               className="flex-1 text-xs h-8 bg-destructive text-destructive-foreground hover:bg-destructive/90 active:bg-destructive/90"
               onClick={() => { setConfirmDelete(false); onDelete(injury.id); }}
             >
-              Delete
+              {tFallback('injuries.delete.confirm', 'Delete')}
             </Button>
           </div>
         </div>
@@ -121,15 +137,17 @@ function InjuryCard({ injury, onClear, onExtend, onDelete }) {
       {injury.notes && <p className="text-xs text-muted-foreground mb-2">{injury.notes}</p>}
 
       <div className="flex items-center gap-3 text-micro text-muted-foreground flex-wrap">
-        <span>Logged {format(new Date(injury.injured_at), 'MMM d')}</span>
+        <span>{tFallback('injuries.card.logged', 'Logged {date}', { date: shortDate(injury.injured_at) })}</span>
         {daysLeft !== null && isActive && (
           <span className={daysLeft <= 0 ? 'text-primary font-semibold' : ''}>
-            {daysLeft <= 0 ? 'Recovery date reached' : `${daysLeft}d until recovery`}
+            {daysLeft <= 0
+              ? tFallback('injuries.card.dateReached', 'Recovery date reached')
+              : tFallback('injuries.card.daysLeft', '{days}d until recovery', { days: daysLeft })}
           </span>
         )}
         {injury.cleared_at && (
           <span className="text-success">
-            Cleared {format(new Date(injury.cleared_at), 'MMM d')}
+            {tFallback('injuries.card.clearedOn', 'Cleared {date}', { date: shortDate(injury.cleared_at) })}
           </span>
         )}
       </div>
@@ -142,7 +160,7 @@ function InjuryCard({ injury, onClear, onExtend, onDelete }) {
             className="flex-1 text-xs h-8 text-success border-success/30 hover:bg-success/10 active:bg-success/10"
             onClick={() => onClear(injury.id)}
           >
-            <CheckCircle2 className="w-3 h-3 me-1" /> Clear injury
+            <CheckCircle2 className="w-3 h-3 me-1" /> {tFallback('injuries.card.clear', 'Clear injury')}
           </Button>
           <Button
             size="sm"
@@ -150,7 +168,7 @@ function InjuryCard({ injury, onClear, onExtend, onDelete }) {
             className="flex-1 text-xs h-8"
             onClick={() => setShowExtend(v => !v)}
           >
-            Extend date
+            {tFallback('injuries.card.extend', 'Extend date')}
           </Button>
         </div>
       )}
@@ -165,7 +183,7 @@ function InjuryCard({ injury, onClear, onExtend, onDelete }) {
             min={format(addDays(new Date(), 1), 'yyyy-MM-dd')}
           />
           <Button size="sm" className="h-8 text-xs" onClick={() => { if (extendDate) { onExtend(injury.id, extendDate); setShowExtend(false); } }}>
-            Save
+            {tFallback('injuries.card.save', 'Save')}
           </Button>
         </div>
       )}
@@ -177,6 +195,7 @@ function InjuryCard({ injury, onClear, onExtend, onDelete }) {
 
 export default function InjuryForm({ onClose }) {
   const { user } = useAuth();
+  const { tFallback } = useLanguage();
   const qc = useQueryClient();
   // Lock the page underneath + portal the overlay to <body> so a parent
   // with `transform`/`filter`/`backdrop-filter` in its ancestor chain
@@ -233,7 +252,9 @@ export default function InjuryForm({ onClose }) {
     }),
     onSuccess: () => {
       invalidate();
-      toast.success(`${muscleGroup} injury logged. Recovery Mode active.`);
+      toast.success(tFallback('injuries.toast.logged', '{area} injury logged. Recovery Mode active.', {
+        area: tFallback(muscleKey(muscleGroup), muscleGroup),
+      }));
       setView('list');
       setMuscleGroup('');
       setSeverity('mild');
@@ -242,25 +263,25 @@ export default function InjuryForm({ onClose }) {
     },
     onError: (err) => {
       reportError(err, { feature: 'injuries.log', level: 'warning', userEmail: user?.email });
-      toast.error('Could not log injury. Try again.');
+      toast.error(tFallback('injuries.toast.logFailed', 'Could not log injury. Try again.'));
     },
   });
 
   const clearMutation = useMutation({
     mutationFn: injuries.clearInjury,
-    onSuccess: () => { invalidate(); toast.success('Injury cleared.'); },
+    onSuccess: () => { invalidate(); toast.success(tFallback('injuries.toast.cleared', 'Injury cleared.')); },
     onError: (err) => {
       reportError(err, { feature: 'injuries.clear', level: 'warning', userEmail: user?.email });
-      toast.error('Could not clear injury. Try again.');
+      toast.error(tFallback('injuries.toast.clearFailed', 'Could not clear injury. Try again.'));
     },
   });
 
   const extendMutation = useMutation({
     mutationFn: ({ id, date }) => injuries.extendRecovery(id, date),
-    onSuccess: () => { invalidate(); toast.success('Recovery date updated.'); },
+    onSuccess: () => { invalidate(); toast.success(tFallback('injuries.toast.dateUpdated', 'Recovery date updated.')); },
     onError: (err) => {
       reportError(err, { feature: 'injuries.extend', level: 'warning', userEmail: user?.email });
-      toast.error('Could not update recovery date. Try again.');
+      toast.error(tFallback('injuries.toast.dateFailed', 'Could not update recovery date. Try again.'));
     },
   });
 
@@ -269,7 +290,7 @@ export default function InjuryForm({ onClose }) {
     onSuccess: () => { invalidate(); },
     onError: (err) => {
       reportError(err, { feature: 'injuries.delete', level: 'warning', userEmail: user?.email });
-      toast.error('Could not delete injury. Try again.');
+      toast.error(tFallback('injuries.toast.deleteFailed', 'Could not delete injury. Try again.'));
     },
   });
 
@@ -292,12 +313,16 @@ export default function InjuryForm({ onClose }) {
           className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground active:text-foreground transition-colors"
         >
           <ChevronLeft className="w-4 h-4" />
-          {view === 'new' ? 'Back' : 'Close'}
+          {view === 'new'
+            ? tFallback('injuries.action.back', 'Back')
+            : tFallback('injuries.action.close', 'Close')}
         </button>
         <div className="flex items-center gap-1.5">
           <ShieldAlert className="w-4 h-4 text-primary" />
           <span className="font-heading font-bold text-base">
-            {view === 'new' ? 'Log Injury' : 'Injury Log'}
+            {view === 'new'
+              ? tFallback('injuries.title.new', 'Log Injury')
+              : tFallback('injuries.title.list', 'Injury Log')}
           </span>
         </div>
         {view === 'list' && (
@@ -305,7 +330,7 @@ export default function InjuryForm({ onClose }) {
             onClick={() => setView('new')}
             className="flex items-center gap-1 text-sm font-medium text-primary hover:text-primary/80 active:text-primary/80 transition-colors"
           >
-            <Plus className="w-4 h-4" /> Log
+            <Plus className="w-4 h-4" /> {tFallback('injuries.action.log', 'Log')}
           </button>
         )}
         {view === 'new' && <div className="w-12" />}
@@ -323,17 +348,17 @@ export default function InjuryForm({ onClose }) {
               ) : activeList.length === 0 && clearedList.length === 0 ? (
                 <div className="flex flex-col items-center py-16 gap-3 text-center">
                   <ShieldAlert className="w-10 h-10 text-muted-foreground/40" />
-                  <p className="font-heading font-bold">No injuries logged</p>
-                  <p className="text-sm text-muted-foreground">Tap Log to record an injury.</p>
+                  <p className="font-heading font-bold">{tFallback('injuries.empty.title', 'No injuries logged')}</p>
+                  <p className="text-sm text-muted-foreground">{tFallback('injuries.empty.body', 'Tap Log to record an injury.')}</p>
                   <Button onClick={() => setView('new')} className="mt-2 gap-2">
-                    <Plus className="w-4 h-4" /> Log Injury
+                    <Plus className="w-4 h-4" /> {tFallback('injuries.empty.cta', 'Log Injury')}
                   </Button>
                 </div>
               ) : (
                 <div className="space-y-3">
                   {activeList.length > 0 && (
                     <>
-                      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Active</p>
+                      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{tFallback('injuries.section.active', 'Active')}</p>
                       {activeList.map(inj => (
                         <InjuryCard
                           key={inj.id}
@@ -347,7 +372,7 @@ export default function InjuryForm({ onClose }) {
                   )}
                   {clearedList.length > 0 && (
                     <>
-                      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mt-4">Cleared</p>
+                      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mt-4">{tFallback('injuries.section.cleared', 'Cleared')}</p>
                       {clearedList.map(inj => (
                         <InjuryCard
                           key={inj.id}
@@ -369,7 +394,7 @@ export default function InjuryForm({ onClose }) {
             <motion.div key="new" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
               {/* Muscle group */}
               <div className="mb-5">
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Affected area</p>
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">{tFallback('injuries.form.area', 'Affected area')}</p>
                 <div className="flex flex-wrap gap-2">
                   {MUSCLE_GROUPS.map(mg => (
                     <button
@@ -382,7 +407,7 @@ export default function InjuryForm({ onClose }) {
                           : 'bg-background border-border hover:border-primary/50'
                       }`}
                     >
-                      {mg}
+                      {tFallback(muscleKey(mg), mg)}
                     </button>
                   ))}
                 </div>
@@ -390,7 +415,7 @@ export default function InjuryForm({ onClose }) {
 
               {/* Severity */}
               <div className="mb-5">
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Severity</p>
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">{tFallback('injuries.form.severity', 'Severity')}</p>
                 <div className="space-y-2">
                   {SEVERITY_OPTIONS.map(opt => (
                     <button
@@ -400,8 +425,8 @@ export default function InjuryForm({ onClose }) {
                         severity === opt.id ? opt.color : 'border-border hover:border-border/80 bg-card'
                       }`}
                     >
-                      <p className="font-semibold text-sm">{opt.label}</p>
-                      <p className="text-xs text-muted-foreground">{opt.desc}</p>
+                      <p className="font-semibold text-sm">{tFallback(`injuries.severity.${opt.id}`, opt.label)}</p>
+                      <p className="text-xs text-muted-foreground">{tFallback(`injuries.severity.${opt.id}.desc`, opt.desc)}</p>
                     </button>
                   ))}
                 </div>
@@ -410,7 +435,7 @@ export default function InjuryForm({ onClose }) {
               {/* Dates */}
               <div className="grid grid-cols-2 gap-3 mb-5">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">Injured on</p>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">{tFallback('injuries.form.injuredOn', 'Injured on')}</p>
                   <input
                     type="date"
                     value={injuredAt}
@@ -421,7 +446,7 @@ export default function InjuryForm({ onClose }) {
                   />
                 </div>
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">Est. recovery</p>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">{tFallback('injuries.form.estRecovery', 'Est. recovery')}</p>
                   <input
                     type="date"
                     value={recoveryDate}
@@ -434,23 +459,25 @@ export default function InjuryForm({ onClose }) {
 
               {/* Notes */}
               <div className="mb-6">
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">Notes (optional)</p>
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">{tFallback('injuries.form.notes', 'Notes (optional)')}</p>
                 <textarea
                   value={notes}
                   onChange={e => setNotes(e.target.value)}
-                  placeholder="What happened? Any context for your coach..."
+                  placeholder={tFallback('injuries.form.notesPlaceholder', 'What happened? Any context for your coach…')}
                   rows={3}
                   className="w-full text-sm rounded-md border border-border bg-background px-3 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-primary"
                 />
               </div>
 
               <Button
-                onClick={() => { if (!muscleGroup) { toast.error('Select an affected area'); return; } logMutation.mutate(); }}
+                onClick={() => { if (!muscleGroup) { toast.error(tFallback('injuries.toast.selectArea', 'Select an affected area')); return; } logMutation.mutate(); }}
                 disabled={logMutation.isPending || !muscleGroup}
                 className="w-full"
                 size="lg"
               >
-                {logMutation.isPending ? 'Logging…' : 'Log Injury'}
+                {logMutation.isPending
+                  ? tFallback('injuries.form.submitting', 'Logging…')
+                  : tFallback('injuries.form.submit', 'Log Injury')}
               </Button>
             </motion.div>
           )}
