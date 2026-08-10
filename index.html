@@ -180,7 +180,21 @@
       while it loads) breaks. Local bundle takes the same caching
       treatment as the rest of our assets.
     -->
-    <title>Flexyn</title>
+    <!--
+      60 characters, and the brand is FIRST for a reason. Nothing in the app
+      ever assigns document.title — the seven references to it in src/ all
+      just read it back for history.replaceState — so this one string is the
+      title on every screen, in every tab, forever. A tab truncates to roughly
+      fifteen characters, so a title that opens with anything other than
+      "Flexyn" reads as an unidentifiable fragment to the user while only the
+      crawler sees the rest.
+
+      Was "Flexyn", 6 characters, which opengraph.xyz flags: the SERP gives
+      you 50-60 and a six-character title wastes it. Keep og:title as the bare
+      "Flexyn" though — that one is the eyebrow on a social card, where the
+      description sits directly beneath it and a long title just repeats it.
+    -->
+    <title>Flexyn — AI-powered workout, nutrition and progress tracking</title>
   </head>
   <body>
     <div id="root"></div>
