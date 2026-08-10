@@ -16,9 +16,10 @@ import { XP_REWARDS } from '@/lib/xpSystem';
 import { toast } from '@/lib/toast';
 import { isAppAdmin } from '@/lib/adminRoles';
 import { setLayoutDefault } from '@/lib/data/layoutDefaults';
-import { Trash2, TrendingUp, Loader2, Droplet, X, Beaker, History, ScanLine, ChevronDown, ChevronUp, Plus, Clock, ChevronRight, ChefHat, Calendar, ListChecks, GripVertical, LayoutGrid, RotateCcw, CheckCircle2, Save, Repeat, Eye, EyeOff, Target, Flashlight, FlashlightOff, GlassWater } from 'lucide-react';
+import { Trash2, TrendingUp, Loader2, Droplet, X, Beaker, History, ScanLine, ChevronDown, ChevronUp, Plus, Clock, ChevronRight, ChefHat, Calendar, ListChecks, LayoutGrid, RotateCcw, CheckCircle2, Save, Repeat, Eye, EyeOff, Target, Flashlight, FlashlightOff, GlassWater } from 'lucide-react';
 import { WaterBottleIcon } from '@/components/nutrition/NutrientIcon';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
+import { ReorderableRow, DragHandle } from '@/components/dashboard/ReorderableRow';
 import MacroNutrientBox from '@/components/nutrition/MacroNutrientBox';
 import MineralsVitaminsBox from '@/components/nutrition/MineralsVitaminsBox';
 import WaterTracker from '@/components/nutrition/WaterTracker';
@@ -1793,11 +1794,9 @@ export default function Nutrition() {
             : rowId === 'meals'   ? "Today's Meals"
             : rowId;
           return (
-          <Reorder.Item
+          <ReorderableRow
             key={rowId}
             value={rowId}
-            as="div"
-            dragListener={editMode}
             // Layout animation is only wanted for drag-reordering, which only
             // happens in customize mode. Enabling it in normal mode made
             // framer scale-/position-project the box during hide/show — that
@@ -1805,11 +1804,20 @@ export default function Nutrition() {
             // section (Today's Meals) on expand. Gate it to editMode so
             // hide/show is an instant, distortion-free swap.
             layout={editMode ? 'position' : false}
-            className={`relative ${editMode ? 'touch-none select-none' : ''} ${editMode && isHidden ? 'opacity-50' : ''}`}
+            className={`relative ${editMode ? 'select-none' : ''} ${editMode && isHidden ? 'opacity-50' : ''}`}
           >
+            {(dragControls) => (<>
             {editMode && (
-              <div className="flex items-center gap-2 mt-2 mb-1 px-1 cursor-grab active:cursor-grabbing">
-                <GripVertical className="w-4 h-4 text-primary/50" />
+              <div className="flex items-center gap-2 mt-2 mb-1 px-1">
+                {/* Borrowing Dashboard's key rather than minting a Nutrition
+                    one: it is the same sentence about the same control, and it
+                    already has all 15 human translations. A new key here would
+                    ship English to fourteen of them for an aria-label. */}
+                <DragHandle
+                  dragControls={dragControls}
+                  label={tFallback('dashboard.editLegend.drag', 'Long-press and drag to reorder a section')}
+                  className="text-primary/70"
+                />
                 <span className="text-micro font-bold uppercase tracking-[0.18em] text-primary/50">
                   {sectionLabel}
                 </span>
@@ -2187,7 +2195,8 @@ export default function Nutrition() {
 
             </>
             )}
-          </Reorder.Item>
+            </>)}
+          </ReorderableRow>
           );
         })}
       </Reorder.Group>

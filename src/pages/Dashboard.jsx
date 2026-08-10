@@ -13,6 +13,7 @@ import { subDays, isAfter, differenceInDays, startOfDay, format } from 'date-fns
 import { Dumbbell, TrendingUp, Play, ArrowRight, Zap, Activity, Target, Apple, Camera, Scale, TrendingDown, Minus, CheckCircle2, LayoutGrid, GripVertical, CalendarDays, ChevronRight, ChevronDown, Rows3, Columns2, RotateCcw, Plus, X } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
+import { ReorderableRow, DragHandle } from '@/components/dashboard/ReorderableRow';
 import GoalsModal from '@/components/goals/GoalsModal';
 import GoalsAlmostComplete from '@/components/goals/GoalsAlmostComplete';
 import GoalsProgressStrip from '@/components/dashboard/GoalsProgressStrip';
@@ -1939,11 +1940,9 @@ export default function Dashboard() {
           const prevRow = rowIndex > 0 ? dashboardRows[rowIndex - 1] : null;
           const afterActions = !!prevRow && prevRow.sections.includes('actions');
           return (
-          <Reorder.Item
+          <ReorderableRow
             key={row.rowKey}
             value={row.rowKey}
-            as="div"
-            dragListener={editMode}
             // `layout` defaults to TRUE on Reorder.Item, and outside edit mode
             // it is pure downside. Reorder's projection is built for drag
             // reordering — a stable list where only the ORDER changes. Here the
@@ -1961,17 +1960,21 @@ export default function Dashboard() {
             //
             // Editing keeps it, because that is when rows genuinely reorder and
             // the animation is the whole point. Nothing reorders outside edit
-            // mode — `dragListener` is already gated the same way.
+            // mode — the drag handle only renders there either.
             layout={editMode}
-            className={`relative ${afterActions ? 'mt-8' : ''}${editMode ? ' touch-none select-none' : ''}`}
+            className={`relative ${afterActions ? 'mt-8' : ''}${editMode ? ' select-none' : ''}`}
           >
+            {(dragControls) => (<>
             {editMode && (
               <div className="flex items-center gap-2 mt-6 mb-1 px-1">
                 {/* The strip runs at full strength in board 03 — grip and
                     labels in --primary, × in --destructive. Dimming every
                     control to 50-60% made the row of things you came here to
                     use the faintest thing on the screen. */}
-                <GripVertical className="w-3.5 h-3.5 text-primary cursor-grab active:cursor-grabbing" />
+                <DragHandle
+                  dragControls={dragControls}
+                  label={tFallback('dashboard.editLegend.drag', 'Long-press and drag to reorder a section')}
+                />
                 {row.sections.map((id, i) => {
                   const layout = sectionLayouts[id] || 'full';
                   const isHalf = layout === 'half';
@@ -1982,7 +1985,6 @@ export default function Dashboard() {
                       <button
                         type="button"
                         onClick={(e) => { e.stopPropagation(); toggleSectionLayout(id); }}
-                        onPointerDown={(e) => e.stopPropagation()}
                         title={isHalf
                           ? tFallback('dashboard.layout.toHamburger', 'Stack full-width')
                           : tFallback('dashboard.layout.toHotdog',     'Pair side-by-side')}
@@ -2001,7 +2003,6 @@ export default function Dashboard() {
                       <button
                         type="button"
                         onClick={(e) => { e.stopPropagation(); toggleCollapsed(id); }}
-                        onPointerDown={(e) => e.stopPropagation()}
                         title={isCollapsed
                           ? tFallback('dashboard.showAll', 'Show all')
                           : tFallback('dashboard.hide', 'Hide')}
@@ -2029,7 +2030,6 @@ export default function Dashboard() {
                         <button
                           type="button"
                           onClick={(e) => { e.stopPropagation(); hideSection(id); }}
-                          onPointerDown={(e) => e.stopPropagation()}
                           title={tFallback('dashboard.hideSection', 'Hide this section')}
                           aria-label={tFallback('dashboard.hideSection', 'Hide this section')}
                           className="flex items-center justify-center w-5 h-5 rounded-sm hover:bg-destructive/15 active:bg-destructive/15 text-destructive transition-colors"
@@ -2080,7 +2080,8 @@ export default function Dashboard() {
                 );
               })}
             </div>
-          </Reorder.Item>
+            </>)}
+          </ReorderableRow>
           );
         })}
       </Reorder.Group>
