@@ -226,6 +226,27 @@ describe('partial-gap ratchet', () => {
     // Added with the layout change (2026-08-10): the Recent section that
     // replaced the last-workout card and the Top PRs rail.
     'progress.recent.',
+    // Insights tab (2026-08-10, audit 21). The same shape as `trends.`
+    // directly above, and the same sanctioned bare-prefix case: nothing
+    // under `insights.` predates this change, so the prefix cannot exempt
+    // a translated key by accident.
+    //
+    // The tab had ZERO translation calls before — every string in it was a
+    // hardcoded English literal in a 15-language app, which is why 92 keys
+    // arrive at once. They all land through tFallback, so an untranslated
+    // locale renders correct English rather than a key path.
+    //
+    // This is dilution, not regression, and the distinction is the reason
+    // the exemption is legitimate here: no language LOST a key. Measured
+    // before adding this line — every language moved down by the same ~2.4
+    // points purely because 92 English-only keys entered the denominator.
+    // If this prefix is ever reached for after a language actually drops
+    // translated copy, that is the misuse the FLOOR comment warns about.
+    //
+    // The CSV column headers are deliberately absent: they stay English by
+    // design (a localized header breaks whatever script the file is piped
+    // into), so they are literals at the call site rather than keys.
+    'insights.',
     'quests.',
     'quest.cardio_session.',
     'quest.log_sleep.',

@@ -1,14 +1,49 @@
 /**
  * InsightsTab — advanced analytics panel containing:
  *   • Training Age indicator
- *   • TDEE estimate (BMR + activity + workout calories)
+ *   • TDEE estimate (Mifflin-St Jeor BMR × activity multiplier)
  *   • Projected goal completion date (body weight)
- *   • Muscle imbalance analysis (push/pull/legs ratio)
+ *   • Muscle imbalance analysis (push/pull/legs share)
  *   • Data export (CSV)
+ *
+ * Audit 21 (2026-08-10) rewrote most of this file. The findings worth
+ * carrying forward, because each one was invisible from the screen:
+ *
+ *   • **Every date was parsed as UTC.** `new Date('2026-08-07')` is UTC
+ *     midnight, which is Aug 6 20:00 in US Eastern — so the card read
+ *     "Training since August 6" for a workout logged on the 7th, and the
+ *     week buckets were shifted a day, splitting one calendar week's
+ *     weekend across two "active weeks". `parseLocalDate` exists in
+ *     src/lib/dateUtils.js for exactly this; use it for any `date` column.
+ *
+ *   • **An arm-asymmetry block read columns that do not exist.**
+ *     `left_arm_in` / `right_arm_in` / `chest_in` / `waist_in` / `hips_in`
+ *     / `*_thigh_in` are not on `body_metrics` and never have been — the
+ *     real columns are `waist_cm`, `chest_cm`, `hip_cm`. This file was the
+ *     only place in src/ referencing the `_in` names, so the block had
+ *     never rendered once and the CSV shipped seven permanently-blank
+ *     columns while omitting the three real ones. Verify a column against
+ *     the schema before reading it; `select('*')` turns a typo into
+ *     `undefined`, which renders as "no data" rather than as an error.
+ *
+ *   • **`weight_lbs` is `numeric`, so PostgREST can return it as a
+ *     STRING.** The regression summed those with `+`, which concatenates.
+ *     Coerce with `Number()` before any arithmetic — same trap
+ *     `fromLbs` documents in src/lib/weightUnit.js.
+ *
+ *   • **TDEE double-counted training.** The activity multiplier already
+ *     accounts for exercise, and workout + cardio calories were then
+ *     added on top of it. Meanwhile sessions/week divided by a fixed 4.3
+ *     weeks regardless of how long the account had existed, so a user
+ *     four days in with three sessions read 0.7/wk and got the
+ *     "lightly active" band. The two errors pointed in opposite
+ *     directions and partially cancelled — fixing either one alone moves
+ *     the number by roughly a thousand calories.
  */
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '@/lib/LanguageContext';
-import { getDateLocale } from '@/lib/dateLocales';
+import { useDateFormatter, useNumberFormatter } from '@/lib/intl';
 import { motion } from 'framer-motion';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -18,9 +53,11 @@ import {
   TrendingDown, TrendingUp,
   Scale, Activity, Dumbbell, Info,
 } from 'lucide-react';
-import { format, differenceInDays, differenceInWeeks, addDays } from 'date-fns';
+import { differenceInDays, subDays, addDays, format } from 'date-fns';
+import { parseLocalDate } from '@/lib/dateUtils';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
-import { fromLbs, formatWeight } from '@/lib/weightUnit';
+import { fromLbs, toLbs, formatWeight } from '@/lib/weightUnit';
+import { downloadCsv } from '@/lib/downloadCsv';
 import { toast } from '@/lib/toast';
 
 // ── Push/pull/legs muscle categorization ──────────────────────────────────────
@@ -33,7 +70,7 @@ function categorizeExercise(ex) {
   const groups = [
     ...(ex.muscle_groups || []),
     ...(ex.muscle_group ? [ex.muscle_group] : []),
-  ].map(g => g.toLowerCase().trim());
+  ].map(g => String(g).toLowerCase().trim());
 
   for (const g of groups) {
     if (PUSH_MUSCLES.has(g)) return 'push';
@@ -48,6 +85,17 @@ function categorizeExercise(ex) {
 }
 
 // ── TDEE helpers ──────────────────────────────────────────────────────────────
+
+/** How far back the activity read looks, and the floor on that window. */
+const TDEE_WINDOW_DAYS = 30;
+/**
+ * Never divide by fewer than a week's worth of days. A four-day-old
+ * account with three sessions is not training 5.25×/week — that is one
+ * good weekend extrapolated into a lifestyle. The floor keeps a new
+ * account from claiming the top activity band while still letting it out
+ * of the "sedentary" band it was stuck in when this divided by a flat 30.
+ */
+const TDEE_MIN_WINDOW_DAYS = 7;
 
 /** Mifflin-St Jeor BMR */
 function calcBMR({ weightKg, heightCm, age, sex }) {
@@ -67,25 +115,41 @@ function activityMultiplier(sessionsPerWeek) {
 
 // ── Training age ──────────────────────────────────────────────────────────────
 
+/** Local midnight of the Sunday that starts `d`'s week. */
+function startOfLocalWeek(d) {
+  const s = new Date(d);
+  s.setDate(d.getDate() - d.getDay());
+  s.setHours(0, 0, 0, 0);
+  return s;
+}
+
 function calcTrainingAge(logs) {
-  if (!logs?.length) return null;
-  const sorted = [...logs].filter(l => l.date).sort((a, b) => a.date.localeCompare(b.date));
-  if (!sorted.length) return null;
+  const dated = (logs || [])
+    .map(l => parseLocalDate(l?.date))
+    .filter(Boolean)
+    .sort((a, b) => a - b);
+  if (!dated.length) return null;
 
-  const firstDate = new Date(sorted[0].date);
-  const totalDays = differenceInDays(new Date(), firstDate);
-  const totalWeeks = Math.max(1, differenceInWeeks(new Date(), firstDate));
+  const now = new Date();
+  const firstDate = dated[0];
+  const totalDays = Math.max(0, differenceInDays(now, firstDate));
 
-  // Count weeks with at least one workout
-  const weekSet = new Set();
-  for (const log of sorted) {
-    const d = new Date(log.date);
-    // ISO week key
-    const weekStart = new Date(d);
-    weekStart.setDate(d.getDate() - d.getDay());
-    weekSet.add(weekStart.toISOString().slice(0, 10));
-  }
+  // Count distinct calendar weeks with at least one workout. The key is
+  // built with date-fns `format`, not `toISOString` — the latter converts
+  // to UTC, which shifts the bucket for anyone west of Greenwich. This is
+  // output-as-KEY, which CLAUDE.md's i18n section exempts from the
+  // locale-aware formatter.
+  const weekSet = new Set(dated.map(d => format(startOfLocalWeek(d), 'yyyy-MM-dd')));
   const activeWeeks = weekSet.size;
+
+  // Total weeks SPANNED, inclusive of the first and current week, so it
+  // is measured the same way activeWeeks is and the ratio can never
+  // exceed 1. (`differenceInWeeks` truncates, which used to let a
+  // two-calendar-week account report a denominator of 1.)
+  const totalWeeks = Math.max(
+    1,
+    Math.round(differenceInDays(startOfLocalWeek(now), startOfLocalWeek(firstDate)) / 7) + 1,
+  );
   const consistencyPct = Math.min(100, Math.round((activeWeeks / totalWeeks) * 100));
 
   return {
@@ -94,11 +158,18 @@ function calcTrainingAge(logs) {
     totalWeeks,
     activeWeeks,
     consistencyPct,
-    label: totalDays < 30
-      ? `${totalDays} days`
+    // "100% consistent" after a single week is praise nobody earned, and
+    // a denominator of 1 makes it unavoidable. Hold the stat until there
+    // is a second week for it to be a ratio OF.
+    showConsistency: totalWeeks >= 2,
+    // Returned structured rather than pre-formatted so the component can
+    // pick the singular or plural key. The old code interpolated straight
+    // into `${n} days` and rendered "1 days" / "1 months".
+    age: totalDays < 30
+      ? { unit: 'days',   n: Math.max(1, totalDays) }
       : totalDays < 365
-        ? `${Math.round(totalDays / 30.4)} months`
-        : `${(totalDays / 365).toFixed(1)} years`,
+        ? { unit: 'months', n: Math.round(totalDays / 30.4) }
+        : { unit: 'years',  n: Math.round(totalDays / 36.5) / 10 },
   };
 }
 
@@ -112,62 +183,51 @@ function linearRegression(points) {
   const sumY  = points.reduce((s, p) => s + p.y, 0);
   const sumXY = points.reduce((s, p) => s + p.x * p.y, 0);
   const sumXX = points.reduce((s, p) => s + p.x * p.x, 0);
-  const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+  const denom = n * sumXX - sumX * sumX;
+  // Every entry logged on the same day gives zero x-variance and a
+  // slope of ±Infinity, which propagated into an "Invalid Date".
+  if (denom === 0) return null;
+  const slope = (n * sumXY - sumX * sumY) / denom;
   const intercept = (sumY - slope * sumX) / n;
   return { slope, intercept };
 }
 
 // ── GOAL STORAGE ──────────────────────────────────────────────────────────────
-const GOAL_KEY = 'flexyn_goal_weight_lbs';
-function loadGoalWeight() { try { return parseFloat(localStorage.getItem(GOAL_KEY)) || ''; } catch { return ''; } }
-function saveGoalWeight(v) { try { localStorage.setItem(GOAL_KEY, v); } catch {} }
+// Namespaced per user, per the `flexyn.<feature>.<userId>` convention.
+// The old key was a bare `flexyn_goal_weight_lbs` shared by every account
+// that had ever signed in on the device, so switching accounts showed you
+// someone else's goal.
+const GOAL_KEY_LEGACY = 'flexyn_goal_weight_lbs';
+const goalKey = (userId) => `flexyn.goalWeightLbs.${userId}`;
 
-// ── DATA EXPORT ───────────────────────────────────────────────────────────────
-
-function exportWorkoutsCSV(logs, weightUnit) {
-  const rows = [['Date', 'Workout', 'Exercise', 'Set', `Weight (${weightUnit})`, 'Reps', 'Volume']];
-  for (const log of logs) {
-    for (const ex of log.exercises || []) {
-      (ex.sets || []).forEach((s, si) => {
-        const w = Math.round(fromLbs(s.weight || 0, weightUnit) * 10) / 10;
-        rows.push([
-          log.date || '',
-          log.regimen_name || 'Freestyle',
-          ex.name || '',
-          si + 1,
-          w,
-          s.reps || 0,
-          Math.round(w * (s.reps || 0) * 10) / 10,
-        ]);
-      });
+function loadGoalWeight(userId) {
+  if (!userId) return '';
+  try {
+    const scoped = localStorage.getItem(goalKey(userId));
+    if (scoped != null) return parseFloat(scoped) || '';
+    // One-time migration off the unscoped key. Whoever opens Insights
+    // first inherits it, which is imperfect — but silently dropping a
+    // goal someone deliberately set is worse, and the key is removed
+    // afterwards so the second account starts clean.
+    const legacy = localStorage.getItem(GOAL_KEY_LEGACY);
+    if (legacy != null) {
+      const n = parseFloat(legacy);
+      localStorage.removeItem(GOAL_KEY_LEGACY);
+      if (Number.isFinite(n) && n > 0) {
+        localStorage.setItem(goalKey(userId), String(n));
+        return n;
+      }
     }
-  }
-  downloadCSV(rows, 'flexyn-workouts.csv');
+    return '';
+  } catch { return ''; }
 }
-
-function exportBodyMetricsCSV(bodyMetrics, weightUnit) {
-  const rows = [['Date', `Weight (${weightUnit})`, 'Body Fat %', 'Chest (in)', 'Waist (in)', 'Hips (in)', 'L Arm (in)', 'R Arm (in)', 'L Thigh (in)', 'R Thigh (in)', 'Notes']];
-  for (const m of bodyMetrics) {
-    rows.push([
-      m.date || '',
-      m.weight_lbs != null ? Math.round(fromLbs(m.weight_lbs, weightUnit) * 10) / 10 : '',
-      m.body_fat_pct != null ? m.body_fat_pct : '',
-      m.chest_in || '', m.waist_in || '', m.hips_in || '',
-      m.left_arm_in || '', m.right_arm_in || '',
-      m.left_thigh_in || '', m.right_thigh_in || '',
-      (m.notes || '').replace(/,/g, ' '),
-    ]);
-  }
-  downloadCSV(rows, 'flexyn-body-metrics.csv');
+function saveGoalWeight(userId, v) {
+  if (!userId) return;
+  try { localStorage.setItem(goalKey(userId), String(v)); } catch { /* private mode */ }
 }
-
-function downloadCSV(rows, filename) {
-  const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href = url; a.download = filename; a.click();
-  URL.revokeObjectURL(url);
+function clearGoalWeight(userId) {
+  if (!userId) return;
+  try { localStorage.removeItem(goalKey(userId)); } catch { /* private mode */ }
 }
 
 // ── Section wrapper ───────────────────────────────────────────────────────────
@@ -179,9 +239,16 @@ function InsightSection({ icon: Icon, title, color, bg, children }) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ type: 'spring', stiffness: 260, damping: 22 }}
     >
-      <Card className="p-5 border-none shadow-sm overflow-hidden">
-        <div className="flex items-center gap-2.5 mb-4">
-          <div className={`w-8 h-8 rounded-xl ${bg} flex items-center justify-center shrink-0`}>
+      {/* Resting elevation is a hairline border and no shadow — the two
+          levels documented in CLAUDE.md. This carried `border-none
+          shadow-sm`, which is the one combination the rule calls out as
+          adding nothing a hairline doesn't. */}
+      <Card className="p-5 border-border/60 shadow-none overflow-hidden">
+        <div className="flex items-center gap-2 mb-2">
+          {/* `rounded-sm` is the inner-chrome radius (icon tiles, chips)
+              per the radius rhythm in tailwind.config.js. `rounded-xl` is
+              a compatibility alias that new code must not reach for. */}
+          <div className={`w-8 h-8 rounded-sm ${bg} flex items-center justify-center shrink-0`}>
             <Icon className={`w-4 h-4 ${color}`} />
           </div>
           <h3 className="font-heading font-bold text-sm">{title}</h3>
@@ -196,23 +263,35 @@ function InsightSection({ icon: Icon, title, color, bg, children }) {
 
 export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile }) {
   const { weightUnit } = useWeightUnit();
-  const { language } = useLanguage();
-  const dateLocale = getDateLocale(language);
-  const [goalWeightInput, setGoalWeightInput] = useState(() => {
-    const stored = loadGoalWeight();
-    return stored ? String(Math.round(fromLbs(stored, weightUnit) * 10) / 10) : '';
-  });
+  const { tFallback } = useLanguage();
+  const fmtDate = useDateFormatter();
+  const fmtNum  = useNumberFormatter();
+  const navigate = useNavigate();
+  const userId = userProfile?.id;
 
-  // If the user flips lb ↔ kg after opening Insights, re-format the
-  // input from the stored lbs value so the displayed goal matches the
-  // current unit. Without this, input box and "Goal" pill below
-  // disagreed for the rest of the session. (Audit 11 #7.)
+  /** Count-aware lookup: picks the `.one` / `.other` variant. */
+  const tCount = useCallback((base, n, oneEn, otherEn, vars) => (
+    tFallback(
+      `${base}.${n === 1 ? 'one' : 'other'}`,
+      n === 1 ? oneEn : otherEn,
+      { n: fmtNum(n), ...vars },
+    )
+  ), [tFallback, fmtNum]);
+
+  const [goalWeightInput, setGoalWeightInput] = useState('');
+  // Bumped on save/clear so the projection memo re-reads localStorage.
+  // The old code depended on `goalWeightInput`, which recomputed the whole
+  // projection on every keystroke while still reading the OLD stored value.
+  const [goalRevision, setGoalRevision] = useState(0);
+
+  // Re-format the input from the stored lbs value whenever the user or
+  // the unit changes. Without the unit half, flipping lb ↔ kg left the
+  // input box and the "Goal" pill below disagreeing for the rest of the
+  // session. (Audit 11 #7.)
   useEffect(() => {
-    const stored = loadGoalWeight();
-    if (stored) {
-      setGoalWeightInput(String(Math.round(fromLbs(stored, weightUnit) * 10) / 10));
-    }
-  }, [weightUnit]);
+    const stored = loadGoalWeight(userId);
+    setGoalWeightInput(stored ? String(Math.round(fromLbs(stored, weightUnit) * 10) / 10) : '');
+  }, [weightUnit, userId]);
 
   // ── Training Age ───────────────────────────────────────────────────────────
   const trainingAge = useMemo(() => calcTrainingAge(logs), [logs]);
@@ -220,21 +299,44 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
   // ── Muscle Imbalance ───────────────────────────────────────────────────────
   const muscleImbalance = useMemo(() => {
     const vol = { push: 0, pull: 0, legs: 0, other: 0 };
-    for (const log of logs) {
+    for (const log of logs || []) {
       for (const ex of log.exercises || []) {
         const cat = categorizeExercise(ex);
-        const v = (ex.sets || []).reduce((s, set) => s + (set.weight || 0) * (set.reps || 0), 0);
+        const v = (ex.sets || []).reduce(
+          (s, set) => s + (Number(set.weight) || 0) * (Number(set.reps) || 0), 0,
+        );
         vol[cat] += v;
       }
     }
-    const total = vol.push + vol.pull + vol.legs + vol.other;
-    if (total === 0) return null;
-    const pPush = Math.round((vol.push / total) * 100);
-    const pPull = Math.round((vol.pull / total) * 100);
-    const pLegs = Math.round((vol.legs / total) * 100);
-    const ratio = vol.pull > 0 ? Math.round((vol.push / vol.pull) * 100) / 100 : null;
-    const balanced = ratio !== null && ratio >= 0.8 && ratio <= 1.2;
-    return { vol, total, pPush, pPull, pLegs, ratio, balanced };
+    const categorized = vol.push + vol.pull + vol.legs;
+    // Volume with no muscle group assigned tells us nothing about push/pull
+    // balance. It used to sit in the DENOMINATOR while having no bar, so
+    // the three percentages silently failed to sum to 100 — and a user
+    // whose every exercise was uncategorized got three 0% bars instead of
+    // the empty state, which is the "must not render as zeros" case.
+    if (categorized === 0) return null;
+
+    const total = categorized + vol.other;
+    const pct = v => Math.round((v / categorized) * 100);
+    const ratio = vol.push > 0 && vol.pull > 0
+      ? Math.round((vol.push / vol.pull) * 100) / 100
+      : null;
+
+    return {
+      vol,
+      pPush: pct(vol.push),
+      pPull: pct(vol.pull),
+      pLegs: pct(vol.legs),
+      uncategorizedPct: Math.round((vol.other / total) * 100),
+      ratio,
+      balanced: ratio !== null && ratio >= 0.8 && ratio <= 1.2,
+      // An infinite imbalance used to render as nothing at all: `ratio`
+      // was null whenever pull was 0, and the whole indicator was hidden
+      // behind a `ratio !== null` guard — so the one user the feature
+      // exists for saw no warning.
+      pushOnly: vol.push > 0 && vol.pull === 0,
+      pullOnly: vol.pull > 0 && vol.push === 0,
+    };
   }, [logs]);
 
   // ── TDEE ───────────────────────────────────────────────────────────────────
@@ -252,77 +354,104 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
     const age  = userProfile?.age ? parseInt(userProfile.age) : null;
     const sex  = (userProfile?.gender || '').toLowerCase();
 
-    const bmr = calcBMR({ weightKg, heightCm, age, sex: sex === 'female' ? 'female' : 'male' });
-    if (!bmr) return null;
+    // Computed BEFORE the bail-out. It used to be assembled only on the
+    // success path, where all three inputs are present by construction —
+    // so the "Partial estimate — add X" banner could never render, and
+    // the empty state listed all three fields as missing even when two
+    // were on file.
+    const missingFields = [
+      !weightKg && 'weight',
+      !heightCm && 'height',
+      !age      && 'age',
+    ].filter(Boolean);
 
-    // Weekly sessions from last 30 days
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - 30);
-    const recentLogs   = logs.filter(l => l.date && new Date(l.date) >= cutoff);
-    const recentCardio = cardioLogs.filter(l => l.date && new Date(l.date) >= cutoff);
-    const sessionsPerWeek = (recentLogs.length + recentCardio.length) / 4.3;
+    const bmr = calcBMR({ weightKg, heightCm, age, sex: sex === 'female' ? 'female' : 'male' });
+    if (!bmr) return { hasData: false, missingFields };
+
+    const now = new Date();
+    const cutoff = subDays(now, TDEE_WINDOW_DAYS);
+    const inWindow = (l) => {
+      const d = parseLocalDate(l?.date);
+      return d && d >= cutoff;
+    };
+    const recentLogs   = (logs || []).filter(inWindow);
+    const recentCardio = (cardioLogs || []).filter(inWindow);
+
+    // Divide by the days the account has actually been training within
+    // the window, not by a flat 30. Four days of history over a 30-day
+    // denominator reported 0.7 sessions/wk for someone training daily.
+    const firstInWindow = [...recentLogs, ...recentCardio]
+      .map(l => parseLocalDate(l.date))
+      .filter(Boolean)
+      .sort((a, b) => a - b)[0];
+    const observedDays = firstInWindow ? differenceInDays(now, firstInWindow) + 1 : TDEE_WINDOW_DAYS;
+    const windowDays = Math.min(TDEE_WINDOW_DAYS, Math.max(TDEE_MIN_WINDOW_DAYS, observedDays));
+
+    const sessionsPerWeek = (recentLogs.length + recentCardio.length) / (windowDays / 7);
     const multiplier = activityMultiplier(sessionsPerWeek);
 
-    const baseTDEE = Math.round(bmr * multiplier);
-
-    // Extra calories from recent workouts (~4–6 kcal / set)
-    const workoutCalsPerDay = recentLogs.reduce((sum, log) => {
-      const sets = (log.exercises || []).reduce((s, ex) => s + (ex.sets?.length || 0), 0);
-      return sum + sets * 5;
-    }, 0) / 30;
-
-    const cardioCalsPerDay = recentCardio.reduce((sum, l) => sum + (l.calories || 0), 0) / 30;
-
-    const totalTDEE = Math.round(baseTDEE + workoutCalsPerDay + cardioCalsPerDay);
+    // The activity multiplier IS the exercise term — Mifflin-St Jeor's
+    // bands are defined by training frequency. Adding measured workout
+    // and cardio calories on top of it counted training twice.
+    const totalTDEE = Math.round(bmr * multiplier);
 
     return {
+      hasData: true,
       bmr: Math.round(bmr),
-      baseTDEE,
       totalTDEE,
       sessionsPerWeek: Math.round(sessionsPerWeek * 10) / 10,
       multiplier,
-      hasData: true,
-      missingFields: [
-        !weightKg && 'body weight',
-        !heightCm && 'height',
-        !age      && 'age',
-      ].filter(Boolean),
+      windowDays,
+      missingFields,
     };
   }, [logs, cardioLogs, userProfile]);
 
   // ── Projected goal ─────────────────────────────────────────────────────────
+  const weighIns = useMemo(() => (
+    (bodyMetrics || [])
+      .filter(m => m?.weight_lbs != null && m?.date)
+      .map(m => ({ d: parseLocalDate(m.date), w: Number(m.weight_lbs) }))
+      // `weight_lbs` is a numeric column, which PostgREST can hand back
+      // as a string. `sumY` then concatenated instead of adding.
+      .filter(m => m.d && Number.isFinite(m.w))
+      .sort((a, b) => a.d - b.d)
+  ), [bodyMetrics]);
+
+  // Drives the Clear button. Read separately from `projection` because a
+  // goal can be stored while the projection is null (a flat trend, or
+  // every weigh-in on one day), and Clear has to stay reachable there.
+  // `goalRevision` reads as unnecessary to exhaustive-deps because the
+  // value it invalidates lives in localStorage, which the rule cannot
+  // see. It is the whole mechanism: bumping it on save/clear is what
+  // makes these two memos re-read storage.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const hasStoredGoal = useMemo(() => !!loadGoalWeight(userId), [userId, goalRevision]);
+
   const projection = useMemo(() => {
-    const sortedMetrics = [...(bodyMetrics || [])]
-      .filter(m => m.weight_lbs != null && m.date)
-      .sort((a, b) => a.date.localeCompare(b.date));
+    if (weighIns.length < 2) return null;
 
-    if (sortedMetrics.length < 2) return null;
-
-    const firstDate = new Date(sortedMetrics[0].date);
-    const points = sortedMetrics.map(m => ({
-      x: differenceInDays(new Date(m.date), firstDate),
-      y: m.weight_lbs,
-    }));
-    const reg = linearRegression(points);
+    const firstDate = weighIns[0].d;
+    const reg = linearRegression(weighIns.map(m => ({
+      x: differenceInDays(m.d, firstDate),
+      y: m.w,
+    })));
     if (!reg || Math.abs(reg.slope) < 0.001) return null;
 
-    const currentWeightLbs = sortedMetrics[sortedMetrics.length - 1].weight_lbs;
-    const storedGoalLbs    = loadGoalWeight();
-    if (!storedGoalLbs) return { needsGoal: true, currentWeightLbs, reg, firstDate };
+    const currentWeightLbs = weighIns[weighIns.length - 1].w;
+    const storedGoalLbs    = loadGoalWeight(userId);
+    if (!storedGoalLbs) return { needsGoal: true, currentWeightLbs };
 
     // Detect direction mismatch: if the trend slope is positive (gaining)
     // but the user's goal is below current weight (or vice versa), the
     // projection date math produces a date in the past, which the old
-    // code mis-labeled as "Already reached 🎉". Now we flag the trend
-    // as trending-away-from-goal so the user sees "Trending the wrong
-    // direction" instead of a false celebration. (Audit 11 #23.)
+    // code mis-labeled as "Already reached 🎉". (Audit 11 #23.)
     const goalDirection = Math.sign(storedGoalLbs - currentWeightLbs); // +1 = need to gain, -1 = need to lose
     const slopeDirection = Math.sign(reg.slope);
     const directionMismatch = goalDirection !== 0 && slopeDirection !== 0 && goalDirection !== slopeDirection;
 
     const daysToGoal = (storedGoalLbs - reg.intercept) / reg.slope;
-    const projectedDate = addDays(firstDate, Math.round(daysToGoal));
-    const daysFromNow   = differenceInDays(projectedDate, new Date());
+    const projectedDate = Number.isFinite(daysToGoal) ? addDays(firstDate, Math.round(daysToGoal)) : null;
+    const daysFromNow   = projectedDate ? differenceInDays(projectedDate, new Date()) : 0;
 
     return {
       currentWeightLbs,
@@ -332,81 +461,201 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
       ratePerWeek: Math.abs(reg.slope * 7),
       losing: reg.slope < 0,
       directionMismatch,
-      reg,
-      firstDate,
       needsGoal: false,
     };
-  }, [bodyMetrics, goalWeightInput]); // goalWeightInput dep refreshes when user sets goal
+    // goalRevision: see the note on hasStoredGoal above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [weighIns, userId, goalRevision]);
 
   const handleSetGoal = () => {
     const inDisplayUnit = parseFloat(goalWeightInput);
-    if (!inDisplayUnit || isNaN(inDisplayUnit)) return;
-    const inLbs = weightUnit === 'lbs' ? inDisplayUnit : inDisplayUnit / 0.453592;
-    saveGoalWeight(inLbs);
-    // trigger re-compute by forcing a re-render
+    if (!Number.isFinite(inDisplayUnit) || inDisplayUnit <= 0) {
+      // Silently returning here made the Set button look dead.
+      toast.error(tFallback('insights.goal.invalid', 'Enter a goal weight above 0 first.'));
+      return;
+    }
+    // `toLbs` handles all three units. This used to divide by 0.453592
+    // unconditionally, which is the kg factor — so a 12 st goal was
+    // stored as 26.5 lb and read back as 1.9 st. Stone is selectable in
+    // Settings, so this was reachable, not theoretical.
+    const inLbs = toLbs(inDisplayUnit, weightUnit);
+    saveGoalWeight(userId, inLbs);
     setGoalWeightInput(String(Math.round(fromLbs(inLbs, weightUnit) * 10) / 10));
-    toast.success('Goal weight saved!');
+    setGoalRevision(r => r + 1);
+    toast.success(tFallback('insights.goal.saved', 'Goal weight saved'));
   };
 
-  // ── Render ─────────────────────────────────────────────────────────────────
-  const empty = !logs?.length;
+  const handleClearGoal = () => {
+    clearGoalWeight(userId);
+    setGoalWeightInput('');
+    setGoalRevision(r => r + 1);
+    toast.success(tFallback('insights.goal.cleared', 'Goal weight cleared'));
+  };
 
+  // ── Export ─────────────────────────────────────────────────────────────────
+  // Headers stay English on purpose — a CSV is an interchange file, and a
+  // localized header breaks whatever script or sheet the user pipes it into.
+
+  const runExport = async (rows, filename, emptyMsg) => {
+    // rows[0] is the header, so a 1-length array means nothing matched.
+    if (rows.length <= 1) { toast.error(emptyMsg); return; }
+    const res = await downloadCsv(rows, filename);
+    if (!res.ok) {
+      toast.error(tFallback('insights.export.failed', 'Could not export that file.'));
+      return;
+    }
+    if (res.cancelled) return;
+    toast.success(tCount('insights.export.done', rows.length - 1, 'Exported {n} row', 'Exported {n} rows'));
+  };
+
+  const exportWorkouts = () => {
+    const rows = [['Date', 'Workout', 'Exercise', 'Set', `Weight (${weightUnit})`, 'Reps', 'Volume']];
+    for (const log of logs || []) {
+      for (const ex of log.exercises || []) {
+        (ex.sets || []).forEach((s, si) => {
+          const w = Math.round(fromLbs(s.weight || 0, weightUnit) * 10) / 10;
+          const reps = Number(s.reps) || 0;
+          rows.push([
+            log.date || '',
+            log.regimen_name || 'Freestyle',
+            ex.name || '',
+            si + 1,
+            w,
+            reps,
+            Math.round(w * reps * 10) / 10,
+          ]);
+        });
+      }
+    }
+    return runExport(rows, 'flexyn-workouts.csv',
+      tFallback('insights.export.noWorkouts', 'No workout data to export.'));
+  };
+
+  const exportBodyMetrics = () => {
+    // These are the columns `body_metrics` actually has. The previous
+    // header promised chest/waist/hips/arms/thighs in INCHES — none of
+    // which exist — and omitted the three real centimetre columns, so
+    // every row was blank past the body-fat column.
+    const rows = [['Date', `Weight (${weightUnit})`, 'Body Fat %', 'Waist (cm)', 'Chest (cm)', 'Hip (cm)', 'Notes']];
+    for (const m of bodyMetrics || []) {
+      rows.push([
+        m.date || '',
+        m.weight_lbs != null ? Math.round(fromLbs(m.weight_lbs, weightUnit) * 10) / 10 : '',
+        m.body_fat_pct != null ? m.body_fat_pct : '',
+        m.waist_cm ?? '',
+        m.chest_cm ?? '',
+        m.hip_cm ?? '',
+        m.notes || '',
+      ]);
+    }
+    return runExport(rows, 'flexyn-body-metrics.csv',
+      tFallback('insights.export.noBody', 'No body metric entries to export.'));
+  };
+
+  const exportCardio = () => {
+    const rows = [['Date', 'Activity', 'Distance (m)', 'Duration (s)', 'Calories', 'Avg HR', 'Notes']];
+    for (const l of cardioLogs || []) {
+      rows.push([
+        l.date || '', l.activity_type || '', l.distance_meters || 0,
+        l.duration_seconds || 0, l.calories || 0, l.avg_heart_rate ?? '', l.notes || '',
+      ]);
+    }
+    return runExport(rows, 'flexyn-cardio.csv',
+      tFallback('insights.export.noCardio', 'No cardio data to export.'));
+  };
+
+  const workoutCount = logs?.length || 0;
+  const bodyCount    = bodyMetrics?.length || 0;
+  const cardioCount  = cardioLogs?.length || 0;
+
+  // ── Render ─────────────────────────────────────────────────────────────────
+  // `--fluid-section` rather than a typed `space-y-4`: Progress is a
+  // converted surface (see the fluid-scale section of CLAUDE.md) and 16px
+  // is in the banned middle register when hand-typed.
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col" style={{ gap: 'var(--fluid-section)' }}>
 
       {/* ── Training Age ────────────────────────────────────────────────── */}
-      <InsightSection icon={Clock} title="Training Age" color="text-primary" bg="bg-primary/10">
+      <InsightSection
+        icon={Clock}
+        title={tFallback('insights.trainingAge.title', 'Training Age')}
+        color="text-primary"
+        bg="bg-primary/10"
+      >
         {!trainingAge ? (
-          <p className="text-sm text-muted-foreground">Log your first workout to see your training age.</p>
+          <p className="text-sm text-muted-foreground">
+            {tFallback('insights.trainingAge.empty', 'Log your first workout to see your training age.')}
+          </p>
         ) : (
-          <div className="space-y-3">
-            <div className="flex items-end gap-3">
+          <div className="flex flex-col gap-2">
+            <div className="flex items-end gap-2">
               <div>
-                <p className="font-heading font-black text-3xl text-primary">{trainingAge.label}</p>
+                <p className="font-heading font-black text-3xl text-primary">
+                  {tCount(
+                    `insights.trainingAge.${trainingAge.age.unit}`,
+                    trainingAge.age.n,
+                    `{n} ${trainingAge.age.unit.slice(0, -1)}`,
+                    `{n} ${trainingAge.age.unit}`,
+                  )}
+                </p>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Training since {format(trainingAge.firstDate, 'MMMM d, yyyy', { locale: dateLocale })}
+                  {tFallback('insights.trainingAge.since', 'Training since {date}', {
+                    date: fmtDate(trainingAge.firstDate, { dateStyle: 'long' }),
+                  })}
                 </p>
               </div>
-              <div className="ml-auto text-end pb-1">
-                <p className="font-heading font-bold text-xl text-foreground">{trainingAge.consistencyPct}%</p>
-                <p className="text-xs text-muted-foreground">consistent</p>
-              </div>
+              {trainingAge.showConsistency && (
+                <div className="ms-auto text-end pb-1">
+                  <p className="font-heading font-bold text-xl text-foreground">{trainingAge.consistencyPct}%</p>
+                  <p className="text-xs text-muted-foreground">
+                    {tFallback('insights.trainingAge.consistent', 'consistent')}
+                  </p>
+                </div>
+              )}
             </div>
 
-            {/* Consistency bar */}
-            <div className="h-2.5 rounded-full bg-secondary overflow-hidden">
-              <motion.div
-                className="h-full rounded-full bg-primary"
-                initial={{ width: 0 }}
-                animate={{ width: `${trainingAge.consistencyPct}%` }}
-                transition={{ duration: 0.8, ease: 'easeOut' }}
-              />
-            </div>
-            <div className="flex justify-between text-micro text-muted-foreground">
-              <span>{trainingAge.activeWeeks} active weeks</span>
-              <span>{trainingAge.totalWeeks} total weeks</span>
-            </div>
+            {trainingAge.showConsistency ? (
+              <>
+                {/* Consistency bar */}
+                <div className="h-2.5 rounded-full bg-secondary overflow-hidden">
+                  <motion.div
+                    className="h-full rounded-full bg-primary"
+                    initial={{ width: 0 }}
+                    animate={{ width: `${trainingAge.consistencyPct}%` }}
+                    transition={{ duration: 0.8, ease: 'easeOut' }}
+                  />
+                </div>
+                <div className="flex justify-between text-micro text-muted-foreground">
+                  <span>{tCount('insights.trainingAge.activeWeeks', trainingAge.activeWeeks, '{n} active week', '{n} active weeks')}</span>
+                  <span>{tCount('insights.trainingAge.totalWeeks', trainingAge.totalWeeks, '{n} total week', '{n} total weeks')}</span>
+                </div>
+              </>
+            ) : (
+              <p className="text-micro text-muted-foreground">
+                {tFallback('insights.trainingAge.tooEarly', 'Consistency unlocks after two weeks of training.')}
+              </p>
+            )}
 
             {/* Experience badge */}
-            <div className="mt-1">
+            <div>
               {trainingAge.totalDays < 90 && (
                 <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-success/10 text-success">
-                  🌱 Beginner — building the habit
+                  {tFallback('insights.trainingAge.beginner', '🌱 Beginner — building the habit')}
                 </span>
               )}
               {trainingAge.totalDays >= 90 && trainingAge.totalDays < 365 && (
                 <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-info/10 text-info">
-                  💪 Intermediate — forming real strength
+                  {tFallback('insights.trainingAge.intermediate', '💪 Intermediate — forming real strength')}
                 </span>
               )}
               {trainingAge.totalDays >= 365 && trainingAge.totalDays < 730 && (
                 <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-primary/10 text-primary">
-                  🔥 Advanced — 1+ year dedicated athlete
+                  {tFallback('insights.trainingAge.advanced', '🔥 Advanced — 1+ year dedicated athlete')}
                 </span>
               )}
               {trainingAge.totalDays >= 730 && (
                 <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-primary/10 text-primary">
-                  ⚡ Elite — 2+ years of consistent training
+                  {tFallback('insights.trainingAge.elite', '⚡ Elite — 2+ years of consistent training')}
                 </span>
               )}
             </div>
@@ -415,43 +664,66 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
       </InsightSection>
 
       {/* ── TDEE ────────────────────────────────────────────────────────── */}
-      <InsightSection icon={Flame} title="TDEE Estimate" color="text-primary" bg="bg-primary/10">
-        {!tdee ? (
-          <div>
-            <p className="text-sm text-muted-foreground mb-2">
-              Complete your profile to get a TDEE estimate.
+      <InsightSection
+        icon={Flame}
+        title={tFallback('insights.tdee.title', 'TDEE Estimate')}
+        color="text-primary"
+        bg="bg-primary/10"
+      >
+        {!tdee.hasData ? (
+          <div className="flex flex-col gap-2 items-start">
+            <p className="text-sm text-muted-foreground">
+              {tFallback('insights.tdee.incomplete', 'Add your {fields} in Settings to get a TDEE estimate.', {
+                fields: tdee.missingFields
+                  .map(f => tFallback(`insights.tdee.field.${f}`, f === 'weight' ? 'body weight' : f))
+                  .join(', '),
+              })}
             </p>
-            <div className="flex gap-2 flex-wrap">
-              {['body weight', 'height', 'age'].map(f => (
-                <span key={f} className="text-xs px-2 py-0.5 rounded-full bg-secondary text-muted-foreground">
-                  {f} needed
-                </span>
-              ))}
-            </div>
+            <Button size="sm" variant="outline" onClick={() => navigate('/settings')}>
+              {tFallback('insights.tdee.openSettings', 'Open Settings')}
+            </Button>
           </div>
         ) : (
-          <div className="space-y-3">
-            {tdee.missingFields.length > 0 && (
+          <div className="flex flex-col gap-2">
+            {tdee.windowDays < TDEE_WINDOW_DAYS && (
               <div className="flex items-start gap-2 p-2.5 rounded-lg bg-primary/10 border border-primary/20">
                 <Info className="w-3.5 h-3.5 text-primary mt-0.5 shrink-0" />
-                <p className="text-xs text-primary dark:text-primary">
-                  Partial estimate — add {tdee.missingFields.join(', ')} in your profile for accuracy.
+                <p className="text-xs text-primary">
+                  {tFallback(
+                    'insights.tdee.earlyEstimate',
+                    'Early estimate — based on {n} days of training. It will sharpen as you log more.',
+                    { n: fmtNum(tdee.windowDays) },
+                  )}
                 </p>
               </div>
             )}
 
-            <div className="flex items-end gap-3">
-              <div>
-                <p className="font-heading font-black text-3xl text-primary">{tdee.totalTDEE.toLocaleString()}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">cal / day estimated</p>
-              </div>
+            <div>
+              <p className="font-heading font-black text-3xl text-primary">{fmtNum(tdee.totalTDEE)}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {tFallback('insights.tdee.perDay', 'cal / day estimated')}
+              </p>
             </div>
 
+            {/* Fixed count of three — a grid is correct here; tileRow() is
+                for collections whose count comes from data. */}
             <div className="grid grid-cols-3 gap-2">
               {[
-                { label: 'BMR',        value: tdee.bmr.toLocaleString(),       note: 'at rest' },
-                { label: 'Base TDEE',  value: tdee.baseTDEE.toLocaleString(),  note: `×${tdee.multiplier} activity` },
-                { label: 'Sessions/wk', value: tdee.sessionsPerWeek,           note: 'last 30 days' },
+                {
+                  label: tFallback('insights.tdee.bmr', 'BMR'),
+                  value: fmtNum(tdee.bmr),
+                  note:  tFallback('insights.tdee.bmrNote', 'at rest'),
+                },
+                {
+                  label: tFallback('insights.tdee.sessions', 'Sessions/wk'),
+                  value: fmtNum(tdee.sessionsPerWeek, { maximumFractionDigits: 1 }),
+                  note:  tFallback('insights.tdee.sessionsNote', 'last {n} days', { n: fmtNum(tdee.windowDays) }),
+                },
+                {
+                  label: tFallback('insights.tdee.multiplier', 'Activity'),
+                  value: `×${fmtNum(tdee.multiplier, { maximumFractionDigits: 3 })}`,
+                  note:  tFallback('insights.tdee.multiplierNote', 'multiplier'),
+                },
               ].map(row => (
                 <div key={row.label} className="bg-secondary/50 rounded-lg p-2.5 text-center">
                   <p className="font-heading font-bold text-sm text-foreground">{row.value}</p>
@@ -463,12 +735,16 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
 
             <div className="grid grid-cols-2 gap-2 pt-1 border-t border-border/50">
               <div className="text-center">
-                <p className="text-xs font-semibold text-foreground">{Math.round(tdee.totalTDEE * 0.85).toLocaleString()} cal</p>
-                <p className="text-micro text-muted-foreground">Cut (−15%)</p>
+                <p className="text-xs font-semibold text-foreground">
+                  {tFallback('insights.tdee.cal', '{n} cal', { n: fmtNum(Math.round(tdee.totalTDEE * 0.85)) })}
+                </p>
+                <p className="text-micro text-muted-foreground">{tFallback('insights.tdee.cut', 'Cut (−15%)')}</p>
               </div>
               <div className="text-center">
-                <p className="text-xs font-semibold text-foreground">{Math.round(tdee.totalTDEE * 1.1).toLocaleString()} cal</p>
-                <p className="text-micro text-muted-foreground">Bulk (+10%)</p>
+                <p className="text-xs font-semibold text-foreground">
+                  {tFallback('insights.tdee.cal', '{n} cal', { n: fmtNum(Math.round(tdee.totalTDEE * 1.1)) })}
+                </p>
+                <p className="text-micro text-muted-foreground">{tFallback('insights.tdee.bulk', 'Bulk (+10%)')}</p>
               </div>
             </div>
           </div>
@@ -476,77 +752,111 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
       </InsightSection>
 
       {/* ── Projected Goal ───────────────────────────────────────────────── */}
-      <InsightSection icon={Target} title="Projected Goal Date" color="text-success" bg="bg-success/10">
-        {!bodyMetrics?.length || bodyMetrics.filter(m => m.weight_lbs != null).length < 2 ? (
-          <p className="text-sm text-muted-foreground">
-            Log at least 2 body weight entries in the Body tab to see a projection.
-          </p>
+      <InsightSection
+        icon={Target}
+        title={tFallback('insights.goal.title', 'Projected Goal Date')}
+        color="text-success"
+        bg="bg-success/10"
+      >
+        {weighIns.length < 2 ? (
+          // The old copy said "in the Body tab". Body-metric logging was
+          // removed from that tab (see BodyMetricsTab.jsx) and the only
+          // writer of a BodyMetric row is LogWeightModal on Dashboard — so
+          // this told the user to do something that could not be done.
+          <div className="flex flex-col gap-2 items-start">
+            <p className="text-sm text-muted-foreground">
+              {tFallback('insights.goal.empty', 'Log at least 2 body weight entries to see a projection.')}
+            </p>
+            <Button size="sm" variant="outline" onClick={() => navigate('/dashboard?logWeight=1')}>
+              <Scale className="w-4 h-4 me-2" />
+              {tFallback('insights.goal.emptyCta', 'Log your weight')}
+            </Button>
+          </div>
         ) : (
-          <div className="space-y-4">
+          <div className="flex flex-col gap-6">
             {/* Goal weight input */}
             <div>
-              <p className="text-xs text-muted-foreground font-medium mb-2">Your goal weight</p>
+              <p className="text-xs text-muted-foreground font-medium mb-2">
+                {tFallback('insights.goal.yourGoal', 'Your goal weight')}
+              </p>
               <div className="flex gap-2">
                 <Input
                   type="number"
-                  placeholder={`Goal in ${weightUnit}`}
+                  inputMode="decimal"
+                  placeholder={tFallback('insights.goal.placeholder', 'Goal in {unit}', { unit: weightUnit })}
                   value={goalWeightInput}
                   onChange={(e) => setGoalWeightInput(e.target.value)}
                   className="flex-1 h-9 text-sm"
                 />
                 <Button size="sm" onClick={handleSetGoal} className="h-9 px-4 shrink-0">
-                  Set
+                  {tFallback('insights.goal.set', 'Set')}
                 </Button>
+                {/* Without this there was no way to unset a goal once
+                    saved — clearing the field and pressing Set did nothing. */}
+                {hasStoredGoal && (
+                  <Button size="sm" variant="ghost" onClick={handleClearGoal} className="h-9 px-3 shrink-0">
+                    {tFallback('insights.goal.clear', 'Clear')}
+                  </Button>
+                )}
               </div>
             </div>
 
             {projection && !projection.needsGoal && (
-              <div className="space-y-3">
-                <div className="flex items-end gap-3">
+              <div className="flex flex-col gap-2">
+                <div className="flex items-end gap-2">
                   <div>
                     <p className={`font-heading font-black text-2xl ${projection.directionMismatch ? 'text-primary' : 'text-success'}`}>
                       {projection.directionMismatch
-                        ? 'Trending wrong way'
-                        : projection.daysFromNow > 0
-                          ? format(projection.projectedDate, 'MMM d, yyyy', { locale: dateLocale })
-                          : 'Already reached! 🎉'}
+                        ? tFallback('insights.goal.wrongWay', 'Trending wrong way')
+                        : projection.daysFromNow > 0 && projection.projectedDate
+                          ? fmtDate(projection.projectedDate, { dateStyle: 'medium' })
+                          : tFallback('insights.goal.reached', 'Already reached! 🎉')}
                     </p>
                     {projection.directionMismatch ? (
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        Your weight is moving away from your goal at {formatWeight(projection.ratePerWeek, weightUnit)}/week.
+                        {tFallback(
+                          'insights.goal.wrongWayNote',
+                          'Your weight is moving away from your goal at {rate}/week.',
+                          { rate: formatWeight(projection.ratePerWeek, weightUnit, 1) },
+                        )}
                       </p>
                     ) : projection.daysFromNow > 0 && (
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        {projection.daysFromNow} days away ·{' '}
-                        {formatWeight(projection.ratePerWeek, weightUnit)}/week pace
+                        {tCount(
+                          'insights.goal.daysAway', projection.daysFromNow,
+                          '{n} day away · {rate}/week pace', '{n} days away · {rate}/week pace',
+                          { rate: formatWeight(projection.ratePerWeek, weightUnit, 1) },
+                        )}
                       </p>
                     )}
                   </div>
-                  <div className="ml-auto flex items-center gap-1.5 pb-1">
+                  <div className="ms-auto flex items-center gap-1.5 pb-1">
                     {projection.losing
                       ? <TrendingDown className="w-4 h-4 text-success" />
                       : <TrendingUp   className="w-4 h-4 text-primary" />
                     }
                     <span className="text-xs text-muted-foreground">
-                      {projection.losing ? 'losing' : 'gaining'} weight
+                      {projection.losing
+                        ? tFallback('insights.goal.losing', 'losing weight')
+                        : tFallback('insights.goal.gaining', 'gaining weight')}
                     </span>
                   </div>
                 </div>
 
                 {/* Current vs goal */}
-                <div className="flex gap-4">
+                <div className="flex gap-2">
                   <div>
-                    <p className="text-xs text-muted-foreground">Current</p>
+                    <p className="text-xs text-muted-foreground">{tFallback('insights.goal.current', 'Current')}</p>
                     <p className="text-sm font-bold">{formatWeight(projection.currentWeightLbs, weightUnit)}</p>
                   </div>
                   <div className="w-px bg-border" />
                   <div>
-                    <p className="text-xs text-muted-foreground">Goal</p>
+                    <p className="text-xs text-muted-foreground">{tFallback('insights.goal.goal', 'Goal')}</p>
                     <p className="text-sm font-bold text-success">{formatWeight(projection.goalLbs, weightUnit)}</p>
                   </div>
                   <div className="w-px bg-border" />
                   <div>
-                    <p className="text-xs text-muted-foreground">Remaining</p>
+                    <p className="text-xs text-muted-foreground">{tFallback('insights.goal.remaining', 'Remaining')}</p>
                     <p className="text-sm font-bold">
                       {formatWeight(Math.abs(projection.currentWeightLbs - projection.goalLbs), weightUnit)}
                     </p>
@@ -554,7 +864,7 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
                 </div>
 
                 <p className="text-micro text-muted-foreground">
-                  Based on your logged weight trend. Actual results vary with diet and training changes.
+                  {tFallback('insights.goal.disclaimer', 'Based on your logged weight trend. Actual results vary with diet and training changes.')}
                 </p>
               </div>
             )}
@@ -563,145 +873,143 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
       </InsightSection>
 
       {/* ── Muscle Imbalance ─────────────────────────────────────────────── */}
-      <InsightSection icon={BarChart3} title="Muscle Imbalance" color="text-info" bg="bg-info/10">
+      <InsightSection
+        icon={BarChart3}
+        title={tFallback('insights.balance.title', 'Muscle Imbalance')}
+        color="text-info"
+        bg="bg-info/10"
+      >
         {!muscleImbalance ? (
           <p className="text-sm text-muted-foreground">
-            Log workouts with muscle groups assigned to see your push/pull balance.
+            {tFallback('insights.balance.empty', 'Log workouts with muscle groups assigned to see your push/pull balance.')}
           </p>
         ) : (
-          <div className="space-y-4">
+          <div className="flex flex-col gap-6">
             {/* Push/pull ratio indicator */}
-            {muscleImbalance.ratio !== null && (
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-xs font-medium text-muted-foreground">Push / Pull ratio</span>
-                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                    muscleImbalance.balanced
-                      ? 'bg-success/10 text-success'
-                      : 'bg-primary/10 text-primary'
-                  }`}>
-                    {muscleImbalance.balanced ? '✓ Balanced' : muscleImbalance.ratio > 1.2 ? '↑ Push-dominant' : '↑ Pull-dominant'}
-                  </span>
-                </div>
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-medium text-muted-foreground">
+                  {tFallback('insights.balance.ratioLabel', 'Push / Pull ratio')}
+                </span>
+                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                  muscleImbalance.balanced ? 'bg-success/10 text-success' : 'bg-primary/10 text-primary'
+                }`}>
+                  {muscleImbalance.pushOnly
+                    ? tFallback('insights.balance.pushOnly', 'No pull volume')
+                    : muscleImbalance.pullOnly
+                      ? tFallback('insights.balance.pullOnly', 'No push volume')
+                      : muscleImbalance.balanced
+                        ? tFallback('insights.balance.balanced', '✓ Balanced')
+                        : muscleImbalance.ratio > 1.2
+                          ? tFallback('insights.balance.pushDominant', '↑ Push-dominant')
+                          : tFallback('insights.balance.pullDominant', '↑ Pull-dominant')}
+                </span>
+              </div>
+              {muscleImbalance.ratio !== null ? (
                 <div className="text-center mb-2">
-                  <p className="font-heading font-black text-2xl text-foreground">{muscleImbalance.ratio}:1</p>
+                  <p className="font-heading font-black text-2xl text-foreground">
+                    {fmtNum(muscleImbalance.ratio, { maximumFractionDigits: 2 })}:1
+                  </p>
                   <p className="text-xs text-muted-foreground">
-                    Ideal is ~1:1 · yours is {muscleImbalance.ratio > 1 ? 'more push' : 'more pull'}
+                    {tFallback('insights.balance.ideal', 'Ideal is ~1:1 · yours is {side}', {
+                      side: muscleImbalance.ratio > 1
+                        ? tFallback('insights.balance.morePush', 'more push')
+                        : tFallback('insights.balance.morePull', 'more pull'),
+                    })}
                   </p>
                 </div>
-              </div>
-            )}
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  {muscleImbalance.pushOnly
+                    ? tFallback('insights.balance.pushOnlyNote', 'All your logged volume is push. Add rows or pulldowns to balance your shoulders out.')
+                    : tFallback('insights.balance.pullOnlyNote', 'All your logged volume is pull. Add presses to balance it out.')}
+                </p>
+              )}
+            </div>
 
-            {/* Volume breakdown bars */}
-            {[
-              { key: 'push', label: 'Push (chest/shoulders/triceps)', pct: muscleImbalance.pPush, color: 'bg-info' },
-              { key: 'pull', label: 'Pull (back/biceps)',              pct: muscleImbalance.pPull, color: 'bg-success' },
-              { key: 'legs', label: 'Legs (quads/hamstrings/glutes)', pct: muscleImbalance.pLegs, color: 'bg-primary' },
-            ].map(row => (
-              <div key={row.key}>
-                <div className="flex justify-between text-xs mb-1">
-                  <span className="text-muted-foreground font-medium">{row.label}</span>
-                  <span className="font-bold">{row.pct}%</span>
+            {/* Volume breakdown bars — shares of CATEGORIZED volume, so
+                they sum to 100. Uncategorized volume is called out below
+                rather than silently eating a slice of the denominator. */}
+            <div className="flex flex-col gap-2">
+              {[
+                { key: 'push', label: tFallback('insights.balance.push', 'Push (chest/shoulders/triceps)'), pct: muscleImbalance.pPush, color: 'bg-info' },
+                { key: 'pull', label: tFallback('insights.balance.pull', 'Pull (back/biceps)'),             pct: muscleImbalance.pPull, color: 'bg-success' },
+                { key: 'legs', label: tFallback('insights.balance.legs', 'Legs (quads/hamstrings/glutes)'), pct: muscleImbalance.pLegs, color: 'bg-primary' },
+              ].map(row => (
+                <div key={row.key}>
+                  <div className="flex justify-between text-xs mb-1">
+                    <span className="text-muted-foreground font-medium">{row.label}</span>
+                    <span className="font-bold">{row.pct}%</span>
+                  </div>
+                  <div className="h-2 rounded-full bg-secondary overflow-hidden">
+                    <motion.div
+                      className={`h-full rounded-full ${row.color}`}
+                      initial={{ width: 0 }}
+                      animate={{ width: `${row.pct}%` }}
+                      transition={{ duration: 0.7, ease: 'easeOut' }}
+                    />
+                  </div>
                 </div>
-                <div className="h-2 rounded-full bg-secondary overflow-hidden">
-                  <motion.div
-                    className={`h-full rounded-full ${row.color}`}
-                    initial={{ width: 0 }}
-                    animate={{ width: `${row.pct}%` }}
-                    transition={{ duration: 0.7, ease: 'easeOut' }}
-                  />
-                </div>
-              </div>
-            ))}
-
-            {/* Left/right arm asymmetry from body metrics if available */}
-            {bodyMetrics?.length > 0 && (() => {
-              // Tiebreak on created_at desc so two same-day entries
-              // pick the more-recently-logged one, not whichever the
-              // server returned first. (Audit 11 #24.)
-              const latest = [...bodyMetrics]
-                .filter(m => m.left_arm_in && m.right_arm_in)
-                .sort((a, b) => {
-                  const dCmp = (b.date || '').localeCompare(a.date || '');
-                  if (dCmp !== 0) return dCmp;
-                  return (b.created_at || '').localeCompare(a.created_at || '');
-                })[0];
-              if (!latest) return null;
-              const diff = Math.abs(latest.left_arm_in - latest.right_arm_in);
-              if (diff < 0.1) return null;
-              const dominant = latest.right_arm_in > latest.left_arm_in ? 'Right' : 'Left';
-              return (
-                <div className="mt-2 p-3 rounded-xl bg-secondary/50">
-                  <p className="text-xs font-semibold mb-0.5">Arm circumference asymmetry</p>
-                  <p className="text-xs text-muted-foreground">
-                    {dominant} arm is {diff.toFixed(1)}" larger · as of {format(new Date(latest.date), 'MMM d, yyyy', { locale: dateLocale })}
-                  </p>
-                </div>
-              );
-            })()}
+              ))}
+              <p className="text-micro text-muted-foreground">
+                {tFallback('insights.balance.shareNote', 'Share of volume with a muscle group assigned.')}
+                {muscleImbalance.uncategorizedPct > 0 && (
+                  <> {tFallback(
+                    'insights.balance.uncategorized',
+                    '{n}% of your volume has no muscle group assigned and is not counted here.',
+                    { n: fmtNum(muscleImbalance.uncategorizedPct) },
+                  )}</>
+                )}
+              </p>
+            </div>
           </div>
         )}
       </InsightSection>
 
       {/* ── Data Export ──────────────────────────────────────────────────── */}
-      <InsightSection icon={Download} title="Export My Data" color="text-slate-500" bg="bg-slate-500/10">
-        <p className="text-sm text-muted-foreground mb-4">
-          Download your data as CSV files, compatible with Excel, Google Sheets, and Apple Health apps.
+      {/* Neutral chrome, not `text-slate-500` — a raw Tailwind hue sits
+          outside the four-hue system and doesn't move with the theme. */}
+      <InsightSection
+        icon={Download}
+        title={tFallback('insights.export.title', 'Export My Data')}
+        color="text-muted-foreground"
+        bg="bg-secondary"
+      >
+        <p className="text-sm text-muted-foreground mb-6">
+          {tFallback('insights.export.desc', 'Download your data as CSV files, compatible with Excel, Google Sheets, and Apple Health apps.')}
         </p>
-        <div className="space-y-2">
-          <Button
-            variant="outline"
-            className="w-full justify-start gap-3"
-            onClick={() => {
-              if (!logs?.length) { toast.error('No workout data to export.'); return; }
-              exportWorkoutsCSV(logs, weightUnit);
-              toast.success(`Exported ${logs.length} workout${logs.length === 1 ? '' : 's'}`);
-            }}
-          >
+        <div className="flex flex-col gap-2">
+          <Button variant="outline" className="w-full justify-start gap-2" onClick={exportWorkouts}>
             <Dumbbell className="w-4 h-4 text-primary shrink-0" />
             <div className="text-start">
-              <p className="text-sm font-semibold">Workout Logs</p>
-              <p className="text-xs text-muted-foreground">{logs?.length || 0} sessions · all exercises & sets</p>
+              <p className="text-sm font-semibold">{tFallback('insights.export.workouts', 'Workout Logs')}</p>
+              <p className="text-xs text-muted-foreground">
+                {tCount('insights.export.workoutsSub', workoutCount, '{n} session · all exercises & sets', '{n} sessions · all exercises & sets')}
+              </p>
             </div>
-            <Download className="w-3.5 h-3.5 text-muted-foreground ml-auto" />
+            <Download className="w-3.5 h-3.5 text-muted-foreground ms-auto" />
           </Button>
 
-          <Button
-            variant="outline"
-            className="w-full justify-start gap-3"
-            onClick={() => {
-              if (!bodyMetrics?.length) { toast.error('No body metric entries to export.'); return; }
-              exportBodyMetricsCSV(bodyMetrics, weightUnit);
-              toast.success(`Exported ${bodyMetrics.length} body metric entries`);
-            }}
-          >
+          <Button variant="outline" className="w-full justify-start gap-2" onClick={exportBodyMetrics}>
             <Scale className="w-4 h-4 text-success shrink-0" />
             <div className="text-start">
-              <p className="text-sm font-semibold">Body Metrics</p>
-              <p className="text-xs text-muted-foreground">{bodyMetrics?.length || 0} entr{(bodyMetrics?.length || 0) === 1 ? 'y' : 'ies'} · weight, measurements</p>
+              <p className="text-sm font-semibold">{tFallback('insights.export.body', 'Body Metrics')}</p>
+              <p className="text-xs text-muted-foreground">
+                {tCount('insights.export.bodySub', bodyCount, '{n} entry · weight, body fat, measurements', '{n} entries · weight, body fat, measurements')}
+              </p>
             </div>
-            <Download className="w-3.5 h-3.5 text-muted-foreground ml-auto" />
+            <Download className="w-3.5 h-3.5 text-muted-foreground ms-auto" />
           </Button>
 
-          <Button
-            variant="outline"
-            className="w-full justify-start gap-3"
-            onClick={() => {
-              if (!cardioLogs?.length) { toast.error('No cardio data to export.'); return; }
-              const rows = [['Date', 'Activity', 'Distance (m)', 'Duration (s)', 'Calories', 'Avg HR', 'Notes']];
-              for (const l of cardioLogs) {
-                rows.push([l.date || '', l.activity_type || '', l.distance_meters || 0, l.duration_seconds || 0, l.calories || 0, l.avg_heart_rate || '', (l.notes || '').replace(/,/g, ' ')]);
-              }
-              downloadCSV(rows, 'flexyn-cardio.csv');
-              toast.success(`Exported ${cardioLogs.length} cardio sessions`);
-            }}
-          >
+          <Button variant="outline" className="w-full justify-start gap-2" onClick={exportCardio}>
             <Activity className="w-4 h-4 text-destructive shrink-0" />
             <div className="text-start">
-              <p className="text-sm font-semibold">Cardio Logs</p>
-              <p className="text-xs text-muted-foreground">{cardioLogs?.length || 0} sessions · runs, cycling, etc.</p>
+              <p className="text-sm font-semibold">{tFallback('insights.export.cardio', 'Cardio Logs')}</p>
+              <p className="text-xs text-muted-foreground">
+                {tCount('insights.export.cardioSub', cardioCount, '{n} session · runs, cycling, etc.', '{n} sessions · runs, cycling, etc.')}
+              </p>
             </div>
-            <Download className="w-3.5 h-3.5 text-muted-foreground ml-auto" />
+            <Download className="w-3.5 h-3.5 text-muted-foreground ms-auto" />
           </Button>
         </div>
       </InsightSection>
