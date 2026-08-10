@@ -22,7 +22,7 @@ import {
 import BodyMetricsTab from '@/components/progress/BodyMetricsTab';
 import ProgressPhotosTab from '@/components/progress/ProgressPhotosTab';
 import ErrorBoundary from '@/components/ErrorBoundary';
-import FilterDropdown from '@/components/progress/FilterDropdown';
+import ExerciseTrendsTab from '@/components/progress/ExerciseTrendsTab';
 import BottomSheet from '@/components/ui/BottomSheet';
 import AdvancedAnalytics from '@/components/progress/AdvancedAnalytics';
 import InsightsTab from '@/components/progress/InsightsTab';
@@ -30,7 +30,6 @@ import PRHistoryModal from '@/components/progress/PRHistoryModal';
 // Achievements moved to ProfileMenu (above "My Bag") — it didn't fit
 // next to data / chart tabs. AchievementsTab is now imported by
 // src/components/achievements/AchievementsVault.jsx.
-import GroupedExerciseTrends from '@/components/progress/GroupedExerciseTrends';
 import TrainingPatternCard from '@/components/progress/TrainingPatternCard';
 import WorkoutCalendarGrid from '@/components/progress/WorkoutCalendarGrid';
 import PageHeader from '@/components/PageHeader';
@@ -571,10 +570,9 @@ export default function Progress() {
   const [personalBestsModalOpen, setPersonalBestsModalOpen] = useState(false);
   const [advancedAnalyticsOpen, setAdvancedAnalyticsOpen]   = useState(false);
   const [prHistoryExercise,     setPRHistoryExercise]       = useState(null);
-  const [selectedRegimen,       setSelectedRegimen]         = useState('all');
-  const [timeRange,             setTimeRange]               = useState('90');
-  const [selectedMuscleGroup,   setSelectedMuscleGroup]     = useState('all');
-  // Timeframe toggle for the hero metrics strip (Week / Month / Year / All Time)
+  // Timeframe toggle for the hero metrics strip (Week / Month / Year / All
+  // Time). Also the Trends tab's period — see the tab's own note; it used
+  // to carry a second, independently-defaulted one.
   const [statsFrame,            setStatsFrame]              = useState('week');
 
   const contentRef = React.useRef(null);
@@ -586,11 +584,14 @@ export default function Progress() {
     queryFn: () => db.entities.WorkoutLog.filter({ created_by: user.email }, '-date', LOG_FETCH_LIMIT),
     enabled: !!user?.email,
   });
-  const { data: rawRegimens = [], isLoading: regimensLoading } = useQuery({
-    queryKey: ['regimens', user?.email],
-    queryFn: () => db.entities.Regimen.filter({ created_by: user.email }),
-    enabled: !!user?.email,
-  });
+  // The regimens query is gone (2026-08-10). Its ONLY consumer was the
+  // Trends tab's regimen filter, which listed every regimen name the
+  // user owned and compared each against `workout_logs.regimen_name` —
+  // a column that does not exist, so every option filtered the tab to
+  // zero logs and rendered "you have never logged a workout". The
+  // replacement derives its options from the logs themselves, so this
+  // page no longer fetches a table it does not display.
+  //
   // Achievements query removed — the surface is now in
   // ProfileMenu → Achievements (AchievementsVault), which fetches
   // its own data lazily.
@@ -617,7 +618,6 @@ export default function Progress() {
   // The filter is a defensive layer for exactly the case where the backend
   // delete half-failed, and a layer with one hole in it is not a layer.
   const logs         = useMemo(() => filterAfterReset(rawLogs, userProfile),        [rawLogs, userProfile]);
-  const regimens     = useMemo(() => filterAfterReset(rawRegimens, userProfile),    [rawRegimens, userProfile]);
   const bodyMetrics  = useMemo(() => filterAfterReset(rawBodyMetrics, userProfile), [rawBodyMetrics, userProfile]);
   const cardioLogs   = useMemo(() => filterAfterReset(rawCardioLogs, userProfile),  [rawCardioLogs, userProfile]);
   // userProfile belongs in this gate as much as the other two. Streak and
@@ -630,7 +630,7 @@ export default function Progress() {
   // filterAfterReset reads it too, so gating here also stops the brief
   // window where pre-reset rows were rendered before the reset timestamp
   // arrived to filter them out.
-  const isLoading    = logsLoading || regimensLoading || profileLoading;
+  const isLoading    = logsLoading || profileLoading;
 
   // Weekly summary — auto-generate on first load, then cache for 5 min
   const { data: latestDebriefData, refetch: refetchDebrief } = useQuery({
@@ -738,9 +738,6 @@ export default function Progress() {
 
   const lastWorkout     = logs[0] || null;
   const daysSinceLast   = lastWorkout?.date ? differenceInDays(new Date(), parseLocalDate(lastWorkout.date)) : null;
-  const regimenNames    = useMemo(() => regimens.map(r => r.name).sort(), [regimens]);
-  const regimenLogs     = useMemo(() => selectedRegimen === 'all' ? logs : logs.filter(l => l.regimen_name === selectedRegimen), [logs, selectedRegimen]);
-  const exerciseNames   = useMemo(() => { const n = new Set(); regimenLogs.forEach(log => log.exercises?.forEach(ex => { if (ex.name) n.add(ex.name); })); return [...n].sort(); }, [regimenLogs]);
 
   const streak = userProfile?.workout_streak ?? 0;
   const level  = userProfile?.current_level  ?? 1;
@@ -1342,63 +1339,14 @@ export default function Progress() {
 
                 {activeTab === 'trends' && (
                   <ErrorBoundary label="ExerciseTrends">
-                    <div>
-                      <div className="flex justify-start mb-6">
-                        <FilterDropdown
-                          selectedRegimen={selectedRegimen}
-                          onRegimenChange={setSelectedRegimen}
-                          regimenItems={[
-                            { value: 'all', label: t('progress.filterAllRegimens') },
-                            ...regimenNames.map(name => ({ value: name, label: name })),
-                          ]}
-                          selectedTimeRange={timeRange}
-                          onTimeRangeChange={setTimeRange}
-                          timeRangeItems={[
-                            { value: '7',   label: t('progress.last7Days') },
-                            { value: '30',  label: t('progress.last30Days') },
-                            { value: '90',  label: t('progress.last90Days') },
-                            { value: '365', label: t('progress.lastYear') },
-                          ]}
-                          selectedMuscleGroup={selectedMuscleGroup}
-                          onMuscleGroupChange={setSelectedMuscleGroup}
-                          muscleGroupItems={[
-                            { value: 'all', label: t('progress.filterAllMuscleGroups') },
-                            ...Array.from(new Set(
-                              regimenLogs.flatMap(log =>
-                                log.exercises?.flatMap(ex => ex.muscle_groups?.length ? ex.muscle_groups : (ex.muscle_group ? [ex.muscle_group] : [])) || []
-                              )
-                            ))
-                              .map(group => ({ value: group, label: t(`muscleGroups.${muscleKey(group)}`) }))
-                              .sort((a, b) => a.label.localeCompare(b.label)),
-                          ]}
-                        />
-                      </div>
-
-                      <h2 className="font-heading font-bold mb-4">{t('progress.exerciseTrends')}</h2>
-
-                      {exerciseNames.length === 0 ? (
-                        <Card className="p-10 text-center border-dashed">
-                          <TrendingUp className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
-                          <p className="font-heading font-semibold">{t('progress.noExerciseData')}</p>
-                          <p className="text-sm text-muted-foreground mt-2 max-w-xs mx-auto">{t('progress.noExerciseDataDesc')}</p>
-                          <div className="mt-4 p-4 bg-secondary rounded-xl text-start text-sm text-muted-foreground max-w-xs mx-auto space-y-1.5">
-                            <p className="font-medium text-foreground mb-2">{t('progress.howToLog')}</p>
-                            <p>1. {t('progress.howToLog.step1').split('{workout}')[0]}<span className="text-primary font-medium">{t('nav.workout')}</span>{t('progress.howToLog.step1').split('{workout}')[1]}</p>
-                            <p>2. {t('progress.howToLog.step2')}</p>
-                            <p>3. {t('progress.howToLog.step3')}</p>
-                            <p>4. {t('progress.howToLog.step4').split('{save}')[0]}<span className="text-primary font-medium">{t('workout.saveWorkout')}</span>{t('progress.howToLog.step4').split('{save}')[1]}</p>
-                          </div>
-                        </Card>
-                      ) : (
-                        <GroupedExerciseTrends
-                          exerciseNames={exerciseNames}
-                          regimenLogs={regimenLogs}
-                          timeRange={timeRange}
-                          selectedMuscleGroup={selectedMuscleGroup}
-                          scrollRef={contentRef}
-                        />
-                      )}
-                    </div>
+                    {/* The tab owns its own filtering now, and takes the
+                        PAGE's period rather than carrying a second one.
+                        It used to ship a 7/30/90/365 dropdown defaulting
+                        to 90 while the hero card above defaulted to
+                        week — one page, two answers to "what period am I
+                        looking at". Same reasoning as the Weekly Review
+                        fold-in above: one period section, one place. */}
+                    <ExerciseTrendsTab logs={logs} frame={statsFrame} />
                   </ErrorBoundary>
                 )}
               </motion.div>

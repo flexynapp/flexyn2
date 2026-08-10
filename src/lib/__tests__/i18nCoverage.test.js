@@ -226,6 +226,21 @@ describe('partial-gap ratchet', () => {
     // Added with the layout change (2026-08-10): the Recent section that
     // replaced the last-workout card and the Top PRs rail.
     'progress.recent.',
+    // Exercise Trends rebuild (2026-08-10). A whole new namespace, all of
+    // it English-only, so this is the sanctioned bare-prefix case rather
+    // than the narrow-prefix one above: there is nothing under `trends.`
+    // that predates this change, so the prefix cannot exempt a translated
+    // key by accident. The keys are the metric switch, the three empty
+    // states and the two filter chips — see the notes in
+    // `src/lib/i18n-progress.js`, which flag the two that need care
+    // (`trends.metric.e1rm` must keep its hedge; `trends.oneSession` must
+    // not read as an error).
+    //
+    // Deliberately NOT here, and it matters: the muscle-group names on the
+    // group headers, which come from `muscleGroups.<key>` and already ship
+    // in 15 languages. The tab looks them up there rather than carrying a
+    // second vocabulary, so they stay counted.
+    'trends.',
     // Insights tab (2026-08-10, audit 21). The same shape as `trends.`
     // directly above, and the same sanctioned bare-prefix case: nothing
     // under `insights.` predates this change, so the prefix cannot exempt

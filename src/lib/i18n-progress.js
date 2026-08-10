@@ -163,6 +163,65 @@ export const progressTranslations = {
     'progress.analytics.trained':     'Trained ✓',
     'progress.analytics.restDay':     'Rest day',
 
+    // ── Exercise Trends tab ──────────────────────────────────────────────
+    // The metric names are the labels on the switch under each chart.
+    // Which of them appear is decided per exercise by
+    // src/lib/exerciseTrend.js — a metric that would resolve to zero on
+    // this exercise's sets is never offered, so a translator will not
+    // see all four on one card.
+    //
+    //   • trends.metric.weight — the HEAVIEST SET of the session, not
+    //     the total. "Top set" is the gym word for it in English; use
+    //     whatever your language calls the single hardest set.
+    //   • trends.metric.e1rm — an ESTIMATE, and the word matters. It is
+    //     Epley's formula, not a lift anyone performed. Keep the hedge.
+    //   • trends.metric.volume — weight × reps summed over the session.
+    //   • trends.metric.reps — only ever shown for unweighted work, so
+    //     it means "best set" in reps, not "total reps".
+    'trends.metric.weight':           'Top set',
+    'trends.metric.e1rm':             'Est. 1RM',
+    'trends.metric.volume':           'Volume',
+    'trends.metric.reps':             'Reps',
+    'trends.metricLabel':             'Measure',
+
+    // trends.oneSession is the one-point state and it is the state most
+    // users are actually in — a trend needs two sessions. It must not
+    // read as an error; nothing is wrong, there is just no second point
+    // yet. Do not translate it as "not enough data".
+    'trends.oneSession':              'One session so far. Log this lift again and the trend appears here.',
+    'trends.noneInRange':             'Nothing logged for this lift in this window.',
+    // Shown in place of a delta when this session matched the last one.
+    // It is a COMPARISON, not a measurement — "0 lbs" put a second
+    // number with a unit next to the headline and read as one.
+    'trends.noChange':                'no change',
+    // Three different empties. Keep them different — the first is about
+    // the filters, the second about the period, and the third (which
+    // lives under progress.noExerciseData) about never having trained.
+    // Telling someone who trained last month that they have never logged
+    // a workout is the bug these replace.
+    'trends.noMatch':                 'No exercises match these filters in this period.',
+    'trends.noneInPeriod':            'No exercises logged in this period.',
+    'trends.clearFilters':            'Clear filters',
+    'trends.sessions_one':            '{n} session',
+    'trends.sessions_other':          '{n} sessions',
+    'trends.exercises_one':           '{n} exercise',
+    'trends.exercises_other':         '{n} exercises',
+    'trends.bodyweight':              'Bodyweight',
+
+    // Controls. `trends.muscleAll` is the unfiltered option AND the
+    // resting label of the control, so it has to read as a statement of
+    // what is shown, not as an instruction.
+    'trends.muscleLabel':             'Muscle group',
+    'trends.muscleAll':               'All muscle groups',
+    'trends.workoutLabel':            'Workout',
+    'trends.workoutAll':              'All workouts',
+    'trends.periodLabel':             'Period',
+    'trends.summary':                 '{exercises} · {period}',
+    'trends.collapseAll':             'Collapse all',
+    'trends.expandAll':               'Expand all',
+    'trends.showChart':               'Show chart for {name}',
+    'trends.hideChart':               'Hide chart for {name}',
+
     // ── Weekly Review summary ────────────────────────────────────────────
     'progress.review.title':          'Weekly Review',
     'progress.review.refresh':        'Refresh summary',
