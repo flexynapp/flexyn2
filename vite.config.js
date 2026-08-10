@@ -92,7 +92,17 @@ export default defineConfig({
           { src: '/favicon.svg',  sizes: 'any',     type: 'image/svg+xml' },
           { src: '/icon-192.png', sizes: '192x192', type: 'image/png' },
           { src: '/icon-512.png', sizes: '512x512', type: 'image/png' },
-          { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+          // MASKABLE GETS ITS OWN, SPARKLE-FREE FILE. The other icons carry
+          // four embers around the mark, and every one of them sits outside
+          // the inner 80% circle Android may crop a maskable icon to —
+          // measured at 0.49–0.54 of the canvas against a 0.40 limit. Cropping
+          // would not merely hide them, it would slice them mid-shape. They
+          // cannot simply be moved inward either: the mark's own tip already
+          // sits at 0.336 from centre, so a sparkle large enough to read would
+          // have to overlap the symbol. Decoration outside the safe zone is
+          // exactly what a maskable icon is not allowed to have, so this
+          // variant keeps the bare mark.
+          { src: '/icon-512-maskable.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
       },
       // NOTE: with `strategies: 'injectManifest'`, the `workbox` field is
