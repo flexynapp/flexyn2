@@ -73,18 +73,40 @@ const MUSCLE_PILL = {
 };
 const MUSCLE_PILL_DEFAULT = 'bg-primary/15 text-primary border-primary/25';
 
-// Timeframe constants (used by the stats-frame toggle in the hero card)
+// Timeframe constants (used by the stats-frame toggle in the hero card).
+//
+// These windows are ROLLING — `week` is seven days back from now, not the
+// current calendar week — so the labels say so. They used to read "This
+// Week" / "This Month" / "This Year", which disagreed with the Weekly
+// Review card lower down the same screen: that one is a real ISO week and
+// prints "Week 32, 2026". Two things on one page called "this week" and
+// meant different spans. The behaviour is the right one to keep (a Monday
+// morning reading "This Week: 0 workouts" is demoralising and true of
+// nobody's training), so the copy moved to match the code rather than the
+// other way around.
 const FRAME_DAYS   = { week: 7, month: 30, year: 365, all: Infinity };
-const FRAME_LABELS = { week: 'This Week', month: 'This Month', year: 'This Year', all: 'All Time' };
 const FRAME_PREV   = { week: 7, month: 30, year: 365, all: null };
+const FRAME_LABEL_FALLBACK = {
+  week:  'Last 7 Days',
+  month: 'Last 30 Days',
+  year:  'Last 365 Days',
+  all:   'All Time',
+};
+const FRAME_SHORT_FALLBACK = { week: 'Wk', month: 'Mo', year: 'Yr', all: 'All' };
 
 // Achievements removed from this strip — it lives in ProfileMenu now.
 // See src/components/achievements/AchievementsVault.jsx.
+//
+// `label` is the English fallback; the rendered string comes from
+// tFallback(labelKey, label). The longer `progress.tabs.*` keys that ship
+// in 15 languages say "Exercise Trends" / "Body Metrics" / "Progress
+// Photos" — written for a list with room, not for four pills in a 2×2
+// grid — so these get their own short keys rather than a relabelled bar.
 const TAB_META = [
-  { id: 'trends',    label: 'Trends',    Icon: TrendingUp,  iconColor: 'text-primary',    activeBg: 'bg-primary',     activeText: 'text-primary-foreground' },
-  { id: 'body',      label: 'Body',      Icon: Ruler,       iconColor: 'text-success', activeBg: 'bg-success', activeText: 'text-white' },
-  { id: 'photos',    label: 'Photos',    Icon: Camera,      iconColor: 'text-primary', activeBg: 'bg-primary',  activeText: 'text-white' },
-  { id: 'insights',  label: 'Insights',  Icon: Lightbulb,   iconColor: 'text-info',   activeBg: 'bg-info',    activeText: 'text-white' },
+  { id: 'trends',    labelKey: 'progress.tab.trends',   label: 'Trends',   Icon: TrendingUp,  iconColor: 'text-primary',    activeBg: 'bg-primary',     activeText: 'text-primary-foreground' },
+  { id: 'body',      labelKey: 'progress.tab.body',     label: 'Body',     Icon: Ruler,       iconColor: 'text-success', activeBg: 'bg-success', activeText: 'text-white' },
+  { id: 'photos',    labelKey: 'progress.tab.photos',   label: 'Photos',   Icon: Camera,      iconColor: 'text-primary', activeBg: 'bg-primary',  activeText: 'text-white' },
+  { id: 'insights',  labelKey: 'progress.tab.insights', label: 'Insights', Icon: Lightbulb,   iconColor: 'text-info',   activeBg: 'bg-info',    activeText: 'text-white' },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -110,7 +132,7 @@ function calcVolume(logs) {
 // ─── Personal Bests Tab ───────────────────────────────────────────────────────
 
 function PersonalBestsTab({ logs, onViewHistory }) {
-  const { t, language } = useLanguage();
+  const { t, tFallback, language } = useLanguage();
   const { weightUnit } = useWeightUnit();
   const dateLocale = getDateLocale(language);
   const bests = useMemo(() => {
@@ -158,7 +180,7 @@ function PersonalBestsTab({ logs, onViewHistory }) {
                     onClick={() => onViewHistory(pb.name)}
                     className="text-micro font-semibold text-primary/70 hover:text-primary active:text-primary flex items-center gap-0.5 transition-colors shrink-0"
                   >
-                    History <ChevronRight className="w-3 h-3" />
+                    {tFallback('progress.pb.history', 'History')} <ChevronRight className="w-3 h-3" />
                   </button>
                 )}
               </div>
@@ -173,14 +195,24 @@ function PersonalBestsTab({ logs, onViewHistory }) {
                 <motion.div className="bg-accent/5 rounded-lg p-3" whileHover={{ scale: 1.03 }} transition={{ type: 'spring', stiffness: 400, damping: 20 }}>
                   <p className="text-xs text-muted-foreground mb-1 font-medium">{t('progress.bestReps')}</p>
                   <motion.p className="font-heading font-bold text-xl text-accent" initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 300, delay: idx * 0.05 + 0.15 }}>
-                    {pb.reps > 0 ? `${pb.reps} rep${pb.reps === 1 ? '' : 's'}` : '—'}
+                    {pb.reps > 0
+                      ? tFallback(
+                          pb.reps === 1 ? 'progress.pb.reps_one' : 'progress.pb.reps_other',
+                          pb.reps === 1 ? '{n} rep' : '{n} reps',
+                          { n: pb.reps },
+                        )
+                      : '—'}
                   </motion.p>
                   {pb.repsDate && <p className="text-xs text-muted-foreground mt-0.5">{format(parseLocalDate(pb.repsDate), 'MMM d, yyyy', { locale: dateLocale })}</p>}
                 </motion.div>
               </div>
               {pb.sessionCount > 0 && (
                 <p className="text-micro text-muted-foreground mt-2 ps-0.5">
-                  Logged {pb.sessionCount} {pb.sessionCount === 1 ? 'time' : 'times'}
+                  {tFallback(
+                    pb.sessionCount === 1 ? 'progress.pb.logged_one' : 'progress.pb.logged_other',
+                    pb.sessionCount === 1 ? 'Logged {n} time' : 'Logged {n} times',
+                    { n: pb.sessionCount },
+                  )}
                 </p>
               )}
             </div>
@@ -194,7 +226,7 @@ function PersonalBestsTab({ logs, onViewHistory }) {
 // ─── Analytics Tab ────────────────────────────────────────────────────────────
 
 function AnalyticsTab({ logs }) {
-  const { t, language } = useLanguage();
+  const { t, tFallback, language } = useLanguage();
   const { weightUnit } = useWeightUnit();
   const dateLocale = getDateLocale(language);
 
@@ -262,7 +294,7 @@ function AnalyticsTab({ logs }) {
     return (
       <Card className="p-12 text-center border-dashed">
         <BarChart2 className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
-        <p className="font-heading font-semibold">No data yet</p>
+        <p className="font-heading font-semibold">{t('progress.noData')}</p>
         <p className="text-sm text-muted-foreground mt-1">{t('progress.logWorkoutsForAnalytics')}</p>
       </Card>
     );
@@ -331,7 +363,9 @@ function AnalyticsTab({ logs }) {
           <BarChart data={workoutFrequency}>
             <XAxis dataKey="date" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" interval={4} />
             <YAxis hide domain={[0, 1]} />
-            <Tooltip {...CHART_STYLE} formatter={(v) => [v === 1 ? 'Trained ✓' : 'Rest day', '']} />
+            <Tooltip {...CHART_STYLE} formatter={(v) => [v === 1
+              ? tFallback('progress.analytics.trained', 'Trained ✓')
+              : tFallback('progress.analytics.restDay', 'Rest day'), '']} />
             <Bar dataKey="Workouts" fill="hsl(var(--primary))" radius={[3, 3, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
@@ -369,6 +403,7 @@ function AnalyticsTab({ logs }) {
  * ────────────────────────────────────────────────────────────────── */
 
 const ProgressCarousel = forwardRef(function ProgressCarousel({ slides }, ref) {
+  const { tFallback } = useLanguage();
   const pagerRef = useRef(null);
   // The band paints the LIVE slide's accent — tint and identity rule —
   // exactly as the Dashboard hero does. Seeded from slide 0 so the first
@@ -409,7 +444,7 @@ const ProgressCarousel = forwardRef(function ProgressCarousel({ slides }, ref) {
           <button
             type="button"
             onClick={() => pagerRef.current?.next?.()}
-            aria-label="Next slide"
+            aria-label={tFallback('progress.carousel.nextSlide', 'Next slide')}
             className="absolute end-3 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-foreground/10 text-foreground hover:bg-foreground/20 active:bg-foreground/20 active:scale-95 flex items-center justify-center transition-all"
           >
             <ChevronRight className="w-4 h-4 rtl:scale-x-[-1]" />
@@ -427,7 +462,7 @@ const ProgressCarousel = forwardRef(function ProgressCarousel({ slides }, ref) {
             renderSlide={renderProgressSlide}
             onIndexChange={handleIndexChange}
             dotsClassName="mt-4"
-            dotLabel={(i) => `Slide ${i + 1}`}
+            dotLabel={(i) => tFallback('progress.carousel.slideN', 'Slide {n}', { n: i + 1 })}
           />
         </div>
       </div>
@@ -532,7 +567,7 @@ export default function Progress() {
   // Achievements query removed — the surface is now in
   // ProfileMenu → Achievements (AchievementsVault), which fetches
   // its own data lazily.
-  const { data: userProfile = {} } = useQuery({
+  const { data: userProfile = {}, isLoading: profileLoading } = useQuery({
     queryKey: ['userProfile', user?.email],
     queryFn: () => db.auth.me(),
     enabled: !!user?.email,
@@ -558,7 +593,17 @@ export default function Progress() {
   const regimens     = useMemo(() => filterAfterReset(rawRegimens, userProfile),    [rawRegimens, userProfile]);
   const bodyMetrics  = useMemo(() => filterAfterReset(rawBodyMetrics, userProfile), [rawBodyMetrics, userProfile]);
   const cardioLogs   = useMemo(() => filterAfterReset(rawCardioLogs, userProfile),  [rawCardioLogs, userProfile]);
-  const isLoading    = logsLoading || regimensLoading;
+  // userProfile belongs in this gate as much as the other two. Streak and
+  // Level are read from it and nothing else supplies them, so while it was
+  // outside the gate the page rendered a complete-looking hero from the
+  // `= {}` default: "Start today" and "Lv 1" at someone with a 40-day
+  // streak, for as long as that query took. A skeleton says "not yet"; a
+  // confident wrong number does not.
+  //
+  // filterAfterReset reads it too, so gating here also stops the brief
+  // window where pre-reset rows were rendered before the reset timestamp
+  // arrived to filter them out.
+  const isLoading    = logsLoading || regimensLoading || profileLoading;
 
   // Weekly summary — auto-generate on first load, then cache for 5 min
   const { data: latestDebriefData, refetch: refetchDebrief } = useQuery({
@@ -676,13 +721,13 @@ export default function Progress() {
   //
   // Tokens, not raw hex, so themes and dark mode keep working.
   const heroStats = [
-    { id: 'streak',   icon: Flame,      value: streak ? `${streak}d` : '—', label: 'Streak',
+    { id: 'streak',   icon: Flame,      value: streak ? `${streak}d` : '—', label: tFallback('progress.stat.streak', 'Streak'),
       accent: 'text-primary',  iconBg: 'bg-primary/15'  },
-    { id: 'workouts', icon: Dumbbell,   value: logs.length,                  label: 'Workouts',
+    { id: 'workouts', icon: Dumbbell,   value: logs.length,                  label: tFallback('progress.stat.workouts', 'Workouts'),
       accent: 'text-info',     iconBg: 'bg-info/15'     },
-    { id: 'volume',   icon: TrendingUp, value: totalVolume > 0 ? `${formatBigNumber(fromLbs(totalVolume, weightUnit))}` : '—', label: `Volume (${weightUnit})`,
+    { id: 'volume',   icon: TrendingUp, value: totalVolume > 0 ? `${formatBigNumber(fromLbs(totalVolume, weightUnit))}` : '—', label: tFallback('progress.stat.volumeUnit', 'Volume ({unit})', { unit: weightUnit }),
       accent: 'text-success', iconBg: 'bg-success/15' },
-    { id: 'level',    icon: Zap,        value: `Lv ${level}`,                label: 'Level',
+    { id: 'level',    icon: Zap,        value: tFallback('progress.stat.levelValue', 'Lv {level}', { level }), label: tFallback('progress.stat.level', 'Level'),
       accent: 'text-accent',   iconBg: 'bg-accent/15'   },
   ];
 
@@ -713,41 +758,77 @@ export default function Progress() {
       id: 'streak',
       icon: Flame,
       color: 'var(--primary)',
-      kicker: 'Streak',
-      value: streak ? `${streak} day${streak === 1 ? '' : 's'}` : 'Start today',
+      kicker: tFallback('progress.slide.streak.kicker', 'Streak'),
+      value: streak
+        ? tFallback(
+            streak === 1 ? 'progress.slide.streak.days_one' : 'progress.slide.streak.days_other',
+            streak === 1 ? '{n} day' : '{n} days',
+            { n: streak },
+          )
+        : tFallback('progress.slide.streak.none', 'Start today'),
       tip: streak > 0
-        ? `Log a workout today to push your streak to ${streak + 1} days. Skipping resets it to 0.`
-        : 'A single set counts. Log a workout today and the streak starts at 1.',
+        ? tFallback(
+            'progress.slide.streak.tipActive',
+            'Log a workout today to push your streak to {next} days. Skipping resets it to 0.',
+            { next: streak + 1 },
+          )
+        : tFallback(
+            'progress.slide.streak.tipNone',
+            'A single set counts. Log a workout today and the streak starts at 1.',
+          ),
     },
     {
       id: 'workouts',
       icon: Dumbbell,
       color: 'var(--info)',
-      kicker: 'Workouts',
+      kicker: tFallback('progress.slide.workouts.kicker', 'Workouts'),
       value: `${logs.length}`,
       tip: logs.length === 0
-        ? 'Your first workout unlocks history, trends, and your first PR.'
-        : `${logs.length} workout${logs.length === 1 ? '' : 's'} logged. Three a week beats five-then-zero every time.`,
+        ? tFallback(
+            'progress.slide.workouts.tipNone',
+            'Your first workout unlocks history, trends, and your first PR.',
+          )
+        : tFallback(
+            logs.length === 1 ? 'progress.slide.workouts.tipSome_one' : 'progress.slide.workouts.tipSome_other',
+            logs.length === 1
+              ? '{n} workout logged. Three a week beats five-then-zero every time.'
+              : '{n} workouts logged. Three a week beats five-then-zero every time.',
+            { n: logs.length },
+          ),
     },
     {
       id: 'volume',
       icon: TrendingUp,
       color: 'var(--success)',
-      kicker: 'Volume',
+      kicker: tFallback('progress.slide.volume.kicker', 'Volume'),
       value: totalVolume > 0
         ? `${formatBigNumber(Math.round(fromLbs(totalVolume, weightUnit)))} ${weightUnit}`
         : '0',
       tip: thisWeekVolume > 0 && lastWeekVolume > 0
-        ? `This week: ${formatBigNumber(Math.round(fromLbs(thisWeekVolume, weightUnit)))} ${weightUnit}. Last week: ${formatBigNumber(Math.round(fromLbs(lastWeekVolume, weightUnit)))}. A 10% bump = new gains.`
-        : 'Total weight × reps lifted. Track it weekly — small bumps compound into PRs.',
+        ? tFallback(
+            'progress.slide.volume.tipCompare',
+            'This week: {thisWeek} {unit}. Last week: {lastWeek}. A 10% bump = new gains.',
+            {
+              thisWeek: formatBigNumber(Math.round(fromLbs(thisWeekVolume, weightUnit))),
+              lastWeek: formatBigNumber(Math.round(fromLbs(lastWeekVolume, weightUnit))),
+              unit: weightUnit,
+            },
+          )
+        : tFallback(
+            'progress.slide.volume.tipNone',
+            'Total weight × reps lifted. Track it weekly — small bumps compound into PRs.',
+          ),
     },
     {
       id: 'level',
       icon: Zap,
       color: 'var(--primary)',
-      kicker: 'Level',
-      value: `Lv ${level}`,
-      tip: 'Every workout earns XP. Hit personal bests for bonus XP and watch the bar fill.',
+      kicker: tFallback('progress.slide.level.kicker', 'Level'),
+      value: tFallback('progress.stat.levelValue', 'Lv {level}', { level }),
+      tip: tFallback(
+        'progress.slide.level.tip',
+        'Every workout earns XP. Hit personal bests for bonus XP and watch the bar fill.',
+      ),
     },
   ];
   const carouselRef = useRef(null);
@@ -836,7 +917,7 @@ export default function Progress() {
             />
           </div>
 
-          {/* ── Frame Stats (This Week / Month / Year / All Time) ─────── */}
+          {/* ── Frame Stats (rolling 7 / 30 / 365 days, or all time) ───── */}
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
@@ -848,10 +929,16 @@ export default function Progress() {
               <div className="absolute top-0 end-0 w-32 h-32 rounded-full blur-3xl opacity-30 pointer-events-none" style={{ background: 'radial-gradient(circle, hsl(var(--primary) / 0.4), transparent 70%)', transform: 'translate(30%, -30%)' }} />
 
               <div className="flex items-center justify-between mb-4">
-                <h2 className="font-heading font-black text-base">{FRAME_LABELS[statsFrame]}</h2>
+                <h2 className="font-heading font-black text-base">
+                  {tFallback(`progress.frame.${statsFrame}`, FRAME_LABEL_FALLBACK[statsFrame])}
+                </h2>
                 {volumeDelta !== null && (
                   <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${volumeDelta >= 0 ? 'bg-success/15 text-success' : 'bg-destructive/15 text-destructive'}`}>
-                    {volumeDelta >= 0 ? '↑' : '↓'} {Math.abs(Math.round(volumeDelta))}% vs prev
+                    {tFallback(
+                      volumeDelta >= 0 ? 'progress.frame.deltaUp' : 'progress.frame.deltaDown',
+                      volumeDelta >= 0 ? '↑ {pct}% vs prev' : '↓ {pct}% vs prev',
+                      { pct: Math.abs(Math.round(volumeDelta)) },
+                    )}
                   </span>
                 )}
               </div>
@@ -859,19 +946,19 @@ export default function Progress() {
               <div className="grid grid-cols-3 gap-4 mb-4">
                 <div className="text-center">
                   <p className="font-heading font-black text-2xl text-info">{frameLogs.length}</p>
-                  <p className="text-micro text-muted-foreground mt-0.5">Workouts</p>
+                  <p className="text-micro text-muted-foreground mt-0.5">{tFallback('progress.frame.workouts', 'Workouts')}</p>
                 </div>
                 <div className="text-center">
                   <p className="font-heading font-black text-2xl text-success">
                     {frameVolume > 0 ? formatBigNumber(Math.round(fromLbs(frameVolume, weightUnit))) : '—'}
                   </p>
-                  <p className="text-micro text-muted-foreground mt-0.5">{weightUnit} lifted</p>
+                  <p className="text-micro text-muted-foreground mt-0.5">{tFallback('progress.frame.volumeLifted', '{unit} lifted', { unit: weightUnit })}</p>
                 </div>
                 <div className="text-center">
                   {/* accent, not primary — Workouts above is already primary
                       and the two sat side by side reading as one number. */}
                   <p className="font-heading font-black text-2xl text-accent">{weeklyCardio.sessions || '—'}</p>
-                  <p className="text-micro text-muted-foreground mt-0.5">Cardio</p>
+                  <p className="text-micro text-muted-foreground mt-0.5">{tFallback('progress.frame.cardio', 'Cardio')}</p>
                 </div>
               </div>
 
@@ -913,9 +1000,17 @@ export default function Progress() {
                           );
                         })}
                       </div>
-                    ) : (
-                      <p className="text-xs text-muted-foreground mb-3">No workouts logged {statsFrame === 'week' ? 'this week' : statsFrame === 'month' ? 'this month' : statsFrame === 'year' ? 'this year' : 'yet'}.</p>
-                    )}
+                    ) : frameLogs.length === 0 ? (
+                      // Gated on frameLogs, NOT on the pill set. It used to
+                      // fire whenever the pills were empty, so a session whose
+                      // exercises carry no muscle_group rendered "1 Workout"
+                      // and "No workouts logged this week" in the same card,
+                      // one above the other. With workouts but no muscle data
+                      // there is simply nothing to say, so it says nothing.
+                      <p className="text-xs text-muted-foreground mb-3">
+                        {tFallback('progress.frame.noWorkouts', 'No workouts logged in this period.')}
+                      </p>
+                    ) : null}
                     {/* Timeframe toggle — below muscle pills, centered */}
                     <div className="flex justify-center">
                       <div className="flex gap-1 bg-secondary/50 rounded-xl p-1 shadow-inner">
@@ -929,7 +1024,7 @@ export default function Progress() {
                                 : 'text-muted-foreground hover:text-foreground active:text-foreground hover:bg-secondary/80 active:bg-secondary/80'
                             }`}
                           >
-                            {f === 'all' ? 'All' : f === 'week' ? 'Wk' : f === 'month' ? 'Mo' : 'Yr'}
+                            {tFallback(`progress.frameShort.${f}`, FRAME_SHORT_FALLBACK[f])}
                           </button>
                         ))}
                       </div>
@@ -956,15 +1051,34 @@ export default function Progress() {
                     </div>
                     <div className="min-w-0">
                       <p className="text-sm font-semibold leading-tight truncate">
-                        {lastWorkout.regimen_name || 'Freestyle Session'}
+                        {lastWorkout.regimen_name || tFallback('progress.lastWorkout.freestyle', 'Freestyle Session')}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {daysSinceLast === 0 ? 'Today' : daysSinceLast === 1 ? 'Yesterday' : `${daysSinceLast} days ago`}
-                        {lastWorkout.exercises?.length ? ` · ${lastWorkout.exercises.length} exercise${lastWorkout.exercises.length === 1 ? '' : 's'}` : ''}
+                        {/* progress.today / progress.yesterday already ship in
+                            all 15 languages — this line had been hardcoding
+                            the same two words in English. Only the N-days
+                            case needed a new key, and it needs a whole
+                            template rather than progress.ago ("ago"): gluing
+                            a count onto a bare preposition puts the words in
+                            English order in every language. */}
+                        {daysSinceLast === 0
+                          ? t('progress.today')
+                          : daysSinceLast === 1
+                            ? t('progress.yesterday')
+                            : tFallback('progress.lastWorkout.daysAgo', '{n} days ago', { n: daysSinceLast })}
+                        {lastWorkout.exercises?.length
+                          ? ` · ${tFallback(
+                              lastWorkout.exercises.length === 1
+                                ? 'progress.lastWorkout.exercises_one'
+                                : 'progress.lastWorkout.exercises_other',
+                              lastWorkout.exercises.length === 1 ? '{n} exercise' : '{n} exercises',
+                              { n: lastWorkout.exercises.length },
+                            )}`
+                          : ''}
                       </p>
                     </div>
                   </div>
-                  <span className="text-xs text-muted-foreground shrink-0 ms-2">Last workout</span>
+                  <span className="text-xs text-muted-foreground shrink-0 ms-2">{tFallback('progress.lastWorkout.label', 'Last workout')}</span>
                 </div>
               </Card>
             </motion.div>
@@ -979,12 +1093,12 @@ export default function Progress() {
               className="mb-6"
             >
               <div className="flex items-center justify-between mb-3">
-                <h2 className="font-heading font-black text-sm uppercase tracking-wider text-muted-foreground">Top PRs</h2>
+                <h2 className="font-heading font-black text-sm uppercase tracking-wider text-muted-foreground">{tFallback('progress.topPRs.title', 'Top PRs')}</h2>
                 <button
                   onClick={() => setPersonalBestsModalOpen(true)}
                   className="text-xs font-semibold text-primary hover:text-primary/80 active:text-primary/80 transition-colors flex items-center gap-0.5"
                 >
-                  All <ChevronRight className="w-3.5 h-3.5" />
+                  {t('progress.all')} <ChevronRight className="w-3.5 h-3.5" />
                 </button>
               </div>
               <div className="flex gap-3 overflow-x-auto pb-1 -mx-4 px-4 md:mx-0 md:px-0 md:grid md:grid-cols-3 lg:grid-cols-5">
@@ -1006,7 +1120,13 @@ export default function Progress() {
                         {formatWeight(pr.weight, weightUnit)}
                       </p>
                       {pr.reps > 0 && (
-                        <p className="text-micro text-muted-foreground mt-1">{pr.reps} rep{pr.reps === 1 ? '' : 's'} best</p>
+                        <p className="text-micro text-muted-foreground mt-1">
+                          {tFallback(
+                            pr.reps === 1 ? 'progress.topPRs.repsBest_one' : 'progress.topPRs.repsBest_other',
+                            pr.reps === 1 ? '{n} rep best' : '{n} reps best',
+                            { n: pr.reps },
+                          )}
+                        </p>
                       )}
                     </Card>
                   </motion.div>
@@ -1040,7 +1160,7 @@ export default function Progress() {
                     }`}
                   >
                     <tab.Icon className={`w-[18px] h-[18px] shrink-0 ${isActive ? '' : tab.iconColor}`} />
-                    {tab.label}
+                    {tFallback(tab.labelKey, tab.label)}
                   </motion.button>
                 );
               })}
@@ -1099,13 +1219,13 @@ export default function Progress() {
                           {/* Header */}
                           <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-border">
                             <div>
-                              <p className="text-micro font-bold uppercase tracking-widest text-primary">Weekly Review</p>
+                              <p className="text-micro font-bold uppercase tracking-widest text-primary">{tFallback('progress.review.title', 'Weekly Review')}</p>
                               <p className="text-sm font-bold text-foreground">{latestDebriefData.week_label}</p>
                             </div>
                             <button
                               onClick={() => refetchDebrief()}
                               className="text-foreground/30 hover:text-muted-foreground active:text-muted-foreground transition-colors"
-                              title="Refresh summary"
+                              title={tFallback('progress.review.refresh', 'Refresh summary')}
                             >
                               <RefreshCw className="w-3.5 h-3.5" />
                             </button>
@@ -1131,7 +1251,7 @@ export default function Progress() {
                               <>
                                 <div className="flex divide-x divide-border">
                                   <div className="flex-1 flex flex-col items-center py-3 gap-0.5">
-                                    <span className="text-xs text-muted-foreground">Volume</span>
+                                    <span className="text-xs text-muted-foreground">{tFallback('progress.review.volume', 'Volume')}</span>
                                     <span className="text-base font-black text-foreground tabular-nums">
                                       {formatBigNumber(vol)}
                                       <span className="text-micro font-normal text-muted-foreground ms-0.5">{weightUnit}</span>
@@ -1143,16 +1263,16 @@ export default function Progress() {
                                     )}
                                   </div>
                                   <div className="flex-1 flex flex-col items-center py-3 gap-0.5">
-                                    <span className="text-xs text-muted-foreground">Sessions</span>
+                                    <span className="text-xs text-muted-foreground">{tFallback('progress.review.sessions', 'Sessions')}</span>
                                     <span className="text-base font-black text-foreground">{wks}</span>
                                   </div>
                                   <div className="flex-1 flex flex-col items-center py-3 gap-0.5">
-                                    <span className="text-xs text-muted-foreground">Streak</span>
+                                    <span className="text-xs text-muted-foreground">{tFallback('progress.review.streak', 'Streak')}</span>
                                     <span className="text-base font-black text-primary">{streak}d 🔥</span>
                                   </div>
                                   {isPr && (
                                     <div className="flex-1 flex flex-col items-center py-3 gap-0.5">
-                                      <span className="text-xs text-muted-foreground">PR</span>
+                                      <span className="text-xs text-muted-foreground">{tFallback('progress.review.pr', 'PR')}</span>
                                       <Trophy className="w-4 h-4 text-primary" />
                                     </div>
                                   )}

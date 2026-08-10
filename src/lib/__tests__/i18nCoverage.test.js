@@ -182,6 +182,34 @@ describe('partial-gap ratchet', () => {
     // in all 15 languages under bare keys (`chest`, `glutes`, …) and both
     // components look them up there, so they stay counted.
     'injuries.',
+    // Progress page main view — new namespaces, 2026-08-10. The hero
+    // carousel, timeframe stats card, last-workout callout, Top PRs rail,
+    // tab bar and Weekly Review summary were ~55 hardcoded English literals
+    // in a 15-language app. Extracted to `i18n-progress.js` and reached
+    // through tFallback, so a missing locale renders correct English.
+    //
+    // Listed as eleven narrow prefixes rather than a bare `progress.` for
+    // the reason `league.gate.` is: `progress.` would also exempt the ~96
+    // keys in that namespace that ARE translated (the chart headings, the
+    // filter labels, progress.today / yesterday / all) and hide any future
+    // regression in them. Every prefix below is a namespace this change
+    // created, so each one holds English-only keys and nothing else.
+    //
+    // Note what is deliberately NOT here: 'Today', 'Yesterday' and 'All'
+    // are not new keys at all. `progress.today` / `.yesterday` / `.all`
+    // already shipped in 15 languages and had simply stopped being called;
+    // those call sites now point back at them and stay counted.
+    'progress.tab.',
+    'progress.frame.',
+    'progress.frameShort.',
+    'progress.stat.',
+    'progress.carousel.',
+    'progress.slide.',
+    'progress.lastWorkout.',
+    'progress.topPRs.',
+    'progress.pb.',
+    'progress.analytics.',
+    'progress.review.',
     'quests.',
     'quest.cardio_session.',
     'quest.log_sleep.',
