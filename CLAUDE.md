@@ -495,13 +495,29 @@ before being checked:
   loop.** A bracket with one qualified member promotes and demotes nobody and
   still writes `rank = 1`. Reading "bracket too small" as "no rank" is wrong.
 
-**Unrelated hazard found in the same look:** all seven historical leagues were
-resolved in a single catch-up sweep on 2026-08-09, months after their week
-ends. `roll_weekly_leagues` resolves every unresolved past league it finds, and
-`resolve_league_bracket_internal` sends a notification per promotion, demotion
-and shield. Nobody qualified, so nothing fired — but a backlog like that would
-otherwise deliver months of backdated league results to every member at once.
-Check the backlog before running it.
+**A correction, kept because the misreading is instructive.** This section
+first claimed those seven historical leagues were "resolved in a catch-up
+sweep, silent only because nobody qualified". They were not resolved at all.
+Migration 310 ends with a one-shot that VOIDS them — seven stranded brackets,
+32 of 35 memberships at 0 XP, marked resolved with no ranks, no payouts and no
+notifications, because resolving them under any ruleset would have promoted AFK
+accounts. 310's own comment says *"This is deliberate, not a bug. outcome =
+'void' records why, so a future reader does not mistake these for brackets the
+resolver skipped."*
+
+Which is precisely the mistake that got made. `leagues.resolved_at` was read as
+proof the resolver ran; it had been stamped by the void. The tell was one
+column away the whole time — the resolver writes `promote` / `demote` / `hold`
+/ `unranked` / `decayed` and ALWAYS stamps `qualified`, so `outcome = 'void'`
+with `qualified = NULL` means those rows were never passed through it. **When a
+table says something ran, check what it wrote, not just that a timestamp
+moved.**
+
+The notification hazard is still worth knowing, but as a caution rather than an
+observed event: `roll_weekly_leagues` resolves every unresolved past league it
+finds, and resolution notifies per promotion, demotion and shield, so a genuine
+backlog would deliver months of backdated results at once. It has never
+happened here — 310 made sure of it deliberately, not by luck.
 
 **Two shapes, two different causes — don't group them.** *0-of-N* means no
 writer exists. *k-of-N* means a writer exists and one entry path skips it, and
