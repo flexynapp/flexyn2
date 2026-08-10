@@ -3,7 +3,13 @@ name: Test
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - '**/*.md'
+      - '!docs/migrations-runbook.md'
   pull_request:
+    paths-ignore:
+      - '**/*.md'
+      - '!docs/migrations-runbook.md'
 
 concurrency:
   group: test-${{ github.ref }}
