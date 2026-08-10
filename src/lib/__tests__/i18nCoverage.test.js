@@ -314,6 +314,36 @@ describe('partial-gap ratchet', () => {
     'settings.export.',
     'settings.admin.',
     'settings.build.',
+    // Progress → Photos tab revamp, 2026-08-10. Same shape as the settings
+    // block above and listed exactly for the same reason: the `photos.`
+    // namespace already holds ~17 fully-translated keys, so a bare prefix
+    // would exempt those too and hide a real regression in them.
+    //
+    // Most of these do not reduce what a non-English user can read — they
+    // ADD a key where there was none. The compare slider shipped with
+    // "Compare Photos", "Before", "After", "Choose before", "N days apart",
+    // "Drag the divider to compare" and "Select two photos above to compare
+    // them" HARDCODED in English with no key at all, so a Spanish user read
+    // English there whether or not this list exists. The genuinely new copy
+    // is the Add-photo CTA, the empty-state hint and the viewer chrome.
+    // All `tFallback(key, 'English')`; prose, so CLAUDE.md forbids
+    // machine-translating it.
+    'photos.addPhoto',
+    'photos.emptyHint',
+    'photos.compare',
+    'photos.compareTitle',
+    'photos.compareBefore',
+    'photos.compareAfter',
+    'photos.compareChooseBefore',
+    'photos.compareChooseAfter',
+    'photos.compareApartOne',
+    'photos.compareApartMany',
+    'photos.compareDragHint',
+    'photos.compareEmpty',
+    'photos.viewer',
+    'photos.prev',
+    'photos.next',
+    'photos.position',
     // The rest sit inside namespaces that already hold translated keys, so
     // they are listed exactly rather than by prefix.
     'settings.inAppAlerts.hint',
