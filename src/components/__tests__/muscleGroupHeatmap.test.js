@@ -74,6 +74,31 @@ describe('buildMuscles — muscle-group vocabulary', () => {
     expect(m.lowerback.sets).toBe(0);
   });
 
+  /* A neck exercise is neck work, not a full-body session. The four neck
+     entries were tagged 'Full Body' back when this map DROPPED any name it
+     did not recognise, so the label cost nothing and nobody noticed it was
+     a lie. Teaching 'Full Body' to spread across all nine coarse groups
+     fixed the Olympic lifts and, in the same stroke, made three sets of
+     neck curls read the whole body as fatigued.
+
+     Note what this does NOT assert: traps in isolation. 'Traps' resolves
+     through GROUP_ALIASES to 'Back', which fans out to all three back
+     muscles, so the lats and lower back light up too. That is the coarse
+     model's granularity rather than a mislabel — the fix worth pinning is
+     that the far side of the body went dark. */
+  it('credits a neck exercise as back work, not as the whole body', () => {
+    const neck = EXERCISE_LIBRARY.find((e) => e.name === 'Lying Neck Curl');
+    const m = buildMuscles([log([ex(neck.name, neck.muscles)])], 30);
+    expect(m.traps.sets).toBe(1);
+    // Same coarse group, so these ride along by design.
+    expect(m.lats.sets).toBe(1);
+    expect(m.lowerback.sets).toBe(1);
+    // Everything 'Full Body' used to sweep in. A neck curl trains none of it.
+    for (const cold of ['quads', 'hamstrings', 'calves', 'glutes', 'chest', 'abs', 'biceps']) {
+      expect(m[cold].sets, `${cold} should not be trained by a neck curl`).toBe(0);
+    }
+  });
+
   /* No region may depend on Olympic lifting to exist.
      The naive form of this test — log the whole library, assert nothing is
      cold — PASSES against the bug it was written for, which is why it is
