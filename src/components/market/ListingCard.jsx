@@ -5,7 +5,6 @@ import { memo } from 'react';
 import { motion } from 'framer-motion';
 import { Zap, Lock, Heart, Star, Trash2 } from 'lucide-react';
 import FlexCoinIcon from '@/components/FlexCoinIcon';
-import * as itemSoldCounts from '@/lib/data/itemSoldCounts';
 import { displayName } from '@/lib/userDisplay';
 import { tileRow } from '@/lib/tileRows';
 import { listItemMotion } from '@/lib/listMotion';
@@ -33,7 +32,6 @@ function ListingCard({
   onOfferTrade,
   recentlySold = false,
   boughtByMe = false,
-  soldCount = 0,
   onSellerClick,
   onOpenDetail,
   isSaved = false,
@@ -49,7 +47,6 @@ function ListingCard({
   const isMine     = !!currentUser?.id && listing.seller_user_id === currentUser.id;
   const isSale     = listing.listing_type === 'sale';
   const canAfford  = isSale && flexCoins >= (listing.asking_price ?? 0);
-  const soldLabel  = itemSoldCounts.formatSoldCount(soldCount);
   const isFeatured = !!listing.is_featured
     && listing.featured_until
     && new Date(listing.featured_until) > new Date();
@@ -139,7 +136,6 @@ function ListingCard({
             {displayName(listing)}
           </button>
         )}
-        {soldLabel && <span> · {soldLabel}</span>}
       </p>
 
       {/* Listing type badge */}

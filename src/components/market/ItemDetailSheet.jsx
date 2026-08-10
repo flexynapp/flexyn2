@@ -20,7 +20,6 @@ import { useQuery } from '@tanstack/react-query';
 import { X, Zap, Lock, Heart, TrendingUp, Store } from 'lucide-react';
 import FlexCoinIcon from '@/components/FlexCoinIcon';
 import * as marketplace from '@/lib/data/marketplace';
-import * as itemSoldCounts from '@/lib/data/itemSoldCounts';
 import { findCatalogItem } from '@/lib/lootCatalog';
 import { displayName } from '@/lib/userDisplay';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
@@ -78,13 +77,6 @@ export default function ItemDetailSheet({
     staleTime: 5 * 60_000,
   });
 
-  const { data: soldMap } = useQuery({
-    queryKey: ['itemSoldCounts', itemId],
-    queryFn:  () => itemSoldCounts.countsFor([itemId]),
-    enabled:  !!itemId,
-    staleTime: 60_000,
-  });
-
   // Other live listings of the SAME item — the "can I get it cheaper right
   // now" answer. Cheapest first; sale listings before trade-only ones.
   const alternatives = useMemo(() => {
@@ -109,8 +101,6 @@ export default function ItemDetailSheet({
   const isMine      = !!currentUser?.id && listing.seller_user_id === currentUser.id;
   const isSale      = listing.listing_type === 'sale';
   const canAfford   = isSale && flexCoins >= (listing.asking_price ?? 0);
-  const soldCount   = soldMap?.get(listing.item_id) || 0;
-  const soldLabel   = itemSoldCounts.formatSoldCount(soldCount);
 
   // How this listing prices against the item's own history — the single
   // most useful number here, so it gets called out rather than left for
@@ -152,9 +142,6 @@ export default function ItemDetailSheet({
                 <p className="text-muted-foreground text-xs max-w-xs mt-0.5">
                   {catalogItem.description}
                 </p>
-              )}
-              {soldLabel && (
-                <p className="text-micro text-muted-foreground mt-0.5">{soldLabel} all-time</p>
               )}
             </div>
             <button
@@ -227,16 +214,17 @@ export default function ItemDetailSheet({
               )}
             </section>
           ) : (
-            // Copy has to hold when soldCount > 0 but priceStats is null —
-            // seen on device: "1 sold all-time" directly above "no sale
-            // history yet" reads as a contradiction. It isn't: the sold
-            // counter (mig 119) counts every completed listing including
-            // trades, while price history only covers completed SALE
-            // listings that carried a price.
+            // Neutral, because we no longer know. This used to branch on the
+            // sold count: "no priced sales yet" when the item had traded, and
+            // "you're early" when it had not. With the count gone there is
+            // nothing to tell those apart, and "you're early" is a claim about
+            // the world we would be making without checking it. Price history
+            // covers completed SALE listings that carried a price, which was
+            // never the same thing as the sold counter anyway (mig 119 counts
+            // trades too) — that mismatch is what put "1 sold all-time"
+            // directly above "no sale history yet" on device.
             <p className="text-micro text-muted-foreground">
-              {soldCount > 0
-                ? 'No priced sales recorded for this item yet.'
-                : "No sale history for this item yet — you're early."}
+              No priced sales recorded for this item yet.
             </p>
           )}
 

@@ -17,7 +17,6 @@ import { useAuth } from '@/lib/AuthContext';
 import { reportError } from '@/lib/reportError';
 import * as marketplace from '@/lib/data/marketplace';
 import * as inventory   from '@/lib/data/inventory';
-import * as itemSoldCounts from '@/lib/data/itemSoldCounts';
 import * as wishlist from '@/lib/data/marketplaceWishlist';
 import * as bundles from '@/lib/data/marketplaceBundles';
 import { getFlexCoins } from '@/lib/data/coinShop';
@@ -60,7 +59,6 @@ const LISTING_ROW = `${tileRow({ gap: 3, cols: 2, smCols: 3, align: 'start' }).r
 // identity every child sees — enough on its own to defeat memo() on all 60
 // cards and to re-run any effect that depends on the list.
 const NO_LISTINGS = [];
-const NO_COUNTS   = new Map();
 const NO_SAVED    = new Set();
 const NO_BUNDLES  = [];
 const NOOP = () => {};
@@ -173,18 +171,9 @@ export default function MarketplaceFeed() {
     [rawListings]
   );
 
-  // Sold-counts lookup — one bulk query for every visible listing's item_id.
-  // Re-runs only when the set of visible item_ids changes.
-  const visibleItemIds = useMemo(
-    () => Array.from(new Set(listings.map(l => l.item_id).filter(Boolean))),
-    [listings]
-  );
-  const { data: soldCountMap = NO_COUNTS } = useQuery({
-    queryKey: ['itemSoldCounts', visibleItemIds.join(',')],
-    queryFn:  () => itemSoldCounts.countsFor(visibleItemIds),
-    enabled:  visibleItemIds.length > 0,
-    staleTime: 60_000,
-  });
+  // (A bulk sold-counts lookup used to sit here, feeding a "· N sold" suffix
+  // under every tile's seller name. The count is gone from the UI, so the
+  // query is gone with it — it existed only to fill that line.)
 
   // Routes to /hub?profile=<user_id> — the canonical profile URL.
   const handleSellerClick = useCallback((sellerId) => {
@@ -470,7 +459,6 @@ export default function MarketplaceFeed() {
       await Promise.all([
         qc.invalidateQueries({ queryKey: ['marketplaceListings'] }),
         qc.invalidateQueries({ queryKey: ['marketplaceBundles'] }),
-        qc.invalidateQueries({ queryKey: ['itemSoldCounts'] }),
         qc.invalidateQueries({ queryKey: ['marketplaceWishlist', user?.id] }),
         qc.invalidateQueries({ queryKey: ['userInventory', user?.email] }),
         // The balance is a query now precisely so it can be in this list.
@@ -942,7 +930,6 @@ export default function MarketplaceFeed() {
                 <ListingCard
                   key={listing.id}
                   listing={listing}
-                  soldCount={soldCountMap.get(listing.item_id) || 0}
                   isSaved={savedIds.has(listing.id)}
                   {...cardProps}
                 />
@@ -956,7 +943,6 @@ export default function MarketplaceFeed() {
                 <ListingCard
                   key={`sold-${listing.id}`}
                   listing={listing}
-                  soldCount={soldCountMap.get(listing.item_id) || 0}
                   isSaved={savedIds.has(listing.id)}
                   {...soldCardProps}
                   boughtByMe={boughtByMeIds.has(listing.id)}

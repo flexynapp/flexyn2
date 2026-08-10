@@ -377,8 +377,10 @@ function QuickAddAvatarItem({ profile, onAdd, onViewProfile }) {
           type="button"
           whileTap={{ scale: 0.90 }}
           onClick={handleAddClick}
-          disabled={state === 'adding'}
-          aria-label={`Add ${profile.username}`}
+          disabled={state !== 'idle'}
+          aria-label={state === 'added'
+            ? `Added ${profile.username}`
+            : `Add ${profile.username}`}
           style={{
             position:  'absolute',
             bottom:    '100%',
@@ -386,25 +388,37 @@ function QuickAddAvatarItem({ profile, onAdd, onViewProfile }) {
             transform: 'translateX(-50%)',
             marginBottom: 6,
             zIndex: 10,
-            width: 68,
+            // Content-sized, capped at the cell. It was a hard `width: 68` —
+            // the width of the CELL — so the pill spanned its slot edge to
+            // edge and the only thing separating two of them was the rail's
+            // 8px gap. "Added" plus a tick does not fit 68px at the 11px
+            // floor, so the div overflowed the button on both sides and ate
+            // that gap: the confirmation visibly ran into the next person's
+            // "+ Add". Every non-English label is longer than "Added"
+            // (de "Hinzugefügt", pt "Adicionado"), so a fixed width was never
+            // going to hold anyway.
+            width: 'max-content',
+            maxWidth: 68,
           }}
           className="focus:outline-none"
         >
           <div
-            className={`flex items-center justify-center gap-0.5 px-2 py-1 rounded-xl border transition-colors ${
-              state === 'added'
-                ? 'bg-muted border-border'
-                : 'bg-orange-500/10 border-orange-500/40'
+            className={`flex items-center justify-center gap-0.5 py-1 rounded-xl border transition-colors whitespace-nowrap ${
+              state === 'added' ? 'px-1.5 bg-muted border-border' : 'px-2 bg-orange-500/10 border-orange-500/40'
             }`}
           >
             {state === 'adding' && <Loader2 className="w-2.5 h-2.5 text-orange-500 animate-spin" />}
-            {state === 'added'  && <Check   className="w-2.5 h-2.5 text-muted-foreground" />}
+            {state === 'added'  && <Check   className="w-3 h-3 text-muted-foreground stroke-[3]" />}
             {state === 'idle'   && <Plus    className="w-2.5 h-2.5 text-orange-500 stroke-[3]" />}
-            <span className={`text-micro font-bold select-none ${state === 'added' ? 'text-muted-foreground' : 'text-orange-500'}`}>
-              {state === 'added'
-                ? tFallback('stories.quickAdd.added', 'Added')
-                : tFallback('stories.quickAdd.add',   'Add')}
-            </span>
+            {/* No label once added. The tick is the whole message — the user
+                just pressed the thing, the row is one tap wide, and a word
+                here is what pushed the pill past its slot in the first
+                place. The state is still announced via aria-label. */}
+            {state !== 'added' && (
+              <span className="text-micro font-bold select-none text-orange-500">
+                {tFallback('stories.quickAdd.add', 'Add')}
+              </span>
+            )}
           </div>
         </motion.button>
 

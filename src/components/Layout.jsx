@@ -350,7 +350,14 @@ export default function Layout() {
       className="min-h-[100dvh] bg-background font-body overscroll-y-none"
     >
       {/* Desktop sidebar */}
-      <aside className="hidden lg:flex fixed start-0 top-0 bottom-0 w-64 flex-col bg-card border-e border-border z-30">
+      {/* `start-0` would pin this to the monitor's edge. On an ultrawide that
+          leaves the nav ~600px from the content it belongs to, so the two stop
+          reading as one app. --shell-inset is 0 until the viewport passes
+          --shell-max, so every narrower screen is byte-for-byte unchanged. */}
+      <aside
+        style={{ insetInlineStart: 'var(--shell-inset)' }}
+        className="hidden lg:flex fixed top-0 bottom-0 w-64 flex-col bg-card border-e border-border z-30"
+      >
         <div className="p-6 flex flex-col items-center gap-2">
           <Link to="/dashboard" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} aria-label="Flexyn — go to dashboard" className="flex items-center justify-center hover:opacity-80 transition-opacity">
             <FlexynLogo className="h-14" />
@@ -479,7 +486,10 @@ export default function Layout() {
           Everything else that positions against the header already had this
           right — ProfileMenu, FollowerActivityBanner, the Hub and Gauntlet
           sub-headers all add the inset. This was the one that didn't. */}
-      <main className="lg:ms-64 flex flex-col pt-[calc(56px+env(safe-area-inset-top))] pb-[calc(4rem+env(safe-area-inset-bottom))] lg:pb-0 overscroll-y-none">
+      {/* ps-64, not ms-64: the padding sits INSIDE the capped shell, so the
+          content column centres against the space beside the sidebar rather
+          than against the whole monitor. */}
+      <main className="lg:ps-64 max-w-[var(--shell-max)] mx-auto flex flex-col pt-[calc(56px+env(safe-area-inset-top))] pb-[calc(4rem+env(safe-area-inset-bottom))] lg:pb-0 overscroll-y-none">
         <Header />
         <PullToRefresh>
           {/* AnimatedRoutes owns the <Outlet /> — it keys the routed page

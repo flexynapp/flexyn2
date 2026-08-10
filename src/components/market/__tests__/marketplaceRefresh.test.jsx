@@ -87,7 +87,10 @@ describe('refresh scope — every query the view reads', () => {
   const DECLARED = [
     ['marketplaceListings', 'created_at', 'desc'],
     ['marketplaceBundles'],
-    ['itemSoldCounts', 'a,b'],
+    // No itemSoldCounts — the "· N sold" line was removed from the tiles and
+    // the detail sheet, and the bulk lookup that fed it went with it. These
+    // two lists are hand-maintained rather than read off the component, so
+    // they only stay honest if a query removal is mirrored here.
     ['marketplaceWishlist', 'user-1'],
     ['userInventory', 'kegan@example.com'],
     // The coin balance. It is a query at all BECAUSE it has to be in this
@@ -100,7 +103,6 @@ describe('refresh scope — every query the view reads', () => {
   const INVALIDATED = [
     ['marketplaceListings'],
     ['marketplaceBundles'],
-    ['itemSoldCounts'],
     ['marketplaceWishlist', 'user-1'],
     ['userInventory', 'kegan@example.com'],
     ['flexCoins', 'user-1'],

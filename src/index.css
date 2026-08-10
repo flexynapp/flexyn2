@@ -274,6 +274,28 @@
     --fluid-cta-h: clamp(3rem, calc(6.6 * var(--vhu)), 3.5rem);        /* pinned CTA      48→56 */
     --fluid-cta-gap: clamp(0.5rem, calc(1.8 * var(--vhu)), 1rem);      /* above the CTA    8→16 */
 
+    /* ── The desktop shell, and why it is capped ──────────────────────
+       This app is a single column drawn for a phone. On a wide desktop
+       the sidebar is `fixed start-0`, so it pins to the far LEFT EDGE of
+       the monitor while `max-w-5xl mx-auto` centres the content in
+       whatever is left. On a 1440 that reads fine. On an ultrawide the
+       two are ~600px apart with nothing between them, and the app stops
+       looking like one object — a nav bar marooned against the bezel and
+       a column floating somewhere to its right.
+
+       So the SHELL is capped and centred as a unit: the sidebar sits at
+       the shell's left edge rather than the viewport's, and the content
+       keeps its own reading measure inside. Widening the column instead
+       would be the wrong fix — a 1400px-wide single column of phone
+       cards is worse than a narrow one, and every layout in here is
+       tuned against `--fluid-*` for a 375-430pt viewport.
+
+       256px sidebar + 1024px (max-w-5xl) content + breathing room.
+       `--shell-inset` is 0 below the cap, so nothing about the phone,
+       tablet or laptop layout moves. */
+    --shell-max: 1500px;
+    --shell-inset: max(0px, calc((100vw - var(--shell-max)) / 2));
+
     /* ── Clearing the bottom nav ──────────────────────────────────────
        Anything that floats above Layout.jsx's fixed bottom nav must clear
        BOTH the nav and the home-indicator inset the nav pads itself with
