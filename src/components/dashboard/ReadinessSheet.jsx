@@ -27,8 +27,14 @@ import SleepLogCard from '@/components/dashboard/SleepLogCard';
 import MoodLogCard from '@/components/dashboard/MoodLogCard';
 import StepsLogCard from '@/components/dashboard/StepsLogCard';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { MOOD_LABELS } from '@/lib/data/moodLogs';
 
-const MOOD_LABELS = ['Drained', 'Low', 'OK', 'Good', 'Great'];
+// The mood scale is MOOD_LABELS in moodLogs.js — Awful / Meh / Okay / Good
+// / On fire — and this file had its own: Drained / Low / OK / Good / Great.
+// Both rendered IN THIS SHEET, about 200px apart: the breakdown row called a
+// mood "Drained" while MoodLogCard above it called the same value "Awful".
+// The local copy was also raw English with no tFallback, so it stayed
+// English in all 15 languages while the card beside it translated.
 
 export default function ReadinessSheet({ open, onClose, readiness, focus, onLogWorkout }) {
   // Pin the page behind this overlay — see @/lib/scrollLock.
@@ -84,7 +90,10 @@ export default function ReadinessSheet({ open, onClose, readiness, focus, onLogW
       weight: '25%',
       d: b.soreness,
       value: readiness?.mood?.mood
-        ? MOOD_LABELS[Math.max(0, Math.min(4, readiness.mood.mood - 1))]
+        ? (() => {
+            const i = Math.max(0, Math.min(4, readiness.mood.mood - 1));
+            return tFallback(`mood.label.${i + 1}`, MOOD_LABELS[i]);
+          })()
         : (readiness?.sleep?.soreness ? `Soreness ${readiness.sleep.soreness}/5` : null),
     },
     {
@@ -265,12 +274,29 @@ export default function ReadinessSheet({ open, onClose, readiness, focus, onLogW
             <button
               type="button"
               onClick={onClose}
+              // "Close", not "Save". This button has only ever called onClose:
+              // every control in the sheet commits on its own (mood on tap,
+              // sleep on interaction, steps on blur/Enter/its own check). A
+              // full-width primary CTA reading "Save" over three self-saving
+              // cards claimed those taps were uncommitted — and StepsLogCard
+              // sits directly above it with a REAL save button, so typing a
+              // count and reaching for the biggest save-looking control on
+              // screen dismissed the sheet and dropped the number. The steps
+              // input commits on blur now too; this label stops lying.
+              //
+              // `common.close` rather than a new `common.done`: it is already
+              // translated in 7 languages and it is the truthful verb, where a
+              // new key would be English-everywhere and the i18n pass is
+              // deliberately deferred. Board 02 could not be consulted for the
+              // drawn label — the Penpot bridge was down — so this takes the
+              // label that cannot misdescribe what the control does.
+              //
               // Drawn at 52px, which is no step on the height scale. --fluid-cta-h
               // is the app's own answer for exactly this control (clamp 48→56)
               // and lands on ~52 at the 390pt the board was drawn at.
               className="w-full mt-5 rounded-2xl bg-primary text-primary-foreground font-heading font-bold text-body h-[var(--fluid-cta-h)] shadow-md hover:brightness-105 active:scale-[0.98] transition-all"
             >
-              {tFallback('common.save', 'Save')}
+              {tFallback('common.close', 'Close')}
             </button>
           </div>
         </motion.div>

@@ -165,6 +165,13 @@ export default function StepsLogCard() {
               value={draft}
               onChange={e => setDraft(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
               onKeyDown={e => { if (e.key === 'Enter' && draft) save(draft); }}
+              // Commit on blur too. The check button and Enter were the ONLY
+              // ways to commit, and this card lives inside the Readiness sheet
+              // under a full-width primary button — so typing a count and
+              // reaching for the most save-looking control on the screen threw
+              // the number away. `save` is re-entrancy guarded (savingRef), so
+              // blur-then-click cannot double-write.
+              onBlur={() => { if (draft) save(draft); }}
               placeholder={logged != null ? fmt(logged) : tFallback('steps.placeholder', 'e.g. 8000')}
               aria-label={tFallback('steps.aria', 'Enter your step count')}
               className="flex-1 min-w-0 h-8 rounded-sm border border-border bg-secondary/50 px-2 text-sm font-mono text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/50"
