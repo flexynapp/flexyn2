@@ -8,7 +8,17 @@
   <!--
     Flexyn app icon, Iron Orange theme. Symbol auto-traced from the original
     artwork (exact shape preserved), rebuilt as vector for crisp edges at any size.
-    Iron slate tile (#3F4D5A, theme accent) with a fire gradient (theme primary).
+    Card-grey tile (#191F24 — the app's card surface) with a fire gradient
+    (theme primary).
+
+    The tile was #3F4D5A "iron slate" until 2026-08-10. Nothing in this file
+    was ever white, but slate is light enough that against dark browser chrome
+    the tile edge read as a pale outline around the mark — which is what it
+    looks like at 16px in a tab or the URL bar. #191F24 is the same grey as
+    every card surface in the app, so the tile sits down into dark chrome
+    instead of ringing it, and still has enough separation from black to keep
+    a defined square. If you ever see an actual white halo, that is the
+    different defect described below: transparency composited over white.
   -->
   <defs>
     <linearGradient id="flexynFire" x1="0" y1="1" x2="0" y2="0">
@@ -33,7 +43,7 @@
     This file is also referenced as an apple-touch-icon fallback in
     index.html, and iOS does not honour transparency there at all.
   -->
-  <rect x="0" y="0" width="491" height="491" fill="#3F4D5A"/>
+  <rect x="0" y="0" width="491" height="491" fill="#191F24"/>
   <!--
     Transforms read left to right.
 
