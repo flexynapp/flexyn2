@@ -58,6 +58,7 @@ import { parseLocalDate } from '@/lib/dateUtils';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { fromLbs, toLbs, formatWeight } from '@/lib/weightUnit';
 import { downloadCsv } from '@/lib/downloadCsv';
+import { workoutTitle } from '@/lib/workoutTitle';
 import { toast } from '@/lib/toast';
 
 // ── Push/pull/legs muscle categorization ──────────────────────────────────────
@@ -509,6 +510,19 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
   };
 
   const exportWorkouts = () => {
+    // `workout_logs` has no `regimen_name` column and never has — the client
+    // wrote it on every save, db.js's strip-and-retry dropped it, and the row
+    // persisted without it. So this read was `undefined` for every log ever
+    // written and the fallback was doing 100% of the work. `workoutTitle`
+    // owns the real column (`title`) and still tolerates `regimen_name` for
+    // the Coach's in-memory shape. Fixed on the write side in b5043ac5.
+    //
+    // The fallback IS localized even though the headers above are not: a
+    // header is schema, and translating it breaks whatever script the file
+    // is piped into, but this cell is a human-readable label the app made up
+    // about the user's own session. `progress.lastWorkout.freestyle` already
+    // names this exact concept — don't add a second key for it.
+    const freestyle = tFallback('progress.lastWorkout.freestyle', 'Freestyle Session');
     const rows = [['Date', 'Workout', 'Exercise', 'Set', `Weight (${weightUnit})`, 'Reps', 'Volume']];
     for (const log of logs || []) {
       for (const ex of log.exercises || []) {
@@ -517,7 +531,7 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
           const reps = Number(s.reps) || 0;
           rows.push([
             log.date || '',
-            log.regimen_name || 'Freestyle',
+            workoutTitle(log) || freestyle,
             ex.name || '',
             si + 1,
             w,

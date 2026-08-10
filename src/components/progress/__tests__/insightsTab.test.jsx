@@ -279,6 +279,36 @@ describe('CSV export', () => {
     expect(rows[0].join()).not.toMatch(/\(in\)|Arm|Thigh/);
   });
 
+  it('names the workout from `title`, the column that exists', () => {
+    // `workout_logs` has no `regimen_name`. The client wrote it anyway,
+    // db.js's strip-and-retry dropped it, and the row saved without it — so
+    // this column read `undefined` for every log ever written and the
+    // "Freestyle" fallback was doing all the work.
+    show({
+      logs: [{
+        date: '2026-08-07',
+        title: 'Push Day',
+        exercises: [{ name: 'Bench', sets: [{ weight: 135, reps: 5 }] }],
+      }],
+      userProfile: USER,
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Workout Logs/ }));
+
+    expect(downloadCsvMock.mock.calls[0][0][1][1]).toBe('Push Day');
+  });
+
+  it('falls back to the translated freestyle label, not an English literal', () => {
+    // Every historical row has a NULL title with no recoverable name, so
+    // this path is the common one and has to be translatable.
+    show({
+      logs: [{ date: '2026-08-07', exercises: [{ name: 'Bench', sets: [{ weight: 135, reps: 5 }] }] }],
+      userProfile: USER,
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Workout Logs/ }));
+
+    expect(downloadCsvMock.mock.calls[0][0][1][1]).toBe('Freestyle Session');
+  });
+
   it('keeps commas in notes instead of blanking them out', () => {
     // Notes used to be run through `.replace(/,/g, ' ')` because the writer
     // did not quote properly. downloadCsv quotes, so the text survives.
