@@ -50,6 +50,16 @@ const STATUS_COLOR = {
 function InjuryCard({ injury, onClear, onExtend, onDelete }) {
   const [extendDate, setExtendDate] = useState('');
   const [showExtend, setShowExtend] = useState(false);
+  // Delete was one tap with no confirm and no undo, on a control that silently
+  // changes what the app programs for you — clearing an injury and deleting it
+  // look identical afterwards, but only one of them is recoverable.
+  //
+  // Confirmed INLINE rather than with the Radix AlertDialog used elsewhere:
+  // this form is a `z-[200]` portal and AlertDialog's overlay and content are
+  // both `z-50`, so the dialog would render BEHIND the screen that opened it.
+  // A second full-screen modal over a full-screen modal is also the wrong
+  // shape on a phone.
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const isActive = injury.status !== 'cleared';
   const daysLeft = injury.estimated_recovery_date
     ? differenceInDays(new Date(injury.estimated_recovery_date), new Date())
@@ -67,11 +77,47 @@ function InjuryCard({ injury, onClear, onExtend, onDelete }) {
             {injury.severity}
           </span>
         </div>
-        <button onClick={() => onDelete(injury.id)} className="p-1 text-muted-foreground hover:text-destructive active:text-destructive transition-colors">
+        <button
+          onClick={() => setConfirmDelete(true)}
+          aria-label={`Delete ${injury.muscle_group} injury`}
+          className="p-1 text-muted-foreground hover:text-destructive active:text-destructive transition-colors"
+        >
           <Trash2 className="w-3.5 h-3.5" />
         </button>
       </div>
 
+      {/* Delete confirmation. Replaces the action row rather than sitting
+          beside it, so the destructive choice is the only thing to answer and
+          the card cannot grow taller mid-list. Names what is lost: an active
+          injury is also holding exercises out of your sessions, and deleting
+          it silently hands them back. */}
+      {confirmDelete ? (
+        <div className="mt-1">
+          <p className="text-xs text-muted-foreground mb-2">
+            Delete this {injury.muscle_group.toLowerCase()} entry? {isActive
+              ? 'Those exercises come back into your sessions straight away.'
+              : 'It leaves your history for good.'}
+          </p>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              className="flex-1 text-xs h-8"
+              onClick={() => setConfirmDelete(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              className="flex-1 text-xs h-8 bg-destructive text-destructive-foreground hover:bg-destructive/90 active:bg-destructive/90"
+              onClick={() => { setConfirmDelete(false); onDelete(injury.id); }}
+            >
+              Delete
+            </Button>
+          </div>
+        </div>
+      ) : (
+      <>
       {injury.notes && <p className="text-xs text-muted-foreground mb-2">{injury.notes}</p>}
 
       <div className="flex items-center gap-3 text-micro text-muted-foreground flex-wrap">
@@ -122,6 +168,8 @@ function InjuryCard({ injury, onClear, onExtend, onDelete }) {
             Save
           </Button>
         </div>
+      )}
+      </>
       )}
     </div>
   );

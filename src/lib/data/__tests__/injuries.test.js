@@ -224,3 +224,63 @@ describe('getExcludedMuscleGroups (pure)', () => {
     expect(excl.size).toBe(1);
   });
 });
+
+// ── The way out ──────────────────────────────────────────────────────────────
+//
+// Reporting an injury removes a muscle group from every generated session, and
+// until now the ONLY thing that offered it back was a clearance prompt gated on
+// `estimated_recovery_date` — a field filled in on 0 of the 6 injuries in
+// production. So the prompt had never rendered for anybody, and the live table
+// showed three active injuries open 26, 59 and 75 days with none cleared.
+//
+// These use the exact shapes from that table: no recovery date, real ages.
+describe('isCheckInDue — an injury without a recovery date still gets asked about', () => {
+  const TODAY = new Date('2026-08-09T12:00:00');
+  const at = (d) => ({ injured_at: d, status: 'active' });
+
+  it('asks about a mild injury after a week, not before', () => {
+    expect(injuries.isCheckInDue({ ...at('2026-08-04'), severity: 'mild' }, TODAY)).toBe(false); // 5d
+    expect(injuries.isCheckInDue({ ...at('2026-08-02'), severity: 'mild' }, TODAY)).toBe(true);  // 7d
+  });
+
+  it('gives a serious injury four weeks before asking', () => {
+    expect(injuries.isCheckInDue({ ...at('2026-07-20'), severity: 'serious' }, TODAY)).toBe(false); // 20d
+    expect(injuries.isCheckInDue({ ...at('2026-07-12'), severity: 'serious' }, TODAY)).toBe(true);  // 28d
+  });
+
+  it('is due for all three injuries actually sitting open in production', () => {
+    // Legs/mild 26d, Back/serious 59d, Glutes/mild 75d — none with a date.
+    // Every one of these was silently restricting training with nothing asking.
+    expect(injuries.isCheckInDue({ ...at('2026-07-15'), severity: 'mild' }, TODAY)).toBe(true);
+    expect(injuries.isCheckInDue({ ...at('2026-06-12'), severity: 'serious' }, TODAY)).toBe(true);
+    expect(injuries.isCheckInDue({ ...at('2026-05-27'), severity: 'mild' }, TODAY)).toBe(true);
+  });
+
+  it('lets an explicit recovery date win over the age fallback', () => {
+    // Told us six weeks on day one — do not nag at two.
+    const withEta = { ...at('2026-07-12'), severity: 'serious', estimated_recovery_date: '2026-08-23' };
+    expect(injuries.isCheckInDue(withEta, TODAY)).toBe(false);
+    expect(injuries.isCheckInDue({ ...withEta, estimated_recovery_date: '2026-08-09' }, TODAY)).toBe(true);
+  });
+
+  it('never asks about a cleared injury', () => {
+    expect(injuries.isCheckInDue({ ...at('2026-05-27'), severity: 'mild', status: 'cleared' }, TODAY)).toBe(false);
+  });
+
+  it('treats an unknown or missing severity as moderate', () => {
+    expect(injuries.checkInIntervalDays(undefined)).toBe(14);
+    expect(injuries.checkInIntervalDays('sprained-ish')).toBe(14);
+  });
+
+  it('reads a bare date as a LOCAL day, so the count is not off by one', () => {
+    // `new Date('2026-08-02')` is UTC midnight — the previous local day for
+    // everyone west of Greenwich, which is what made the coach digest report
+    // every "days ago" one high.
+    expect(injuries.isCheckInDue({ ...at('2026-08-02'), severity: 'mild' }, new Date('2026-08-09T00:30:00'))).toBe(true);
+  });
+
+  it('degrades rather than throwing on a row with no date at all', () => {
+    expect(injuries.isCheckInDue({ status: 'active', severity: 'mild' }, TODAY)).toBe(false);
+    expect(injuries.isCheckInDue(null, TODAY)).toBe(false);
+  });
+});
