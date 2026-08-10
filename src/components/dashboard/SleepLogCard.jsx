@@ -32,10 +32,15 @@ const HOURS = [
 ];
 const QUALITY_LABELS = ['Poor', 'Fair', 'OK', 'Good', 'Great'];
 
+// Returns the label WITHOUT a unit — every caller appends its own. It used
+// to return `${h}h` on the fallback branch while the summary appended "h"
+// too, so any value outside the five buckets rendered "7.5hh". Buckets are
+// not the only writer: upsertSleepLog takes any number, so a 7.5 from
+// anywhere else showed up doubled.
 const hoursLabelFor = (h) => {
   if (h == null) return null;
   const match = HOURS.find((o) => o.value === h);
-  return match ? match.label : `${h}h`;
+  return match ? match.label : String(h);
 };
 
 export default function SleepLogCard() {
@@ -162,7 +167,11 @@ export default function SleepLogCard() {
                 onClick={() => save({ nextHours: o.value })}
                 role="radio"
                 aria-checked={active}
-                aria-label={tFallback('sleep.hoursLabel', `${o.label} hours`)}
+                // Per-BUCKET key. A single 'sleep.hoursLabel' interpolates fine
+                // in English, but the moment a translator fills it in, all
+                // five buttons announce identically to a screen reader —
+                // the value is in the fallback string, not in the key.
+                aria-label={tFallback(`sleep.hours.${o.label}`, `${o.label} hours`)}
                 className={[
                   'flex-1 min-w-[44px] min-h-[36px] rounded-lg text-xs font-bold tabular-nums transition-transform flex items-center justify-center',
                   active ? 'bg-primary/15 text-primary scale-105' : 'bg-secondary text-muted-foreground hover:text-foreground active:text-foreground hover:scale-105',
