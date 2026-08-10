@@ -171,13 +171,31 @@ const GUIDE_STROKE = 'hsl(var(--mmap-ink) / 0.5)';
 const GUIDE_STROKE_ACTIVE = 'hsl(var(--mmap-ink))';
 const LEG_GROUPS = new Set(['hamstrings', 'calves']);
 
+/* The figure sizes itself from its own 520:1005 viewBox rather than being
+   pinned to a height, and this is a phone fix specifically.
+
+   The slot used to be a flat `height: 430`. At a wide column that is
+   right — the figure fits by HEIGHT and fills the box. At a phone column
+   it fits by WIDTH instead and then floats in the middle of a box that is
+   too tall: measured at a 375px viewport the slot was 157x430 while the
+   figure painted 287, leaving 71px dead above AND below. A third of the
+   card's figure area was empty on the only widths this app ships to.
+
+   `height: auto` on an SVG with a viewBox takes the intrinsic ratio, so
+   the box now ends where the figure does. The cap keeps every wider
+   viewport at exactly the scale the design was drawn at — above ~222px of
+   column the aspect would ask for more than 430 and `meet` letterboxes
+   horizontally instead, which is the old behaviour unchanged. No phone
+   reaches that: a 430px Pro Max column works out at 373. */
+const FIGURE_MAX_H = 430;
+
 function Figure({ groups, viewBox, getFill, sel, onSel, vid, mirrorAxis }) {
   const mirrorT = mirrorAxis ? `translate(${2 * mirrorAxis},0) scale(-1,1)` : null;
   const legMirror = (grp) => mirrorT && LEG_GROUPS.has(grp.g);
   const allPaths = groups.flatMap((grp) => grp.paths);
   const legPaths = mirrorT ? groups.filter((g) => LEG_GROUPS.has(g.g)).flatMap((g) => g.paths) : [];
   return (
-    <svg viewBox={viewBox} preserveAspectRatio="xMidYMid meet" style={{ width: '100%', height: '100%', overflow: 'visible' }}>
+    <svg viewBox={viewBox} preserveAspectRatio="xMidYMid meet" style={{ width: '100%', height: 'auto', maxHeight: FIGURE_MAX_H, overflow: 'visible' }}>
       <defs>
         <mask id={`bm-${vid}`}>
           {allPaths.map((d, i) => <path key={i} d={d} fill="#fff" />)}
@@ -464,7 +482,7 @@ export default function MuscleGroupHeatmap({ logs }) {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0 }}>
             {[{ k: 'FRONT', F: FrontFigure }, { k: 'BACK', F: BackFigure }].map(({ k, F }) => (
               <div key={k} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                <div style={{ width: '100%', height: 430 }}>
+                <div style={{ width: '100%' }}>
                   <F getFill={getFill} sel={sel} onSel={setSel} />
                 </div>
                 <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, fontWeight: 800, letterSpacing: '0.22em', color: 'hsl(var(--muted-foreground))', marginTop: 4 }}>{k}</div>
