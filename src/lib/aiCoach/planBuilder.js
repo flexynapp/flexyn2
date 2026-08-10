@@ -588,7 +588,7 @@ function formatNum(n) {
  *     goal, label,
  *   }
  */
-export async function buildCoachPlan({ user, message, profile = {}, excludeMuscleGroups } = {}) {
+export async function buildCoachPlan({ user, message, profile = {}, excludeMuscleGroups, t, language } = {}) {
   const parsed = parseWorkoutGoal(message);
 
   if (parsed.wantsPlan) {
@@ -656,6 +656,8 @@ export async function buildCoachPlan({ user, message, profile = {}, excludeMuscl
     weeklyRateLbs: profile.weekly_rate_lbs,
     age:           profileAge(profile),
     restrictions:  Array.isArray(profile.dietary_restrictions) ? profile.dietary_restrictions : [],
+    // Forwarded from askCoach's ctx. Absent → English, per coachI18n.js.
+    t, language,
   });
 
   const workout = await generateWorkout({

@@ -17,6 +17,64 @@ const enKeys = {
   // English-only for now; tFallback carries it on the other 14 languages
   // until a native pass, per the no-machine-translation rule in CLAUDE.md.
   'coach.capped':          "You've hit today's limit for detailed answers — back to the basics until tomorrow.",
+
+  // ── Generated plan notes (src/lib/aiCoach/trainingModifiers.js) ──────────
+  //
+  // TODO(i18n): English only, per the no-machine-translation rule. These are
+  // advice sentences, not labels — a bad translation here tells someone the
+  // wrong thing about training under a deficit or around ovulation, so they
+  // need a native pass rather than a quick fill.
+  //
+  // Each of these is ALSO present as the tFallback fallback at its point of
+  // use in trainingModifiers.js. That duplication is deliberate: the module
+  // is pure and cannot reach this file, so the English has to travel with the
+  // rule it belongs to. If you edit a sentence here, edit it there too.
+  'coach.note.cycle.menstrual':  'Period week — starting ~5% lighter. If cramps or fatigue hit, drop a set; if you feel fine, ignore this and train as normal.',
+  'coach.note.cycle.follicular': 'Follicular phase. Many people feel strongest here, but the evidence is mixed — go by how the warm-up sets move, not the calendar.',
+  'coach.note.cycle.ovulation':  'Around ovulation, oestrogen peaks and ligaments sit a little laxer — take an extra warm-up set and be strict on knee tracking in squats, lunges and any landing.',
+  'coach.note.cycle.luteal':     'Luteal phase — core temperature runs higher and the same weight can feel heavier. Longer rests are built in; judge the session on effort, not the number.',
+  'coach.note.diet.lose':        'You are eating in a deficit, so this session trims a set and keeps the weight heavy — intensity is what protects strength while cutting.',
+  'coach.note.diet.gain':        'You are eating in a surplus — there is room for an extra set.',
+  'coach.note.feel.good':        'You said you feel good — nudged slightly heavier. Stop the set with a rep in reserve.',
+  'coach.note.feel.rough':       'You said you feel rough — lighter, shorter and with more rest. Showing up counts; this still maintains.',
+  'coach.note.goal.strength':    'Built for strength: lower reps, longer rests.',
+  'coach.note.goal.muscle':      'Built for hypertrophy: moderate reps, moderate rests.',
+  'coach.note.goal.lose':        'Built for a cut: slightly higher reps, tighter rests to keep the heart rate up.',
+  'coach.note.goal.endurance':   'Built for endurance: higher reps, short rests.',
+  'coach.note.goal.speed':       'Speed work: keep the bar moving fast and the rests short.',
+  'coach.note.goal.mobility':    'Mobility is one of your goals — give the warm-up its full time and take the end-range positions slowly.',
+  // {goals} is a locale-formatted list. Keep the placeholder — do NOT split
+  // this into fragments joined with a comma; that is the bug the list
+  // formatter exists to prevent.
+  'coach.note.goal.blend':       'Balancing {goals} — reps and rests land between what each one would ask for on its own.',
+  'coach.note.ageRest':          'Rest is {sec}s longer than the default — recovery between sets slows with age, and rushing it turns a strength session into a conditioning one.',
+  // Goal labels, used only inside the blend sentence above.
+  'coach.goal.strength.label':   'strength',
+  'coach.goal.muscle.label':     'muscle',
+  'coach.goal.lose.label':       'fat loss',
+  'coach.goal.endurance.label':  'endurance',
+  'coach.goal.speed.label':      'speed',
+  'coach.goal.mobility.label':   'mobility',
+  // Post-workout fuel. The food name is its own key so the sentence and the
+  // food can be translated independently — word order differs.
+  'coach.note.fuel.named':       'Refuel within a couple of hours — {food} works.',
+  'coach.note.fuel.generic':     'Refuel within a couple of hours: a protein source and a carb source that fit your plan.',
+  'coach.fuel.greek_yogurt_and_some_fruit': 'Greek yogurt and some fruit',
+  'coach.fuel.chicken_and_rice':            'chicken and rice',
+  'coach.fuel.eggs_and_toast':              'eggs and toast',
+  'coach.fuel.salmon_and_potatoes':         'salmon and potatoes',
+  'coach.fuel.a_tofu_rice_bowl':            'a tofu rice bowl',
+  'coach.fuel.lentils_and_rice':            'lentils and rice',
+  'coach.fuel.eggs_and_avocado':            'eggs and avocado',
+  'coach.fuel.beef_and_sweet_potato':       'beef and sweet potato',
+  'coach.fuel.chicken_and_avocado':         'chicken and avocado',
+  // Daily check-in chips (rendered by WorkoutQuickGenerator).
+  'coach.feel.good.label':  'Good',
+  'coach.feel.good.hint':   'Strong, ready to push',
+  'coach.feel.ok.label':    'OK',
+  'coach.feel.ok.hint':     'Normal day',
+  'coach.feel.rough.label': 'Rough',
+  'coach.feel.rough.hint':  'Tired, sore or cramping',
 };
 
 const esKeys = {

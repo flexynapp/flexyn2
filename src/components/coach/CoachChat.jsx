@@ -241,6 +241,10 @@ export default function CoachChat({ mode, onSaveRegimen, onStartWorkout }) {
         excludeMuscleGroups,
         coachContext: coachContext || {},
         language,
+        // The rules-engine path builds its reply from pure modules that
+        // cannot call a hook, so the translator travels with the context.
+        // Same shape as `language` beside it. See aiCoach/coachI18n.js.
+        t: tFallback,
         // The thread so far, so the coach can follow "make it shorter" or
         // "why?" — the regex router parsed every message with no memory of
         // the previous one, which is most of why it felt robotic. Error

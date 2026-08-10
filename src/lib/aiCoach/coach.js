@@ -66,6 +66,10 @@ export async function askCoach(user, message, ctx = {}) {
           message: llm.goal || message,
           profile: ctx.profile || {},
           excludeMuscleGroups: ctx.excludeMuscleGroups,
+          // The model writes the intro copy on this path, but the plan's
+          // NOTES still come from trainingModifiers and need the language.
+          t: ctx.t,
+          language: ctx.language,
         });
         return {
           reply: llm.reply || reply,
@@ -130,6 +134,8 @@ async function _rulesReply(user, message, ctx = {}) {
         message,
         profile: ctx.profile || {},
         excludeMuscleGroups: ctx.excludeMuscleGroups,
+        t: ctx.t,
+        language: ctx.language,
       });
       return { reply, intent, source: 'plan', plan };
     } catch (err) {

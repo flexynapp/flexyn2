@@ -262,6 +262,25 @@ describe('partial-gap ratchet', () => {
     // design (a localized header breaks whatever script the file is piped
     // into), so they are literals at the call site rather than keys.
     'insights.',
+    // AI Coach generated text (2026-08-10). Narrow prefixes, not a bare
+    // `coach.`, for the reason `league.gate.` is narrow: `coach.title`,
+    // `coach.subtitle`, `coach.placeholder` and the welcome copy ARE
+    // translated in several languages, and a blanket prefix would stop
+    // guarding them.
+    //
+    // These are the coach's own sentences — training advice, not labels — so
+    // CLAUDE.md forbids machine-translating them outright. A wrong
+    // translation here tells someone the wrong thing about lifting in a
+    // deficit or about ligament laxity around ovulation.
+    //
+    // Note the English lives TWICE on purpose: here, and as the tFallback
+    // fallback at the point of use. The generators are pure modules that
+    // cannot reach an i18n file, so the sentence has to travel with the rule
+    // it belongs to. Edit both or they drift.
+    'coach.note.',
+    'coach.goal.',
+    'coach.fuel.',
+    'coach.feel.',
     'quests.',
     'quest.cardio_session.',
     'quest.log_sleep.',

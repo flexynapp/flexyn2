@@ -34,7 +34,7 @@ const TYPE_OPTIONS = [
 
 export default function WorkoutQuickGenerator({ userProfile = {}, onSaveRegimen, onStartWorkout }) {
   const { user } = useAuth();
-  const { tFallback } = useLanguage();
+  const { tFallback, language } = useLanguage();
   const [type, setType] = useState('strength');
   const [focus, setFocus] = useState('full_body');
   const [cardioStyle, setCardioStyle] = useState('easy');
@@ -96,6 +96,11 @@ export default function WorkoutQuickGenerator({ userProfile = {}, onSaveRegimen,
         // something the user can't eat. loadRestrictions falls back to the
         // localStorage copy when the profile column isn't populated.
         restrictions:  loadRestrictions(userProfile),
+        // The plan notes render on CoachPlanCard, so they have to speak the
+        // user's language. `tFallback` has exactly the signature the pure
+        // modules expect — see coachI18n.js.
+        t: tFallback,
+        language,
       });
       const excludeMuscleGroups = getExcludedMuscleGroups(activeInjuries);
       const demographics = {
@@ -215,7 +220,7 @@ export default function WorkoutQuickGenerator({ userProfile = {}, onSaveRegimen,
                 key={opt.id}
                 type="button"
                 aria-pressed={feel === opt.id}
-                title={opt.hint}
+                title={tFallback(opt.hintKey, opt.hint)}
                 onClick={() => setFeel(feel === opt.id ? null : opt.id)}
                 className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
                   feel === opt.id
@@ -223,7 +228,7 @@ export default function WorkoutQuickGenerator({ userProfile = {}, onSaveRegimen,
                     : 'bg-background border-border text-foreground hover:border-primary/50 hover:bg-secondary active:bg-secondary'
                 }`}
               >
-                <span aria-hidden="true">{opt.emoji}</span> {opt.label}
+                <span aria-hidden="true">{opt.emoji}</span> {tFallback(opt.labelKey, opt.label)}
               </button>
             ))}
           </div>

@@ -33,6 +33,15 @@
 // the modifiers are identity (×1.0, +0, +0) and the generated workout is
 // byte-identical to what it was before this module existed.
 
+import { asT } from './coachI18n';
+import { formatList } from '@/lib/intl';
+
+// Every note below carries `noteKey` beside its English. The English stays
+// in the table rather than moving to i18n-coach.js alone, because it is the
+// tFallback fallback — a locale with no coach translations must render this
+// exact sentence, and keeping it at the point of use is what stops the two
+// drifting. See coachI18n.js for why `t` arrives as an argument.
+
 /** Optional daily check-in. When present it overrides the phase load nudge. */
 export const FEEL = {
   good:  'good',
@@ -41,9 +50,14 @@ export const FEEL = {
 };
 
 export const FEEL_OPTIONS = [
-  { id: FEEL.good,  label: 'Good',  emoji: '💪', hint: 'Strong, ready to push' },
-  { id: FEEL.ok,    label: 'OK',    emoji: '👍', hint: 'Normal day' },
-  { id: FEEL.rough, label: 'Rough', emoji: '🥱', hint: 'Tired, sore or cramping' },
+  // labelKey/hintKey are for WorkoutQuickGenerator, which renders these and
+  // HAS a hook. The English stays as the tFallback fallback.
+  { id: FEEL.good,  label: 'Good',  emoji: '💪', hint: 'Strong, ready to push',
+    labelKey: 'coach.feel.good.label',  hintKey: 'coach.feel.good.hint' },
+  { id: FEEL.ok,    label: 'OK',    emoji: '👍', hint: 'Normal day',
+    labelKey: 'coach.feel.ok.label',    hintKey: 'coach.feel.ok.hint' },
+  { id: FEEL.rough, label: 'Rough', emoji: '🥱', hint: 'Tired, sore or cramping',
+    labelKey: 'coach.feel.rough.label', hintKey: 'coach.feel.rough.hint' },
 ];
 
 // Load multipliers are intentionally shallow. ±5% is inside the noise of a
@@ -54,11 +68,13 @@ const CYCLE_RULES = {
   menstrual: {
     load: 0.95,
     restSec: 15,
+    noteKey: 'coach.note.cycle.menstrual',
     note: 'Period week — starting ~5% lighter. If cramps or fatigue hit, drop a set; if you feel fine, ignore this and train as normal.',
   },
   follicular: {
     load: 1.0,
     restSec: 0,
+    noteKey: 'coach.note.cycle.follicular',
     note: 'Follicular phase. Many people feel strongest here, but the evidence is mixed — go by how the warm-up sets move, not the calendar.',
   },
   ovulation: {
@@ -66,11 +82,13 @@ const CYCLE_RULES = {
     restSec: 0,
     // The one phase note that is NOT hedged: oestrogen peak is associated
     // with greater ligament laxity and elevated ACL injury risk.
+    noteKey: 'coach.note.cycle.ovulation',
     note: 'Around ovulation, oestrogen peaks and ligaments sit a little laxer — take an extra warm-up set and be strict on knee tracking in squats, lunges and any landing.',
   },
   luteal: {
     load: 0.95,
     restSec: 15,
+    noteKey: 'coach.note.cycle.luteal',
     note: 'Luteal phase — core temperature runs higher and the same weight can feel heavier. Longer rests are built in; judge the session on effort, not the number.',
   },
 };
@@ -81,10 +99,12 @@ const CYCLE_RULES = {
 const DIET_RULES = {
   lose: {
     sets: -1,
+    noteKey: 'coach.note.diet.lose',
     note: 'You are eating in a deficit, so this session trims a set and keeps the weight heavy — intensity is what protects strength while cutting.',
   },
   gain: {
     sets: +1,
+    noteKey: 'coach.note.diet.gain',
     note: 'You are eating in a surplus — there is room for an extra set.',
   },
   maintain: { sets: 0, note: '' },
@@ -103,48 +123,57 @@ const DIET_RULES = {
 // no way to know whether the user's chicken is certified, and a wrong
 // suggestion is worse than a vaguer one.
 const FUEL_OPTIONS = [
-  { text: 'Greek yogurt and some fruit', avoids: ['dairy_free', 'vegan', 'keto', 'paleo'] },
-  { text: 'chicken and rice',            avoids: ['vegetarian', 'vegan', 'keto', 'paleo', 'halal', 'kosher'] },
-  { text: 'eggs and toast',              avoids: ['egg', 'gluten_free', 'vegan', 'keto', 'paleo'] },
-  { text: 'salmon and potatoes',         avoids: ['fish', 'vegetarian', 'vegan', 'keto'] },
-  { text: 'a tofu rice bowl',            avoids: ['soy', 'keto', 'paleo'] },
-  { text: 'lentils and rice',            avoids: ['keto', 'paleo'] },
-  { text: 'eggs and avocado',            avoids: ['egg', 'vegan'] },
-  { text: 'beef and sweet potato',       avoids: ['vegetarian', 'vegan', 'keto', 'halal', 'kosher'] },
-  { text: 'chicken and avocado',         avoids: ['vegetarian', 'vegan', 'halal', 'kosher'] },
+  { text: 'Greek yogurt and some fruit', key: 'coach.fuel.greek_yogurt_and_some_fruit', avoids: ['dairy_free', 'vegan', 'keto', 'paleo'] },
+  { text: 'chicken and rice', key: 'coach.fuel.chicken_and_rice',            avoids: ['vegetarian', 'vegan', 'keto', 'paleo', 'halal', 'kosher'] },
+  { text: 'eggs and toast', key: 'coach.fuel.eggs_and_toast',              avoids: ['egg', 'gluten_free', 'vegan', 'keto', 'paleo'] },
+  { text: 'salmon and potatoes', key: 'coach.fuel.salmon_and_potatoes',         avoids: ['fish', 'vegetarian', 'vegan', 'keto'] },
+  { text: 'a tofu rice bowl', key: 'coach.fuel.a_tofu_rice_bowl',            avoids: ['soy', 'keto', 'paleo'] },
+  { text: 'lentils and rice', key: 'coach.fuel.lentils_and_rice',            avoids: ['keto', 'paleo'] },
+  { text: 'eggs and avocado', key: 'coach.fuel.eggs_and_avocado',            avoids: ['egg', 'vegan'] },
+  { text: 'beef and sweet potato', key: 'coach.fuel.beef_and_sweet_potato',       avoids: ['vegetarian', 'vegan', 'keto', 'halal', 'kosher'] },
+  { text: 'chicken and avocado', key: 'coach.fuel.chicken_and_avocado',         avoids: ['vegetarian', 'vegan', 'halal', 'kosher'] },
 ];
 
 /**
  * Build a post-workout fuel line that respects the user's restrictions.
  * @param {string[]} restrictions ids from DIETARY_RESTRICTIONS / ALLERGENS
  */
-export function fuelNote(restrictions = []) {
+export function fuelNote(restrictions = [], t) {
+  const T = asT(t);
   const blocked = new Set(
     (Array.isArray(restrictions) ? restrictions : []).map(r => String(r).toLowerCase())
   );
   const safe = FUEL_OPTIONS.find(o => !o.avoids.some(a => blocked.has(a)));
+  // The food name is a key of its own rather than being baked into the
+  // sentence: a translator needs to render "Greek yogurt and some fruit" in
+  // their language, and splitting it out is also what lets the un-named
+  // fallback below stay a single separate sentence rather than a template
+  // with an awkward hole in it.
   return safe
-    ? `Refuel within a couple of hours — ${safe.text} works.`
-    : 'Refuel within a couple of hours: a protein source and a carb source that fit your plan.';
+    ? T('coach.note.fuel.named', 'Refuel within a couple of hours — {food} works.', {
+        food: T(safe.key, safe.text),
+      })
+    : T('coach.note.fuel.generic',
+        'Refuel within a couple of hours: a protein source and a carb source that fit your plan.');
 }
 
 const FEEL_RULES = {
-  good:  { load: 1.05, sets:  0, restSec:   0, note: 'You said you feel good — nudged slightly heavier. Stop the set with a rep in reserve.' },
+  good:  { load: 1.05, sets:  0, restSec:   0, noteKey: 'coach.note.feel.good', note: 'You said you feel good — nudged slightly heavier. Stop the set with a rep in reserve.' },
   ok:    { load: 1.0,  sets:  0, restSec:   0, note: '' },
-  rough: { load: 0.85, sets: -1, restSec:  30, note: 'You said you feel rough — lighter, shorter and with more rest. Showing up counts; this still maintains.' },
+  rough: { load: 0.85, sets: -1, restSec:  30, noteKey: 'coach.note.feel.rough', note: 'You said you feel rough — lighter, shorter and with more rest. Showing up counts; this still maintains.' },
 };
 
 // Goal shapes the rep/rest character of the session.
 const GOAL_RULES = {
-  strength: { repDelta: -2, restSec:  30, label: 'strength',  note: 'Built for strength: lower reps, longer rests.' },
-  muscle:   { repDelta:  0, restSec:   0, label: 'muscle',    note: 'Built for hypertrophy: moderate reps, moderate rests.' },
-  lose:     { repDelta: +2, restSec: -15, label: 'fat loss',  note: 'Built for a cut: slightly higher reps, tighter rests to keep the heart rate up.' },
-  endurance:{ repDelta: +4, restSec: -20, label: 'endurance', note: 'Built for endurance: higher reps, short rests.' },
+  strength: { repDelta: -2, restSec:  30, label: 'strength',  labelKey: 'coach.goal.strength.label', noteKey: 'coach.note.goal.strength', note: 'Built for strength: lower reps, longer rests.' },
+  muscle:   { repDelta:  0, restSec:   0, label: 'muscle',    labelKey: 'coach.goal.muscle.label', noteKey: 'coach.note.goal.muscle', note: 'Built for hypertrophy: moderate reps, moderate rests.' },
+  lose:     { repDelta: +2, restSec: -15, label: 'fat loss',  labelKey: 'coach.goal.lose.label', noteKey: 'coach.note.goal.lose', note: 'Built for a cut: slightly higher reps, tighter rests to keep the heart rate up.' },
+  endurance:{ repDelta: +4, restSec: -20, label: 'endurance', labelKey: 'coach.goal.endurance.label', noteKey: 'coach.note.goal.endurance', note: 'Built for endurance: higher reps, short rests.' },
   // Onboarding offers these two as well. `speed` trains like conditioning in a
   // lifting session; `mobility` doesn't change loading at all, so it carries a
   // note and no numbers rather than being silently dropped into `general`.
-  speed:    { repDelta: +3, restSec: -15, label: 'speed',     note: 'Speed work: keep the bar moving fast and the rests short.' },
-  mobility: { repDelta:  0, restSec:   0, label: 'mobility',  note: 'Mobility is one of your goals — give the warm-up its full time and take the end-range positions slowly.' },
+  speed:    { repDelta: +3, restSec: -15, label: 'speed',     labelKey: 'coach.goal.speed.label', noteKey: 'coach.note.goal.speed', note: 'Speed work: keep the bar moving fast and the rests short.' },
+  mobility: { repDelta:  0, restSec:   0, label: 'mobility',  labelKey: 'coach.goal.mobility.label', noteKey: 'coach.note.goal.mobility', note: 'Mobility is one of your goals — give the warm-up its full time and take the end-range positions slowly.' },
   general:  { repDelta:  0, restSec:   0, label: 'general',   note: '' },
 };
 
@@ -267,7 +296,13 @@ export function buildTrainingModifiers({
   weeklyRateLbs = null,
   restrictions = [],
   age = null,
+  // Defaults to English, so every caller that predates this — and every
+  // existing test — gets byte-identical output. Same posture as the three
+  // context inputs above. See coachI18n.js.
+  t = null,
+  language = 'en',
 } = {}) {
+  const T = asT(t);
   const notes = [];
   const applied = { goal: null, diet: null, cycle: null, feel: null };
 
@@ -293,18 +328,25 @@ export function buildTrainingModifiers({
   applied.goals = goalKeys;
 
   if (goalKeys.length === 1) {
-    if (rules[0].note) notes.push(rules[0].note);
+    if (rules[0].note) notes.push(T(rules[0].noteKey, rules[0].note));
   } else {
     // Name what is being balanced, so a blended session doesn't look like the
     // Coach ignored half the profile.
-    const labels = rules.map(r => r.label);
-    const list = labels.length === 2
-      ? `${labels[0]} and ${labels[1]}`
-      : `${labels.slice(0, -1).join(', ')} and ${labels[labels.length - 1]}`;
-    notes.push(`Balancing ${list} — reps and rests land between what each one would ask for on its own.`);
+    //
+    // This used to hand-roll English grammar — `labels.slice(0, -1).join(', ')
+    // + ' and ' + last` — which is a conjunction no other language forms the
+    // same way. `formatList` is the locale's own rule.
+    const list = formatList(rules.map(r => T(r.labelKey, r.label)), language);
+    notes.push(T(
+      'coach.note.goal.blend',
+      'Balancing {goals} — reps and rests land between what each one would ask for on its own.',
+      { goals: list },
+    ));
     // Mobility changes nothing numerically, so its standalone advice would be
     // lost in the blend. Keep it.
-    if (goalKeys.includes('mobility')) notes.push(GOAL_RULES.mobility.note);
+    if (goalKeys.includes('mobility')) {
+      notes.push(T(GOAL_RULES.mobility.noteKey, GOAL_RULES.mobility.note));
+    }
   }
 
   // ── Diet: volume ──────────────────────────────────────────────────────
@@ -312,12 +354,12 @@ export function buildTrainingModifiers({
   const dietRule = DIET_RULES[dietKey] || DIET_RULES.maintain;
   setsDelta   += dietRule.sets;
   applied.diet = dietKey;
-  if (dietRule.note) notes.push(dietRule.note);
+  if (dietRule.note) notes.push(T(dietRule.noteKey, dietRule.note));
   // Fuel advice is restriction-filtered and only offered when the user is
   // actually pushing calories in one direction — a maintenance day doesn't
   // need to be told what to eat.
   if (dietKey !== 'maintain') {
-    notes.push(fuelNote(restrictions));
+    notes.push(fuelNote(restrictions, T));
     applied.restrictions = (restrictions || []).length;
   }
 
@@ -334,7 +376,7 @@ export function buildTrainingModifiers({
       loadMultiplier *= cycleRule.load;
       restDeltaSec   += cycleRule.restSec;
     }
-    if (cycleRule.note) notes.push(cycleRule.note);
+    if (cycleRule.note) notes.push(T(cycleRule.noteKey, cycleRule.note));
   }
 
   // ── Feel: overrides the phase guess ───────────────────────────────────
@@ -344,7 +386,7 @@ export function buildTrainingModifiers({
     setsDelta      += feelRule.sets;
     restDeltaSec   += feelRule.restSec;
     applied.feel    = feel;
-    if (feelRule.note) notes.push(feelRule.note);
+    if (feelRule.note) notes.push(T(feelRule.noteKey, feelRule.note));
   }
 
   // ── Age: longer rest ──────────────────────────────────────────────────
@@ -352,7 +394,11 @@ export function buildTrainingModifiers({
   if (ageRest > 0) {
     restDeltaSec += ageRest;
     applied.ageRestSec = ageRest;
-    notes.push(`Rest is ${ageRest}s longer than the default — recovery between sets slows with age, and rushing it turns a strength session into a conditioning one.`);
+    notes.push(T(
+      'coach.note.ageRest',
+      'Rest is {sec}s longer than the default — recovery between sets slows with age, and rushing it turns a strength session into a conditioning one.',
+      { sec: ageRest },
+    ));
   }
 
   return {

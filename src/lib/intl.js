@@ -98,22 +98,7 @@ export function useDateFormatter() {
  */
 export function useListFormatter() {
   const { language } = useLanguage();
-  return useMemo(() => {
-    const locale = toBcp47(language);
-    return (items, opts) => {
-      const list = (items || []).filter(Boolean).map(String);
-      if (list.length === 0) return '';
-      // Intl.ListFormat is ES2021 and absent on older WebViews. A plain
-      // join is a worse separator, not a broken screen, so degrade rather
-      // than throw.
-      if (typeof Intl.ListFormat !== 'function') return list.join(', ');
-      try {
-        return new Intl.ListFormat(locale, { style: 'long', type: 'conjunction', ...opts }).format(list);
-      } catch {
-        return new Intl.ListFormat('en-US', { style: 'long', type: 'conjunction', ...opts }).format(list);
-      }
-    };
-  }, [language]);
+  return useMemo(() => (items, opts) => formatList(items, language, opts), [language]);
 }
 
 /**
@@ -127,6 +112,32 @@ export function formatNumber(n, language, opts) {
     return new Intl.NumberFormat(locale, opts).format(Number(n));
   } catch {
     return new Intl.NumberFormat('en-US', opts).format(Number(n));
+  }
+}
+
+/**
+ * Non-hook list formatter. `useListFormatter` is a thin wrapper over this.
+ *
+ * It exists separately because the AI Coach's text generators
+ * (`src/lib/aiCoach/*`) are pure modules — no React, no imports of `@/api/db`
+ * — so they take `language` as an argument and cannot call a hook.
+ *
+ * Always `type: 'conjunction'`. `type: 'unit'` looks like the right choice
+ * for a bare enumeration and is not: it emits NO separator in Chinese and
+ * still injects "und"/"et" in German and French. See
+ * `src/lib/__tests__/listFormatter.test.js`, which pins that measurement.
+ */
+export function formatList(items, language, opts) {
+  const list = (items || []).filter(Boolean).map(String);
+  if (list.length === 0) return '';
+  const locale = toBcp47(language);
+  // Intl.ListFormat is ES2021 and absent on older WebViews. A plain join is
+  // a worse separator, not a broken screen, so degrade rather than throw.
+  if (typeof Intl.ListFormat !== 'function') return list.join(', ');
+  try {
+    return new Intl.ListFormat(locale, { style: 'long', type: 'conjunction', ...opts }).format(list);
+  } catch {
+    return new Intl.ListFormat('en-US', { style: 'long', type: 'conjunction', ...opts }).format(list);
   }
 }
 
