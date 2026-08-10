@@ -109,8 +109,6 @@ function isKnownExercise(name) {
   return false;
 }
 
-const MUSCLE_GROUPS = ['Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps', 'Legs', 'Glutes', 'Core', 'Full Body', 'Cardio'];
-
 // Classify an exercise's muscle groups for the save-time set filter so a
 // 0-weight set isn't silently discarded. (Audit task 4.)
 //   - bodyweight: name matches a calisthenics pattern (push-up, plank,
