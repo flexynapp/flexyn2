@@ -139,6 +139,12 @@ const enKeys = {
   // has to be free to reorder and rewrap, and a list assembled from
   // separately-translated fragments cannot be.
   'coach.reply.error':             'Hmm, something went wrong looking at your data. Try again in a moment.',
+  'coach.onboarding.target.noTarget': "Put in the weight you want to reach and I will work out a date that gets you there without wrecking the process.\n\nThe rates worth staying inside: about **1% of bodyweight per week** coming down, and about **0.5 lb per week** going up. Faster than that going down and you start losing muscle along with the fat; faster going up and most of what you add is fat.",
+  'coach.reply.cardio.none': "No cardio logged in the last 7 days.\n\n**Easy starting point:** 20 min walk after a meal. That's it. You can scale up to running/biking when the habit's locked in.",
+  'coach.reply.greeting.intro': "Hey 👋 I'm your Coach. I can answer:\n\n• **What should I train today?** — I'll look at your last 7 days\n• **Should I increase weight on [lift]?** — analyzes recent reps\n• **How am I doing?** — weekly progress review\n• **I'm sore** — recovery suggestions\n• **What are my PRs?** — top lifts surfaced\n• **Am I weak in any area?** — training-frequency check\n\nTry one of those, or just type a question.",
+  'coach.reply.sore.body': "**What to do today:**\n• 20–30 min low-intensity cardio (zone 2 walk, easy bike) — pumps blood through the sore muscles\n• Hit 8+ glasses of water (you have a Drink Water quest — use it)\n• 5 min dynamic mobility for the sore area\n\nSkip lifting that area until soreness drops below \"limits range of motion\" levels. You can train un-sore body parts.",
+  'coach.reply.train.none': "👋 Looks like you haven't logged any workouts in the last 7 days.\n\n**Suggestion:** Start with a full-body session today — squat, bench, row, OHP, plank. 30–45 minutes is plenty.\n\nIf you have a Regimen saved, just open it from the Workout tab and hit start.",
+  'coach.reply.unknown.body': "I'm not sure how to help with that yet. I'm best at:\n\n• Workout suggestions (try: *what should I train today*)\n• Progressive overload (try: *should I increase my squat weight*)\n• Recovery (try: *I'm sore*)\n• Progress check (try: *how am I doing*)\n• PRs, streaks, weak areas\n",
   'coach.reply.overload.needData': 'I need at least 3 sessions of recent data to give you a real answer. Log a few workouts first.',
   'coach.reply.overload.noRepeat': "I don't see a single exercise repeated 3+ times in your recent log. Repeat a lift across several sessions and I'll have something concrete to say.",
   'coach.reply.sore.noTraining':   'Soreness without recent training is unusual — could be sleep, stress, or another activity. Hydrate, walk for 20 min, and check back in tomorrow.',
@@ -257,10 +263,47 @@ const enKeys = {
   // would put a raw English noun inside a translated sentence, which is the
   // failure this whole series exists to remove.
   //
-  // Still literal: several multi-line `explain` bodies whose text lives in a
-  // joined array rather than a single literal. They are the same mechanical
-  // shape as the ones above and need no structural work.
+  // COMPLETE as of 2026-08-10 — every reply this module can produce comes
+  // out of a key. `coachI18n.test.js` holds the standing guard: it blanks
+  // each T(...) span by paren matching and fails on any prose literal left
+  // over, so a future addition cannot quietly go back to English.
   'coach.onboarding.fallbackIntro': "Ask me anything about this step — or tell me about yourself and I'll fill it in.",
+  'coach.onboarding.level.menu': "Go by what your body is used to right now, not by what you once managed:\n\n• **New** — under 6 months of lifting.\n• **Returning** — you have trained before but have had a break.\n• **Consistent** — 6–24 months of fairly regular training.\n• **Advanced** — 2+ years, and your lifts are near a plateau.\n\nWhen you're between two, take the lower one. It only affects your starting loads, and starting lighter costs you about a week — starting too heavy can cost you a month.\n\nTell me roughly how long you have been training and I will set it.",
+  'coach.onboarding.target.rates': "The rates that hold up:\n\n• **Losing** — up to about 1% of bodyweight per week, and no more than 2 lb. Past that you start losing muscle with the fat, and the hunger makes it hard to stick to anyway.\n• **Gaining** — about 0.5 lb per week. Faster and most of the extra is fat.\n\nTwo pounds a week is fine at 250 lb and too fast at 140 lb — it depends on your bodyweight, which is exactly why the app works in percentages. Give me your target and I will suggest a date that lands inside those.",
+  'coach.onboarding.goal.menu': "Pick by the outcome you want six months from now, not by what you think you should say:\n\n• **Build strength** — heavy compounds, low reps. Numbers on the bar go up.\n• **Add muscle** — more sets in the 6–12 range. Size goes up.\n• **Lose fat** — the training keeps your strength; the deficit does the fat loss.\n• **Run faster** — intervals and tempo work.\n• **Run further** — easy volume, built up gradually.\n• **Move better** — mobility and range of motion.\n\nTick as many as apply — the plan averages them. Four or more and progress on each one gets slow, which is the only reason to hold back.\n\nIf you'd rather just tell me what you're after in your own words, do that and I'll set it for you.",
+  'coach.onboarding.goal.prompt.diff': "What's the difference between strength and muscle?",
+  'coach.onboarding.goal.explainDiff': "**Strength** is about the number on the bar — heavy, low reps. **Add muscle** is about size — more total sets in the 6–12 range. They overlap a lot, and picking both is completely normal; the plan blends them rather than choosing.\n\n**Lose fat** doesn't change your lifting much: the deficit does the fat loss, the training is what stops you losing muscle with it.",
+  'coach.onboarding.sharpen.intro': "Narrowing down {goals}. Pick what matters most — or ask me and I'll talk you through them.",
+  'coach.onboarding.sharpen.yourGoal': 'your goal',
+  'coach.onboarding.sharpen.prompt.why': 'Why does this matter?',
+  'coach.onboarding.sharpen.recommend': "Pick the one you'd actually be pleased about in three months. If two of them feel equally good, take the one that needs less equipment or less time — you'll do it more often, and frequency is what makes any of this work.",
+  'coach.onboarding.age.explain': "Age feeds two things: your calorie maths later on, and a small adjustment to rest periods — recovery between sets genuinely takes longer as you get older, and the plan accounts for it rather than pretending otherwise. It isn't shown to anyone.\n\nYour username is the name other people see on leaderboards, and you can change it later in Profile.",
+  'coach.onboarding.weight.freeEstimate': "Estimate it. Being 5 lb out changes your calorie target by about 25 kcal — nothing you'd notice. Put your best guess in and correct it the first time you weigh yourself.",
+  'coach.onboarding.days.intro': 'How many days a week can you realistically train?{hint}',
+  'coach.onboarding.days.introHint': " I've got a suggestion based on your experience level — ask.",
+  'coach.onboarding.days.prompt.best': 'Which days are best?',
+  'coach.onboarding.days.prompt.change': 'Can I change this later?',
+  'coach.onboarding.assessment.prompt.why': 'What are these for?',
+  'coach.onboarding.assessment.recommend': "If you're not sure, answer 'not yet'. Underestimating costs you one easy session; overestimating puts a bar on your back that you can't complete, which is both a worse workout and the riskier mistake.",
+  'coach.onboarding.injury.prompt.why': 'Why does this matter?',
+  'coach.onboarding.injury.prompt.skip': 'Can I skip this?',
+  'coach.onboarding.injury.prompt.old': 'What about an old injury?',
+  'coach.onboarding.injury.skip': "You can, and nothing breaks. But this is the one step where skipping has a real cost: an injury the plan doesn't know about is an injury it will program straight through. If you have anything at all, thirty seconds here is worth it.",
+  'coach.onboarding.injury.freeOld': "If it's fully healed and doesn't bother you under load, leave it out — the exclusions are aggressive and you'd lose useful exercises for no reason. If it still talks to you on heavy days, log it as **Mild**. You can end it from Progress the moment it stops mattering.",
+  'coach.onboarding.home_gym.prompt.why': 'Why pick a gym?',
+  'coach.onboarding.home_gym.prompt.skip': 'Can I skip this?',
+  'coach.onboarding.gym.skip': "Yes, freely. It's a social feature — nothing about your training plan depends on it, and you can pick one any time from Profile → My Gym.",
+  'coach.onboarding.gym.freeMissing': "Two things. If you train at home, skip this — it's for shared gyms. If it's a real gym that isn't listed, the lookup pulls from OpenStreetMap and sometimes just fails to answer; try again in a moment. Skipping now costs you nothing, and you can add it later from Profile → My Gym.",
+  'coach.onboarding.loading.intro': 'Building your plan. One moment.',
+  'coach.onboarding.nutritionGoal.recommend': "If you want to see a smaller number on the scale, pick **Lose**. If you're chasing size and strength and don't mind some weight coming with it, pick **Gain**. If you mostly want to look different at the same weight, pick **Maintain** — that's the recomp route, and it's the slowest of the three but the one you can hold indefinitely.",
+  'coach.onboarding.activity.recommend': "Roughly: **Sedentary** is a desk job with little else. **Lightly active** adds 1–3 sessions a week. **Moderately active** is 3–5. **Very active** is 6–7, or a job where you're on your feet. **Extra active** is manual labour or twice-a-day training.\n\nWhen you're between two, take the lower one. Overestimating your burn is the most common reason a deficit doesn't produce a loss.",
+  'coach.onboarding.restrictions.prompt.why': 'What does this change?',
+  'coach.onboarding.restrictions.skip': "Yes — it's optional and editable any time from the Nutrition tab. The only cost of skipping is that suggestions will occasionally name something you don't eat.",
+  'coach.onboarding.allergens.prompt.why': 'Why is this separate?',
+  'coach.onboarding.allergens.freeCustom': "Type it into the custom field — free text works, and it's matched on the term you enter. Use the narrowest accurate word: 'shrimp' keeps the rest of the shellfish family available, where 'shellfish' takes all of it out.",
+  'coach.onboarding.preview.prompt.how': 'How were these calculated?',
+  'coach.onboarding.preview.prompt.change': 'Can I change them later?',
+  'coach.onboarding.macros.explain': "Height, weight, age and sex give your BMR via Mifflin–St Jeor. Your activity level multiplies that into a daily burn. Your goal and date shift it up or down from there.\n\nProtein is set per pound of bodyweight — highest when you're cutting, because that's when the muscle is at risk. Fat gets a floor for hormone health, and carbs take whatever's left. All of it is editable later from Edit Goals.",
   'coach.onboarding.goal.inferred': 'That reads as **{goals}**. You can tick more than one — the plan blends them rather than picking a winner, so a strength + lose-fat combination keeps the bar heavy and takes the volume down instead of turning every session into cardio.',
   'coach.onboarding.goal.apply': 'Select {goals}',
   'coach.onboarding.level.inferred': 'Sounds like **{level}** — {why}.',

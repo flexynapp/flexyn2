@@ -293,7 +293,7 @@ function levelRecommendation(draft, message, t, language = 'en') {
     };
   }
   return {
-    reply: [
+    reply: T('coach.onboarding.level.menu', [
       'Go by what your body is used to right now, not by what you once managed:',
       '',
       '• **New** — under 6 months of lifting.',
@@ -304,7 +304,7 @@ function levelRecommendation(draft, message, t, language = 'en') {
       "When you're between two, take the lower one. It only affects your starting loads, and starting lighter costs you about a week — starting too heavy can cost you a month.",
       '',
       'Tell me roughly how long you have been training and I will set it.',
-    ].join('\n'),
+    ].join('\n')),
   };
 }
 
@@ -445,9 +445,10 @@ const GUIDES = {
     prompts: (_d, T) => [
       { id: 'which', text: T('coach.onboarding.goal.prompt.which', 'Which goal should I pick?') },
       { id: 'multi', text: T('coach.onboarding.goal.prompt.multi', 'Can I pick more than one?') },
-      { id: 'diff',  text: "What's the difference between strength and muscle?" },
+      { id: 'diff',  text: T('coach.onboarding.goal.prompt.diff', "What's the difference between strength and muscle?") },
     ],
-    explain: () => "**Strength** is about the number on the bar — heavy, low reps. **Add muscle** is about size — more total sets in the 6–12 range. They overlap a lot, and picking both is completely normal; the plan blends them rather than choosing.\n\n**Lose fat** doesn't change your lifting much: the deficit does the fat loss, the training is what stops you losing muscle with it.",
+    explain: (_d, T) => T('coach.onboarding.goal.explainDiff',
+      "**Strength** is about the number on the bar — heavy, low reps. **Add muscle** is about size — more total sets in the 6–12 range. They overlap a lot, and picking both is completely normal; the plan blends them rather than choosing.\n\n**Lose fat** doesn't change your lifting much: the deficit does the fat loss, the training is what stops you losing muscle with it."),
     recommend: goalRecommendation,
     // Only claims the message when inference actually fires. Wiring
     // `goalRecommendation` in directly would swallow every question on this
@@ -458,15 +459,18 @@ const GUIDES = {
   },
 
   [OB.SHARPEN]: {
-    intro: (d) => `Narrowing down ${listGoals(d?.goal).join(' + ') || 'your goal'}. Pick what matters most — or ask me and I'll talk you through them.`,
+    intro: (d, T) => T('coach.onboarding.sharpen.intro',
+      "Narrowing down {goals}. Pick what matters most — or ask me and I'll talk you through them.",
+      { goals: listGoals(d?.goal).join(' + ') || T('coach.onboarding.sharpen.yourGoal', 'your goal') }),
     prompts: (_d, T) => [
       { id: 'which', text: T('coach.onboarding.sharpen.prompt.which', 'Which of these should I choose?') },
-      { id: 'why',   text: 'Why does this matter?' },
+      { id: 'why',   text: T('coach.onboarding.sharpen.prompt.why', 'Why does this matter?') },
     ],
     explain: (_d, T) => T('coach.onboarding.sharpen.explain',
       "This is the specific version of the goal you already picked. It decides things like whether your plan leans toward heavy triples or toward volume — a real difference in what you'll be doing on a Tuesday, so it's worth answering honestly rather than ambitiously."),
-    recommend: () => ({
-      reply: "Pick the one you'd actually be pleased about in three months. If two of them feel equally good, take the one that needs less equipment or less time — you'll do it more often, and frequency is what makes any of this work.",
+    recommend: (_d, _m, T) => ({
+      reply: T('coach.onboarding.sharpen.recommend',
+        "Pick the one you'd actually be pleased about in three months. If two of them feel equally good, take the one that needs less equipment or less time — you'll do it more often, and frequency is what makes any of this work."),
     }),
   },
 
@@ -492,7 +496,8 @@ const GUIDES = {
       { id: 'why', text: T('coach.onboarding.age.prompt.why', 'Why do you need my age?') },
       { id: 'name', text: T('coach.onboarding.age.prompt.name', 'Can I change my username later?') },
     ],
-    explain: () => "Age feeds two things: your calorie maths later on, and a small adjustment to rest periods — recovery between sets genuinely takes longer as you get older, and the plan accounts for it rather than pretending otherwise. It isn't shown to anyone.\n\nYour username is the name other people see on leaderboards, and you can change it later in Profile.",
+    explain: (_d, T) => T('coach.onboarding.age.explain',
+      "Age feeds two things: your calorie maths later on, and a small adjustment to rest periods — recovery between sets genuinely takes longer as you get older, and the plan accounts for it rather than pretending otherwise. It isn't shown to anyone.\n\nYour username is the name other people see on leaderboards, and you can change it later in Profile."),
   },
 
   [OB.HEIGHT]: {
@@ -512,19 +517,26 @@ const GUIDES = {
     ],
     explain: (_d, T) => T('coach.onboarding.weight.explain',
       "Two jobs: your calorie targets, and your starting loads for bodyweight-relative lifts. A close estimate is fine — you can update it any time, and progress is tracked from wherever you actually start."),
-    free: (message) => (
+    free: (message, _d, T) => (
       /\b(don'?t know|not sure|unsure|no scale|estimate|roughly|about)\b/i.test(message)
-        ? { reply: "Estimate it. Being 5 lb out changes your calorie target by about 25 kcal — nothing you'd notice. Put your best guess in and correct it the first time you weigh yourself." }
+      ? { reply: T('coach.onboarding.weight.freeEstimate',
+          "Estimate it. Being 5 lb out changes your calorie target by about 25 kcal — nothing you'd notice. Put your best guess in and correct it the first time you weigh yourself.") }
         : null
     ),
   },
 
   [OB.DAYS]: {
-    intro: (d) => `How many days a week can you realistically train?${d?.level ? " I've got a suggestion based on your experience level — ask." : ''}`,
+    intro: (d, T) => T('coach.onboarding.days.intro',
+      'How many days a week can you realistically train?{hint}', {
+        hint: d?.level
+          ? T('coach.onboarding.days.introHint',
+              " I've got a suggestion based on your experience level — ask.")
+          : '',
+      }),
     prompts: (_d, T) => [
       { id: 'howmany', text: T('coach.onboarding.days.prompt.howmany', 'How many days should I train?') },
-      { id: 'best',    text: 'Which days are best?' },
-      { id: 'change',  text: 'Can I change this later?' },
+      { id: 'best',    text: T('coach.onboarding.days.prompt.best', 'Which days are best?') },
+      { id: 'change',  text: T('coach.onboarding.days.prompt.change', 'Can I change this later?') },
     ],
     explain: (_d, T) => T('coach.onboarding.days.explain',
       "This sets how your plan is split. Three days is usually full-body; four or five moves to an upper/lower or push/pull split. Rest days aren't idle time — the adaptation happens on them."),
@@ -539,27 +551,32 @@ const GUIDES = {
       "A few benchmarks. 'Not yet' is an answer, not a failure — it just tells me where to start you."),
     prompts: (_d, T) => [
       { id: 'unsure', text: T('coach.onboarding.assessment.prompt.unsure', "I don't know if I can do these") },
-      { id: 'why',    text: 'What are these for?' },
+      { id: 'why',    text: T('coach.onboarding.assessment.prompt.why', 'What are these for?') },
     ],
     explain: (_d, T) => T('coach.onboarding.assessment.explain',
       "They're calibration, not a test. Each one is a rough marker of relative strength, and together they tell the plan whether to start you at the light end or the middle of the range for your experience level."),
-    recommend: () => ({ reply: "If you're not sure, answer 'not yet'. Underestimating costs you one easy session; overestimating puts a bar on your back that you can't complete, which is both a worse workout and the riskier mistake." }),
+    recommend: (_d, _m, T) => ({
+      reply: T('coach.onboarding.assessment.recommend',
+        "If you're not sure, answer 'not yet'. Underestimating costs you one easy session; overestimating puts a bar on your back that you can't complete, which is both a worse workout and the riskier mistake."),
+    }),
   },
 
   [OB.INJURY]: {
     intro: (_d, T) => T('coach.onboarding.injury.intro',
       "Anything currently injured or bothering you? This is the one step I'd really rather you didn't skip."),
-    prompts: () => [
-      { id: 'why',   text: 'Why does this matter?' },
-      { id: 'skip',  text: 'Can I skip this?' },
-      { id: 'old',   text: 'What about an old injury?' },
+    prompts: (_d, T) => [
+      { id: 'why',  text: T('coach.onboarding.injury.prompt.why', 'Why does this matter?') },
+      { id: 'skip', text: T('coach.onboarding.injury.prompt.skip', 'Can I skip this?') },
+      { id: 'old',  text: T('coach.onboarding.injury.prompt.old', 'What about an old injury?') },
     ],
     explain: (_d, T) => T('coach.onboarding.injury.explain',
       "Anything you log here gets pulled out of your plan, along with the muscles that work with it — flag a shoulder and the plan drops chest and triceps work too, because they load the same joint. Without it you'll be handed an Overhead Press on a shoulder that can't do one."),
-    skip: () => ({ reply: "You can, and nothing breaks. But this is the one step where skipping has a real cost: an injury the plan doesn't know about is an injury it will program straight through. If you have anything at all, thirty seconds here is worth it." }),
-    free: (message) => (
+    skip: (_d, _text, T) => ({ reply: T('coach.onboarding.injury.skip',
+      "You can, and nothing breaks. But this is the one step where skipping has a real cost: an injury the plan doesn't know about is an injury it will program straight through. If you have anything at all, thirty seconds here is worth it.") }),
+    free: (message, _d, T) => (
       /\b(old|past|healed|used to|years ago|fine now|recovered)\b/i.test(message)
-        ? { reply: "If it's fully healed and doesn't bother you under load, leave it out — the exclusions are aggressive and you'd lose useful exercises for no reason. If it still talks to you on heavy days, log it as **Mild**. You can end it from Progress the moment it stops mattering." }
+      ? { reply: T('coach.onboarding.injury.freeOld',
+          "If it's fully healed and doesn't bother you under load, leave it out — the exclusions are aggressive and you'd lose useful exercises for no reason. If it still talks to you on heavy days, log it as **Mild**. You can end it from Progress the moment it stops mattering.") }
         : null
     ),
   },
@@ -568,26 +585,30 @@ const GUIDES = {
     intro: (_d, T) => T('coach.onboarding.home_gym.intro',
       "Where do you train? Picking your gym puts you on its leaderboard with the people who actually train there."),
     prompts: (_d, T) => [
-      { id: 'why',    text: 'Why pick a gym?' },
-      { id: 'skip',   text: 'Can I skip this?' },
+      { id: 'why',    text: T('coach.onboarding.home_gym.prompt.why', 'Why pick a gym?') },
+      { id: 'skip',   text: T('coach.onboarding.home_gym.prompt.skip', 'Can I skip this?') },
       { id: 'nofind', text: T('coach.onboarding.home_gym.prompt.nofind', "I can't find my gym") },
     ],
     explain: (_d, T) => T('coach.onboarding.home_gym.explain',
       "It gives you the board for your gym — ranked by how many days a week people show up, not by how much they lift, so it's a board a beginner can actually place on. You can change it later from Profile → My Gym."),
-    skip: () => ({ reply: "Yes, freely. It's a social feature — nothing about your training plan depends on it, and you can pick one any time from Profile → My Gym." }),
-    free: (message) => (
+    skip: (_d, _text, T) => ({ reply: T('coach.onboarding.gym.skip',
+      "Yes, freely. It's a social feature — nothing about your training plan depends on it, and you can pick one any time from Profile → My Gym.") }),
+    free: (message, _d, T) => (
       /\b(can'?t find|not (there|listed|showing)|no results|missing|home gym|garage|my house)\b/i.test(message)
-        ? { reply: "Two things. If you train at home, skip this — it's for shared gyms. If it's a real gym that isn't listed, the lookup pulls from OpenStreetMap and sometimes just fails to answer; try again in a moment. Skipping now costs you nothing, and you can add it later from Profile → My Gym." }
+      ? { reply: T('coach.onboarding.gym.freeMissing',
+          "Two things. If you train at home, skip this — it's for shared gyms. If it's a real gym that isn't listed, the lookup pulls from OpenStreetMap and sometimes just fails to answer; try again in a moment. Skipping now costs you nothing, and you can add it later from Profile → My Gym.") }
         : null
     ),
   },
 
-  [OB.LOADING]:  { intro: () => "Building your plan. One moment." },
+  [OB.LOADING]:  {
+    intro: (_d, T) => T('coach.onboarding.loading.intro', 'Building your plan. One moment.'),
+  },
   [OB.REVEAL]:   {
     intro: (_d, T) => T('coach.onboarding.home_gym.intro',
       "Here's what I built. Ask me anything about it before you start."),
     prompts: (_d, T) => [
-      { id: 'why',    text: 'Why this plan?' },
+      { id: 'why',    text: T('coach.onboarding.home_gym.prompt.why', 'Why this plan?') },
       { id: 'change', text: T('coach.onboarding.home_gym.prompt.change', 'Can I change it later?') },
     ],
     explain: (_d, T) => T('coach.onboarding.home_gym.explain',
@@ -626,7 +647,8 @@ const GUIDES = {
         };
       }
       return {
-        reply: "If you want to see a smaller number on the scale, pick **Lose**. If you're chasing size and strength and don't mind some weight coming with it, pick **Gain**. If you mostly want to look different at the same weight, pick **Maintain** — that's the recomp route, and it's the slowest of the three but the one you can hold indefinitely.",
+        reply: T('coach.onboarding.nutritionGoal.recommend',
+          "If you want to see a smaller number on the scale, pick **Lose**. If you're chasing size and strength and don't mind some weight coming with it, pick **Gain**. If you mostly want to look different at the same weight, pick **Maintain** — that's the recomp route, and it's the slowest of the three but the one you can hold indefinitely."),
       };
     },
   },
@@ -642,17 +664,19 @@ const GUIDES = {
     explain: (_d, T) => T('coach.onboarding.target.explain',
       "The gap between where you are and where you want to be, divided by the weeks between now and your date, is your weekly rate — and that rate is what sets your daily calories. A closer date means a steeper deficit."),
     recommend: targetRecommendation,
-    free: (message, draft) => (
+    free: (message, draft, T) => (
       /\b(too fast|safe|realistic|aggressive|how (fast|quick)|rate|per week|a week)\b/i.test(message)
         ? {
-          reply: [
+          // One key for the whole block, not one per bullet — a translator
+          // has to be free to reorder and rewrap a list.
+          reply: T('coach.onboarding.target.rates', [
             'The rates that hold up:',
             '',
             '• **Losing** — up to about 1% of bodyweight per week, and no more than 2 lb. Past that you start losing muscle with the fat, and the hunger makes it hard to stick to anyway.',
             '• **Gaining** — about 0.5 lb per week. Faster and most of the extra is fat.',
             '',
             'Two pounds a week is fine at 250 lb and too fast at 140 lb — it depends on your bodyweight, which is exactly why the app works in percentages. Give me your target and I will suggest a date that lands inside those.',
-          ].join('\n'),
+          ].join('\n')),
         }
         : null
     ),
@@ -684,7 +708,8 @@ const GUIDES = {
         };
       }
       return {
-        reply: "Roughly: **Sedentary** is a desk job with little else. **Lightly active** adds 1–3 sessions a week. **Moderately active** is 3–5. **Very active** is 6–7, or a job where you're on your feet. **Extra active** is manual labour or twice-a-day training.\n\nWhen you're between two, take the lower one. Overestimating your burn is the most common reason a deficit doesn't produce a loss.",
+        reply: T('coach.onboarding.activity.recommend',
+          "Roughly: **Sedentary** is a desk job with little else. **Lightly active** adds 1–3 sessions a week. **Moderately active** is 3–5. **Very active** is 6–7, or a job where you're on your feet. **Extra active** is manual labour or twice-a-day training.\n\nWhen you're between two, take the lower one. Overestimating your burn is the most common reason a deficit doesn't produce a loss."),
       };
     },
   },
@@ -694,25 +719,27 @@ const GUIDES = {
       "Anything you don't eat? This shapes what I suggest later on."),
     prompts: (_d, T) => [
       { id: 'skip', text: T('coach.onboarding.restrictions.prompt.skip', 'Can I skip this?') },
-      { id: 'why',  text: 'What does this change?' },
+      { id: 'why',  text: T('coach.onboarding.restrictions.prompt.why', 'What does this change?') },
     ],
     explain: (_d, T) => T('coach.onboarding.restrictions.explain',
       "It filters every food suggestion in the app — meal ideas, the fuelling notes on your workout card, all of it. Set it here and you stop having to mentally discard half of what you're shown."),
-    skip: () => ({ reply: "Yes — it's optional and editable any time from the Nutrition tab. The only cost of skipping is that suggestions will occasionally name something you don't eat." }),
+    skip: (_d, _text, T) => ({ reply: T('coach.onboarding.restrictions.skip',
+      "Yes — it's optional and editable any time from the Nutrition tab. The only cost of skipping is that suggestions will occasionally name something you don't eat.") }),
   },
 
   [NUT.ALLERGENS]: {
     intro: (_d, T) => T('coach.onboarding.allergens.intro',
       "Allergens. Worth being thorough with this one."),
     prompts: (_d, T) => [
-      { id: 'why',    text: 'Why is this separate?' },
+      { id: 'why',    text: T('coach.onboarding.allergens.prompt.why', 'Why is this separate?') },
       { id: 'custom', text: T('coach.onboarding.allergens.prompt.custom', "My allergy isn't listed") },
     ],
     explain: (_d, T) => T('coach.onboarding.allergens.explain',
       "Allergens are kept separate from preferences because they're treated harder: nothing the coach suggests will name a food that hits one, and if a combination rules out everything it can name, it drops to plain macros rather than guessing at something."),
-    free: (message) => (
+    free: (message, _d, T) => (
       /\b(not listed|isn'?t (there|listed)|missing|custom|specific|only|other)\b/i.test(message)
-        ? { reply: "Type it into the custom field — free text works, and it's matched on the term you enter. Use the narrowest accurate word: 'shrimp' keeps the rest of the shellfish family available, where 'shellfish' takes all of it out." }
+      ? { reply: T('coach.onboarding.allergens.freeCustom',
+          "Type it into the custom field — free text works, and it's matched on the term you enter. Use the narrowest accurate word: 'shrimp' keeps the rest of the shellfish family available, where 'shellfish' takes all of it out.") }
         : null
     ),
   },
@@ -721,11 +748,12 @@ const GUIDES = {
     intro: (_d, T) => T('coach.onboarding.preview.intro',
       "Your targets. Ask me where any of these numbers came from."),
     prompts: (_d, T) => [
-      { id: 'how',     text: 'How were these calculated?' },
+      { id: 'how',     text: T('coach.onboarding.preview.prompt.how', 'How were these calculated?') },
       { id: 'protein', text: T('coach.onboarding.preview.prompt.protein', 'Why this much protein?') },
-      { id: 'change',  text: 'Can I change them later?' },
+      { id: 'change',  text: T('coach.onboarding.preview.prompt.change', 'Can I change them later?') },
     ],
-    explain: () => "Height, weight, age and sex give your BMR via Mifflin–St Jeor. Your activity level multiplies that into a daily burn. Your goal and date shift it up or down from there.\n\nProtein is set per pound of bodyweight — highest when you're cutting, because that's when the muscle is at risk. Fat gets a floor for hormone health, and carbs take whatever's left. All of it is editable later from Edit Goals.",
+    explain: (_d, T) => T('coach.onboarding.macros.explain',
+      "Height, weight, age and sex give your BMR via Mifflin–St Jeor. Your activity level multiplies that into a daily burn. Your goal and date shift it up or down from there.\n\nProtein is set per pound of bodyweight — highest when you're cutting, because that's when the muscle is at risk. Fat gets a floor for hormone health, and carbs take whatever's left. All of it is editable later from Edit Goals."),
   },
 };
 
@@ -733,8 +761,11 @@ const GUIDES = {
    PUBLIC API
 ═══════════════════════════════════════════════════════════════ */
 
-const FALLBACK_INTRO_EN = "Ask me anything about this step — or tell me about yourself and I'll fill it in.";
-const fallbackIntro = (T) => T('coach.onboarding.fallbackIntro', FALLBACK_INTRO_EN);
+// Inlined rather than held in a named constant: the no-bare-literals guard
+// in coachI18n.test.js reads the source, and a constant passed to T() one
+// line later is indistinguishable to it from a literal nobody wrapped.
+const fallbackIntro = (T) => T('coach.onboarding.fallbackIntro',
+  "Ask me anything about this step — or tell me about yourself and I'll fill it in.");
 
 // Every GUIDES function takes the translator as its LAST argument. That is
 // the least invasive shape available here: the guides are 73 closures inside

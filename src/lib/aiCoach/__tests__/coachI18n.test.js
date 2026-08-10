@@ -10,6 +10,7 @@
  * describes for this subsystem's other context inputs.
  */
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'fs';
 import { interpolate, enT, asT } from '@/lib/aiCoach/coachI18n';
 import { buildTrainingModifiers, fuelNote } from '@/lib/aiCoach/trainingModifiers';
 import { respond } from '@/lib/aiCoach/responders';
@@ -203,5 +204,77 @@ describe('onboarding coach: inference branches route through keys', () => {
     // that a coach which SAID one set of days and SELECTED another shipped.
     expect(reply).toContain(de);
     expect(apply.label).not.toContain('Mon, Wed, Fri');
+  });
+});
+
+describe('no onboarding guide reply is a bare literal', () => {
+  // The standing guard. Every reply this module can produce has to come out
+  // of a key, so a future literal shows up as English inside a translated
+  // thread HERE rather than in someone's app. It is a source scan because
+  // there are 73 guide closures behind six optional hooks, and no fixture
+  // reaches all of them.
+  //
+  // It works by blanking each `T(...)` call span with paren matching, rather
+  // than by looking a fixed number of lines up. A line window was the first
+  // attempt and was wrong in both directions: it missed a key written as a
+  // template literal, and it could not see the top of a long joined array.
+  it('leaves no prose string outside a T() call', () => {
+    let src = readFileSync('src/lib/aiCoach/onboardingCoach.js', 'utf8');
+
+    // Blank comments and regex literals — both legitimately hold prose, and
+    // NEGATORS/inferLevel are full of English words inside character classes.
+    src = src.replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' '));
+    src = src.replace(/^[ \t]*\/\/.*$/gm, (m) => ' '.repeat(m.length));
+    src = src.replace(/\/(?![/*])(?:\\.|\[(?:\\.|[^\]])*\]|[^/\n\\])+\/[gimsuy]*/g,
+      (m) => ' '.repeat(m.length));
+
+    // Blank every T( ... ) span, parens balanced, so nested calls and
+    // multi-line joined arrays are all covered.
+    const chars = src.split('');
+    for (let i = 0; i < chars.length - 1; i++) {
+      if (chars[i] !== 'T' || chars[i + 1] !== '(') continue;
+      if (/[\w$.]/.test(chars[i - 1] || '')) continue;   // asT(, enT( etc.
+      let depth = 0;
+      for (let j = i + 1; j < chars.length; j++) {
+        if (chars[j] === '(') depth++;
+        else if (chars[j] === ')') {
+          depth--;
+          if (depth === 0) {
+            for (let k = i; k <= j; k++) if (chars[k] !== '\n') chars[k] = ' ';
+            i = j;
+            break;
+          }
+        }
+      }
+    }
+
+    const stray = [];
+    chars.join('').split('\n').forEach((line, i) => {
+      for (const m of line.matchAll(/(`[^`]*`|'[^']*'|"[^"]*")/g)) {
+        const t = m[0].slice(1, -1);
+        if (t.length < 20) continue;
+        if (!/[a-z]{2}\s+[a-z]{2}/.test(t)) continue;
+        stray.push(`${i + 1}: ${t.slice(0, 70)}`);
+      }
+    });
+    expect(stray).toEqual([]);
+  });
+});
+
+describe('every coach key a T() call names exists in English', () => {
+  // The gap this closes: `tFallback` renders its English fallback for a key
+  // that is absent from the aggregate, so a missing key is INVISIBLE at
+  // runtime — the reply looks perfect. What it actually costs is the
+  // translator, who has nothing to translate. Six joined-array keys had
+  // slipped through the extraction that way before this test existed.
+  it('has no key used in the generators but absent from en', () => {
+    const src = ['onboardingCoach', 'responders', 'trainingModifiers']
+      .map(f => readFileSync(`src/lib/aiCoach/${f}.js`, 'utf8')).join('\n');
+    const en = new Set(
+      [...readFileSync('src/lib/i18n-langs/en.js', 'utf8').matchAll(/"([^"]+)":/g)].map(m => m[1]),
+    );
+    const used = [...src.matchAll(/T\(\s*'(coach\.[\w.]+)'/g)].map(m => m[1]);
+    expect(used.length).toBeGreaterThan(150);
+    expect([...new Set(used)].filter(k => !en.has(k)).sort()).toEqual([]);
   });
 });
