@@ -10,12 +10,13 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BookOpen, ChevronDown, ChevronUp } from 'lucide-react';
+import { BookOpen, ChevronDown, ChevronUp, Paperclip, Maximize2 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { getEntry, saveBody } from '@/lib/data/journal';
-import { MOOD_EMOJIS } from '@/lib/data/moodLogs';
+import { MOOD_EMOJIS, MOOD_LABELS } from '@/lib/data/moodLogs';
+import { requestOpenJournal } from '@/lib/journalOverlay';
 
 // Derive today's date string in local time (same logic as MoodLogCard).
 function getTodayStr() {
@@ -145,6 +146,12 @@ export default function JournalWidget({ userId, userEmail }) {
   const snippet     = entry?.body
     ? entry.body.replace(/[#*_>-]/g, '').replace(/\s+/g, ' ').trim().slice(0, 100)
     : '';
+  // The same rule the day screen and the Log now follow: a mood with no
+  // words IS the entry. This card said "Nothing yet — tap to write…" over a
+  // mood it was already displaying two inches to the left, which is the
+  // bare-date defect in a third place.
+  const moodOnly = !hasContent && !!moodScore;
+  const attachmentCount = Array.isArray(entry?.attachments) ? entry.attachments.length : 0;
 
   return (
     <motion.div
@@ -173,7 +180,10 @@ export default function JournalWidget({ userId, userEmail }) {
               </span>
             )}
           </div>
-          <div className="shrink-0 text-muted-foreground/50 group-hover:text-muted-foreground transition-colors">
+          <div className="shrink-0 flex items-center gap-1 text-muted-foreground/50 group-hover:text-muted-foreground transition-colors">
+            {attachmentCount > 0 && (
+              <span className="text-micro flex items-center gap-0.5"><Paperclip className="w-3 h-3" />{attachmentCount}</span>
+            )}
             {expanded
               ? <ChevronUp  className="w-3.5 h-3.5" />
               : <ChevronDown className="w-3.5 h-3.5" />}
@@ -185,7 +195,9 @@ export default function JournalWidget({ userId, userEmail }) {
           <p className="text-xs text-muted-foreground leading-snug line-clamp-2">
             {hasContent
               ? (entry?.title ? <><strong>{entry.title}</strong>{snippet ? ` · ${snippet}` : ''}</> : snippet)
-              : <span className="italic opacity-60">{tFallback('journal.empty', 'Nothing yet — tap to write…')}</span>
+              : moodOnly
+                ? <span className="text-foreground">{tFallback('journal.feltLabel', 'You felt')} {tFallback(`mood.label.${moodScore}`, MOOD_LABELS[moodScore - 1])}</span>
+                : <span className="italic opacity-60">{tFallback('journal.empty', 'Nothing yet — tap to write…')}</span>
             }
           </p>
         )}
@@ -217,13 +229,31 @@ export default function JournalWidget({ userId, userEmail }) {
                     ? tFallback('journal.saving', 'Saving…')
                     : tFallback('journal.autosave', 'Auto-saves as you type')}
                 </span>
-                <button
-                  type="button"
-                  onClick={() => { clearTimeout(saveTimerRef.current); handleSave(draft); setExpanded(false); }}
-                  className="text-micro font-semibold text-primary hover:opacity-80 transition-opacity"
-                >
-                  {tFallback('journal.done', 'Done')}
-                </button>
+                <span className="flex items-center gap-3">
+                  {/* The way OUT. This card could only ever edit a body: no
+                      title, no attachments, no mood, no other day — and it
+                      offered no route to the surface that can. Flushing
+                      first means the full editor loads what you just typed
+                      rather than the copy the server had a second ago. */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      clearTimeout(saveTimerRef.current);
+                      handleSave(draft).finally(() => requestOpenJournal(todayStr));
+                      setExpanded(false);
+                    }}
+                    className="text-micro font-semibold text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+                  >
+                    <Maximize2 className="w-3 h-3" /> {tFallback('journal.openFull', 'Open journal')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { clearTimeout(saveTimerRef.current); handleSave(draft); setExpanded(false); }}
+                    className="text-micro font-semibold text-primary hover:opacity-80 transition-opacity"
+                  >
+                    {tFallback('journal.done', 'Done')}
+                  </button>
+                </span>
               </div>
             </motion.div>
           )}

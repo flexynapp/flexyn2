@@ -128,11 +128,20 @@ const MAX_ATTACHMENTS = 12;
 const MAX_SAVE_RETRIES = 5;
 
 
-export default function JournalView({ userId, userEmail, onClose }) {
+export default function JournalView({ userId, userEmail, onClose, initialDate }) {
   // Pin the page behind this overlay — see @/lib/scrollLock.
   useBodyScrollLock();
   const { tFallback } = useLanguage();
-  const [activeDate, setActiveDate] = useState(() => new Date());
+  // `initialDate` lets a caller open straight to a day (YYYY-MM-DD). Parsed
+  // as a LOCAL midnight, never `new Date('2026-08-09')`, which the spec
+  // reads as UTC and lands on the previous day west of Greenwich.
+  const [activeDate, setActiveDate] = useState(() => {
+    if (typeof initialDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(initialDate)) {
+      const d = new Date(`${initialDate}T00:00:00`);
+      if (!Number.isNaN(d.getTime())) return d;
+    }
+    return new Date();
+  });
   const dateStr = format(activeDate, 'yyyy-MM-dd');
   const isToday = dateStr === todayStr();
   // Year only when it isn't this one. At text-xl "Wednesday, September 30
@@ -417,7 +426,7 @@ export default function JournalView({ userId, userEmail, onClose }) {
           toast.success(tFallback('journal.migrated', `Imported ${n} past ${n === 1 ? 'entry' : 'entries'}.`));
         }
       }
-      if (!cancelled) loadDay(new Date());
+      if (!cancelled) loadDay(activeDate);
     })();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps

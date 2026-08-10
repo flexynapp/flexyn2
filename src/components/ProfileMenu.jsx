@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { db } from '@/api/db';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/lib/AuthContext';
+import { requestOpenJournal } from '@/lib/journalOverlay';
 import { LogOut, User, Trash2, Settings, ChevronRight, X, ShoppingBag, UserCircle, Book, Trophy, ShieldAlert, Building2, Dumbbell } from 'lucide-react';
 import { clearFirstLaunch } from '@/lib/firstLaunch';
 import { handle } from '@/lib/userDisplay';
@@ -34,7 +35,6 @@ const AchievementsVault  = lazy(() => import('./achievements/AchievementsVault')
 // My Journal — overhauled into a server-backed editor (title, markdown
 // formatting + voice, attachments, swipe-between-days, scrollable
 // history log). Lazy so its deps stay out of the entry bundle.
-const JournalView        = lazy(() => import('./journal/JournalView'));
 
 // preserveKeys: when true (Sign Out), a small set of per-device
 // preferences survive so the same user logging back in doesn't reset
@@ -131,22 +131,10 @@ export default function ProfileMenu({ compact = false } = {}) {
   // to AccountDeletedScreen with nothing actually re-deleted.
   // Wave 54 (Settings audit) caught this.
   const deletingRef = useRef(false);
-  const [journalOpen, setJournalOpen] = useState(false);
-
-  // Close the journal overlay whenever the route changes.
-  //
-  // My Journal is a global overlay; My Gym is a route. Without this, opening
-  // one and then the other left BOTH on screen at once — the journal floating
-  // over the My Gym page — which reads as the app breaking rather than as two
-  // surfaces coexisting. Nothing else in the menu has this problem because
-  // every other entry navigates.
-  //
-  // Same shape as the nav-visibility reset in Layout.jsx and the
-  // ErrorBoundary's auto-reset: an overlay that outlives the page it was
-  // opened from has to be told when the page goes away.
-  useEffect(() => {
-    setJournalOpen(false);
-  }, [location.pathname]);
+  // The journal overlay is owned by Layout now — see journalOverlay.js.
+  // ProfileMenu is rendered TWICE (sidebar + header), so holding the open
+  // state here split it across two copies and could mount two editors, each
+  // autosaving the same row. Same reasoning that moved the Bag out.
   const [debriefVaultOpen, setDebriefVaultOpen] = useState(false);
   const [injuryFormOpen, setInjuryFormOpen] = useState(false);
   const [achievementsOpen, setAchievementsOpen] = useState(false);
@@ -545,7 +533,7 @@ export default function ProfileMenu({ compact = false } = {}) {
                     <button
                       onClick={() => {
                         setOpen(false);
-                        setJournalOpen(true);
+                        requestOpenJournal();
                       }}
                       className="w-full flex items-center justify-between px-4 py-3 text-sm hover:bg-secondary active:bg-secondary transition-colors border-t border-border"
                     >
@@ -616,19 +604,6 @@ export default function ProfileMenu({ compact = false } = {}) {
               </button>
             )}
           </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* My Journal — global overlay, accessible from any page */}
-      <AnimatePresence>
-        {journalOpen && user && (
-          <Suspense fallback={null}>
-            <JournalView
-              userId={user?.id}
-              userEmail={user?.email}
-              onClose={() => setJournalOpen(false)}
-            />
-          </Suspense>
         )}
       </AnimatePresence>
 

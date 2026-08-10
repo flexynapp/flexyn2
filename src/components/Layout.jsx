@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import FlexynLogo from './FlexynLogo';
 import { Apple, LayoutDashboard, MessageCircle, Play, Plus, Sparkles, ScanLine, Droplet, TrendingUp, Users, Camera, Scale, ShoppingBag } from 'lucide-react';
 import Header from './Header';
@@ -7,8 +7,12 @@ import LanguagePicker from './LanguagePicker';
 import AnimatedRoutes from './AnimatedRoutes';
 import PullToRefresh from './PullToRefresh';
 import ProfileMenu from './ProfileMenu';
+import { useJournalOverlay } from '@/lib/journalOverlay';
+// Lazy: the editor is a large chunk and most sessions never open it.
+const JournalView = lazy(() => import('./journal/JournalView'));
 import NotificationBell from './NotificationBell';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useQueryClient } from '@tanstack/react-query';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useAuth } from '@/lib/AuthContext';
 import { useUnreadDMCount } from '@/lib/hubMessaging';
@@ -217,6 +221,33 @@ export default function Layout() {
   // state inside it would split open/closed state across copies).
   // ProfileMenu's "My Bag" entry triggers this via OPEN_BAG_EVENT.
   const bag = useBagFlow();
+
+  // My Journal, for the same reason and by the same mechanism: a single
+  // mount here rather than one per ProfileMenu copy. Opened by
+  // OPEN_JOURNAL_EVENT from the profile menu and the dashboard widget.
+  const journal = useJournalOverlay();
+
+  // Closing the editor refreshes the dashboard widget. They read the same
+  // row through different paths — the widget via react-query with a 60s
+  // staleTime — so writing in the editor and closing it left the card
+  // showing the old text for up to a minute, on the same screen.
+  const journalQc = useQueryClient();
+  const closeJournal = useCallback(() => {
+    journal.close();
+    journalQc.invalidateQueries({ queryKey: ['journalEntry'] });
+  }, [journal, journalQc]);
+
+  // Close it whenever the route changes. My Journal is an overlay while
+  // My Gym is a route, so opening one and then the other used to leave
+  // BOTH on screen — the journal floating over the gym page, which reads
+  // as the app breaking rather than as two surfaces coexisting. Same shape
+  // as the nav-visibility reset below and the ErrorBoundary's auto-reset:
+  // an overlay that outlives the page it was opened from has to be told
+  // when that page goes away. (Moved here with the overlay itself.)
+  useEffect(() => {
+    journal.close();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname]);
 
   // ── Auto-hide bottom nav on scroll-down, reveal on scroll-up ─────────────
   // Classic Instagram/TikTok pattern: nav slides down out of view as the
@@ -542,6 +573,22 @@ export default function Layout() {
         onOpenCapsule={bag.openCapsule}
         onOpenCapsuleBatch={bag.openCapsuleBatch}
       />
+      {/* My Journal — ONE global mount. It lived inside ProfileMenu, which
+          renders twice, so the open state was split across two copies and
+          two editors could autosave the same row at once. */}
+      <AnimatePresence>
+        {journal.open && user && (
+          <Suspense fallback={null}>
+            <JournalView
+              userId={user?.id}
+              userEmail={user?.email}
+              initialDate={journal.initialDate}
+              onClose={closeJournal}
+            />
+          </Suspense>
+        )}
+      </AnimatePresence>
+
       {(bag.openingCapsule || bag.openingBatch) && (
         <CapsuleOpener
           capsule={bag.openingCapsule}

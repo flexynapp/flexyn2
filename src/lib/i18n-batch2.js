@@ -93,6 +93,8 @@ const enKeys = {
   'journal.attachCap':                 'You can attach up to {n} files a day.',
   'journal.attachDropped':             '{n} not attached — that would pass the {max}-file limit.',
   'journal.notSaved':                  'Not saved — tap to retry',
+  // The widget's route into the full editor — the thing it never had.
+  'journal.openFull':                  'Open journal',
 
   // ── HubChat error toasts ────────────────────────────────────────────
   'hub.chat.attachmentTooLarge': 'Image must be 50 MB or smaller',
