@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { filterAfterReset } from '@/lib/accountReset';
+import { LOG_FETCH_LIMIT } from '@/lib/constants';
 import { useLanguage } from '@/lib/LanguageContext';
 import { getDateLocale } from '@/lib/dateLocales';
 import { muscleKey } from '@/lib/exerciseTranslations';
@@ -54,17 +55,21 @@ const CHART_STYLE = {
   },
 };
 
+// Keyed by muscleKey() output, NOT by the raw column value. The raw
+// value is whatever the exercise row happens to carry ('Chest', 'chest',
+// 'Full Body'), so a raw-keyed map misses on casing and the 'full body'
+// entry never matched anything once muscleKey normalised it to 'fullBody'.
 const MUSCLE_PILL = {
-  chest:       'bg-info/15 text-info border-info/25',
-  back:        'bg-success/15 text-success border-success/25',
-  shoulders:   'bg-primary/15 text-primary border-primary/25',
-  biceps:      'bg-info/15 text-info border-info/25',
-  triceps:     'bg-info/15 text-info border-info/25',
-  legs:        'bg-primary/15 text-primary border-primary/25',
-  glutes:      'bg-primary/15 text-primary border-primary/25',
-  core:        'bg-primary/15 text-primary border-primary/25',
-  'full body': 'bg-success/15 text-success border-success/25',
-  cardio:      'bg-destructive/15 text-destructive border-destructive/25',
+  chest:     'bg-info/15 text-info border-info/25',
+  back:      'bg-success/15 text-success border-success/25',
+  shoulders: 'bg-primary/15 text-primary border-primary/25',
+  biceps:    'bg-info/15 text-info border-info/25',
+  triceps:   'bg-info/15 text-info border-info/25',
+  legs:      'bg-primary/15 text-primary border-primary/25',
+  glutes:    'bg-primary/15 text-primary border-primary/25',
+  core:      'bg-primary/15 text-primary border-primary/25',
+  fullBody:  'bg-success/15 text-success border-success/25',
+  cardio:    'bg-destructive/15 text-destructive border-destructive/25',
 };
 const MUSCLE_PILL_DEFAULT = 'bg-primary/15 text-primary border-primary/25';
 
@@ -474,7 +479,7 @@ function renderProgressSlide(slide, { count = 1 } = {}) {
 // ─── Main Progress Page ───────────────────────────────────────────────────────
 
 export default function Progress() {
-  const { t, language } = useLanguage();
+  const { t, tFallback, language } = useLanguage();
   const { weightUnit } = useWeightUnit();
   const { distanceUnit } = useDistanceUnit();
   const dateLocale = getDateLocale(language);
@@ -516,7 +521,7 @@ export default function Progress() {
   // ── Queries ──────────────────────────────────────────────────────────────
   const { data: rawLogs = [], isLoading: logsLoading } = useQuery({
     queryKey: ['workoutLogs', user?.email],
-    queryFn: () => db.entities.WorkoutLog.filter({ created_by: user.email }, '-date', 200),
+    queryFn: () => db.entities.WorkoutLog.filter({ created_by: user.email }, '-date', LOG_FETCH_LIMIT),
     enabled: !!user?.email,
   });
   const { data: rawRegimens = [], isLoading: regimensLoading } = useQuery({
@@ -532,20 +537,27 @@ export default function Progress() {
     queryFn: () => db.auth.me(),
     enabled: !!user?.email,
   });
-  const { data: cardioLogs = [] } = useQuery({
+  const { data: rawCardioLogs = [] } = useQuery({
     queryKey: ['cardioLogs', user?.email],
-    queryFn: () => db.entities.CardioLog.filter({ created_by: user.email }, '-date', 200),
+    queryFn: () => db.entities.CardioLog.filter({ created_by: user.email }, '-date', LOG_FETCH_LIMIT),
     enabled: !!user?.email,
   });
   const { data: rawBodyMetrics = [] } = useQuery({
     queryKey: ['bodyMetrics', user?.email],
-    queryFn: () => db.entities.BodyMetric.filter({ created_by: user.email }, '-date', 200),
+    queryFn: () => db.entities.BodyMetric.filter({ created_by: user.email }, '-date', LOG_FETCH_LIMIT),
     enabled: !!user?.email,
   });
 
-  const logs         = useMemo(() => filterAfterReset(rawLogs, userProfile),       [rawLogs, userProfile]);
-  const regimens     = useMemo(() => filterAfterReset(rawRegimens, userProfile),   [rawRegimens, userProfile]);
+  // EVERY list this page reads goes through filterAfterReset. cardioLogs
+  // used to be the one exception — it was consumed raw by the frame stats
+  // and handed to InsightsTab unfiltered — so after an account reset the
+  // "Cardio" tile kept counting sessions the reset was supposed to erase.
+  // The filter is a defensive layer for exactly the case where the backend
+  // delete half-failed, and a layer with one hole in it is not a layer.
+  const logs         = useMemo(() => filterAfterReset(rawLogs, userProfile),        [rawLogs, userProfile]);
+  const regimens     = useMemo(() => filterAfterReset(rawRegimens, userProfile),    [rawRegimens, userProfile]);
   const bodyMetrics  = useMemo(() => filterAfterReset(rawBodyMetrics, userProfile), [rawBodyMetrics, userProfile]);
+  const cardioLogs   = useMemo(() => filterAfterReset(rawCardioLogs, userProfile),  [rawCardioLogs, userProfile]);
   const isLoading    = logsLoading || regimensLoading;
 
   // Weekly summary — auto-generate on first load, then cache for 5 min
@@ -865,26 +877,38 @@ export default function Progress() {
 
               {/* Muscle group pills — derived from the selected frame's logs */}
               {(() => {
+                // Deduped by muscleKey(), not by the raw string: the column
+                // carries whatever the exercise row was written with, so
+                // 'Chest' and 'chest' used to render as two pills for one
+                // muscle. The key is also what the label and the colour are
+                // looked up by, so both agree per pill.
                 const frameMusclePills = (() => {
-                  const groups = new Set();
+                  const byKey = new Map();
                   frameLogs.forEach(log => {
                     (log.exercises || []).forEach(ex => {
                       const arr = ex.muscle_groups?.length ? ex.muscle_groups : (ex.muscle_group ? [ex.muscle_group] : []);
-                      arr.forEach(g => groups.add(g));
+                      arr.forEach(g => {
+                        if (!g) return;
+                        const key = muscleKey(g);
+                        if (!byKey.has(key)) byKey.set(key, g);
+                      });
                     });
                   });
-                  return [...groups].filter(Boolean);
+                  return [...byKey.entries()].map(([key, raw]) => ({ key, raw }));
                 })();
                 return (
                   <>
                     {frameMusclePills.length > 0 ? (
                       <div className="flex flex-wrap gap-1.5 mb-3">
-                        {frameMusclePills.map(g => {
-                          const key = g.toLowerCase();
+                        {frameMusclePills.map(({ key, raw }) => {
                           const cls = MUSCLE_PILL[key] || MUSCLE_PILL_DEFAULT;
+                          // Same lookup the charts and the filter dropdown
+                          // already use (see volumeByMuscle / muscleGroupItems).
+                          // These pills were printing the raw English column
+                          // value in all 15 languages.
                           return (
-                            <span key={g} className={`text-micro font-semibold px-2.5 py-0.5 rounded-full border ${cls}`}>
-                              {g}
+                            <span key={key} className={`text-micro font-semibold px-2.5 py-0.5 rounded-full border ${cls}`}>
+                              {tFallback(`muscleGroups.${key}`, raw)}
                             </span>
                           );
                         })}
@@ -1090,7 +1114,14 @@ export default function Progress() {
                           {/* Stats row */}
                           {(() => {
                             const d = latestDebriefData.data || {};
-                            const vol    = d.volume_lbs    ?? 0;
+                            // The RPC stores volume in lbs (hence the column
+                            // name). This card printed it raw under a literal
+                            // "lbs" suffix, so a kg user got a pounds number
+                            // labelled lbs — on the one page where every other
+                            // volume already respects weightUnit. Convert here,
+                            // label with the unit. volume_change_pct is a ratio
+                            // and is unit-independent, so it stays as-is.
+                            const vol    = fromLbs(d.volume_lbs ?? 0, weightUnit);
                             const chg    = d.volume_change_pct;
                             const wks    = d.workouts_count ?? 0;
                             const streak = d.workout_streak ?? 0;
@@ -1102,8 +1133,8 @@ export default function Progress() {
                                   <div className="flex-1 flex flex-col items-center py-3 gap-0.5">
                                     <span className="text-xs text-muted-foreground">Volume</span>
                                     <span className="text-base font-black text-foreground tabular-nums">
-                                      {Number(vol) >= 1000 ? `${Math.round(vol/1000)}K` : Math.round(vol)}
-                                      <span className="text-micro font-normal text-muted-foreground ms-0.5">lbs</span>
+                                      {formatBigNumber(vol)}
+                                      <span className="text-micro font-normal text-muted-foreground ms-0.5">{weightUnit}</span>
                                     </span>
                                     {chg != null && (
                                       <span className={`text-micro font-semibold ${Number(chg) >= 0 ? 'text-success' : 'text-destructive'}`}>

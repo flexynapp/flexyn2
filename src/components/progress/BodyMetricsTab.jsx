@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { filterAfterReset } from '@/lib/accountReset';
+import { LOG_FETCH_LIMIT } from '@/lib/constants';
 import CycleTrackerCard from '@/components/wellness/CycleTrackerCard';
 import { useQuery } from '@tanstack/react-query';
 import { db } from '@/api/db';
@@ -19,9 +20,13 @@ export default function BodyMetricsTab() {
     enabled: !!user?.email,
   });
 
+  // Same queryKey as Progress.jsx, so React Query serves both from one
+  // cache entry and whichever mounts first supplies the queryFn. The two
+  // therefore have to request the SAME limit — they carried 200 and 1000
+  // for a moment, which makes the row count depend on mount order.
   const { data: rawLogs = [] } = useQuery({
     queryKey: ['workoutLogs', user?.email],
-    queryFn: () => db.entities.WorkoutLog.filter({ created_by: user.email }, '-date', 200),
+    queryFn: () => db.entities.WorkoutLog.filter({ created_by: user.email }, '-date', LOG_FETCH_LIMIT),
     enabled: !!user?.email,
   });
 
