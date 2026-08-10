@@ -157,10 +157,17 @@
     <meta property="og:url" content="https://flexyn.netlify.app/" />
     <meta property="og:image" content="https://flexyn.netlify.app/og-image.png" />
     <meta property="og:image:type" content="image/png" />
-    <meta property="og:image:width" content="1024" />
-    <meta property="og:image:height" content="1024" />
-    <meta property="og:image:alt" content="Flexyn logo" />
-    <meta name="twitter:card" content="summary" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Flexyn — the app icon beside the Flexyn wordmark" />
+    <!--
+      summary_large_image, not summary. The card is 1200x630 (1.91:1), which
+      is the ratio every og:image consumer is built around; `summary` renders
+      a small SQUARE thumbnail and would centre-crop the lockup, cutting the
+      wordmark off the sides. The two settings have to move together — a
+      large image behind a `summary` card is worse than a square one.
+    -->
+    <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Flexyn" />
     <meta name="twitter:description" content="Your AI-powered fitness companion — track workouts, nutrition, and progress." />
     <meta name="twitter:image" content="https://flexyn.netlify.app/og-image.png" />

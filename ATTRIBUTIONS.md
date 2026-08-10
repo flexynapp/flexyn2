@@ -98,3 +98,18 @@ licence text are retained — the notice lives in the file header alongside this
 entry. The windowing pattern in `LeaderboardsContent.jsx` (`windowRanked`) is
 an independent implementation of the same idea from their
 `leaderboard-rankings.tsx`, not a copy.
+
+## Leckerli One (vendored font file)
+
+`public/fonts/LeckerliOne-Regular.ttf` — Leckerli One by Gesine Todt,
+distributed by Google Fonts under the **SIL Open Font License 1.1**, which
+permits redistribution and embedding, including in a bundled asset.
+
+It is checked in for ONE reason: `public/og-image.png` bakes the Flexyn
+wordmark into a raster, and that card cannot be regenerated without the exact
+face. Every other surface still loads Archivo, Figtree and Leckerli One from
+Google Fonts at runtime (see the stylesheet link in `index.html`) — this file
+is not wired into the app's font stack and nothing imports it.
+
+Regenerating the card requires it, so removing the file silently makes the
+social card unreproducible rather than breaking a build.
