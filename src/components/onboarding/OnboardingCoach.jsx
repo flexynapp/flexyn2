@@ -24,6 +24,9 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, Send, X, Check } from 'lucide-react';
 import { answerOnboarding, introFor, promptsFor, hasCoachFor } from '@/lib/aiCoach/onboardingCoach';
+// The coach's replies are built in a pure module that cannot call a hook, so
+// the translator travels with the call. See lib/aiCoach/coachI18n.js.
+import { useLanguage } from '@/lib/LanguageContext';
 import { parseBoldSegments } from '@/lib/aiCoach/markdownLite';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
@@ -79,6 +82,7 @@ function CoachLine({ text }) {
  *                            render as plain advice with no Apply button.
  */
 export function OnboardingCoachSheet({ open, onClose, stepId, draft = {}, onApply }) {
+  const { tFallback, language } = useLanguage();
   // Pin the page behind this overlay — see @/lib/scrollLock.
   useBodyScrollLock(open);
   const [messages, setMessages] = useState([]);
@@ -87,14 +91,14 @@ export function OnboardingCoachSheet({ open, onClose, stepId, draft = {}, onAppl
   const scrollRef = useRef(null);
   const inputRef = useRef(null);
 
-  const prompts = useMemo(() => promptsFor(stepId, draft), [stepId, draft]);
+  const prompts = useMemo(() => promptsFor(stepId, draft, tFallback), [stepId, draft, tFallback]);
 
   // Reset on open and on step change: the conversation is about THIS
   // question. Carrying "pick Build strength" across into the injury step
   // would leave stale advice sitting above an unrelated question.
   useEffect(() => {
     if (!open) return;
-    setMessages([{ role: 'coach', text: introFor(stepId, draft) }]);
+    setMessages([{ role: 'coach', text: introFor(stepId, draft, tFallback) }]);
     setInput('');
     setApplied({});
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -107,7 +111,7 @@ export function OnboardingCoachSheet({ open, onClose, stepId, draft = {}, onAppl
   const ask = (text) => {
     const q = String(text || '').trim().slice(0, MAX_INPUT);
     if (!q) return;
-    const answer = answerOnboarding({ stepId, draft, message: q });
+    const answer = answerOnboarding({ stepId, draft, message: q, t: tFallback, language });
     setMessages(prev => [
       ...prev,
       { role: 'user', text: q },

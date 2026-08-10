@@ -1,3 +1,4 @@
+import { asT } from './coachI18n';
 // src/lib/aiCoach/onboardingCoach.js
 //
 // The AI Coach, for people who don't have any data yet.
@@ -349,19 +350,22 @@ const GUIDES = {
   /* ── Initial onboarding ───────────────────────────────────── */
 
   [OB.WELCOME]: {
-    intro: () => "I'm your coach. I'll be here on every step — ask me what a question means, or just describe yourself and I'll fill it in.",
-    prompts: () => [
-      { id: 'what', text: 'What is this setup for?' },
-      { id: 'long', text: 'How long does it take?' },
+    intro: (_d, T) => T('coach.onboarding.welcome.intro',
+      "I'm your coach. I'll be here on every step — ask me what a question means, or just describe yourself and I'll fill it in."),
+    prompts: (_d, T) => [
+      { id: 'what', text: T('coach.onboarding.welcome.prompt.what', 'What is this setup for?') },
+      { id: 'long', text: T('coach.onboarding.welcome.prompt.long', 'How long does it take?') },
     ],
-    explain: () => "The next few questions set your starting loads, how many days a week you train, and what the plan optimizes for. It takes about two minutes, and nothing here is permanent — all of it is editable later from your profile.",
+    explain: (_d, T) => T('coach.onboarding.welcome.explain',
+      "The next few questions set your starting loads, how many days a week you train, and what the plan optimizes for. It takes about two minutes, and nothing here is permanent — all of it is editable later from your profile."),
   },
 
   [OB.GOAL]: {
-    intro: () => "What are you actually here for? Tell me in your own words if it's easier — I'll turn it into the right picks.",
-    prompts: () => [
-      { id: 'which', text: 'Which goal should I pick?' },
-      { id: 'multi', text: 'Can I pick more than one?' },
+    intro: (_d, T) => T('coach.onboarding.goal.intro',
+      "What are you actually here for? Tell me in your own words if it's easier — I'll turn it into the right picks."),
+    prompts: (_d, T) => [
+      { id: 'which', text: T('coach.onboarding.goal.prompt.which', 'Which goal should I pick?') },
+      { id: 'multi', text: T('coach.onboarding.goal.prompt.multi', 'Can I pick more than one?') },
       { id: 'diff',  text: "What's the difference between strength and muscle?" },
     ],
     explain: () => "**Strength** is about the number on the bar — heavy, low reps. **Add muscle** is about size — more total sets in the 6–12 range. They overlap a lot, and picking both is completely normal; the plan blends them rather than choosing.\n\n**Lose fat** doesn't change your lifting much: the deficit does the fat loss, the training is what stops you losing muscle with it.",
@@ -375,50 +379,58 @@ const GUIDES = {
 
   [OB.SHARPEN]: {
     intro: (d) => `Narrowing down ${listGoals(d?.goal).join(' + ') || 'your goal'}. Pick what matters most — or ask me and I'll talk you through them.`,
-    prompts: () => [
-      { id: 'which', text: 'Which of these should I choose?' },
+    prompts: (_d, T) => [
+      { id: 'which', text: T('coach.onboarding.sharpen.prompt.which', 'Which of these should I choose?') },
       { id: 'why',   text: 'Why does this matter?' },
     ],
-    explain: () => "This is the specific version of the goal you already picked. It decides things like whether your plan leans toward heavy triples or toward volume — a real difference in what you'll be doing on a Tuesday, so it's worth answering honestly rather than ambitiously.",
+    explain: (_d, T) => T('coach.onboarding.sharpen.explain',
+      "This is the specific version of the goal you already picked. It decides things like whether your plan leans toward heavy triples or toward volume — a real difference in what you'll be doing on a Tuesday, so it's worth answering honestly rather than ambitiously."),
     recommend: () => ({
       reply: "Pick the one you'd actually be pleased about in three months. If two of them feel equally good, take the one that needs less equipment or less time — you'll do it more often, and frequency is what makes any of this work.",
     }),
   },
 
   [OB.EXPERIENCE]: {
-    intro: () => "How much training does your body have behind it? This sets your starting weights, so honest beats optimistic here.",
-    prompts: () => [
-      { id: 'which', text: 'Which one am I?' },
-      { id: 'between', text: "I'm between two of these" },
-      { id: 'why', text: 'Why does this matter?' },
+    intro: (_d, T) => T('coach.onboarding.experience.intro',
+      "How much training does your body have behind it? This sets your starting weights, so honest beats optimistic here."),
+    prompts: (_d, T) => [
+      { id: 'which', text: T('coach.onboarding.experience.prompt.which', 'Which one am I?') },
+      { id: 'between', text: T('coach.onboarding.experience.prompt.between', "I'm between two of these") },
+      { id: 'why', text: T('coach.onboarding.experience.prompt.why', 'Why does this matter?') },
     ],
-    explain: () => "It sets the loads you start at, and nothing else. Aim too high and your first sessions are too heavy to complete with good form; aim low and you spend one extra week ramping. When in doubt, go lower — the plan raises the weight as soon as you're finishing sets easily.",
+    explain: (_d, T) => T('coach.onboarding.experience.explain',
+      "It sets the loads you start at, and nothing else. Aim too high and your first sessions are too heavy to complete with good form; aim low and you spend one extra week ramping. When in doubt, go lower — the plan raises the weight as soon as you're finishing sets easily."),
     recommend: levelRecommendation,
     free: (message, draft) => (inferLevel(message) ? levelRecommendation(draft, message) : null),
   },
 
   [OB.AGE]: {
-    intro: () => "Age and a username. Ask me anything about why these are here.",
-    prompts: () => [
-      { id: 'why', text: 'Why do you need my age?' },
-      { id: 'name', text: 'Can I change my username later?' },
+    intro: (_d, T) => T('coach.onboarding.age.intro',
+      "Age and a username. Ask me anything about why these are here."),
+    prompts: (_d, T) => [
+      { id: 'why', text: T('coach.onboarding.age.prompt.why', 'Why do you need my age?') },
+      { id: 'name', text: T('coach.onboarding.age.prompt.name', 'Can I change my username later?') },
     ],
     explain: () => "Age feeds two things: your calorie maths later on, and a small adjustment to rest periods — recovery between sets genuinely takes longer as you get older, and the plan accounts for it rather than pretending otherwise. It isn't shown to anyone.\n\nYour username is the name other people see on leaderboards, and you can change it later in Profile.",
   },
 
   [OB.HEIGHT]: {
-    intro: () => "Height. Quick one.",
-    prompts: () => [{ id: 'why', text: 'Why do you need my height?' }],
-    explain: () => "Height and weight together give your BMR, which is what every calorie target in the Nutrition tab is built on. Without it those targets are a generic guess. Switch between ft/in and cm with the toggle.",
+    intro: (_d, T) => T('coach.onboarding.height.intro',
+      "Height. Quick one."),
+    prompts: (_d, T) => [{ id: 'why', text: T('coach.onboarding.height.prompt.why', 'Why do you need my height?') }],
+    explain: (_d, T) => T('coach.onboarding.height.explain',
+      "Height and weight together give your BMR, which is what every calorie target in the Nutrition tab is built on. Without it those targets are a generic guess. Switch between ft/in and cm with the toggle."),
   },
 
   [OB.WEIGHT]: {
-    intro: () => "Your current weight — the starting point everything else is measured from.",
-    prompts: () => [
-      { id: 'why', text: 'Why do you need my weight?' },
-      { id: 'unsure', text: "I don't know it exactly" },
+    intro: (_d, T) => T('coach.onboarding.weight.intro',
+      "Your current weight — the starting point everything else is measured from."),
+    prompts: (_d, T) => [
+      { id: 'why', text: T('coach.onboarding.weight.prompt.why', 'Why do you need my weight?') },
+      { id: 'unsure', text: T('coach.onboarding.weight.prompt.unsure', "I don't know it exactly") },
     ],
-    explain: () => "Two jobs: your calorie targets, and your starting loads for bodyweight-relative lifts. A close estimate is fine — you can update it any time, and progress is tracked from wherever you actually start.",
+    explain: (_d, T) => T('coach.onboarding.weight.explain',
+      "Two jobs: your calorie targets, and your starting loads for bodyweight-relative lifts. A close estimate is fine — you can update it any time, and progress is tracked from wherever you actually start."),
     free: (message) => (
       /\b(don'?t know|not sure|unsure|no scale|estimate|roughly|about)\b/i.test(message)
         ? { reply: "Estimate it. Being 5 lb out changes your calorie target by about 25 kcal — nothing you'd notice. Put your best guess in and correct it the first time you weigh yourself." }
@@ -428,12 +440,13 @@ const GUIDES = {
 
   [OB.DAYS]: {
     intro: (d) => `How many days a week can you realistically train?${d?.level ? " I've got a suggestion based on your experience level — ask." : ''}`,
-    prompts: () => [
-      { id: 'howmany', text: 'How many days should I train?' },
+    prompts: (_d, T) => [
+      { id: 'howmany', text: T('coach.onboarding.days.prompt.howmany', 'How many days should I train?') },
       { id: 'best',    text: 'Which days are best?' },
       { id: 'change',  text: 'Can I change this later?' },
     ],
-    explain: () => "This sets how your plan is split. Three days is usually full-body; four or five moves to an upper/lower or push/pull split. Rest days aren't idle time — the adaptation happens on them.",
+    explain: (_d, T) => T('coach.onboarding.days.explain',
+      "This sets how your plan is split. Three days is usually full-body; four or five moves to an upper/lower or push/pull split. Rest days aren't idle time — the adaptation happens on them."),
     recommend: daysRecommendation,
     free: (message, draft) => (
       /\b(\d)\s*(days?|x|times)\b/i.test(message) ? daysRecommendation(draft) : null
@@ -441,23 +454,27 @@ const GUIDES = {
   },
 
   [OB.ASSESSMENT]: {
-    intro: () => "A few benchmarks. 'Not yet' is an answer, not a failure — it just tells me where to start you.",
-    prompts: () => [
-      { id: 'unsure', text: "I don't know if I can do these" },
+    intro: (_d, T) => T('coach.onboarding.assessment.intro',
+      "A few benchmarks. 'Not yet' is an answer, not a failure — it just tells me where to start you."),
+    prompts: (_d, T) => [
+      { id: 'unsure', text: T('coach.onboarding.assessment.prompt.unsure', "I don't know if I can do these") },
       { id: 'why',    text: 'What are these for?' },
     ],
-    explain: () => "They're calibration, not a test. Each one is a rough marker of relative strength, and together they tell the plan whether to start you at the light end or the middle of the range for your experience level.",
+    explain: (_d, T) => T('coach.onboarding.assessment.explain',
+      "They're calibration, not a test. Each one is a rough marker of relative strength, and together they tell the plan whether to start you at the light end or the middle of the range for your experience level."),
     recommend: () => ({ reply: "If you're not sure, answer 'not yet'. Underestimating costs you one easy session; overestimating puts a bar on your back that you can't complete, which is both a worse workout and the riskier mistake." }),
   },
 
   [OB.INJURY]: {
-    intro: () => "Anything currently injured or bothering you? This is the one step I'd really rather you didn't skip.",
+    intro: (_d, T) => T('coach.onboarding.injury.intro',
+      "Anything currently injured or bothering you? This is the one step I'd really rather you didn't skip."),
     prompts: () => [
       { id: 'why',   text: 'Why does this matter?' },
       { id: 'skip',  text: 'Can I skip this?' },
       { id: 'old',   text: 'What about an old injury?' },
     ],
-    explain: () => "Anything you log here gets pulled out of your plan, along with the muscles that work with it — flag a shoulder and the plan drops chest and triceps work too, because they load the same joint. Without it you'll be handed an Overhead Press on a shoulder that can't do one.",
+    explain: (_d, T) => T('coach.onboarding.injury.explain',
+      "Anything you log here gets pulled out of your plan, along with the muscles that work with it — flag a shoulder and the plan drops chest and triceps work too, because they load the same joint. Without it you'll be handed an Overhead Press on a shoulder that can't do one."),
     skip: () => ({ reply: "You can, and nothing breaks. But this is the one step where skipping has a real cost: an injury the plan doesn't know about is an injury it will program straight through. If you have anything at all, thirty seconds here is worth it." }),
     free: (message) => (
       /\b(old|past|healed|used to|years ago|fine now|recovered)\b/i.test(message)
@@ -467,13 +484,15 @@ const GUIDES = {
   },
 
   [OB.HOME_GYM]: {
-    intro: () => "Where do you train? Picking your gym puts you on its leaderboard with the people who actually train there.",
-    prompts: () => [
+    intro: (_d, T) => T('coach.onboarding.home_gym.intro',
+      "Where do you train? Picking your gym puts you on its leaderboard with the people who actually train there."),
+    prompts: (_d, T) => [
       { id: 'why',    text: 'Why pick a gym?' },
       { id: 'skip',   text: 'Can I skip this?' },
-      { id: 'nofind', text: "I can't find my gym" },
+      { id: 'nofind', text: T('coach.onboarding.home_gym.prompt.nofind', "I can't find my gym") },
     ],
-    explain: () => "It gives you the board for your gym — ranked by how many days a week people show up, not by how much they lift, so it's a board a beginner can actually place on. You can change it later from Profile → My Gym.",
+    explain: (_d, T) => T('coach.onboarding.home_gym.explain',
+      "It gives you the board for your gym — ranked by how many days a week people show up, not by how much they lift, so it's a board a beginner can actually place on. You can change it later from Profile → My Gym."),
     skip: () => ({ reply: "Yes, freely. It's a social feature — nothing about your training plan depends on it, and you can pick one any time from Profile → My Gym." }),
     free: (message) => (
       /\b(can'?t find|not (there|listed|showing)|no results|missing|home gym|garage|my house)\b/i.test(message)
@@ -484,23 +503,27 @@ const GUIDES = {
 
   [OB.LOADING]:  { intro: () => "Building your plan. One moment." },
   [OB.REVEAL]:   {
-    intro: () => "Here's what I built. Ask me anything about it before you start.",
-    prompts: () => [
+    intro: (_d, T) => T('coach.onboarding.home_gym.intro',
+      "Here's what I built. Ask me anything about it before you start."),
+    prompts: (_d, T) => [
       { id: 'why',    text: 'Why this plan?' },
-      { id: 'change', text: 'Can I change it later?' },
+      { id: 'change', text: T('coach.onboarding.home_gym.prompt.change', 'Can I change it later?') },
     ],
-    explain: () => "It's built from your goals, your experience level and the days you gave me, with anything you flagged as injured taken out. Nothing is locked — every session is editable, and the plan adjusts on its own as your logged sets tell it more.",
+    explain: (_d, T) => T('coach.onboarding.home_gym.explain',
+      "It's built from your goals, your experience level and the days you gave me, with anything you flagged as injured taken out. Nothing is locked — every session is editable, and the plan adjusts on its own as your logged sets tell it more."),
   },
 
   /* ── Nutrition onboarding ─────────────────────────────────── */
 
   [NUT.GOAL]: {
-    intro: () => "Losing, holding, or gaining? Describe what you're after and I'll set it.",
-    prompts: () => [
-      { id: 'which', text: 'Which goal should I pick?' },
-      { id: 'recomp', text: 'Can I lose fat and gain muscle?' },
+    intro: (_d, T) => T('coach.onboarding.goal.intro',
+      "Losing, holding, or gaining? Describe what you're after and I'll set it."),
+    prompts: (_d, T) => [
+      { id: 'which', text: T('coach.onboarding.goal.prompt.which', 'Which goal should I pick?') },
+      { id: 'recomp', text: T('coach.onboarding.goal.prompt.recomp', 'Can I lose fat and gain muscle?') },
     ],
-    explain: () => "**Lose** puts you under maintenance, **Gain** puts you over, **Maintain** sits at it. The macros shift too — protein goes up in a deficit specifically to protect the muscle you already have.",
+    explain: (_d, T) => T('coach.onboarding.goal.explain',
+      "**Lose** puts you under maintenance, **Gain** puts you over, **Maintain** sits at it. The macros shift too — protein goes up in a deficit specifically to protect the muscle you already have."),
     recommend: (draft, message) => {
       const g = inferNutritionGoal(message);
       if (g) {
@@ -516,13 +539,15 @@ const GUIDES = {
   },
 
   [NUT.TARGET]: {
-    intro: () => "Target weight and a date. I can work out a date that's actually reachable — just ask.",
-    prompts: () => [
-      { id: 'date', text: 'What date should I set?' },
-      { id: 'fast', text: 'Is 2 lb a week too fast?' },
-      { id: 'safe', text: "What's a safe rate?" },
+    intro: (_d, T) => T('coach.onboarding.target.intro',
+      "Target weight and a date. I can work out a date that's actually reachable — just ask."),
+    prompts: (_d, T) => [
+      { id: 'date', text: T('coach.onboarding.target.prompt.date', 'What date should I set?') },
+      { id: 'fast', text: T('coach.onboarding.target.prompt.fast', 'Is 2 lb a week too fast?') },
+      { id: 'safe', text: T('coach.onboarding.target.prompt.safe', "What's a safe rate?") },
     ],
-    explain: () => "The gap between where you are and where you want to be, divided by the weeks between now and your date, is your weekly rate — and that rate is what sets your daily calories. A closer date means a steeper deficit.",
+    explain: (_d, T) => T('coach.onboarding.target.explain',
+      "The gap between where you are and where you want to be, divided by the weeks between now and your date, is your weekly rate — and that rate is what sets your daily calories. A closer date means a steeper deficit."),
     recommend: targetRecommendation,
     free: (message, draft) => (
       /\b(too fast|safe|realistic|aggressive|how (fast|quick)|rate|per week|a week)\b/i.test(message)
@@ -541,12 +566,14 @@ const GUIDES = {
   },
 
   [NUT.ACTIVITY]: {
-    intro: () => "How active is a normal day for you? Describe it and I'll pick the level.",
-    prompts: () => [
-      { id: 'which', text: 'Which level am I?' },
-      { id: 'count', text: 'Does my workout count?' },
+    intro: (_d, T) => T('coach.onboarding.activity.intro',
+      "How active is a normal day for you? Describe it and I'll pick the level."),
+    prompts: (_d, T) => [
+      { id: 'which', text: T('coach.onboarding.activity.prompt.which', 'Which level am I?') },
+      { id: 'count', text: T('coach.onboarding.activity.prompt.count', 'Does my workout count?') },
     ],
-    explain: () => "This multiplies your BMR into a daily burn, and it's the single biggest lever on your calorie target — one level out is a few hundred calories a day. Count your whole day, not just the gym: a nurse on their feet for twelve hours out-burns a desk worker who lifts four times a week.",
+    explain: (_d, T) => T('coach.onboarding.activity.explain',
+      "This multiplies your BMR into a daily burn, and it's the single biggest lever on your calorie target — one level out is a few hundred calories a day. Count your whole day, not just the gym: a nurse on their feet for twelve hours out-burns a desk worker who lifts four times a week."),
     recommend: (draft, message) => {
       const a = inferActivity(message);
       if (a) {
@@ -562,22 +589,26 @@ const GUIDES = {
   },
 
   [NUT.RESTRICTIONS]: {
-    intro: () => "Anything you don't eat? This shapes what I suggest later on.",
-    prompts: () => [
-      { id: 'skip', text: 'Can I skip this?' },
+    intro: (_d, T) => T('coach.onboarding.restrictions.intro',
+      "Anything you don't eat? This shapes what I suggest later on."),
+    prompts: (_d, T) => [
+      { id: 'skip', text: T('coach.onboarding.restrictions.prompt.skip', 'Can I skip this?') },
       { id: 'why',  text: 'What does this change?' },
     ],
-    explain: () => "It filters every food suggestion in the app — meal ideas, the fuelling notes on your workout card, all of it. Set it here and you stop having to mentally discard half of what you're shown.",
+    explain: (_d, T) => T('coach.onboarding.restrictions.explain',
+      "It filters every food suggestion in the app — meal ideas, the fuelling notes on your workout card, all of it. Set it here and you stop having to mentally discard half of what you're shown."),
     skip: () => ({ reply: "Yes — it's optional and editable any time from the Nutrition tab. The only cost of skipping is that suggestions will occasionally name something you don't eat." }),
   },
 
   [NUT.ALLERGENS]: {
-    intro: () => "Allergens. Worth being thorough with this one.",
-    prompts: () => [
+    intro: (_d, T) => T('coach.onboarding.allergens.intro',
+      "Allergens. Worth being thorough with this one."),
+    prompts: (_d, T) => [
       { id: 'why',    text: 'Why is this separate?' },
-      { id: 'custom', text: "My allergy isn't listed" },
+      { id: 'custom', text: T('coach.onboarding.allergens.prompt.custom', "My allergy isn't listed") },
     ],
-    explain: () => "Allergens are kept separate from preferences because they're treated harder: nothing the coach suggests will name a food that hits one, and if a combination rules out everything it can name, it drops to plain macros rather than guessing at something.",
+    explain: (_d, T) => T('coach.onboarding.allergens.explain',
+      "Allergens are kept separate from preferences because they're treated harder: nothing the coach suggests will name a food that hits one, and if a combination rules out everything it can name, it drops to plain macros rather than guessing at something."),
     free: (message) => (
       /\b(not listed|isn'?t (there|listed)|missing|custom|specific|only|other)\b/i.test(message)
         ? { reply: "Type it into the custom field — free text works, and it's matched on the term you enter. Use the narrowest accurate word: 'shrimp' keeps the rest of the shellfish family available, where 'shellfish' takes all of it out." }
@@ -586,10 +617,11 @@ const GUIDES = {
   },
 
   [NUT.PREVIEW]: {
-    intro: () => "Your targets. Ask me where any of these numbers came from.",
-    prompts: () => [
+    intro: (_d, T) => T('coach.onboarding.preview.intro',
+      "Your targets. Ask me where any of these numbers came from."),
+    prompts: (_d, T) => [
       { id: 'how',     text: 'How were these calculated?' },
-      { id: 'protein', text: 'Why this much protein?' },
+      { id: 'protein', text: T('coach.onboarding.preview.prompt.protein', 'Why this much protein?') },
       { id: 'change',  text: 'Can I change them later?' },
     ],
     explain: () => "Height, weight, age and sex give your BMR via Mifflin–St Jeor. Your activity level multiplies that into a daily burn. Your goal and date shift it up or down from there.\n\nProtein is set per pound of bodyweight — highest when you're cutting, because that's when the muscle is at risk. Fat gets a floor for hormone health, and carbs take whatever's left. All of it is editable later from Edit Goals.",
@@ -600,20 +632,30 @@ const GUIDES = {
    PUBLIC API
 ═══════════════════════════════════════════════════════════════ */
 
-const FALLBACK_INTRO = "Ask me anything about this step — or tell me about yourself and I'll fill it in.";
+const FALLBACK_INTRO_EN = "Ask me anything about this step — or tell me about yourself and I'll fill it in.";
+const fallbackIntro = (T) => T('coach.onboarding.fallbackIntro', FALLBACK_INTRO_EN);
+
+// Every GUIDES function takes the translator as its LAST argument. That is
+// the least invasive shape available here: the guides are 73 closures inside
+// one object literal, so a ctx parameter would have meant rewriting each
+// signature AND each call, where an appended argument leaves the existing
+// ones in place. `asT` makes an un-threaded caller render English, so the
+// public API's `t` stays optional. See ./coachI18n.
 
 /** Opening line when the coach sheet is opened on `stepId`. */
-export function introFor(stepId, draft = {}) {
+export function introFor(stepId, draft = {}, t) {
+  const T = asT(t);
   const g = GUIDES[stepId];
-  if (!g || typeof g.intro !== 'function') return FALLBACK_INTRO;
-  return g.intro(draft);
+  if (!g || typeof g.intro !== 'function') return fallbackIntro(T);
+  return g.intro(draft, T);
 }
 
 /** Tappable starter questions for `stepId`. Never more than three. */
-export function promptsFor(stepId, draft = {}) {
+export function promptsFor(stepId, draft = {}, t) {
+  const T = asT(t);
   const g = GUIDES[stepId];
   if (!g || typeof g.prompts !== 'function') return [];
-  return g.prompts(draft).slice(0, 3);
+  return g.prompts(draft, T).slice(0, 3);
 }
 
 /** True when this step has anything worth asking about. */
@@ -629,12 +671,13 @@ export function hasCoachFor(stepId) {
  * Never throws and never returns an empty reply: a coach button that
  * sometimes produces nothing is worse than no coach button.
  */
-export function answerOnboarding({ stepId, draft = {}, message }) {
+export function answerOnboarding({ stepId, draft = {}, message, t, language = 'en' }) {
+  const T = asT(t);
   const text = String(message || '').trim();
   const guide = GUIDES[stepId];
 
-  if (!text) return { reply: introFor(stepId, draft) };
-  if (!guide) return { reply: FALLBACK_INTRO };
+  if (!text) return { reply: introFor(stepId, draft, T) };
+  if (!guide) return { reply: fallbackIntro(T) };
 
   // Order matters. A step-specific free-text handler goes first because
   // "I can't find my gym" and "is 2 lb a week too fast" both read as
@@ -648,29 +691,29 @@ export function answerOnboarding({ stepId, draft = {}, message }) {
   // both of them.
   const isDefinitionQuestion = ASKS_EXPLANATION.test(text) && typeof guide.explain === 'function';
   if (!isDefinitionQuestion && typeof guide.free === 'function') {
-    const hit = guide.free(text, draft);
+    const hit = guide.free(text, draft, T, language);
     if (hit && hit.reply) return hit;
   }
 
   if (ASKS_SKIP.test(text) && typeof guide.skip === 'function') {
-    return guide.skip(draft, text);
+    return guide.skip(draft, text, T, language);
   }
 
   if (ASKS_RECOMMENDATION.test(text) && typeof guide.recommend === 'function') {
-    return guide.recommend(draft, text);
+    return guide.recommend(draft, text, T, language);
   }
 
   if (ASKS_EXPLANATION.test(text) && typeof guide.explain === 'function') {
-    return { reply: guide.explain(draft) };
+    return { reply: guide.explain(draft, T) };
   }
 
   // Not obviously a question — most likely the user describing themselves.
   // Try the recommender, which is where every inference lives.
   if (typeof guide.recommend === 'function') {
-    const hit = guide.recommend(draft, text);
+    const hit = guide.recommend(draft, text, T, language);
     if (hit && hit.reply) return hit;
   }
 
-  if (typeof guide.explain === 'function') return { reply: guide.explain(draft) };
-  return { reply: introFor(stepId, draft) };
+  if (typeof guide.explain === 'function') return { reply: guide.explain(draft, T) };
+  return { reply: introFor(stepId, draft, T) };
 }

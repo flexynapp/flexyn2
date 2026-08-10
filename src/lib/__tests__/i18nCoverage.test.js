@@ -284,6 +284,7 @@ describe('partial-gap ratchet', () => {
     'coach.plan.',
     'coach.schedule.',
     'coach.reply.',
+    'coach.onboarding.',
     'quests.',
     'quest.cardio_session.',
     'quest.log_sleep.',
