@@ -50,29 +50,35 @@
 // visible rather than silently wrong.
 
 // ─────────────────────────────────────────────────────────────────────
-// RESTORE FIRST if the board was left mid-inspection.
+// HOW TO JUDGE A COLUMN, and how to put it back.
+//
+// The board is BUILT and REVIEWED — all seven groups, all three columns,
+// 222 shapes at 1362 × 2085. What follows is the technique, kept because
+// it is needed again on any edit and it is not obvious.
 //
 // There is no region export in Penpot, and a full-width export puts 11px
-// type at a third scale where none of it is readable. So judging a column
-// means cropping the board to 486 wide, HIDING the other two columns, and
+// type at a third scale where none of it is readable. So judging one
+// column means cropping the board to 486 wide, HIDING the other two, and
 // sliding the one under inspection to x0 — then putting it all back.
+// Column 2 sits 438pt right of column 1; column 3, 876pt.
 //
-// The bridge died between the slide and the slide-back on 2026-08-10, so
-// the board may currently be 486 wide with columns 1 and 3 hidden and
-// column 2 sitting 438pt to the left of where it belongs. Paste this ONCE
-// after a reconnect. It keys off `hidden` rather than child indices — at
-// that moment the hidden shapes ARE columns 1 and 3, and everything
-// visible IS the displaced column 2 — so it needs nothing from `storage`,
-// which a plugin reload wipes.
+// The restore below keys off `hidden` rather than child indices: at that
+// moment the hidden shapes ARE the parked columns and everything visible
+// IS the displaced one. So it survives a plugin reload, which wipes
+// `storage`, and it does not care which column was under inspection —
+// pass the right offset. It is a no-op on a healthy board (nothing hidden
+// → nothing shifted), so it is always safe to run first.
 //
-// It is a no-op on a board that is already fine (nothing hidden → nothing
-// shifted), so it is safe to run without checking first.
+// This mattered: the bridge died mid-inspection on 2026-08-10 and left the
+// board cropped with two columns hidden for several hours. Nothing was
+// lost, because the recovery needed no memory of what had been done.
 /*
-const b = penpotUtils.findShape(s => s.name === 'Exercise Trends — resolved' && s.type === 'board');
+const OFFSET = 438;  // 876 if column 3 was the one under inspection
+const b = penpotUtils.findShape(s => s.name === 'Exercise Trends — resolved' && s.type === 'board', penpot.currentPage.root);
 const displaced = b.children.filter(c => !c.hidden);
 const parked    = b.children.filter(c =>  c.hidden);
 if (parked.length) {
-  for (const c of displaced) c.x += 438;
+  for (const c of displaced) c.x += OFFSET;
   for (const c of parked)    c.hidden = false;
 }
 let mx = 0, my = 0;
@@ -80,6 +86,14 @@ for (const c of b.children) { mx = Math.max(mx, c.bounds.x + c.bounds.width); my
 b.resize(Math.round(mx) + 48, Math.round(my) + 48);
 return { restored: parked.length > 0, size: [b.width, b.height] };
 */
+//
+// Two defects this pass caught that NOTHING programmatic saw — both
+// boards passed `isContainedIn`, shape counts and name lookups clean:
+//   • a note running straight through the NEXT group's label, twice.
+//     Re-anchor the following group off the note's measured bottom.
+//   • a ledger laid out on a fixed 74pt stride, which overlapped its
+//     three-line entries and left holes under the one-line ones. Stack
+//     off each text's real `.height` instead.
 // ─────────────────────────────────────────────────────────────────────
 
 const BOARD_NAME = 'Exercise Trends — resolved';
