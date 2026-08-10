@@ -17,7 +17,7 @@ vi.mock('@/api/db', () => ({
   db: { entities: { WorkoutLog: { filter: vi.fn(() => Promise.resolve([])) } } },
 }));
 
-import { generateWorkout } from '../workoutGenerator';
+import { generateWorkout, injuryImpact } from '../workoutGenerator';
 import { getExcludedMuscleGroups } from '@/lib/data/injuries';
 
 const USER = { email: 'a@b.c' };
@@ -89,5 +89,66 @@ describe('an injury removes the work that would load it', () => {
     const exclude = getExcludedMuscleGroups([]);
     const names = await namesFor({ focus: 'full_body', excludeMuscleGroups: exclude });
     expect(names.length).toBeGreaterThanOrEqual(4);
+  });
+});
+
+// ── What the screen is allowed to claim ──────────────────────────────────────
+//
+// The Injuries list states "N exercises are out of your sessions" and the
+// post-log screen names them. Both read `injuryImpact`, which walks the SAME
+// catalog and applies the SAME group/part test `generateWorkout` filters on —
+// so the count on screen cannot drift from the number of lifts actually
+// withheld. These tests exist to keep that true: they check the claim against
+// generated sessions rather than against a hardcoded number.
+
+describe('injuryImpact — the cost the UI is allowed to state', () => {
+  it('claims nothing for an uninjured user', () => {
+    const r = injuryImpact(getExcludedMuscleGroups([]));
+    expect(r.removedCount).toBe(0);
+    expect(r.removed).toEqual([]);
+    expect(r.remainingGroups.length).toBe(6);
+  });
+
+  it('every exercise it reports as removed is genuinely unreachable', async () => {
+    // The claim under test: nothing named "out" can appear in a generated
+    // session. Checked against the generator itself across every focus, so a
+    // divergence between the two filters fails here rather than on a user's
+    // screen.
+    const exclude = getExcludedMuscleGroups([{ muscle_group: 'Shoulders', severity: 'serious' }]);
+    const removed = new Set(injuryImpact(exclude).removed.map(n => n.toLowerCase()));
+    expect(removed.size).toBeGreaterThan(0);
+
+    for (const focus of ['full_body', 'upper', 'push', 'pull', 'legs', 'arms', 'core']) {
+      const names = await namesFor({ focus, excludeMuscleGroups: exclude });
+      for (const n of names) {
+        expect(removed.has(n), `${n} was reported as removed but got programmed`).toBe(false);
+      }
+    }
+  });
+
+  it('reports the sub-group parts, not just whole groups', () => {
+    // A biceps injury costs the three curls and nothing else. Before the
+    // `part` field existed this was zero — the number would have been a lie in
+    // the most reassuring direction.
+    const r = injuryImpact(getExcludedMuscleGroups([{ muscle_group: 'Biceps', severity: 'moderate' }]));
+    expect(r.removedCount).toBe(3);
+    expect(r.removed.every(n => n.toLowerCase().includes('curl'))).toBe(true);
+  });
+
+  it('a serious injury costs more than a moderate one of the same area', () => {
+    const moderate = injuryImpact(getExcludedMuscleGroups([{ muscle_group: 'Shoulders', severity: 'moderate' }]));
+    const serious  = injuryImpact(getExcludedMuscleGroups([{ muscle_group: 'Shoulders', severity: 'serious' }]));
+    expect(serious.removedCount).toBeGreaterThan(moderate.removedCount);
+  });
+
+  it('accepts an array as well as the Set the app passes', () => {
+    expect(injuryImpact(['legs']).removedCount)
+      .toBe(injuryImpact(new Set(['legs'])).removedCount);
+  });
+
+  it('never reports a group as both removed and remaining', () => {
+    const r = injuryImpact(getExcludedMuscleGroups([{ muscle_group: 'Legs', severity: 'mild' }]));
+    expect(r.remainingGroups).not.toContain('legs');
+    expect(r.removedCount + injuryImpact(new Set()).catalogSize - r.catalogSize).toBe(r.removedCount);
   });
 });

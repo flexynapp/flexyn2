@@ -2,7 +2,8 @@
 // Full-page overlay for logging a new injury or viewing injury history.
 // Accessible from the InjuryBanner "Log Injury" button and ProfileMenu.
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -13,6 +14,7 @@ import { toast } from '@/lib/toast';
 import { reportError } from '@/lib/reportError';
 import { format, addDays, differenceInDays } from 'date-fns';
 import * as injuries from '@/lib/data/injuries';
+import { injuryImpact } from '@/lib/aiCoach/workoutGenerator';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { useOverlayBackButton } from '@/hooks/useOverlayBackButton';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -55,7 +57,7 @@ const STATUS_ICON = {
 // (A STATUS_COLOR map sat here with no readers. The card colours status
 // through STATUS_ICON's own classes, so it had never been used.)
 
-function InjuryCard({ injury, onClear, onExtend, onDelete }) {
+function InjuryCard({ injury, cost, onClear, onSnooze, onExtend, onDelete }) {
   const { tFallback } = useLanguage();
   // Intl rather than date-fns' 'MMM d': the month name is the only part of
   // this that carries language, and date-fns would need a locale bundle per
@@ -136,6 +138,20 @@ function InjuryCard({ injury, onClear, onExtend, onDelete }) {
       <>
       {injury.notes && <p className="text-xs text-muted-foreground mb-2">{injury.notes}</p>}
 
+      {/* The consequence leads. "Shoulders, serious" is a receipt for
+          something the user already knows; the number of lifts it is holding
+          out of their sessions exists nowhere else in the app, and it only
+          became a true statement once the exclusion actually matched the
+          catalog. Counted from the same catalog and the same group/part test
+          generateWorkout filters on, so it cannot drift from reality. */}
+      {isActive && cost > 0 && (
+        <p className="text-sm font-medium mb-1">
+          {cost === 1
+            ? tFallback('injuries.card.costOne', '1 exercise is out of your sessions')
+            : tFallback('injuries.card.cost', '{count} exercises are out of your sessions', { count: cost })}
+        </p>
+      )}
+
       <div className="flex items-center gap-3 text-micro text-muted-foreground flex-wrap">
         <span>{tFallback('injuries.card.logged', 'Logged {date}', { date: shortDate(injury.injured_at) })}</span>
         {daysLeft !== null && isActive && (
@@ -152,25 +168,40 @@ function InjuryCard({ injury, onClear, onExtend, onDelete }) {
         )}
       </div>
 
+      {/* Same two answers as the check-in prompt on the Workout tab, worded
+          the same way. They used to be "Clear injury" and "Extend date", and
+          the second opened a date field — the same field nobody fills in on
+          the way in, so deferring meant typing a date. "Still hurts" pushes
+          the next check-in out by this injury's own interval instead.
+          The date picker is still reachable below for anyone who wants to name
+          a specific day. */}
       {isActive && (
         <div className="flex gap-2 mt-3">
           <Button
             size="sm"
-            variant="outline"
-            className="flex-1 text-xs h-8 text-success border-success/30 hover:bg-success/10 active:bg-success/10"
+            className="flex-1 text-xs h-8"
             onClick={() => onClear(injury.id)}
           >
-            <CheckCircle2 className="w-3 h-3 me-1" /> {tFallback('injuries.card.clear', 'Clear injury')}
+            <CheckCircle2 className="w-3 h-3 me-1" /> {tFallback('injuries.checkIn.cleared', "I'm cleared")}
           </Button>
           <Button
             size="sm"
             variant="outline"
             className="flex-1 text-xs h-8"
-            onClick={() => setShowExtend(v => !v)}
+            onClick={() => onSnooze(injury.id, injury.severity)}
           >
-            {tFallback('injuries.card.extend', 'Extend date')}
+            {tFallback('injuries.checkIn.stillHurts', 'Still hurts')}
           </Button>
         </div>
+      )}
+      {isActive && (
+        <button
+          type="button"
+          onClick={() => setShowExtend(v => !v)}
+          className="mt-2 text-micro text-muted-foreground hover:text-foreground active:text-foreground transition-colors"
+        >
+          {tFallback('injuries.card.extend', 'Extend date')}
+        </button>
       )}
 
       {showExtend && (
@@ -197,6 +228,7 @@ export default function InjuryForm({ onClose }) {
   const { user } = useAuth();
   const { tFallback } = useLanguage();
   const qc = useQueryClient();
+  const navigate = useNavigate();
   // Lock the page underneath + portal the overlay to <body> so a parent
   // with `transform`/`filter`/`backdrop-filter` in its ancestor chain
   // doesn't hijack the `fixed` positioning and render the modal behind
@@ -204,7 +236,15 @@ export default function InjuryForm({ onClose }) {
   useBodyScrollLock(true);
 
   // ── Form state ─────────────────────────────────────────────────────────────
-  const [view, setView] = useState('list'); // 'list' | 'new'
+  // 'changed' is sheet C — the screen that says what the injury just did.
+  const [view, setView] = useState('list'); // 'list' | 'new' | 'changed'
+  // Cleared injuries are history. Under a live list they compete for
+  // attention with the thing that is currently changing your training.
+  const [showCleared, setShowCleared] = useState(false);
+  // The impact of the injury just logged, captured at the moment it landed so
+  // sheet C describes THAT injury rather than re-deriving from a list that has
+  // since refetched.
+  const [justLogged, setJustLogged] = useState(null);
   const [muscleGroup, setMuscleGroup] = useState('');
   const [severity, setSeverity] = useState('mild');
   const [notes, setNotes] = useState('');
@@ -224,7 +264,7 @@ export default function InjuryForm({ onClose }) {
   // whole overlay does drop it — same as the chevron has always done,
   // and it takes a deliberate second press from the list to get there.
   useOverlayBackButton(true, onClose);
-  useOverlayBackButton(view === 'new', () => setView('list'));
+  useOverlayBackButton(view === 'new' || view === 'changed', () => setView('list'));
 
   // ── Data ───────────────────────────────────────────────────────────────────
   // Distinct key from InjuryBanner's ['injuries','active',uid]: this query
@@ -255,7 +295,12 @@ export default function InjuryForm({ onClose }) {
       toast.success(tFallback('injuries.toast.logged', '{area} injury logged. Recovery Mode active.', {
         area: tFallback(muscleKey(muscleGroup), muscleGroup),
       }));
-      setView('list');
+      // Sheet C, not the list. Logging an injury is the largest automatic
+       // change the app makes to someone's training and it used to produce a
+       // toast and nothing else — the first time you saw what it did was when
+       // a session arrived without the lifts you expected.
+      setJustLogged({ muscleGroup, severity });
+      setView('changed');
       setMuscleGroup('');
       setSeverity('mild');
       setNotes('');
@@ -273,6 +318,24 @@ export default function InjuryForm({ onClose }) {
     onError: (err) => {
       reportError(err, { feature: 'injuries.clear', level: 'warning', userEmail: user?.email });
       toast.error(tFallback('injuries.toast.clearFailed', 'Could not clear injury. Try again.'));
+    },
+  });
+
+  // "Still hurts" — the same one-tap defer the Workout-tab check-in offers, so
+  // the two surfaces answer the same question the same way.
+  const snoozeMutation = useMutation({
+    mutationFn: ({ id, severity: sev }) => injuries.snoozeCheckIn(id, sev),
+    onSuccess: (_d, { severity: sev }) => {
+      invalidate();
+      toast.success(tFallback(
+        'injuries.toast.snoozed',
+        "Keeping it out of your sessions. We'll ask again in {days} days.",
+        { days: injuries.checkInIntervalDays(sev) },
+      ));
+    },
+    onError: (err) => {
+      reportError(err, { feature: 'injuries.snooze', level: 'warning', userEmail: user?.email });
+      toast.error(tFallback('injuries.toast.snoozeFailed', 'Could not update. Try again.'));
     },
   });
 
@@ -297,6 +360,26 @@ export default function InjuryForm({ onClose }) {
   const activeList  = injuryList.filter(i => i.status !== 'cleared');
   const clearedList = injuryList.filter(i => i.status === 'cleared');
 
+  // What each injury costs, ON ITS OWN. Per-injury rather than cumulative so a
+  // card states its own consequence — two injuries that both rule out chest
+  // each say so, which is what the user asked about by looking at that card.
+  const costById = useMemo(() => {
+    const out = {};
+    for (const inj of activeList) {
+      out[inj.id] = injuryImpact(injuries.getExcludedMuscleGroups([inj])).removedCount;
+    }
+    return out;
+  }, [activeList]);
+
+  // Sheet C's numbers come from the FULL active set including the one just
+  // logged, because that is what the generator will actually apply — an injury
+  // described in isolation would under-report a user who already had one.
+  const changed = useMemo(() => {
+    if (!justLogged) return null;
+    const impact = injuryImpact(injuries.getExcludedMuscleGroups(activeList));
+    return { ...impact, ...justLogged };
+  }, [justLogged, activeList]);
+
   return createPortal(
     <motion.div
       initial={{ opacity: 0, y: 32 }}
@@ -313,16 +396,18 @@ export default function InjuryForm({ onClose }) {
           className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground active:text-foreground transition-colors"
         >
           <ChevronLeft className="w-4 h-4" />
-          {view === 'new'
-            ? tFallback('injuries.action.back', 'Back')
-            : tFallback('injuries.action.close', 'Close')}
+          {view === 'list'
+            ? tFallback('injuries.action.close', 'Close')
+            : tFallback('injuries.action.back', 'Back')}
         </button>
         <div className="flex items-center gap-1.5">
           <ShieldAlert className="w-4 h-4 text-primary" />
           <span className="font-heading font-bold text-base">
             {view === 'new'
               ? tFallback('injuries.title.new', 'Log Injury')
-              : tFallback('injuries.title.list', 'Injury Log')}
+              : view === 'changed'
+                ? tFallback('injuries.title.changed', 'Injury logged')
+                : tFallback('injuries.title.list', 'Injury Log')}
           </span>
         </div>
         {view === 'list' && (
@@ -333,7 +418,7 @@ export default function InjuryForm({ onClose }) {
             <Plus className="w-4 h-4" /> {tFallback('injuries.action.log', 'Log')}
           </button>
         )}
-        {view === 'new' && <div className="w-12" />}
+        {view !== 'list' && <div className="w-12" />}
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 py-4">
@@ -363,29 +448,167 @@ export default function InjuryForm({ onClose }) {
                         <InjuryCard
                           key={inj.id}
                           injury={inj}
+                          cost={costById[inj.id] || 0}
                           onClear={id => clearMutation.mutate(id)}
+                          onSnooze={(id, sev) => snoozeMutation.mutate({ id, severity: sev })}
                           onExtend={(id, date) => extendMutation.mutate({ id, date })}
                           onDelete={id => deleteMutation.mutate(id)}
                         />
                       ))}
                     </>
                   )}
+                  {/* Cleared injuries collapse. They are history, and history
+                      under a live list competes for attention with the thing
+                      that is currently changing your training. One row, one
+                      tap — and the count is the whole summary. */}
                   {clearedList.length > 0 && (
                     <>
-                      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mt-4">{tFallback('injuries.section.cleared', 'Cleared')}</p>
-                      {clearedList.map(inj => (
-                        <InjuryCard
-                          key={inj.id}
-                          injury={inj}
-                          onClear={id => clearMutation.mutate(id)}
-                          onExtend={(id, date) => extendMutation.mutate({ id, date })}
-                          onDelete={id => deleteMutation.mutate(id)}
-                        />
-                      ))}
+                      {!showCleared ? (
+                        <button
+                          type="button"
+                          onClick={() => setShowCleared(true)}
+                          className="w-full mt-4 flex items-center justify-between rounded-lg border border-border/60 px-4 py-3 text-start hover:border-border active:border-border transition-colors"
+                        >
+                          <span className="text-sm font-medium text-muted-foreground">
+                            {clearedList.length === 1
+                              ? tFallback('injuries.cleared.countOne', '1 cleared')
+                              : tFallback('injuries.cleared.count', '{count} cleared', { count: clearedList.length })}
+                          </span>
+                          <span className="text-xs font-medium text-muted-foreground">
+                            {tFallback('injuries.cleared.show', 'Show')} ›
+                          </span>
+                        </button>
+                      ) : (
+                        <>
+                          <div className="flex items-center justify-between mt-4">
+                            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{tFallback('injuries.section.cleared', 'Cleared')}</p>
+                            <button
+                              type="button"
+                              onClick={() => setShowCleared(false)}
+                              className="text-xs font-medium text-muted-foreground hover:text-foreground active:text-foreground transition-colors"
+                            >
+                              {tFallback('injuries.cleared.hide', 'Hide')}
+                            </button>
+                          </div>
+                          {clearedList.map(inj => (
+                            <InjuryCard
+                              key={inj.id}
+                              injury={inj}
+                              cost={0}
+                              onClear={id => clearMutation.mutate(id)}
+                              onSnooze={(id, sev) => snoozeMutation.mutate({ id, severity: sev })}
+                              onExtend={(id, date) => extendMutation.mutate({ id, date })}
+                              onDelete={id => deleteMutation.mutate(id)}
+                            />
+                          ))}
+                        </>
+                      )}
                     </>
+                  )}
+
+                  {/* The Coach knows about these — and until 2026-08-09 it did
+                      not, on any path. Worth saying out loud on the screen
+                      where someone has just told the app they are hurt. */}
+                  {activeList.length > 0 && (
+                    <div className="pt-6 mt-2 border-t border-border">
+                      <p className="text-sm font-semibold">
+                        {activeList.length === 1
+                          ? tFallback('injuries.coach.knowsOne', 'Coach knows about this.')
+                          : tFallback('injuries.coach.knows', 'Coach knows about all of these.')}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => { onClose?.(); navigate('/coach'); }}
+                        className="mt-0.5 text-sm text-primary hover:text-primary/80 active:text-primary/80 transition-colors"
+                      >
+                        {tFallback('injuries.coach.ask', 'Ask it what to train instead')} ›
+                      </button>
+                    </div>
                   )}
                 </div>
               )}
+            </motion.div>
+          )}
+
+          {/* ── What it changed ──────────────────────────────────────────────
+              The screen that did not exist. Logging an injury used to produce
+              a toast and a banner, and the first time you saw what it had done
+              was when a session arrived without the lifts you expected.
+              CLAUDE.md already requires the Coach to explain every automatic
+              change it makes to someone's training — this is the largest one
+              in the app, and it was the one that never explained itself.
+
+              Naming the lifts is also the only way a user can catch a mis-tap
+              before it quietly reshapes a month of training. */}
+          {view === 'changed' && changed && (
+            <motion.div key="changed" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+              <h2 className="font-heading font-bold text-2xl leading-tight">
+                {tFallback('injuries.changed.title', 'Your sessions just changed.')}
+              </h2>
+
+              {/* Only for a serious injury, because only then is the list
+                  wider than the body part the user actually named — and an
+                  unexplained "why is chest gone too?" reads as a bug. */}
+              {changed.severity === 'serious' && (
+                <p className="text-sm text-muted-foreground mt-2">
+                  {tFallback(
+                    'injuries.changed.synergists',
+                    'A serious {area} injury also takes out what it helps move — that is why more than one group is on this list.',
+                    { area: tFallback(muscleKey(changed.muscleGroup), changed.muscleGroup).toLowerCase() },
+                  )}
+                </p>
+              )}
+
+              {changed.removed.length > 0 && (
+                <div className="mt-6">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                    {tFallback('injuries.changed.out', "Out, until you're cleared")}
+                  </p>
+                  <div className="rounded-lg border border-border bg-card p-3">
+                    <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
+                      {changed.removed.map(name => (
+                        <span key={name} className="text-xs text-muted-foreground">{name}</span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {changed.remainingGroups.length > 0 && (
+                <div className="mt-6">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                    {tFallback('injuries.changed.still', 'Still yours')}
+                  </p>
+                  <div className="rounded-lg border border-border p-3">
+                    <p className="text-sm font-bold capitalize">
+                      {changed.remainingGroups
+                        .map(g => tFallback(muscleKey(g), g))
+                        .join('  ·  ')}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* The offer that turns a restriction into a session. It goes to
+                  the Coach rather than generating here, because the Coach now
+                  knows about the injury — severity, age and the note — and can
+                  say what it is working around. */}
+              <div className="mt-6">
+                <Button
+                  className="w-full"
+                  size="lg"
+                  onClick={() => { onClose?.(); navigate('/coach'); }}
+                >
+                  {tFallback('injuries.changed.cta', 'Build me a session around it')}
+                </Button>
+                <button
+                  type="button"
+                  onClick={() => setView('list')}
+                  className="w-full mt-2 py-2 text-sm font-medium text-muted-foreground hover:text-foreground active:text-foreground transition-colors"
+                >
+                  {tFallback('injuries.changed.notNow', 'Not now')}
+                </button>
+              </div>
             </motion.div>
           )}
 

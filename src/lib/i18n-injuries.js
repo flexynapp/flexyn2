@@ -58,7 +58,11 @@ export const injuriesTranslations = {
     'injuries.empty.body':          'Tap Log to record an injury.',
     'injuries.empty.cta':           'Log Injury',
 
+    'injuries.title.changed':       'Injury logged',
+
     // ── A card ───────────────────────────────────────────────────────────
+    'injuries.card.cost':           '{count} exercises are out of your sessions',
+    'injuries.card.costOne':        '1 exercise is out of your sessions',
     'injuries.card.logged':         'Logged {date}',
     'injuries.card.dateReached':    'Recovery date reached',
     'injuries.card.daysLeft':       '{days}d until recovery',
@@ -104,6 +108,25 @@ export const injuriesTranslations = {
     'injuries.checkIn.ageYesterday': "You logged this yesterday, and it's still coming out of your sessions.",
     'injuries.checkIn.cleared':      "I'm cleared",
     'injuries.checkIn.stillHurts':   'Still hurts',
+
+    // ── Cleared, collapsed ───────────────────────────────────────────────
+    'injuries.cleared.count':       '{count} cleared',
+    'injuries.cleared.countOne':    '1 cleared',
+    'injuries.cleared.show':        'Show',
+    'injuries.cleared.hide':        'Hide',
+
+    // ── The Coach footer ─────────────────────────────────────────────────
+    'injuries.coach.knows':         'Coach knows about all of these.',
+    'injuries.coach.knowsOne':      'Coach knows about this.',
+    'injuries.coach.ask':           'Ask it what to train instead',
+
+    // ── What it changed ──────────────────────────────────────────────────
+    'injuries.changed.title':       'Your sessions just changed.',
+    'injuries.changed.synergists':  'A serious {area} injury also takes out what it helps move — that is why more than one group is on this list.',
+    'injuries.changed.out':         "Out, until you're cleared",
+    'injuries.changed.still':       'Still yours',
+    'injuries.changed.cta':         'Build me a session around it',
+    'injuries.changed.notNow':      'Not now',
 
     // ── Toasts ───────────────────────────────────────────────────────────
     'injuries.toast.logged':        '{area} injury logged. Recovery Mode active.',

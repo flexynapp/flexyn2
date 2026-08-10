@@ -604,6 +604,44 @@ export async function generateWorkout({
   };
 }
 
+/**
+ * What an injury actually COSTS — the exercises it removes from every session
+ * this generator builds, and the groups that survive.
+ *
+ * This exists so the Injuries screen can state the consequence instead of
+ * echoing the label back. "Shoulders · serious" is a receipt for something the
+ * user already knows; "8 exercises are out of your sessions" is the fact that
+ * exists nowhere else in the app, and naming the lifts is the only way someone
+ * can catch a mis-tap before it quietly reshapes a month of training.
+ *
+ * Derived from the SAME catalog and the SAME group/part test `generateWorkout`
+ * filters on, so the number on screen cannot drift from the number of lifts
+ * actually withheld. Equipment and skill are deliberately NOT applied: this
+ * answers "what does this injury cost me", not "what does it cost me today at
+ * this gym", and folding those in would make the figure move for reasons that
+ * have nothing to do with the injury.
+ *
+ * @param {Set<string>|string[]} excludeMuscleGroups from getExcludedMuscleGroups()
+ * @returns {{ removed: string[], removedCount: number, remainingGroups: string[], catalogSize: number }}
+ */
+export function injuryImpact(excludeMuscleGroups = new Set()) {
+  const excluded = excludeMuscleGroups instanceof Set
+    ? excludeMuscleGroups
+    : new Set(excludeMuscleGroups || []);
+  const hit = (ex) =>
+    excluded.has(ex.group?.toLowerCase()) || excluded.has(ex.part?.toLowerCase());
+
+  const removed = CATALOG.filter(hit).map(ex => ex.name);
+  const remainingGroups = [...new Set(CATALOG.filter(ex => !hit(ex)).map(ex => ex.group))];
+
+  return {
+    removed,
+    removedCount: removed.length,
+    remainingGroups,
+    catalogSize: CATALOG.length,
+  };
+}
+
 export const FOCUS_OPTIONS = Object.keys(FOCUS_TO_GROUPS).map(id => ({
   id,
   label: FOCUS_LABELS[id] || id,
