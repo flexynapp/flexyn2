@@ -169,7 +169,7 @@ export function headlineFor(points = [], metric) {
  * days the user did not train. Sampling the points instead means every
  * tick is a session.
  */
-export function tickTimes(points = [], max = 4) {
+export function tickTimes(points = [], max = 6) {
   if (points.length <= max) return points.map((p) => p.t);
   const step = (points.length - 1) / (max - 1);
   const out = [];

@@ -36,11 +36,14 @@ export default function ExerciseTrendRow({ exerciseName, logs, sinceMs }) {
   const panelId = useId();
 
   const [expanded, setExpanded] = useState(false);
-  // Latched: once a row has been opened, its chart stays mounted so
-  // re-opening is instant and the height measurement below stays honest.
-  // State rather than a ref set during render — a ref mutated in the
-  // render body is not safe under concurrent rendering.
-  const [everExpanded, setEverExpanded] = useState(false);
+  // Counts opens, and does two jobs. Non-zero means the row has been
+  // opened at least once, which is what gates mounting the chart at all —
+  // entering the tab must not mount one per exercise. And as the chart's
+  // `key` it remounts it on every open, so the line DRAWS ITSELF IN each
+  // time rather than animating once on first mount and sitting static
+  // forever after. Cheap: one chart, only while a row is open.
+  const [openCount, setOpenCount] = useState(0);
+  const everExpanded = openCount > 0;
 
   const displayName = translateExerciseName(exerciseName, language);
 
@@ -95,7 +98,12 @@ export default function ExerciseTrendRow({ exerciseName, logs, sinceMs }) {
   return (
     <div className="border-t border-border/60 first:border-t-0">
       <button
-        onClick={() => { setExpanded((v) => !v); setEverExpanded(true); }}
+        onClick={() => {
+          setExpanded((v) => {
+            if (!v) setOpenCount((n) => n + 1);
+            return !v;
+          });
+        }}
         aria-expanded={expanded}
         aria-controls={panelId}
         className="w-full flex items-center gap-2 py-2.5 text-start hover:bg-secondary/30 active:bg-secondary/30 transition-colors rounded-sm"
@@ -178,7 +186,12 @@ export default function ExerciseTrendRow({ exerciseName, logs, sinceMs }) {
               )}
 
               {sessions >= 2 ? (
-                <ExerciseTrendChart points={points} metric={activeMetric} metricLabel={metricLabel} />
+                <ExerciseTrendChart
+                  key={openCount}
+                  points={points}
+                  metric={activeMetric}
+                  metricLabel={metricLabel}
+                />
               ) : (
                 // The one-point state, which per the production data is
                 // the state most users are in. It says what is true —

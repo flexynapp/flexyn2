@@ -15,10 +15,20 @@
 // half-built board from a timed-out call is cleaned up rather than
 // double-drawn. Do not try to resume it mid-board.
 //
-// BEFORE PASTING: select **Page 2** in the Penpot UI. The script bails
-// with a message rather than switching pages itself — `penpot.openPage()`
-// is async and asserting `currentPage` on the next line is a race that
-// has cost a 22-child board before.
+// BEFORE PASTING: select the page **Exercise Trends — resolved** in the
+// Penpot UI. The script bails with a message rather than switching pages
+// itself — `penpot.openPage()` is async and asserting `currentPage` on
+// the next line is a race that has cost a 22-child board before. (If the
+// page does not exist yet: `const p = penpot.createPage(); p.name =
+// 'Exercise Trends — resolved'; await penpot.openPage(p);` in its own
+// call, then verify `penpot.currentPage.name` in a SECOND call, then run
+// this one.)
+//
+// It gets its own page rather than a slot on Page 2 because that is where
+// the convention went: Page 2 holds the older boards (Journal,
+// Achievements, Settings, Daily Quests) while every recent one — League
+// seasons, My Gym, Weekly Reviews, Injuries, Progress, Analytics — is a
+// page per feature.
 //
 // ── What it draws ────────────────────────────────────────────────────
 // Seven groups, left to right, at true phone size (390 pt). This is the
@@ -39,13 +49,48 @@
 // block otherwise — listed in FALLBACK below so a missing token is
 // visible rather than silently wrong.
 
+// ─────────────────────────────────────────────────────────────────────
+// RESTORE FIRST if the board was left mid-inspection.
+//
+// There is no region export in Penpot, and a full-width export puts 11px
+// type at a third scale where none of it is readable. So judging a column
+// means cropping the board to 486 wide, HIDING the other two columns, and
+// sliding the one under inspection to x0 — then putting it all back.
+//
+// The bridge died between the slide and the slide-back on 2026-08-10, so
+// the board may currently be 486 wide with columns 1 and 3 hidden and
+// column 2 sitting 438pt to the left of where it belongs. Paste this ONCE
+// after a reconnect. It keys off `hidden` rather than child indices — at
+// that moment the hidden shapes ARE columns 1 and 3, and everything
+// visible IS the displaced column 2 — so it needs nothing from `storage`,
+// which a plugin reload wipes.
+//
+// It is a no-op on a board that is already fine (nothing hidden → nothing
+// shifted), so it is safe to run without checking first.
+/*
+const b = penpotUtils.findShape(s => s.name === 'Exercise Trends — resolved' && s.type === 'board');
+const displaced = b.children.filter(c => !c.hidden);
+const parked    = b.children.filter(c =>  c.hidden);
+if (parked.length) {
+  for (const c of displaced) c.x += 438;
+  for (const c of parked)    c.hidden = false;
+}
+let mx = 0, my = 0;
+for (const c of b.children) { mx = Math.max(mx, c.bounds.x + c.bounds.width); my = Math.max(my, c.bounds.y + c.bounds.height); }
+b.resize(Math.round(mx) + 48, Math.round(my) + 48);
+return { restored: parked.length > 0, size: [b.width, b.height] };
+*/
+// ─────────────────────────────────────────────────────────────────────
+
 const BOARD_NAME = 'Exercise Trends — resolved';
 
 // ── Guard rails ───────────────────────────────────────────────────────
+const TARGET_PAGE = 'Exercise Trends — resolved';
+
 const page = penpot.currentPage;
 if (!page) return 'No current page.';
-if (!/page\s*2/i.test(page.name)) {
-  return `Current page is "${page.name}". Select Page 2 in the Penpot UI and re-run — this script will not switch pages for you.`;
+if (page.name !== TARGET_PAGE) {
+  return `Current page is "${page.name}". Select "${TARGET_PAGE}" in the Penpot UI and re-run — this script will not switch pages for you.`;
 }
 
 // Idempotency: remove a previous build before drawing. `remove()` only

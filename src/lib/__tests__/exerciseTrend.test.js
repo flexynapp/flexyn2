@@ -170,6 +170,12 @@ describe('axis helpers', () => {
     expect(ticks[0]).toBe(0);
     expect(ticks[3]).toBe(19);
     ticks.forEach((t) => expect(many.some((p) => p.t === t)).toBe(true));
+
+    // The default is 6, not 4: the expanded chart's job is to say WHEN,
+    // since the collapsed row already gives the number and the direction.
+    // Six "Aug 9"-length labels fit a 390pt column at 11px.
+    expect(tickTimes(many)).toHaveLength(6);
+    expect(tickTimes(Array.from({ length: 5 }, (_, i) => ({ t: i })))).toHaveLength(5);
   });
 
   it('pads the value domain and never collapses a flat series onto an edge', () => {

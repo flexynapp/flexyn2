@@ -6,6 +6,7 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { useDateFormatter, useNumberFormatter } from '@/lib/intl';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { fromLbs } from '@/lib/weightUnit';
+import prefersReducedMotion from '@/lib/reducedMotion';
 import { seriesFor, valueDomain, axisTicks, tickTimes, METRIC_IS_WEIGHT } from '@/lib/exerciseTrend';
 
 /**
@@ -30,11 +31,16 @@ import { seriesFor, valueDomain, axisTicks, tickTimes, METRIC_IS_WEIGHT } from '
  * steady weekly progress. Here the gap between two sessions is the gap
  * between them.
  */
-export default function ExerciseTrendChart({ points, metric, metricLabel, height = 190 }) {
+export default function ExerciseTrendChart({ points, metric, metricLabel, height = 200 }) {
   const { language } = useLanguage();
   const { weightUnit } = useWeightUnit();
   const fmtDate = useDateFormatter();
   const fmtNum = useNumberFormatter();
+
+  // Read once, at mount, which is exactly what a mount-time animation
+  // decision needs — and this component is remounted per expand, so it
+  // picks the setting up without subscribing to the media query.
+  const animate = !prefersReducedMotion();
 
   const isWeight = METRIC_IS_WEIGHT[metric];
 
@@ -54,7 +60,13 @@ export default function ExerciseTrendChart({ points, metric, metricLabel, height
   const values = data.map((d) => d.value);
   const domain = valueDomain(values);
   const yTicks = axisTicks(values);
-  const xTicks = tickTimes(points, 4);
+  // Every session gets its own dated tick up to six, then it samples. The
+  // dates are half of what makes the expanded chart worth opening for —
+  // the collapsed row already gives you the number and the direction, so
+  // what the chart adds is WHEN. Six fits a 390pt column at 11px because
+  // the label is "Aug 9", not a full date; `minTickGap` drops any that
+  // would still collide rather than overlapping them.
+  const xTicks = tickTimes(points, 6);
 
   const axisNum = (v) => fmtNum(v, { maximumFractionDigits: v < 100 ? 1 : 0 });
   const axisDate = (t) => fmtDate(t, { month: 'short', day: 'numeric' });
@@ -116,17 +128,33 @@ export default function ExerciseTrendChart({ points, metric, metricLabel, height
         />
 
         <Line
+          // `monotone` and not `linear`: a monotone cubic curves through
+          // the points without overshooting between them, so the line
+          // stays smooth without inventing a peak the data does not
+          // have. Solid — a dashed or gradient stroke would imply
+          // uncertainty that isn't in a logged number.
           type="monotone"
           dataKey="value"
           stroke="hsl(var(--chart-1))"
           strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
           // A session with no real value for this metric breaks the
           // line instead of being drawn through, so a gap in the data
           // reads as a gap.
           connectNulls={false}
-          dot={{ r: 3, fill: 'hsl(var(--chart-1))', stroke: 'hsl(var(--card))', strokeWidth: 2 }}
-          activeDot={{ r: 5, fill: 'hsl(var(--chart-1))', stroke: 'hsl(var(--card))', strokeWidth: 2 }}
-          isAnimationActive={false}
+          // 8pt overall against the card, which is the floor for a
+          // touch-adjacent mark; the ring is the surface colour so a dot
+          // reads as a point ON the line rather than a bead threaded by
+          // it, and stays legible where the curve doubles back.
+          dot={{ r: 4, fill: 'hsl(var(--chart-1))', stroke: 'hsl(var(--card))', strokeWidth: 2 }}
+          activeDot={{ r: 6, fill: 'hsl(var(--chart-1))', stroke: 'hsl(var(--card))', strokeWidth: 2 }}
+          // The line draws itself in when the row opens. The row remounts
+          // this component on each expand (see its `openCount` key) so it
+          // replays rather than only ever running once on first mount.
+          isAnimationActive={animate}
+          animationDuration={720}
+          animationEasing="ease-out"
         />
       </LineChart>
     </ResponsiveContainer>
