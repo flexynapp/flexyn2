@@ -22,6 +22,7 @@ import { parseLocalDate } from '@/lib/dateUtils';
 import { useLanguage } from '@/lib/LanguageContext';
 import { translateExerciseName } from '@/lib/exerciseTranslations';
 import ExerciseFormPanel from '@/components/exercise/ExerciseFormPanel';
+import { workoutTitle } from '@/lib/workoutTitle';
 
 // Map exercise muscle groups → plan day label
 const MUSCLE_TO_LABEL = {
@@ -108,7 +109,7 @@ export default function TodaysPlanCard({ regimens = [], logs = [], hasWorkedOutT
     // Build a map: regimenName → last date used
     const lastUsed = {};
     logs.forEach(log => {
-      const name = log.regimen_name;
+      const name = workoutTitle(log);
       if (!name) return;
       const d = parseLocalDate(log.date);
       if (!d || isNaN(d.getTime())) return;

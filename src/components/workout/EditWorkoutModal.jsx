@@ -15,6 +15,7 @@ import { toLbs, formatWeightNumber } from '@/lib/weightUnit';
 import { getExerciseDisplay } from '@/lib/exerciseTranslations';
 import { TagSelector } from '@/components/workout/WorkoutTags';
 import { workoutDurationMin, DURATION_COLUMN } from '@/lib/workoutDuration';
+import { workoutTitle, TITLE_COLUMN } from '@/lib/workoutTitle';
 
 // Weight cell with focused-draft state. While focused it holds the raw
 // keystrokes verbatim; on blur it parses → converts to canonical lbs →
@@ -135,7 +136,7 @@ export default function EditWorkoutModal({ log, userProfile = {}, logs = [], car
   const [date, setDate] = useState(log?.date || '');
   const [duration, setDuration] = useState(workoutDurationMin(log) || '');
   const [notes, setNotes] = useState(log?.notes || '');
-  const [name, setName] = useState(log?.regimen_name || '');
+  const [name, setName] = useState(workoutTitle(log) || '');
   const [tags, setTags] = useState(log?.tags || []);
   const notesGuard = useProfanityGuard(setNotes);
   const [saving, setSaving] = useState(false);
@@ -156,7 +157,7 @@ export default function EditWorkoutModal({ log, userProfile = {}, logs = [], car
     setDate(log.date || '');
     setDuration(workoutDurationMin(log) || '');
     setNotes(log.notes || '');
-    setName(log.regimen_name || '');
+    setName(workoutTitle(log) || '');
     setTags(log.tags || []);
     setConfirmDelete(false);
     setCheatWarningData(null);
@@ -303,7 +304,7 @@ export default function EditWorkoutModal({ log, userProfile = {}, logs = [], car
     }
 
     setSaving(true);
-    await onSave(log.id, { exercises: finalExercises, date, [DURATION_COLUMN]: duration ? parseInt(duration) : null, notes, regimen_name: name.trim() || log?.regimen_name || null, tags });
+    await onSave(log.id, { exercises: finalExercises, date, [DURATION_COLUMN]: duration ? parseInt(duration) : null, notes, [TITLE_COLUMN]: name.trim() || workoutTitle(log) || null, tags });
     setSaving(false);
     onClose();
   };
@@ -319,7 +320,7 @@ export default function EditWorkoutModal({ log, userProfile = {}, logs = [], car
     <Dialog open={open} onOpenChange={v => !v && onClose()}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="font-heading">{name || log?.regimen_name || t('workout.freestyle')}</DialogTitle>
+          <DialogTitle className="font-heading">{name || workoutTitle(log) || t('workout.freestyle')}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">

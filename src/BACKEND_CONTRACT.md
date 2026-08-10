@@ -90,9 +90,21 @@ Every entity below has these common fields:
   a different field and is correct — it lives inside the `exercises` JSONB,
   which has no schema to disagree with.
 - `notes` — string
-- `regimen_id` — string\|null
-- `regimen_name` — string
+- `title` — string\|null. The workout's name. **There is no `regimen_name`
+  and no `regimen_id`** — this doc listed both, the client wrote both, and
+  `db.js` stripped both on every save, so no workout has ever stored its
+  name. Write via `TITLE_COLUMN` and read via `workoutTitle()` from
+  `src/lib/workoutTitle.js`. `regimen_id` was removed rather than renamed:
+  nothing reads a workout log's regimen id, so it bought a stripped column
+  and a wasted retry.
 - `exercises[]` — array of `{ name, displayName?, muscle_group, muscle_groups[], sets[{weight, reps}], duration_minutes? }`
+
+**The full column list, since two fields on this table turned out not to
+exist:** `id, created_by, user_id, title, date, notes, exercises,
+duration_min, total_volume, created_at, updated_at, created_date,
+idempotency_key, volume_credited_at, tags`. Check a new field against this
+before adding it here — a name in this doc is not evidence the column
+exists, which is exactly how both bugs shipped.
 
 ### `CardioLog`
 - `date` — YYYY-MM-DD

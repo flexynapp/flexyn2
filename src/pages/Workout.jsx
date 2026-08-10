@@ -70,6 +70,7 @@ import PageHeader from '@/components/PageHeader';
 import { useWorkoutSessions, pauseWorkoutSync } from '@/hooks/useWorkoutSessions';
 import { calculateWorkoutXp } from '@/lib/xpSystem';
 import { DURATION_COLUMN } from '@/lib/workoutDuration';
+import { TITLE_COLUMN } from '@/lib/workoutTitle';
 import { hasCheckedInToday, GYM_CHECKIN_XP_MULTIPLIER } from '@/lib/data/gymCheckins';
 import * as quests from '@/lib/data/quests';
 import { ACTION_TYPES } from '@/lib/questCatalog';
@@ -1775,9 +1776,18 @@ export default function Workout() {
       : `idem-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
 
     const pendingPayload = {
-      regimen_id: selectedRegimen?.id || '',
+      // `title` is the real column. This wrote `regimen_name`, which
+      // workout_logs does not have, so db.js's strip-and-retry dropped it
+      // on every save and no workout has ever stored its name — see
+      // src/lib/workoutTitle.js.
+      //
+      // `regimen_id` went with it rather than being renamed: nothing in the
+      // codebase reads a workout log's regimen_id (every other hit belongs
+      // to crew messages, trainer listings or regimen reviews), so it was
+      // buying a stripped column and a wasted retry.
+      //
       // User-given name wins; else the regimen name; else Freestyle.
-      regimen_name: workoutName.trim() || selectedRegimen?.name || t('workout.freestyle'),
+      [TITLE_COLUMN]: workoutName.trim() || selectedRegimen?.name || t('workout.freestyle'),
       date,
       // `duration_min` is the real column. This said `duration_minutes` —
       // a column workout_logs does not have — so db.js's strip-and-retry

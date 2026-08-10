@@ -14,6 +14,7 @@ import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { parseLocalDate } from '@/lib/dateUtils';
 import { formatWeight } from '@/lib/weightUnit';
 import { computeStrengthGoalProgress } from '@/lib/goalProgress';
+import { workoutTitle } from '@/lib/workoutTitle';
 
 // Recharts-backed widgets live in their own lazy chunk so recharts
 // (vendor-charts, ~274 KB) is NOT pulled into the eager Dashboard bundle —
@@ -161,7 +162,7 @@ function RecentWorkoutWidget({ logs, isLoading }) {
       exercises: exercises.length,
       sets,
       volume,
-      name: best.name || best.regimen_name || null,
+      name: best.name || workoutTitle(best),
     };
   }, [logs]);
 

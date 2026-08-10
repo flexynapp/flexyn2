@@ -20,6 +20,7 @@ import { useNumberFormatter } from '@/lib/intl';
 // user's bar-weight inclusion preference. (Audit 09 #H-6.)
 import { totalVolume as computeTotalVolume } from '@/lib/workoutVolume';
 import { TagPillRow } from './WorkoutTags';
+import { workoutTitle } from '@/lib/workoutTitle';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -58,7 +59,7 @@ export default function WorkoutSavedList({ onSelectLog, search = '' }) {
   // Search by name or date (raw ISO + human-formatted words like "July", "Mon").
   const q = (search || '').trim().toLowerCase();
   const logs = !q ? allLogs : allLogs.filter((l) => {
-    const name = (l.regimen_name || 'freestyle').toLowerCase();
+    const name = (workoutTitle(l) || 'freestyle').toLowerCase();
     let dateWords = l.date || '';
     try { if (l.date) dateWords += ' ' + format(parseISO(l.date), 'EEEE MMMM d yyyy'); } catch { /* ignore */ }
     const tags = (l.tags || []).join(' ').toLowerCase();
@@ -134,7 +135,7 @@ export default function WorkoutSavedList({ onSelectLog, search = '' }) {
           totalVolumeDisplay,
         ].filter(Boolean).join(' • ');
 
-        const title = log.regimen_name || t('workout.freestyle');
+        const title = workoutTitle(log) || t('workout.freestyle');
 
         return (
           <motion.div key={log.id} variants={itemVariants}>
