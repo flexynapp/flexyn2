@@ -213,7 +213,7 @@ export default function WorkoutStreakBanner() {
           // the {n} replace missed it. Routing the var through
           // tFallback's vars argument fixes both.
           value={tFallback('dashboard.workoutStreakCopy', '{n}-day workout streak', { n: streak })}
-          label="streak"
+          label={tFallback('copy.noun.streak', 'streak')}
           className="text-sm inline"
         >
         <span className="text-sm">

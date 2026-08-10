@@ -509,7 +509,7 @@ export default function LeaderboardsContent({ active = true }) {
                   )}
                 </div>
                 <div className="text-end">
-                  <TapToCopy value={`Rank #${myRow.rank} · ${myRow._display}`} label="rank">
+                  <TapToCopy value={`Rank #${myRow.rank} · ${myRow._display}`} label={tFallback('copy.noun.rank', 'rank')}>
                     <p className="font-heading font-bold text-base text-primary">{myRow._display}</p>
                   </TapToCopy>
                 </div>

@@ -240,10 +240,10 @@ export const progressTranslations = {
     'progress.pb.emptyTitle':         'No data yet',
     'progress.pb.emptyBody':          'Log this exercise to see your history.',
     'progress.pb.allTimeBest':        'All-time best',
-    // The clipboard payload behind the all-time figure, and the noun the
-    // shared TapToCopy drops into "Copied {label}".
+    // The clipboard payload behind the all-time figure. The NOUN that goes
+    // with it lives in i18n-copy.js as `copy.noun.pr`, with the rest of
+    // TapToCopy's vocabulary — one word, translated once.
     'progress.pb.copyValue':          'All-time PR: {weight}',
-    'progress.pb.copyLabel':          'PR',
     'progress.pb.prsSet_one':         '{n} PR set',
     'progress.pb.prsSet_other':       '{n} PRs set',
     'progress.pb.sessions_one':       '{n} session',

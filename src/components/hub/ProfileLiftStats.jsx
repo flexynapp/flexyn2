@@ -82,7 +82,7 @@ export default function ProfileLiftStats({ userEmail, longestStreak, isOwn, user
           room for the workout count, which we already had and weren't
           showing. */}
       <div className="flex gap-6 mb-5">
-        <TapToCopy value={`${tonnageDisplay} ${unitSuffix}`} label="tonnage">
+        <TapToCopy value={`${tonnageDisplay} ${unitSuffix}`} label={tFallback('copy.noun.tonnage', 'tonnage')}>
           <div>
             <p className="font-heading font-bold text-xl tabular-nums leading-none">
               {tonnageDisplay}
@@ -92,7 +92,7 @@ export default function ProfileLiftStats({ userEmail, longestStreak, isOwn, user
             </p>
           </div>
         </TapToCopy>
-        <TapToCopy value={longestStreak ? `${longestStreak} day streak` : '—'} label="streak">
+        <TapToCopy value={longestStreak ? `${longestStreak} day streak` : '—'} label={tFallback('copy.noun.streak', 'streak')}>
           <div>
             <p className="font-heading font-bold text-xl tabular-nums leading-none">
               {longestStreak ?? '—'}
@@ -141,7 +141,7 @@ export default function ProfileLiftStats({ userEmail, longestStreak, isOwn, user
               <TapToCopy
                 key={lift.name}
                 value={`${displayName} 1RM: ${rmDisplay}`}
-                label="PR"
+                label={tFallback('copy.noun.pr', 'PR')}
                 className="block"
               >
                 <div>

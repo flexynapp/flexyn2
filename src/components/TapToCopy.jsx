@@ -12,12 +12,23 @@
 // On tap: writes to clipboard, fires a tiny haptic, surfaces a
 // "Copied!" toast. Falls back to a non-clipboard no-op on browsers
 // that don't expose navigator.clipboard (rare).
+//
+// `label` is the NOUN dropped into both strings — "Copied streak",
+// "Copy rank". Pass a translated one; `copy.noun.*` in i18n-copy.js
+// holds the set, and that file's header explains why the frames are
+// the delicate part (a participle that has to agree with a noun the
+// frame cannot see). Callers that pass nothing get `copy.noun.value`.
 
 import React from 'react';
 import { toast } from '@/lib/toast';
 import { triggerHaptic } from '@/lib/haptic';
+import { useLanguage } from '@/lib/LanguageContext';
 
-export default function TapToCopy({ value, label = 'value', children, className = '' }) {
+export default function TapToCopy({ value, label, children, className = '' }) {
+  const { tFallback } = useLanguage();
+  // Not a default parameter any more: the fallback is a translation now, so
+  // it has to be resolved inside the component where the hook lives.
+  const noun = label ?? tFallback('copy.noun.value', 'value');
   const handle = async (e) => {
     e?.stopPropagation?.();
     const text = String(value ?? '').trim();
@@ -25,7 +36,7 @@ export default function TapToCopy({ value, label = 'value', children, className 
     try {
       await navigator.clipboard.writeText(text);
       triggerHaptic?.('light');
-      toast.success(`Copied ${label}`, { duration: 1200 });
+      toast.success(tFallback('copy.toast', 'Copied {label}', { label: noun }), { duration: 1200 });
     } catch {
       // Older browsers / insecure context — fall back silently. We
       // don't surface an error because the user can still long-press
@@ -39,7 +50,7 @@ export default function TapToCopy({ value, label = 'value', children, className 
       onClick={handle}
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handle(e); } }}
       className={`cursor-pointer select-none active:opacity-70 transition-opacity ${className}`}
-      aria-label={`Copy ${label}`}
+      aria-label={tFallback('copy.action', 'Copy {label}', { label: noun })}
     >
       {children}
     </span>

@@ -42,9 +42,6 @@ vi.mock('@/lib/LanguageContext', () => ({
 }));
 
 import PRHistoryModal from '@/components/progress/PRHistoryModal';
-import { progressTranslations } from '@/lib/i18n-progress';
-
-const EN = progressTranslations.en;
 
 /** Two sessions, the second a PR, so every branch renders. */
 const LOGS = [
@@ -101,32 +98,13 @@ describe('every string in the modal goes through the translation layer', () => {
   });
 });
 
-describe('the part file cannot silently rewrite what the screen says', () => {
-  // A defined key WINS over its call-site fallback. So a part-file value
-  // that drifts from the fallback changes the copy with nothing to show for
-  // it in the diff of the component — which is how four of these keys were
-  // very nearly given text their call sites had never used.
-  const src = fs.readFileSync('src/components/progress/PRHistoryModal.jsx', 'utf8');
-  const calls = [...src.matchAll(/tFallback\(\s*['"]([\w.]+)['"]\s*,\s*(['"])((?:\\.|(?!\2).)*)\2/g)]
-    .map((m) => [m[1], m[3].replace(/\\(['"])/g, '$1')]);
-
-  it('found the call sites at all', () => {
-    expect(calls.length).toBeGreaterThan(8);
-  });
-
-  it('every fallback matches the English the part file defines', () => {
-    const drift = calls
-      .filter(([k]) => k in EN)
-      .filter(([k, fb]) => EN[k] !== fb)
-      .map(([k, fb]) => `${k}: call site "${fb}" vs part file "${EN[k]}"`);
-    expect(drift, drift.join('\n')).toEqual([]);
-  });
-
-  it('defines every key the modal asks for', () => {
-    const missing = calls.map(([k]) => k).filter((k) => !(k in EN));
-    expect(missing, `undefined: ${missing.join(', ')}`).toEqual([]);
-  });
-});
+/* The fallback-vs-part-file drift check that used to live here has moved
+   to `i18nFallbackDrift.test.js`, which runs it across every component in
+   this directory against the MERGED English rather than one part file.
+   That distinction stopped being academic the moment this modal started
+   reading `copy.noun.pr` out of i18n-copy.js: the narrow version reported
+   a correctly-defined key as missing, because it was only ever looking in
+   i18n-progress.js. */
 
 describe('dates follow the language, not a hardcoded pattern', () => {
   it('does not import date-fns format here', () => {

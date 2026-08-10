@@ -118,7 +118,7 @@ export default function PRHistoryModal({ open, onClose, exerciseName, logs }) {
                 <p className="text-xs text-muted-foreground font-medium">{tFallback('progress.pb.allTimeBest', 'All-time best')}</p>
                 <TapToCopy
                   value={tFallback('progress.pb.copyValue', 'All-time PR: {weight}', { weight: formatWeight(allTimeBest, weightUnit) })}
-                  label={tFallback('progress.pb.copyLabel', 'PR')}
+                  label={tFallback('copy.noun.pr', 'PR')}
                 >
                   <p className="font-heading font-black text-2xl text-primary">
                     {formatWeight(allTimeBest, weightUnit)}

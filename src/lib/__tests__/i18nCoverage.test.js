@@ -152,6 +152,14 @@ describe('partial-gap ratchet', () => {
     // rather than somewhere it would be read too late. The measurement is
     // in the FLOOR comment below; you do not need to re-derive it.
     'onboarding.',
+    // Tap-to-copy — extracted from JSX 2026-08-10. `TapToCopy` built both
+    // its toast and its aria-label by interpolating an English noun into an
+    // English frame, so six screens' worth of copy feedback was English in
+    // all 15 languages. A whole new namespace, all English-only, so this is
+    // the sanctioned bare-prefix case. Worth a translator rather than a
+    // machine despite being seven short strings: the two frames need
+    // rewriting, not translating — see i18n-copy.js.
+    'copy.',
     // Body heat map — extracted from JSX 2026-08-10. Progress → Body had
     // ZERO translation calls: every string on the tab was an English
     // literal, so all 15 languages already read English there. The keys
