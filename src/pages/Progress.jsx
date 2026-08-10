@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import { filterAfterReset } from '@/lib/accountReset';
 import { LOG_FETCH_LIMIT } from '@/lib/constants';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -17,15 +17,17 @@ import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  TrendingUp, BarChart2, Trophy,
+  TrendingUp, BarChart2,
   Flame, Dumbbell, Camera, Ruler, ChevronRight, Zap, RefreshCw, Lightbulb,
 } from 'lucide-react';
 import BodyMetricsTab from '@/components/progress/BodyMetricsTab';
 import ProgressPhotosTab from '@/components/progress/ProgressPhotosTab';
 import ErrorBoundary from '@/components/ErrorBoundary';
+// Both sheets are lazy per the lazy-loading rule: they only mount on a tap,
+// and neither is on the first paint of this page.
+const AdvancedAnalyticsSheet = lazy(() => import('@/components/progress/AdvancedAnalyticsSheet'));
+const PersonalBestsSheet     = lazy(() => import('@/components/progress/PersonalBestsSheet'));
 import ExerciseTrendsTab from '@/components/progress/ExerciseTrendsTab';
-import BottomSheet from '@/components/ui/BottomSheet';
-import AdvancedAnalytics from '@/components/progress/AdvancedAnalytics';
 import InsightsTab from '@/components/progress/InsightsTab';
 import PRHistoryModal from '@/components/progress/PRHistoryModal';
 // Achievements moved to ProfileMenu (above "My Bag") — it didn't fit
@@ -140,99 +142,10 @@ function calcVolume(logs) {
   return v;
 }
 
-// ─── Personal Bests Tab ───────────────────────────────────────────────────────
-
-function PersonalBestsTab({ logs, onViewHistory }) {
-  const { t, tFallback, language } = useLanguage();
-  const { weightUnit } = useWeightUnit();
-  const dateLocale = getDateLocale(language);
-  const bests = useMemo(() => {
-    const map = {};
-    logs.forEach(log => {
-      if (!log.date) return;
-      (log.exercises || []).forEach(ex => {
-        if (!ex.name || !ex.sets?.length) return;
-        if (!map[ex.name]) map[ex.name] = { weight: 0, weightDate: null, reps: 0, repsDate: null, sessionCount: 0 };
-        map[ex.name].sessionCount += 1;
-        ex.sets.forEach(s => {
-          if ((s.weight || 0) > map[ex.name].weight) { map[ex.name].weight = s.weight; map[ex.name].weightDate = log.date; }
-          if ((s.reps   || 0) > map[ex.name].reps)   { map[ex.name].reps   = s.reps;   map[ex.name].repsDate   = log.date; }
-        });
-      });
-    });
-    return Object.entries(map)
-      .map(([name, pb]) => ({ name, ...pb }))
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [logs]);
-
-  if (bests.length === 0) {
-    return (
-      <Card className="p-12 text-center border-dashed">
-        <Trophy className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
-        <p className="font-heading font-semibold">{t('progress.noData')}</p>
-        <p className="text-sm text-muted-foreground mt-1">{t('progress.logWorkoutsForAnalytics')}</p>
-      </Card>
-    );
-  }
-
-  return (
-    <div className="space-y-3">
-      {bests.map((pb, idx) => (
-        <motion.div key={pb.name} initial={{ opacity: 0, y: 20, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ type: 'spring', stiffness: 260, damping: 22, delay: idx * 0.05 }}>
-          <Card className="border border-border shadow-none overflow-hidden">
-            <div className="p-4">
-              <div className="flex items-center gap-3 mb-3">
-                <motion.div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0" animate={{ scale: [1, 1.15, 1] }} transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut', delay: idx * 0.3 }}>
-                  <Trophy className="w-4 h-4 text-primary" />
-                </motion.div>
-                <span className="font-heading font-bold text-sm flex-1">{pb.name}</span>
-                {onViewHistory && (
-                  <button
-                    onClick={() => onViewHistory(pb.name)}
-                    className="text-micro font-semibold text-primary/70 hover:text-primary active:text-primary flex items-center gap-0.5 transition-colors shrink-0"
-                  >
-                    {tFallback('progress.pb.history', 'History')} <ChevronRight className="w-3 h-3" />
-                  </button>
-                )}
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <motion.div className="bg-primary/5 rounded-lg p-3" whileHover={{ scale: 1.03 }} transition={{ type: 'spring', stiffness: 400, damping: 20 }}>
-                  <p className="text-xs text-muted-foreground mb-1 font-medium">{t('progress.bestWeight')}</p>
-                  <motion.p className="font-heading font-bold text-xl text-primary" initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 300, delay: idx * 0.05 + 0.1 }}>
-                    {pb.weight > 0 ? formatWeight(pb.weight, weightUnit) : '—'}
-                  </motion.p>
-                  {pb.weightDate && <p className="text-xs text-muted-foreground mt-0.5">{format(parseLocalDate(pb.weightDate), 'MMM d, yyyy', { locale: dateLocale })}</p>}
-                </motion.div>
-                <motion.div className="bg-accent/5 rounded-lg p-3" whileHover={{ scale: 1.03 }} transition={{ type: 'spring', stiffness: 400, damping: 20 }}>
-                  <p className="text-xs text-muted-foreground mb-1 font-medium">{t('progress.bestReps')}</p>
-                  <motion.p className="font-heading font-bold text-xl text-accent" initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 300, delay: idx * 0.05 + 0.15 }}>
-                    {pb.reps > 0
-                      ? tFallback(
-                          pb.reps === 1 ? 'progress.pb.reps_one' : 'progress.pb.reps_other',
-                          pb.reps === 1 ? '{n} rep' : '{n} reps',
-                          { n: pb.reps },
-                        )
-                      : '—'}
-                  </motion.p>
-                  {pb.repsDate && <p className="text-xs text-muted-foreground mt-0.5">{format(parseLocalDate(pb.repsDate), 'MMM d, yyyy', { locale: dateLocale })}</p>}
-                </motion.div>
-              </div>
-              {pb.sessionCount > 0 && (
-                <p className="text-micro text-muted-foreground mt-2 ps-0.5">
-                  {tFallback(
-                    pb.sessionCount === 1 ? 'progress.pb.logged_one' : 'progress.pb.logged_other',
-                    pb.sessionCount === 1 ? 'Logged {n} time' : 'Logged {n} times',
-                    { n: pb.sessionCount },
-                  )}
-                </p>
-              )}
-            </div>
-          </Card>
-        </motion.div>
-      ))}
-    </div>
-  );
-}
+// PersonalBestsTab lived here. It is now
+// src/components/progress/PersonalBestsSheet.jsx — a real sheet rather
+// than a tab body wrapped in a generic BottomSheet, sorted heaviest
+// first instead of alphabetically. See that file's head for the rest.
 
 // ─── Analytics Tab ────────────────────────────────────────────────────────────
 
@@ -761,16 +674,11 @@ export default function Progress() {
   //   level    → accent       (the progression/reward colour)
   //
   // Tokens, not raw hex, so themes and dark mode keep working.
-  const heroStats = [
-    { id: 'streak',   icon: Flame,      value: streak ? `${streak}d` : '—', label: tFallback('progress.stat.streak', 'Streak'),
-      accent: 'text-primary',  iconBg: 'bg-primary/15'  },
-    { id: 'workouts', icon: Dumbbell,   value: logs.length,                  label: tFallback('progress.stat.workouts', 'Workouts'),
-      accent: 'text-info',     iconBg: 'bg-info/15'     },
-    { id: 'volume',   icon: TrendingUp, value: totalVolume > 0 ? `${formatBigNumber(fromLbs(totalVolume, weightUnit))}` : '—', label: tFallback('progress.stat.volumeUnit', 'Volume ({unit})', { unit: weightUnit }),
-      accent: 'text-success', iconBg: 'bg-success/15' },
-    { id: 'level',    icon: Zap,        value: tFallback('progress.stat.levelValue', 'Lv {level}', { level }), label: tFallback('progress.stat.level', 'Level'),
-      accent: 'text-accent',   iconBg: 'bg-accent/15'   },
-  ];
+  // The four hero tiles that used to sit here are gone with the old
+  // Advanced Analytics dialog (2026-08-10). They restated Streak /
+  // Workouts / Volume / Level — the same four the carousel directly
+  // behind the dialog was already showing, one swipe apart. The sheet
+  // that replaced it leads with a single figure instead.
 
   // Carousel slides — one per heroStat. Each has a motivational tip
   // tailored to the user's current state.
@@ -1356,20 +1264,27 @@ export default function Progress() {
         </>
       )}
 
-      {/* Personal Bests — BottomSheet on mobile (swipe-to-dismiss) */}
-      <BottomSheet
-        open={personalBestsModalOpen}
-        onClose={() => setPersonalBestsModalOpen(false)}
-        title={t('progress.personalBests')}
-      >
-        <PersonalBestsTab
-          logs={logs}
-          onViewHistory={(name) => {
-            setPersonalBestsModalOpen(false);
-            setPRHistoryExercise(name);
-          }}
-        />
-      </BottomSheet>
+      {/* ── Personal Bests ───────────────────────────────────────────────
+            Was a generic BottomSheet wrapping PersonalBestsTab. Now the
+            bespoke sheet, in the shape QuestsSheet and ReadinessSheet use
+            (kegan, 2026-08-10). Lazy + rendered only while open, so the
+            chunk never loads for someone who does not open it.
+            Design: Penpot "Analytics + Personal Bests — as sheets", D. */}
+      {personalBestsModalOpen && (
+        <Suspense fallback={null}>
+          <ErrorBoundary label="PersonalBests">
+            <PersonalBestsSheet
+              open={personalBestsModalOpen}
+              onClose={() => setPersonalBestsModalOpen(false)}
+              logs={logs}
+              onViewHistory={(name) => {
+                setPersonalBestsModalOpen(false);
+                setPRHistoryExercise(name);
+              }}
+            />
+          </ErrorBoundary>
+        </Suspense>
+      )}
 
       {/* PR History Modal */}
       <PRHistoryModal
@@ -1379,14 +1294,26 @@ export default function Progress() {
         logs={logs}
       />
 
-      {/* Advanced Analytics Modal */}
-      <AdvancedAnalytics open={advancedAnalyticsOpen} onClose={() => setAdvancedAnalyticsOpen(false)} logs={logs} heroStats={heroStats}>
-        {/* The old "Analytics" tab's charts now live inside Advanced
-            Analytics as their own section (the tab was removed). */}
-        <ErrorBoundary label="Analytics">
-          <AnalyticsTab logs={logs} />
-        </ErrorBoundary>
-      </AdvancedAnalytics>
+      {/* ── Advanced Analytics ───────────────────────────────────────────
+            Was a centered Radix Dialog that read as a desktop modal on a
+            phone. Now the same sheet shell as above. The four hero tiles it
+            used to carry are gone with it — they restated the carousel
+            directly behind them, and the sheet leads with one figure
+            instead. Design: same Penpot page, board B; ledger on E. */}
+      {advancedAnalyticsOpen && (
+        <Suspense fallback={null}>
+          <ErrorBoundary label="Analytics">
+            <AdvancedAnalyticsSheet
+              open={advancedAnalyticsOpen}
+              onClose={() => setAdvancedAnalyticsOpen(false)}
+              logs={logs}
+            >
+              {/* The old "Analytics" tab's charts, still here as a section. */}
+              <AnalyticsTab logs={logs} />
+            </AdvancedAnalyticsSheet>
+          </ErrorBoundary>
+        </Suspense>
+      )}
     </motion.div>
   );
 }

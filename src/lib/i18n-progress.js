@@ -140,6 +140,48 @@ export const progressTranslations = {
     'progress.lastWorkout.exercises_one':   '{n} exercise',
     'progress.lastWorkout.exercises_other': '{n} exercises',
 
+    // ── Advanced Analytics sheet ─────────────────────────────────────────
+    // Rebuilt onto the QuestsSheet/ReadinessSheet shell (2026-08-10). The
+    // group labels carry the hierarchy the old flat list of ten identical
+    // rows could not — keep them short and keep them as CATEGORIES, not as
+    // sentences; they answer "what kind of number is this".
+    'analyticsSheet.kicker':            'ADVANCED ANALYTICS',
+    'analyticsSheet.group.load':        'LOAD',
+    'analyticsSheet.group.consistency': 'CONSISTENCY',
+    'analyticsSheet.group.range':       'RANGE',
+    'analyticsSheet.group.charts':      'CHARTS',
+    'analyticsSheet.heroCaption':       '{unit} lifted, all time',
+    'analyticsSheet.heroSub_one':       '{n} workout',
+    'analyticsSheet.heroSub_other':     '{n} workouts',
+    'analyticsSheet.strongestLift':     'Strongest lift',
+    'analyticsSheet.mostReps':          'Most reps',
+    'analyticsSheet.totalVolume':       'Total volume',
+    'analyticsSheet.totalWorkouts':     'Total workouts',
+    'analyticsSheet.totalTime':         'Total time',
+    'analyticsSheet.avgSession':        'Avg session',
+    'analyticsSheet.uniqueExercises':   'Unique exercises',
+    'analyticsSheet.mostPerformed':     'Most performed',
+    'analyticsSheet.topMuscle':         'Top muscle group',
+    // Durations. Abbreviated because they sit at the end of a row opposite
+    // a label; "96 h 20 m" not "96 hours 20 minutes".
+    'analyticsSheet.minutes':           '{n} min',
+    'analyticsSheet.hours':             '{h} h',
+    'analyticsSheet.hoursMinutes':      '{h} h {m} m',
+    'analyticsSheet.timesX':            '{n}×',
+
+    // ── Personal Bests sheet ─────────────────────────────────────────────
+    // pbSheet.heroCaption names the exercise, so the sentence has to survive
+    // an arbitrary noun in the {exercise} slot — keep it a clause about the
+    // lift rather than something that agrees grammatically with the name.
+    'pbSheet.kicker':                   'PERSONAL BESTS',
+    'pbSheet.heroCaption':              '{exercise} — your heaviest lift',
+    'pbSheet.count_one':                '{n} exercise with a recorded best',
+    'pbSheet.count_other':              '{n} exercises with a recorded best',
+    'pbSheet.filterPlaceholder':        'Filter exercises',
+    'pbSheet.bestReps_one':             'best {n} rep',
+    'pbSheet.bestReps_other':           'best {n} reps',
+    'pbSheet.noMatches':                'No exercises match \u201c{query}\u201d.',
+
     // ── Recent list ──────────────────────────────────────────────────────
     // One section replacing the last-workout card and the Top PRs rail.
     // Both are read-only, so they are rows on hairlines rather than

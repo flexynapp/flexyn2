@@ -248,6 +248,10 @@ describe('partial-gap ratchet', () => {
     // Added with the layout change (2026-08-10): the Recent section that
     // replaced the last-workout card and the Top PRs rail.
     'progress.recent.',
+    // The two Progress modals rebuilt as sheets (2026-08-10). New
+    // namespaces, English-only, reached through tFallback.
+    'analyticsSheet.',
+    'pbSheet.',
     // Exercise Trends rebuild (2026-08-10). A whole new namespace, all of
     // it English-only, so this is the sanctioned bare-prefix case rather
     // than the narrow-prefix one above: there is nothing under `trends.`
