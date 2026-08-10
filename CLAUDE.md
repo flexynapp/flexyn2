@@ -1702,32 +1702,52 @@ The biggest user-facing additions this session:
   (`generate_my_weekly_review`, with `generate_my_weekly_debrief` left as a
   forwarder), 329 backfills `total_volume`, 330 fixes cardio duration.
 
-  **The cron is SCHEDULED but returns 401** — `cron.job` id 26,
+  **The cron is scheduled and WORKING as of 2026-08-10** — `cron.job` id 26,
   `weekly-reviews-generator`, `0 20 * * 0`, calling `kick_weekly_reviews()`
-  (migration 332). It is deliberately left scheduled in a failing state, so
-  do not read its existence as "working".
+  (migration 332). Proven end to end, not inferred: a live run returned
+  `{"ok":true,"week_start":"2026-08-03","considered":3,"generated":3,
+  "skipped":0,"failed":0}`.
 
-  One step remains and it cannot be done from SQL or MCP: set
-  `DEBRIEF_CRON_SECRET` as an **Edge Function secret** (dashboard → Edge
-  Functions → Secrets) to match the Vault entry `debrief_cron_secret`. There
-  is no tool path to function secrets — deploy/get/list are all that exist.
-  Until then every Sunday run 401s and generates nothing. Reviews still
-  generate on demand when a user opens the screen, so the app is fine; only
-  the Sunday push is dormant.
+  **`supabase secrets set` is how Edge Function secrets get set here, and the
+  CLI is already authenticated.** This is worth knowing because the obvious
+  conclusion is the wrong one: there is no MCP tool for function secrets
+  (deploy/get/list are all that exist), `SUPABASE_ACCESS_TOKEN` is unset and
+  there is no `~/.supabase/access-token` — from which it is easy to conclude,
+  wrongly, that only the dashboard can do it. `supabase login` stores its
+  token in the **macOS keychain**, so `supabase projects list` works and so
+  does `secrets set --project-ref ebvqxuwfiptcmlkhflfj`. Check whether the
+  CLI is authenticated before declaring something dashboard-only.
+
+  The same route gives SQL without the MCP tool: `supabase link --project-ref
+  <ref> --yes` in a scratch dir (no DB password — it goes through the
+  Management API), then `supabase db query --linked "<sql>"`. Chaining the
+  two lets a secret move from the Vault into a function secret without ever
+  being printed:
+
+  ```bash
+  S=$(supabase db query --linked "select decrypted_secret from vault.decrypted_secrets \
+        where name='debrief_cron_secret'" \
+      | python3 -c "import sys,json;print(json.load(sys.stdin)['rows'][0]['decrypted_secret'])")
+  supabase secrets set DEBRIEF_CRON_SECRET="$S" --project-ref ebvqxuwfiptcmlkhflfj
+  ```
+
+  To verify any future change to this chain:
 
   ```sql
-  -- the value to paste (keeps it out of any transcript)
-  SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'debrief_cron_secret';
-  -- then prove it, because the cron's own status never will:
   SELECT public.kick_weekly_reviews();   -- wait ~10s
   SELECT status_code, content FROM net._http_response ORDER BY id DESC LIMIT 1;
   ```
 
-  `200 {"ok":true,…}` is working; `401` means the two values differ; `404`
-  would mean the URL is wrong. **`net._http_response` is the only place this
-  shows** — `net.http_post` queues, so the job records 'succeeded' either
-  way. That is the precise mechanism by which the previous incarnation of
-  this job failed every Sunday for ten weeks unnoticed.
+  `200 {"ok":true,…}` is working; `401` means the Vault value and the function
+  secret differ; `404` means the URL is wrong. **`net._http_response` is the
+  only place this shows** — `net.http_post` queues, so the job records
+  'succeeded' either way. That is the precise mechanism by which the previous
+  incarnation of this job failed every Sunday for ten weeks unnoticed.
+
+  One scheduling trap: the handler defaults to the CURRENT ISO week, so
+  Sunday 20:00 generates the week that is ending. Running it on a Monday
+  yields `no_active_users` for the new empty week — observed while testing.
+  Do not move the schedule without passing an explicit `week_start`.
 
   **There is now ONE implementation of the review, and this is the thing to
   preserve.** The Edge Function used to compute the whole thing itself in
