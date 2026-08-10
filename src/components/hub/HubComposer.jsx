@@ -47,6 +47,7 @@ import { NoWorkoutsIllustration } from '@/components/emptyStateIllustrations';
 import CharCountIndicator from '@/components/ui/CharCountIndicator';
 import { compressImage } from '@/lib/imageCompress';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { workoutDurationMin } from '@/lib/workoutDuration';
 
 // Trim a GPS track down to ~250 points so the map render stays fast
 // and the post payload stays under reasonable size limits. Preserves
@@ -76,7 +77,7 @@ function buildSnapshot(kind, item) {
       return {
         regimen_name: item.regimen_name || null,
         date: item.date || null,
-        duration_minutes: item.duration_minutes || null,
+        duration_minutes: workoutDurationMin(item) || null,
         exercises: (item.exercises || []).map(e => ({
           exercise_name: e.exercise_name || e.name || null,
           sets: (e.sets || []).map(s => ({

@@ -32,6 +32,7 @@ import { fromLbs } from '@/lib/weightUnit';
 import { useNumberFormatter } from '@/lib/intl';
 import { db } from '@/api/db';
 import ErrorBoundary from '@/components/ErrorBoundary';
+import { workoutDurationMin } from '@/lib/workoutDuration';
 // Lazy-load — maplibre-gl is ~200 KB gzipped and most hub posts
 // don't render a map. Shared chunk with CardioDetailModal.
 const RouteMap = lazy(() => import('@/components/cardio/RouteMap'));
@@ -71,7 +72,7 @@ function entityToSnapshot(kind, item) {
       return {
         regimen_name: item.regimen_name || null,
         date: item.date || null,
-        duration_minutes: item.duration_minutes || null,
+        duration_minutes: workoutDurationMin(item) || null,
         exercises: (item.exercises || []).map(e => ({
           exercise_name: e.exercise_name || e.name || null,
           sets: (e.sets || []).map(s => ({ weight: s.weight || 0, reps: s.reps || 0 })),

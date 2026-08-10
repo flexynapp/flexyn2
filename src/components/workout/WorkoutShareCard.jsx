@@ -18,6 +18,7 @@ import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { fromLbs } from '@/lib/weightUnit';
 import { formatNumber } from '@/lib/intl';
 import { totalVolume as computeTotalVolume } from '@/lib/workoutVolume';
+import { workoutDurationMin } from '@/lib/workoutDuration';
 
 const CANVAS_W = 1080;
 const CANVAS_H = 1080;
@@ -51,7 +52,7 @@ function computeStats(workout, opts = {}) {
     totalSets,
     totalReps,
     exercises: (workout?.exercises || []).length,
-    duration: Number(workout?.duration_minutes) || 0,
+    duration: workoutDurationMin(workout),
     topLift,
   };
 }

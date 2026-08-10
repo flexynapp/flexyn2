@@ -14,6 +14,7 @@ import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { toLbs, formatWeightNumber } from '@/lib/weightUnit';
 import { getExerciseDisplay } from '@/lib/exerciseTranslations';
 import { TagSelector } from '@/components/workout/WorkoutTags';
+import { workoutDurationMin, DURATION_COLUMN } from '@/lib/workoutDuration';
 
 // Weight cell with focused-draft state. While focused it holds the raw
 // keystrokes verbatim; on blur it parses → converts to canonical lbs →
@@ -132,7 +133,7 @@ export default function EditWorkoutModal({ log, userProfile = {}, logs = [], car
   const { t, language, tFallback } = useLanguage();
   const [exercises, setExercises] = useState(log?.exercises || []);
   const [date, setDate] = useState(log?.date || '');
-  const [duration, setDuration] = useState(log?.duration_minutes || '');
+  const [duration, setDuration] = useState(workoutDurationMin(log) || '');
   const [notes, setNotes] = useState(log?.notes || '');
   const [name, setName] = useState(log?.regimen_name || '');
   const [tags, setTags] = useState(log?.tags || []);
@@ -153,7 +154,7 @@ export default function EditWorkoutModal({ log, userProfile = {}, logs = [], car
     if (!log) return;
     setExercises(log.exercises || []);
     setDate(log.date || '');
-    setDuration(log.duration_minutes || '');
+    setDuration(workoutDurationMin(log) || '');
     setNotes(log.notes || '');
     setName(log.regimen_name || '');
     setTags(log.tags || []);
@@ -302,7 +303,7 @@ export default function EditWorkoutModal({ log, userProfile = {}, logs = [], car
     }
 
     setSaving(true);
-    await onSave(log.id, { exercises: finalExercises, date, duration_minutes: duration ? parseInt(duration) : null, notes, regimen_name: name.trim() || log?.regimen_name || null, tags });
+    await onSave(log.id, { exercises: finalExercises, date, [DURATION_COLUMN]: duration ? parseInt(duration) : null, notes, regimen_name: name.trim() || log?.regimen_name || null, tags });
     setSaving(false);
     onClose();
   };

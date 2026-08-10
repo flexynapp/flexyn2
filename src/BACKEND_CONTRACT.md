@@ -81,7 +81,14 @@ Every entity below has these common fields:
 
 ### `WorkoutLog`
 - `date` — YYYY-MM-DD
-- `duration_minutes` — number\|null
+- `duration_min` — number\|null. **The column is `duration_min`, not
+  `duration_minutes`** — this doc said the latter and the client wrote it,
+  so `db.js`'s strip-and-retry dropped it on every save and no workout ever
+  stored a duration. Write it via `DURATION_COLUMN` and read it via
+  `workoutDurationMin()` from `src/lib/workoutDuration.js`; do not type
+  either spelling by hand. Note the per-exercise `duration_minutes` below is
+  a different field and is correct — it lives inside the `exercises` JSONB,
+  which has no schema to disagree with.
 - `notes` — string
 - `regimen_id` — string\|null
 - `regimen_name` — string

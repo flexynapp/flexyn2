@@ -7,6 +7,8 @@
 //   - Long cardio endurance (1h run / 2h bike) → ~200–600 XP
 //   - Milestones and streaks feel meaningful but don't trivialize regular play
 
+import { workoutDurationMin } from '@/lib/workoutDuration';
+
 const LEVEL_CONFIG = {
   MAX_LEVEL: 100,
   baseXpPerLevel: 100,      // cost of level 1 → 2
@@ -211,7 +213,12 @@ export function calculateWorkoutXp(workout) {
     }
   }
 
-  const duration = Number(workout.duration_minutes) || 0;
+  // Via the shared accessor because this scores TWO shapes: the payload
+  // Workout.jsx is about to save (now keyed `duration_min`) and the AI
+  // Coach's in-memory plans (still `duration_minutes`, and correctly so —
+  // those never touch the table). Reading one key would have silently
+  // zeroed the duration bonus for whichever shape it did not match.
+  const duration = workoutDurationMin(workout);
   const setCount = workout.exercises.reduce((sum, ex) => sum + (ex.sets?.length || 0), 0);
 
   const baseSetXp  = setCount * 12;             // 12 XP per set (up from 8)

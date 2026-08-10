@@ -7,6 +7,7 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { formatWeight } from '@/lib/weightUnit';
 import { muscleKey, translateExerciseName } from '@/lib/exerciseTranslations';
+import { workoutDurationMin } from '@/lib/workoutDuration';
 
 export default function AdvancedAnalytics({ open, onClose, logs, children, heroStats = [] }) {
   const { t, language } = useLanguage();
@@ -25,7 +26,7 @@ export default function AdvancedAnalytics({ open, onClose, logs, children, heroS
     const muscleGroupVolume = {};
 
     logs.forEach(log => {
-      if (log.duration_minutes) totalWorkoutDuration += log.duration_minutes;
+      totalWorkoutDuration += workoutDurationMin(log);
       
       (log.exercises || []).forEach(ex => {
         const vol = (ex.sets || []).reduce((sum, s) => {

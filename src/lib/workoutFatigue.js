@@ -6,6 +6,7 @@
 
 import { checkDailyHours } from './cardioLimits';
 import { formatNumber } from './intl';
+import { workoutDurationMin } from '@/lib/workoutDuration';
 
 export function getMaxRealisticSetsPerWorkout(userProfile) {
   const birthYear = userProfile?.birthday
@@ -179,7 +180,7 @@ function estimateWorkoutMinutes(exercises) {
 /**
  * Detect a physically implausible workout session.
  *
- * @param {object} workout           — { date, exercises, duration_minutes? }
+ * @param {object} workout           — { date, exercises, duration_min? }
  * @param {object} userProfile       — demographics
  * @param {Array}  recentWorkoutLogs — all WorkoutLog records (any date), filtered to same date internally
  * @param {Array}  recentCardioLogs  — all CardioLog records (any date), filtered to same date internally
@@ -299,9 +300,9 @@ export function detectImplausibleWorkout(
 
   // ── Rule E: combined active hours on this date exceed daily limits ──
   // Includes all same-date workout sessions + cardio sessions + this new session.
-  const newWorkoutMins = workout.duration_minutes ?? estimateWorkoutMinutes(exercises);
+  const newWorkoutMins = workoutDurationMin(workout) || estimateWorkoutMinutes(exercises);
   const existingWorkoutMins = sameDateLogs.reduce((sum, l) =>
-    sum + (Number(l.duration_minutes) || estimateWorkoutMinutes(l.exercises || [])), 0
+    sum + (workoutDurationMin(l) || estimateWorkoutMinutes(l.exercises || [])), 0
   );
 
   const hoursCheck = checkDailyHours(

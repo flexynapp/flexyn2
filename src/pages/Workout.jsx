@@ -69,6 +69,7 @@ import FirstWorkoutTutorial, { hasSeenFirstWorkoutTutorial } from '@/components/
 import PageHeader from '@/components/PageHeader';
 import { useWorkoutSessions, pauseWorkoutSync } from '@/hooks/useWorkoutSessions';
 import { calculateWorkoutXp } from '@/lib/xpSystem';
+import { DURATION_COLUMN } from '@/lib/workoutDuration';
 import { hasCheckedInToday, GYM_CHECKIN_XP_MULTIPLIER } from '@/lib/data/gymCheckins';
 import * as quests from '@/lib/data/quests';
 import { ACTION_TYPES } from '@/lib/questCatalog';
@@ -1778,7 +1779,11 @@ export default function Workout() {
       // User-given name wins; else the regimen name; else Freestyle.
       regimen_name: workoutName.trim() || selectedRegimen?.name || t('workout.freestyle'),
       date,
-      duration_minutes: effectiveDuration,
+      // `duration_min` is the real column. This said `duration_minutes` —
+      // a column workout_logs does not have — so db.js's strip-and-retry
+      // dropped it on every save and the duration was never stored. See
+      // src/lib/workoutDuration.js for the full account.
+      [DURATION_COLUMN]: effectiveDuration,
       exercises: pendingExercises,
       notes,
       tags: workoutTags,
@@ -1810,7 +1815,7 @@ export default function Workout() {
     }
 
     const fatigueCheck = detectImplausibleWorkout(
-      { date, exercises: pendingPayload.exercises, duration_minutes: pendingPayload.duration_minutes },
+      { date, exercises: pendingPayload.exercises, [DURATION_COLUMN]: pendingPayload[DURATION_COLUMN] },
       userProfile,
       logs,
       cardioLogs,
