@@ -1,4 +1,5 @@
-import { asT } from './coachI18n';
+import { asT, enT } from './coachI18n';
+import { formatList, formatNumber, formatDate } from '@/lib/intlFormat';
 // src/lib/aiCoach/responders.js
 //
 // Per-intent response generation. Each responder pulls live user data from
@@ -30,7 +31,7 @@ import { normalizeGoals, profileAge } from './trainingModifiers';
 // see it.
 import { listRecentMoodLogs } from '@/lib/data/moodLogs';
 import { listRecentStepLogs } from '@/lib/data/stepLogs';
-import { formatNumber } from '../intl';
+
 
 // ── Log dates are calendar days, not instants ────────────────────────────────
 //
@@ -114,13 +115,13 @@ async function whatToTrain({ user, t, language }) {
   const T = asT(t);
   const workouts = await _fetchRecentWorkouts(user?.email, 7);
   if (workouts.length === 0) {
-    return [
+    return T('coach.reply.train.none', [
       "👋 Looks like you haven't logged any workouts in the last 7 days.",
       '',
-      "**Suggestion:** Start with a full-body session today — squat, bench, row, OHP, plank. 30–45 minutes is plenty.",
+      '**Suggestion:** Start with a full-body session today — squat, bench, row, OHP, plank. 30–45 minutes is plenty.',
       '',
-      "If you have a Regimen saved, just open it from the Workout tab and hit start.",
-    ].join('\n');
+      'If you have a Regimen saved, just open it from the Workout tab and hit start.',
+    ].join('\n'));
   }
 
   // Tally muscle groups touched in last 7 days
@@ -140,27 +141,50 @@ async function whatToTrain({ user, t, language }) {
   const lastDate = workouts[0]?.date;
   const daysSince = parseLogDate(lastDate) ? differenceInCalendarDays(new Date(), parseLogDate(lastDate)) : 0;
 
+  // Muscle-group names already ship in all 15 languages under
+  // `muscleGroups.<key>` — CLAUDE.md's i18n section is explicit that a
+  // second vocabulary would be two answers to one question.
+  const group = (g) => T(`muscleGroups.${g}`, g);
+
   const lines = [
-    `**You've trained ${workouts.length} time${workouts.length === 1 ? '' : 's'} in the last 7 days.**`,
+    T(`coach.reply.train.count.${workouts.length === 1 ? 'one' : 'other'}`,
+      workouts.length === 1
+        ? "**You've trained {n} time in the last 7 days.**"
+        : "**You've trained {n} times in the last 7 days.**",
+      { n: workouts.length }),
     '',
   ];
 
   if (daysSince === 0) {
-    lines.push("You already trained today — solid. If you have energy left, a short 20-min cardio or core session would be a great cap.");
+    lines.push(T('coach.reply.train.today',
+      'You already trained today — solid. If you have energy left, a short 20-min cardio or core session would be a great cap.'));
   } else if (daysSince === 1) {
-    lines.push("You trained yesterday — today's a good day to push.");
+    lines.push(T('coach.reply.train.yesterday', "You trained yesterday — today's a good day to push."));
   } else if (daysSince >= 3) {
-    lines.push(`It's been ${daysSince} days. Time to get back in. Start with something you enjoy to lower the activation energy.`);
+    lines.push(T('coach.reply.train.gap',
+      "It's been {n} days. Time to get back in. Start with something you enjoy to lower the activation energy.",
+      { n: daysSince }));
   }
 
   lines.push('');
   if (least.every(g => tally[g] === 0)) {
-    lines.push(`**Train these next:** ${least.join(' and ')} — you haven't touched them this week.`);
+    // `join(' and ')` / `join(' or ')` were English grammar hand-rolled into
+    // a template. Intl supplies each locale's own conjunction and
+    // disjunction — see 07d72977.
+    lines.push(T('coach.reply.train.untouched',
+      "**Train these next:** {groups} — you haven't touched them this week.",
+      { groups: formatList(least.map(group), language) }));
   } else {
-    lines.push(`**Train these next:** ${least.join(' or ')} — under-trained vs. ${most[0]} this week.`);
+    lines.push(T('coach.reply.train.under',
+      '**Train these next:** {groups} — under-trained vs. {most} this week.',
+      {
+        groups: formatList(least.map(group), language, { type: 'disjunction' }),
+        most: group(most[0]),
+      }));
   }
   lines.push('');
-  lines.push("Pick a regimen from the Workout tab, or build a quick session yourself. Aim for 4–6 exercises and 45 minutes.");
+  lines.push(T('coach.reply.train.close',
+    'Pick a regimen from the Workout tab, or build a quick session yourself. Aim for 4–6 exercises and 45 minutes.'));
   return lines.join('\n');
 }
 
@@ -189,32 +213,48 @@ async function progressCheck({ user, t, language }) {
   const delta = v2 > 0 ? Math.round(((v1 - v2) / v2) * 100) : (v1 > 0 ? 100 : 0);
   const sessionDelta = thisWeek.length - lastWeek.length;
 
-  const lines = [`**Last 7 days:**`];
-  lines.push(`• ${thisWeek.length} workout${thisWeek.length === 1 ? '' : 's'} (${sessionDelta >= 0 ? '+' : ''}${sessionDelta} vs prev week)`);
+  const signed = (n) => `${n >= 0 ? '+' : ''}${formatNumber(n, language)}`;
+
+  const lines = [T('coach.reply.progress.title', '**Last 7 days:**')];
+  lines.push(T(`coach.reply.progress.workouts.${thisWeek.length === 1 ? 'one' : 'other'}`,
+    thisWeek.length === 1
+      ? '• {n} workout ({delta} vs prev week)'
+      : '• {n} workouts ({delta} vs prev week)',
+    { n: formatNumber(thisWeek.length, language), delta: signed(sessionDelta) }));
   if (v1 > 0) {
-    // formatNumber with no language defaults to en-US — deterministic
-    // across all users. The surrounding "lb total volume" copy is
-    // English-only too, so mixing locales here would look broken.
-    lines.push(`• ${formatNumber(v1)} lb total volume (${delta >= 0 ? '+' : ''}${delta}%)`);
+    // This used to pass no language on the reasoning that the surrounding
+    // "lb total volume" copy was English-only, so a localized number would
+    // look mismatched. That copy is a key now, so the number follows it.
+    lines.push(T('coach.reply.progress.volume', '• {volume} lb total volume ({delta}%)',
+      { volume: formatNumber(v1, language), delta: signed(delta) }));
   }
   if (profile?.workout_streak > 0) {
-    lines.push(`• ${profile.workout_streak}-day workout streak (best: ${profile.longest_workout_streak || profile.workout_streak})`);
+    lines.push(T('coach.reply.progress.workoutStreak', '• {n}-day workout streak (best: {best})', {
+      n: formatNumber(profile.workout_streak, language),
+      best: formatNumber(profile.longest_workout_streak || profile.workout_streak, language),
+    }));
   }
   if (profile?.login_streak > 0) {
-    lines.push(`• ${profile.login_streak}-day login streak`);
+    lines.push(T('coach.reply.progress.loginStreak', '• {n}-day login streak',
+      { n: formatNumber(profile.login_streak, language) }));
   }
 
   lines.push('');
   if (thisWeek.length === 0) {
-    lines.push("You haven't logged anything this week. The hardest part of progress is showing up — start with one set.");
+    lines.push(T('coach.reply.progress.nothing',
+      "You haven't logged anything this week. The hardest part of progress is showing up — start with one set."));
   } else if (sessionDelta < 0 && lastWeek.length > 0) {
-    lines.push("Slight dip from last week. Either you're deloading on purpose, or life got busy. Both are fine — just don't string two low weeks back-to-back.");
+    lines.push(T('coach.reply.progress.dip',
+      "Slight dip from last week. Either you're deloading on purpose, or life got busy. Both are fine — just don't string two low weeks back-to-back."));
   } else if (delta >= 5) {
-    lines.push("You're trending up. Keep the discipline; volume increase like this compounds.");
+    lines.push(T('coach.reply.progress.up',
+      "You're trending up. Keep the discipline; volume increase like this compounds."));
   } else if (delta <= -10) {
-    lines.push("Volume dropped meaningfully. If you're not fatigued or deloading, push intensity next session.");
+    lines.push(T('coach.reply.progress.down',
+      "Volume dropped meaningfully. If you're not fatigued or deloading, push intensity next session."));
   } else {
-    lines.push("Steady. Consistency beats intensity over months — you're doing the right thing.");
+    lines.push(T('coach.reply.progress.steady',
+      "Steady. Consistency beats intensity over months — you're doing the right thing."));
   }
   return lines.join('\n');
 }
@@ -258,26 +298,41 @@ async function shouldIncrease({ user, t, language }) {
   const sameWeight = weights.every(w => w === weights[0] && w > 0);
   const repsHeld   = reps.every(r => r >= reps[reps.length - 1] && r >= 5);
 
+  // A rep SEQUENCE ("8, 8, 7 reps") is not a conjunction list — "8, 8, and
+  // 7" reads wrong — so these keep a plain comma and only the digits get
+  // localized. See listFormatter.test.js for why Intl has no separator-only
+  // list type to reach for here.
+  const nums = (arr) => arr.map(v => formatNumber(v, language)).join(', ');
+  const nextWeight = weights[0] + (weights[0] >= 200 ? 10 : weights[0] >= 100 ? 5 : 2.5);
+
   if (sameWeight && repsHeld && reps[0] >= 8) {
     return [
-      `**Yes — bump your ${topName} weight.**`,
+      T('coach.reply.overload.yesTitle', '**Yes — bump your {lift} weight.**', { lift: topName }),
       '',
-      `You hit ${weights[0]} lb for ${reps.join(', ')} reps across the last 3 sessions. That's the textbook signal: same weight, stable reps in the 8+ range.`,
+      T('coach.reply.overload.yesBody',
+        "You hit {weight} lb for {reps} reps across the last 3 sessions. That's the textbook signal: same weight, stable reps in the 8+ range.",
+        { weight: formatNumber(weights[0], language), reps: nums(reps) }),
       '',
-      `Try ${weights[0] + (weights[0] >= 200 ? 10 : weights[0] >= 100 ? 5 : 2.5)} lb next time, aiming for 5–8 reps. If form holds, you're locked in.`,
+      T('coach.reply.overload.yesNext',
+        "Try {next} lb next time, aiming for 5–8 reps. If form holds, you're locked in.",
+        { next: formatNumber(nextWeight, language) }),
     ].join('\n');
   }
   if (sameWeight && repsHeld) {
     return [
-      `**Almost — keep grinding ${topName} a bit longer.**`,
+      T('coach.reply.overload.almostTitle', '**Almost — keep grinding {lift} a bit longer.**', { lift: topName }),
       '',
-      `You're at ${weights[0]} lb for ${reps.join(', ')} reps. Get to 8+ reps consistently before adding weight.`,
+      T('coach.reply.overload.almostBody',
+        "You're at {weight} lb for {reps} reps. Get to 8+ reps consistently before adding weight.",
+        { weight: formatNumber(weights[0], language), reps: nums(reps) }),
     ].join('\n');
   }
   return [
-    `**Not yet on ${topName}.**`,
+    T('coach.reply.overload.notYetTitle', '**Not yet on {lift}.**', { lift: topName }),
     '',
-    `Your top sets recently were ${weights.join(', ')} lb at ${reps.join(', ')} reps — not stable enough to add weight. Lock in ${weights[0]} lb at 8+ reps for 3 sessions, then push.`,
+    T('coach.reply.overload.notYetBody',
+      'Your top sets recently were {weights} lb at {reps} reps — not stable enough to add weight. Lock in {weight} lb at 8+ reps for 3 sessions, then push.',
+      { weights: nums(weights), reps: nums(reps), weight: formatNumber(weights[0], language) }),
   ].join('\n');
 }
 
@@ -295,17 +350,23 @@ async function soreness({ user, t, language }) {
     const grp = classifyExercise(ex.name);
     if (grp) lastGroups.add(grp);
   }
-  const sorePart = lastGroups.size > 0 ? Array.from(lastGroups).join(', ') : 'whatever you trained';
+  const sorePart = lastGroups.size > 0
+    ? formatList(Array.from(lastGroups).map(g => T(`muscleGroups.${g}`, g)), language)
+    : T('coach.reply.sore.whatever', 'whatever you trained');
 
   return [
-    `Soreness in **${sorePart}** is normal 24–48h after a hard session — that's DOMS, not damage.`,
+    T('coach.reply.sore.intro',
+      "Soreness in **{part}** is normal 24–48h after a hard session — that's DOMS, not damage.",
+      { part: sorePart }),
     '',
-    "**What to do today:**",
-    '• 20–30 min low-intensity cardio (zone 2 walk, easy bike) — pumps blood through the sore muscles',
-    '• Hit 8+ glasses of water (you have a Drink Water quest — use it)',
-    '• 5 min dynamic mobility for the sore area',
-    '',
-    'Skip lifting that area until soreness drops below "limits range of motion" levels. You can train un-sore body parts.',
+    T('coach.reply.sore.body', [
+      '**What to do today:**',
+      '• 20–30 min low-intensity cardio (zone 2 walk, easy bike) — pumps blood through the sore muscles',
+      '• Hit 8+ glasses of water (you have a Drink Water quest — use it)',
+      '• 5 min dynamic mobility for the sore area',
+      '',
+      'Skip lifting that area until soreness drops below "limits range of motion" levels. You can train un-sore body parts.',
+    ].join('\n')),
   ].join('\n');
 }
 
@@ -315,16 +376,22 @@ async function consistency({ user, t, language }) {
   const days = new Set(last30.map(w => w.date));
   const ratio = days.size / 30;
 
-  const lines = [`Last 30 days: **${days.size} workout days** (${Math.round(ratio * 100)}%).`];
+  const lines = [T('coach.reply.consistency.headline',
+    'Last 30 days: **{n} workout days** ({pct}%).',
+    { n: formatNumber(days.size, language), pct: formatNumber(Math.round(ratio * 100), language) })];
   lines.push('');
   if (ratio >= 0.5) {
-    lines.push("You're crushing it. 4+ workouts a week consistently is in the top 5% of any fitness app's user base.");
+    lines.push(T('coach.reply.consistency.top',
+      "You're crushing it. 4+ workouts a week consistently is in the top 5% of any fitness app's user base."));
   } else if (ratio >= 0.3) {
-    lines.push("Solid — roughly 3x/week. That's enough volume to make real progress.");
+    lines.push(T('coach.reply.consistency.solid',
+      "Solid — roughly 3x/week. That's enough volume to make real progress."));
   } else if (ratio >= 0.15) {
-    lines.push("You're showing up. Try to add one more session per week. Pick the day before you check this — log it tomorrow.");
+    lines.push(T('coach.reply.consistency.showing',
+      "You're showing up. Try to add one more session per week. Pick the day before you check this — log it tomorrow."));
   } else {
-    lines.push("Currently inconsistent. Don't aim for perfect — aim for 2 sessions this week. Lock in the habit before optimizing the program.");
+    lines.push(T('coach.reply.consistency.low',
+      "Currently inconsistent. Don't aim for perfect — aim for 2 sessions this week. Lock in the habit before optimizing the program."));
   }
   return lines.join('\n');
 }
@@ -356,9 +423,16 @@ async function prsResponder({ user, t, language }) {
   if (top5.length === 0) return T('coach.reply.prs.noWeights',
       "I see workouts but no weighted lifts — bodyweight progress is real, but I can't surface PRs without weights.");
 
-  const lines = ["**Your top 5 PRs:**"];
+  const lines = [T('coach.reply.prs.title', '**Your top 5 PRs:**')];
   for (const [name, pr] of top5) {
-    lines.push(`• ${name}: ${pr.weight} lb × ${pr.reps} (${format(parseLogDate(pr.date), 'MMM d')})`);
+    // date-fns `format` binds no locale, so this printed "Aug 7" under a
+    // fully-translated reply. Same defect the journal header had.
+    lines.push(T('coach.reply.prs.row', '• {name}: {weight} lb × {reps} ({date})', {
+      name,
+      weight: formatNumber(pr.weight, language),
+      reps: formatNumber(pr.reps, language),
+      date: formatDate(parseLogDate(pr.date), language, { month: 'short', day: 'numeric' }),
+    }));
   }
   return lines.join('\n');
 }
@@ -375,13 +449,21 @@ async function weakAreas({ user, t, language }) {
   }
   const sorted = Object.entries(tally).sort((a, b) => a[1] - b[1]);
   const least = sorted.slice(0, 2);
-  const lines = ["**Last 14 days, by sets:**"];
-  for (const [g, n] of sorted) lines.push(`• ${g}: ${n}`);
+  const group = (g) => T(`muscleGroups.${g}`, g);
+  const lines = [T('coach.reply.weak.title', '**Last 14 days, by sets:**')];
+  for (const [g, n] of sorted) {
+    lines.push(T('coach.reply.weak.row', '• {group}: {n}',
+      { group: group(g), n: formatNumber(n, language) }));
+  }
   lines.push('');
   if (least[0][1] === 0) {
-    lines.push(`You haven't trained **${least.map(l => l[0]).join(' or ')}** at all in 14 days. Schedule them this week.`);
+    lines.push(T('coach.reply.weak.untrained',
+      "You haven't trained **{groups}** at all in 14 days. Schedule them this week.",
+      { groups: formatList(least.map(l => group(l[0])), language, { type: 'disjunction' }) }));
   } else {
-    lines.push(`Underdosed: **${least[0][0]}**. Add an extra session targeting it.`);
+    lines.push(T('coach.reply.weak.underdosed',
+      'Underdosed: **{group}**. Add an extra session targeting it.',
+      { group: group(least[0][0]) }));
   }
   return lines.join('\n');
 }
@@ -392,20 +474,27 @@ async function cardioSuggest({ user, t, language }) {
   const totalSec = cardio.reduce((s, c) => s + (Number(c.duration_seconds) || 0), 0);
   const totalMin = Math.round(totalSec / 60);
 
+  const mins = formatNumber(totalMin, language);
   if (totalMin >= 150) {
-    return `You've logged **${totalMin} min of cardio** in the last 7 days — exceeds the WHO 150 min/week recommendation. Optional: 1 short session as active recovery.`;
+    return T('coach.reply.cardio.over',
+      "You've logged **{n} min of cardio** in the last 7 days — exceeds the WHO 150 min/week recommendation. Optional: 1 short session as active recovery.",
+      { n: mins });
   }
   if (totalMin >= 75) {
-    return `**${totalMin} min** logged this week. Adding ~75 more minutes hits the WHO weekly target. Two 30-min sessions would do it.`;
+    return T('coach.reply.cardio.mid',
+      '**{n} min** logged this week. Adding ~75 more minutes hits the WHO weekly target. Two 30-min sessions would do it.',
+      { n: mins });
   }
   if (totalMin > 0) {
-    return `Only **${totalMin} min** of cardio this week. Aim for 150 min/week for cardiovascular health. A 25-min walk every other day gets you there.`;
+    return T('coach.reply.cardio.low',
+      'Only **{n} min** of cardio this week. Aim for 150 min/week for cardiovascular health. A 25-min walk every other day gets you there.',
+      { n: mins });
   }
-  return [
-    "No cardio logged in the last 7 days.",
+  return T('coach.reply.cardio.none', [
+    'No cardio logged in the last 7 days.',
     '',
     "**Easy starting point:** 20 min walk after a meal. That's it. You can scale up to running/biking when the habit's locked in.",
-  ].join('\n');
+  ].join('\n'));
 }
 
 async function restDay({ t } = {}) {
@@ -458,10 +547,17 @@ async function goalStatus({ user, t, language }) {
       return T('coach.reply.goals.none',
       "No active goals. Open the Goals modal to set a PR target — having a number to chase changes how you train.");
     }
-    const lines = [`**You have ${active.length} active goal${active.length === 1 ? '' : 's'}:**`];
+    const lines = [T(`coach.reply.goals.title.${active.length === 1 ? 'one' : 'other'}`,
+      active.length === 1 ? '**You have {n} active goal:**' : '**You have {n} active goals:**',
+      { n: formatNumber(active.length, language) })];
     for (const g of active.slice(0, 5)) {
-      const target = g.target_weight ? `${g.target_weight} lb` : g.target_reps ? `${g.target_reps} reps` : g.target_value || '?';
-      lines.push(`• ${g.exercise_name || 'Goal'} → ${target}`);
+      const target = g.target_weight
+        ? T('coach.reply.goals.targetWeight', '{n} lb', { n: formatNumber(g.target_weight, language) })
+        : g.target_reps
+          ? T('coach.reply.goals.targetReps', '{n} reps', { n: formatNumber(g.target_reps, language) })
+          : g.target_value || '?';
+      lines.push(T('coach.reply.goals.row', '• {name} → {target}',
+        { name: g.exercise_name || T('coach.reply.goals.unnamed', 'Goal'), target }));
     }
     return lines.join('\n');
   } catch {
@@ -477,15 +573,26 @@ async function streakStatus({ user, t, language }) {
       "Sign in to see your streaks.");
   const lines = [];
   if (profile.workout_streak > 0) {
-    lines.push(`💪 Workout streak: **${profile.workout_streak} day${profile.workout_streak === 1 ? '' : 's'}** (best: ${profile.longest_workout_streak || profile.workout_streak})`);
+    lines.push(T(`coach.reply.streak.workout.${profile.workout_streak === 1 ? 'one' : 'other'}`,
+      profile.workout_streak === 1
+        ? '💪 Workout streak: **{n} day** (best: {best})'
+        : '💪 Workout streak: **{n} days** (best: {best})',
+      {
+        n: formatNumber(profile.workout_streak, language),
+        best: formatNumber(profile.longest_workout_streak || profile.workout_streak, language),
+      }));
   } else {
-    lines.push("💪 Workout streak: 0. Train today to start one.");
+    lines.push(T('coach.reply.streak.workoutNone', '💪 Workout streak: 0. Train today to start one.'));
   }
   if (profile.login_streak > 0) {
-    lines.push(`🔥 Login streak: **${profile.login_streak} day${profile.login_streak === 1 ? '' : 's'}**`);
+    lines.push(T(`coach.reply.streak.login.${profile.login_streak === 1 ? 'one' : 'other'}`,
+      profile.login_streak === 1
+        ? '🔥 Login streak: **{n} day**'
+        : '🔥 Login streak: **{n} days**',
+      { n: formatNumber(profile.login_streak, language) }));
   }
   if (profile.league_tier) {
-    lines.push(`🏆 League: **${profile.league_tier}**`);
+    lines.push(T('coach.reply.streak.league', '🏆 League: **{tier}**', { tier: profile.league_tier }));
   }
   return lines.join('\n');
 }
@@ -518,37 +625,42 @@ async function greeting({ user, t, language }) {
       'Good to see you. Day {n} workout streak — keep it alive. What can I help with?',
       { n: streak });
   }
-  return [
+  return T('coach.reply.greeting.intro', [
     "Hey 👋 I'm your Coach. I can answer:",
     '',
-    '• **What should I train today?** — I\'ll look at your last 7 days',
+    "• **What should I train today?** — I'll look at your last 7 days",
     '• **Should I increase weight on [lift]?** — analyzes recent reps',
-    "• **How am I doing?** — weekly progress review",
+    '• **How am I doing?** — weekly progress review',
     "• **I'm sore** — recovery suggestions",
-    "• **What are my PRs?** — top lifts surfaced",
-    "• **Am I weak in any area?** — training-frequency check",
+    '• **What are my PRs?** — top lifts surfaced',
+    '• **Am I weak in any area?** — training-frequency check',
     '',
     'Try one of those, or just type a question.',
-  ].join('\n');
+  ].join('\n'));
 }
 
-async function help({ t } = {}) {
-  const T = asT(t);
-  return greeting({ user: {} });
+async function help({ t, language } = {}) {
+  // Forwards `t` — it was dropping it, which would have rendered the help
+  // text in English inside an otherwise-translated thread.
+  return greeting({ user: {}, t, language });
 }
 
 async function unknown({ params, t, language }) {
   const T = asT(t);
   return [
-    "I'm not sure how to help with that yet. I'm best at:",
-    '',
-    '• Workout suggestions (try: *what should I train today*)',
-    '• Progressive overload (try: *should I increase my squat weight*)',
-    '• Recovery (try: *I\'m sore*)',
-    '• Progress check (try: *how am I doing*)',
-    '• PRs, streaks, weak areas',
-    '',
-    `You asked: "${(params?.raw || '').slice(0, 80)}". Rephrasing might help, or pick a question above.`,
+    T('coach.reply.unknown.body', [
+      "I'm not sure how to help with that yet. I'm best at:",
+      '',
+      '• Workout suggestions (try: *what should I train today*)',
+      '• Progressive overload (try: *should I increase my squat weight*)',
+      "• Recovery (try: *I'm sore*)",
+      '• Progress check (try: *how am I doing*)',
+      '• PRs, streaks, weak areas',
+      '',
+    ].join('\n')),
+    T('coach.reply.unknown.asked',
+      'You asked: "{q}". Rephrasing might help, or pick a question above.',
+      { q: (params?.raw || '').slice(0, 80) }),
   ].join('\n');
 }
 
@@ -574,29 +686,41 @@ async function recoveryCheck({ user, t, language }) {
   });
 
   const lines = [];
-  lines.push(`Recovery: ${score}/100 — ${label}`);
+  lines.push(T('coach.reply.recovery.score', 'Recovery: {score}/100 — {label}',
+    { score: formatNumber(score, language), label }));
   if (todays?.hours) {
-    lines.push(`Last night: ${todays.hours}h${todays.quality ? ` (quality ${todays.quality}/5)` : ''}`);
+    lines.push(T('coach.reply.recovery.lastNight', 'Last night: {hours}h{quality}', {
+      hours: formatNumber(todays.hours, language),
+      quality: todays.quality
+        ? T('coach.reply.recovery.quality', ' (quality {q}/5)',
+            { q: formatNumber(todays.quality, language) })
+        : '',
+    }));
   } else {
-    lines.push("No sleep log yet today — log it to sharpen this score.");
+    lines.push(T('coach.reply.recovery.noSleep',
+      'No sleep log yet today — log it to sharpen this score.'));
   }
   if (latestWorkout?.date) {
     const days = differenceInCalendarDays(new Date(), parseLogDate(latestWorkout.date));
     lines.push(days === 0
-      ? "You trained today — light recovery work is the right move."
-      : days === 1
-        ? "1 day since last workout."
-        : `${days} days since last workout.`);
+      ? T('coach.reply.recovery.trainedToday',
+          'You trained today — light recovery work is the right move.')
+      : T(`coach.reply.recovery.sinceWorkout.${days === 1 ? 'one' : 'other'}`,
+          days === 1 ? '{n} day since last workout.' : '{n} days since last workout.',
+          { n: formatNumber(days, language) }));
   }
   // Action prompt — ties recovery score to a training decision.
   if (score >= 80) {
-    lines.push("Hit it hard. Take a PR shot today.");
+    lines.push(T('coach.reply.recovery.hard', 'Hit it hard. Take a PR shot today.'));
   } else if (score >= 65) {
-    lines.push("Train as planned. Save the heaviest lift for later in the session.");
+    lines.push(T('coach.reply.recovery.planned',
+      'Train as planned. Save the heaviest lift for later in the session.'));
   } else if (score >= 50) {
-    lines.push("Train, but cap intensity — leave 1-2 reps in reserve.");
+    lines.push(T('coach.reply.recovery.cap',
+      'Train, but cap intensity — leave 1-2 reps in reserve.'));
   } else {
-    lines.push("Consider a mobility day or a light cardio session.");
+    lines.push(T('coach.reply.recovery.mobility',
+      'Consider a mobility day or a light cardio session.'));
   }
   return lines.join('\n');
 }
@@ -609,15 +733,24 @@ async function sleepLog({ user, t, language }) {
       "I don't have a sleep log for you today yet. Tap the sleep card on the Dashboard to record last night.");
   }
   const lines = [
-    `Logged: ${todays.hours}h${todays.quality ? ` (quality ${todays.quality}/5)` : ''}`,
+    T('coach.reply.sleep.logged', 'Logged: {hours}h{quality}', {
+      hours: formatNumber(todays.hours, language),
+      quality: todays.quality
+        ? T('coach.reply.recovery.quality', ' (quality {q}/5)',
+            { q: formatNumber(todays.quality, language) })
+        : '',
+    }),
   ];
-  if (todays.soreness) lines.push(`Soreness: ${todays.soreness}/5`);
+  if (todays.soreness) {
+    lines.push(T('coach.reply.sleep.soreness', 'Soreness: {n}/5',
+      { n: formatNumber(todays.soreness, language) }));
+  }
   if (todays.hours >= 8) {
-    lines.push("Solid duration. You're set up for a good session.");
+    lines.push(T('coach.reply.sleep.solid', "Solid duration. You're set up for a good session."));
   } else if (todays.hours >= 6.5) {
-    lines.push("Decent. Caffeine + protein early helps.");
+    lines.push(T('coach.reply.sleep.decent', 'Decent. Caffeine + protein early helps.'));
   } else {
-    lines.push("Short night — favor technique over loading today.");
+    lines.push(T('coach.reply.sleep.short', 'Short night — favor technique over loading today.'));
   }
   return lines.join('\n');
 }
@@ -652,8 +785,16 @@ export async function respond({ user, intent, t, language = 'en' }) {
     return await fn({ user, intent, params: intent.params, t, language });
   } catch (err) {
     console.warn('[aiCoach] responder threw:', err);
-    return asT(t)('coach.reply.error',
-      'Hmm, something went wrong looking at your data. Try again in a moment.');
+    const msg = 'Hmm, something went wrong looking at your data. Try again in a moment.';
+    // The apology must not depend on the thing that may have just broken. A
+    // `t` that throws is one of the ways a responder gets here, so this path
+    // tries the translator and falls back to English rather than throwing
+    // out of the catch block and leaving the chat with no reply at all.
+    try {
+      return asT(t)('coach.reply.error', msg);
+    } catch {
+      return enT('coach.reply.error', msg);
+    }
   }
 }
 

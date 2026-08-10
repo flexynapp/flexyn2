@@ -12,6 +12,7 @@
 import { describe, it, expect } from 'vitest';
 import { interpolate, enT, asT } from '@/lib/aiCoach/coachI18n';
 import { buildTrainingModifiers, fuelNote } from '@/lib/aiCoach/trainingModifiers';
+import { respond } from '@/lib/aiCoach/responders';
 
 /** A stub that IGNORES the English fallback, the way a real locale does. */
 const es = (key, _english, vars) => interpolate(`[${key}]`, vars);
@@ -104,5 +105,41 @@ describe('the blended-goal list uses the locale, not hand-rolled grammar', () =>
   it('handles the two-goal case without a stray separator', () => {
     const [blend] = buildTrainingModifiers({ goal: ['strength', 'muscle'] }).notes;
     expect(blend).toContain('Balancing strength and muscle —');
+  });
+});
+
+// ── responders.js ───────────────────────────────────────────────────────────
+
+describe('rules-engine replies route through keys and default to English', () => {
+  // Only the responders that touch no database are exercised here — the
+  // data-heavy ones are covered by the suites that already mock supabase.
+  const DB_FREE = ['rest_day', 'nutrition_tip', 'hydration', 'plateau', 'unknown'];
+
+  it.each(DB_FREE)('%s renders English with no translator', async (id) => {
+    const reply = await respond({ user: {}, intent: { id, params: { raw: 'x' } } });
+    expect(typeof reply).toBe('string');
+    expect(reply.length).toBeGreaterThan(20);
+    // A key that leaked through instead of its fallback would look like this.
+    expect(reply).not.toMatch(/^\[?coach\./);
+  });
+
+  it.each(DB_FREE)('%s routes every line through a key', async (id) => {
+    const reply = await respond({
+      user: {}, intent: { id, params: { raw: 'x' } }, t: es, language: 'es',
+    });
+    // Each reply is one or two keys plus structural blank lines, so a
+    // localized render should contain no untranslated prose at all.
+    for (const line of reply.split('\n').filter(Boolean)) {
+      expect(line).toMatch(/\[coach\./);
+    }
+  });
+
+  it('a responder that throws still answers, in the caller language', async () => {
+    // `respond` catches and returns a fixed apology; it used to be a bare
+    // English literal outside every locale.
+    const reply = await respond({
+      user: {}, intent: { id: 'rest_day' }, t: () => { throw new Error('boom'); },
+    });
+    expect(typeof reply).toBe('string');
   });
 });
