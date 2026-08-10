@@ -12,9 +12,10 @@
 // it is safe to re-run after a bridge timeout — and that matters here,
 // because this file was written during a two-hour stretch where the
 // plugin would not answer at all. **A timed-out call may still have
-// landed its writes.** If a stray empty page called "Analytics +
-// Personal Bests — as sheets" exists from an earlier attempt, delete it;
-// this script uses the shorter page name "Analytics + Personal Bests".
+// landed its writes.** An earlier timed-out run DID create an empty page
+// called "Analytics + Personal Bests — as sheets", so the page name below
+// matches it exactly and this script adopts it rather than leaving litter
+// beside it.
 //
 // `penpot.openPage()` takes effect on the NEXT tool call, never inside
 // the one that calls it — see the head of penpot-injuries-board.js for
@@ -78,7 +79,7 @@
 // that "owns their forms". Shell adopted exactly; the dial's slot holds
 // one hero figure instead.
 
-const PAGE = 'Analytics + Personal Bests';
+const PAGE = 'Analytics + Personal Bests — as sheets';
 const NAME = 'Analytics + Personal Bests — as sheets';
 const BX = 0, BY = 0, BW = 1860, BH = 1900;
 
