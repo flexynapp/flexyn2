@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { filterAfterReset } from '@/lib/accountReset';
 import { LOG_FETCH_LIMIT } from '@/lib/constants';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -6,7 +6,6 @@ import { getDateLocale } from '@/lib/dateLocales';
 import { muscleKey } from '@/lib/exerciseTranslations';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { fromLbs, formatWeight } from '@/lib/weightUnit';
-import { useDistanceUnit } from '@/lib/DistanceUnitContext';
 import { useQuery } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { db } from '@/api/db';
@@ -249,9 +248,13 @@ function AnalyticsTab({ logs }) {
     .filter(e => e.maxWeightLbs > 0)
     .sort((a, b) => a.rawDate.localeCompare(b.rawDate))
     .slice(-20)
+    // Only `weightDisplay` is charted. A second field carrying the raw
+    // lbs under the key 'Max Weight (lbs)' rode along here and no axis,
+    // line or tooltip ever read it — a hardcoded unit in a key name is
+    // also exactly what a kg user must not be shown, so it was one
+    // careless dataKey away from being a bug rather than dead weight.
     .map(e => ({
       date: format(parseLocalDate(e.rawDate), 'MMM d', { locale: dateLocale }),
-      'Max Weight (lbs)': e.maxWeightLbs,
       weightDisplay: fromLbs(e.maxWeightLbs, weightUnit),
     })),
   [logs, dateLocale, weightUnit]);
@@ -344,7 +347,9 @@ function AnalyticsTab({ logs }) {
           <ResponsiveContainer width="100%" height={240} key={language}>
             <BarChart data={volumeByMuscle} layout="vertical">
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
-              <XAxis type="number" inputMode="decimal" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
+              {/* no inputMode — it was an <input> attribute on an SVG axis,
+                  which renders nothing and configures no keyboard. */}
+              <XAxis type="number" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
               <YAxis type="category" dataKey="displayGroup" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" width={80} />
               <Tooltip {...CHART_STYLE} />
               <Bar dataKey="Volume" fill="hsl(var(--accent))" radius={[0, 4, 4, 0]} />
@@ -398,11 +403,17 @@ function AnalyticsTab({ logs }) {
  *  rule — "no gradient as decoration" — and `shadow-sm` is gone, since
  *  a resting surface is a hairline and nothing else.
  *
- *  forwardRef so the parent's stat tiles can call .goToId(id) to jump
- *  the carousel to a specific slide when tapped.
+ *  This used to be a forwardRef exposing .goToId(id), so the stat tiles
+ *  below the carousel could jump it to the matching slide when tapped.
+ *  Those tiles moved into the Advanced Analytics modal (see heroStats),
+ *  which receives them as data and has no handle on this component — so
+ *  the bridge had no caller left. Removed rather than reconnected:
+ *  wiring the modal's tiles back to a carousel behind it is a product
+ *  decision, not a cleanup. HeroPager still exposes goToId for anyone
+ *  who wants it.
  * ────────────────────────────────────────────────────────────────── */
 
-const ProgressCarousel = forwardRef(function ProgressCarousel({ slides }, ref) {
+function ProgressCarousel({ slides }) {
   const { tFallback } = useLanguage();
   const pagerRef = useRef(null);
   // The band paints the LIVE slide's accent — tint and identity rule —
@@ -412,10 +423,6 @@ const ProgressCarousel = forwardRef(function ProgressCarousel({ slides }, ref) {
   const handleIndexChange = useCallback((_i, slide) => {
     setAccent(heroSlideAccent(slide));
   }, []);
-
-  useImperativeHandle(ref, () => ({
-    goToId: (id) => pagerRef.current?.goToId(id),
-  }), []);
 
   const multi = slides.length > 1;
 
@@ -468,7 +475,7 @@ const ProgressCarousel = forwardRef(function ProgressCarousel({ slides }, ref) {
       </div>
     </div>
   );
-});
+}
 
 /* One slide of the Progress carousel, in the hero's shared layout:
    corner watermark, icon chip + kicker, the figure, the line of context.
@@ -514,10 +521,12 @@ function renderProgressSlide(slide, { count = 1 } = {}) {
 // ─── Main Progress Page ───────────────────────────────────────────────────────
 
 export default function Progress() {
-  const { t, tFallback, language } = useLanguage();
+  // No distanceUnit and no dateLocale here: this component renders no
+  // distance and formats no date. Both were read and never used — the
+  // sub-components that DO format dates (PersonalBestsTab, AnalyticsTab)
+  // derive their own dateLocale, so those stay.
+  const { t, tFallback } = useLanguage();
   const { weightUnit } = useWeightUnit();
-  const { distanceUnit } = useDistanceUnit();
-  const dateLocale = getDateLocale(language);
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -529,6 +538,13 @@ export default function Progress() {
     return 'trends';
   })();
 
+  // `initialTab` above covers the first paint; this covers arriving at
+  // ?tab= while already mounted (a deep link tapped from another page).
+  // The param is consumed and stripped with `replace`, deliberately: it
+  // is an instruction, not state, and leaving it in the URL would make
+  // any later back-navigation re-apply a tab choice the user has since
+  // changed. `navigate` is stable from useNavigate, so listing it in the
+  // deps satisfies exhaustive-deps without re-running the effect.
   const [activeTab, setActiveTab] = useState(initialTab);
   useEffect(() => {
     const p = new URLSearchParams(location.search);
@@ -538,7 +554,7 @@ export default function Progress() {
       p.delete('tab');
       navigate({ pathname: '/progress', search: p.toString() ? '?' + p.toString() : '' }, { replace: true });
     }
-  }, [location.search]);
+  }, [location.search, navigate]);
 
   const [personalBestsModalOpen, setPersonalBestsModalOpen] = useState(false);
   const [advancedAnalyticsOpen, setAdvancedAnalyticsOpen]   = useState(false);
@@ -549,7 +565,6 @@ export default function Progress() {
   // Timeframe toggle for the hero metrics strip (Week / Month / Year / All Time)
   const [statsFrame,            setStatsFrame]              = useState('week');
 
-  const tabsBarRef = React.useRef(null);
   const contentRef = React.useRef(null);
   const { user } = useAuth();
 
@@ -650,21 +665,18 @@ export default function Progress() {
   const lastWeekVolume = useMemo(() => calcVolume(lastWeekLogs), [lastWeekLogs]);
   const volumeDelta    = prevVolume > 0 ? ((frameVolume - prevVolume) / prevVolume) * 100 : null;
 
-  const frameCardio = useMemo(() => {
+  // A session COUNT, not a stats object. It also summed distance, duration
+  // and calories on every frame change and nothing ever read any of the
+  // three — the card shows one number. Three unread reduces over the full
+  // cardio history is not free on a phone, and worse, an unused aggregate
+  // reads as a feature someone forgot to finish. If a distance or duration
+  // stat is wanted here, add it to the card and the sum with it.
+  const frameCardioSessions = useMemo(() => {
     const days = FRAME_DAYS[statsFrame];
-    const inWindow = isFinite(days)
-      ? cardioLogs.filter(l => l.date && parseLocalDate(l.date) >= subDays(new Date(), days))
-      : cardioLogs;
-    return {
-      sessions:        inWindow.length,
-      distanceMeters:  inWindow.reduce((s, l) => s + (l.distance_meters  || 0), 0),
-      durationSeconds: inWindow.reduce((s, l) => s + (l.duration_seconds || 0), 0),
-      calories:        inWindow.reduce((s, l) => s + (l.calories         || 0), 0),
-    };
+    if (!isFinite(days)) return cardioLogs.length;
+    const cutoff = subDays(new Date(), days);
+    return cardioLogs.filter(l => l.date && parseLocalDate(l.date) >= cutoff).length;
   }, [cardioLogs, statsFrame]);
-
-  // Keep backward-compat name so existing references below still work
-  const weeklyCardio = frameCardio;
 
   // (muscleGroupsThisWeek removed — muscle pills now computed inline
   //  from frameLogs inside the timeframe-aware stats card)
@@ -831,7 +843,6 @@ export default function Progress() {
       ),
     },
   ];
-  const carouselRef = useRef(null);
 
   // ── Tab switch helper ─────────────────────────────────────────────────────
   // Auto-scroll-on-switch removed per user feedback: it was pushing
@@ -890,7 +901,7 @@ export default function Progress() {
           {/* ── Carousel — one slide per stat (Streak / Workouts /
                 Volume / Level) with motivational tips. Per-slide
                 color tint, swipe to advance, right-edge chevron. ──── */}
-          <ProgressCarousel ref={carouselRef} slides={carouselSlides} />
+          <ProgressCarousel slides={carouselSlides} />
 
           {/* The 4 stat tiles (Streak / Workouts / Volume / Level) that
               used to sit here now live inside the "Advanced Analytics"
@@ -957,7 +968,10 @@ export default function Progress() {
                 <div className="text-center">
                   {/* accent, not primary — Workouts above is already primary
                       and the two sat side by side reading as one number. */}
-                  <p className="font-heading font-black text-2xl text-accent">{weeklyCardio.sessions || '—'}</p>
+                  {/* was `weeklyCardio`, an alias kept "for backward
+                      compat" that had exactly one caller — and it said
+                      "weekly" while holding whichever frame is selected. */}
+                  <p className="font-heading font-black text-2xl text-accent">{frameCardioSessions || '—'}</p>
                   <p className="text-micro text-muted-foreground mt-0.5">{tFallback('progress.frame.cardio', 'Cardio')}</p>
                 </div>
               </div>
@@ -1137,13 +1151,18 @@ export default function Progress() {
 
           {/* ── Tab Navigation ──────────────────────────────────────────────
               Sized for proper touch targets (min-h ~48px, the Apple HIG
-              floor + Material baseline). On md+ each tab takes equal
-              width (flex-1) so the row reads as a tab bar instead of
-              a left-aligned chip cluster — the empty right-side gap
-              the previous layout had felt unfinished. On mobile they
-              keep their natural width and overflow-scroll so the row
-              doesn't squeeze each one into an unreadable nub. */}
-          <div ref={tabsBarRef} className="mb-6">
+              floor + Material baseline). A 2×2 grid, so all four tabs are
+              on screen at once at any width and none of them scrolls out
+              of reach — this app ships to phones only.
+
+              The comment that used to sit here described a flex-1 row that
+              overflow-scrolled on mobile. That layout is gone; it was
+              replaced by this grid and the note was left behind, which is
+              worse than no comment because it reads as the intent. `grid`
+              is right here per CLAUDE.md's rule — the count is a fixed 4
+              from TAB_META, not decided by data, so there is no partial
+              row for tileRow() to centre. */}
+          <div className="mb-6">
             <div className="grid grid-cols-2 gap-2.5">
               {TAB_META.map(tab => {
                 const isActive = activeTab === tab.id;
