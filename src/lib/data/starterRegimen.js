@@ -341,30 +341,84 @@ export function buildStarterRegimen({ goals, level, daysCount, assessment, cardi
   // surface people actually train from.
   //
   // Safety valve below still applies and matters MORE now: with mild excluded
-  // too, more users can exclude their way to an empty plan, so if filtering
-  // would leave fewer than two exercises we keep the three that hit the fewest
-  // injured areas rather than hand back nothing.
+  // too, more users can exclude their way out of their goal's own pool.
   //
-  // Be honest about what that valve does when it fires: it hands back work on
-  // areas the user flagged. Measured with five injuries across all five
-  // regions, the plan comes back as Overhead Press / Barbell Row / Pull-Up —
-  // against a serious shoulder and a moderate back. That was already true; it
-  // is simply reachable more often now. It also quietly contradicts the
-  // onboarding promise that anything you flag comes out. Worth a decision on
-  // its own: a "we can't build you a plan around all of this, here's mobility
-  // instead" branch is probably the right answer, and is not this change.
+  // When that happens we WIDEN THE SEARCH rather than lower the bar. The old
+  // fallback kept "the three exercises hitting the fewest injured areas" —
+  // fewest, not none — so the moment it fired it handed back work on regions
+  // the user had just flagged. Measured with five injuries across five
+  // regions it returned Overhead Press, Barbell Row and Pull-Up against a
+  // serious shoulder and a moderate back. It never looked outside the goal's
+  // six-or-so curated exercises, while EXERCISE_LIBRARY holds 394 and the
+  // injury vocabulary is only eight groups, so something clean almost always
+  // existed one search away.
+  //
+  // Cascade, most-appropriate first:
+  //   1. the goal's own pool, injury-filtered           (unchanged)
+  //   2. every other curated goal pool — real, sensible picks we already ship
+  //   3. the whole library, most-isolated first (fewest muscles), so what we
+  //      reach for last is a single-joint movement rather than something
+  //      obscure that happens to sort early
+  //
+  // Every tier requires touching NO injured area. Nothing here can hand back
+  // work on a flagged region, which is what the onboarding copy promises.
   const injList = Array.isArray(injuries) ? injuries : [];
   const excludeSet = new Set(
     injList.map(i => (i && i.muscleGroup) || i).filter(Boolean),
   );
-  const trains = (name, set) => EX(name).muscles.some(m => set.has(m));
+  // `EXERCISE_LIBRARY` tags two muscles that are NOT injury groups, and a
+  // plain `set.has(m)` test can therefore never exclude them: **Full Body**
+  // and **Cardio**. They are also the most loading things in the library, so
+  // the filter was blindest exactly where it needed to be sharpest — asked
+  // for a plan around eight injured groups it returned Jump Rope, Clean and
+  // Jerk and Ground to Overhead, every one of which loads all of them.
+  //
+  // So a tag expands to what it actually loads. Full Body means everything.
+  // Cardio here is running, jumping rope and mountain climbers — leg-driven
+  // and braced through the trunk — so it counts as legs and core rather than
+  // as nothing.
+  const IMPLIED_LOAD = {
+    'Full Body': ['Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps', 'Legs', 'Glutes', 'Core'],
+    Cardio: ['Legs', 'Core'],
+  };
+  const loads = (muscle) => [muscle, ...(IMPLIED_LOAD[muscle] || [])];
+  const trains = (name, set) => EX(name).muscles.some(m => loads(m).some(g => set.has(g)));
   if (excludeSet.size) {
     const clean = exerciseNames.filter(n => !trains(n, excludeSet));
-    exerciseNames = clean.length >= 2
-      ? clean
-      : [...exerciseNames]
-          .sort((a, b) => EX(a).muscles.filter(m => excludeSet.has(m)).length - EX(b).muscles.filter(m => excludeSet.has(m)).length)
-          .slice(0, 3);
+    if (clean.length >= 2) {
+      exerciseNames = clean;
+    } else {
+      const taken = new Set(clean);
+      const safe = (n) => !taken.has(n) && !trains(n, excludeSet);
+
+      // 2 — the other curated pools, in declaration order.
+      const curated = Object.values(GOAL_EXERCISES).flat().filter(safe);
+      const widened = [...clean];
+      for (const n of curated) {
+        if (widened.length >= 3) break;
+        if (!taken.has(n)) { widened.push(n); taken.add(n); }
+      }
+
+      // 3 — the full library, most-isolated first. Name breaks ties so the
+      // same injuries always produce the same plan.
+      if (widened.length < 2) {
+        const rest = EXERCISE_LIBRARY
+          .filter(e => safe(e.name))
+          .sort((a, b) => (a.muscles.length - b.muscles.length) || a.name.localeCompare(b.name));
+        for (const e of rest) {
+          if (widened.length >= 3) break;
+          widened.push(e.name);
+          taken.add(e.name);
+        }
+      }
+
+      // Still nothing means every group the library knows about is flagged —
+      // only reachable outside onboarding, which caps at 5 injuries across 8
+      // groups. The strength block is then genuinely empty, and
+      // ensureStarterRegimen declines to persist an exercise-less regimen
+      // rather than shipping a plan that is a lie either way.
+      exerciseNames = widened;
+    }
   }
 
   // ── Training days → scope. Fewer days = a compact full-body session; more
@@ -501,5 +555,14 @@ export async function ensureStarterRegimen({ user, profile } = {}) {
   if (existing && existing.length > 0) return null;
 
   const payload = buildStarterRegimen(profile || {});
+
+  // An exercise-less regimen is not a plan, it is an empty screen with a
+  // title. buildStarterRegimen only returns one when EVERY muscle group the
+  // library knows about is flagged as injured — unreachable from onboarding,
+  // which caps at 5 injuries across 8 groups, but reachable from a profile
+  // assembled elsewhere. Skipping is the honest outcome: better no starter
+  // plan than one that either loads the injuries or renders blank.
+  if (!Array.isArray(payload.exercises) || payload.exercises.length === 0) return null;
+
   return db.entities.Regimen.create(payload);
 }

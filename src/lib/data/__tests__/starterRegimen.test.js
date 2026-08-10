@@ -201,13 +201,22 @@ describe('buildStarterRegimen — edge cases / defaults', () => {
     expect(r.exercises.map(e => e.name)).not.toContain('Running');
   });
 
-  it('never returns an empty plan even with many injured regions', () => {
+  // REVERSED on 2026-08-10, deliberately. This used to assert
+  // `length >= 1` — "never returns an empty plan even with many injured
+  // regions" — and that assertion was the bug wearing a test's clothes.
+  // With all eight groups flagged there IS nothing safe to program, so the
+  // only way to satisfy it was to hand back work on injured regions: the
+  // plan came out as Jump Rope, Clean and Jerk and Ground to Overhead,
+  // which load every one of them. An empty block is the honest answer, and
+  // ensureStarterRegimen declines to persist it rather than creating a
+  // regimen that is a lie either way.
+  it('returns nothing rather than something unsafe when every region is flagged', () => {
     const r = buildStarterRegimen({
       goals: ['strength'], level: 'consistent', daysCount: 3,
       injuries: ['Chest', 'Back', 'Legs', 'Shoulders', 'Glutes', 'Core', 'Biceps', 'Triceps']
         .map(muscleGroup => ({ muscleGroup, severity: 'serious' })),
     });
-    expect(r.exercises.length).toBeGreaterThanOrEqual(1);
+    expect(r.exercises).toHaveLength(0);
   });
 });
 
@@ -379,22 +388,64 @@ describe('buildStarterRegimen — every severity is excluded', () => {
     }
   });
 
-  it('still returns a usable plan when the exclusions would empty it', () => {
-    // The safety valve matters more now: with mild excluded too, more users
-    // can exclude their way to nothing. Handing back an empty starter plan to
-    // someone who just finished onboarding is worse than handing back the
-    // exercises that touch the fewest injured areas.
-    const r = buildStarterRegimen({
-      goals: ['strength'], level: 'consistent', daysCount: 5,
-      injuries: [
-        { muscleGroup: 'Legs', severity: 'mild' },
-        { muscleGroup: 'Chest', severity: 'mild' },
-        { muscleGroup: 'Back', severity: 'moderate' },
-        { muscleGroup: 'Shoulders', severity: 'serious' },
-        { muscleGroup: 'Core', severity: 'mild' },
-      ],
-    });
-    expect(r.exercises.length).toBeGreaterThan(0);
+  // ── The empty-plan valve ───────────────────────────────────────────────
+  //
+  // When injury filtering empties the goal's own pool we WIDEN THE SEARCH
+  // rather than lower the bar. The old fallback kept "the three exercises
+  // hitting the fewest injured areas" — fewest, not none — so the moment it
+  // fired it handed back work on regions the user had just flagged. With
+  // five injuries it returned Overhead Press, Barbell Row and Pull-Up
+  // against a serious shoulder and a moderate back.
+  const FIVE = [
+    { muscleGroup: 'Legs', severity: 'mild' },
+    { muscleGroup: 'Chest', severity: 'mild' },
+    { muscleGroup: 'Back', severity: 'moderate' },
+    { muscleGroup: 'Shoulders', severity: 'serious' },
+    { muscleGroup: 'Core', severity: 'mild' },
+  ];
+  const plan = (injuries, goals = ['strength']) =>
+    buildStarterRegimen({ goals, level: 'consistent', daysCount: 5, injuries });
+
+  it('still returns a usable plan when the goal pool is emptied', () => {
+    expect(plan(FIVE).exercises.length).toBeGreaterThan(0);
+  });
+
+  it('never programs a flagged region, however many are flagged', () => {
+    const flagged = new Set(FIVE.map(i => i.muscleGroup));
+    for (const ex of plan(FIVE).exercises) {
+      for (const m of ex.muscle_groups || []) {
+        expect(flagged.has(m), `${ex.name} loads ${m}`).toBe(false);
+      }
+    }
+  });
+
+  it('looks outside the goal pool to find something clean', () => {
+    // None of these is in GOAL_EXERCISES.strength — the point is that the
+    // search widened rather than settling for the least-bad squat.
+    const names = plan(FIVE).exercises.map(e => e.name);
+    expect(names).not.toContain('Squat');
+    expect(names).not.toContain('Bench Press');
+    expect(names.length).toBeGreaterThan(0);
+  });
+
+  it('treats Full Body and Cardio as loading what they actually load', () => {
+    // Neither tag is an injury group, so a plain membership test could never
+    // exclude them — and they are the most loading things in the library.
+    // Asked for a plan around all eight groups it used to answer Jump Rope,
+    // Clean and Jerk and Ground to Overhead.
+    const all = ['Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps', 'Legs', 'Glutes', 'Core']
+      .map(m => ({ muscleGroup: m, severity: 'mild' }));
+    const names = plan(all).exercises.map(e => e.name);
+    expect(names).not.toContain('Clean and Jerk');
+    expect(names).not.toContain('Ground to Overhead');
+    expect(names).not.toContain('Jump Rope');
+  });
+
+  it('leaves an uninjured plan and a one-injury plan alone', () => {
+    expect(plan([]).exercises.map(e => e.name)).toContain('Squat');
+    const one = plan([{ muscleGroup: 'Legs', severity: 'mild' }]).exercises.map(e => e.name);
+    expect(one).toContain('Bench Press');
+    expect(one).not.toContain('Squat');
   });
 
   it('a MODERATE injury is excluded outright (no note, no exercise)', () => {
