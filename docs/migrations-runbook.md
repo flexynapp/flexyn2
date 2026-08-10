@@ -431,6 +431,35 @@ graceful-degrade path.
 
 ---
 
+## The catalog above is enforced
+
+`src/lib/__tests__/migrationCatalog.test.js` fails if a file in
+`supabase/migrations/` has no row above, if a row names a file that no longer
+exists, or if a filename appears twice. It runs with the rest of the suite —
+`npm test` — and in CI on every push.
+
+That guard exists because the catalog had reached 54 rows against 363 files
+before anyone noticed. Nothing regenerates it: adding a migration is a code
+change, adding its row is an act of memory, and the table stayed quietly
+wrong for months while being consulted and believed.
+
+**Editing this file triggers CI on purpose.** `.github/workflows/test.yml`
+skips markdown-only pushes, since prose cannot break the suite and
+`eslint.config.js` ignores `docs/**` outright — but it re-includes this one
+file by name:
+
+```yaml
+paths-ignore:
+  - '**/*.md'
+  - '!docs/migrations-runbook.md'
+```
+
+Without that negation a runbook-only edit would skip CI, and the one change
+most likely to break the catalog guard — editing the catalog — would be the
+one change never tested.
+
+---
+
 ## State check
 
 Paste this into the SQL Editor to inspect what's deployed:
