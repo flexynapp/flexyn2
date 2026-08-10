@@ -262,6 +262,64 @@ describe('buildCoachContext — degrades rather than blanking', () => {
     });
   });
 
+  // ── The demographics were read from columns that do not exist ──────────────
+  //
+  // Counted against the 43 live profiles: `skillLevel` read `level`/`skill`,
+  // `trainingDaysPerWeek` read `days`/`daysCount` — none of those four is a
+  // `user_profiles` column — and `goals` ran Array.isArray over
+  // `fitness_goals`, which is a CSV STRING. All three were null or [] for
+  // 100% of users, forever, while the system prompt asks the model to program
+  // against exactly them.
+  describe('demographics come from the real columns', () => {
+    const REAL = {
+      gender: 'male',
+      age: 31,
+      weight_lbs: 190,
+      height_cm: '188',
+      fitness_level: 'consistent',
+      fitness_goals: 'strength,muscle,endurance,mobility',
+      training_days: ['0', '2', '4'],
+    };
+
+    it('reads fitness_level, training_days and the CSV goals', async () => {
+      filter.mockResolvedValue([]);
+
+      const ctx = await buildCoachContext({ user: USER, profile: REAL });
+
+      expect(ctx.profile.skillLevel).toBe('consistent');
+      expect(ctx.profile.trainingDaysPerWeek).toBe(3);
+      expect(ctx.profile.goals).toEqual(['strength', 'muscle', 'endurance', 'mobility']);
+      expect(ctx.profile.heightCm).toBe(188);
+    });
+
+    it('prefers fitness_goals_arr when it carries anything', async () => {
+      filter.mockResolvedValue([]);
+
+      const ctx = await buildCoachContext({
+        user: USER,
+        profile: { ...REAL, fitness_goals_arr: ['speed'] },
+      });
+
+      expect(ctx.profile.goals).toEqual(['speed']);
+    });
+
+    it('does not invent a goal for a profile that has none', async () => {
+      filter.mockResolvedValue([]);
+
+      // normalizeGoals answers ['general'] for unmatched input, which would
+      // put a goal the user never chose into the prompt.
+      const ctx = await buildCoachContext({ user: USER, profile: { fitness_goals_arr: [] } });
+      expect(ctx.profile.goals).toEqual([]);
+    });
+
+    it('resolves age from a birthday as well as an age column', async () => {
+      filter.mockResolvedValue([]);
+
+      const ctx = await buildCoachContext({ user: USER, profile: { birthday: '1995-03-01' } });
+      expect(ctx.profile.age).toBe(31);
+    });
+  });
+
   it('carries dietary restrictions, which gate every food the coach may name', async () => {
     filter.mockResolvedValue([]);
 

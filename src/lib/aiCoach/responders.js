@@ -23,6 +23,12 @@ import { safeSelect } from '@/api/safeSelect';
 import { db } from '@/api/db';
 import { subDays, differenceInCalendarDays, format, parseISO } from 'date-fns';
 import { INTENTS } from './intents';
+import { normalizeGoals, profileAge } from './trainingModifiers';
+// listRecentSleepLogs is imported further down, beside the recovery
+// responders that have always used it — imports hoist, so both call sites
+// see it.
+import { listRecentMoodLogs } from '@/lib/data/moodLogs';
+import { listRecentStepLogs } from '@/lib/data/stepLogs';
 import { formatNumber } from '../intl';
 
 // ── Log dates are calendar days, not instants ────────────────────────────────
@@ -643,6 +649,24 @@ function _daysAgo(date) {
   return d ? differenceInCalendarDays(new Date(), d) : null;
 }
 
+/** Run a reader, degrade to [] on any failure. Never lets one dead source
+ *  take the rest of the digest with it. */
+async function _safe(fn) {
+  try { return (await fn()) || []; } catch { return []; }
+}
+
+/** Same, for a db entity that a test may not have mocked. Reading
+ *  `db.entities.X.filter` on an unmocked entity throws SYNCHRONOUSLY, which a
+ *  trailing `.catch()` on the call never sees — so the guard has to be here. */
+async function _safeEntity(name, userEmail, limit) {
+  if (!userEmail) return [];
+  try {
+    const entity = db?.entities?.[name];
+    if (typeof entity?.filter !== 'function') return [];
+    return (await entity.filter({ created_by: userEmail }, '-date', limit)) || [];
+  } catch { return []; }
+}
+
 export async function buildCoachContext({
   user,
   profile = {},
@@ -659,15 +683,56 @@ export async function buildCoachContext({
     today: format(new Date(), 'yyyy-MM-dd'),
   };
 
+  // ── The demographics, read from the columns that exist ─────────────────────
+  //
+  // Three of these fields resolved to null for 100% of users, every time,
+  // because they named things `user_profiles` does not have. Counted against
+  // the 43 live profiles on 2026-08-09:
+  //
+  //   skillLevel  read `level` / `skill`. Neither is a column. The real one is
+  //               `fitness_level` (19 of 43 populated, values like
+  //               'consistent'). Note `current_level` IS a column and is the
+  //               XP level — reading that would have been worse than reading
+  //               nothing, so don't "fix" it that way.
+  //   goals       read `fitness_goals` through `Array.isArray`. It is a CSV
+  //               STRING ('strength,muscle,endurance'), so the guard was
+  //               always false and the list was always empty. 19 of 43 have
+  //               the CSV; `fitness_goals_arr` is the newer array form.
+  //   trainingDays read `days` / `daysCount`. Neither is a column. The real
+  //               one is `training_days`, an array of weekday indices
+  //               (["0","2","4"]) whose LENGTH is the sessions per week.
+  //
+  // So a fully-onboarded user's PROFILE line carried sex, age and bodyweight
+  // and nothing else — no experience level, no goal, no training frequency —
+  // while the system prompt asks the model to program against exactly those.
+  //
+  // Not added, deliberately: `activity_level` (0 of 43 — nothing writes it) and
+  // `nutrition_goal` / `dietary_restrictions` / `weekly_rate_lbs` (also 0 of
+  // 43, but they are read here already and the writers are real, so they stay).
+  const _rawGoals = (Array.isArray(profile?.fitness_goals_arr) && profile.fitness_goals_arr.length)
+    ? profile.fitness_goals_arr
+    : profile?.fitness_goals;
+  const _hasGoals = Array.isArray(_rawGoals) ? _rawGoals.length > 0 : !!_rawGoals;
+  const _days = profile?.training_days;
+
   ctx.profile = {
     sex:           profile?.gender || null,
-    age:           _n(profile?.age),
+    // profileAge also resolves a `birthday`, which is the field onboarding
+    // actually writes for some users.
+    age:           profileAge(profile),
     bodyweightLb:  _n(profile?.weight_lbs),
-    skillLevel:    profile?.level || profile?.skill || null,
-    goals:         Array.isArray(profile?.fitness_goals) ? profile.fitness_goals : [],
+    // Stored as text ('188'). Needed for anything the model is asked to
+    // estimate from body size — the prompt has a whole nutrition section.
+    heightCm:      _n(profile?.height_cm),
+    skillLevel:    profile?.fitness_level || null,
+    // normalizeGoals already handles all three shapes this arrives in and is
+    // the same function the generator's modifiers use, so the prose and the
+    // programming can't disagree about what the user is training for.
+    goals:         _hasGoals ? normalizeGoals(_rawGoals) : [],
     nutritionGoal: profile?.nutrition_goal || null,
     weeklyRateLbs: _n(profile?.weekly_rate_lbs),
-    trainingDaysPerWeek: _n(profile?.days) ?? _n(profile?.daysCount),
+    targetWeightLb: _n(profile?.target_weight_lbs),
+    trainingDaysPerWeek: Array.isArray(_days) ? _days.length : _n(_days),
     // Named so the model never suggests a food the user can't eat — the
     // same rule fuelNote() follows in trainingModifiers.
     dietaryRestrictions: Array.isArray(profile?.dietary_restrictions) ? profile.dietary_restrictions : [],
@@ -718,6 +783,142 @@ export async function buildCoachContext({
     _fetchRecentCardio(user?.email, 14).catch(() => []),
     _fetchProfile(user?.id).catch(() => null),
   ]);
+
+  // ── The signals that decide what to train TODAY ────────────────────────────
+  //
+  // The app has recorded sleep, soreness, mood, steps, food and bodyweight
+  // since migrations 094–097, and none of it has ever reached the Coach. The
+  // system prompt asks the model to answer "recovery" and "nutrition and body
+  // composition" questions and gave it nothing to answer them from, so every
+  // such reply was general advice wearing a personalized coat.
+  //
+  // Fetched in one parallel batch and each one degrades to null on its own —
+  // a dead table must not take the rest of the digest down with it. Every
+  // module here reads through safeSelect and already returns [] on error.
+  const [sleepRows, moodRows, stepRows, nutritionRows, bodyRows] = await Promise.all([
+    _safe(() => listRecentSleepLogs(14)),
+    _safe(() => listRecentMoodLogs(14)),
+    _safe(() => listRecentStepLogs(14)),
+    _safeEntity('NutritionLog', user?.email, 200),
+    _safeEntity('BodyMetric', user?.email, 60),
+  ]);
+
+  try {
+    const cut7 = subDays(new Date(), 7);
+    const within7 = (r) => { const d = parseLogDate(r?.date); return d && d >= cut7; };
+    const sleep7 = (sleepRows || []).filter(within7);
+    const steps7 = (stepRows || []).filter(within7);
+    // Newest-first for "the latest reading", because a stale soreness score is
+    // worse than none — it describes a day the user has already trained past.
+    const newest = (rows) => (rows || [])
+      .filter(r => parseLogDate(r?.date))
+      .sort((a, b) => parseLogDate(b.date) - parseLogDate(a.date))[0] || null;
+    const lastSleep = newest(sleepRows);
+    const lastMood  = newest(moodRows);
+
+    const avg = (rows, key) => {
+      const vals = rows.map(r => Number(r?.[key])).filter(Number.isFinite);
+      return vals.length ? Math.round((vals.reduce((s, v) => s + v, 0) / vals.length) * 10) / 10 : null;
+    };
+
+    const recovery = {
+      // Every field is omitted unless a row actually carried it. `quality` and
+      // `soreness` are optional on sleep_logs, so a user who logs hours only
+      // must not be reported as "soreness 0" — a fabricated zero here reads as
+      // "completely fresh" and is the direction that gets someone hurt.
+      ...(sleep7.length ? { sleepDaysLogged: sleep7.length } : {}),
+      ...(avg(sleep7, 'hours') != null ? { avgSleepHours: avg(sleep7, 'hours') } : {}),
+      ...(_n(lastSleep?.quality) != null
+        ? { lastSleepQuality1to5: _n(lastSleep.quality), lastSleepDaysAgo: _daysAgo(lastSleep.date) } : {}),
+      ...(_n(lastSleep?.soreness) != null ? { lastSoreness1to5: _n(lastSleep.soreness) } : {}),
+      // mood_logs.mood is a 0-4 index into MOOD_LABELS. Shipped as 1-5 with
+      // the label attached so the model never has to guess which end is good.
+      ...(_n(lastMood?.mood) != null
+        ? {
+            lastMood1to5: _n(lastMood.mood) + 1,
+            lastMoodLabel: ['awful', 'meh', 'okay', 'good', 'on fire'][_n(lastMood.mood)] || null,
+            lastMoodDaysAgo: _daysAgo(lastMood.date),
+          }
+        : {}),
+      ...(steps7.length ? { avgStepsPerDay: Math.round(avg(steps7, 'steps') || 0) } : {}),
+    };
+
+    // The SAME score the Dashboard's readiness card shows, from the same
+    // helper — the recoveryCheck responder below already uses it. A Coach that
+    // computed its own would eventually disagree with the number on screen
+    // about the same morning, which is worse than not having one.
+    //
+    // Only sent when the user actually logged something: computeRecoveryScore
+    // substitutes a neutral 70 for every missing input, so on an empty day it
+    // returns a confident-looking score built entirely from defaults.
+    if (lastSleep && _daysAgo(lastSleep.date) != null && _daysAgo(lastSleep.date) <= 1) {
+      const { score, label } = computeRecoveryScore({
+        sleepHours:    _n(lastSleep.hours) ?? undefined,
+        sleepQuality:  _n(lastSleep.quality) ?? undefined,
+        soreness:      _n(lastSleep.soreness) ?? undefined,
+        lastWorkoutAt: workouts[0]?.date,
+      });
+      recovery.score100 = score;
+      recovery.scoreLabel = label;
+    }
+
+    ctx.recovery = Object.keys(recovery).length ? recovery : null;
+  } catch { ctx.recovery = null; }
+
+  try {
+    // Nutrition. The prompt is explicit that "nutrition questions get nutrition
+    // answers — calories, protein targets, meal timing" and the model has been
+    // doing that from population averages. `protein` is 6 of 120 rows in
+    // production because quick-add captures calories only, so it is reported
+    // as its own day count rather than averaged over days that never had it.
+    const cut7 = subDays(new Date(), 7);
+    const logs7 = (nutritionRows || []).filter(r => { const d = parseLogDate(r?.date); return d && d >= cut7; });
+    const days = new Set(logs7.map(r => r.date).filter(Boolean)).size;
+    if (days > 0) {
+      const kcal = logs7.reduce((s, r) => s + (Number(r?.calories) || 0), 0);
+      const proteinRows = logs7.filter(r => Number.isFinite(Number(r?.protein)) && Number(r.protein) > 0);
+      const proteinDays = new Set(proteinRows.map(r => r.date)).size;
+      ctx.nutritionLast7 = {
+        daysLogged: days,
+        ...(kcal > 0 ? { avgCaloriesPerLoggedDay: Math.round(kcal / days) } : {}),
+        ...(proteinDays > 0
+          ? {
+              avgProteinGPerLoggedDay: Math.round(
+                proteinRows.reduce((s, r) => s + Number(r.protein), 0) / proteinDays),
+              proteinDaysLogged: proteinDays,
+            }
+          : {}),
+      };
+    } else {
+      ctx.nutritionLast7 = null;
+    }
+  } catch { ctx.nutritionLast7 = null; }
+
+  try {
+    // Bodyweight direction, which is the only way to tell whether a stated
+    // nutrition goal is actually happening. Two readings at least 7 days apart
+    // or nothing — a trend drawn from one number is not a trend.
+    const rows = (bodyRows || [])
+      .filter(r => Number.isFinite(Number(r?.weight_lbs)) && parseLogDate(r?.date))
+      .sort((a, b) => parseLogDate(b.date) - parseLogDate(a.date));
+    const latest = rows[0];
+    if (latest) {
+      const earlier = rows.find(r => differenceInCalendarDays(parseLogDate(latest.date), parseLogDate(r.date)) >= 7);
+      ctx.bodyTrend = {
+        currentLb: Math.round(Number(latest.weight_lbs) * 10) / 10,
+        measuredDaysAgo: _daysAgo(latest.date),
+        ...(_n(latest.body_fat_pct) != null ? { bodyFatPct: _n(latest.body_fat_pct) } : {}),
+        ...(earlier
+          ? {
+              changeLb: Math.round((Number(latest.weight_lbs) - Number(earlier.weight_lbs)) * 10) / 10,
+              overDays: differenceInCalendarDays(parseLogDate(latest.date), parseLogDate(earlier.date)),
+            }
+          : {}),
+      };
+    } else {
+      ctx.bodyTrend = null;
+    }
+  } catch { ctx.bodyTrend = null; }
 
   try {
     const cutoff7  = subDays(new Date(), 7);

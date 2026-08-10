@@ -111,6 +111,7 @@ const LANGUAGE_NAMES: Record<string, string> = {
 interface PromptFlags {
   hasInjuries: boolean;
   hasDietary: boolean;
+  hasRecovery: boolean;
   isEnglish: boolean;
 }
 
@@ -150,6 +151,14 @@ function buildSystemPrompt(languageName: string, flags: PromptFlags): string {
       '',
       'AVOID-FOODS is binding: never name a food the user cannot eat. If it rules out every option you would',
       'name, give the macro target without naming foods rather than guessing.',
+    ] : []),
+    ...(flags.hasRecovery ? [
+      '',
+      'RECOVERY is what the user reported about themselves — sleep, soreness, mood, steps. Soreness and sleep',
+      'are scored 1-5 where 5 is best for quality and 5 is WORST for soreness. Weigh them against what today',
+      'would load: high soreness plus a heavy recent session is a reason to go lighter or move the session,',
+      'and you should say which. A field that is absent was never logged — treat it as unknown, never as good.',
+      'FUEL averages cover only the days the user logged; do not read a low day count as a low intake.',
     ] : []),
     '',
     '# What you answer',
@@ -257,9 +266,11 @@ function formatDigest(ctx: Record<string, any> | null | undefined): string {
   const p = ctx.profile || {};
   const bits = [
     p.sex, p.age && `${p.age}y`, p.bodyweightLb && `${p.bodyweightLb}lb`,
+    p.heightCm && `${p.heightCm}cm`,
     p.skillLevel && `level ${p.skillLevel}`,
     list(p.goals) && `goals ${list(p.goals)}`,
     p.nutritionGoal && `nutrition-goal ${p.nutritionGoal}${p.weeklyRateLbs ? ` at ${p.weeklyRateLbs}lb/wk` : ''}`,
+    p.targetWeightLb && `target ${p.targetWeightLb}lb`,
     p.trainingDaysPerWeek && `trains ${p.trainingDaysPerWeek}d/wk`,
   ].filter(Boolean);
   if (bits.length) out.push(`PROFILE: ${bits.join(', ')}`);
@@ -313,6 +324,54 @@ function formatDigest(ctx: Record<string, any> | null | undefined): string {
       `CARDIO (14d): ${c.sessions} sessions`,
       typeof c.totalMinutes === 'number' ? `${c.totalMinutes} min` : null,
       typeof c.totalDistanceKm === 'number' ? `${c.totalDistanceKm} km` : null,
+    ].filter(Boolean).join(', '));
+  }
+
+  // Recovery. Every field is optional and the client omits anything with
+  // nothing behind it, so a missing soreness score renders as absent rather
+  // than as 0 — a fabricated 0 reads as "completely fresh", which is the
+  // direction that gets someone hurt.
+  const r = ctx.recovery;
+  if (r && Object.keys(r).length) {
+    out.push('RECOVERY: ' + [
+      // The same score the Dashboard's readiness card shows. Present only
+      // when the user logged sleep today or yesterday — the helper fills every
+      // missing input with a neutral 70, so on an unlogged day it produces a
+      // confident number made entirely of defaults.
+      typeof r.score100 === 'number' ? `readiness ${r.score100}/100 (${r.scoreLabel || '—'})` : null,
+      typeof r.avgSleepHours === 'number' ? `sleep ${r.avgSleepHours}h avg over ${r.sleepDaysLogged || '?'}d` : null,
+      typeof r.lastSleepQuality1to5 === 'number' ? `quality ${r.lastSleepQuality1to5}/5 ${age(r.lastSleepDaysAgo)}`.trim() : null,
+      typeof r.lastSoreness1to5 === 'number' ? `soreness ${r.lastSoreness1to5}/5` : null,
+      r.lastMoodLabel ? `mood ${r.lastMoodLabel} ${age(r.lastMoodDaysAgo)}`.trim() : null,
+      typeof r.avgStepsPerDay === 'number' ? `${r.avgStepsPerDay} steps/day` : null,
+    ].filter(Boolean).join(', '));
+  }
+
+  // Food. The prompt promises nutrition answers — calories, protein targets,
+  // meal timing — and until now shipped no food data at all, so every one of
+  // those answers came from population averages wearing a personalized coat.
+  const nut = ctx.nutritionLast7;
+  if (nut?.daysLogged) {
+    out.push('FUEL (7d): ' + [
+      `logged ${nut.daysLogged}d`,
+      typeof nut.avgCaloriesPerLoggedDay === 'number' ? `${nut.avgCaloriesPerLoggedDay} kcal on a logged day` : null,
+      typeof nut.avgProteinGPerLoggedDay === 'number'
+        ? `${nut.avgProteinGPerLoggedDay}g protein on the ${nut.proteinDaysLogged}d that recorded it`
+        : null,
+    ].filter(Boolean).join(', '));
+  }
+
+  // Bodyweight direction — the only way to tell whether a stated nutrition
+  // goal is actually happening. `changeLb` is absent unless two readings sit
+  // at least a week apart, because a trend drawn from one number is not one.
+  const bt = ctx.bodyTrend;
+  if (typeof bt?.currentLb === 'number') {
+    out.push('BODY: ' + [
+      `${bt.currentLb}lb ${age(bt.measuredDaysAgo)}`.trim(),
+      typeof bt.bodyFatPct === 'number' ? `${bt.bodyFatPct}% bf` : null,
+      typeof bt.changeLb === 'number'
+        ? `${bt.changeLb >= 0 ? '+' : ''}${bt.changeLb}lb over ${bt.overDays}d`
+        : null,
     ].filter(Boolean).join(', '));
   }
 
@@ -428,6 +487,8 @@ Deno.serve(async (req: Request) => {
         && rawContext.injuries.active.length > 0),
     hasDietary: Array.isArray(rawContext?.profile?.dietaryRestrictions)
       && rawContext.profile.dietaryRestrictions.length > 0,
+    hasRecovery: (!!rawContext?.recovery && Object.keys(rawContext.recovery).length > 0)
+      || !!rawContext?.nutritionLast7?.daysLogged,
     isEnglish: languageName === 'English',
   };
 
