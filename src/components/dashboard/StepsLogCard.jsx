@@ -14,7 +14,7 @@ import { Card } from '@/components/ui/card';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useNumberFormatter } from '@/lib/intl';
-import { upsertStepLog, getTodayStepLog } from '@/lib/data/stepLogs';
+import { upsertStepLog, getTodayStepLog, creditableStepDelta } from '@/lib/data/stepLogs';
 import { useCommitDailyLogOnRequest } from '@/lib/dailyLogCommit';
 import * as quests from '@/lib/data/quests';
 import { ACTION_TYPES } from '@/lib/questCatalog';
@@ -64,6 +64,9 @@ export default function StepsLogCard() {
   const [draft, setDraft] = useState('');
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
+  // Steps already credited to today's quest, tracked synchronously so a
+  // rapid correction cannot be scored against a stale server snapshot.
+  const creditedRef = useRef(0);
 
   // Day-boundary cache key so a PWA left open across midnight rolls
   // forward (same pattern as MoodLogCard's state + minute tick). The
@@ -90,6 +93,13 @@ export default function StepsLogCard() {
 
   const logged = today?.steps ?? null;
 
+  // Server truth resets the mark whenever no save is in flight — including
+  // on a day rollover, when today's count legitimately returns to nothing.
+  useEffect(() => {
+    if (savingRef.current) return;
+    creditedRef.current = today?.steps ?? 0;
+  }, [today?.steps, todayDateKey]);
+
 
   const save = async (val) => {
     const n = Math.round(Number(val));
@@ -105,14 +115,17 @@ export default function StepsLogCard() {
       if (res.ok) {
         setDraft('');
         qc.invalidateQueries({ queryKey: ['stepLogToday', user?.id] });
-        // Quest progress — the DELTA, not the new total. This row is an
-        // upsert, so correcting 3,000 to 5,000 is one more save; crediting
-        // the absolute figure each time would count those 3,000 steps twice
-        // and walk a 5k quest to done off a 3k correction. Clamped at zero
-        // so revising a count DOWN doesn't try to subtract (recordActions
-        // drops non-positive amounts, but being explicit is cheaper than
-        // relying on that).
-        const delta = Math.max(0, n - (today?.steps ?? 0));
+        // Quest progress — the DELTA, not the new total, because this row
+        // is an upsert and a correction is a second save of the same day.
+        //
+        // The base is a SYNCHRONOUS high-water mark, not `today?.steps`
+        // alone: that is a react-query snapshot, so a correction typed
+        // before the invalidate's refetch lands still read the old count
+        // and credited the same steps twice — 3,000 then 5,000 awarded
+        // 8,000 and completed a 5k quest off a 3k correction, which is
+        // precisely what the delta exists to prevent.
+        const { delta, credited } = creditableStepDelta(n, creditedRef.current, today?.steps ?? 0);
+        creditedRef.current = credited;
         if (delta > 0) {
           quests.recordAction(user, ACTION_TYPES.STEPS_LOGGED, delta)
             .then(() => qc.invalidateQueries({ queryKey: ['dailyQuests'] }))

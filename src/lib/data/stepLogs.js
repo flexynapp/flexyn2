@@ -94,3 +94,33 @@ export async function getTodayStepLog() {
   if (error) return null;
   return data ?? null;
 }
+
+/**
+ * How many steps a save may credit to the daily steps quest.
+ *
+ * step_logs is an UPSERT, so correcting 3,000 to 5,000 is a second save of
+ * the same day — crediting the absolute figure each time would count the
+ * first 3,000 twice and walk a 5k quest to done off a 3k correction.
+ *
+ * The delta was computed against `today?.steps` alone, which is a
+ * react-query snapshot: a correction made before the invalidate's refetch
+ * lands still reads the OLD count, so the base is stale and those steps are
+ * credited a second time — the exact double-count the delta exists to
+ * prevent. Passing the caller's own synchronous record of what it has
+ * already credited closes that window; the higher of the two always wins,
+ * so neither a stale snapshot nor a stale ref can widen the delta.
+ *
+ * @param {number} next            the count being saved
+ * @param {number} alreadyCredited what this session has already credited
+ * @param {number} serverValue     the last count the server confirmed
+ * @returns {{ delta: number, credited: number }} delta to award, and the
+ *          new high-water mark for the caller to store.
+ */
+export function creditableStepDelta(next, alreadyCredited = 0, serverValue = 0) {
+  const n = Number(next);
+  if (!Number.isFinite(n) || n < 0) return { delta: 0, credited: Math.max(0, alreadyCredited || 0, serverValue || 0) };
+  const base = Math.max(0, alreadyCredited || 0, serverValue || 0);
+  // Revising a count DOWN credits nothing and does not lower the mark:
+  // those steps were already awarded and cannot be taken back.
+  return { delta: Math.max(0, n - base), credited: Math.max(base, n) };
+}
