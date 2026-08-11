@@ -1856,13 +1856,20 @@ export default function Workout() {
           onKeyDown={(e) => { if (e.key==='Enter'||e.key===' '){e.preventDefault();navigate('/coach?generate=1');} }}>
           <InfoBtn bid="generate" />
           <div className="flex flex-col items-center text-center gap-1.5">
-            {/* Matches the other nine cards. This was the lone solid
-                bg-primary tile in the grid, which read as a priority the
-                layout never explained — its neighbour "Explore Regimens" is
-                a peer, not a lesser option. If the Coach deserves top
-                billing, that is a navigation decision, not a tile colour. */}
-            <div className="w-10 h-10 rounded-xl bg-primary/18 border border-primary/28 flex items-center justify-center shrink-0">
-              <Sparkles className="w-5 h-5 text-primary" />
+            {/* The AI Coach's mark, not a highlight (kegan, 2026-08-11).
+                Same `from-primary via-fuchsia-500 to-violet-500` + white
+                Sparkles as the coach avatar in CoachChat, so the tile that
+                opens the Coach is recognisably the same object as the Coach
+                itself. Keep the three in step if any one of them changes.
+
+                This tile was deliberately flattened to match its neighbours
+                once before, because a solid bg-primary square read as a
+                priority the layout never explained. The gradient is not that
+                — it carries an identity rather than an emphasis, which is
+                also why it is not the "gradient as decoration" the UI rules
+                ban. Don't flatten it again on a grep. */}
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary via-fuchsia-500 to-violet-500 flex items-center justify-center shrink-0">
+              <Sparkles className="w-5 h-5 text-white" />
             </div>
             <div>
               <p className="font-heading font-bold text-sm leading-tight">{tFallback('generator.title','Generate Workout')}</p>
@@ -1881,7 +1888,16 @@ export default function Workout() {
           onKeyDown={(e) => { if (e.key==='Enter'||e.key===' '){e.preventDefault();setStoreOpen(true);} }}>
           <InfoBtn bid="explore" />
           <div className="flex flex-col items-center text-center gap-1.5">
-            <div className="w-10 h-10 rounded-xl bg-primary/15 border border-primary/25 flex items-center justify-center shrink-0">
+            {/* Plain square, no orange fill (kegan, 2026-08-11).
+                Written out as `border-border` rather than by copying the
+                neighbours' `bg-primary/18 border-primary/28`, because those
+                two classes EMIT NO CSS — /18 and /28 are not in this
+                project's Tailwind opacity scale, so eight tiles in this grid
+                have been silently transparent with a default border and this
+                one only looked different for rendering what it said. Copying
+                them would have been correct today and orange the day someone
+                adds those steps. See the note on the Duels tile. */}
+            <div className="w-10 h-10 rounded-xl border border-border flex items-center justify-center shrink-0">
               <Globe className="w-5 h-5 text-primary" />
             </div>
             <div>
@@ -1901,7 +1917,8 @@ export default function Workout() {
           onKeyDown={(e) => { if (e.key==='Enter'||e.key===' '){e.preventDefault();navigate('/duels');} }}>
           <InfoBtn bid="duels" />
           <div className="flex flex-col items-center text-center gap-1.5">
-            <div className="w-10 h-10 rounded-xl bg-primary/15 border border-primary/25 flex items-center justify-center shrink-0">
+            {/* Plain square — same as Explore Regimens above, same reason. */}
+            <div className="w-10 h-10 rounded-xl border border-border flex items-center justify-center shrink-0">
               <Swords className="w-5 h-5 text-primary" />
             </div>
             <div>
