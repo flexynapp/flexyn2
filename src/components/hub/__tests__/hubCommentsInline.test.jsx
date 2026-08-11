@@ -213,6 +213,96 @@ describe('double-tap likes the COMMENT, not the post', () => {
   });
 });
 
+describe('replies to replies', () => {
+  const THREAD = [
+    { ...COMMENTS[0], id: 'c1', body: 'top level comment', parent_comment_id: null },
+    {
+      ...COMMENTS[0], id: 'c2', body: 'first reply', parent_comment_id: 'c1',
+      user_id: 'other-uuid', author_name: 'kegan',
+    },
+    {
+      ...COMMENTS[0], id: 'c3', body: 'reply to the reply', parent_comment_id: 'c2',
+      user_id: 'author-uuid', author_name: 'gabe',
+    },
+  ];
+
+  it('renders a second-level reply instead of dropping it', async () => {
+    const mod = await import('@/lib/data/hubComments');
+    mod.listForPost.mockResolvedValueOnce(THREAD);
+    mount();
+    // Threads collapse by default; open it.
+    fireEvent.click(await screen.findByText(/view 2 replies|hub\.comments\.viewReplies/i));
+    expect(await screen.findByText('first reply')).toBeInTheDocument();
+    expect(await screen.findByText('reply to the reply')).toBeInTheDocument();
+  });
+
+  it('shows who a nested reply is answering', async () => {
+    const mod = await import('@/lib/data/hubComments');
+    mod.listForPost.mockResolvedValueOnce(THREAD);
+    mount();
+    fireEvent.click(await screen.findByText(/view 2 replies|hub\.comments\.viewReplies/i));
+    await screen.findByText('reply to the reply');
+    // The nested one answers @kegan, not the thread root, so the hint shows.
+    // Matched loosely because the line is "↳ Replying to @kegan" split across
+    // a text node and a button.
+    expect(await screen.findByText(/Replying to/)).toBeInTheDocument();
+    // And exactly one hint — the first reply answers the root, so it gets none.
+    expect(screen.getAllByText(/Replying to/)).toHaveLength(1);
+  });
+
+  it('offers a Reply button on a reply', async () => {
+    const mod = await import('@/lib/data/hubComments');
+    mod.listForPost.mockResolvedValueOnce(THREAD);
+    mount();
+    fireEvent.click(await screen.findByText(/view 2 replies|hub\.comments\.viewReplies/i));
+    await screen.findByText('first reply');
+    // One per rendered row: the root plus both replies.
+    const replyButtons = await screen.findAllByText('hub.comments.reply');
+    expect(replyButtons.length).toBe(3);
+  });
+});
+
+describe('emoji panel and keyboard are one at a time', () => {
+  const openPicker = async () => {
+    mount();
+    const toggle = await screen.findByRole('button', { name: /add emoji/i });
+    fireEvent.click(toggle);
+    expect(await screen.findByRole('button', { name: 'Add 🔥' })).toBeInTheDocument();
+    return screen.getByRole('textbox');
+  };
+
+  it('closes the picker as soon as you start typing', async () => {
+    const box = await openPicker();
+    fireEvent.change(box, { target: { value: 'h' } });
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: 'Add 🔥' })).not.toBeInTheDocument()
+    );
+  });
+
+  it('inserts the emoji into the draft and closes', async () => {
+    // Documents existing behaviour rather than asserting a preference:
+    // insertEmoji already dismissed the panel after each pick, so the grid is
+    // one-shot. Worth pinning — the typing-closes rule above must not be
+    // implemented in a way that ALSO breaks this path.
+    await openPicker();
+    fireEvent.click(screen.getByRole('button', { name: 'Add 🔥' }));
+    await waitFor(() => expect(screen.getByRole('textbox').value).toContain('🔥'));
+    // waitFor, not a bare assertion: the panel is inside AnimatePresence, so
+    // it lingers in the DOM through its exit transition.
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: 'Add 💪' })).not.toBeInTheDocument()
+    );
+  });
+
+  it('closes on Escape without also cancelling the mention popup', async () => {
+    const box = await openPicker();
+    fireEvent.keyDown(box, { key: 'Escape' });
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: 'Add 🔥' })).not.toBeInTheDocument()
+    );
+  });
+});
+
 describe('translate affordance', () => {
   it('is hidden on a comment already in the viewer language', async () => {
     const mod = await import('@/lib/data/hubComments');

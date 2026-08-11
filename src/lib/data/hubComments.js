@@ -126,21 +126,65 @@ export const remove = async (commentId, postId) => {
 export const buildThread = (comments) => {
   const byId = new Map(comments.map(c => [c.id, c]));
   const topLevel = [];
-  const repliesByParent = new Map();
+  const childrenOf = new Map();
 
   for (const c of comments) {
     if (!c.parent_comment_id) {
       topLevel.push(c);
     } else if (byId.has(c.parent_comment_id)) {
-      if (!repliesByParent.has(c.parent_comment_id)) {
-        repliesByParent.set(c.parent_comment_id, []);
-      }
-      repliesByParent.get(c.parent_comment_id).push(c);
+      if (!childrenOf.has(c.parent_comment_id)) childrenOf.set(c.parent_comment_id, []);
+      childrenOf.get(c.parent_comment_id).push(c);
     } else {
       // Orphan reply — parent is gone. Promote to top-level so the
       // comment remains visible. Tag with an orphan flag so the UI can
       // surface a small "in reply to a deleted comment" hint if desired.
       topLevel.push({ ...c, _orphan: true });
+    }
+  }
+
+  // Collect a root's ENTIRE descendant tree, not just its direct children,
+  // and present it as one flat chronological run.
+  //
+  // This used to group a single level: `repliesByParent` was keyed by
+  // parent_comment_id and the renderer only ever looked up a TOP-LEVEL id. A
+  // reply to a reply therefore keyed itself under the reply, nothing asked for
+  // that key, and the comment vanished — it saved to the database perfectly
+  // and simply never appeared. Nothing errored, so the only symptom was a
+  // comment the author could see land and then never find again.
+  //
+  // Flattening rather than nesting is deliberate. Indentation per level is
+  // unusable on a 375px screen by about the third reply, so this follows the
+  // Instagram/YouTube model: one visual level of indent, unlimited logical
+  // depth, and who-answered-whom is carried by the @mention in the body. The
+  // true parent is still stored, so a future renderer can rebuild the real
+  // tree without a data migration.
+  const repliesByParent = new Map();
+  for (const root of topLevel) {
+    const flat = [];
+    // Depth-first, tracking visited ids: a malformed parent chain (a cycle
+    // introduced by a bad write or a manual edit) would otherwise hang the
+    // render thread rather than dropping one comment.
+    const seen = new Set([root.id]);
+    const walk = (id) => {
+      for (const child of childrenOf.get(id) || []) {
+        if (seen.has(child.id)) continue;
+        seen.add(child.id);
+        const parent = byId.get(child.parent_comment_id);
+        flat.push({
+          ...child,
+          // Who this specific reply answers, for the "replying to @x" hint.
+          // Null when it answers the root, where the hint would be noise.
+          _replyTo: parent && parent.id !== root.id
+            ? { user_id: parent.user_id, author_name: parent.author_name }
+            : null,
+        });
+        walk(child.id);
+      }
+    };
+    walk(root.id);
+    if (flat.length) {
+      flat.sort((a, b) => new Date(a.created_date || 0) - new Date(b.created_date || 0));
+      repliesByParent.set(root.id, flat);
     }
   }
 

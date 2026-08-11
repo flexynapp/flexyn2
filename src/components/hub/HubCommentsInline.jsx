@@ -95,6 +95,16 @@ export default function HubCommentsInline({ post, open, onClose }) {
   // Called on every keystroke in the comment input
   const handleDraftChange = useCallback((value) => {
     draftGuard.handleChange(value, setDraft);
+    // Typing dismisses the emoji panel. It floats ABOVE the input, so while
+    // open it covers the thread you are answering, and the only way back was
+    // tapping the emoji button a second time. Emoji or keyboard, one at a
+    // time — Sean's words.
+    //
+    // Hooked here rather than on the input's focus or beforeinput: insertEmoji
+    // sets the draft directly and then returns focus to the input, so this
+    // handler runs on genuine typing ONLY. A focus-based close would fire on
+    // that programmatic refocus instead, which is a different event entirely.
+    setEmojiOpen(false);
     // Detect @mention: find the last @ in the string
     const caretPos = inputRef.current?.selectionStart ?? value.length;
     const textBefore = value.slice(0, caretPos);
@@ -236,8 +246,13 @@ export default function HubCommentsInline({ post, open, onClose }) {
         ...(replyTarget?.id ? { parent_comment_id: replyTarget.id } : {}),
       });
       setDraft('');
-      if (replyTarget?.id) {
-        setExpandedThreads(prev => new Set(prev).add(replyTarget.id));
+      // Expand the THREAD the new reply landed in. expandedThreads is keyed
+      // by top-level comment id, so using replyTarget.id here would match
+      // nothing when answering a reply — the thread would snap shut and hide
+      // the comment the user just wrote.
+      const threadRoot = replyTarget?.rootId || replyTarget?.id;
+      if (threadRoot) {
+        setExpandedThreads(prev => new Set(prev).add(threadRoot));
       }
       setReplyTarget(null);
       queryClient.invalidateQueries({ queryKey: ['hubComments', post.id] });
@@ -334,7 +349,11 @@ export default function HubCommentsInline({ post, open, onClose }) {
                   isLiked={isLikedDisplayed(c.id)}
                   likeCount={likeCountFor(c)}
                   onLike={() => handleLike(c.id)}
-                  onReply={() => setReplyTarget({ id: c.id, handle: resolveAuthor(authorsById, c.user_id, { author_name: c.author_name }).handle })}
+                  onReply={() => setReplyTarget({
+                    id: c.id,
+                    rootId: c.id,
+                    handle: resolveAuthor(authorsById, c.user_id, { author_name: c.author_name }).handle,
+                  })}
                   onDelete={() => setPendingDelete(c)}
                   showReply
                   t={t}
@@ -381,8 +400,17 @@ export default function HubCommentsInline({ post, open, onClose }) {
                               isLiked={isLikedDisplayed(r.id)}
                               likeCount={likeCountFor(r)}
                               onLike={() => handleLike(r.id)}
+                              onReply={() => setReplyTarget({
+                                id: r.id,
+                                rootId: c.id,
+                                handle: resolveAuthor(authorsById, r.user_id, { author_name: r.author_name }).handle,
+                              })}
                               onDelete={() => setPendingDelete(r)}
-                              showReply={false}
+                              // Replies are answerable now. The new comment
+                              // keeps r.id as its true parent; buildThread
+                              // flattens the tree back into this one run, so
+                              // the indent never grows past one level.
+                              showReply
                               t={t}
                               postAuthorEmail={post.author_email}
                               onMentionClick={handleMentionClick}
@@ -483,9 +511,14 @@ export default function HubCommentsInline({ post, open, onClose }) {
             value={draft}
             onChange={(e) => handleDraftChange(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Escape') { setMentionActive(false); return; }
+              if (e.key === 'Escape') {
+                if (emojiOpen) { setEmojiOpen(false); return; }
+                setMentionActive(false);
+                return;
+              }
               if (e.key === 'Enter' && !e.shiftKey && !mentionActive) {
                 e.preventDefault();
+                setEmojiOpen(false);
                 handlePost();
               }
             }}
@@ -623,6 +656,22 @@ function CommentRow({ comment: c, user, authorsById, isLiked, likeCount, onLike,
           {c._orphan && (
             <p className="text-micro text-muted-foreground italic mb-0.5 ms-2">
               ↳ {tFallback('hub.comments.orphanReply', 'Reply to a deleted comment')}
+            </p>
+          )}
+          {/* Only set when this reply answers another REPLY rather than the
+              comment at the top of the thread. Because the tree is flattened
+              to one indent level, this line is the only thing distinguishing
+              "answering the thread" from "answering that person". */}
+          {c._replyTo && (
+            <p className="text-micro text-muted-foreground mb-0.5 ms-2">
+              ↳ {tFallback('hub.comments.replyingTo', 'Replying to')}{' '}
+              <button
+                type="button"
+                onClick={() => onMentionClick?.(c._replyTo.user_id)}
+                className="font-semibold text-primary hover:underline"
+              >
+                {resolveAuthor(authorsById, c._replyTo.user_id, { author_name: c._replyTo.author_name }).handle}
+              </button>
             </p>
           )}
           <div className="bg-secondary/50 rounded-2xl px-3 py-2" onPointerUp={handleBubblePointerUp}>
