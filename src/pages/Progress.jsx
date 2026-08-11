@@ -37,7 +37,7 @@ import TrainingPatternCard from '@/components/progress/TrainingPatternCard';
 import WorkoutCalendarGrid from '@/components/progress/WorkoutCalendarGrid';
 import PageHeader from '@/components/PageHeader';
 import HeroPager from '@/components/HeroPager';
-import { HERO_SLIDE_GUTTER, heroTintGradient, heroWatermarkStyle, heroSlideAccent } from '@/lib/heroChrome';
+import { HERO_SLIDE_GUTTER, HERO_NEXT_BUTTON, heroTintGradient, heroWatermarkStyle, heroSlideAccent } from '@/lib/heroChrome';
 import { latestDebrief, generateWeeklyDebrief, currentWeekStart } from '@/lib/data/debriefs';
 import {
   LineChart, Line, BarChart, Bar,
@@ -377,7 +377,7 @@ function ProgressCarousel({ slides }) {
             type="button"
             onClick={() => pagerRef.current?.next?.()}
             aria-label={tFallback('progress.carousel.nextSlide', 'Next slide')}
-            className="absolute end-3 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-foreground/10 text-foreground hover:bg-foreground/20 active:bg-foreground/20 active:scale-95 flex items-center justify-center transition-all"
+            className={HERO_NEXT_BUTTON}
           >
             <ChevronRight className="w-4 h-4 rtl:scale-x-[-1]" />
           </button>
@@ -644,9 +644,23 @@ export default function Progress() {
         });
       });
     });
+    // A bodyweight best is still a best. `.filter(pr => pr.weight > 0)`
+    // dropped every push-up, pull-up and dip from this list, so a lifter
+    // who trains bodyweight saw no personal bests here at all — while the
+    // Personal Bests sheet, one tap below, listed them by reps. Two answers
+    // to the same question on one screen. (kegan, 2026-08-10.)
+    //
+    // Same ranking as that sheet: loaded lifts first, heaviest down, then
+    // bodyweight by reps. A tie falls back to the name so the order is
+    // stable rather than insertion-dependent.
     return Object.values(map)
-      .filter(pr => pr.weight > 0)
-      .sort((a, b) => b.weight - a.weight)
+      .filter(pr => pr.weight > 0 || pr.reps > 0)
+      .sort((a, b) => {
+        const aLoaded = a.weight > 0, bLoaded = b.weight > 0;
+        if (aLoaded !== bLoaded) return aLoaded ? -1 : 1;
+        if (aLoaded) return b.weight - a.weight || a.name.localeCompare(b.name);
+        return b.reps - a.reps || a.name.localeCompare(b.name);
+      })
       .slice(0, 5);
   }, [logs]);
 
@@ -1140,8 +1154,13 @@ export default function Progress() {
                 <div className="min-w-0">
                   <p className="text-sm font-semibold leading-tight truncate">{pr.name}</p>
                   <p className="text-micro text-muted-foreground mt-0.5">
-                    {tFallback('progress.recent.personalBest', 'personal best')}
-                    {pr.reps > 0
+                    {/* Same rule as the sheet: with no load the headline
+                        IS the rep count, so the secondary line says what
+                        kind of best it is rather than repeating it. */}
+                    {pr.weight > 0
+                      ? tFallback('progress.recent.personalBest', 'personal best')
+                      : tFallback('pbSheet.bodyweight', 'bodyweight')}
+                    {pr.weight > 0 && pr.reps > 0
                       ? ` · ${tFallback(
                           pr.reps === 1 ? 'progress.topPRs.repsBest_one' : 'progress.topPRs.repsBest_other',
                           pr.reps === 1 ? '{n} rep best' : '{n} reps best',
@@ -1151,7 +1170,13 @@ export default function Progress() {
                   </p>
                 </div>
                 <span className="font-heading font-black text-sm text-primary shrink-0 tabular-nums">
-                  {formatWeight(pr.weight, weightUnit)}
+                  {pr.weight > 0
+                    ? formatWeight(pr.weight, weightUnit)
+                    : tFallback(
+                        pr.reps === 1 ? 'pbSheet.heroReps_one' : 'pbSheet.heroReps_other',
+                        pr.reps === 1 ? '{n} rep' : '{n} reps',
+                        { n: pr.reps },
+                      )}
                 </span>
               </button>
             ))}

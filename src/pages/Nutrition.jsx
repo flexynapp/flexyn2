@@ -47,7 +47,7 @@ import WeeklyMealPlannerModal from '@/components/nutrition/WeeklyMealPlannerModa
 import FastingTrackerCard from '@/components/nutrition/FastingTrackerCard';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import HeroPager from '@/components/HeroPager';
-import { HERO_SLIDE_GUTTER, heroTintGradient, heroWatermarkStyle, heroSlideAccent } from '@/lib/heroChrome';
+import { HERO_SLIDE_GUTTER, HERO_NEXT_BUTTON, heroTintGradient, heroWatermarkStyle, heroSlideAccent } from '@/lib/heroChrome';
 import { reportError } from '@/lib/reportError';
 import { fireFirstMealCelebration } from '@/lib/firstMealCelebration';
 import { supabase } from '@/api/supabaseClient';
@@ -191,7 +191,7 @@ function NutritionShortcutsCarousel({ onScan, onRecipes, onHistory, onPlans, onP
             type="button"
             onClick={() => pagerRef.current?.next?.()}
             aria-label="Next slide"
-            className="absolute end-3 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-foreground/10 text-foreground hover:bg-foreground/20 active:bg-foreground/20 active:scale-95 flex items-center justify-center transition-all"
+            className={HERO_NEXT_BUTTON}
           >
             <ChevronRight className="w-4 h-4 rtl:scale-x-[-1]" />
           </button>

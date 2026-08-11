@@ -156,6 +156,42 @@ export const HERO_SLIDE_GUTTER = 'pe-12 md:pe-14';
  * on every slide at both 375 and 430pt rather than by eye.
  */
 export const HERO_WATERMARK_PX = 72;
+/* The next-slide control.
+ *
+ * It sits at the BOTTOM-right, not vertically centred, and that is the
+ * whole point of it living here. Centred, it collided with the watermark:
+ * the icon occupies the top-right 72px of the slide box, and a 32px button
+ * centred on a ~190px card spans roughly y 79-111 — straight through the
+ * watermark's lower edge. On Progress the chevron sat on top of the
+ * dumbbell. (kegan, 2026-08-10.)
+ *
+ * The Dashboard never had this because it has no floating arrow at all —
+ * its only chevrons are inside CTA buttons — so "the Dashboard does this
+ * well" is really "the Dashboard does not do this".
+ *
+ * Bottom-anchored, the two cannot meet at ANY card height:
+ *
+ *   watermark bottom = card padding + HERO_WATERMARK_PX      = 16 + 72 = 88
+ *   button top       = height - bottom offset - button size
+ *                    = 150 - 12 - 32                         = 106   (at min-h)
+ *
+ * and the button only moves further down as the card grows. It also lands
+ * level with the pagination dots, which is where a pager control belongs.
+ * heroChrome.test.js pins the arithmetic.
+ */
+export const HERO_NEXT_BUTTON =
+  'absolute end-3 bottom-3 z-20 w-8 h-8 rounded-full bg-foreground/10 text-foreground '
+  + 'hover:bg-foreground/20 active:bg-foreground/20 active:scale-95 '
+  + 'flex items-center justify-center transition-all';
+
+/** Geometry the button/watermark separation depends on, exported for the test. */
+export const HERO_GEOMETRY = {
+  cardPadPx: 16,        // p-4 on the slide container
+  cardMinHeightPx: 150, // min-h-[150px]
+  buttonPx: 32,         // w-8 h-8
+  buttonInsetPx: 12,    // bottom-3 / end-3
+};
+
 export const heroWatermarkStyle = (opacity = 0.11) => ({
   width: HERO_WATERMARK_PX,
   height: HERO_WATERMARK_PX,
