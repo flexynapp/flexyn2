@@ -29,7 +29,9 @@ import { GripVertical } from 'lucide-react';
  * strip closes over ~10 values from its own body, and the hook is the only
  * thing that has to live down here.
  */
-export function ReorderableRow({ value, layout, className, children, onDragStart, onDragEnd }) {
+export function ReorderableRow({
+  value, layout, className, children, onDragStart, onDragEnd, ...motionProps
+}) {
   const dragControls = useDragControls();
   return (
     <Reorder.Item
@@ -38,6 +40,11 @@ export function ReorderableRow({ value, layout, className, children, onDragStart
       dragListener={false}
       dragControls={dragControls}
       layout={layout}
+      // Anything else the caller passes goes straight to the underlying
+      // motion element — `initial` / `animate` for an entry animation, mostly.
+      // RegimenForm's rows had one before they became reorderable and there is
+      // no reason for them to lose it.
+      {...motionProps}
       // The gesture's start and end, so a caller can hold the list still for
       // its duration. Dashboard needs this because its rows are COMPOSED from
       // the order — two half-width sections that become adjacent merge into

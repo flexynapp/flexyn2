@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
 import { Plus, Trash2, Zap, RotateCcw, X, CheckCircle2 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import ExerciseAutocomplete from './ExerciseAutocomplete';
 import MuscleGroupSelector from './MuscleGroupSelector';
 import { getMaxSetsPerExercise } from '@/lib/workoutFatigue';
@@ -16,6 +16,10 @@ import { getMaxRealisticReps } from '@/lib/realisticLimits';
 import { useMultiProfanityGuard, hasAnyProfanity } from '@/lib/useProfanityGuard';
 import ProfanityWarningDialog from '@/components/ProfanityWarningDialog';
 import { toast } from '@/lib/toast';
+import { ReorderableRow, DragHandle } from '@/components/dashboard/ReorderableRow';
+import {
+  ensureUids, stripUid, buildRegimenUnits, reorderUnits, flattenUnits,
+} from '@/lib/regimenGroups';
 
 // Keep in step with MuscleGroupSelector.jsx and RegimenStorePage.jsx — the
 // same array, three times. See the note in MuscleGroupSelector for why
@@ -49,11 +53,14 @@ export default function RegimenForm({ initial, onSubmit, onCancel, userProfile =
   const [description, setDescription] = useState(initial?.description || '');
   const [isPublic, setIsPublic] = useState(initial?.is_public || false);
   const guard = useMultiProfanityGuard();
+  // ensureUids gives each row a client-only id. Rows are reorderable AND
+  // editable, so React needs a key that survives both — the index breaks on a
+  // reorder and the name changes on every keystroke. See lib/regimenGroups.js.
   const [exercises, setExercises] = useState(
-    (initial?.exercises || []).map(ex => ({
+    ensureUids((initial?.exercises || []).map(ex => ({
       ...ex,
       muscle_groups: ex.muscle_groups || (ex.muscle_group ? [ex.muscle_group] : []),
-    }))
+    })))
   );
 
   // Auto-save draft of the regimen-in-progress. Only enabled for the
@@ -72,7 +79,7 @@ export default function RegimenForm({ initial, onSubmit, onCancel, userProfile =
       if (!saved) return;
       if (typeof saved.name === 'string') setName(saved.name);
       if (typeof saved.description === 'string') setDescription(saved.description);
-      if (Array.isArray(saved.exercises) && saved.exercises.length > 0) setExercises(saved.exercises);
+      if (Array.isArray(saved.exercises) && saved.exercises.length > 0) setExercises(ensureUids(saved.exercises));
       if (typeof saved.isPublic === 'boolean') setIsPublic(saved.isPublic);
     },
   });
@@ -134,7 +141,7 @@ export default function RegimenForm({ initial, onSubmit, onCancel, userProfile =
 
   // ── Exercise field helpers ──────────────────────────────────────────────────
   const addExercise = () => {
-    setExercises([{ name: '', target_sets: null, target_reps: null, muscle_groups: [], notes: '' }, ...exercises]);
+    setExercises(ensureUids([{ name: '', target_sets: null, target_reps: null, muscle_groups: [], notes: '' }, ...exercises]));
   };
 
   const updateExercise = (index, field, value) => {
@@ -217,7 +224,9 @@ export default function RegimenForm({ initial, onSubmit, onCancel, userProfile =
       return;
     }
 
-    const normalised = exercises.map(ex => ({
+    // stripUid: `_uid` is this form's row identity and must not reach the
+    // database — a regimen is a shared, sellable artefact.
+    const normalised = exercises.map(stripUid).map(ex => ({
       ...ex,
       muscle_groups: ex.muscle_groups || [],
       muscle_group: (ex.muscle_groups || [])[0] || '',
@@ -247,24 +256,14 @@ export default function RegimenForm({ initial, onSubmit, onCancel, userProfile =
   // ── Build grouped render list ───────────────────────────────────────────────
   // Produces an ordered list of { type:'group', ... } and { type:'single', ... }
   // items that preserves the flat array order while clustering grouped exercises.
-  const renderItems = (() => {
-    const items = [];
-    const seen = new Set();
-    exercises.forEach((ex, globalIdx) => {
-      if (ex.group_id) {
-        if (!seen.has(ex.group_id)) {
-          seen.add(ex.group_id);
-          const groupItems = exercises
-            .map((e, ii) => ({ exercise: e, globalIdx: ii }))
-            .filter(({ exercise }) => exercise.group_id === ex.group_id);
-          items.push({ type: 'group', groupId: ex.group_id, groupMeta: ex.group_meta || {}, items: groupItems });
-        }
-      } else {
-        items.push({ type: 'single', exercise: ex, globalIdx });
-      }
-    });
-    return items;
-  })();
+  const renderItems = buildRegimenUnits(exercises);
+
+  // Reordering moves UNITS — a superset travels whole. Membership lives on
+  // `group_id`, which a reorder never touches, so unlike the dashboard rows
+  // this list cannot re-compose itself mid-gesture and needs no freezing.
+  const handleReorder = (keys) => {
+    setExercises(flattenUnits(reorderUnits(renderItems, keys)));
+  };
 
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
@@ -346,25 +345,50 @@ export default function RegimenForm({ initial, onSubmit, onCancel, userProfile =
         )}
 
         <AnimatePresence initial={false}>
-          <div className="space-y-3">
-            {renderItems.map((item, renderIdx) => {
+          {/* Drag reorders UNITS: a superset moves whole, and there is no
+              gesture that pulls a member out of one (Ungroup does that).
+              Handles sit on the unit — the group's header, a solo card's own
+              row — never on an exercise inside a group, which is why the
+              per-exercise grip that used to live in ExerciseCard was removed
+              rather than wired: it rendered inside groups too and would have
+              looked like it moved one row while moving four.
+
+              Dragging is off during selection mode; the handles are simply
+              not rendered, and ReorderableRow only drags from a handle. */}
+          <Reorder.Group
+            axis="y"
+            as="div"
+            values={renderItems.map(u => u.key)}
+            onReorder={handleReorder}
+            className="space-y-3"
+          >
+            {renderItems.map((item) => {
 
               // ── Group container ──────────────────────────────────────────
               if (item.type === 'group') {
                 const { groupId, groupMeta, items: groupItems } = item;
                 const type = groupMeta.type || 'superset';
                 return (
-                  <motion.div
-                    key={`group-${groupId}`}
+                  <ReorderableRow
+                    key={item.key}
+                    value={item.key}
+                    layout="position"
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
                     transition={{ type: 'spring', stiffness: 300, damping: 24 }}
                     className={`rounded-xl border-s-4 border overflow-hidden ${TYPE_COLOR[type] || TYPE_COLOR.superset}`}
                   >
+                    {(dragControls) => (<>
                     {/* Group header */}
                     <div className="flex items-center justify-between px-3 py-2 border-b border-border/60 bg-background/60">
                       <div className="flex items-center gap-2">
+                        {!selecting && (
+                          <DragHandle
+                            dragControls={dragControls}
+                            label={`Drag to reorder this ${type}`}
+                            className="text-muted-foreground/70"
+                          />
+                        )}
                         <Zap className="w-3.5 h-3.5 text-primary shrink-0" />
                         <button
                           type="button"
@@ -439,26 +463,40 @@ export default function RegimenForm({ initial, onSubmit, onCancel, userProfile =
                         </div>
                       ))}
                     </div>
-                  </motion.div>
+                    </>)}
+                  </ReorderableRow>
                 );
               }
 
               // ── Solo exercise ────────────────────────────────────────────
               const { exercise: ex, globalIdx: i } = item;
               return (
-                <motion.div
-                  key={i}
+                <ReorderableRow
+                  key={item.key}
+                  value={item.key}
+                  layout="position"
                   initial={{ opacity: 0, y: -12, scale: 0.95 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: -12, scale: 0.95 }}
                   transition={{ type: 'spring', stiffness: 300, damping: 24 }}
                 >
+                  {(dragControls) => (
                   <Card
                     className={`p-4 border-none shadow-sm transition-colors ${
                       selecting && selectedIndices.has(i) ? 'ring-2 ring-primary bg-primary/5' : ''
                     } ${selecting ? 'cursor-pointer' : ''}`}
                     onClick={selecting ? () => toggleSelect(i) : undefined}
                   >
+                    <div className="flex items-start gap-3">
+                      {/* Same column the old decorative grip occupied — but
+                          on the unit, so it never appears inside a group. */}
+                      {!selecting && (
+                        <DragHandle
+                          dragControls={dragControls}
+                          label={`Drag to reorder ${ex.name || 'this exercise'}`}
+                          className="text-muted-foreground/70"
+                        />
+                      )}
+                      <div className="flex-1 min-w-0">
                     <ExerciseCard
                       ex={ex} i={i}
                       selecting={selecting} selectedIndices={selectedIndices}
@@ -473,11 +511,14 @@ export default function RegimenForm({ initial, onSubmit, onCancel, userProfile =
                       userProfile={userProfile}
                       t={t}
                     />
+                      </div>
+                    </div>
                   </Card>
-                </motion.div>
+                  )}
+                </ReorderableRow>
               );
             })}
-          </div>
+          </Reorder.Group>
         </AnimatePresence>
       </div>
 
