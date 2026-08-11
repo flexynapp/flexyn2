@@ -44,16 +44,17 @@ const itemVariants = {
 //
 //   background: hsl(var(--card))
 //   border:     border-border/60 hover:border-primary/40
-//   icon:       w-10 h-10 rounded-xl bg-primary/18 border border-primary/28
+//   icon:       w-10 h-10 rounded-xl border border-border
 //
-// …with one correction. Copy those icon classes literally and they render
-// NOTHING: Tailwind's opacity scale has no 18 and no 28, and an off-scale
-// slash value emits no CSS at all rather than failing. Verified against
-// the built stylesheet — `.bg-primary\/18` and `.border-primary\/28` are
-// absent while /20 and /30 are present. So the tile below uses /20 and
-// /30, which are on the scale and within a hair of the intended values.
-// Workout.jsx has the same dead pair on its own icon tiles, along with 52
-// other off-scale opacity classes app-wide; that sweep is its own task.
+// The icon square is PLAIN, and that needs saying because the Workout
+// grid's source used to claim otherwise. Its tiles said `bg-primary/18
+// border border-primary/28`, and neither class emits any CSS — Tailwind v3
+// resolves a slash modifier against `theme.opacity`, which has no 18 and no
+// 28, so an off-scale value produces no rule rather than failing. What that
+// grid RENDERED was a plain square; what it SAID was a faint orange one.
+// Plain is the look kegan approved (2026-08-11), and Workout.jsx now writes
+// it out literally, so these tiles match it. Copying the old source instead
+// is how this tile spent its first night orange beside a grid that wasn't.
 //
 // These tiles used to be `border-dashed` on no surface at all, with a
 // different hue per tile — orange, emerald, amber, cyan, violet, rose,
@@ -88,7 +89,7 @@ function NavTile({ icon: Icon, title, description, onClick }) {
         onClick={onClick}
       >
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-primary/20 border border-primary/30 flex items-center justify-center shrink-0">
+          <div className="w-10 h-10 rounded-xl border border-border flex items-center justify-center shrink-0">
             <Icon className="w-5 h-5 text-primary" />
           </div>
           <div>

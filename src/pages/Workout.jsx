@@ -1866,6 +1866,24 @@ export default function Workout() {
     const pal = getCardPalette(idx);
     const cardBase = `group relative cursor-pointer h-full transition-colors p-3 ${pal.borderClass}`;
 
+    // Every icon square in this grid, so the nine of them cannot drift apart
+    // again — and they had. Six said `bg-primary/18 border border-primary/28`,
+    // Crew Wars said `/22` + `/35`, Explore Regimens and Duels said `/15` +
+    // `/25`, and only that last pair rendered anything at all: Tailwind v3
+    // resolves a slash modifier against `theme.opacity`, which has no 18, 22
+    // or 28, and an off-scale value emits NO rule rather than failing. So
+    // seven tiles were transparent with a default border, and the two that
+    // looked wrong were the only two doing what they said.
+    //
+    // Plain is the approved look (kegan, 2026-08-11), so the dead classes are
+    // resolved by writing the plain square out — not by snapping them onto
+    // the scale, which renders the same today and turns seven tiles orange on
+    // the day anyone extends theme.opacity or moves to Tailwind v4, where
+    // every one of those modifiers generates a rule. The brand accent lives
+    // on the ICON here, which is what getCardPalette above says. Generate
+    // Workout is the one exception and carries its own note.
+    const iconTile = 'w-10 h-10 rounded-xl border border-border flex items-center justify-center shrink-0';
+
     if (id === 'generate') return (
       <motion.div whileHover={{ y:-2 }} whileTap={{ scale:0.98 }} transition={{ type:'spring', stiffness:380, damping:22 }}>
         <Card role="button" tabIndex={0} aria-label="Generate Workout"
@@ -1906,16 +1924,11 @@ export default function Workout() {
           onKeyDown={(e) => { if (e.key==='Enter'||e.key===' '){e.preventDefault();setStoreOpen(true);} }}>
           <InfoBtn bid="explore" />
           <div className="flex flex-col items-center text-center gap-1.5">
-            {/* Plain square, no orange fill (kegan, 2026-08-11).
-                Written out as `border-border` rather than by copying the
-                neighbours' `bg-primary/20 border-primary/30`, because those
-                two classes EMIT NO CSS — /18 and /28 are not in this
-                project's Tailwind opacity scale, so eight tiles in this grid
-                have been silently transparent with a default border and this
-                one only looked different for rendering what it said. Copying
-                them would have been correct today and orange the day someone
-                adds those steps. See the note on the Duels tile. */}
-            <div className="w-10 h-10 rounded-xl border border-border flex items-center justify-center shrink-0">
+            {/* This tile and Duels were the two that used to render orange,
+                and losing that fill is the change kegan approved on
+                2026-08-11. See `iconTile` above for why the other seven only
+                looked like they already agreed with it. */}
+            <div className={iconTile}>
               <Globe className="w-5 h-5 text-primary" />
             </div>
             <div>
@@ -1936,7 +1949,7 @@ export default function Workout() {
           <InfoBtn bid="duels" />
           <div className="flex flex-col items-center text-center gap-1.5">
             {/* Plain square — same as Explore Regimens above, same reason. */}
-            <div className="w-10 h-10 rounded-xl border border-border flex items-center justify-center shrink-0">
+            <div className={iconTile}>
               <Swords className="w-5 h-5 text-primary" />
             </div>
             <div>
@@ -1959,7 +1972,7 @@ export default function Workout() {
           onKeyDown={(e) => { if (e.key==='Enter'||e.key===' '){e.preventDefault();navigate('/bounties');} }}>
           <InfoBtn bid="bounties" />
           <div className="flex flex-col items-center text-center gap-1.5">
-            <div className="w-10 h-10 rounded-xl bg-primary/20 border border-primary/30 flex items-center justify-center shrink-0">
+            <div className={iconTile}>
               <Zap className="w-5 h-5 text-primary" />
             </div>
             <div>
@@ -1980,7 +1993,7 @@ export default function Workout() {
         <Card className={cardBase} style={{ background: pal.background }} onClick={() => setRegimensOpen(true)}>
           <InfoBtn bid="regimens" />
           <div className="flex flex-col items-center text-center gap-1.5">
-            <div className="w-10 h-10 rounded-xl bg-primary/20 border border-primary/30 flex items-center justify-center shrink-0">
+            <div className={iconTile}>
               <Dumbbell className="w-5 h-5 text-primary" />
             </div>
             <div>
@@ -1997,7 +2010,7 @@ export default function Workout() {
         <Card className={cardBase} style={{ background: pal.background }} onClick={() => setSavedWorkoutsOpen(true)}>
           <InfoBtn bid="saved" />
           <div className="flex flex-col items-center text-center gap-1.5">
-            <div className="w-10 h-10 rounded-xl bg-primary/20 border border-primary/30 flex items-center justify-center shrink-0">
+            <div className={iconTile}>
               <History className="w-5 h-5 text-primary" />
             </div>
             <div>
@@ -2014,7 +2027,7 @@ export default function Workout() {
         <Card className={cardBase} style={{ background: pal.background }} onClick={() => setCardioOpen(true)}>
           <InfoBtn bid="cardio" />
           <div className="flex flex-col items-center text-center gap-1.5">
-            <div className="w-10 h-10 rounded-xl bg-primary/20 border border-primary/30 flex items-center justify-center shrink-0">
+            <div className={iconTile}>
               <Activity className="w-5 h-5 text-primary" />
             </div>
             <div>
@@ -2031,7 +2044,7 @@ export default function Workout() {
         <Card className={cardBase} style={{ background: pal.background }} onClick={() => setGoalsModalOpen(true)}>
           <InfoBtn bid="goals" />
           <div className="flex flex-col items-center text-center gap-1.5">
-            <div className="w-10 h-10 rounded-xl bg-primary/20 border border-primary/30 flex items-center justify-center shrink-0">
+            <div className={iconTile}>
               <Target className="w-5 h-5 text-primary" />
             </div>
             <div>
@@ -2075,7 +2088,7 @@ export default function Workout() {
           onKeyDown={(e) => { if (e.key==='Enter'||e.key===' '){e.preventDefault();navigate('/gauntlet');} }}>
           <InfoBtn bid="gauntlet" />
           <div className="flex flex-col items-center text-center gap-1.5">
-            <div className="w-10 h-10 rounded-xl bg-primary/20 border border-primary/30 flex items-center justify-center shrink-0">
+            <div className={iconTile}>
               <Trophy className="w-5 h-5 text-primary" />
             </div>
             <div>
@@ -2103,7 +2116,11 @@ export default function Workout() {
           onKeyDown={(e) => { if (e.key==='Enter'||e.key===' '){e.preventDefault();navigate('/hub',{state:{openCrewWars:true}});} }}>
           <InfoBtn bid="crew" />
           <div className="flex flex-col items-center text-center gap-1.5">
-            <div className="w-10 h-10 rounded-xl bg-primary/20 border border-primary/35 flex items-center justify-center shrink-0">
+            {/* Crew Wars was the one tile whose border was half-alive:
+                `bg-primary/22` emitted nothing but `border-primary/35` did,
+                so it rendered an orange outline around an empty square and
+                matched neither the plain seven nor the orange two. */}
+            <div className={iconTile}>
               <Shield className="w-5 h-5 text-primary" />
             </div>
             <div>
