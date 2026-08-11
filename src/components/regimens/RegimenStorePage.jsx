@@ -7,7 +7,7 @@
 // Rendered inline inside Workout.jsx when the user clicks "Explore Regimens"
 // — not a dialog/modal, a full-view replacement.
 
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from '@/lib/toast';
@@ -16,13 +16,14 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Search, Download, ChevronLeft, ChevronDown, ChevronUp,
-  Dumbbell, Users, Star, Flame, Plus,
+  Dumbbell, Users, Star, Flame, Plus, X,
 } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import * as regimens from '@/lib/data/regimens';
 import * as regimenReviews from '@/lib/data/regimenReviews';
 import { regimenLoad } from '@/lib/regimenLoad';
+import { LIST_PRESENCE, listItemMotion } from '@/lib/listMotion';
 import StarRating from './StarRating';
 import RegimenReviewsBlock from './RegimenReviewsBlock';
 
@@ -60,6 +61,14 @@ function regimenMuscles(regimen) {
     groups.forEach(g => seen.add(g));
   });
   return Array.from(seen);
+}
+
+// How many regimens train a given group. Used only by the no-matches
+// copy, so it can tell someone their SEARCH emptied the list rather than
+// their chip — the chip always has something behind it.
+function muscleCount(templates, group) {
+  const g = group.toLowerCase();
+  return templates.filter(t => regimenMuscles(t).some(m => m?.toLowerCase() === g)).length;
 }
 
 // ── Download badge ────────────────────────────────────────────────────────────
@@ -164,11 +173,14 @@ function RegimenCard({ regimen, index, isMine, user, onAdopted }) {
   const load = useMemo(() => regimenLoad(regimen), [regimen]);
 
   return (
+    /* listItemMotion(): layout="position" (these cards change place when
+       the filter changes, never size), no first-paint animation, and no
+       per-index stagger — filtering is now the main interaction on this
+       page, and a stagger costs the most on exactly the frame where the
+       user is waiting to read the result. listMotion.js names this
+       surface as one of the four the shape was written for. */
     <motion.div
-      layout
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.03 }}
+      {...listItemMotion()}
       className="rounded-xl border bg-card shadow-sm overflow-hidden"
     >
       <div className="p-4">
@@ -342,20 +354,41 @@ export default function RegimenStorePage({ onBack, onPublish }) {
   const { t } = useLanguage();
   const [search, setSearch] = useState('');
   const [muscleFilter, setMuscleFilter] = useState('All');
-  const [difficultyFilter, setDifficultyFilter] = useState('All');
+  // The search field is collapsed to an icon until asked for. It is a
+  // 44 pt control over a store that currently holds four items, which is
+  // furniture, not help. It expands in place and focuses THEN — the old
+  // mount-time autofocus opened the phone keyboard over the list before
+  // anyone had looked at it.
+  const [searchOpen, setSearchOpen] = useState(false);
   const chipRowRef = useRef(null);
   const searchRef = useRef(null);
-
-  // Auto-focus search bar on mount
-  useEffect(() => {
-    setTimeout(() => searchRef.current?.focus(), 200);
-  }, []);
 
   const { data: templates = [], isLoading } = useQuery({
     queryKey: ['publicRegimens'],
     queryFn: () => regimens.listPublic(200),
     staleTime: 30_000,
   });
+
+  // Muscle chips are the groups this store ACTUALLY contains, not a
+  // hardcoded vocabulary. ALL_MUSCLE_GROUPS lists eleven; the four public
+  // regimens cover eight, so Traps, Full Body and Cardio were drawable
+  // chips that could only ever return an empty store — the same defect as
+  // the difficulty filter, one step less obvious.
+  //
+  // Derived from every template, NEVER from the filtered set: recomputing
+  // against the current results would make chips vanish as you typed, and
+  // the chip you had selected could delete itself.
+  const availableMuscles = useMemo(() => {
+    const present = new Set();
+    templates.forEach(t => regimenMuscles(t).forEach(m => present.add(m)));
+    // ALL_MUSCLE_GROUPS supplies the ORDER — an ordering that shifts with
+    // the catalogue would move the chips under the user's thumb between
+    // visits. Anything a regimen carries that the vocabulary doesn't know
+    // still gets a chip, appended, rather than being silently unfilterable.
+    const known = ALL_MUSCLE_GROUPS.filter(m => present.has(m));
+    const extra = [...present].filter(m => !ALL_MUSCLE_GROUPS.includes(m)).sort();
+    return [...known, ...extra];
+  }, [templates]);
 
   // Sort: always by copy_count desc (listPublic already does this, but we
   // re-sort after filtering so filtered results remain ranked correctly)
@@ -383,14 +416,14 @@ export default function RegimenStorePage({ onBack, onPublish }) {
               );
             });
 
-        // Difficulty filter (mig 120). NULL/unset on the regimen
-        // means "unrated" — only matches the 'All' option, never a
-        // specific bucket. Avoids silently miscategorizing legacy
-        // regimens.
-        const matchDifficulty = difficultyFilter === 'All'
-          || tmpl.difficulty === difficultyFilter;
-
-        return matchSearch && matchMuscle && matchDifficulty;
+        // NO DIFFICULTY FILTER. It was four chips over `difficulty`,
+        // which is NULL on every public regimen — so "Any level" returned
+        // the store and each of the other three returned nothing. A
+        // filter that can only fail is worse than no filter: it reads as
+        // an empty store rather than as an unset column. Bring it back
+        // when regimens actually carry a difficulty, which means asking
+        // the author for one in RegimenForm.
+        return matchSearch && matchMuscle;
       })
       // Re-sort by download count descending after filter
       .sort((a, b) => {
@@ -398,12 +431,15 @@ export default function RegimenStorePage({ onBack, onPublish }) {
         const cb = (b.copy_count || b.clone_count || 0);
         return cb - ca;
       });
-  }, [templates, search, muscleFilter, difficultyFilter]);
+  }, [templates, search, muscleFilter]);
 
   const totalDownloads = useMemo(
     () => templates.reduce((s, t) => s + (t.copy_count || t.clone_count || 0), 0),
     [templates]
   );
+
+  const filtering = search.trim() !== '' || muscleFilter !== 'All';
+  const clearFilters = () => { setSearch(''); setMuscleFilter('All'); setSearchOpen(false); };
 
   return (
     <motion.div
@@ -414,115 +450,120 @@ export default function RegimenStorePage({ onBack, onPublish }) {
       className="mb-8"
     >
       {/* ── Page header ──────────────────────────────────────────────────── */}
-      <div className="flex items-center gap-3 mb-5">
+      <div className="flex items-center gap-2 mb-2">
         <motion.button
           whileTap={{ scale: 0.93 }}
           onClick={onBack}
-          className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground active:text-foreground transition-colors px-2 py-1.5 rounded-lg hover:bg-secondary active:bg-secondary"
+          aria-label="Back"
+          className="flex items-center justify-center w-9 h-9 -ms-2 shrink-0 text-muted-foreground hover:text-foreground active:text-foreground transition-colors rounded-lg hover:bg-secondary active:bg-secondary"
         >
-          <ChevronLeft className="w-4 h-4" />
-          Back
+          <ChevronLeft className="w-5 h-5 rtl:scale-x-[-1]" />
         </motion.button>
 
         <div className="flex-1 min-w-0">
           <h2 className="font-heading font-bold text-xl leading-tight">Explore Regimens</h2>
-          {!isLoading && (
+          {!isLoading && templates.length > 0 && (
             <p className="text-xs text-muted-foreground mt-0.5">
-              {templates.length} public programs
+              {templates.length === 1 ? '1 program' : `${templates.length} programs`} shared by the community
               {totalDownloads > 0 && (
                 <span className="ms-1.5">
-                  · <Users className="inline w-3 h-3 mb-0.5" /> {totalDownloads} total downloads
+                  · <Users className="inline w-3 h-3 mb-0.5" /> {totalDownloads} downloads
                 </span>
               )}
             </p>
           )}
         </div>
-      </div>
 
-      {/* ── Search bar ───────────────────────────────────────────────────── */}
-      <div className="relative mb-3">
-        <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-        <Input
-          ref={searchRef}
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          placeholder="Search regimens, exercises…"
-          className="ps-9 h-11 text-sm"
-        />
-        {search && (
-          <button
-            onClick={() => setSearch('')}
-            className="absolute end-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground active:text-foreground transition-colors text-xs"
-            aria-label="Clear search"
+        {/* Search collapses to a 36 pt target. Only drawn when there is
+            something to search — one regimen does not need a search box. */}
+        {templates.length > 1 && !searchOpen && (
+          <motion.button
+            whileTap={{ scale: 0.93 }}
+            onClick={() => { setSearchOpen(true); setTimeout(() => searchRef.current?.focus(), 60); }}
+            aria-label="Search regimens"
+            aria-expanded={false}
+            className="flex items-center justify-center w-9 h-9 shrink-0 rounded-full border border-border bg-card text-muted-foreground hover:text-foreground active:text-foreground transition-colors"
           >
-            ✕
-          </button>
+            <Search className="w-4 h-4" />
+          </motion.button>
         )}
       </div>
 
-      {/* ── Muscle group filter chips ─────────────────────────────────────── */}
-      <div
-        ref={chipRowRef}
-        className="flex gap-1.5 overflow-x-auto pb-2 mb-4 scrollbar-hide"
-        style={{ scrollbarWidth: 'none' }}
-      >
-        {['All', ...ALL_MUSCLE_GROUPS].map(group => {
-          const isActive = muscleFilter === group;
-          return (
-            <motion.button
-              key={group}
-              whileTap={{ scale: 0.93 }}
-              onClick={() => setMuscleFilter(group)}
-              className={[
-                'shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors',
-                isActive
-                  ? 'bg-primary text-primary-foreground border-primary shadow-sm'
-                  : 'border-border text-muted-foreground hover:border-primary/40 hover:text-foreground active:text-foreground bg-card',
-              ].join(' ')}
-            >
-              {group}
-            </motion.button>
-          );
-        })}
-      </div>
+      {/* ── Search field, once asked for ──────────────────────────────────── */}
+      <AnimatePresence initial={false}>
+        {searchOpen && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="relative pt-2">
+              <Search className="absolute start-3 top-1/2 mt-1 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+              <Input
+                ref={searchRef}
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Escape') { setSearch(''); setSearchOpen(false); } }}
+                placeholder="Search regimens, exercises…"
+                aria-label="Search regimens"
+                className="ps-9 pe-9 h-11 text-sm"
+              />
+              <button
+                onClick={() => { setSearch(''); setSearchOpen(false); }}
+                className="absolute end-3 top-1/2 mt-1 -translate-y-1/2 text-muted-foreground hover:text-foreground active:text-foreground transition-colors"
+                aria-label={search ? 'Clear search' : 'Close search'}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {/* ── Difficulty filter chips (mig 120) ───────────────────────────── */}
-      <div className="flex gap-1.5 pb-2 mb-4 overflow-x-auto scrollbar-hide" style={{ scrollbarWidth: 'none' }}>
-        {[
-          { id: 'All',          label: 'Any level' },
-          { id: 'beginner',     label: 'Beginner' },
-          { id: 'intermediate', label: 'Intermediate' },
-          { id: 'advanced',     label: 'Advanced' },
-        ].map(opt => {
-          const isActive = difficultyFilter === opt.id;
-          return (
-            <motion.button
-              key={opt.id}
-              whileTap={{ scale: 0.93 }}
-              onClick={() => setDifficultyFilter(opt.id)}
-              className={[
-                'shrink-0 px-3 py-1 rounded-full text-micro font-bold uppercase tracking-wide border transition-colors',
-                isActive
-                  ? 'bg-foreground/90 text-background border-foreground/90'
-                  : 'border-border/60 text-muted-foreground hover:border-primary/40 hover:text-foreground active:text-foreground bg-card/50',
-              ].join(' ')}
-            >
-              {opt.label}
-            </motion.button>
-          );
-        })}
-      </div>
+      {/* ── Muscle group filter chips ─────────────────────────────────────── */}
+      {/* Drawn only when there is more than one group to choose between —
+          a lone "All" chip beside a lone "Legs" chip filters nothing. */}
+      {availableMuscles.length > 1 && (
+        <div
+          ref={chipRowRef}
+          className="flex gap-1.5 overflow-x-auto pt-3 pb-2 mb-2 scrollbar-hide"
+          style={{ scrollbarWidth: 'none' }}
+        >
+          {['All', ...availableMuscles].map(group => {
+            const isActive = muscleFilter === group;
+            return (
+              <motion.button
+                key={group}
+                whileTap={{ scale: 0.93 }}
+                onClick={() => setMuscleFilter(group)}
+                aria-pressed={isActive}
+                className={[
+                  'shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors',
+                  isActive
+                    ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                    : 'border-border text-muted-foreground hover:border-primary/40 hover:text-foreground active:text-foreground bg-card',
+                ].join(' ')}
+              >
+                {group}
+              </motion.button>
+            );
+          })}
+        </div>
+      )}
 
       {/* ── Result count label ────────────────────────────────────────────── */}
-      {!isLoading && (
-        <p className="text-xs text-muted-foreground mb-3 px-0.5">
-          {filtered.length === 0
-            ? 'No matching regimens'
-            : filtered.length === 1
-              ? '1 regimen'
-              : `${filtered.length} regimens`}
-          {(search || muscleFilter !== 'All') && ' matching your filters'}
-          {!search && muscleFilter === 'All' && ' · ranked by downloads'}
+      {/* Only while filtering. Unfiltered, it restated the count already in
+          the header one line above it — and appended "· ranked by
+          downloads", a claim about an ordering that does not exist while
+          every copy_count is 0. The ranking clause is kept, but only once
+          there is a download to rank on. */}
+      {!isLoading && filtering && filtered.length > 0 && (
+        <p className="text-xs text-muted-foreground mb-2 px-0.5">
+          {filtered.length === 1 ? '1 regimen' : `${filtered.length} regimens`}
+          {muscleFilter !== 'All' && <> for {muscleFilter}</>}
+          {search.trim() && <> matching “{search.trim()}”</>}
+          {totalDownloads > 0 && ' · ranked by downloads'}
         </p>
       )}
 
@@ -533,85 +574,115 @@ export default function RegimenStorePage({ onBack, onPublish }) {
             <Skeleton key={i} className="h-28 rounded-xl" />
           ))}
         </div>
+      ) : templates.length === 0 ? (
+        /* ── The store is empty ────────────────────────────────────────
+           Nobody has published anything. There is nothing to browse, so
+           publishing is not a footnote here — it is the page. Distinct
+           from "your filters matched nothing" below, which the old code
+           conflated into one branch behind a dashed box. */
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="text-center py-10"
+        >
+          <div className="w-16 h-16 rounded-full bg-card border border-border flex items-center justify-center mx-auto mb-4">
+            <Dumbbell className="w-7 h-7 text-muted-foreground/50" />
+          </div>
+          <p className="font-heading font-bold text-base">No public regimens yet</p>
+          <p className="text-sm text-muted-foreground mt-1 mb-6 max-w-xs mx-auto">
+            Build a program you actually run, then share it. Yours would be the first.
+          </p>
+          <motion.button
+            whileTap={{ scale: 0.97 }}
+            onClick={onPublish}
+            className="inline-flex items-center gap-2 px-5 h-11 rounded-lg bg-primary text-primary-foreground font-bold text-sm hover:bg-primary/90 active:bg-primary/90 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Publish a regimen
+          </motion.button>
+        </motion.div>
       ) : filtered.length === 0 ? (
-        <div className="space-y-3">
-          <motion.button
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            whileHover={{ y: -2 }}
-            whileTap={{ scale: 0.97 }}
-            transition={{ type: 'spring', stiffness: 380, damping: 22 }}
-            onClick={onPublish}
-            className="group w-full rounded-xl border-2 border-dashed border-border hover:border-primary/50 bg-card hover:bg-primary/5 active:bg-primary/5 transition-colors p-5 flex items-center gap-4 text-start"
-          >
-            <div className="w-10 h-10 rounded-xl bg-primary/10 group-hover:bg-primary/20 border border-primary/20 flex items-center justify-center shrink-0 transition-colors">
-              <Plus className="w-5 h-5 text-primary" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-heading font-bold text-sm text-foreground group-hover:text-primary transition-colors">
-                Publish a Regimen
-              </p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Build your own program and share it with the community
-              </p>
-            </div>
-            <ChevronLeft className="w-4 h-4 text-muted-foreground/40 group-hover:text-primary transition-colors rotate-180 shrink-0" />
-          </motion.button>
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="text-center py-10"
-          >
-            <Dumbbell className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
-            <p className="font-semibold text-sm">
-              {search || muscleFilter !== 'All' ? 'No results' : 'No public regimens yet'}
-            </p>
-            <p className="text-xs text-muted-foreground mt-1 max-w-xs mx-auto">
-              {search
-                ? 'Try different keywords or clear the search.'
-                : muscleFilter !== 'All'
-                  ? `No public regimens targeting ${muscleFilter} yet.`
-                  : 'Be the first to publish one above!'}
-            </p>
-          </motion.div>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {/* ── Publish slot — always first ──────────────────────────────── */}
-          <motion.button
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            whileHover={{ y: -2 }}
-            whileTap={{ scale: 0.97 }}
-            transition={{ type: 'spring', stiffness: 380, damping: 22 }}
-            onClick={onPublish}
-            className="group w-full rounded-xl border-2 border-dashed border-border hover:border-primary/50 bg-card hover:bg-primary/5 active:bg-primary/5 transition-colors p-5 flex items-center gap-4 text-start"
-          >
-            <div className="w-10 h-10 rounded-xl bg-primary/10 group-hover:bg-primary/20 border border-primary/20 flex items-center justify-center shrink-0 transition-colors">
-              <Plus className="w-5 h-5 text-primary" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-heading font-bold text-sm text-foreground group-hover:text-primary transition-colors">
-                Publish a Regimen
-              </p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Build your own program and share it with the community
-              </p>
-            </div>
-            <ChevronLeft className="w-4 h-4 text-muted-foreground/40 group-hover:text-primary transition-colors rotate-180 shrink-0" />
-          </motion.button>
+        /* ── Filters matched nothing ───────────────────────────────────
+           The store HAS regimens; this search or this combination found
+           none of them. Name what is filtering and offer the way back —
+           not a dead end with a dashed box on it.
 
-          <AnimatePresence mode="popLayout">
+           Note that a muscle chip alone can no longer land here: the
+           chips are derived from the catalogue, so every one of them
+           matches at least one regimen. This is reachable by search, or
+           by search combined with a chip. */
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="text-center py-10"
+        >
+          <p className="font-heading font-bold text-base">No matches</p>
+          <p className="text-sm text-muted-foreground mt-1 mb-5 max-w-xs mx-auto">
+            {search.trim() && muscleFilter !== 'All'
+              ? <>Nothing for “{search.trim()}” in {muscleFilter}. {muscleCount(templates, muscleFilter)} {muscleCount(templates, muscleFilter) === 1 ? 'regimen trains' : 'regimens train'} {muscleFilter} — try clearing the search.</>
+              : search.trim()
+                ? <>Nothing matches “{search.trim()}” across {templates.length === 1 ? 'the 1 published regimen' : `all ${templates.length} published regimens`}.</>
+                : <>Nothing for {muscleFilter} yet.</>}
+          </p>
+          <motion.button
+            whileTap={{ scale: 0.97 }}
+            onClick={clearFilters}
+            className="inline-flex items-center gap-2 px-4 h-10 rounded-lg border border-border bg-card font-bold text-sm hover:bg-secondary active:bg-secondary transition-colors"
+          >
+            Show all {templates.length}
+          </motion.button>
+        </motion.div>
+      ) : (
+        /* flex + gap on a RELATIVE container, not `space-y`. popLayout
+           pins an exiting child at its measured offsetTop against the
+           nearest positioned ancestor, and offsetTop already counts a
+           space-y margin — so the margin lands twice and a leaving card
+           drops one step on its way out. `src/lib/listMotion.js` explains
+           it at length and `listMotion.test.js` guards it; that guard
+           started failing the moment the publish slot moved out from
+           between this container and the AnimatePresence, which is what
+           had been hiding the violation from its heuristic.
+
+           gap-2 rather than the old 12 px: the composition rules allow
+           8 or 24 and ban the middle, and a list of cards is one group. */
+        <div className="relative flex flex-col gap-2">
+          <AnimatePresence {...LIST_PRESENCE}>
             {filtered.map((tmpl, i) => (
               <RegimenCard
                 key={tmpl.id}
                 regimen={tmpl}
+                /* Still needed: PopularityBadge gives "Top" to rank 0.
+                   It no longer staggers the entrance — see listItemMotion. */
                 index={i}
                 isMine={tmpl.created_by === user?.email}
                 user={user}
               />
             ))}
           </AnimatePresence>
+
+          {/* ── Publish, after the goods ─────────────────────────────────
+              This was a 78 pt dashed box in the FIRST slot, taking the
+              most valuable position on the page to advertise authoring to
+              somebody who arrived to browse. It stays one tap away, below
+              what they came for. Hidden while filtering, where it is an
+              answer to a question nobody asked. */}
+          {!filtering && (
+            <motion.button
+              whileTap={{ scale: 0.98 }}
+              onClick={onPublish}
+              className="group w-full rounded-lg border border-border hover:border-primary/40 bg-transparent hover:bg-card active:bg-card transition-colors p-4 flex items-center gap-3 text-start"
+            >
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-sm text-foreground group-hover:text-primary transition-colors">
+                  Built something that works?
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Publish a regimen for the community
+                </p>
+              </div>
+              <ChevronLeft className="w-4 h-4 text-muted-foreground/50 group-hover:text-primary transition-colors rotate-180 rtl:rotate-0 shrink-0" />
+            </motion.button>
+          )}
         </div>
       )}
     </motion.div>
