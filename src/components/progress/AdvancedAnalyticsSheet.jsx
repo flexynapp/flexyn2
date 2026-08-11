@@ -147,10 +147,11 @@ export default function AdvancedAnalyticsSheet({ open, onClose, logs = [], child
           label: tFallback('analyticsSheet.mostReps', 'Most reps'),
           value: `${model.mostReps.maxReps} · ${translateExerciseName(model.mostReps.name, language)}`,
         },
-        model.totalVolume > 0 && {
-          label: tFallback('analyticsSheet.totalVolume', 'Total volume'),
-          value: formatWeight(model.totalVolume, weightUnit),
-        },
+        // No "Total volume" row: the hero above IS lifetime volume, so the
+        // row restated the same number 250px lower — and rendered it
+        // ungrouped ("592195 lbs") next to the hero's "592,195", which is
+        // how the duplication got noticed. A figure that has already been
+        // given the largest type on the sheet has been said.
       ],
     },
     {

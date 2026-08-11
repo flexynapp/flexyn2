@@ -155,7 +155,6 @@ export const progressTranslations = {
     'analyticsSheet.heroSub_other':     '{n} workouts',
     'analyticsSheet.strongestLift':     'Strongest lift',
     'analyticsSheet.mostReps':          'Most reps',
-    'analyticsSheet.totalVolume':       'Total volume',
     'analyticsSheet.totalWorkouts':     'Total workouts',
     'analyticsSheet.totalTime':         'Total time',
     'analyticsSheet.avgSession':        'Avg session',
