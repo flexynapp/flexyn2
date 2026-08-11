@@ -3,7 +3,7 @@
 // sub-view (own or someone else's). Marketplace, DMs, AI Coach, and the
 // Bag/Capsule flow were hoisted out to /market, /messages, /coach, and
 // the global ProfileMenu respectively.
-import { useState, useEffect, useLayoutEffect, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Flame, Users as UsersIcon, User as UserIcon, Plus, ArrowLeft, Search, Shield, Store, Activity } from 'lucide-react';
@@ -33,6 +33,41 @@ const EMBERS = [
   { x: 55, size: 3, duration: 1.7, delay: 0.6, travel: 38 },
   { x: 70, size: 2, duration: 2.1, delay: 1.8, travel: 26 },
 ];
+
+// Visual left-to-right order of the feed tab strip, which is what both the
+// tab bar and the swipe gesture follow. 'activity' is deliberately absent: it
+// is reached from the header, not the strip, so including it would let a swipe
+// land somewhere the strip gives no way back from. Module scope so the swipe
+// callbacks don't close over a fresh array on every render.
+export const SWIPE_TABS = ['pump', 'squad', 'crews'];
+
+/**
+ * Which tab a drag should land on, or null for "not a swipe".
+ *
+ * Exported and pure so the direction rules can be tested without mounting
+ * Hub — see src/pages/__tests__/hubTabSwipe.test.js for why each rule exists.
+ *
+ * @param {string} current  the active feed tab
+ * @param {{offset:{x:number,y:number}, velocity:{x:number}}} info  framer-motion drag info
+ * @param {boolean} rtl     document direction is right-to-left
+ */
+export function resolveSwipeTarget(current, info, rtl) {
+  const { offset, velocity } = info;
+  // Distance OR speed: a slow deliberate drag and a quick flick are both
+  // swipes, and requiring distance alone makes flicking feel broken.
+  if (Math.abs(offset.x) < 60 && Math.abs(velocity.x) < 320) return null;
+  // The feed scrolls vertically; stealing a mostly-vertical drag would make
+  // the page feel like it was fighting the thumb.
+  if (Math.abs(offset.y) > Math.abs(offset.x)) return null;
+  const i = SWIPE_TABS.indexOf(current);
+  if (i === -1) return null;
+  // Content follows the thumb: dragging left brings the tab on the right into
+  // view. In RTL the strip is mirrored, so the mapping mirrors with it.
+  const forward = rtl ? offset.x > 0 : offset.x < 0;
+  const next = forward ? i + 1 : i - 1;
+  if (next < 0 || next >= SWIPE_TABS.length) return null;
+  return SWIPE_TABS[next];
+}
 
 // Parse the ?profile= URL param into an id-or-email target. A UUID token is
 // treated as a user id; anything else stays an email — backward-compatible with
@@ -66,6 +101,32 @@ export default function Hub() {
     (initialProfileEmail || isProfilePath) ? 'profile' : 'feed'
   );
   const [feedTab, setFeedTab] = useState('pump');
+
+  // ── Swipe + directional transition between the feed tabs ─────────────────
+  const [tabDirection, setTabDirection] = useState(0);
+  const swipeEnabled = section === 'feed' && SWIPE_TABS.includes(feedTab);
+
+  const goToTab = useCallback((next) => {
+    setFeedTab((prev) => {
+      if (next === prev) return prev;
+      const from = SWIPE_TABS.indexOf(prev);
+      const to = SWIPE_TABS.indexOf(next);
+      // Both on the strip → animate the way the eye expects. Anything else
+      // (arriving from the header, a deep link) gets a plain fade, because
+      // there is no left or right to honour.
+      setTabDirection(from === -1 || to === -1 ? 0 : (to > from ? 1 : -1));
+      return next;
+    });
+  }, []);
+
+  const handleFeedSwipe = useCallback((_e, info) => {
+    if (!swipeEnabled) return;
+    const rtl = typeof document !== 'undefined' && document.dir === 'rtl';
+    const next = resolveSwipeTarget(feedTab, info, rtl);
+    if (!next) return;
+    try { navigator.vibrate?.(8); } catch { /* ignore */ }
+    goToTab(next);
+  }, [feedTab, swipeEnabled, goToTab]);
   const [composerOpen, setComposerOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [profileTarget, setProfileTarget] = useState(
@@ -291,7 +352,7 @@ export default function Hub() {
             <div className="flex gap-1 p-1 bg-secondary rounded-lg border border-border">
               <button
                 type="button"
-                onClick={() => setFeedTab('pump')}
+                onClick={() => goToTab('pump')}
                 className={`flex-1 flex items-center justify-center gap-1 py-2 text-xs font-medium rounded-md transition-colors ${
                   feedTab === 'pump'
                     ? 'bg-card text-foreground shadow-sm'
@@ -303,7 +364,7 @@ export default function Hub() {
               </button>
               <button
                 type="button"
-                onClick={() => setFeedTab('squad')}
+                onClick={() => goToTab('squad')}
                 className={`flex-1 flex items-center justify-center gap-1 py-2 text-xs font-medium rounded-md transition-colors ${
                   feedTab === 'squad'
                     ? 'bg-card text-foreground shadow-sm'
@@ -315,7 +376,7 @@ export default function Hub() {
               </button>
               <button
                 type="button"
-                onClick={() => setFeedTab('crews')}
+                onClick={() => goToTab('crews')}
                 className={`flex-1 flex items-center justify-center gap-1 py-2 text-xs font-medium rounded-md transition-colors ${
                   feedTab === 'crews'
                     ? 'bg-card text-foreground shadow-sm'
@@ -429,13 +490,29 @@ export default function Hub() {
       )}
 
       {/* Sections */}
-      <AnimatePresence mode="wait" initial={false}>
+      <AnimatePresence mode="wait" initial={false} custom={tabDirection}>
         <motion.div
           key={section + feedTab}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0, pointerEvents: 'none' }}
+          custom={tabDirection}
+          // Slide in from the side the new tab lives on, so the motion agrees
+          // with the tab bar's left-to-right order and with a swipe. A plain
+          // cross-fade reads as "something reloaded"; a direction reads as
+          // "you moved". 24px, not a full screen width — this is a tab
+          // change, not a page transition, and a long travel makes a fast
+          // tab-tap feel slower than the tap.
+          initial={(dir) => ({ opacity: 0, x: dir === 0 ? 0 : dir * 24 })}
+          animate={{ opacity: 1, x: 0 }}
+          exit={(dir) => ({ opacity: 0, x: dir === 0 ? 0 : dir * -24, pointerEvents: 'none' })}
           transition={{ duration: 0.18, ease: 'easeOut' }}
+          // Swipe between the three feed tabs. dragListener stays on the
+          // content, and elastic 0 with a tiny constraint means the panel
+          // barely moves — this is a gesture detector, not a carousel; a
+          // rubber-banding feed fights the vertical scroll it lives inside.
+          drag={swipeEnabled ? 'x' : false}
+          dragDirectionLock
+          dragConstraints={{ left: 0, right: 0 }}
+          dragElastic={0.06}
+          onDragEnd={handleFeedSwipe}
         >
           {section === 'feed' && (feedTab === 'pump' || feedTab === 'squad' || feedTab === 'activity') && (
             <HubFeed

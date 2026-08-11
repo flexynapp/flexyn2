@@ -176,6 +176,33 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
     staleTime: 30_000,
   });
 
+  // ── Preload the sibling feed tab ─────────────────────────────────────
+  // Switching Global ↔ Following used to show a spinner every time, because
+  // each tab is its own query key and the other one was always cold.
+  //
+  // This runs HERE rather than in Hub.jsx on purpose. The key carries
+  // `following.length`, which only exists inside this component — prefetching
+  // from the page would have to guess it, and a key that is off by one is not
+  // an error, it is a prefetch that silently warms a cache nobody reads. The
+  // failure would look exactly like no prefetch at all.
+  //
+  // Fires once the visible tab has resolved, so the tab the user is actually
+  // looking at never queues behind a fetch for one they aren't.
+  useEffect(() => {
+    if (!user?.email || isLoading) return;
+    const sibling = feedTab === 'pump' ? 'squad' : 'pump';
+    const id = setTimeout(() => {
+      queryClient.prefetchQuery({
+        queryKey: ['hubFeed', sibling, user.email, following.length],
+        queryFn: () => (sibling === 'pump'
+          ? hubPosts.fetchGlobalWindow()
+          : hubPosts.fetchFollowingWindow(following)),
+        staleTime: 30_000,
+      }).catch(() => { /* a warm cache is an optimisation, never an error */ });
+    }, 400);
+    return () => clearTimeout(id);
+  }, [feedTab, user?.email, following, isLoading, queryClient]);
+
   // ── Older-than-cursor pagination (audit B-9) ─────────────────────────
   // FETCH_WINDOW caps the live query at 100 rows. When the user scrolls
   // past it we extend the array by fetching older posts than the
