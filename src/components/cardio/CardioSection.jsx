@@ -56,6 +56,10 @@ const itemVariants = {
 // it out literally, so these tiles match it. Copying the old source instead
 // is how this tile spent its first night orange beside a grid that wasn't.
 //
+// Plain HERE was confirmed separately (kegan, 2026-08-11), so this is not
+// inherited from that grid by inference — don't re-tint it on the reasoning
+// that only the Workout page was ever reviewed.
+//
 // These tiles used to be `border-dashed` on no surface at all, with a
 // different hue per tile — orange, emerald, amber, cyan, violet, rose,
 // zinc across nine tiles. Both are things the Workout page deliberately
