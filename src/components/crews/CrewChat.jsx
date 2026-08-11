@@ -894,7 +894,7 @@ export default function CrewChat({ crew, onBack, onViewProfile, embedded }) {
             control and its result match. */}
         <button
           onClick={handleFireFuel}
-          className="w-9 h-9 rounded-full bg-primary/12 flex items-center justify-center text-primary hover:bg-primary/20 active:bg-primary/20 transition-colors shrink-0"
+          className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary hover:bg-primary/20 active:bg-primary/20 transition-colors shrink-0"
           title="Drop XP fuel for the crew"
           aria-label="Drop XP fuel for the crew"
         >

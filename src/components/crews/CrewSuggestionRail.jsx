@@ -54,7 +54,7 @@ function SuggestedCrewCard({ crew, onJoin, joining }) {
       className="shrink-0 w-44 rounded-2xl bg-card p-3 flex flex-col gap-2"
     >
       <div className="flex items-start gap-2">
-        <div className="w-9 h-9 rounded-lg bg-primary/12 flex items-center justify-center shrink-0">
+        <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
           <Shield className="w-4 h-4 text-primary" aria-hidden="true" />
         </div>
         <div className="flex-1 min-w-0">

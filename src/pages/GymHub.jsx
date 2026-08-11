@@ -328,7 +328,7 @@ export default function GymHub() {
               with two different left edges, which is what reads as the
               page being crooked. */}
           {gym.flexyn_code && (isOwner || isMember || (gym.member_count ?? 0) > 0) && (
-            <div className="mt-3 rounded-xl bg-primary/8 border border-primary/20 p-2.5">
+            <div className="mt-3 rounded-xl bg-primary/10 border border-primary/20 p-2.5">
               <p className="text-micro font-bold uppercase tracking-wider text-primary mb-0.5">
                 {isOwner ? 'Your Flexyn Code' : 'Flexyn Code'}
               </p>

@@ -140,7 +140,7 @@ export default function PushOptInBanner({ hasWorkouts = false }) {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -4, transition: { duration: 0.18 } }}
           transition={{ duration: 0.2 }}
-          className="relative overflow-hidden rounded-lg border border-primary/30 bg-primary/8 px-3 py-2.5 flex items-start gap-3"
+          className="relative overflow-hidden rounded-lg border border-primary/30 bg-primary/10 px-3 py-2.5 flex items-start gap-3"
           role="region"
           aria-label={tFallback('pushOptIn.aria', 'Enable notifications')}
         >

@@ -73,7 +73,7 @@ export default function StarterPlanHeroCard({
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-      className="relative w-full mb-4 overflow-hidden rounded-2xl bg-gradient-to-br from-primary/15 via-primary/12 to-primary/10 border border-primary/30 p-5 md:p-6 shadow-lg shadow-primary/10"
+      className="relative w-full mb-4 overflow-hidden rounded-2xl bg-gradient-to-br from-primary/15 via-primary/10 to-primary/10 border border-primary/30 p-5 md:p-6 shadow-lg shadow-primary/10"
     >
       <div className="absolute -top-12 -end-12 w-48 h-48 rounded-full blur-3xl bg-primary/30 pointer-events-none" />
 

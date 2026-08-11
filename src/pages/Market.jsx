@@ -43,7 +43,7 @@ export default function Market() {
 
       {/* Trainer Programs — Coming Soon */}
       <motion.div
-        className="w-full mb-4 rounded-2xl border border-primary/20 bg-gradient-to-r from-primary/8 via-violet-500/8 to-primary/8 p-4 flex items-center gap-3 text-start relative overflow-hidden select-none opacity-75"
+        className="w-full mb-4 rounded-2xl border border-primary/20 bg-gradient-to-r from-primary/10 via-violet-500/10 to-primary/10 p-4 flex items-center gap-3 text-start relative overflow-hidden select-none opacity-75"
         animate={{ boxShadow: ['0 0 0px rgba(139,92,246,0)', '0 0 18px rgba(139,92,246,0.25)', '0 0 0px rgba(139,92,246,0)'] }}
         transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
       >
@@ -54,7 +54,7 @@ export default function Market() {
           animate={{ x: ['-100%', '200%'] }}
           transition={{ duration: 2.5, repeat: Infinity, repeatDelay: 2, ease: 'easeInOut' }}
         />
-        <div className="w-10 h-10 rounded-xl bg-primary/12 flex items-center justify-center shrink-0">
+        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
           <Sparkles className="w-5 h-5 text-primary/60" />
         </div>
         <div className="flex-1 min-w-0">

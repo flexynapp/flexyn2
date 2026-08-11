@@ -76,7 +76,7 @@ function LeaderboardRow({ entry, maxScore, isAuthed, onGymPress, delay }) {
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay }}
       className={`flex items-center gap-3 px-4 py-3 border-b border-border last:border-0 ${
-        isTopThree ? 'bg-primary/3' : ''
+        isTopThree ? 'bg-primary/5' : ''
       }`}
     >
       {/* Rank */}

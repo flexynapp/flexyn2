@@ -296,7 +296,7 @@ export default function CrewWarPanel({ crewId, currentUserId }) {
       className="rounded-2xl border border-border overflow-hidden mb-4"
     >
       {/* Header */}
-      <div className={`px-4 py-3 flex items-center justify-between ${winning ? 'bg-primary/8' : tied ? 'bg-amber-500/5' : 'bg-rose-500/5'}`}>
+      <div className={`px-4 py-3 flex items-center justify-between ${winning ? 'bg-primary/10' : tied ? 'bg-amber-500/5' : 'bg-rose-500/5'}`}>
         <div className="flex items-center gap-2">
           <Shield className={`w-4 h-4 ${winning ? 'text-primary' : tied ? 'text-amber-500' : 'text-rose-500'}`} />
           <span className="font-black text-sm">Crew War</span>
@@ -353,7 +353,7 @@ export default function CrewWarPanel({ crewId, currentUserId }) {
 
       {/* Completed state */}
       {war.status === 'completed' && (
-        <div className={`px-4 py-3 border-t border-border text-center ${war.winner_crew_id === crewId ? 'bg-primary/8' : 'bg-secondary/60'}`}>
+        <div className={`px-4 py-3 border-t border-border text-center ${war.winner_crew_id === crewId ? 'bg-primary/10' : 'bg-secondary/60'}`}>
           <div className="flex items-center justify-center gap-2">
             {war.winner_crew_id === crewId ? (
               <>

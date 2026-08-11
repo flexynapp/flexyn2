@@ -77,7 +77,7 @@ export default function WorkoutSuggestionCard({ logs = [], cardioLogs = [] }) {
           // same width that reduced a quest title to "Train fo…".
           className="w-full text-start px-4 py-3 flex items-center gap-3 hover:bg-secondary/40 active:bg-secondary/60 transition-colors cq-stack"
         >
-          <div className="shrink-0 w-9 h-9 rounded-full bg-primary/12 text-primary flex items-center justify-center">
+          <div className="shrink-0 w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center">
             <FocusIcon className="w-4 h-4" aria-hidden="true" />
           </div>
           <div className="flex-1 min-w-0">

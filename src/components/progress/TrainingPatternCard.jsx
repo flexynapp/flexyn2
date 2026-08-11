@@ -29,7 +29,7 @@ export default function TrainingPatternCard({ workoutLogs = [] }) {
       transition={{ duration: 0.35, ease: 'easeOut' }}
       className="flex items-center gap-3 p-3 rounded-xl bg-secondary/40 border border-border/60"
     >
-      <div className="w-8 h-8 rounded-lg bg-primary/12 flex items-center justify-center shrink-0">
+      <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
         <Calendar className="w-4 h-4 text-primary" />
       </div>
       <div className="min-w-0">

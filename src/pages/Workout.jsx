@@ -1908,7 +1908,7 @@ export default function Workout() {
           <div className="flex flex-col items-center text-center gap-1.5">
             {/* Plain square, no orange fill (kegan, 2026-08-11).
                 Written out as `border-border` rather than by copying the
-                neighbours' `bg-primary/18 border-primary/28`, because those
+                neighbours' `bg-primary/20 border-primary/30`, because those
                 two classes EMIT NO CSS — /18 and /28 are not in this
                 project's Tailwind opacity scale, so eight tiles in this grid
                 have been silently transparent with a default border and this
@@ -1959,7 +1959,7 @@ export default function Workout() {
           onKeyDown={(e) => { if (e.key==='Enter'||e.key===' '){e.preventDefault();navigate('/bounties');} }}>
           <InfoBtn bid="bounties" />
           <div className="flex flex-col items-center text-center gap-1.5">
-            <div className="w-10 h-10 rounded-xl bg-primary/18 border border-primary/28 flex items-center justify-center shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-primary/20 border border-primary/30 flex items-center justify-center shrink-0">
               <Zap className="w-5 h-5 text-primary" />
             </div>
             <div>
@@ -1980,7 +1980,7 @@ export default function Workout() {
         <Card className={cardBase} style={{ background: pal.background }} onClick={() => setRegimensOpen(true)}>
           <InfoBtn bid="regimens" />
           <div className="flex flex-col items-center text-center gap-1.5">
-            <div className="w-10 h-10 rounded-xl bg-primary/18 border border-primary/28 flex items-center justify-center shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-primary/20 border border-primary/30 flex items-center justify-center shrink-0">
               <Dumbbell className="w-5 h-5 text-primary" />
             </div>
             <div>
@@ -1997,7 +1997,7 @@ export default function Workout() {
         <Card className={cardBase} style={{ background: pal.background }} onClick={() => setSavedWorkoutsOpen(true)}>
           <InfoBtn bid="saved" />
           <div className="flex flex-col items-center text-center gap-1.5">
-            <div className="w-10 h-10 rounded-xl bg-primary/18 border border-primary/28 flex items-center justify-center shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-primary/20 border border-primary/30 flex items-center justify-center shrink-0">
               <History className="w-5 h-5 text-primary" />
             </div>
             <div>
@@ -2014,7 +2014,7 @@ export default function Workout() {
         <Card className={cardBase} style={{ background: pal.background }} onClick={() => setCardioOpen(true)}>
           <InfoBtn bid="cardio" />
           <div className="flex flex-col items-center text-center gap-1.5">
-            <div className="w-10 h-10 rounded-xl bg-primary/18 border border-primary/28 flex items-center justify-center shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-primary/20 border border-primary/30 flex items-center justify-center shrink-0">
               <Activity className="w-5 h-5 text-primary" />
             </div>
             <div>
@@ -2031,7 +2031,7 @@ export default function Workout() {
         <Card className={cardBase} style={{ background: pal.background }} onClick={() => setGoalsModalOpen(true)}>
           <InfoBtn bid="goals" />
           <div className="flex flex-col items-center text-center gap-1.5">
-            <div className="w-10 h-10 rounded-xl bg-primary/18 border border-primary/28 flex items-center justify-center shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-primary/20 border border-primary/30 flex items-center justify-center shrink-0">
               <Target className="w-5 h-5 text-primary" />
             </div>
             <div>
@@ -2075,7 +2075,7 @@ export default function Workout() {
           onKeyDown={(e) => { if (e.key==='Enter'||e.key===' '){e.preventDefault();navigate('/gauntlet');} }}>
           <InfoBtn bid="gauntlet" />
           <div className="flex flex-col items-center text-center gap-1.5">
-            <div className="w-10 h-10 rounded-xl bg-primary/18 border border-primary/28 flex items-center justify-center shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-primary/20 border border-primary/30 flex items-center justify-center shrink-0">
               <Trophy className="w-5 h-5 text-primary" />
             </div>
             <div>
@@ -2103,7 +2103,7 @@ export default function Workout() {
           onKeyDown={(e) => { if (e.key==='Enter'||e.key===' '){e.preventDefault();navigate('/hub',{state:{openCrewWars:true}});} }}>
           <InfoBtn bid="crew" />
           <div className="flex flex-col items-center text-center gap-1.5">
-            <div className="w-10 h-10 rounded-xl bg-primary/22 border border-primary/35 flex items-center justify-center shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-primary/20 border border-primary/35 flex items-center justify-center shrink-0">
               <Shield className="w-5 h-5 text-primary" />
             </div>
             <div>
@@ -2380,7 +2380,7 @@ export default function Workout() {
           <div className="flex items-center gap-1.5">
             {activeDuel && (
               <button type="button" onClick={() => navigate('/duels')}
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-destructive/10 border border-destructive/25 text-destructive text-micro font-semibold hover:bg-destructive/18 active:bg-destructive/18 transition-colors">
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-destructive/10 border border-destructive/25 text-destructive text-micro font-semibold hover:bg-destructive/20 active:bg-destructive/20 transition-colors">
                 <Swords className="w-3 h-3" />
                 <span>Duel</span>
                 <span className="w-1.5 h-1.5 rounded-full bg-destructive animate-pulse ms-0.5" />
@@ -2388,7 +2388,7 @@ export default function Workout() {
             )}
             {activeBountyClaim && (
               <button type="button" onClick={() => navigate('/bounties')}
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-primary/10 border border-primary/25 text-primary text-micro font-semibold hover:bg-primary/18 active:bg-primary/18 transition-colors">
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-primary/10 border border-primary/25 text-primary text-micro font-semibold hover:bg-primary/20 active:bg-primary/20 transition-colors">
                 <Zap className="w-3 h-3" />
                 <span>Bounty</span>
                 <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse ms-0.5" />
@@ -2496,7 +2496,7 @@ export default function Workout() {
                             <span className="block text-micro font-bold tracking-[0.25em] uppercase text-primary/80 mb-2">{t('workout.startKicker')}</span>
                             <span className="font-heading font-black text-3xl md:text-4xl leading-none block tracking-tight min-h-[2em]">{t('workout.freestyle')}</span>
                             <span className="text-label text-white/50 mt-2.5 block max-w-[36ch] leading-relaxed min-h-[3.25em]">{t('workout.freestyleDesc')}</span>
-                            <span className="inline-flex items-center gap-1 mt-3 px-2.5 py-1 rounded-full bg-white/8 border border-white/10 text-micro font-semibold text-white/60 tracking-wide uppercase">
+                            <span className="inline-flex items-center gap-1 mt-3 px-2.5 py-1 rounded-full bg-white/10 border border-white/10 text-micro font-semibold text-white/60 tracking-wide uppercase">
                               <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />Ready to go
                             </span>
                           </div>
@@ -2626,8 +2626,8 @@ export default function Workout() {
                   onClick={startFromLastWorkout}
                   className={`group relative w-full mb-4 rounded-2xl border bg-gradient-to-r p-4 md:p-5 text-start transition-colors ${
                     isToday
-                      ? 'border-s-4 border-primary border-primary/40 from-primary/12 via-primary/6 to-transparent hover:border-primary/60'
-                      : 'border-primary/25 from-primary/8 via-primary/5 to-transparent hover:border-primary/45'
+                      ? 'border-s-4 border-primary border-primary/40 from-primary/10 via-primary/5 to-transparent hover:border-primary/60'
+                      : 'border-primary/25 from-primary/10 via-primary/5 to-transparent hover:border-primary/45'
                   }`}
                   aria-label={tFallback('workout.repeatLast', 'Repeat last workout')}
                 >

@@ -120,7 +120,7 @@ export default function CreateInviteLinkModal({ open, onOpenChange }) {
                         onClick={() => setDuelType(opt.id)}
                         className={`w-full text-start p-3 rounded-xl border-2 transition-colors ${
                           active
-                            ? 'border-rose-500 bg-rose-500/8'
+                            ? 'border-rose-500 bg-rose-500/10'
                             : 'border-border hover:border-border/80'
                         }`}
                       >

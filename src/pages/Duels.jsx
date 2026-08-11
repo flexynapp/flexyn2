@@ -223,11 +223,11 @@ export default function Duels() {
           stats. (Audit 15 #L1.) */}
       {(wins > 0 || losses > 0 || duels.some(d => d.status === 'completed' && !d.winner_id)) && (
         <div className="mx-4 mb-4 flex gap-3">
-          <div className="flex-1 rounded-xl bg-primary/8 border border-primary/20 p-3 text-center">
+          <div className="flex-1 rounded-xl bg-primary/10 border border-primary/20 p-3 text-center">
             <p className="text-2xl font-black text-primary">{wins}</p>
             <p className="text-xs text-muted-foreground">Wins</p>
           </div>
-          <div className="flex-1 rounded-xl bg-rose-500/8 border border-rose-500/20 p-3 text-center">
+          <div className="flex-1 rounded-xl bg-rose-500/10 border border-rose-500/20 p-3 text-center">
             <p className="text-2xl font-black text-rose-500">{losses}</p>
             <p className="text-xs text-muted-foreground">Losses</p>
           </div>

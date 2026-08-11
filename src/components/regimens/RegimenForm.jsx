@@ -331,7 +331,7 @@ export default function RegimenForm({ initial, onSubmit, onCancel, userProfile =
               initial={{ opacity: 0, y: -6 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -6 }}
-              className="mb-3 px-3 py-2 rounded-lg bg-primary/8 border border-primary/20 text-xs text-primary font-medium"
+              className="mb-3 px-3 py-2 rounded-lg bg-primary/10 border border-primary/20 text-xs text-primary font-medium"
             >
               Tap exercises to select them, then choose Superset or Circuit below.
             </motion.div>

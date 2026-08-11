@@ -110,7 +110,7 @@ export default function IosInstallBanner() {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -4, transition: { duration: 0.18 } }}
           transition={{ duration: 0.2 }}
-          className="relative overflow-hidden rounded-lg border border-info/30 bg-info/8 px-2.5 py-1.5 flex items-center gap-2"
+          className="relative overflow-hidden rounded-lg border border-info/30 bg-info/10 px-2.5 py-1.5 flex items-center gap-2"
           role="region"
           aria-label={tFallback('iosInstall.aria', 'Install Flexyn on your home screen')}
         >

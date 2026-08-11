@@ -92,25 +92,25 @@ function DiscoveryCard({
   const accents = {
     orange: {
       ring:   'ring-1 ring-primary/20',
-      bg:     'bg-primary/8',
+      bg:     'bg-primary/10',
       icon:   'bg-primary/15 text-primary',
       btn:    'bg-primary hover:bg-primary/90 active:bg-primary/80 text-white',
     },
     violet: {
       ring:   'ring-1 ring-primary/20',
-      bg:     'bg-primary/8',
+      bg:     'bg-primary/10',
       icon:   'bg-primary/15 text-primary',
       btn:    'bg-primary hover:bg-primary/90 active:bg-primary/80 text-white',
     },
     amber: {
       ring:   'ring-1 ring-primary/20',
-      bg:     'bg-primary/8',
+      bg:     'bg-primary/10',
       icon:   'bg-primary/15 text-primary',
       btn:    'bg-primary hover:bg-primary/90 active:bg-primary/80 text-white',
     },
     sky: {
       ring:   'ring-1 ring-info/20',
-      bg:     'bg-info/8',
+      bg:     'bg-info/10',
       icon:   'bg-info/15 text-info',
       btn:    'bg-info hover:bg-info/90 active:bg-info/90 text-white',
     },
@@ -120,7 +120,7 @@ function DiscoveryCard({
     // discovery-card → bag handoff feels visually continuous.
     purple: {
       ring:   'ring-1 ring-primary/25',
-      bg:     'bg-primary/12',
+      bg:     'bg-primary/10',
       icon:   'bg-primary/15 text-primary',
       btn:    'bg-primary hover:bg-primary/90 active:bg-primary/80 text-white',
     },

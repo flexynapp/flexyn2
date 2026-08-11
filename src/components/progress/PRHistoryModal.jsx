@@ -110,7 +110,7 @@ export default function PRHistoryModal({ open, onClose, exerciseName, logs }) {
         ) : (
           <div className="space-y-6">
             {/* All-time best banner */}
-            <div className="flex items-center gap-3 p-4 rounded-2xl bg-gradient-to-r from-primary/10 via-primary/8 to-transparent border border-primary/20">
+            <div className="flex items-center gap-3 p-4 rounded-2xl bg-gradient-to-r from-primary/10 via-primary/10 to-transparent border border-primary/20">
               <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
                 <Trophy className="w-5 h-5 text-primary" />
               </div>

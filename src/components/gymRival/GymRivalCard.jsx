@@ -92,7 +92,7 @@ export default function GymRivalCard({ currentUserId }) {
 
   if (isLoading) {
     return (
-      <div className="rounded-2xl border border-primary/20 bg-primary/3 p-4 mb-4 animate-pulse">
+      <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4 mb-4 animate-pulse">
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 rounded-full bg-secondary shrink-0" />
           <div className="flex-1 space-y-2"><div className="h-3 w-32 rounded bg-secondary" /><div className="h-2.5 w-20 rounded bg-secondary" /></div>
@@ -127,7 +127,7 @@ export default function GymRivalCard({ currentUserId }) {
     return (
       <>
         <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
-          className="rounded-2xl border border-dashed border-primary/20 bg-primary/3 p-5 mb-4 text-center">
+          className="rounded-2xl border border-dashed border-primary/20 bg-primary/5 p-5 mb-4 text-center">
           <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
             <Target className="w-5 h-5 text-primary" />
           </div>
@@ -213,7 +213,7 @@ export default function GymRivalCard({ currentUserId }) {
   return (
     <>
       <motion.button type="button" onClick={() => setMenuOpen(true)} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} whileTap={{ scale: 0.99 }}
-        className={`w-full rounded-2xl border p-4 mb-4 flex items-center gap-3 text-start transition-colors ${needsMyConfirm ? 'border-primary/50 bg-primary/8 hover:bg-primary/12' : 'border-primary/20 bg-primary/3 hover:bg-primary/5 active:bg-primary/5'}`}>
+        className={`w-full rounded-2xl border p-4 mb-4 flex items-center gap-3 text-start transition-colors ${needsMyConfirm ? 'border-primary/50 bg-primary/10 hover:bg-primary/10' : 'border-primary/20 bg-primary/5 hover:bg-primary/5 active:bg-primary/5'}`}>
         {profile?.avatar_url ? (
           <img loading="lazy" src={profile.avatar_url} className="w-12 h-12 rounded-full object-cover shrink-0 ring-2 ring-primary/30" alt={name} />
         ) : (

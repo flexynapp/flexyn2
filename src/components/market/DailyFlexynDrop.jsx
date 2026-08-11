@@ -113,7 +113,7 @@ export default function DailyFlexynDrop() {
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-      className="mb-4 rounded-2xl border border-primary/25 bg-gradient-to-br from-primary/8 via-orange-500/6 to-amber-500/5 p-3 md:p-4 relative overflow-hidden"
+      className="mb-4 rounded-2xl border border-primary/25 bg-gradient-to-br from-primary/10 via-orange-500/5 to-amber-500/5 p-3 md:p-4 relative overflow-hidden"
     >
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">

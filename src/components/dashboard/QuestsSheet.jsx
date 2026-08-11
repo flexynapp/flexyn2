@@ -29,10 +29,10 @@ import SheetShell from '@/components/sheets/SheetShell';
 // it is the only tier whose reward leaves the individual, which is the whole
 // reason someone should care that a row is marked crew rather than hard.
 const TIER_STYLE = {
-  easy:   'bg-success/12 text-success',
-  medium: 'bg-primary/12 text-primary',
-  hard:   'bg-destructive/12 text-destructive',
-  crew:   'bg-primary/12 text-primary',
+  easy:   'bg-success/10 text-success',
+  medium: 'bg-primary/10 text-primary',
+  hard:   'bg-destructive/10 text-destructive',
+  crew:   'bg-primary/10 text-primary',
 };
 
 export default function QuestsSheet({ open, onClose, quests: rows = [], onClaim, onGo }) {
