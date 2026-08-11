@@ -2230,8 +2230,16 @@ export default function Workout() {
   // The store is the exception and gets no header at all — RegimenStorePage
   // draws its own "Explore Regimens" title with a back arrow, and two titles
   // stacked on one screen name it twice.
-  const pageHeaderProps = cardioPageTitle
-    ? { kicker: 'CARDIO', title: cardioPageTitle, subtitle: null }
+  // Cardio keys off `cardioOpen`, not `cardioPageTitle`. That title arrives
+  // on a `flexyn-title` event CardioSection fires once you pick an activity,
+  // so on the picker itself it is still null and the header fell through to
+  // "Today's training / Workout" — the same defect as the regimen list, one
+  // screen over. With an activity chosen "CARDIO / Running" reads well; on
+  // the picker it would say "CARDIO / Cardio", so the kicker drops there.
+  const pageHeaderProps = cardioOpen
+    ? cardioPageTitle
+      ? { kicker: 'CARDIO', title: cardioPageTitle, subtitle: null }
+      : { kicker: null, title: t('cardio.title'), subtitle: t('cardio.subtitle') }
     : regimensOpen
       ? { kicker: null, title: t('workout.regimens'), subtitle: t('workout.regimensDesc') }
       : { kicker: t('pageHeader.kicker.workout'), title: t('nav.workout'), subtitle: t('workout.subtitle') };
