@@ -63,6 +63,12 @@ export const insightsTranslations = {
     'insights.tdee.bulk':           'Bulk (+10%)',
     'insights.tdee.cal':            '{n} cal',
     'insights.tdee.earlyEstimate':  'Early estimate — based on {n} days of training. It will sharpen as you log more.',
+    // Shown when `gender` is unset — 44 of 53 production profiles. Keep it
+    // a statement about the ESTIMATE, not about the person: the app does
+    // not know, and the copy should read as the app admitting that rather
+    // than as a prompt about their identity.
+    'insights.tdee.sexAssumed':
+      'Estimated between the male and female formulas. Add your gender in Settings to sharpen it.',
 
     // ── Projected goal ──────────────────────────────────────────────────
     'insights.goal.title':        'Projected Goal Date',

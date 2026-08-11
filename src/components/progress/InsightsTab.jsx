@@ -115,11 +115,32 @@ const TDEE_WINDOW_DAYS = 30;
  */
 const TDEE_MIN_WINDOW_DAYS = 7;
 
-/** Mifflin-St Jeor BMR */
+/**
+ * Mifflin-St Jeor BMR.
+ *
+ * The sex term is +5 for male and -161 for female — a 166 kcal spread on
+ * BMR, which the activity multiplier then scales to 200-315 kcal on the
+ * displayed TDEE. That number drives the Cut and Bulk figures below it,
+ * which someone may actually eat to.
+ *
+ * **Unset takes the MIDPOINT, not male.** `gender` is null on 44 of 53
+ * production profiles, so defaulting to male silently handed 83% of users
+ * a male estimate with nothing on screen saying so. This is not a new
+ * judgement: `_demographicScale()` in src/lib/aiCoach/workoutGenerator.js
+ * already decided the same question the same way — "'other' / unset" takes
+ * a middle value there, because over-prescribing "is the direction that
+ * hurts someone". This file was the one place contradicting it.
+ *
+ * -78 is the midpoint of +5 and -161. It is deliberately a number nobody's
+ * body matches: it is an admission that we do not know, and the caller
+ * pairs it with a note saying so rather than presenting it as measured.
+ */
+const BMR_SEX_TERM = { male: 5, female: -161, unknown: -78 };
+
 function calcBMR({ weightKg, heightCm, age, sex }) {
   if (!weightKg || !heightCm || !age) return null;
   const base = 10 * weightKg + 6.25 * heightCm - 5 * age;
-  return sex === 'female' ? base - 161 : base + 5;
+  return base + (BMR_SEX_TERM[sex] ?? BMR_SEX_TERM.unknown);
 }
 
 /** Activity multiplier based on workouts/week */
@@ -384,7 +405,10 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
       !age      && 'age',
     ].filter(Boolean);
 
-    const bmr = calcBMR({ weightKg, heightCm, age, sex: sex === 'female' ? 'female' : 'male' });
+    // Pass the value through rather than collapsing everything that is not
+    // 'female' into 'male'. calcBMR owns the unknown case.
+    const knownSex = sex === 'male' || sex === 'female';
+    const bmr = calcBMR({ weightKg, heightCm, age, sex });
     if (!bmr) return { hasData: false, missingFields };
 
     const now = new Date();
@@ -422,6 +446,11 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
       multiplier,
       windowDays,
       missingFields,
+      // Surfaced, not folded into missingFields — that list gates the
+      // "cannot compute" state, and an unknown sex still yields a usable
+      // estimate. This one narrows the estimate rather than blocking it,
+      // so it renders as a note beside the number.
+      sexAssumed: !knownSex,
     };
   }, [logs, cardioLogs, userProfile]);
 
@@ -731,6 +760,23 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
                     'insights.tdee.earlyEstimate',
                     'Early estimate — based on {n} days of training. It will sharpen as you log more.',
                     { n: fmtNum(tdee.windowDays) },
+                  )}
+                </p>
+              </div>
+            )}
+
+            {/* Says the estimate is assuming, in the same banner the
+                short-window case uses. Without it the card rendered a
+                confident figure built on a coin-flip for 83% of users —
+                and it is the number the Cut / Bulk targets below are
+                derived from. */}
+            {tdee.sexAssumed && (
+              <div className="flex items-start gap-2 p-2.5 rounded-lg bg-secondary/50 border border-border">
+                <Info className="w-3.5 h-3.5 text-muted-foreground mt-0.5 shrink-0" />
+                <p className="text-xs text-muted-foreground">
+                  {tFallback(
+                    'insights.tdee.sexAssumed',
+                    'Estimated between the male and female formulas. Add your gender in Settings to sharpen it.',
                   )}
                 </p>
               </div>
