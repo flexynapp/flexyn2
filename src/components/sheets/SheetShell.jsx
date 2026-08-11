@@ -24,8 +24,14 @@
 //   · A backdrop that closes on tap, and Escape — every dismissible
 //     surface in this app answers to both.
 //   · `useBodyScrollLock(open)`, or the page scrolls underneath the sheet.
-//   · A grab handle. The sheet is swipe-dismissible by habit on iOS and the
-//     handle is what says so before someone tries.
+//   · A grab handle that actually dismisses. It was drawn as an affordance
+//     with no drag behind it — this comment claimed the sheet was
+//     "swipe-dismissible by habit on iOS" while a swipe did nothing, which is
+//     the worst version: the control that says "pull me down" was the one
+//     control on the sheet that wasn't wired. Dragging starts on the handle
+//     ALONE, because the panel is also the scroller and a live drag listener
+//     on it makes framer write `touch-action: pan-x` over the content. See
+//     the comment at the drag props for the full mechanism.
 //   · `pb-[max(1rem,env(safe-area-inset-bottom))]` — the sheet escapes
 //     Layout.jsx, and anything that escapes Layout owns its own insets.
 //   · A close button with a RESTING fill, not a hover-only one. There is no
@@ -46,14 +52,35 @@
 // what "opens like Daily Quests" means.
 
 import React, { useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, useDragControls } from 'framer-motion';
 import { X } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
+// Matches BottomSheet and DuelDetailSheet, so every dismissible sheet in the
+// app answers to the same flick. Those two still carry their own copies of
+// these numbers; if a third place needs them, move this predicate up rather
+// than typing 300 and 80 again.
+const VELOCITY_THRESHOLD = 300;  // px/s
+const DISTANCE_THRESHOLD = 80;   // px
+
+/**
+ * Does this drag-end mean "close"? Exported so the thresholds can be tested
+ * as behaviour rather than restated as arithmetic in a test file.
+ *
+ * Both conditions read DOWNWARD only (y is positive downward), which is what
+ * keeps an upward flick from dismissing — `dragConstraints` pins the top at 0,
+ * so an upward drag has nowhere to go and must not be read as intent.
+ */
+export function shouldDismiss(info) {
+  return info.velocity.y >= VELOCITY_THRESHOLD || info.offset.y >= DISTANCE_THRESHOLD;
+}
+
 export default function SheetShell({ open, onClose, kicker, children, labelledBy }) {
   useBodyScrollLock(open);
   const { tFallback } = useLanguage();
+  // Above the early return — hooks cannot sit behind one.
+  const dragControls = useDragControls();
 
   useEffect(() => {
     if (!open) return undefined;
@@ -79,9 +106,31 @@ export default function SheetShell({ open, onClose, kicker, children, labelledBy
         initial={{ y: '100%' }}
         animate={{ y: 0 }}
         transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
+        drag="y"
+        // The handle drags; the panel does not. That is not a style choice —
+        // this element is ALSO the scroller (`overflow-y-auto` below), and
+        // framer writes `touch-action: pan-x` onto a `drag="y"` element whose
+        // listener is live (render/html/use-props.mjs). touch-action resolves
+        // down the ancestor chain, so a live listener here would forbid the
+        // very vertical pan the overflow exists for, and nothing past 88vh
+        // could be reached. Four sheets share this shell, so that is four
+        // features truncated at once — which is exactly what shipped in
+        // components/ui/BottomSheet.jsx before 256b1551.
+        dragListener={false}
+        dragControls={dragControls}
+        dragConstraints={{ top: 0, bottom: 0 }}
+        dragElastic={{ top: 0, bottom: 0.3 }}
+        onDragEnd={(_e, info) => { if (shouldDismiss(info)) onClose(); }}
         className="relative z-10 w-full max-w-md max-h-[88vh] overflow-y-auto rounded-t-2xl bg-card border-t border-border pb-[max(1rem,env(safe-area-inset-bottom))]"
       >
-        <div className="sticky top-0 z-10 bg-card pt-2.5 pb-1 flex justify-center">
+        {/* `touch-none` because this bar is the one element that claims the
+            vertical gesture; the panel keeps its own, so the content still
+            scrolls. Stays `sticky top-0`, so the affordance is still there
+            after you have scrolled down inside a long sheet. */}
+        <div
+          onPointerDown={(e) => dragControls.start(e)}
+          className="sticky top-0 z-10 bg-card pt-2.5 pb-1 flex justify-center cursor-grab active:cursor-grabbing touch-none select-none"
+        >
           <span className="w-10 h-1 rounded-full bg-foreground/20" aria-hidden="true" />
         </div>
 
