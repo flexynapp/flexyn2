@@ -2242,11 +2242,20 @@ export default function Workout() {
   // The idle screen is four different destinations behind one header, so the
   // header has to name the one you're actually on — it read "Today's training
   // / Workout" over the regimen list, which is neither today's training nor
-  // the Workout screen. "Today's training" also belongs only to the start
-  // screen: the regimen list is a library, not a day.
-  // The store is the exception and gets no header at all — RegimenStorePage
-  // draws its own "Explore Regimens" title with a back arrow, and two titles
-  // stacked on one screen name it twice.
+  // the Workout screen.
+  //
+  // No kicker anywhere on this page now (kegan, 2026-08-11). The start screen
+  // was the last one carrying "Today's training", and the title alone is
+  // enough — the eyebrow said nothing the screen below it did not. The one
+  // survivor is CARDIO, and only once an activity is chosen, where it
+  // qualifies a title that would otherwise just read "Running".
+  // `pageHeader.kicker.workout` is left in i18n-pageheader.js, translated and
+  // now unused; it is a generic key worth keeping over a 15-language delete.
+  //
+  // The store gets no header at all — RegimenStorePage draws its own
+  // "Explore Regimens" title with a back arrow, and two titles stacked on one
+  // screen name it twice.
+  //
   // Cardio keys off `cardioOpen`, not `cardioPageTitle`. That title arrives
   // on a `flexyn-title` event CardioSection fires once you pick an activity,
   // so on the picker itself it is still null and the header fell through to
@@ -2259,7 +2268,7 @@ export default function Workout() {
       : { kicker: null, title: t('cardio.title'), subtitle: t('cardio.subtitle') }
     : regimensOpen
       ? { kicker: null, title: t('workout.regimens'), subtitle: t('workout.regimensDesc') }
-      : { kicker: t('pageHeader.kicker.workout'), title: t('nav.workout'), subtitle: t('workout.subtitle') };
+      : { kicker: null, title: t('nav.workout'), subtitle: t('workout.subtitle') };
 
   if (!started) {
     return (
