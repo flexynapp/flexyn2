@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
-import { Plus, Trash2, GripVertical, Zap, RotateCcw, X, CheckCircle2 } from 'lucide-react';
+import { Plus, Trash2, Zap, RotateCcw, X, CheckCircle2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ExerciseAutocomplete from './ExerciseAutocomplete';
 import MuscleGroupSelector from './MuscleGroupSelector';
@@ -558,7 +558,19 @@ function ExerciseCard({
 }) {
   return (
     <div className="flex items-start gap-3">
-      {selecting ? (
+      {/* There was a GripVertical in this slot when not selecting, and it was
+          decorative — no drag was wired to it anywhere in this file. It is
+          gone rather than connected, which is the opposite call to the one
+          made for MyRoutineSheet's exercise list, and the reason is the
+          comment directly above this component: this card renders INSIDE
+          group containers as well as solo. A per-exercise handle on a member
+          of a superset would drag the whole group, or need reorder-within-
+          group, and neither is a mechanical fix — `renderItems` clusters by
+          `group_id`, so reordering has to decide whether groups move as units
+          and whether members can leave one by being dragged out. That is a
+          design decision, not a missing onPointerDown. An icon that promises
+          a gesture nobody implemented is worse than no icon. */}
+      {selecting && (
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); toggleSelect(i); }}
@@ -570,8 +582,6 @@ function ExerciseCard({
             }`}
           />
         </button>
-      ) : (
-        <GripVertical className="w-4 h-4 text-muted-foreground mt-3 shrink-0" />
       )}
       <div className="flex-1 space-y-3">
         {/* Exercise name autocomplete */}

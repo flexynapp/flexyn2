@@ -8,10 +8,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  X as XIcon, Plus, ArrowLeft, Trash2, Star, Dumbbell, Moon, GripVertical,
+  X as XIcon, Plus, ArrowLeft, Trash2, Star, Dumbbell, Moon,
 } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { useAuth } from '@/lib/AuthContext';
@@ -21,6 +21,30 @@ import {
   TEMPLATES, FOCUS_OPTIONS, DAY_NAMES_FULL, emptyWeek, todayIndex, MAX_ROUTINES,
 } from '@/lib/data/routines';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { ReorderableRow, DragHandle } from '@/components/dashboard/ReorderableRow';
+
+/**
+ * React keys for a list whose items carry no id.
+ *
+ * A routine day's exercises are `{ name, muscles }` — nothing unique and
+ * nothing persisted that could serve as a key, and the old `key={index}`
+ * cannot survive a reorder (React would reuse the DOM node for a different
+ * exercise and framer would animate the wrong row). Keying by name plus
+ * WHICH occurrence it is gives a key that is stable across a reorder for the
+ * ordinary case of distinct names, and merely swaps between two rows that
+ * render identically when a day genuinely lists the same lift twice.
+ *
+ * Exported for its test. Not a general utility — an id on the row would be
+ * better, but that means changing what gets persisted into routine JSON.
+ */
+export function exerciseRowKeys(list) {
+  const seen = new Map();
+  return list.map((ex) => {
+    const nth = (seen.get(ex.name) || 0) + 1;
+    seen.set(ex.name, nth);
+    return `${ex.name}#${nth}`;
+  });
+}
 
 export default function MyRoutineSheet({ open, onClose }) {
   // Pin the page behind this overlay — see @/lib/scrollLock.
@@ -106,6 +130,14 @@ export default function MyRoutineSheet({ open, onClose }) {
       ...d,
       days: d.days.map((day, i) => (i === idx ? { ...day, exercises: day.exercises.filter((_, j) => j !== exIdx) } : day)),
     }));
+  };
+  // The grip beside each exercise was decorative — drawn since this sheet
+  // shipped, wired to nothing. Order matters in a training day (you squat
+  // before the accessory work), so it is worth connecting rather than
+  // deleting. framer hands back the reordered array directly because the
+  // Reorder values ARE the exercise objects.
+  const reorderExercises = (idx, next) => {
+    setDraft(d => ({ ...d, days: d.days.map((day, i) => (i === idx ? { ...day, exercises: next } : day)) }));
   };
 
   if (!open) return null;
@@ -277,18 +309,44 @@ export default function MyRoutineSheet({ open, onClose }) {
                             </div>
                             {/* Exercises */}
                             {day.exercises.length > 0 && (
-                              <div className="space-y-1.5">
-                                {day.exercises.map((ex, exIdx) => (
-                                  <div key={exIdx} className="flex items-center gap-2 rounded-xl bg-secondary/40 px-3 py-2">
-                                    <GripVertical className="w-3.5 h-3.5 text-muted-foreground/40 shrink-0" />
-                                    <Dumbbell className="w-3.5 h-3.5 text-primary shrink-0" />
-                                    <span className="flex-1 text-sm truncate">{ex.name}</span>
-                                    <button onClick={() => removeExercise(idx, exIdx)} aria-label="Remove" className="p-1 text-muted-foreground hover:text-destructive active:text-destructive">
-                                      <XIcon className="w-3.5 h-3.5" />
-                                    </button>
-                                  </div>
-                                ))}
-                              </div>
+                              <Reorder.Group
+                                axis="y"
+                                as="div"
+                                values={day.exercises}
+                                onReorder={(next) => reorderExercises(idx, next)}
+                                className="space-y-1.5"
+                              >
+                                {/* Values are the exercise OBJECTS, so framer
+                                    matches by reference and two sets of the
+                                    same lift cannot be confused. React still
+                                    needs a string key, and these rows carry
+                                    no id — `name#nth` is stable for the
+                                    normal case of distinct names. */}
+                                {exerciseRowKeys(day.exercises).map((rowKey, exIdx) => {
+                                  const ex = day.exercises[exIdx];
+                                  return (
+                                    <ReorderableRow
+                                      key={rowKey}
+                                      value={ex}
+                                      layout="position"
+                                      className="flex items-center gap-2 rounded-xl bg-secondary/40 px-3 py-2"
+                                    >
+                                      {(dragControls) => (<>
+                                        <DragHandle
+                                          dragControls={dragControls}
+                                          label={`Drag to reorder ${ex.name}`}
+                                          className="text-muted-foreground/60"
+                                        />
+                                        <Dumbbell className="w-3.5 h-3.5 text-primary shrink-0" />
+                                        <span className="flex-1 text-sm truncate">{ex.name}</span>
+                                        <button onClick={() => removeExercise(idx, exIdx)} aria-label="Remove" className="p-1 text-muted-foreground hover:text-destructive active:text-destructive">
+                                          <XIcon className="w-3.5 h-3.5" />
+                                        </button>
+                                      </>)}
+                                    </ReorderableRow>
+                                  );
+                                })}
+                              </Reorder.Group>
                             )}
                             {/* Add-exercise autocomplete */}
                             <ExerciseAutocomplete
