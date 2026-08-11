@@ -23,6 +23,32 @@ export const cardioI18n = {
     // instead of hiding them in JSX where no coverage tool can see them.
     'cardio.modes.swimming': 'Swimming',
     'cardio.modes.swimming.desc': 'Pool or open water',
+
+    // The other three tile descriptions, and a translation REGRESSION
+    // taken deliberately — read this before "fixing" it back.
+    //
+    // Running, Walking and Biking all passed t('cardio.subtitle') —
+    // "Track running, walking, and cycling" — so three of the four tiles
+    // in the 2x2 grid carried one identical line, which was also the page
+    // subtitle directly above them. Under "Running", a line listing
+    // walking and cycling is worse than no line.
+    //
+    // `cardio.subtitle` IS translated in all 15 languages and these are
+    // not, so a non-English user trades a translated-but-wrong line for
+    // an English-but-right one. That is the trade CLAUDE.md's i18n rule
+    // calls for — English-only with a TODO beats machine-translating
+    // prose — and the swimming tile beside them has shipped exactly this
+    // way since the Aug 2026 audit.
+    //
+    // Framing is what each activity actually LOGS, because environment
+    // cannot separate these: running and walking offer the same two
+    // (outside / treadmill), so an environment line would just be a new
+    // pair of duplicates. Checked against CardioManualForm's field gates
+    // — elevation is outside-and-not-biking, power is biking-only,
+    // splits come off a GPS track.
+    'cardio.modes.running.desc': 'Pace, splits, and elevation',
+    'cardio.modes.walking.desc': 'Distance, pace, and elevation',
+    'cardio.modes.biking.desc': 'Speed, power, and distance',
     'cardio.swim.whereQuestion': 'Where are you swimming?',
     'cardio.swim.pool': 'Pool',
     'cardio.swim.pool.desc': 'Lap pool, 25 m or 50 m',

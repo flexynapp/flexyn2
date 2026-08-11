@@ -244,24 +244,30 @@ export default function CardioSection({ onBack }) {
               </motion.div>
             )}
 
-            {/* Activity types — 2×2 grid */}
+            {/* Activity types — 2×2 grid.
+                Each description names what THAT activity logs. All three
+                of these used to pass t('cardio.subtitle'), so Running,
+                Walking and Biking carried one identical line — the same
+                line as the page subtitle a few hundred points above. See
+                the note beside these keys in i18n-cardio.js for why they
+                are English-only. */}
             <div className="grid grid-cols-2 gap-3">
               <NavTile
                 icon={Footprints}
                 title={t('cardio.modes.running')}
-                description={t('cardio.subtitle')}
+                description={tFallback('cardio.modes.running.desc', 'Pace, splits, and elevation')}
                 onClick={() => setView({ name: 'mode', mode: 'running' })}
               />
               <NavTile
                 icon={PersonStanding}
                 title={t('cardio.modes.walking')}
-                description={t('cardio.subtitle')}
+                description={tFallback('cardio.modes.walking.desc', 'Distance, pace, and elevation')}
                 onClick={() => setView({ name: 'mode', mode: 'walking' })}
               />
               <NavTile
                 icon={Bike}
                 title={t('cardio.modes.biking')}
-                description={t('cardio.subtitle')}
+                description={tFallback('cardio.modes.biking.desc', 'Speed, power, and distance')}
                 onClick={() => setView({ name: 'mode', mode: 'biking' })}
               />
               <NavTile
