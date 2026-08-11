@@ -14,6 +14,7 @@ import { Dumbbell, TrendingUp, Play, ArrowRight, Zap, Activity, Target, Apple, C
 import { Card } from '@/components/ui/card';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import { ReorderableRow, DragHandle } from '@/components/dashboard/ReorderableRow';
+import { buildDashboardRows, reorderFrozen, flattenRows } from '@/lib/dashboardRows';
 import GoalsModal from '@/components/goals/GoalsModal';
 import GoalsAlmostComplete from '@/components/goals/GoalsAlmostComplete';
 import GoalsProgressStrip from '@/components/dashboard/GoalsProgressStrip';
@@ -899,28 +900,25 @@ export default function Dashboard() {
   // hotdog/hamburger pairing logic sees them as if they were never
   // in the order. Otherwise a hidden half-width section between two
   // visible halves would split the pair across rows.
-  const dashboardRows = useMemo(() => {
-    const result = [];
-    // 'readiness' is excluded entirely — it now renders inside the hero
-    // (beside the CTA), so it must not occupy a section row (which would
-    // leave an empty gap for any saved widgetOrder that still lists it).
-    const visibleOrder = widgetOrder.filter(id => !hiddenSections.has(id) && id !== 'readiness');
-    let i = 0;
-    while (i < visibleOrder.length) {
-      const id = visibleOrder[i];
-      const layout = sectionLayouts[id] || 'full';
-      const nextId = visibleOrder[i + 1];
-      const nextLayout = nextId ? (sectionLayouts[nextId] || 'full') : null;
-      if (layout === 'half' && nextLayout === 'half') {
-        result.push({ rowKey: `${id}+${nextId}`, sections: [id, nextId] });
-        i += 2;
-      } else {
-        result.push({ rowKey: id, sections: [id] });
-        i++;
-      }
-    }
-    return result;
-  }, [widgetOrder, sectionLayouts, hiddenSections]);
+  // 'readiness' is excluded entirely — it now renders inside the hero
+  // (beside the CTA), so it must not occupy a section row (which would
+  // leave an empty gap for any saved widgetOrder that still lists it).
+  const isRowSection = (id) => !hiddenSections.has(id) && id !== 'readiness';
+  const dashboardRows = useMemo(
+    () => buildDashboardRows(widgetOrder.filter(isRowSection), sectionLayouts),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [widgetOrder, sectionLayouts, hiddenSections],
+  );
+
+  // Rows held still for the length of a drag. Pairing depends on ADJACENCY,
+  // so recomputing it mid-gesture creates and destroys rows under framer —
+  // the pair you drag past splits and re-merges, the list goes 4 → 5 → 4
+  // items, and layout projection is left animating across two different
+  // lists. If the row being dragged is the one that merges, its key changes
+  // and the element is unmounted under the pointer. Both were visible as
+  // rows flying off and the held card glitching. See lib/dashboardRows.js.
+  const [dragRows, setDragRows] = useState(null);
+  const rows = dragRows ?? dashboardRows;
 
   // Reset the customize state — clears widgetOrder + sectionLayouts
   // back to factory defaults. Used by the "Reset" button in edit mode
@@ -981,9 +979,13 @@ export default function Dashboard() {
   // The state update is still synchronous so the UI tracks the
   // pointer immediately — only the persistence is throttled.
   const reorderWriteTimerRef = useRef(null);
-  const handleWidgetReorder = (newRowKeys) => {
-    const rowMap = Object.fromEntries(dashboardRows.map(r => [r.rowKey, r.sections]));
-    const newOrder = newRowKeys.flatMap(k => rowMap[k] || []);
+  const commitRowOrder = (nextRows) => {
+    // Sections this row list never represented — hidden ones and 'readiness'.
+    // They used to be dropped here, so hiding a section and then dragging
+    // anything erased its saved slot until the next load put it back from the
+    // defaults. Carrying them keeps the saved order whole.
+    const carried = widgetOrder.filter(id => !isRowSection(id));
+    const newOrder = flattenRows(nextRows, carried);
     setWidgetOrder(newOrder);
     if (reorderWriteTimerRef.current) clearTimeout(reorderWriteTimerRef.current);
     reorderWriteTimerRef.current = setTimeout(() => {
@@ -993,6 +995,43 @@ export default function Dashboard() {
       reorderWriteTimerRef.current = null;
     }, 200);
   };
+
+  const handleWidgetReorder = (newRowKeys) => {
+    const next = reorderFrozen(rows, newRowKeys);
+    // Mid-drag the frozen units move and nothing re-pairs, so framer sees a
+    // list that only ever changes ORDER. The section order is committed on
+    // drop instead of on every crossing — re-pairing while the pointer is
+    // down is the whole defect.
+    if (dragRows) setDragRows(next);
+    else commitRowOrder(next);
+  };
+
+  // Snapshot at pointer-down; release on drop. `seamRowKey` pins the single
+  // 32px break to the row that owns it at drag start: it is normally derived
+  // from "the row after the actions row", which means it would hop to a
+  // different row on every crossing and shove everything below it by 32px.
+  const [seamRowKey, setSeamRowKey] = useState(null);
+  const beginRowDrag = () => {
+    const seamIdx = dashboardRows.findIndex(
+      (r, i) => i > 0 && dashboardRows[i - 1].sections.includes('actions'),
+    );
+    setSeamRowKey(seamIdx >= 0 ? dashboardRows[seamIdx].rowKey : null);
+    setDragRows(dashboardRows);
+  };
+  const endRowDrag = () => {
+    setDragRows(current => {
+      if (current) commitRowOrder(current);
+      return null;
+    });
+    setSeamRowKey(null);
+  };
+  // Leaving edit mode unmounts the handles, so a drag in flight never gets
+  // its onDragEnd. Without this the frozen list would outlive the gesture and
+  // the dashboard would stop reflecting hides, layout toggles and arriving
+  // data until remount.
+  useEffect(() => {
+    if (!editMode) { setDragRows(null); setSeamRowKey(null); }
+  }, [editMode]);
   // Flush any pending reorder write on unmount so a quick drag +
   // navigate away doesn't lose the final ordering.
   useEffect(() => () => {
@@ -1928,8 +1967,8 @@ export default function Dashboard() {
               Edit mode: long-press the drag handle to move a row, tap
               the layout icon to switch between hamburger and hotdog.
               Hotdog pairs travel together when reordered. ═══ */}
-      <Reorder.Group axis="y" values={dashboardRows.map(r => r.rowKey)} onReorder={handleWidgetReorder} as="div">
-        {dashboardRows.map((row, rowIndex) => {
+      <Reorder.Group axis="y" values={rows.map(r => r.rowKey)} onReorder={handleWidgetReorder} as="div">
+        {rows.map((row, rowIndex) => {
           // Two spacing registers only: 8px inside a group, 24px between
           // sections (CLAUDE.md bans 12–20px, which is exactly what the old
           // mb-3 was). Exactly ONE 32px break on the page, and it sits
@@ -1937,8 +1976,13 @@ export default function Dashboard() {
           // "do something now" and "here's how it's going". Computed from
           // the live order so dragging the grid somewhere else moves the
           // break with it instead of stranding it mid-page.
-          const prevRow = rowIndex > 0 ? dashboardRows[rowIndex - 1] : null;
-          const afterActions = !!prevRow && prevRow.sections.includes('actions');
+          // Pinned to one row for the length of a drag, or the seam hops to
+          // whichever row currently follows 'actions' and shifts everything
+          // below it by 32px on every crossing.
+          const prevRow = rowIndex > 0 ? rows[rowIndex - 1] : null;
+          const afterActions = dragRows
+            ? row.rowKey === seamRowKey
+            : (!!prevRow && prevRow.sections.includes('actions'));
           return (
           <ReorderableRow
             key={row.rowKey}
@@ -1961,7 +2005,15 @@ export default function Dashboard() {
             // Editing keeps it, because that is when rows genuinely reorder and
             // the animation is the whole point. Nothing reorders outside edit
             // mode — the drag handle only renders there either.
-            layout={editMode}
+            //
+            // 'position' rather than `true`: rows differ a lot in height, and
+            // animating SIZE as well as position is what squashes the card
+            // being held. Nothing legitimately resizes during a reorder now
+            // that pairing is frozen for the gesture, so there is no size
+            // change worth animating. Nutrition already made this choice.
+            layout={editMode ? 'position' : false}
+            onDragStart={beginRowDrag}
+            onDragEnd={endRowDrag}
             className={`relative ${afterActions ? 'mt-8' : ''}${editMode ? ' select-none' : ''}`}
           >
             {(dragControls) => (<>
