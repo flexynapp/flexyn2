@@ -30,7 +30,7 @@ import { useDistanceUnit } from '@/lib/DistanceUnitContext';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { formatDistance, formatDuration, formatPace } from '@/lib/distanceUnit';
 import { fromLbs } from '@/lib/weightUnit';
-import { useNumberFormatter } from '@/lib/intl';
+import { useNumberFormatter, useDateFormatter } from '@/lib/intl';
 import { db } from '@/api/db';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { workoutDurationMin } from '@/lib/workoutDuration';
@@ -357,6 +357,11 @@ function GoalBlock({ snap }) {
 // ─── Achievement unlock ───
 function AchievementBlock({ snap }) {
   const { t } = useLanguage();
+  // date-fns `format()` binds no locale, so this line read "Aug 11, 2026"
+  // under a fully-translated screen — the exact defect CLAUDE.md's i18n
+  // section calls out. `useDateFormatter` is Intl-backed and already
+  // language-bound.
+  const fmtDate = useDateFormatter();
   return (
     <div className="flex items-start gap-3">
       <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary via-primary to-destructive flex items-center justify-center shrink-0 shadow-md shadow-primary/30">
@@ -375,7 +380,7 @@ function AchievementBlock({ snap }) {
           )}
           {snap.unlocked_date && (
             <span className="text-xs text-muted-foreground">
-              {format(parseISO(snap.unlocked_date), 'MMM d, yyyy')}
+              {fmtDate(snap.unlocked_date, { dateStyle: 'medium' })}
             </span>
           )}
         </div>

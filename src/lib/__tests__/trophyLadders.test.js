@@ -20,6 +20,7 @@ import {
   nextRung,
   rungsFor,
   rungProgress,
+  rungSignal,
   toRoman,
 } from '@/lib/trophyDefinitions';
 
@@ -74,12 +75,30 @@ describe('catalog integrity', () => {
     }
   });
 
-  it('rungs on a ladder have strictly increasing thresholds', () => {
+  // This used to assert increasing thresholds across the WHOLE ladder,
+  // which silently assumed every rung is measured by the same signal.
+  // `gauntlet` breaks that assumption — see the rungSignal block below —
+  // so the invariant is now stated per signal group, plus a separate
+  // "tier never steps down" check that is what the old test was really
+  // reaching for.
+  it('rungs on a ladder never step DOWN in tier', () => {
     for (const id of Object.keys(LADDERS)) {
-      const thresholds = rungsFor(id).map(r => r.threshold);
-      const sorted = [...thresholds].sort((a, b) => a - b);
-      expect(thresholds, id).toEqual(sorted);
-      expect(new Set(thresholds).size, `${id} has duplicate thresholds`).toBe(thresholds.length);
+      const orders = rungsFor(id).map(r => TROPHY_TIERS[r.tier].order);
+      const sorted = [...orders].sort((a, b) => a - b);
+      expect(orders, id).toEqual(sorted);
+    }
+  });
+
+  it('thresholds strictly increase among rungs measured by the SAME signal', () => {
+    for (const id of Object.keys(LADDERS)) {
+      const groups = {};
+      for (const r of rungsFor(id)) (groups[rungSignal(r)] ||= []).push(r.threshold);
+      for (const [sig, thresholds] of Object.entries(groups)) {
+        const sorted = [...thresholds].sort((a, b) => a - b);
+        expect(thresholds, `${id}/${sig}`).toEqual(sorted);
+        expect(new Set(thresholds).size, `${id}/${sig} has duplicate thresholds`)
+          .toBe(thresholds.length);
+      }
     }
   });
 
@@ -316,5 +335,69 @@ describe('toRoman', () => {
     expect(toRoman(9)).toBe('IX');
     expect(toRoman(14)).toBe('XIV');
     expect(toRoman(51)).toBe('LI');
+  });
+});
+
+// ── Per-rung signals (audit 2026-08-11) ───────────────────────────────
+//
+// A ladder normally measures every rung against ONE signal, so a bigger
+// threshold is always a harder rung. `gauntlet` is the exception:
+// `gauntlet_5` counts challenges cleared (`gauntletDone`) while
+// `gauntlet_path` is a yes/no on finishing the whole path
+// (`gauntletPath`). The trophy declared `signal: 'gauntletPath'` for
+// exactly this reason and NOTHING read it — the only `.signal` lookup in
+// the app was `LADDERS[ladderId].signal`. Two consequences, both live:
+//
+//   1. Sorting the two rungs on one number put the GOLD rung first, so a
+//      brand-new user's gauntlet ladder offered "Gauntlet Cleared" as
+//      the next thing to go and do, ahead of the bronze rung.
+//   2. The moment `gauntletDone` hit 1, nextRung stepped past
+//      gauntlet_path forever — the gold trophy could never again show as
+//      in-progress, because it was being tested against the wrong number.
+//
+// These are REGRESSION tests for the fix, not characterization tests.
+describe('per-rung signals', () => {
+  it('resolves a rung to its own signal, falling back to the ladder’s', () => {
+    expect(rungSignal(getTrophy('gauntlet_path'))).toBe('gauntletPath');
+    expect(rungSignal(getTrophy('gauntlet_5'))).toBe('gauntletDone');
+    expect(rungSignal(getTrophy('first_rep'))).toBe('workouts');
+  });
+
+  it('offers the BRONZE gauntlet rung to a brand-new user, not the gold one', () => {
+    const rung = nextRung('gauntlet', 0, { gauntletDone: 0, gauntletPath: 0 });
+    expect(rung.id).toBe('gauntlet_5');
+    expect(rung.tier).toBe('bronze');
+  });
+
+  it('still offers the gold path rung after the bronze one is cleared', () => {
+    // 5 challenges done, path not finished. Before the fix this returned
+    // null-equivalent behaviour: gauntlet_path had already been skipped.
+    const rung = nextRung('gauntlet', 5, { gauntletDone: 5, gauntletPath: 0 });
+    expect(rung.id).toBe('gauntlet_path');
+  });
+
+  it('ends the gauntlet ladder only when the path itself is done', () => {
+    expect(nextRung('gauntlet', 5, { gauntletDone: 5, gauntletPath: 1 })).toBeNull();
+  });
+
+  it('is a no-op for every ladder whose rungs share one signal', () => {
+    // The safety argument for changing the sort: 30 of 31 ladders have a
+    // single signal, so tier-order and threshold-order coincide and the
+    // rung sequence is byte-identical to what it was before.
+    const multi = Object.keys(LADDERS)
+      .filter(id => new Set(rungsFor(id).map(rungSignal)).size > 1);
+    expect(multi).toEqual(['gauntlet']);
+
+    for (const id of Object.keys(LADDERS)) {
+      if (id === 'gauntlet') continue;
+      const byThreshold = [...rungsFor(id)].sort((a, b) => a.threshold - b.threshold);
+      expect(rungsFor(id).map(r => r.id), id).toEqual(byThreshold.map(r => r.id));
+    }
+  });
+
+  it('ignores the progress map for rungs that do not declare a signal', () => {
+    // A caller passing progress must not change any other ladder.
+    expect(nextRung('sessions', 12, { workouts: 999 }).id).toBe('committed');
+    expect(nextRung('sessions', 12).id).toBe('committed');
   });
 });

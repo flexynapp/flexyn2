@@ -507,22 +507,56 @@ const RUNGS_BY_LADDER = TROPHIES.reduce((acc, t) => {
   (acc[t.ladder] ||= []).push(t);
   return acc;
 }, {});
-Object.values(RUNGS_BY_LADDER).forEach(list => list.sort((a, b) => a.threshold - b.threshold));
+// Order by TIER first, then threshold.
+//
+// Threshold alone was the order until 2026-08-11, and on 30 of the 31
+// ladders the two agree exactly — every rung is measured by the same
+// signal, so a bigger number is always a harder rung. `gauntlet` is the
+// exception and it inverted: `gauntlet_path` ("complete the whole
+// path", GOLD) carries threshold 1 because it is measured against
+// `gauntletPath`, while `gauntlet_5` ("clear 5 challenges", BRONZE)
+// carries 5 against `gauntletDone`. Sorting two different signals on
+// one number ranked the gold rung below the bronze one, so a brand-new
+// user was offered "Gauntlet Cleared" as the next thing to go and do.
+//
+// Tier is the property that actually means "how hard is this", so it
+// leads. Thresholds still break ties, which is what keeps the other 30
+// ladders byte-identical to the old order.
+export function rungSignal(trophy) {
+  return trophy?.signal || LADDERS[trophy?.ladder]?.signal || null;
+}
 
-/** Every named rung on a ladder, lowest threshold first. */
+Object.values(RUNGS_BY_LADDER).forEach(list => list.sort((a, b) => {
+  const d = (TROPHY_TIERS[a.tier]?.order || 0) - (TROPHY_TIERS[b.tier]?.order || 0);
+  return d !== 0 ? d : a.threshold - b.threshold;
+}));
+
+/** Every named rung on a ladder, easiest tier first. */
 export function rungsFor(ladderId) {
   return RUNGS_BY_LADDER[ladderId] || [];
 }
 
 /**
- * The next rung on `ladderId` for someone whose signal reads `value`.
- * Falls through the named rungs, then into the generated tail.
+ * The next rung on `ladderId` for someone whose ladder signal reads
+ * `value`. Falls through the named rungs, then into the generated tail.
+ *
+ * `progress` is the full signal map from get_trophy_progress(). It is
+ * optional only so existing single-signal callers keep working: a rung
+ * carrying its own `signal` (today just `gauntlet_path`) is measured
+ * against THAT key, because the ladder's signal answers a different
+ * question and would report the rung as cleared on the wrong evidence.
  */
-export function nextRung(ladderId, value = 0) {
+export function nextRung(ladderId, value = 0, progress = null) {
   const ladder = LADDERS[ladderId];
   if (!ladder) return null;
 
-  const named = rungsFor(ladderId).find(r => value < r.threshold);
+  const valueFor = (rung) => {
+    const own = rung.signal;
+    if (!own || !progress) return value;
+    return Number(progress[own]) || 0;
+  };
+
+  const named = rungsFor(ladderId).find(r => valueFor(r) < r.threshold);
   if (named) return named;
 
   // Past every named rung — walk into the tail.

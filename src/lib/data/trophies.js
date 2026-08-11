@@ -63,6 +63,37 @@ export async function getProgress() {
   }
 }
 
+/**
+ * Earned trophies in the shape the Hub composer's share picker speaks —
+ * `{ id, achievement_id, name, description, icon, unlocked_date }`.
+ *
+ * This exists because the composer was still reading the RETIRED
+ * `public.achievements` table through `@/lib/data/achievements`, and then
+ * filtering it with `.filter(a => a.unlocked)`. That table holds one row
+ * in all of production and has no `unlocked` column at all, so the
+ * predicate was `undefined` on every row it could ever see and the
+ * picker's Achievements section was empty for 100% of users, forever.
+ * Nothing threw — the section simply never rendered, which is
+ * indistinguishable from "this user has earned nothing".
+ */
+export async function listEarnedForShare(userId) {
+  const rows = await listEarned(userId);
+  return rows
+    .map((row) => {
+      const trophy = getTrophy(row.trophy_id);
+      if (!trophy) return null;
+      return {
+        id:             row.trophy_id,
+        achievement_id: row.trophy_id,
+        name:           trophy.name,
+        description:    trophy.description,
+        icon:           trophy.emoji,
+        unlocked_date:  row.earned_at || null,
+      };
+    })
+    .filter(Boolean);
+}
+
 export async function grantEligible() {
   try {
     const { data, error } = await supabase.rpc('grant_eligible_trophies');

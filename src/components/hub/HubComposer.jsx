@@ -39,7 +39,7 @@ import * as workouts from '@/lib/data/workouts';
 import * as cardio from '@/lib/data/cardio';
 import * as nutrition from '@/lib/data/nutrition';
 import * as goals from '@/lib/data/goals';
-import * as achievements from '@/lib/data/achievements';
+import { listEarnedForShare } from '@/lib/data/trophies';
 import * as regimens from '@/lib/data/regimens';
 import { loadProgressPhotos } from '@/components/progress/ProgressPhotoCapture';
 import { db } from '@/api/db';
@@ -407,13 +407,12 @@ export default function HubComposer({ onClose }) {
     enabled: !!user?.email,
   });
   const { data: unlockedAchievements = [] } = useQuery({
-    queryKey: ['composer.achievements', user?.email],
-    queryFn: async () => {
-      // achievements.list() already applies filterAfterReset internally
-      const all = await achievements.list(user.email);
-      return all.filter(a => a.unlocked).slice(0, 10);
-    },
-    enabled: !!user?.email,
+    // Keyed on user.id, not email: user_trophies is keyed by uid and the
+    // old email key would have gone on serving the retired table's
+    // cached empty array.
+    queryKey: ['composer.achievements', user?.id],
+    queryFn: async () => (await listEarnedForShare(user.id)).slice(0, 10),
+    enabled: !!user?.id,
   });
   const { data: myRegimens = [] } = useQuery({
     queryKey: ['composer.regimens', user?.email],

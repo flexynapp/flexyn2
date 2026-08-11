@@ -343,6 +343,15 @@ export const progressTranslations = {
     // network/API message, not copy we own. Translating the frame is still
     // worth it: the sentence around it stops being English too.
     'achievements.shareFailed':       "Couldn't share: {reason}",
+    // The Share control on an earned badge, and the achievements sheet's
+    // own chrome. All four were bare English literals in a component
+    // whose every other string was translated — the button read "Share"
+    // and its aria-label built an English sentence around the badge name
+    // in all 15 languages.
+    'achievements.share.label':       'Share',
+    'achievements.share.aria':        'Share {name} to Hub',
+    'achievements.vault.back':        'Back',
+    'achievements.vault.title':       'Achievements',
     'progress.nextUp':                'Next up',
     'progress.locked':                'Locked',
     'progress.noneCompletedTitle':    'No badges yet',

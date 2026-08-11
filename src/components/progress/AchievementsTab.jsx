@@ -92,11 +92,32 @@ function Medallion({ trophy, earned, size = 44 }) {
  * One ladder. Shows every earned rung as a medallion row, then the ONE
  * rung currently in play with its progress bar.
  */
-function LadderRow({ ladderId, earnedIds, signal, fmtNum, fmtList, tFallback }) {
+function LadderRow({ ladderId, earnedIds, signal, progress, fmtNum, fmtList, tFallback }) {
   const ladder = LADDERS[ladderId];
   const rungs = rungsFor(ladderId);
   const earned = rungs.filter((r) => earnedIds.has(r.id));
-  const live = nextRung(ladderId, signal);
+  const allEarned = rungs.length > 0 && earned.length >= rungs.length;
+  // "No next rung" and "finished" are NOT the same thing, and conflating
+  // them shipped a self-contradiction. On the five ladders that
+  // deliberately dead-end (crew, cardio, cross, level, gauntlet) a user
+  // whose signal already clears the top threshold has no next rung while
+  // still holding none of the badges — the server grants on the next
+  // checkpoint, and the two queries behind this page have separate
+  // staleTimes, so they legitimately disagree for a window. That
+  // rendered "✓ Ladder complete." beside a "0 / 1" counter. Verified
+  // against production: one live user is in a crew with no crew_squad.
+  //
+  // So when there is no next rung but the top one is unearned, keep
+  // showing that top rung. Its bar reads a clamped "1 / 1", which is the
+  // honest state: you have met the bar and the badge is pending.
+  const live = nextRung(ladderId, signal, progress)
+    || (allEarned ? null : rungs[rungs.length - 1] || null);
+  // A rung may be measured by its OWN signal rather than its ladder's —
+  // see rungSignal(). Reading the ladder's number for such a rung draws
+  // a bar out of an unrelated statistic.
+  const liveValue = live && live.signal
+    ? Number(progress?.[live.signal]) || 0
+    : signal;
   const isTail = !!live?.isTail;
   // A ladder with no live rung has genuinely ended (the deliberate dead
   // ends). Say so, rather than rendering an empty progress bar.
@@ -107,7 +128,7 @@ function LadderRow({ ladderId, earnedIds, signal, fmtNum, fmtList, tFallback }) 
   const gated = !!live && !isUnlocked(live, earnedIds);
   const gate = gated ? requirementsFor(live, earnedIds).filter((r) => !r.done) : [];
 
-  const prog = live ? rungProgress(live, signal) : null;
+  const prog = live ? rungProgress(live, liveValue) : null;
 
   return (
     <div className="py-3 border-b border-border last:border-b-0">
@@ -160,7 +181,7 @@ function LadderRow({ ladderId, earnedIds, signal, fmtNum, fmtList, tFallback }) 
                   "0 / 1" on it reads as a broken progress bar. */}
               {!live.binary && (
                 <span className="text-xs text-muted-foreground tabular-nums shrink-0">
-                  {fmtNum(Math.min(Math.round(signal), prog.target))} / {fmtNum(prog.target)}
+                  {fmtNum(Math.min(Math.round(liveValue), prog.target))} / {fmtNum(prog.target)}
                   {ladder.unit ? ` ${ladder.unit}` : ''}
                 </span>
               )}
@@ -252,11 +273,13 @@ export default function AchievementsTab({ trophies = [], progress = {}, user = n
     const candidates = Object.keys(LADDERS)
       .map((id) => {
         const value = signalFor(id);
-        const rung = nextRung(id, value);
+        const rung = nextRung(id, value, progress);
         // Locked rungs are not "next" — offering something the server
         // would refuse to grant is worse than offering nothing.
         if (!rung || !isUnlocked(rung, earnedIds)) return null;
-        return { ladderId: id, rung, value, pct: rungProgress(rung, value).pct };
+        // Measure the rung by its own signal where it declares one.
+        const rungValue = rung.signal ? Number(progress?.[rung.signal]) || 0 : value;
+        return { ladderId: id, rung, value: rungValue, pct: rungProgress(rung, rungValue).pct };
       })
       .filter(Boolean);
     candidates.sort((a, b) => b.pct - a.pct);
@@ -319,9 +342,15 @@ export default function AchievementsTab({ trophies = [], progress = {}, user = n
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold truncate">{rung.name}</p>
                   <p className="text-xs text-muted-foreground truncate">{rung.description}</p>
-                  <div className="w-full h-1 bg-muted rounded-full overflow-hidden mt-1.5">
-                    <div className="h-full bg-primary" style={{ width: `${p}%` }} />
-                  </div>
+                  {/* Same rule as the ladder rows: a yes/no rung has no
+                      fraction to draw, and a 0%-wide bar under it reads
+                      as progress that has stalled rather than a thing
+                      you either have or don't. */}
+                  {!rung.binary && (
+                    <div className="w-full h-1 bg-muted rounded-full overflow-hidden mt-1.5">
+                      <div className="h-full bg-primary" style={{ width: `${p}%` }} />
+                    </div>
+                  )}
                 </div>
                 {!rung.binary && (
                   <span className="text-xs text-muted-foreground tabular-nums shrink-0">
@@ -379,6 +408,7 @@ export default function AchievementsTab({ trophies = [], progress = {}, user = n
                         ladderId={id}
                         earnedIds={earnedIds}
                         signal={signalFor(id)}
+                        progress={progress}
                         fmtNum={fmtNum}
                         fmtList={fmtList}
                         tFallback={tFallback}
@@ -478,12 +508,12 @@ export default function AchievementsTab({ trophies = [], progress = {}, user = n
                       onClick={() => handleShare(trophy, row)}
                       disabled={sharingId === row.trophy_id}
                       className="flex items-center gap-1 px-2 py-1 rounded-md text-micro font-bold uppercase tracking-wide text-primary hover:bg-primary/10 active:bg-primary/10 transition-colors disabled:opacity-50 shrink-0"
-                      aria-label={`Share ${trophy.name} to Hub`}
+                      aria-label={tFallback('achievements.share.aria', 'Share {name} to Hub', { name: trophy.name })}
                     >
                       {sharingId === row.trophy_id
                         ? <Loader2 className="w-3 h-3 animate-spin" />
                         : <Share2 className="w-3 h-3" />}
-                      Share
+                      {tFallback('achievements.share.label', 'Share')}
                     </button>
                   </div>
                 ))}

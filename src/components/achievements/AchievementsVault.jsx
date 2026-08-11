@@ -32,6 +32,7 @@ import AchievementsTab from '@/components/progress/AchievementsTab';
 import { listEarned, getProgress, grantEligible } from '@/lib/data/trophies';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { useOverlayBackButton } from '@/hooks/useOverlayBackButton';
+import { useLanguage } from '@/lib/LanguageContext';
 
 // The OPEN_ACHIEVEMENTS_EVENT constant + requestOpenAchievements helper
 // live in src/lib/achievementsFlow.js so callers can import the
@@ -40,6 +41,7 @@ import { useOverlayBackButton } from '@/hooks/useOverlayBackButton';
 
 export default function AchievementsVault({ onClose }) {
   const { user } = useAuth();
+  const { tFallback } = useLanguage();
   useBodyScrollLock(true);
   // Back dismisses this sheet rather than navigating the page beneath it.
   // Without it, back changed route while this fixed z-200 portal kept
@@ -91,11 +93,13 @@ export default function AchievementsVault({ onClose }) {
           className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground active:text-foreground transition-colors"
         >
           <ChevronLeft className="w-4 h-4" />
-          Back
+          {tFallback('achievements.vault.back', 'Back')}
         </button>
         <div className="flex items-center gap-1.5">
           <Trophy className="w-4 h-4 text-yellow-500" />
-          <span className="font-heading font-bold text-base">Achievements</span>
+          <span className="font-heading font-bold text-base">
+            {tFallback('achievements.vault.title', 'Achievements')}
+          </span>
         </div>
         <div className="w-16" />
       </div>
