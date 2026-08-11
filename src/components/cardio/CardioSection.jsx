@@ -92,13 +92,30 @@ export default function CardioSection({ onBack }) {
   const { distanceUnit } = useDistanceUnit();
   const [view, setView] = useState({ name: 'home' });
 
+  // Every view names itself in the header. Keying on `view.mode` alone left
+  // the five mode-less utility views — Saved, Templates, Planned, Goals,
+  // Devices — dispatching null, so they inherited the cardio HOME header and
+  // sat under "Cardio / Track running, walking, and cycling" while showing a
+  // list of saved sessions. `null` is reserved for the home view itself,
+  // where Workout.jsx supplies that pair deliberately.
   useEffect(() => {
-    if (view.mode === 'running') dispatchTitle(t('cardio.modes.running'));
+    const UTILITY_TITLES = {
+      savedList: () => t('cardio.savedWorkouts'),
+      templates: () => tFallback('cardio.nav.templates', 'Templates'),
+      planned:   () => tFallback('cardio.nav.planned', 'Planned Sessions'),
+      goals:     () => tFallback('cardio.nav.goals', 'Cardio Goals'),
+      wearables: () => tFallback('cardio.nav.devices', 'Devices & Apps'),
+    };
+    const utility = UTILITY_TITLES[view.name];
+    if (utility) dispatchTitle(utility());
+    else if (view.mode === 'running') dispatchTitle(t('cardio.modes.running'));
     else if (view.mode === 'walking') dispatchTitle(t('cardio.modes.walking'));
     else if (view.mode === 'biking') dispatchTitle(t('cardio.modes.biking'));
-    else if (view.mode === 'swimming') dispatchTitle('Swimming');
+    // Was a hardcoded English 'Swimming' — the key exists now (i18n-cardio.js)
+    // and the other three modes beside it in the same 2x2 grid are translated.
+    else if (view.mode === 'swimming') dispatchTitle(tFallback('cardio.modes.swimming', 'Swimming'));
     else dispatchTitle(null);
-  }, [view.mode, t]);
+  }, [view.name, view.mode, t, tFallback]);
 
   useEffect(() => () => dispatchTitle(null), []);
 
@@ -476,7 +493,6 @@ export default function CardioSection({ onBack }) {
           <Button variant="outline" size="sm" onClick={goBack} className="mb-4">
             {t('cardio.back')}
           </Button>
-          <h2 className="font-heading text-xl font-bold mb-4">My Templates</h2>
           <p className="text-sm text-muted-foreground mb-4">
             Tap a template to start a session with its defaults pre-filled.
           </p>
@@ -492,7 +508,6 @@ export default function CardioSection({ onBack }) {
           <Button variant="outline" size="sm" onClick={goBack} className="mb-4">
             {t('cardio.back')}
           </Button>
-          <h2 className="font-heading text-xl font-bold mb-4">Planned Sessions</h2>
           <CardioPlanned />
         </ViewWrapper>
       );
@@ -505,7 +520,6 @@ export default function CardioSection({ onBack }) {
           <Button variant="outline" size="sm" onClick={goBack} className="mb-4">
             {t('cardio.back')}
           </Button>
-          <h2 className="font-heading text-xl font-bold mb-4">Cardio Goals</h2>
           <CardioGoals />
         </ViewWrapper>
       );
@@ -518,7 +532,6 @@ export default function CardioSection({ onBack }) {
           <Button variant="outline" size="sm" onClick={goBack} className="mb-4">
             {t('cardio.back')}
           </Button>
-          <h2 className="font-heading text-xl font-bold mb-4">Devices & Apps</h2>
           <p className="text-sm text-muted-foreground mb-4">
             Connect your wearables to auto-sync workouts and health data.
           </p>
