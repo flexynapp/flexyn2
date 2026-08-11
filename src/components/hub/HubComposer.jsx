@@ -13,7 +13,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   X, Send, Globe2, Lock,
   Dumbbell, Activity, Apple, Target, Trophy, ListChecks, Image as ImageIcon, BarChart3,
-  ArrowLeft, Loader2, MessageSquare, ChevronDown, Camera, XCircle, Film, Users, AtSign,
+  ArrowLeft, Loader2, MessageSquare, ChevronDown, Camera, XCircle, Film, Users, AtSign, FileText,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { format, parseISO } from 'date-fns';
@@ -256,6 +256,35 @@ export default function HubComposer({ onClose }) {
     },
   });
 
+  // Peek at the stored draft without consuming it, so the header can offer it
+  // as something to go back to. useFormDraft owns the write side; this only
+  // reads the same key, and applying it reuses the identical hydration rules
+  // (status and poll only — meal/workout picks need a fresh server snapshot).
+  const draftStorageKey = user?.email ? `flexyn.draft.hubComposer.${user.email}` : null;
+  const [savedDraft, setSavedDraft] = useState(null);
+  useEffect(() => {
+    if (!draftStorageKey) { setSavedDraft(null); return; }
+    try {
+      const raw = localStorage.getItem(draftStorageKey);
+      const parsed = raw ? JSON.parse(raw) : null;
+      const value = parsed && typeof parsed === 'object' ? parsed.value : null;
+      setSavedDraft(value && typeof value.body === 'string' && value.body.trim() ? value : null);
+    } catch { setSavedDraft(null); }
+  }, [draftStorageKey, step]);
+
+  const restoreSavedDraft = () => {
+    const saved = savedDraft;
+    if (!saved) return;
+    if (typeof saved.body === 'string') setBody(saved.body);
+    if (saved.kind === 'poll') {
+      setSelected({ kind: 'poll', item: null, summary: null });
+      setStep('poll_compose');
+    } else {
+      setSelected({ kind: 'status', item: null, summary: null });
+      setStep('status_compose');
+    }
+  };
+
   const [privacy, setPrivacy] = useState('public');
   const [selectedCrewId, setSelectedCrewId] = useState(null);
   const [posting, setPosting] = useState(false);
@@ -497,6 +526,61 @@ export default function HubComposer({ onClose }) {
     setStep(kind === 'status' ? 'status_compose' : 'compose');
   };
 
+  // Shared by the dedicated video step and by a Status that has a clip
+  // attached. Extracted rather than duplicated so both paths get the same
+  // error mapping for UNSUPPORTED_FILE_TYPE / FILE_TOO_LARGE.
+  const submitVideoPost = async () => {
+      if (!videoFile) { toast.error('Please pick a video to share.'); return; }
+      if (body && containsProfanity(body)) {
+        toast.error(t('hub.composer.profanityError'));
+        return;
+      }
+      setPosting(true);
+      try {
+        const result = await db.integrations.Core.UploadFile({ file: videoFile });
+        const videoUrl = result?.file_url || null;
+        await hubPosts.create({
+          author_email:       user.email,
+          author_name:        handle(user),
+          author_avatar_url:  user.avatar_url || null,
+          post_type:          'video',
+          body:               body.trim() || 'Shared a video',
+          video_url:          videoUrl,
+          privacy,
+          like_count:   0,
+          dislike_count: 0,
+          comment_count: 0,
+          collaborator_ids: collaboratorIds.length > 0 ? collaboratorIds : [],
+          ...(privacy === 'crew' && selectedCrewId ? { crew_id: selectedCrewId } : {}),
+          ...(scheduleEnabled && scheduledAt ? { publish_at: new Date(scheduledAt).toISOString() } : {}),
+        });
+        queryClient.invalidateQueries({ queryKey: ['hubFeed'] });
+        toast.success('Video posted!');
+        draft.clear();
+        clearVideo();
+        onClose();
+      } catch (err) {
+        reportError(err, { feature: 'hub.composer.video', level: 'warning' });
+        // _uploadFile throws distinct codes for bad input so we can give the
+        // user an actionable reason instead of a generic "couldn't post".
+        if (err?.code === 'UNSUPPORTED_FILE_TYPE') {
+          toast.error(tFallback(
+            'hub.composer.videoTypeError',
+            'That file type isn’t supported. Use an MP4, MOV, WebM, or M4V video.'
+          ));
+        } else if (err?.code === 'FILE_TOO_LARGE') {
+          toast.error(tFallback(
+            'hub.composer.videoTooLarge',
+            'That video is too large — the limit is 50 MB.'
+          ));
+        } else {
+          toast.error(t('hub.composer.postError'));
+        }
+      } finally {
+        setPosting(false);
+      }
+  };
+
   // ── Posting ──
   // Defensive submit-time profanity check — even if onChange interception
   // was bypassed (paste, autofill, programmatic injection), this catches it.
@@ -574,61 +658,25 @@ export default function HubComposer({ onClose }) {
       return;
     }
 
-    // Video posts
     if (selected.kind === 'video') {
-      if (!videoFile) { toast.error('Please pick a video to share.'); return; }
-      if (body && containsProfanity(body)) {
-        toast.error(t('hub.composer.profanityError'));
-        return;
-      }
-      setPosting(true);
-      try {
-        const result = await db.integrations.Core.UploadFile({ file: videoFile });
-        const videoUrl = result?.file_url || null;
-        await hubPosts.create({
-          author_email:       user.email,
-          author_name:        handle(user),
-          author_avatar_url:  user.avatar_url || null,
-          post_type:          'video',
-          body:               body.trim() || 'Shared a video',
-          video_url:          videoUrl,
-          privacy,
-          like_count:   0,
-          dislike_count: 0,
-          comment_count: 0,
-          collaborator_ids: collaboratorIds.length > 0 ? collaboratorIds : [],
-          ...(privacy === 'crew' && selectedCrewId ? { crew_id: selectedCrewId } : {}),
-          ...(scheduleEnabled && scheduledAt ? { publish_at: new Date(scheduledAt).toISOString() } : {}),
-        });
-        queryClient.invalidateQueries({ queryKey: ['hubFeed'] });
-        toast.success('Video posted!');
-        draft.clear();
-        clearVideo();
-        onClose();
-      } catch (err) {
-        reportError(err, { feature: 'hub.composer.video', level: 'warning' });
-        // _uploadFile throws distinct codes for bad input so we can give the
-        // user an actionable reason instead of a generic "couldn't post".
-        if (err?.code === 'UNSUPPORTED_FILE_TYPE') {
-          toast.error(tFallback(
-            'hub.composer.videoTypeError',
-            'That file type isn’t supported. Use an MP4, MOV, WebM, or M4V video.'
-          ));
-        } else if (err?.code === 'FILE_TOO_LARGE') {
-          toast.error(tFallback(
-            'hub.composer.videoTooLarge',
-            'That video is too large — the limit is 50 MB.'
-          ));
-        } else {
-          toast.error(t('hub.composer.postError'));
-        }
-      } finally {
-        setPosting(false);
-      }
+      await submitVideoPost();
       return;
     }
 
     // Status posts: body is mandatory and is the entire post.
+    // A status carrying a video IS a video post — same row shape, same
+    // post_type, so the feed renders the player it already knows how to
+    // render. Routing it here rather than duplicating the create() call keeps
+    // one upload path with the orphan-cleanup the video branch never had.
+    if (selected.kind === 'status' && videoFile) {
+      if (body && containsProfanity(body)) {
+        toast.error(t('hub.composer.profanityError'));
+        return;
+      }
+      await submitVideoPost();
+      return;
+    }
+
     if (selected.kind === 'status') {
       if (!body.trim()) {
         toast.error(t('hub.composer.statusEmpty'));
@@ -881,13 +929,11 @@ export default function HubComposer({ onClose }) {
             title="Create a Poll"
             subtitle="Ask your followers to vote on something"
           />
-          {/* Video post */}
-          <PickCard
-            kind="video"
-            onClick={() => handlePick('video')}
-            title="Share a Video"
-            subtitle="Upload a short workout clip (up to 50 MB)"
-          />
+          {/* "Share a Video" used to be a third card here. It is now an
+              attachment inside Status, because posting a clip with a caption
+              IS a status — splitting them made the user choose a post TYPE
+              before they knew what they wanted to say, and left two nearly
+              identical compose screens to maintain. */}
         </Section>
 
         {totalActivity === 0 && (
@@ -895,6 +941,16 @@ export default function HubComposer({ onClose }) {
             title={t('hub.composer.noActivity')}
             desc={t('hub.composer.noActivityDesc')}
           />
+        )}
+
+        {/* Everything below is a post ABOUT something you logged, as opposed
+            to something you're writing now. Without this line the picker was
+            one flat run of sections and the two kinds of posting read as the
+            same list. */}
+        {totalActivity > 0 && (
+          <p className="pt-2 text-micro font-semibold uppercase tracking-widest text-muted-foreground">
+            {tFallback('hub.share.section.activity', 'Share your activity')}
+          </p>
         )}
 
         {recentWorkouts.length > 0 && (
@@ -1089,14 +1145,37 @@ export default function HubComposer({ onClose }) {
               <XCircle className="w-4 h-4" />
             </button>
           </div>
+        ) : videoPreview ? (
+          <div className="relative rounded-xl overflow-hidden border border-border">
+            <video src={videoPreview} className="w-full max-h-48 object-cover" muted playsInline controls />
+            <button
+              onClick={clearVideo}
+              className="absolute top-2 end-2 p-1.5 rounded-full bg-black/60 text-white hover:bg-black/80 active:bg-black/80 transition-colors"
+              aria-label={tFallback('hub.composer.removeVideo', 'Remove video')}
+            >
+              <XCircle className="w-4 h-4" />
+            </button>
+          </div>
         ) : (
-          <button
-            type="button"
-            onClick={() => statusImageInputRef.current?.click()}
-            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-dashed border-border text-xs text-muted-foreground hover:border-primary/50 hover:text-foreground active:text-foreground transition-colors"
-          >
-            <ImageIcon className="w-4 h-4" /> Add a photo (optional)
-          </button>
+          // Photo OR video, one at a time — a post carries one or the other,
+          // so offering both as a single choice avoids a state where the user
+          // has attached two things and has to be told only one will be used.
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => statusImageInputRef.current?.click()}
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-dashed border-border text-xs text-muted-foreground hover:border-primary/50 hover:text-foreground active:text-foreground transition-colors"
+            >
+              <ImageIcon className="w-4 h-4" /> {tFallback('hub.composer.addPhoto', 'Add a photo')}
+            </button>
+            <button
+              type="button"
+              onClick={() => videoInputRef.current?.click()}
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-dashed border-border text-xs text-muted-foreground hover:border-primary/50 hover:text-foreground active:text-foreground transition-colors"
+            >
+              <Film className="w-4 h-4" /> {tFallback('hub.composer.addVideo', 'Add a video')}
+            </button>
+          </div>
         )}
         <input
           ref={statusImageInputRef}
@@ -1104,6 +1183,13 @@ export default function HubComposer({ onClose }) {
           accept="image/*"
           className="hidden"
           onChange={handleStatusImagePick}
+        />
+        <input
+          ref={videoInputRef}
+          type="file"
+          accept="video/*"
+          className="hidden"
+          onChange={handleVideoPick}
         />
       </div>
 
@@ -1552,6 +1638,21 @@ export default function HubComposer({ onClose }) {
                 </p>
               )}
             </div>
+            {/* Drafts. Auto-save already worked and already kept only the
+                most recent draft — but it restored SILENTLY on mount, so the
+                only evidence it existed was a toast you may have missed, and
+                once you started something else the saved text was
+                unreachable. This makes it a thing you can go and get. */}
+            {savedDraft && (
+              <button
+                type="button"
+                onClick={restoreSavedDraft}
+                className="shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-full border border-border text-xs font-semibold text-muted-foreground hover:bg-secondary hover:text-foreground active:bg-secondary transition-colors"
+              >
+                <FileText className="w-3.5 h-3.5" />
+                {tFallback('hub.composer.drafts', 'Drafts')}
+              </button>
+            )}
             <button onClick={onClose} className="p-1.5 rounded-full hover:bg-secondary active:bg-secondary shrink-0">
               <X className="w-4 h-4" />
             </button>

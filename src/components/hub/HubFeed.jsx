@@ -332,22 +332,47 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
   const refetchRef = useRef(refetch);
   useEffect(() => { refetchRef.current = refetch; }, [refetch]);
 
+  // Gesture-driven refreshes are throttled to one network round-trip a
+  // minute. Both gestures below are easy to fire by accident and easy to
+  // repeat — scrolling to the top happens constantly while reading, and the
+  // tab is right under your thumb — so without a floor the global feed can be
+  // made to refetch as fast as a finger moves.
+  //
+  // This governs only the two GESTURES. The new-posts pill is deliberately
+  // exempt: it appears only when realtime has actually seen a post arrive, so
+  // it is not a spam vector, and refusing to load posts the app has already
+  // told the user exist would read as the app being broken.
+  //
+  // Nothing here makes the feed auto-update — it never did. A realtime INSERT
+  // only increments a counter behind that pill; rows are never spliced into
+  // the list under the reader.
+  const REFRESH_FLOOR_MS = 60_000;
+  const lastRefreshRef = useRef(0);
+  const requestRefresh = useCallback(() => {
+    const now = Date.now();
+    if (now - lastRefreshRef.current < REFRESH_FLOOR_MS) return false;
+    lastRefreshRef.current = now;
+    refetchRef.current();
+    setShowRefreshBadge(true);
+    setTimeout(() => setShowRefreshBadge(false), 1800);
+    try { navigator.vibrate?.(10); } catch { /* ignore */ }
+    return true;
+  }, []);
+
   useEffect(() => {
     let prevY = window.scrollY;
     const handleScroll = () => {
       const y = window.scrollY;
       if (prevY > 60 && y === 0) {
-        refetchRef.current();
-        setPendingNewCount(0);
-        setShowRefreshBadge(true);
-        setTimeout(() => setShowRefreshBadge(false), 1800);
-        try { navigator.vibrate(10); } catch {}
+        // Clear the pill either way: the user has physically returned to the
+        // top of the feed, so a badge telling them to scroll up is spent.
+        if (requestRefresh()) setPendingNewCount(0);
       }
       prevY = y;
     };
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
-  }, []); // intentionally empty — refetch is always up-to-date via refetchRef
+  }, [requestRefresh]);
 
   // Listen for the "active-tab retap" event from Layout — when the
   // user taps the Hub tab while already on Hub + at the top, treat it
@@ -356,14 +381,11 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
   useEffect(() => {
     const onRetap = (e) => {
       if (e.detail?.path !== '/hub') return;
-      refetchRef.current();
-      setShowRefreshBadge(true);
-      setTimeout(() => setShowRefreshBadge(false), 1800);
-      try { navigator.vibrate?.(10); } catch { /* ignore */ }
+      requestRefresh();
     };
     window.addEventListener('flexyn:active-tab-retap', onRetap);
     return () => window.removeEventListener('flexyn:active-tab-retap', onRetap);
-  }, []);
+  }, [requestRefresh]);
 
   // Slice the fetched + crew-filtered window to the visible page.
   const visiblePosts = useMemo(
