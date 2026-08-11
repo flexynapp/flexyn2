@@ -73,11 +73,21 @@ export default function PersonalBestsSheet({ open, onClose, logs = [], onViewHis
       });
     });
     return Object.values(map)
-      // Heaviest first. Sorting on the stored lbs is safe in every unit —
-      // order is invariant under a positive scalar conversion — so this
-      // does not need to know what the user reads in. Ties fall back to
-      // the name so the order is stable rather than insertion-dependent.
-      .sort((a, b) => b.weight - a.weight || a.name.localeCompare(b.name));
+      // Loaded lifts first, heaviest down; then the bodyweight ones, most
+      // reps down. Sorting on the stored lbs is safe in every unit — order
+      // is invariant under a positive scalar conversion — so this does not
+      // need to know what the user reads in.
+      //
+      // Bodyweight work is not "0 lb and therefore last". A pull-up has no
+      // number on the bar and the achievement is the rep count, so it gets
+      // ranked by the thing it actually measures rather than tying at zero
+      // with everything else and falling back to the alphabet.
+      .sort((a, b) => {
+        const aLoaded = a.weight > 0, bLoaded = b.weight > 0;
+        if (aLoaded !== bLoaded) return aLoaded ? -1 : 1;
+        if (aLoaded) return b.weight - a.weight || a.name.localeCompare(b.name);
+        return b.reps - a.reps || a.name.localeCompare(b.name);
+      });
   }, [logs]);
 
   const shown = useMemo(() => {
@@ -91,7 +101,13 @@ export default function PersonalBestsSheet({ open, onClose, logs = [], onViewHis
   }, [bests, query, language]);
 
   const kicker = tFallback('pbSheet.kicker', 'PERSONAL BESTS');
+  // The headline best. When it carries no load — a pull-up, a dip, anyone
+  // training entirely bodyweight — the figure is the REP COUNT, not "0 lbs".
+  // formatWeight(0) is a finite number and renders a confident zero, which
+  // on the largest type on the sheet reads as "your best lift is nothing".
+  // (kegan, 2026-08-10.)
   const heaviest = bests[0];
+  const heroIsReps = !!heaviest && heaviest.weight <= 0;
 
   if (!open) return null;
 
@@ -108,12 +124,22 @@ export default function PersonalBestsSheet({ open, onClose, logs = [], onViewHis
           {/* The dial's slot — the single fact this sheet exists to report. */}
           <div className="mt-3">
             <p className="font-heading font-black text-display leading-none tabular-nums text-primary">
-              {formatWeight(heaviest.weight, weightUnit)}
+              {heroIsReps
+                ? tFallback(
+                    heaviest.reps === 1 ? 'pbSheet.heroReps_one' : 'pbSheet.heroReps_other',
+                    heaviest.reps === 1 ? '{n} rep' : '{n} reps',
+                    { n: heaviest.reps },
+                  )
+                : formatWeight(heaviest.weight, weightUnit)}
             </p>
             <p className="text-sm text-muted-foreground mt-1.5">
-              {tFallback('pbSheet.heroCaption', '{exercise} — your heaviest lift', {
-                exercise: translateExerciseName(heaviest.name, language),
-              })}
+              {heroIsReps
+                ? tFallback('pbSheet.heroCaptionReps', '{exercise} — your best set', {
+                    exercise: translateExerciseName(heaviest.name, language),
+                  })
+                : tFallback('pbSheet.heroCaption', '{exercise} — your heaviest lift', {
+                    exercise: translateExerciseName(heaviest.name, language),
+                  })}
             </p>
             <p className="text-micro text-muted-foreground mt-0.5">
               {tFallback(
@@ -137,6 +163,12 @@ export default function PersonalBestsSheet({ open, onClose, logs = [], onViewHis
 
           <div className="mt-5">
             {shown.map((pb) => {
+              // Same rule as the hero: a best with no load is measured in
+              // reps. The row headline becomes the rep count, and the
+              // secondary line drops the "best N reps" it would otherwise
+              // repeat — saying "24 reps" twice on one row is worse than
+              // the "0 lbs" it replaced.
+              const isReps = pb.weight <= 0;
               const row = (
                 <>
                   <div className="min-w-0">
@@ -144,17 +176,25 @@ export default function PersonalBestsSheet({ open, onClose, logs = [], onViewHis
                       {translateExerciseName(pb.name, language)}
                     </p>
                     <p className="text-micro text-muted-foreground mt-0.5">
-                      {pb.reps > 0 && tFallback(
-                        pb.reps === 1 ? 'pbSheet.bestReps_one' : 'pbSheet.bestReps_other',
-                        pb.reps === 1 ? 'best {n} rep' : 'best {n} reps',
-                        { n: pb.reps },
-                      )}
-                      {pb.reps > 0 && pb.weightDate ? '  ·  ' : ''}
+                      {isReps
+                        ? tFallback('pbSheet.bodyweight', 'bodyweight')
+                        : (pb.reps > 0 && tFallback(
+                            pb.reps === 1 ? 'pbSheet.bestReps_one' : 'pbSheet.bestReps_other',
+                            pb.reps === 1 ? 'best {n} rep' : 'best {n} reps',
+                            { n: pb.reps },
+                          ))}
+                      {(isReps || pb.reps > 0) && pb.weightDate ? '  ·  ' : ''}
                       {pb.weightDate && format(parseLocalDate(pb.weightDate), 'd MMM', { locale: dateLocale })}
                     </p>
                   </div>
                   <span className="font-heading font-black text-sm text-primary shrink-0 tabular-nums ms-3">
-                    {formatWeight(pb.weight, weightUnit)}
+                    {isReps
+                      ? tFallback(
+                          pb.reps === 1 ? 'pbSheet.heroReps_one' : 'pbSheet.heroReps_other',
+                          pb.reps === 1 ? '{n} rep' : '{n} reps',
+                          { n: pb.reps },
+                        )
+                      : formatWeight(pb.weight, weightUnit)}
                   </span>
                 </>
               );

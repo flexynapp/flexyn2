@@ -118,3 +118,59 @@ describe('PersonalBestsSheet', () => {
     expect(screen.getByText('progress.noData')).toBeTruthy();
   });
 });
+
+describe('PersonalBestsSheet — bodyweight bests', () => {
+  // A pull-up has no number on the bar. formatWeight(0) is a finite number,
+  // so it rendered "0 lbs" — on the largest type on the sheet, that reads as
+  // "your best lift is nothing". (kegan, 2026-08-10.)
+  const bodyweightOnly = [
+    log('2026-08-01', [
+      { name: 'Pull Up', sets: [set(0, 12), set(0, 24)] },
+      { name: 'Dip', sets: [set(0, 18)] },
+    ]),
+  ];
+
+  it('leads with reps, not 0 lbs, when the top best carries no load', () => {
+    render(<PersonalBestsSheet open onClose={() => {}} logs={bodyweightOnly} />);
+    // "24 reps" appears twice by design — the hero figure and the row it
+    // came from — so this asserts on the HERO element specifically rather
+    // than on the string being unique.
+    expect(document.querySelector('p.text-display').textContent).toBe('24 reps');
+    expect(screen.getByText('Pull Up — your best set')).toBeTruthy();
+    expect(screen.queryByText('0 lbs')).toBeNull();
+    expect(screen.queryByText(/your heaviest lift/)).toBeNull();
+  });
+
+  it('ranks bodyweight work by reps rather than tying at zero', () => {
+    render(<PersonalBestsSheet open onClose={() => {}} logs={bodyweightOnly} />);
+    const names = [...document.querySelectorAll('p.text-sm.font-semibold')].map(n => n.textContent);
+    // Alphabetical would put Dip first; 24 reps beats 18.
+    expect(names).toEqual(['Pull Up', 'Dip']);
+  });
+
+  it('labels a bodyweight row "bodyweight" instead of repeating its rep count', () => {
+    render(<PersonalBestsSheet open onClose={() => {}} logs={bodyweightOnly} />);
+    // The headline is "24 reps"; the secondary line must not say it again.
+    expect(screen.queryByText(/best 24 reps/)).toBeNull();
+    expect(screen.getAllByText(/bodyweight/).length).toBeGreaterThan(0);
+  });
+
+  it('still leads with the loaded lift when one exists, and keeps loaded lifts above bodyweight', () => {
+    const mixed = [
+      log('2026-08-01', [
+        { name: 'Pull Up', sets: [set(0, 24)] },
+        { name: 'Bench Press', sets: [set(185, 5)] },
+        { name: 'Dip', sets: [set(0, 18)] },
+      ]),
+    ];
+    render(<PersonalBestsSheet open onClose={() => {}} logs={mixed} />);
+    // Hero stays weight-based — a 185 lb bench outranks 24 pull-ups.
+    expect(screen.getByText('Bench Press — your heaviest lift')).toBeTruthy();
+    const names = [...document.querySelectorAll('p.text-sm.font-semibold')].map(n => n.textContent);
+    expect(names).toEqual(['Bench Press', 'Pull Up', 'Dip']);
+    // …and the bodyweight rows still report reps rather than 0 lbs.
+    expect(screen.queryByText('0 lbs')).toBeNull();
+    // Unique here: the hero is the bench, so "24 reps" is the row only.
+    expect(screen.getByText('24 reps')).toBeTruthy();
+  });
+});

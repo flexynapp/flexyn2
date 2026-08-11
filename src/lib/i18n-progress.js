@@ -177,6 +177,14 @@ export const progressTranslations = {
     'pbSheet.count_one':                '{n} exercise with a recorded best',
     'pbSheet.count_other':              '{n} exercises with a recorded best',
     'pbSheet.filterPlaceholder':        'Filter exercises',
+    // Bodyweight bests. An exercise with no load on the bar is measured in
+    // reps — "0 lbs" on the largest type on the sheet reads as "your best
+    // lift is nothing". heroCaptionReps is the caption beside a rep figure;
+    // keep it a claim about the SET rather than about lifting.
+    'pbSheet.heroReps_one':             '{n} rep',
+    'pbSheet.heroReps_other':           '{n} reps',
+    'pbSheet.heroCaptionReps':          '{exercise} — your best set',
+    'pbSheet.bodyweight':               'bodyweight',
     'pbSheet.bestReps_one':             'best {n} rep',
     'pbSheet.bestReps_other':           'best {n} reps',
     'pbSheet.noMatches':                'No exercises match \u201c{query}\u201d.',
