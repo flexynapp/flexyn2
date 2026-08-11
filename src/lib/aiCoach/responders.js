@@ -899,9 +899,24 @@ export async function buildCoachContext({
   // and nothing else — no experience level, no goal, no training frequency —
   // while the system prompt asks the model to program against exactly those.
   //
-  // Not added, deliberately: `activity_level` (0 of 43 — nothing writes it) and
-  // `nutrition_goal` / `dietary_restrictions` / `weekly_rate_lbs` (also 0 of
-  // 43, but they are read here already and the writers are real, so they stay).
+  // `activity_level` was excluded here on the reasoning "0 of 43 — nothing
+  // writes it", while `nutrition_goal` / `dietary_restrictions` /
+  // `weekly_rate_lbs` were kept as "also 0 of 43, but the writers are real".
+  // That distinction was wrong: all four are written by the SAME object
+  // literal, in NutritionOnboardingModal's `handleSubmit`. There is no sense
+  // in which one of them has a less real writer than the other three.
+  //
+  // The reason all four are empty is that `handleSubmit` has never run.
+  // Measured 2026-08-11: 56 profiles, 10 with nutrition_onboarding_complete
+  // = true, 0 with any of the four values. Every one of those 10 arrived via
+  // `handleSkip`, which writes the completion flag and nothing else. So the
+  // emptiness is a conversion fact, not a broken writer — and it will fix
+  // itself the moment anyone finishes the flow, for all four at once.
+  //
+  // activity_level still isn't added, but for the real reason: ctx.profile is
+  // only half the work — coach-chat/index.ts builds the PROFILE line field by
+  // field, so a key added here renders nowhere until that function is changed
+  // and redeployed. Not worth a deploy for a value no account has.
   const _rawGoals = (Array.isArray(profile?.fitness_goals_arr) && profile.fitness_goals_arr.length)
     ? profile.fitness_goals_arr
     : profile?.fitness_goals;
