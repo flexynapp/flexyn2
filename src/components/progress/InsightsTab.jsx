@@ -70,8 +70,9 @@ import {
   TrendingDown, TrendingUp,
   Scale, Activity, Dumbbell, Info,
 } from 'lucide-react';
-import { differenceInDays, subDays, addDays, format } from 'date-fns';
+import { differenceInDays, addDays, format } from 'date-fns';
 import { parseLocalDate } from '@/lib/dateUtils';
+import { calcBMR, isKnownSex, activityMultiplier, observedSessionsPerWeek, TDEE_WINDOW_DAYS } from '@/lib/tdee';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { fromLbs, toLbs, formatWeight } from '@/lib/weightUnit';
 import { downloadCsv } from '@/lib/downloadCsv';
@@ -104,53 +105,12 @@ function categorizeExercise(ex) {
 
 // ── TDEE helpers ──────────────────────────────────────────────────────────────
 
-/** How far back the activity read looks, and the floor on that window. */
-const TDEE_WINDOW_DAYS = 30;
-/**
- * Never divide by fewer than a week's worth of days. A four-day-old
- * account with three sessions is not training 5.25×/week — that is one
- * good weekend extrapolated into a lifestyle. The floor keeps a new
- * account from claiming the top activity band while still letting it out
- * of the "sedentary" band it was stuck in when this divided by a flat 30.
- */
-const TDEE_MIN_WINDOW_DAYS = 7;
-
-/**
- * Mifflin-St Jeor BMR.
- *
- * The sex term is +5 for male and -161 for female — a 166 kcal spread on
- * BMR, which the activity multiplier then scales to 200-315 kcal on the
- * displayed TDEE. That number drives the Cut and Bulk figures below it,
- * which someone may actually eat to.
- *
- * **Unset takes the MIDPOINT, not male.** `gender` is null on 44 of 53
- * production profiles, so defaulting to male silently handed 83% of users
- * a male estimate with nothing on screen saying so. This is not a new
- * judgement: `_demographicScale()` in src/lib/aiCoach/workoutGenerator.js
- * already decided the same question the same way — "'other' / unset" takes
- * a middle value there, because over-prescribing "is the direction that
- * hurts someone". This file was the one place contradicting it.
- *
- * -78 is the midpoint of +5 and -161. It is deliberately a number nobody's
- * body matches: it is an admission that we do not know, and the caller
- * pairs it with a note saying so rather than presenting it as measured.
- */
-const BMR_SEX_TERM = { male: 5, female: -161, unknown: -78 };
-
-function calcBMR({ weightKg, heightCm, age, sex }) {
-  if (!weightKg || !heightCm || !age) return null;
-  const base = 10 * weightKg + 6.25 * heightCm - 5 * age;
-  return base + (BMR_SEX_TERM[sex] ?? BMR_SEX_TERM.unknown);
-}
-
-/** Activity multiplier based on workouts/week */
-function activityMultiplier(sessionsPerWeek) {
-  if (sessionsPerWeek <= 0) return 1.2;
-  if (sessionsPerWeek <= 2) return 1.375;
-  if (sessionsPerWeek <= 4) return 1.55;
-  if (sessionsPerWeek <= 6) return 1.725;
-  return 1.9;
-}
+// TDEE_WINDOW_DAYS, TDEE_MIN_WINDOW_DAYS, BMR_SEX_TERM, calcBMR,
+// activityMultiplier and observedSessionsPerWeek now live in
+// src/lib/tdee.js. They used to be defined here and re-derived, with
+// different inputs, inside nutritionDefaults.js — so this card and the
+// Nutrition page reported different maintenance figures for the same user
+// on the same day. One definition, imported by both. (Audit 21.)
 
 // ── Training age ──────────────────────────────────────────────────────────────
 
@@ -407,30 +367,11 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
 
     // Pass the value through rather than collapsing everything that is not
     // 'female' into 'male'. calcBMR owns the unknown case.
-    const knownSex = sex === 'male' || sex === 'female';
+    const knownSex = isKnownSex(sex);
     const bmr = calcBMR({ weightKg, heightCm, age, sex });
     if (!bmr) return { hasData: false, missingFields };
 
-    const now = new Date();
-    const cutoff = subDays(now, TDEE_WINDOW_DAYS);
-    const inWindow = (l) => {
-      const d = parseLocalDate(l?.date);
-      return d && d >= cutoff;
-    };
-    const recentLogs   = (logs || []).filter(inWindow);
-    const recentCardio = (cardioLogs || []).filter(inWindow);
-
-    // Divide by the days the account has actually been training within
-    // the window, not by a flat 30. Four days of history over a 30-day
-    // denominator reported 0.7 sessions/wk for someone training daily.
-    const firstInWindow = [...recentLogs, ...recentCardio]
-      .map(l => parseLocalDate(l.date))
-      .filter(Boolean)
-      .sort((a, b) => a - b)[0];
-    const observedDays = firstInWindow ? differenceInDays(now, firstInWindow) + 1 : TDEE_WINDOW_DAYS;
-    const windowDays = Math.min(TDEE_WINDOW_DAYS, Math.max(TDEE_MIN_WINDOW_DAYS, observedDays));
-
-    const sessionsPerWeek = (recentLogs.length + recentCardio.length) / (windowDays / 7);
+    const { sessionsPerWeek, windowDays } = observedSessionsPerWeek({ logs, cardioLogs });
     const multiplier = activityMultiplier(sessionsPerWeek);
 
     // The activity multiplier IS the exercise term — Mifflin-St Jeor's

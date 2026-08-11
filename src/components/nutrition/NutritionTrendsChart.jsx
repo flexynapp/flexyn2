@@ -9,7 +9,7 @@
 import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { format, subDays, parseISO } from 'date-fns';
-import { calculateDailyValues } from '@/lib/nutritionDefaults';
+import { useNutritionTargets } from '@/hooks/useNutritionTargets';
 import { useLanguage } from '@/lib/LanguageContext';
 import { getDateLocale } from '@/lib/dateLocales';
 
@@ -78,7 +78,7 @@ export default function NutritionTrendsChart({ entries = [], userProfile = {}, d
   const dateLocale = getDateLocale(language);
   const dateKeys = useMemo(() => daysBack(days), [days]);
   const series = useMemo(() => aggregate(entries, dateKeys), [entries, dateKeys]);
-  const dv = useMemo(() => calculateDailyValues(userProfile), [userProfile]);
+  const dv = useNutritionTargets(userProfile);
 
   const goalCal = Math.round(dv?.calories || 2000);
   const cals = series.map(s => s.calories);

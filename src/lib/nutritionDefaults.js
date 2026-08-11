@@ -1,7 +1,10 @@
 // src/lib/nutritionDefaults.js
 
+import { calcBMR, activityMultiplier } from '@/lib/tdee';
+
 // ---------- demographic helpers ----------
-function ageFromProfile(userProfile = {}) {
+/** The user's age, or null when neither `birthday` nor `age` is set. */
+function ageOrNull(userProfile = {}) {
   if (userProfile.birthday) {
     const birth = new Date(userProfile.birthday);
     if (!isNaN(birth.getTime())) {
@@ -12,7 +15,14 @@ function ageFromProfile(userProfile = {}) {
       return years;
     }
   }
-  return userProfile.age || 30;
+  return userProfile.age || null;
+}
+
+// 30 is a placeholder for the RDA rows, which need *some* age to pick a
+// band. It must never reach a calorie figure — see the guard in
+// maintenanceCalories().
+function ageFromProfile(userProfile = {}) {
+  return ageOrNull(userProfile) ?? 30;
 }
 
 const ACTIVITY_MULTIPLIERS = {
@@ -23,15 +33,13 @@ const ACTIVITY_MULTIPLIERS = {
   extra: 1.9,
 };
 
-// Mifflin-St Jeor BMR — the same formula Cronometer uses.
-// Inputs in metric.
-function mifflinStJeor({ weightKg, heightCm, age, gender }) {
-  const base = 10 * weightKg + 6.25 * heightCm - 5 * age;
-  if (gender === 'female') return base - 161;
-  if (gender === 'male') return base + 5;
-  // 'other' / unspecified — average of the two sex-specific offsets
-  return base - 78;
-}
+// BMR is `calcBMR` from src/lib/tdee.js — the same one the Progress →
+// Insights card uses, so the two screens cannot report different
+// maintenance figures for the same person. The local copy that used to
+// live here had an identical formula and an unreachable "'other' /
+// unspecified" branch: `gender` was normalised to 'male' at the top of
+// calculateDailyValues before it ever got here, so every profile without a
+// stated gender took the male term.
 
 // Compute weekly rate (lbs/week) from current weight, target weight, and target date.
 // Returns negative for loss, positive for gain, 0 for maintain or invalid input.
@@ -94,11 +102,72 @@ function applyCalorieCycling(base, userProfile) {
   return out;
 }
 
+// Split calories into macros. Protein is per-bodyweight, fat is 25% of
+// intake with a 0.35 g/lb floor for hormonal health, carbs take what's
+// left. Factored out so the goal-driven and maintenance branches cannot
+// derive the same split two different ways.
+function macrosFor({ calories, weightLbs, proteinPerLb }) {
+  const protein_g = Math.round(weightLbs * proteinPerLb);
+  const fatFloor_g = Math.round(weightLbs * 0.35);
+  const fat_g = Math.max(Math.round((calories * 0.25) / 9), fatFloor_g);
+  const carbsKcal = Math.max(calories - protein_g * 4 - fat_g * 9, 0);
+  return { protein_g, fat_g, carbs_g: Math.round(carbsKcal / 4) };
+}
+
+/**
+ * Maintenance calories from measured demographics and observed training,
+ * or null when we do not have enough to say.
+ *
+ * The null is the point. `calculateDailyValues` fills missing demographics
+ * with 180 lb / 70 in / 30 yr so the RDA rows have something to branch on,
+ * and those placeholders must never reach a calorie figure — a TDEE
+ * computed from them is indistinguishable on screen from a real one, which
+ * is strictly worse than the honest 2000 kcal default. So this reads the
+ * profile directly rather than the defaulted locals, and bails if any of
+ * the three is absent.
+ *
+ * `sessionsPerWeek` comes from the caller because this module is imported
+ * by eight components and is deliberately dependency-free. Absent it, we
+ * have no activity term and fall back the same way.
+ */
+function maintenanceCalories({ userProfile, sessionsPerWeek }) {
+  if (!Number.isFinite(sessionsPerWeek)) return null;
+  const age = ageOrNull(userProfile);
+  const weightLbs = userProfile.weight_lbs;
+  const heightInches = userProfile.height_inches;
+  if (!age || !weightLbs || !heightInches) return null;
+
+  const bmr = calcBMR({
+    weightKg: weightLbs * 0.453592,
+    heightCm: heightInches * 2.54,
+    age,
+    sex: (userProfile.gender || '').toLowerCase(),
+  });
+  if (!bmr) return null;
+
+  return Math.round(bmr * activityMultiplier(sessionsPerWeek));
+}
+
 // ---------- main export ----------
-export function calculateDailyValues(userProfile = {}) {
+/**
+ * @param userProfile  the user_profiles row
+ * @param options.sessionsPerWeek  observed sessions/week over the trailing
+ *   window (see observedSessionsPerWeek in src/lib/tdee.js). Optional: when
+ *   omitted, a profile with no nutrition goal keeps the flat 2000 kcal
+ *   default, which is exactly the behaviour every caller had before.
+ */
+export function calculateDailyValues(userProfile = {}, { sessionsPerWeek } = {}) {
   const age = ageFromProfile(userProfile);
   const weightLbs = userProfile.weight_lbs || 180;
   const heightInches = userProfile.height_inches || 70;
+  // `gender` drives the RDA rows below, which are `=== 'female'` tests, and
+  // keeps its long-standing male default: moving the unknown case there
+  // would quietly shift iron, magnesium and vitamin C targets, which is a
+  // separate question from how many calories someone burns.
+  //
+  // The BMR path does NOT use it. Mifflin-St Jeor's sex term is passed
+  // through raw so calcBMR's midpoint branch is reachable — collapsing
+  // unknown into male here is what made it dead code.
   const gender = userProfile.gender || 'male';
 
   const weightKg = weightLbs * 0.453592;
@@ -125,15 +194,41 @@ export function calculateDailyValues(userProfile = {}) {
     vitamin_b12_mcg: 2.4,
   };
 
-  // No goal set → standard values (preserves prior behavior), but still
-  // honor an explicit calorie-cycling override if the user configured one.
+  // No goal set. Nutrition onboarding has a 0% completion rate (audit 21),
+  // so this is the branch essentially every account takes — it is the
+  // product, not a fallback.
+  //
+  // If we can measure the user, do: maintenance from their own BMR and
+  // their own training frequency, which is the same figure Progress →
+  // Insights already shows them. Otherwise keep the flat 2000, which is at
+  // least honestly generic rather than a guess wearing a real number's
+  // clothes. Either way an explicit calorie-cycling override still wins.
   if (!userProfile.nutrition_goal) {
-    return applyCalorieCycling(standard, userProfile);
+    const maintenance = maintenanceCalories({ userProfile, sessionsPerWeek });
+    if (maintenance == null) return applyCalorieCycling(standard, userProfile);
+    return applyCalorieCycling({
+      ...standard,
+      calories: maintenance,
+      // Same 0.8 g/lb the 'maintain' goal uses — no deficit, no surplus,
+      // so there is no reason for the split to differ from it.
+      ...macrosFor({ calories: maintenance, weightLbs, proteinPerLb: 0.8 }),
+    }, userProfile);
   }
 
   // ---------- goal-driven calorie & macro calculation ----------
-  const bmr = mifflinStJeor({ weightKg, heightCm, age, gender });
-  const activity = ACTIVITY_MULTIPLIERS[userProfile.activity_level] ?? ACTIVITY_MULTIPLIERS.moderate;
+  // Raw sex, not the male-defaulted `gender` — see the note where `gender`
+  // is declared.
+  const bmr = calcBMR({
+    weightKg, heightCm, age,
+    sex: (userProfile.gender || '').toLowerCase(),
+  });
+  // A stated activity_level still wins here: someone who set a goal told us
+  // what they do, and their own answer outranks our inference. Observed
+  // training is the fallback, and the old blanket `moderate` is the last
+  // resort rather than the usual outcome.
+  const activity = ACTIVITY_MULTIPLIERS[userProfile.activity_level]
+    ?? (Number.isFinite(sessionsPerWeek) ? activityMultiplier(sessionsPerWeek) : null)
+    ?? ACTIVITY_MULTIPLIERS.moderate;
   const tdee = bmr * activity;
 
   // Determine weekly rate: prefer explicit weekly_rate_lbs if stored,
@@ -168,24 +263,9 @@ export function calculateDailyValues(userProfile = {}) {
     userProfile.nutrition_goal === 'gain' ? 0.9 :
     0.8;
 
-  const protein_g = Math.round(weightLbs * proteinPerLb);
-  const proteinKcal = protein_g * 4;
-
-  // Fat: 25% of calories (~0.35 g/lb floor for hormonal health).
-  const fatKcal = calories * 0.25;
-  const fatFloor_g = Math.round(weightLbs * 0.35);
-  const fat_g = Math.max(Math.round(fatKcal / 9), fatFloor_g);
-  const fatKcalFinal = fat_g * 9;
-
-  // Carbs: whatever calories remain after protein and fat. Floor at 0.
-  const carbsKcal = Math.max(calories - proteinKcal - fatKcalFinal, 0);
-  const carbs_g = Math.round(carbsKcal / 4);
-
   return applyCalorieCycling({
     ...standard,
     calories,
-    protein_g,
-    carbs_g,
-    fat_g,
+    ...macrosFor({ calories, weightLbs, proteinPerLb }),
   }, userProfile);
 }

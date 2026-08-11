@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { motion } from 'framer-motion';
-import { calculateDailyValues } from '@/lib/nutritionDefaults';
+import { useNutritionTargets } from '@/hooks/useNutritionTargets';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useSettings } from '@/lib/SettingsContext';
 import NutrientRing from './NutrientRing';
@@ -49,7 +49,7 @@ export default function MacroNutrientBox({ entries = [], userProfile = {} }) {
     );
   }, [entries]);
 
-  const dailyValues = useMemo(() => calculateDailyValues(userProfile), [userProfile]);
+  const dailyValues = useNutritionTargets(userProfile);
 
   const containerVariants = {
     hidden: { opacity: 0 },

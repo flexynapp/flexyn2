@@ -14,7 +14,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { calculateDailyValues } from '@/lib/nutritionDefaults';
+import { useNutritionTargets } from '@/hooks/useNutritionTargets';
 
 // Tiny specks scattered across the fill, each flowing right→left on its own
 // stagger so the stream is continuous. Positions/timings are derived
@@ -57,7 +57,7 @@ const SPECK_KEYFRAMES = `
 
 export default function CalorieTopBar({ entries = [], userProfile = {} }) {
   const consumed = entries.reduce((s, e) => s + (Number(e.calories) || 0), 0);
-  const dv = calculateDailyValues(userProfile);
+  const dv = useNutritionTargets(userProfile);
   const goal = Number(dv?.calories) || 2000;
   const remaining = Math.round(goal - consumed);
   const over = remaining < 0;
