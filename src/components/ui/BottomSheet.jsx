@@ -23,7 +23,7 @@
  */
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
+import { motion, AnimatePresence, useMotionValue, useTransform, useDragControls } from 'framer-motion';
 import { X } from 'lucide-react';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import prefersReducedMotion from '@/lib/reducedMotion';
@@ -71,6 +71,23 @@ export default function BottomSheet({
       onClose();
     }
   };
+
+  // The drag starts on the handle bar, not on the panel. The doc comment at
+  // the top of this file has always said "swiping down on the handle /
+  // header" — the implementation put `dragListener` on the whole panel
+  // instead, and that is what made the sheet's own content unscrollable.
+  //
+  // framer writes `touch-action: pan-x` onto a `drag="y"` element whose
+  // listener is live (render/html/use-props.mjs). touch-action is resolved
+  // by intersecting the value down the ancestor chain, so pan-x on the panel
+  // forbids vertical panning for everything inside it — including the
+  // `overflow-y-auto` content div two lines below. Worse, `dragConstraints`
+  // pins the top at 0, so swiping UP — the gesture for reading further down
+  // a list — moved nothing and scrolled nothing. Anything below the fold in
+  // a sheet was simply unreachable by touch.
+  //
+  // Same framer branch, same fix, as ReorderableRow in components/dashboard.
+  const dragControls = useDragControls();
 
   if (typeof document === 'undefined') return null;
 
@@ -132,10 +149,20 @@ export default function BottomSheet({
             dragConstraints={{ top: 0, bottom: 0 }}
             dragElastic={{ top: 0, bottom: 0.3 }}
             onDragEnd={handleDragEnd}
-            dragListener={true}
+            dragListener={false}
+            dragControls={dragControls}
           >
-            {/* Drag handle + title bar */}
-            <div className="flex flex-col items-center pt-2.5 pb-1 px-4 cursor-grab active:cursor-grabbing shrink-0 select-none">
+            {/* Drag handle + title bar — `touch-none` because this bar is now
+                the one element that claims the vertical gesture. The close
+                button inside it is excluded: a pointerdown that starts a drag
+                would otherwise swallow the tap. */}
+            <div
+              onPointerDown={(e) => {
+                if (e.target.closest('button')) return;
+                dragControls.start(e);
+              }}
+              className="flex flex-col items-center pt-2.5 pb-1 px-4 cursor-grab active:cursor-grabbing shrink-0 select-none touch-none"
+            >
               {/* Pill indicator */}
               <div className="w-10 h-1 rounded-full bg-muted-foreground/25 mb-3" />
 

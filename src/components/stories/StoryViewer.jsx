@@ -23,7 +23,7 @@ import React, { useState, useEffect, useRef, useCallback, useLayoutEffect } from
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useDragControls } from 'framer-motion';
 import { X, Trash2, Heart, Eye, Send, Flag, MessageCircle, Loader2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from '@/lib/toast';
@@ -104,6 +104,7 @@ function InsightsPanel({ storyId, onClose }) {
   });
   const viewers = insights?.viewers ?? [];
   const likers  = insights?.likers  ?? [];
+  const dragControls = useDragControls();
 
   return (
     <motion.div
@@ -112,6 +113,17 @@ function InsightsPanel({ storyId, onClose }) {
       exit={{ y: '100%' }}
       transition={{ type: 'spring', damping: 30, stiffness: 320 }}
       drag="y"
+      // Handle-only. A live listener has framer write `touch-action: pan-x`
+      // here, which resolves down onto the `overflow-y-auto` viewer list
+      // below — so on a popular story the names past the fold could not be
+      // scrolled to. This panel is the one place the viewer list lives, so
+      // that was the whole feature. See BottomSheet.jsx for the mechanism.
+      //
+      // The FULLSCREEN viewer below keeps its whole-surface drag on purpose:
+      // it has no inner scroller, and swipe-anywhere is the gesture people
+      // expect from a story.
+      dragListener={false}
+      dragControls={dragControls}
       dragConstraints={{ top: 0, bottom: 0 }}
       dragElastic={{ top: 0.05, bottom: 0.3 }}
       onDragEnd={(_, info) => { if (info.offset.y > 70) onClose(); }}
@@ -119,7 +131,10 @@ function InsightsPanel({ storyId, onClose }) {
       className="absolute bottom-0 start-0 end-0 bg-card rounded-t-3xl z-20 max-h-[72vh] flex flex-col"
       style={{ paddingBottom: 'max(20px, env(safe-area-inset-bottom))' }}
     >
-      <div className="flex justify-center pt-3 pb-1 shrink-0">
+      <div
+        onPointerDown={(e) => dragControls.start(e)}
+        className="flex justify-center pt-3 pb-1 shrink-0 cursor-grab active:cursor-grabbing touch-none select-none"
+      >
         <div className="w-10 h-1 rounded-full bg-muted-foreground/30" />
       </div>
       <div className="flex items-center justify-between px-5 py-3 shrink-0">

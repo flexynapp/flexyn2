@@ -2,7 +2,7 @@
 // Bottom sheet showing duel details, session template (mirror), and result card when complete.
 
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, useDragControls } from 'framer-motion';
 import { X, Swords, Dumbbell, Timer, Trophy, Crown, Check, Loader2 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/lib/toast';
@@ -38,6 +38,9 @@ function StatPill({ label, value, highlight }) {
 export default function DuelDetailSheet({ duel, currentUserId, opponentProfile, onCancel, onClose }) {
   // Pin the page behind this overlay — see @/lib/scrollLock.
   useBodyScrollLock(!!duel);
+  // Above the `if (!duel) return null` below, because hooks cannot sit behind
+  // an early return.
+  const dragControls = useDragControls();
   const fmt = useNumberFormatter();
   const { user } = useAuth();
   const qc = useQueryClient();
@@ -106,6 +109,14 @@ export default function DuelDetailSheet({ duel, currentUserId, opponentProfile, 
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: 80, opacity: 0 }}
         drag="y"
+        // Handle-only, because THIS element is also the scroller
+        // (`max-h-[85vh] overflow-y-auto` above). A live drag listener makes
+        // framer write `touch-action: pan-x` onto it, which forbids the very
+        // vertical pan the overflow exists for — so a duel longer than 85vh
+        // could not be read on a phone at all. See BottomSheet.jsx for the
+        // full mechanism.
+        dragListener={false}
+        dragControls={dragControls}
         dragConstraints={{ top: 0, bottom: 0 }}
         dragElastic={{ top: 0, bottom: 0.3 }}
         onDragEnd={(_e, info) => {
@@ -113,8 +124,13 @@ export default function DuelDetailSheet({ duel, currentUserId, opponentProfile, 
         }}
         transition={{ type: 'spring', damping: 28, stiffness: 280 }}
       >
-        {/* Handle */}
-        <div className="flex justify-center pt-3 pb-1">
+        {/* Handle — the only thing that starts the dismiss drag, so it owns
+            the gesture (`touch-none`) and gets a real tap target around the
+            1px pill rather than just the pill's own height. */}
+        <div
+          onPointerDown={(e) => dragControls.start(e)}
+          className="flex justify-center pt-3 pb-1 cursor-grab active:cursor-grabbing touch-none select-none"
+        >
           <div className="w-10 h-1 rounded-full bg-border" />
         </div>
 

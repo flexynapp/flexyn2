@@ -8,7 +8,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useDragControls } from 'framer-motion';
 import { X, Loader2, Sparkles } from 'lucide-react';
 import FlexCoinIcon from '@/components/FlexCoinIcon';
 import { toast } from '@/lib/toast';
@@ -67,6 +67,7 @@ const SKU_TO_CAMEL = {
 export default function CoinShopModal({ open, onClose }) {
   // Pin the page behind this overlay — see @/lib/scrollLock.
   useBodyScrollLock(open);
+  const dragControls = useDragControls();
   const { user } = useAuth();
   const { t, tFallback } = useLanguage();
   const queryClient = useQueryClient();
@@ -151,14 +152,28 @@ export default function CoinShopModal({ open, onClose }) {
           onClick={(e) => e.stopPropagation()}
           className="w-full md:w-[460px] max-h-[88vh] bg-card border-t md:border md:rounded-2xl rounded-t-2xl overflow-hidden flex flex-col shadow-2xl"
           drag="y"
+          // Handle-only. With a live listener framer writes
+          // `touch-action: pan-x` here, and touch-action resolves down the
+          // ancestor chain — so the `overflow-y-auto` item list below could
+          // not be panned, and the shop was capped at whatever fitted in
+          // 88vh. See BottomSheet.jsx for the full mechanism.
+          dragListener={false}
+          dragControls={dragControls}
           dragConstraints={{ top: 0, bottom: 0 }}
           dragElastic={{ top: 0, bottom: 0.3 }}
           onDragEnd={(_e, info) => {
             if (info.velocity.y >= 300 || info.offset.y >= 80) onClose?.();
           }}
         >
-          {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b border-border">
+          {/* Header — doubles as the drag surface, since this sheet has no
+              pill. The close button is excluded so a pointerdown that starts
+              a drag can't swallow its tap. */}
+          <div
+            onPointerDown={(e) => {
+              if (e.target.closest('button')) return;
+              dragControls.start(e);
+            }}
+            className="flex items-center justify-between p-4 border-b border-border cursor-grab active:cursor-grabbing touch-none select-none">
             <div>
               <h2 className="font-heading font-bold text-base">{t('shop.title')}</h2>
               <div className="flex items-center gap-1.5 mt-0.5">
