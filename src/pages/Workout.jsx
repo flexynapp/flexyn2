@@ -66,6 +66,7 @@ import RegimenStorePage from '@/components/regimens/RegimenStorePage';
 import StarterPlanHeroCard from '@/components/workout/StarterPlanHeroCard';
 import FirstWorkoutTutorial, { hasSeenFirstWorkoutTutorial } from '@/components/workout/FirstWorkoutTutorial';
 import PageHeader from '@/components/PageHeader';
+import HeroPager from '@/components/HeroPager';
 import { useWorkoutSessions, pauseWorkoutSync } from '@/hooks/useWorkoutSessions';
 import { calculateWorkoutXp } from '@/lib/xpSystem';
 import { DURATION_COLUMN } from '@/lib/workoutDuration';
@@ -95,6 +96,16 @@ const ProgressPhotoCapture = lazy(() => import('@/components/progress/ProgressPh
 const InjuryForm           = lazy(() => import('@/components/workout/InjuryForm'));
 const PRShareCard          = lazy(() => import('@/components/workout/PRShareCard'));
 const GoalsModal           = lazy(() => import('@/components/goals/GoalsModal'));
+
+// The Workout hero's three destinations. HeroPager keys its pages off `id`
+// and paints its dots from `color`, so both live here rather than inside the
+// slide bodies. `color` is an HSL triple the pager drops into `hsl(...)` —
+// the gauntlet's purple is the same 139,92,246 its gradient uses, converted.
+const HERO_SLIDES = [
+  { id: 'freestyle', color: 'var(--primary)' },
+  { id: 'gauntlet',  color: '258 90% 66%' },
+  { id: 'crew-wars', color: 'var(--success)' },
+];
 
 const EXERCISE_NAMES = new Set(EXERCISE_LIBRARY.map(e => e.name.toLowerCase()));
 
@@ -313,10 +324,6 @@ export default function Workout() {
     handleProps: gridHandleProps,
     reset: resetGridDrag,
   } = useGridReorder(cardOrder, setCardOrder);
-  const HERO_COUNT = 3;
-  const [[heroSlide, heroDir], setHeroState] = useState([0, 0]);
-  const paginateHero = (dir) => setHeroState(([cur]) => [((cur + dir) % HERO_COUNT + HERO_COUNT) % HERO_COUNT, dir]);
-  const heroDragging = useRef(false);
   const [cheatWarningData, setCheatWarningData] = useState(null);
   const [gauntletStatsModal, setGauntletStatsModal] = useState(null);
   const [implausibleWarning, setImplausibleWarning] = useState(null);
@@ -2215,6 +2222,20 @@ export default function Workout() {
     return () => window.removeEventListener('flexyn-back', handler);
   }, [started, activeSessionId]);
 
+  // The idle screen is four different destinations behind one header, so the
+  // header has to name the one you're actually on — it read "Today's training
+  // / Workout" over the regimen list, which is neither today's training nor
+  // the Workout screen. "Today's training" also belongs only to the start
+  // screen: the regimen list is a library, not a day.
+  // The store is the exception and gets no header at all — RegimenStorePage
+  // draws its own "Explore Regimens" title with a back arrow, and two titles
+  // stacked on one screen name it twice.
+  const pageHeaderProps = cardioPageTitle
+    ? { kicker: 'CARDIO', title: cardioPageTitle, subtitle: null }
+    : regimensOpen
+      ? { kicker: null, title: t('workout.regimens'), subtitle: t('workout.regimensDesc') }
+      : { kicker: t('pageHeader.kicker.workout'), title: t('nav.workout'), subtitle: t('workout.subtitle') };
+
   if (!started) {
     return (
       <motion.div
@@ -2223,12 +2244,14 @@ export default function Workout() {
         transition={{ duration: 0.5, ease: 'easeOut' }}
         className="px-4 pt-4 md:px-6 md:pt-6 lg:pb-6 max-w-5xl mx-auto"
       >
-        <PageHeader
-          kicker={cardioPageTitle ? 'CARDIO' : t('pageHeader.kicker.workout')}
-          title={cardioPageTitle || t('nav.workout')}
-          hidePeriod
-          subtitle={cardioPageTitle ? null : t('workout.subtitle')}
-        />
+        {!storeOpen && (
+          <PageHeader
+            kicker={pageHeaderProps.kicker}
+            title={pageHeaderProps.title}
+            hidePeriod
+            subtitle={pageHeaderProps.subtitle}
+          />
+        )}
 
         <motion.div variants={itemVariants} initial="hidden" animate="visible" transition={{ delay: 0.2 }}>
           <GoalsAlmostComplete goals={goals} logs={logs} onOpen={() => setGoalsModalOpen(true)} />
@@ -2344,44 +2367,42 @@ export default function Workout() {
               );
             })()}
 
-            {/* Primary action — Freestyle */}
-            {/* Primary action — Freestyle */}
-            {/* ── Hero carousel: Freestyle | Gauntlet | Crew Wars ── */}
+            {/* ── Hero carousel: Freestyle | Gauntlet | Crew Wars ──
+                Runs on HeroPager, the same engine as the Dashboard, Progress
+                and Nutrition heroes: a track holding every slide, translated
+                under the finger, settling on a spring and clamped at the ends
+                like an iOS home screen.
+
+                It used to be the older treatment HeroPager's head comment
+                describes — a cross-fade behind `drag="x"` pinned by
+                `dragConstraints={{ left: 0, right: 0 }}`, so nothing moved
+                with the thumb and the swipe read as a nudge that happened to
+                trigger a fade. Four carousels, one gesture now.
+
+                No chevron on purpose. HeroPager draws none of its own — the
+                Dashboard's is chrome its band adds — so the dots stay this
+                hero's only affordance.
+
+                The absolutely-positioned slide and its invisible height
+                placeholder are gone with the fade: pages sit in normal flow
+                side by side, and the flex row takes the height of the tallest
+                one. The `min-h-[2em]` / `min-h-[3.25em]` holds inside each
+                slide are what keep the three near enough that the shared
+                height doesn't leave a gap. */}
             <motion.div
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
               className="mb-4"
+              style={{ touchAction: 'pan-y' }}
             >
-              <div className="relative overflow-hidden rounded-3xl" style={{ touchAction: 'pan-y' }}>
-                <AnimatePresence initial={false} custom={heroDir} mode="sync">
-                  <motion.div
-                    key={heroSlide}
-                    custom={heroDir}
-                    variants={{
-                      enter: (dir) => ({ x: dir >= 0 ? '100%' : '-100%', opacity: 0 }),
-                      center: { x: 0, opacity: 1 },
-                      exit: (dir) => ({ x: dir >= 0 ? '-100%' : '100%', opacity: 0 }),
-                    }}
-                    initial="enter"
-                    animate="center"
-                    exit="exit"
-                    transition={{ type: 'spring', stiffness: 260, damping: 28 }}
-                    drag="x"
-                    dragConstraints={{ left: 0, right: 0 }}
-                    dragElastic={0.15}
-                    onDragStart={() => { heroDragging.current = true; }}
-                    onDragEnd={(_, { offset, velocity }) => {
-                      const swipe = Math.abs(offset.x) * Math.abs(velocity.x);
-                      if (offset.x < -60 || swipe > 8000) paginateHero(1);
-                      else if (offset.x > 60 || swipe < -8000) paginateHero(-1);
-                      setTimeout(() => { heroDragging.current = false; }, 80);
-                    }}
-                    className="absolute inset-0 w-full cursor-grab active:cursor-grabbing"
-                    style={{ zIndex: 1 }}
-                  >
-                    {heroSlide === 0 && (
-                      <button type="button" onClick={() => { if (!heroDragging.current) startFreestyle(); }}
+              <HeroPager
+                slides={HERO_SLIDES}
+                dotsClassName="justify-center mt-2.5"
+                renderSlide={(slide) => (
+                  <>
+                    {slide.id === 'freestyle' && (
+                      <button type="button" onClick={startFreestyle}
                         className="group w-full h-full relative overflow-hidden rounded-3xl text-white text-start"
                         style={{ background: 'linear-gradient(135deg, #0d0d14 0%, #111827 40%, #0a0f1e 100%)', boxShadow: '0 20px 60px -12px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.06) inset' }}>
                         <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-3xl">
@@ -2413,8 +2434,8 @@ export default function Workout() {
                         </div>
                       </button>
                     )}
-                    {heroSlide === 1 && (
-                      <button type="button" onClick={() => { if (!heroDragging.current) navigate('/gauntlet'); }}
+                    {slide.id === 'gauntlet' && (
+                      <button type="button" onClick={() => navigate('/gauntlet')}
                         className="group w-full h-full relative overflow-hidden rounded-3xl text-white text-start"
                         style={{ background: 'linear-gradient(135deg, #1e0a3c 0%, #2d1257 40%, #1a0a2e 100%)', boxShadow: '0 20px 60px -12px rgba(88,28,135,0.5), 0 0 0 1px rgba(167,139,250,0.1) inset' }}>
                         <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-3xl">
@@ -2446,8 +2467,8 @@ export default function Workout() {
                         </div>
                       </button>
                     )}
-                    {heroSlide === 2 && (
-                      <button type="button" onClick={() => { if (!heroDragging.current) navigate('/hub', { state: { openCrewWars: true } }); }}
+                    {slide.id === 'crew-wars' && (
+                      <button type="button" onClick={() => navigate('/hub', { state: { openCrewWars: true } })}
                         className="group w-full h-full relative overflow-hidden rounded-3xl text-white text-start"
                         style={{ background: 'linear-gradient(135deg, #0c1a10 0%, #14281c 40%, #091510 100%)', boxShadow: '0 20px 60px -12px rgba(16,185,129,0.3), 0 0 0 1px rgba(52,211,153,0.08) inset' }}>
                         <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-3xl">
@@ -2479,25 +2500,9 @@ export default function Workout() {
                         </div>
                       </button>
                     )}
-                  </motion.div>
-                </AnimatePresence>
-                {/* Height placeholder so container does not collapse */}
-                <div className="invisible pointer-events-none" aria-hidden="true">
-                  <div className="flex items-center justify-between gap-4 p-6 md:p-8 pb-9 md:pb-10">
-                    <div><span className="block text-micro mb-2">x</span><span className="font-heading font-black text-3xl block leading-none min-h-[2em]">x</span><span className="text-label mt-2.5 block min-h-[3.25em]">placeholder line</span><span className="inline-flex mt-3 px-2.5 py-1 text-micro">badge placeholder</span></div>
-                    <div className="w-16 h-16 rounded-2xl shrink-0" />
-                  </div>
-                </div>
-              </div>
-              {/* Dots */}
-              <div className="flex justify-center gap-2 mt-2.5">
-                {[0, 1, 2].map(i => (
-                  <button key={i} type="button"
-                    onClick={() => setHeroState([i, i > heroSlide ? 1 : -1])}
-                    className={`transition-all duration-300 rounded-full ${heroSlide === i ? 'w-5 h-1.5 bg-primary' : 'w-1.5 h-1.5 bg-muted-foreground/25 hover:bg-muted-foreground/50 active:bg-muted-foreground/50'}`}
-                    aria-label={`Slide ${i + 1}`} />
-                ))}
-              </div>
+                  </>
+                )}
+              />
             </motion.div>
 
             {/* Repeat last workout — fastest path to logging for returning
