@@ -12,7 +12,7 @@ import { useQuery } from '@tanstack/react-query';
 import { getCrewStats, getCrewFirstAchievers } from '@/lib/data/crews';
 import { useNumberFormatter, useDateFormatter } from '@/lib/intl';
 import { useLanguage } from '@/lib/LanguageContext';
-import { getAchievementById } from '@/lib/achievementDefinitions';
+import { getTrophy } from '@/lib/trophyDefinitions';
 import { displayName } from '@/lib/userDisplay';
 
 function StatCard({ icon, label, value, sub }) {
@@ -126,15 +126,18 @@ export default function CrewStatsPanel({ crewId, onClose }) {
                 </p>
                 <div className="space-y-1.5">
                   {firstAchievers.slice(0, 8).map((row) => {
-                    const def = getAchievementById(row.achievementId);
+                    // getTrophy resolves catalog, generated tail and
+                    // league-season ids, so a crew's rarest badges render
+                    // by name rather than falling back to a raw slug.
+                    const def = getTrophy(row.achievementId);
                     const name = displayName(row.profile, '—');
                     return (
                       <div key={row.achievementId}
                         className="flex items-center gap-2 px-3 py-2 rounded-xl bg-secondary/30">
-                        <span className="text-xl shrink-0">{def?.icon || '🏅'}</span>
+                        <span className="text-xl shrink-0">{def?.emoji || '🏅'}</span>
                         <div className="flex-1 min-w-0">
                           <p className="text-xs font-semibold text-foreground truncate">
-                            {def ? (t(def.nameKey) || def.nameKey) : row.achievementId}
+                            {def?.name || row.achievementId}
                           </p>
                           <p className="text-xs text-muted-foreground truncate">
                             @{name} · {fmtDate(row.unlockedAt)}

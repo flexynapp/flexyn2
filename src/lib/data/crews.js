@@ -908,11 +908,18 @@ export async function getCrewStats(crewId) {
  * along with the unlock date. Ordered by most-recent earliest-unlock so
  * the freshest "bragging rights" rise to the top.
  *
- * Achievement records live in Base44 (no Supabase mirror), so we fetch
- * per-member and aggregate client-side — same O(N) pattern as
- * `getCrewStats`. Capped at the crew's 16-member ceiling.
+ * Reads `user_trophies`. It used to read the retired `public.achievements`
+ * table, which holds ONE row in all of production, so this panel was
+ * empty for every crew — the previous fix here corrected the column names
+ * but left the source table behind, and an empty leaderboard is
+ * indistinguishable from a crew that has achieved nothing.
  *
- * Returns: Array<{ achievementId, member, profile, unlockedAt }>
+ * One query for the whole crew rather than one per member: the trophy
+ * table's read policy is `USING (true)` for authenticated users, so an
+ * `IN (…)` over the member ids is a single round trip, where the old
+ * per-member fan-out was O(members).
+ *
+ * Returns: Array<{ achievementId, userId, profile, unlockedAt }>
  */
 export async function getCrewFirstAchievers(crewId) {
   if (!crewId) return [];
@@ -927,46 +934,30 @@ export async function getCrewFirstAchievers(crewId) {
   const profileMap = {};
   for (const p of (profiles ?? [])) profileMap[p.id] = p;
 
-  // Pull every unlocked achievement for every member in parallel.
-  const perMember = await Promise.all(members.map(async (m) => {
-    const profile = profileMap[m.user_id];
-    // Filter by user_id, not created_by=email. achievements.user_id is
-    // reliably server-stamped (grant_xp_milestone_achievements writes
-    // auth.uid()), RLS already permits the auth.uid()=user_id branch, and this
-    // also catches guest members whose rows carry created_by='' (the old email
-    // filter silently missed them — same defect the app already fixed in
-    // leaderboardStats/AchievementsVault/ProfileBadgeShowcase). `profile` is
-    // kept for the display fields on the returned rows.
-    if (!m.user_id || !profile) return [];
-    try {
-      const all = await db.entities.Achievement
-        .filter({ user_id: m.user_id })
-        .catch(() => []);
-      // The achievements table stores ONLY unlocked rows (row presence =
-      // unlocked). Date column is `unlocked_at`. Previously filtered on
-      // `a.unlocked && a.unlocked_date` — neither column exists — so
-      // the crew first-achievers leaderboard has been silently empty
-      // since launch. (Audit 17 #T2, also same defect class as the
-      // AchievementsTab progress-bar fix from wave 2.)
-      return (all || [])
-        .filter(a => a?.achievement_id && a?.unlocked_at)
-        .map(a => ({
-          achievementId: a.achievement_id,
-          userId:        m.user_id,
-          profile,
-          unlockedAt:    a.unlocked_at,
-        }));
-    } catch { return []; }
-  }));
+  // Row presence IS the unlock — there is no `unlocked` flag to filter on,
+  // and reaching for one is what emptied this panel's predecessor.
+  const { data: rows, error } = await safeSelect({
+    columns: ['user_id', 'trophy_id', 'earned_at'],
+    build: (cols) => supabase
+      .from('user_trophies')
+      .select(cols)
+      .in('user_id', userIds),
+  });
+  if (error) return [];
 
-  // Reduce to earliest-per-achievement.
+  // Reduce to earliest-per-trophy.
   const earliest = {};
-  for (const arr of perMember) {
-    for (const row of arr) {
-      const prev = earliest[row.achievementId];
-      if (!prev || row.unlockedAt < prev.unlockedAt) {
-        earliest[row.achievementId] = row;
-      }
+  for (const r of (rows || [])) {
+    const profile = profileMap[r.user_id];
+    if (!profile || !r.trophy_id || !r.earned_at) continue;
+    const prev = earliest[r.trophy_id];
+    if (!prev || r.earned_at < prev.unlockedAt) {
+      earliest[r.trophy_id] = {
+        achievementId: r.trophy_id,
+        userId:        r.user_id,
+        profile,
+        unlockedAt:    r.earned_at,
+      };
     }
   }
 

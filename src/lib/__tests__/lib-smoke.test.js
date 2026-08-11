@@ -93,12 +93,6 @@ describe('lib smoke — utility modules load + export expected symbols', () => {
     expect(Array.isArray(mod.TROPHIES) || typeof mod.TROPHIES === 'object').toBe(true);
   });
 
-  it('achievementDefinitions exports getAchievementById + getAllAchievements', async () => {
-    const mod = await import('../achievementDefinitions');
-    expect(typeof mod.getAchievementById).toBe('function');
-    expect(typeof mod.getAllAchievements).toBe('function');
-    expect(Array.isArray(mod.getAllAchievements())).toBe(true);
-  });
 
   it('lootFrames exports rollLootFrame + getLootFrameById', async () => {
     const mod = await import('../lootFrames');
