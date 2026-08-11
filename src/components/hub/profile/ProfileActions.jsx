@@ -11,12 +11,13 @@
 // which exactly one is primary, and a "…" that absorbs everything else. That
 // is what keeps a header calm no matter how many capabilities the app grows —
 // Duel and Gift are good features, but neither is why anyone opens a profile.
-import { Loader2, MessageCircle, MoreHorizontal, Pencil, Palette, QrCode, Coins, Swords, Eye, EyeOff, UserPlus, UserCheck } from 'lucide-react';
+import { Loader2, MessageCircle, MoreHorizontal, Pencil, Palette, QrCode, Coins, Swords, Eye, EyeOff, UserPlus, UserCheck, VolumeX, Volume2, Ban } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { THEMES_ENABLED } from '@/lib/featureFlags';
 
@@ -78,6 +79,10 @@ export default function ProfileActions({
   onOpenQr,
   onOpenDuel,
   onOpenGift,
+  onMute,
+  onUnmute,
+  onBlock,
+  isMuted = false,
   onToggleTrophyVisibility,
   trophyVisible,
   canDuelOrGift,
@@ -224,6 +229,36 @@ export default function ProfileActions({
                     icon={QrCode}
                     label={tFallback('hub.profile.shareProfile', 'Share profile')}
                     onSelect={onOpenQr}
+                  />
+                )}
+
+                {/* Moderation. Unmute in particular is the point of this
+                    block: muting was reachable from any post, unmuting only
+                    from Settings → Privacy, so the two halves of one decision
+                    lived in different places and the undo was unfindable.
+                    Whichever state you are in, the opposite action is here. */}
+                {(onMute || onUnmute || onBlock) && <DropdownMenuSeparator />}
+                {isMuted
+                  ? onUnmute && (
+                      <MenuItem
+                        icon={Volume2}
+                        label={tFallback('hub.profile.unmute', 'Unmute')}
+                        onSelect={onUnmute}
+                      />
+                    )
+                  : onMute && (
+                      <MenuItem
+                        icon={VolumeX}
+                        label={tFallback('hub.profile.mute', 'Mute')}
+                        onSelect={onMute}
+                      />
+                    )}
+                {onBlock && (
+                  <MenuItem
+                    icon={Ban}
+                    iconClass="text-destructive"
+                    label={tFallback('hub.profile.block', 'Block')}
+                    onSelect={onBlock}
                   />
                 )}
               </>

@@ -2,7 +2,9 @@ import { useState, useRef, useEffect, useCallback, memo } from 'react';
 import { isVerified } from '@/lib/verifiedUsers';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ThumbsUp, MessageCircle, Lock, Globe2, Trash2, Bookmark, Flag, Languages, Loader2, BarChart3, Heart, Share2, VolumeX, Ban, Pencil, Repeat2, Check, X, Clock, Film, BarChart2, Users, Volume2, ImageIcon, ChevronDown } from 'lucide-react';
+import { ThumbsUp, MessageCircle, Lock, Globe2, Trash2, Bookmark, Flag, Languages, Loader2, BarChart3, Heart, Share2, VolumeX, Ban, Pencil, Repeat2, Check, X, Clock, Film, BarChart2, Users, Volume2, ImageIcon, ChevronDown, MoreVertical } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { supabase } from '@/api/supabaseClient';
 import ContentWarningGate from './ContentWarningGate';
 import { muteUser } from '@/lib/data/userMutes';
@@ -442,6 +444,10 @@ function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
   const [pendingReaction, setPendingReaction] = useState(undefined);
   const [mealSaved, setMealSaved] = useState(() => isMealSaved(post.id));
   const [reportOpen, setReportOpen] = useState(false);
+  // Confirmations are in-app dialogs rather than window.confirm — see the
+  // note at the top of ConfirmDialog for why the browser one is wrong here.
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [confirmBlockOpen, setConfirmBlockOpen] = useState(false);
   const [stickerPanelOpen, setStickerPanelOpen] = useState(false);
 
   const isMealPost = post.post_type === 'meal';
@@ -706,9 +712,47 @@ function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
     doubleTapGuardRef.current = false;
   }, [displayedReaction, handleReact]);
 
+  const authorHandle = post.author_name?.replace(/^@/, '') || 'this user';
+
+  const handleMuteAuthor = async () => {
+    try {
+      await muteUser(user, post.author_email);
+      toast.success(tFallback(
+        'hub.post.mutedToast',
+        "Muted @{name}. Their posts won't appear in your feed.",
+        { name: authorHandle },
+      ));
+      queryClient.invalidateQueries({ queryKey: ['userMutes', user?.id] });
+    } catch (err) {
+      reportError(err, { feature: 'hub.mute-author', level: 'warning', userEmail: user?.email, target: post.author_email });
+      toast.error(tFallback('hub.post.muteError', 'Could not mute — try again.'));
+    }
+  };
+
+  const confirmBlockAuthor = async () => {
+    setConfirmBlockOpen(false);
+    try {
+      await blockUserFull(post.author_email);
+      toast.success(tFallback('hub.post.blockedToast', 'Blocked @{name}.', { name: authorHandle }));
+      queryClient.invalidateQueries({ queryKey: ['userBlocks', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['hubFeed'] });
+      // block_user_full ALSO severs mutual follow rows. Invalidate
+      // the follow-graph caches so the blocked user disappears
+      // from the viewer's following list AND the followers
+      // list immediately, instead of waiting for the next
+      // 30s feed refetch. (Audit 10 #12.)
+      queryClient.invalidateQueries({ queryKey: ['hubFollowing', user?.email] });
+      queryClient.invalidateQueries({ queryKey: ['hubFollowers', user?.email] });
+      queryClient.invalidateQueries({ queryKey: ['myFollowsForDMs', user?.email] });
+    } catch (err) {
+      reportError(err, { feature: 'hub.block-author', level: 'warning', userEmail: user?.email, target: post.author_email });
+      toast.error(tFallback('hub.post.blockError', 'Could not block — try again.'));
+    }
+  };
+
   const handleDelete = async () => {
     if (!isMine) return;
-    if (!window.confirm(t('hub.confirmDelete'))) return;
+    setConfirmDeleteOpen(false);
     try {
       await hubPosts.remove(post.id);
       queryClient.invalidateQueries({ queryKey: ['hubFeed'] });
@@ -989,7 +1033,7 @@ function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
               </button>
             )}
             <button
-              onClick={handleDelete}
+              onClick={() => setConfirmDeleteOpen(true)}
               className="p-1.5 rounded-md text-muted-foreground hover:bg-secondary active:bg-secondary hover:text-destructive active:text-destructive transition-colors"
               aria-label={t('hub.delete')}
             >
@@ -997,61 +1041,40 @@ function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
             </button>
           </div>
         ) : (
-          <>
-            <button
-              onClick={async () => {
-                try {
-                  await muteUser(user, post.author_email);
-                  toast.success(`Muted @${post.author_name?.replace(/^@/, '') || 'user'}. Their posts won't appear in your feed.`);
-                  queryClient.invalidateQueries({ queryKey: ['userMutes', user?.id] });
-                } catch (err) {
-                  reportError(err, { feature: 'hub.mute-author', level: 'warning', userEmail: user?.email, target: post.author_email });
-                  toast.error('Could not mute — try again.');
-                }
-              }}
-              className="relative p-1.5 rounded-md text-muted-foreground hover:bg-secondary active:bg-secondary hover:text-foreground active:text-foreground transition-colors"
-              aria-label="Mute this author"
-              title="Mute author"
-            >
-              <VolumeX className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={async () => {
-                const handle = post.author_name?.replace(/^@/, '') || 'this user';
-                if (!confirm(`Block @${handle}? They won't see your profile, posts, or stories, and you won't see theirs. You can unblock from Settings.`)) return;
-                try {
-                  await blockUserFull(post.author_email);
-                  toast.success(`Blocked @${handle}.`);
-                  queryClient.invalidateQueries({ queryKey: ['userBlocks', user?.id] });
-                  queryClient.invalidateQueries({ queryKey: ['hubFeed'] });
-                  // block_user_full ALSO severs mutual follow rows. Invalidate
-                  // the follow-graph caches so the blocked user disappears
-                  // from the viewer's following list AND the followers
-                  // list immediately, instead of waiting for the next
-                  // 30s feed refetch. (Audit 10 #12.)
-                  queryClient.invalidateQueries({ queryKey: ['hubFollowing', user?.email] });
-                  queryClient.invalidateQueries({ queryKey: ['hubFollowers', user?.email] });
-                  queryClient.invalidateQueries({ queryKey: ['myFollowsForDMs', user?.email] });
-                } catch (err) {
-                  reportError(err, { feature: 'hub.block-author', level: 'warning', userEmail: user?.email, target: post.author_email });
-                  toast.error('Could not block — try again.');
-                }
-              }}
-              className="relative p-1.5 rounded-md text-muted-foreground hover:bg-secondary active:bg-secondary hover:text-destructive active:text-destructive transition-colors"
-              aria-label="Block this author"
-              title="Block author"
-            >
-              <Ban className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={() => setReportOpen(true)}
-              className="relative p-1.5 rounded-md text-muted-foreground hover:bg-secondary active:bg-secondary hover:text-destructive active:text-destructive transition-colors"
-              aria-label={t('report.buttonLabel')}
-              title={t('report.buttonLabel')}
-            >
-              <Flag className="w-3.5 h-3.5" />
-            </button>
-          </>
+          // One three-dots menu rather than three naked icons. Mute, block and
+          // report are all "act on this author" and are all rare; three
+          // permanent destructive-looking icons on every post in the feed
+          // spent the row's attention on actions almost nobody takes. Block in
+          // particular used to live down in the post body, so the two halves
+          // of the same decision sat in different places.
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                onPointerUp={(e) => e.stopPropagation()}
+                className="relative p-1.5 rounded-md text-muted-foreground hover:bg-secondary active:bg-secondary hover:text-foreground active:text-foreground transition-colors"
+                aria-label={tFallback('hub.post.moreActions', 'More actions')}
+                title={tFallback('hub.post.moreActions', 'More actions')}
+              >
+                <MoreVertical className="w-3.5 h-3.5" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" onPointerUp={(e) => e.stopPropagation()}>
+              <DropdownMenuItem onClick={handleMuteAuthor}>
+                <VolumeX className="w-3.5 h-3.5 me-2" />
+                {tFallback('hub.post.muteAuthor', 'Mute author')}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setConfirmBlockOpen(true)}>
+                <Ban className="w-3.5 h-3.5 me-2" />
+                {tFallback('hub.post.blockAuthor', 'Block author')}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => setReportOpen(true)} className="text-destructive focus:text-destructive">
+                <Flag className="w-3.5 h-3.5 me-2" />
+                {t('report.buttonLabel')}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
       </div>
 
@@ -1391,6 +1414,31 @@ function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
           reportedAuthorEmail={post.author_email}
         />
       )}
+
+      <ConfirmDialog
+        open={confirmDeleteOpen}
+        onOpenChange={setConfirmDeleteOpen}
+        title={tFallback('hub.post.confirmDeleteTitle', 'Delete this post?')}
+        description={tFallback('hub.post.confirmDeleteDesc', "This can't be undone.")}
+        confirmLabel={tFallback('common.yesDelete', 'Yes, delete')}
+        cancelLabel={t('common.cancel')}
+        onConfirm={handleDelete}
+        destructive
+      />
+
+      <ConfirmDialog
+        open={confirmBlockOpen}
+        onOpenChange={setConfirmBlockOpen}
+        title={tFallback('hub.post.confirmBlockTitle', 'Block @{name}?', { name: authorHandle })}
+        description={tFallback(
+          'hub.post.confirmBlockDesc',
+          "They won't see your profile, posts, or stories, and you won't see theirs. You can unblock from Settings.",
+        )}
+        confirmLabel={tFallback('hub.post.confirmBlockAction', 'Yes, block')}
+        cancelLabel={t('common.cancel')}
+        onConfirm={confirmBlockAuthor}
+        destructive
+      />
 
       {/* Long-press avatar preview sheet */}
       <AnimatePresence>

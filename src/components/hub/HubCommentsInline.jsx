@@ -25,6 +25,7 @@ import { ACTION_TYPES } from '@/lib/questCatalog';
 import * as hubCommentLikes from '@/lib/data/hubCommentLikes';
 import { handle } from '@/lib/userDisplay';
 import ReportDialog from './ReportDialog';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { toast } from '@/lib/toast';
 
 // Orange 3-pronged crown badge for verified admins — defined after all imports
@@ -38,7 +39,7 @@ function CrownBadge({ size = 14 }) {
 }
 
 export default function HubCommentsInline({ post, open, onClose }) {
-  const { t } = useLanguage();
+  const { t, tFallback } = useLanguage();
   const navigate = useNavigate();
   // Navigate to the canonical profile route for a tapped @mention.
   // The user_id is resolved by renderCommentBody via the authorsById map.
@@ -290,9 +291,14 @@ export default function HubCommentsInline({ post, open, onClose }) {
 
   // ── Delete ────────────────────────────────────────────────────────────────
 
-  const handleDelete = async (comment) => {
-    if (comment.author_email !== user?.email) return;
-    if (!window.confirm(t('hub.comments.confirmDelete'))) return;
+  // Two steps so the confirmation is an in-app dialog rather than the
+  // browser's own chrome — see the note at the top of ConfirmDialog.
+  const [pendingDelete, setPendingDelete] = useState(null);
+
+  const confirmDelete = async () => {
+    const comment = pendingDelete;
+    setPendingDelete(null);
+    if (!comment || comment.author_email !== user?.email) return;
     try {
       await hubComments.remove(comment.id, post.id);
       queryClient.invalidateQueries({ queryKey: ['hubComments', post.id] });
@@ -329,7 +335,7 @@ export default function HubCommentsInline({ post, open, onClose }) {
                   likeCount={likeCountFor(c)}
                   onLike={() => handleLike(c.id)}
                   onReply={() => setReplyTarget({ id: c.id, handle: resolveAuthor(authorsById, c.user_id, { author_name: c.author_name }).handle })}
-                  onDelete={() => handleDelete(c)}
+                  onDelete={() => setPendingDelete(c)}
                   showReply
                   t={t}
                   postAuthorEmail={post.author_email}
@@ -375,7 +381,7 @@ export default function HubCommentsInline({ post, open, onClose }) {
                               isLiked={isLikedDisplayed(r.id)}
                               likeCount={likeCountFor(r)}
                               onLike={() => handleLike(r.id)}
-                              onDelete={() => handleDelete(r)}
+                              onDelete={() => setPendingDelete(r)}
                               showReply={false}
                               t={t}
                               postAuthorEmail={post.author_email}
@@ -501,6 +507,17 @@ export default function HubCommentsInline({ post, open, onClose }) {
       </div>
 
       <ProfanityWarningDialog open={draftGuard.open} onContinue={draftGuard.onContinue} />
+
+      <ConfirmDialog
+        open={!!pendingDelete}
+        onOpenChange={(v) => { if (!v) setPendingDelete(null); }}
+        title={tFallback('hub.comments.confirmDeleteTitle', 'Delete this comment?')}
+        description={tFallback('hub.comments.confirmDeleteDesc', "This can't be undone.")}
+        confirmLabel={tFallback('common.yes', 'Yes, delete')}
+        cancelLabel={t('common.cancel')}
+        onConfirm={confirmDelete}
+        destructive
+      />
     </div>
   );
 }

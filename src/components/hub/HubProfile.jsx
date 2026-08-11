@@ -22,6 +22,9 @@ import { db } from '@/api/db';
 import { supabase } from '@/api/supabaseClient';
 import { safeSelect } from '@/api/safeSelect';
 import * as hubFollows from '@/lib/data/hubFollows';
+import * as userMutes from '@/lib/data/userMutes';
+import { blockUserFull } from '@/lib/data/userBlocks';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import * as hubPosts from '@/lib/data/hubPosts';
 import * as me from '@/lib/data/me';
 import { selectProfiles } from '@/lib/data/users';
@@ -710,6 +713,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   // Reads strictly from the server-confirmed cache value. While loading,
   // this stays `undefined` and the button renders in its loading state.
   const isFollowingNow = amFollowing === true;
+
   const followBusy = followMutation.isPending || unfollowMutation.isPending;
 
   const handleFollow = () => {
@@ -870,6 +874,66 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   const displayHandle = displayUsername
     ? `@${displayUsername}`
     : (isSelf ? t('hub.profile.anonymousSelf') : t('hub.profile.anonymousAthlete'));
+
+  // ── Mute / block from the profile ────────────────────────────────────────
+  // Muting was reachable from any post; UNMUTING only from Settings → Privacy.
+  // So the action and its undo lived in different places, and someone who
+  // muted a person had no way to find the reversal from the person's own page.
+  // Both live here now, whichever state you are in.
+  const [confirmBlockOpen, setConfirmBlockOpen] = useState(false);
+  const { data: myMutes = [] } = useQuery({
+    queryKey: ['userMutes', user?.id],
+    queryFn: () => userMutes.listMutes(user.id),
+    enabled: !isSelf && !!user?.id,
+  });
+  const isMutedTarget = !!email && myMutes.some(
+    m => (m.muted_email || '').toLowerCase() === email.toLowerCase()
+  );
+
+  const handleMute = async () => {
+    setMenuOpen(false);
+    try {
+      await userMutes.muteUser(user, email);
+      toast.success(tFallback('hub.profile.mutedToast', 'Muted {handle}.', { handle: displayHandle }));
+      queryClient.invalidateQueries({ queryKey: ['userMutes', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['hubFeed'] });
+    } catch (err) {
+      reportError(err, { feature: 'hub.profile-mute', level: 'warning', userEmail: user?.email, target: email });
+      toast.error(tFallback('hub.profile.muteError', 'Could not mute — try again.'));
+    }
+  };
+
+  const handleUnmute = async () => {
+    setMenuOpen(false);
+    try {
+      await userMutes.unmuteUser(user.id, email);
+      toast.success(tFallback('hub.profile.unmutedToast', 'Unmuted {handle}.', { handle: displayHandle }));
+      queryClient.invalidateQueries({ queryKey: ['userMutes', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['hubFeed'] });
+    } catch (err) {
+      reportError(err, { feature: 'hub.profile-unmute', level: 'warning', userEmail: user?.email, target: email });
+      toast.error(tFallback('hub.profile.unmuteError', 'Could not unmute — try again.'));
+    }
+  };
+
+  const handleConfirmBlock = async () => {
+    setConfirmBlockOpen(false);
+    try {
+      await blockUserFull(email);
+      toast.success(tFallback('hub.profile.blockedToast', 'Blocked {handle}.', { handle: displayHandle }));
+      // block_user_full severs mutual follows too, so the follow-graph caches
+      // have to go with it — same set HubPostCard invalidates.
+      queryClient.invalidateQueries({ queryKey: ['userBlocks', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['hubFeed'] });
+      queryClient.invalidateQueries({ queryKey: ['hubFollowing', user?.email] });
+      queryClient.invalidateQueries({ queryKey: ['hubFollowers', user?.email] });
+      queryClient.invalidateQueries({ queryKey: ['myFollowsForDMs', user?.email] });
+      queryClient.invalidateQueries({ queryKey: ['hubIsFollowing', user?.email, email] });
+    } catch (err) {
+      reportError(err, { feature: 'hub.profile-block', level: 'warning', userEmail: user?.email, target: email });
+      toast.error(tFallback('hub.profile.blockError', 'Could not block — try again.'));
+    }
+  };
 
   // Shared helper so this and the header avatar can't drift again. Passing
   // only the username keeps this surface username-only, per the note above.
@@ -1244,6 +1308,10 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
             onOpenQr={() => setQrOpen(true)}
             onOpenDuel={() => setDuelOpen(true)}
             onOpenGift={() => setGiftOpen(true)}
+            onMute={!isSelf && email ? handleMute : undefined}
+            onUnmute={!isSelf && email ? handleUnmute : undefined}
+            onBlock={!isSelf && email ? () => { setMenuOpen(false); setConfirmBlockOpen(true); } : undefined}
+            isMuted={isMutedTarget}
             onToggleTrophyVisibility={handleTrophyVisibility}
             trophyVisible={trophyVisible}
             canDuelOrGift={!!targetProfile?.id}
@@ -2050,6 +2118,20 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
           </motion.div>
         )}
       </AnimatePresence>
+
+      <ConfirmDialog
+        open={confirmBlockOpen}
+        onOpenChange={setConfirmBlockOpen}
+        title={tFallback('hub.profile.confirmBlockTitle', 'Block {handle}?', { handle: displayHandle })}
+        description={tFallback(
+          'hub.profile.confirmBlockDesc',
+          "They won't see your profile, posts, or stories, and you won't see theirs. You can unblock from Settings.",
+        )}
+        confirmLabel={tFallback('hub.profile.confirmBlockAction', 'Yes, block')}
+        cancelLabel={t('common.cancel')}
+        onConfirm={handleConfirmBlock}
+        destructive
+      />
 
       {/* 👾 Iron Snake — easter egg, only mounted on the @sean profile.
           The modal manages its own enter/exit + portal internally. */}
