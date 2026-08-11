@@ -373,8 +373,11 @@ export default function RegimenForm({ initial, onSubmit, onCancel, userProfile =
                     key={item.key}
                     value={item.key}
                     layout="position"
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
+                    // No `y` here: ReorderableRow owns that motion value to
+                    // keep a dragged unit under the finger, and framer will
+                    // not own one property twice.
+                    initial={{ opacity: 0, scale: 0.98 }}
+                    animate={{ opacity: 1, scale: 1 }}
                     transition={{ type: 'spring', stiffness: 300, damping: 24 }}
                     className={`rounded-xl border-s-4 border overflow-hidden ${TYPE_COLOR[type] || TYPE_COLOR.superset}`}
                   >
@@ -475,8 +478,9 @@ export default function RegimenForm({ initial, onSubmit, onCancel, userProfile =
                   key={item.key}
                   value={item.key}
                   layout="position"
-                  initial={{ opacity: 0, y: -12, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  // No `y` — see the note on the group unit above.
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
                   transition={{ type: 'spring', stiffness: 300, damping: 24 }}
                 >
                   {(dragControls) => (
