@@ -2391,6 +2391,12 @@ export default function Workout() {
                 Dashboard's is chrome its band adds — so the dots stay this
                 hero's only affordance.
 
+                `wrap` joins the ends: swiping off Freestyle reaches Crew
+                Wars and swiping off Crew Wars reaches Freestyle, rather
+                than rubber-banding. Three slides is few enough that hitting
+                a wall on a two-thirds-full carousel reads as broken. The
+                other three heroes stay clamped.
+
                 The absolutely-positioned slide and its invisible height
                 placeholder are gone with the fade: pages sit in normal flow
                 side by side, and the flex row takes the height of the tallest
@@ -2406,6 +2412,7 @@ export default function Workout() {
             >
               <HeroPager
                 slides={HERO_SLIDES}
+                wrap
                 dotsClassName="justify-center mt-2.5"
                 renderSlide={(slide) => (
                   <>

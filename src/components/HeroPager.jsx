@@ -40,6 +40,7 @@ const HeroPager = forwardRef(function HeroPager({
   onIndexChange,
   dotsClassName = 'mt-5',
   dotLabel,
+  wrap = false,
 }, ref) {
   const { tFallback } = useLanguage();
   const [idx, setIdx] = useState(0);
@@ -85,6 +86,29 @@ const HeroPager = forwardRef(function HeroPager({
   const [trackW, setTrackW] = useState(0);
   const x = useMotionValue(0);
 
+  /* ── Wrapping (opt-in, `wrap`) ──────────────────────────────────────
+     The clamp below is the default and stays the default — see the note in
+     page(). Where a caller wants the ends joined instead, the track mounts
+     a CLONE of the last slide before the first and of the first slide after
+     the last, and every real index sits one page further along.
+
+     That is what makes a wrap seamless on a linear track. Dragging off
+     either end travels onto a clone, so the slide you are wrapping to is
+     genuinely under your thumb during the gesture rather than appearing
+     after it. Once the spring lands on a clone we jump x to the identical
+     real page with no animation: same pixels, so there is nothing to see,
+     and the track is back in range for the next swipe.
+
+     The alternative — rubber-band, then cut on release — was rejected
+     because nothing moves with the finger, which is the exact complaint
+     that got this hero rebuilt in the first place. */
+  const looping = wrap && slides.length > 1;
+  const pages = looping
+    ? [slides[slides.length - 1], ...slides, slides[0]]
+    : slides;
+  // Resting translation for a REAL slide index, in either mode.
+  const offsetFor = (i) => -(looping ? i + 1 : i) * trackW;
+
   // Measure with a ResizeObserver rather than once on mount: the band is
   // min-height and (on Dashboard) full-bleed, so this width changes on
   // rotation and on any layout shift above it. A stale width leaves the
@@ -112,8 +136,8 @@ const HeroPager = forwardRef(function HeroPager({
   const idxRef = useRef(0);
   idxRef.current = idx;
   useEffect(() => {
-    if (slides.length > 1) x.set(-idxRef.current * trackW);
-  }, [trackW, slides.length, x]);
+    if (slides.length > 1) x.set(-(looping ? idxRef.current + 1 : idxRef.current) * trackW);
+  }, [trackW, slides.length, looping, x]);
 
   /* Softer and slightly overdamped, after a second judder report.
    *
@@ -162,8 +186,26 @@ const HeroPager = forwardRef(function HeroPager({
   const settle = (target, { instant = false } = {}) => {
     if (!trackW) return;
     setIdx(target);
-    if (instant) { x.set(-target * trackW); return; }
-    animate(x, -target * trackW, SETTLE);
+    if (instant) { x.set(offsetFor(target)); return; }
+    animate(x, offsetFor(target), SETTLE);
+  };
+
+  /* settleWrapped — page off an end and come back on the other side.
+   *
+   * `dir` is +1 past the last slide or -1 before the first. The spring runs
+   * to the CLONE, which is already showing the destination slide, and the
+   * re-park to the real page happens in onComplete where it is invisible.
+   *
+   * The index still commits up front, same as settle() and for the same
+   * reason. If the animation is interrupted the dots are already right and
+   * only the re-park is skipped, which the SETTLE_MS re-entry guard in
+   * page() is what stops from compounding.
+   */
+  const settleWrapped = (dir) => {
+    const toClone = dir > 0 ? -(slides.length + 1) * trackW : 0;
+    const target = dir > 0 ? 0 : slides.length - 1;
+    setIdx(target);
+    animate(x, toClone, { ...SETTLE, onComplete: () => x.set(offsetFor(target)) });
   };
 
   const page = (dir) => {
@@ -185,13 +227,22 @@ const HeroPager = forwardRef(function HeroPager({
     if (Date.now() < settleUntilRef.current) return;
     settleUntilRef.current = Date.now() + SETTLE_MS;
 
-    // CLAMPED, not wrapped — which is what an iOS home screen does. A
-    // linear track cannot wrap without either scrolling all the way back
-    // through every slide or cutting, and both are worse than the rubber
-    // band you get by running out of pages. Auto-rotate handles its own
-    // wrap below, where a cut happens once per cycle instead of per swipe.
+    // CLAMPED by default — which is what an iOS home screen does. Running
+    // out of pages gives you a rubber band, and that is better than either
+    // of the two things a naive wrap on a linear track can do: scroll all
+    // the way back through every slide, or cut.
+    //
+    // `wrap` is the third option and the reason it is opt-in rather than
+    // the default: it costs two cloned pages to avoid both of those, so a
+    // caller that does not want joined ends should not pay for them.
+    if (looping) {
+      const raw = idx + dir;
+      if (raw < 0 || raw > slides.length - 1) { settleWrapped(dir); return; }
+      settle(raw);
+      return;
+    }
     const target = Math.min(Math.max(idx + dir, 0), slides.length - 1);
-    if (target === idx) { animate(x, -idx * trackW, SETTLE); return; }
+    if (target === idx) { animate(x, offsetFor(idx), SETTLE); return; }
     settle(target);
   };
   // Auto-rotate reaches page()/settle() through this ref — see its
@@ -203,8 +254,12 @@ const HeroPager = forwardRef(function HeroPager({
     if (slides.length < 2 || !trackW) return;
     if (Date.now() < settleUntilRef.current) return;
     settleUntilRef.current = Date.now() + SETTLE_MS;
-    if (idx >= slides.length - 1) settle(0, { instant: true });
-    else settle(idx + 1);
+    // With `wrap` the cut is unnecessary — the clone lets the last slide
+    // glide into the first exactly as a swipe does.
+    if (idx >= slides.length - 1) {
+      if (looping) settleWrapped(1);
+      else settle(0, { instant: true });
+    } else settle(idx + 1);
   };
 
   const handleTrackDragEnd = (_e, info) => {
@@ -216,7 +271,7 @@ const HeroPager = forwardRef(function HeroPager({
     // 125px on a 375pt phone, and the same *proportion* on a Pro Max.
     const far = Math.abs(dx) > trackW / 3;
     const flick = Math.abs(vx) > 500;
-    if (!far && !flick) { animate(x, -idx * trackW, SETTLE); return; }
+    if (!far && !flick) { animate(x, offsetFor(idx), SETTLE); return; }
     page(dx < 0 ? 1 : -1);
   };
 
@@ -303,7 +358,13 @@ const HeroPager = forwardRef(function HeroPager({
           // is the judder at the ends. 0 pins the track to the finger while
           // it is inside range and stops it dead at the edges.
           dragElastic={0}
-          dragConstraints={{ left: -(slides.length - 1) * pageW, right: 0 }}
+          // One page of extra travel at EACH end when wrapping — that range
+          // is the clones, not empty space, so the drag stays pinned to the
+          // finger the whole way across the seam.
+          dragConstraints={{
+            left: -((looping ? slides.length + 1 : slides.length - 1)) * pageW,
+            right: 0,
+          }}
           // Framer runs an inertia animation on release by default, aimed at
           // the drag constraints. Those span TWO pages here, so a flick threw
           // its own momentum at `x` while page()'s spring was pulling the
@@ -315,23 +376,34 @@ const HeroPager = forwardRef(function HeroPager({
           onDragStart={holdRotation}
           onDragEnd={handleTrackDragEnd}
         >
-          {slides.map((s, i) => (
-            <div
-              // Keyed by slide id, and safe to be: a slide never changes
-              // slot now, so this key is stable for the life of the list and
-              // nothing remounts mid-gesture.
-              key={s?.id ?? `page-${i}`}
-              className="shrink-0"
-              style={{ width: multi ? pageW : '100%' }}
-              // Touching a page holds the rotation. On the page WRAPPER
-              // rather than each slide root so every caller gets it without
-              // remembering to wire it up.
-              onPointerDownCapture={holdRotation}
-              onFocusCapture={holdRotation}
-            >
-              {s ? renderSlide(s, { index: i, isActive: i === idx, count: slides.length }) : null}
-            </div>
-          ))}
+          {pages.map((s, i) => {
+            // Which REAL slide this page stands for. Identity, except at the
+            // two clones — page 0 is the last slide and the final page is
+            // the first — so callers still get a truthful index and dots
+            // still compare against a real one.
+            const real = looping
+              ? (i === 0 ? slides.length - 1 : i === pages.length - 1 ? 0 : i - 1)
+              : i;
+            return (
+              <div
+                // Keyed by slide id when there are no clones, and safe to be:
+                // a slide never changes slot now, so the key is stable for
+                // the life of the list and nothing remounts mid-gesture.
+                // Wrapping puts the same id in three slots, so the key has to
+                // be the SLOT there — same stability, no collision.
+                key={looping ? `page-${i}` : (s?.id ?? `page-${i}`)}
+                className="shrink-0"
+                style={{ width: multi ? pageW : '100%' }}
+                // Touching a page holds the rotation. On the page WRAPPER
+                // rather than each slide root so every caller gets it without
+                // remembering to wire it up.
+                onPointerDownCapture={holdRotation}
+                onFocusCapture={holdRotation}
+              >
+                {s ? renderSlide(s, { index: real, isActive: real === idx, count: slides.length }) : null}
+              </div>
+            );
+          })}
         </motion.div>
       </div>
 
