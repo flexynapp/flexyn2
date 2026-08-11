@@ -198,7 +198,13 @@ export default function NotificationPanel({ open, onClose }) {
     [rows, filter],
   );
   const groups = useMemo(() => groupByDay(filteredRows), [filteredRows]);
+  // Two different unread numbers, and conflating them reads as a bug.
+  // `unreadCount` is the sheet's total — it drives the live region, which
+  // is about the badge the user just tapped. `unreadInView` is what the
+  // TODAY pill shows, because that pill sits INSIDE a filtered list: under
+  // Friends it said "3 new" over a single unread row.
   const unreadCount = rows.filter(r => !r.is_read).length;
+  const unreadInView = filteredRows.filter(r => !r.is_read).length;
   const hasAny = rows.length > 0;
   const canLoadMore = rows.length >= limit;
 
@@ -446,7 +452,7 @@ export default function NotificationPanel({ open, onClose }) {
                       onClick={() => { handleClose(); navigate('/settings/notifications'); }}
                       className="h-11 px-4 rounded-lg text-label font-semibold bg-secondary text-foreground"
                     >
-                      {tFallback('notifications.chooseAlerts', 'Choose what alerts')}
+                      {tFallback('notifications.settings', 'Notification settings')}
                     </button>
                   }
                 />
@@ -456,9 +462,9 @@ export default function NotificationPanel({ open, onClose }) {
                     <section key={g.bucket} aria-label={tFallback(...BUCKET_LABEL[g.bucket])}>
                       <h3 className="flex items-center justify-between px-4 h-7 text-micro font-bold uppercase tracking-wide text-muted-foreground">
                         {tFallback(...BUCKET_LABEL[g.bucket])}
-                        {g.bucket === BUCKET.TODAY && unreadCount > 0 && (
+                        {g.bucket === BUCKET.TODAY && unreadInView > 0 && (
                           <span className="px-2 py-0.5 rounded-full bg-primary text-primary-foreground normal-case tracking-normal">
-                            {tFallback('notifications.newCount', '{count} new', { count: unreadCount })}
+                            {tFallback('notifications.newCount', '{count} new', { count: unreadInView })}
                           </span>
                         )}
                       </h3>
@@ -688,7 +694,12 @@ function NotificationRow({ n, rtl, language, onClick, onDelete, deleting, delete
       {/* Reveal, behind the row at the inline end. */}
       <div
         aria-hidden="true"
-        className="absolute inset-y-0 end-0 w-[120px] flex items-center justify-center bg-destructive text-destructive-foreground"
+        // `bottom-px`, not `inset-y-0`. The divider below is a sibling of
+        // the drag container, so nothing opaque covers it — an
+        // edge-to-edge reveal paints through its 60%-alpha hairline and the
+        // last 120px of every divider in the list renders destructive red,
+        // on rows nobody is touching.
+        className="absolute top-0 bottom-px end-0 w-[120px] flex items-center justify-center bg-destructive text-destructive-foreground"
       >
         <Trash2 className="w-5 h-5" />
       </div>

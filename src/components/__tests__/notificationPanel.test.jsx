@@ -6,6 +6,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const markAllRead = vi.fn(async () => {});
 const deleteAllForUser = vi.fn(async () => ({ ok: true }));
@@ -215,6 +218,48 @@ describe('clear all confirms in-app', () => {
     fireEvent.click(screen.getByRole('menuitem', { name: /Clear all/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Clear all' }));
     await waitFor(() => expect(deleteAllForUser).toHaveBeenCalledTimes(1));
+  });
+});
+
+// ── 5 ────────────────────────────────────────────────────────────────────
+// Both of these were found by rendering the component for real, in a
+// harness, after the tests above were already green. jsdom computes no
+// layout and paints nothing, so neither was reachable from here first.
+describe('found by looking at it', () => {
+  it('counts "N new" within the active filter, not across the whole sheet', async () => {
+    renderPanel();
+    await screen.findByText('Dani followed you');
+    // 2 unread overall, both social; the sheet-wide count is 2 either way,
+    // so pick a filter where the two numbers genuinely differ.
+    expect(screen.getByText('2 new')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /^Competitive/ }));
+    // Nothing competitive, so no pill at all rather than "2 new" over an
+    // empty section.
+    expect(screen.queryByText('2 new')).not.toBeInTheDocument();
+  });
+
+  it('shows the pill only for the unread rows the filter admits', async () => {
+    listRows = [
+      row({ id: 'a', type: 'friend_follow', title: 'Social unread', is_read: false }),
+      row({ id: 'b', type: 'pr_set',        title: 'Wins unread',   is_read: false }),
+    ];
+    renderPanel();
+    await screen.findByText('Social unread');
+    expect(screen.getByText('2 new')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /^Friends/ }));
+    expect(screen.getByText('1 new')).toBeInTheDocument();
+  });
+
+  it('stops the swipe reveal short of the row divider', () => {
+    // The divider is a sibling of the drag container, so nothing opaque
+    // covers it: an `inset-y-0` reveal paints through its 60%-alpha hairline
+    // and the last 120px of EVERY divider renders destructive red, on rows
+    // nobody is touching. jsdom cannot see that — this guards the source.
+    const src = fs.readFileSync(
+      path.join(path.dirname(fileURLToPath(import.meta.url)), '../NotificationPanel.jsx'), 'utf8');
+    const reveal = src.match(/className="absolute [^"]*w-\[120px\][^"]*"/)[0];
+    expect(reveal).toContain('bottom-px');
+    expect(reveal).not.toContain('inset-y-0');
   });
 });
 
