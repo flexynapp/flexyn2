@@ -85,3 +85,60 @@ export function formatList(items, language, opts) {
     return new Intl.ListFormat('en-US', { style: 'long', type: 'conjunction', ...opts }).format(list);
   }
 }
+
+// Largest unit first: we want "2 months ago", not "9 weeks ago".
+const RELATIVE_UNITS = [
+  ['year',   31_536_000],
+  ['month',   2_592_000],
+  ['week',      604_800],
+  ['day',        86_400],
+  ['hour',        3_600],
+  ['minute',         60],
+];
+
+/**
+ * An ALWAYS-relative timestamp: "just now", "2 hours ago", "3 months ago".
+ *
+ * Distinct from `formatNotificationTime`, which is deliberately relative only
+ * for today and switches to a clock time or a date beyond that — a
+ * notification row sits under a day header that already says which day it is.
+ * A comment has no such header, so the age has to carry itself the whole way.
+ *
+ * Built on `Intl.RelativeTimeFormat` rather than date-fns' `formatDistanceToNow`
+ * for the reason in CLAUDE.md's i18n section: date-fns binds no locale unless
+ * you ship 15 locale bundles, so it renders English under a fully-translated
+ * screen and no translation-key audit can see it.
+ *
+ * @param {Date|string|number} value
+ * @param {string} language  app language code ('en', 'es', …)
+ * @param {Date}   [now]
+ */
+export function formatRelativeTime(value, language, now = new Date()) {
+  // Guard null/undefined/'' BEFORE constructing: `new Date(null)` is the
+  // epoch, not an Invalid Date, so a row with no timestamp would otherwise
+  // render a confident "57 years ago" instead of nothing.
+  if (value == null || value === '') return '';
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const locale = toBcp47(language);
+  const seconds = (date.getTime() - now.getTime()) / 1000;
+  const abs = Math.abs(seconds);
+
+  const build = (loc) => {
+    const rtf = new Intl.RelativeTimeFormat(loc, { numeric: 'auto' });
+    // Under a minute — including a clock-skewed future stamp — reads as now.
+    // "in 12 seconds" on a comment that already exists is a bug, not a tense.
+    if (abs < 60) return rtf.format(0, 'second');
+    for (const [unit, secs] of RELATIVE_UNITS) {
+      if (abs >= secs) return rtf.format(Math.round(seconds / secs), unit);
+    }
+    return rtf.format(0, 'second');
+  };
+
+  try {
+    return build(locale);
+  } catch {
+    // A bad language code must not blank the timestamp entirely.
+    try { return build('en-US'); } catch { return ''; }
+  }
+}

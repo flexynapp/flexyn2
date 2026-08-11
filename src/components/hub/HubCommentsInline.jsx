@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo, useCallback } from 'react';
+import { useState, useRef, useMemo, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -13,7 +13,8 @@ import { isVerified } from '@/lib/verifiedUsers';
 import { format, parseISO } from 'date-fns';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
-import { translateText, isLikelyAlreadyInLanguage } from '@/lib/translate';
+import { translateText, translationHint } from '@/lib/translate';
+import { formatRelativeTime } from '@/lib/intl';
 import { useMultiProfanityGuard } from '@/lib/useProfanityGuard';
 import { useAuthorsById, resolveAuthor } from '@/lib/data/useAuthors';
 import ProfanityWarningDialog from '@/components/ProfanityWarningDialog';
@@ -132,6 +133,23 @@ export default function HubCommentsInline({ post, open, onClose }) {
   });
 
   const thread = useMemo(() => hubComments.buildThread(comments), [comments]);
+
+  // Opening the composer on someone else's post pre-fills their @handle: you
+  // are answering THEM, so the mention is the default rather than something
+  // to retype. Only when the box is untouched and only once per open — a
+  // reply to a specific person sets its own target below and must win, and
+  // re-running would fight the user's own edits.
+  const autoMentionedRef = useRef(false);
+  const postAuthor = resolveAuthor(authorsById, post.user_id, { author_name: post.author_name });
+  useEffect(() => {
+    if (!open) { autoMentionedRef.current = false; return; }
+    if (autoMentionedRef.current) return;
+    if (draft.trim() || replyTarget) return;
+    if (!postAuthor?.handle) return;
+    if (post.author_email && user?.email && post.author_email === user.email) return;
+    autoMentionedRef.current = true;
+    setDraft(`${postAuthor.handle} `);
+  }, [open, draft, replyTarget, postAuthor?.handle, post.author_email, user?.email]);
 
   const { data: likedSet } = useQuery({
     queryKey: ['hubCommentLikes', post.id, user?.email],
@@ -293,7 +311,10 @@ export default function HubCommentsInline({ post, open, onClose }) {
         {isLoading ? (
           <p className="text-center text-sm text-muted-foreground py-4">{t('common.loading')}</p>
         ) : thread.topLevel.length === 0 ? (
-          <p className="text-center text-sm text-muted-foreground py-4">{t('hub.comments.empty')}</p>
+          // No "No comments yet" placeholder. An empty thread is self-evident
+          // from the open composer directly below it, and the line only added
+          // height to the one state where the sheet is already mostly empty.
+          null
         ) : (
           thread.topLevel.map(c => {
             const replies = thread.repliesByParent.get(c.id) || [];
@@ -528,42 +549,74 @@ function renderCommentBody(text, authorsById, onMentionClick) {
 // ── CommentRow sub-component ──────────────────────────────────────────────────
 
 function CommentRow({ comment: c, user, authorsById, isLiked, likeCount, onLike, onReply, onDelete, showReply, t, postAuthorEmail, onMentionClick }) {
-  const { language } = useLanguage();
+  const { language, tFallback } = useLanguage();
   const [reportOpen, setReportOpen] = useState(false);
   const [translation, setTranslation] = useState(null);
   const [translating, setTranslating] = useState(false);
   const [showOriginal, setShowOriginal] = useState(false);
   const [canTranslate, setCanTranslate] = useState(true);
+  const lastTapRef = useRef(0);
+  const translateHint = useMemo(() => translationHint(c.body, language), [c.body, language]);
   const author = resolveAuthor(authorsById, c.user_id, {
     author_name: c.author_name,
     author_avatar_url: c.author_avatar_url,
   });
   const isMine = c.user_id === user?.id;
-  const timeLabel = c.created_date ? format(parseISO(c.created_date), 'MMM d, h:mma') : '';
+  // Relative, and locale-bound. `format()` from date-fns binds no locale, so
+  // the old "Aug 11, 3:50PM" rendered English under a fully-translated screen.
+  const timeLabel = c.created_date ? formatRelativeTime(c.created_date, language) : '';
   const displayBody = translation && !showOriginal ? translation.text : c.body;
+  const openAuthor = () => onMentionClick?.(c.user_id);
+
+  // Double-tap the bubble to like THIS comment. The post card runs the same
+  // gesture on the whole article; the comments block stops propagation so a
+  // tap in here can never reach it (that bug liked the post instead).
+  // Like-only on double-tap, never unlike — matches the post card, and keeps
+  // a rapid string of taps from producing a like/unlike storm.
+  const handleBubblePointerUp = (e) => {
+    if (e.button != null && e.button !== 0) return;
+    const now = Date.now();
+    if (now - lastTapRef.current < 300) {
+      if (!isLiked) onLike();
+      lastTapRef.current = 0;
+      return;
+    }
+    lastTapRef.current = now;
+  };
 
   return (
     <>
       <div className="flex items-start gap-2">
-        {/* Avatar */}
-        <div className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center shrink-0 text-xs font-bold overflow-hidden">
+        {/* Avatar — opens the author's profile */}
+        <button
+          type="button"
+          onClick={openAuthor}
+          aria-label={tFallback('hub.comments.viewProfile', "View {name}'s profile", { name: author.handle })}
+          className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center shrink-0 text-xs font-bold overflow-hidden hover:opacity-80 active:opacity-70 transition-opacity"
+        >
           {author.avatarUrl ? (
             <img loading="lazy" src={author.avatarUrl} alt="" className="w-full h-full object-cover" />
           ) : (
             author.initials
           )}
-        </div>
+        </button>
 
         {/* Bubble + actions */}
         <div className="flex-1 min-w-0">
           {c._orphan && (
             <p className="text-micro text-muted-foreground italic mb-0.5 ms-2">
-              ↳ Reply to a deleted comment
+              ↳ {tFallback('hub.comments.orphanReply', 'Reply to a deleted comment')}
             </p>
           )}
-          <div className="bg-secondary/50 rounded-2xl px-3 py-2">
+          <div className="bg-secondary/50 rounded-2xl px-3 py-2" onPointerUp={handleBubblePointerUp}>
             <div className="flex items-center gap-1 flex-wrap">
-              <p className="text-xs font-bold leading-tight">{author.handle}</p>
+              <button
+                type="button"
+                onClick={openAuthor}
+                className="text-xs font-bold leading-tight hover:underline"
+              >
+                {author.handle}
+              </button>
               {isVerified(author.handle?.replace('@', '')) && (
                 <span className="shrink-0 leading-none" style={{ lineHeight: 0 }}>
                   <CrownBadge size={13} />
@@ -577,8 +630,6 @@ function CommentRow({ comment: c, user, authorsById, isLiked, likeCount, onLike,
 
           {/* Action row */}
           <div className="flex items-center gap-3 mt-1 ms-2 text-micro text-muted-foreground flex-wrap">
-            <span>{timeLabel}</span>
-
             {/* Like */}
             <motion.button
               whileTap={{ scale: 0.9 }}
@@ -600,20 +651,23 @@ function CommentRow({ comment: c, user, authorsById, isLiked, likeCount, onLike,
               </button>
             )}
 
-            {/* Translate */}
-            {canTranslate && c.body && !isLikelyAlreadyInLanguage(c.body, language) && (
+            {/* Translate — hidden entirely when the comment is already in the
+                viewer's language, faded when detection can't be sure. */}
+            {canTranslate && c.body && translateHint !== 'same' && (
               translation ? (
                 <button
                   onClick={() => setShowOriginal(v => !v)}
                   className="flex items-center gap-0.5 hover:text-primary active:text-primary transition-colors"
                 >
                   <Languages className="w-3 h-3" />
-                  {showOriginal ? 'Show translation' : 'Show original'}
+                  {showOriginal
+                    ? tFallback('hub.comments.showTranslation', 'Show translation')
+                    : tFallback('hub.comments.showOriginal', 'Show original')}
                 </button>
               ) : translating ? (
                 <span className="flex items-center gap-0.5">
                   <Loader2 className="w-3 h-3 animate-spin" />
-                  Translating…
+                  {tFallback('hub.comments.translating', 'Translating…')}
                 </span>
               ) : (
                 <button
@@ -636,10 +690,12 @@ function CommentRow({ comment: c, user, authorsById, isLiked, likeCount, onLike,
                       setTranslating(false);
                     }
                   }}
-                  className="flex items-center gap-0.5 hover:text-primary active:text-primary transition-colors"
+                  className={`flex items-center gap-0.5 hover:text-primary active:text-primary transition-opacity ${
+                    translateHint === 'unsure' ? 'opacity-40 hover:opacity-100' : 'opacity-70 hover:opacity-100'
+                  }`}
                 >
                   <Languages className="w-3 h-3" />
-                  Translate
+                  {tFallback('hub.comments.translate', 'Translate')}
                 </button>
               )
             )}
@@ -654,6 +710,18 @@ function CommentRow({ comment: c, user, authorsById, isLiked, likeCount, onLike,
               >
                 <Flag className="w-3 h-3" />
               </button>
+            )}
+
+            {/* Age, pinned to the end of the row. Relative so the eye can skip
+                it; the exact stamp stays available on hover. */}
+            {timeLabel && (
+              <time
+                dateTime={c.created_date}
+                title={c.created_date ? format(parseISO(c.created_date), 'PPpp') : undefined}
+                className="ms-auto text-muted-foreground/70 shrink-0"
+              >
+                {timeLabel}
+              </time>
             )}
           </div>
         </div>

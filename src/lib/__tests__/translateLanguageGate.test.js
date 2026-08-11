@@ -51,13 +51,31 @@ describe('the button stays available across scripts', () => {
     }
   });
 
-  it('Latin-script readers always keep the button', () => {
-    // Can't distinguish English from Spanish without a real LID model,
-    // so never claim already-translated.
+  it('Latin-script readers keep the button on other scripts', () => {
+    // A non-Latin post is unambiguously worth offering to a Latin-script
+    // reader, whatever the stopword vote thinks.
     for (const lang of ['en', 'es', 'fr', 'de', 'pt', 'it', 'tr', 'pl', 'nl']) {
-      for (const text of [ENGLISH, CHINESE, JAPANESE, ARABIC]) {
+      for (const text of [CHINESE, JAPANESE, ARABIC]) {
         expect(alreadyIn(text, lang), `${lang} lost the button`).toBe(false);
       }
+    }
+  });
+
+  it('a short Latin post claims nothing — too few function words to call', () => {
+    // ENGLISH is 'Hit a new squat PR today, felt great': one function word.
+    // Deliberately NOT enough to hide the button. This used to be pinned as
+    // "Latin-script readers ALWAYS keep the button, we can never tell" — that
+    // was true of the old gate, and it meant an English reader was offered a
+    // Translate button on every English comment. Clicking it made the button
+    // vanish (English→English returns the same string, which the caller reads
+    // as a failure), which is what Sean reported on 11 Aug.
+    //
+    // The gate now votes on function words and only hides when it is sure.
+    // Below that bar the button stays — faded, per translationHint — because
+    // wrongly hiding it strands a reader who genuinely cannot read the text,
+    // while wrongly showing it costs one dim button.
+    for (const lang of ['en', 'es', 'fr', 'de', 'pt', 'it', 'tr', 'pl', 'nl']) {
+      expect(alreadyIn(ENGLISH, lang), `${lang} made a call it could not make`).toBe(false);
     }
   });
 });

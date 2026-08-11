@@ -14,6 +14,17 @@ export const hubCommentsI18n = {
     'hub.comments.hideReplies': 'Hide replies',
     'hub.comments.replyPlaceholder': 'Add a reply…',
     'hub.comments.likeError': 'Could not save like',
+    // TODO(i18n): the six keys below are English-only pending a native pass.
+    // Five of them had NO key at all until now — they were hardcoded English
+    // in HubCommentsInline, so every non-English reader already saw exactly
+    // this text. Adding the keys doesn't regress anyone and gives a translator
+    // something to fill; machine-translating them here is not allowed.
+    'hub.comments.viewProfile': "View {name}'s profile",
+    'hub.comments.orphanReply': 'Reply to a deleted comment',
+    'hub.comments.translate': 'Translate',
+    'hub.comments.translating': 'Translating…',
+    'hub.comments.showTranslation': 'Show translation',
+    'hub.comments.showOriginal': 'Show original',
   },
   es: {
     'hub.comments.like': 'Me gusta',

@@ -27,7 +27,7 @@ import { useMemo } from 'react';
 import { useLanguage } from '@/lib/LanguageContext';
 import { formatNumber, formatDate, formatList } from '@/lib/intlFormat';
 
-export { formatNumber, formatDate, formatList, toBcp47 } from '@/lib/intlFormat';
+export { formatNumber, formatDate, formatList, formatRelativeTime, toBcp47 } from '@/lib/intlFormat';
 
 /**
  * Returns a number formatter bound to the app's current language.

@@ -325,13 +325,94 @@ export function isLikelyAlreadyInLanguage(text, lang) {
     case 'ar': return ratio(arabic) >= DOMINANT;
     case 'hi': return ratio(deva)   >= DOMINANT;
     case 'ru': return ratio(cyril)  >= DOMINANT;
-    default:
-      // Latin-script targets (en/es/fr/de/pt/it/tr/pl/nl). We can't tell
-      // English from Spanish without a real language-ID model, so never
-      // claim already-translated — EXCEPT when the text is clearly in a
-      // non-Latin script, where offering to translate INTO a Latin
-      // language is obviously useful and the button must stay.
-      void latin;
-      return false;
+    default: {
+      // Latin-script targets (en/es/fr/de/pt/it/tr/pl/nl). If the text is
+      // predominantly a NON-Latin script, it plainly isn't in this language,
+      // so keep the button.
+      if (ratio(latin) < DOMINANT) return false;
+      // Otherwise fall through to the stopword vote below. This used to
+      // `return false` unconditionally with the note "we can't tell English
+      // from Spanish without a real language-ID model" — true, but it meant
+      // an English viewer was offered a Translate button on every English
+      // comment, and clicking it just made the button vanish (English → English
+      // returns the same string, which the caller reads as a failure).
+      const guess = guessLatinLanguage(text);
+      return guess.lang === lang && guess.confident;
+    }
   }
+}
+
+// Function words, which are the cheapest reliable signal for language ID on
+// Latin script: they are high-frequency, short, and mostly non-overlapping
+// between these nine languages. This is not a language model and does not
+// pretend to be — it answers one narrow question well enough to decide
+// whether to show a button.
+const STOPWORDS = {
+  en: ['the','and','is','to','of','a','in','it','you','that','for','on','with','this','was','are','not','but','have','be','at','my','me','so','just','what','all','get','like','from','they','we','do','if','can','out','up','how','about','one','when','there'],
+  es: ['el','la','los','las','de','que','y','en','un','una','es','por','con','no','para','se','del','al','lo','como','más','pero','sus','le','ya','muy','sí','porque','esta','este','está','son','tiene','hacer','todo','bien','yo','tu','mi','eso'],
+  fr: ['le','la','les','de','des','et','est','un','une','en','que','qui','dans','pour','pas','sur','au','ce','il','elle','je','tu','nous','vous','avec','plus','mais','ou','son','sa','ses','tout','fait','être','avoir','bien','comme','très','moi','du'],
+  de: ['der','die','das','und','ist','ich','nicht','ein','eine','zu','den','mit','sich','auf','für','von','dem','es','du','wir','war','aber','auch','noch','wie','so','nur','kann','hat','sind','bei','oder','über','was','mehr','sehr','mein','dass','man','im'],
+  pt: ['de','que','não','uma','um','para','com','por','os','as','do','da','em','no','na','se','mais','como','mas','você','eu','ele','ela','isso','muito','bem','já','tem','foi','são','vai','fazer','tudo','pode','quando','porque','sobre','meu','minha','também'],
+  it: ['il','lo','la','le','di','che','non','una','un','per','con','sono','del','della','nel','più','ma','anche','come','se','mi','ti','ci','questo','questa','molto','bene','fare','tutto','quando','perché','sulla','loro','mio','solo','già','essere','ho','hai','cosa'],
+  tr: ['bir','ve','bu','için','ile','çok','daha','ama','ne','gibi','olarak','var','yok','her','de','da','mi','mı','ben','sen','biz','onu','şey','kadar','sonra','önce','böyle','şu','o','en','ki','olan','oldu','değil','hem','tüm','yine','iyi','büyük','zaman'],
+  pl: ['nie','się','to','na','jest','że','do','w','z','co','jak','ale','tak','po','za','czy','tylko','już','bardzo','przez','dla','o','od','ja','ty','my','oni','ma','być','może','jego','jej','tego','tym','wszystko','dobrze','teraz','gdzie','kiedy','bo'],
+  nl: ['de','het','een','en','van','is','dat','in','te','niet','op','zijn','met','voor','maar','er','aan','ook','als','dan','die','ik','je','we','wat','heb','heeft','naar','uit','over','nog','wel','bij','door','om','geen','deze','veel','zo','waar'],
+};
+const STOPWORD_SETS = Object.fromEntries(
+  Object.entries(STOPWORDS).map(([k, v]) => [k, new Set(v)])
+);
+
+/**
+ * Guess which Latin-script language a string is in, by counting function words.
+ *
+ * Returns `{ lang, confident }`. `confident` is false for anything too short
+ * or too close to call — the caller shows the Translate button in a faded
+ * state rather than hiding it, because being wrong in that direction only
+ * costs a dim button, while wrongly hiding it strands a reader who genuinely
+ * cannot read the comment.
+ */
+export function guessLatinLanguage(text) {
+  const tokens = String(text || '')
+    .toLowerCase()
+    .split(/[^\p{L}\p{M}']+/u)
+    .filter(Boolean);
+  if (tokens.length < 3) return { lang: null, confident: false };
+
+  const scores = {};
+  for (const lang of Object.keys(STOPWORD_SETS)) {
+    const set = STOPWORD_SETS[lang];
+    scores[lang] = tokens.reduce((n, tok) => n + (set.has(tok) ? 1 : 0), 0);
+  }
+
+  const ranked = Object.entries(scores).sort((a, b) => b[1] - a[1]);
+  const [topLang, topScore] = ranked[0];
+  const runnerUp = ranked[1]?.[1] ?? 0;
+
+  // No function words matched at all — could be anything (a single noun
+  // phrase, a brand name, slang). Not a call we should make.
+  if (topScore === 0) return { lang: null, confident: false };
+
+  // Confident when the winner both clears a floor and beats the runner-up
+  // clearly. The languages here share tokens ("de" in es/fr/pt/nl, "la" in
+  // es/fr/it), so a one-word lead is noise, not a signal.
+  const confident = topScore >= 2 && topScore >= runnerUp * 2;
+  return { lang: topLang, confident };
+}
+
+/**
+ * Three-way answer for the Translate affordance:
+ *   'same'      → the text is already in the viewer's language; hide it
+ *   'unsure'    → can't tell; show it faded
+ *   'different' → worth offering; show it normally
+ */
+export function translationHint(text, lang) {
+  if (!text || !lang) return 'unsure';
+  if (isLikelyAlreadyInLanguage(text, lang)) return 'same';
+  const letters = String(text).replace(RE_NEUTRAL, '');
+  if (!letters) return 'unsure';
+  // A dominant non-Latin script we don't read is unambiguously worth offering.
+  if (count(letters, RE_LATIN) / letters.length < 0.5) return 'different';
+  const guess = guessLatinLanguage(text);
+  if (!guess.confident) return 'unsure';
+  return guess.lang === lang ? 'same' : 'different';
 }

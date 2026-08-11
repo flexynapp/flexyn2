@@ -1349,6 +1349,10 @@ function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.22, ease: 'easeOut' }}
             style={{ overflow: 'hidden' }}
+            // Comments are inside the article, and the article runs
+            // double-tap-to-like on pointerup. Without this, double-tapping a
+            // COMMENT liked the POST — the gesture was landing one level up.
+            onPointerUp={(e) => e.stopPropagation()}
           >
             <HubCommentsInline
               post={post}
