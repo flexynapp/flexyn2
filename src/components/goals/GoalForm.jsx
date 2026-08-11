@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { format } from 'date-fns';
 import { toast } from '@/lib/toast';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -34,7 +35,7 @@ function toDurationSeconds(hours, minutes, seconds) {
 }
 
 export default function GoalForm({ initial, onSubmit, onCancel, userProfile = {}, isSubmitting = false }) {
-  const { t } = useLanguage();
+  const { t, tFallback } = useLanguage();
   const { weightUnit } = useWeightUnit();
   const { distanceUnit } = useDistanceUnit();
 
@@ -70,6 +71,22 @@ export default function GoalForm({ initial, onSubmit, onCancel, userProfile = {}
   // Notes
   const [notes, setNotes] = useState(initial?.notes || '');
 
+  // Target date. The `deadline` column has existed on `goals` since the table
+  // was created and measured 0 of 5 rows populated — no form ever offered an
+  // input for it, and `Goal.json` did not declare it, so `makeEntity().create`
+  // would have stripped it even if something had tried. It is a plain
+  // 'yyyy-MM-dd' local date, matching `period_start_date` beside it: a target
+  // date is a day on the user's calendar, not an instant.
+  const [deadline, setDeadline] = useState(initial?.deadline || '');
+
+  // A new goal cannot be aimed at a date that has already passed. An EXISTING
+  // one can already be overdue, and clamping `min` to today there would make
+  // the browser reject the value the row is currently holding — so editing the
+  // notes on a late goal would refuse to submit until you also changed the
+  // date. The floor drops to whatever the goal already carries.
+  const todayIso = format(new Date(), 'yyyy-MM-dd');
+  const minDeadline = initial?.deadline && initial.deadline < todayIso ? initial.deadline : todayIso;
+
   const guard = useMultiProfanityGuard();
 
   const maxTargetWeightLbs = getMaxRealisticWeight(exercise, userProfile);
@@ -83,6 +100,14 @@ export default function GoalForm({ initial, onSubmit, onCancel, userProfile = {}
       toast.error('Please remove inappropriate language before saving.');
       return;
     }
+
+    // Every branch below used to send a literal `status: 'active'`, which made
+    // Edit a reopen button: editing a COMPLETED goal to fix a typo in its notes
+    // silently flipped it back to active, moved it out of the Completed tab, and
+    // left the XP already granted for it. With an Archived status added that
+    // would have been a second way to un-archive by accident. An edit is not a
+    // state transition — completing and archiving have their own controls.
+    const nextStatus = initial?.status || 'active';
 
     if (goalType === 'strength') {
       if (!exercise.trim()) {
@@ -102,7 +127,7 @@ export default function GoalForm({ initial, onSubmit, onCancel, userProfile = {}
         return;
       }
       onSubmit({
-        status: 'active',
+        status: nextStatus,
         goal_type: 'strength',
         exercise_name: exercise.trim(),
         exercise_canonical: exerciseCanonical.trim() || exercise.trim(),
@@ -111,6 +136,7 @@ export default function GoalForm({ initial, onSubmit, onCancel, userProfile = {}
         period: 'lifetime',
         period_start_date: null,
         notes,
+        deadline: deadline || null,
       });
     } else if (goalType === 'cardio_distance') {
       const dist = Number(cardioDistanceInput);
@@ -119,13 +145,14 @@ export default function GoalForm({ initial, onSubmit, onCancel, userProfile = {}
         return;
       }
       onSubmit({
-        status: 'active',
+        status: nextStatus,
         goal_type: 'cardio_distance',
         cardio_activity: cardioActivity,
         target_distance_meters: toMeters(distanceUnit, cardioDistanceInput),
         period: cardioPeriod,
         period_start_date: getPeriodStartDate(cardioPeriod),
         notes,
+        deadline: deadline || null,
       });
     } else if (goalType === 'cardio_duration') {
       const totalSec = toDurationSeconds(cardioDurationHours, cardioDurationMinutes, cardioDurationSeconds);
@@ -134,13 +161,14 @@ export default function GoalForm({ initial, onSubmit, onCancel, userProfile = {}
         return;
       }
       onSubmit({
-        status: 'active',
+        status: nextStatus,
         goal_type: 'cardio_duration',
         cardio_activity: cardioActivity,
         target_duration_seconds: totalSec,
         period: cardioPeriod,
         period_start_date: getPeriodStartDate(cardioPeriod),
         notes,
+        deadline: deadline || null,
       });
     } else if (goalType === 'cardio_sessions') {
       const sess = Number(cardioSessions);
@@ -149,13 +177,14 @@ export default function GoalForm({ initial, onSubmit, onCancel, userProfile = {}
         return;
       }
       onSubmit({
-        status: 'active',
+        status: nextStatus,
         goal_type: 'cardio_sessions',
         cardio_activity: cardioActivity,
         target_sessions: Number(cardioSessions),
         period: cardioPeriod,
         period_start_date: getPeriodStartDate(cardioPeriod),
         notes,
+        deadline: deadline || null,
       });
     }
   };
@@ -326,6 +355,22 @@ export default function GoalForm({ initial, onSubmit, onCancel, userProfile = {}
           </div>
         </>
       )}
+
+      <div>
+        <label className="text-sm font-medium mb-1.5 block">
+          {tFallback('goals.deadline.label', 'Target date')}
+          <span className="text-muted-foreground font-normal ms-1">{t('common.optional')}</span>
+        </label>
+        <Input
+          type="date"
+          value={deadline}
+          min={minDeadline}
+          onChange={(e) => setDeadline(e.target.value)}
+        />
+        <p className="text-xs text-muted-foreground mt-1.5">
+          {tFallback('goals.deadline.hint', 'A date to aim for. Nothing expires — an overdue goal is flagged, never deleted.')}
+        </p>
+      </div>
 
       <div>
         <label className="text-sm font-medium mb-1.5 block">{t('goals.notes')}</label>

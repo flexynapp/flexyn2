@@ -53,12 +53,29 @@ export default function GoalsModal({ open, onClose, goals = [], logs = [], userP
   const { t, tFallback } = useLanguage();
   const { weightUnit } = useWeightUnit();
 
+  // Slide direction from the tab's position in the bar, not from its name.
+  // The old `tab === 'completed' ? 1 : -1` only ever described two tabs, so
+  // with Archived added, Completed → Archived would have animated backwards.
+  const TAB_ORDER = ['active', 'completed', 'archived'];
   const switchTab = (tab) => {
-    setTabDirection(tab === 'completed' ? 1 : -1);
+    setTabDirection(TAB_ORDER.indexOf(tab) >= TAB_ORDER.indexOf(activeTab) ? 1 : -1);
     setActiveTab(tab);
   };
   const queryClient = useQueryClient();
   const { user } = useAuth();
+
+  // Declared ABOVE the mutations that close over them. `archiveMutation`
+  // reads `archivedGoals` in its onSuccess, and while that callback only runs
+  // after render — so the binding is initialized by then — CLAUDE.md's TDZ
+  // rule is "declare before first use, full stop", because the one time the
+  // exception does not hold it is a production crash in minified code.
+  //
+  // Three statuses now, and each list is an EXPLICIT equality test. The old
+  // `status !== 'completed'` shorthand would have swept archived rows straight
+  // back into the active list.
+  const activeGoals    = goals.filter(g => g.status === 'active');
+  const completedGoals = goals.filter(g => g.status === 'completed');
+  const archivedGoals  = goals.filter(g => g.status === 'archived');
 
   const createMutation = useMutation({
     mutationFn: (data) => goalsData.create(data),
@@ -70,7 +87,10 @@ export default function GoalsModal({ open, onClose, goals = [], logs = [], userP
       // this insert (parent's re-render lands on the next tick).
       // Active-only filter ensures a user with all-completed goals
       // still triggers when they set a fresh one.
-      const activePrev = (goals || []).filter(g => g.status !== 'completed');
+      // `=== 'active'`, not `!== 'completed'`. Under the old test a user whose
+      // only goals were archived counted as already having one, so setting a
+      // fresh goal after clearing house skipped the first-goal celebration.
+      const activePrev = (goals || []).filter(g => g.status === 'active');
       const isFirstGoal = activePrev.length === 0;
       if (isFirstGoal) {
         fireFirstGoalCelebration({
@@ -111,6 +131,32 @@ export default function GoalsModal({ open, onClose, goals = [], logs = [], userP
     deleteFn: (id) => goalsData.remove(id),
     label: tFallback('goals.toast.deleted', 'Goal deleted'),
     feature: 'goals.delete',
+  });
+
+  // Archive / unarchive. A plain status write — no XP, no quest credit, no
+  // celebration, deliberately: archiving is housekeeping, and paying it like an
+  // achievement would make "archive everything" the cheapest XP in the app.
+  const archiveMutation = useMutation({
+    mutationFn: async (goalId) => {
+      const goal = goals.find(g => g.id === goalId);
+      const next = goal?.status === 'archived' ? 'active' : 'archived';
+      await goalsData.update(goalId, { status: next });
+      return next;
+    },
+    onSuccess: (next) => {
+      queryClient.invalidateQueries({ queryKey: ['goals', user?.email] });
+      toast.success(next === 'archived'
+        ? tFallback('goals.archive.toastArchived', 'Goal archived')
+        : tFallback('goals.archive.toastRestored', 'Goal restored'));
+      // Leaving the tab empty strands the user on a blank panel with no
+      // obvious way back, so restoring the last archived goal returns them
+      // to the list it went back to.
+      if (next === 'active' && archivedGoals.length <= 1) switchTab('active');
+    },
+    onError: (err) => {
+      reportError(err, { feature: 'goals.archive', userEmail: user?.email });
+      toast.error(t('goals.toast.saveError'));
+    },
   });
 
   const completeMutation = useMutation({
@@ -216,8 +262,6 @@ export default function GoalsModal({ open, onClose, goals = [], logs = [], userP
     setEditing(null);
   };
 
-  const activeGoals = goals.filter(g => g.status === 'active');
-  const completedGoals = goals.filter(g => g.status === 'completed');
 
   // When the form is open, the Dialog X-button should go back to the list
   // (not close the entire modal). This prevents "multiple exit paths" confusion —
@@ -265,6 +309,22 @@ export default function GoalsModal({ open, onClose, goals = [], logs = [], userP
                   {t('goals.completed')}
                 </button>
               )}
+              {/* Only once something is in it. An always-present Archived tab
+                  on a brand-new account is a promise of content that does not
+                  exist, and it is the same rule the Completed tab beside it
+                  already follows. */}
+              {archivedGoals.length > 0 && (
+                <button
+                  onClick={() => switchTab('archived')}
+                  className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                    activeTab === 'archived'
+                      ? 'border-primary text-foreground'
+                      : 'border-transparent text-muted-foreground hover:text-foreground active:text-foreground'
+                  }`}
+                >
+                  {tFallback('goals.archive.tab', 'Archived')}
+                </button>
+              )}
             </div>
 
             <div className="overflow-hidden mt-4">
@@ -301,6 +361,40 @@ export default function GoalsModal({ open, onClose, goals = [], logs = [], userP
                           if (goal) optDelete.deleteWithUndo(goal);
                         }}
                         onComplete={(id) => completeMutation.mutate(id)}
+                        onArchive={(id) => archiveMutation.mutateAsync(id)}
+                      />
+                    )}
+                  </motion.div>
+                ) : activeTab === 'archived' ? (
+                  <motion.div
+                    key="archived"
+                    custom={tabDirection}
+                    initial={{ opacity: 0, x: tabDirection * -40 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: tabDirection * 40 }}
+                    transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+                  >
+                    {archivedGoals.length === 0 ? (
+                      <div className="text-center py-12">
+                        <Target className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+                        <p className="font-heading font-semibold">
+                          {tFallback('goals.archive.empty', 'Nothing archived')}
+                        </p>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {tFallback('goals.archive.emptyDesc', 'Archive a goal to park it here without losing it.')}
+                        </p>
+                      </div>
+                    ) : (
+                      <GoalsList
+                        goals={archivedGoals}
+                        logs={logs}
+                        isViewingArchived={true}
+                        onEdit={(goal) => { setEditing(goal); setShowForm(true); }}
+                        onDelete={(id) => {
+                          const goal = (goals || []).find(g => g.id === id);
+                          if (goal) optDelete.deleteWithUndo(goal);
+                        }}
+                        onArchive={(id) => archiveMutation.mutateAsync(id)}
                       />
                     )}
                   </motion.div>

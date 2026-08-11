@@ -35,7 +35,11 @@ export default function GoalsAlmostComplete({ goals, logs, cardioLogs = [], onOp
 
   const almostCompleteGoals = useMemo(() => {
     return goals
-      .filter(goal => goal.status !== 'completed')
+      // `=== 'active'`, not `!== 'completed'` — an archived goal must not
+      // reappear in the "almost there!" nudge on Dashboard and Workout. That
+      // nudge is the loudest goal surface in the app, so leaking one here
+      // would make archiving look broken even though the row was parked.
+      .filter(goal => goal.status === 'active')
       .map(goal => {
         // isCardioGoal() checks membership of the three real types rather
         // than a `cardio_` prefix, so a stray goal_type like the old bare

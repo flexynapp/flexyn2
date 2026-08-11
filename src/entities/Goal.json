@@ -48,11 +48,16 @@
       "format": "date",
       "description": "YYYY-MM-DD - the date this period started counting from (nullable)"
     },
+    "deadline": {
+      "type": "string",
+      "format": "date",
+      "description": "YYYY-MM-DD target date to aim for (nullable). Advisory only — an overdue goal is flagged in the list, never auto-failed or deleted. The column has existed on the table since creation; this declaration is what lets it survive a write."
+    },
     "status": {
       "type": "string",
-      "enum": ["active", "completed"],
+      "enum": ["active", "completed", "archived"],
       "default": "active",
-      "description": "The current status of the goal"
+      "description": "The current status of the goal. 'archived' is a user-initiated hide: it keeps the row and its history but removes the goal from the active list, the Dashboard strip and the almost-complete nudge. Distinct from 'completed', which is an achievement and pays XP."
     },
     "notes": {
       "type": "string",

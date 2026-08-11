@@ -20,6 +20,43 @@ export const goalsI18n = {
     'goals.cardio.targetDuration': 'Target duration',
     'goals.cardio.targetSessions': 'Target sessions',
     'goals.sessions': 'sessions',
+
+    // Target date, Archive, and the three status badges (2026-08-11).
+    // English-only for now, per the "don't ship machine-translated copy"
+    // rule — every call site uses tFallback with these exact strings, so
+    // the other 14 languages render this English rather than a key path
+    // until a native pass lands. The badges are NEW keys only in the sense
+    // that they were previously raw English literals inside the JSX with no
+    // key at all, so no language ever translated them.
+    // Grouped under three NARROW namespaces on purpose. These are exempted
+    // in i18nCoverage.test.js's AWAITING_TRANSLATION, and a bare `goals.`
+    // prefix there would swallow the ~30 goals keys that ARE translated in
+    // all 15 languages. Same reasoning the `league.gate.` entry records.
+    // So: no loose `goals.targetDate` / `goals.archive` at the top level.
+    'goals.deadline.label': 'Target date',
+    'goals.deadline.hint': 'A date to aim for. Nothing expires — an overdue goal is flagged, never deleted.',
+    'goals.deadline.left.one': '{n} day left',
+    'goals.deadline.left.other': '{n} days left',
+    'goals.deadline.overdue.one': '{n} day past target',
+    'goals.deadline.overdue.other': '{n} days past target',
+    'goals.deadline.today': 'Target date is today',
+
+    'goals.rowMenu': 'Options for {name}',
+    'goals.archive.action': 'Archive',
+    'goals.archive.undo': 'Unarchive',
+    'goals.archive.tab': 'Archived',
+    'goals.archive.empty': 'Nothing archived',
+    'goals.archive.emptyDesc': 'Archive a goal to park it here without losing it.',
+    'goals.archive.toastArchived': 'Goal archived',
+    'goals.archive.toastRestored': 'Goal restored',
+
+    // Not new copy — these three were raw English literals sitting in
+    // GoalsList's JSX with no key at all, so every language already read
+    // them in English. Giving them keys makes them translatable for the
+    // first time; nothing on screen changes today.
+    'goals.badge.completed': 'Completed ✓',
+    'goals.badge.readyToComplete': 'Ready to complete!',
+    'goals.badge.almostThere': 'Almost there!',
   },
   es: {
     'goals.goalType': 'Tipo de objetivo',

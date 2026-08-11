@@ -14,7 +14,7 @@ import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { format, subDays, startOfWeek } from 'date-fns';
+import { format, subDays, addDays, startOfWeek } from 'date-fns';
 import { LanguageProvider } from '@/lib/LanguageContext';
 import { parseLocalDate } from '@/lib/dateUtils';
 
@@ -260,6 +260,231 @@ describe('Goal weight', () => {
 
     expect(screen.getByText('losing weight')).toBeInTheDocument();
     expect(screen.getByText(/days away · 5.0 lbs\/week pace/)).toBeInTheDocument();
+  });
+});
+
+// ── Goal projection ─────────────────────────────────────────────────────────
+//
+// The date the card prints is the whole feature, and it is derived from a
+// least-squares fit rather than from the user's latest weigh-in. Those two
+// disagree more often than they look like they would, so the checks below
+// pin the arithmetic to hand-computed answers and then push on the branches
+// where the fit and the reality part company.
+//
+// Numbered against docs/progress-insights-goal-audit.md.
+//
+// The clock is frozen at midday on purpose. `differenceInDays` truncates, and
+// every weigh-in date parses to LOCAL MIDNIGHT, so a projection is always
+// half a day short of a whole number — freezing at noon makes that visible
+// and deterministic instead of making the suite flaky at 00:xx.
+
+describe('Goal projection', () => {
+  const NOON = new Date(2026, 7, 11, 12, 0, 0);
+
+  beforeEach(() => { vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(NOON); });
+  afterEach(() => { vi.useRealTimers(); });
+
+  const medium = (date) => new Intl.DateTimeFormat('en', { dateStyle: 'medium' }).format(date);
+  const at = (daysAgo, weight_lbs) => ({ date: d(subDays(NOON, daysAgo)), weight_lbs });
+  /** Day 0 of a series, as the component parses it — local midnight. */
+  const day0 = (daysAgo) => parseLocalDate(d(subDays(NOON, daysAgo)));
+
+  const setGoal = (v, unitLabel = 'lbs') => {
+    fireEvent.change(screen.getByPlaceholderText(`Goal in ${unitLabel}`), { target: { value: String(v) } });
+    fireEvent.click(screen.getByRole('button', { name: 'Set' }));
+  };
+
+  // A plain losing trend, for checks that need a working projection but do
+  // not care about its exact shape.
+  const LOSING = [at(20, 200), at(0, 190)];
+
+  // ── B — the arithmetic ───────────────────────────────────────────────────
+
+  it('B2 — anchors the projection to the first weigh-in, not to today', () => {
+    // 200 lb on day 0, 190 lb on day 20 → −0.5 lb/day, intercept 200.
+    // Goal 180 is (180−200)/−0.5 = 40 days from the FIRST weigh-in.
+    show({ bodyMetrics: LOSING, userProfile: USER });
+    setGoal(180);
+
+    expect(screen.getByText(medium(addDays(day0(20), 40)))).toBeInTheDocument();
+    expect(screen.getByText('losing weight')).toBeInTheDocument();
+    // 0.5 lb/day × 7. If this reads 3.5 the slope is right.
+    expect(screen.getByText(/3.5 lbs\/week pace/)).toBeInTheDocument();
+  });
+
+  it('B2b — the "days away" count is a day short of the date beside it', () => {
+    // The date above resolves to 20 days after today; this line says 19,
+    // because differenceInDays truncates a 19.5-day gap. Cosmetic, but the
+    // two numbers are printed one above the other and disagree.
+    show({ bodyMetrics: LOSING, userProfile: USER });
+    setGoal(180);
+
+    const projected = addDays(day0(20), 40);
+    expect(screen.getByText(medium(projected))).toBeInTheDocument();   // 20 days out
+    expect(screen.getByText(/^19 days away/)).toBeInTheDocument();     // says 19
+  });
+
+  it('B3 — flags a trend moving away from the goal', () => {
+    show({ bodyMetrics: [at(20, 180), at(0, 190)], userProfile: USER });
+    setGoal(170);
+
+    expect(screen.getByText('Trending wrong way')).toBeInTheDocument();
+    expect(screen.getByText(/moving away from your goal at 3.5 lbs\/week/)).toBeInTheDocument();
+    expect(screen.queryByText(/Already reached/)).toBeNull();
+  });
+
+  it('B3b — a goal equal to current weight reads as reached, correctly', () => {
+    // goalDirection is 0, so the mismatch guard deliberately lets this by.
+    // Included because it is the one branch where "Already reached!" is true.
+    show({ bodyMetrics: [at(20, 180), at(0, 190)], userProfile: USER });
+    setGoal(190);
+
+    expect(screen.getByText('Already reached! 🎉')).toBeInTheDocument();
+    expect(screen.getByText('0 lbs')).toBeInTheDocument();  // Remaining
+  });
+
+  it('B4 — congratulates a goal the user has NOT reached', () => {
+    // 200 → 175 → 185. Least squares over those three gives slope −0.75 and
+    // intercept 194.17, so the LINE crosses 180 one day ago. The user's
+    // actual last weigh-in is 185 — five pounds short.
+    show({ bodyMetrics: [at(20, 200), at(10, 175), at(0, 185)], userProfile: USER });
+    setGoal(180);
+
+    expect(screen.getByText('Already reached! 🎉')).toBeInTheDocument();
+    // ...printed directly above the two stats that contradict it.
+    expect(screen.getByText('185 lbs')).toBeInTheDocument();  // Current
+    expect(screen.getByText('5 lbs')).toBeInTheDocument();    // Remaining
+  });
+
+  it('B6 — a real weekly rate renders as 0.0 in stone', () => {
+    unit = 'stone';
+    // 1 lb over 14 days = 0.5 lb/week. In stone that is 0.036/week, and the
+    // call site formats rates at 1 decimal → "0.0 stone".
+    show({ bodyMetrics: [at(14, 200), at(0, 199)], userProfile: USER });
+    setGoal(14, 'stone');   // 14 st = 196 lb
+
+    expect(screen.getByText(/0.0 stone\/week pace/)).toBeInTheDocument();
+  });
+
+  it('B7 — extrapolates half a century with no horizon cap', () => {
+    // slope −0.0011 lb/day, just past the 0.001 cutoff that returns null.
+    show({ bodyMetrics: [at(100, 200), at(0, 199.89)], userProfile: USER });
+    setGoal(180);
+
+    expect(screen.getByText(/1[0-9],\d{3} days away/)).toBeInTheDocument();
+    expect(screen.getByText(new RegExp('20[7-9]\\d'))).toBeInTheDocument();
+  });
+
+  // ── C — persistence ──────────────────────────────────────────────────────
+
+  it('C1 — reports success for a goal it discarded while the profile loads', () => {
+    // userProfile arrives from an async query, so `userProfile?.id` is
+    // undefined on the first render(s). saveGoalWeight early-returns on a
+    // falsy id; the success toast fires regardless.
+    show({ bodyMetrics: LOSING, userProfile: {} });
+    setGoal(180);
+
+    expect(toast.success).toHaveBeenCalledWith('Goal weight saved');
+    expect(localStorage.length).toBe(0);
+    expect(screen.queryByText('Remaining')).toBeNull();
+  });
+
+  it('C2 — a goal round-trips through unit changes without drift', () => {
+    unit = 'stone';
+    // A FRESH element each time. React short-circuits reconciliation when the
+    // new element is referentially identical to the old one, so re-rendering
+    // a stored `tree` const never picks the new unit up.
+    const tree = () => (
+      <MemoryRouter>
+        <LanguageProvider>
+          <InsightsTab logs={[]} cardioLogs={[]} bodyMetrics={LOSING} userProfile={USER} />
+        </LanguageProvider>
+      </MemoryRouter>
+    );
+    const { rerender } = render(tree());
+    setGoal(12, 'stone');
+    expect(localStorage.getItem('flexyn.goalWeightLbs.u-1')).toBe('168');
+
+    unit = 'kg';    rerender(tree());
+    expect(screen.getByPlaceholderText('Goal in kg')).toHaveValue(76.2);
+    unit = 'stone'; rerender(tree());
+    expect(screen.getByPlaceholderText('Goal in stone')).toHaveValue(12);
+    expect(localStorage.getItem('flexyn.goalWeightLbs.u-1')).toBe('168');
+  });
+
+  it('C3 — setting a goal draws the projection without a remount', () => {
+    show({ bodyMetrics: LOSING, userProfile: USER });
+    expect(screen.queryByText('Remaining')).toBeNull();
+    setGoal(180);
+    expect(screen.getByText('Remaining')).toBeInTheDocument();
+  });
+
+  it('C5 — reports success when the write threw', () => {
+    // Spy on the INSTANCE, not Storage.prototype — jsdom's localStorage is a
+    // Proxy, so a prototype spy silently never fires and the test passes for
+    // the wrong reason (the write succeeds and the projection renders).
+    const spy = vi.spyOn(window.localStorage, 'setItem')
+      .mockImplementation(() => { throw new Error('QuotaExceededError'); });
+    show({ bodyMetrics: LOSING, userProfile: USER });
+    setGoal(180);
+
+    expect(toast.success).toHaveBeenCalledWith('Goal weight saved');
+    expect(screen.queryByText('Remaining')).toBeNull();
+    spy.mockRestore();
+  });
+
+  // ── D — the states that draw nothing ─────────────────────────────────────
+
+  it('D1 — a flat trend leaves the card blank with no explanation', () => {
+    show({ bodyMetrics: [at(14, 185), at(0, 185)], userProfile: USER });
+    setGoal(180);
+
+    // The write landed and the user was told so...
+    expect(toast.success).toHaveBeenCalledWith('Goal weight saved');
+    expect(localStorage.getItem('flexyn.goalWeightLbs.u-1')).toBe('180');
+    // ...and the card says nothing at all about it.
+    expect(screen.queryByText('Current')).toBeNull();
+    expect(screen.queryByText('Remaining')).toBeNull();
+    expect(screen.queryByText(/Already reached/)).toBeNull();
+    expect(screen.queryByText(/Trending wrong way/)).toBeNull();
+    expect(screen.queryByText(/Based on your logged weight trend/)).toBeNull();
+  });
+
+  it('D2 — weigh-ins on a single day leave the same blank card', () => {
+    show({ bodyMetrics: [at(0, 190), at(0, 188)], userProfile: USER });
+    setGoal(180);
+
+    expect(screen.queryByText('Remaining')).toBeNull();
+    expect(screen.queryByText(/Based on your logged weight trend/)).toBeNull();
+  });
+
+  it('D4 — two weigh-ins are enough, and the disclaimer is shown', () => {
+    show({ bodyMetrics: LOSING, userProfile: USER });
+    setGoal(180);
+    expect(screen.getByText(/Based on your logged weight trend/)).toBeInTheDocument();
+  });
+
+  it('A/B4 — the only production user with a projection hits the false congratulation', () => {
+    // Verbatim from public.body_metrics on 2026-08-11: user ead69f89 is the
+    // ONLY account of 57 with two weigh-ins on two days, so this is the whole
+    // live population of this card. 699 lb → 140 lb over 15 days, both inside
+    // LogWeightModal's 70–700 guard.
+    //
+    // The fit crossed any sub-140 goal back in June, so every goal this user
+    // can set reads as achieved while the Remaining stat says otherwise.
+    show({
+      bodyMetrics: [
+        { date: '2026-05-20', weight_lbs: '699' },
+        { date: '2026-06-04', weight_lbs: '140' },
+      ],
+      userProfile: USER,
+    });
+    setGoal(135);
+
+    expect(screen.getByText('Already reached! 🎉')).toBeInTheDocument();
+    expect(screen.getByText('140 lbs')).toBeInTheDocument();   // Current
+    expect(screen.getByText('135 lbs')).toBeInTheDocument();   // Goal
+    expect(screen.getByText('5 lbs')).toBeInTheDocument();     // Remaining — not reached
   });
 });
 

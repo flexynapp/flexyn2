@@ -33,7 +33,10 @@ export default function GoalsProgressStrip({ goals = [], logs = [], onOpen }) {
   const { tFallback } = useLanguage();
 
   const view = useMemo(() => {
-    const active = goals.filter(g => g.status !== 'completed');
+    // `=== 'active'`. Archived is a third status now, and under the old
+    // not-completed test a goal the user deliberately parked would have kept
+    // its slot on the Dashboard — which is the exact thing archiving is for.
+    const active = goals.filter(g => g.status === 'active');
     if (active.length === 0) return null;
 
     // Compute progress for each active goal (strength only — cardio

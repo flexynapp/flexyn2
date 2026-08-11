@@ -480,6 +480,29 @@ describe('partial-gap ratchet', () => {
     'cardio.modes.running.desc',
     'cardio.modes.walking.desc',
     'cardio.modes.biking.desc',
+    // Goals: target date, archive, and the status badges — 2026-08-11.
+    //
+    // Scoped to three NARROW prefixes, never a bare `goals.`, which would
+    // swallow the ~30 goals keys already translated in all 15 languages.
+    // Same reasoning as `league.gate.` above.
+    //
+    // `goals.deadline.` and `goals.archive.` are genuinely new copy for two
+    // features that did not exist: the `deadline` column was 0-of-5 populated
+    // with no input anywhere, and there was no archive at all. Prose plus a
+    // pluralised count, so CLAUDE.md forbids machine translation.
+    //
+    // `goals.badge.` is a different case and is exempted for a different
+    // reason: those three strings were RAW ENGLISH LITERALS in GoalsList's
+    // JSX with no key, so all 15 languages already rendered them in English.
+    // Keying them changes nothing on screen and makes them translatable for
+    // the first time — the coverage ratio moves, the user's experience does
+    // not. Do not read this entry as new untranslated debt.
+    'goals.deadline.',
+    'goals.archive.',
+    'goals.badge.',
+    // The row's ⋮ trigger had no accessible name at all. Exact key, not a
+    // `goals.` prefix, for the same swallowing reason as the three above.
+    'goals.rowMenu',
   ];
 
   const pending = (k) => AWAITING_TRANSLATION.some(p => k.startsWith(p));
