@@ -18,7 +18,7 @@ import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { supabase } from '@/api/supabaseClient';
 import { db } from '@/api/db';
-import { calculateDailyValues } from '@/lib/nutritionDefaults';
+import { useNutritionTargets } from '@/hooks/useNutritionTargets';
 
 // NOTE: `today` is computed INSIDE the component (not at module load)
 // so a PWA left open overnight transitions to the new day. Otherwise
@@ -95,7 +95,7 @@ export default function CalorieProgressWidget({ userProfile = {} }) {
     refetchInterval: 120_000,
   });
 
-  const goals = useMemo(() => calculateDailyValues(userProfile), [userProfile]);
+  const goals = useNutritionTargets(userProfile);
 
   const totals = useMemo(() => {
     const calories  = todayLogs.reduce((s, n) => s + (n.calories || 0), 0);

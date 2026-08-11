@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, ChevronRight, ChevronDown, ChevronUp, ArrowLeft, Clock, Flame, Beef, Pill, ClipboardList, Sparkles, ArrowLeftRight } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { PLAN_TEMPLATES, PLAN_COLORS, scalePlan, adaptPlan, loadRestrictions } from '@/lib/nutritionPlans';
-import { calculateDailyValues } from '@/lib/nutritionDefaults';
+import { useNutritionTargets } from '@/hooks/useNutritionTargets';
 import { isNutritionOnboardingComplete } from '@/lib/nutritionOnboardingGate';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
@@ -323,10 +323,7 @@ export function NutritionPlansPanel({ userProfile, onStartOnboarding, trainingFu
   // (CalorieTopBar / MacroNutrientBox via calculateDailyValues). Onboarding
   // saves the goal/activity inputs, not a stored calorie number, so reading a
   // `daily_calorie_target` field left plans stuck at the 2000 kcal base.
-  const targetCalories = useMemo(
-    () => calculateDailyValues(userProfile)?.calories || null,
-    [userProfile],
-  );
+  const targetCalories = useNutritionTargets(userProfile)?.calories || null;
 
   // Every plan is offered — adapted to the user's restrictions by swapping
   // off-limits ingredients for compliant, nutrient-matched alternatives.
