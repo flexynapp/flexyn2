@@ -37,7 +37,7 @@ import TrainingPatternCard from '@/components/progress/TrainingPatternCard';
 import WorkoutCalendarGrid from '@/components/progress/WorkoutCalendarGrid';
 import PageHeader from '@/components/PageHeader';
 import HeroPager from '@/components/HeroPager';
-import { HERO_SLIDE_GUTTER, HERO_NEXT_BUTTON, HERO_SLIDE_MIN_H, heroTintGradient, heroWatermarkStyle, heroSlideAccent } from '@/lib/heroChrome';
+import { HERO_SLIDE_GUTTER, HERO_SLIDE_MIN_H, heroTintGradient, heroWatermarkStyle, heroSlideAccent } from '@/lib/heroChrome';
 import { latestDebrief, generateWeeklyDebrief, currentWeekStart } from '@/lib/data/debriefs';
 import {
   LineChart, Line, BarChart, Bar,
@@ -349,7 +349,6 @@ function ProgressCarousel({ slides }) {
     setAccent(heroSlideAccent(slide));
   }, []);
 
-  const multi = slides.length > 1;
 
   return (
     <div className="relative mb-3">
@@ -372,16 +371,12 @@ function ProgressCarousel({ slides }) {
           style={{ background: `hsl(${accent})` }}
         />
 
-        {multi && (
-          <button
-            type="button"
-            onClick={() => pagerRef.current?.next?.()}
-            aria-label={tFallback('progress.carousel.nextSlide', 'Next slide')}
-            className={HERO_NEXT_BUTTON}
-          >
-            <ChevronRight className="w-4 h-4 rtl:scale-x-[-1]" />
-          </button>
-        )}
+        {/* No floating next-slide arrow. It was the only thing on this card
+            that could ever collide with the watermark, and it sat on top of
+            a surface whose whole interaction is a swipe. The Dashboard hero
+            has never had one — its chevrons live inside in-flow CTA buttons,
+            which is what this now copies. Slides advance by drag, by the
+            dots, and on the pager's own timer. (kegan, 2026-08-10.) */}
 
         {/* min-h holds the card's rhythm on the page. It no longer has to
             absorb the difference between slides: the pager mounts every
@@ -438,6 +433,21 @@ function renderProgressSlide(slide, { count = 1 } = {}) {
         <p className="text-sm text-foreground/60 max-w-[36ch] leading-relaxed mt-3">
           {slide.tip}
         </p>
+
+        {/* CTA — the Dashboard hero's button, copied verbatim: same radius,
+            same fill, same chevron, same mt-3. It replaces the floating
+            arrow, so the only interactive thing on the card is now in the
+            text flow where it cannot reach the watermark. */}
+        {slide.cta && (
+          <button
+            type="button"
+            onClick={slide.cta.onClick}
+            className="inline-flex items-center gap-1 mt-3 px-3 py-1.5 rounded-full bg-primary/10 hover:bg-primary/20 active:bg-primary/20 backdrop-blur-sm text-caption font-semibold text-foreground transition-colors"
+          >
+            {slide.cta.label}
+            <ChevronRight className="w-3.5 h-3.5 rtl:scale-x-[-1]" />
+          </button>
+        )}
       </div>
     </div>
   );
@@ -729,6 +739,7 @@ export default function Progress() {
             { n: streak },
           )
         : tFallback('progress.slide.streak.none', 'Start today'),
+      cta: { label: tFallback('progress.slide.cta.logWorkout', 'Log a workout'), onClick: () => navigate('/workout') },
       tip: streak > 0
         ? tFallback(
             'progress.slide.streak.tipActive',
@@ -746,6 +757,7 @@ export default function Progress() {
       color: 'var(--info)',
       kicker: tFallback('progress.slide.workouts.kicker', 'Workouts'),
       value: `${logs.length}`,
+      cta: { label: tFallback('progress.slide.cta.logWorkout', 'Log a workout'), onClick: () => navigate('/workout') },
       tip: logs.length === 0
         ? tFallback(
             'progress.slide.workouts.tipNone',
@@ -767,6 +779,7 @@ export default function Progress() {
       value: totalVolume > 0
         ? `${formatBigNumber(Math.round(fromLbs(totalVolume, weightUnit)))} ${weightUnit}`
         : '0',
+      cta: { label: tFallback('progress.slide.cta.analytics', 'See analytics'), onClick: () => setAdvancedAnalyticsOpen(true) },
       tip: thisWeekVolume > 0 && lastWeekVolume > 0
         ? tFallback(
             'progress.slide.volume.tipCompare',
@@ -788,6 +801,7 @@ export default function Progress() {
       color: 'var(--primary)',
       kicker: tFallback('progress.slide.level.kicker', 'Level'),
       value: tFallback('progress.stat.levelValue', 'Lv {level}', { level }),
+      cta: { label: tFallback('progress.slide.cta.personalBests', 'Personal bests'), onClick: () => setPersonalBestsModalOpen(true) },
       tip: tFallback(
         'progress.slide.level.tip',
         'Every workout earns XP. Hit personal bests for bonus XP and watch the bar fill.',

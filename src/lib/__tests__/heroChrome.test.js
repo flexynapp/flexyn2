@@ -1,87 +1,67 @@
-// The watermark / next-button separation, as arithmetic rather than as a
-// screenshot.
+// The hero watermark, and the rule that nothing floats over it.
 //
-// The bug: the next-slide chevron was vertically centred, and the watermark
-// occupies the top-right 72px of the slide box. On a ~190px card the button
-// spanned roughly y 79-111 and the watermark y 16-88, so the chevron sat on
-// top of the icon — visible on Progress as an arrow over the dumbbell.
+// History, because the rule is the interesting part rather than the numbers:
+// Progress and Nutrition carried a floating next-slide chevron, vertically
+// centred, and the watermark owns the top-right 72px of the slide box. The
+// two overlapped. The first fix anchored the button to the bottom; the
+// second grew the card so the gap was 58px rather than 18. Both worked —
+// measured on the real component at 198px, watermark 17-89, button 153-185.
 //
-// This is tested as numbers because the failure is geometric and a jsdom
-// render cannot see it: jsdom lays nothing out, so a DOM test would pass
-// with the two elements on top of each other. The real viewport check is a
-// screenshot, which nobody re-runs. The arithmetic is what actually holds.
+// Both were still the wrong shape of answer. "Keep this control out of the
+// way of that icon" is a constraint you re-earn every time the card, the
+// copy or the locale changes. The Dashboard hero never had the problem
+// because it has no floating control at all — its chevrons sit inside
+// in-flow CTA buttons. Progress and Nutrition now do the same.
+//
+// So this file no longer checks a gap. It checks that the thing which
+// created the gap is gone, and that the watermark still owns its corner.
 
 import { describe, it, expect } from 'vitest';
-import { HERO_WATERMARK_PX, HERO_NEXT_BUTTON, HERO_SLIDE_MIN_H, HERO_GEOMETRY, heroWatermarkStyle } from '@/lib/heroChrome';
+import { HERO_WATERMARK_PX, HERO_SLIDE_MIN_H, HERO_GEOMETRY, heroWatermarkStyle } from '@/lib/heroChrome';
 
-describe('the next-slide button cannot reach the watermark', () => {
-  const { cardPadPx, cardMinHeightPx, buttonPx, buttonInsetPx } = HERO_GEOMETRY;
-
-  const watermarkBottom = cardPadPx + HERO_WATERMARK_PX;
-  const buttonTop = cardMinHeightPx - buttonInsetPx - buttonPx;
-
-  it('clears it at the card MINIMUM height, which is the worst case', () => {
-    // Bottom-anchored, so the button only moves further away as the card
-    // grows — the minimum is the only height that can fail.
-    expect(buttonTop).toBeGreaterThan(watermarkBottom);
-  });
-
-  it('leaves the icon room to breathe, not merely room to not overlap', () => {
-    // Not overlapping was the first fix and it was not enough: at the old
-    // 150px min-height these sat 18px apart, and the corner still read as
-    // packed. The threshold is the point — a test that only asserts
-    // "> 0" would have passed the version that looked wrong.
-    // (kegan, 2026-08-10: "add more grey space so the icon has room to
-    // breathe".)
-    expect(buttonTop - watermarkBottom).toBeGreaterThanOrEqual(48);
-  });
-
-  it('is anchored to the bottom, not centred', () => {
-    // `top-1/2 -translate-y-1/2` is what put it through the watermark. If
-    // someone re-centres it this fails rather than waiting for a screenshot.
-    expect(HERO_NEXT_BUTTON).toContain('bottom-3');
-    expect(HERO_NEXT_BUTTON).not.toContain('top-1/2');
-    expect(HERO_NEXT_BUTTON).not.toContain('-translate-y-1/2');
-  });
-
-  it('keeps the watermark hard in the top-right corner', () => {
-    // The other half of the ask: the fix moves the BUTTON, never the icon.
+describe('the watermark keeps its corner', () => {
+  it('is pinned hard to the top-right, untransformed', () => {
     const style = heroWatermarkStyle();
     expect(style.top).toBe(0);
     expect(style.right).toBe(0);
     expect(style.width).toBe(HERO_WATERMARK_PX);
+    expect(style.height).toBe(HERO_WATERMARK_PX);
     expect(style.transform).toBe('none');
   });
 
-  it('states its height as a class the pages share', () => {
-    expect(HERO_SLIDE_MIN_H).toBe(`min-h-[${cardMinHeightPx}px]`);
-  });
-
-  it('keeps the button clear of the right edge by the same inset it uses below', () => {
-    // end-3 / bottom-3 — a control that hugs one edge harder than the other
-    // reads as misplaced rather than as anchored.
-    expect(HERO_NEXT_BUTTON).toContain('end-3');
-    expect(buttonInsetPx).toBe(12);
+  it('states the slide height as a class both pages share', () => {
+    expect(HERO_SLIDE_MIN_H).toBe(`min-h-[${HERO_GEOMETRY.cardMinHeightPx}px]`);
   });
 });
 
-describe('both carousels use the shared button, so they cannot drift', () => {
-  // Progress and Nutrition had byte-identical copies of the class string,
-  // and therefore identical bugs. One of them would have been fixed alone.
+describe('nothing floats over the hero', () => {
   const PAGES = ['src/pages/Progress.jsx', 'src/pages/Nutrition.jsx'];
 
-  it.each(PAGES)('%s uses HERO_NEXT_BUTTON and HERO_SLIDE_MIN_H', async (file) => {
+  it.each(PAGES)('%s has no absolutely-positioned control on the card', async (file) => {
+    const fs = await import('fs');
+    const src = fs.readFileSync(file, 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, '')      // strip block comments
+      .replace(/\{\/\*[\s\S]*?\*\/\}/g, '');  // and JSX comments
+    // The two shapes the arrow took across its two fixes. Either one
+    // returning means a control is floating over the watermark again.
+    expect(src, `${file} re-adds a centred floating control`).not.toMatch(/absolute end-3 top-1\/2/);
+    expect(src, `${file} re-adds a bottom-anchored floating control`).not.toMatch(/absolute end-3 bottom-3/);
+    expect(src, `${file} still imports the retired button`).not.toMatch(/HERO_NEXT_BUTTON/);
+  });
+
+  it.each(PAGES)('%s shares the hero height rather than pinning its own', async (file) => {
     const fs = await import('fs');
     const src = fs.readFileSync(file, 'utf8');
-    expect(src, `${file} re-inlines the button classes`).not.toMatch(/absolute end-3 top-1\/2/);
-    expect(src).toMatch(/HERO_NEXT_BUTTON/);
-    // The height is half the clearance calculation, so a page that pins its
-    // own hero min-h silently opts out of the guarantee above. Anchored to
-    // the slide container's padding rather than to any `min-h-[…]`: the tab
-    // bar's `min-h-[48px]` is the Apple HIG tap-target floor and has nothing
-    // to do with this. A blanket match flagged it, which is the test being
-    // too broad rather than the code being wrong.
+    // Anchored to the slide container's padding: the tab bar's
+    // `min-h-[48px]` is the Apple HIG tap-target floor and unrelated.
     expect(src, `${file} hardcodes its own hero height`).not.toMatch(/p-4 md:p-5 min-h-\[/);
     expect(src).toMatch(/HERO_SLIDE_MIN_H/);
+  });
+});
+
+describe('the retired constant stays retired', () => {
+  it('is no longer exported', async () => {
+    const mod = await import('@/lib/heroChrome');
+    expect('HERO_NEXT_BUTTON' in mod).toBe(false);
   });
 });

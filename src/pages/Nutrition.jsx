@@ -47,7 +47,7 @@ import WeeklyMealPlannerModal from '@/components/nutrition/WeeklyMealPlannerModa
 import FastingTrackerCard from '@/components/nutrition/FastingTrackerCard';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import HeroPager from '@/components/HeroPager';
-import { HERO_SLIDE_GUTTER, HERO_NEXT_BUTTON, HERO_SLIDE_MIN_H, heroTintGradient, heroWatermarkStyle, heroSlideAccent } from '@/lib/heroChrome';
+import { HERO_SLIDE_GUTTER, HERO_SLIDE_MIN_H, heroTintGradient, heroWatermarkStyle, heroSlideAccent } from '@/lib/heroChrome';
 import { reportError } from '@/lib/reportError';
 import { fireFirstMealCelebration } from '@/lib/firstMealCelebration';
 import { supabase } from '@/api/supabaseClient';
@@ -186,16 +186,9 @@ function NutritionShortcutsCarousel({ onScan, onRecipes, onHistory, onPlans, onP
           style={{ background: `hsl(${accent})` }}
         />
 
-        {multi && (
-          <button
-            type="button"
-            onClick={() => pagerRef.current?.next?.()}
-            aria-label="Next slide"
-            className={HERO_NEXT_BUTTON}
-          >
-            <ChevronRight className="w-4 h-4 rtl:scale-x-[-1]" />
-          </button>
-        )}
+        {/* No floating next-slide arrow — see the note in Progress.jsx.
+            It was the one control that could collide with the watermark,
+            on a surface whose interaction is a swipe. */}
 
         <div className={`relative p-4 md:p-5 ${HERO_SLIDE_MIN_H}`}>
           <HeroPager

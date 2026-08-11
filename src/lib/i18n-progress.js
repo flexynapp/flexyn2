@@ -106,6 +106,13 @@ export const progressTranslations = {
     'progress.carousel.nextSlide':    'Next slide',
     'progress.carousel.slideN':       'Slide {n}',
 
+    // Slide CTAs, in the Dashboard hero's button. Streak / Workouts /
+    // Volume all want the same thing — a logged session — so three of the
+    // four share a label rather than inventing three ways to say it.
+    'progress.slide.cta.logWorkout':    'Log a workout',
+    'progress.slide.cta.analytics':     'See analytics',
+    'progress.slide.cta.personalBests': 'Personal bests',
+
     'progress.slide.streak.kicker':   'Streak',
     'progress.slide.streak.none':     'Start today',
     'progress.slide.streak.days_one':   '{n} day',

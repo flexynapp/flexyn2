@@ -156,33 +156,25 @@ export const HERO_SLIDE_GUTTER = 'pe-12 md:pe-14';
  * on every slide at both 375 and 430pt rather than by eye.
  */
 export const HERO_WATERMARK_PX = 72;
-/* The next-slide control.
+/* The next-slide control is GONE (kegan, 2026-08-10).
  *
- * It sits at the BOTTOM-right, not vertically centred, and that is the
- * whole point of it living here. Centred, it collided with the watermark:
- * the icon occupies the top-right 72px of the slide box, and a 32px button
- * centred on a ~190px card spans roughly y 79-111 — straight through the
- * watermark's lower edge. On Progress the chevron sat on top of the
- * dumbbell. (kegan, 2026-08-10.)
+ * It lived here for one commit, bottom-anchored so it could not reach the
+ * watermark. That worked — measured on the real component: a 198px card,
+ * watermark 17-89, button 153-185, 64px of clear air. It was still the
+ * wrong answer to the question. A floating control on a surface whose
+ * entire interaction is a swipe is a thing to keep out of the way of
+ * forever, and "keep it out of the way" is a constraint you re-earn every
+ * time the card changes.
  *
- * The Dashboard never had this because it has no floating arrow at all —
- * its only chevrons are inside CTA buttons — so "the Dashboard does this
- * well" is really "the Dashboard does not do this".
+ * The Dashboard hero never had one. Its chevrons are inside in-flow CTA
+ * buttons, which is why it "does this well" — there is nothing floating to
+ * collide with. Progress and Nutrition now copy that: slides advance by
+ * drag, by the dots, and on the pager's timer, and each slide carries a
+ * button that routes somewhere instead.
  *
- * Bottom-anchored, the two cannot meet at ANY card height:
- *
- *   watermark bottom = card padding + HERO_WATERMARK_PX      = 16 + 72 = 88
- *   button top       = height - bottom offset - button size
- *                    = 150 - 12 - 32                         = 106   (at min-h)
- *
- * and the button only moves further down as the card grows. It also lands
- * level with the pagination dots, which is where a pager control belongs.
- * heroChrome.test.js pins the arithmetic.
+ * If a floating control ever comes back, the geometry it has to satisfy is
+ * in git — but prefer the CTA.
  */
-export const HERO_NEXT_BUTTON =
-  'absolute end-3 bottom-3 z-20 w-8 h-8 rounded-full bg-foreground/10 text-foreground '
-  + 'hover:bg-foreground/20 active:bg-foreground/20 active:scale-95 '
-  + 'flex items-center justify-center transition-all';
 
 /* The slide container.
  *
