@@ -442,6 +442,44 @@ describe('partial-gap ratchet', () => {
     'progress.nextUp',
     'progress.locked',
     'progress.noneCompletedTitle',
+    // Cardio swimming + activity-tile descriptions, 2026-08-11. Swimming
+    // was added to the picker without `cardio.type.*` keys, so a pool swim
+    // rendered the literal "cardio.type.swimming_pool" on six surfaces
+    // including a shared Hub post; and Running/Walking/Biking all reused
+    // `cardio.subtitle`, so three tiles in one 2x2 grid carried an
+    // identical description.
+    //
+    // English-only because the activity they belong to already is —
+    // `cardio.modes.swimming` has no translation either — so a native pass
+    // should take the whole swimming set in one go rather than these two
+    // labels in isolation.
+    //
+    // Listed as EXACT KEYS, not a `cardio.type.` prefix: six of the eight
+    // cardio.type.* keys are translated in all 15 languages and a bare
+    // prefix would exempt them too, hiding a future regression in copy
+    // that is finished. Same reasoning as the quest ids above.
+    //
+    // These five are only the keys added on 2026-08-11. The rest of
+    // i18n-cardio.js's English-only block — 20 more keys, the swim
+    // question/env labels and the utility-tile names — stays COUNTED, and
+    // is why `ru` sits close to the floor. Exempting those is a coverage
+    // policy call, not a side effect of a labels fix.
+    //
+    // MEASURED 2026-08-11, because the FLOOR note below is right that a
+    // floor sitting flush re-trips on the next honest extraction:
+    //   as it stands (these 5 exempt)   ru 79.21%, 1703 counted — 0.21 pts
+    //                                   of headroom, i.e. about four keys
+    //   all 25 cardio English-only keys ru 80.15%, 1683 counted — 1.15 pts
+    // The second option also clears the 0.80 the FLOOR comment wants to
+    // return to. It is left undone deliberately: it changes the measured
+    // coverage of pre-existing debt, which is kegan's call and not a side
+    // effect of naming two swim types. Whoever picks it up does not need
+    // to re-derive these numbers.
+    'cardio.type.swimming_pool',
+    'cardio.type.swimming_openwater',
+    'cardio.modes.running.desc',
+    'cardio.modes.walking.desc',
+    'cardio.modes.biking.desc',
   ];
 
   const pending = (k) => AWAITING_TRANSLATION.some(p => k.startsWith(p));

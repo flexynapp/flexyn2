@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button';
 import { format, parseISO } from 'date-fns';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
+import { cardioTypeLabel } from '@/lib/cardioTypeLabel';
 import { displayName, handle } from '@/lib/userDisplay';
 import { reportError } from '@/lib/reportError';
 import { triggerHaptic } from '@/lib/haptic';
@@ -467,7 +468,7 @@ export default function HubComposer({ onClose }) {
       kind,
       item,
       summary: kind === 'status' ? null
-             : kind === 'cardio' ? summarize.cardio(item, t(`cardio.type.${item?.type || 'cardio'}`))
+             : kind === 'cardio' ? summarize.cardio(item, cardioTypeLabel(item?.type, tFallback))
              : summarize[kind](item),
     });
     setBody('');
@@ -893,8 +894,8 @@ export default function HubComposer({ onClose }) {
                 key={c.id}
                 kind="cardio"
                 onClick={() => handlePick('cardio', c)}
-                title={t(`cardio.type.${c.type || 'cardio'}`)}
-                subtitle={summarize.cardio(c, t(`cardio.type.${c.type || 'cardio'}`))}
+                title={cardioTypeLabel(c.type, tFallback)}
+                subtitle={summarize.cardio(c, cardioTypeLabel(c.type, tFallback))}
               />
             ))}
           </Section>

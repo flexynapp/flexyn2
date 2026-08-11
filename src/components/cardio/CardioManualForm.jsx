@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Save, Calculator, Heart, Zap, Waves, BookmarkPlus, RotateCcw } from 'lucide-react';
 import { reportError } from '@/lib/reportError';
 import { useLanguage } from '@/lib/LanguageContext';
+import { cardioTypeLabel } from '@/lib/cardioTypeLabel';
 import { useAuth } from '@/lib/AuthContext';
 import { useDistanceUnit } from '@/lib/DistanceUnitContext';
 import { db } from '@/api/db';
@@ -431,7 +432,7 @@ export default function CardioManualForm({
       <Card className="p-5 space-y-5">
         {/* Title */}
         <h2 className="font-heading text-xl font-bold">
-          {t(`cardio.type.${deriveType(mode, env)}`)}
+          {cardioTypeLabel(deriveType(mode, env), tFallback)}
         </h2>
 
         {/* Date */}

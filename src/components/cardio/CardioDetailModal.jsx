@@ -14,6 +14,7 @@ import { toast } from '@/lib/toast';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
+import { cardioTypeLabel } from '@/lib/cardioTypeLabel';
 import { useDistanceUnit } from '@/lib/DistanceUnitContext';
 import { formatDistance, formatDuration, formatPace } from '@/lib/distanceUnit';
 import { db } from '@/api/db';
@@ -132,7 +133,7 @@ export default function CardioDetailModal({ log, open, onOpenChange, onEdit }) {
       <DialogContent className="max-w-sm max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-heading">
-            {t(`cardio.type.${log.type}`)}
+            {cardioTypeLabel(log.type, tFallback)}
           </DialogTitle>
           <div className="flex items-center gap-2 mt-1 flex-wrap">
             <Badge variant="secondary" className="w-fit">

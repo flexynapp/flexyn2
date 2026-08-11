@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/lib/LanguageContext';
+import { cardioTypeLabel } from '@/lib/cardioTypeLabel';
 import { useAuth } from '@/lib/AuthContext';
 import { useDistanceUnit } from '@/lib/DistanceUnitContext';
 import { formatDistance } from '@/lib/distanceUnit';
@@ -236,7 +237,7 @@ export default function CardioSection({ onBack }) {
                     <div className="flex-1 min-w-0">
                       <p className="font-heading font-bold text-sm">{t('cardio.repeatLast.title')}</p>
                       <p className="text-xs text-muted-foreground truncate">
-                        {t(`cardio.type.${lastLog.type}`)} · {formatDistance(lastLog.distance_meters, distanceUnit, 2)}
+                        {cardioTypeLabel(lastLog.type, tFallback)} · {formatDistance(lastLog.distance_meters, distanceUnit, 2)}
                       </p>
                     </div>
                   </div>

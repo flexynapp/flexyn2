@@ -25,6 +25,7 @@ import { format, parseISO } from 'date-fns';
 import { toast } from '@/lib/toast';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
+import { cardioTypeLabel } from '@/lib/cardioTypeLabel';
 import { useDistanceUnit } from '@/lib/DistanceUnitContext';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { formatDistance, formatDuration, formatPace } from '@/lib/distanceUnit';
@@ -203,7 +204,7 @@ export default function PostActivityBlock({ post }) {
 
 // ─── Cardio: route map + stat grid ───
 function CardioBlock({ snap }) {
-  const { t } = useLanguage();
+  const { t, tFallback } = useLanguage();
   const { distanceUnit } = useDistanceUnit();
   const hasRoute = Array.isArray(snap.gps_track) && snap.gps_track.length >= 2;
 
@@ -235,7 +236,7 @@ function CardioBlock({ snap }) {
         </div>
       )}
       <h4 className="font-heading font-bold text-base mb-2">
-        {t(`cardio.type.${snap.type || 'cardio'}`)}
+        {cardioTypeLabel(snap.type, tFallback)}
       </h4>
       <div className="grid grid-cols-2 gap-2">
         <Stat icon={Footprints}  label={t('cardio.field.distance')}

@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Play, Pause, Square, Save, X } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
+import { cardioTypeLabel } from '@/lib/cardioTypeLabel';
 import { useAuth } from '@/lib/AuthContext';
 import { useDistanceUnit } from '@/lib/DistanceUnitContext';
 import {
@@ -31,7 +32,7 @@ import { calculateCardioXp } from '@/lib/xpSystem';
 import { reportError } from '@/lib/reportError';
 
 export default function CardioLiveTrackerIndoor({ mode, env, onCancel, onSaved, userProfile = {} }) {
-  const { t } = useLanguage();
+  const { t, tFallback } = useLanguage();
   const { user } = useAuth();
   const { distanceUnit } = useDistanceUnit();
   const queryClient = useQueryClient();
@@ -371,7 +372,7 @@ export default function CardioLiveTrackerIndoor({ mode, env, onCancel, onSaved, 
     ? `${(speedKmh / 1.609344).toFixed(1)} mph`
     : `${speedKmh.toFixed(1)} km/h`;
 
-  const activityLabel = t(`cardio.type.${mode}_${env}`);
+  const activityLabel = cardioTypeLabel(`${mode}_${env}`, tFallback);
 
   // ════════════════ RENDER ════════════════
 

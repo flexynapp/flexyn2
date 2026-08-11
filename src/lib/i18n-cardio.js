@@ -24,6 +24,26 @@ export const cardioI18n = {
     'cardio.modes.swimming': 'Swimming',
     'cardio.modes.swimming.desc': 'Pool or open water',
 
+    // The two missing halves of the cardio.type.* set. The other six live
+    // in i18n-part8.js and are translated in all 15 languages; swimming
+    // was added to the picker without either of these, and because
+    // getTranslation returns the KEY on a total miss, a pool swim
+    // rendered the literal "cardio.type.swimming_pool" in the manual
+    // form's heading, the detail modal's title, the Repeat-last row and
+    // three Hub surfaces — one of which is a post other people see.
+    //
+    // Worded to match the six that exist: environment first, activity
+    // noun second, sentence case. "Outdoor run", "Treadmill walk",
+    // "Stationary bike" — so "Pool swim" and "Open water swim".
+    //
+    // English-only like the rest of this block, which is also how the
+    // word "Swimming" itself ships: cardio.modes.swimming has no
+    // translation either, so these two are consistent with the activity
+    // they belong to rather than an island. Whoever does the native pass
+    // should take the whole swimming set in one go.
+    'cardio.type.swimming_pool': 'Pool swim',
+    'cardio.type.swimming_openwater': 'Open water swim',
+
     // The other three tile descriptions, and a translation REGRESSION
     // taken deliberately — read this before "fixing" it back.
     //
