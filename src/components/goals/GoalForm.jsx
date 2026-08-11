@@ -11,22 +11,13 @@ import { useWeightUnit } from '@/lib/WeightUnitContext';
 import UnitPill from '@/components/UnitPill';
 import { useDistanceUnit } from '@/lib/DistanceUnitContext';
 import { toLbs, fromLbs, formatWeight, formatWeightNumber } from '@/lib/weightUnit';
-import { format, startOfMonth } from 'date-fns';
 import { useMultiProfanityGuard, hasAnyProfanity } from '@/lib/useProfanityGuard';
 import ProfanityWarningDialog from '@/components/ProfanityWarningDialog';
-
-// Helper to calculate period start date
-function getPeriodStartDate(period) {
-  const today = new Date();
-  if (period === 'week') {
-    const day = today.getDay();
-    const diff = today.getDate() - day + (day === 0 ? -6 : 1);
-    return format(new Date(today.setDate(diff)), 'yyyy-MM-dd');
-  } else if (period === 'month') {
-    return format(startOfMonth(today), 'yyyy-MM-dd');
-  }
-  return null;
-}
+// Shared with CardioGoals, which creates rows this form has to be able to
+// read back. Its private copy of this mutated the Date it was measuring
+// (`today.setDate(...)` after reading `today.getDate()`), which happened
+// to be harmless only because nothing used `today` afterwards.
+import { periodStartDate as getPeriodStartDate } from '@/lib/goalProgress';
 
 // Helper to convert distance to meters
 function toMeters(unit, value) {

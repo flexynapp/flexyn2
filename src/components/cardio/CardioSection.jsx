@@ -75,8 +75,15 @@ function NavTile({ icon: Icon, title, description, onClick }) {
       whileTap={{ scale: 0.98 }}
       transition={{ type: 'spring', stiffness: 380, damping: 22 }}
     >
+      {/* h-full, matching Workout.jsx's cardBase and for the same reason.
+          The motion.div is the grid item and stretches to the row height
+          on its own, but the Card inside it sized to its content — so in
+          the 2x2 activity grid, Swimming ("Pool or open water", two
+          lines) rendered visibly shorter than the three tiles beside it
+          whose description wraps to four. Nothing here sets a height;
+          h-full just lets the Card fill the box the grid already gave it. */}
       <Card
-        className="p-5 cursor-pointer border-border/60 hover:border-primary/40 hover:bg-primary/5 active:bg-primary/5 transition-colors"
+        className="h-full p-5 cursor-pointer border-border/60 hover:border-primary/40 hover:bg-primary/5 active:bg-primary/5 transition-colors"
         onClick={onClick}
       >
         <div className="flex items-center gap-3">

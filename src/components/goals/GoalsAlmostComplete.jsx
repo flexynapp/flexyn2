@@ -16,42 +16,14 @@ import * as quests from '@/lib/data/quests';
 import { ACTION_TYPES } from '@/lib/questCatalog';
 import { fireGoalCelebration } from '@/lib/goalCelebration';
 import { reportError } from '@/lib/reportError';
-import { computeStrengthGoalProgress } from '@/lib/goalProgress';
-
-// Cardio activity matcher — mirrors GoalsList.matchesActivity. Cardio
-// goals were previously filtered out entirely (#16 in audit 16) so a
-// user whose weekly run goal hit 95% never saw "Almost there!".
-function matchesActivity(logType, activity) {
-  if (activity === 'any') return true;
-  return String(logType || '').startsWith(activity + '_');
-}
-
-function computeCardioGoalProgress(goal, cardioLogs) {
-  const list = Array.isArray(cardioLogs) ? cardioLogs : [];
-  const goalCreated = goal?.created_date ? new Date(goal.created_date) : null;
-  let total = 0;
-  let target = 0;
-  for (const log of list) {
-    if (!log) continue;
-    if (goalCreated && log.created_date && new Date(log.created_date) < goalCreated) continue;
-    if (goal.period !== 'lifetime' && log.date && goal.period_start_date) {
-      if (new Date(log.date) < new Date(goal.period_start_date)) continue;
-    }
-    if (!matchesActivity(log.type, goal.cardio_activity)) continue;
-    if (goal.goal_type === 'cardio_distance') {
-      total += log.distance_meters || 0;
-    } else if (goal.goal_type === 'cardio_duration') {
-      total += log.duration_seconds || 0;
-    } else if (goal.goal_type === 'cardio_sessions') {
-      total += 1;
-    }
-  }
-  if (goal.goal_type === 'cardio_distance') target = goal.target_distance_meters;
-  else if (goal.goal_type === 'cardio_duration') target = goal.target_duration_seconds;
-  else if (goal.goal_type === 'cardio_sessions') target = goal.target_sessions;
-  if (!target || target <= 0) return { currentValue: total, progress: 0 };
-  return { currentValue: total, progress: Math.min(100, (total / target) * 100) };
-}
+// Cardio goals were previously filtered out of this card entirely (#16 in
+// audit 16), so a user whose weekly run goal hit 95% never saw "Almost
+// there!". The calculator that fixed it used to live here as a private
+// function; it now lives in @/lib/goalProgress alongside the strength one,
+// because GoalsList and CardioGoals each had their own copy and three
+// answers to "how far along is this goal" is the bug that module exists
+// to prevent.
+import { computeStrengthGoalProgress, computeCardioGoalProgress, isCardioGoal } from '@/lib/goalProgress';
 
 export default function GoalsAlmostComplete({ goals, logs, cardioLogs = [], onOpen, limit = 3, compact = false, onClick }) {
   const { t, tFallback } = useLanguage();
@@ -65,7 +37,10 @@ export default function GoalsAlmostComplete({ goals, logs, cardioLogs = [], onOp
     return goals
       .filter(goal => goal.status !== 'completed')
       .map(goal => {
-        const isCardio = String(goal.goal_type || '').startsWith('cardio_');
+        // isCardioGoal() checks membership of the three real types rather
+        // than a `cardio_` prefix, so a stray goal_type like the old bare
+        // 'cardio' is not mistaken for one this can compute.
+        const isCardio = isCardioGoal(goal);
         if (isCardio) {
           // Cardio progress branch — extends the dashboard "almost
           // there!" surface to include running / biking / walking /

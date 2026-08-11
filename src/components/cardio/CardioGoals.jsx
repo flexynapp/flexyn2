@@ -1,12 +1,35 @@
 // src/components/cardio/CardioGoals.jsx
 //
-// Cardio-specific goal tracking. Uses the existing `goals` table
-// (goal_type = 'cardio') which already has columns:
-//   cardio_activity, target_distance_meters, target_duration_seconds,
-//   target_sessions, period ('week' | 'month' | 'custom'), deadline.
+// Cardio goal tracking, on the `goals` table, speaking the SAME
+// vocabulary as the rest of the app:
 //
-// Auto-computes progress from cardio_logs within the current period.
-// Users can create "Run 5k 3× per week" or "Bike 50 km this month"-style goals.
+//   goal_type    'cardio_distance' | 'cardio_duration' | 'cardio_sessions'
+//   period       'week' | 'month' | 'lifetime'  (+ period_start_date)
+//   target       target_distance_meters / target_duration_seconds /
+//                target_sessions — one per goal, matching the type
+//
+// It used to write `goal_type = 'cardio'`, a fourth value nothing else
+// understands, and read only that. Two consequences, both live in
+// production on 2026-08-11:
+//
+//   • This screen queried `goal_type = 'cardio'` and found 0 rows, so it
+//     said "No cardio goals yet" to an account holding two cardio goals
+//     ("Run a 5K" ×2, both goal_type = 'cardio_distance').
+//   • A goal created HERE fell through every branch of GoalsList, so it
+//     rendered on the Workout goals list as the literal key path
+//     "goals.type.cardio (Running)" at 0% — `goals.type.cardio` is not a
+//     translation key either.
+//
+// The migration was free: zero rows carried the bad value, so there was
+// nothing to convert. `goals.goal_type` has no CHECK constraint, which is
+// exactly why the wrong value inserted happily for months.
+//
+// Progress comes from `computeCardioGoalProgress` in @/lib/goalProgress —
+// the same function GoalsList and GoalsAlmostComplete call, so the three
+// surfaces cannot disagree about how far along a goal is. This file used
+// to run its own calculation off calendar-period bounds instead of the
+// goal's `period_start_date`, which is a different answer for any goal
+// created mid-week.
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -18,14 +41,16 @@ import {
   Target, Plus, Trash2, CheckCircle2, Footprints, PersonStanding,
   Bike, Waves, Activity,
 } from 'lucide-react';
-import { format, startOfWeek, startOfMonth, endOfWeek, endOfMonth } from 'date-fns';
 import { toast } from '@/lib/toast';
 import { useAuth } from '@/lib/AuthContext';
 import { useDistanceUnit } from '@/lib/DistanceUnitContext';
-import { formatDistance } from '@/lib/distanceUnit';
+import { formatDistance, formatDuration, toMeters } from '@/lib/distanceUnit';
 import { supabase } from '@/api/supabaseClient';
 import { reportError } from '@/lib/reportError';
 import * as goalsData from '@/lib/data/goals';
+import {
+  CARDIO_GOAL_TYPES, computeCardioGoalProgress, periodStartDate,
+} from '@/lib/goalProgress';
 
 const ACTIVITY_OPTIONS = [
   { value: 'running',  label: 'Running',  Icon: Footprints,      color: 'text-orange-500' },
@@ -35,72 +60,86 @@ const ACTIVITY_OPTIONS = [
   { value: 'any',      label: 'Any Cardio', Icon: Activity,      color: 'text-primary' },
 ];
 
+// One metric per goal, because that is what the goals table and every
+// other goal surface model. The old form offered sessions AND distance on
+// one goal, which has no representation in this vocabulary — and picking
+// one to persist would have silently dropped the other.
+const METRIC_OPTIONS = [
+  { value: 'cardio_sessions', label: 'Sessions' },
+  { value: 'cardio_distance', label: 'Distance' },
+  { value: 'cardio_duration', label: 'Duration' },
+];
+
+const PERIOD_OPTIONS = ['week', 'month', 'lifetime'];
+
 function activityInfo(val) {
   return ACTIVITY_OPTIONS.find(a => a.value === val) || ACTIVITY_OPTIONS[ACTIVITY_OPTIONS.length - 1];
 }
 
-function periodBounds(period, deadline) {
-  const now = new Date();
-  if (period === 'week') {
-    return { start: format(startOfWeek(now, { weekStartsOn: 1 }), 'yyyy-MM-dd'),
-             end:   format(endOfWeek(now,   { weekStartsOn: 1 }), 'yyyy-MM-dd') };
-  }
-  if (period === 'month') {
-    return { start: format(startOfMonth(now), 'yyyy-MM-dd'),
-             end:   format(endOfMonth(now),   'yyyy-MM-dd') };
-  }
-  // custom: from goal creation date to deadline
-  return { start: '2000-01-01', end: deadline || format(now, 'yyyy-MM-dd') };
+// What a goal's progress line should read, per metric.
+function formatCardioValue(goalType, value, distanceUnit) {
+  if (goalType === 'cardio_distance') return formatDistance(value, distanceUnit, 1);
+  if (goalType === 'cardio_duration') return formatDuration(value);
+  return String(value);
+}
+
+function metricLabel(goalType) {
+  return (METRIC_OPTIONS.find(m => m.value === goalType) || {}).label || 'Target';
+}
+
+// GoalForm-created goals carry no `title` — GoalsList labels them from the
+// type and activity instead. Without a fallback they render here as a
+// blank line, which is how the two "Run a 5K" rows would have looked the
+// moment this screen started reading them.
+function goalTitle(goal) {
+  if (goal.title) return goal.title;
+  return `${activityInfo(goal.cardio_activity).label} — ${metricLabel(goal.goal_type).toLowerCase()}`;
 }
 
 function GoalCreateForm({ onSave, onCancel, distanceUnit }) {
   const [title, setTitle] = useState('');
   const [activity, setActivity] = useState('running');
+  const [metric, setMetric] = useState('cardio_sessions');
   const [period, setPeriod] = useState('week');
-  const [deadline, setDeadline] = useState('');
-  const [targetSessions, setTargetSessions] = useState('');
-  const [targetDistKm, setTargetDistKm] = useState('');
+  const [target, setTarget] = useState('');
+  const [durationH, setDurationH] = useState('');
+  const [durationM, setDurationM] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const today = format(new Date(), 'yyyy-MM-dd');
+  // Defensive parse throughout — a non-numeric paste or an autofill used
+  // to land NaN in the target column, and NaN survives all the way to a
+  // progress bar that silently renders zero-width.
+  const buildTarget = () => {
+    if (metric === 'cardio_sessions') {
+      const n = parseInt(target, 10);
+      return (Number.isFinite(n) && n > 0) ? { target_sessions: Math.min(n, 500) } : null;
+    }
+    if (metric === 'cardio_distance') {
+      const n = Number(target);
+      return (Number.isFinite(n) && n > 0) ? { target_distance_meters: toMeters(distanceUnit, n) } : null;
+    }
+    const h = parseInt(durationH, 10) || 0;
+    const m = parseInt(durationM, 10) || 0;
+    const secs = h * 3600 + m * 60;
+    return secs > 0 ? { target_duration_seconds: secs } : null;
+  };
 
   const handleSave = async () => {
     if (!title.trim()) { toast.error('Give this goal a title'); return; }
-    if (!targetSessions && !targetDistKm) {
-      toast.error('Set at least one target: sessions OR distance');
-      return;
-    }
-    // Defensive parse — non-numeric paste / autofill used to land
-    // NaN in target_distance_meters and target_sessions, breaking
-    // every downstream progress calculation.
-    let distMeters = null;
-    if (targetDistKm) {
-      const d = Number(targetDistKm);
-      if (Number.isFinite(d) && d > 0) {
-        distMeters = d * (distanceUnit === 'mi' ? 1609.344 : 1000);
-      }
-    }
-    let sessionsNum = null;
-    if (targetSessions) {
-      const s = parseInt(targetSessions, 10);
-      if (Number.isFinite(s) && s > 0) sessionsNum = s;
-    }
-    if (distMeters == null && sessionsNum == null) {
-      toast.error('Enter a valid target value');
-      return;
-    }
+    const targetCols = buildTarget();
+    if (!targetCols) { toast.error('Enter a target above zero'); return; }
     setSaving(true);
+    // Shaped to match GoalForm's cardio payload exactly — same goal_type
+    // values, same period vocabulary, same period_start_date. The two
+    // create paths have to produce rows the other one can read.
     await onSave({
       title: title.trim(),
-      goal_type: 'cardio',
+      status: 'active',
+      goal_type: metric,
       cardio_activity: activity,
       period,
-      deadline: (period === 'custom' && deadline) ? deadline : null,
-      target_sessions: sessionsNum,
-      target_distance_meters: distMeters,
-      status: 'active',
-      current_value: 0,
-      target_value: sessionsNum || 0,
+      period_start_date: periodStartDate(period),
+      ...targetCols,
     });
     setSaving(false);
   };
@@ -144,10 +183,35 @@ function GoalCreateForm({ onSave, onCancel, distanceUnit }) {
           </div>
         </div>
 
+        {/* Metric — one per goal. See METRIC_OPTIONS. */}
+        <div>
+          <label className="text-xs font-medium text-muted-foreground mb-1 block">Track</label>
+          <div className="flex gap-2">
+            {METRIC_OPTIONS.map(m => (
+              <button
+                key={m.value}
+                type="button"
+                onClick={() => setMetric(m.value)}
+                className={`flex-1 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
+                  metric === m.value
+                    ? 'bg-primary text-primary-foreground border-primary'
+                    : 'border-border text-muted-foreground'
+                }`}
+              >
+                {m.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Period — 'lifetime' replaces the old 'custom' + deadline pair.
+            No other goal surface understood 'custom', and `deadline` was
+            never read by any of them, so a custom goal behaved as an
+            open-ended one while looking like it had an end date. */}
         <div>
           <label className="text-xs font-medium text-muted-foreground mb-1 block">Period</label>
           <div className="flex gap-2">
-            {['week', 'month', 'custom'].map(p => (
+            {PERIOD_OPTIONS.map(p => (
               <button
                 key={p}
                 type="button"
@@ -164,46 +228,48 @@ function GoalCreateForm({ onSave, onCancel, distanceUnit }) {
           </div>
         </div>
 
-        {period === 'custom' && (
+        {metric === 'cardio_duration' ? (
           <div>
-            <label className="text-xs font-medium text-muted-foreground mb-1 block">Deadline</label>
-            <Input
-              type="date"
-              value={deadline}
-              min={today}
-              onChange={e => setDeadline(e.target.value)}
-            />
+            <label className="text-xs font-medium text-muted-foreground mb-1 block">Time target</label>
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <Input
+                  type="number" min={0} max={999} inputMode="numeric"
+                  value={durationH}
+                  onChange={e => setDurationH(e.target.value)}
+                  placeholder="0"
+                  className="text-center"
+                />
+                <span className="text-xs text-muted-foreground mt-1 block text-center">hours</span>
+              </div>
+              <div className="flex-1">
+                <Input
+                  type="number" min={0} max={59} inputMode="numeric"
+                  value={durationM}
+                  onChange={e => setDurationM(e.target.value)}
+                  placeholder="0"
+                  className="text-center"
+                />
+                <span className="text-xs text-muted-foreground mt-1 block text-center">minutes</span>
+              </div>
+            </div>
           </div>
-        )}
-
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="text-xs font-medium text-muted-foreground mb-1 block">Sessions target</label>
-            <Input
-              type="number"
-              min={1}
-              max={100}
-              inputMode="numeric"
-              value={targetSessions}
-              onChange={e => setTargetSessions(e.target.value)}
-              placeholder="e.g. 3"
-            />
-          </div>
+        ) : (
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-1 block">
-              Distance ({distanceUnit})
+              {metric === 'cardio_sessions' ? 'Sessions target' : `Distance target (${distanceUnit})`}
             </label>
             <Input
               type="number"
-              step="0.1"
-              min={0}
-              inputMode="decimal"
-              value={targetDistKm}
-              onChange={e => setTargetDistKm(e.target.value)}
-              placeholder="e.g. 10"
+              min={metric === 'cardio_sessions' ? 1 : 0}
+              step={metric === 'cardio_sessions' ? 1 : 0.1}
+              inputMode={metric === 'cardio_sessions' ? 'numeric' : 'decimal'}
+              value={target}
+              onChange={e => setTarget(e.target.value)}
+              placeholder={metric === 'cardio_sessions' ? 'e.g. 3' : 'e.g. 10'}
             />
           </div>
-        </div>
+        )}
 
         <div className="flex gap-2">
           <Button className="flex-1" onClick={handleSave} disabled={saving}>
@@ -230,7 +296,10 @@ export default function CardioGoals() {
         .from('goals')
         .select('*')
         .eq('created_by', user.email)
-        .eq('goal_type', 'cardio')
+        // `.in`, not `.eq('cardio')` — this is the fix. Goals made from
+        // the Workout page's goal form land under these three types and
+        // were invisible here.
+        .in('goal_type', CARDIO_GOAL_TYPES)
         .neq('status', 'deleted')
         .order('created_at', { ascending: false });
       if (error) throw error;
@@ -240,35 +309,37 @@ export default function CardioGoals() {
     staleTime: 60_000,
   });
 
-  // Fetch all recent cardio logs once — used by all goals for progress
+  // Fetch cardio logs once — every goal's progress reads this list.
+  //
+  // No `.gte(date, startOfMonth)` floor any more. That floor predated
+  // lifetime goals and silently made them impossible: the two "Run a 5K"
+  // goals in production are period 'lifetime', and a month floor would
+  // have reported them against this month's runs only. It was also wrong
+  // for a weekly goal in the first days of a month, whose week starts in
+  // the previous one. `created_date` is selected because the shared
+  // calculator uses it to ignore logs from before the goal existed.
   const { data: allLogs = [] } = useQuery({
     queryKey: ['cardioLogs', user?.email],
     queryFn: async () => {
       const { data } = await supabase
         .from('cardio_logs')
-        .select('date, type, distance_meters, duration_seconds')
+        .select('date, created_date, type, distance_meters, duration_seconds')
         .eq('created_by', user.email)
-        .gte('date', format(startOfMonth(new Date()), 'yyyy-MM-dd'));
+        .order('date', { ascending: false })
+        .limit(500);
       return data || [];
     },
     enabled: !!user?.email,
     staleTime: 60_000,
   });
 
-  // Compute progress for each goal
-  const goalsWithProgress = useMemo(() => {
-    return goals.map(goal => {
-      const bounds = periodBounds(goal.period, goal.deadline);
-      const relevant = allLogs.filter(l => {
-        if (!l.date || l.date < bounds.start || l.date > bounds.end) return false;
-        if (goal.cardio_activity === 'any') return true;
-        return l.type?.startsWith(goal.cardio_activity);
-      });
-      const sessions = relevant.length;
-      const distMeters = relevant.reduce((s, l) => s + (l.distance_meters || 0), 0);
-      return { ...goal, _sessions: sessions, _distMeters: distMeters };
-    });
-  }, [goals, allLogs]);
+  // Progress comes from the shared calculator, so this screen, the
+  // Workout goals list and the dashboard "almost there" card all give the
+  // same answer for the same goal.
+  const goalsWithProgress = useMemo(
+    () => goals.map(goal => ({ ...goal, ...computeCardioGoalProgress(goal, allLogs) })),
+    [goals, allLogs]
+  );
 
   const handleAdd = async (payload) => {
     try {
@@ -311,13 +382,12 @@ export default function CardioGoals() {
     goalsWithProgress.forEach(goal => {
       if (goal.status === 'completed' || goal.status === 'deleted') return;
       if (completedRef.current.has(goal.id)) return;
-      const sessPct = goal.target_sessions
-        ? (goal._sessions / goal.target_sessions) * 100 : null;
-      const distPct = goal.target_distance_meters
-        ? (goal._distMeters / goal.target_distance_meters) * 100 : null;
-      const done = (sessPct != null && sessPct >= 100)
-                || (!goal.target_sessions && distPct != null && distPct >= 100);
-      if (!done) return;
+      // One metric per goal now, so completion is just the shared
+      // progress hitting 100 — no more "sessions unless there is no
+      // sessions target, then distance" precedence to get wrong.
+      // `target > 0` guards a malformed goal, which reports progress 0
+      // and must never auto-complete.
+      if (!(goal.target > 0 && goal.progress >= 100)) return;
       completedRef.current.add(goal.id);
       goalsData.update(goal.id, {
         status: 'completed',
@@ -360,13 +430,7 @@ export default function CardioGoals() {
 
       {goalsWithProgress.map(goal => {
         const info = activityInfo(goal.cardio_activity);
-        const sessionPct = goal.target_sessions
-          ? Math.min((goal._sessions / goal.target_sessions) * 100, 100)
-          : null;
-        const distPct = goal.target_distance_meters
-          ? Math.min((goal._distMeters / goal.target_distance_meters) * 100, 100)
-          : null;
-        const isDone = (sessionPct === 100 || (!goal.target_sessions && distPct === 100));
+        const isDone = goal.status === 'completed' || (goal.target > 0 && goal.progress >= 100);
 
         return (
           <motion.div
@@ -385,7 +449,7 @@ export default function CardioGoals() {
                     }
                   </div>
                   <div className="min-w-0">
-                    <p className="font-semibold text-sm truncate">{goal.title}</p>
+                    <p className="font-semibold text-sm truncate">{goalTitle(goal)}</p>
                     <p className="text-xs text-muted-foreground capitalize">
                       {info.label} · {goal.period}
                       {isDone && ' · ✓ Done!'}
@@ -401,38 +465,24 @@ export default function CardioGoals() {
                 </button>
               </div>
 
-              {/* Session progress */}
-              {goal.target_sessions && (
-                <div className="mb-2">
+              {/* One bar, because a goal now targets one metric. Two bars
+                  used to imply a goal could need both, which the table has
+                  never been able to express. */}
+              {goal.target > 0 && (
+                <div>
                   <div className="flex justify-between text-xs mb-1">
-                    <span className="text-muted-foreground">Sessions</span>
-                    <span className="font-semibold">{goal._sessions} / {goal.target_sessions}</span>
+                    <span className="text-muted-foreground">{metricLabel(goal.goal_type)}</span>
+                    <span className="font-semibold">
+                      {formatCardioValue(goal.goal_type, goal.currentValue, distanceUnit)}
+                      {' / '}
+                      {formatCardioValue(goal.goal_type, goal.target, distanceUnit)}
+                    </span>
                   </div>
                   <div className="h-2 rounded-full bg-secondary overflow-hidden">
                     <motion.div
                       className="h-full rounded-full bg-primary"
                       initial={{ width: 0 }}
-                      animate={{ width: `${sessionPct}%` }}
-                      transition={{ duration: 0.6, ease: 'easeOut' }}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* Distance progress */}
-              {goal.target_distance_meters && (
-                <div>
-                  <div className="flex justify-between text-xs mb-1">
-                    <span className="text-muted-foreground">Distance</span>
-                    <span className="font-semibold">
-                      {formatDistance(goal._distMeters, distanceUnit, 1)} / {formatDistance(goal.target_distance_meters, distanceUnit, 1)}
-                    </span>
-                  </div>
-                  <div className="h-2 rounded-full bg-secondary overflow-hidden">
-                    <motion.div
-                      className="h-full rounded-full bg-orange-500"
-                      initial={{ width: 0 }}
-                      animate={{ width: `${distPct}%` }}
+                      animate={{ width: `${goal.progress}%` }}
                       transition={{ duration: 0.6, ease: 'easeOut' }}
                     />
                   </div>
@@ -448,7 +498,7 @@ export default function CardioGoals() {
           <Target className="w-8 h-8 text-muted-foreground/40" />
           <p className="text-sm font-semibold text-muted-foreground">No cardio goals yet</p>
           <p className="text-xs text-muted-foreground/70 max-w-[200px]">
-            Set weekly or monthly targets — sessions, distance, or both.
+            Set a weekly, monthly or lifetime target — sessions, distance or time.
           </p>
         </Card>
       )}

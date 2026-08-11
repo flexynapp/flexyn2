@@ -10,17 +10,11 @@ import GoalProgressBar from './GoalProgressBar';
 import { useSettings } from '@/lib/SettingsContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { triggerHaptic } from '@/lib/haptic';
-import { computeStrengthGoalProgress } from '@/lib/goalProgress';
+import { computeStrengthGoalProgress, computeCardioGoalProgress, isCardioGoal } from '@/lib/goalProgress';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { useDistanceUnit } from '@/lib/DistanceUnitContext';
 import { formatWeight } from '@/lib/weightUnit';
 import { formatDistance, formatDuration } from '@/lib/distanceUnit';
-
-// Helper to match cardio activity
-function matchesActivity(logType, activity) {
-  if (activity === 'any') return true;
-  return logType.startsWith(activity + '_');
-}
 
 export default function GoalsList({ goals, logs, cardioLogs = [], onEdit, onDelete, onComplete, isViewingCompleted = false }) {
   // Track which goal IDs have an in-flight delete/complete action so the
@@ -73,62 +67,23 @@ export default function GoalsList({ goals, logs, cardioLogs = [], onEdit, onDele
         const r = computeStrengthGoalProgress(goal, logs);
         progress     = r.progress;
         currentValue = r.currentValue;
-      } else if (goal.goal_type === 'cardio_distance') {
-        // Distance goal
-        let totalDistance = 0;
-        cardioLogs?.forEach(log => {
-          if (new Date(log.created_date) < new Date(goal.created_date)) return;
-          if (goal.period !== 'lifetime' && log.date && goal.period_start_date) {
-            if (new Date(log.date) < new Date(goal.period_start_date)) return;
-          }
-          if (matchesActivity(log.type, goal.cardio_activity)) {
-            totalDistance += log.distance_meters || 0;
-          }
-        });
-        currentValue = totalDistance;
-        targetValue = goal.target_distance_meters;
-        progress = Math.min(100, (totalDistance / targetValue) * 100);
-        progressLabel = `${formatDistance(totalDistance, distanceUnit, 1)} / ${formatDistance(targetValue, distanceUnit, 1)}`;
-        icon = goal.cardio_activity === 'running' ? Footprints : 
-               goal.cardio_activity === 'biking' ? Bike :
-               goal.cardio_activity === 'walking' ? PersonStanding : Activity;
-      } else if (goal.goal_type === 'cardio_duration') {
-        // Duration goal
-        let totalSeconds = 0;
-        cardioLogs?.forEach(log => {
-          if (new Date(log.created_date) < new Date(goal.created_date)) return;
-          if (goal.period !== 'lifetime' && log.date && goal.period_start_date) {
-            if (new Date(log.date) < new Date(goal.period_start_date)) return;
-          }
-          if (matchesActivity(log.type, goal.cardio_activity)) {
-            totalSeconds += log.duration_seconds || 0;
-          }
-        });
-        currentValue = totalSeconds;
-        targetValue = goal.target_duration_seconds;
-        progress = Math.min(100, (totalSeconds / targetValue) * 100);
-        progressLabel = `${formatDuration(totalSeconds)} / ${formatDuration(targetValue)}`;
-        icon = goal.cardio_activity === 'running' ? Footprints : 
-               goal.cardio_activity === 'biking' ? Bike :
-               goal.cardio_activity === 'walking' ? PersonStanding : Activity;
-      } else if (goal.goal_type === 'cardio_sessions') {
-        // Sessions goal
-        let sessionCount = 0;
-        cardioLogs?.forEach(log => {
-          if (new Date(log.created_date) < new Date(goal.created_date)) return;
-          if (goal.period !== 'lifetime' && log.date && goal.period_start_date) {
-            if (new Date(log.date) < new Date(goal.period_start_date)) return;
-          }
-          if (matchesActivity(log.type, goal.cardio_activity)) {
-            sessionCount += 1;
-          }
-        });
-        currentValue = sessionCount;
-        targetValue = goal.target_sessions;
-        progress = Math.min(100, (sessionCount / targetValue) * 100);
-        progressLabel = `${sessionCount} / ${targetValue} ${t('goals.sessions')}`;
-        icon = goal.cardio_activity === 'running' ? Footprints : 
-               goal.cardio_activity === 'biking' ? Bike :
+      } else if (isCardioGoal(goal)) {
+        // All three cardio types share one calculator now — the three
+        // branches here were the same loop with a different accumulator,
+        // and a fourth copy of it lived in GoalsAlmostComplete and a
+        // fifth in CardioGoals. Only the LABEL differs per type.
+        const r = computeCardioGoalProgress(goal, cardioLogs);
+        progress     = r.progress;
+        currentValue = r.currentValue;
+        targetValue  = r.target;
+        progressLabel =
+          goal.goal_type === 'cardio_distance'
+            ? `${formatDistance(currentValue, distanceUnit, 1)} / ${formatDistance(targetValue, distanceUnit, 1)}`
+            : goal.goal_type === 'cardio_duration'
+              ? `${formatDuration(currentValue)} / ${formatDuration(targetValue)}`
+              : `${currentValue} / ${targetValue} ${t('goals.sessions')}`;
+        icon = goal.cardio_activity === 'running' ? Footprints :
+               goal.cardio_activity === 'biking'  ? Bike :
                goal.cardio_activity === 'walking' ? PersonStanding : Activity;
       }
 
