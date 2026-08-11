@@ -8,7 +8,6 @@
 // — not a dialog/modal, a full-view replacement.
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { handle } from '@/lib/userDisplay';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from '@/lib/toast';
@@ -23,6 +22,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import * as regimens from '@/lib/data/regimens';
 import * as regimenReviews from '@/lib/data/regimenReviews';
+import { regimenLoad } from '@/lib/regimenLoad';
 import StarRating from './StarRating';
 import RegimenReviewsBlock from './RegimenReviewsBlock';
 
@@ -38,6 +38,18 @@ const ALL_MUSCLE_GROUPS = [
   'Legs', 'Glutes', 'Core', 'Full Body', 'Cardio',
 ];
 
+// How many muscle chips a card will draw before collapsing the rest into
+// a "+N". Four is one row at 390 pt.
+//
+// Found by rendering: "Full Body Strength" resolves to EIGHT groups, which
+// wrapped to a second row and made that card visibly taller than its
+// neighbours. The chips are on the card to tell two regimens apart at a
+// glance — a regimen that lists everything is not being distinguished by
+// them, it is just being made expensive. The first four are the groups of
+// the opening (usually compound) lifts, since `regimenMuscles` walks the
+// exercises in order.
+const MUSCLE_CHIP_CAP = 4;
+
 // Returns the muscle groups that appear in a regimen's exercise list.
 function regimenMuscles(regimen) {
   const seen = new Set();
@@ -51,13 +63,15 @@ function regimenMuscles(regimen) {
 }
 
 // ── Download badge ────────────────────────────────────────────────────────────
+// Renders NOTHING at zero. It used to render a grey "0", which is the app
+// telling the reader nobody wanted this — and copy_count is 0 on every
+// public regimen in the store, so that was every card, always. The badge
+// is correct the moment the number is real; until then it is absent
+// rather than damning. Same reasoning governs PopularityBadge and the
+// rating block below.
 function DownloadBadge({ count }) {
   const n = Number(count) || 0;
-  if (n === 0) return (
-    <span className="flex items-center gap-1 text-xs text-muted-foreground/60">
-      <Download className="w-3 h-3" />0
-    </span>
-  );
+  if (n === 0) return null;
   return (
     <span className="flex items-center gap-1 text-xs font-semibold text-primary">
       <Download className="w-3 h-3" />{n >= 1000 ? `${(n / 1000).toFixed(1)}k` : n}
@@ -90,7 +104,18 @@ function RegimenCard({ regimen, index, isMine, user, onAdopted }) {
   const [expanded, setExpanded] = useState(false);
   const muscles = useMemo(() => regimenMuscles(regimen), [regimen]);
 
-  const authorHandle = handle(regimen);
+  // NO AUTHOR ON THE CARD, DELIBERATELY. This used to read
+  // `handle(regimen)`, which rendered "@Back & Shoulders Builder" —
+  // the regimen's own title, presented as the person who wrote it.
+  // `displayName` walks `username || … || u.name`, and a regimen row's
+  // `name` is its title, so a row that carries no author name always
+  // resolves to itself. `listPublic` does `select('*')` off `regimens`
+  // with no join, so there is no author name on the row to find.
+  //
+  // Showing "@athlete" instead would be honest and useless. The fragment
+  // is dropped until the query actually carries an author; putting it
+  // back means joining `public_profiles` in `listPublic`, not calling a
+  // different display helper here.
 
   const adoptMutation = useMutation({
     mutationFn: () => regimens.copyTemplate(regimen, user),
@@ -116,15 +141,27 @@ function RegimenCard({ regimen, index, isMine, user, onAdopted }) {
     staleTime: 5 * 60_000,
   });
 
-  // First-exercise preview — show 3 names inline below the title so
-  // the buyer sees what they're getting without expanding the card.
+  // First-exercise preview — the first three lifts WITH their prescribed
+  // load, as rows rather than a truncated "Includes: A · B · C" line.
+  // This is the thing being adopted, and it was already in the payload
+  // the card renders from.
   const exercisePreview = useMemo(() => {
     const list = (regimen.exercises || [])
-      .map(e => e.name || e.exercise_name)
-      .filter(Boolean);
+      .map(e => ({
+        name: e.name || e.exercise_name,
+        load: e.target_sets && e.target_reps
+          ? `${e.target_sets} × ${e.target_reps}`
+          : e.target_sets ? `${e.target_sets} sets` : null,
+      }))
+      .filter(e => e.name);
     if (list.length === 0) return null;
-    return { names: list.slice(0, 3), more: Math.max(0, list.length - 3) };
+    return { lifts: list.slice(0, 3), total: list.length };
   }, [regimen.exercises]);
+
+  // What the regimen costs you — exercises, sets, and roughly how long.
+  // Derived, not stored; see src/lib/regimenLoad.js for why this replaced
+  // the difficulty badge as the card's deciding signal.
+  const load = useMemo(() => regimenLoad(regimen), [regimen]);
 
   return (
     <motion.div
@@ -135,102 +172,128 @@ function RegimenCard({ regimen, index, isMine, user, onAdopted }) {
       className="rounded-xl border bg-card shadow-sm overflow-hidden"
     >
       <div className="p-4">
-        {/* Title row */}
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap mb-0.5">
-              <h3 className="font-heading font-bold text-base leading-tight">
-                {regimen.name}
-              </h3>
-              <PopularityBadge count={copyCount} index={index} />
-              {regimen.difficulty && (
-                <Badge variant="outline" className="text-micro shrink-0 capitalize">
-                  {regimen.difficulty}
-                </Badge>
-              )}
-              {isMine && (
-                <Badge variant="outline" className="text-micro shrink-0">Yours</Badge>
-              )}
-            </div>
+        {/* Title — full width. Nothing shares the line: the Adopt button
+            and the Preview toggle used to take a right-hand column, which
+            squeezed every title into two-thirds of the card for no
+            benefit, since both actions now sit at the foot of the card. */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <h3 className="font-heading font-bold text-base leading-tight">
+            {regimen.name}
+          </h3>
+          <PopularityBadge count={copyCount} index={index} />
+          {isMine && (
+            <Badge variant="outline" className="text-micro shrink-0">Yours</Badge>
+          )}
+        </div>
 
-            <p className="text-xs text-muted-foreground">{authorHandle}</p>
+        {/* Cost line — who wrote it, and what it asks of you. Every
+            fragment is dropped when it cannot be derived rather than
+            rendered as a zero, so a regimen with no set counts shows the
+            author and the exercise count and stops there. */}
+        <p className="text-xs text-muted-foreground mt-1">
+          {load.exercises > 0 && <>{load.exercises} exercises</>}
+          {load.sets > 0 && <> · {load.sets} sets</>}
+          {load.minutes !== null && (
+            <span className="font-bold text-primary ms-1.5">~{load.minutes} min</span>
+          )}
+        </p>
 
-            {regimen.description ? (
-              <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                {regimen.description}
-              </p>
-            ) : null}
-
-            {/* First-exercise preview — teaser of what's inside the
-                regimen without forcing the user to expand the card. */}
-            {exercisePreview && (
-              <p className="text-xs text-muted-foreground mt-1 truncate">
-                <span className="opacity-60">Includes: </span>
-                {exercisePreview.names.join(' · ')}
-                {exercisePreview.more > 0 && (
-                  <span className="opacity-60"> · +{exercisePreview.more} more</span>
-                )}
-              </p>
-            )}
-
-            {/* Stats row */}
-            <div className="flex items-center gap-3 mt-2">
-              <DownloadBadge count={copyCount} />
-              <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                <Dumbbell className="w-3 h-3" />
-                {regimen.exercises?.length || 0} exercises
-              </span>
-              {/* Aggregate rating — quiet when no reviews yet. */}
-              {ratingAgg && ratingAgg.review_count > 0 && (
-                <span className="flex items-center gap-1 text-xs">
-                  <StarRating value={ratingAgg.avg_rating} size="sm" />
-                  <span className="text-muted-foreground">
-                    {ratingAgg.avg_rating.toFixed(1)} · {ratingAgg.review_count}
-                  </span>
+        {/* Earned signals, on their own line and only once they exist.
+            They sat in the action row first, and rendering the traction
+            case showed why that fails: downloads + five stars + the score
+            + Add on one 390 pt row squeezed "Preview all 8" down to
+            "Previe…". They are facts ABOUT the regimen, so they belong
+            with the cost line, not competing with the buttons. Absent on
+            every regimen in the store today, so this row costs nothing
+            until it is true. */}
+        {(copyCount > 0 || (ratingAgg && ratingAgg.review_count > 0)) && (
+          <div className="flex items-center gap-3 mt-1">
+            <DownloadBadge count={copyCount} />
+            {ratingAgg && ratingAgg.review_count > 0 && (
+              <span className="flex items-center gap-1 text-xs">
+                <StarRating value={ratingAgg.avg_rating} size="sm" />
+                <span className="text-muted-foreground">
+                  {ratingAgg.avg_rating.toFixed(1)} · {ratingAgg.review_count}
                 </span>
-              )}
-            </div>
-
-            {/* Muscle group chips */}
-            {muscles.length > 0 && (
-              <div className="flex flex-wrap gap-1 mt-2">
-                {muscles.map(m => (
-                  <Badge key={m} variant="secondary" className="text-micro font-normal px-2 py-0.5">
-                    {m}
-                  </Badge>
-                ))}
-              </div>
+              </span>
             )}
           </div>
+        )}
 
-          {/* Right action column */}
-          <div className="flex flex-col items-end gap-1.5 shrink-0">
+        {/* Muscle chips, promoted above the description — they are the one
+            line that separates "Legs & Core Destroyer" from "Back &
+            Shoulders Builder". They used to sit last, under a stats row on
+            which every number was identical across every card. */}
+        {muscles.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-2">
+            {muscles.slice(0, MUSCLE_CHIP_CAP).map(m => (
+              <Badge key={m} variant="secondary" className="text-micro font-normal px-2 py-0.5">
+                {m}
+              </Badge>
+            ))}
+            {muscles.length > MUSCLE_CHIP_CAP && (
+              <Badge variant="secondary" className="text-micro font-normal px-2 py-0.5 text-muted-foreground">
+                +{muscles.length - MUSCLE_CHIP_CAP}
+              </Badge>
+            )}
+          </div>
+        )}
+
+        {regimen.description ? (
+          <p className="text-sm text-muted-foreground mt-2 line-clamp-2">
+            {regimen.description}
+          </p>
+        ) : null}
+
+        {/* The first three lifts, with load. */}
+        {exercisePreview && (
+          <div className="mt-2 pt-2 border-t border-border/50">
+            {exercisePreview.lifts.map((lift, i) => (
+              <div key={i} className="flex items-baseline justify-between gap-2 py-0.5">
+                <span className="text-sm truncate">{lift.name}</span>
+                {lift.load && (
+                  <span className="text-xs font-semibold text-muted-foreground shrink-0 tabular-nums">
+                    {lift.load}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Action row. `Add` is a repeated 34 pt pill rather than a
+            full-width primary — one dominant element per screen, and four
+            stacked full-width primaries would fight for the page. */}
+        <div className="flex items-center justify-between gap-2 mt-2">
+          <button
+            onClick={() => setExpanded(e => !e)}
+            className="flex items-center gap-1 -ms-1 px-1 py-1.5 rounded-sm text-xs font-semibold text-muted-foreground hover:text-foreground active:text-foreground transition-colors min-w-0"
+          >
+            {expanded ? <ChevronUp className="w-3.5 h-3.5 shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 shrink-0" />}
+            <span className="truncate">
+              {expanded ? 'Show less' : `Preview all ${load.exercises}`}
+            </span>
+          </button>
+
+          <div className="flex items-center gap-2 shrink-0">
             {!isMine ? (
               <motion.button
                 whileTap={{ scale: 0.95 }}
                 onClick={() => adoptMutation.mutate()}
                 disabled={adoptMutation.isPending || adoptMutation.isSuccess}
                 className={[
-                  'flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition-colors',
+                  'flex items-center gap-1.5 px-3 h-9 rounded-lg text-xs font-bold transition-colors',
                   adoptMutation.isSuccess
                     ? 'bg-emerald-500/15 text-emerald-500 cursor-default'
                     : 'bg-primary text-primary-foreground hover:bg-primary/90 active:bg-primary/90 disabled:opacity-60',
                 ].join(' ')}
               >
                 <Download className="w-3.5 h-3.5" />
-                {adoptMutation.isSuccess ? 'Saved!' : adoptMutation.isPending ? '…' : 'Adopt'}
+                {adoptMutation.isSuccess ? 'Saved!' : adoptMutation.isPending ? '…' : 'Add'}
               </motion.button>
             ) : (
-              <span className="text-micro text-muted-foreground px-1">Your regimen</span>
+              <span className="text-micro text-muted-foreground">Your regimen</span>
             )}
-
-            <button
-              onClick={() => setExpanded(e => !e)}
-              className="flex items-center gap-1 px-2 py-1.5 rounded-md text-xs text-muted-foreground hover:bg-secondary active:bg-secondary transition-colors"
-            >
-              {expanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-              {expanded ? 'Less' : 'Preview'}
-            </button>
           </div>
         </div>
 
