@@ -293,6 +293,48 @@ must stay RAW. **Adding a trigger to a leaderboard-ranked column without
 asking is exactly the change that should not be made unilaterally.**
 Recommendation and the idempotent SQL are at the foot of this document.
 
+## Browser render — what the numbers actually look like
+
+jsdom paints nothing and recharts measures a 0×0 container, so the figures
+were checked in a real browser via the stub-alias harness (recipe at the
+foot of this document). `AdvancedAnalyticsSheet` takes `logs` as a prop, so
+it renders standalone. Four fixtures, at 375×812:
+
+| Fixture | Rendered |
+|---|---|
+| **none** (0 logs) | "Start logging workouts to see your progress" — an honest empty state, no zeros |
+| **one** (1 log) | `4,995` · **"1 workout"** (singular branch resolves) · Strongest 555 lbs · Squat |
+| **prod** (the real 9-row shape) | `9,500` · 9 workouts · Strongest 555 lbs · Squat · **Most reps 12 · Pull-Up** · Unique 3 · Most performed Bench Press · 6× · Top muscle Legs |
+| **dense** (60 logs / 4 months) | `49,350` · 60 workouts · no overflow, no truncation |
+
+Three things this settled that reading could not:
+
+- **No `0`, `—`, `NaN`, `Infinity` or `$NaN` renders in any fixture.** Every
+  figure is a real number or the row is absent.
+- **On the production shape, "Total time" and "Avg session" do not render at
+  all** — the `hasDuration` gate works, and the sheet does not print "0 min".
+  Re-run with durations attached and both appear: **7 h 3 m** total and
+  **47 min** average against 423 minutes over 9 sessions, which is exact.
+- **The hero reads `9,500`, which is the DERIVED sum, not the stored column.**
+  Production's `total_volume` column sums to 4,995 across the same nine rows.
+  So every Progress-page volume figure is **immune to defect 2** — it
+  re-derives from the `exercises` JSONB. The stored column's blast radius is
+  the six database functions that read it, not this page. That is the single
+  most useful thing the render pass established, and it narrows the defect
+  rather than widening it.
+- **`Most reps 12 · Pull-Up` confirms sub-feature 4 on a third surface** —
+  the bodyweight lift survives into the sheet's LOAD group as well as into
+  both bests lists.
+
+**Not done in the browser: the frame toggle (7d / 30d / 90d / All).** It
+lives in `Progress.jsx` itself rather than in a prop-driven child, so
+driving it needs the whole page mounted with its four queries stubbed. The
+All-Time null-prev-period branch was verified by reading instead —
+`FRAME_PREV.all` is `null`, so `prevFrameWorkouts`, `prevFrameCardio` and
+`volumeDelta` are all `null` and every delta line is suppressed rather than
+comparing against an empty window. That is a read, not a render, and I am
+flagging it as the one gap.
+
 ## Checks that PASSED
 
 Total Workouts agree across all four surfaces by construction · the frame
@@ -320,6 +362,9 @@ correct arithmetic · lint clean · build clean.
   `t()` is correct for keys that ship in all 15 languages.
 - **Did not add a `total_volume` trigger or re-run the 329 backfill.** See
   above; both need a decision.
+- **Did not drive the frame toggle in a browser.** See the render section —
+  it needs the whole page mounted, and the All-Time branch was settled by
+  reading instead. This is the one deliverable I did not complete as asked.
 - **Did not run an authenticated end-to-end round trip.** Same limit the
   two previous audits hit — it needs a real sign-in.
 - **Did not touch `whileHover` on the AnalyticsTab stat cards.** The brief
@@ -366,6 +411,29 @@ write becomes redundant rather than authoritative. This is the real fix and
 it touches a leaderboard-ranked column, so it wants your sign-off — in
 particular that the trigger must use the RAW formula with no bar weight,
 per CLAUDE.md's "stored volume is RAW" rule.
+
+## Reproducing the render harness
+
+Deliberately **not committed** — throwaway scaffolding. To rebuild:
+
+- `harness.html` at root (with `class="dark"` on `<html>`) mounting
+  `/src/harness.jsx`
+- `src/harness.jsx` mounting `AdvancedAnalyticsSheet` inside
+  `QueryClientProvider` + `LanguageProvider`, with the fixture chosen by
+  `?fx=none|one|prod|duration|dense`
+- `vite.harness.config.js` aliasing `@/api/db`, `@/api/supabaseClient`,
+  `@/lib/AuthContext`, `@/lib/WeightUnitContext` to one stub module, plus
+  `optimizeDeps.entries: ['harness.html']` — without it the dep scan walks
+  `index.html` → `App.jsx` → `virtual:pwa-register` and the server dies on
+  an unresolved import
+- `npx vite --config vite.harness.config.js --port 5233 --strictPort`.
+  **Not 5199** — a parallel session holds it and its SPA fallback returns
+  200 for any path, so you get the wrong app and cannot tell. Confirm with
+  `curl -s localhost:5233/harness.html | grep -c src/harness.jsx`.
+
+Read the numbers with `get_page_text`, not a screenshot: the Browser pane
+pauses rAF when hidden, so a framer-motion surface can still be mid-fade
+when the screenshot lands.
 
 ## Reproducing the SQL
 
