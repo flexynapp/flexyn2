@@ -21,7 +21,6 @@ import {
   Dumbbell, Activity, Apple, Target, Trophy, ListChecks,
   BarChart3, Clock, Flame, Footprints, TrendingUp, Zap,
 } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
 import { toast } from '@/lib/toast';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -320,6 +319,10 @@ function MealBlock({ snap }) {
 // ─── Goal completion ───
 function GoalBlock({ snap }) {
   const { t } = useLanguage();
+  // Same defect the achievement block carried: date-fns `format()` binds
+  // no locale, so the completion date stayed English under a fully
+  // translated screen.
+  const fmtDate = useDateFormatter();
   const goalDisplay = [];
   if (snap.achieved_reps != null || snap.target_reps != null) {
     const achievedReps = snap.achieved_reps ?? snap.target_reps;
@@ -346,7 +349,7 @@ function GoalBlock({ snap }) {
         )}
         {snap.completed_date && (
           <p className="text-xs text-muted-foreground mt-1">
-            {t('hub.activity.completed')} {format(parseISO(snap.completed_date), 'MMM d, yyyy')}
+            {t('hub.activity.completed')} {fmtDate(snap.completed_date, { dateStyle: 'medium' })}
           </p>
         )}
       </div>

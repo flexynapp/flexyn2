@@ -307,6 +307,13 @@ that date-fns `format()` binds no locale, so this read "Aug 11, 2026"
 under a fully-translated screen. **FIXED** — routed through
 `useDateFormatter`.
 
+**Follow-up, 2026-08-11:** the **goal** block in the same file carried the
+identical defect two lines away and was initially left as out of scope.
+Fixed on request — `PostActivityBlock` now imports no date-fns at all,
+and a test asserts that, because a returning `format()` call reintroduces
+an English date inside translated copy and looks perfectly fine in
+English.
+
 The snapshot key chain is intact and now has a test, because it crosses a
 naming boundary and a rename on either side would silently drop the date
 off every shared badge: `row.earned_at` → `unlockedDate` (camel, the
@@ -435,9 +442,6 @@ no-machine-translation rule.
 
 - No node probe (layer 2) and no run against the deployed site. Share is
   proven by unit test and schema, not by posting a real badge to Hub.
-- `PostActivityBlock`'s **goal** block has the identical date-fns defect
-  two lines from the one I fixed. Left alone as out of scope; flagged
-  separately.
 - Did not audit `ProfileTrophies` / `ProfileBadgeShowcase`, which consume
   the same catalog on the profile surface.
 - Did not touch `achievementDefinitions.js` or the retired
@@ -453,9 +457,10 @@ no-machine-translation rule.
 | `src/components/__tests__/achievementsSurface.test.jsx` | 23, new — one block per sub-feature |
 | `src/lib/data/__tests__/trophiesShare.test.js` | 9, new |
 | `src/lib/data/__tests__/shareAchievement.test.js` | 7, new |
+| `src/components/hub/__tests__/postActivityDates.test.jsx` | 4, new — both date blocks + a no-date-fns guard |
 
 **All are regression tests.** None pins current buggy behaviour, so there
 are no characterization tests to invert here.
 
-Suite: **4370 → 4416 passing** across 316 files (+46). Lint clean, build
+Suite: **4370 → 4420 passing** across 317 files (+50). Lint clean, build
 clean.
