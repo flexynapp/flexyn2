@@ -215,12 +215,20 @@ const pill = (parent, label, x, y, o) => {
 // at, matching the fluid-scale section of CLAUDE.md.
 const phone = (name, x, y, h) => rect(B, 'phone / ' + name, x, y, 390, h, { fill: P.bg, r: 18, stroke: P.border });
 
-// A full-width nav tile as CardioSection draws it today: p-5, dashed
-// border, 40 pt icon square at rounded-xl, title over description.
+// A full-width nav tile. Drawn with the WORKOUT PAGE's card treatment,
+// not CardioSection's own — see the note below and ledger T4.
+//
+// CardioSection ships `border-dashed` with no card surface. This board
+// draws it solid on a `--card` surface with a `border-border/60` hairline,
+// which is what `getCardPalette` in Workout.jsx returns for every tile on
+// the grid one screen up. Drawing today's dashes faithfully would have
+// been the other defensible choice; kegan called it (2026-08-11) and the
+// dashes are being retired, so the board draws where it is going. The
+// fact is not lost — T4 states it, and 01 is labelled accordingly.
 const navTile = (x, y, o) => {
   const h = o.h || 76;
-  rect(B, 'tile / ' + o.key, x, y, 358, h, { fill: null, r: 12, stroke: o.solid ? P.border : P.border, dash: !o.solid, so: 0.9 });
-  rect(B, 'tile icon / ' + o.key, x + 16, y + (h - 40) / 2, 40, 40, { fill: o.tint || P.pri, op: 0.10, r: 10 });
+  rect(B, 'tile / ' + o.key, x, y, 358, h, { fill: P.card, r: 12, stroke: P.border, so: 0.6 });
+  rect(B, 'tile icon / ' + o.key, x + 16, y + (h - 40) / 2, 40, 40, { fill: o.tint || P.pri, op: 0.10, r: 10, stroke: o.tint || P.pri, so: 0.30 });
   txt(B, 'tile glyph / ' + o.key, o.glyph, x + 16, y + (h - 40) / 2 + 10, { size: 17, width: 40, align: 'center', color: o.tint || P.pri });
   txt(B, 'tile title / ' + o.key, o.title, x + 68, y + (o.desc ? 18 : 28), { size: 13.5, w: 700, head: true, color: P.fg });
   if (o.desc) txt(B, 'tile desc / ' + o.key, o.desc, x + 68, y + 38, { size: 11, color: P.mut, width: 270 });
@@ -325,14 +333,14 @@ if (PARTS.indexOf('01') !== -1) {
   QUAD.forEach((q, i) => {
     const qx = X1 + 16 + (i % 2) * 184;
     const qy = y + Math.floor(i / 2) * 132;
-    rect(B, 'q / ' + q.key, qx, qy, 174, 122, { fill: null, r: 12, stroke: P.border, dash: true, so: 0.9 });
-    rect(B, 'q icon / ' + q.key, qx + 14, qy + 14, 40, 40, { fill: q.tint, op: 0.10, r: 10 });
+    rect(B, 'q / ' + q.key, qx, qy, 174, 122, { fill: P.card, r: 12, stroke: P.border, so: 0.6 });
+    rect(B, 'q icon / ' + q.key, qx + 14, qy + 14, 40, 40, { fill: q.tint, op: 0.10, r: 10, stroke: q.tint, so: 0.30 });
     txt(B, 'q glyph / ' + q.key, q.glyph, qx + 14, qy + 24, { size: 17, width: 40, align: 'center' });
     txt(B, 'q title / ' + q.key, q.title, qx + 14, qy + 60, { size: 13.5, w: 700, head: true, color: P.fg });
     txt(B, 'q desc / ' + q.key, q.desc, qx + 14, qy + 80, { size: 10.5, color: (i < 3 ? P.bad : P.mut), width: 148, lh: 1.3 });
   });
   // Mark the repeated string.
-  rect(B, 'today / dup mark', X1 + 16, y, 358, 254, { fill: null, r: 12, stroke: P.bad, so: 0.45, dash: true });
+  rect(B, 'today / dup mark', X1 + 16, y, 358, 254, { fill: null, r: 12, stroke: P.bad, so: 0.55 });
   txt(B, 'today / dup note', '3 of 4 share one description', X1 + 16, y + 258, { size: 10, w: 600, color: P.bad });
   y += 280;
 
@@ -347,7 +355,9 @@ if (PARTS.indexOf('01') !== -1) {
   UTIL.forEach(u => {
     navTile(X1 + 16, y, u);
     const bad = u.rows !== '5 rows';
-    txt(B, 'tile rows / ' + u.key, u.rows, X1 + 16, y + 30, { size: 10, w: 700, color: bad ? P.bad : P.ok, width: 342, align: 'right' });
+    // y + 8, not y + 30: at 30 this right-aligned annotation ran into the
+    // right end of the tile's own description line.
+    txt(B, 'tile rows / ' + u.key, u.rows, X1 + 16, y + 8, { size: 10, w: 700, color: bad ? P.bad : P.ok, width: 342, align: 'right' });
     y += 84;
   });
 
@@ -420,8 +430,10 @@ if (PARTS.indexOf('02') !== -1) {
   rect(B, 'p / week', X1 + 16, y, 358, 92, { fill: P.card, r: 12, stroke: P.border });
   txt(B, 'p / week l', 'THIS WEEK', X1 + 30, y + 14, { size: 9, w: 700, color: P.mut, ls: 1.4, tt: 'uppercase' });
   txt(B, 'p / week v', '11.4', X1 + 30, y + 30, { size: 27, w: 800, head: true, color: P.fg });
-  txt(B, 'p / week u', 'mi', X1 + 88, y + 44, { size: 12, w: 600, color: P.mut });
-  txt(B, 'p / week g', 'of 15 mi goal', X1 + 112, y + 44, { size: 11, color: P.mut });
+  // Offsets clear the 27 pt figure beside them — at 88/112 the unit sat
+  // under the last digit of "11.4".
+  txt(B, 'p / week u', 'mi', X1 + 100, y + 44, { size: 12, w: 600, color: P.mut });
+  txt(B, 'p / week g', 'of 15 mi goal', X1 + 126, y + 44, { size: 11, color: P.mut });
   // 7 day dots — filled where a session landed.
   const DAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
   const HIT = [1, 0, 1, 0, 0, 1, 0];
@@ -534,7 +546,9 @@ if (PARTS.indexOf('02') !== -1) {
   z += 44;
 
   // Everything else, collapsed. The manual form asks 13 questions today.
-  rect(B, 'm / more', X2 + 16, z, 358, 48, { fill: null, r: 10, stroke: P.border, dash: true });
+  // A disclosure is a control, so it gets the card surface — not the
+  // dashed placeholder outline the current cardio tiles use.
+  rect(B, 'm / more', X2 + 16, z, 358, 48, { fill: P.card, r: 10, stroke: P.border, so: 0.6 });
   txt(B, 'm / more l', '＋   More details', X2 + 30, z + 16, { size: 12.5, w: 600, color: P.fg });
   txt(B, 'm / more c', 'heart rate, cadence, elevation, notes…', X2 + 150, z + 18, { size: 10.5, color: P.mut });
   z += 60;
@@ -618,8 +632,9 @@ if (PARTS.indexOf('03') !== -1) {
   rect(B, 'spec / week bg', X3, w0, 716, 184, { fill: P.card, r: 16, stroke: P.border, sw: 2 });
   txt(B, 'spec / weekl', 'THIS WEEK', X3 + 28, w0 + 26, { size: 15, w: 700, color: P.mut, ls: 2, tt: 'uppercase' });
   txt(B, 'spec / weekv', '11.4', X3 + 28, w0 + 54, { size: 52, w: 800, head: true, color: P.fg });
-  txt(B, 'spec / weeku', 'mi', X3 + 140, w0 + 82, { size: 22, w: 600, color: P.mut });
-  txt(B, 'spec / weekg', 'of 15 mi goal', X3 + 180, w0 + 84, { size: 20, color: P.mut });
+  // Same collision at 2×, where the figure is 52 pt and runs to ~X3+165.
+  txt(B, 'spec / weeku', 'mi', X3 + 172, w0 + 82, { size: 22, w: 600, color: P.mut });
+  txt(B, 'spec / weekg', 'of 15 mi goal', X3 + 212, w0 + 84, { size: 20, color: P.mut });
   const D2 = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
   const H2 = [1, 0, 1, 0, 0, 1, 0];
   D2.forEach((d, i) => {
@@ -635,7 +650,7 @@ if (PARTS.indexOf('03') !== -1) {
     'Day dots are pills, not circles — a circle at 22×22 reads as a bullet, a pill reads as a bar you filled in.',
     'The goal comparison renders ONLY when a cardio goal exists. Without one the strip shows distance and dots and no bar — not a bar at 0%.',
     'The whole strip is absent on a week with no sessions. CLAUDE.md: a section with no data must not render as zeros, and “0.0 mi” at someone who has not run this week is the app calling them lazy.',
-    'The bar reads against the goal for the CURRENT period only. The two production cardio goals are period “lifetime”, which has no week to compare against — see ledger D7.',
+    'The bar reads against the goal for the CURRENT period only. The two production cardio goals are period “lifetime”, which has no week to compare against — see ledger D8.',
   ];
   let wy2 = w0 + 210;
   WSPECS.forEach((t, i) => {
@@ -746,19 +761,21 @@ if (PARTS.indexOf('05') !== -1) {
      'cardio.type.swimming_pool and cardio.type.swimming_openwater exist only as speed limits in cardioLimits.js, never as i18n keys. getTranslation returns the KEY on a total miss, so a swim log renders “cardio.type.swimming_pool” verbatim in CardioManualForm, CardioDetailModal, the Repeat-last row, PostActivityBlock and HubComposer ×2. Swimming was added to the picker without the keys the rest of the flow reads.'],
     ['T3', 'Three of four activity tiles share one description',
      'Running, Walking and Biking all pass t(\'cardio.subtitle\') — “Track running, walking, and cycling” — which is also the page subtitle directly above them. Only Swimming has its own.'],
-    ['T4', 'Two of five utility tiles have never held a row',
+    ['T4', 'The tiles are dashed, transparent, and carry seven hues',
+     'NavTile ships border-dashed with no card surface, and hands a different hue to each of the nine tiles — orange, emerald, amber, cyan, violet, rose, zinc. getCardPalette in Workout.jsx deliberately does the opposite: ONE card surface, border-border/60, accent on the icon only. Its comment says a per-tile hue “reads as generated” and encodes nothing, because the grid is reorderable. CLAUDE.md allows four hues app-wide. Called out by kegan on sight, 2026-08-11 — which is the shortest path any finding on this board took.'],
+    ['T5', 'Two of five utility tiles have never held a row',
      'cardio_templates 0 rows, planned_cardio 0 rows. Templates can only be created from a button at the bottom of the manual form, below the Save button.'],
-    ['T5', 'planned_cardio.completed_cardio_id is read and never written',
+    ['T6', 'planned_cardio.completed_cardio_id is read and never written',
      'CardioPlanned.jsx:319 branches on it to show “Completed” vs “Not logged”. Nothing in the codebase writes it, so a past plan can only ever say “Not logged” — including one you did. Third shape from the denormalised-columns section of CLAUDE.md: a reader with no writer.'],
-    ['T6', 'Two schedulers, and the empty one has no reminders',
+    ['T7', 'Two schedulers, and the empty one has no reminders',
      'planned_cardio duplicates scheduled_workouts (mig 276), which resolves against the user\'s local hour, fires an hourly cron, pushes a notification and deep-links into the session. planned_cardio does none of that and holds 0 rows.'],
-    ['T7', 'Two cardio systems that never reconcile',
+    ['T8', 'Two cardio systems that never reconcile',
      'CardioSection writes cardio_logs. CardioLogger — the “+ Cardio” block inside a live workout — writes a kind:\'cardio\' entry into workout_logs.exercises JSONB. A treadmill mile logged inside a workout counts toward no cardio distance, goal, PR, VO2max or total_distance_meters. The vocabularies differ too: CardioLogger says cycling, CardioSection says biking.'],
-    ['T8', 'The manual form asks 13 questions to capture 4 answers',
+    ['T9', 'The manual form asks 13 questions to capture 4 answers',
      'Across 5 production rows: cadence, power, pool length, laps, stroke, route name and notes are populated 0 times. Heart rate once, VO2max twice (derived). Distance, duration, pace and speed 5 of 5 — and calories is 0 on 2 of the 5 rows that have it, i.e. nobody tapped Estimate.'],
-    ['T9', 'Cardio inherits the Workout page\'s chrome',
+    ['T10', 'Cardio inherits the Workout page\'s chrome',
      'CardioSection renders as an inline branch of /workout, below GoalsAlmostComplete, the late-night banner, InjuryBanner, the duel/bounty pills, the Today chip and the grid-customize button. All six belong to the workout start screen. Visible in the screenshot this board started from.'],
-    ['T10', 'MAX_MODE_SPEED_MPS keys on a vocabulary the modes do not use',
+    ['T11', 'MAX_MODE_SPEED_MPS keys on a vocabulary the modes do not use',
      'The outdoor tracker\'s GPS-outlier rejection keys on running / walking / cycling / hiking. The modes it receives are running / walking / biking / swimming. Biking gets the right cap only because the ?? fallback happens to be cycling; hiking is unreachable. Benign today, wrong the moment anyone edits either list.'],
   ];
   let dy = LY + 32;
@@ -775,17 +792,19 @@ if (PARTS.indexOf('05') !== -1) {
   const DECISIONS = [
     ['D1', 'Collapse activity → environment → input type into one Start control.',
      'The core of the proposal. Costs the two intermediate screens; buys 5 taps → 2. Reversible — the screens still exist as the “More” path if the control proves too dense.'],
-    ['D2', 'Take Templates off the landing screen; fold “Start again” into a history row.',
+    ['D2', 'Give the tiles the Workout page card treatment.',
+     'Fixes T4: solid hairline, one card surface, accent on the icon. Cheapest item here and the one that makes cardio stop looking like a different app. Already applied to how this board DRAWS the tiles, so 01 shows the target rather than the dashes.'],
+    ['D3', 'Take Templates off the landing screen; fold “Start again” into a history row.',
      '0 rows in production and an entry point below the Save button. Keeping the table costs nothing; keeping the tile costs a fifth of the landing screen.'],
-    ['D3', 'Retire planned_cardio; route cardio scheduling through scheduled_workouts.',
+    ['D4', 'Retire planned_cardio; route cardio scheduling through scheduled_workouts.',
      'One scheduler with cron, push and deep-links instead of two, one of which has 0 rows and cannot notify. Needs a decision about what happens to the planned_cardio table — it is empty, so dropping it is free.'],
-    ['D4', 'Make in-workout cardio write a cardio_logs row.',
-     'Fixes T7, and is the largest item here: it touches XP, quests, streaks, distance accumulation and PR detection, all of which are server-authoritative. The alternative — decide explicitly that in-workout cardio is warm-up only and does not count — is also a valid answer and much cheaper.'],
-    ['D5', 'Give cardio its own route instead of an inline branch of /workout.',
-     'Fixes T9 outright and makes the back button mean one thing. Costs a route, a lazy chunk and the ?openCardio=1 deep link that quests use.'],
-    ['D6', 'Manual form: three fields, then “More details”.',
-     'Backed by T8. The risk is the reverse reading — that nobody fills those fields BECAUSE the form is a wall, not the other way round. Cheap to test: ship the collapse and watch whether the populated-column counts move.'],
-    ['D7', 'Point Cardio Goals at the real goal_type vocabulary.',
+    ['D5', 'Make in-workout cardio write a cardio_logs row.',
+     'Fixes T8, and is the largest item here: it touches XP, quests, streaks, distance accumulation and PR detection, all of which are server-authoritative. The alternative — decide explicitly that in-workout cardio is warm-up only and does not count — is also a valid answer and much cheaper.'],
+    ['D6', 'Give cardio its own route instead of an inline branch of /workout.',
+     'Fixes T10 outright and makes the back button mean one thing. Costs a route, a lazy chunk and the ?openCardio=1 deep link that quests use.'],
+    ['D7', 'Manual form: three fields, then “More details”.',
+     'Backed by T9. The risk is the reverse reading — that nobody fills those fields BECAUSE the form is a wall, not the other way round. Cheap to test: ship the collapse and watch whether the populated-column counts move.'],
+    ['D8', 'Point Cardio Goals at the real goal_type vocabulary.',
      'Fixes T1. Free right now: zero rows carry goal_type = \'cardio\', so there is nothing to migrate — only code to change. That window closes the first time someone creates a goal from that screen. Also decide what the week strip compares against: both production cardio goals are period “lifetime”.'],
   ];
   let cy = LY + 32;

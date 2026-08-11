@@ -38,26 +38,51 @@ const itemVariants = {
   visible: { opacity: 1, y: 0 },
 };
 
-function NavTile({ icon: Icon, iconBg = 'bg-primary/10', iconColor = 'text-primary', title, description, onClick }) {
+// A cardio nav tile, wearing the same clothes as the Workout grid card it
+// sits one screen below. That grid is `getCardPalette` in Workout.jsx:
+//
+//   background: hsl(var(--card))
+//   border:     border-border/60 hover:border-primary/40
+//   icon:       w-10 h-10 rounded-xl bg-primary/18 border border-primary/28
+//
+// …with one correction. Copy those icon classes literally and they render
+// NOTHING: Tailwind's opacity scale has no 18 and no 28, and an off-scale
+// slash value emits no CSS at all rather than failing. Verified against
+// the built stylesheet — `.bg-primary\/18` and `.border-primary\/28` are
+// absent while /20 and /30 are present. So the tile below uses /20 and
+// /30, which are on the scale and within a hair of the intended values.
+// Workout.jsx has the same dead pair on its own icon tiles, along with 52
+// other off-scale opacity classes app-wide; that sweep is its own task.
+//
+// These tiles used to be `border-dashed` on no surface at all, with a
+// different hue per tile — orange, emerald, amber, cyan, violet, rose,
+// zinc across nine tiles. Both are things the Workout page deliberately
+// does NOT do, and its palette comment says why: a per-tile hue "reads as
+// generated" and encodes nothing, because the grid is reorderable. Cardio
+// is not reorderable, but the argument that survives is the other one —
+// CLAUDE.md allows four hues app-wide and this screen was spending seven
+// on navigation. The accent now lives on the icon and the surface is the
+// app's card surface, which is the rule everywhere else.
+//
+// The `iconBg` / `iconColor` props are gone rather than ignored: a prop
+// that silently does nothing is how the next person reintroduces the
+// seven hues without noticing they stopped rendering.
+function NavTile({ icon: Icon, title, description, onClick }) {
   return (
     <motion.div
       variants={itemVariants}
-      whileHover={{ scale: 1.03, y: -3 }}
-      whileTap={{ scale: 0.96 }}
-      transition={{ type: 'spring', stiffness: 380, damping: 20 }}
+      whileHover={{ y: -2 }}
+      whileTap={{ scale: 0.98 }}
+      transition={{ type: 'spring', stiffness: 380, damping: 22 }}
     >
       <Card
-        className="p-5 border-dashed cursor-pointer hover:border-primary/50 hover:bg-primary/5 active:bg-primary/5 transition-colors"
+        className="p-5 cursor-pointer border-border/60 hover:border-primary/40 hover:bg-primary/5 active:bg-primary/5 transition-colors"
         onClick={onClick}
       >
         <div className="flex items-center gap-3">
-          <motion.div
-            className={`w-10 h-10 rounded-xl ${iconBg} flex items-center justify-center shrink-0`}
-            whileHover={{ rotate: -8, scale: 1.15 }}
-            transition={{ type: 'spring', stiffness: 400 }}
-          >
-            <Icon className={`w-5 h-5 ${iconColor}`} />
-          </motion.div>
+          <div className="w-10 h-10 rounded-xl bg-primary/20 border border-primary/30 flex items-center justify-center shrink-0">
+            <Icon className="w-5 h-5 text-primary" />
+          </div>
           <div>
             <p className="font-heading font-bold text-sm">{title}</p>
             {description && <p className="text-xs text-muted-foreground">{description}</p>}
@@ -216,32 +241,24 @@ export default function CardioSection({ onBack }) {
             <div className="grid grid-cols-2 gap-3">
               <NavTile
                 icon={Footprints}
-                iconBg="bg-primary/10"
-                iconColor="text-primary"
                 title={t('cardio.modes.running')}
                 description={t('cardio.subtitle')}
                 onClick={() => setView({ name: 'mode', mode: 'running' })}
               />
               <NavTile
                 icon={PersonStanding}
-                iconBg="bg-emerald-500/10"
-                iconColor="text-emerald-500"
                 title={t('cardio.modes.walking')}
                 description={t('cardio.subtitle')}
                 onClick={() => setView({ name: 'mode', mode: 'walking' })}
               />
               <NavTile
                 icon={Bike}
-                iconBg="bg-amber-500/10"
-                iconColor="text-amber-500"
                 title={t('cardio.modes.biking')}
                 description={t('cardio.subtitle')}
                 onClick={() => setView({ name: 'mode', mode: 'biking' })}
               />
               <NavTile
                 icon={Waves}
-                iconBg="bg-cyan-500/10"
-                iconColor="text-cyan-500"
                 title={tFallback('cardio.modes.swimming', 'Swimming')}
                 description={tFallback('cardio.modes.swimming.desc', 'Pool or open water')}
                 onClick={() => setView({ name: 'mode', mode: 'swimming' })}
@@ -251,40 +268,30 @@ export default function CardioSection({ onBack }) {
             {/* Utilities */}
             <NavTile
               icon={BookOpen}
-              iconBg="bg-accent/10"
-              iconColor="text-accent"
               title={t('cardio.savedWorkouts')}
               description={t('cardio.savedWorkoutsDesc')}
               onClick={() => setView({ name: 'savedList' })}
             />
             <NavTile
               icon={BookmarkPlus}
-              iconBg="bg-violet-500/10"
-              iconColor="text-violet-500"
               title={tFallback('cardio.nav.templates', 'Templates')}
               description={tFallback('cardio.nav.templates.desc', 'Quick-start saved configurations')}
               onClick={() => setView({ name: 'templates' })}
             />
             <NavTile
               icon={CalendarDays}
-              iconBg="bg-emerald-500/10"
-              iconColor="text-emerald-500"
               title={tFallback('cardio.nav.planned', 'Planned Sessions')}
               description={tFallback('cardio.nav.planned.desc', 'Schedule upcoming workouts')}
               onClick={() => setView({ name: 'planned' })}
             />
             <NavTile
               icon={Target}
-              iconBg="bg-rose-500/10"
-              iconColor="text-rose-500"
               title={tFallback('cardio.nav.goals', 'Cardio Goals')}
               description={tFallback('cardio.nav.goals.desc', 'Weekly & monthly distance targets')}
               onClick={() => setView({ name: 'goals' })}
             />
             <NavTile
               icon={Watch}
-              iconBg="bg-zinc-500/10"
-              iconColor="text-zinc-500"
               title={tFallback('cardio.nav.devices', 'Devices & Apps')}
               description={tFallback('cardio.nav.devices.desc', 'Apple Watch, Garmin, Fitbit…')}
               onClick={() => setView({ name: 'wearables' })}
@@ -323,16 +330,12 @@ export default function CardioSection({ onBack }) {
               <>
                 <NavTile
                   icon={Waves}
-                  iconBg="bg-cyan-500/10"
-                  iconColor="text-cyan-500"
                   title={tFallback('cardio.swim.pool', 'Pool')}
                   description={tFallback('cardio.swim.pool.desc', 'Lap pool, 25 m or 50 m')}
                   onClick={() => setView({ name: 'inputType', mode: 'swimming', env: 'pool' })}
                 />
                 <NavTile
                   icon={Trees}
-                  iconBg="bg-blue-500/10"
-                  iconColor="text-blue-500"
                   title={tFallback('cardio.swim.openWater', 'Open Water')}
                   description={tFallback('cardio.swim.openWater.desc', 'Lake, ocean, river')}
                   onClick={() => setView({ name: 'inputType', mode: 'swimming', env: 'openwater' })}
