@@ -109,7 +109,7 @@ export default function ReadinessSheet({ open, onClose, readiness, focus, onLogW
   // exit animation would never get to run. Entry animates, exit is instant —
   // same as every other dismissible surface on the page today.
   return (
-    <SheetShell open={open} onClose={onClose} kicker={tFallback('readiness.kicker', 'READINESS · TODAY')} labelledBy="readiness-sheet-title">
+    <SheetShell open={open} onClose={onClose} kicker={tFallback('readiness.kicker', 'READINESS')} labelledBy="readiness-sheet-title">
 
             {/* The dial, repeated from the card you tapped to get here — board
                 02 leads with it so the sheet confirms what you opened rather
