@@ -846,10 +846,19 @@ const ROUTE_BY_ACTION = {
   [ACTION_TYPES.SLEEP_LOGGED]:       '/dashboard?openReadiness=sleep',
   [ACTION_TYPES.MOOD_LOGGED]:        '/dashboard?openReadiness=mood',
   [ACTION_TYPES.STEPS_LOGGED]:       '/dashboard?openReadiness=steps',
-  // 'body', not 'metrics' — TAB_META in Progress.jsx defines exactly
-  // trends | body | photos | insights, and an unknown tab silently falls
-  // back to 'trends', which is not where the measurement form is.
-  [ACTION_TYPES.BODY_METRIC_LOGGED]: '/progress?tab=body',
+  // Dashboard, NOT '/progress?tab=body'. This pointed at the Body tab on
+  // the reasoning that the measurement form lived there. It does not, and
+  // has not since body-measurement logging was removed from that tab per
+  // product direction — BodyMetricsTab.jsx is 47 lines of heat map plus the
+  // opt-in cycle tracker, with no input of any kind. So the one quest whose
+  // whole job is "go and log a body metric" landed the user on a page where
+  // that is impossible, and the quest stayed at 0/1.
+  // LogWeightModal is the only writer of a body_metrics row in the app, and
+  // Dashboard.jsx:1056 consumes ?logWeight=1 to open it.
+  // InsightsTab's empty-state CTA had the identical defect and was fixed
+  // there (see the comment at its `weighIns.length < 2` branch); this is the
+  // same wrong destination, in the other file that names one.
+  [ACTION_TYPES.BODY_METRIC_LOGGED]: '/dashboard?logWeight=1',
   [ACTION_TYPES.CREW_MESSAGE]:       '/hub?tab=crews',
   [ACTION_TYPES.CREW_FUEL_SENT]:     '/hub?tab=crews',
 };

@@ -6,17 +6,20 @@
 // → fill multi-field form → save. Four navigations for what should be
 // a number + save.
 //
-// This modal cuts that to two taps: open + save. Internally it writes
-// the same row BodyMetricsTab would (db.entities.BodyMetric.create
-// with date + weight_lbs) so the data shape stays consistent and the
-// entry appears in the user's body-metrics history alongside fuller
-// entries.
+// This modal cuts that to two taps: open + save.
 //
-// It ALSO mirrors what BodyMetricsTab does on save: update
-// user_profiles.weight_lbs so the global weight (used by XP
-// formulas, leaderboards, and reveal-step display) stays current.
-// Without this dual write, logging weight here would never propagate
-// to the rest of the app.
+// It is now the ONLY client-side writer of a body_metrics row. The Body
+// tab's measurement form was removed per product direction (see the header
+// of BodyMetricsTab.jsx) and onboarding's weight seed writes once, at
+// signup — so the sentences above describe a flow that no longer exists,
+// and are kept only because they explain why this modal is shaped the way
+// it is. Anything that needs a body_metrics row comes through here.
+//
+// It writes TWO places on save: a body_metrics row (the history the
+// Progress → Insights projection reads) and user_profiles.weight_lbs (the
+// global weight used by XP formulas, leaderboards, and the reveal step).
+// Without that second write, logging weight here would never propagate to
+// the rest of the app. See the mutation for why the order is what it is.
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -32,9 +35,19 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import * as quests from '@/lib/data/quests';
 import { ACTION_TYPES } from '@/lib/questCatalog';
-import { toLbs, formatWeightNumber } from '@/lib/weightUnit';
+import { toLbs, fromLbs, formatWeightNumber } from '@/lib/weightUnit';
 import UnitPill from '@/components/UnitPill';
 import { reportError } from '@/lib/reportError';
+
+// The realistic-range guard, in the stored unit. Named because the JS check
+// in the mutation and the native `max` on the input have to be the same
+// number — they were restated separately per unit and drifted apart for
+// `stone`. Anything reading these must convert with fromLbs/toLbs.
+const MIN_LBS = 70;
+const MAX_LBS = 700;
+// A neutral example weight for the placeholder, shown in the user's unit
+// (154 lb = 70.0 kg = 11.0 stone).
+const PLACEHOLDER_LBS = 154;
 
 export default function LogWeightModal({ open, onOpenChange, profile }) {
   const { t, tFallback } = useLanguage();
@@ -74,11 +87,12 @@ export default function LogWeightModal({ open, onOpenChange, profile }) {
       const parsed = parseFloat(value);
       if (!isFinite(parsed)) throw new Error('invalid_number');
       const lbs = toLbs(parsed, weightUnit);
-      // Realistic-range guard — matches the inline-edit guard in
-      // BodyMetricsTab (which was tightened from 50 to 70 in wave 22
-      // because a toddler-sized weight isn't a meaningful profile
-      // value for an adult fitness app). Keep both paths in sync.
-      if (lbs < 70 || lbs > 700) throw new Error('out_of_range');
+      // Realistic-range guard. This used to say it matched "the inline-edit
+      // guard in BodyMetricsTab" and to tell the next reader to keep both
+      // paths in sync — but that guard went away with the tab's measurement
+      // logging, so there is no second path left to sync with. This modal is
+      // the only client-side writer of a body_metrics row.
+      if (lbs < MIN_LBS || lbs > MAX_LBS) throw new Error('out_of_range');
 
       // Two writes: a BodyMetric row AND a mirror onto user_profiles.
       // Previously these ran SEQUENTIALLY with no compensation — if the
@@ -158,14 +172,23 @@ export default function LogWeightModal({ open, onOpenChange, profile }) {
               inputMode="decimal"
               step="0.1"
               min="0"
-              // Mirror the server-side guard (70-700 lbs / 32-318 kg) on
-              // the HTML5 input so iOS users see native validation
-              // before submitting, and the input loses focus instead of
-              // accepting a 4-digit junk value and showing a toast.
-              max={weightUnit === 'kg' ? '318' : '700'}
+              // Mirror the JS guard (70–700 lbs) on the HTML5 input so iOS
+              // users see native validation before submitting, and the input
+              // loses focus instead of accepting a 4-digit junk value and
+              // showing a toast.
+              //
+              // Both of these used to branch on kg alone, so `stone` — the
+              // third member of VALID in WeightUnitContext, selectable in
+              // Settings — fell to the lbs arm: a 700 max (49,000 lb once
+              // converted) and a placeholder suggesting 154 stone. Every
+              // value the native control accepted above 50 was then rejected
+              // by the JS guard as "looks off", which is the browser and the
+              // app disagreeing about the same field. Derive both from the
+              // guard instead of restating it per unit.
+              max={String(Math.floor(fromLbs(MAX_LBS, weightUnit)))}
               value={value}
               onChange={e => setValue(e.target.value)}
-              placeholder={weightUnit === 'kg' ? '70.0' : '154.0'}
+              placeholder={fromLbs(PLACEHOLDER_LBS, weightUnit).toFixed(1)}
               className="text-lg font-semibold h-12"
             />
           </div>

@@ -63,6 +63,16 @@ describe('QUEST_CATALOG', () => {
     });
   });
 
+  // Having a route is not the same as having a route you can ACT on, and
+  // that gap is invisible to the check above. `log_body_metric` pointed at
+  // /progress?tab=body on the reasoning that the measurement form lived
+  // there; body-measurement logging was removed from that tab per product
+  // direction, so the quest sent people to a heat map and stayed at 0/1.
+  // LogWeightModal on Dashboard is the only writer of a body_metrics row.
+  it('sends the body-metric quest to the surface that can actually log one', () => {
+    expect(questDestinationRoute('log_body_metric')).toBe('/dashboard?logWeight=1');
+  });
+
   it('has at least one enabled quest of each difficulty', () => {
     const enabled = Object.values(QUEST_CATALOG).filter(q => q.enabled);
     TIERS.forEach(diff => {
