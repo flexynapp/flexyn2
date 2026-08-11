@@ -91,12 +91,24 @@ describe('listEarnedForShare', () => {
   });
 
   it('drops an id the catalog cannot resolve rather than posting a blank badge', async () => {
+    // `xp_250` used to be the example here, back when it was the retired
+    // table's one orphan row with no client definition. Migration 341
+    // made it a real, resolvable XP milestone — so this now needs an id
+    // that genuinely resolves to nothing, and the milestone gets its own
+    // assertion below.
     rows([
-      { trophy_id: 'xp_250', earned_at: '2026-05-01T10:00:00Z' },   // the legacy row
+      { trophy_id: 'totally_not_a_badge', earned_at: '2026-05-01T10:00:00Z' },
       { trophy_id: 'first_rep', earned_at: '2026-08-07T10:00:00Z' },
     ]);
     const out = await listEarnedForShare('u1');
     expect(out.map(a => a.achievement_id)).toEqual(['first_rep']);
+  });
+
+  it('resolves an XP milestone, which has no ladder but is still shareable', async () => {
+    rows([{ trophy_id: 'xp_250', earned_at: '2026-05-01T10:00:00Z' }]);
+    const out = await listEarnedForShare('u1');
+    expect(out).toHaveLength(1);
+    expect(out[0].name).toBe('First Steps');
   });
 
   it('carries a null date through rather than inventing one', async () => {

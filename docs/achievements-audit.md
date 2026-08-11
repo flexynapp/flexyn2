@@ -444,10 +444,50 @@ no-machine-translation rule.
   proven by unit test and schema, not by posting a real badge to Hub.
 - Did not audit `ProfileTrophies` / `ProfileBadgeShowcase`, which consume
   the same catalog on the profile surface.
-- Did not touch `achievementDefinitions.js` or the retired
-  `public.achievements` table. Both are now down to one real consumer
-  (`CrewStatsPanel`) and are a sensible deletion candidate — but that is a
-  removal, not a fix.
+- ~~Did not touch `achievementDefinitions.js` or the retired
+  `public.achievements` table.~~ **Both retired, 2026-08-11.** That
+  original note was too loose and is worth correcting: it said they were
+  "down to one real consumer (`CrewStatsPanel`)", which was true of the
+  JS module and **false of the table**. The table had three live
+  consumers, two of them server-side and economy-touching — see the
+  section below.
+
+## Retiring the legacy table (2026-08-11)
+
+Removing `public.achievements` surfaced two defects that the audit's own
+"dead table" framing had hidden, because a table with one row does not
+throw — it answers zero.
+
+- **The capsule milestone ladder has never granted anything.**
+  `grant_achievement_milestones` clamps the client-supplied count with
+  `LEAST(p_unlocked_count, count(*) FROM achievements WHERE created_by =
+  <email>)`. That count is 0 for everybody, so `v_safe_count` was 0 and no
+  rung ever fired. Measured: **0 users have ever had
+  `milestone_capsules_awarded > 0`**, while **2 users already hold 5+ real
+  trophies** and are owed the first rung. The clamp is a real anti-cheat
+  guard, so migration 341 repoints it at `user_trophies` rather than
+  removing it. No backfill — the ladder is idempotent, so those two
+  collect on the next XP grant through the normal path.
+- **The five xp_* milestones had no client definition at all.**
+  `grant_xp_milestone_achievements` wrote `xp_250` … `xp_25000` into the
+  retired table, each with a bonus XP payout. Nothing in the client could
+  resolve those ids, so crossing 250 XP awarded a badge that rendered as
+  nothing. They now write `user_trophies` and resolve through
+  `getTrophy`.
+
+They are deliberately **not** in `TROPHIES`, on the same reasoning as
+league-season trophies and generated tails: that array is diffed
+one-for-one against `grant_eligible_trophies`' named list, and a
+*different* function grants these. Putting them in the catalog would break
+the 120/120 sync check and inflate the collection denominator with rungs
+no ladder offers.
+
+Also fixed on the way out: `getCrewFirstAchievers` (the crew "First to
+Achieve" panel) read the retired table, so it was empty for every crew. An
+earlier pass had corrected the column names there and left the source
+table behind — empty for one reason, then empty for another. It now reads
+`user_trophies` in a single query for the whole crew instead of one per
+member.
 
 ## Tests added
 
@@ -458,9 +498,11 @@ no-machine-translation rule.
 | `src/lib/data/__tests__/trophiesShare.test.js` | 9, new |
 | `src/lib/data/__tests__/shareAchievement.test.js` | 7, new |
 | `src/components/hub/__tests__/postActivityDates.test.jsx` | 4, new — both date blocks + a no-date-fns guard |
+| `src/lib/data/__tests__/crewFirstAchievers.test.js` | 8, new — table source, single query, earliest-wins |
+| `src/lib/__tests__/trophyLadders.test.js` (XP milestones) | +7 |
 
 **All are regression tests.** None pins current buggy behaviour, so there
 are no characterization tests to invert here.
 
-Suite: **4370 → 4420 passing** across 317 files (+50). Lint clean, build
-clean.
+Suite: **4370 → 4434 passing** across 318 files (+64). Lint clean, build
+clean. Migration **341** retires the table.

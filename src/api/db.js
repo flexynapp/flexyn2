@@ -20,7 +20,11 @@ const TABLE = {
   Regimen:          'regimens',
   NutritionLog:     'nutrition_logs',
   BodyMetric:       'body_metrics',
-  Achievement:      'achievements',
+  // `Achievement` is gone — migration 341 dropped `public.achievements`.
+  // Earned badges live in `user_trophies`, read through
+  // `src/lib/data/trophies.js`. Don't re-add an entity here for it: that
+  // table has no client INSERT policy on purpose (mig 189), so the
+  // generic entity factory's create/update would only ever 42501.
   ExerciseForm:     'exercise_forms',
   WorkoutTemplate:  'workout_templates',
   FoodItem:         'food_items',

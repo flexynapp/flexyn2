@@ -400,6 +400,7 @@ dead endpoint. See
 | 338 | `338_backfill_orphaned_uploads.sql` | Enqueue the upload blobs that nothing references and nothing ever queued. | — |
 | 339 | `339_pgnet_timeouts_for_remaining_callers.sql` | The other three pg_net callers still record timeouts for work that succeeds. | — |
 | 340 | `340_drop_planned_cardio.sql` | Retire the second scheduler — cardio plans move onto `scheduled_workouts`. | — |
+| 341 | `341_retire_achievements_table.sql` | Retire `public.achievements`; XP milestones + the capsule clamp move onto `user_trophies`. | — |
 
 ---
 

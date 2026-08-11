@@ -301,7 +301,12 @@ export default function AchievementsTab({ trophies = [], progress = {}, user = n
   }, [trophies]);
 
   const namedTotal = TROPHIES.length;
-  const namedEarned = earnedRows.filter((x) => !x.trophy.isTail && !x.trophy.season).length;
+  // Tails, league seasons and XP milestones all sit outside TROPHIES, so
+  // none of them may count against a denominator drawn from it — a
+  // numerator that can exceed its denominator reads as a broken counter.
+  const namedEarned = earnedRows.filter(
+    (x) => !x.trophy.isTail && !x.trophy.season && !x.trophy.isXpMilestone,
+  ).length;
   const pct = namedTotal > 0 ? Math.round((namedEarned / namedTotal) * 100) : 0;
   const extra = earnedRows.length - namedEarned;
 

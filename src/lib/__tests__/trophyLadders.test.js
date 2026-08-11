@@ -22,6 +22,8 @@ import {
   rungProgress,
   rungSignal,
   toRoman,
+  TROPHY_BY_ID,
+  XP_MILESTONE_IDS,
 } from '@/lib/trophyDefinitions';
 
 describe('catalog integrity', () => {
@@ -399,5 +401,63 @@ describe('per-rung signals', () => {
     // A caller passing progress must not change any other ladder.
     expect(nextRung('sessions', 12, { workouts: 999 }).id).toBe('committed');
     expect(nextRung('sessions', 12).id).toBe('committed');
+  });
+});
+
+// ── XP milestones (migration 341) ─────────────────────────────────────
+//
+// Five badges granted at total-XP thresholds by
+// `grant_xp_milestone_achievements()`, each carrying a bonus XP payout.
+// They previously lived in the retired `public.achievements` table with
+// NO client definition at all, so crossing 250 XP awarded a badge that
+// rendered as nothing.
+//
+// The property that matters most here is that they stay OUT of TROPHIES:
+// that array is diffed one-for-one against `grant_eligible_trophies`'
+// named list, and a different function grants these.
+describe('XP milestones', () => {
+  it('resolves each milestone id to a rendered trophy', () => {
+    for (const id of XP_MILESTONE_IDS) {
+      const t = getTrophy(id);
+      expect(t, id).toBeTruthy();
+      expect(t.name, id).toBeTruthy();
+      expect(t.emoji, id).toBeTruthy();
+      expect(t.isXpMilestone, id).toBe(true);
+    }
+  });
+
+  it('stays OUT of the static catalog, like tails and season trophies', () => {
+    // TROPHIES.length is the "12 / 120" denominator AND the thing diffed
+    // against the server's named grant list. Adding these to it would
+    // break both at once.
+    for (const id of XP_MILESTONE_IDS) {
+      expect(TROPHIES.some(t => t.id === id), id).toBe(false);
+    }
+  });
+
+  it('carries the thresholds the migration grants on, in ascending order', () => {
+    const thresholds = XP_MILESTONE_IDS.map(id => getTrophy(id).threshold);
+    expect(thresholds).toEqual([250, 1000, 5000, 10000, 25000]);
+  });
+
+  it('carries the bonus XP the migration pays out', () => {
+    expect(XP_MILESTONE_IDS.map(id => getTrophy(id).xp)).toEqual([10, 25, 50, 100, 200]);
+  });
+
+  it('never steps down in tier as the threshold rises', () => {
+    const orders = XP_MILESTONE_IDS.map(id => TROPHY_TIERS[getTrophy(id).tier].order);
+    expect(orders).toEqual([...orders].sort((a, b) => a - b));
+  });
+
+  it('does not collide with a catalog, tail or season id', () => {
+    for (const id of XP_MILESTONE_IDS) {
+      expect(parseLadderTail(id), id).toBeNull();
+      expect(TROPHY_BY_ID[id], id).toBeUndefined();
+    }
+  });
+
+  it('leaves a non-milestone xp-ish id unresolved rather than inventing one', () => {
+    expect(getTrophy('xp_9999')).toBeNull();
+    expect(getTrophy('xp_')).toBeNull();
   });
 });

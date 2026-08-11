@@ -489,8 +489,56 @@ export function parseLadderTail(id) {
   };
 }
 
+// ── XP milestones ─────────────────────────────────────────────────────
+//
+// Five badges granted at total-XP thresholds, each carrying a bonus XP
+// payout. They are granted by `grant_xp_milestone_achievements()`
+// (migration 341), NOT by `grant_eligible_trophies()` — the trophy engine
+// awards no XP, so routing these through it would hand out the badge and
+// silently drop the bonus.
+//
+// They live OUT of `TROPHIES` for the same two reasons league season
+// trophies do, and the second one is the load-bearing one:
+//
+//   1. `TROPHIES.length` is the "12 / 120" denominator. Milestones nobody
+//      can work toward on a ladder would make the collection read as
+//      permanently unfinished.
+//   2. `TROPHIES` is diffed against `grant_eligible_trophies`' named
+//      VALUES list, which must stay exact in both directions — a
+//      server-granted id missing from the client is silently dropped from
+//      the Earned tab. These are granted by a different function, so
+//      adding them to the catalog would break that check for no reason.
+//
+// They still resolve through `getTrophy`, so the Earned tab, the crew
+// "First to Achieve" row and a shared Hub post all render them by name.
+// Before migration 341 they lived in the retired `public.achievements`
+// table and had no client definition at all, so they rendered as nothing.
+const XP_MILESTONES = {
+  xp_250:   { threshold: 250,   xp: 10,  tier: 'bronze',    emoji: '🔰', name: 'First Steps',     description: 'Earned your first 250 XP.' },
+  xp_1000:  { threshold: 1000,  xp: 25,  tier: 'silver',    emoji: '📶', name: 'Getting Serious', description: 'Earned 1,000 XP total.' },
+  xp_5000:  { threshold: 5000,  xp: 50,  tier: 'gold',      emoji: '🏵️', name: 'Dedicated',       description: 'Earned 5,000 XP total.' },
+  xp_10000: { threshold: 10000, xp: 100, tier: 'platinum',  emoji: '🎗️', name: 'Elite Athlete',   description: 'Earned 10,000 XP total.' },
+  xp_25000: { threshold: 25000, xp: 200, tier: 'legendary', emoji: '👑', name: 'Legend',          description: 'Earned 25,000 XP total.' },
+};
+
+/** Parsed XP-milestone trophy, or null if `id` isn't one. */
+export function parseXpMilestone(id) {
+  const m = XP_MILESTONES[id];
+  if (!m) return null;
+  return { id, category: 'level', isXpMilestone: true, ...m };
+}
+
+/** The five milestone ids, ascending. Exported so the suite can diff
+ *  them against the migration's thresholds rather than retyping them. */
+export const XP_MILESTONE_IDS = Object.keys(XP_MILESTONES)
+  .sort((a, b) => XP_MILESTONES[a].threshold - XP_MILESTONES[b].threshold);
+
 export function getTrophy(id) {
-  return TROPHY_BY_ID[id] || parseSeasonTrophy(id) || parseLadderTail(id) || null;
+  return TROPHY_BY_ID[id]
+    || parseSeasonTrophy(id)
+    || parseLadderTail(id)
+    || parseXpMilestone(id)
+    || null;
 }
 
 // ── "What's next" ─────────────────────────────────────────────────
