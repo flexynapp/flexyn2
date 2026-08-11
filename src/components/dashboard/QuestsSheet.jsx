@@ -13,17 +13,17 @@
 //
 // Lazy-loaded from DailyQuestsCard per the lazy-loading rule in CLAUDE.md.
 
-import React, { useEffect } from 'react';
+import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { X, Flame, Coins, Zap, Users, ChevronRight } from 'lucide-react';
+import { Flame, Coins, Zap, Users, ChevronRight } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
-import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import ReadinessRing from '@/components/dashboard/ReadinessRing';
 import { QuestTile, QuestRewardLine } from '@/components/dashboard/questVisuals';
 import { PERFECT_DAY_BONUS } from '@/lib/questCatalog';
 import * as quests from '@/lib/data/quests';
+import SheetShell from '@/components/sheets/SheetShell';
 
 // The tier chip beside a quest title. Crew is the odd one out and says so —
 // it is the only tier whose reward leaves the individual, which is the whole
@@ -37,17 +37,9 @@ const TIER_STYLE = {
 
 export default function QuestsSheet({ open, onClose, quests: rows = [], onClaim, onGo }) {
   // Pin the page behind this overlay — see @/lib/scrollLock.
-  useBodyScrollLock(open);
   const { t, tFallback } = useLanguage();
   const { user } = useAuth();
 
-  // Escape closes, matching every other dismissible surface in the app.
-  useEffect(() => {
-    if (!open) return undefined;
-    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
 
   // Streak + lifetime counters. `enabled: open` so the RPC never fires for a
   // sheet nobody opened — this component is lazy, but React.lazy only defers
@@ -91,43 +83,7 @@ export default function QuestsSheet({ open, onClose, quests: rows = [], onClaim,
   // an exit animation would never get to run. Entry animates, exit is
   // instant — same as every other dismissible surface on the page today.
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center" role="dialog" aria-modal="true">
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.2 }}
-        className="absolute inset-0 bg-black/55"
-        onClick={onClose}
-      />
-      <motion.div
-        initial={{ y: '100%' }}
-        animate={{ y: 0 }}
-        transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
-        className="relative z-10 w-full max-w-md max-h-[88vh] overflow-y-auto rounded-t-2xl bg-card border-t border-border pb-[max(1rem,env(safe-area-inset-bottom))]"
-      >
-        {/* Grab handle — the sheet is swipe-dismissible on iOS by habit,
-            and the handle is what tells the user that before they try. */}
-        <div className="sticky top-0 z-10 bg-card pt-2.5 pb-1 flex justify-center">
-          <span className="w-10 h-1 rounded-full bg-foreground/20" aria-hidden="true" />
-        </div>
-
-        <div className="px-4 md:px-6 pb-4">
-          <div className="flex items-start justify-between gap-3">
-            <p className="text-micro font-semibold tracking-[0.04em] text-primary">
-              {tFallback('quests.kicker', 'DAILY QUESTS · TODAY')}
-            </p>
-            {/* Resting fill rather than one that only appears on hover —
-                there is no hover on the phones this ships to, so the
-                control would be invisible until tapped. */}
-            <button
-              type="button"
-              onClick={onClose}
-              aria-label={tFallback('common.close', 'Close')}
-              className="shrink-0 w-8 h-8 -me-1 rounded-full flex items-center justify-center bg-foreground/[0.08] text-muted-foreground hover:bg-foreground/[0.14] active:bg-foreground/[0.14] transition-colors"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
+    <SheetShell open={open} onClose={onClose} kicker={tFallback('quests.kicker', 'DAILY QUESTS · TODAY')} labelledBy="quests-sheet-title">
 
           {/* ── the dial ────────────────────────────────────────────────
               Same component the Readiness sheet leads with, wound by
@@ -283,9 +239,7 @@ export default function QuestsSheet({ open, onClose, quests: rows = [], onClaim,
           >
             {tFallback('common.done', 'Done')}
           </button>
-        </div>
-      </motion.div>
-    </div>
+    </SheetShell>
   );
 }
 

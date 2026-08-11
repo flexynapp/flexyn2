@@ -18,17 +18,16 @@
 // dashboard chunk — they load with the sheet on first open.
 
 import React, { useEffect, useRef } from 'react';
-import { motion } from 'framer-motion';
-import { Moon, Smile, Dumbbell, X } from 'lucide-react';
+import { Moon, Smile, Dumbbell } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import ReadinessRing, { readinessColors } from '@/components/dashboard/ReadinessRing';
 import SleepLogCard from '@/components/dashboard/SleepLogCard';
 import MoodLogCard from '@/components/dashboard/MoodLogCard';
 import StepsLogCard from '@/components/dashboard/StepsLogCard';
-import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { MOOD_LABELS } from '@/lib/data/moodLogs';
 import { requestCommitDailyLogs } from '@/lib/dailyLogCommit';
+import SheetShell from '@/components/sheets/SheetShell';
 
 // The mood scale is MOOD_LABELS in moodLogs.js — Awful / Meh / Okay / Good
 // / On fire — and this file had its own: Drained / Low / OK / Good / Great.
@@ -39,19 +38,11 @@ import { requestCommitDailyLogs } from '@/lib/dailyLogCommit';
 
 export default function ReadinessSheet({ open, onClose, readiness, focus, onLogWorkout }) {
   // Pin the page behind this overlay — see @/lib/scrollLock.
-  useBodyScrollLock(open);
   const { tFallback } = useLanguage();
   const sleepRef = useRef(null);
   const moodRef = useRef(null);
   const stepsRef = useRef(null);
 
-  // Escape closes, matching every other dismissible surface in the app.
-  useEffect(() => {
-    if (!open) return undefined;
-    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
 
   // Tapping a Tonight column opens the sheet already looking at that
   // signal. Deferred a tick so the sheet has laid out before we scroll.
@@ -118,45 +109,7 @@ export default function ReadinessSheet({ open, onClose, readiness, focus, onLogW
   // exit animation would never get to run. Entry animates, exit is instant —
   // same as every other dismissible surface on the page today.
   return (
-      <div className="fixed inset-0 z-50 flex items-end justify-center" role="dialog" aria-modal="true">
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.2 }}
-          className="absolute inset-0 bg-black/55"
-          onClick={onClose}
-        />
-        <motion.div
-          initial={{ y: '100%' }}
-          animate={{ y: 0 }}
-          exit={{ y: '100%' }}
-          transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
-          className="relative z-10 w-full max-w-md max-h-[88vh] overflow-y-auto rounded-t-2xl bg-card border-t border-border pb-[max(1rem,env(safe-area-inset-bottom))]"
-        >
-          {/* Grab handle — the sheet is swipe-dismissible on iOS by habit,
-              and the handle is what tells the user that before they try. */}
-          <div className="sticky top-0 z-10 bg-card pt-2.5 pb-1 flex justify-center">
-            <span className="w-10 h-1 rounded-full bg-foreground/20" aria-hidden="true" />
-          </div>
-
-          <div className="px-4 md:px-6 pb-4">
-            <div className="flex items-start justify-between gap-3">
-              <p className="text-micro font-semibold tracking-[0.04em] text-primary">
-                {tFallback('readiness.kicker', 'READINESS · TODAY')}
-              </p>
-              {/* Board 02 gives the close a resting fill rather than one that
-                  only appears on hover — there is no hover on the phones this
-                  ships to, so the control was invisible until tapped. */}
-              <button
-                type="button"
-                onClick={onClose}
-                aria-label={tFallback('common.close', 'Close')}
-                className="shrink-0 w-8 h-8 -me-1 rounded-full flex items-center justify-center bg-foreground/[0.08] text-muted-foreground hover:bg-foreground/[0.14] active:bg-foreground/[0.14] transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
+    <SheetShell open={open} onClose={onClose} kicker={tFallback('readiness.kicker', 'READINESS · TODAY')} labelledBy="readiness-sheet-title">
 
             {/* The dial, repeated from the card you tapped to get here — board
                 02 leads with it so the sheet confirms what you opened rather
@@ -301,8 +254,6 @@ export default function ReadinessSheet({ open, onClose, readiness, focus, onLogW
             >
               {tFallback('readiness.saveClose', 'Save & close')}
             </button>
-          </div>
-        </motion.div>
-      </div>
+    </SheetShell>
   );
 }

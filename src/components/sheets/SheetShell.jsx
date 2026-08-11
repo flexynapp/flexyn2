@@ -7,10 +7,17 @@
 // appear as the Daily Quests and Readiness menus"), and writing the same
 // twenty lines a third and fourth time in one commit is not defensible.
 //
-// QuestsSheet and ReadinessSheet are deliberately NOT migrated here. They
-// were being edited by other sessions when this landed, and a shared shell
-// is worth having whether or not they move onto it. **If you touch either
-// of them, move them over** — the markup below is theirs, copied.
+// All four sheets are on it as of 2026-08-10: QuestsSheet and ReadinessSheet
+// were migrated once the sessions editing them had landed. The markup below
+// is originally theirs. **A fifth sheet uses this rather than copying it**,
+// and sheetShell.test.jsx fails if any of the four re-inlines an overlay —
+// the extraction only pays off while it stays extracted.
+//
+// Migrating them found one thing worth recording: ReadinessSheet carried
+// `exit` props on its backdrop and panel that could never fire. Its own
+// comment said so ("No AnimatePresence: Dashboard unmounts this component on
+// close"), and its caller confirms it — `{open && <ReadinessSheet …/>}`. The
+// comment was right and the code had drifted past it.
 //
 // What the shell owns, and why each piece is load-bearing:
 //
