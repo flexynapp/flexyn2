@@ -1,9 +1,30 @@
 // src/components/cardio/CardioPlanned.jsx
 //
-// Planned cardio sessions — future-dated workouts the user has scheduled.
-// "I plan to run 5k on Thursday." Shows upcoming + past planned sessions.
-// Users can add plans, mark them complete (links to an actual cardio log),
-// or delete them.
+// Planned cardio sessions — "I plan to run 5k on Thursday at 7am."
+//
+// Backed by `scheduled_workouts` (migration 276), the SAME table and RPC
+// behind "Schedule it" on the AI Coach plan card. It used to have its own
+// `planned_cardio` table, and the two schedulers were not equivalent:
+//
+//   planned_cardio        a date, and nothing else. No cron, no push, no
+//                         deep link. `completed_cardio_id` was read to
+//                         show "Completed" vs "Not logged" and written by
+//                         nothing, so a past plan could only ever say
+//                         "Not logged" — including one you did. 0 rows in
+//                         production, ever.
+//   scheduled_workouts    resolves the user's LOCAL hour against their
+//                         timezone offset, fires an hourly cron, inserts
+//                         a notification that pushes, and deep-links
+//                         /workout?scheduled=<id> straight into the
+//                         session. Real status lifecycle.
+//
+// So this screen now writes the one that works. That is why the form
+// gained an HOUR: a plan with no time cannot be reminded about, which is
+// most of what a plan is for.
+//
+// The row's `workout` JSONB carries { kind: 'cardio', mode, env, … } —
+// see buildCardioPayload. `kind` is absent on lifting rows, so nothing
+// written before this change reads differently.
 
 import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -20,9 +41,12 @@ import { format, parseISO, isPast, isToday } from 'date-fns';
 import { toast } from '@/lib/toast';
 import { useAuth } from '@/lib/AuthContext';
 import { useDistanceUnit } from '@/lib/DistanceUnitContext';
-import { formatDistance } from '@/lib/distanceUnit';
-import { supabase } from '@/api/supabaseClient';
+import { formatDistance, toMeters } from '@/lib/distanceUnit';
 import { reportError } from '@/lib/reportError';
+import {
+  scheduleWorkout, listCardioSchedules, cancelScheduledWorkout,
+  buildCardioPayload, HOUR_SLOTS, formatHour, slotIsPast, localDateKey,
+} from '@/lib/data/scheduledWorkouts';
 
 const TYPE_OPTIONS = [
   { value: 'running_outside',  label: 'Run (outdoor)', Icon: Footprints,      color: 'text-orange-500' },
@@ -32,6 +56,27 @@ const TYPE_OPTIONS = [
   { value: 'biking_stationary',label: 'Bike (stationary)',Icon: Bike,          color: 'text-blue-500' },
   { value: 'swimming_pool',    label: 'Swim',            Icon: Waves,          color: 'text-cyan-500' },
 ];
+
+// A schedule's `<mode>_<env>` string, reassembled from the payload. Kept as
+// a function rather than stored a second time on the row: mode and env are
+// what the deep link routes on, and a denormalised `type` beside them is one
+// more thing that can disagree with itself.
+function planType(plan) {
+  const w = plan?.workout || {};
+  return w.mode && w.env ? `${w.mode}_${w.env}` : '';
+}
+
+// A past plan's outcome, in the user's words. `missed` is what the cron
+// writes 12 hours after a slot goes by unstarted — the honest version of the
+// old "Not logged", which was the ONLY thing a past plan could ever say
+// because nothing wrote the column it read.
+const STATUS_LABEL = {
+  completed: 'Completed',
+  cancelled: 'Cancelled',
+  missed:    'Missed',
+  notified:  'Reminded',
+  pending:   'Scheduled',
+};
 
 function typeInfo(type) {
   return TYPE_OPTIONS.find(o => o.value === type) || {
@@ -45,12 +90,16 @@ function PlanForm({ onSave, onCancel, distanceUnit }) {
   const { tFallback } = useLanguage();
   const [title, setTitle] = useState('');
   const [type, setType] = useState('running_outside');
-  const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [date, setDate] = useState(localDateKey());
+  const [hour, setHour] = useState(HOUR_SLOTS[0].hour);
   const [distance, setDistance] = useState('');
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const today = format(new Date(), 'yyyy-MM-dd');
+  // localDateKey(), not format(new Date()) via toISOString anywhere: the
+  // schedule is a LOCAL date and a UTC one is yesterday for anyone west of
+  // Greenwich after their evening.
+  const today = localDateKey();
 
   const handleSave = async () => {
     if (!title.trim()) { toast.error('Give this plan a title'); return; }
@@ -62,24 +111,28 @@ function PlanForm({ onSave, onCancel, distanceUnit }) {
       toast.error("That date is in the past. Pick today or later.");
       return;
     }
-    // Defensive parse — a non-numeric string (e.g. paste from
-    // clipboard, autocomplete) used to produce NaN * 1609.344 = NaN
-    // which got persisted to distance_meters and broke downstream
-    // display + filtering. Coerce, validate, then convert.
+    // A slot that has already gone by today is not a plan — the cron would
+    // either fire it immediately or sweep it straight to 'missed'. This
+    // check did not exist while a plan carried no time at all.
+    if (slotIsPast(date, hour)) {
+      toast.error('That time has already passed today. Pick a later one.');
+      return;
+    }
+    // Defensive parse — a non-numeric string (e.g. paste from clipboard,
+    // autocomplete) used to produce NaN * 1609.344 = NaN, which got
+    // persisted and broke downstream display + filtering.
     let distanceMeters = null;
     if (distance !== '' && distance != null) {
       const n = Number(distance);
-      if (Number.isFinite(n) && n > 0) {
-        distanceMeters = n * (distanceUnit === 'mi' ? 1609.344 : 1000);
-      }
+      if (Number.isFinite(n) && n > 0) distanceMeters = toMeters(distanceUnit, n);
     }
+    const [mode, env] = String(type).split('_');
     setSaving(true);
     await onSave({
       title: title.trim(),
-      type,
-      planned_date: date,
-      distance_meters: distanceMeters,
-      notes: notes || null,
+      date,
+      hour,
+      workout: buildCardioPayload({ mode, env, distanceMeters, notes }),
     });
     setSaving(false);
   };
@@ -129,6 +182,35 @@ function PlanForm({ onSave, onCancel, distanceUnit }) {
           />
         </div>
 
+        {/* Time — the four slots the Coach card offers, not a clock. The
+            point is to commit to a slot, not to a minute, and a plan with
+            no time is a plan nothing can remind you about. */}
+        <div>
+          <label className="text-xs font-medium text-muted-foreground mb-1 block">Time</label>
+          <div className="flex gap-2">
+            {HOUR_SLOTS.map(slot => {
+              const past = slotIsPast(date, slot.hour);
+              return (
+                <button
+                  key={slot.id}
+                  type="button"
+                  disabled={past}
+                  onClick={() => setHour(slot.hour)}
+                  className={`flex-1 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
+                    hour === slot.hour
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : past
+                        ? 'border-border/40 text-muted-foreground/40'
+                        : 'border-border text-muted-foreground'
+                  }`}
+                >
+                  {tFallback(slot.labelKey, slot.label)}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         {/* Distance (optional) */}
         <div>
           <label className="text-xs font-medium text-muted-foreground mb-1 block">
@@ -169,63 +251,59 @@ function PlanForm({ onSave, onCancel, distanceUnit }) {
 }
 
 export default function CardioPlanned() {
+  const { language } = useLanguage();
   const { user } = useAuth();
   const { distanceUnit } = useDistanceUnit();
   const queryClient = useQueryClient();
   const [adding, setAdding] = useState(false);
   const [deleting, setDeleting] = useState(null);
 
+  // No `.eq('created_by', …)` filter: scheduled_workouts is gated by RLS on
+  // `user_id = auth.uid()`, so the query cannot see anyone else's rows and a
+  // client-side owner filter would be decoration over the real boundary.
   const { data: plans = [], isLoading } = useQuery({
-    queryKey: ['plannedCardio', user?.email],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('planned_cardio')
-        .select('*')
-        .eq('created_by', user.email)
-        .order('planned_date', { ascending: true });
-      if (error) throw error;
-      return data || [];
-    },
+    queryKey: ['cardioSchedules', user?.email],
+    queryFn: () => listCardioSchedules(),
     enabled: !!user?.email,
     staleTime: 60_000,
   });
 
   const handleAdd = async (payload) => {
     try {
-      const { error } = await supabase
-        .from('planned_cardio')
-        .insert({ ...payload, created_by: user.email });
-      if (error) throw error;
-      queryClient.invalidateQueries({ queryKey: ['plannedCardio', user?.email] });
-      toast.success('Plan added!');
+      await scheduleWorkout(payload);
+      queryClient.invalidateQueries({ queryKey: ['cardioSchedules', user?.email] });
+      toast.success('Scheduled — we’ll remind you.');
       setAdding(false);
     } catch (err) {
       reportError(err, { feature: 'cardio.planned.add' });
-      toast.error('Failed to add plan');
+      toast.error('Failed to schedule');
     }
   };
 
+  // Cancel, not delete. Migration 276 keeps cancelled rows deliberately so a
+  // user who cancels and re-schedules cannot silently blow past the RPC's
+  // 100-pending ceiling, and there is no DELETE on the client path here.
   const handleDelete = async (plan) => {
     setDeleting(plan.id);
     try {
-      const { error } = await supabase
-        .from('planned_cardio')
-        .delete()
-        .eq('id', plan.id)
-        .eq('created_by', user.email);
-      if (error) throw error;
-      queryClient.invalidateQueries({ queryKey: ['plannedCardio', user?.email] });
-      toast.success('Plan removed');
+      const ok = await cancelScheduledWorkout(plan.id);
+      if (!ok) throw new Error('cancel failed');
+      queryClient.invalidateQueries({ queryKey: ['cardioSchedules', user?.email] });
+      toast.success('Plan cancelled');
     } catch (err) {
-      reportError(err, { feature: 'cardio.planned.delete' });
-      toast.error('Failed to remove plan');
+      reportError(err, { feature: 'cardio.planned.cancel' });
+      toast.error('Failed to cancel plan');
     } finally {
       setDeleting(null);
     }
   };
 
-  const upcoming = plans.filter(p => !isPast(parseISO(p.planned_date)) || isToday(parseISO(p.planned_date)));
-  const past = plans.filter(p => isPast(parseISO(p.planned_date)) && !isToday(parseISO(p.planned_date)));
+  // Upcoming is what is still live — a cancelled plan is not upcoming even if
+  // its date is tomorrow, and a fired-but-unstarted one still is.
+  const isLive = (p) => p.status === 'pending' || p.status === 'notified';
+  const dayOf = (p) => parseISO(p.scheduled_date);
+  const upcoming = plans.filter(p => isLive(p) && (!isPast(dayOf(p)) || isToday(dayOf(p))));
+  const past = plans.filter(p => !upcoming.includes(p));
 
   if (isLoading) {
     return (
@@ -264,8 +342,8 @@ export default function CardioPlanned() {
         <div className="space-y-2">
           <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground px-1">Upcoming</p>
           {upcoming.map(plan => {
-            const info = typeInfo(plan.type);
-            const planDate = parseISO(plan.planned_date);
+            const info = typeInfo(planType(plan));
+            const planDate = parseISO(plan.scheduled_date);
             const isDue = isToday(planDate);
             return (
               <Card key={plan.id} className={`overflow-hidden ${isDue ? 'border-primary/40 bg-primary/5' : ''}`}>
@@ -285,15 +363,19 @@ export default function CardioPlanned() {
                     <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground">
                       <CalendarDays className="w-3 h-3" />
                       <span>{format(planDate, 'EEE, MMM d')}</span>
-                      {plan.distance_meters && (
+                      <span>·</span>
+                      {/* The time is the whole reason this can remind you,
+                          so it sits beside the date rather than hidden. */}
+                      <span>{formatHour(plan.scheduled_hour, language)}</span>
+                      {plan.workout?.distance_meters && (
                         <>
                           <span>·</span>
-                          <span>{formatDistance(plan.distance_meters, distanceUnit, 2)}</span>
+                          <span>{formatDistance(plan.workout.distance_meters, distanceUnit, 2)}</span>
                         </>
                       )}
                     </div>
-                    {plan.notes && (
-                      <p className="text-xs text-muted-foreground/70 truncate mt-0.5 italic">{plan.notes}</p>
+                    {plan.workout?.notes && (
+                      <p className="text-xs text-muted-foreground/70 truncate mt-0.5 italic">{plan.workout.notes}</p>
                     )}
                   </div>
                   <button
@@ -315,8 +397,8 @@ export default function CardioPlanned() {
         <div className="space-y-2">
           <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground/60 px-1">Past Plans</p>
           {past.map(plan => {
-            const info = typeInfo(plan.type);
-            const isDone = !!plan.completed_cardio_id;
+            const info = typeInfo(planType(plan));
+            const isDone = plan.status === 'completed';
             return (
               <Card key={plan.id} className={`overflow-hidden opacity-70 ${isDone ? 'border-green-500/30' : ''}`}>
                 <div className="flex items-center gap-3 p-3">
@@ -329,8 +411,9 @@ export default function CardioPlanned() {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{plan.title}</p>
                     <p className="text-xs text-muted-foreground">
-                      {format(parseISO(plan.planned_date), 'MMM d')}
-                      {isDone ? ' · Completed' : ' · Not logged'}
+                      {format(parseISO(plan.scheduled_date), 'MMM d')}
+                      {' · '}
+                      {STATUS_LABEL[plan.status] || plan.status}
                     </p>
                   </div>
                   <button

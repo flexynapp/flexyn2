@@ -1,0 +1,126 @@
+/**
+ * Planned Sessions, rendered off `scheduled_workouts`.
+ *
+ * The screen used to read `planned_cardio`, whose columns are gone from
+ * the payload entirely — `planned_date` is now `scheduled_date`, `type` is
+ * assembled from `workout.mode` + `workout.env`, and `completed_cardio_id`
+ * (read forever, written never) is replaced by a real `status`. Every one
+ * of those is a silent blank if it is read off the wrong shape, which is
+ * why this renders rather than asserting on a query.
+ */
+import React from 'react';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { render, screen, cleanup, act, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+const rpc = vi.fn(() => Promise.resolve({ data: 'new-id', error: null }));
+let ROWS = [];
+
+vi.mock('@/lib/LanguageContext', () => ({
+  useLanguage: () => ({ t: (k) => k, tFallback: (_k, e) => e, language: 'en' }),
+}));
+vi.mock('@/lib/AuthContext', () => ({ useAuth: () => ({ user: { email: 'k@x.com' } }) }));
+vi.mock('@/lib/DistanceUnitContext', () => ({ useDistanceUnit: () => ({ distanceUnit: 'mi' }) }));
+vi.mock('@/lib/reportError', () => ({ reportError: vi.fn() }));
+vi.mock('@/lib/intlFormat', () => ({ formatDate: () => '7 AM' }));
+vi.mock('@/api/supabaseClient', () => {
+  const chain = () => {
+    const c = {
+      select: () => c, eq: () => c, in: () => c, gte: () => c, order: () => c,
+      update: () => c,
+      limit: () => Promise.resolve({ data: ROWS, error: null }),
+      then: (res, rej) => Promise.resolve({ data: ROWS, error: null }).then(res, rej),
+    };
+    return c;
+  };
+  return { supabase: { rpc: (...a) => rpc(...a), from: () => chain() } };
+});
+
+import CardioPlanned from '@/components/cardio/CardioPlanned';
+
+const future = () => { const d = new Date(); d.setDate(d.getDate() + 3); return d.toISOString().slice(0, 10); };
+const pastDay = () => { const d = new Date(); d.setDate(d.getDate() - 5); return d.toISOString().slice(0, 10); };
+
+function mount() {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(<QueryClientProvider client={qc}><CardioPlanned /></QueryClientProvider>);
+}
+
+afterEach(() => { cleanup(); rpc.mockClear(); ROWS = []; });
+
+describe('the upcoming list', () => {
+  it('renders a scheduled cardio session with its time and distance', async () => {
+    ROWS = [{
+      id: '1', scheduled_date: future(), scheduled_hour: 7, title: 'Morning 5K',
+      status: 'pending',
+      workout: { kind: 'cardio', mode: 'running', env: 'outside', distance_meters: 5000, notes: 'easy pace' },
+    }];
+    mount();
+    expect(await screen.findByText('Morning 5K')).toBeTruthy();
+    // The time is the thing planned_cardio could not store at all.
+    expect(screen.getByText('7 AM')).toBeTruthy();
+    expect(screen.getByText('3.11 mi')).toBeTruthy();
+    expect(screen.getByText('easy pace')).toBeTruthy();
+  });
+
+  it('does not show a cancelled plan as upcoming even when its date is ahead', async () => {
+    ROWS = [{
+      id: '1', scheduled_date: future(), scheduled_hour: 7, title: 'Cancelled one',
+      status: 'cancelled', workout: { kind: 'cardio', mode: 'running', env: 'outside' },
+    }];
+    mount();
+    await screen.findByText('Cancelled one');
+    expect(screen.queryByText('Upcoming')).toBeNull();
+    expect(screen.getByText('Past Plans')).toBeTruthy();
+  });
+});
+
+describe('the past list reports a real outcome', () => {
+  // The defect this replaces: `completed_cardio_id` was read and never
+  // written, so EVERY past plan said "Not logged" — including one you did.
+  it.each([
+    ['completed', 'Completed'],
+    ['missed',    'Missed'],
+    ['cancelled', 'Cancelled'],
+  ])('shows %s as "%s"', async (status, label) => {
+    ROWS = [{
+      id: '1', scheduled_date: pastDay(), scheduled_hour: 7, title: 'Old plan',
+      status, workout: { kind: 'cardio', mode: 'running', env: 'outside' },
+    }];
+    mount();
+    await screen.findByText('Old plan');
+    expect(screen.getByText(new RegExp(label))).toBeTruthy();
+    expect(screen.queryByText(/Not logged/)).toBeNull();
+  });
+});
+
+describe('creating a plan', () => {
+  it('goes through schedule_workout with a date, an hour and a cardio payload', async () => {
+    ROWS = [];
+    mount();
+    // findBy, not getBy: the component renders a loading skeleton until the
+    // schedules query resolves, so the button is not there on first paint.
+    const addBtn = await screen.findByText('Schedule a Session');
+    act(() => { addBtn.click(); });
+
+    const title = await screen.findByPlaceholderText(/Morning 5k/);
+    act(() => {
+      const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+      setter.call(title, 'Thursday run');
+      title.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    // Night is the one slot that cannot already be past at any hour this
+    // suite might run — a fixed "Morning" would fail every afternoon.
+    act(() => { screen.getByText('Night').click(); });
+    act(() => { screen.getByText('Add Plan').click(); });
+
+    await waitFor(() => expect(rpc).toHaveBeenCalledTimes(1));
+    const [fn, args] = rpc.mock.calls[0];
+    expect(fn).toBe('schedule_workout');
+    expect(args.p_title).toBe('Thursday run');
+    expect(args.p_hour).toBe(20);
+    expect(args.p_workout.kind).toBe('cardio');
+    expect(args.p_workout.mode).toBe('running');
+    expect(args.p_workout.env).toBe('outside');
+  });
+});

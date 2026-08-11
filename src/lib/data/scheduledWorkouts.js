@@ -47,6 +47,76 @@ export async function scheduleWorkout({ date, hour, title, workout }) {
   return data;
 }
 
+// ── Cardio schedules ────────────────────────────────────────────────────────
+//
+// Cardio used to have its OWN scheduler — a `planned_cardio` table behind
+// Cardio → Planned Sessions. It held 0 rows in production and could not
+// notify: no cron, no push, no deep link, and a `completed_cardio_id`
+// column that was read to show "Completed" vs "Not logged" and never
+// written by anything, so a past plan could only ever say "Not logged".
+//
+// `scheduled_workouts.workout` is free-form JSONB and `schedule_workout()`
+// only requires it be a JSON object, so a cardio plan needs no new table,
+// no new RPC and no migration — it rides the machinery that already
+// resolves the user's local hour, fires hourly, pushes a notification and
+// deep-links into the session.
+//
+// The discriminator is `workout.kind`. A lifting session has none (it is a
+// generateWorkout() payload with an `exercises` array), so absent means
+// lifting and every row written before today keeps reading correctly.
+
+export const CARDIO_KIND = 'cardio';
+
+/** True for a schedule that represents a cardio session. */
+export function isCardioSchedule(row) {
+  return row?.workout?.kind === CARDIO_KIND;
+}
+
+/**
+ * The `workout` payload for a scheduled cardio session.
+ *
+ * `mode` and `env` are the same vocabulary CardioSection routes on
+ * (running/walking/biking/swimming × outside/treadmill/stationary/pool/
+ * openwater), so the deep link can drop the user straight into the right
+ * tracker rather than back at the activity picker.
+ */
+export function buildCardioPayload({ mode, env, distanceMeters = null, notes = null }) {
+  return {
+    kind: CARDIO_KIND,
+    mode,
+    env,
+    // Canonical metres, like cardio_logs — never the user's display unit.
+    distance_meters: Number.isFinite(Number(distanceMeters)) && Number(distanceMeters) > 0
+      ? Number(distanceMeters)
+      : null,
+    notes: notes || null,
+  };
+}
+
+/**
+ * Every cardio schedule for the current user, soonest first.
+ *
+ * Unlike listUpcomingWorkouts this does NOT filter by status or date — the
+ * Planned Sessions screen shows past plans too, and their status is the
+ * whole point of that section now that it is a real lifecycle
+ * (pending → notified → completed / cancelled / missed) rather than a
+ * column nothing wrote.
+ *
+ * The kind filter is client-side: `workout` is JSONB and a `->>` filter
+ * through PostgREST would not use an index here anyway, and the per-user
+ * row count is bounded by the RPC's own 100-pending ceiling.
+ */
+export async function listCardioSchedules(limit = 100) {
+  const { data, error } = await supabase
+    .from('scheduled_workouts')
+    .select('id, scheduled_date, scheduled_hour, title, status, workout, completed_at')
+    .order('scheduled_date', { ascending: true })
+    .order('scheduled_hour', { ascending: true })
+    .limit(limit);
+  if (error) return [];
+  return (data ?? []).filter(isCardioSchedule);
+}
+
 /**
  * The user's upcoming and recently-fired schedules, soonest first.
  * 'notified' rows are included because a reminder that fired this morning is

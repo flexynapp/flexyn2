@@ -119,11 +119,30 @@ function dispatchTitle(title) {
   window.dispatchEvent(new CustomEvent('flexyn-title', { detail: { title } }));
 }
 
-export default function CardioSection({ onBack }) {
+export default function CardioSection({ onBack, deepLink = null, onDeepLinkConsumed }) {
   const { t, tFallback } = useLanguage();
   const { user } = useAuth();
   const { distanceUnit } = useDistanceUnit();
   const [view, setView] = useState({ name: 'home' });
+
+  // A scheduled-cardio reminder deep-links to /workout?scheduled=<id>, and
+  // Workout.jsx hands the payload's { mode, env } down here. Jump straight
+  // to the input-type screen for that activity: the user answered "what"
+  // and "where" when they scheduled it, so asking again is asking twice.
+  //
+  // Not `inputType` for swimming — that screen offers Manual and Live, and
+  // swim has no live tracker, so it would be a question with one answer.
+  useEffect(() => {
+    if (!deepLink?.mode || !deepLink?.env) return;
+    setView(
+      deepLink.mode === 'swimming'
+        ? { name: 'manualEntry', mode: deepLink.mode, env: deepLink.env }
+        : { name: 'inputType', mode: deepLink.mode, env: deepLink.env }
+    );
+    // Consume it so backing out to the home view and re-rendering does not
+    // bounce the user forward into the tracker again.
+    onDeepLinkConsumed?.();
+  }, [deepLink, onDeepLinkConsumed]);
 
   // Every view names itself in the header. Keying on `view.mode` alone left
   // the five mode-less utility views — Saved, Templates, Planned, Goals,

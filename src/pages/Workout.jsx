@@ -330,6 +330,11 @@ export default function Workout() {
   const [missingDataWarning, setMissingDataWarning] = useState(null);
   const [incompleteWarnOpen, setIncompleteWarnOpen] = useState(false);
   const [cardioPageTitle, setCardioPageTitle] = useState(null);
+  // Set by the /workout?scheduled=<id> handler when the reminder is for a
+  // cardio session: { mode, env }. CardioSection consumes it as its
+  // opening view, so a reminder lands on the tracker rather than on the
+  // activity picker the user already answered when they scheduled it.
+  const [cardioDeepLink, setCardioDeepLink] = useState(null);
   const [injuryFormOpen, setInjuryFormOpen] = useState(false);
   const [plateCalcOpen, setPlateCalcOpen] = useState(false);
   const [cardioMenuOpen, setCardioMenuOpen] = useState(false);
@@ -1487,10 +1492,23 @@ export default function Workout() {
     let cancelled = false;
     (async () => {
       try {
-        const { getScheduledWorkout } = await import('@/lib/data/scheduledWorkouts');
+        const { getScheduledWorkout, isCardioSchedule } =
+          await import('@/lib/data/scheduledWorkouts');
         const row = await getScheduledWorkout(id);
-        if (cancelled || !row?.workout?.exercises?.length) return;
-        startFromGeneratedWorkout(row.workout);
+        if (cancelled || !row) return;
+        // A cardio schedule carries no `exercises` — its payload is
+        // { kind:'cardio', mode, env }. Before Planned Sessions moved onto
+        // this table that could not happen, so the guard below bailed on
+        // anything without exercises and a cardio reminder would have
+        // opened the Workout page and done nothing at all.
+        if (isCardioSchedule(row)) {
+          setCardioOpen(true);
+          setCardioDeepLink({ mode: row.workout.mode, env: row.workout.env });
+        } else if (row.workout?.exercises?.length) {
+          startFromGeneratedWorkout(row.workout);
+        } else {
+          return;
+        }
         // Strip the param so a refresh doesn't reload the session over
         // whatever the user has since logged into the form.
         window.history.replaceState({}, '', '/workout');
@@ -2382,7 +2400,11 @@ export default function Workout() {
 
         {cardioOpen ? (
           <div className="mb-8">
-            <CardioSection onBack={() => setCardioOpen(false)} />
+            <CardioSection
+              onBack={() => setCardioOpen(false)}
+              deepLink={cardioDeepLink}
+              onDeepLinkConsumed={() => setCardioDeepLink(null)}
+            />
           </div>
         ) : storeOpen ? (
           <RegimenStorePage
