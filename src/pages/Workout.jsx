@@ -2284,6 +2284,26 @@ export default function Workout() {
             title={pageHeaderProps.title}
             hidePeriod
             subtitle={pageHeaderProps.subtitle}
+            // Grid-customize lives on the title's row (kegan, 2026-08-11).
+            // It used to sit alone under the late-night banner on a row of
+            // its own — right-aligned against nothing, which read as a stray
+            // control rather than as this page's edit affordance. PageHeader
+            // centres an action against the title, so it now reads as
+            // belonging to the heading it sits beside.
+            action={(
+              <button
+                type="button"
+                onClick={() => setGridEditing(v => !v)}
+                title="Customize card order"
+                className={`flex items-center justify-center w-6 h-6 rounded-full border transition-colors ${
+                  gridEditing
+                    ? 'bg-primary/15 border-primary/35 text-primary'
+                    : 'bg-muted/35 border-border/35 text-muted-foreground/35 hover:text-muted-foreground active:text-muted-foreground hover:bg-muted/60 active:bg-muted/60 hover:border-border/60'
+                }`}
+              >
+                <LayoutGrid className="w-3 h-3" />
+              </button>
+            )}
           />
         )}
 
@@ -2332,7 +2352,12 @@ export default function Workout() {
         {/* Injury banner — always visible in idle state */}
         <InjuryBanner onOpenForm={() => setInjuryFormOpen(true)} />
 
-        {/* Active duel/bounty pills + customize button, right-aligned — uniform all breakpoints */}
+        {/* Active duel/bounty pills, right-aligned — uniform all breakpoints.
+            Gated on there being a pill to show: the grid-customize button
+            moved to the header, and without the guard this row would keep
+            reserving its 12px margin for nothing on every screen where
+            neither a duel nor a bounty is live, which is most of them. */}
+        {(activeDuel || activeBountyClaim) && (
         <div className="flex items-center justify-end mb-3">
           <div className="flex items-center gap-1.5">
             {activeDuel && (
@@ -2351,21 +2376,9 @@ export default function Workout() {
                 <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse ms-0.5" />
               </button>
             )}
-            {/* Subtle grid-customize button — active state when editing */}
-            <button
-              type="button"
-              onClick={() => setGridEditing(v => !v)}
-              title="Customize card order"
-              className={`flex items-center justify-center w-6 h-6 rounded-full border transition-colors ${
-                gridEditing
-                  ? 'bg-primary/15 border-primary/35 text-primary'
-                  : 'bg-muted/35 border-border/35 text-muted-foreground/35 hover:text-muted-foreground active:text-muted-foreground hover:bg-muted/60 active:bg-muted/60 hover:border-border/60'
-              }`}
-            >
-              <LayoutGrid className="w-3 h-3" />
-            </button>
           </div>
         </div>
+        )}
 
         {cardioOpen ? (
           <div className="mb-8">
