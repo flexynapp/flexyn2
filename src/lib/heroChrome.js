@@ -184,10 +184,32 @@ export const HERO_NEXT_BUTTON =
   + 'hover:bg-foreground/20 active:bg-foreground/20 active:scale-95 '
   + 'flex items-center justify-center transition-all';
 
+/* The slide container.
+ *
+ * Held here rather than typed into each page so the two carousels cannot
+ * drift, and so the clearance below is computed from the real number.
+ *
+ * 190px, up from 150 (kegan, 2026-08-10 — "add more grey space so the icon
+ * has room to breathe"). At 150 the watermark and the next-slide button
+ * were 18px apart: a 72px icon and a 32px control, both hugging the right
+ * edge, with barely a thumb's width of field between them. Moving the
+ * button off the icon stopped them overlapping; it did not stop the corner
+ * feeling packed. The fix for crowding is space, not arrangement.
+ *
+ *   watermark bottom = cardPad + HERO_WATERMARK_PX = 16 + 72 = 88
+ *   button top       = 190 - 12 - 32               = 146
+ *   clear field between them                       = 58px
+ *
+ * min-h rather than a fixed height: the pager mounts every slide side by
+ * side in one flex row, so the track is already as tall as its tallest
+ * page and a long tip can still grow the card past this.
+ */
+export const HERO_SLIDE_MIN_H = 'min-h-[190px]';
+
 /** Geometry the button/watermark separation depends on, exported for the test. */
 export const HERO_GEOMETRY = {
   cardPadPx: 16,        // p-4 on the slide container
-  cardMinHeightPx: 150, // min-h-[150px]
+  cardMinHeightPx: 190, // HERO_SLIDE_MIN_H
   buttonPx: 32,         // w-8 h-8
   buttonInsetPx: 12,    // bottom-3 / end-3
 };

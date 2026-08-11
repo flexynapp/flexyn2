@@ -37,7 +37,7 @@ import TrainingPatternCard from '@/components/progress/TrainingPatternCard';
 import WorkoutCalendarGrid from '@/components/progress/WorkoutCalendarGrid';
 import PageHeader from '@/components/PageHeader';
 import HeroPager from '@/components/HeroPager';
-import { HERO_SLIDE_GUTTER, HERO_NEXT_BUTTON, heroTintGradient, heroWatermarkStyle, heroSlideAccent } from '@/lib/heroChrome';
+import { HERO_SLIDE_GUTTER, HERO_NEXT_BUTTON, HERO_SLIDE_MIN_H, heroTintGradient, heroWatermarkStyle, heroSlideAccent } from '@/lib/heroChrome';
 import { latestDebrief, generateWeeklyDebrief, currentWeekStart } from '@/lib/data/debriefs';
 import {
   LineChart, Line, BarChart, Bar,
@@ -387,7 +387,7 @@ function ProgressCarousel({ slides }) {
             absorb the difference between slides: the pager mounts every
             slide side by side in one flex row, so the track is already as
             tall as its tallest page and rotation cannot resize the card. */}
-        <div className="relative p-4 md:p-5 min-h-[150px]">
+        <div className={`relative p-4 md:p-5 ${HERO_SLIDE_MIN_H}`}>
           <HeroPager
             ref={pagerRef}
             slides={slides}

@@ -12,17 +12,28 @@
 // screenshot, which nobody re-runs. The arithmetic is what actually holds.
 
 import { describe, it, expect } from 'vitest';
-import { HERO_WATERMARK_PX, HERO_NEXT_BUTTON, HERO_GEOMETRY, heroWatermarkStyle } from '@/lib/heroChrome';
+import { HERO_WATERMARK_PX, HERO_NEXT_BUTTON, HERO_SLIDE_MIN_H, HERO_GEOMETRY, heroWatermarkStyle } from '@/lib/heroChrome';
 
 describe('the next-slide button cannot reach the watermark', () => {
   const { cardPadPx, cardMinHeightPx, buttonPx, buttonInsetPx } = HERO_GEOMETRY;
 
+  const watermarkBottom = cardPadPx + HERO_WATERMARK_PX;
+  const buttonTop = cardMinHeightPx - buttonInsetPx - buttonPx;
+
   it('clears it at the card MINIMUM height, which is the worst case', () => {
     // Bottom-anchored, so the button only moves further away as the card
     // grows — the minimum is the only height that can fail.
-    const watermarkBottom = cardPadPx + HERO_WATERMARK_PX;
-    const buttonTop = cardMinHeightPx - buttonInsetPx - buttonPx;
     expect(buttonTop).toBeGreaterThan(watermarkBottom);
+  });
+
+  it('leaves the icon room to breathe, not merely room to not overlap', () => {
+    // Not overlapping was the first fix and it was not enough: at the old
+    // 150px min-height these sat 18px apart, and the corner still read as
+    // packed. The threshold is the point — a test that only asserts
+    // "> 0" would have passed the version that looked wrong.
+    // (kegan, 2026-08-10: "add more grey space so the icon has room to
+    // breathe".)
+    expect(buttonTop - watermarkBottom).toBeGreaterThanOrEqual(48);
   });
 
   it('is anchored to the bottom, not centred', () => {
@@ -42,6 +53,10 @@ describe('the next-slide button cannot reach the watermark', () => {
     expect(style.transform).toBe('none');
   });
 
+  it('states its height as a class the pages share', () => {
+    expect(HERO_SLIDE_MIN_H).toBe(`min-h-[${cardMinHeightPx}px]`);
+  });
+
   it('keeps the button clear of the right edge by the same inset it uses below', () => {
     // end-3 / bottom-3 — a control that hugs one edge harder than the other
     // reads as misplaced rather than as anchored.
@@ -55,10 +70,18 @@ describe('both carousels use the shared button, so they cannot drift', () => {
   // and therefore identical bugs. One of them would have been fixed alone.
   const PAGES = ['src/pages/Progress.jsx', 'src/pages/Nutrition.jsx'];
 
-  it.each(PAGES)('%s uses HERO_NEXT_BUTTON', async (file) => {
+  it.each(PAGES)('%s uses HERO_NEXT_BUTTON and HERO_SLIDE_MIN_H', async (file) => {
     const fs = await import('fs');
     const src = fs.readFileSync(file, 'utf8');
     expect(src, `${file} re-inlines the button classes`).not.toMatch(/absolute end-3 top-1\/2/);
     expect(src).toMatch(/HERO_NEXT_BUTTON/);
+    // The height is half the clearance calculation, so a page that pins its
+    // own hero min-h silently opts out of the guarantee above. Anchored to
+    // the slide container's padding rather than to any `min-h-[…]`: the tab
+    // bar's `min-h-[48px]` is the Apple HIG tap-target floor and has nothing
+    // to do with this. A blanket match flagged it, which is the test being
+    // too broad rather than the code being wrong.
+    expect(src, `${file} hardcodes its own hero height`).not.toMatch(/p-4 md:p-5 min-h-\[/);
+    expect(src).toMatch(/HERO_SLIDE_MIN_H/);
   });
 });

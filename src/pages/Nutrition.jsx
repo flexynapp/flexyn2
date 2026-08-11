@@ -47,7 +47,7 @@ import WeeklyMealPlannerModal from '@/components/nutrition/WeeklyMealPlannerModa
 import FastingTrackerCard from '@/components/nutrition/FastingTrackerCard';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import HeroPager from '@/components/HeroPager';
-import { HERO_SLIDE_GUTTER, HERO_NEXT_BUTTON, heroTintGradient, heroWatermarkStyle, heroSlideAccent } from '@/lib/heroChrome';
+import { HERO_SLIDE_GUTTER, HERO_NEXT_BUTTON, HERO_SLIDE_MIN_H, heroTintGradient, heroWatermarkStyle, heroSlideAccent } from '@/lib/heroChrome';
 import { reportError } from '@/lib/reportError';
 import { fireFirstMealCelebration } from '@/lib/firstMealCelebration';
 import { supabase } from '@/api/supabaseClient';
@@ -197,7 +197,7 @@ function NutritionShortcutsCarousel({ onScan, onRecipes, onHistory, onPlans, onP
           </button>
         )}
 
-        <div className="relative p-4 md:p-5 min-h-[150px]">
+        <div className={`relative p-4 md:p-5 ${HERO_SLIDE_MIN_H}`}>
           <HeroPager
             ref={pagerRef}
             slides={slides}
