@@ -111,6 +111,20 @@ done.costSpec = set('spec d / Cost line',
                     '@author · 8 exercises · 28 sets, then ~51 min in primary. All four numbers come from columns populated on every row.');
 done.restRow  = set('sig c 8', 'Not used. Gives ~43–51 min per session.');
 
+// These two were MISSED by the first version of this patch. The tool
+// call reported 14 of 14 edits applied and the board still carried
+// "~52 min" and "44–52" in the ledger — the count only ever proves the
+// shapes it was ASKED for were found. Re-scan the board's text for the
+// stale values afterwards; that is what caught these.
+done.timeWhy = set('led w / Time and volume replace difficulty as the deciding signal',
+  'The question a browser actually has is "can I fit this today?". target_sets and rest_seconds are set on every exercise '
+  + 'in the store, so ~51 min and 28 sets are derivable right now — no new column, no backfill, no author input.');
+done.timeEvidence = set('led e / Time and volume replace difficulty as the deciding signal',
+  'target_sets and rest_seconds populated on 30 of 30 exercises across the 4 programs. Range 23–28 sets, 43–51 min. '
+  + 'The 40 s of work per set inside that estimate is an assumption, not data — hence the tilde. Shipped as '
+  + 'src/lib/regimenLoad.js, which also deducts the rest after the final set; that is why these are a minute under the '
+  + 'figures this board first carried.');
+
 // The four durations on the drawn cards. The shipped helper deducts the
 // rest after the final set, which the board's SQL-derived figures did not.
 const MIN = { 'Back & Shoulders Builder': 51, 'Legs & Core Destroyer': 50 };
@@ -636,7 +650,7 @@ if (PARTS.indexOf('05') !== -1) {
 
   led('Time and volume replace difficulty as the deciding signal',
       'The question a browser actually has is "can I fit this today?". target_sets and rest_seconds are set on every exercise in the store, so ~51 min and 28 sets are derivable right now — no new column, no backfill, no author input.',
-      'target_sets and rest_seconds populated on 30 of 30 exercises across the 4 programs. Range 23–28 sets, 43–51 min. The 40 s of work per set inside that estimate is an assumption, not data — hence the tilde.');
+      'target_sets and rest_seconds populated on 30 of 30 exercises across the 4 programs. Range 23–28 sets, 43–51 min. The 40 s of work per set inside that estimate is an assumption, not data — hence the tilde. Shipped as src/lib/regimenLoad.js, which also deducts the rest after the final set; that is why these are a minute under the figures this board first carried.');
 
   led('Muscle chips are derived from the catalogue, not hardcoded',
       'ALL_MUSCLE_GROUPS lists 11 and the store contains 8. Traps, Full Body and Cardio are drawable chips that match nothing — the same defect class as the difficulty filter, one step less obvious.',
