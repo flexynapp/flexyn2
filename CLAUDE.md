@@ -499,16 +499,36 @@ Found in one pass on 2026-08-09, auditing what the weekly review reads:
 
 | Column | Populated | Consequence |
 |---|---|---|
-| `workout_logs.total_volume` | **0 of 3** | Every weekly review said "0 lbs". `get_gym_leaderboard` ranked members on it and `get_gym_community_progress` summed it into the gym's "lbs moved", so both read zero for every gym since launch. `dayContext.js` had already worked around it. |
+| `workout_logs.total_volume` | **was 0 of 3; now 1 of 9 non-zero** | Every weekly review said "0 lbs". `get_gym_leaderboard` ranked members on it and `get_gym_community_progress` summed it into the gym's "lbs moved", so both read zero for every gym since launch. `dayContext.js` had already worked around it. **Re-measure before quoting — see the correction below.** |
 | `cardio_logs.duration_min` | **0 of 5** | The tracker writes `duration_seconds`. Cardio "moving time" was always 0. |
-| `workout_logs.duration_min` | **0 of 3** | No other source for a lifting session, so the UI drops the stat rather than faking it. |
+| `workout_logs.duration_min` | **0 of 9** | The writer now exists (`d0a15d2b`, 2026-08-10) and is correct; no real session has been saved since it landed. `AdvancedAnalyticsSheet` drops the Total-time / Avg-session rows rather than faking a zero. |
 | `league_members.rank` | **0 of 42** | **Not one of these — see the third shape below.** The writer exists and is correct; its precondition has never been met. Also currently has no reader. |
 | `nutrition_logs.food_item_id` | **0 of 120** | The food-catalog join has never been exercised. |
 
-`total_volume` is fixed at both ends — `Workout.jsx` persists it on save, and
+`total_volume` is written at both ends — `Workout.jsx` persists it on save, and
 migration 329 backfilled the existing rows with the same formula. The weekly
 review derives volume from the `exercises` JSONB regardless, so it is correct
 even on a row that was never written.
+
+**CORRECTION (2026-08-11): "fixed at both ends" was too strong, and this
+paragraph said it for two days.** Measured again on 2026-08-11:
+`count(*) = 9`, `count(total_volume) = 9`, `count(*) FILTER (WHERE
+total_volume > 0) = 1`. **Six rows carry 0 against real logged volume**
+(675 / 725 / 870 / 775 / 800 / 660 lbs). Non-null is not non-zero — the
+same distinction this section teaches, missed one table row above.
+
+The cause is not a broken writer. Migration 329 **is** a one-shot `UPDATE`,
+not a trigger, and the six rows were inserted **after** it ran. So the
+column is a snapshot with no invariant behind it: any insert path that is
+not `Workout.jsx` leaves it at zero permanently, and
+`reconcile_my_workout_volume` filters on `COALESCE(total_volume,0) > 0`, so
+a zero row can never credit `user_profiles.total_volume_lbs` either. Six
+database functions read this column, two of them leaderboards.
+
+**Re-measure this column before quoting it, and use the FILTER clause.**
+The general lesson is the one the section already makes and this entry
+proves twice: a backfill makes a column correct on the day it runs, not
+afterwards. Full write-up: `docs/progress-stats-audit.md`.
 
 **A third shape, and the most deceptive: the writer exists and has never
 been REACHED.** `league_members.rank` sits in the table above because it

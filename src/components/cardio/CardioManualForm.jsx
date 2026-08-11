@@ -266,7 +266,31 @@ export default function CardioManualForm({
 
       const cappedDuration = Math.min(durationSeconds, 12 * 3600);
       const cappedDistance = Math.min(distanceMeters, 160934);
-      const cappedCalories = Math.min(Number(calories) || 0, getMaxRealisticCalories(cappedDuration, userProfile));
+      // A BLANK calories field used to store a hard 0 via `Number('') || 0`.
+      // That is not an absence, it is a claim that the session burned
+      // nothing — and no consumer can tell the two apart.
+      // `generate_weekly_review_for` sums this column into the week's
+      // cardio kcal, so a blank field understated the review by the whole
+      // session. Two of five production rows carry that zero, both of them
+      // manual entries with real distance and duration behind them.
+      //
+      // This form was the only entry path with the problem: both live
+      // trackers already call estimateCalories and store the result
+      // without asking. Here the same estimator sat behind an optional
+      // "Estimate" button, so the fix is to run it when the user left the
+      // field alone rather than inventing a new number. A TYPED 0 is still
+      // honoured as a typed 0 — only an untouched field estimates.
+      const caloriesEntered = String(calories).trim() !== '';
+      const effectiveCalories = caloriesEntered
+        ? Number(calories) || 0
+        : estimateCalories({
+            type: cardioType,
+            durationSeconds: cappedDuration,
+            distanceMeters: cappedDistance,
+            inclinePercent: Number(incline) || 0,
+            weightKg: userWeightKg(user),
+          });
+      const cappedCalories = Math.min(effectiveCalories, getMaxRealisticCalories(cappedDuration, userProfile));
 
       // Compute VO2max estimate
       const restHr = userProfile.resting_heart_rate || null;
