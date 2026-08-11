@@ -777,6 +777,8 @@ if (PARTS.indexOf('05') !== -1) {
      'CardioSection renders as an inline branch of /workout, below GoalsAlmostComplete, the late-night banner, InjuryBanner, the duel/bounty pills, the Today chip and the grid-customize button. All six belong to the workout start screen. Visible in the screenshot this board started from.'],
     ['T11', 'MAX_MODE_SPEED_MPS keys on a vocabulary the modes do not use',
      'The outdoor tracker\'s GPS-outlier rejection keys on running / walking / cycling / hiking. The modes it receives are running / walking / biking / swimming. Biking gets the right cap only because the ?? fallback happens to be cycling; hiking is unreachable. Benign today, wrong the moment anyone edits either list.'],
+    ['T12', '54 Tailwind opacity classes render nothing at all',
+     'Tailwind’s opacity scale runs in steps of five, and an OFF-scale slash value emits no rule rather than failing — so the element gets no background or border and looks merely plain. Verified against the built stylesheet: .bg-primary\\/20 and .border-primary\\/30 are present, .bg-primary\\/18 and .border-primary\\/28 are not. That exact dead pair is on every icon tile of the Workout grid, so the nine tiles cardio was told to resemble have had no icon tint and no icon border since they shipped. 54 sites, 17 distinct values, app-wide — bg-primary/12 ×10, bg-primary/8 ×8, bg-primary/18 ×10 and a run of gradient stops. Found by copying the Workout page’s classes into cardio and grepping dist for them; a guard test is worth more here than the edits.'],
   ];
   let dy = LY + 32;
   DEFECTS.forEach(d => {
