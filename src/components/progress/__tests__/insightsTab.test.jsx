@@ -265,6 +265,24 @@ describe('Goal weight', () => {
 
 // ── Goal projection ─────────────────────────────────────────────────────────
 //
+// ⚠ READ THIS BEFORE "FIXING" A FAILURE HERE.
+//
+// Several of these are CHARACTERIZATION tests, not regression tests. They
+// assert what the card does TODAY, including where that is wrong — so they
+// pass on the defect and will FAIL the moment someone repairs it. That is
+// deliberate: the defects were found by an audit (2026-08-11) and pinned so
+// they cannot drift further or be argued about, but they are NOT yet fixed
+// and fixing them was not in that change's scope.
+//
+// The ones that encode a known defect are labelled B4, B6, B7, B2b and
+// A/B4 below, each with the audit item it belongs to. When you fix one,
+// INVERT its assertion rather than deleting it. Full write-up, including
+// what "correct" should look like for each:
+//   docs/progress-insights-goal-audit.md
+//
+// Everything else here (B2, B3, B3b, C1–C5, D1–D4) asserts correct or
+// merely-unfortunate behaviour and should stay as written.
+//
 // The date the card prints is the whole feature, and it is derived from a
 // least-squares fit rather than from the user's latest weigh-in. Those two
 // disagree more often than they look like they would, so the checks below
