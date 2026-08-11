@@ -49,31 +49,77 @@
 //     description     4 of 4, 152–177 chars
 //     target_sets     30 of 30 exercises      23–28 sets per program
 //     rest_seconds    30 of 30 exercises      90–120 s
-//     est. duration   44–52 min, = Σ sets × (rest + 40 s)
+//     est. duration   43–51 min, = Σ sets × (rest + 40 s) − the trailing rest
 //   The four programs, with their real first three lifts:
-//     Back & Shoulders Builder  8 ex  28 sets  ~52 min
+//     Back & Shoulders Builder  8 ex  28 sets  ~51 min
 //        Pull-Up 4×8 · Barbell Row 4×10 · Lat Pulldown 3×12
 //     Legs & Core Destroyer     8 ex  27 sets  ~51 min
 //        Squat 4×8 · Romanian Deadlift 4×10 · Leg Press 3×12
 //     Full Body Strength        7 ex  23 sets  ~51 min
 //        Squat 4×6 · Deadlift 4×5 · Bench Press 3×6
-//     Upper Body Power Day      7 ex  23 sets  ~44 min
+//     Upper Body Power Day      7 ex  23 sets  ~43 min
 //        Bench Press 4×8 · Barbell Row 4×8 · Overhead Press 3×10
 // READ FROM SOURCE (RegimenStorePage.jsx): every padding, radius, font
 // size, colour role and chip vocabulary in group 01.
-// DERIVED, and marked as such on the board: the 324 pt of chrome above
-// the first regimen card. That is computed from the Tailwind classes in
-// RegimenStorePage.jsx — h-11 search, mb-3, the two chip rows at
-// py-1.5/py-1 with pb-2 mb-4 each, the count line at mb-3, and the 78 pt
-// dashed publish slot. It has NOT been measured in a browser. If it
-// matters to a decision, render it; the number will move by a few points.
+// MEASURED on 2026-08-11, in a Vite stub-alias render harness at 390 pt,
+// against the four real rows: 371 pt of chrome above the first regimen
+// card before, 109 pt after; card 190 pt before, 285 pt after.
+//
+// The first draft of this board DERIVED those from the Tailwind classes
+// and said so — 324 → 96, card 150 → 242 — and every one of the four was
+// optimistic. Adding up a stack of margins under-counts what a browser
+// actually lays out, reliably and in the flattering direction. The
+// caveat on the board was doing real work; the lesson is that the fix is
+// to render it, not to derive more carefully.
 //
 // ── The 40 s in the duration estimate ────────────────────────────────
 // `Σ sets × (rest_seconds + 40)` assumes 40 s of work per set. That is an
 // assumption, not data, and it is the only invented number on the board.
-// It is stated on the board as `~52 min` with the tilde for that reason.
+// It is stated on the board as `~51 min` with the tilde for that reason.
 // If it ships, put the constant in one place and name it — do not inline
 // 40 at the call site.
+//
+// ── PATCHING THE NUMBERS ON A BOARD THAT IS ALREADY DRAWN ────────────
+// The measured figures landed after the board was on the canvas. Running
+// this whole script re-draws it, which is fine — it is idempotent. If you
+// only want the numbers corrected in place, paste THIS into execute_code
+// instead; it is a few text edits and touches nothing else.
+/*
+const B = penpotUtils.findShape(s => s.name === 'Explore Regimens — proposed' && s.type === 'board', penpot.currentPage.root);
+if (!B) return 'board not found — open the Explore Regimens page';
+const f = n => penpotUtils.findShape(s => s.name === n, B);
+const set = (name, chars) => { const sh = f(name); if (sh) { sh.characters = chars; return 1; } return 0; };
+const done = {};
+
+done.bracket1 = set('bracket / label', '371 pt');
+done.bracket2 = set('bracket2 / label', '109 pt');
+done.chrome   = set('led t / Chrome before the first regimen: 324 pt → 96 pt',
+                    'Chrome before the first regimen: 371 pt → 109 pt');
+done.evidence = set('led e / Chrome before the first regimen: 324 pt → 96 pt',
+                    'MEASURED 2026-08-11 at 390 pt in a render harness, against the four real rows. '
+                  + 'This board first carried 324 → 96, derived from the Tailwind classes; both were optimistic. Shipped in 67f2feb3.');
+done.trade    = set('led t / The trade, stated: the card grows 150 → 242 pt',
+                    'The trade, stated: the card grows 190 → 285 pt');
+done.tradeWhy = set('led w / The trade, stated: the card grows 150 → 242 pt',
+                    'About 2.3 cards fit a screen instead of 3.5, measured at 390 × 800. With four programs in the store that is the '
+                  + 'right side of the trade — the scroll was never the constraint, the emptiness was. Revisit past roughly 20 regimens, '
+                  + 'which is also the point at which the ranking signals start to mean something and state (c) becomes the default.');
+done.anatomy  = set('anatomy note',
+                    'Drawn here at 358 × 242. AS BUILT it measures 285 tall — this drawing is the proposal, not the shipped card. '
+                  + 'Radius 12, 1 px border, no shadow (resting elevation), padding 16. Grew from a measured 190 pt — see the trade at the end of 05.');
+done.costSpec = set('spec d / Cost line',
+                    '@author · 8 exercises · 28 sets, then ~51 min in primary. All four numbers come from columns populated on every row.');
+done.restRow  = set('sig c 8', 'Not used. Gives ~43–51 min per session.');
+
+// The four durations on the drawn cards. The shipped helper deducts the
+// rest after the final set, which the board's SQL-derived figures did not.
+const MIN = { 'Back & Shoulders Builder': 51, 'Legs & Core Destroyer': 50 };
+done.times = penpotUtils.findShapes(sh => sh.name.indexOf('c time / ') === 0, B)
+  .map(sh => { const m = MIN[sh.name.slice(9)]; if (m) { sh.characters = '~' + m + ' min'; return 1; } return 0; })
+  .reduce((a, b) => a + b, 0);
+
+return done;
+*/
 //
 // ── A containment check run in the SAME call reports false strays ─────
 // `penpotUtils.isContainedIn` reads a text's bounds, and a freshly
@@ -275,16 +321,16 @@ const card = (parent, x, y, d) => {
 
 // The four real programs. Numbers queried 2026-08-11; see the header.
 const CARDS = [
-  { name: 'Back & Shoulders Builder', author: '@kegan', ex: 8, sets: 28, min: 52, muscles: ['Back', 'Shoulders'],
+  { name: 'Back & Shoulders Builder', author: '@kegan', ex: 8, sets: 28, min: 51, muscles: ['Back', 'Shoulders'],
     desc: 'Width and thickness built together. Pairs vertical and horizontal pulls for a thick back.',
     lifts: [['Pull-Up', '4 × 8'], ['Barbell Row', '4 × 10'], ['Lat Pulldown', '3 × 12']] },
-  { name: 'Legs & Core Destroyer', author: '@kegan', ex: 8, sets: 27, min: 51, muscles: ['Legs', 'Glutes', 'Core'],
+  { name: 'Legs & Core Destroyer', author: '@kegan', ex: 8, sets: 27, min: 50, muscles: ['Legs', 'Glutes', 'Core'],
     desc: 'Quads, hamstrings, glutes, calves — then core to finish. Heavy compound loading and isolation.',
     lifts: [['Squat', '4 × 8'], ['Romanian Deadlift', '4 × 10'], ['Leg Press', '3 × 12']] },
-  { name: 'Full Body Strength', author: '@kegan', ex: 7, sets: 23, min: 51, muscles: ['Legs', 'Chest', 'Back', 'Core'],
+  { name: 'Full Body Strength', author: '@kegan', ex: 7, sets: 23, min: 50, muscles: ['Legs', 'Chest', 'Back', 'Core'],
     desc: 'Five compound lifts, zero fluff. Squat, hinge, push, pull — every major pattern in one session.',
     lifts: [['Squat', '4 × 6'], ['Deadlift', '4 × 5'], ['Bench Press', '3 × 6']] },
-  { name: 'Upper Body Power Day', author: '@kegan', ex: 7, sets: 23, min: 44, muscles: ['Chest', 'Back', 'Shoulders'],
+  { name: 'Upper Body Power Day', author: '@kegan', ex: 7, sets: 23, min: 43, muscles: ['Chest', 'Back', 'Shoulders'],
     desc: 'A complete upper body session hitting every muscle above the waist — chest, back, shoulders, arms.',
     lifts: [['Bench Press', '4 × 8'], ['Barbell Row', '4 × 8'], ['Overhead Press', '3 × 10']] },
 ];
@@ -385,12 +431,15 @@ if (PARTS.indexOf('01') !== -1) {
   todayCard(y, Object.assign({}, CARDS[0], { short: 'Width and thickness built together. Pairs vertical and horizontal pulls…' }));
   todayCard(y + 162, Object.assign({}, CARDS[1], { short: 'Quads, hamstrings, glutes, calves — then core to finish. Heavy loading…' }));
 
-  // Chrome bracket. 324 pt, DERIVED from the classes above — not measured.
+  // Chrome bracket. 371 pt, MEASURED 2026-08-11 in a render harness at
+  // 390 pt against the four real rows. The first draft of this board
+  // derived 324 from the Tailwind classes and said so; the real figure is
+  // worse. Deriving a stack of margins under-counts, every time.
   const bTop = Y1 + 16, bBot = firstCardY - 12;
   rect(B, 'bracket / line', X1 - 24, bTop, 2, bBot - bTop, { fill: P.bad, op: 0.85 });
   rect(B, 'bracket / cap top', X1 - 30, bTop, 14, 2, { fill: P.bad, op: 0.85 });
   rect(B, 'bracket / cap bot', X1 - 30, bBot - 2, 14, 2, { fill: P.bad, op: 0.85 });
-  txt(B, 'bracket / label', '324 pt', X1 - 92, bTop + (bBot - bTop) / 2 - 8, { size: 11, w: 700, color: P.bad, width: 60, align: 'right' });
+  txt(B, 'bracket / label', '371 pt', X1 - 92, bTop + (bBot - bTop) / 2 - 8, { size: 11, w: 700, color: P.bad, width: 60, align: 'right' });
   txt(B, 'bracket / label2', 'before the\nfirst regimen', X1 - 92, bTop + (bBot - bTop) / 2 + 8, { size: 10, color: P.mut, width: 60, align: 'right', lh: 1.3 });
 }
 
@@ -430,7 +479,7 @@ if (PARTS.indexOf('02') !== -1) {
   rect(B, 'bracket2 / line', X3 - 24, bTop, 2, bBot - bTop, { fill: P.ok, op: 0.9 });
   rect(B, 'bracket2 / cap top', X3 - 30, bTop, 14, 2, { fill: P.ok, op: 0.9 });
   rect(B, 'bracket2 / cap bot', X3 - 30, bBot - 2, 14, 2, { fill: P.ok, op: 0.9 });
-  txt(B, 'bracket2 / label', '96 pt', X3 - 92, bTop + (bBot - bTop) / 2 - 6, { size: 11, w: 700, color: P.ok, width: 60, align: 'right' });
+  txt(B, 'bracket2 / label', '109 pt', X3 - 92, bTop + (bBot - bTop) / 2 - 6, { size: 11, w: 700, color: P.ok, width: 60, align: 'right' });
 }
 
 // ── 03 · CARD ANATOMY + the signal inventory ──────────────────────────
@@ -453,13 +502,13 @@ if (PARTS.indexOf('03') !== -1) {
   // draft used a flat ~50 pt pitch and every three-line detail ran into
   // the label below it.
   spec(Y + 48,  'Title',         '16 / 700 Archivo — text.title. Full width; nothing competes for the line.');
-  spec(Y + 104, 'Cost line',     '@author · 8 exercises · 28 sets, then ~52 min in primary. All four numbers come from columns populated on every row.');
+  spec(Y + 104, 'Cost line',     '@author · 8 exercises · 28 sets, then ~51 min in primary. All four numbers come from columns populated on every row.');
   spec(Y + 175, 'Muscle tags',   '10 / 600 on secondary, radius 5. Promoted ABOVE the description — this is what actually differs between the four programs.');
   spec(Y + 246, 'Description',   '12 / 400 muted, clamped to 2 lines. Every public regimen has one (152–177 chars).');
   spec(Y + 302, 'First 3 lifts', 'Name 12.5 / 500, load 12 / 600 muted and right-aligned, 20 pt rows. The product, visible without a tap.');
   spec(Y + 358, 'Add',           '92 × 34, radius.lg. One repeated action per card, not a full-width primary — four of those would fight for the page.');
 
-  txt(B, 'anatomy note', 'Card 358 × 242, radius 12, 1 px border, no shadow (resting elevation). Padding 16. Grew from 150 pt — see the trade at the end of 05.', X, Y + 300, { size: 10.5, color: P.mut, op: 0.75, width: 360, lh: 1.4 });
+  txt(B, 'anatomy note', 'Drawn here at 358 × 242. AS BUILT it measures 285 tall — this drawing is the proposal, not the shipped card. Radius 12, 1 px border, no shadow (resting elevation), padding 16. Grew from a measured 190 pt — see the trade at the end of 05.', X, Y + 300, { size: 10.5, color: P.mut, op: 0.75, width: 360, lh: 1.4 });
 
   // ── The signal inventory. The strongest single artefact on this board:
   // it is why the redesign is a data question before it is a taste one.
@@ -482,7 +531,7 @@ if (PARTS.indexOf('03') !== -1) {
     ['ALL_MUSCLE_GROUPS  →  12 chips', '8 of 11 used', 'Traps, Full Body and Cardio are chips that match nothing.', 'part'],
     ['description',                    '4 of 4',       'Rendered, clamped to 2 lines. Real copy, 152–177 chars.', 'live'],
     ['exercises[].target_sets',        '30 of 30',     'Not used. 23–28 sets per program.', 'unused'],
-    ['exercises[].rest_seconds',       '30 of 30',     'Not used. Gives ~44–52 min per session.', 'unused'],
+    ['exercises[].rest_seconds',       '30 of 30',     'Not used. Gives ~43–51 min per session.', 'unused'],
     ['exercises[].name / reps',        '30 of 30',     'One truncated "Includes: A · B · C" line.', 'part'],
   ];
   const TONE = { dead: P.bad, part: P.pri, live: P.ok, unused: P.ok };
@@ -586,8 +635,8 @@ if (PARTS.indexOf('05') !== -1) {
       'copy_count = 0 on 4 of 4 · max(copy_count) = 0 · regimen_reviews holds 0 rows.');
 
   led('Time and volume replace difficulty as the deciding signal',
-      'The question a browser actually has is "can I fit this today?". target_sets and rest_seconds are set on every exercise in the store, so ~52 min and 28 sets are derivable right now — no new column, no backfill, no author input.',
-      'target_sets and rest_seconds populated on 30 of 30 exercises across the 4 programs. Range 23–28 sets, 44–52 min. The 40 s of work per set inside that estimate is an assumption, not data — hence the tilde.');
+      'The question a browser actually has is "can I fit this today?". target_sets and rest_seconds are set on every exercise in the store, so ~51 min and 28 sets are derivable right now — no new column, no backfill, no author input.',
+      'target_sets and rest_seconds populated on 30 of 30 exercises across the 4 programs. Range 23–28 sets, 43–51 min. The 40 s of work per set inside that estimate is an assumption, not data — hence the tilde.');
 
   led('Muscle chips are derived from the catalogue, not hardcoded',
       'ALL_MUSCLE_GROUPS lists 11 and the store contains 8. Traps, Full Body and Cardio are drawable chips that match nothing — the same defect class as the difficulty filter, one step less obvious.',
@@ -609,13 +658,13 @@ if (PARTS.indexOf('05') !== -1) {
       'A 78 pt dashed box currently takes the most valuable position on the page to advertise authoring to somebody who arrived to browse. It stays reachable, below the goods — except in the empty state, where it is the only thing there is.',
       null);
 
-  led('Chrome before the first regimen: 324 pt → 96 pt',
+  led('Chrome before the first regimen: 371 pt → 109 pt',
       'A header, a search field, two chip rows and a count line push the first card most of a small phone down the page. One header and one chip row do the same job for four items.',
-      'DERIVED from the Tailwind classes in RegimenStorePage.jsx — not measured in a browser. Render it before quoting the number anywhere it drives a decision.',
+      'MEASURED 2026-08-11 at 390 pt in a render harness, against the four real rows. This board first carried 324 → 96, derived from the Tailwind classes; both were optimistic. Shipped in 67f2feb3.',
       P.ok);
 
-  led('The trade, stated: the card grows 150 → 242 pt',
-      'About 2.4 cards fit a screen instead of 4.4. With four programs in the store that is the right side of the trade — the scroll was never the constraint, the emptiness was. Revisit past roughly 20 regimens, which is also the point at which the ranking signals start to mean something and state (c) becomes the default.',
+  led('The trade, stated: the card grows 190 → 285 pt',
+      'About 2.3 cards fit a screen instead of 3.5, measured at 390 × 800. With four programs in the store that is the right side of the trade — the scroll was never the constraint, the emptiness was. Revisit past roughly 20 regimens, which is also the point at which the ranking signals start to mean something and state (c) becomes the default.',
       null, P.bad);
 
   txt(B, 'ledger footer', 'Nothing here is a taste argument. Every change removes a signal that cannot render, or promotes one that is populated on every row and currently unused.', LX + 46, ly + 6, { size: 11, w: 600, color: P.fg, op: 0.85, width: 1440 });
