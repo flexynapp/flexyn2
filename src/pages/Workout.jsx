@@ -16,7 +16,7 @@ import { Input } from '@/components/ui/input';
 import { toast } from '@/lib/toast';
 import { triggerHaptic } from '@/lib/haptic';
 import { playSound, SOUND } from '@/lib/playSound';
-import { Play, Save, Plus, Dumbbell, Trash2, Target, Pause, AlertTriangle, Activity, ArrowRight, History, Camera, Sparkles, Globe, Swords, Zap, Trophy, Link2, Calculator, LayoutGrid, Shield, Search } from 'lucide-react';
+import { Play, Save, Plus, Dumbbell, Trash2, Target, Pause, AlertTriangle, Activity, ArrowRight, History, Camera, Sparkles, Globe, Swords, Zap, Trophy, Link2, Calculator, LayoutGrid, Shield, Search, GripVertical } from 'lucide-react';
 import PlateCalculatorModal from '@/components/workout/PlateCalculatorModal';
 import { useMultiProfanityGuard, hasAnyProfanity } from '@/lib/useProfanityGuard';
 import ProfanityWarningDialog from '@/components/ProfanityWarningDialog';
@@ -40,6 +40,7 @@ import GroupBlock from '@/components/workout/GroupBlock';
 import WorkoutElapsedChip from '@/components/workout/WorkoutElapsedChip';
 import InjuryBanner from '@/components/workout/InjuryBanner';
 import ComebackScreen from '@/components/workout/ComebackScreen';
+import { useGridReorder } from '@/hooks/useGridReorder';
 import { useComebackProtocol } from '@/hooks/useComebackProtocol';
 import { getActiveDuel } from '@/lib/data/duels';
 import { syncMyCrewWarProgress } from '@/lib/data/crewWars';
@@ -304,8 +305,14 @@ export default function Workout() {
     return [...CARD_ORDER_DEFAULT];
   });
   const [gridEditing, setGridEditing] = useState(false);
-  const [dragSrcIdx, setDragSrcIdx] = useState(null);
-  const [dragOverIdx, setDragOverIdx] = useState(null);
+  // Pointer-based, because the HTML5 drag-and-drop this used to run on is
+  // mouse-only and this app ships to phones. See hooks/useGridReorder.js.
+  const {
+    dragIdx: dragSrcIdx,
+    overIdx: dragOverIdx,
+    handleProps: gridHandleProps,
+    reset: resetGridDrag,
+  } = useGridReorder(cardOrder, setCardOrder);
   const HERO_COUNT = 3;
   const [[heroSlide, heroDir], setHeroState] = useState([0, 0]);
   const paginateHero = (dir) => setHeroState(([cur]) => [((cur + dir) % HERO_COUNT + HERO_COUNT) % HERO_COUNT, dir]);
@@ -2580,9 +2587,9 @@ export default function Workout() {
             <div className="mb-2">
               {gridEditing && (
                 <div className="flex items-center justify-between mb-3 px-1">
-                  <p className="text-micro text-muted-foreground/60 font-medium">Drag cards to reorder</p>
+                  <p className="text-micro text-muted-foreground/60 font-medium">Drag a card&rsquo;s grip to reorder</p>
                   <div className="flex items-center gap-1.5">
-                    <button onClick={() => { localStorage.setItem(cardOrderKey, JSON.stringify(cardOrder)); setGridEditing(false); toast.success('Layout saved.'); setDragSrcIdx(null); setDragOverIdx(null); }}
+                    <button onClick={() => { localStorage.setItem(cardOrderKey, JSON.stringify(cardOrder)); setGridEditing(false); toast.success('Layout saved.'); resetGridDrag(); }}
                       className="px-2.5 py-1 rounded-lg bg-primary text-primary-foreground text-micro font-bold hover:bg-primary/90 active:bg-primary/90 transition-colors">Save</button>
                     {isAppAdmin(user) && (
                       <button
@@ -2599,12 +2606,16 @@ export default function Workout() {
                         Set default
                       </button>
                     )}
-                    <button onClick={() => { setCardOrder([...CARD_ORDER_DEFAULT]); localStorage.removeItem(cardOrderKey); setGridEditing(false); setDragSrcIdx(null); setDragOverIdx(null); }}
+                    <button onClick={() => { setCardOrder([...CARD_ORDER_DEFAULT]); localStorage.removeItem(cardOrderKey); setGridEditing(false); resetGridDrag(); }}
                       className="px-2.5 py-1 rounded-lg bg-secondary text-muted-foreground text-micro font-semibold hover:bg-secondary/80 active:bg-secondary/80 transition-colors">Reset</button>
                   </div>
                 </div>
               )}
-              {/* Always 2-col grid — HTML5 drag handles in edit mode */}
+              {/* Always 2-col grid. Reordering is pointer-driven and starts
+                  from each card's grip — see hooks/useGridReorder.js for why
+                  the HTML5 drag-and-drop this replaced could never work on a
+                  phone, and why hit-testing beats framer's Reorder for a grid
+                  that holds a col-span-2 row. */}
               <div className="grid grid-cols-2 gap-3">
                 {cardOrder.map((id, posIdx) => {
                   const nonNemesis = cardOrder.filter(x => x !== 'nemesis');
@@ -2614,30 +2625,39 @@ export default function Workout() {
                   return (
                     <div
                       key={id}
-                      className={id === 'nemesis' ? 'col-span-2' : ''}
-                      draggable={gridEditing}
-                      onDragStart={(e) => { e.dataTransfer.effectAllowed = 'move'; setDragSrcIdx(posIdx); }}
-                      onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; if (dragOverIdx !== posIdx) setDragOverIdx(posIdx); }}
-                      onDrop={(e) => {
-                        e.preventDefault();
-                        if (dragSrcIdx === null || dragSrcIdx === posIdx) return;
-                        const next = [...cardOrder];
-                        const [moved] = next.splice(dragSrcIdx, 1);
-                        next.splice(posIdx, 0, moved);
-                        setCardOrder(next);
-                        setDragSrcIdx(null); setDragOverIdx(null);
-                      }}
-                      onDragEnd={() => { setDragSrcIdx(null); setDragOverIdx(null); }}
+                      // The hook reads this off whatever is under the finger,
+                      // so it is the one attribute the gesture depends on.
+                      data-reorder-idx={posIdx}
+                      className={`relative ${id === 'nemesis' ? 'col-span-2' : ''}`}
                       style={{
                         opacity:   isDragging ? 0.45 : 1,
                         outline:   isOver ? '2px solid hsl(var(--primary))' : 'none',
                         outlineOffset: '2px',
                         borderRadius: 12,
-                        cursor:    gridEditing ? 'grab' : 'default',
                         transition: 'opacity 0.15s, outline 0.1s',
                       }}
                     >
-                      {renderCard(id, colorIdx)}
+                      {gridEditing && (
+                        <button
+                          type="button"
+                          {...gridHandleProps(posIdx)}
+                          aria-label={`Drag to reorder ${id}`}
+                          // touch-none so the drag doesn't fight the page
+                          // scroller, and only here — the card itself stays
+                          // scrollable-through, which is the whole lesson of
+                          // components/dashboard/ReorderableRow.jsx.
+                          className="absolute top-1 end-1 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-background/80 border border-border text-muted-foreground touch-none select-none cursor-grab active:cursor-grabbing"
+                        >
+                          <GripVertical className="w-4 h-4" strokeWidth={2.5} />
+                        </button>
+                      )}
+                      {/* Inert while editing, or a tap meant for the grip
+                          navigates away mid-rearrange. HTML5 `draggable` used
+                          to suppress this as a side effect; pointer events do
+                          not, so it has to be said. */}
+                      <div className={gridEditing ? 'pointer-events-none select-none' : ''}>
+                        {renderCard(id, colorIdx)}
+                      </div>
                     </div>
                   );
                 })}
