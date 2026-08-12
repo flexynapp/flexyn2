@@ -428,12 +428,33 @@ counting all of them.
 
 ---
 
-## SQL — needs your decision
+## SQL — APPLIED 2026-08-11, verified
 
-**The client fix stops new duplicates and needs no SQL.** This bundle cleans
-up the 6 historical rows and closes the race the client alone cannot. It
-**DELETES 6 production rows** — every one an older supersession of a slot the
-grid was already hiding — so it is your call, not mine.
+Kegan ran the bundle below. Confirmed against production afterwards:
+
+| Check | Result |
+|---|---|
+| rows / distinct slots | **2 / 2** — was 8 / 2 |
+| `meal_plans_user_date_slot_uniq` present | **yes** |
+| duplicate-slot INSERT (the exact old behaviour) | **rejected, `unique_violation`** |
+| INSERT into a genuinely free slot (same day, breakfast) | **accepted** — not over-strict |
+| orphaned plans remaining | **0** — was 3 |
+| probe rows left behind | **0** |
+
+Two outcomes worth recording. **The dedupe cleared all three orphans as a
+side effect**, because in both slots the newest row happened to be one whose
+diary log still exists — luck, not design, so defect 3's underlying cause is
+still unfixed and will produce new orphans. And the survivors are exactly the
+two meals the grid had been showing all along, which is what keeping the
+newest per slot was chosen to guarantee.
+
+Shipped as `344_meal_plans_one_per_slot.sql` **after** the fact so a rebuilt
+database gets the index too — the migration carries the index only. The
+`DELETE` is documented in its head and deliberately not restated: a delete
+that runs on every fresh database is a footgun, and a fresh database has
+nothing to collapse.
+
+The bundle as run:
 
 ```sql
 BEGIN;
@@ -459,9 +480,10 @@ SELECT count(*)                                       AS plan_rows,
 FROM public.meal_plans;
 ```
 
-Expected after: `plan_rows 2 | distinct_slots 2`.
+Returned `plan_rows 2 | distinct_slots 2`, as expected.
 
-Optional, separate — the 3 orphaned plans (defect 3). Inspect before running:
+The orphan query below now returns **0 rows** — cleared incidentally by the
+dedupe. Defect 3's cause is still live, so keep this to hand:
 
 ```sql
 SELECT id, plan_date, meal_type, food_snapshot->>'name' AS meal

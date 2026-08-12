@@ -403,6 +403,7 @@ dead endpoint. See
 | 341 | `341_retire_achievements_table.sql` | Retire `public.achievements`; XP milestones + the capsule clamp move onto `user_trophies`. | — |
 | 342 | `342_rls_owner_write_check.sql` | Cross-user row injection: an OR write-check let you stamp another user's email on a row. | — |
 | 343 | `343_food_item_requests.sql` | A barcode miss files a moderated request instead of publishing straight into the shared food catalogue. | — |
+| 344 | `344_meal_plans_one_per_slot.sql` | Unique index on `meal_plans (user_id, plan_date, meal_type)`. `upsert` sent no `id`, so every re-fill of a slot appended a row the grid could not show — 6 of 8 production rows were unreachable. **Applied 2026-08-11**, with a one-off dedupe of 6 rows recorded in the file head but deliberately not restated in it. | Fails `23505` on a database that still holds duplicates — dedupe first |
 
 ---
 
