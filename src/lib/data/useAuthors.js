@@ -56,7 +56,7 @@ export function useAuthorsById() {
  * @param {object} byId - the map from useAuthorsById()
  * @param {string} authorId - the post/comment's user_id
  * @param {{ author_name?: string, author_avatar_url?: string }} snapshot
- * @returns {{ handle, avatarUrl, initials, username, equippedTitleId, equippedFrameId }}
+ * @returns {{ handle, displayName, avatarUrl, initials, username, equippedTitleId, equippedFrameId }}
  */
 export function resolveAuthor(byId, authorId, snapshot = {}) {
   const live = authorId ? byId[authorId] : null;
@@ -64,6 +64,14 @@ export function resolveAuthor(byId, authorId, snapshot = {}) {
   const snapUsername = (snapshot.author_name || '').replace(/^@/, '').trim() || null;
   const username = liveUsername || snapUsername || 'athlete';
   const handle = `@${username}`;
+  // The chosen public name, when there is one. Read ONLY from the live record
+  // — posts snapshot `author_name`, which has always been the handle, so a
+  // snapshot fallback here would print the handle twice on one row. Null means
+  // the card shows the handle alone, which is every post today.
+  // Trimmed, because a whitespace-only value is truthy: without this a row
+  // saved as "   " renders a bold EMPTY line above the handle, which reads as
+  // a broken card rather than as a name nobody set.
+  const displayName = (live?.display_name || '').trim() || null;
   const avatarUrl = live?.avatar_url || snapshot.author_avatar_url || null;
   const initials = (username || '?').slice(0, 2).toUpperCase();
   // Equipped loot — only available from the live record (not snapshotted).
@@ -71,5 +79,5 @@ export function resolveAuthor(byId, authorId, snapshot = {}) {
   const equippedTitleId = live?.equipped_title_id || null;
   const equippedFrameId = live?.equipped_frame_id || null;
   const signatureTrophy = live?.signature_trophy || null;
-  return { handle, avatarUrl, initials, username, equippedTitleId, equippedFrameId, signatureTrophy };
+  return { handle, displayName, avatarUrl, initials, username, equippedTitleId, equippedFrameId, signatureTrophy };
 }

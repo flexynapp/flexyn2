@@ -676,12 +676,19 @@ function CommentRow({ comment: c, user, authorsById, isLiked, likeCount, onLike,
           )}
           <div className="bg-secondary/50 rounded-2xl px-3 py-2" onPointerUp={handleBubblePointerUp}>
             <div className="flex items-center gap-1 flex-wrap">
+              {/* Same rule as the post header: the chosen name leads, the
+                  handle follows in muted text. Both are inside the one button
+                  so the whole name is a single tap target rather than two
+                  adjacent ones a thumb has to choose between. */}
               <button
                 type="button"
                 onClick={openAuthor}
-                className="text-xs font-bold leading-tight hover:underline"
+                className="text-xs font-bold leading-tight hover:underline text-start"
               >
-                {author.handle}
+                {author.displayName || author.handle}
+                {author.displayName && (
+                  <span className="ms-1 font-normal text-muted-foreground">{author.handle}</span>
+                )}
               </button>
               {isVerified(author.handle?.replace('@', '')) && (
                 <span className="shrink-0 leading-none" style={{ lineHeight: 0 }}>

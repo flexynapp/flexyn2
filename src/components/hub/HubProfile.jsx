@@ -32,6 +32,7 @@ import { selectProfiles } from '@/lib/data/users';
 import * as statusNotesData from '@/lib/data/statusNotes';
 import { hasAnyProfanity } from '@/lib/useProfanityGuard';
 import { reverseGeocode } from '@/lib/geocode';
+import { patchProfile } from '@/api/profileCache';
 import HubPostCard from './HubPostCard';
 import ReferralCard from './ReferralCard';
 import ProfileBadgeShowcase from './ProfileBadgeShowcase';
@@ -332,6 +333,11 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   const avatarEditable = isSelf && editProfileOpen;
   const [cityDraft, setCityDraft] = useState('');
   const [locating, setLocating] = useState(false);
+  const [displayNameDraft, setDisplayNameDraft] = useState('');
+  const [usernameDraft, setUsernameDraft] = useState('');
+  const [usernameBusy, setUsernameBusy] = useState(false);
+  // Holds the handle awaiting the "this spends your 30 days" confirmation.
+  const [pendingHandle, setPendingHandle] = useState(null);
   const [bioDraft, setBioDraft] = useState('');
   const [websiteUrlDraft, setWebsiteUrlDraft] = useState('');
   const [flagPickerOpen, setFlagPickerOpen] = useState(false);
@@ -433,7 +439,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
       // the resolve_profile_email RPC below.
       const { data } = await safeSelect({
         columns: [
-          'id', 'username', 'avatar_url', 'total_xp',
+          'id', 'username', 'display_name', 'avatar_url', 'total_xp',
           'preferred_theme', 'loot_theme_id',
           'equipped_title_id', 'equipped_frame_id',
           'city', 'country_flag', 'bio',
@@ -937,7 +943,13 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
     }
     setSavingProfile(true);
     try {
-      const updates = { city: cityDraft.trim(), bio: bioDraft.trim() || null };
+      const updates = {
+        city: cityDraft.trim(),
+        bio: bioDraft.trim() || null,
+        // Empty means "show my @handle alone" — stored as NULL rather than '',
+        // so the render check stays a single truthiness test.
+        display_name: displayNameDraft.trim() || null,
+      };
       // website_url: normalise — prepend https:// if the user omitted a scheme
       const rawUrl = websiteUrlDraft.trim();
       if (rawUrl) {
@@ -989,6 +1001,71 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   const displayHandle = displayUsername
     ? `@${displayUsername}`
     : (isSelf ? t('hub.profile.anonymousSelf') : t('hub.profile.anonymousAthlete'));
+
+  // The CHOSEN public name, above the handle — Twitter's shape, which is what
+  // Sean asked for. Deliberately NOT `full_name`: that column holds the name
+  // people typed into a signup form (19 of its 21 values are two-part real
+  // names), and publishing it here would expose them without anyone opting
+  // in. `display_name` is null until someone sets it, and null means the
+  // handle renders alone exactly as it does today — so nothing changes for
+  // the 57 accounts that have not chosen one.
+  // Trimmed for the same reason as in resolveAuthor: "   " is truthy, and an
+  // untrimmed value renders a bold empty heading above the handle.
+  const displayName = ((isSelf
+    ? user?.display_name
+    : (targetUser?.display_name || targetProfile?.display_name)) || '').trim() || null;
+
+  // ── Changing the @handle ─────────────────────────────────────────────────
+  //
+  // Two steps by design. The user already HAS a handle, so a change spends an
+  // allowance they cannot get back for a month — that has to be said before
+  // it is spent, not reported afterwards as a refusal. Someone claiming a
+  // handle for the first time has nothing to spend and goes straight through.
+  //
+  // The server is the authority on all of it: this confirmation is a courtesy,
+  // and set_username() enforces uniqueness and the cooldown regardless of what
+  // this component believes.
+  const commitUsername = async (next) => {
+    setUsernameBusy(true);
+    const res = await me.setUsername(next);
+    setUsernameBusy(false);
+    setPendingHandle(null);
+
+    if (res?.ok) {
+      // Patch with what the SERVER returned, never with what we sent — it
+      // lowercases and strips a leading '@', so the two differ on most calls.
+      // (CLAUDE.md, Profile cache: invalidating the query key alone re-reads
+      // the module-level cache and hands back the stale object.)
+      patchProfile({ username: res.username, username_changed_at: new Date().toISOString() });
+      queryClient.invalidateQueries({ queryKey: ['userProfile'] });
+      setUsernameDraft(res.username || next);
+      if (res.reason !== 'unchanged') {
+        toast.success(tFallback('hub.profile.handleChanged', 'Your handle is now @{handle}.', { handle: res.username }));
+      }
+      return;
+    }
+
+    const messages = {
+      taken:     tFallback('hub.profile.handleTaken', 'This username is not available.'),
+      invalid:   tFallback('hub.profile.handleInvalid', '3–20 characters, letters, numbers and underscores only.'),
+      reserved:  tFallback('hub.profile.handleReserved', 'This username is reserved.'),
+      cooldown:  tFallback('hub.profile.handleCooldown', 'You can only change your handle once every 30 days.'),
+      // The migration has not been run yet. Distinct from a refusal, because
+      // there is nothing the user can do about it and retrying will not help.
+      unavailable: tFallback('hub.profile.handleUnavailable', "Handle changes aren't switched on yet."),
+    };
+    toast.error(messages[res?.reason] || tFallback('hub.profile.handleRejected', "Couldn't change your handle."));
+  };
+
+  const handleUsernameSubmit = () => {
+    const next = usernameDraft.trim().replace(/^@/, '');
+    if (!next || next.toLowerCase() === (displayUsername || '').toLowerCase()) return;
+    // `username_changed_at` is null until the first CHANGE, so a first claim
+    // skips the warning entirely — there is no allowance to spend yet.
+    const hasHandleAlready = !!displayUsername;
+    if (hasHandleAlready) { setPendingHandle(next); return; }
+    commitUsername(next);
+  };
 
   // ── Mute / block from the profile ────────────────────────────────────────
   // Muting was reachable from any post; UNMUTING only from Settings → Privacy.
@@ -1448,6 +1525,8 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
               setCityDraft(city);
               setBioDraft(bio);
               setWebsiteUrlDraft(websiteUrl);
+              setDisplayNameDraft(displayName || '');
+              setUsernameDraft(displayUsername || '');
               setEditProfileOpen(v => !v);
             }}
             onOpenThemes={() => setThemeOpen(true)}
@@ -1467,20 +1546,42 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
           />
         </div>
 
-        {/* The handle IS the name. It used to render the username twice —
-            "Test2" capitalised on one line and "@test2" muted underneath —
-            which is one identity taking two rows to say the same word. Hub
-            profiles have never shown a full name (see the username-only note
-            further up), so there was no second piece of information for the
-            second line to carry. */}
+        {/* Two lines ONLY when there are two things to say.
+            //
+            // This used to render the username twice — "Test2" capitalised
+            // above "@test2" muted underneath — one identity taking two rows
+            // to say the same word, so the second line was removed. A chosen
+            // display name is the second piece of information that was
+            // missing, so the two-line shape becomes correct again — but only
+            // for someone who set one. Everyone else keeps the single line,
+            // which is the same screen they have now. */}
         <div className="mt-3">
-          <div className="flex items-center gap-2 flex-wrap">
+          {displayName && (
             <h2 className="font-heading font-bold text-xl leading-tight min-w-0 truncate">
-              {displayHandle}
+              {displayName}
               {signatureTrophy && (
                 <span className="ms-1.5 align-middle" title="Signature trophy" aria-label="Signature trophy">{signatureTrophy}</span>
               )}
             </h2>
+          )}
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* A <p> rather than a second <h2> when the display name already
+                took that role — two h2s for one identity is a heading order
+                a screen reader reads as two separate sections. */}
+            {displayName ? (
+              <p className="text-sm text-muted-foreground leading-tight min-w-0 truncate">
+                {displayHandle}
+              </p>
+            ) : (
+              <h2 className="font-heading font-bold text-xl leading-tight min-w-0 truncate">
+                {displayHandle}
+                {/* The trophy rides whichever line is the NAME, so it never
+                    renders twice when both lines exist. */}
+                {signatureTrophy && (
+                  <span className="ms-1.5 align-middle" title="Signature trophy" aria-label="Signature trophy">{signatureTrophy}</span>
+                )}
+              </h2>
+            )}
 
             {/* 👾 Hidden easter-egg triggers — same per-user gates as before,
                 now inline with the name instead of floating in the old
@@ -1693,8 +1794,57 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
                   different thing rather than as the same one. It now lives on
                   the real photo (see the header), so this row is gone and the
                   panel opens straight into the fields. */}
+              {/* Display name — the name people see, above the handle.
+                  Blank is a valid answer and means "just show my @handle",
+                  which is what every account does today. */}
+              <div className="flex items-center gap-2">
+                <UserIcon className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                <input
+                  type="text"
+                  value={displayNameDraft}
+                  onChange={e => setDisplayNameDraft(e.target.value.slice(0, 40))}
+                  placeholder={tFallback('hub.profile.displayNamePlaceholder', 'Display name (optional)')}
+                  aria-label={tFallback('hub.profile.displayName', 'Display name')}
+                  className="flex-1 bg-transparent text-sm focus:outline-none placeholder:text-muted-foreground/50"
+                />
+              </div>
+
+              {/* @handle — its own field with its own commit, because it does
+                  NOT go through the profile save: it is unique, rate-limited,
+                  and enforced server-side by set_username(). Underlined, as
+                  Sean described, so it reads as somewhere you type. */}
+              <div className="flex items-center gap-2 pt-1 border-t border-border/40">
+                <span className="text-sm text-muted-foreground shrink-0 w-3.5 text-center">@</span>
+                <input
+                  type="text"
+                  value={usernameDraft}
+                  onChange={e => setUsernameDraft(e.target.value.replace(/^@/, '').slice(0, 20))}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleUsernameSubmit(); } }}
+                  placeholder={tFallback('hub.profile.handlePlaceholder', 'your handle')}
+                  aria-label={tFallback('hub.profile.handle', 'Username')}
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  className="flex-1 min-w-0 bg-transparent text-sm focus:outline-none placeholder:text-muted-foreground/50 border-b border-dashed border-border focus:border-primary transition-colors"
+                />
+                <button
+                  type="button"
+                  onClick={handleUsernameSubmit}
+                  disabled={usernameBusy || !usernameDraft.trim() || usernameDraft.trim().toLowerCase() === (displayUsername || '').toLowerCase()}
+                  className="shrink-0 px-2.5 h-8 rounded-lg bg-secondary text-xs font-semibold disabled:opacity-40 hover:opacity-80 active:opacity-80 transition-opacity"
+                >
+                  {usernameBusy
+                    ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    : tFallback('common.done', 'Done')}
+                </button>
+              </div>
+              {/* Says the rule BEFORE it is spent, not after it is refused. */}
+              <p className="text-micro text-muted-foreground -mt-1.5 ps-5">
+                {tFallback('hub.profile.handleRule', 'Letters, numbers and underscores. You can change this once every 30 days.')}
+              </p>
+
               {/* Bio */}
-              <div className="flex items-start gap-2">
+              <div className="flex items-start gap-2 pt-1 border-t border-border/40">
                 <FileText className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-1.5" />
                 <div className="flex-1">
                   <textarea
@@ -2332,6 +2482,23 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
         cancelLabel={t('common.cancel')}
         onConfirm={handleConfirmBlock}
         destructive
+      />
+
+      {/* Spending the 30-day allowance. Not destructive-styled: changing your
+          own handle is a normal thing to do, it is just rate-limited, and
+          painting it red would read as a warning about harm rather than about
+          a budget. */}
+      <ConfirmDialog
+        open={!!pendingHandle}
+        onOpenChange={(o) => { if (!o && !usernameBusy) setPendingHandle(null); }}
+        title={tFallback('hub.profile.confirmHandleTitle', 'Change your handle to @{handle}?', { handle: pendingHandle || '' })}
+        description={tFallback(
+          'hub.profile.confirmHandleDesc',
+          'You can only change your name once every 30 days. Are you sure you want to do this?',
+        )}
+        confirmLabel={tFallback('hub.profile.confirmHandleAction', 'Yes, change it')}
+        cancelLabel={t('common.cancel')}
+        onConfirm={() => commitUsername(pendingHandle)}
       />
 
       {/* 👾 Iron Snake — easter egg, only mounted on the @sean profile.

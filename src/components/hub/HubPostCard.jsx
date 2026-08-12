@@ -949,9 +949,19 @@ function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
                 `truncate` actually ellipsizes it. Without it, a long handle
                 keeps full width and shoves the shrink-0 trophy / title badge
                 past the card edge (clipped) instead of truncating cleanly. */}
+            {/* Display name leads when there is one, with the handle after it
+                in muted text — the shape every social feed uses, and what
+                Sean asked for ("we're posting both the name as well as the
+                proper @name"). With no display name the handle keeps the bold
+                slot on its own, which is every post today. */}
             <p className={`font-heading font-bold text-sm truncate min-w-0 ${onAuthorClick && post.author_email ? 'hover:underline' : ''}`}>
-              {author.handle}
+              {author.displayName || author.handle}
             </p>
+            {author.displayName && (
+              <p className="text-xs text-muted-foreground truncate min-w-0 shrink">
+                {author.handle}
+              </p>
+            )}
             {author.signatureTrophy && (
               <span className="text-sm leading-none shrink-0" title="Signature trophy" aria-label="Signature trophy">
                 {author.signatureTrophy}
