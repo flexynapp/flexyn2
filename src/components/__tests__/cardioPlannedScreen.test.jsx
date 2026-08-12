@@ -103,14 +103,34 @@ describe('creating a plan', () => {
     const addBtn = await screen.findByText('Schedule a Session');
     act(() => { addBtn.click(); });
 
-    const title = await screen.findByPlaceholderText(/Morning 5k/);
-    act(() => {
+    const setValue = (el, v) => {
       const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
-      setter.call(title, 'Thursday run');
-      title.dispatchEvent(new Event('input', { bubbles: true }));
+      setter.call(el, v);
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+
+    const title = await screen.findByPlaceholderText(/Morning 5k/);
+    act(() => { setValue(title, 'Thursday run'); });
+
+    // Move the date to TOMORROW before picking a slot.
+    //
+    // This test used to pick "Night" on today's date, with a comment
+    // claiming that slot could never already be past. That was wrong in the
+    // most ordinary way: slotIsPast() marks hour 20 as past from 20:00, so
+    // the pill was disabled and the click did nothing every evening. It
+    // failed at 20:55 the day after it shipped.
+    //
+    // On a future date NO slot is past, so the assertion no longer depends
+    // on what time the suite runs — which is the property it should have
+    // had rather than a cleverer choice of hour.
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const pad = (n) => String(n).padStart(2, '0');
+    const dateInput = document.querySelector('input[type="date"]');
+    act(() => {
+      setValue(dateInput, `${tomorrow.getFullYear()}-${pad(tomorrow.getMonth() + 1)}-${pad(tomorrow.getDate())}`);
     });
-    // Night is the one slot that cannot already be past at any hour this
-    // suite might run — a fixed "Morning" would fail every afternoon.
+
     act(() => { screen.getByText('Night').click(); });
     act(() => { screen.getByText('Add Plan').click(); });
 

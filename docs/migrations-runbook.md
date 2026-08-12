@@ -401,6 +401,7 @@ dead endpoint. See
 | 339 | `339_pgnet_timeouts_for_remaining_callers.sql` | The other three pg_net callers still record timeouts for work that succeeds. | — |
 | 340 | `340_drop_planned_cardio.sql` | Retire the second scheduler — cardio plans move onto `scheduled_workouts`. | — |
 | 341 | `341_retire_achievements_table.sql` | Retire `public.achievements`; XP milestones + the capsule clamp move onto `user_trophies`. | — |
+| 342 | `342_rls_owner_write_check.sql` | Cross-user row injection: an OR write-check let you stamp another user's email on a row. | — |
 
 ---
 
