@@ -61,22 +61,34 @@ GRANT EXECUTE ON FUNCTION public.is_gym_owner(uuid) TO authenticated;
 -- Same shape for a comment, which carries post_id rather than gym_id.
 -- Covers the gym owner AND the author of the post being commented on,
 -- matching `isPostAuthorOrGymOwner` at GymFeedTab.jsx:507.
+-- plpgsql with a scalar SELECT INTO rather than a join, so every
+-- statement stays single-table with bare columns. A join here would need
+-- `public.gym_feed_posts.author_id`-shaped tokens, and the clipboard
+-- pipeline mangles dotted column references into `42601 syntax error`.
 CREATE OR REPLACE FUNCTION public.can_moderate_gym_comment(p_post_id uuid)
 RETURNS boolean
-LANGUAGE sql
+LANGUAGE plpgsql
 STABLE
 SECURITY DEFINER
 SET search_path TO 'public'
 AS $$
-  SELECT EXISTS (
-    SELECT 1
-      FROM public.gym_feed_posts
-      JOIN public.gym_businesses
-        ON public.gym_businesses.id = public.gym_feed_posts.gym_id
-     WHERE public.gym_feed_posts.id = p_post_id
-       AND (public.gym_feed_posts.author_id = auth.uid()
-            OR public.gym_businesses.owner_id = auth.uid())
-  );
+DECLARE
+  v_gym    uuid;
+  v_author uuid;
+BEGIN
+  SELECT gym_id, author_id
+    INTO v_gym, v_author
+    FROM public.gym_feed_posts
+   WHERE id = p_post_id;
+
+  IF v_gym IS NULL THEN
+    RETURN FALSE;
+  END IF;
+  IF v_author = auth.uid() THEN
+    RETURN TRUE;
+  END IF;
+  RETURN public.is_gym_owner(v_gym);
+END;
 $$;
 
 REVOKE ALL ON FUNCTION public.can_moderate_gym_comment(uuid) FROM PUBLIC;
