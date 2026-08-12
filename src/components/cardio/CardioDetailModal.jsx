@@ -88,12 +88,34 @@ function computeSplits(track, unitMeters) {
   return splits;
 }
 
-export default function CardioDetailModal({ log, open, onOpenChange, onEdit }) {
+export default function CardioDetailModal({ log: summary, open, onOpenChange, onEdit }) {
   const { t, tFallback } = useLanguage();
   const { user } = useAuth();
   const { distanceUnit } = useDistanceUnit();
   const queryClient = useQueryClient();
   const [prsForThisLog, setPrsForThisLog] = useState([]);
+
+  // This modal renders twenty-two columns — the GPS track for the route
+  // map, calories, heart rate, cadence, power, pool length, laps, stroke,
+  // route name, VO2max, notes. It used to get all of them for free because
+  // CardioSavedList fetched `select('*')` for 500 rows and handed the row
+  // object straight over, which meant every visit to Saved Workouts paid
+  // for the route tracks of every session on the chance that one was
+  // tapped. Fetching the full row HERE is what lets that list go lean.
+  //
+  // `summary` still renders immediately — it carries type, date, distance
+  // and duration — so the modal opens instantly and fills in. On a failed
+  // fetch it simply stays as the summary rather than blanking, which is
+  // also what keeps this working for callers that pass a complete row.
+  const [full, setFull] = useState(null);
+  useEffect(() => {
+    if (!open || !summary?.id) { setFull(null); return undefined; }
+    let cancelled = false;
+    cardioData.getById(summary.id).then((row) => { if (!cancelled && row) setFull(row); });
+    return () => { cancelled = true; };
+  }, [open, summary?.id]);
+
+  const log = full || summary;
 
   useEffect(() => {
     if (!log?.id) return;

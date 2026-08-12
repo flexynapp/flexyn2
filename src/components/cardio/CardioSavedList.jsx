@@ -6,7 +6,7 @@ import { format, parseISO } from 'date-fns';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Footprints, PersonStanding, Bike, Activity, Waves, ChevronRight } from 'lucide-react';
-import { db } from '@/api/db';
+import * as cardioData from '@/lib/data/cardio';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { getDateLocale } from '@/lib/dateLocales';
@@ -40,26 +40,24 @@ export default function CardioSavedList({ onSelectLog, search = '' }) {
   const dateLocale = getDateLocale(language);
 
   const { data: allLogs = [], isLoading } = useQuery({
-    // This one stays `select('*')` ON PURPOSE, even though the list itself
-    // renders only five columns.
+    // Five columns, which is exactly what this list draws.
     //
-    // The row objects are handed straight to CardioDetailModal via
-    // onSelectLog — the modal does not re-fetch — and it reads TWENTY-TWO
-    // fields off them, including gps_track for the route map, calories,
-    // heart rate, cadence, power, pool length, laps, stroke, route name,
-    // VO2max and notes. Trimming this query to what the LIST shows would
-    // blank most of the detail modal and delete the map, and it would do
-    // it silently: DetailRow returns null for a missing value, so the rows
-    // would simply stop appearing rather than error.
+    // It used to be `select('*')` for 500 rows, and it had to be: the row
+    // objects go straight to CardioDetailModal via onSelectLog, and that
+    // modal reads TWENTY-TWO fields off them — gps_track for the route
+    // map, calories, heart rate, cadence, power, pool length, laps,
+    // stroke, route name, VO2max, notes. So opening Saved Workouts paid
+    // for the GPS track of every session you have ever logged, on the
+    // chance that you tapped one of them.
     //
-    // Now that the query keys are scoped, trimming this is at least SAFE
-    // for the other cardio readers — it is the modal that stops it. The
-    // real fix is for the modal to fetch its own row by id, and until that
-    // exists this comment is the guard.
+    // The modal fetches its own row by id now (cardio.getById), rendering
+    // the summary below immediately and filling in the rest. That is what
+    // makes this safe — and it had to come first, because trimming here
+    // while the modal still depended on the row would have deleted the
+    // route map and blanked most of the detail rows SILENTLY: DetailRow
+    // returns null for a missing value rather than erroring.
     queryKey: cardioLogsKey(user?.email, 'savedList'),
-    queryFn: () => db.entities.CardioLog.filter(
-      { created_by: user.email }, '-date', 500
-    ),
+    queryFn: () => cardioData.listSummaries(user.email, 500),
     enabled: !!user?.email,
   });
 
