@@ -1,8 +1,14 @@
 // src/components/hub/StickerPanel.jsx
-// Sticker panel: shows who reacted with which sticker (viewer),
-// and lets the current user pick a sticker from their inventory to react.
+// Sticker panel: shows WHICH stickers a post has collected — never who gave
+// them — and lets the current user add one from their inventory.
+//
+// The anonymity is the design (Sean, 12 Aug): "everyone can see the sticker,
+// but you won't see who posted the sticker… kind of like how Reddit has
+// 'thanks for the gold'". So this component takes no onAuthorClick and has no
+// route to a profile; identity is not withheld by the UI, it is simply not
+// rendered anywhere in this surface.
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Sparkles } from 'lucide-react';
 import { playSound, SOUND } from '@/lib/playSound';
@@ -28,7 +34,7 @@ function RarityBadge({ rarity, variant }) {
   );
 }
 
-export default function StickerPanel({ postId, onClose, onAuthorClick = null }) {
+export default function StickerPanel({ postId, onClose }) {
   const { user } = useAuth();
   const qc = useQueryClient();
   const [tab, setTab] = useState('reactions'); // 'reactions' | 'pick'
@@ -44,6 +50,21 @@ export default function StickerPanel({ postId, onClose, onAuthorClick = null }) 
 
   // Current user's reaction
   const myReaction = reactions.find(r => r.user_id === user?.id) ?? null;
+
+  // Collapse identical stickers into one tile with a count. Keyed on emoji AND
+  // variant, because a gold version of a sticker is a different object from
+  // the plain one and merging them would misreport what is actually on the
+  // post. Ordered by count so the post's loudest reaction reads first.
+  const groupedReactions = useMemo(() => {
+    const byKey = new Map();
+    for (const r of reactions) {
+      const key = `${r.item_emoji}|${r.variant || ''}`;
+      const hit = byKey.get(key);
+      if (hit) hit.count += 1;
+      else byKey.set(key, { key, emoji: r.item_emoji, variant: r.variant, count: 1 });
+    }
+    return [...byKey.values()].sort((a, b) => b.count - a.count);
+  }, [reactions]);
 
   // User's inventory stickers
   const { data: rawItems } = useQuery({
@@ -161,60 +182,27 @@ export default function StickerPanel({ postId, onClose, onAuthorClick = null }) 
                 </button>
               </div>
             ) : (
-              <div className="flex flex-col gap-2">
-                {reactions.map(r => {
-                  const handleProfileClick = () => {
-                    if (!onAuthorClick || !r.user_email) return;
-                    onAuthorClick({
-                      email: r.user_email,
-                      username: r.user_name,
-                      avatar_url: r.user_avatar_url,
-                    });
-                    onClose?.();
-                  };
-                  const profileClickable = !!(onAuthorClick && r.user_email);
-                  return (
-                  <div key={r.id} className="flex items-center gap-2.5">
-                    {/* Avatar — clickable when onAuthorClick is wired */}
-                    <button
-                      type="button"
-                      onClick={handleProfileClick}
-                      disabled={!profileClickable}
-                      className={`w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-micro font-bold text-primary shrink-0 overflow-hidden ${profileClickable ? 'hover:ring-2 hover:ring-primary/30 transition-shadow' : 'cursor-default'}`}
-                      aria-label={profileClickable ? `Open ${r.user_name}'s profile` : undefined}
-                    >
-                      {r.user_avatar_url ? (
-                        <img loading="lazy" src={r.user_avatar_url} alt="" className="w-full h-full object-cover" />
-                      ) : (
-                        (r.user_name?.[0] ?? '?').toUpperCase()
-                      )}
-                    </button>
-                    {profileClickable ? (
-                      <button
-                        type="button"
-                        onClick={handleProfileClick}
-                        className="text-xs text-muted-foreground hover:text-primary active:text-primary hover:underline flex-1 truncate text-start transition-colors"
-                      >
-                        @{r.user_name ?? 'athlete'}
-                      </button>
-                    ) : (
-                      <span className="text-xs text-muted-foreground flex-1 truncate">
-                        @{r.user_name ?? 'athlete'}
-                      </span>
-                    )}
-                    <StickerDisplay
-                      emoji={r.item_emoji}
-                      variant={r.variant}
-                      size={28}
-                    />
-                    {r.variant && (
-                      <span className="text-micro font-bold capitalize" style={{ color: r.variant === 'gold' ? '#f59e0b' : r.variant === 'diamond' ? '#67e8f9' : '#e2e8f0' }}>
-                        {r.variant}
+              // Grouped and ANONYMOUS. The old list put a name and avatar
+              // beside every sticker, which turns a bit of fun into a public
+              // record of who liked what — Sean's model is Reddit gold:
+              // everyone sees the sticker, nobody sees the giver. Grouping by
+              // sticker also stops a popular post rendering forty rows of
+              // near-identical lines.
+              <div className="flex flex-wrap gap-2">
+                {groupedReactions.map(g => (
+                  <div
+                    key={g.key}
+                    className="relative flex items-center justify-center w-12 h-12 rounded-xl border border-border bg-secondary/40"
+                    title={g.variant ? `${g.variant} · ${g.count}` : String(g.count)}
+                  >
+                    <StickerDisplay emoji={g.emoji} variant={g.variant} size={30} />
+                    {g.count > 1 && (
+                      <span className="absolute -bottom-1 -end-1 min-w-[18px] h-[18px] px-1 rounded-md bg-card border border-border text-micro font-bold flex items-center justify-center tabular-nums">
+                        {g.count}×
                       </span>
                     )}
                   </div>
-                  );
-                })}
+                ))}
               </div>
             )}
           </motion.div>

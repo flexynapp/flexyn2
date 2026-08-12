@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback, memo } from 'react';
 import { isVerified } from '@/lib/verifiedUsers';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ThumbsUp, MessageCircle, Lock, Globe2, Trash2, Bookmark, Flag, Languages, Loader2, BarChart3, Heart, Share2, VolumeX, Ban, Pencil, Repeat2, Check, X, Clock, Film, BarChart2, Users, Volume2, ImageIcon, ChevronDown, MoreVertical } from 'lucide-react';
+import { ThumbsUp, MessageCircle, Lock, Globe2, Trash2, Bookmark, Flag, Languages, Loader2, BarChart3, Heart, Share2, VolumeX, Ban, Pencil, Repeat2, Check, X, Clock, Film, BarChart2, Users, Volume2, ImageIcon, ChevronDown, MoreVertical, Star } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { supabase } from '@/api/supabaseClient';
@@ -581,9 +581,22 @@ function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
 
   // Feature 25: sort sticker reactions by rarity (rarest first)
   const RARITY_ORDER = { diamond: 0, legendary: 1, epic: 2, rare: 3, uncommon: 4, common: 5 };
-  const sortedStickerRxns = [...stickerRxns].sort(
-    (a, b) => (RARITY_ORDER[a.variant] ?? 6) - (RARITY_ORDER[b.variant] ?? 6)
-  );
+  // Distinct stickers with a count, rarest first. Keyed on emoji AND variant:
+  // a gold version is a different object from the plain one, and merging them
+  // would misreport what is actually on the post.
+  const groupedStickers = (() => {
+    const byKey = new Map();
+    for (const r of stickerRxns) {
+      const key = `${r.item_emoji}|${r.variant || ''}`;
+      const hit = byKey.get(key);
+      if (hit) hit.count += 1;
+      else byKey.set(key, { key, emoji: r.item_emoji, variant: r.variant, count: 1 });
+    }
+    return [...byKey.values()].sort(
+      (a, b) => (RARITY_ORDER[a.variant] ?? 6) - (RARITY_ORDER[b.variant] ?? 6) || b.count - a.count
+    );
+  })();
+
   // ── Double-tap to like (refs/state only — callback defined after handleReact)
   const lastTapRef = useRef({ time: 0, x: 0, y: 0 });
   const [heartAnim, setHeartAnim] = useState(null); // { x, y, id }
@@ -1315,11 +1328,32 @@ function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
           </motion.button>
         )}
 
+        {/* Sticker — grey star, immediately before Share. Until now the only
+            way to reach the sticker panel was the waterfall of existing
+            stickers BELOW the row, which does not render until a post already
+            has one: a post with zero stickers had no way to get its first.
+            Takes the ml-auto that Share used to carry so the pair sits
+            together at the trailing end. */}
+        <motion.button
+          whileTap={{ scale: 0.88 }}
+          onClick={(e) => { e.stopPropagation(); setStickerPanelOpen(o => !o); }}
+          className={`ms-auto p-2 rounded-md transition-colors ${
+            stickerPanelOpen
+              ? 'text-primary bg-secondary'
+              : 'text-muted-foreground hover:bg-secondary active:bg-secondary hover:text-foreground active:text-foreground'
+          }`}
+          aria-label={tFallback('hub.post.addSticker', 'Add a sticker')}
+          aria-expanded={stickerPanelOpen}
+          title={tFallback('hub.post.addSticker', 'Add a sticker')}
+        >
+          <Star className={`w-4 h-4 ${stickerPanelOpen ? 'fill-current' : ''}`} />
+        </motion.button>
+
         {/* Share — opens ShareSheetModal with DM + external options */}
         <motion.button
           whileTap={{ scale: 0.88 }}
           onClick={(e) => { e.stopPropagation(); setShareSheetOpen(true); }}
-          className="ml-auto p-2 rounded-md text-muted-foreground hover:bg-secondary active:bg-secondary hover:text-foreground active:text-foreground transition-colors"
+          className="p-2 rounded-md text-muted-foreground hover:bg-secondary active:bg-secondary hover:text-foreground active:text-foreground transition-colors"
           aria-label="Share post"
         >
           <Share2 className="w-4 h-4" />
@@ -1332,20 +1366,29 @@ function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
           onClick={() => setStickerPanelOpen(o => !o)}
           className="flex items-center gap-1 px-3 py-1.5 hover:bg-secondary active:bg-secondary transition-colors w-full text-start"
         >
-          {/* Overlapping sticker circles — waterfall effect */}
+          {/* One tile per DISTINCT sticker, with a count when several people
+              gave the same one — rather than one circle per person. Ten
+              identical stickers used to render as ten overlapping copies of
+              the same picture, which reads as noise instead of as ten people
+              agreeing. Still anonymous: a count, never a name. */}
           <div className="flex items-center" style={{ marginRight: 6 }}>
-            {sortedStickerRxns.slice(0, 6).map((r, i) => (
+            {groupedStickers.slice(0, 6).map((g, i) => (
               <div
-                key={r.id}
+                key={g.key}
                 className="w-7 h-7 rounded-full bg-card border-2 border-background flex items-center justify-center overflow-visible"
                 style={{ marginLeft: i === 0 ? 0 : -10, zIndex: i, position: 'relative' }}
               >
-                <StickerDisplay emoji={r.item_emoji} variant={r.variant} size={22} />
+                <StickerDisplay emoji={g.emoji} variant={g.variant} size={22} />
+                {g.count > 1 && (
+                  <span className="absolute -bottom-1 -end-1 min-w-[15px] h-[15px] px-0.5 rounded-[4px] bg-secondary border border-background text-[9px] font-bold leading-none flex items-center justify-center tabular-nums">
+                    {g.count}×
+                  </span>
+                )}
               </div>
             ))}
           </div>
-          {stickerRxns.length > 6 && (
-            <span className="text-xs text-muted-foreground">+{stickerRxns.length - 6}</span>
+          {groupedStickers.length > 6 && (
+            <span className="text-xs text-muted-foreground">+{groupedStickers.length - 6}</span>
           )}
         </button>
       )}
@@ -1357,7 +1400,6 @@ function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
             <StickerPanel
               postId={post.id}
               onClose={() => setStickerPanelOpen(false)}
-              onAuthorClick={onAuthorClick}
             />
           </div>
         )}
