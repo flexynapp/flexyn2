@@ -311,9 +311,32 @@ export async function upsert({ id, user, name, servings, ingredients, directions
     image_url:   imageUrl || null,
     updated_at:  new Date().toISOString(),
   };
-  if (id) row.id = id;
+  // INSERT or UPDATE explicitly — NOT .upsert().
+  //
+  // PostgREST renders .upsert() as INSERT … ON CONFLICT (id) DO UPDATE SET
+  // <every payload column> = excluded.<column>, and reading `excluded.
+  // user_email` needs SELECT privilege on that column. Migration 352 revoked
+  // exactly that to stop Discover leaking author emails, so the upsert began
+  // failing 42501 on EVERY save while plain reads and inserts carried on
+  // working — which is why the grant catalog, the read probes and the whole
+  // test suite all looked clean.
+  //
+  // Splitting the branch keeps user_email on the INSERT (the column is NOT
+  // NULL and has no default) and off the UPDATE, where it never belonged: a
+  // recipe does not change owner. Behaviour note — editing a recipe that has
+  // since been deleted elsewhere now updates 0 rows and returns null, where
+  // the upsert would have resurrected it. That is the better of the two.
+  if (id) {
+    // `id` comes out too — it is the WHERE key, not something to re-write.
+    const { user_email: _ownerEmail, id: _rowId, ...patch } = row;
+    return writeWithColumnRetry(
+      (payload) => supabase.from('nutrition_recipes').update(payload).eq('id', id).select(RECIPE_COLUMNS).maybeSingle(),
+      patch,
+      CORE_RECIPE_COLS,
+    );
+  }
   return writeWithColumnRetry(
-    (payload) => supabase.from('nutrition_recipes').upsert(payload, { onConflict: 'id' }).select(RECIPE_COLUMNS).maybeSingle(),
+    (payload) => supabase.from('nutrition_recipes').insert(payload).select(RECIPE_COLUMNS).maybeSingle(),
     row,
     CORE_RECIPE_COLS,
   );
