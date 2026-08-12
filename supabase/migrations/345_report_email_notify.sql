@@ -1,4 +1,4 @@
--- 343_report_email_notify.sql
+-- 345_report_email_notify.sql
 --
 -- Email a moderator when a content report is filed.
 --
