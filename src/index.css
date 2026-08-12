@@ -575,6 +575,14 @@
     padding-inline: 1.5rem;
   }
 
+  /* A bottom sheet pins itself to the viewport bottom, so its last control
+     sits under the home indicator on a notched iPhone unless the inset is
+     added — the same defect .safe-page exists to stop on full-screen
+     surfaces. A sheet only ever needs the bottom edge. */
+  .safe-sheet-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
   .break-anywhere {
     overflow-wrap: anywhere;
     word-break: break-word;

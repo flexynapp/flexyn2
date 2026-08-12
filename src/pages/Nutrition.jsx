@@ -2232,6 +2232,14 @@ export default function Nutrition() {
           open={showRecipes}
           onClose={() => setShowRecipes(false)}
           userProfile={userProfile}
+          logDate={date}
+          defaultMealType={mealType}
+          logBusy={saveMutation.isPending}
+          // Logging a recipe goes through the SAME mutation as any other meal,
+          // so quest credit, the achievement RPC, the first-meal celebration
+          // and cache invalidation all happen exactly once and in one place.
+          // See the head comment on LogRecipeSheet.
+          onLogRecipe={(payload) => saveMutation.mutate(payload)}
         />
       </ErrorBoundary>
 

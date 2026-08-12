@@ -1,106 +1,111 @@
 // src/components/nutrition/RecipesHubModal.jsx
 //
-// The Recipes home. Opening "Recipes" from the Nutrition page lands here
-// rather than jumping straight into the builder. Two tabs:
+// The Recipes home — boards A, B and E of the Penpot page "Recipes".
 //
-//   • My Recipes — the user's saved recipes. Create a new one, edit,
-//     delete (remove), or publish/unpublish to the community feed.
-//   • Discover   — every user's published recipes. Browse, expand to see
-//     ingredients + directions, and "Save" to clone one into My Recipes.
+//   • My Recipes — your saved recipes. Empty, it offers the three real routes
+//     to a first one instead of a glyph and a sentence. Populated, every row
+//     carries a Log action, because logging is what a saved recipe is FOR.
+//   • Discover   — every user's published recipes, with search and filters.
 //
-// The builder modal (RecipeBuilderModal) is owned here so new/edit flows
-// stay self-contained within the hub.
+// What moved, and why:
+//
+//   Tapping a row used to open the EDIT form. It now opens a detail sheet;
+//   editing is a deliberate choice behind the overflow (board J).
+//
+//   Publish and delete used to be two 32px icon buttons crowded against the
+//   right edge of every row, one of them an unlabelled globe that silently
+//   made a recipe public. Both live in the overflow now, named, with their
+//   consequences written underneath them.
+//
+//   Discover used to lead with a full-width orange "Post a recipe" button
+//   that opened a picker of your own unpublished recipes — a publishing tool
+//   sitting on top of a browsing surface, and the loudest thing on it.
+//   Publishing belongs to the recipe being published: the labelled toggle on
+//   the detail sheet.
+//
+// This component owns the builder and the sheets so the whole flow stays
+// self-contained; the only thing it hands upward is the LOG, which goes to
+// the Nutrition page's existing save mutation rather than a second write path.
+//
+// TODO(i18n): this surface has always been English-only; new copy matches it
+// rather than half-translating one screen.
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createPortal } from 'react-dom';
 import {
-  X, Plus, Trash2, Loader2, ChefHat, Globe, Lock, Download,
-  ChevronDown, Utensils, ImageIcon,
+  X, Plus, Loader2, ChefHat, Globe, Utensils, ImageIcon, Search,
+  PencilLine, History, Compass, ChevronRight, MoreHorizontal,
 } from 'lucide-react';
 import { toast } from '@/lib/toast';
+import { db } from '@/api/db';
 import { useAuth } from '@/lib/AuthContext';
 import * as recipes from '@/lib/data/nutritionRecipes';
+import { recipeFromLog } from '@/lib/data/nutritionRecipes';
+import { perServingCals, perServingMacros, macroLine, servingsLabel } from '@/lib/recipeFormat';
 import RecipeBuilderModal from './RecipeBuilderModal';
+import RecipeDetailSheet from './RecipeDetailSheet';
+import RecipeOverflowSheet from './RecipeOverflowSheet';
+import LogRecipeSheet from './LogRecipeSheet';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
-// Per-serving calorie headline for a recipe row.
-function perServingCals(recipe) {
-  const s = Number(recipe?.servings) > 0 ? Number(recipe.servings) : 1;
-  return Math.round((Number(recipe?.totals?.calories) || 0) / s);
-}
-function macroLine(recipe) {
-  const s = Number(recipe?.servings) > 0 ? Number(recipe.servings) : 1;
-  const t = recipe?.totals || {};
-  const p = Math.round((Number(t.protein_g) || 0) / s);
-  const c = Math.round((Number(t.carbs_g) || 0) / s);
-  const f = Math.round((Number(t.fat_g) || 0) / s);
-  return `${p}P · ${c}C · ${f}F`;
-}
-
-// Square thumbnail — the recipe photo, or a fork/knife placeholder.
-function RecipeThumb({ recipe, className = 'w-12 h-12' }) {
+// Square thumbnail — the recipe photo, or a placeholder.
+function RecipeThumb({ recipe, className = 'w-14 h-14' }) {
   return recipe?.image_url ? (
-    <img src={recipe.image_url} alt="" className={`${className} rounded-md object-cover shrink-0`} />
+    <img src={recipe.image_url} alt="" className={`${className} rounded-lg object-cover shrink-0`} />
   ) : (
-    <div className={`${className} rounded-md bg-secondary flex items-center justify-center shrink-0`}>
+    <div className={`${className} rounded-lg bg-secondary flex items-center justify-center shrink-0`}>
       <ImageIcon className="w-4 h-4 text-muted-foreground/50" />
     </div>
   );
 }
 
-function RecipeDetails({ recipe }) {
-  const ings = Array.isArray(recipe.ingredients) ? recipe.ingredients : [];
-  const micros = Array.isArray(recipe.micros) ? recipe.micros : [];
+// One of the three routes on the empty state.
+function RouteCard({ Icon, tint, title, sub, onClick }) {
   return (
-    <div className="mt-2 pt-2 border-t border-border/60 space-y-2 text-caption">
-      <div>
-        <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground mb-1">Ingredients</p>
-        <ul className="space-y-0.5">
-          {ings.map((ing, i) => (
-            <li key={i} className="flex justify-between gap-2">
-              <span>{ing.name}</span>
-              <span className="text-muted-foreground shrink-0">
-                {ing.amount || ing.grams || 0}{ing.unit ? ` ${ing.unit}` : ' g'} · {Math.round(Number(ing.calories) || 0)} cal
-              </span>
-            </li>
-          ))}
-        </ul>
-      </div>
-      {micros.length > 0 && (
-        <div>
-          <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground mb-1">Nutrients</p>
-          <div className="flex flex-wrap gap-1">
-            {micros.map((m, i) => (
-              <span key={i} className="px-1.5 py-0.5 rounded-full bg-secondary/50 text-micro">
-                {m.label}: {m.amount}{m.unit}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
-      {recipe.directions && (
-        <div>
-          <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground mb-1">Directions</p>
-          <p className="whitespace-pre-wrap text-muted-foreground">{recipe.directions}</p>
-        </div>
-      )}
-    </div>
+    <button
+      type="button"
+      onClick={onClick}
+      className="w-full flex items-center gap-3 p-3 rounded-lg border border-border text-start hover:bg-secondary/30 active:bg-secondary/30"
+    >
+      <span className={`w-9 h-9 shrink-0 rounded-lg flex items-center justify-center ${tint}`}>
+        <Icon className="w-4 h-4" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-label font-semibold">{title}</span>
+        <span className="block text-micro text-muted-foreground">{sub}</span>
+      </span>
+      <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+    </button>
   );
 }
 
-export default function RecipesHubModal({ open, onClose, userProfile }) {
+const DISCOVER_FILTERS = [
+  { id: 'all',     label: 'All',            test: () => true },
+  { id: 'protein', label: 'High protein',   test: (r) => perServingMacros(r).p >= 25 },
+  { id: 'light',   label: 'Under 400 cal',  test: (r) => perServingCals(r) < 400 },
+];
+
+export default function RecipesHubModal({
+  open, onClose, userProfile,
+  logDate, defaultMealType = 'snack', onLogRecipe, logBusy = false,
+}) {
   // Pin the page behind this overlay — see @/lib/scrollLock.
   useBodyScrollLock(open);
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const [tab, setTab] = useState('mine');           // 'mine' | 'discover'
+  const [tab, setTab] = useState('mine');             // 'mine' | 'discover'
   const [builderOpen, setBuilderOpen] = useState(false);
   const [editingRecipe, setEditingRecipe] = useState(null);
-  const [expanded, setExpanded] = useState(null);   // recipe id whose details are open
-  const [busyId, setBusyId] = useState(null);       // row-level pending action
-  const [showPostPicker, setShowPostPicker] = useState(false); // "+ post to Discover" sheet
+  const [builderSeed, setBuilderSeed] = useState(null); // pre-filled from a diary row
+  const [detail, setDetail] = useState(null);         // { recipe, mode }
+  const [overflowRecipe, setOverflowRecipe] = useState(null);
+  const [logTarget, setLogTarget] = useState(null);   // recipe being logged
+  const [busyId, setBusyId] = useState(null);         // row-level pending action
+  const [pickingLog, setPickingLog] = useState(false);// "from a meal you logged"
+  const [query, setQuery] = useState('');
+  const [filter, setFilter] = useState('all');
 
   const mine = useQuery({
     queryKey: ['nutritionRecipes', user?.id],
@@ -113,18 +118,70 @@ export default function RecipesHubModal({ open, onClose, userProfile }) {
     enabled:  !!user?.id && open && tab === 'discover',
   });
 
+  // Recent diary rows for "from a meal you logged". Shares the query key with
+  // LogMealForm's history tab and the Meal History page, so this costs a
+  // fetch only when none of them has run — and only while the empty state,
+  // the one screen that offers the route, is on screen.
+  const history = useQuery({
+    queryKey: ['nutritionHistory', user?.email],
+    queryFn:  () => db.entities.NutritionLog.filter({ created_by: user.email }, '-created_at', 300),
+    enabled:  !!user?.email && open && tab === 'mine' && (mine.data?.length === 0),
+    staleTime: 60_000,
+  });
+
   const invalidateMine = () => queryClient.invalidateQueries({ queryKey: ['nutritionRecipes', user?.id] });
   const invalidateDiscover = () => queryClient.invalidateQueries({ queryKey: ['nutritionRecipesPublic', user?.id] });
 
-  const openNew = () => { setEditingRecipe(null); setBuilderOpen(true); };
-  const openEdit = (recipe) => { setEditingRecipe(recipe); setBuilderOpen(true); };
+  const myRecipes = useMemo(() => mine.data || [], [mine.data]);
+  const publicRecipes = discover.data || [];
 
-  const handleDelete = async (recipe) => {
-    if (!window.confirm(`Remove "${recipe.name}"? This can't be undone.`)) return;
+  // Search and filters run over the rows listPublic() already returned — no
+  // query, no migration, and instant on every keystroke.
+  const visibleDiscover = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const test = DISCOVER_FILTERS.find((f) => f.id === filter)?.test || (() => true);
+    return publicRecipes.filter((r) => {
+      if (!test(r)) return false;
+      if (!q) return true;
+      return (r.name || '').toLowerCase().includes(q)
+        || (r.author_username || '').toLowerCase().includes(q);
+    });
+  }, [publicRecipes, query, filter]);
+
+  // Only meals — water rows are the majority of nutrition_logs and are not
+  // something anyone builds a recipe from. See the CLAUDE.md note on how
+  // hydration is encoded in this table.
+  const seedableLogs = useMemo(() => {
+    const seen = new Set();
+    return (history.data || [])
+      .filter((l) => {
+        if (!l?.food_name || !(Number(l.calories) > 0)) return false;
+        if (/^water(\||$)/i.test(l.food_name)) return false;
+        const key = l.food_name.trim().toLowerCase();
+        if (seen.has(key)) return false;   // one row per distinct meal
+        seen.add(key);
+        return true;
+      })
+      .slice(0, 8);
+  }, [history.data]);
+
+  const openNew = () => { setEditingRecipe(null); setBuilderSeed(null); setBuilderOpen(true); };
+  const openEdit = (recipe) => { setEditingRecipe(recipe); setBuilderSeed(null); setBuilderOpen(true); };
+  const openFromLog = (log) => {
+    setEditingRecipe(null);
+    setBuilderSeed(recipeFromLog(log));
+    setPickingLog(false);
+    setBuilderOpen(true);
+  };
+  const closeBuilder = () => { setBuilderOpen(false); setEditingRecipe(null); setBuilderSeed(null); };
+
+  const handleRemove = async (recipe) => {
     setBusyId(recipe.id);
     try {
       await recipes.remove(recipe.id);
       invalidateMine();
+      setOverflowRecipe(null);
+      setDetail(null);
       toast.success('Recipe removed.');
     } catch (err) {
       toast.error(`Couldn't remove: ${err?.message || 'try again'}`);
@@ -144,6 +201,11 @@ export default function RecipesHubModal({ open, onClose, userProfile }) {
       });
       invalidateMine();
       invalidateDiscover();
+      // Keep the open sheets showing what the row now is, without a refetch
+      // round-trip — the toggle must not flick back while the query settles.
+      const next = { ...recipe, is_public: publishing };
+      setDetail((d) => (d && d.recipe?.id === recipe.id ? { ...d, recipe: next } : d));
+      setOverflowRecipe((o) => (o?.id === recipe.id ? next : o));
       toast.success(publishing ? 'Shared to Discover.' : 'Removed from Discover.');
     } catch (err) {
       toast.error(`Couldn't update: ${err?.message || 'try again'}`);
@@ -157,6 +219,7 @@ export default function RecipesHubModal({ open, onClose, userProfile }) {
     try {
       await recipes.saveCopy({ user, recipe });
       invalidateMine();
+      setDetail(null);
       toast.success('Saved to My Recipes.');
       setTab('mine'); // jump to My Recipes so the user sees the clone land
     } catch (err) {
@@ -166,26 +229,31 @@ export default function RecipesHubModal({ open, onClose, userProfile }) {
     }
   };
 
-  // Post a chosen saved recipe to Discover from the "+" picker.
-  const handlePost = async (recipe) => {
+  const handleDuplicate = async (recipe) => {
     setBusyId(recipe.id);
     try {
-      await recipes.setPublished({ id: recipe.id, isPublic: true, authorUsername: userProfile?.username || null });
+      await recipes.saveCopy({ user, recipe: { ...recipe, name: `${recipe.name} (copy)` } });
       invalidateMine();
-      invalidateDiscover();
-      setShowPostPicker(false);
-      toast.success('Posted to Discover.');
+      setOverflowRecipe(null);
+      toast.success('Duplicated.');
     } catch (err) {
-      toast.error(`Couldn't post: ${err?.message || 'try again'}`);
+      toast.error(`Couldn't duplicate: ${err?.message || 'try again'}`);
     } finally {
       setBusyId(null);
     }
   };
 
+  // The log itself is the Nutrition page's job — see the head comment.
+  const handleLogSubmit = (payload, context) => {
+    onLogRecipe?.(payload, context);
+    setLogTarget(null);
+    setDetail(null);
+  };
+
   if (!open) return null;
 
-  const myRecipes = mine.data || [];
-  const publicRecipes = discover.data || [];
+  const overflowBusy = !!busyId && busyId === overflowRecipe?.id;
+  const detailBusy = !!busyId && busyId === detail?.recipe?.id;
 
   return createPortal(
     <>
@@ -233,164 +301,239 @@ export default function RecipesHubModal({ open, onClose, userProfile }) {
             <div className="flex-1 overflow-y-auto px-4 pb-4">
               {tab === 'mine' ? (
                 <>
-                  <button
-                    type="button"
-                    onClick={openNew}
-                    className="w-full flex items-center justify-center gap-1.5 py-2.5 mb-3 rounded-lg bg-primary text-primary-foreground text-sm font-bold"
-                  >
-                    <Plus className="w-4 h-4" /> New recipe
-                  </button>
-
                   {mine.isLoading ? (
                     <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
                   ) : myRecipes.length === 0 ? (
-                    <div className="text-center py-10 text-muted-foreground">
-                      <Utensils className="w-8 h-8 mx-auto mb-2 opacity-40" />
-                      <p className="text-sm font-semibold">No saved recipes yet</p>
-                      <p className="text-xs mt-1">Build one once, log it in a tap forever.</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {myRecipes.map(recipe => (
-                        <div key={recipe.id} className="rounded-lg border border-border p-3">
-                          <div className="flex items-start gap-2">
-                            <button className="flex-1 flex items-center gap-2.5 text-start" onClick={() => openEdit(recipe)}>
-                              <RecipeThumb recipe={recipe} />
-                              <span className="min-w-0">
-                                <span className="font-semibold text-sm leading-tight flex items-center gap-1.5">
-                                  <span className="truncate">{recipe.name}</span>
-                                  {recipe.is_public && <Globe className="w-3 h-3 text-emerald-500 shrink-0" />}
-                                </span>
-                                <span className="block text-micro text-muted-foreground mt-0.5">
-                                  {perServingCals(recipe)} cal/serving · {macroLine(recipe)}
-                                  {Number(recipe.servings) > 1 ? ` · ${recipe.servings} servings` : ''}
-                                </span>
-                              </span>
+                    /* ── Empty state — board A ─────────────────────────── */
+                    <div className="pt-2">
+                      {pickingLog ? (
+                        <>
+                          <div className="flex items-center justify-between mb-2">
+                            <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground">
+                              Pick a meal to start from
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => setPickingLog(false)}
+                              className="text-micro font-semibold text-muted-foreground"
+                            >
+                              Back
                             </button>
-                            <div className="flex items-center gap-0.5 shrink-0">
-                              <button
-                                onClick={() => handleTogglePublish(recipe)}
-                                disabled={busyId === recipe.id}
-                                aria-label={recipe.is_public ? 'Unpublish' : 'Publish to Discover'}
-                                title={recipe.is_public ? 'Remove from Discover' : 'Share to Discover'}
-                                className={`w-8 h-8 rounded-md flex items-center justify-center ${
-                                  recipe.is_public ? 'text-emerald-500 hover:bg-emerald-500/10 active:bg-emerald-500/10' : 'text-muted-foreground hover:bg-secondary active:bg-secondary'
-                                }`}
-                              >
-                                {busyId === recipe.id ? <Loader2 className="w-4 h-4 animate-spin" /> : (recipe.is_public ? <Globe className="w-4 h-4" /> : <Lock className="w-4 h-4" />)}
-                              </button>
-                              <button
-                                onClick={() => handleDelete(recipe)}
-                                disabled={busyId === recipe.id}
-                                aria-label="Remove recipe"
-                                className="w-8 h-8 rounded-md text-muted-foreground hover:text-destructive active:text-destructive hover:bg-destructive/10 active:bg-destructive/10 flex items-center justify-center"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
+                          </div>
+                          {seedableLogs.length === 0 ? (
+                            <p className="text-caption text-muted-foreground py-6 text-center">
+                              Nothing logged yet to start from — build one from scratch instead.
+                            </p>
+                          ) : (
+                            <div className="space-y-1">
+                              {seedableLogs.map((log) => (
+                                <button
+                                  key={log.id}
+                                  type="button"
+                                  onClick={() => openFromLog(log)}
+                                  className="w-full flex items-center gap-2.5 p-2 rounded-lg hover:bg-secondary/40 active:bg-secondary/40 text-start"
+                                >
+                                  <RecipeThumb recipe={log} className="w-10 h-10" />
+                                  <span className="flex-1 min-w-0">
+                                    <span className="block text-label font-semibold truncate">{log.food_name}</span>
+                                    <span className="block text-micro text-muted-foreground">
+                                      {Math.round(Number(log.calories) || 0)} cal
+                                    </span>
+                                  </span>
+                                  <Plus className="w-4 h-4 text-primary shrink-0" />
+                                </button>
+                              ))}
                             </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </>
-              ) : (
-                <>
-                  {/* + Post one of your saved recipes to Discover */}
-                  <button
-                    type="button"
-                    onClick={() => setShowPostPicker(v => !v)}
-                    className="w-full flex items-center justify-center gap-1.5 py-2.5 mb-3 rounded-lg bg-primary text-primary-foreground text-sm font-bold"
-                  >
-                    <Plus className="w-4 h-4" /> Post a recipe
-                  </button>
-
-                  {showPostPicker && (() => {
-                    const postable = myRecipes.filter(r => !r.is_public);
-                    return (
-                      <div className="mb-3 rounded-lg border border-border p-2">
-                        <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground px-1 mb-1.5">
-                          Choose a recipe to post
-                        </p>
-                        {postable.length === 0 ? (
-                          <p className="text-xs text-muted-foreground px-1 py-2">
-                            {myRecipes.length === 0
-                              ? 'Create a recipe first, then post it here.'
-                              : 'All your recipes are already posted.'}
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          <h3 className="font-heading font-bold text-base">Save a meal you eat often</h3>
+                          <p className="text-caption text-muted-foreground mt-1">
+                            Build it once. From then on it logs in one tap, with the macros
+                            already filled in.
                           </p>
-                        ) : (
-                          <div className="space-y-1">
-                            {postable.map(recipe => (
-                              <button
-                                key={recipe.id}
-                                onClick={() => handlePost(recipe)}
-                                disabled={busyId === recipe.id}
-                                className="w-full flex items-center gap-2.5 p-1.5 rounded-md hover:bg-secondary/50 active:bg-secondary/50 text-start"
-                              >
-                                <RecipeThumb recipe={recipe} className="w-9 h-9" />
-                                <span className="flex-1 min-w-0">
-                                  <span className="block text-sm font-semibold truncate">{recipe.name}</span>
-                                  <span className="block text-micro text-muted-foreground">{perServingCals(recipe)} cal/serving</span>
-                                </span>
-                                {busyId === recipe.id
-                                  ? <Loader2 className="w-4 h-4 animate-spin text-primary" />
-                                  : <Plus className="w-4 h-4 text-primary" />}
-                              </button>
-                            ))}
+                          <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground mt-6 mb-2">
+                            Three ways to start
+                          </p>
+                          <div className="space-y-2">
+                            <RouteCard
+                              Icon={PencilLine}
+                              tint="bg-primary/15 text-primary"
+                              title="Build from scratch"
+                              sub="Ingredients, macros, directions"
+                              onClick={openNew}
+                            />
+                            <RouteCard
+                              Icon={History}
+                              tint="bg-info/15 text-info"
+                              title="From a meal you logged"
+                              sub={seedableLogs.length
+                                ? `Turn “${seedableLogs[0].food_name}” into one`
+                                : 'Reuse something already in your diary'}
+                              onClick={() => setPickingLog(true)}
+                            />
+                            <RouteCard
+                              Icon={Compass}
+                              tint="bg-success/15 text-success"
+                              title="Browse Discover"
+                              sub="Save someone else’s, then make it yours"
+                              onClick={() => setTab('discover')}
+                            />
                           </div>
-                        )}
-                      </div>
-                    );
-                  })()}
-
-                  {discover.isLoading ? (
-                    <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
-                  ) : publicRecipes.length === 0 ? (
-                    <div className="text-center py-10 text-muted-foreground">
-                      <Globe className="w-8 h-8 mx-auto mb-2 opacity-40" />
-                      <p className="text-sm font-semibold">No community recipes yet</p>
-                      <p className="text-xs mt-1">Tap “Post a recipe” to share one of yours.</p>
+                        </>
+                      )}
                     </div>
                   ) : (
-                    <div className="space-y-2">
-                      {publicRecipes.map(recipe => {
-                        const isOpen = expanded === recipe.id;
-                        return (
+                    /* ── Saved list — board B ──────────────────────────── */
+                    <>
+                      <div className="flex items-baseline justify-between mb-2">
+                        <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground">Saved</p>
+                        <p className="text-micro text-muted-foreground">values per serving</p>
+                      </div>
+                      <div className="space-y-2">
+                        {myRecipes.map(recipe => (
                           <div key={recipe.id} className="rounded-lg border border-border p-3">
-                            <div className="flex items-start gap-2">
-                              <button className="flex-1 flex items-center gap-2.5 text-start" onClick={() => setExpanded(isOpen ? null : recipe.id)}>
+                            <div className="flex items-center gap-2">
+                              <button
+                                className="flex-1 flex items-center gap-2.5 text-start min-w-0"
+                                onClick={() => setDetail({ recipe, mode: 'mine' })}
+                              >
                                 <RecipeThumb recipe={recipe} />
                                 <span className="min-w-0">
-                                  <span className="block font-semibold text-sm leading-tight truncate">{recipe.name}</span>
+                                  <span className="block font-semibold text-sm leading-tight truncate">
+                                    {recipe.name}
+                                  </span>
                                   <span className="block text-micro text-muted-foreground mt-0.5">
-                                    {perServingCals(recipe)} cal/serving · {macroLine(recipe)}
-                                    {recipe.author_username ? ` · by ${recipe.author_username}` : ''}
+                                    {perServingCals(recipe)} cal · {macroLine(recipe)}
+                                  </span>
+                                  <span className="flex items-center gap-1.5 mt-1">
+                                    {recipe.is_public && (
+                                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-success/60 text-micro font-bold text-success">
+                                        <Globe className="w-2.5 h-2.5" /> Shared
+                                      </span>
+                                    )}
+                                    <span className="text-micro text-muted-foreground">
+                                      {servingsLabel(recipe)}
+                                    </span>
                                   </span>
                                 </span>
                               </button>
-                              <div className="flex items-center gap-0.5 shrink-0">
+                              <div className="flex items-center gap-1 shrink-0">
                                 <button
-                                  onClick={() => handleSaveCopy(recipe)}
-                                  disabled={busyId === recipe.id}
-                                  aria-label="Save to My Recipes"
-                                  title="Save to My Recipes"
-                                  className="w-8 h-8 rounded-md text-primary hover:bg-primary/10 active:bg-primary/10 flex items-center justify-center"
+                                  onClick={() => setLogTarget(recipe)}
+                                  className="h-8 px-3 rounded-md border border-primary text-primary text-caption font-bold"
                                 >
-                                  {busyId === recipe.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                                  Log
                                 </button>
                                 <button
-                                  onClick={() => setExpanded(isOpen ? null : recipe.id)}
-                                  aria-label="Details"
+                                  onClick={() => setOverflowRecipe(recipe)}
+                                  aria-label={`More actions for ${recipe.name}`}
                                   className="w-8 h-8 rounded-md text-muted-foreground hover:bg-secondary active:bg-secondary flex items-center justify-center"
                                 >
-                                  <ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                                  {busyId === recipe.id
+                                    ? <Loader2 className="w-4 h-4 animate-spin" />
+                                    : <MoreHorizontal className="w-4 h-4" />}
                                 </button>
                               </div>
                             </div>
-                            {isOpen && <RecipeDetails recipe={recipe} />}
                           </div>
-                        );
-                      })}
+                        ))}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={openNew}
+                        className="w-full flex items-center justify-center gap-1.5 py-3 mt-6 rounded-lg bg-primary text-primary-foreground text-sm font-bold"
+                      >
+                        <Plus className="w-4 h-4" /> New recipe
+                      </button>
+                    </>
+                  )}
+                </>
+              ) : (
+                /* ── Discover — board E ───────────────────────────────── */
+                <>
+                  <div className="relative mb-2">
+                    <Search className="w-4 h-4 text-muted-foreground absolute start-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      value={query}
+                      onChange={(e) => setQuery(e.target.value)}
+                      placeholder="Search community recipes"
+                      aria-label="Search community recipes"
+                      // text-base keeps iOS Safari from zooming the viewport
+                      // on focus — anything under 16px triggers the auto-zoom.
+                      className="w-full h-10 ps-9 pe-3 rounded-lg border border-input bg-background text-base"
+                    />
+                  </div>
+                  <div className="flex gap-1.5 mb-2 overflow-x-auto scrollbar-hide">
+                    {DISCOVER_FILTERS.map((f) => (
+                      <button
+                        key={f.id}
+                        type="button"
+                        onClick={() => setFilter(f.id)}
+                        aria-pressed={filter === f.id}
+                        className={`h-8 px-3 shrink-0 rounded-full text-micro font-semibold border transition-colors ${
+                          filter === f.id
+                            ? 'bg-foreground text-background border-transparent'
+                            : 'border-border text-muted-foreground'
+                        }`}
+                      >
+                        {f.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {discover.isLoading ? (
+                    <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
+                  ) : visibleDiscover.length === 0 ? (
+                    <div className="text-center py-10 text-muted-foreground">
+                      <Utensils className="w-8 h-8 mx-auto mb-2 opacity-40" />
+                      {publicRecipes.length === 0 ? (
+                        <>
+                          <p className="text-sm font-semibold">No community recipes yet</p>
+                          <p className="text-xs mt-1">
+                            Share one of yours from its detail screen and it lands here.
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          <p className="text-sm font-semibold">Nothing matches that</p>
+                          <p className="text-xs mt-1">Try a different search or filter.</p>
+                        </>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {visibleDiscover.map(recipe => (
+                        <div key={recipe.id} className="rounded-lg border border-border p-3">
+                          <div className="flex items-center gap-2">
+                            <button
+                              className="flex-1 flex items-center gap-2.5 text-start min-w-0"
+                              onClick={() => setDetail({ recipe, mode: 'community' })}
+                            >
+                              <RecipeThumb recipe={recipe} />
+                              <span className="min-w-0">
+                                <span className="block font-semibold text-sm leading-tight truncate">{recipe.name}</span>
+                                <span className="block text-micro text-muted-foreground mt-0.5">
+                                  {recipe.author_username ? `by @${recipe.author_username}` : 'Community recipe'}
+                                </span>
+                                <span className="block text-micro text-muted-foreground mt-0.5">
+                                  {perServingCals(recipe)} cal · {macroLine(recipe)}
+                                </span>
+                              </span>
+                            </button>
+                            <button
+                              onClick={() => handleSaveCopy(recipe)}
+                              disabled={busyId === recipe.id}
+                              className="h-8 px-3 shrink-0 rounded-md border border-info text-info text-caption font-bold disabled:opacity-60"
+                            >
+                              {busyId === recipe.id
+                                ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                : 'Save'}
+                            </button>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   )}
                 </>
@@ -400,10 +543,45 @@ export default function RecipesHubModal({ open, onClose, userProfile }) {
         </motion.div>
       </AnimatePresence>
 
+      <RecipeDetailSheet
+        open={!!detail}
+        recipe={detail?.recipe}
+        mode={detail?.mode}
+        busy={detailBusy}
+        onClose={() => setDetail(null)}
+        onLog={(recipe) => setLogTarget(recipe)}
+        onEdit={(recipe) => { setDetail(null); openEdit(recipe); }}
+        onSave={handleSaveCopy}
+        onTogglePublish={handleTogglePublish}
+        onOverflow={(recipe) => setOverflowRecipe(recipe)}
+      />
+
+      <RecipeOverflowSheet
+        open={!!overflowRecipe}
+        recipe={overflowRecipe}
+        busy={overflowBusy}
+        onClose={() => setOverflowRecipe(null)}
+        onEdit={(recipe) => { setOverflowRecipe(null); setDetail(null); openEdit(recipe); }}
+        onDuplicate={handleDuplicate}
+        onTogglePublish={handleTogglePublish}
+        onRemove={handleRemove}
+      />
+
+      <LogRecipeSheet
+        open={!!logTarget}
+        recipe={logTarget}
+        date={logDate}
+        defaultMealType={defaultMealType}
+        busy={logBusy}
+        onLog={handleLogSubmit}
+        onClose={() => setLogTarget(null)}
+      />
+
       <RecipeBuilderModal
         open={builderOpen}
         editingRecipe={editingRecipe}
-        onClose={() => { setBuilderOpen(false); setEditingRecipe(null); }}
+        seedRecipe={builderSeed}
+        onClose={closeBuilder}
       />
     </>,
     document.body,

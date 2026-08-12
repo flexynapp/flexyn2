@@ -67,7 +67,7 @@ function NumField({ caption, value, onChange, max, className = '' }) {
   );
 }
 
-export default function RecipeBuilderModal({ open, onClose, editingRecipe = null }) {
+export default function RecipeBuilderModal({ open, onClose, editingRecipe = null, seedRecipe = null }) {
   // Pin the page behind this overlay — see @/lib/scrollLock.
   useBodyScrollLock(open);
   const { user } = useAuth();
@@ -78,6 +78,11 @@ export default function RecipeBuilderModal({ open, onClose, editingRecipe = null
   const [directions, setDirections] = useState('');
   const [micros, setMicros] = useState([]);       // [{ key, label, amount, unit, custom }]
   const [microsOpen, setMicrosOpen] = useState(false);
+  // Directions, nutrients and totals sit behind one disclosure. Ingredients
+  // are the work of this screen and were competing with the finish for the
+  // same altitude; on a 390px phone that is most of a viewport of chrome
+  // between the last ingredient and the button that saves it.
+  const [finishOpen, setFinishOpen] = useState(false);
   const [imageUrl, setImageUrl] = useState('');
   const [uploadingImage, setUploadingImage] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -90,6 +95,22 @@ export default function RecipeBuilderModal({ open, onClose, editingRecipe = null
   // edits instead of the canonical server state. (Audit 11 #33.)
   useEffect(() => {
     if (!open) return;
+    // A seed comes from "from a meal you logged" on the empty state — an
+    // unsaved draft, so it fills the form exactly like a new recipe would but
+    // with the diary row already in row one.
+    if (!editingRecipe && seedRecipe) {
+      setName(seedRecipe.name || '');
+      setServings(String(seedRecipe.servings ?? 1));
+      setIngredients(Array.isArray(seedRecipe.ingredients) && seedRecipe.ingredients.length > 0
+        ? seedRecipe.ingredients.map(r => ({ ...newEmptyIngredient(), ...r }))
+        : [newEmptyIngredient()]);
+      setDirections('');
+      setMicros([]);
+      setMicrosOpen(false);
+      setFinishOpen(false);
+      setImageUrl(seedRecipe.image_url || '');
+      return;
+    }
     if (editingRecipe) {
       setName(editingRecipe.name || '');
       setServings(String(editingRecipe.servings ?? 1));
@@ -106,6 +127,9 @@ export default function RecipeBuilderModal({ open, onClose, editingRecipe = null
       const loadedMicros = Array.isArray(editingRecipe.micros) ? editingRecipe.micros : [];
       setMicros(loadedMicros.map(m => ({ ...m, amount: m.amount ?? '' })));
       setMicrosOpen(loadedMicros.length > 0);
+      // An existing recipe usually HAS a finish, so open the disclosure when
+      // there is something behind it to see.
+      setFinishOpen(!!editingRecipe.directions || loadedMicros.length > 0);
       setImageUrl(editingRecipe.image_url || '');
     } else {
       setName('');
@@ -114,9 +138,10 @@ export default function RecipeBuilderModal({ open, onClose, editingRecipe = null
       setDirections('');
       setMicros([]);
       setMicrosOpen(false);
+      setFinishOpen(false);
       setImageUrl('');
     }
-  }, [open, editingRecipe?.id, editingRecipe?.name, editingRecipe?.ingredients?.length]);
+  }, [open, seedRecipe, editingRecipe?.id, editingRecipe?.name, editingRecipe?.ingredients?.length]);
 
   const handlePickImage = async (e) => {
     const file = e.target.files?.[0];
@@ -236,23 +261,42 @@ export default function RecipeBuilderModal({ open, onClose, editingRecipe = null
               <X className="w-3.5 h-3.5" />
             </button>
           </div>
-          <div className="px-4 pb-3 grid grid-cols-3 gap-2">
+          <div className="px-4 pb-3">
             <Input
               value={name}
               onChange={(e) => setName(e.target.value.slice(0, 60))}
               placeholder="Recipe name"
               maxLength={60}
-              className="col-span-2 h-9"
+              aria-label="Recipe name"
+              className="h-10 text-base"
             />
-            <div className="flex flex-col items-center">
-              <Input
-                type="number" inputMode="decimal"
-                min="1" step="0.5"
-                value={servings}
-                onChange={(e) => setServings(e.target.value)}
-                className="h-9 text-center w-full"
-              />
-              <span className="mt-0.5 text-micro font-bold uppercase tracking-wide text-muted-foreground/70">servings</span>
+            {/* A stepper rather than a number field: servings is a small whole
+                count, and it is the divisor under every figure on the recipe —
+                a typo here silently halves or doubles the lot. */}
+            <div className="flex items-center gap-2 mt-3">
+              <button
+                type="button"
+                onClick={() => setServings((s) => String(Math.max(1, (Number(s) || 1) - 0.5)))}
+                aria-label="Fewer servings"
+                className="w-10 h-10 rounded-md border border-input bg-background text-base font-bold"
+              >
+                –
+              </button>
+              <span className="w-12 text-center font-heading text-base font-bold tabular-nums">
+                {servings}
+              </span>
+              <button
+                type="button"
+                onClick={() => setServings((s) => String(Math.min(99, (Number(s) || 1) + 0.5)))}
+                aria-label="More servings"
+                className="w-10 h-10 rounded-md border border-input bg-background text-base font-bold"
+              >
+                +
+              </button>
+              <p className="flex-1 text-micro text-muted-foreground text-end">
+                servings · figures below are
+                <br />for the WHOLE recipe
+              </p>
             </div>
           </div>
 
@@ -360,8 +404,23 @@ export default function RecipeBuilderModal({ open, onClose, editingRecipe = null
               <Plus className="w-3.5 h-3.5" /> Add ingredient
             </button>
 
+            {/* The finish — directions, nutrients and totals. One disclosure,
+                because ingredients are what this screen is for and everything
+                here is the last five percent. */}
+            <button
+              type="button"
+              onClick={() => setFinishOpen(o => !o)}
+              aria-expanded={finishOpen}
+              className="mt-6 w-full flex items-center justify-between py-2 border-t border-border text-label font-semibold text-muted-foreground"
+            >
+              <span>Directions, nutrients &amp; totals</span>
+              <ChevronDown className={`w-4 h-4 transition-transform ${finishOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {finishOpen && (
+            <>
             {/* Directions */}
-            <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground mt-4 mb-1">Directions</p>
+            <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground mt-2 mb-1">Directions</p>
             <textarea
               value={directions}
               onChange={(e) => setDirections(e.target.value.slice(0, 4000))}
@@ -438,7 +497,8 @@ export default function RecipeBuilderModal({ open, onClose, editingRecipe = null
             )}
 
             {/* Live totals — pure compute via sumIngredients */}
-            <div className="mt-4 p-3 rounded-lg bg-secondary/40 grid grid-cols-4 gap-2 text-center">
+            <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground mt-4 mb-1">Recipe total</p>
+            <div className="p-3 rounded-lg bg-secondary/40 grid grid-cols-4 gap-2 text-center">
               {[
                 { k: 'calories',   l: 'cal', unit: '',  txt: 'text-orange-500' },
                 { k: 'protein_g',  l: 'P',   unit: 'g', txt: 'text-red-500' },
@@ -466,9 +526,25 @@ export default function RecipeBuilderModal({ open, onClose, editingRecipe = null
                 </p>
               );
             })()}
+            </>
+            )}
           </div>
 
-          <div className="px-4 py-3 border-t border-border">
+          {/* The running total pins above Save whether or not the disclosure
+              is open — it is the number you watch while you type, and it used
+              to scroll away with everything else. */}
+          <div className="px-4 py-3 border-t border-border safe-sheet-bottom">
+            <div className="flex items-baseline justify-between mb-2">
+              <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground">
+                Total {Math.round(totals.calories || 0)} cal ·
+                {' '}{Math.round(totals.protein_g || 0)}P ·
+                {' '}{Math.round(totals.carbs_g || 0)}C ·
+                {' '}{Math.round(totals.fat_g || 0)}F
+              </p>
+              <p className="text-micro font-bold text-orange-500 tabular-nums shrink-0 ms-2">
+                {Math.round((totals.calories || 0) / Math.max(1, Number(servings) || 1))} / serving
+              </p>
+            </div>
             <Button onClick={handleSave} disabled={saving} className="w-full">
               {saving ? <Loader2 className="w-4 h-4 me-2 animate-spin" /> : <Save className="w-4 h-4 me-2" />}
               {editingRecipe ? 'Update recipe' : 'Save recipe'}

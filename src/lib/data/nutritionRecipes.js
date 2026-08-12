@@ -111,6 +111,105 @@ export function perServing(totals, servings) {
   return out;
 }
 
+/** A recipe's own serving count, floored at 1 so nothing divides by zero. */
+export function servingsOf(recipe) {
+  const s = Number(recipe?.servings);
+  return s > 0 ? s : 1;
+}
+
+// Which recipe-level micro keys the diary actually has a column for.
+//
+// vitamin_a_mcg and vitamin_d_mcg are DELIBERATELY absent: nutrition_logs
+// stores those two in IU (vitamin_a_iu / vitamin_d_iu), and the mcg→IU factor
+// depends on the form of the vitamin (retinol vs beta-carotene, D2 vs D3).
+// Guessing one would write a confidently wrong number into someone's diary,
+// so those micros stay on the recipe and are simply not carried to the log.
+const MICRO_TO_LOG_COLUMN = {
+  fiber_g:         'fiber_g',
+  sugar_g:         'sugar_g',
+  sodium_mg:       'sodium_mg',
+  cholesterol_mg:  'cholesterol_mg',
+  potassium_mg:    'potassium_mg',
+  calcium_mg:      'calcium_mg',
+  iron_mg:         'iron_mg',
+  magnesium_mg:    'magnesium_mg',
+  vitamin_c_mg:    'vitamin_c_mg',
+  vitamin_b12_mcg: 'vitamin_b12_mcg',
+};
+
+const round1 = (n) => Math.round((Number(n) || 0) * 10) / 10;
+
+/**
+ * The diary row a recipe produces when it is logged. Pure — the caller owns
+ * the write, so this stays testable and the Nutrition page's existing save
+ * mutation (quests, XP, first-meal celebration, cache invalidation) remains
+ * the ONLY path a nutrition_logs row is created on.
+ *
+ * `servings` is how many of the recipe's own servings are being eaten, so
+ * every figure is (whole recipe ÷ recipe.servings) × servings.
+ */
+export function recipeLogPayload({ recipe, servings = 1, mealType, date }) {
+  const n = Number(servings) > 0 ? Number(servings) : 1;
+  const per = perServing(recipe?.totals || {}, servingsOf(recipe));
+  const eaten = (v) => round1((Number(v) || 0) * n);
+
+  const row = {
+    date,
+    meal_type:      mealType || 'snack',
+    food_name:      recipe?.name?.trim() || 'Recipe',
+    calories:       Math.round((Number(per.calories) || 0) * n),
+    protein_g:      eaten(per.protein_g),
+    carbs_g:        eaten(per.carbs_g),
+    fat_g:          eaten(per.fat_g),
+    fiber_g:        eaten(per.fiber_g),
+    sugar_g:        eaten(per.sugar_g),
+    sodium_mg:      eaten(per.sodium_mg),
+    cholesterol_mg: eaten(per.cholesterol_mg),
+    image_url:      recipe?.image_url || null,
+  };
+
+  // Recipe-level micros are entered for the WHOLE recipe, same as the
+  // ingredient totals. Where one names a nutrient the ingredient rows also
+  // carry (fiber, sugar, sodium, cholesterol) it OVERRIDES rather than adds —
+  // the user typed it at recipe level precisely because it is the real figure.
+  const recipeServings = servingsOf(recipe);
+  for (const m of normalizeMicros(recipe?.micros)) {
+    const col = MICRO_TO_LOG_COLUMN[m.key];
+    if (col) row[col] = round1((m.amount / recipeServings) * n);
+  }
+  return row;
+}
+
+/**
+ * Seed the builder from a meal already in the diary — the "from a meal you
+ * logged" route on the empty state. The log becomes a single one-serving
+ * ingredient the user can then break apart, which is the point: it is faster
+ * to split a known 620-cal plate than to type six rows from nothing.
+ */
+export function recipeFromLog(log) {
+  if (!log) return null;
+  const num = (v) => { const n = Number(v); return Number.isFinite(n) && n !== 0 ? n : ''; };
+  const name = (log.food_name || '').trim();
+  return {
+    name,
+    servings: 1,
+    image_url: log.image_url || null,
+    directions: '',
+    micros: [],
+    ingredients: [{
+      name:      name || 'Ingredient',
+      amount:    1,
+      unit:      'serving',
+      grams:     1,
+      calories:  num(log.calories),
+      protein_g: num(log.protein_g ?? log.protein),
+      carbs_g:   num(log.carbs_g   ?? log.carbs),
+      fat_g:     num(log.fat_g     ?? log.fat),
+      fiber_g:   num(log.fiber_g   ?? log.fiber),
+    }],
+  };
+}
+
 // Strip-and-retry wrapper, mirroring db.js create()/update(). If a write
 // references a column the deployed schema doesn't have yet (mig 227 not
 // applied on this host), drop that column and retry — so recipes still
