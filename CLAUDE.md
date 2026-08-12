@@ -525,6 +525,19 @@ not `Workout.jsx` leaves it at zero permanently, and
 a zero row can never credit `user_profiles.total_volume_lbs` either. Six
 database functions read this column, two of them leaderboards.
 
+**REFINEMENT (2026-08-12), and the correction above stays as written.** The
+six zero rows are a **seeding artefact, not evidence about the writer.** They
+carry no `idempotency_key` — which `Workout.jsx:1765` has put in the same
+`create` payload as `total_volume` (`:797`) since 2026-05-24 (`e713f1d7`) — and
+they landed six at a time inside **783 ms** with backdated `date` values from one
+guest account. All three rows a real account wrote DO carry the key, and their
+stored volume is right (one at 4995 matching its derived value; two honest
+zeros). So "any insert path that is not Workout.jsx leaves it at zero" is
+correct, and the sharper statement is that **no row written by the app has a
+wrong `total_volume`** — which is a different claim from the column being
+unreliable. Check `idempotency_key` before attributing a row on this table to
+the client. Full write-up: `docs/all-workouts-audit.md`.
+
 **Re-measure this column before quoting it, and use the FILTER clause.**
 The general lesson is the one the section already makes and this entry
 proves twice: a backfill makes a column correct on the day it runs, not
