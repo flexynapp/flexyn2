@@ -51,7 +51,6 @@ vi.mock('@/components/cardio/CardioLiveTrackerIndoor', () => ({ default: () => <
 vi.mock('@/components/cardio/CardioTemplates', () => ({ default: () => <div /> }));
 vi.mock('@/components/cardio/CardioPlanned', () => ({ default: () => <div /> }));
 vi.mock('@/components/cardio/CardioWearableStub', () => ({ default: () => <div /> }));
-vi.mock('@/components/cardio/CardioGoals', () => ({ default: () => <div /> }));
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import CardioSection from '@/components/cardio/CardioSection';

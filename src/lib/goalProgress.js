@@ -1,8 +1,13 @@
 // src/lib/goalProgress.js
 //
 // Shared progress calculators for goals. Used by GoalsAlmostComplete (the
-// dashboard "almost there" card), GoalsList (the modal list view) and
-// CardioGoals (the Cardio → Goals screen).
+// dashboard "almost there" card) and GoalsList (the modal list view).
+//
+// It had a third caller, CardioGoals (the Cardio → Goals screen), until
+// 0e7a2d6d took that screen off the Cardio page on 2026-08-11 — cardio
+// goals are created and edited in the Goals form like every other type.
+// The component and its test outlived the removal by a day and were
+// deleted in the goals audit; see docs/goals-audit.md.
 //
 // ── CARDIO, added 2026-08-11 ──────────────────────────────────────────
 // The cardio half arrived the same way the strength half did, and for the
@@ -11,7 +16,8 @@
 // GoalsList, and a third in CardioGoals that ran off calendar-period
 // bounds instead of the goal's own period_start_date. Three answers to
 // one question is the exact shape this module exists to prevent, so the
-// cardio calculator now lives here too and all three call it.
+// cardio calculator now lives here too. Two of those three callers
+// survive; the third was the removed screen described above.
 //
 // ── STRENGTH ─────────────────────────────────────────────────────────
 //

@@ -14,10 +14,12 @@ import { useDistanceUnit } from '@/lib/DistanceUnitContext';
 import { toLbs, fromLbs, formatWeight, formatWeightNumber } from '@/lib/weightUnit';
 import { useMultiProfanityGuard, hasAnyProfanity } from '@/lib/useProfanityGuard';
 import ProfanityWarningDialog from '@/components/ProfanityWarningDialog';
-// Shared with CardioGoals, which creates rows this form has to be able to
-// read back. Its private copy of this mutated the Date it was measuring
-// (`today.setDate(...)` after reading `today.getDate()`), which happened
-// to be harmless only because nothing used `today` afterwards.
+// Was shared with CardioGoals, which created rows this form had to be
+// able to read back. Its private copy of this mutated the Date it was
+// measuring (`today.setDate(...)` after reading `today.getDate()`), which
+// happened to be harmless only because nothing used `today` afterwards.
+// That screen was removed on 2026-08-11 (0e7a2d6d) and its file deleted in
+// the goals audit, so this form is now the only writer of goal rows.
 import { periodStartDate as getPeriodStartDate } from '@/lib/goalProgress';
 
 // Helper to convert distance to meters

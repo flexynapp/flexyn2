@@ -44,7 +44,6 @@ vi.mock('@/components/cardio/CardioDetailModal', () => ({ default: () => <div />
 vi.mock('@/components/cardio/CardioTemplates', () => ({ default: () => <div /> }));
 vi.mock('@/components/cardio/CardioPlanned', () => ({ default: () => <div /> }));
 vi.mock('@/components/cardio/CardioWearableStub', () => ({ default: () => <div /> }));
-vi.mock('@/components/cardio/CardioGoals', () => ({ default: () => <div /> }));
 
 import CardioSection from '@/components/cardio/CardioSection';
 
