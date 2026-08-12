@@ -13,7 +13,7 @@ design.** Short version:
 |---|---|---|---|
 | 1 | Log Meal (Manual Entry) | **(b) exists and is broken** | 16 nutrient inputs, 6 storable — **10 discarded on save** |
 | 2 | Recognize Meal (Photo AI) | **(a) exists and works** | quota enforced server-side; one duplicate pair in production |
-| 3 | Search Food Database | **(d) absent** | no text search exists anywhere; barcode equality only |
+| 3 | Search Food Database | ~~**(d) absent**~~ **SUPERSEDED — see the amendment below** | was true on 2026-08-11; search shipped later the same day |
 | 4 | Macros Display | **(b) exists, was broken** | 10 of 16 tiles rendered a permanent zero — **FIXED** |
 | 5 | Calories Display | **(a) exists and works** | correct arithmetic, honest on an empty day |
 
@@ -111,6 +111,39 @@ its own try/catch and reports to Sentry rather than blocking the log — and
 the split by date says image upload started working, not that it fails.
 
 ### 3. Search Food Database — (d) ABSENT
+
+> **AMENDED 2026-08-12 — this verdict is no longer true. Do not act on it.**
+>
+> Everything in this section was correct when it was written and is wrong now.
+> Commit `6a7929ff` ("Nutrition: Search your own foods, and a barcode miss asks
+> before it publishes") shipped `src/components/nutrition/FoodSearchSheet.jsx`
+> and `src/lib/foodSearch.js` **after** this audit was written, on the same day.
+> Search over food exists, is reachable from a full-width button at the top of
+> the Log Meal form, and is tested.
+>
+> Two corrections to the specifics below:
+>
+> - *"`foodItems.js` exposes exactly two reads"* — three now. `listMineForSearch`
+>   is the search source. `listRecent`, correctly noted here as having zero
+>   callers, was **deleted** on 2026-08-12, along with `create()`, which lost its
+>   last caller when 343 replaced the direct-publish path.
+> - *"The only way to reach a food record is to scan a barcode"* — still true of
+>   the shared `food_items` **catalogue**, and it is the reason "Add custom food"
+>   is barcode-only. It is no longer true of finding a food to log: Search
+>   merges your own scans, your recipes and your diary.
+>
+> What has NOT changed, and is the more interesting half: search is scoped to
+> `created_by = <the caller>` on purpose, so it answers "what have I eaten"
+> rather than searching a shared database. So this section's underlying point —
+> that no user can find another user's food by name — survives its verdict.
+>
+> Full write-up, including the four-tier ranking fix and the moderation gate
+> that turned out not to be enforced in the database:
+> **`docs/nutrition-food-database-audit.md`**.
+>
+> Kept in place rather than rewritten, for the same reason this audit keeps its
+> own retractions visible: a verdict is a measurement with a timestamp, and the
+> next reader needs to see that it expired, not find it quietly gone.
 
 There is no text search over food anywhere in the application.
 
@@ -363,8 +396,10 @@ clean · build clean · **4479 tests across 322 files**.
 
 - **Did not apply migration 006 or remove the ten form inputs.** Defect 1 —
   opposite remedies, both product decisions. **This needs your call.**
-- **Did not build Search Food Database.** It has never existed. Building it
-  is new product work, not a fix.
+- ~~**Did not build Search Food Database.** It has never existed. Building it
+  is new product work, not a fix.~~ **Obsolete — it was built later the same
+  day in `6a7929ff`.** See the amendment in section 3 and
+  `docs/nutrition-food-database-audit.md`.
 - **Did not fix the photo-path double-insert (defect 5).** The fix is a
   synchronous ref latch mirroring `LogMealForm`'s, but it belongs in
   `PhotoMealResultModal`/`confirmPhotoMeal` and wants a test that drives the

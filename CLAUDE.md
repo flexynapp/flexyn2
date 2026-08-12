@@ -503,7 +503,7 @@ Found in one pass on 2026-08-09, auditing what the weekly review reads:
 | `cardio_logs.duration_min` | **0 of 5** | The tracker writes `duration_seconds`. Cardio "moving time" was always 0. |
 | `workout_logs.duration_min` | **0 of 9** | The writer now exists (`d0a15d2b`, 2026-08-10) and is correct; no real session has been saved since it landed. `AdvancedAnalyticsSheet` drops the Total-time / Avg-session rows rather than faking a zero. |
 | `league_members.rank` | **0 of 42** | **Not one of these — see the third shape below.** The writer exists and is correct; its precondition has never been met. Also currently has no reader. |
-| `nutrition_logs.food_item_id` | **0 of 126** (2026-08-11) | The food-catalog join has never been exercised. It also has **no reader** — a grep over `src/` and over `pg_proc` finds nothing that selects it. Dead weight, not a broken write. |
+| `nutrition_logs.food_item_id` | **0 of 126** (re-measured 2026-08-12) | The food-catalog join has never been exercised. Independently re-confirmed: **no reader, no writer, no view, no foreign key, and no `pg_proc` body mentions it.** Dead weight, not a broken write. Dropping it is a schema change and therefore kegan's; the SQL is at the foot of `docs/nutrition-food-database-audit.md`. |
 
 `total_volume` is written at both ends — `Workout.jsx` persists it on save, and
 migration 329 backfilled the existing rows with the same formula. The weekly
@@ -1760,6 +1760,59 @@ the ONE that is theirs.
   gates on `is_gym_member_or_owner` because it reports how many people
   train at a named physical address and when. Verified against
   production that a non-member gets `42501`.
+
+## The food catalogue — a moderation queue nothing enforced (2026-08-12)
+
+`public.food_items` is the shared food database a barcode scan resolves
+against. Migration 343 moved a barcode miss from "write straight into it" to
+"file a `food_item_requests` row an admin approves". **343 changed the client
+and left the table's INSERT policy alone**, so until migration 345 the door it
+exists to close was open at the database:
+
+- Executed as a real non-admin authenticated user against production:
+  `INSERT INTO public.food_items (…, is_verified, source) VALUES (…, TRUE,
+  'member_request')` — the exact shape `approve_food_item_request` produces —
+  was **accepted**, and a third authenticated user read it by barcode. The
+  owner could also flip `is_verified` FALSE→TRUE on their own row. This is the
+  `equipment_models` hazard documented above as deliberately closed there.
+- **Migration 345 splits the `ALL` policy**: constrained INSERT (`is_verified`
+  must be false, `source` must be null or `'user_submitted'`), **no client
+  UPDATE**, DELETE only while unreviewed. The approval RPC is SECURITY DEFINER
+  and runs as the table owner, so it bypasses all of this and keeps writing
+  both columns.
+
+Three things worth carrying to any other table with this shape:
+
+- **A `TO PUBLIC` policy plus a role that lacks EXECUTE on a helper is not two
+  layers, it is one accident.** `food_items`' verified-read policy is
+  `TO PUBLIC` and `anon` DOES hold SELECT. `anon` reads still fail — with
+  `42501 permission denied for function current_user_email`, because a
+  *different* `TO PUBLIC` policy on the same table calls it. Permissive
+  policies are OR'd and one of them throwing takes the whole SELECT with it.
+  **The trap: scoping only the owner policy to `authenticated` REMOVES the
+  throwing expression from anon's evaluation and lets the verified-read
+  succeed** — opening the hole while looking like the fix. Scope both, in one
+  migration.
+- **`is_verified` and `source` have zero readers**, in `src/` and in `pg_proc`.
+  `lookupCommunity` does not filter on `is_verified`, so an approved record and
+  an unreviewed one are served to a scanner identically. Filtering the
+  waterfall becomes right only once approvals exist — today it would hide both
+  catalogue rows from the person who contributed them.
+- **A blank submission field must not become a zero on the way back out.**
+  The submission form writes `parseFloat('')` → null into the `nutrition`
+  jsonb, which is honest; the six flat columns carry `DEFAULT 0`, and
+  `json[key] ?? flatNum(record[key])` turned that null into a hard 0. Measured:
+  four nutrients on the catalogue's `White Claw Surge` row were being served to
+  every scanner as manufacturer-grade zeros. `pick()` is now
+  `key in json ? json[key] : flat` — an explicit null wins, and the flat column
+  answers only when the jsonb does not carry the key, which is the legacy row
+  the fallback was written for.
+
+**Search does NOT search this table.** `listMineForSearch` is scoped
+`created_by = <the caller>` on purpose and merges three local sources (own
+`food_items`, own recipes, own diary), which is what lets it filter on every
+keystroke with no network call. No user can find another user's food by name.
+Full write-up: `docs/nutrition-food-database-audit.md`.
 
 **`gym_businesses.owner_id` is nullable ON PURPOSE — this is not drift.**
 Migration 137 explicitly ran `ALTER COLUMN owner_id DROP NOT NULL` so the

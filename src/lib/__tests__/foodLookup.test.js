@@ -67,19 +67,70 @@ describe('lookupBarcode — community source normalisation', () => {
     expect(product.vitamins).toEqual({});
   });
 
-  it('fills null jsonb fields from flat columns per-field', async () => {
+  // ── INVERTED 2026-08-12. Do not restore the old expectation. ─────────────
+  //
+  // This block used to be titled "fills null jsonb fields from flat columns
+  // per-field" and asserted `nutrition.protein === 12` for a row whose jsonb
+  // said `protein: null` and whose flat column said 12. That is the defect the
+  // food-database audit found, and it was live on the catalogue.
+  //
+  // An explicit null in the jsonb is the submission form saying "the label was
+  // not read for this field" — `parseFloat('')` on a blank input. The six flat
+  // columns carry `DEFAULT 0`, so `json[key] ?? flat` turned that into a hard
+  // 0, and 0 g of protein is a manufacturer-grade claim rather than an
+  // absence. Measured on production: `White Claw Surge (Pineapple)` has
+  // protein/carbs/fat/fiber null in `nutrition` and 0 in the flat columns, so
+  // every scanner who looked it up was told it contained zero of all four.
+  //
+  // The old fixture's shape — a non-null flat column over a null jsonb key —
+  // is also one no writer has ever produced: every writer fills the flat
+  // columns FROM the jsonb (`approve_food_item_request` casts
+  // `v_nutrition->>'protein'`), so a null jsonb key leaves the flat column at
+  // its default or NULL, never at a real number. The fallback was firing only
+  // on the reachable case, which was the wrong one.
+  it('keeps a null jsonb field NULL rather than reading the flat column’s DEFAULT 0', async () => {
     filterMock.mockResolvedValue([{
       id: 'r3',
+      barcode: BARCODE,
+      name: 'White Claw Surge (Pineapple)',
+      serving_label: '1 serving',
+      created_date: '2026-07-17T03:06:06Z',
+      // Verbatim production shape, both halves.
+      calories: 160, protein: 0, carbs: 0, fat: 0, fiber: 0, sodium: 30,
+      nutrition: {
+        calories: 160, protein: null, carbs: null, fat: null,
+        fiber: null, sugar: 2, sodium: 30, cholesterol: null,
+      },
+      vitamins: {},
+    }]);
+
+    const product = await lookupBarcode(BARCODE);
+    expect(product.nutrition.calories).toBe(160);
+    expect(product.nutrition.sodium).toBe(30);
+    expect(product.nutrition.sugar).toBe(2);
+    // The four the submitter left blank stay unknown. Each of these was `0`.
+    expect(product.nutrition.protein).toBeNull();
+    expect(product.nutrition.carbs).toBeNull();
+    expect(product.nutrition.fat).toBeNull();
+    expect(product.nutrition.fiber).toBeNull();
+  });
+
+  it('still reads the flat column when the jsonb does not carry the key at all', async () => {
+    // The legacy row this fallback was written for: partial jsonb, no
+    // `protein` key. `key in json` is false, so the flat column answers —
+    // which is the behaviour the inverted test above must not take away.
+    filterMock.mockResolvedValue([{
+      id: 'r4',
       barcode: BARCODE,
       name: 'Yogurt',
       created_date: '2026-06-01T00:00:00Z',
       calories: 0, protein: 12, carbs: 0, fat: 0, fiber: 0, sodium: 0,
-      nutrition: { calories: 90, protein: null, carbs: 8, fat: 2 },
+      nutrition: { calories: 90, carbs: 8, fat: 2 },
     }]);
 
     const product = await lookupBarcode(BARCODE);
     expect(product.nutrition.calories).toBe(90);  // jsonb
-    expect(product.nutrition.protein).toBe(12);   // flat fallback
+    expect(product.nutrition.protein).toBe(12);   // flat fallback, key absent
   });
 
   it('picks the newest row when multiple share a barcode (NULL created_date loses)', async () => {

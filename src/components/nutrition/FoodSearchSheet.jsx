@@ -192,10 +192,20 @@ export default function FoodSearchSheet({ open, onClose, onPick }) {
                             {[r.brand, r.servingLabel, meta.label].filter(Boolean).join(' · ')}
                           </p>
                         </div>
-                        <div className="text-end shrink-0">
-                          <p className="font-heading font-bold text-sm tabular-nums">{Math.round(r.calories)}</p>
-                          <p className="text-micro text-muted-foreground -mt-0.5">cal</p>
-                        </div>
+                        {/* A zero gets no figure. `safeEntry` in Nutrition.jsx
+                            maps every blank numeric field to 0 on save, so a
+                            stored 0 means "nobody said" at least as often as
+                            it means "no calories" — production has such a row
+                            (`food_name: 'ck'`, sixteen untouched inputs). It
+                            rendered here as a confident "0 cal" beside foods
+                            with real numbers. Same gate, same reasoning, as
+                            MacroNutrientBox's tiles. */}
+                        {r.calories > 0 && (
+                          <div className="text-end shrink-0">
+                            <p className="font-heading font-bold text-sm tabular-nums">{Math.round(r.calories)}</p>
+                            <p className="text-micro text-muted-foreground -mt-0.5">cal</p>
+                          </div>
+                        )}
                       </button>
                     );
                   })}

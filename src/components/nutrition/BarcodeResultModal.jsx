@@ -1,8 +1,36 @@
+// src/components/nutrition/BarcodeResultModal.jsx
+//
+// What a successful scan shows before you log it.
+//
+// ── A NUTRIENT THE LABEL DOES NOT CARRY GETS NO TILE ──────────────────────
+//
+// Both grids used to render all eight rows unconditionally, and the macro
+// grid printed `{Math.round(pct)}% DV` outside the null check — so a nutrient
+// the record does not have rendered **"0% DV"** beside an em dash. The
+// vitamin grid twelve lines below got the same case right, which is how it
+// went unnoticed.
+//
+// Measured in the browser against the real catalogue row `White Claw Surge
+// (Pineapple)` on 2026-08-12: seven tiles, of which five read 0.0 and one
+// read "0% DV / —mg". CLAUDE.md's rule is that a section with no data must
+// not render as zeros, and the sibling cards on this same page
+// (`MacroNutrientBox`, `MineralsVitaminsBox`) were fixed for exactly this on
+// 2026-08-11 — this sheet was missed.
+//
+// Note what is NOT dropped: a genuine **0**. A diet soda really does contain
+// 0 g of protein and that is the label's claim, so 0 keeps its tile. Only
+// `null` — nobody read that line of the label — loses one. Telling the two
+// apart is what `foodLookup.js`'s `pick()` fix restored; before it, a blank
+// submission field came back as a hard 0 and there was nothing to gate on.
+//
+// Gating makes the tile count data-driven, so both grids use `tileRow()`
+// rather than `grid-cols-2` — see CLAUDE.md on collections vs fixed counts.
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { X, CheckCircle2, Flame, Beef, Wheat, Droplets, Activity } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
+import { tileRow } from '@/lib/tileRows';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 const MACRO_ROWS = [
@@ -39,35 +67,45 @@ const KEY_MAP = {
 };
 
 const VITAMIN_ROWS = [
-  { key: 'calcium_mg',     label: 'Calcium',     unit: 'mg', dv: 1300 },
-  { key: 'iron_mg',        label: 'Iron',        unit: 'mg', dv: 18   },
-  { key: 'magnesium_mg',   label: 'Magnesium',   unit: 'mg', dv: 420  },
-  { key: 'potassium_mg',   label: 'Potassium',   unit: 'mg', dv: 4700 },
-  { key: 'vitamin_a_iu',   label: 'Vitamin A',   unit: 'IU', dv: 5000 },
-  { key: 'vitamin_c_mg',   label: 'Vitamin C',   unit: 'mg', dv: 90   },
-  { key: 'vitamin_d_iu',   label: 'Vitamin D',   unit: 'IU', dv: 800  },
-  { key: 'vitamin_b12_mcg',label: 'Vitamin B12', unit: 'mcg',dv: 2.4  },
+  { key: 'calcium_mg',     labelKey: 'nutrition.minerals.calcium',   unit: 'mg', dv: 1300 },
+  { key: 'iron_mg',        labelKey: 'nutrition.minerals.iron',      unit: 'mg', dv: 18   },
+  { key: 'magnesium_mg',   labelKey: 'nutrition.minerals.magnesium', unit: 'mg', dv: 420  },
+  { key: 'potassium_mg',   labelKey: 'nutrition.minerals.potassium', unit: 'mg', dv: 4700 },
+  { key: 'vitamin_a_iu',   labelKey: 'nutrition.vitamins.a',         unit: 'IU', dv: 5000 },
+  { key: 'vitamin_c_mg',   labelKey: 'nutrition.vitamins.c',         unit: 'mg', dv: 90   },
+  { key: 'vitamin_d_iu',   labelKey: 'nutrition.vitamins.d',         unit: 'IU', dv: 800  },
+  { key: 'vitamin_b12_mcg',labelKey: 'nutrition.vitamins.b12',       unit: 'mcg',dv: 2.4  },
 ];
-
-const SOURCE_LABELS = {
-  openfoodfacts: 'Open Food Facts',
-  community:     '👥 Community Submitted',
-};
 
 function resolveVal(macroKey, n) {
   const v = n[KEY_MAP[macroKey]];
   return v != null ? v : null;
 }
 
+/** A number we can put on screen — `0` counts, `null` and `NaN` do not. */
+const hasValue = (v) => v != null && Number.isFinite(Number(v));
+
 export default function BarcodeResultModal({ product, onCancel, onLog, isLogging }) {
   // Pin the page behind this overlay — see @/lib/scrollLock.
   useBodyScrollLock(!!product);
-  const { t } = useLanguage();
+  const { t, tFallback } = useLanguage();
   const [tab, setTab] = useState('macros');
   if (!product) return null;
   const n = product.nutrition;
   const vitamins = product.vitamins || {};
-  const hasVitamins = Object.values(vitamins).some(v => v != null);
+  const visibleMacros = MACRO_ROWS.filter(
+    m => m.key !== 'calories' && hasValue(resolveVal(m.key, n)),
+  );
+  const visibleVitamins = VITAMIN_ROWS.filter(v => hasValue(vitamins[v.key]));
+  const hasVitamins = visibleVitamins.length > 0;
+  const grid = tileRow({ gap: 2, cols: 2 });
+  // `community` used to render as the literal '👥 Community Submitted'.
+  const sourceLabel =
+    product.source === 'openfoodfacts'
+      ? 'Open Food Facts'   // a proper noun; not translated on purpose
+      : product.source === 'community'
+        ? tFallback('nutrition.foodDb.result.sourceCommunity', 'Community submitted')
+        : null;
 
   return (
     <AnimatePresence>
@@ -110,9 +148,9 @@ export default function BarcodeResultModal({ product, onCancel, onLog, isLogging
                     {t('nutrition.perServing')} · {product.servingLabel}
                   </p>
                 )}
-                {product.source && SOURCE_LABELS[product.source] && (
+                {sourceLabel && (
                   <p className="text-xs text-muted-foreground/70 mt-0.5">
-                    📡 {SOURCE_LABELS[product.source]}
+                    📡 {sourceLabel}
                   </p>
                 )}
               </div>
@@ -150,8 +188,8 @@ export default function BarcodeResultModal({ product, onCancel, onLog, isLogging
             <div className="px-5 mb-3">
               <div className="flex gap-1 p-1 bg-secondary rounded-lg border border-border">
                 {[
-                  { id: 'macros',   label: 'Nutrients' },
-                  { id: 'vitamins', label: 'Vitamins & Minerals' },
+                  { id: 'macros',   label: tFallback('nutrition.foodDb.result.tabNutrients', 'Nutrients') },
+                  { id: 'vitamins', label: tFallback('nutrition.foodDb.result.tabVitamins', 'Vitamins & minerals') },
                 ].map(tb => (
                   <button
                     key={tb.id}
@@ -173,10 +211,19 @@ export default function BarcodeResultModal({ product, onCancel, onLog, isLogging
           <AnimatePresence mode="wait">
             {tab === 'macros' ? (
               <motion.div key="macros" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                className="px-5 pb-2 grid grid-cols-2 gap-2">
-                {MACRO_ROWS.filter(m => m.key !== 'calories').map((macro, idx) => {
+                className="px-5 pb-2">
+                {visibleMacros.length === 0 ? (
+                  <p className="text-xs text-muted-foreground leading-snug py-1">
+                    {tFallback(
+                      'nutrition.foodDb.result.caloriesOnly',
+                      'This record only carries calories. Whoever added it left the rest of the label blank.',
+                    )}
+                  </p>
+                ) : (
+                <div className={grid.row}>
+                {visibleMacros.map((macro, idx) => {
                   const val = resolveVal(macro.key, n);
-                  const pct = val != null ? Math.min((val / DV[macro.key]) * 100, 100) : 0;
+                  const pct = Math.min((val / DV[macro.key]) * 100, 100);
 
                   return (
                     <motion.div
@@ -184,7 +231,7 @@ export default function BarcodeResultModal({ product, onCancel, onLog, isLogging
                        initial={{ opacity: 0, y: 8 }}
                        animate={{ opacity: 1, y: 0 }}
                        transition={{ delay: 0.05 * idx }}
-                       className="rounded-xl p-3"
+                       className={`${grid.item} rounded-xl p-3`}
                        style={{ background: macro.bg, border: `1px solid ${macro.color}33` }}
                      >
                        <div className="flex justify-between items-center mb-1.5">
@@ -194,7 +241,7 @@ export default function BarcodeResultModal({ product, onCancel, onLog, isLogging
                          </p>
                        </div>
                       <p className="font-heading font-bold text-base" style={{ color: macro.color }}>
-                        {val != null ? (val < 10 ? val.toFixed(1) : Math.round(val)) : '—'}
+                        {val < 10 ? val.toFixed(1) : Math.round(val)}
                         <span className="text-xs text-muted-foreground font-normal ms-0.5">{macro.unit}</span>
                       </p>
                       <div className="mt-2 w-full h-1 rounded-full overflow-hidden" style={{ background: 'rgba(0,0,0,0.1)' }}>
@@ -209,29 +256,31 @@ export default function BarcodeResultModal({ product, onCancel, onLog, isLogging
                     </motion.div>
                   );
                 })}
+                </div>
+                )}
               </motion.div>
             ) : (
               <motion.div key="vitamins" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                className="px-5 pb-2 grid grid-cols-2 gap-2">
-                {VITAMIN_ROWS.map((vit, idx) => {
+                className={`px-5 pb-2 ${grid.row}`}>
+                {visibleVitamins.map((vit, idx) => {
                   const val = vitamins[vit.key];
-                  const pct = val != null ? Math.min((val / vit.dv) * 100, 100) : 0;
+                  const pct = Math.min((val / vit.dv) * 100, 100);
                   return (
                     <motion.div
                       key={vit.key}
                       initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: 0.04 * idx }}
-                      className="rounded-xl p-3 bg-emerald-500/5 border border-emerald-500/20"
+                      className={`${grid.item} rounded-xl p-3 bg-emerald-500/5 border border-emerald-500/20`}
                     >
                       <div className="flex justify-between items-center mb-1.5">
-                        <p className="text-xs text-muted-foreground">{vit.label}</p>
+                        <p className="text-xs text-muted-foreground">{t(vit.labelKey)}</p>
                         <p className="text-xs font-medium text-emerald-500">
-                          {val != null ? `${Math.round(pct)}% DV` : '—'}
+                          {Math.round(pct)}% DV
                         </p>
                       </div>
                       <p className="font-heading font-bold text-base text-emerald-500">
-                        {val != null ? (val < 10 ? val.toFixed(1) : Math.round(val)) : '—'}
+                        {val < 10 ? val.toFixed(1) : Math.round(val)}
                         <span className="text-xs text-muted-foreground font-normal ms-0.5">{vit.unit}</span>
                       </p>
                       <div className="mt-2 w-full h-1 rounded-full overflow-hidden bg-black/10">

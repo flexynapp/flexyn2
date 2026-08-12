@@ -5,8 +5,16 @@
 //
 // Wired exactly like Report a Bug (`fileBugReport` in hubReports.js): a plain
 // authenticated insert into a queue table, read back by an admin through a
-// SECURITY DEFINER RPC at /admin/reports. Migration 342 has the schema and
-// the reasoning.
+// SECURITY DEFINER RPC at /admin/reports. Migration **343** has the schema and
+// the reasoning — this said 342, which is the cross-user row-injection fix.
+//
+// The three RPCs behind /admin/reports were verified against production on
+// 2026-08-12 by calling each one as a real non-admin authenticated user: all
+// three answer `42501 admin_only`, and the same call as an admin succeeds. The
+// `EXECUTE … TO authenticated` grant on them is fine because the gate is
+// inside the body. What is NOT enforced server-side is the queue itself —
+// see the note in BarcodeNotFoundModal and
+// docs/nutrition-food-database-audit.md.
 //
 // WHAT THIS DOES NOT DO: it does not email anyone. Neither does Report a Bug
 // — `bug_reports` has no trigger and nothing in the database references a

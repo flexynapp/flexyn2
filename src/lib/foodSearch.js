@@ -52,6 +52,17 @@ const num = (v) => {
 
 const norm = (s) => String(s || '').trim().toLowerCase();
 
+// Is `ch` a character that JOINS the query to a longer word, rather than
+// ending it? A hyphen does — "chicken-fried" is one word, and the food is
+// steak. Punctuation does not: "(Pineapple)" is the word pineapple in
+// brackets, and somebody searching "pineapple" means to find it.
+//
+// This is what separates tier 1/2 from tier 3 below, and it is the whole
+// reason the tiers are not a `startsWith`. Declared above `matchRank` per
+// CLAUDE.md's TDZ note.
+const JOINS_WORD = /[\p{L}\p{N}\-_'’/]/u;
+const isBoundary = (ch) => ch === '' || !JOINS_WORD.test(ch);
+
 /**
  * How well `name` matches `q`. Lower is better; null means no match at all.
  *
@@ -59,6 +70,27 @@ const norm = (s) => String(s || '').trim().toLowerCase();
  * above *Grilled lemon chicken*, and both above *Chicken-fried steak sauce* —
  * a plain `includes` filter returns all three in whatever order the database
  * happened to hand back.
+ *
+ * **That example is the specification, and a `startsWith` cannot deliver it.**
+ * `'chicken-fried steak sauce'.startsWith('chicken')` is true, so the sauce
+ * used to land in the same tier as *Chicken breast* and ABOVE *Grilled lemon
+ * chicken* — the exact inversion this comment says the tiers exist to
+ * prevent. A sauce outranking a chicken dinner for the query "chicken" is
+ * the MyFitnessPal complaint reproduced locally. Verified in the browser
+ * against all three sources before and after; see
+ * docs/nutrition-food-database-audit.md.
+ *
+ * So the tiers ask whether the query matches a WHOLE word, not whether it is
+ * a prefix of the string:
+ *
+ *   0  the whole name is the query                    "chicken"
+ *   1  a whole word at the START of the name          "CHICKEN breast"
+ *   2  a whole word further in                        "grilled CHICKEN breast"
+ *   3  mid-word anywhere                              "CHICKEN-fried steak sauce"
+ *                                                     "unCHICKENed sauce"
+ *
+ * Scanning occurrences rather than building a RegExp also means a query full
+ * of metacharacters needs no escaping — it is never compiled.
  */
 export function matchRank(name, q) {
   const n = norm(name);
@@ -67,12 +99,20 @@ export function matchRank(name, q) {
   // the idle "recent foods" list the same code path as a search. The sort
   // then falls straight through to usage, which is the right idle order.
   if (!q) return 0;
-  if (n === q) return 0;                       // exact
-  if (n.startsWith(q)) return 1;               // starts with the query
-  // A word inside the name starting with the query — "roasted CHICKen".
-  if (new RegExp(`\\b${q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`).test(n)) return 2;
-  if (n.includes(q)) return 3;                 // anywhere
-  return null;
+  if (n === q) return 0;
+
+  // Every occurrence, because the FIRST one is not always the best: in
+  // "chicken-fried chicken soup" the query "chicken" is mid-word at index 0
+  // and a whole word at index 14.
+  let best = null;
+  for (let i = n.indexOf(q); i !== -1; i = n.indexOf(q, i + 1)) {
+    const before = i === 0 ? '' : n[i - 1];
+    const after = i + q.length >= n.length ? '' : n[i + q.length];
+    const tier = isBoundary(before) && isBoundary(after) ? (i === 0 ? 1 : 2) : 3;
+    if (best === null || tier < best) best = tier;
+    if (best === 1) break;
+  }
+  return best;
 }
 
 const ts = (v) => Date.parse(v || '') || 0;

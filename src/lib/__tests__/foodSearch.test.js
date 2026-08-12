@@ -55,6 +55,36 @@ describe('matchRank — the tiers that decide the order', () => {
     expect(matchRank('unchickened sauce', 'chicken')).toBe(3);
   });
 
+  // The example in foodSearch.js's own head comment, which the module did not
+  // deliver until 2026-08-12: `'chicken-fried steak sauce'.startsWith('chicken')`
+  // is true, so a `startsWith` tier put the SAUCE level with *Chicken breast*
+  // and above *Grilled lemon chicken*. Rendered in the browser against all
+  // three sources before the fix, the sauce came second of four.
+  it('puts a mid-word compound BELOW a whole-word match — the doc comment’s example', () => {
+    expect(matchRank('chicken breast', 'chicken')).toBe(1);
+    expect(matchRank('grilled lemon chicken', 'chicken')).toBe(2);
+    expect(matchRank('chicken-fried steak sauce', 'chicken')).toBe(3);
+    // …and therefore, in that order:
+    const order = ['Chicken-fried steak sauce', 'Grilled lemon chicken', 'Chicken breast']
+      .sort((a, b) => matchRank(a, 'chicken') - matchRank(b, 'chicken'));
+    expect(order).toEqual(['Chicken breast', 'Grilled lemon chicken', 'Chicken-fried steak sauce']);
+  });
+
+  it('treats punctuation as a word boundary but a hyphen as a joiner', () => {
+    // "(Pineapple)" is the word pineapple in brackets — somebody searching
+    // for it means to find it, so brackets must not demote the match the way
+    // a hyphen does.
+    expect(matchRank('White Claw Surge (Pineapple)', 'pineapple')).toBe(2);
+    expect(matchRank('2% milk', '2')).toBe(1);
+    expect(matchRank('low-fat milk', 'fat')).toBe(3);
+    expect(matchRank('milk, low fat', 'fat')).toBe(2);
+  });
+
+  it('takes the BEST occurrence, not the first', () => {
+    // Mid-word at index 0, whole word at index 14. The whole word wins.
+    expect(matchRank('chicken-fried chicken soup', 'chicken')).toBe(2);
+  });
+
   it('returns null when there is no match at all', () => {
     expect(matchRank('farro bowl', 'chicken')).toBeNull();
     expect(matchRank('', 'chicken')).toBeNull();

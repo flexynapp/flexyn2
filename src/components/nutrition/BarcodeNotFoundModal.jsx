@@ -1,7 +1,33 @@
 // src/components/nutrition/BarcodeNotFoundModal.jsx
+//
+// The only way to add a food to the shared catalogue, and it starts with a
+// camera. This sheet opens when `lookupBarcode` misses on both tiers
+// (community `food_items`, then Open Food Facts) — there is no other entry
+// point, no manual barcode field, and nothing anywhere else in the app that
+// files one of these. A loose apple has no barcode and therefore no route in;
+// the recipe builder is the alternative, and it writes a private recipe.
+//
+// ── THE COPY USED TO SAY SOMETHING ELSE ───────────────────────────────────
+//
+// Until 2026-08-12 the intro read "Enter the nutritional info from the label
+// and we'll save it for everyone", over a button reading "Save for Everyone".
+// That was true of the code migration 343 REPLACED. It now files a row in
+// `food_item_requests` and an admin has to approve it before a shared record
+// exists, so the promise was one the app no longer keeps — while the toast
+// underneath it correctly said "Sent for review". Two claims, same tap,
+// contradicting each other.
+//
+// Whoever changed the behaviour changed the two toasts and left thirty
+// hardcoded English literals alone, which is also why this file is now
+// converted in full rather than one string at a time. See CLAUDE.md on
+// half-converted i18n, and docs/nutrition-food-database-audit.md.
+//
+// The nutrient LABELS come from `nutrition.macros.*` / `nutrition.minerals.*`
+// / `nutrition.vitamins.*` with `t()`, because those keys already ship — no
+// point forking a second English copy of the word "Calcium".
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, PackageSearch, Save, ChevronRight } from 'lucide-react';
+import { X, PackageSearch, Send, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -13,32 +39,32 @@ import { containsProfanity } from '@/lib/profanityFilter';
 import { toast } from '@/lib/toast';
 
 const NUTRIENT_FIELDS = [
-  { key: 'calories',      label: 'Calories',     unit: 'cal', color: '#f97316', required: true },
-  { key: 'protein_g',     label: 'Protein',       unit: 'g',    color: '#ef4444' },
-  { key: 'carbs_g',       label: 'Carbohydrates', unit: 'g',    color: '#3b82f6' },
-  { key: 'fat_g',         label: 'Total Fat',     unit: 'g',    color: '#eab308' },
-  { key: 'fiber_g',       label: 'Fiber',         unit: 'g',    color: '#22c55e' },
-  { key: 'sugar_g',       label: 'Sugar',         unit: 'g',    color: '#a855f7' },
-  { key: 'sodium_mg',     label: 'Sodium',        unit: 'mg',   color: '#ec4899' },
-  { key: 'cholesterol_mg',label: 'Cholesterol',   unit: 'mg',   color: '#06b6d4' },
+  { key: 'calories',      labelKey: 'nutrition.macros.calories',    unit: 'cal', color: '#f97316', required: true },
+  { key: 'protein_g',     labelKey: 'nutrition.macros.protein',     unit: 'g',   color: '#ef4444' },
+  { key: 'carbs_g',       labelKey: 'nutrition.macros.carbs',       unit: 'g',   color: '#3b82f6' },
+  { key: 'fat_g',         labelKey: 'nutrition.macros.fat',         unit: 'g',   color: '#eab308' },
+  { key: 'fiber_g',       labelKey: 'nutrition.macros.fiber',       unit: 'g',   color: '#22c55e' },
+  { key: 'sugar_g',       labelKey: 'nutrition.macros.sugar',       unit: 'g',   color: '#a855f7' },
+  { key: 'sodium_mg',     labelKey: 'nutrition.macros.sodium',      unit: 'mg',  color: '#ec4899' },
+  { key: 'cholesterol_mg',labelKey: 'nutrition.macros.cholesterol', unit: 'mg',  color: '#06b6d4' },
 ];
 
 const VITAMIN_FIELDS = [
-  { key: 'calcium_mg',     label: 'Calcium',     unit: 'mg' },
-  { key: 'iron_mg',        label: 'Iron',        unit: 'mg' },
-  { key: 'magnesium_mg',   label: 'Magnesium',   unit: 'mg' },
-  { key: 'potassium_mg',   label: 'Potassium',   unit: 'mg' },
-  { key: 'vitamin_a_iu',   label: 'Vitamin A',   unit: 'IU' },
-  { key: 'vitamin_c_mg',   label: 'Vitamin C',   unit: 'mg' },
-  { key: 'vitamin_d_iu',   label: 'Vitamin D',   unit: 'IU' },
-  { key: 'vitamin_b12_mcg',label: 'Vitamin B12', unit: 'mcg' },
+  { key: 'calcium_mg',     labelKey: 'nutrition.minerals.calcium',   unit: 'mg' },
+  { key: 'iron_mg',        labelKey: 'nutrition.minerals.iron',      unit: 'mg' },
+  { key: 'magnesium_mg',   labelKey: 'nutrition.minerals.magnesium', unit: 'mg' },
+  { key: 'potassium_mg',   labelKey: 'nutrition.minerals.potassium', unit: 'mg' },
+  { key: 'vitamin_a_iu',   labelKey: 'nutrition.vitamins.a',         unit: 'IU' },
+  { key: 'vitamin_c_mg',   labelKey: 'nutrition.vitamins.c',         unit: 'mg' },
+  { key: 'vitamin_d_iu',   labelKey: 'nutrition.vitamins.d',         unit: 'IU' },
+  { key: 'vitamin_b12_mcg',labelKey: 'nutrition.vitamins.b12',       unit: 'mcg' },
 ];
 
 const EMPTY_NUTRIENTS = Object.fromEntries(NUTRIENT_FIELDS.map(f => [f.key, '']));
 const EMPTY_VITAMINS  = Object.fromEntries(VITAMIN_FIELDS.map(f => [f.key, '']));
 
 export default function BarcodeNotFoundModal({ barcode, onCancel, onSubmit }) {
-  const { tFallback } = useLanguage();
+  const { t, tFallback } = useLanguage();
   const { user } = useAuth();
   const kbInset = useKeyboardInset();
   useBodyScrollLock(true);
@@ -54,15 +80,15 @@ export default function BarcodeNotFoundModal({ barcode, onCancel, onSubmit }) {
 
   const handleSave = async () => {
     if (!name.trim()) {
-      toast.error('Please enter the food name.');
+      toast.error(tFallback('nutrition.foodDb.request.needName', 'Enter the food name.'));
       return;
     }
     if (containsProfanity(name)) {
-      toast.error('Please use an appropriate food name.');
+      toast.error(tFallback('nutrition.foodDb.request.badName', 'Please use an appropriate food name.'));
       return;
     }
     if (!nutrients.calories && nutrients.calories !== 0) {
-      toast.error('Calories are required.');
+      toast.error(tFallback('nutrition.foodDb.request.needCalories', 'Calories are required.'));
       return;
     }
 
@@ -93,9 +119,20 @@ export default function BarcodeNotFoundModal({ barcode, onCancel, onSubmit }) {
       // ends up in there five times with five different calorie counts.
       //
       // So it now files a row in `food_item_requests` for approval, the same
-      // way Report a Bug files a `bug_reports` row (migration 342). An admin
+      // way Report a Bug files a `bug_reports` row (migration 343 — this said
+      // 342, which is the cross-user row-injection RLS fix). An admin
       // approves it and only then does a food_items row exist — carrying
       // is_verified = true, because a human actually read it.
+      //
+      // **That is enforced in this file, not in the database.** Measured
+      // against production 2026-08-12: a real non-admin authenticated user
+      // can still `INSERT` straight into `public.food_items` with
+      // `is_verified = TRUE, source = 'member_request'` — the exact shape
+      // `approve_food_item_request` produces — and a third user then reads it
+      // by barcode. 343 changed the client and left the table's INSERT policy
+      // alone. The migration that closes it is in
+      // docs/nutrition-food-database-audit.md; until it is applied, treat
+      // `is_verified` as self-assigned rather than reviewed.
       //
       // The user is NOT made to wait, which is the part that matters. The
       // onSubmit below hands the product straight back to the scanner flow so
@@ -111,8 +148,8 @@ export default function BarcodeNotFoundModal({ barcode, onCancel, onSubmit }) {
       });
 
       toast.success(alreadyQueued
-        ? tFallback('nutrition.barcode.alreadyRequested', 'Someone already asked for this one — it’s in the queue. Logged for you now.')
-        : tFallback('nutrition.barcode.requested', 'Sent for review. Logged for you now, and everyone gets it once it’s approved.'));
+        ? tFallback('nutrition.foodDb.request.alreadyQueued', 'Someone already asked for this one — it’s in the queue. Logged for you now.')
+        : tFallback('nutrition.foodDb.request.sent', 'Sent for review. Logged for you now, and everyone gets it once it’s approved.'));
 
       // Return the product in the same shape as lookupBarcode() so the caller
       // can immediately show BarcodeResultModal without a second lookup.
@@ -125,7 +162,7 @@ export default function BarcodeNotFoundModal({ barcode, onCancel, onSubmit }) {
         vitamins:  vitaminsRecord,
       });
     } catch (err) {
-      toast.error('Could not save food item. Please try again.');
+      toast.error(tFallback('nutrition.foodDb.request.failed', 'Could not send the request. Please try again.'));
       console.error(err);
     } finally {
       setSaving(false);
@@ -167,22 +204,27 @@ export default function BarcodeNotFoundModal({ barcode, onCancel, onSubmit }) {
                 </div>
                 <div>
                   <h2 className="font-heading font-bold text-lg leading-tight">
-                    Food Item Not Found
+                    {tFallback('nutrition.foodDb.request.title', 'Not in the catalogue yet')}
                   </h2>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    Barcode: <code className="font-mono">{barcode}</code>
+                    {tFallback('nutrition.foodDb.request.barcode', 'Barcode')}:{' '}
+                    <code className="font-mono">{barcode}</code>
                   </p>
                 </div>
               </div>
               <button
                 onClick={onCancel}
                 className="shrink-0 p-1.5 rounded-full hover:bg-muted active:bg-muted transition-colors"
+                aria-label={t('common.cancel')}
               >
                 <X className="w-4 h-4 text-muted-foreground" />
               </button>
             </div>
             <p className="text-sm text-muted-foreground mt-3 leading-relaxed">
-              This barcode isn't in any of our databases yet. Enter the nutritional info from the label and we'll save it for everyone.
+              {tFallback(
+                'nutrition.foodDb.request.intro',
+                'No database we check knows this barcode. Enter what the label says and we will send it for review — you can log it for yourself right away.',
+              )}
             </p>
           </div>
 
@@ -190,23 +232,23 @@ export default function BarcodeNotFoundModal({ barcode, onCancel, onSubmit }) {
           <div className="px-5 pb-3 space-y-3 shrink-0">
             <div>
               <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5 block">
-                Food Name <span className="text-destructive">*</span>
+                {tFallback('nutrition.foodDb.request.name', 'Food name')} <span className="text-destructive">*</span>
               </label>
               <Input
                 value={name}
                 onChange={e => setName(e.target.value)}
-                placeholder="e.g. Organic Almond Butter"
+                placeholder={tFallback('nutrition.foodDb.request.namePlaceholder', 'e.g. Organic Almond Butter')}
                 className="h-10"
               />
             </div>
             <div>
               <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5 block">
-                Serving Size
+                {tFallback('nutrition.foodDb.request.serving', 'Serving size')}
               </label>
               <Input
                 value={servingLabel}
                 onChange={e => setServingLabel(e.target.value)}
-                placeholder="e.g. 2 tbsp (32g)"
+                placeholder={tFallback('nutrition.foodDb.request.servingPlaceholder', 'e.g. 2 tbsp (32g)')}
                 className="h-10"
               />
             </div>
@@ -216,19 +258,19 @@ export default function BarcodeNotFoundModal({ barcode, onCancel, onSubmit }) {
           <div className="px-5 shrink-0">
             <div className="flex gap-1 p-1 bg-secondary rounded-lg border border-border">
               {[
-                { id: 'nutrients', label: 'Nutrient Values' },
-                { id: 'vitamins',  label: 'Vitamins & Minerals' },
-              ].map(t => (
+                { id: 'nutrients', label: tFallback('nutrition.foodDb.request.tabNutrients', 'Nutrient values') },
+                { id: 'vitamins',  label: tFallback('nutrition.foodDb.request.tabVitamins', 'Vitamins & minerals') },
+              ].map(tb => (
                 <button
-                  key={t.id}
-                  onClick={() => setTab(t.id)}
+                  key={tb.id}
+                  onClick={() => setTab(tb.id)}
                   className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                    tab === t.id
+                    tab === tb.id
                       ? 'bg-card text-foreground shadow-sm'
                       : 'text-muted-foreground hover:text-foreground active:text-foreground'
                   }`}
                 >
-                  {t.label}
+                  {tb.label}
                 </button>
               ))}
             </div>
@@ -252,6 +294,20 @@ export default function BarcodeNotFoundModal({ barcode, onCancel, onSubmit }) {
                   transition={{ duration: 0.15 }}
                   className="space-y-2"
                 >
+                  {/* A blank field is stored as unknown, not as zero, and the
+                      form has to say so — `parseFloat('')` becomes null in the
+                      `nutrition` jsonb on purpose. Until 2026-08-12 the READ
+                      side then substituted the flat column's `DEFAULT 0` back
+                      over that null, so four blanks on the catalogue's White
+                      Claw row were being served to every scanner as hard
+                      zeros. Fixed in foodLookup.js; this line is the half of
+                      it the user can see. */}
+                  <p className="text-xs text-muted-foreground mb-3 leading-snug">
+                    {tFallback(
+                      'nutrition.foodDb.request.blankIsUnknown',
+                      'Leave a field blank if the label does not list it. A blank is kept as unknown, not as zero.',
+                    )}
+                  </p>
                   {NUTRIENT_FIELDS.map(field => (
                     <div key={field.key} className="flex items-center gap-3">
                       <div
@@ -259,7 +315,7 @@ export default function BarcodeNotFoundModal({ barcode, onCancel, onSubmit }) {
                         style={{ background: field.color }}
                       />
                       <label className="text-sm font-medium flex-1">
-                        {field.label}
+                        {t(field.labelKey)}
                         {field.required && <span className="text-destructive ms-0.5">*</span>}
                       </label>
                       <div className="flex items-center gap-1">
@@ -286,13 +342,17 @@ export default function BarcodeNotFoundModal({ barcode, onCancel, onSubmit }) {
                   transition={{ duration: 0.15 }}
                   className="space-y-2"
                 >
-                  <p className="text-xs text-muted-foreground mb-3">
-                    All vitamin and mineral fields are optional. Leave blank if not listed on the label.
+                  <p className="text-xs text-muted-foreground mb-3 leading-snug">
+                    {tFallback('nutrition.foodDb.request.vitaminsOptional', 'All of these are optional.')}{' '}
+                    {tFallback(
+                      'nutrition.foodDb.request.blankIsUnknown',
+                      'Leave a field blank if the label does not list it. A blank is kept as unknown, not as zero.',
+                    )}
                   </p>
                   {VITAMIN_FIELDS.map(field => (
                     <div key={field.key} className="flex items-center gap-3">
                       <div className="w-3 h-3 rounded-full shrink-0 bg-emerald-500/60" />
-                      <label className="text-sm font-medium flex-1">{field.label}</label>
+                      <label className="text-sm font-medium flex-1">{t(field.labelKey)}</label>
                       <div className="flex items-center gap-1">
                         <Input
                           type="number" inputMode="decimal"
@@ -319,7 +379,7 @@ export default function BarcodeNotFoundModal({ barcode, onCancel, onSubmit }) {
                 onClick={() => setTab('vitamins')}
                 className="w-full flex items-center justify-center gap-1 text-xs text-muted-foreground hover:text-foreground active:text-foreground transition-colors py-1"
               >
-                Add vitamins & minerals (optional)
+                {tFallback('nutrition.foodDb.request.addVitamins', 'Add vitamins & minerals (optional)')}
                 <ChevronRight className="w-3 h-3" />
               </button>
             </div>
@@ -333,7 +393,7 @@ export default function BarcodeNotFoundModal({ barcode, onCancel, onSubmit }) {
               onClick={onCancel}
               disabled={saving}
             >
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button
               className="flex-1 h-11 font-heading font-semibold gap-2"
@@ -347,12 +407,14 @@ export default function BarcodeNotFoundModal({ barcode, onCancel, onSubmit }) {
                     transition={{ duration: 0.8, repeat: Infinity, ease: 'linear' }}
                     className="w-4 h-4 border-2 border-white border-t-transparent rounded-full"
                   />
-                  Saving…
+                  {tFallback('nutrition.foodDb.request.submitting', 'Sending…')}
                 </>
               ) : (
                 <>
-                  <Save className="w-4 h-4" />
-                  Save for Everyone
+                  {/* NOT "Save for Everyone". This button files a request; an
+                      admin approval is what publishes. See the head comment. */}
+                  <Send className="w-4 h-4" />
+                  {tFallback('nutrition.foodDb.request.submit', 'Send for review')}
                 </>
               )}
             </Button>

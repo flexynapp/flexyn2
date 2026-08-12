@@ -181,6 +181,28 @@ describe('partial-gap ratchet', () => {
     // swallow the whole nutrition namespace, which IS translated across all
     // 15 languages.
     'nutrition.untracked.',
+    // Food database — Search and the two barcode sheets, 2026-08-12.
+    //
+    // `nutrition.search.` is NOT new debt and should not be read as such.
+    // Those ten keys were already being called by `FoodSearchSheet` and
+    // `LogMealForm` from 2026-08-11, with no part file behind them at all —
+    // so all 15 languages already rendered the English fallback. Giving them
+    // a dictionary (src/lib/i18n-food-db.js) changes nothing on screen and
+    // makes them translatable for the first time; the ratio moves, the user's
+    // experience does not. Same case as `goals.badge.` below.
+    //
+    // `nutrition.foodDb.` IS new copy. Most of it replaces hardcoded English
+    // literals in `BarcodeNotFoundModal`, which had 30 of them and two
+    // `tFallback` calls — the half-converted state CLAUDE.md says is worse
+    // than either extreme. Some of it also corrects a claim the old copy made
+    // ("we'll save it for everyone" over a queue that files a request), so it
+    // must not be machine-translated: read the translator note at the head of
+    // the part file first.
+    //
+    // Both scoped narrowly for the same reason as `nutrition.untracked.` —
+    // a bare `nutrition.` would swallow the translated namespace next door.
+    'nutrition.search.',
+    'nutrition.foodDb.',
     // League activity gating — new namespace, migration 310 (2026-08-08).
     // Qualification and promote/demote zone copy. Named `league.gate.` rather
     // than dropped loose under `league.` precisely so this exemption cannot

@@ -404,6 +404,7 @@ dead endpoint. See
 | 342 | `342_rls_owner_write_check.sql` | Cross-user row injection: an OR write-check let you stamp another user's email on a row. | — |
 | 343 | `343_food_item_requests.sql` | A barcode miss files a moderated request instead of publishing straight into the shared food catalogue. | — |
 | 344 | `344_meal_plans_one_per_slot.sql` | Unique index on `meal_plans (user_id, plan_date, meal_type)`. `upsert` sent no `id`, so every re-fill of a slot appended a row the grid could not show — 6 of 8 production rows were unreachable. **Applied 2026-08-11**, with a one-off dedupe of 6 rows recorded in the file head but deliberately not restated in it. | Fails `23505` on a database that still holds duplicates — dedupe first |
+| 345 | `345_food_items_moderation_gate.sql` | 343's moderation queue was enforced in the CLIENT only. Verified against production as a real non-admin: a direct `INSERT` into `food_items` with `is_verified = TRUE, source = 'member_request'` was accepted, read by a third user, and the owner could flip `is_verified` on their own row. Splits the `ALL` policy — constrained INSERT, no client UPDATE, DELETE only while unreviewed — and scopes both read policies to `authenticated` so the `TO PUBLIC` verified-read stops depending on `anon` lacking EXECUTE on `current_user_email()`. | Nothing to dedupe. Ends in a `SELECT` over `pg_policies`: expect 4 rows, none with `cmd = 'ALL'` or `'UPDATE'` |
 
 ---
 

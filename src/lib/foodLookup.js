@@ -162,8 +162,26 @@ async function lookupCommunity(barcode) {
   // 001_initial_schema (calories/protein/carbs/fat/fiber/sodium).
   // Rows written before the dual-shape fix may only have one or the
   // other populated — reading both ends the 0-calorie re-scan bug.
+  //
+  // `key in json`, NOT `json[key] ?? flat`. The difference is a hard zero
+  // invented out of a blank, and it is live on the catalogue today.
+  //
+  // The submission form writes `parseFloat('')` → null into the jsonb for
+  // every field the user left empty, which is the honest record: the label
+  // was not read. But the six FLAT columns carry `DEFAULT 0`, so
+  // `null ?? flatNum(0)` resolved to **0** — and 0 g of protein is not an
+  // absence, it is a manufacturer-grade claim. Measured on production
+  // 2026-08-12: of the catalogue's two rows, `White Claw Surge (Pineapple)`
+  // has protein/carbs/fat/fiber explicitly null in `nutrition` and 0 in the
+  // flat columns, so every scanner who looked it up was told it contains
+  // zero of all four. Only `sugar` and `cholesterol` escaped, and only
+  // because they have no flat column to default.
+  //
+  // An explicit null in the jsonb therefore WINS. The flat column is read
+  // only when the jsonb does not carry the key at all, which is the legacy
+  // pre-jsonb row this fallback was written for in the first place.
   const json = (record.nutrition && typeof record.nutrition === 'object') ? record.nutrition : {};
-  const pick = (key) => json[key] ?? flatNum(record[key]);
+  const pick = (key) => (key in json ? json[key] : flatNum(record[key]));
 
   return {
     barcode: record.barcode,

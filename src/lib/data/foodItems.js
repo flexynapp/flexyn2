@@ -2,23 +2,48 @@
 // Community food database — shared across all users.
 // Records are created when a user scans a barcode Open Food Facts doesn't have.
 // Any user who later scans the same barcode gets this record back.
-// 
+//
 // BACKEND_CONTRACT note: This entity is NOT scoped to created_by on read.
 // On migration, ensure the read path has no user-scoping filter.
+//
+// ── WHAT "NOT SCOPED ON READ" ACTUALLY MEANS, MEASURED 2026-08-12 ─────────
+//
+// The line above is right but it is no longer the whole picture: the table
+// carries THREE policies, not one, and they do different things.
+//
+//   owner full access          [ALL]    TO public         created_by/user_id
+//   barcode community read     [SELECT] TO authenticated  barcode IS NOT NULL
+//   verified items readable…   [SELECT] TO public         is_verified = true
+//
+// Both rows in production have a barcode, so in practice every signed-in user
+// reads the whole table — verified as a real authenticated non-owner, who saw
+// both rows AND the `created_by` email on them. That is what the barcode
+// waterfall needs, and it is why `listMineForSearch` below does its scoping in
+// the client rather than relying on the database.
+//
+// Two things fall out of it that a reader should know:
+//   • `created_by` is an email address in a row every signed-in user can read.
+//     `admin_purge_user_data` deliberately EXCLUDES `food_items` from its
+//     email sweep, so a deleted account's address stays there.
+//   • the third policy is `TO public`, and `anon` DOES hold SELECT on the
+//     table. Logged-out reads fail today only because `anon` lacks EXECUTE on
+//     `current_user_email()`, which the FIRST policy calls — so the whole
+//     SELECT errors 42501 rather than returning the verified rows. CLAUDE.md:
+//     depending on a missing GRANT is not a boundary. Nothing is exposed while
+//     `is_verified` is 0 of 2; the migration in
+//     docs/nutrition-food-database-audit.md scopes it before that changes.
+//
+// There is deliberately NO client writer here. A barcode miss files a
+// `food_item_requests` row (see foodItemRequests.js) and an admin approval is
+// what creates a `food_items` row. `create()` and `listRecent()` used to live
+// in this file; the first was the direct-publish path migration 343 replaced
+// and the second never had a caller. Both were removed on 2026-08-12 rather
+// than left as an unused door back into the shared catalogue.
 
 import { db } from '@/api/db';
 import { supabase } from '@/api/supabaseClient';
-import { containsProfanity } from '@/lib/profanityFilter';
 
 const e = () => db.entities.FoodItem;
-
-function assertNoTextProfanity(fields) {
-  for (const [key, val] of Object.entries(fields)) {
-    if (typeof val === 'string' && containsProfanity(val)) {
-      throw Object.assign(new Error(`Profanity detected in field "${key}"`), { code: 'PROFANITY', field: key });
-    }
-  }
-}
 
 /**
  * Look up a barcode in the community database.
@@ -33,21 +58,6 @@ export const findByBarcode = async (barcode) => {
     return null;
   }
 };
-
-/**
- * Create a new community food entry.
- * @param {object} data — { barcode, name, serving_label, nutrition, vitamins }
- */
-export const create = (data) => {
-  assertNoTextProfanity({ name: data.name, brand: data.brand });
-  return e().create(data);
-};
-
-/**
- * List recent community submissions — for admin/moderation use.
- */
-export const listRecent = (limit = 50) =>
-  e().filter({}, '-created_date', limit);
 
 /**
  * This user's own scanner history — every food_items row they created by
