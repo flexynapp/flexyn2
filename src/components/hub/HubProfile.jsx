@@ -336,6 +336,14 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   const [displayNameDraft, setDisplayNameDraft] = useState('');
   const [usernameDraft, setUsernameDraft] = useState('');
   const [usernameBusy, setUsernameBusy] = useState(false);
+  // Mirrors user.is_private so the menu label flips immediately. The server
+  // value stays authoritative; this only exists because the menu re-renders
+  // before the auth user object round-trips.
+  const [isPrivateLocal, setIsPrivateLocal] = useState(null);
+  // `??` not `||`: false is a real value here, and `||` would fall through it
+  // to the server value on every un-private, so turning privacy OFF would
+  // leave the menu still reading "On".
+  const isPrivateNow = isPrivateLocal ?? !!user?.is_private;
   // Holds the handle awaiting the "this spends your 30 days" confirmation.
   const [pendingHandle, setPendingHandle] = useState(null);
   const [bioDraft, setBioDraft] = useState('');
@@ -1015,6 +1023,36 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
     ? user?.display_name
     : (targetUser?.display_name || targetProfile?.display_name)) || '').trim() || null;
 
+  // ── Private account ──────────────────────────────────────────────────────
+  //
+  // The flag is the whole mechanism: migration 351 gates hub_follows,
+  // user_trophies, hub_posts and the stats half of public_profiles on it, so
+  // there is nothing to hide in the client and nothing here that could be
+  // bypassed by hiding it badly.
+  //
+  // patchProfile is REQUIRED, not belt-and-braces. `db.auth.me()` answers from
+  // a module-level cache and only re-reads when that cache is empty, so
+  // invalidating the query key refetches and hands back the same stale object
+  // — the toggle would flip, then revert on the next mount while the database
+  // held the new value. That exact bug hit all four Settings privacy toggles
+  // (CLAUDE.md, Profile cache).
+  const handleTogglePrivate = async () => {
+    const next = !isPrivateNow;
+    setMenuOpen(false);
+    try {
+      await me.update({ is_private: next });
+      patchProfile({ is_private: next });
+      queryClient.invalidateQueries({ queryKey: ['userProfile'] });
+      setIsPrivateLocal(next);
+      toast.success(next
+        ? tFallback('hub.profile.nowPrivate', 'Your account is private. Only followers can see your stats, posts and badges.')
+        : tFallback('hub.profile.nowPublic', 'Your account is public again.'));
+    } catch (err) {
+      reportError(err, { feature: 'profile.toggle-private', level: 'warning' });
+      toast.error(tFallback('hub.profile.privateFailed', "Couldn't change that — try again."));
+    }
+  };
+
   // ── Changing the @handle ─────────────────────────────────────────────────
   //
   // Two steps by design. The user already HAS a handle, so a change spends an
@@ -1521,6 +1559,8 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
             onCloseMenu={() => setMenuOpen(false)}
             onToggleLikes={() => setLikesOpen(v => !v)}
             likesOpen={likesOpen}
+            isPrivate={isPrivateNow}
+            onTogglePrivate={isSelf ? handleTogglePrivate : undefined}
             onEditProfile={() => {
               setCityDraft(city);
               setBioDraft(bio);

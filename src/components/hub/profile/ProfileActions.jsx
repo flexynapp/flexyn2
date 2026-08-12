@@ -11,7 +11,7 @@
 // which exactly one is primary, and a "…" that absorbs everything else. That
 // is what keeps a header calm no matter how many capabilities the app grows —
 // Duel and Gift are good features, but neither is why anyone opens a profile.
-import { Loader2, MessageCircle, MoreHorizontal, Pencil, Palette, QrCode, Coins, Swords, Eye, EyeOff, UserPlus, UserCheck, VolumeX, Volume2, Ban, Bookmark } from 'lucide-react';
+import { Loader2, MessageCircle, MoreHorizontal, Pencil, Palette, QrCode, Coins, Swords, Eye, EyeOff, UserPlus, UserCheck, VolumeX, Volume2, Ban, Bookmark, Lock, Unlock } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -86,6 +86,8 @@ export default function ProfileActions({
   onBlock,
   isMuted = false,
   onToggleTrophyVisibility,
+  isPrivate = false,
+  onTogglePrivate,
   trophyVisible,
   canDuelOrGift,
   hasUsername,
@@ -229,6 +231,25 @@ export default function ProfileActions({
                     : tFallback('hub.profile.showTrophyCase', 'Show trophy case')}
                   onSelect={onToggleTrophyVisibility}
                 />
+                {/* Private account. The hint spells out what stays visible,
+                    because "private" means different things in different apps
+                    and the surprise here would be discovering afterwards that
+                    your name and photo were never hidden. They are not — you
+                    have to stay recognisable enough for someone to decide to
+                    follow you. */}
+                {onTogglePrivate && (
+                  <MenuItem
+                    icon={isPrivate ? Lock : Unlock}
+                    iconClass={isPrivate ? 'text-primary' : 'text-muted-foreground'}
+                    label={isPrivate
+                      ? tFallback('hub.profile.makePublic', 'Private account · On')
+                      : tFallback('hub.profile.makePrivate', 'Private account')}
+                    onSelect={onTogglePrivate}
+                    hint={isPrivate
+                      ? tFallback('hub.profile.privateOnHint', 'Only followers see your stats, posts and badges')
+                      : tFallback('hub.profile.privateOffHint', 'Hide your stats, posts and badges from non-followers')}
+                  />
+                )}
               </>
             ) : (
               <>
