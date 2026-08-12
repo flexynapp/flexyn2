@@ -203,7 +203,22 @@ of several permissive policies removes the throwing expression and lets another
 succeed. Each of these tables has **exactly one** policy, so scoping it to
 `authenticated` leaves anon with no permissive policy at all.
 
-**Not shipped — this is a schema change and Kegan's call.** The SQL is in §9.
+**SHIPPED as migration 349, applied 2026-08-12.** Re-probed after applying, and
+the anon result *changed shape*, which is the whole point: it now returns **0
+rows cleanly** because no policy applies to it, rather than `42501 permission
+denied for function current_user_email`. The block no longer depends on a
+missing GRANT.
+
+| Post-migration probe | Result |
+|---|---|
+| `anon` → both tables | **0 rows**, no error — no policy applies |
+| authenticated non-owner → both | 0 rows |
+| non-owner INSERT forging another `user_id` | **rejected** |
+| owner → `workout_logs` | 2 rows |
+| owner (a user who has cardio) → `cardio_logs` | 2 rows |
+
+The second owner probe exists because the first owner has no cardio rows, so
+`cl=0` proved nothing about that table until it was run against a user who does.
 
 ## 8. Lead 2 — the empty log · **historical for the reason given, live for another**
 
