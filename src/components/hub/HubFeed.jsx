@@ -165,7 +165,7 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
       if (feedTab === 'pump') {
         return hubPosts.fetchGlobalWindow();
       } else {
-        return hubPosts.fetchFollowingWindow(following);
+        return hubPosts.fetchFollowingWindow(following, user?.email);
       }
     },
     enabled: !!user?.email,
@@ -174,6 +174,22 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
     // need staleTime:0 — it was causing a fresh fetch on every Hub re-mount
     // (every tab switch back from a profile/composer overlay).
     staleTime: 30_000,
+    // THIS is "the page refreshed by itself" (Sean, 12 Aug). The app-wide
+    // default leaves refetchOnWindowFocus TRUE, so leaving the tab and coming
+    // back after staleTime silently refetched the feed and the list moved
+    // under him with nothing having been touched.
+    //
+    // Turned off HERE and not globally. That default is deliberate and
+    // documented in src/lib/query-client.js — a Dashboard left open over a
+    // dinner break otherwise shows hour-old workout counts. A feed is the one
+    // surface where it is wrong: this is a reading position, and content
+    // shifting while you are looking at it loses your place. His instruction
+    // was explicit — "it has to be a manual refresh, posts are not gonna
+    // automatically come in."
+    //
+    // Nothing is lost by it. Realtime still counts arrivals behind the
+    // "N new posts" pill, so you find out immediately and choose when.
+    refetchOnWindowFocus: false,
   });
 
   // ── Preload the sibling feed tab ─────────────────────────────────────
@@ -196,7 +212,7 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
         queryKey: ['hubFeed', sibling, user.email, following.length],
         queryFn: () => (sibling === 'pump'
           ? hubPosts.fetchGlobalWindow()
-          : hubPosts.fetchFollowingWindow(following)),
+          : hubPosts.fetchFollowingWindow(following, user.email)),
         staleTime: 30_000,
       }).catch(() => { /* a warm cache is an optimisation, never an error */ });
     }, 400);
@@ -243,7 +259,7 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
     try {
       const more = feedTab === 'pump'
         ? await hubPosts.fetchOlderGlobal(cursor, 50)
-        : await hubPosts.fetchOlderFollowing(following, cursor, 50);
+        : await hubPosts.fetchOlderFollowing(following, cursor, 50, user?.email);
       if (more.length === 0) setOlderExhausted(true);
       else setOlderPosts(prev => [...prev, ...more]);
     } finally {

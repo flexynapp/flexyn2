@@ -87,3 +87,40 @@ describe('global feed refresh policy', () => {
     expect(handler).not.toMatch(/invalidateQueries/);
   });
 });
+
+/**
+ * "The page refreshed by itself" — Sean, 12 Aug.
+ *
+ * Not the gesture throttle above. The app-wide QueryClient leaves
+ * refetchOnWindowFocus at Tanstack's default of TRUE (deliberately — see
+ * src/lib/query-client.js, where a Dashboard left open over dinner showing
+ * hour-old counts is the case it exists for). Combined with a 30s staleTime,
+ * leaving the tab and returning refetched the feed and moved the list under a
+ * reader who had touched nothing.
+ *
+ * A feed is the one surface where that default is wrong: it is a reading
+ * position. Scoped off here rather than globally, because turning it off
+ * app-wide would silently revert a decision made for a different screen.
+ */
+describe('the feed does not refetch on window focus', () => {
+  it('opts out explicitly on the hubFeed query', () => {
+    const feedQuery = SRC.slice(
+      SRC.indexOf("queryKey: ['hubFeed'"),
+      SRC.indexOf('Preload the sibling feed tab'),
+    );
+    expect(feedQuery).toMatch(/refetchOnWindowFocus:\s*false/);
+  });
+
+  it('does so locally, leaving the global default alone', () => {
+    // Code lines only: that file's comment RECOUNTS a previous explicit
+    // `refetchOnWindowFocus: false` and why it was removed, and a scan that
+    // cannot tell code from commentary would force the history out.
+    const client = readFileSync(resolve(process.cwd(), 'src/lib/query-client.js'), 'utf8')
+      .split('\n')
+      .filter(l => !/^\s*(\/\/|\*|\/\*)/.test(l))
+      .join('\n');
+    // If this ever appears globally, every other surface silently loses the
+    // catch-up-after-backgrounding behaviour it was given on purpose.
+    expect(client).not.toMatch(/refetchOnWindowFocus:\s*false/);
+  });
+});

@@ -152,6 +152,26 @@ export const purgeForUser = async (email) => {
 const FETCH_WINDOW = 100; // server-side cap per fetch
 
 /**
+ * The author set for the Following feed: everyone you follow, plus you.
+ *
+ * Case-insensitive de-dupe, because a follow row and the session email can
+ * differ in case and the same address twice in an IN clause is a wasted slot
+ * against the 100 cap.
+ */
+function withSelf(followingEmails = [], selfEmail = null) {
+  const seen = new Set();
+  const out = [];
+  for (const e of [...(followingEmails || []), selfEmail]) {
+    if (!e) continue;
+    const k = String(e).toLowerCase();
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(e);
+  }
+  return out.slice(0, 100);
+}
+
+/**
  * Fetch the global public feed window (newest first, capped at FETCH_WINDOW).
  * The caller paginates client-side.
  */
@@ -167,9 +187,17 @@ export const fetchGlobalWindow = () =>
  * active users) with a single bounded query. The DB layer shim
  * (src/api/db.js) translates an array value into a `.in()` clause.
  */
-export const fetchFollowingWindow = async (followingEmails = []) => {
-  if (!followingEmails || followingEmails.length === 0) return [];
-  const emails = followingEmails.slice(0, 100);
+export const fetchFollowingWindow = async (followingEmails = [], selfEmail = null) => {
+  // Your own posts belong in Following. "In a weird way it's as if you follow
+  // yourself" — and without this the feed you curated never shows you what you
+  // put into it, so there is no way to see your own post in the context
+  // everyone else sees it in.
+  //
+  // It also fixes the cold-start case: the old guard returned [] the moment
+  // followingEmails was empty, so a brand-new account's Following tab was
+  // blank even after they had posted. Now the floor is your own content.
+  const emails = withSelf(followingEmails, selfEmail);
+  if (emails.length === 0) return [];
   const rows = await e()
     .filter({ author_email: emails }, '-created_date', FETCH_WINDOW)
     .catch(() => []);
@@ -194,9 +222,11 @@ export const fetchOlderGlobal = async (cursorIso, pageSize = 50) => {
   return data || [];
 };
 
-export const fetchOlderFollowing = async (followingEmails = [], cursorIso, pageSize = 50) => {
-  if (!cursorIso || !followingEmails || followingEmails.length === 0) return [];
-  const emails = followingEmails.slice(0, 100);
+export const fetchOlderFollowing = async (followingEmails = [], cursorIso, pageSize = 50, selfEmail = null) => {
+  // Same membership as fetchFollowingWindow, or page 2 silently drops the
+  // viewer's own posts and the feed appears to lose them on scroll.
+  const emails = withSelf(followingEmails, selfEmail);
+  if (!cursorIso || emails.length === 0) return [];
   const { data, error } = await supabase
     .from('hub_posts')
     .select('*')

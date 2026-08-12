@@ -130,3 +130,64 @@ describe('listByIds — preserves the caller order', () => {
     expect(await listByIds(['a'])).toEqual([]);
   });
 });
+
+/**
+ * The Following feed includes your own posts.
+ *
+ * Sean, 12 Aug: "maybe we could have your own post show up under following…
+ * in a weird way it's as if you follow yourself."
+ *
+ * Two things fall out of it. The feed you curated never showed you what you
+ * put into it, so there was no way to see your own post in the context
+ * everyone else sees it in. And the old guard returned [] the instant
+ * followingEmails was empty, so a brand-new account's Following tab stayed
+ * blank even after they had posted — the cold-start case, where an empty
+ * screen is most likely to be read as "this app is broken".
+ */
+import { fetchFollowingWindow, fetchOlderFollowing } from '@/lib/data/hubPosts';
+
+describe('Following feed membership', () => {
+  it('adds the viewer to the author set', async () => {
+    filterMock.mockResolvedValue([]);
+    await fetchFollowingWindow(['a@x.com'], 'me@x.com');
+    expect(filterMock.mock.calls[0][0].author_email).toContain('me@x.com');
+  });
+
+  it('returns your own posts even when you follow nobody', async () => {
+    filterMock.mockResolvedValue([{ id: 'mine' }]);
+    const out = await fetchFollowingWindow([], 'me@x.com');
+    expect(filterMock).toHaveBeenCalled();
+    expect(out).toEqual([{ id: 'mine' }]);
+  });
+
+  it('still returns nothing when there is no viewer and no follows', async () => {
+    filterMock.mockResolvedValue([{ id: 'x' }]);
+    expect(await fetchFollowingWindow([], null)).toEqual([]);
+    expect(filterMock).not.toHaveBeenCalled();
+  });
+
+  it('does not list the viewer twice when they somehow follow themselves', async () => {
+    // A duplicate in an IN clause is a wasted slot against the 100 cap.
+    filterMock.mockResolvedValue([]);
+    await fetchFollowingWindow(['ME@x.com', 'a@x.com'], 'me@x.com');
+    const emails = filterMock.mock.calls[0][0].author_email;
+    expect(emails.filter(e => e.toLowerCase() === 'me@x.com')).toHaveLength(1);
+  });
+
+  it('pagination uses the same membership, so page 2 keeps your posts', async () => {
+    // Mismatched membership here would make your own posts vanish on scroll,
+    // which reads as the feed losing them rather than as a different query.
+    const { supabase } = await import('@/api/supabaseClient');
+    const calls = [];
+    const chain2 = {
+      select: () => chain2,
+      in: (col, vals) => { calls.push(vals); return chain2; },
+      lt: () => chain2,
+      order: () => chain2,
+      limit: async () => ({ data: [], error: null }),
+    };
+    supabase.from.mockReturnValueOnce(chain2);
+    await fetchOlderFollowing(['a@x.com'], '2026-08-12T00:00:00Z', 50, 'me@x.com');
+    expect(calls[0]).toContain('me@x.com');
+  });
+});
