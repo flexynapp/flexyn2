@@ -51,8 +51,13 @@ describe('tileRows — the width matches the key that names it', () => {
   it('covers every combination the app actually renders', () => {
     // Adding a call site with a new shape means adding its literal here; this
     // list is what stops one being dropped in a refactor.
+    // '3-2-4' is the Nutrition page's macro / vitamin grids (2026-08-11).
+    // They were `grid-cols-2 md:grid-cols-4` while their tile count was
+    // fixed at eight; gating each tile on whether its nutrient has any data
+    // made the count data-driven, which is exactly the condition this
+    // module exists for.
     expect(Object.keys(ITEMS).sort()).toEqual(
-      ['2-1-2', '2-3-3', '2-3-5', '3-1-2', '3-2-3', '3-3-4'],
+      ['2-1-2', '2-3-3', '2-3-5', '3-1-2', '3-2-3', '3-2-4', '3-3-4'],
     );
   });
 

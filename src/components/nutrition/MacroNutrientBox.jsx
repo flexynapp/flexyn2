@@ -1,9 +1,39 @@
+// src/components/nutrition/MacroNutrientBox.jsx
+//
+// WHY TILES DISAPPEAR RATHER THAN READING ZERO
+//
+// Every tile here used to render unconditionally, so a nutrient with nothing
+// behind it drew "0.0g · 0%" over a zero-width bar. CLAUDE.md is explicit
+// that a section with no data must not render as zeros — a 0 reads as a
+// failure the user did not commit, and "0 kcal" at someone who has not
+// logged food is the app calling them lazy. `WeeklyDebriefCard.jsx:478`
+// already gates its macro bar on `macroKcal > 0` for exactly this reason;
+// this is the same rule applied per tile.
+//
+// It is not hypothetical here. `sugar_g` and `cholesterol_mg` have NO COLUMN
+// in `nutrition_logs` — migration 006 declares them and has never been
+// applied — so `db.js`'s strip-and-retry drops them from every insert and
+// those two tiles were structurally incapable of ever showing a non-zero
+// number. They read 0.0g/0mg for every user, every day, since launch.
+// See docs/nutrition-meal-logging-audit.md.
+//
+// Sugar is the one of the two that CAN be recovered: the photo-AI path
+// stores it inside `ai_meta.sugar_g`, which survives because ai_meta is a
+// real jsonb column. Four production rows carry a sugar figure there that
+// this box was throwing away. Cholesterol has no such backdoor and simply
+// stays hidden until the column exists.
+//
+// The count of tiles is therefore decided by DATA, which is what makes
+// `grid-cols-N` wrong here and `tileRow()` right — a grid packs a partial
+// row into its leading columns and leaves a dead cell beside it.
+
 import React, { useMemo, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { motion } from 'framer-motion';
 import { useNutritionTargets } from '@/hooks/useNutritionTargets';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useSettings } from '@/lib/SettingsContext';
+import { tileRow } from '@/lib/tileRows';
 import NutrientRing from './NutrientRing';
 import NutrientIcon from './NutrientIcon';
 
@@ -19,7 +49,7 @@ const MACROS = [
 ];
 
 export default function MacroNutrientBox({ entries = [], userProfile = {} }) {
-  const { t } = useLanguage();
+  const { t, tFallback } = useLanguage();
   const { nutrientRingView } = useSettings();
   const [netCarbsInfo, setNetCarbsInfo] = useState(false);
   const totals = useMemo(() => {
@@ -33,7 +63,12 @@ export default function MacroNutrientBox({ entries = [], userProfile = {} }) {
         fat_g:          acc.fat_g          + (entry.fat_g          ?? entry.fat        ?? 0),
         sodium_mg:      acc.sodium_mg      + (entry.sodium_mg      ?? entry.sodium     ?? 0),
         fiber_g:        acc.fiber_g        + (entry.fiber_g        ?? entry.fiber      ?? 0),
-        sugar_g:        acc.sugar_g        + (entry.sugar_g                            || 0),
+        // `sugar_g` has no column. The photo-AI path tucks it into ai_meta,
+        // which is a real jsonb column and therefore survives the insert —
+        // so read there before giving up. `openMealDetail` already resolves
+        // sugar this way (Nutrition.jsx:1035); this box did not, and threw
+        // away a figure it was being handed.
+        sugar_g:        acc.sugar_g        + (Number(entry.sugar_g ?? entry.ai_meta?.sugar_g) || 0),
         cholesterol_mg: acc.cholesterol_mg + (entry.cholesterol_mg                    || 0),
       }),
       {
@@ -48,6 +83,10 @@ export default function MacroNutrientBox({ entries = [], userProfile = {} }) {
       }
     );
   }, [entries]);
+
+  // Only nutrients with something behind them get a tile. See the head note.
+  const visible = useMemo(() => MACROS.filter(m => totals[m.key] > 0), [totals]);
+  const { row, item } = tileRow({ gap: 3, cols: 2, smCols: 4 });
 
   const dailyValues = useNutritionTargets(userProfile);
 
@@ -69,19 +108,24 @@ export default function MacroNutrientBox({ entries = [], userProfile = {} }) {
   return (
     <Card className="p-4 border-none shadow-sm">
       <h3 className="font-heading font-bold mb-3">{t('nutrition.nutritionalValues')}</h3>
+      {visible.length === 0 ? (
+        <p className="text-xs text-muted-foreground py-2">
+          {tFallback('nutrition.untracked.macros', 'Nothing logged yet today — log a meal to see your macros.')}
+        </p>
+      ) : (
       <motion.div
-        className="grid grid-cols-2 md:grid-cols-4 gap-3"
+        className={row}
         variants={containerVariants}
         initial="hidden"
         animate="visible"
       >
-        {MACROS.map(macro => {
+        {visible.map(macro => {
           const actual = totals[macro.key];
           const daily = dailyValues[macro.key] || 100;
           const percentOfDaily = Math.min((actual / daily) * 100, 100);
 
           return (
-            <motion.div key={macro.key} variants={itemVariants}>
+            <motion.div key={macro.key} variants={itemVariants} className={item}>
               {nutrientRingView ? (
                 /* ── Ring view ── */
                 <div className={`${macro.bgColor} rounded-lg p-3 h-full flex flex-col items-center text-center`}>
@@ -126,9 +170,14 @@ export default function MacroNutrientBox({ entries = [], userProfile = {} }) {
           );
         })}
       </motion.div>
+      )}
       {/* Net carbs — carbs minus fiber. Standard for keto / low-carb
           tracking. Quiet single-line label so users who don't care
-          about the metric aren't distracted. */}
+          about the metric aren't distracted.
+          Gated on carbs for the same reason the tiles are: with nothing
+          logged this line read a permanent "0.0 g", which is a claim rather
+          than an absence. */}
+      {totals.carbs_g > 0 && (
       <div className="mt-3 pt-3 border-t border-border/40">
         <div className="flex items-center justify-between">
           <span className="text-micro font-bold uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
@@ -152,6 +201,7 @@ export default function MacroNutrientBox({ entries = [], userProfile = {} }) {
           </p>
         )}
       </div>
+      )}
     </Card>
   );
 }

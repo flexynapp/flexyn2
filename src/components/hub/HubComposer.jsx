@@ -391,10 +391,31 @@ export default function HubComposer({ onClose }) {
     queryFn: () => cardio.list(user.email, 10),
     enabled: !!user?.email,
   });
+  // Hydration shares the meal table: a glass of water is a `nutrition_logs`
+  // row with meal_type NULL and food_name 'Water' (8 oz) or 'Water|N' (N oz).
+  // 118 of the 126 rows in production are water, so anything listing "meals"
+  // has to exclude them or it lists almost nothing else.
+  //
+  // This filter used to read `!(m.food_name === 'Water' && m.water_oz > 0)`
+  // and excluded NOTHING. `water_oz` is a column migration 006 declares and
+  // has never created, so `m.water_oz` is undefined, `undefined > 0` is
+  // false, and the whole negated conjunction is therefore always true.
+  // Measured against production: 8 of the 10 rows this handed the composer
+  // were water, so "attach a recent meal" offered Water, Water, Water|32…
+  // ahead of the two real meals. It also only matched the bare 'Water',
+  // never the 'Water|N' form that carries a custom bottle size.
+  //
+  // The predicate below is the one used at Nutrition.jsx:72,
+  // HydrationRing.jsx:41, MealHistoryModal.jsx:178 and LogMealForm.jsx:128.
+  // Those four are correct; this was the fifth consumer and the only one
+  // that got it wrong. Keep them in sync — see the audit doc for why a
+  // shared helper is the better end state.
   const { data: recentMeals = [] } = useQuery({
     queryKey: ['composer.meals', user?.email],
     queryFn: () => nutrition.list(user.email, 20).then(meals =>
-      meals.filter(m => !(m.food_name === 'Water' && m.water_oz > 0)).slice(0, 10)
+      meals
+        .filter(m => !(m.food_name === 'Water' || m.food_name?.startsWith?.('Water|')))
+        .slice(0, 10)
     ),
     enabled: !!user?.email,
   });

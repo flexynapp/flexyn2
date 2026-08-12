@@ -24,7 +24,27 @@ ALTER TABLE public.nutrition_logs
   ADD COLUMN IF NOT EXISTS vitamin_c_mg    numeric,
   ADD COLUMN IF NOT EXISTS vitamin_d_iu    numeric,
   ADD COLUMN IF NOT EXISTS vitamin_b12_mcg numeric,
-  ADD COLUMN IF NOT EXISTS water_oz        numeric DEFAULT 0;
+  -- water_oz carries NO DEFAULT, and that is load-bearing. It read
+  -- `numeric DEFAULT 0` until 2026-08-11, which would have silently zeroed
+  -- every glass of water ever logged the moment this migration ran.
+  --
+  -- Hydration is stored in food_name as 'Water' (8 oz) or 'Water|N' (N oz),
+  -- precisely because this migration has never been applied and the column
+  -- does not exist in production. Both readers treat the COLUMN as
+  -- authoritative and parse the name only when it is absent:
+  --   src/pages/Nutrition.jsx:73   e.water_oz ?? parse(food_name)
+  --   HydrationRing.jsx:46         if (e?.water_oz != null) return Number(it)
+  -- `??` and `!= null` both stop at 0 — a zero is a value, not an absence.
+  -- Postgres 11+ materialises a non-volatile DEFAULT onto every EXISTING
+  -- row, so `DEFAULT 0` would have made all 118 water rows read 0 oz instead
+  -- of 8 or 30, AND HydrationRing's isWaterEntry (`water_oz != null`) would
+  -- have reclassified every MEAL row as a water entry. Verified against
+  -- production by adding the column with the default to a temp copy: a
+  -- 'Water|30' row read back 0.
+  --
+  -- With no default the column stays NULL until something writes it, both
+  -- fallbacks keep working, and this migration is safe to apply.
+  ADD COLUMN IF NOT EXISTS water_oz        numeric;
 
 -- Back-fill from old un-suffixed columns where new ones are null
 UPDATE public.nutrition_logs SET

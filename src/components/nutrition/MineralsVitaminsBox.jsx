@@ -1,9 +1,33 @@
+// src/components/nutrition/MineralsVitaminsBox.jsx
+//
+// WHY THIS CARD IS USUALLY EMPTY, AND WHY THAT IS THE HONEST ANSWER
+//
+// All eight nutrients below read columns that DO NOT EXIST on
+// `nutrition_logs`. Migration 006 declares iron_mg, magnesium_mg,
+// calcium_mg, potassium_mg and the four vitamins; it has never been applied
+// to production. `db.js`'s write-path strip-and-retry therefore drops all
+// eight from every insert — deliberately, so the save still succeeds — and
+// `db.js:53` names this table as the reason that cache exists.
+//
+// The consequence was that this card rendered eight tiles reading
+// "0mg · 0%" over a zero-width bar, for every user, every day, since
+// launch. Not "no data yet": there is no code path in the application that
+// could ever have made one of them non-zero. CLAUDE.md's rule is that a
+// section with no data must not render as zeros, because a 0 reads as a
+// failure the user did not commit.
+//
+// So a tile appears only once its nutrient has something behind it. If
+// migration 006 is applied and the Log Meal form's micronutrient inputs
+// start persisting, these come back on their own with no change here.
+// Full write-up: docs/nutrition-meal-logging-audit.md.
+
 import React, { useMemo } from 'react';
 import { Card } from '@/components/ui/card';
 import { motion } from 'framer-motion';
 import { useNutritionTargets } from '@/hooks/useNutritionTargets';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useSettings } from '@/lib/SettingsContext';
+import { tileRow } from '@/lib/tileRows';
 import NutrientRing from './NutrientRing';
 import NutrientIcon from './NutrientIcon';
 
@@ -19,7 +43,7 @@ const VITAMINS_MINERALS = [
 ];
 
 export default function MineralsVitaminsBox({ entries = [], userProfile = {} }) {
-  const { t } = useLanguage();
+  const { t, tFallback } = useLanguage();
   const { nutrientRingView } = useSettings();
   const dailyValues = useNutritionTargets(userProfile);
 
@@ -48,6 +72,13 @@ export default function MineralsVitaminsBox({ entries = [], userProfile = {} }) 
     );
   }, [entries]);
 
+  // A tile only earns its place once its nutrient has a value. See the head
+  // note — with migration 006 unapplied that is currently never, so the card
+  // states that plainly instead of drawing eight zeros.
+  const visible = useMemo(() => VITAMINS_MINERALS.filter(v => totals[v.key] > 0), [totals]);
+  // `tile` rather than `item` — the map below already binds `item`.
+  const { row, item: tile } = tileRow({ gap: 3, cols: 2, smCols: 4 });
+
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -66,19 +97,24 @@ export default function MineralsVitaminsBox({ entries = [], userProfile = {} }) 
   return (
     <Card className="p-4 border-none shadow-sm">
       <h3 className="font-heading font-bold mb-3">{t('nutrition.vitamins.title')} & {t('nutrition.minerals.title')}</h3>
+      {visible.length === 0 ? (
+        <p className="text-xs text-muted-foreground py-2">
+          {tFallback('nutrition.untracked.micros', "Vitamins and minerals aren't being recorded yet, so there's nothing to show here.")}
+        </p>
+      ) : (
       <motion.div
-        className="grid grid-cols-2 md:grid-cols-4 gap-3"
+        className={row}
         variants={containerVariants}
         initial="hidden"
         animate="visible"
       >
-        {VITAMINS_MINERALS.map(item => {
+        {visible.map(item => {
           const actual = totals[item.key];
           const daily = dailyValues[item.key] || 100;
           const percentOfDaily = Math.min((actual / daily) * 100, 100);
 
           return (
-            <motion.div key={item.key} variants={itemVariants}>
+            <motion.div key={item.key} variants={itemVariants} className={tile}>
               {nutrientRingView ? (
                 /* ── Ring view ── */
                 <div className={`${item.bgColor} rounded-lg p-3 h-full flex flex-col items-center text-center`}>
@@ -123,6 +159,7 @@ export default function MineralsVitaminsBox({ entries = [], userProfile = {} }) 
           );
         })}
       </motion.div>
+      )}
     </Card>
   );
 }

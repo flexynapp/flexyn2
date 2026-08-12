@@ -170,6 +170,17 @@ describe('partial-gap ratchet', () => {
     // Scoped `bodyMap.` and NOT `body.` — `body.` would swallow the
     // body-metrics namespace next door, which is translated.
     'bodyMap.',
+    // Nutrition "nothing here" lines — new namespace, 2026-08-11. The two
+    // empty-state sentences the Macros and Vitamins cards show instead of a
+    // grid of permanent zeros. Prose, and the micros one is a careful claim
+    // about what the app does and does not record, so CLAUDE.md forbids
+    // machine translation — see the translator note in
+    // src/lib/i18n-nutrition-untracked.js before touching either string.
+    //
+    // Scoped `nutrition.untracked.` and NOT a bare `nutrition.` — that would
+    // swallow the whole nutrition namespace, which IS translated across all
+    // 15 languages.
+    'nutrition.untracked.',
     // League activity gating — new namespace, migration 310 (2026-08-08).
     // Qualification and promote/demote zone copy. Named `league.gate.` rather
     // than dropped loose under `league.` precisely so this exemption cannot

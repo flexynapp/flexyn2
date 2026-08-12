@@ -503,7 +503,7 @@ Found in one pass on 2026-08-09, auditing what the weekly review reads:
 | `cardio_logs.duration_min` | **0 of 5** | The tracker writes `duration_seconds`. Cardio "moving time" was always 0. |
 | `workout_logs.duration_min` | **0 of 9** | The writer now exists (`d0a15d2b`, 2026-08-10) and is correct; no real session has been saved since it landed. `AdvancedAnalyticsSheet` drops the Total-time / Avg-session rows rather than faking a zero. |
 | `league_members.rank` | **0 of 42** | **Not one of these — see the third shape below.** The writer exists and is correct; its precondition has never been met. Also currently has no reader. |
-| `nutrition_logs.food_item_id` | **0 of 120** | The food-catalog join has never been exercised. |
+| `nutrition_logs.food_item_id` | **0 of 126** (2026-08-11) | The food-catalog join has never been exercised. It also has **no reader** — a grep over `src/` and over `pg_proc` finds nothing that selects it. Dead weight, not a broken write. |
 
 `total_volume` is written at both ends — `Workout.jsx` persists it on save, and
 migration 329 backfilled the existing rows with the same formula. The weekly
@@ -589,12 +589,38 @@ happened here — 310 made sure of it deliberately, not by luck.
 
 **Two shapes, two different causes — don't group them.** *0-of-N* means no
 writer exists. *k-of-N* means a writer exists and one entry path skips it, and
-that is usually NOT a bug: `nutrition_logs.protein` is 6 of 120 because the AI
-recogniser and the full-macro form both write it while quick-add captures
-calories only. Treating that as a dead column would have produced a migration
-that fixed nothing. The correct handling is in the UI — the macro bar is gated
-on a macro total, so a calorie-only week says so instead of drawing a
-zero-width bar over three "0 g" labels.
+that is usually NOT a bug. The correct handling for the latter is in the UI —
+`WeeklyDebriefCard.jsx:478` gates its macro bar on a macro total, so a
+calorie-only week says "Calories logged without macros this week" instead of
+drawing a zero-width bar over three "0 g" labels.
+
+**CORRECTION (2026-08-11): this section used `nutrition_logs.protein` as its
+worked example of a k-of-N and the explanation was wrong.** It said "6 of 120
+because the AI recogniser and the full-macro form both write it while
+quick-add captures calories only." Measured: `calories > 0` and `protein > 0`
+are **both 7 of 126**, so not one production row matches "calories but no
+macros", and **there is no quick-add path** — `addEntry` is the only manual
+writer and it sends all sixteen nutrient fields every time. The 119
+calorie-less rows are water (see below). The real cause of 7-of-126 is that
+only eight meals have ever been logged.
+
+The genuinely instructive fact about this table is a *third* thing, and it is
+neither shape: **`nutrition_logs` is missing sixteen columns the client
+writes.** Migration 006 declares the `_g`/`_mg` aliases, sugar, cholesterol,
+eight vitamins and minerals, and `water_oz` — and has never been applied. So
+ten of the sixteen nutrient inputs on the Log Meal form are stripped by
+`db.js` and silently discarded on every save, and ten display tiles rendered a
+permanent zero until 2026-08-11. `db.js:53` documents the strip as deliberate,
+which is exactly why it never surfaced. **Do not apply migration 006 without
+reading `docs/nutrition-meal-logging-audit.md` first** — its `water_oz
+DEFAULT 0` would have zeroed every glass of water ever logged (that default
+has since been removed), and its `workout_logs` block adds `duration_minutes`,
+which is the wrong column name and must stay unapplied.
+
+**Water lives in this table too, and it dominates every count.** 118 of the
+126 rows are hydration — `meal_type IS NULL`, `food_name` of `'Water'` (8 oz)
+or `'Water|N'` (N oz). The encoding is deliberate and handled in five places;
+`GROUP BY meal_type` before trusting any per-column count here.
 
 **A section with no data must not render as zeros.** A `0` reads as a failure
 the user did not commit; "0 kcal" at someone who does not track food is the app
