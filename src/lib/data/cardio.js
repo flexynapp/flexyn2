@@ -1,6 +1,44 @@
 // src/lib/data/cardio.js
 import { db } from '@/api/db';
+import { supabase } from '@/api/supabaseClient';
+import { safeSelect } from '@/api/safeSelect';
 import { containsProfanity } from '@/lib/profanityFilter';
+
+// Columns `detectNewPRs` actually reads, plus the two the callers filter on.
+// Nothing else — and emphatically not `gps_track`.
+const PR_COLUMNS = ['id', 'type', 'distance_meters', 'duration_seconds', 'date', 'created_date'];
+
+/**
+ * The user's prior cardio logs, for PR detection.
+ *
+ * Every cardio save ran `CardioLog.filter({created_by}, '-date', 1000)` to
+ * find previous bests, and `makeEntity().filter` issues `select('*')` — so
+ * each save downloaded up to a thousand FULL rows, `gps_track` JSONB
+ * included, to read four numbers off each.
+ *
+ * Measured on production: a 4-minute walk stores 60 GPS points in 2,887
+ * bytes. A points-when-you-move-5m tracker on an hour's run is roughly two
+ * thousand points, so ~100 KB a row. Two hundred logged runs is ~20 MB
+ * fetched per save, on a phone, three times over — the manual form and both
+ * live trackers all do this — plus once more every time the detail modal
+ * opens. The six columns below are about 1% of that.
+ *
+ * safeSelect per the resilience rule in CLAUDE.md: an explicit column list
+ * is exactly what strips-and-retries when a host is missing one.
+ */
+export async function listForPRs(email, limit = 1000) {
+  if (!email) return [];
+  const { data } = await safeSelect({
+    columns: PR_COLUMNS,
+    build: (cols) => supabase
+      .from('cardio_logs')
+      .select(cols)
+      .eq('created_by', email)
+      .order('date', { ascending: false })
+      .limit(limit),
+  });
+  return data ?? [];
+}
 
 export const list = (email, limit = 50) =>
   db.entities.CardioLog.filter({ created_by: email }, '-date', limit);

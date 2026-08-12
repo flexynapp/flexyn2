@@ -18,6 +18,7 @@ import { cardioTypeLabel } from '@/lib/cardioTypeLabel';
 import { useDistanceUnit } from '@/lib/DistanceUnitContext';
 import { formatDistance, formatDuration, formatPace } from '@/lib/distanceUnit';
 import { db } from '@/api/db';
+import * as cardioData from '@/lib/data/cardio';
 import { detectNewPRs, PR_LABELS } from '@/lib/cardioPRs';
 import ErrorBoundary from '@/components/ErrorBoundary';
 
@@ -98,9 +99,7 @@ export default function CardioDetailModal({ log, open, onOpenChange, onEdit }) {
     if (!log?.id) return;
     let cancelled = false;
     (async () => {
-      const all = await db.entities.CardioLog.filter(
-        { created_by: user.email }, '-date', 1000
-      );
+      const all = await cardioData.listForPRs(user.email);
       if (cancelled) return;
       const prior = all.filter(l =>
         l.id !== log.id &&

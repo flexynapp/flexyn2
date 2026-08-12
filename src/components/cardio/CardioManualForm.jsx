@@ -23,6 +23,7 @@ import * as workoutStreak from '@/lib/data/workoutStreak';
 import { calculateCardioXp } from '@/lib/xpSystem';
 import { estimateCalories, userWeightKg } from '@/lib/cardioCalories';
 import { checkCardioSpeed, getMaxRealisticCalories, checkDailyHours } from '@/lib/cardioLimits';
+import * as cardioData from '@/lib/data/cardio';
 import { detectNewPRs, PR_LABELS } from '@/lib/cardioPRs';
 import { useProfanityGuard, hasAnyProfanity } from '@/lib/useProfanityGuard';
 import ProfanityWarningDialog from '@/components/ProfanityWarningDialog';
@@ -375,9 +376,7 @@ export default function CardioManualForm({
           level: 'warning',
           userEmail: user?.email,
         }));
-        const prior = await db.entities.CardioLog.filter(
-          { created_by: user.email }, '-date', 1000
-        );
+        const prior = await cardioData.listForPRs(user.email);
         const priorOnly = prior.filter(l => l.id !== createdLog.id);
         const prs = detectNewPRs(createdLog, priorOnly);
         prCount = prs.length;

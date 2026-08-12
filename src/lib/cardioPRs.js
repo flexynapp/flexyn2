@@ -16,6 +16,22 @@ export const DISTANCE_PR_THRESHOLDS_M = {
   'marathon': 42195,
 };
 
+// Swimming gets its own ladder. It used to fall through `activityFamily`
+// to 'other' and be measured against the FOOT ladder — so a 1 km pool swim
+// registered a "1K" PR, and a strong swimmer was told they had never come
+// close to a "Marathon". The distances below are the ones swimmers
+// actually race: a pool 100, the 400 free, a kilometre, and the 1500 —
+// plus 1900 m and 3800 m, which are the swim legs of a half and a full
+// Ironman.
+export const SWIM_PR_THRESHOLDS_M = {
+  'swim_100': 100,
+  'swim_400': 400,
+  'swim_1k': 1000,
+  'swim_1500': 1500,
+  'swim_1900': 1900,
+  'swim_3800': 3800,
+};
+
 export const PR_LABELS = {
   '1k': '1K',
   '1mi': '1 Mile',
@@ -23,7 +39,18 @@ export const PR_LABELS = {
   '10k': '10K',
   'half_marathon': 'Half Marathon',
   'marathon': 'Marathon',
+  'swim_100': '100 m',
+  'swim_400': '400 m',
+  'swim_1k': '1 km',
+  'swim_1500': '1500 m',
+  'swim_1900': '1.9 km',
+  'swim_3800': '3.8 km',
 };
+
+/** The distance ladder a family is measured against. */
+export function thresholdsForFamily(family) {
+  return family === 'swimming' ? SWIM_PR_THRESHOLDS_M : DISTANCE_PR_THRESHOLDS_M;
+}
 
 /**
  * Extract activity family from cardio log type
@@ -33,6 +60,9 @@ export function activityFamily(type) {
   if (type?.startsWith('running')) return 'running';
   if (type?.startsWith('walking')) return 'walking';
   if (type?.startsWith('biking')) return 'biking';
+  // Added 2026-08-11. Without this a swim fell to 'other' and was ranked
+  // on the running ladder — see SWIM_PR_THRESHOLDS_M.
+  if (type?.startsWith('swimming')) return 'swimming';
   return 'other';
 }
 
@@ -55,7 +85,7 @@ export function thresholdTimesForLog(log) {
     return out;
   }
 
-  for (const [name, meters] of Object.entries(DISTANCE_PR_THRESHOLDS_M)) {
+  for (const [name, meters] of Object.entries(thresholdsForFamily(family))) {
     if (log.distance_meters >= meters) {
       const timeAtThreshold = log.duration_seconds * (meters / log.distance_meters);
       out.push({ family, distance: name, timeSeconds: timeAtThreshold });

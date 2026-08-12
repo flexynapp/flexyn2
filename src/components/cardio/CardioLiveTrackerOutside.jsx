@@ -22,6 +22,8 @@ import { estimateCalories, userWeightKg } from '@/lib/cardioCalories';
 import { getMaxRealisticCalories } from '@/lib/cardioLimits';
 import { db } from '@/api/db';
 import { supabase } from '@/api/supabaseClient';
+import * as cardioData from '@/lib/data/cardio';
+import { bestVO2max } from '@/lib/cardioVO2max';
 import { detectNewPRs, PR_LABELS } from '@/lib/cardioPRs';
 import * as quests from '@/lib/data/quests';
 import { ACTION_TYPES } from '@/lib/questCatalog';
@@ -520,9 +522,29 @@ export default function CardioLiveTrackerOutside({ mode, onCancel, onSaved, user
         calories,
         getMaxRealisticCalories(elapsedSeconds, userProfile)
       );
+      // VO2max, on the LIVE path too. Only the manual form computed this,
+      // so the flagship GPS session — the one with the most trustworthy
+      // distance and duration in the app — stored nothing, while a
+      // hand-typed entry got a figure. Verified against production: the one
+      // live-tracked row had vo2max_estimate NULL and both populated values
+      // came from manual entries.
+      //
+      // No avgHr is passed: the live trackers do not read heart rate, so
+      // this resolves to the speed-based ACSM estimate for a run and null
+      // for anything else — which is the honest answer rather than a
+      // profile constant dressed up as a session measurement.
+      const vo2 = bestVO2max({
+        mode,
+        distanceMeters: distanceMetersRef.current,
+        durationSeconds: elapsedSeconds,
+        avgHr: null,
+        restHr: userProfile?.resting_heart_rate || null,
+        age: userProfile?.age || null,
+      });
       const payload = {
         date: format(new Date(startedAtRef.current), 'yyyy-MM-dd'),
         type: `${mode}_outside`,
+        vo2max_estimate: vo2,
         mode: 'live',
         duration_seconds: elapsedSeconds,
         distance_meters: distanceMetersRef.current,
@@ -575,9 +597,7 @@ export default function CardioLiveTrackerOutside({ mode, onCancel, onSaved, user
         userEmail: user?.email,
       }));
       // Check for PRs
-      const prior = await db.entities.CardioLog.filter(
-        { created_by: user.email }, '-date', 1000
-      );
+      const prior = await cardioData.listForPRs(user.email);
       const priorOnly = prior.filter(l => l.id !== createdLog.id);
       const prs = detectNewPRs(createdLog, priorOnly);
       for (const pr of prs) {
