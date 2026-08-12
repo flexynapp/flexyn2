@@ -29,7 +29,12 @@
 const RESEND_API_KEY   = Deno.env.get('RESEND_API_KEY') ?? '';
 const SENDGRID_API_KEY = Deno.env.get('SENDGRID_API_KEY') ?? '';
 const TRIGGER_SECRET   = Deno.env.get('REPORT_NOTIFY_SECRET') ?? '';
-const FROM_ADDRESS     = Deno.env.get('REPORT_FROM_ADDRESS') ?? 'Flexyn Reports <reports@flexyn.app>';
+// Defaults to Resend's shared sender, which works with no DNS setup. A custom
+// From address requires a VERIFIED domain in Resend — sending from an
+// unverified one is rejected outright, so defaulting to reports@flexyn.app
+// would have failed on the first send with a 403 that looks like a code bug.
+// Set REPORT_FROM_ADDRESS once the domain is verified.
+const FROM_ADDRESS     = Deno.env.get('REPORT_FROM_ADDRESS') ?? 'Flexyn Reports <onboarding@resend.dev>';
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
