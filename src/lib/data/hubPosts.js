@@ -207,3 +207,24 @@ export const fetchOlderFollowing = async (followingEmails = [], cursorIso, pageS
   if (error) return [];
   return data || [];
 };
+/**
+ * Fetch posts by id, returned in the ORDER THE IDS WERE GIVEN.
+ *
+ * The caller's order is the meaningful one — the liked-posts screen sorts by
+ * when YOU liked something, not when it was written, and a plain `.in()`
+ * returns rows in whatever order the planner likes. Re-sorting here keeps that
+ * contract in one place instead of every caller remembering to restore it.
+ *
+ * Ids that no longer resolve are simply absent: a like pointing at a deleted
+ * post should vanish from the list, not render an empty card.
+ */
+export const listByIds = async (ids = []) => {
+  const wanted = (ids || []).filter(Boolean);
+  if (wanted.length === 0) return [];
+  // Bounded for the same reason fetchFollowingWindow caps at 100 — a very
+  // long IN list is a slow query and a big response on a phone.
+  const capped = wanted.slice(0, 100);
+  const rows = await e().filter({ id: capped }, '-created_date', capped.length).catch(() => []);
+  const byId = new Map((rows || []).map(r => [r.id, r]));
+  return capped.map(id => byId.get(id)).filter(Boolean);
+};

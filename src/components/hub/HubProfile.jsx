@@ -11,7 +11,7 @@ import { toast } from '@/lib/toast';
 import { reportError } from '@/lib/reportError';
 import { triggerHaptic } from '@/lib/haptic';
 import { initialsFor } from '@/lib/initials';
-import { User as UserIcon, FileText, X, Loader2, MapPin, Heart, Link2, Copy, ExternalLink, TrendingUp } from 'lucide-react';
+import { User as UserIcon, FileText, X, Loader2, MapPin, Heart, Link2, Copy, ExternalLink, TrendingUp, Bookmark } from 'lucide-react';
 import ThemeSelector from '@/components/ThemeSelector';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -26,6 +26,7 @@ import * as userMutes from '@/lib/data/userMutes';
 import { blockUserFull } from '@/lib/data/userBlocks';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import * as hubPosts from '@/lib/data/hubPosts';
+import * as hubReactions from '@/lib/data/hubReactions';
 import * as me from '@/lib/data/me';
 import { selectProfiles } from '@/lib/data/users';
 import * as statusNotesData from '@/lib/data/statusNotes';
@@ -588,6 +589,31 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
     }
     return posts;
   }, [posts, profilePostSort]);
+
+  // ── Liked posts ──────────────────────────────────────────────────────────
+  // A mode rather than a fourth tab: switching it on replaces the whole
+  // Stats/Trophies/Posts area. Your likes are private and stay private — the
+  // query reads hub_reactions by created_by, which RLS scopes to your own
+  // rows, so there is no shape of this request that could return anyone
+  // else's. That is why the control only exists on your own profile.
+  const [likesOpen, setLikesOpen] = useState(false);
+  const { data: likedPosts = [], isLoading: likedLoading } = useQuery({
+    queryKey: ['myLikedPosts', user?.email],
+    queryFn: async () => {
+      const ids = await hubReactions.listMyLikedPostIds(user.email);
+      if (!ids.length) return [];
+      // Ordered by when YOU liked them, which listByIds preserves. A post
+      // that has since been deleted drops out rather than rendering blank.
+      return hubPosts.listByIds(ids);
+    },
+    enabled: isSelf && likesOpen && !!user?.email,
+    staleTime: 30_000,
+  });
+
+  // Leaving your own profile closes the mode. Without this, tapping through
+  // to someone else and coming back would land you in a view of your likes
+  // with no memory of having opened it.
+  useEffect(() => { if (!isSelf) setLikesOpen(false); }, [isSelf]);
 
   // ── Landing on a shared post ─────────────────────────────────────────────
   // A link built by the share sheet carries ?post=<id>. Opening it used to
@@ -1338,6 +1364,8 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
             menuOpen={menuOpen}
             onOpenMenu={() => setMenuOpen(true)}
             onCloseMenu={() => setMenuOpen(false)}
+            onToggleLikes={() => setLikesOpen(v => !v)}
+            likesOpen={likesOpen}
             onEditProfile={() => {
               setCityDraft(city);
               setBioDraft(bio);
@@ -1733,6 +1761,35 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
           Lift stats, badges, completion, referral, two trophy blocks and
           the post list were seven stacked sections. Three destinations
           now, each with room to breathe. */}
+      {likesOpen && isSelf ? (
+        // Liked posts takes over the whole tab area — no tab strip, because
+        // this is a different view of the profile rather than a fourth
+        // destination inside it. The ribbon in the action row is lit, which is
+        // what says where you are and how to get back.
+        <div className="mt-2">
+          <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">
+            {tFallback('hub.profile.likedPosts', 'Liked posts')}
+          </h3>
+          {likedLoading ? (
+            <div className="flex justify-center py-10">
+              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : likedPosts.length === 0 ? (
+            <EmptyState
+              icon={Bookmark}
+              title={tFallback('hub.profile.noLikesTitle', 'Nothing here yet')}
+              body={tFallback('hub.profile.noLikesBody', 'Head to the Hub and start liking posts — they’ll collect here.')}
+            />
+          ) : (
+            <div className="space-y-3">
+              {likedPosts.map(p => (
+                <HubPostCard key={p.id} post={p} onAuthorClick={onSelectUser} />
+              ))}
+            </div>
+          )}
+        </div>
+      ) : (
+        <>
       <ProfileTabs
         active={activeTab}
         onChange={setActiveTab}
@@ -1864,6 +1921,8 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
           </div>
         )}
       </ProfileTabPanel>
+        </>
+      )}
 
 
       {/* Duel challenge modal — opened by the Swords button above.

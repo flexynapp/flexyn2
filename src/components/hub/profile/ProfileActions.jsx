@@ -11,7 +11,7 @@
 // which exactly one is primary, and a "…" that absorbs everything else. That
 // is what keeps a header calm no matter how many capabilities the app grows —
 // Duel and Gift are good features, but neither is why anyone opens a profile.
-import { Loader2, MessageCircle, MoreHorizontal, Pencil, Palette, QrCode, Coins, Swords, Eye, EyeOff, UserPlus, UserCheck, VolumeX, Volume2, Ban } from 'lucide-react';
+import { Loader2, MessageCircle, MoreHorizontal, Pencil, Palette, QrCode, Coins, Swords, Eye, EyeOff, UserPlus, UserCheck, VolumeX, Volume2, Ban, Bookmark } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -75,6 +75,8 @@ export default function ProfileActions({
   onOpenMenu,
   onCloseMenu,
   onEditProfile,
+  onToggleLikes,
+  likesOpen = false,
   onOpenThemes,
   onOpenQr,
   onOpenDuel,
@@ -105,14 +107,36 @@ export default function ProfileActions({
     <>
       <div className="flex items-center gap-2 pb-1">
         {isSelf ? (
-          <button
-            type="button"
-            onClick={onEditProfile}
-            className="h-9 px-4 rounded-full border border-border text-sm font-semibold hover:bg-secondary active:bg-secondary transition-colors flex items-center gap-1.5"
-          >
-            <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
-            {tFallback('hub.profile.editProfile', 'Edit profile')}
-          </button>
+          <>
+            <button
+              type="button"
+              onClick={onEditProfile}
+              className="h-9 px-4 rounded-full border border-border text-sm font-semibold hover:bg-secondary active:bg-secondary transition-colors flex items-center gap-1.5"
+            >
+              <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
+              {tFallback('hub.profile.editProfile', 'Edit profile')}
+            </button>
+
+            {/* Liked posts. A MODE, not a tab: switching it on replaces the
+                whole Stats/Trophies/Posts area rather than adding a fourth
+                thing to choose between. Own profile only — likes are private
+                and there is no query in the app that can return anyone
+                else's, so this control has nowhere else it could live. */}
+            <button
+              type="button"
+              onClick={onToggleLikes}
+              aria-pressed={likesOpen}
+              className={`h-9 w-9 rounded-full border transition-colors flex items-center justify-center ${
+                likesOpen
+                  ? 'border-primary text-primary bg-primary/10'
+                  : 'border-border text-muted-foreground hover:bg-secondary active:bg-secondary'
+              }`}
+              aria-label={tFallback('hub.profile.likedPosts', 'Liked posts')}
+              title={tFallback('hub.profile.likedPosts', 'Liked posts')}
+            >
+              <Bookmark className={`w-4 h-4 ${likesOpen ? 'fill-current' : ''}`} />
+            </button>
+          </>
         ) : (
           <>
             <button

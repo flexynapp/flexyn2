@@ -167,3 +167,38 @@ export const purgeForUser = async (email) => {
     ].filter(Boolean))
   );
 };
+
+/**
+ * Post ids the signed-in user has LIKED, newest first.
+ *
+ * Reads `created_by` rather than taking a user id parameter: the column is
+ * auto-injected on insert (see db.js makeEntity) and the table's RLS scopes a
+ * SELECT to your own rows, so this can only ever return your own likes. That
+ * is the whole privacy model for this screen — there is no view of anyone
+ * else's likes to accidentally expose, because the query cannot express one.
+ *
+ * Ids only. The posts themselves are fetched separately so a like pointing at
+ * a deleted post simply drops out instead of rendering a broken row.
+ */
+export const listMyLikedPostIds = async (email, limit = 200) => {
+  if (!email) return [];
+  const { data, error } = await supabase
+    .from('hub_reactions')
+    .select('post_id, created_date')
+    .eq('created_by', email)
+    .eq('reaction', 'like')
+    .order('created_date', { ascending: false })
+    .limit(limit);
+  if (error) return [];
+  // De-dupe defensively: the unique index is (created_by, post_id, emoji), so
+  // a like plus an emoji reaction on the same post is two rows, and without
+  // this the post would render twice.
+  const seen = new Set();
+  const ids = [];
+  for (const row of data || []) {
+    if (!row.post_id || seen.has(row.post_id)) continue;
+    seen.add(row.post_id);
+    ids.push(row.post_id);
+  }
+  return ids;
+};
