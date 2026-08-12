@@ -90,3 +90,53 @@ export async function resolveBugReport(reportId, status) {
   });
   if (error) throw error;
 }
+
+/**
+ * Admin-gated food-request queue (mig 343).
+ *
+ * A barcode nothing recognises files a `food_item_requests` row rather than
+ * writing straight into the shared catalogue. Nothing else reads that table
+ * across users — its RLS only lets you see your own — so this RPC is the
+ * only way the queue is visible at all.
+ *
+ * @param {object} opts
+ * @param {'pending'|'approved'|'rejected'} [opts.status]
+ * @param {number} [opts.limit]
+ */
+export async function listFoodItemRequests({ status = 'pending', limit = 50 } = {}) {
+  const { data, error } = await supabase.rpc('list_food_item_requests_for_admin', {
+    p_status: status,
+    p_limit:  limit,
+  });
+  if (error) {
+    // Pre-migration host → empty queue rather than a thrown error, matching
+    // how the bug-report reader above degrades.
+    if (error.code === '42883' || error.code === '42P01') return [];
+    throw error;
+  }
+  return data || [];
+}
+
+/**
+ * Approve a request — the ONLY path that writes a `food_items` row from one
+ * (mig 343). Returns the new catalogue row's id.
+ *
+ * The RPC is not idempotent on purpose: approving an already-reviewed request
+ * raises `22023 already reviewed` rather than quietly creating a second
+ * catalogue row. Callers should surface that as a message, not a crash.
+ */
+export async function approveFoodItemRequest(requestId) {
+  const { data, error } = await supabase.rpc('approve_food_item_request', {
+    p_request_id: requestId,
+  });
+  if (error) throw error;
+  return data;
+}
+
+/** Reject a request (admin only, mig 343). Nothing reaches the catalogue. */
+export async function rejectFoodItemRequest(requestId) {
+  const { error } = await supabase.rpc('reject_food_item_request', {
+    p_request_id: requestId,
+  });
+  if (error) throw error;
+}

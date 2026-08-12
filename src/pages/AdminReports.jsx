@@ -22,11 +22,15 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShieldAlert, Check, Trash2, X, ChevronLeft, AlertTriangle, Bug } from 'lucide-react';
+import { ShieldAlert, Check, Trash2, X, ChevronLeft, AlertTriangle, Bug, Apple, ScanBarcode } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { useAuth } from '@/lib/AuthContext';
 import { isAppAdmin } from '@/lib/adminRoles';
-import { listReports, resolveReport, deleteReportedContent, listBugReports, resolveBugReport } from '@/lib/data/admin';
+import {
+  listReports, resolveReport, deleteReportedContent,
+  listBugReports, resolveBugReport,
+  listFoodItemRequests, approveFoodItemRequest, rejectFoodItemRequest,
+} from '@/lib/data/admin';
 import { errorToast } from '@/lib/errorToast';
 import { reportError } from '@/lib/reportError';
 import PageHeader from '@/components/PageHeader';
@@ -47,6 +51,16 @@ const BUG_TABS = [
   { id: 'dismissed', label: 'Dismissed' },
 ];
 
+// Food requests use their own vocabulary because the outcome is different in
+// kind: approving one WRITES A ROW into the shared catalogue that every future
+// scan reads. "Reviewed" would be a lie — nothing was published — so the
+// states are pending → approved / rejected, matching migration 343's CHECK.
+const FOOD_TABS = [
+  { id: 'pending',  label: 'Pending' },
+  { id: 'approved', label: 'Approved' },
+  { id: 'rejected', label: 'Rejected' },
+];
+
 const REASON_LABEL = {
   harassment:    'Harassment',
   hate_speech:   'Hate speech',
@@ -60,11 +74,12 @@ export default function AdminReports() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [reportKind, setReportKind] = useState('content'); // 'content' | 'bug'
+  const [reportKind, setReportKind] = useState('content'); // 'content' | 'bug' | 'food'
   const [activeTab, setActiveTab] = useState('pending');
   const isAdmin = isAppAdmin(user);
-  const isBug = reportKind === 'bug';
-  const TABS = isBug ? BUG_TABS : CONTENT_TABS;
+  const isBug  = reportKind === 'bug';
+  const isFood = reportKind === 'food';
+  const TABS = isFood ? FOOD_TABS : isBug ? BUG_TABS : CONTENT_TABS;
 
   // Hooks must run on every render — the !isAdmin early-return is
   // placed AFTER all hooks below to honor the rules-of-hooks.
@@ -73,11 +88,57 @@ export default function AdminReports() {
     // to three skeletons and rebuilt it. Same fix as the other boards.
     placeholderData: keepPreviousData,
     queryKey: ['adminReports', reportKind, activeTab],
-    queryFn:  () => isBug
-      ? listBugReports({ status: activeTab })
-      : listReports({ status: activeTab }),
+    queryFn:  () => isFood
+      ? listFoodItemRequests({ status: activeTab })
+      : isBug
+        ? listBugReports({ status: activeTab })
+        : listReports({ status: activeTab }),
     enabled:  !!user?.id && isAdmin,
     staleTime: 15_000,
+  });
+
+  // Approving is the only action on this page that PUBLISHES something —
+  // it writes a food_items row every future barcode scan will read. The
+  // success toast names the food rather than saying "approved", so a
+  // misclick on the wrong row is obvious immediately.
+  const foodApproveMut = useMutation({
+    mutationFn: ({ id }) => approveFoodItemRequest(id),
+    onSuccess: (_d, { name }) => {
+      toast.success(`“${name}” is in the food database.`);
+      queryClient.invalidateQueries({ queryKey: ['adminReports'] });
+    },
+    onError: (err, vars) => {
+      // 22023 is the RPC refusing to approve an already-reviewed request —
+      // two admins on the queue at once, or a double tap. That is not a
+      // failure worth a retry button; the row is already handled.
+      if (err?.code === '22023') {
+        toast.message('Already handled by someone else.');
+        queryClient.invalidateQueries({ queryKey: ['adminReports'] });
+        return;
+      }
+      reportError(err, { feature: 'admin.foodRequests.approve', userEmail: user?.email });
+      errorToast({
+        title: 'Could not approve this food',
+        description: err?.message,
+        retry: () => foodApproveMut.mutate(vars),
+      });
+    },
+  });
+
+  const foodRejectMut = useMutation({
+    mutationFn: ({ id }) => rejectFoodItemRequest(id),
+    onSuccess: () => {
+      toast.success('Request rejected. Nothing was published.');
+      queryClient.invalidateQueries({ queryKey: ['adminReports'] });
+    },
+    onError: (err, vars) => {
+      reportError(err, { feature: 'admin.foodRequests.reject', userEmail: user?.email });
+      errorToast({
+        title: 'Could not reject this request',
+        description: err?.message,
+        retry: () => foodRejectMut.mutate(vars),
+      });
+    },
   });
 
   const bugResolveMut = useMutation({
@@ -174,6 +235,7 @@ export default function AdminReports() {
         {[
           { id: 'content', label: 'Content', Icon: ShieldAlert },
           { id: 'bug',     label: 'Bug reports', Icon: Bug },
+          { id: 'food',    label: 'Food requests', Icon: Apple },
         ].map(({ id, label, Icon }) => (
           <button
             key={id}
@@ -218,7 +280,7 @@ export default function AdminReports() {
       ) : reports.length === 0 ? (
         <div className="text-center py-16">
           <Check className="w-10 h-10 text-emerald-500 mx-auto mb-3" />
-          <p className="font-heading font-bold text-base">No {activeTab} reports</p>
+          <p className="font-heading font-bold text-base">No {activeTab} {isFood ? 'requests' : 'reports'}</p>
           <p className="text-sm text-muted-foreground mt-1">
             {activeTab === 'pending' ? 'Inbox zero. Nicely done.' : 'Nothing to show here.'}
           </p>
@@ -226,7 +288,18 @@ export default function AdminReports() {
       ) : (
         <ul className="space-y-3">
           <AnimatePresence>
-            {isBug
+            {isFood
+              ? reports.map(r => (
+                  <FoodRequestRow
+                    key={r.id}
+                    request={r}
+                    isPending={activeTab === 'pending'}
+                    busy={foodApproveMut.isPending || foodRejectMut.isPending}
+                    onApprove={() => foodApproveMut.mutate({ id: r.id, name: r.name })}
+                    onReject={() => foodRejectMut.mutate({ id: r.id })}
+                  />
+                ))
+              : isBug
               ? reports.map(r => (
                   <BugReportRow
                     key={r.id}
@@ -335,6 +408,120 @@ function ReportRow({ report, isPending, busy, onResolve, onDelete }) {
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-muted-foreground text-xs font-medium hover:text-foreground active:text-foreground transition-colors disabled:opacity-50"
           >
             <X className="w-3.5 h-3.5" /> Dismiss
+          </button>
+        </div>
+      )}
+    </motion.li>
+  );
+}
+
+// The whole point of this queue is that a human reads the label before it
+// becomes the number every future scan of that barcode returns. So the row
+// shows the FULL nutrition payload, not a summary — an approver who cannot
+// see that the protein figure is 200 g cannot catch it.
+const MACRO_ORDER = [
+  ['calories', 'kcal'], ['protein', 'g'], ['carbs', 'g'], ['fat', 'g'],
+  ['fiber', 'g'], ['sugar', 'g'], ['sodium', 'mg'], ['cholesterol', 'mg'],
+];
+
+function FoodRequestRow({ request, isPending, busy, onApprove, onReject }) {
+  const n = request.nutrition && typeof request.nutrition === 'object' ? request.nutrition : {};
+  const v = request.vitamins && typeof request.vitamins === 'object' ? request.vitamins : {};
+  const macros = MACRO_ORDER.filter(([k]) => n[k] != null);
+  // Only the micros that were actually filled in — a column of nulls tells
+  // the reviewer nothing and pushes the buttons off screen.
+  const micros = Object.entries(v).filter(([, val]) => val != null && val !== 0);
+
+  return (
+    <motion.li
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -8 }}
+      transition={{ duration: 0.2 }}
+      className="border border-border rounded-xl p-4 bg-card"
+    >
+      <div className="flex items-start gap-3 mb-3">
+        <div className="w-8 h-8 rounded-lg bg-emerald-500/15 text-emerald-500 flex items-center justify-center shrink-0">
+          <Apple className="w-4 h-4" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="font-heading font-bold text-sm break-words">{request.name}</p>
+          <div className="flex items-center gap-2 flex-wrap mt-1">
+            {request.brand && (
+              <span className="text-micro font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-secondary">
+                {request.brand}
+              </span>
+            )}
+            {request.serving_label && (
+              <span className="text-xs text-muted-foreground">{request.serving_label}</span>
+            )}
+          </div>
+          {request.barcode && (
+            <span className="inline-flex items-center gap-1 text-micro font-mono mt-1.5 px-1.5 py-0.5 rounded bg-secondary text-muted-foreground">
+              <ScanBarcode className="w-3 h-3" /> {request.barcode}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {macros.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 mb-2">
+          {macros.map(([k, unit]) => (
+            <span key={k} className="text-micro px-1.5 py-0.5 rounded bg-secondary/60 tabular-nums">
+              <span className="text-muted-foreground capitalize">{k} </span>
+              <span className="font-bold">{n[k]}{unit}</span>
+            </span>
+          ))}
+        </div>
+      )}
+
+      {micros.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 mb-2">
+          {micros.map(([k, val]) => {
+            // Keys are `<name>_<unit>` (iron_mg, vitamin_b12_mcg,
+            // vitamin_a_iu). Rendering the raw key gave "iron mg 1", which
+            // reads as a quantity of milligrams called iron. Split the unit
+            // off so the number carries it: "iron 1 mg".
+            const cut = k.lastIndexOf('_');
+            const label = cut > 0 ? k.slice(0, cut).replace(/_/g, ' ') : k;
+            const unit  = cut > 0 ? k.slice(cut + 1).replace('iu', 'IU') : '';
+            return (
+              <span key={k} className="text-micro px-1.5 py-0.5 rounded bg-secondary/30 tabular-nums text-muted-foreground">
+                {label} <span className="font-bold text-foreground">{val}{unit}</span>
+              </span>
+            );
+          })}
+        </div>
+      )}
+
+      {request.note && (
+        <p className="text-sm text-foreground mt-2 whitespace-pre-wrap break-words">{request.note}</p>
+      )}
+
+      <p className="text-micro text-muted-foreground mt-2">
+        {request.requester_email || 'anonymous'}
+      </p>
+
+      {isPending && (
+        <div className="flex flex-wrap gap-2 mt-3">
+          <button
+            onClick={() => {
+              // Approving publishes to every user, so it is confirmed and the
+              // other two actions on this page are not. Naming the food in the
+              // prompt is what makes a misclick catchable.
+              if (confirm(`Publish “${request.name}” to the shared food database? Everyone who scans this barcode will get these numbers.`)) onApprove();
+            }}
+            disabled={busy}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-500 active:bg-emerald-500 transition-colors disabled:opacity-50"
+          >
+            <Check className="w-3.5 h-3.5" /> Approve &amp; publish
+          </button>
+          <button
+            onClick={() => onReject()}
+            disabled={busy}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-muted-foreground text-xs font-medium hover:text-foreground active:text-foreground transition-colors disabled:opacity-50"
+          >
+            <X className="w-3.5 h-3.5" /> Reject
           </button>
         </div>
       )}
