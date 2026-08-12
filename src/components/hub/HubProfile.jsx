@@ -288,7 +288,7 @@ function flagUrl(emoji) {
   return `https://cdn.jsdelivr.net/gh/twitter/twemoji@v14.0.2/assets/svg/${points.join('-')}.svg`;
 }
 
-export default function HubProfile({ targetUser = null, onSelectUser = null, onStartConversation = null }) {
+export default function HubProfile({ targetUser = null, onSelectUser = null, onStartConversation = null, highlightPostId = null, onHighlightConsumed = null }) {
   const { t, tFallback, language } = useLanguage();
   const { user, checkUserAuth } = useAuth();
   // Read the user's currently-equipped theme from ThemeContext (always fresh)
@@ -588,6 +588,46 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
     }
     return posts;
   }, [posts, profilePostSort]);
+
+  // ── Landing on a shared post ─────────────────────────────────────────────
+  // A link built by the share sheet carries ?post=<id>. Opening it used to
+  // drop you on the author's profile with nothing indicating which post was
+  // meant — on a prolific account, twenty rows above the one being discussed.
+  //
+  // Three things have to line up before we can scroll: the Posts tab has to be
+  // the active one, the posts query has to have resolved, and the row has to
+  // have rendered. So this waits on the ref rather than firing on mount.
+  const postRefs = useRef({});
+  const [landedPostId, setLandedPostId] = useState(null);
+  const highlightHandledRef = useRef(null);
+
+  useEffect(() => {
+    if (!highlightPostId) return;
+    // Guard per id, not a boolean: a second shared link opened while this
+    // profile is already mounted still deserves a scroll.
+    if (highlightHandledRef.current === highlightPostId) return;
+    if (!sortedPosts.some(p => p.id === highlightPostId)) return;
+    if (activeTab !== 'posts') { setActiveTab('posts'); return; }
+
+    const el = postRefs.current[highlightPostId];
+    if (!el) return;   // rendering; the effect re-runs when the ref lands
+
+    highlightHandledRef.current = highlightPostId;
+    // rAF so the tab panel has painted at its real height — scrolling into a
+    // panel that is still laying out lands at the wrong offset.
+    requestAnimationFrame(() => {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setLandedPostId(highlightPostId);
+    });
+    // The outline is a pointer, not a state. Four seconds is long enough to
+    // find on a slow scroll and short enough that it doesn't become part of
+    // how the post looks.
+    const t = setTimeout(() => {
+      setLandedPostId(null);
+      onHighlightConsumed?.();
+    }, 4000);
+    return () => clearTimeout(t);
+  }, [highlightPostId, sortedPosts, activeTab, onHighlightConsumed]);
 
   // ── Derived display values (needed by mutations below) ──────────────────
   const ownerUsername = isSelf
@@ -1803,7 +1843,24 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
           />
         ) : (
           <div className="space-y-3">
-            {sortedPosts.map(p => <HubPostCard key={p.id} post={p} onAuthorClick={onSelectUser} />)}
+            {sortedPosts.map(p => (
+              <div
+                key={p.id}
+                ref={(el) => { postRefs.current[p.id] = el; }}
+                // Amber-orange, not a literal yellow: the palette has exactly
+                // four state hues (primary / destructive / success / info) and
+                // adding a fifth is banned. `primary` is hue 26, which is the
+                // warm highlight Sean was reaching for and is already the
+                // app's "look here" colour.
+                className={`rounded-2xl transition-shadow duration-500 ${
+                  landedPostId === p.id
+                    ? 'ring-2 ring-primary ring-offset-2 ring-offset-background'
+                    : ''
+                }`}
+              >
+                <HubPostCard post={p} onAuthorClick={onSelectUser} />
+              </div>
+            ))}
           </div>
         )}
       </ProfileTabPanel>

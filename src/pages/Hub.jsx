@@ -95,6 +95,7 @@ export default function Hub() {
   // the feed and you had to navigate again — the "double-click to open
   // profile" bug. Reading the URL here removes that race entirely.
   const initialProfileEmail = new URLSearchParams(location.search).get('profile');
+  const initialHighlightPost = new URLSearchParams(location.search).get('post');
   const isProfilePath = location.pathname === '/profile';
 
   const [section, setSection] = useState(
@@ -133,6 +134,11 @@ export default function Hub() {
     paramToProfileTarget(initialProfileEmail)
   );
   const [pendingCrewId, setPendingCrewId] = useState(null);
+  // A shared post link carries ?post=<id> beside ?profile=<author>. Held
+  // here and handed to HubProfile, which opens the Posts tab, scrolls to the
+  // row and outlines it. Cleared once consumed so a back-nav or a later
+  // profile visit doesn't re-highlight a post nobody asked about.
+  const [highlightPostId, setHighlightPostId] = useState(initialHighlightPost || null);
 
   const startConversation = useStartConversation();
 
@@ -198,6 +204,12 @@ export default function Hub() {
         setSection('profile');
       }
       params.delete('profile');
+      changed = true;
+    }
+    const postParam = params.get('post');
+    if (postParam) {
+      setHighlightPostId(postParam);
+      params.delete('post');
       changed = true;
     }
     if (changed) {
@@ -534,6 +546,8 @@ export default function Hub() {
           {section === 'profile' && (
             <HubProfile
               targetUser={profileTarget}
+              highlightPostId={highlightPostId}
+              onHighlightConsumed={() => setHighlightPostId(null)}
               onSelectUser={(u) => setProfileTarget(u)}
               onStartConversation={startConversation}
             />

@@ -51,8 +51,12 @@ export default function ShareSheetModal({ post, open, onClose }) {
   const [crewSending, setCrewSending] = useState(null); // crew id being sent to
 
   const origin = (typeof window !== 'undefined' && window.location.origin) || 'https://flexyn.netlify.app';
+  // Carry the POST id, not just the author. This link used to drop you on the
+  // author's profile with no indication which post was meant — on a prolific
+  // account the thing you shared could be twenty rows down. `post` is read by
+  // Hub, which opens the Posts tab, scrolls to that row and outlines it.
   const postUrl = post.user_id
-    ? `${origin}/hub?profile=${encodeURIComponent(post.user_id)}`
+    ? `${origin}/hub?profile=${encodeURIComponent(post.user_id)}${post.id ? `&post=${encodeURIComponent(post.id)}` : ''}`
     : origin;
   const postText = (post.body || post.content || 'Check out this post on Flexyn').slice(0, 200);
   const shareTitle = post.author_name ? `${post.author_name} on Flexyn` : 'Flexyn';
