@@ -324,6 +324,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   const [activeHighlight, setActiveHighlight] = useState(null);
   const [activeHighlightItems, setActiveHighlightItems] = useState([]);
   const [noteEditorOpen, setNoteEditorOpen] = useState(false);
+  const [noteExpanded, setNoteExpanded] = useState(false);
   const [noteLocalLiked, setNoteLocalLiked] = useState(false);
   const [editProfileOpen, setEditProfileOpen] = useState(false);
   // Declared up here rather than beside the avatar because it is read ~950
@@ -1408,12 +1409,36 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
                   position: 'relative',
                   maxWidth: 180,
                 }}>
+                  {/* `break-words` is the actual fix for the overflow, and it
+                      is not the obvious one. The bubble was already capped at
+                      180px, so a normal note wrapped and stayed inside it —
+                      but a note that is ONE unbroken 60-character token ("e"
+                      ×60) has no space to wrap at, so it ran straight past the
+                      cap and off the banner. `overflow-wrap: anywhere` lets a
+                      word break mid-token when there is nowhere else to break.
+
+                      The clamp is the second half: two lines, then "…". Own
+                      note taps through to the editor (which shows the whole
+                      thing in a textarea); someone else's expands in place, the
+                      same rule the stories-row bubble follows. */}
                   {isSelf ? (
                     <button type="button" onClick={() => setNoteEditorOpen(true)} className="block w-full">
-                      <p className="text-xs leading-snug text-foreground">{activeNote.text}</p>
+                      <p className="text-xs leading-snug text-foreground break-words line-clamp-2">{activeNote.text}</p>
                     </button>
                   ) : (
-                    <p className="text-xs leading-snug text-foreground">{activeNote.text}</p>
+                    <button
+                      type="button"
+                      onClick={() => setNoteExpanded(v => !v)}
+                      aria-expanded={noteExpanded}
+                      aria-label={noteExpanded
+                        ? tFallback('stories.collapseNote', 'Collapse note')
+                        : tFallback('stories.expandNote', 'Read full note')}
+                      className="block w-full"
+                    >
+                      <p className={`text-xs leading-snug text-foreground break-words ${noteExpanded ? '' : 'line-clamp-2'}`}>
+                        {activeNote.text}
+                      </p>
+                    </button>
                   )}
                   <div style={{
                     position: 'absolute',
