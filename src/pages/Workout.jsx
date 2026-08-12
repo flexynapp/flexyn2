@@ -82,6 +82,7 @@ import { getMaxRealisticWeight, getMaxRealisticReps, getMaxRealisticDuration, sh
 import { detectImplausibleWorkout, getMaxSetsPerExercise, getMuscleGroupCap } from '@/lib/workoutFatigue';
 import { totalVolume as computeTotalVolume } from '@/lib/workoutVolume';
 import { seedSetsForExercise } from '@/lib/seedRegimenSets';
+import { cardioLogsKey } from '@/lib/data/cardioKeys';
 
 // Lazy-loaded modals — all consolidated AFTER imports so Vite's bundle
 // init doesn't hit a TDZ when consts sit between import statements
@@ -598,7 +599,7 @@ export default function Workout() {
   });
 
   const { data: rawCardioLogs = [] } = useQuery({
-    queryKey: ['cardioLogs', user?.email],
+    queryKey: cardioLogsKey(user?.email, 'workout'),
     queryFn: () => db.entities.CardioLog.filter({ created_by: user.email }, '-date', 100),
     enabled: !!user?.email,
   });

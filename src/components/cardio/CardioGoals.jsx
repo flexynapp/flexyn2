@@ -51,6 +51,7 @@ import * as goalsData from '@/lib/data/goals';
 import {
   CARDIO_GOAL_TYPES, computeCardioGoalProgress, periodStartDate,
 } from '@/lib/goalProgress';
+import { cardioLogsKey } from '@/lib/data/cardioKeys';
 
 const ACTIVITY_OPTIONS = [
   { value: 'running',  label: 'Running',  Icon: Footprints,      color: 'text-orange-500' },
@@ -319,7 +320,7 @@ export default function CardioGoals() {
   // the previous one. `created_date` is selected because the shared
   // calculator uses it to ignore logs from before the goal existed.
   const { data: allLogs = [] } = useQuery({
-    queryKey: ['cardioLogs', user?.email],
+    queryKey: cardioLogsKey(user?.email, 'goalProgress'),
     queryFn: async () => {
       const { data } = await supabase
         .from('cardio_logs')

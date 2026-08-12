@@ -67,6 +67,7 @@ import { useNumberFormatter } from '@/lib/intl';
 import { parseLocalDate } from '@/lib/dateUtils';
 import { getDateLocale } from '@/lib/dateLocales';
 import { heroTintGradient, HERO_FADE_GRADIENT } from '@/lib/heroChrome';
+import { cardioLogsKey } from '@/lib/data/cardioKeys';
 
 
 /* ──────────────────────────────────────────────────────────────────
@@ -1124,7 +1125,7 @@ export default function Dashboard() {
   });
 
   const { data: rawCardioLogs = [] } = useQuery({
-    queryKey: ['cardioLogs', user?.email],
+    queryKey: cardioLogsKey(user?.email, 'dashboard'),
     queryFn: () => db.entities.CardioLog.filter({ created_by: user.email }, '-date', 50),
     enabled: !!user?.email,
   });

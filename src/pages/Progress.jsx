@@ -44,6 +44,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer,
 } from 'recharts';
+import { cardioLogsKey } from '@/lib/data/cardioKeys';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -525,7 +526,7 @@ export default function Progress() {
     enabled: !!user?.email,
   });
   const { data: rawCardioLogs = [] } = useQuery({
-    queryKey: ['cardioLogs', user?.email],
+    queryKey: cardioLogsKey(user?.email, 'progress'),
     queryFn: () => db.entities.CardioLog.filter({ created_by: user.email }, '-date', LOG_FETCH_LIMIT),
     enabled: !!user?.email,
   });

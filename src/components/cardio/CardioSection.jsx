@@ -28,6 +28,7 @@ import {
   AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
   AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel,
 } from '@/components/ui/alert-dialog';
+import { cardioLogsKey } from '@/lib/data/cardioKeys';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -187,7 +188,7 @@ export default function CardioSection({ onBack, deepLink = null, onDeepLinkConsu
   const [recoverable, setRecoverable] = useState(null);
 
   const { data: lastLogs = [] } = useQuery({
-    queryKey: ['cardioLogs', user?.email],
+    queryKey: cardioLogsKey(user?.email, 'lastLog'),
     queryFn: () => db.entities.CardioLog.filter(
       { created_by: user.email }, '-date', 1
     ),

@@ -4,6 +4,11 @@ import { supabase } from '@/api/supabaseClient';
 import { safeSelect } from '@/api/safeSelect';
 import { containsProfanity } from '@/lib/profanityFilter';
 
+// Re-exported so callers already importing this module keep working.
+// It is DEFINED in cardioKeys.js, which imports nothing — see the note
+// there about @/api/db's module-scope auth listener.
+export { cardioLogsKey } from '@/lib/data/cardioKeys';
+
 // Columns `detectNewPRs` actually reads, plus the two the callers filter on.
 // Nothing else — and emphatically not `gps_track`.
 const PR_COLUMNS = ['id', 'type', 'distance_meters', 'duration_seconds', 'date', 'created_date'];

@@ -25,6 +25,7 @@ import { db } from '@/api/db';
 import { LOG_FETCH_LIMIT } from '@/lib/constants';
 import { calculateDailyValues } from '@/lib/nutritionDefaults';
 import { observedSessionsPerWeek } from '@/lib/tdee';
+import { cardioLogsKey } from '@/lib/data/cardioKeys';
 
 /**
  * Observed sessions per week over the trailing TDEE window, or undefined
@@ -52,7 +53,7 @@ export function useObservedActivity() {
     enabled: !!user?.email,
   });
   const { data: cardioLogs, isPending: cardioPending } = useQuery({
-    queryKey: ['cardioLogs', user?.email],
+    queryKey: cardioLogsKey(user?.email, 'nutritionTargets'),
     queryFn: () => db.entities.CardioLog.filter({ created_by: user.email }, '-date', LOG_FETCH_LIMIT),
     enabled: !!user?.email,
   });
