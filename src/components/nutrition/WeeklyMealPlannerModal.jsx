@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { format, addDays, startOfWeek } from 'date-fns';
+import { useDateFormatter } from '@/lib/intl';
 import { useAuth } from '@/lib/AuthContext';
 import * as mealPlans from '@/lib/data/mealPlans';
 import * as recipes from '@/lib/data/nutritionRecipes';
@@ -74,6 +75,11 @@ function weekStart(date) {
   return startOfWeek(date, { weekStartsOn: 1 });
 }
 
+// `isoDay` stays on date-fns deliberately: this is a KEY — it is the
+// `plan_date` column, the cell lookup key and the react-query key — so it
+// must NOT move with the locale. Every date the user READS goes through
+// useDateFormatter() below instead; date-fns `format()` binds no locale, so
+// "Mon"/"Aug 11" survived every translation pass on a 15-language app.
 function isoDay(date) {
   return format(date, 'yyyy-MM-dd');
 }
@@ -288,6 +294,7 @@ function ManualMealModal({ open, mealLabel, onSave, onClose }) {
 export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onStartOnboarding }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const fmtDate = useDateFormatter();
   useBodyScrollLock(open);
   const [anchor, setAnchor] = useState(() => new Date());
   const [pickerSlot, setPickerSlot] = useState(null); // { date, mealType } → recipe picker
@@ -351,10 +358,22 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
     [groceryOpen, plans, recipesById],
   );
 
-  // Uncompleted plans in view — the exact set buildGroceryList walks.
+  // Two different counts, and conflating them is what made the CTA lie.
+  //
+  // `plannedCount` is how many meals are on the grid. `shoppableCount` is how
+  // many of them will actually put an ingredient on the list — which needs a
+  // recipe or a snapshot carrying `ingredients`, and neither the Photo-AI nor
+  // the manual path writes one. The button used to show `plannedCount` and
+  // then open a sheet reading "Nothing to buy yet"; on production's 8 rows it
+  // promised 6 meals and produced 0 items. Both come from `mealPlans` so the
+  // number on the button is computed by the same code that builds the list.
   const plannedCount = useMemo(
     () => plans.filter(p => !p.is_completed).length,
     [plans],
+  );
+  const shoppableCount = useMemo(
+    () => mealPlans.shoppablePlans(plans, recipesById).length,
+    [plans, recipesById],
   );
 
   const groceryText = useMemo(
@@ -601,7 +620,7 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
               <ChevronLeft className="w-4 h-4" />
             </button>
             <span className="text-sm font-bold tabular-nums">
-              {format(days[0], 'MMM d')} – {format(days[6], 'MMM d, yyyy')}
+              {fmtDate(days[0], { month: 'short', day: 'numeric' })} – {fmtDate(days[6], { month: 'short', day: 'numeric', year: 'numeric' })}
             </span>
             <button
               onClick={() => setAnchor(addDays(ws, 7))}
@@ -638,10 +657,10 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
                     <div key={dateStr} ref={isToday ? todayRef : undefined} className="flex flex-col">
                       <div className={`text-center pb-2 mb-1 border-b border-border/60 ${isToday ? 'text-primary font-bold' : ''}`}>
                         <p className="text-micro uppercase tracking-wider text-muted-foreground">
-                          {format(d, 'EEE')}
+                          {fmtDate(d, { weekday: 'short' })}
                         </p>
                         <p className={`font-heading font-bold text-base ${isToday ? 'text-primary' : ''}`}>
-                          {format(d, 'd')}
+                          {fmtDate(d, { day: 'numeric' })}
                         </p>
                       </div>
                       <div className="space-y-1.5">
@@ -712,13 +731,15 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
             <button
               type="button"
               onClick={() => setGroceryOpen(true)}
-              disabled={plannedCount === 0}
+              disabled={shoppableCount === 0}
               className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-primary text-primary-foreground font-semibold text-sm py-2.5 transition-opacity active:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <ShoppingCart className="w-4 h-4" />
-              {plannedCount === 0
-                ? 'Plan a meal to build a grocery list'
-                : `Generate grocery list · ${plannedCount} meal${plannedCount === 1 ? '' : 's'}`}
+              {shoppableCount > 0
+                ? `Generate grocery list · ${shoppableCount} meal${shoppableCount === 1 ? '' : 's'}`
+                : plannedCount === 0
+                  ? 'Plan a meal to build a grocery list'
+                  : 'Add a recipe to build a grocery list'}
             </button>
           </div>
 
