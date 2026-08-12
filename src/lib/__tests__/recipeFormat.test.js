@@ -6,7 +6,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   perServingCals, perServingMacros, macroLine, nutritionLine,
-  servingsLabel, scaledIngredients, microChips,
+  servingsLabel, scaledIngredients, microChips, plannerSnapshot,
 } from '../recipeFormat';
 
 const recipe = {
@@ -56,7 +56,7 @@ describe('per-serving figures', () => {
 describe('scaledIngredients', () => {
   it('scales whole-recipe amounts down to one serving', () => {
     const rows = scaledIngredients(recipe, 1);
-    expect(rows[0]).toMatchObject({ name: 'Chicken breast', amount: '80 g', cals: 132 });
+    expect(rows[0]).toMatchObject({ name: 'Chicken breast', amount: '80 g' });
     expect(rows[1].amount).toBe('100 g');
     expect(rows[2].amount).toBe('0.75 tsp');
   });
@@ -101,5 +101,25 @@ describe('microChips', () => {
 
   it('is empty for a recipe with no micros', () => {
     expect(microChips({})).toEqual([]);
+  });
+});
+
+describe('plannerSnapshot', () => {
+  it('captures per-serving figures so a plan survives its recipe', () => {
+    expect(plannerSnapshot(recipe)).toEqual({
+      name: 'Chicken & rice bowl',
+      calories: 412, protein_g: 38, carbs_g: 41, fat_g: 9, fiber_g: 0,
+    });
+  });
+
+  it('keeps one decimal rather than rounding a small macro to zero', () => {
+    const snap = plannerSnapshot({ name: 'Tea', servings: 4, totals: { calories: 8, fat_g: 2 } });
+    expect(snap.calories).toBe(2);
+    expect(snap.fat_g).toBe(0.5);
+  });
+
+  it('names an unnamed recipe rather than storing undefined', () => {
+    expect(plannerSnapshot({}).name).toBe('Recipe');
+    expect(plannerSnapshot(null).name).toBe('Recipe');
   });
 });

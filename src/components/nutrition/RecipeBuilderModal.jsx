@@ -270,26 +270,32 @@ export default function RecipeBuilderModal({ open, onClose, editingRecipe = null
               aria-label="Recipe name"
               className="h-10 text-base"
             />
-            {/* A stepper rather than a number field: servings is a small whole
-                count, and it is the divisor under every figure on the recipe —
-                a typo here silently halves or doubles the lot. */}
+            {/* Stepper AND field. The stepper is the common case — servings is
+                a small count, and it is the divisor under every figure on the
+                recipe, so a fat-fingered "40" silently divides the lot by ten.
+                But a stepper ALONE made a 12-serving batch cook 22 taps, which
+                is why the field stays: tap for one or two, type for a tray. */}
             <div className="flex items-center gap-2 mt-3">
               <button
                 type="button"
                 onClick={() => setServings((s) => String(Math.max(1, (Number(s) || 1) - 0.5)))}
                 aria-label="Fewer servings"
-                className="w-10 h-10 rounded-md border border-input bg-background text-base font-bold"
+                className="w-10 h-10 shrink-0 rounded-md border border-input bg-background text-base font-bold"
               >
                 –
               </button>
-              <span className="w-12 text-center font-heading text-base font-bold tabular-nums">
-                {servings}
-              </span>
+              <Input
+                type="number" inputMode="decimal" min="1" max="99" step="0.5"
+                value={servings}
+                onChange={(e) => setServings(clampRecipeNumber(e.target.value, 99))}
+                aria-label="Servings"
+                className="w-14 h-10 text-base text-center px-1"
+              />
               <button
                 type="button"
                 onClick={() => setServings((s) => String(Math.min(99, (Number(s) || 1) + 0.5)))}
                 aria-label="More servings"
-                className="w-10 h-10 rounded-md border border-input bg-background text-base font-bold"
+                className="w-10 h-10 shrink-0 rounded-md border border-input bg-background text-base font-bold"
               >
                 +
               </button>

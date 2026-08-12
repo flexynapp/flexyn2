@@ -129,7 +129,14 @@ export default function RecipesHubModal({
     staleTime: 60_000,
   });
 
-  const invalidateMine = () => queryClient.invalidateQueries({ queryKey: ['nutritionRecipes', user?.id] });
+  // Two cache keys hold the same list: this hub and the planner use
+  // ['nutritionRecipes'], while FoodSearchSheet uses ['nutritionRecipesMine']
+  // with a 60s staleTime. Invalidating only the first left a recipe you had
+  // just created missing from food search for a minute.
+  const invalidateMine = () => {
+    queryClient.invalidateQueries({ queryKey: ['nutritionRecipes', user?.id] });
+    queryClient.invalidateQueries({ queryKey: ['nutritionRecipesMine', user?.id] });
+  };
   const invalidateDiscover = () => queryClient.invalidateQueries({ queryKey: ['nutritionRecipesPublic', user?.id] });
 
   const myRecipes = useMemo(() => mine.data || [], [mine.data]);
@@ -215,6 +222,17 @@ export default function RecipesHubModal({
   };
 
   const handleSaveCopy = async (recipe) => {
+    // Saving the same community recipe twice used to write a second identical
+    // row with no warning, and the two are indistinguishable in the list.
+    const already = myRecipes.some(
+      (r) => (r.name || '').trim().toLowerCase() === (recipe.name || '').trim().toLowerCase(),
+    );
+    if (already) {
+      toast.info('You already have a recipe with that name.');
+      setTab('mine');
+      setDetail(null);
+      return;
+    }
     setBusyId(recipe.id);
     try {
       await recipes.saveCopy({ user, recipe });

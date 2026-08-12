@@ -32,6 +32,7 @@ import { useDateFormatter } from '@/lib/intl';
 import { useAuth } from '@/lib/AuthContext';
 import * as mealPlans from '@/lib/data/mealPlans';
 import * as recipes from '@/lib/data/nutritionRecipes';
+import { plannerSnapshot } from '@/lib/recipeFormat';
 import { syncPlannerDiaryLog, removePlannerDiaryLog, remove as removeDiaryLog } from '@/lib/data/nutrition';
 import { recognizeMealPhoto } from '@/lib/data/photoMealRecognition';
 import { NutritionPlansPanel } from '@/components/nutrition/NutritionPlansModal';
@@ -419,14 +420,27 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
     onError:    () => toast.error('Could not remove plan.'),
   });
 
+  // A planned recipe stores BOTH the id and a snapshot of what was planned.
+  //
+  // The id alone was the whole row: migration 123 deliberately omits the FK so
+  // deleting a recipe cannot delete someone's plan — but with nothing else
+  // stored, the surviving plan rendered as a bare "—". The plan outlived the
+  // recipe and carried none of it. The snapshot is what the cell falls back to,
+  // and it is the same shape the manual and photo paths already write.
   const handlePick = (recipe) => {
     if (!pickerSlot) return;
+    const snapshot = plannerSnapshot(recipe);
     upsertMutation.mutate({
       user,
       planDate: pickerSlot.date,
       mealType: pickerSlot.mealType,
       recipeId: recipe.id,
+      foodSnapshot: snapshot,
     });
+    // A recipe planned for TODAY is a meal eaten today, exactly as a manual or
+    // photo entry is. This path was the only one of the three that skipped the
+    // diary mirror, so planning a recipe for today quietly counted for nothing.
+    logToDiaryIfToday(pickerSlot.date, snapshot, pickerSlot.mealType);
     setPickerSlot(null);
   };
 

@@ -157,6 +157,11 @@ export function recipeLogPayload({ recipe, servings = 1, mealType, date }) {
     date,
     meal_type:      mealType || 'snack',
     food_name:      recipe?.name?.trim() || 'Recipe',
+    // nutrition_logs.servings defaults to 1 and nothing in the app reads it
+    // today. Write the real count anyway: a stored 1 against a 4-serving log
+    // is a wrong number waiting for its first reader, which is exactly the
+    // shape CLAUDE.md documents for this schema's other dead columns.
+    servings:       n,
     calories:       Math.round((Number(per.calories) || 0) * n),
     protein_g:      eaten(per.protein_g),
     carbs_g:        eaten(per.carbs_g),
@@ -239,11 +244,36 @@ async function writeWithColumnRetry(run, row, safeKeys) {
 // Columns that predate mig 227 and must never be stripped.
 const CORE_RECIPE_COLS = new Set(['id', 'user_id', 'user_email', 'name', 'servings', 'ingredients', 'totals']);
 
+/**
+ * Every column a client is allowed to READ — i.e. all of them except
+ * `user_email`. Use this everywhere instead of `select('*')`.
+ *
+ * `*` was a privacy hole rather than a style problem. RLS on this table is
+ * row-level, and mig 227 added a policy letting any authenticated user read
+ * a PUBLISHED recipe — so `select('*')` handed the author's real email
+ * address to every user who opened Discover, including anonymous guests.
+ * Migration 227's own comment says the opposite ("author_username … so
+ * Discover never has to expose user_email"); the intent was written down and
+ * never enforced. Verified against production, as a second real user, that
+ * `select *` returned the owner's email.
+ *
+ * The database is the actual boundary — the companion migration revokes
+ * table-level SELECT and re-grants it column by column, so a hand-rolled
+ * `select=user_email` gets 42501 rather than a row. This constant is what
+ * keeps the client's queries inside that grant, so it must stay in sync with
+ * it: adding a column here without adding it to the GRANT breaks every read.
+ */
+export const RECIPE_COLUMNS = [
+  'id', 'user_id', 'name', 'servings', 'ingredients', 'totals',
+  'created_at', 'updated_at', 'directions', 'micros',
+  'is_public', 'author_username', 'published_at', 'image_url',
+].join(',');
+
 export async function listMine(userId) {
   if (!userId) return [];
   const { data, error } = await supabase
     .from('nutrition_recipes')
-    .select('*')
+    .select(RECIPE_COLUMNS)
     .eq('user_id', userId)
     .order('updated_at', { ascending: false });
   if (error) return [];
@@ -254,9 +284,11 @@ export async function listMine(userId) {
 export async function listPublic({ excludeUserId = null, limit = 60 } = {}) {
   let q = supabase
     .from('nutrition_recipes')
-    .select('*')
+    .select(RECIPE_COLUMNS)
     .eq('is_public', true)
-    .order('published_at', { ascending: false })
+    // nullsFirst: Postgres sorts NULLs FIRST on a DESC order, so a published
+    // row with no timestamp would pin itself to the top of Discover forever.
+    .order('published_at', { ascending: false, nullsFirst: false })
     .limit(limit);
   if (excludeUserId) q = q.neq('user_id', excludeUserId);
   const { data, error } = await q;
@@ -281,7 +313,7 @@ export async function upsert({ id, user, name, servings, ingredients, directions
   };
   if (id) row.id = id;
   return writeWithColumnRetry(
-    (payload) => supabase.from('nutrition_recipes').upsert(payload, { onConflict: 'id' }).select().maybeSingle(),
+    (payload) => supabase.from('nutrition_recipes').upsert(payload, { onConflict: 'id' }).select(RECIPE_COLUMNS).maybeSingle(),
     row,
     CORE_RECIPE_COLS,
   );
@@ -301,7 +333,7 @@ export async function setPublished({ id, isPublic, authorUsername }) {
     updated_at:      new Date().toISOString(),
   };
   return writeWithColumnRetry(
-    (payload) => supabase.from('nutrition_recipes').update(payload).eq('id', id).select().maybeSingle(),
+    (payload) => supabase.from('nutrition_recipes').update(payload).eq('id', id).select(RECIPE_COLUMNS).maybeSingle(),
     patch,
     CORE_RECIPE_COLS,
   );
@@ -330,7 +362,7 @@ export async function saveCopy({ user, recipe }) {
     updated_at:  new Date().toISOString(),
   };
   return writeWithColumnRetry(
-    (payload) => supabase.from('nutrition_recipes').insert(payload).select().maybeSingle(),
+    (payload) => supabase.from('nutrition_recipes').insert(payload).select(RECIPE_COLUMNS).maybeSingle(),
     row,
     CORE_RECIPE_COLS,
   );

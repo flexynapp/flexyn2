@@ -47,8 +47,10 @@ export function servingsLabel(recipe) {
 // them to the serving it is showing. Trailing zeros are dropped — "0.8 g" and
 // "80 g" are both fine to read, "80.00 g" is not.
 function trim(n) {
-  const r = Math.round(n * 100) / 100;
-  return Number.isInteger(r) ? String(r) : String(r);
+  // Two decimals is enough for a scaled amount, and String() already drops a
+  // trailing zero (0.80 → "0.8"), so no branch is needed here. There used to
+  // be a ternary whose arms were identical — it did nothing.
+  return String(Math.round(n * 100) / 100);
 }
 
 /**
@@ -64,9 +66,32 @@ export function scaledIngredients(recipe, servings = 1) {
     return {
       name:   ing?.name || 'Ingredient',
       amount: raw > 0 ? `${trim(raw * factor)} ${unit}` : '—',
-      cals:   Math.round((Number(ing?.calories) || 0) * factor),
     };
   });
+}
+
+/**
+ * What a meal-planner slot stores ALONGSIDE the recipe id, so the plan
+ * survives the recipe being deleted.
+ *
+ * `meal_plans.recipe_id` has no foreign key on purpose (mig 123) — deleting a
+ * recipe must not delete someone's plan. But the id was all the row carried,
+ * so a plan that outlived its recipe rendered as a bare "—". This is the same
+ * per-serving shape the manual and photo paths already write, which is why the
+ * planner's existing `recipe?.name || plan.food_snapshot?.name` fallback picks
+ * it up with no render change.
+ */
+export function plannerSnapshot(recipe) {
+  const per = perServing(recipe?.totals || {}, servingsOf(recipe));
+  const r1 = (v) => Math.round((Number(v) || 0) * 10) / 10;
+  return {
+    name:      recipe?.name || 'Recipe',
+    calories:  Math.round(Number(per.calories) || 0),
+    protein_g: r1(per.protein_g),
+    carbs_g:   r1(per.carbs_g),
+    fat_g:     r1(per.fat_g),
+    fiber_g:   r1(per.fiber_g),
+  };
 }
 
 /**

@@ -75,7 +75,8 @@ export default function RecipeOverflowSheet({
                 Remove “{recipe.name}”?
               </h2>
               <p className="mt-1 text-caption text-muted-foreground">
-                Meals you already logged from it stay in your history. This can’t be undone.
+                Meals you already logged stay in your history, and planned meals keep
+                what you planned. This can’t be undone.
               </p>
               <div className="mt-4 flex gap-2">
                 <button
