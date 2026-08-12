@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, History, ImageIcon, Loader2, Repeat } from 'lucide-react';
+import { Plus, History, ImageIcon, Loader2, Repeat, Search as SearchIcon } from 'lucide-react';
 import NutrientIcon, { MealPlateIcon } from './NutrientIcon';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useAuth } from '@/lib/AuthContext';
@@ -98,7 +98,7 @@ function NutrientTile({ field, value, onChange, t }) {
   );
 }
 
-export default function LogMealForm({ newEntry, setNewEntry, onPhotoAI, isRecognizing, onLog, isLogging, onReLog, defaultOpen = false }) {
+export default function LogMealForm({ newEntry, setNewEntry, onPhotoAI, onSearch, isRecognizing, onLog, isLogging, onReLog, defaultOpen = false }) {
   const { t, tFallback } = useLanguage();
   const { user } = useAuth();
   const TABS = [
@@ -257,6 +257,25 @@ export default function LogMealForm({ newEntry, setNewEntry, onPhotoAI, isRecogn
         style={{ overflow: 'hidden' }}
       >
       <div className="pt-4">
+
+      {/* Search — the fastest way to fill this form, so it sits above the
+          fields it fills rather than beside the button that submits them.
+          It searches only foods this user already has (scanned, saved as a
+          recipe, or logged before), which is what lets it autocomplete on
+          every keystroke with no network call. */}
+      {onSearch && (
+        <button
+          type="button"
+          onClick={onSearch}
+          className="w-full mb-4 flex items-center gap-2 h-11 px-3 rounded-lg border border-border bg-secondary/40 text-start hover:bg-secondary/60 active:bg-secondary/60 transition-colors"
+        >
+          <SearchIcon className="w-4 h-4 text-primary shrink-0" />
+          <span className="text-sm font-semibold">{tFallback('nutrition.search.title', 'Search')}</span>
+          <span className="text-xs text-muted-foreground truncate ms-auto">
+            {tFallback('nutrition.search.buttonHint', 'your foods & recipes')}
+          </span>
+        </button>
+      )}
 
       {/* Food name */}
       <div className="mb-4">

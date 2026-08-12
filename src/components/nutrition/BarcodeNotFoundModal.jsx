@@ -7,7 +7,8 @@ import { Input } from '@/components/ui/input';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useKeyboardInset } from '@/hooks/useKeyboardInset';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
-import { create as createFoodItem } from '@/lib/data/foodItems';
+import { requestFoodItem } from '@/lib/data/foodItemRequests';
+import { useAuth } from '@/lib/AuthContext';
 import { containsProfanity } from '@/lib/profanityFilter';
 import { toast } from '@/lib/toast';
 
@@ -38,6 +39,7 @@ const EMPTY_VITAMINS  = Object.fromEntries(VITAMIN_FIELDS.map(f => [f.key, '']))
 
 export default function BarcodeNotFoundModal({ barcode, onCancel, onSubmit }) {
   const { tFallback } = useLanguage();
+  const { user } = useAuth();
   const kbInset = useKeyboardInset();
   useBodyScrollLock(true);
   const [tab, setTab] = useState('nutrients');
@@ -82,42 +84,35 @@ export default function BarcodeNotFoundModal({ barcode, onCancel, onSubmit }) {
         VITAMIN_FIELDS.map(f => [f.key, num(vitamins[f.key])])
       );
 
-      // Save to the shared community FoodItem entity.
+      // REQUEST it — do not publish it.
       //
-      // Write BOTH shapes: the rich jsonb payload (`nutrition` /
-      // `vitamins` / `source` — added by the food_items jsonb
-      // migration) AND the flat legacy columns from 001_initial_schema
-      // (calories / protein / carbs / fat / fiber / sodium) so readers
-      // on either side of the migration get real numbers. On a host
-      // without the jsonb columns, the entity layer's 42703
-      // strip-and-retry drops those keys but the flat columns still
-      // land — previously the WHOLE nutrition payload was silently
-      // dropped and re-scans logged 0-calorie meals.
-      const saved = await createFoodItem({
+      // This used to call createFoodItem() and write straight into
+      // `public.food_items`, which every future scanner then reads. That is
+      // exactly the shape that made MyFitnessPal's catalogue what it is:
+      // anyone can add an entry, no source, no review, and the same product
+      // ends up in there five times with five different calorie counts.
+      //
+      // So it now files a row in `food_item_requests` for approval, the same
+      // way Report a Bug files a `bug_reports` row (migration 342). An admin
+      // approves it and only then does a food_items row exist — carrying
+      // is_verified = true, because a human actually read it.
+      //
+      // The user is NOT made to wait, which is the part that matters. The
+      // onSubmit below hands the product straight back to the scanner flow so
+      // they can log it into their own diary right now. Their diary is
+      // theirs; only the SHARED catalogue is gated.
+      const { alreadyQueued } = await requestFoodItem({
         barcode,
         name: name.trim(),
-        serving_label: servingLabel.trim() || '1 serving',
-        // Flat legacy columns (001_initial_schema.sql food_items)
-        calories: num(nutrients.calories)  ?? 0,
-        protein:  num(nutrients.protein_g) ?? 0,
-        carbs:    num(nutrients.carbs_g)   ?? 0,
-        fat:      num(nutrients.fat_g)     ?? 0,
-        fiber:    num(nutrients.fiber_g)   ?? 0,
-        sodium:   num(nutrients.sodium_mg) ?? 0,
-        // Rich jsonb columns (community-barcode migration)
-        nutrition:  nutritionRecord,
-        vitamins:   vitaminsRecord,
-        source:     'user_submitted',
+        servingLabel: servingLabel.trim() || '1 serving',
+        nutrition: nutritionRecord,
+        vitamins:  vitaminsRecord,
+        user,
       });
 
-      // Only claim "available for everyone" when the jsonb payload
-      // actually landed — strip-and-retry means a pre-migration host
-      // returns a row WITHOUT the `nutrition` key, and community-wide
-      // read access ships with the same migration.
-      const richSaved = !!(saved && saved.nutrition);
-      toast.success(richSaved
-        ? tFallback('nutrition.barcode.savedForEveryone', "Food item saved! It's now available for all users who scan this barcode.")
-        : tFallback('nutrition.barcode.savedToLog', 'Food item saved — you can log it now.'));
+      toast.success(alreadyQueued
+        ? tFallback('nutrition.barcode.alreadyRequested', 'Someone already asked for this one — it’s in the queue. Logged for you now.')
+        : tFallback('nutrition.barcode.requested', 'Sent for review. Logged for you now, and everyone gets it once it’s approved.'));
 
       // Return the product in the same shape as lookupBarcode() so the caller
       // can immediately show BarcodeResultModal without a second lookup.

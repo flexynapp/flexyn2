@@ -25,6 +25,7 @@ import MineralsVitaminsBox from '@/components/nutrition/MineralsVitaminsBox';
 import WaterTracker from '@/components/nutrition/WaterTracker';
 import BarcodeResultModal from '@/components/nutrition/BarcodeResultModal';
 import BarcodeNotFoundModal from '@/components/nutrition/BarcodeNotFoundModal';
+import FoodSearchSheet from '@/components/nutrition/FoodSearchSheet';
 import LogMealForm from '@/components/nutrition/LogMealForm';
 import NutritionOnboardingModal from '@/components/nutrition/NutritionOnboardingModal';
 import MealHistoryModal from '@/components/nutrition/MealHistoryModal';
@@ -345,6 +346,7 @@ export default function Nutrition() {
   // with a restore button) in customize mode.
   const [hiddenWidgets, setHiddenWidgets] = useState([]);
   const [showScanner, setShowScanner] = useState(false);
+  const [showFoodSearch, setShowFoodSearch] = useState(false);
   // The barcode scanner is a full-screen overlay on a long scrolling page —
   // hold the page behind it. See @/lib/scrollLock.
   useBodyScrollLock(showScanner);
@@ -1315,6 +1317,35 @@ export default function Nutrition() {
     return true;
   };
 
+  // A food picked out of Search FILLS THE FORM rather than logging straight
+  // away. The user still has to press Log Meal.
+  //
+  // That is deliberate and it is the opposite of the History tab's Re-Log
+  // beside it. Re-Log repeats something you already ate, unchanged, so one
+  // tap is the whole point. Search is how you reach a food you may want to
+  // adjust — a different serving, a bigger portion — and silently committing
+  // it would make the numbers wrong in a way that is tedious to undo.
+  const applySearchPick = (entry) => {
+    if (!entry) return;
+    setNewEntry({
+      food_name: entry.name || '',
+      calories:  entry.calories  ? String(entry.calories)  : '',
+      protein_g: entry.protein_g ? String(entry.protein_g) : '',
+      carbs_g:   entry.carbs_g   ? String(entry.carbs_g)   : '',
+      fat_g:     entry.fat_g     ? String(entry.fat_g)     : '',
+      sodium_mg: entry.sodium_mg ? String(entry.sodium_mg) : '',
+      fiber_g:   entry.fiber_g   ? String(entry.fiber_g)   : '',
+      sugar_g:   entry.sugar_g   ? String(entry.sugar_g)   : '',
+      // The remaining micronutrient fields have no column on nutrition_logs
+      // (migration 006 is unapplied), so there is nothing to carry across.
+      // See docs/nutrition-meal-logging-audit.md.
+      cholesterol_mg: '', iron_mg: '', magnesium_mg: '', calcium_mg: '',
+      potassium_mg: '', vitamin_a_iu: '', vitamin_c_mg: '', vitamin_d_iu: '',
+      vitamin_b12_mcg: '',
+    });
+    toast.success(tFallback('nutrition.search.filled', 'Filled in — check the amount, then log it.'));
+  };
+
   // Re-log a previously-logged meal (from the Log Meal form's History tab)
   // straight into today under the selected meal type — a fresh entry, so it
   // flows through the normal calorie/macro/dashboard update path.
@@ -1900,6 +1931,7 @@ export default function Nutrition() {
             setNewEntry={setNewEntry}
             onScan={startScanner}
             onPhotoAI={openPhotoCapture}
+            onSearch={() => setShowFoodSearch(true)}
             onReLog={reLogMeal}
             isRecognizing={photoRecognizing}
             onLog={addEntry}
@@ -2260,6 +2292,15 @@ export default function Nutrition() {
         <CalorieCyclingModal
           open={showCalorieCycling}
           onClose={() => setShowCalorieCycling(false)}
+        />
+      </ErrorBoundary>
+
+      {/* Search — fills the Log Meal form from foods this user already has. */}
+      <ErrorBoundary label="FoodSearchSheet">
+        <FoodSearchSheet
+          open={showFoodSearch}
+          onClose={() => setShowFoodSearch(false)}
+          onPick={applySearchPick}
         />
       </ErrorBoundary>
 

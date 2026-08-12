@@ -402,6 +402,7 @@ dead endpoint. See
 | 340 | `340_drop_planned_cardio.sql` | Retire the second scheduler — cardio plans move onto `scheduled_workouts`. | — |
 | 341 | `341_retire_achievements_table.sql` | Retire `public.achievements`; XP milestones + the capsule clamp move onto `user_trophies`. | — |
 | 342 | `342_rls_owner_write_check.sql` | Cross-user row injection: an OR write-check let you stamp another user's email on a row. | — |
+| 343 | `343_food_item_requests.sql` | A barcode miss files a moderated request instead of publishing straight into the shared food catalogue. | — |
 
 ---
 
