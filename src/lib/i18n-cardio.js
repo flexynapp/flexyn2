@@ -22,7 +22,6 @@ export const cardioI18n = {
     // translatable, and puts them in front of the audit as a real gap
     // instead of hiding them in JSX where no coverage tool can see them.
     'cardio.modes.swimming': 'Swimming',
-    'cardio.modes.swimming.desc': 'Pool or open water',
 
     // The two missing halves of the cardio.type.* set. The other six live
     // in i18n-part8.js and are translated in all 15 languages; swimming
@@ -44,31 +43,29 @@ export const cardioI18n = {
     'cardio.type.swimming_pool': 'Pool swim',
     'cardio.type.swimming_openwater': 'Open water swim',
 
-    // The other three tile descriptions, and a translation REGRESSION
-    // taken deliberately — read this before "fixing" it back.
+    // Start Session — the hero and the picker sheet that replaced the 2x2
+    // activity grid and the mode → environment → input-type chain
+    // (kegan, 2026-08-11). English-only like the rest of this block.
     //
-    // Running, Walking and Biking all passed t('cardio.subtitle') —
-    // "Track running, walking, and cycling" — so three of the four tiles
-    // in the 2x2 grid carried one identical line, which was also the page
-    // subtitle directly above them. Under "Running", a line listing
-    // walking and cycling is worse than no line.
-    //
-    // `cardio.subtitle` IS translated in all 15 languages and these are
-    // not, so a non-English user trades a translated-but-wrong line for
-    // an English-but-right one. That is the trade CLAUDE.md's i18n rule
-    // calls for — English-only with a TODO beats machine-translating
-    // prose — and the swimming tile beside them has shipped exactly this
-    // way since the Aug 2026 audit.
-    //
-    // Framing is what each activity actually LOGS, because environment
-    // cannot separate these: running and walking offer the same two
-    // (outside / treadmill), so an environment line would just be a new
-    // pair of duplicates. Checked against CardioManualForm's field gates
-    // — elevation is outside-and-not-biking, power is biking-only,
-    // splits come off a GPS track.
-    'cardio.modes.running.desc': 'Pace, splits, and elevation',
-    'cardio.modes.walking.desc': 'Distance, pace, and elevation',
-    'cardio.modes.biking.desc': 'Speed, power, and distance',
+    // The "Where" pills reuse the EXISTING translated env keys —
+    // cardio.env.outside / .treadmill / .stationary are in i18n-part8.js in
+    // all 15 languages — so only swim's pair is untranslated, which is the
+    // state the whole swimming set is already in. Picking per-activity
+    // words over one universal Outside/Inside pair is what made that reuse
+    // possible; the universal pair would have needed two new keys and lost
+    // "Stationary" and "Open water", the words cyclists and swimmers use.
+    'cardio.start.kicker': 'START A SESSION',
+    'cardio.start.kickerShort': 'Start',
+    'cardio.start.hero': 'Start Session',
+    'cardio.start.heroSub': 'Running, Walking, Biking, or Swimming',
+    'cardio.start.activity': 'Activity',
+    'cardio.start.where': 'Where',
+    'cardio.start.how': 'How',
+    'cardio.start.cta.live': 'Start',
+    'cardio.start.cta.manual': 'Log',
+    'cardio.start.cta.empty': 'Start',
+    'cardio.start.noLiveSwim': 'Live tracking needs GPS or a treadmill readout, so swims are logged by hand.',
+
     'cardio.swim.whereQuestion': 'Where are you swimming?',
     'cardio.swim.pool': 'Pool',
     'cardio.swim.pool.desc': 'Lap pool, 25 m or 50 m',
@@ -78,10 +75,6 @@ export const cardioI18n = {
     'cardio.nav.templates.desc': 'Quick-start saved configurations',
     'cardio.nav.planned': 'Planned Sessions',
     'cardio.nav.planned.desc': 'Schedule upcoming workouts',
-    'cardio.nav.goals': 'Cardio Goals',
-    'cardio.nav.goals.desc': 'Weekly & monthly distance targets',
-    'cardio.nav.devices': 'Devices & Apps',
-    'cardio.nav.devices.desc': 'Apple Watch, Garmin, Fitbit…',
     'cardio.detail.laps': 'Laps',
     'cardio.detail.stroke': 'Stroke',
     'cardio.planned.notesPlaceholder': 'Notes… (optional)',

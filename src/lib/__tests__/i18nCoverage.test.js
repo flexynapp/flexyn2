@@ -488,9 +488,21 @@ describe('partial-gap ratchet', () => {
     // to re-derive these numbers.
     'cardio.type.swimming_pool',
     'cardio.type.swimming_openwater',
-    'cardio.modes.running.desc',
-    'cardio.modes.walking.desc',
-    'cardio.modes.biking.desc',
+    // Start Session, 2026-08-11 — the hero and the picker sheet that
+    // replaced the 2x2 activity grid and the mode → env → input chain.
+    //
+    // The three cardio.modes.*.desc entries that used to sit here are GONE,
+    // not moved: they were the activity tiles' descriptions and the tiles no
+    // longer exist. Deleting them rather than leaving them listed is the
+    // stale-prefix guard above doing its job — an AWAITING_TRANSLATION entry
+    // for a key nobody renders is a promise to translate nothing.
+    //
+    // The "Where" pills needed NO new keys: cardio.env.outside / .treadmill
+    // / .stationary are already translated in all 15 languages, and swim
+    // reuses cardio.swim.openWater / .pool. Choosing per-activity words over
+    // a universal Outside/Inside pair is what made that reuse possible — the
+    // universal pair would have added two more untranslated keys here.
+    'cardio.start.',
     // Goals: target date, archive, and the status badges — 2026-08-11.
     //
     // Scoped to three NARROW prefixes, never a bare `goals.`, which would

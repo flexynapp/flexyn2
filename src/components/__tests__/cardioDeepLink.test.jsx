@@ -25,6 +25,7 @@ vi.mock('@/lib/AuthContext', () => ({ useAuth: () => ({ user: null }) }));
 vi.mock('@/lib/DistanceUnitContext', () => ({ useDistanceUnit: () => ({ distanceUnit: 'mi' }) }));
 vi.mock('@/api/db', () => ({ db: { auth: { me: async () => ({}) }, entities: {} } }));
 vi.mock('@/lib/cardioSession', () => ({ readSnapshot: () => null, clearSnapshot: () => {} }));
+vi.mock('@/hooks/useBodyScrollLock', () => ({ useBodyScrollLock: () => {} }));
 
 // The leaf views are stubbed to announce which one mounted — that is the
 // whole assertion, and rendering the real trackers would drag in GPS,
@@ -64,7 +65,7 @@ describe('a scheduled cardio reminder', () => {
     // The input-type screen, not the home grid: the user already answered
     // "what" and "where" when they scheduled it.
     expect(screen.getByText('cardio.input.title')).toBeTruthy();
-    expect(screen.queryByText('cardio.savedWorkouts')).toBeNull();
+    expect(screen.queryByText('Start Session')).toBeNull();
   });
 
   it('carries mode and env through to the manual form', () => {
@@ -82,12 +83,12 @@ describe('a scheduled cardio reminder', () => {
 
   it('stays on the home view with no deep link', () => {
     mount(null);
-    expect(screen.getByText('cardio.savedWorkouts')).toBeTruthy();
+    expect(screen.getByText('Start Session')).toBeTruthy();
   });
 
   it('ignores a half-formed payload rather than routing somewhere wrong', () => {
     mount({ mode: 'running' });
-    expect(screen.getByText('cardio.savedWorkouts')).toBeTruthy();
+    expect(screen.getByText('Start Session')).toBeTruthy();
   });
 
   it('reports the link consumed, so backing out does not bounce forward again', () => {

@@ -10,9 +10,8 @@ import { useDistanceUnit } from '@/lib/DistanceUnitContext';
 import { formatDistance } from '@/lib/distanceUnit';
 import { db } from '@/api/db';
 import {
-  Footprints, PersonStanding, Bike, BookOpen,
-  Trees, Activity, Pencil, Radio, RotateCcw,
-  Waves, CalendarDays, BookmarkPlus, Watch, Target,
+  Trees, Activity, Pencil, Radio, RotateCcw, Play,
+  Waves, CalendarDays, BookmarkPlus,
 } from 'lucide-react';
 import CardioManualForm from './CardioManualForm';
 import CardioSavedList from './CardioSavedList';
@@ -21,8 +20,7 @@ import CardioLiveTrackerOutside from './CardioLiveTrackerOutside';
 import CardioLiveTrackerIndoor from './CardioLiveTrackerIndoor';
 import CardioTemplates from './CardioTemplates';
 import CardioPlanned from './CardioPlanned';
-import CardioWearableStub from './CardioWearableStub';
-import CardioGoals from './CardioGoals';
+import StartSessionSheet from './StartSessionSheet';
 import { readSnapshot, clearSnapshot } from '@/lib/cardioSession';
 import {
   AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
@@ -161,8 +159,6 @@ export default function CardioSection({ onBack, deepLink = null, onDeepLinkConsu
       savedList: () => t('cardio.savedWorkouts'),
       templates: () => tFallback('cardio.nav.templates', 'Templates'),
       planned:   () => tFallback('cardio.nav.planned', 'Planned Sessions'),
-      goals:     () => tFallback('cardio.nav.goals', 'Cardio Goals'),
-      wearables: () => tFallback('cardio.nav.devices', 'Devices & Apps'),
     };
     const utility = UTILITY_TITLES[view.name];
     if (utility) dispatchTitle(utility());
@@ -186,6 +182,7 @@ export default function CardioSection({ onBack, deepLink = null, onDeepLinkConsu
   const [editingLog, setEditingLog] = useState(null);
   const [templateDefaults, setTemplateDefaults] = useState(null);
   const [recoverable, setRecoverable] = useState(null);
+  const [startOpen, setStartOpen] = useState(false);
 
   const { data: lastLogs = [] } = useQuery({
     queryKey: cardioLogsKey(user?.email, 'lastLog'),
@@ -215,8 +212,6 @@ export default function CardioSection({ onBack, deepLink = null, onDeepLinkConsu
       case 'savedList':   return setView({ name: 'home' });
       case 'templates':   return setView({ name: 'home' });
       case 'planned':     return setView({ name: 'home' });
-      case 'wearables':   return setView({ name: 'home' });
-      case 'goals':       return setView({ name: 'home' });
       default:            return setView({ name: 'home' });
     }
   };
@@ -270,47 +265,44 @@ export default function CardioSection({ onBack, deepLink = null, onDeepLinkConsu
               </motion.div>
             )}
 
-            {/* Activity types — 2×2 grid.
-                Each description names what THAT activity logs. All three
-                of these used to pass t('cardio.subtitle'), so Running,
-                Walking and Biking carried one identical line — the same
-                line as the page subtitle a few hundred points above. See
-                the note beside these keys in i18n-cardio.js for why they
-                are English-only. */}
-            <div className="grid grid-cols-2 gap-3">
-              <NavTile
-                icon={Footprints}
-                title={t('cardio.modes.running')}
-                description={tFallback('cardio.modes.running.desc', 'Pace, splits, and elevation')}
-                onClick={() => setView({ name: 'mode', mode: 'running' })}
-              />
-              <NavTile
-                icon={PersonStanding}
-                title={t('cardio.modes.walking')}
-                description={tFallback('cardio.modes.walking.desc', 'Distance, pace, and elevation')}
-                onClick={() => setView({ name: 'mode', mode: 'walking' })}
-              />
-              <NavTile
-                icon={Bike}
-                title={t('cardio.modes.biking')}
-                description={tFallback('cardio.modes.biking.desc', 'Speed, power, and distance')}
-                onClick={() => setView({ name: 'mode', mode: 'biking' })}
-              />
-              <NavTile
-                icon={Waves}
-                title={tFallback('cardio.modes.swimming', 'Swimming')}
-                description={tFallback('cardio.modes.swimming.desc', 'Pool or open water')}
-                onClick={() => setView({ name: 'mode', mode: 'swimming' })}
-              />
-            </div>
+            {/* ── The hero ─────────────────────────────────────────
+                One dominant element, per the composition rules, and the
+                only full-bleed primary on the screen.
 
-            {/* Utilities */}
-            <NavTile
-              icon={BookOpen}
-              title={t('cardio.savedWorkouts')}
-              description={t('cardio.savedWorkoutsDesc')}
-              onClick={() => setView({ name: 'savedList' })}
-            />
+                It replaces a 2x2 grid of four activity tiles that each led
+                to the SAME two follow-up screens — the grid was a menu of
+                routes into one corridor. The subtext still names all four
+                activities, so nothing is hidden; the choice just moved
+                into the sheet, alongside the other two questions.
+                (kegan, 2026-08-11.) */}
+            <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }}
+                        transition={{ type: 'spring', stiffness: 380, damping: 22 }}>
+              <button
+                type="button"
+                onClick={() => setStartOpen(true)}
+                className="w-full text-start rounded-2xl bg-primary text-primary-foreground p-6 relative overflow-hidden"
+              >
+                <span className="absolute top-5 end-5 w-16 h-16 rounded-full bg-white/20 flex items-center justify-center">
+                  <Play className="w-7 h-7 ms-1" />
+                </span>
+                <span className="block text-micro font-bold uppercase tracking-[0.18em] opacity-75">
+                  {tFallback('cardio.start.kickerShort', 'Start')}
+                </span>
+                <span className="block font-heading font-extrabold text-3xl mt-1 pe-20">
+                  {tFallback('cardio.start.hero', 'Start Session')}
+                </span>
+                <span className="block text-sm mt-2 opacity-90 pe-20">
+                  {tFallback('cardio.start.heroSub', 'Running, Walking, Biking, or Swimming')}
+                </span>
+              </button>
+            </motion.div>
+
+            {/* What is left. Saved Workouts, Cardio Goals and Devices &
+                Apps came off this screen because each already has a home:
+                Workout ▸ All Workouts has a Cardio tab, the Goals form
+                writes cardio_distance / _duration / _sessions, and
+                Settings ▸ Account has Connected apps. Templates and
+                Planned Sessions stay — nothing else hosts them. */}
             <NavTile
               icon={BookmarkPlus}
               title={tFallback('cardio.nav.templates', 'Templates')}
@@ -322,18 +314,6 @@ export default function CardioSection({ onBack, deepLink = null, onDeepLinkConsu
               title={tFallback('cardio.nav.planned', 'Planned Sessions')}
               description={tFallback('cardio.nav.planned.desc', 'Schedule upcoming workouts')}
               onClick={() => setView({ name: 'planned' })}
-            />
-            <NavTile
-              icon={Target}
-              title={tFallback('cardio.nav.goals', 'Cardio Goals')}
-              description={tFallback('cardio.nav.goals.desc', 'Weekly & monthly distance targets')}
-              onClick={() => setView({ name: 'goals' })}
-            />
-            <NavTile
-              icon={Watch}
-              title={tFallback('cardio.nav.devices', 'Devices & Apps')}
-              description={tFallback('cardio.nav.devices.desc', 'Apple Watch, Garmin, Fitbit…')}
-              onClick={() => setView({ name: 'wearables' })}
             />
           </motion.div>
         </ViewWrapper>
@@ -555,32 +535,7 @@ export default function CardioSection({ onBack, deepLink = null, onDeepLinkConsu
       );
     }
 
-    // ── GOALS ─────────────────────────────────────────────────────────────
-    if (view.name === 'goals') {
-      return (
-        <ViewWrapper viewKey={viewKey}>
-          <Button variant="outline" size="sm" onClick={goBack} className="mb-4">
-            {t('cardio.back')}
-          </Button>
-          <CardioGoals />
-        </ViewWrapper>
-      );
-    }
 
-    // ── WEARABLES ─────────────────────────────────────────────────────────
-    if (view.name === 'wearables') {
-      return (
-        <ViewWrapper viewKey={viewKey}>
-          <Button variant="outline" size="sm" onClick={goBack} className="mb-4">
-            {t('cardio.back')}
-          </Button>
-          <p className="text-sm text-muted-foreground mb-4">
-            Connect your wearables to auto-sync workouts and health data.
-          </p>
-          <CardioWearableStub />
-        </ViewWrapper>
-      );
-    }
 
     return null;
   };
@@ -611,6 +566,18 @@ export default function CardioSection({ onBack, deepLink = null, onDeepLinkConsu
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <StartSessionSheet
+        open={startOpen}
+        onClose={() => setStartOpen(false)}
+        lastLog={lastLog}
+        onStart={({ mode, env, how }) => {
+          setStartOpen(false);
+          setEditingLog(null);
+          setTemplateDefaults(null);
+          setView({ name: how === 'live' ? 'liveTracker' : 'manualEntry', mode, env });
+        }}
+      />
 
       <AnimatePresence mode="wait">
         {renderView()}

@@ -40,6 +40,7 @@ vi.mock('@/lib/AuthContext', () => ({ useAuth: () => ({ user: null }) }));
 vi.mock('@/lib/DistanceUnitContext', () => ({ useDistanceUnit: () => ({ distanceUnit: 'mi' }) }));
 vi.mock('@/api/db', () => ({ db: { auth: { me: async () => ({}) }, entities: {} } }));
 vi.mock('@/lib/cardioSession', () => ({ readSnapshot: () => null, clearSnapshot: () => {} }));
+vi.mock('@/hooks/useBodyScrollLock', () => ({ useBodyScrollLock: () => {} }));
 
 // The leaf views are irrelevant here — only which title their PARENT sends.
 vi.mock('@/components/cardio/CardioManualForm', () => ({ default: () => <div /> }));
@@ -90,30 +91,36 @@ describe('CardioSection — the header names the view you are on', () => {
     expect(current()).toBe(null);
   });
 
-  // The five that were broken. Each is the tile label on the cardio home.
+  // The utility views still reachable from the home. Cardio Goals and
+  // Devices & Apps were removed with the redesign (they live in the Goals
+  // form and Settings), and Saved Workouts is now reached by SAVING rather
+  // than by a tile — its header entry is still covered by the mode tests
+  // below, since it is the destination the trackers route to.
   it.each([
-    ['cardio.savedWorkouts', 'cardio.savedWorkouts'],
-    ['Templates',            'Templates'],
-    ['Planned Sessions',     'Planned Sessions'],
-    ['Cardio Goals',         'Cardio Goals'],
-    ['Devices & Apps',       'Devices & Apps'],
+    ['Templates',        'Templates'],
+    ['Planned Sessions', 'Planned Sessions'],
   ])('names itself after tapping %s', (tileLabel, expected) => {
     mount();
     tap(tileLabel);
     expect(current()).toBe(expected);
   });
 
-  it('still names the activity on a mode view', () => {
+  it('still names the activity once the sheet routes you into one', () => {
     mount();
-    tap('cardio.modes.running');
+    tap('Start Session');          // the hero
+    tap('Running');                // the sheet's activity pill
+    tap('Outside');
+    tap('cardio.input.manual');
+    tap('Log running');
     expect(current()).toBe('cardio.modes.running');
   });
 
   it('sends a translatable Swimming, not an English literal', () => {
     mount();
-    // The tile itself already routes through tFallback, so it renders the
-    // marker; the header used to send a bare 'Swimming' beside it.
-    tap('XX-swim');
+    tap('Start Session');
+    tap('XX-swim');                // the sheet's swim pill, via tFallback
+    tap('Pool');
+    tap('Log xx-swim');            // swim is manual-only
     expect(current()).toBe('XX-swim');
     expect(current()).not.toBe('Swimming');
     expect(SWIM).toBe('cardio.modes.swimming');
@@ -121,8 +128,8 @@ describe('CardioSection — the header names the view you are on', () => {
 
   it('returns to null when you go back to the home view', () => {
     mount();
-    tap('Cardio Goals');
-    expect(current()).toBe('Cardio Goals');
+    tap('Planned Sessions');
+    expect(current()).toBe('Planned Sessions');
     tap('cardio.back');
     expect(current()).toBe(null);
   });
