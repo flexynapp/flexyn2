@@ -8,9 +8,10 @@ import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createPortal } from 'react-dom';
 import { X, Users, Loader2, Crown, Flame } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { listGymMembers } from '@/lib/data/gymBusinesses';
+import { useLanguage } from '@/lib/LanguageContext';
+import { useDateFormatter } from '@/lib/intl';
 import EmptyState from '@/components/EmptyState';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
@@ -18,6 +19,11 @@ export default function MemberDirectoryModal({ open, onClose, gymId, gymOwnerId 
   // Pin the page behind this overlay — see @/lib/scrollLock.
   useBodyScrollLock(open);
   const navigate = useNavigate();
+  const { tFallback } = useLanguage();
+  // date-fns `format` binds no locale, so "Aug 12, 2026" survived every
+  // translation pass and rendered English under a fully-translated
+  // roster. Intl is already language-bound — see src/lib/intl.js.
+  const fmtDate = useDateFormatter();
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -118,10 +124,8 @@ export default function MemberDirectoryModal({ open, onClose, gymId, gymOwnerId 
                               </span>
                             )}
                             <span>
-                              Joined {(() => {
-                                try { return format(parseISO(m.joined_at), 'MMM d, yyyy'); }
-                                catch { return ''; }
-                              })()}
+                              {tFallback('gymMembers.joined', 'Joined {date}')
+                                .replace('{date}', fmtDate(m.joined_at, { dateStyle: 'medium' }))}
                             </span>
                           </div>
                         </div>

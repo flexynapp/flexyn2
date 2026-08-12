@@ -17,6 +17,7 @@
 // hosts so the UI degrades gracefully.
 
 import { supabase } from '@/api/supabaseClient';
+import { setHomeGym, resolveHomeGymId } from './homeGym';
 
 // ── Verification (owner side) ──────────────────────────────────────
 export async function submitVerification(payload) {
@@ -102,10 +103,43 @@ export async function joinByCode(code) {
   return data || { ok: false, error: 'EMPTY' };
 }
 
+/**
+ * Leave a gym, clearing the home-gym pointer first when it is this one.
+ *
+ * The clear is not optional and it belongs HERE rather than at the call
+ * sites. homeGym.js states the invariant its two set_home_gym RPCs exist
+ * to hold — "a home gym you aren't a member of is a home gym whose own
+ * leaderboard throws 42501 at you" — and both of them do the join and the
+ * profile write in one server-side transaction so it can't be half
+ * applied. Leaving is the other direction of the same invariant, and it
+ * was breaking it: a bare DELETE on gym_members left home_gym_id pointing
+ * at a gym the user no longer belongs to.
+ *
+ * The failure was invisible, which is why it survived. gym_businesses is
+ * read-all, so getHomeGym still resolved and MyGym's "that gym is no
+ * longer listed" branch never fired — the gym card rendered normally.
+ * Only get_gym_consistency_leaderboard and get_gym_community_progress
+ * are members-only, and both callers deliberately swallow 42501 as "the
+ * expected membership gate, not a defect" and skip reportError. So the
+ * page showed the gym you had just left with a blank leaderboard and no
+ * community bar, forever, and nothing reached Sentry.
+ *
+ * GymJoinSheet's cancel() has always called setHomeGym(null) before
+ * leaveGym; GymHub's Leave button never did. Putting it in the shared
+ * function is what stops the next call site getting it wrong too.
+ */
 export async function leaveGym(gymId) {
   if (!gymId) return { ok: false };
   const { data: { user } } = await supabase.auth.getUser();
   if (!user?.id) return { ok: false };
+
+  // Never trust AuthContext's copy — resolveHomeGymId is the documented
+  // reader (context → profile cache → one query). Best-effort: failing to
+  // resolve must not block the leave the user actually asked for.
+  try {
+    if (await resolveHomeGymId(null) === gymId) await setHomeGym(null);
+  } catch { /* leave anyway — a stale pointer beats a stuck button */ }
+
   const { error } = await supabase
     .from('gym_members')
     .delete()
@@ -530,7 +564,7 @@ export async function listGymMembers(gymId) {
       joined_at,
       user_id,
       profile:public_profiles (
-        username, avatar_url, total_xp, workout_streak
+        username, avatar_url, workout_streak
       )
     `)
     .eq('gym_id', gymId)
@@ -542,7 +576,12 @@ export async function listGymMembers(gymId) {
     joined_at:  r.joined_at,
     username:   r.profile?.username || null,
     avatar_url: r.profile?.avatar_url || null,
-    total_xp:   r.profile?.total_xp || 0,
+    // total_xp was selected here and mapped for months without a single
+    // reader — MemberDirectoryModal renders handle, avatar, streak and
+    // joined date, and nothing else. It is one of the columns
+    // public_profiles gates behind full_view, so it was a privacy-scoped
+    // field fetched for every member of every gym and dropped on the
+    // floor. Don't add it back without a render site.
     workout_streak: r.profile?.workout_streak || 0,
   }));
 }

@@ -69,5 +69,12 @@ export default {
 
     'myGym.communityNote':
       'Community gym — added by Flexyn members, not claimed by the business yet.',
+
+    // Member directory (GymHub → the member-count chip). {date} is
+    // already localised by Intl.DateTimeFormat before it lands here, so
+    // translate the sentence around it and leave the placeholder alone.
+    // Word order is the point of making this a key at all: several
+    // languages put the date before the verb.
+    'gymMembers.joined': 'Joined {date}',
   },
 };

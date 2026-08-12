@@ -548,6 +548,23 @@ describe('partial-gap ratchet', () => {
     // The row's ⋮ trigger had no accessible name at all. Exact key, not a
     // `goals.` prefix, for the same swallowing reason as the three above.
     'goals.rowMenu',
+    // Gym member directory (2026-08-12, MyGym audit). One key, and an
+    // exact one rather than a prefix, because it is the only member of
+    // its namespace and a bare `gymMembers.` would pre-exempt whatever
+    // the rest of that modal's chrome becomes when it is finally wired.
+    //
+    // It replaces a date-fns `format()` call that bound no locale, so the
+    // joined date read "Aug 12, 2026" under a fully translated roster.
+    // The date itself is now localized by Intl before it reaches the
+    // string; this key exists so the SENTENCE around it can move too —
+    // several languages put the date before the verb, which "Joined" +
+    // date cannot express.
+    //
+    // It lives in `i18n-home-gym.js`, which is English-only behind its
+    // own TODO(i18n) asking for a native-speaker pass. Listed here rather
+    // than adding `myGym.` wholesale: that would drop ~20 existing keys
+    // out of the denominator and hide the gap this ratchet is measuring.
+    'gymMembers.joined',
   ];
 
   const pending = (k) => AWAITING_TRANSLATION.some(p => k.startsWith(p));
