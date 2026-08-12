@@ -1,3 +1,4 @@
+import { workoutLogsKey } from '@/lib/data/workoutKeys';
 import React, { useState, useMemo, useEffect, useRef, Suspense } from 'react';
 import StoriesRow from '@/components/stories/StoriesRow';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -1119,7 +1120,7 @@ export default function Dashboard() {
   }, [user?.id, user?.email, queryClient]);
 
   const { data: rawLogs = [], isLoading: logsLoading, dataUpdatedAt: logsUpdatedAt } = useQuery({
-    queryKey: ['workoutLogs', user?.email],
+    queryKey: workoutLogsKey(user?.email, 'dashboard'),
     queryFn: () => db.entities.WorkoutLog.filter({ created_by: user.email }, '-date', 50),
     enabled: !!user?.email,
   });

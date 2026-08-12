@@ -1,3 +1,4 @@
+import { workoutLogsKey } from '@/lib/data/workoutKeys';
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -49,7 +50,7 @@ export default function WorkoutSavedList({ onSelectLog, search = '' }) {
   };
 
   const { data: allLogs = [], isLoading } = useQuery({
-    queryKey: ['workoutLogs', user?.email],
+    queryKey: workoutLogsKey(user?.email, 'savedList'),
     queryFn: () => db.entities.WorkoutLog.filter(
       { created_by: user.email }, '-date', 500
     ),

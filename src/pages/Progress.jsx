@@ -1,3 +1,4 @@
+import { workoutLogsKey } from '@/lib/data/workoutKeys';
 import React, { useState, useMemo, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import { filterAfterReset } from '@/lib/accountReset';
 import { LOG_FETCH_LIMIT } from '@/lib/constants';
@@ -505,7 +506,7 @@ export default function Progress() {
 
   // ── Queries ──────────────────────────────────────────────────────────────
   const { data: rawLogs = [], isLoading: logsLoading } = useQuery({
-    queryKey: ['workoutLogs', user?.email],
+    queryKey: workoutLogsKey(user?.email, 'progress'),
     queryFn: () => db.entities.WorkoutLog.filter({ created_by: user.email }, '-date', LOG_FETCH_LIMIT),
     enabled: !!user?.email,
   });

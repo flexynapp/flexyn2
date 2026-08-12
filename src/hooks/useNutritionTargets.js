@@ -18,6 +18,7 @@
 // invalidates it for us. Nutrition fetches neither, so there it is two
 // reads, deduplicated across all five consumers on the page.
 
+import { workoutLogsKey } from '@/lib/data/workoutKeys';
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/lib/AuthContext';
@@ -48,7 +49,7 @@ export function useObservedActivity() {
   const { user } = useAuth();
 
   const { data: logs, isPending: logsPending } = useQuery({
-    queryKey: ['workoutLogs', user?.email],
+    queryKey: workoutLogsKey(user?.email, 'nutritionTargets'),
     queryFn: () => db.entities.WorkoutLog.filter({ created_by: user.email }, '-date', LOG_FETCH_LIMIT),
     enabled: !!user?.email,
   });

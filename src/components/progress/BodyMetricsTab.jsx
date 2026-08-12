@@ -1,3 +1,4 @@
+import { workoutLogsKey } from '@/lib/data/workoutKeys';
 import React, { useMemo } from 'react';
 import { filterAfterReset } from '@/lib/accountReset';
 import { LOG_FETCH_LIMIT } from '@/lib/constants';
@@ -25,7 +26,7 @@ export default function BodyMetricsTab() {
   // therefore have to request the SAME limit — they carried 200 and 1000
   // for a moment, which makes the row count depend on mount order.
   const { data: rawLogs = [] } = useQuery({
-    queryKey: ['workoutLogs', user?.email],
+    queryKey: workoutLogsKey(user?.email, 'bodyMetrics'),
     queryFn: () => db.entities.WorkoutLog.filter({ created_by: user.email }, '-date', LOG_FETCH_LIMIT),
     enabled: !!user?.email,
   });

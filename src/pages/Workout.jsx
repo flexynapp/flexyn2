@@ -1,4 +1,5 @@
 ﻿import React, { useState, useEffect, useMemo, useRef, lazy, Suspense } from 'react';
+import { workoutLogsKey } from '@/lib/data/workoutKeys';
 import { filterAfterReset } from '@/lib/accountReset';
 import { readPendingWorkout, clearPendingWorkout } from '@/lib/pendingWorkout';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -593,7 +594,7 @@ export default function Workout() {
   });
 
   const { data: rawLogs = [], isLoading: logsLoading } = useQuery({
-    queryKey: ['workoutLogs', user?.email],
+    queryKey: workoutLogsKey(user?.email, 'workout'),
     queryFn: () => db.entities.WorkoutLog.filter({ created_by: user.email }, '-date', 50),
     enabled: !!user?.email,
   });
