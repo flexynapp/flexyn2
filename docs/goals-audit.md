@@ -109,7 +109,12 @@ list today. There is no unique constraint on `goals` to have prevented it
 and none is proposed — a user may legitimately hold two goals for the same
 lift at different targets.
 
-→ **DECIDED: keep the oldest, delete the other two.** Deleting user rows
+→ **DECIDED AND APPLIED 2026-08-12: keep the oldest, delete the other two.**
+Verified afterwards against production — `goals` is now 3 rows, exactly one
+Deadlift goal remains, and it is `7384fda0-…` created at `00:31:54.482485`,
+the first of the three. Neither deleted id is still present.
+
+→ **Keep the oldest.** Deleting user rows
 is Kegan's call and the repo tooling is right to refuse a migration that
 does it, so the statement was handed over inline and is recorded in the
 head of migration 347 — not executed by it. A migration that deleted these
@@ -296,11 +301,20 @@ All three were put to Kegan before anything was changed. His answers:
 
 ## What shipped, and what did not
 
-**Shipped:** migration 347 (policy scope); deletion of `CardioGoals.jsx`,
+**Shipped and applied 2026-08-12:** migration 347 (policy scope); deletion of `CardioGoals.jsx`,
 its test, and two stale mocks; three comment corrections; this document.
 
-**Handed over, not shipped:** the duplicate-row DELETE (destructive, and
-Kegan's to run).
+**Handed over, and run by Kegan on 2026-08-12:** the duplicate-row DELETE.
+
+**Both re-verified after the fact, in both directions** — because a policy
+scoped to the wrong role is how you blank a page, and "it returned no rows"
+looks identical whether the policy closed or the feature broke:
+
+| probe | before 347 | after 347 |
+|---|---|---|
+| `anon` reads `goals` | blocked by a missing GRANT on `current_user_email` — *not a boundary* | **0 rows, blocked by the policy itself** |
+| owner reads own goals | 1 | **1 — no regression** |
+| owner reads another user's goals | 0 | **0 — still scoped** |
 
 **Not done:**
 
