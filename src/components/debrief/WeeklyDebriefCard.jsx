@@ -31,6 +31,9 @@
 // 328 still renders rather than blanking.
 
 import React from 'react';
+import { useWeightUnit } from '@/lib/WeightUnitContext';
+import { useDistanceUnit } from '@/lib/DistanceUnitContext';
+import { fromLbs } from '@/lib/weightUnit';
 import {
   Flame, Trophy, Dumbbell, Star, TrendingUp, TrendingDown, Minus,
   Utensils, Moon, Users, Swords, Target,
@@ -49,8 +52,11 @@ const num = (v) => {
   return Number.isFinite(x) ? x : 0;
 };
 
-/** Metres → miles, one decimal. The app is lbs/miles throughout. */
-const toMiles = (m) => num(m) / 1609.344;
+/** Metres → the viewer's distance unit. The old comment here said "the app is
+ *  lbs/miles throughout", which stopped being true once Settings grew unit
+ *  pickers — it was an assumption, not a rule, and it outlived the thing it
+ *  described. */
+const toDistance = (m, unit) => (unit === 'km' ? num(m) / 1000 : num(m) / 1609.344);
 
 /** Percentage change, or null when there is no baseline to compare against —
  *  a "+100%" against a week of zero is noise, not information. */
@@ -158,6 +164,8 @@ function FactRow({ icon: Icon, label, detail, value, last = false }) {
 // ── Main ──────────────────────────────────────────────────────────────────
 
 export default function WeeklyDebriefCard({ debrief, forExport = false, exportRef }) {
+  const { weightUnit } = useWeightUnit();
+  const { distanceUnit } = useDistanceUnit();
   if (!debrief) return null;
 
   const d  = debrief.data || {};
@@ -309,9 +317,19 @@ export default function WeeklyDebriefCard({ debrief, forExport = false, exportRe
           <Section title="Load" meta={baseline ? 'vs your 4-week normal' : null}>
             <div className="flex items-end gap-2">
               <span className="font-heading font-black text-3xl leading-none tabular-nums text-foreground">
-                {n0(volume)}
+                {n0(fromLbs(volume, weightUnit))}
               </span>
-              <span className="text-[13px] text-muted-foreground mb-0.5">lbs moved</span>
+              {/* Converted per viewer. CLAUDE.md's "the weekly review is
+                  deliberately preference-blind" rule is about
+                  include_bar_in_volume — a preference that changes the NUMBER,
+                  and so must not differ from the gym and crew boards sitting
+                  one tap away. A unit is not that: it is the same quantity
+                  written differently, and it converts identically everywhere,
+                  so nothing can disagree. Rendering "lbs" at someone who set
+                  kilograms is simply wrong. */}
+              <span className="text-[13px] text-muted-foreground mb-0.5">
+                {weightUnit === 'kg' ? 'kg' : weightUnit === 'stone' ? 'st' : 'lbs'} moved
+              </span>
             </div>
             <div className="mt-2"><Delta pct={changePct} /></div>
 
@@ -398,7 +416,7 @@ export default function WeeklyDebriefCard({ debrief, forExport = false, exportRe
             {cardioN > 0 && (
               <StatRow items={[
                 { value: n0(cardioN), label: `session${cardioN === 1 ? '' : 's'}` },
-                { value: num(co.distance_m) > 0 ? `${n1(toMiles(co.distance_m))} mi` : null, label: 'distance' },
+                { value: num(co.distance_m) > 0 ? `${n1(toDistance(co.distance_m, distanceUnit))} ${distanceUnit}` : null, label: 'distance' },
                 { value: hm(co.duration_min), label: 'moving' },
               ]} />
             )}

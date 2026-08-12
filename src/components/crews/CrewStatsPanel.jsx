@@ -11,6 +11,8 @@ import { X, BarChart3, Trophy, Dumbbell, Loader2, Users, Award } from 'lucide-re
 import { useQuery } from '@tanstack/react-query';
 import { getCrewStats, getCrewFirstAchievers } from '@/lib/data/crews';
 import { useNumberFormatter, useDateFormatter } from '@/lib/intl';
+import { useWeightUnit } from '@/lib/WeightUnitContext';
+import { fromLbs } from '@/lib/weightUnit';
 import { useLanguage } from '@/lib/LanguageContext';
 import { getTrophy } from '@/lib/trophyDefinitions';
 import { displayName } from '@/lib/userDisplay';
@@ -35,6 +37,7 @@ function StatCard({ icon, label, value, sub }) {
 
 export default function CrewStatsPanel({ crewId, onClose }) {
   const fmt = useNumberFormatter();
+  const { weightUnit } = useWeightUnit();
   const fmtDate = useDateFormatter();
   const { t } = useLanguage();
   const { data: stats, isLoading } = useQuery({
@@ -50,16 +53,26 @@ export default function CrewStatsPanel({ crewId, onClose }) {
     staleTime: 5 * 60_000,
   });
 
+  // Volume is STORED in pounds and was RENDERED in pounds unconditionally, so
+  // a member on kilograms read their crew's numbers in a unit they had told
+  // the app they don't use. Converting per viewer is safe and is not a
+  // fairness problem: everyone is looking at the same underlying figure, just
+  // in their own unit — unlike the bar-weight preference, which changes the
+  // number itself and is therefore kept out of anything comparative.
   const fmtVolume = (lbs) => {
-    if (!lbs) return `${fmt(0)} lbs`;
-    if (lbs >= 1000) return `${fmt(lbs / 1000, { maximumFractionDigits: 1 })}k lbs`;
-    return `${fmt(Math.round(lbs))} lbs`;
+    const n = Number(lbs) || 0;
+    const converted = fromLbs(n, weightUnit);
+    const suffix = weightUnit === 'kg' ? 'kg' : weightUnit === 'stone' ? 'st' : 'lbs';
+    if (converted >= 1000) {
+      return `${fmt(converted / 1000, { maximumFractionDigits: 1 })}k ${suffix}`;
+    }
+    return `${fmt(Math.round(converted))} ${suffix}`;
   };
 
   const topName = displayName(stats?.topPerformer?.profile, '—');
   const topVolume = stats?.topPerformer?.volume
     ? fmtVolume(stats.topPerformer.volume)
-    : '0 lbs';
+    : fmtVolume(0);
 
   const prName = displayName(stats?.bestPr?.profile, '—');
   const prDesc = stats?.bestPr

@@ -279,12 +279,19 @@ export default function BodySection() {
         <ToggleRow
           icon={Circle}
           label={tFallback('settings.nutrientRingView', 'Nutrient ring view')}
+          // Sean flipped all three of these on and said "I don't actually know
+          // where that shows up." None of them is dead — every one has a real
+          // consumer — but only cycle tracking said so. A toggle whose effect
+          // you cannot find reads as a broken toggle, so the other two now
+          // name their destination the same way.
+          hint={tFallback('settings.nutrientRingView.hint', 'Rings instead of bars on Dashboard and meal plans')}
           checked={nutrientRingView}
           onChange={setNutrientRingView}
         />
         <ToggleRow
           icon={Repeat}
           label={tFallback('settings.calorieCycling', 'Calorie cycling')}
+          hint={tFallback('settings.calorieCycling.hint', 'Adds a Cycling link under your calorie target on Nutrition')}
           checked={calorieCyclingEnabled}
           onChange={setCalorieCyclingEnabled}
         />

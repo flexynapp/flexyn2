@@ -142,3 +142,31 @@ export function formatRelativeTime(value, language, now = new Date()) {
     try { return build('en-US'); } catch { return ''; }
   }
 }
+
+/**
+ * The viewer's IANA time zone, e.g. "America/New_York".
+ *
+ * Display only. The value the SERVER acts on is a minutes-east offset that
+ * AuthContext already sends on every bootstrap — this is the human-readable
+ * form of the same fact, so Settings can say what was detected.
+ *
+ * Falls back to a UTC offset string rather than returning nothing: an older
+ * WebView without `resolvedOptions().timeZone` would otherwise render an
+ * empty row, which reads as a broken setting rather than as an unsupported
+ * platform. "UTC+05:30" is less friendly than "Asia/Kolkata" and is still an
+ * answer.
+ */
+export function detectTimeZone(now = new Date()) {
+  try {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (tz) return tz;
+  } catch { /* fall through */ }
+  // getTimezoneOffset is minutes WEST of UTC, so the sign inverts for display.
+  const mins = -now.getTimezoneOffset();
+  if (!Number.isFinite(mins)) return 'UTC';
+  const sign = mins < 0 ? '-' : '+';
+  const abs = Math.abs(mins);
+  const hh = String(Math.floor(abs / 60)).padStart(2, '0');
+  const mm = String(abs % 60).padStart(2, '0');
+  return `UTC${sign}${hh}:${mm}`;
+}

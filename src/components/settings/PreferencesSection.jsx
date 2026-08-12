@@ -12,7 +12,7 @@
 // used to sit two rows above the actual in-app alert toggle.
 
 import { useState } from 'react';
-import { Languages, Ruler, Scale, Sun, Moon, Sparkles, Vibrate, Volume2 } from 'lucide-react';
+import { Languages, Ruler, Scale, Sun, Moon, Sparkles, Vibrate, Volume2, Globe } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useDistanceUnit } from '@/lib/DistanceUnitContext';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
@@ -22,6 +22,7 @@ import { getHapticsDisabled, setHapticsDisabled, triggerHaptic } from '@/lib/hap
 import { getSoundsEnabled, setSoundsEnabled, playSound, SOUND } from '@/lib/playSound';
 import LanguagePicker from '../LanguagePicker';
 import { Group, Row, ToggleRow, SegmentedControl } from './SettingsPrimitives';
+import { detectTimeZone } from '@/lib/intl';
 
 export default function PreferencesSection() {
   const { t, tFallback } = useLanguage();
@@ -41,6 +42,10 @@ export default function PreferencesSection() {
   // all, so flipping the haptics toggle there does nothing. Surface that
   // rather than leaving the user wondering. (Audit 14 #15.)
   const vibrationSupported = typeof navigator === 'undefined' || 'vibrate' in navigator;
+
+  // Resolved once per mount. It cannot change without the app being
+  // backgrounded and re-bootstrapped, which re-runs the detection anyway.
+  const detectedTimeZone = detectTimeZone();
 
   return (
     <div className="flex flex-col gap-6">
@@ -142,6 +147,35 @@ export default function PreferencesSection() {
             if (next) playSound(SOUND.click); // sample on enable
           }}
         />
+      </Group>
+
+      {/* Time zone — shown, never set.
+          //
+          // Read-only on purpose, and it should stay that way. AuthContext
+          // already sends the device offset to update_user_timezone_offset on
+          // EVERY auth bootstrap, specifically so a traveller is re-detected
+          // rather than stranded on last week's zone. The value therefore
+          // cannot go stale, and it is load-bearing: streak nudges and
+          // scheduled-workout reminders resolve against it, so being wrong
+          // means a "don't lose your streak" push at 4am.
+          //
+          // Adding a manual picker would introduce exactly one new failure
+          // mode and fix none — set "EST", fly to LA, and the app is now
+          // confidently wrong in a way the auto-detect is no longer allowed to
+          // correct. The real gap was only that none of this was visible, so
+          // this row is the whole fix: say what we detected, and say that we
+          // keep it current. */}
+      <Group title={tFallback('settings.group.timezone', 'Time zone')}>
+        <Row
+          icon={Globe}
+          label={tFallback('settings.timezone', 'Time zone')}
+          hint={tFallback(
+            'settings.timezone.hint',
+            'Follows your device automatically — reminders arrive in your local evening.',
+          )}
+        >
+          <span className="text-sm text-muted-foreground tabular-nums">{detectedTimeZone}</span>
+        </Row>
       </Group>
     </div>
   );

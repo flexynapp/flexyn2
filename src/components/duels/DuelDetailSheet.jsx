@@ -7,6 +7,8 @@ import { X, Swords, Dumbbell, Timer, Trophy, Crown, Check, Loader2 } from 'lucid
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/lib/toast';
 import { useNumberFormatter } from '@/lib/intl';
+import { useWeightUnit } from '@/lib/WeightUnitContext';
+import { fromLbs } from '@/lib/weightUnit';
 import { useAuth } from '@/lib/AuthContext';
 import { db } from '@/api/db';
 import { submitDuelResult } from '@/lib/data/duels';
@@ -42,6 +44,7 @@ export default function DuelDetailSheet({ duel, currentUserId, opponentProfile, 
   // an early return.
   const dragControls = useDragControls();
   const fmt = useNumberFormatter();
+  const { weightUnit } = useWeightUnit();
   const { user } = useAuth();
   const qc = useQueryClient();
   const [submitting, setSubmitting] = useState(false);
@@ -72,7 +75,14 @@ export default function DuelDetailSheet({ duel, currentUserId, opponentProfile, 
   // real so the result line can switch to "Your rival won". (Audit 15 #M2.)
   const opponentName = opponentProfile?.username || null;
 
-  const fmtVol = (v) => v != null ? `${fmt(Number(v))} lbs` : '—';
+  // Duel volumes are stored in pounds. Rendering them as "lbs" regardless of
+  // preference meant a kilograms user read every duel result in the wrong
+  // unit — including the share text below, which then travelled off-app.
+  const unitSuffix = weightUnit === 'kg' ? 'kg' : weightUnit === 'stone' ? 'st' : 'lbs';
+  const fmtVol = (v) => v != null
+    ? `${fmt(Math.round(fromLbs(Number(v), weightUnit)))} ${unitSuffix}`
+    : '—';
+  const fmtVolDelta = (lbs) => `${fmt(Math.round(fromLbs(Number(lbs) || 0, weightUnit)))} ${unitSuffix}`;
 
   const canSubmit = duel.status === 'active' && !myResult;
   const handleSubmit = async () => {
@@ -187,14 +197,14 @@ export default function DuelDetailSheet({ duel, currentUserId, opponentProfile, 
 
               {won && myResult?.volume && theirResult?.volume && (
                 <p className="text-center text-xs font-semibold text-primary mt-3">
-                  Won by {fmt(myResult.volume - theirResult.volume)} lbs
+                  Won by {fmtVolDelta(myResult.volume - theirResult.volume)}
                 </p>
               )}
 
               {/* Share line */}
               {won && (
                 <p className="text-center text-micro text-muted-foreground mt-2 italic">
-                  "I beat {opponentName ? `@${opponentName}` : 'my rival'} by {fmt((myResult?.volume || 0) - (theirResult?.volume || 0))} lbs. Flexyn."
+                  "I beat {opponentName ? `@${opponentName}` : 'my rival'} by {fmtVolDelta((myResult?.volume || 0) - (theirResult?.volume || 0))}. Flexyn."
                 </p>
               )}
             </div>
