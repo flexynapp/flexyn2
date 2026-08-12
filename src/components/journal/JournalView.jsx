@@ -20,15 +20,16 @@ import { useDateFormatter } from '@/lib/intl';
 import { dayHeaderFormat } from '@/lib/journalDateFormat';
 import {
   ChevronLeft, ChevronRight, List, Bold, Mic, MicOff,
-  Paperclip, X, Loader2, History, FileText,
+  Paperclip, X, Loader2, History, FileText, Trash2,
 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/lib/toast';
 import { useLanguage } from '@/lib/LanguageContext';
 import { startDictation, isVoiceInputSupported } from '@/lib/voiceInput';
 import {
-  getEntry, upsertEntry, uploadAttachment, deleteAttachment, migrateLocalEntries, listEntries,
+  getEntry, upsertEntry, uploadAttachment, deleteAttachment, migrateLocalEntries, listEntries, deleteEntry,
 } from '@/lib/data/journal';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { MOOD_EMOJIS, MOOD_LABELS } from '@/lib/data/moodLogs';
 import { logMoodAction } from '@/lib/data/logMoodAction';
 import { getDayContext, contextChips } from '@/lib/data/dayContext';
@@ -36,6 +37,7 @@ import { editability, EDIT_WINDOW_DAYS } from '@/lib/journalEditWindow';
 import { provenanceLabel } from '@/lib/journalProvenance';
 import { tileRow } from '@/lib/tileRows';
 import { insertDictation } from '@/lib/journalDictation';
+import { continueList } from '@/lib/journalListContinuation';
 
 // ── A mood IS an entry, on ANY day ────────────────────────────────────────────
 // This block used to live inside the read-only branch, which was fine while
@@ -131,6 +133,12 @@ export default function JournalView({ userId, userEmail, onClose, initialDate })
   const [attachments, setAttachments] = useState([]);
   const [moodScore, setMoodScore] = useState(null);
   const [moodBusy, setMoodBusy] = useState(false);
+  // The stored row's id, so the day screen can delete the entry it is showing.
+  // Null when the day has never been written — there is then nothing to
+  // delete, and the control is not rendered rather than rendered inert.
+  const [entryId, setEntryId] = useState(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deletingEntry, setDeletingEntry] = useState(false);
   const [dayCtx, setDayCtx] = useState(null);
   // created_at / updated_at of the loaded row, for the edit marker.
   const [stamps, setStamps] = useState(null);
@@ -351,6 +359,7 @@ export default function JournalView({ userId, userEmail, onClose, initialDate })
     // a draft only ever holds what this editor can write, and the mood is
     // set elsewhere (MoodLogCard) and could have moved since.
     setMoodScore(entry?.mood_score ?? null);
+    setEntryId(entry?.id ?? null);
     // Provenance is a fact about the SERVER row. An unsynced draft has not
     // been written yet, so it cannot have amended anything — carrying the
     // stamps from the entry either way keeps the marker describing what is
@@ -490,8 +499,24 @@ export default function JournalView({ userId, userEmail, onClose, initialDate })
     let next = body;
     let caret = end;
     if (kind === 'bold') {
-      next = `${before}**${sel || 'bold text'}**${after}`;
-      caret = start + 2 + (sel || 'bold text').length + 2;
+      // With a selection: wrap it, and UNWRAP if it is already bold — a
+      // toggle, so pressing the button twice returns you to where you were
+      // instead of producing ****four asterisks****.
+      //
+      // With no selection: open empty markers and put the caret BETWEEN them,
+      // so the next keystroke is bold. It used to insert the literal words
+      // "bold text", which is what Sean saw on screen — the toolbar typing
+      // placeholder prose into his journal and leaving him to delete it.
+      if (sel) {
+        const alreadyBold = /^\*\*[\s\S]+\*\*$/.test(sel);
+        const inner = alreadyBold ? sel.slice(2, -2) : sel;
+        const wrapped = alreadyBold ? inner : `**${inner}**`;
+        next = before + wrapped + after;
+        caret = start + wrapped.length;
+      } else {
+        next = `${before}****${after}`;
+        caret = start + 2;
+      }
     } else if (kind === 'bullet') {
       // Prefix each selected line (or the current line) with "- ".
       const lineStart = before.lastIndexOf('\n') + 1;
@@ -507,6 +532,23 @@ export default function JournalView({ userId, userEmail, onClose, initialDate })
     requestAnimationFrame(() => {
       ta.focus();
       try { ta.setSelectionRange(caret, caret); } catch { /* ignore */ }
+    });
+  };
+
+  // Enter continues a list. Shift+Enter is left alone as the plain-newline
+  // escape hatch, and a non-collapsed selection falls through too — there
+  // Enter means "replace this", not "add an item".
+  const handleBodyKeyDown = (e) => {
+    if (e.key !== 'Enter' || e.shiftKey || e.metaKey || e.ctrlKey || e.altKey) return;
+    const ta = bodyRef.current;
+    if (!ta || ta.selectionStart !== ta.selectionEnd) return;
+    const result = continueList(body, ta.selectionStart);
+    if (!result) return;
+    e.preventDefault();
+    onBodyChange(result.body);
+    requestAnimationFrame(() => {
+      ta.focus();
+      try { ta.setSelectionRange(result.caret, result.caret); } catch { /* ignore */ }
     });
   };
 
@@ -572,11 +614,19 @@ export default function JournalView({ userId, userEmail, onClose, initialDate })
       toast.message(tFallback('journal.attachDropped', `${dropped} not attached — that would pass the ${MAX_ATTACHMENTS}-file limit.`, { n: dropped, max: MAX_ATTACHMENTS }));
     }
 
+    // Where the photo goes. Read BEFORE the uploads because the caret is a
+    // property of the textarea, and by the time an upload resolves the user
+    // may have tapped elsewhere. `selectionStart` survives the blur that
+    // opening the file chooser causes, so this is the position they were at
+    // when they reached for the paperclip.
+    const caretAt = bodyRef.current?.selectionStart ?? body.length;
+
     // Placeholder chips while the uploads run. They used to happen behind a
     // single spinner on the attach button, so picking four photos looked
     // like nothing was happening until they appeared one at a time.
     setPending(accepted.map(f => f.name));
     setUploading(true);
+    const inserted = [];
     for (const file of accepted) {
       if (file.size > 10 * 1024 * 1024) {
         toast.error(tFallback('journal.fileTooBig', `${file.name} is over 10 MB.`, { name: file.name }));
@@ -584,10 +634,44 @@ export default function JournalView({ userId, userEmail, onClose, initialDate })
         continue;
       }
       const att = await uploadAttachment(userId, file);
-      if (att) { setAttachments(prev => [...prev, att]); dirtyRef.current = true; }
-      else toast.error(tFallback('journal.uploadFailed', `Couldn't upload ${file.name}.`, { name: file.name }));
+      if (att) {
+        setAttachments(prev => [...prev, att]);
+        dirtyRef.current = true;
+        // Images are written INTO the body at the caret; files are not,
+        // because there is nothing to render inline for a PDF. Both stay in
+        // `attachments` regardless — that array is what deleteEntry reads to
+        // clean up blobs, so dropping an inlined image from it would leak the
+        // file the moment the entry is deleted. The grid below filters out
+        // anything already referenced in the body so it never renders twice.
+        if ((att.type || '').startsWith('image/')) {
+          inserted.push(`![${(att.name || 'photo').replace(/[[\]]/g, '')}](${att.url})`);
+        }
+      } else {
+        toast.error(tFallback('journal.uploadFailed', `Couldn't upload ${file.name}.`, { name: file.name }));
+      }
       setPending(prev => prev.filter(n => n !== file.name));
     }
+
+    if (inserted.length) {
+      // Built in one splice rather than one per file: `body` in this closure
+      // is the value from the render that started the upload, so calling an
+      // insert helper per image would apply each one to the same stale string
+      // and only the last would survive.
+      const beforeText = body.slice(0, caretAt);
+      const afterText = body.slice(caretAt);
+      const lead = beforeText && !beforeText.endsWith('\n') ? '\n' : '';
+      const tail = afterText && !afterText.startsWith('\n') ? '\n' : '';
+      const block = `${lead}${inserted.join('\n')}\n${tail}`;
+      onBodyChange(beforeText + block + afterText);
+      const caret = caretAt + block.length;
+      requestAnimationFrame(() => {
+        const ta = bodyRef.current;
+        if (!ta) return;
+        ta.focus();
+        try { ta.setSelectionRange(caret, caret); } catch { /* ignore */ }
+      });
+    }
+
     setPending([]);
     setUploading(false);
   };
@@ -605,11 +689,46 @@ export default function JournalView({ userId, userEmail, onClose, initialDate })
     deleteAttachment(url).catch(() => { /* best-effort; already logged */ });
   };
 
+  // Delete the whole day. The local draft goes too — leaving it behind means
+  // the autosave writes the entry straight back, so the row would reappear
+  // seconds after being deleted and look like the delete had failed.
+  const handleDeleteEntry = async () => {
+    if (!entryId) return;
+    setDeletingEntry(true);
+    const res = await deleteEntry(userId, entryId);
+    setDeletingEntry(false);
+    if (!res?.ok) {
+      toast.error(tFallback('journal.deleteFailed', "Couldn't delete that entry."));
+      return;
+    }
+    dirtyRef.current = false;
+    try { localStorage.removeItem(draftKey(dateStr)); } catch { /* ignore */ }
+    setEntryId(null);
+    setTitle('');
+    setBody('');
+    setAttachments([]);
+    setMoodScore(null);
+    setStamps(null);
+    setEntryDates(prev => {
+      const next = new Set(prev);
+      next.delete(dateStr);
+      return next;
+    });
+    setConfirmDelete(false);
+    toast.success(tFallback('journal.deleted', 'Entry deleted.'));
+  };
+
   const hasContent = !!(title.trim() || body.trim() || attachments.length);
   // Keyed on CONTENT, not on editability — that conflation is what the edit
   // window broke. No words + a mood = the mood is the entry, on any day.
   const showMoodEntry = !body.trim() && !!moodScore;
   const attachRow = tileRow({ gap: 2, cols: 3 });
+  // Anything written into the body renders where the user put it, so showing
+  // it again in the grid below would be the same photo twice. Legacy entries
+  // (everything attached before images went inline) reference nothing in the
+  // body, so they all still land here — which is the point: this filter must
+  // never hide an attachment that has no other way to be seen.
+  const gridAttachments = attachments.filter(a => !a?.url || !body.includes(a.url));
   // Null unless the entry was written or amended after the day it describes.
   const provLabel = provenanceLabel(stamps, tFallback);
   // "Held offline" is the honest read of the retry state: flush() stashed
@@ -765,13 +884,32 @@ export default function JournalView({ userId, userEmail, onClose, initialDate })
             </div>
           </div>
 
-          <MoodChip
-            score={moodScore}
-            editable={!readOnly}
-            busy={moodBusy}
-            onPick={setMood}
-            tFallback={tFallback}
-          />
+          <div className="flex items-center gap-1 shrink-0">
+            <MoodChip
+              score={moodScore}
+              editable={!readOnly}
+              busy={moodBusy}
+              onPick={setMood}
+              tFallback={tFallback}
+            />
+            {/* Delete, to the right of the mood control, so an entry can be
+                removed while you are reading it rather than only from the log.
+                Shown on read-only days too: the 7-day window stops an entry
+                being silently REWRITTEN, which is a different thing from
+                being allowed to remove your own record. The RLS delete policy
+                carries no age predicate either. */}
+            {entryId && (
+              <button
+                onClick={() => setConfirmDelete(true)}
+                data-no-swipe
+                className="w-9 h-9 rounded-lg flex items-center justify-center text-muted-foreground/70 hover:text-destructive hover:bg-destructive/10 active:text-destructive transition-colors"
+                aria-label={tFallback('journal.deleteEntry', 'Delete entry')}
+                title={tFallback('journal.deleteEntry', 'Delete entry')}
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -868,6 +1006,7 @@ export default function JournalView({ userId, userEmail, onClose, initialDate })
                 ref={bodyRef}
                 value={body}
                 onChange={(e) => onBodyChange(e.target.value)}
+                onKeyDown={handleBodyKeyDown}
                 placeholder={tFallback('profile.journal.placeholderToday', 'How was your session today? Use the toolbar for bullets, bold, voice, or attachments…')}
                 className="w-full min-h-[40vh] bg-transparent text-foreground text-sm leading-relaxed resize-none focus:outline-none placeholder:text-muted-foreground/50"
                 style={{ fontFamily: 'inherit' }}
@@ -896,9 +1035,9 @@ export default function JournalView({ userId, userEmail, onClose, initialDate })
 
                 Widths are literals in tileRows.js and cannot be built at
                 runtime — Tailwind only emits classes it can read in source. */}
-            {(attachments.length > 0 || pending.length > 0) && (
+            {(gridAttachments.length > 0 || pending.length > 0) && (
               <div className={`${attachRow.row} py-3`} data-no-swipe>
-                {attachments.map(att => {
+                {gridAttachments.map(att => {
                   const isImg = (att.type || '').startsWith('image/');
                   return (
                     <div key={att.url} className={`${attachRow.item} relative group`}>
@@ -998,6 +1137,22 @@ export default function JournalView({ userId, userEmail, onClose, initialDate })
           />
         )}
       </AnimatePresence>
+
+      <ConfirmDialog
+        open={confirmDelete}
+        onOpenChange={(o) => { if (!o && !deletingEntry) setConfirmDelete(false); }}
+        title={tFallback('journal.deleteTitle', 'Delete this entry?')}
+        description={tFallback(
+          'journal.deleteBody',
+          'Are you sure you want to delete this? This action cannot be undone.',
+        )}
+        confirmLabel={deletingEntry
+          ? tFallback('journal.deleting', 'Deleting…')
+          : tFallback('common.delete', 'Delete')}
+        cancelLabel={tFallback('common.cancel', 'Cancel')}
+        onConfirm={handleDeleteEntry}
+        destructive
+      />
     </motion.div>,
     document.body,
   );

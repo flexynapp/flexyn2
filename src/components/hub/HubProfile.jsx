@@ -31,6 +31,7 @@ import * as me from '@/lib/data/me';
 import { selectProfiles } from '@/lib/data/users';
 import * as statusNotesData from '@/lib/data/statusNotes';
 import { hasAnyProfanity } from '@/lib/useProfanityGuard';
+import { reverseGeocode } from '@/lib/geocode';
 import HubPostCard from './HubPostCard';
 import ReferralCard from './ReferralCard';
 import ProfileBadgeShowcase from './ProfileBadgeShowcase';
@@ -324,7 +325,13 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   const [noteEditorOpen, setNoteEditorOpen] = useState(false);
   const [noteLocalLiked, setNoteLocalLiked] = useState(false);
   const [editProfileOpen, setEditProfileOpen] = useState(false);
+  // Declared up here rather than beside the avatar because it is read ~950
+  // lines below AND inside a deps array; a const read before its declaration
+  // line throws in production even where dev mode tolerates it (CLAUDE.md's
+  // TDZ section — this exact shape crashed the Hub on 2026-05-23).
+  const avatarEditable = isSelf && editProfileOpen;
   const [cityDraft, setCityDraft] = useState('');
+  const [locating, setLocating] = useState(false);
   const [bioDraft, setBioDraft] = useState('');
   const [websiteUrlDraft, setWebsiteUrlDraft] = useState('');
   const [flagPickerOpen, setFlagPickerOpen] = useState(false);
@@ -880,6 +887,48 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
     }
   };
 
+  // ── "Use current location" ───────────────────────────────────────────────
+  // The field stays free text on purpose — someone typing "Gotham City" is a
+  // supported answer, not input to be validated. This only offers to FILL it;
+  // whatever lands is still editable, and a decline leaves the existing value
+  // untouched rather than clearing it, because losing a city you typed is a
+  // worse outcome than not getting the shortcut.
+  const handleUseCurrentLocation = async () => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      toast.error(tFallback('hub.profile.locationUnsupported', "This device can't share a location."));
+      return;
+    }
+    setLocating(true);
+    try {
+      const pos = await new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: false,   // a city name does not need 5m of GPS
+          timeout: 10_000,
+          maximumAge: 300_000,
+        });
+      });
+      const label = await reverseGeocode(pos.coords.latitude, pos.coords.longitude);
+      if (label) {
+        setCityDraft(label.slice(0, 40));
+      } else {
+        // Reached the service, got nothing nameable back. Distinct from a
+        // failed lookup, and distinct from "you have no location".
+        toast.info(tFallback('hub.profile.locationNoName', "Couldn't name that spot — type it in instead."));
+      }
+    } catch (err) {
+      // PERMISSION_DENIED is a choice, not a fault, so it does not report to
+      // Sentry and does not read as an error state.
+      if (err?.code === 1) {
+        toast.info(tFallback('hub.profile.locationDenied', 'Location is off for Flexyn — type your city instead.'));
+      } else {
+        reportError(err, { feature: 'profile.use-current-location', level: 'warning' });
+        toast.error(tFallback('hub.profile.locationFailed', "Couldn't get your location — type it in instead."));
+      }
+    } finally {
+      setLocating(false);
+    }
+  };
+
   // ── Profile edit save ────────────────────────────────────────────────────────
   const handleSaveProfile = async () => {
     if (hasAnyProfanity(bioDraft, cityDraft)) {
@@ -1282,22 +1331,48 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
                 width: 88,
                 height: 88,
                 border: '3px solid hsl(var(--background))',
-                cursor: profileStories.length > 0 ? 'pointer' : undefined,
+                cursor: profileStories.length > 0 && !avatarEditable ? 'pointer' : undefined,
               }}
-              onClick={profileStories.length > 0 ? () => setStoryViewerOpen(true) : undefined}
+              onClick={profileStories.length > 0 && !avatarEditable ? () => setStoryViewerOpen(true) : undefined}
             >
+              {/* While Edit Profile is open the photo IS the avatar control —
+                  greyed, with a white plus. Outside edit mode it is inert and
+                  the tap belongs to the story viewer, so the two gestures
+                  never contend for the same pixel. */}
               <AvatarUploader
                 src={avatarUrl}
                 initials={initials}
-                editable={false}
+                editable={avatarEditable}
+                variant="overlay"
                 size={82}
                 frameCss={equippedFrame?.css}
                 frameAnimation={equippedFrame?.animation}
               />
             </div>
 
+            {/* The crown is WORN, not pinned beside the head. It used to sit
+                at top:-6 left:-8 rotated -25deg, which on an 88px avatar puts
+                it entirely OUTSIDE the circle — the rim at that height starts
+                around x=16, and the badge ended at x=14. So it read as a
+                loose graphic floating to the left of the photo rather than as
+                a mark on the person.
+
+                Centred and overlapping instead, matching the small crown in
+                ProfileMenu (top:-7, left:50%, translateX(-50%) rotate(-10deg))
+                — that one was already right, which is why it reads correctly
+                in the corner nav while this one did not. Same geometry, scaled:
+                a 22px badge dropped 10px above the rim overlaps the top of the
+                head by ~9px. */}
             {isVerifiedUser && (
-              <div style={{ position: 'absolute', top: -6, left: -8, lineHeight: 0, zIndex: 10, transform: 'rotate(-25deg)' }}>
+              <div style={{
+                position: 'absolute',
+                top: -10,
+                left: '50%',
+                transform: 'translateX(-50%) rotate(-10deg)',
+                lineHeight: 0,
+                zIndex: 10,
+                filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.5))',
+              }}>
                 <CrownBadge size={22} />
               </div>
             )}
@@ -1307,7 +1382,10 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
               </div>
             )}
 
-            {isSelf && (
+            {/* Hidden while editing: the plus overlay owns the whole circle
+                then, and a second camera pip on top of it would offer two
+                different uploads through one control. */}
+            {isSelf && !avatarEditable && (
               <>
                 <input
                   ref={storyFileRef}
@@ -1609,21 +1687,14 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
             className="mb-3"
           >
             <div className="bg-secondary/30 rounded-xl p-3 space-y-3">
-              {/* Avatar upload — moved here from the inline avatar
-                  badge so it doesn't visually collide with the
-                  "Add to story" camera. The pencil is now the
-                  single edit-profile entry point. */}
-              <div className="flex items-center gap-3">
-                <AvatarUploader
-                  src={avatarUrl}
-                  initials={initials}
-                  editable
-                  size={44}
-                />
-                <span className="text-xs text-muted-foreground">Tap to change avatar</span>
-              </div>
+              {/* The avatar control used to live HERE, as a 44px circle beside
+                  the words "Tap to change avatar" — a second, smaller copy of
+                  the photo already on screen 300px above, which read as a
+                  different thing rather than as the same one. It now lives on
+                  the real photo (see the header), so this row is gone and the
+                  panel opens straight into the fields. */}
               {/* Bio */}
-              <div className="flex items-start gap-2 pt-1 border-t border-border/40">
+              <div className="flex items-start gap-2">
                 <FileText className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-1.5" />
                 <div className="flex-1">
                   <textarea
@@ -1637,7 +1708,21 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
                 </div>
               </div>
               <div className="flex items-center gap-2 pt-1 border-t border-border/40">
-                <MapPin className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                {/* The pin is the control, per Sean's walkthrough: tap it and
+                    it fills the field. It is a real button with a 44px hit
+                    box (the HIG floor) even though the glyph is 14px. */}
+                <button
+                  type="button"
+                  onClick={handleUseCurrentLocation}
+                  disabled={locating}
+                  aria-label={tFallback('hub.profile.useCurrentLocation', 'Use current location')}
+                  title={tFallback('hub.profile.useCurrentLocation', 'Use current location')}
+                  className="w-11 h-11 -ms-3.5 shrink-0 flex items-center justify-center text-muted-foreground hover:text-primary active:text-primary disabled:opacity-50 transition-colors"
+                >
+                  {locating
+                    ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    : <MapPin className="w-3.5 h-3.5" />}
+                </button>
                 <input
                   type="text"
                   value={cityDraft}

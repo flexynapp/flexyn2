@@ -132,6 +132,57 @@ export async function deleteAttachment(url) {
 }
 
 /**
+ * Delete one day's entry outright, with its attachments.
+ *
+ * Distinct from the empty-content branch of `upsertEntry`, which clears the
+ * written fields and KEEPS a row that still carries a mood. This is the
+ * explicit "remove this entry" the log's row menu and the day screen's trash
+ * both call, so it takes the mood with it — the user is deleting the record,
+ * not editing it down to nothing.
+ *
+ * Attachments go first and their failures are non-fatal. The alternative
+ * orderings are both worse: delete the row first and a failed blob cleanup
+ * leaves a file nothing references and nobody can ever reach; refuse the row
+ * delete on a failed blob and a single stuck object makes the entry
+ * undeletable forever. An orphaned blob is a storage cost; an undeletable
+ * journal entry is a broken promise.
+ *
+ * `.select('id')` is what makes the return honest. Without it a delete that
+ * matched zero rows — wrong id, someone else's entry, RLS — resolves with no
+ * error, and the caller reports success over a row that is still there. This
+ * is the same 200-with-nothing shape documented on `deleteAttachment` above.
+ */
+export async function deleteEntry(userId, entryId) {
+  if (!userId || !entryId) return { ok: false, reason: 'missing_args' };
+
+  // Read the attachments off the row before it stops existing.
+  const { data: row } = await supabase
+    .from('journal_entries')
+    .select('attachments')
+    .eq('id', entryId)
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  const atts = Array.isArray(row?.attachments) ? row.attachments : [];
+  for (const att of atts) {
+    if (att?.url) await deleteAttachment(att.url);
+  }
+
+  const { data, error } = await supabase
+    .from('journal_entries')
+    .delete()
+    .eq('id', entryId)
+    .eq('user_id', userId)     // belt AND braces: RLS enforces this too
+    .select('id');
+
+  if (error) return { ok: false, reason: error.message };
+  if (!Array.isArray(data) || data.length === 0) {
+    return { ok: false, reason: 'removed_nothing' };
+  }
+  return { ok: true };
+}
+
+/**
  * Write ONLY the body for a day, leaving title / attachments / mood_score
  * alone. Same shape as `tagMood` below, and it exists for the same reason.
  *

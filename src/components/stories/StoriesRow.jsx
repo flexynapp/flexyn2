@@ -91,13 +91,24 @@ function AvatarImage({ avatarUrl, username }) {
 
 function NoteBubble({ note, isOwn, isLiked, onLike, onEditOwn }) {
   const { tFallback } = useLanguage();
+  // A note is capped at 60 characters, and `line-clamp-2` inside a 72px cell
+  // shows roughly the first 20 of them — so two thirds of every note anyone
+  // wrote was unreadable, with no affordance saying so. Tapping lifts the
+  // clamp and widens the bubble; tapping again puts it back.
+  //
+  // Only reachable for OTHER people's notes: tapping your own opens the
+  // editor, which already shows the full text in a textarea.
+  const [expanded, setExpanded] = useState(false);
   if (!note) return null;
+  // Tailwind reads class names out of source text, so both widths have to
+  // exist as literals — a computed `max-w-[${n}px]` emits no CSS at all.
+  const widthCls = expanded ? 'max-w-[168px]' : 'max-w-[72px]';
   return (
     // w-max + max-w-[72px] for the same reason as the own-note pill above:
     // anchored at start-1/2, plain shrink-to-fit only sees half the cell and
     // wraps a two-word note onto two lines. Sized to the text, capped at the
     // cell width.
-    <div className="absolute bottom-full start-1/2 -translate-x-1/2 mb-1.5 z-10 flex flex-col items-center gap-0.5 w-max max-w-[72px]">
+    <div className={`absolute bottom-full start-1/2 -translate-x-1/2 mb-1.5 flex flex-col items-center gap-0.5 w-max ${widthCls} ${expanded ? 'z-30' : 'z-10'}`}>
       {/* bg-card, not bg-white. --card IS pure white in the light theme, so
           this renders identically there — but the literal was also white in
           the DARK theme, where a friend's note was a white blob on a 9%-
@@ -105,15 +116,23 @@ function NoteBubble({ note, isOwn, isLiked, onLike, onEditOwn }) {
           Same tokens as the own-note bubble, so the two match everywhere. */}
       <div
         className="relative w-full bg-card border border-border rounded-lg px-2 py-1 cursor-pointer"
-        onClick={e => { e.stopPropagation(); isOwn ? onEditOwn() : null; }}
-        role={isOwn ? 'button' : undefined}
-        tabIndex={isOwn ? 0 : undefined}
-        onKeyDown={isOwn ? (e) => {
-          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onEditOwn(); }
-        } : undefined}
-        aria-label={isOwn ? tFallback('stories.editNote', 'Edit your note') : undefined}
+        onClick={e => { e.stopPropagation(); isOwn ? onEditOwn() : setExpanded(v => !v); }}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            isOwn ? onEditOwn() : setExpanded(v => !v);
+          }
+        }}
+        aria-expanded={isOwn ? undefined : expanded}
+        aria-label={isOwn
+          ? tFallback('stories.editNote', 'Edit your note')
+          : (expanded
+              ? tFallback('stories.collapseNote', 'Collapse note')
+              : tFallback('stories.expandNote', 'Read full note'))}
       >
-        <p className="text-micro text-card-foreground leading-tight text-center line-clamp-2 select-none">
+        <p className={`text-micro text-card-foreground leading-tight text-center select-none ${expanded ? 'break-words' : 'line-clamp-2'}`}>
           {note.text}
         </p>
         {/* Speech bubble tail */}

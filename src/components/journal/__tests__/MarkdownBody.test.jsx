@@ -76,3 +76,68 @@ describe('MarkdownBody — what a keyboard produces, not just the toolbar', () =
     expect(screen.getByText('empty')).toBeTruthy();
   });
 });
+
+/**
+ * Photos now live INSIDE the body, at the point the user put them, rather
+ * than in a grid pinned under the whole entry. That only works if the reader
+ * renders the token — otherwise the entry reads back as raw
+ * `![photo](https://…)` markup, which is a worse failure than the bottom-grid
+ * it replaced.
+ */
+describe('MarkdownBody — inline images', () => {
+  const URL = 'https://x.supabase.co/storage/v1/object/public/uploads/u/journal/a.jpg';
+
+  it('renders an image token as an <img>, not as text', () => {
+    const { container } = body(`![squat rack](${URL})`);
+    const img = container.querySelector('img');
+    expect(img?.getAttribute('src')).toBe(URL);
+    expect(img?.getAttribute('alt')).toBe('squat rack');
+    expect(container.textContent).not.toContain('![');
+  });
+
+  it('keeps the image where it was written, between the lines around it', () => {
+    const { container } = body(`before\n![p](${URL})\nafter`);
+    const text = container.textContent;
+    expect(text).toContain('before');
+    expect(text).toContain('after');
+    expect(container.querySelectorAll('img')).toHaveLength(1);
+    // The paragraph carrying the image must sit BETWEEN the two text
+    // paragraphs — the whole point is that position is preserved.
+    const kids = [...container.firstChild.childNodes];
+    const idxBefore = kids.findIndex(n => n.textContent === 'before');
+    const idxImg = kids.findIndex(n => n.querySelector?.('img'));
+    const idxAfter = kids.findIndex(n => n.textContent === 'after');
+    expect(idxBefore).toBeLessThan(idxImg);
+    expect(idxImg).toBeLessThan(idxAfter);
+  });
+
+  it('renders several images in the order they were inserted', () => {
+    const { container } = body(`![one](${URL}?1)\n![two](${URL}?2)`);
+    const srcs = [...container.querySelectorAll('img')].map(i => i.getAttribute('src'));
+    expect(srcs).toEqual([`${URL}?1`, `${URL}?2`]);
+  });
+
+  it('renders an image inside a bullet', () => {
+    const { container } = body(`- set 3 ![form check](${URL})`);
+    expect(container.querySelector('li img')).toBeTruthy();
+  });
+
+  it('still bolds text on a line that also carries an image', () => {
+    // Images are split out FIRST; if bold ran first it would tear a token
+    // whose alt text contains asterisks.
+    const { container } = body(`**PR** today ![p](${URL})`);
+    expect(container.querySelector('strong')?.textContent).toBe('PR');
+    expect(container.querySelector('img')).toBeTruthy();
+  });
+
+  it('leaves a lone exclamation mark alone', () => {
+    const { container } = body('felt great! [not a link]');
+    expect(container.querySelector('img')).toBeNull();
+    expect(container.textContent).toContain('felt great!');
+  });
+
+  it('does not treat a plain markdown link as an image', () => {
+    const { container } = body(`[the log](${URL})`);
+    expect(container.querySelector('img')).toBeNull();
+  });
+});

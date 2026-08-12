@@ -2,7 +2,7 @@
 import { useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { Camera, Loader2 } from 'lucide-react';
+import { Camera, Loader2, Plus } from 'lucide-react';
 import { db } from '@/api/db';
 import { supabase } from '@/api/supabaseClient';
 import { update as updateMe } from '@/lib/data/me';
@@ -19,7 +19,18 @@ import { getAvatarGradient } from '@/lib/avatarGradient';
  * Props:
  *   src       — current avatar URL (null/undefined renders initials)
  *   initials  — 1–2 char fallback shown when no src
- *   editable  — when true, shows a camera badge that opens a file picker
+ *   editable  — when true, shows an edit affordance that opens a file picker
+ *   variant   — how that affordance is drawn:
+ *                 'badge'   (default) a camera pip on the bottom-end corner
+ *                 'overlay' the whole circle dims and takes a white plus,
+ *                           and the circle itself is the click target
+ *               'overlay' exists because a corner pip has to compete for that
+ *               corner: on the profile header the "Add to story" camera
+ *               already owns it, which is why avatar upload had been exiled to
+ *               a separate "Tap to change avatar" row in the edit panel. Making
+ *               the photo itself the control removes the collision instead of
+ *               routing around it, and it is the shape people expect from
+ *               every other app that edits an avatar.
  *   size      — pixel size of the rendered circle (default 64)
  *   onChange  — optional callback called with the new URL after successful upload
  *   frameCss  — optional inline-style object from a LootFrame's `css` field.
@@ -30,8 +41,8 @@ import { getAvatarGradient } from '@/lib/avatarGradient';
  *   frameAnimation — optional CSS animation name for animated frames
  *               (e.g. "frame-pulse", "frame-rainbow"). Wired up in src/index.css.
  */
-export default function AvatarUploader({ src, initials = '?', seed = '', editable = false, size = 64, onChange, frameCss = null, frameAnimation = null }) {
-  const { t } = useLanguage();
+export default function AvatarUploader({ src, initials = '?', seed = '', editable = false, variant = 'badge', size = 64, onChange, frameCss = null, frameAnimation = null }) {
+  const { t, tFallback } = useLanguage();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const fileRef = useRef(null);
@@ -151,7 +162,7 @@ export default function AvatarUploader({ src, initials = '?', seed = '', editabl
         </div>
       </div>
 
-      {/* Edit badge */}
+      {/* Edit affordance */}
       {editable && (
         <>
           <input
@@ -162,19 +173,40 @@ export default function AvatarUploader({ src, initials = '?', seed = '', editabl
             onChange={handleFile}
             disabled={uploading}
           />
-          <motion.button
-            whileTap={{ scale: 0.9 }}
-            onClick={() => fileRef.current?.click()}
-            disabled={uploading}
-            aria-label={t('avatar.edit')}
-            className="absolute bottom-0 end-0 w-7 h-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-md ring-2 ring-card disabled:opacity-50"
-          >
-            {uploading ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            ) : (
-              <Camera className="w-3.5 h-3.5" />
-            )}
-          </motion.button>
+          {variant === 'overlay' ? (
+            /* The whole circle is the button. `title` gives the desktop
+               tooltip; the aria-label carries the same thing for a screen
+               reader and for touch, where no tooltip can ever fire — so the
+               control is never explained by hover alone. */
+            <motion.button
+              whileTap={{ scale: 0.96 }}
+              onClick={() => fileRef.current?.click()}
+              disabled={uploading}
+              aria-label={tFallback('avatar.changePhoto', 'Change your profile photo')}
+              title={tFallback('avatar.changePhoto', 'Change your profile photo')}
+              className="absolute inset-0 rounded-full flex items-center justify-center bg-black/45 hover:bg-black/55 transition-colors disabled:opacity-70"
+            >
+              {uploading ? (
+                <Loader2 className="w-6 h-6 animate-spin text-white" />
+              ) : (
+                <Plus className="w-7 h-7 text-white" strokeWidth={2.5} />
+              )}
+            </motion.button>
+          ) : (
+            <motion.button
+              whileTap={{ scale: 0.9 }}
+              onClick={() => fileRef.current?.click()}
+              disabled={uploading}
+              aria-label={t('avatar.edit')}
+              className="absolute bottom-0 end-0 w-7 h-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-md ring-2 ring-card disabled:opacity-50"
+            >
+              {uploading ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Camera className="w-3.5 h-3.5" />
+              )}
+            </motion.button>
+          )}
         </>
       )}
     </div>

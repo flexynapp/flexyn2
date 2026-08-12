@@ -17,13 +17,45 @@
 
 import React from 'react';
 
-export function renderInline(text) {
-  const parts = text.split(/(\*\*[^*\n]+\*\*)/g);
-  return parts.map((p, i) =>
-    /^\*\*[^*\n]+\*\*$/.test(p)
-      ? <strong key={i}>{p.slice(2, -2)}</strong>
-      : <React.Fragment key={i}>{p}</React.Fragment>
+// `![alt](url)`. Attachments used to live only in a grid pinned below the
+// whole entry, so a photo of the third set landed under the last sentence of
+// the day. Written into the body at the caret instead, which means the
+// renderer has to know the shape.
+//
+// The URL character class excludes `)` and whitespace so the match cannot run
+// past the closing paren into the rest of the line.
+const IMAGE_RE = /!\[([^\]\n]*)\]\((\S+?)\)/;
+const IMAGE_SPLIT_RE = /(!\[[^\]\n]*\]\(\S+?\))/g;
+
+function InlineImage({ alt, url }) {
+  return (
+    <a href={url} target="_blank" rel="noreferrer" className="block my-2">
+      <img
+        src={url}
+        alt={alt || ''}
+        loading="lazy"
+        className="max-w-full rounded-lg border border-border"
+      />
+    </a>
   );
+}
+
+export function renderInline(text) {
+  // Images first: an image's URL can contain `**`-free text but its alt could
+  // carry asterisks, and splitting on bold first would tear the token apart.
+  const chunks = String(text).split(IMAGE_SPLIT_RE);
+  return chunks.map((chunk, ci) => {
+    const img = IMAGE_RE.exec(chunk);
+    if (img && chunk.trim() === img[0]) {
+      return <InlineImage key={`img-${ci}`} alt={img[1]} url={img[2]} />;
+    }
+    const parts = chunk.split(/(\*\*[^*\n]+\*\*)/g);
+    return parts.map((p, i) =>
+      /^\*\*[^*\n]+\*\*$/.test(p)
+        ? <strong key={`${ci}-${i}`}>{p.slice(2, -2)}</strong>
+        : <React.Fragment key={`${ci}-${i}`}>{p}</React.Fragment>
+    );
+  });
 }
 export default function MarkdownBody({ text, placeholder }) {
   if (!text || !text.trim()) return <p className="text-muted-foreground/50 text-sm">{placeholder}</p>;

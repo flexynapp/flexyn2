@@ -281,3 +281,79 @@ describe('listEntries', () => {
     expect(calls).toHaveLength(0);
   });
 });
+
+/**
+ * deleteEntry — the explicit "remove this entry", as opposed to upsertEntry's
+ * empty-content branch, which keeps a mood-only row alive.
+ *
+ * The sequence is what matters here, same as the suites above: attachments
+ * are read and their blobs removed BEFORE the row goes, because once the row
+ * is gone nothing knows where the files were. And the row delete carries a
+ * `.select('id')`, without which a delete matching nothing — wrong id,
+ * someone else's entry, RLS — resolves with no error and reports success over
+ * a row that is still there.
+ */
+describe('deleteEntry', () => {
+  it('removes the blobs first, then the row, and reports ok', async () => {
+    stage(
+      { data: { attachments: [{ url: 'https://x/storage/v1/object/public/uploads/u/journal/a.jpg' }] } },
+      { data: [{ id: 'row-1' }] },
+    );
+    const res = await journal.deleteEntry(USER, 'row-1');
+    expect(res).toEqual({ ok: true });
+
+    // Blob cleanup happened, and it happened before the row delete.
+    expect(removed).toHaveLength(1);
+    expect(removed[0][0]).toBe('u/journal/a.jpg');
+
+    const del = calls.find(c => c.op === 'delete');
+    expect(del.table).toBe('journal_entries');
+    // Scoped to the owner as well as the id: RLS enforces this, and so does
+    // the statement, so a bug in either one alone cannot delete someone
+    // else's entry.
+    expect(del.filters).toEqual(
+      expect.arrayContaining([['eq', 'id', 'row-1'], ['eq', 'user_id', USER]]),
+    );
+  });
+
+  it('asks for the id back, so "deleted nothing" is distinguishable', async () => {
+    stage({ data: { attachments: [] } }, { data: [{ id: 'row-1' }] });
+    await journal.deleteEntry(USER, 'row-1');
+    expect(calls.find(c => c.op === 'delete').cols).toBe('id');
+  });
+
+  it('reports failure when the delete matched no rows', async () => {
+    // The 200-with-an-empty-array shape. Without the check this returns ok
+    // and the UI drops a row the database still has.
+    stage({ data: { attachments: [] } }, { data: [] });
+    const res = await journal.deleteEntry(USER, 'row-1');
+    expect(res.ok).toBe(false);
+    expect(res.reason).toBe('removed_nothing');
+  });
+
+  it('reports failure on a database error', async () => {
+    stage({ data: { attachments: [] } }, { error: { message: 'boom' } });
+    const res = await journal.deleteEntry(USER, 'row-1');
+    expect(res.ok).toBe(false);
+    expect(res.reason).toBe('boom');
+  });
+
+  it('still deletes the row when a blob cleanup fails', async () => {
+    // An orphaned file is a storage cost. Refusing the row delete because one
+    // object would not go would make the entry permanently undeletable, which
+    // is a broken promise rather than a cost.
+    removeResult = { data: [], error: null };
+    stage(
+      { data: { attachments: [{ url: 'https://x/storage/v1/object/public/uploads/u/journal/a.jpg' }] } },
+      { data: [{ id: 'row-1' }] },
+    );
+    const res = await journal.deleteEntry(USER, 'row-1');
+    expect(res).toEqual({ ok: true });
+  });
+
+  it('refuses without both a user and an entry id rather than deleting broadly', async () => {
+    expect(await journal.deleteEntry(null, 'row-1')).toEqual({ ok: false, reason: 'missing_args' });
+    expect(await journal.deleteEntry(USER, null)).toEqual({ ok: false, reason: 'missing_args' });
+    expect(calls).toHaveLength(0);
+  });
+});

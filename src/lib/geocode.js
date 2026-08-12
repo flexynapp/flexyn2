@@ -165,6 +165,94 @@ export async function searchPlaces(query, { signal, limit = 5 } = {}) {
   }
 }
 
+const NOMINATIM_REVERSE = 'https://nominatim.openstreetmap.org/reverse';
+
+/**
+ * Turn a device coordinate into a human place label like "Wakefield, MA".
+ *
+ * Used by the "Use current location" affordance on the profile's city field.
+ * That is a single tap on an explicit control, not autocomplete — the thing
+ * the policy note at the head of this file forbids is a lookup per keystroke,
+ * and this shares the same 1/s gate and cache as `searchPlaces` regardless.
+ *
+ * Returns `''` rather than throwing when the coordinate resolves to nothing
+ * nameable (mid-ocean, Antarctica). The caller's job is then to leave the
+ * field alone, not to write an empty string over what the user already had.
+ *
+ * @param {number} lat
+ * @param {number} lon
+ * @param {{signal?:AbortSignal}} [opts]
+ * @returns {Promise<string>} e.g. "Wakefield, MA" — '' if unnameable
+ * @throws on network / HTTP failure, so a caller can say "we couldn't ask"
+ *   rather than silently reporting no result.
+ */
+export async function reverseGeocode(lat, lon, { signal } = {}) {
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return '';
+
+  // 4dp ≈ 11m. Rounding the cache key stops a jittering GPS fix from
+  // re-asking for the same street corner on every tap.
+  const key = `rev|${lat.toFixed(4)}|${lon.toFixed(4)}`;
+  if (cache.has(key)) return cache.get(key);
+
+  await acquireSlot(signal);
+  if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+
+  const ctrl = new AbortController();
+  const timer = setTimeout(
+    () => ctrl.abort(new Error('Reverse lookup timed out')),
+    REQUEST_TIMEOUT_MS,
+  );
+  const forwardAbort = () => ctrl.abort(new DOMException('Aborted', 'AbortError'));
+  signal?.addEventListener?.('abort', forwardAbort);
+
+  try {
+    // zoom=10 asks for city-level detail. Without it Nominatim answers with a
+    // house number, and "37 Elm Street" is not what someone means when they
+    // tap a control on a public profile field.
+    const url =
+      `${NOMINATIM_REVERSE}?format=jsonv2&zoom=10&addressdetails=1` +
+      `&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`;
+    const res = await fetch(url, { signal: ctrl.signal });
+    if (!res.ok) throw new Error(`Reverse lookup failed (${res.status})`);
+    const json = await res.json();
+    const label = placeLabelFromAddress(json?.address, json?.display_name);
+
+    if (cache.size >= CACHE_MAX) cache.delete(cache.keys().next().value);
+    cache.set(key, label);
+    return label;
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener?.('abort', forwardAbort);
+  }
+}
+
+/**
+ * "Wakefield, MA" from Nominatim's address object.
+ *
+ * The locality key varies by country and by what OSM happens to carry —
+ * `city` is absent for most of the world's smaller places, which is why the
+ * fallback chain runs all the way down to `county`. `ISO3166-2-lvl4` gives
+ * "US-MA", whose second half is the state abbreviation people actually write;
+ * outside the US it is a region code nobody recognises, so anywhere else falls
+ * back to the spelled-out state name.
+ */
+function placeLabelFromAddress(address, displayName) {
+  if (!address) {
+    // No structured answer — take the first two comma-parts of the free-text
+    // label, which is "City, County" often enough to beat returning nothing.
+    const parts = String(displayName || '').split(',').map(s => s.trim()).filter(Boolean);
+    return parts.slice(0, 2).join(', ');
+  }
+  const locality =
+    address.city || address.town || address.village || address.municipality ||
+    address.hamlet || address.suburb || address.county || '';
+  const iso = String(address['ISO3166-2-lvl4'] || '');
+  const isUs = address.country_code === 'us';
+  const region = (isUs && iso.includes('-') ? iso.split('-')[1] : '') || address.state || address.country || '';
+  if (locality && region) return `${locality}, ${region}`;
+  return locality || region || '';
+}
+
 /** Test seam — the module-level cache and gate outlive a single test. */
 export function __resetGeocodeState() {
   cache.clear();
