@@ -4,6 +4,7 @@ import {
   hasActiveNote,
   shouldShowStoryAvatar,
   filterVisibleStoryGroups,
+  orderStoryGroups,
 } from '@/lib/storiesRowVisibility';
 
 const group = (over = {}) => ({
@@ -108,5 +109,65 @@ describe('filterVisibleStoryGroups', () => {
     expect(filterVisibleStoryGroups(undefined)).toEqual([]);
     expect(filterVisibleStoryGroups(null)).toEqual([]);
     expect(filterVisibleStoryGroups({})).toEqual([]);
+  });
+});
+
+/**
+ * `orderStoryGroups` — the 12 Aug reversal.
+ *
+ * Sean, repeatedly and finally in writing: "it needs to show your friends
+ * first even if your friends don't have anything posted… this is something
+ * I've tried talking about for a long time."
+ *
+ * The rule above (filterVisibleStoryGroups) DROPPED those friends, for a real
+ * reason: a wall of greyed-out avatars buried the two people who had actually
+ * posted. Ordering answers that objection without the side effect of a friend
+ * ceasing to exist on the home screen when they go quiet for a week.
+ *
+ * The stability assertion is the one most likely to be broken by a later
+ * "tidy-up": fetchStoriesFeed has already applied unseen-first ordering within
+ * the has-story band, and a re-sort that is not stable silently throws that
+ * away. Nothing would look broken — the unseen stories would just stop coming
+ * first, which nobody would trace back to a sort.
+ */
+describe('orderStoryGroups', () => {
+  const own   = { isOwn: true,  user_id: 'me',  stories: [] };
+  const story = (id) => ({ user_id: id, stories: [{ id: id + '-s' }] });
+  const note  = (id) => ({ user_id: id, stories: [], note: { id: id + '-n', text: 'hi' } });
+  const bare  = (id) => ({ user_id: id, stories: [] });
+
+  it('keeps everyone — nobody is dropped', () => {
+    const input = [bare('a'), story('b'), own, note('c')];
+    expect(orderStoryGroups(input)).toHaveLength(4);
+  });
+
+  it('puts own first, then stories, then notes, then the rest', () => {
+    const out = orderStoryGroups([bare('a'), note('c'), story('b'), own]);
+    expect(out.map(g => g.user_id)).toEqual(['me', 'b', 'c', 'a']);
+  });
+
+  it('shows a friend with nothing posted rather than hiding them', () => {
+    const out = orderStoryGroups([own, bare('quiet')]);
+    expect(out.map(g => g.user_id)).toContain('quiet');
+  });
+
+  it('is STABLE within a band, preserving unseen-first from the fetch', () => {
+    const a = { user_id: 'a', stories: [{ id: 1 }], hasUnseen: true };
+    const b = { user_id: 'b', stories: [{ id: 2 }], hasUnseen: false };
+    const c = { user_id: 'c', stories: [{ id: 3 }], hasUnseen: true };
+    expect(orderStoryGroups([a, b, c]).map(g => g.user_id)).toEqual(['a', 'b', 'c']);
+  });
+
+  it('does not mutate the input array', () => {
+    const input = [bare('a'), own];
+    const copy = [...input];
+    orderStoryGroups(input);
+    expect(input).toEqual(copy);
+  });
+
+  it('survives malformed input', () => {
+    expect(orderStoryGroups(null)).toEqual([]);
+    expect(orderStoryGroups(undefined)).toEqual([]);
+    expect(orderStoryGroups([])).toEqual([]);
   });
 });

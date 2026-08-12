@@ -3,16 +3,17 @@
 // Horizontal scroll strip of story avatars + status note bubbles.
 //
 // Strip order (left → right):
-//   1. "Add Story" dashed circle — always first when own story exists
-//   2. Own avatar (Your Story) — orange ring if has story, "+" badge if not
+//   1. "Add Story" dashed ring — always first, unconditional
+//   2. Own avatar (Your Story) — orange ring if has story
 //   3. Friends WITH active stories or notes (unseen → orange, seen → gray)
-//   4. Thin vertical divider  (only when ≤1 friend)
-//   5. Quick Add recommendations (friend-of-friend or recent profiles)
+//   4. Friends with NEITHER — present, just unringed
+//   5. Thin vertical divider  (only when ≤1 friend)
+//   6. Quick Add — friend-of-friend ONLY, capped at 5, last in the strip
 //
-// Followed users with NO story and NO note are not rendered at all. They
-// used to appear faded, which turned a content strip into a follow list —
-// see src/lib/storiesRowVisibility.js for the rule and the reasoning.
-// A short row is the honest state; nothing is padded in to fill it.
+// Every followed friend is rendered. That reverses an earlier rule which
+// dropped the ones with nothing posted; ordering keeps the posters at the
+// front instead, so the signal still leads without anyone disappearing from
+// the home screen. See src/lib/storiesRowVisibility.js for the full reasoning.
 //
 // Upload flow:
 //   tap Add Story / own "+" → file picker → preview sheet (with filters, text)
@@ -32,7 +33,7 @@ import * as storiesData from '@/lib/data/stories';
 import * as statusNotesData from '@/lib/data/statusNotes';
 import * as crewsData from '@/lib/data/crews';
 import { isVerified } from '@/lib/verifiedUsers';
-import { filterVisibleStoryGroups } from '@/lib/storiesRowVisibility';
+import { orderStoryGroups } from '@/lib/storiesRowVisibility';
 import StoryViewer from './StoryViewer';
 import StoryPreviewSheet from './StoryPreviewSheet';
 import StatusNoteEditor from './StatusNoteEditor';
@@ -62,8 +63,10 @@ function checkVideoDuration(file) {
 
 // ── Avatar image ──────────────────────────────────────────────────────────────
 
-// No `faded` variant any more: an avatar only reaches this component if
-// it has a story or a note, so there is nothing left to dim.
+// Deliberately no `faded` variant. Friends with nothing posted DO reach this
+// component now, and dimming them to opacity-40 is what made the row read as
+// a wall of grey the first time around — the missing ring is already the
+// difference between "has something" and "doesn't".
 function AvatarImage({ avatarUrl, username }) {
   const initials = (username || '?').slice(0, 2).toUpperCase();
   if (avatarUrl) {
@@ -302,11 +305,11 @@ function StoryAvatarButton({
           </div>
         </div>
 
-        {group.isOwn && noStory && !isUploading && (
-          <div className="absolute bottom-0 right-[4px] w-5 h-5 rounded-full bg-primary flex items-center justify-center ring-2 ring-background pointer-events-none">
-            <Plus className="w-3 h-3 text-primary-foreground stroke-[3]" />
-          </div>
-        )}
+        {/* The own-avatar "+" badge is gone: the Add Story slot at the head of
+            the strip is now unconditional, so this would be the second control
+            for one action — the exact duplication that got the slot removed in
+            the first place. This badge was also gated on `noStory`, so it
+            vanished once you had posted and left no way to add a second. */}
         {isVerified(group.username) && (
           <div
             className="absolute bottom-0 pointer-events-none w-5 h-5 rounded-full flex items-center justify-center ring-2 ring-background"
@@ -607,7 +610,7 @@ export default function StoriesRow({ onViewProfile } = {}) {
     // larger N (12 vs 6) so newly-arrived candidates have a slot
     // even if a few "always-popular" rows would otherwise hog the
     // top 6.
-    hubFollows.getRecommendations(user.id, followingIds, 12).then(recs => {
+    hubFollows.getRecommendations(user.id, followingIds, 5, { fofOnly: true }).then(recs => {
       if (cancelled) return;
       if (!Array.isArray(recs) || recs.length === 0) return;
       const fresh = recs.filter(p => !addedSet.has(p.id));
@@ -630,7 +633,9 @@ export default function StoriesRow({ onViewProfile } = {}) {
 
   // Filter out anyone the user already follows (cache may predate the follow)
   const followingSet   = new Set([user?.id, ...followingIds]);
-  const visibleQaList  = qaList.filter(p => !followingSet.has(p.id));
+  // Hard cap of 5, applied at RENDER as well as at fetch: a cached list
+  // written before the cap existed would otherwise still paint 12.
+  const visibleQaList  = qaList.filter(p => !followingSet.has(p.id)).slice(0, 5);
   const storyGroups = groups.filter(g => g.stories.length > 0);
 
   // Avatars actually rendered: own slot + anyone with a story or a note.
@@ -638,7 +643,9 @@ export default function StoriesRow({ onViewProfile } = {}) {
   // from `groups` (not the reverse) so `storyGroups` — which indexes the
   // story viewer — keeps its original positions; every story-haver is
   // visible, so the two lists stay in agreement.
-  const visibleGroups = filterVisibleStoryGroups(groups);
+  // Every followed friend stays in the row; ordering, not hiding, keeps the
+  // posters at the front. See orderStoryGroups for why this reversed.
+  const visibleGroups = orderStoryGroups(groups);
 
   const showQuickAdd = !qaDismissed && qaHadItems;
 
@@ -718,6 +725,12 @@ export default function StoriesRow({ onViewProfile } = {}) {
     }
 
     setPreview({ file, objectUrl: URL.createObjectURL(file), isVideo });
+  }, []);
+
+  // The Add Story slot's action. Same file input the own-avatar path used,
+  // so there is one upload flow rather than two.
+  const openStoryPicker = useCallback(() => {
+    fileRef.current?.click();
   }, []);
 
   const handleAvatarPress = useCallback((group) => {
@@ -815,12 +828,57 @@ export default function StoriesRow({ onViewProfile } = {}) {
       <div className="mb-4 -mx-4 md:-mx-6">
         <div className="flex items-end gap-2 px-4 md:px-6 overflow-x-auto pb-1 pt-1 scrollbar-hide">
 
-          {/* The "Add Story" slot is gone: a dashed ring rotating on a 24s
-              loop, permanently, as the first thing on the home screen — and
-              it duplicated the "+" badge already on the user's own avatar
-              immediately to its right. Two controls for one action, one of
-              them animating forever. The own-avatar "+" is the entry point;
-              the file input below is still driven from there. */}
+          {/* Add Story — restored on a direct instruction: "it is imperative
+              that you add that back" (Sean, 12 Aug).
+
+              It was removed for a stated reason — a permanently rotating ring
+              on the home screen, duplicating the "+" badge on the own avatar
+              beside it. Two things resolve that rather than reinstating it:
+
+              1. The "+" badge it duplicated was gated on `noStory`, so it
+                 disappeared the moment you posted. Once you had one story
+                 there was NO entry point in this strip for a second. This
+                 control is unconditional, so it replaces that badge instead
+                 of sitting next to it — one control, always present.
+              2. The rotation honours prefers-reduced-motion. The objection to
+                 "animating forever" is real for anyone who has asked the
+                 system not to; for everyone else it is what marks the slot as
+                 an action rather than a person.
+
+              24s per revolution: slow enough to read as alive rather than
+              busy, which is the whole reason it is a rotating dash ring and
+              not a static dotted border. */}
+          <button
+            type="button"
+            onClick={openStoryPicker}
+            className="flex flex-col items-center gap-1 shrink-0 focus:outline-none"
+            style={{ minWidth: 68 }}
+            aria-label={tFallback('stories.add', 'Add a story')}
+          >
+            <span className="relative w-[60px] h-[60px] flex items-center justify-center">
+              <svg
+                viewBox="0 0 60 60"
+                className="absolute inset-0 w-full h-full motion-safe:animate-[spin_24s_linear_infinite]"
+                aria-hidden="true"
+              >
+                <circle
+                  cx="30" cy="30" r="28"
+                  fill="none"
+                  stroke="hsl(var(--primary))"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeDasharray="6 7"
+                />
+              </svg>
+              <span className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center">
+                <Plus className="w-5 h-5 text-primary stroke-[3]" />
+              </span>
+            </span>
+            <span className="text-micro font-semibold text-muted-foreground max-w-[64px] truncate">
+              {tFallback('stories.addShort', 'Your story')}
+            </span>
+          </button>
+
 
           {/* Crew story circles — shown before friend stories */}
           {crewStoryGroups.map(({ crew, stories }) => {

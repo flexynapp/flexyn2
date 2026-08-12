@@ -50,8 +50,46 @@ export function shouldShowStoryAvatar(group) {
  * Filter a groups list down to the avatars worth rendering, preserving
  * the incoming order (fetchStoriesFeed already sorts own-first, then
  * has-content, then unseen-first).
+ *
+ * SUPERSEDED for the stories row by `orderStoryGroups` — see the note there.
+ * Kept because the same predicate still answers a different question (does
+ * this avatar get a ring), and because dropping an export is not the change
+ * being made here.
  */
 export function filterVisibleStoryGroups(groups) {
   if (!Array.isArray(groups)) return [];
   return groups.filter(shouldShowStoryAvatar);
+}
+
+/**
+ * Order the row WITHOUT dropping anyone: own slot, then friends who have
+ * posted, then friends who haven't.
+ *
+ * This deliberately reverses the hide-them rule above, on a direct and
+ * repeated instruction from Sean (12 Aug): "it needs to show your friends
+ * first even if your friends don't have anything posted… this is something
+ * I've tried talking about for a long time."
+ *
+ * The original objection is real and is answered by ORDER rather than by
+ * absence. Hiding solved "a wall of greyed-out avatars burying the two people
+ * who posted" — but it also meant the row could not answer "who am I actually
+ * connected to", and a friend who posts nothing for a week simply ceased to
+ * exist on the home screen. Sorting content-first keeps every story in the
+ * first positions, where the old rule put them, while the rest of the strip
+ * stays populated behind them. Nobody has to scroll past silence to reach
+ * signal, and nobody vanishes.
+ *
+ * Stable within each band: `fetchStoriesFeed` has already applied unseen-first
+ * ordering, and re-sorting must not undo it. Array.prototype.sort is required
+ * to be stable, so equal ranks keep their incoming order.
+ */
+export function orderStoryGroups(groups) {
+  if (!Array.isArray(groups)) return [];
+  const rank = (g) => {
+    if (g?.isOwn) return 0;
+    if (hasActiveStory(g)) return 1;
+    if (hasActiveNote(g)) return 2;
+    return 3;
+  };
+  return [...groups].sort((a, b) => rank(a) - rank(b));
 }

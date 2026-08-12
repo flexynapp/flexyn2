@@ -256,7 +256,7 @@ export const unfollow = async (follower, followee) => {
  *   3. Shuffle and cap at `limit`, then fetch their profiles.
  * Falls back to any recent profiles with a username when the user has no friends yet.
  */
-export const getRecommendations = async (userId, followingIds = [], limit = 6) => {
+export const getRecommendations = async (userId, followingIds = [], limit = 6, { fofOnly = false } = {}) => {
   if (!userId) return [];
 
   const alreadyFollowing = new Set([userId, ...followingIds]);
@@ -267,18 +267,33 @@ export const getRecommendations = async (userId, followingIds = [], limit = 6) =
   // 2+ follows. ("We've had like 10 new users and none of them shown
   // up.") We reserve up to half the slots for recent signups so the
   // friend-of-friend signal still drives the main rail.
-  const recentSlots = Math.max(2, Math.ceil(limit / 2));
+  // fofOnly drops the recent-signups half entirely. The stories rail asks for
+  // it on a direct instruction — "quick add should only ever offer you people
+  // that are a friend of a friend, absolutely no randoms" (Sean, 12 Aug).
+  //
+  // It is an OPTION rather than a change of behaviour because the recent-signup
+  // slots exist for a reason worth preserving elsewhere: without them a brand
+  // new account is in nobody's network and therefore invisible to every
+  // established user ("we've had like 10 new users and none of them shown up").
+  // Turning that off globally would quietly re-create that problem on whatever
+  // surface adopts this next.
+  const recentSlots = fofOnly ? 0 : Math.max(2, Math.ceil(limit / 2));
   const fofSlots    = Math.max(0, limit - recentSlots);
 
-  const { data: recentData } = await safeSelect({
-    columns: ['id', 'username', 'avatar_url', 'created_at'],
-    build: (cols) => users.selectProfiles((from) => from
-      .select(cols)
-      .neq('id', userId)
-      .not('username', 'is', null)
-      .order('created_at', { ascending: false })
-      .limit(recentSlots * 4)), // overfetch so we have room after filtering
-  });
+  // Skipped entirely under fofOnly rather than run with limit(0) — a zero
+  // limit is a request for nothing, and asking the database for nothing is a
+  // round-trip whose only possible outcomes are an empty list or an error.
+  const { data: recentData } = recentSlots === 0
+    ? { data: [] }
+    : await safeSelect({
+        columns: ['id', 'username', 'avatar_url', 'created_at'],
+        build: (cols) => users.selectProfiles((from) => from
+          .select(cols)
+          .neq('id', userId)
+          .not('username', 'is', null)
+          .order('created_at', { ascending: false })
+          .limit(recentSlots * 4)), // overfetch so we have room after filtering
+      });
   const recentFiltered = (recentData ?? [])
     .filter(p => !alreadyFollowing.has(p.id))
     .slice(0, recentSlots);
