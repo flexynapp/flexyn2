@@ -114,11 +114,26 @@ const saveFire = (id, val, userId) => {
   } catch {}
 };
 
-function Avatar({ profile }) {
+// Tapping the avatar opens that member's profile. It was a plain div with no
+// click target — the same defect fixed in the comment sheet this week, and the
+// same fix: route through the profile navigation the page already owns rather
+// than inventing a second mechanism. Falls back to a non-interactive div when
+// no callback is wired, so a surface that has no profile route does not render
+// a button that does nothing.
+function Avatar({ profile, onViewProfile }) {
   const initials = (profile?.username || '?').slice(0, 2).toUpperCase();
   const verified = isVerified(profile?.username);
+  const open = onViewProfile && profile
+    ? () => onViewProfile({ email: profile.email, username: profile.username, avatar_url: profile.avatar_url })
+    : null;
+  const Tag = open ? 'button' : 'div';
   return (
-    <div className="relative shrink-0">
+    <Tag
+      type={open ? 'button' : undefined}
+      onClick={open || undefined}
+      aria-label={open ? `Open ${profile?.username || 'athlete'}'s profile` : undefined}
+      className={`relative shrink-0 ${open ? 'hover:opacity-80 active:opacity-70 transition-opacity' : ''}`}
+    >
       {profile?.avatar_url ? (
         <img loading="lazy" src={profile.avatar_url} className="w-8 h-8 rounded-full object-cover" alt="" draggable={false} />
       ) : (
@@ -131,7 +146,7 @@ function Avatar({ profile }) {
           <CrownBadge size={13} />
         </div>
       )}
-    </div>
+    </Tag>
   );
 }
 
@@ -148,7 +163,7 @@ function Timestamp({ dateStr }) {
 
 // ── Text bubble ───────────────────────────────────────────────────────────────
 
-function TextMessage({ msg, senderProfile, isOwn, currentUserId, isCurrentModerator, onPin }) {
+function TextMessage({ msg, senderProfile, isOwn, currentUserId, isCurrentModerator, onPin, onViewProfile }) {
   const qc = useQueryClient();
   const lastTapRef = useRef(0);
   const longPressTimer = useRef(null);
@@ -286,7 +301,7 @@ function TextMessage({ msg, senderProfile, isOwn, currentUserId, isCurrentModera
   return (
     <>
       <div className={`flex gap-2 items-end ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
-        {!isOwn && <Avatar profile={senderProfile} />}
+        {!isOwn && <Avatar profile={senderProfile} onViewProfile={onViewProfile} />}
         <div className={`max-w-[72%] ${isOwn ? 'items-end' : 'items-start'} flex flex-col`}>
           {!isOwn && (
             <span className="text-xs font-semibold text-muted-foreground mb-0.5 ms-1">
@@ -697,7 +712,7 @@ function RegimenMessage({ msg, user, senderProfile }) {
 
 // ── One-Time Image ────────────────────────────────────────────────────────────
 
-function OneTimeImageMessage({ msg, senderProfile, isOwn, currentUserId }) {
+function OneTimeImageMessage({ msg, senderProfile, isOwn, currentUserId, onViewProfile }) {
   // Viewed state is tracked per-user in localStorage so it survives remounts.
   const [viewed,   setViewed]   = useState(() => isOtViewed(msg.id, currentUserId));
   const [open,     setOpen]     = useState(false);
@@ -740,7 +755,7 @@ function OneTimeImageMessage({ msg, senderProfile, isOwn, currentUserId }) {
 
   return (
     <div className={`flex gap-2 items-end ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
-      {!isOwn && <Avatar profile={senderProfile} />}
+      {!isOwn && <Avatar profile={senderProfile} onViewProfile={onViewProfile} />}
       <div className={`${isOwn ? 'items-end' : 'items-start'} flex flex-col`}>
         {!isOwn && (
           <span className="text-xs font-semibold text-muted-foreground mb-0.5 ms-1 block">
@@ -805,7 +820,7 @@ function OneTimeImageMessage({ msg, senderProfile, isOwn, currentUserId }) {
 
 // ── Timed Image ───────────────────────────────────────────────────────────────
 
-function TimedImageMessage({ msg, senderProfile, isOwn, currentUserId }) {
+function TimedImageMessage({ msg, senderProfile, isOwn, currentUserId, onViewProfile }) {
   const lastTapRef = useRef(0);
   const [reacted, setReacted] = useState(() => loadFire(msg.id, currentUserId));
   const [animating, setAnimating] = useState(false);
@@ -823,7 +838,7 @@ function TimedImageMessage({ msg, senderProfile, isOwn, currentUserId }) {
 
   return (
     <div className={`flex gap-2 items-end ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
-      {!isOwn && <Avatar profile={senderProfile} />}
+      {!isOwn && <Avatar profile={senderProfile} onViewProfile={onViewProfile} />}
       <div className={`max-w-[200px] ${isOwn ? 'items-end' : 'items-start'} flex flex-col`}>
         {!isOwn && (
           <span className="text-xs font-semibold text-muted-foreground mb-0.5 ms-1 block">
@@ -868,7 +883,7 @@ function TimedImageMessage({ msg, senderProfile, isOwn, currentUserId }) {
 
 // ── Router ────────────────────────────────────────────────────────────────────
 
-export default function CrewMessageItem({ msg, senderProfile, currentUserId, user, crewId, isCurrentModerator, onPin }) {
+export default function CrewMessageItem({ msg, senderProfile, currentUserId, user, crewId, isCurrentModerator, onPin, onViewProfile }) {
   const isOwn = msg.sender_id === currentUserId;
 
   switch (msg.message_type) {
@@ -879,9 +894,9 @@ export default function CrewMessageItem({ msg, senderProfile, currentUserId, use
     case 'regimen':
       return <RegimenMessage msg={msg} user={user} senderProfile={senderProfile} />;
     case 'image_one_time':
-      return <OneTimeImageMessage msg={msg} senderProfile={senderProfile} isOwn={isOwn} currentUserId={currentUserId} />;
+      return <OneTimeImageMessage msg={msg} senderProfile={senderProfile} isOwn={isOwn} currentUserId={currentUserId} onViewProfile={onViewProfile} />;
     case 'image_one_hour':
-      return <TimedImageMessage msg={msg} senderProfile={senderProfile} isOwn={isOwn} currentUserId={currentUserId} />;
+      return <TimedImageMessage msg={msg} senderProfile={senderProfile} isOwn={isOwn} currentUserId={currentUserId} onViewProfile={onViewProfile} />;
     default:
       return (
         <TextMessage
@@ -891,6 +906,7 @@ export default function CrewMessageItem({ msg, senderProfile, currentUserId, use
           currentUserId={currentUserId}
           isCurrentModerator={isCurrentModerator}
           onPin={onPin}
+          onViewProfile={onViewProfile}
         />
       );
   }

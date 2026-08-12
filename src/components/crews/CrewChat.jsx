@@ -821,6 +821,7 @@ export default function CrewChat({ crew, onBack, onViewProfile, embedded }) {
             crewId={crew.id}
             isCurrentModerator={isCurrentModerator}
             onPin={(id) => handlePinMessage(id, true)}
+            onViewProfile={onViewProfile}
           />
         ))}
         <div style={{ height: 1 }} />

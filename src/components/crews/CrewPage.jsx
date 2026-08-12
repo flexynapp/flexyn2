@@ -162,8 +162,27 @@ export default function CrewPage({ crew, onBack, onViewProfile }) {
 
         {/* Crest punched over the seam. The ring is the page background,
             not a border colour — that's what makes it read as cut out of
-            the banner rather than placed on it. */}
-        <div className="px-4 h-0 relative z-10">
+            the banner rather than placed on it.
+
+            h-8 AND flex, where this used to be h-0. Both are load-bearing and
+            the second one is the subtle half.
+
+            The crest is 64px with -mt-8, so exactly half of it (32px) hangs
+            below the seam. At h-0 the container reserved no space for that
+            half, so the title and the "Led by … · N of 16" byline began at the
+            seam and the crest painted over their first 64px — z-10 put it on
+            top. Measured at 390px: crest y 64→128 against a title at y 72→97
+            and a byline at y 99→115. 56px of vertical overlap, which is why
+            the header read as "…in Grind" and "…ed by sean".
+
+            h-8 alone does NOT fix it. The container has no top padding or
+            border, so the child's negative margin COLLAPSES through it and
+            drags the container up by 32px — the box still contributes nothing
+            to the flow and 24px of overlap survives. `flex` is what stops
+            that: a flex item's margins never collapse with its container.
+            Re-measured after: 0px overlap, crest bottom and container bottom
+            both at 128. */}
+        <div className="px-4 h-8 relative z-10 flex">
           <div
             className="w-16 h-16 rounded-2xl -mt-8 flex items-center justify-center overflow-hidden"
             style={{

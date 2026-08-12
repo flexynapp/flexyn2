@@ -32,8 +32,10 @@ import {
   getQueuedWarForCrew,
 } from '@/lib/data/crewWars';
 import CrewWarPanel from './CrewWarPanel';
+import { useLanguage } from '@/lib/LanguageContext';
 
 export default function CrewBattleEntry({ crew, currentUserId }) {
+  const { tFallback } = useLanguage();
   const qc = useQueryClient();
   const fmt = useNumberFormatter();
 
@@ -123,9 +125,17 @@ export default function CrewBattleEntry({ crew, currentUserId }) {
       animate={{ opacity: 1, y: 0 }}
       className="rounded-2xl bg-card overflow-hidden mb-4"
     >
+      {/* Says what the card IS, not where you are. This header used to repeat
+          crew.name, which is already the page title two rows above it — so
+          "Admin Grind" rendered twice within one screen and the card, whose
+          whole subject is the war, never said so. CrewWarPanel labels the
+          active-war state the same way; these two are mutually exclusive
+          states of one feature, so sharing the label is the point. */}
       <div className="px-4 py-3 flex items-center gap-2 border-b border-border bg-secondary/30">
         <Shield className="w-4 h-4 text-muted-foreground" />
-        <span className="font-bold text-sm truncate">{crew.name}</span>
+        <span className="font-bold text-sm truncate">
+          {tFallback('crew.war.title', 'Crew War')}
+        </span>
       </div>
 
       <div className="p-4 space-y-4">

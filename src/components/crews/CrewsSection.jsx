@@ -129,7 +129,13 @@ function CrewCard({ crew, onClick, currentUserId }) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export default function CrewsSection({ initialCrewId }) {
+// onViewProfile threads Hub's profile navigation down to the crew page.
+// Without it the whole chain below is dead: CrewPage passes it to
+// CrewMemberDirectory and CrewChat, both of which call `onViewProfile?.(…)` —
+// optional-chained, so an undefined callback is a silent no-op rather than an
+// error. That is why tapping a member in the roster, or an avatar in crew
+// chat, did nothing at all. Every link existed except this one.
+export default function CrewsSection({ initialCrewId, onViewProfile }) {
   const { user } = useAuth();
   const { tFallback } = useLanguage();
   const qc = useQueryClient();
@@ -177,6 +183,7 @@ export default function CrewsSection({ initialCrewId }) {
       <CrewPage
         crew={activeCrew}
         onBack={() => setActiveCrew(null)}
+        onViewProfile={onViewProfile}
       />
     );
   }

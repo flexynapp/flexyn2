@@ -540,6 +540,10 @@ export default function Hub() {
             <CrewsSection
               initialCrewId={pendingCrewId}
               key={pendingCrewId}
+              onViewProfile={(u) => {
+                setProfileTarget(u);
+                setSection('profile');
+              }}
             />
           )}
 
