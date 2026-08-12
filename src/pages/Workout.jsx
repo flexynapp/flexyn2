@@ -747,6 +747,31 @@ export default function Workout() {
         }).filter((ex) => (ex.sets?.length || 0) > 0),
       };
 
+      // The Save button guards `exercises.length === 0` on the array as the
+      // USER sees it; the filter directly above runs on the way to the
+      // insert. Those are two different arrays, so an exercise whose sets
+      // the filter drops leaves an EMPTY payload behind an already-enabled
+      // button — saved as exercises:[] behind a success toast.
+      //
+      // The bodyweight branch in shouldKeepSet closed the calisthenics half
+      // of this on 2026-06-10 (17e2357c). It does not close the other half:
+      // a set survives only when reps > 0 AND (weight > 0 OR bodyweight OR
+      // cardio), so a WEIGHTED lift logged with reps and no weight still
+      // erases the whole session. Production row dad0ba31 is one, written
+      // 2026-07-26 — six weeks AFTER the calisthenics fix, which is what
+      // rules that out as the explanation.
+      //
+      // Fail loudly rather than storing a row that every reader has to
+      // special-case. The user keeps their session and can fix the set.
+      if ((data.exercises || []).length === 0) {
+        const emptyErr = new Error(tFallback(
+          'workout.noLoggableSets',
+          'Add a weight or reps to at least one set before saving.',
+        ));
+        emptyErr.code = 'EMPTY_WORKOUT';
+        throw emptyErr;
+      }
+
       // Per-exercise set cap (defense-in-depth, trim before XP calc)
       const perExerciseCap = getMaxSetsPerExercise(userProfile);
       data = {
@@ -926,15 +951,26 @@ export default function Workout() {
     },
     onMutate: async (data) => {
       await queryClient.cancelQueries({ queryKey: ['workoutLogs', user?.email] });
-      const previous = queryClient.getQueryData(['workoutLogs', user?.email]);
+      // setQueriesData / getQueriesData, not the singular pair, because the
+      // readers are scoped now (`workoutKeys.js`). When every reader shared
+      // one bare entry, one setQueryData put the optimistic row in front of
+      // all of them; after scoping, that same call would write to an entry
+      // NOBODY reads and the row you just saved would stop appearing until
+      // the refetch landed.
+      //
+      // Prefix matching is what keeps this equivalent to the old behaviour —
+      // the same property the invalidations rely on. Rollback captures every
+      // matched entry rather than one blob, so a failure restores each scope
+      // to exactly what it held.
+      const previous = queryClient.getQueriesData({ queryKey: ['workoutLogs', user?.email] });
       // Unique optimistic id so two queued mutations don't collide. The
       // double-tap guard in saveWorkout SHOULD prevent two from queueing,
       // but if anything bypasses that (background sync, programmatic call)
       // a literal '__optimistic__' would create a React key collision.
       const optimisticId = `__optimistic__${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-      queryClient.setQueryData(['workoutLogs', user?.email], (old = []) => [
+      queryClient.setQueriesData({ queryKey: ['workoutLogs', user?.email] }, (old = []) => [
         { id: optimisticId, ...data },
-        ...old,
+        ...(Array.isArray(old) ? old : []),
       ]);
       return { previous };
     },
@@ -946,9 +982,17 @@ export default function Workout() {
       // Roll back the optimistic insert AND tell the user something went
       // wrong — previously this swallowed the failure and the row just
       // disappeared with no toast, which is the worst possible UX.
-      queryClient.setQueryData(['workoutLogs', user?.email], ctx.previous);
+      // Restore every scope the optimistic write touched (see onMutate).
+      (ctx?.previous || []).forEach(([key, val]) => queryClient.setQueryData(key, val));
       reportError(err, { feature: 'workout.save', userEmail: user?.email });
       const code = err?.code || err?.status;
+      // Nothing loggable in the payload — not a failure to report as one.
+      // Own branch because the generic branch offers a Retry, and retrying
+      // an empty session just fails again in the same way.
+      if (code === 'EMPTY_WORKOUT') {
+        errorToast({ title: tFallback('workout.nothingToSave', 'Nothing to save'), description: err.message });
+        return;
+      }
       // RLS / permission denied surfaces a clearer hint than a generic message.
       if (code === '42501' || /policy|permission/i.test(err?.message || '')) {
         errorToast({

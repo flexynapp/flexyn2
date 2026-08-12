@@ -77,3 +77,65 @@ describe('workout_logs.total_volume — what Workout.jsx stores', () => {
     ).toBe(false);
   });
 });
+
+// ── Two more save-path invariants, asserted the same way and for the same
+// reason: both regress silently, and observing either through a render
+// would mean reaching an authenticated save.
+
+describe('the save payload cannot be stored empty', () => {
+  // The Save button guards `exercises.length === 0` on the array the USER
+  // sees. The empty-set filter runs later, on the way to the insert, so
+  // they are looking at two different arrays — and shouldKeepSet drops a
+  // set unless reps > 0 AND (weight > 0 OR bodyweight OR cardio). A
+  // WEIGHTED lift logged with reps and no weight therefore emptied the
+  // whole session and saved exercises:[] behind a success toast.
+  //
+  // Production row dad0ba31 is one, written 2026-07-26 — six weeks AFTER
+  // the bodyweight branch (17e2357c) closed the calisthenics half, which
+  // is what rules that out as the explanation.
+  it('throws EMPTY_WORKOUT rather than inserting exercises:[]', () => {
+    expect(
+      /code\s*=\s*'EMPTY_WORKOUT'/.test(SOURCE),
+      'the empty-payload guard is gone — a session whose sets are all ' +
+        'filtered out will be stored as exercises:[] behind a success toast',
+    ).toBe(true);
+  });
+
+  it('guards AFTER the filter, not before it', () => {
+    // Order is the whole point: a guard above the filter is the one the
+    // Save button already does, and it is the one that does not work.
+    const filterAt = SOURCE.indexOf('shouldKeepSet');
+    const guardAt = SOURCE.indexOf("code = 'EMPTY_WORKOUT'");
+    expect(filterAt, 'shouldKeepSet filter not found').toBeGreaterThan(-1);
+    expect(guardAt, 'EMPTY_WORKOUT guard not found').toBeGreaterThan(-1);
+    expect(
+      guardAt > filterAt,
+      'the guard must run AFTER the empty-set filter — before it, it is ' +
+        'checking the same array the Save button already checked',
+    ).toBe(true);
+  });
+});
+
+describe('the optimistic save reaches every workoutLogs scope', () => {
+  // workoutKeys.js gave the six readers their own cache entries. The
+  // optimistic insert wrote to the BARE key, which after scoping nobody
+  // reads — so the row you just saved would stop appearing until the
+  // refetch landed. setQueriesData matches by prefix and restores the old
+  // behaviour exactly; the singular setQueryData does not.
+  it('uses setQueriesData, not setQueryData, for the optimistic row', () => {
+    expect(
+      /setQueriesData\(\{\s*queryKey:\s*\['workoutLogs'/.test(SOURCE),
+      'the optimistic insert must write by PREFIX — with scoped keys, a ' +
+        "singular setQueryData(['workoutLogs', email]) writes to an entry " +
+        'no component reads',
+    ).toBe(true);
+  });
+
+  it('captures rollback state by prefix too', () => {
+    expect(
+      /getQueriesData\(\{\s*queryKey:\s*\['workoutLogs'/.test(SOURCE),
+      'rollback must capture every matched scope, or a failed save ' +
+        'restores one entry and leaves the others holding the optimistic row',
+    ).toBe(true);
+  });
+});
