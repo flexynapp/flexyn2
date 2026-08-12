@@ -1913,8 +1913,29 @@ The biggest user-facing additions this session:
 
 - LocationStep.jsx was deleted; no country/state collection in
   onboarding until the team makes a product decision.
-- The `is_active` regimen column is dormant — schema is there but
-  nothing reads/writes it.
+- ~~The `is_active` regimen column is dormant — schema is there but
+  nothing reads/writes it.~~ **False as of 2026-08-12 — retracted, not
+  deleted, so the shape of the mistake stays visible.** It is written by
+  `toggleActive()` behind the Zap icon in `RegimensSection.jsx` (~:199,
+  which optimistically enforces a single active row client-side, since no
+  DB constraint does), read for the "Active" chip and the icon's own fill
+  (~:326, ~:379), and read again in `routines/MyRoutineSheet.jsx:204,210`.
+  **4 of 33 production rows are true.** Line numbers drift — grep
+  `is_active`; the point is that it has a writer and four readers. The
+  claim was correct when written; it decayed silently because
+  nothing re-checks a claim in this file against the database.
+  Two lessons worth more than the correction:
+  - **A verdict is a measurement with a timestamp, not a fact.** The
+    meal-logging audit made the same error from the other direction —
+    it declared search "absent, never built" and search shipped a week
+    later. Date every claim of this kind.
+  - **`updated_at` on `regimens` proves nothing, and this file nearly
+    inherited a second wrong claim from it.** There are **zero triggers on
+    `public.regimens`** and `makeEntity().update()` sends only the caller's
+    payload, so *nothing anywhere stamps `updated_at` on a regimen*. It
+    equals `created_at` on 33 of 33 rows because it has no writer — NOT
+    because nobody has ever edited a regimen. Do not read that column as
+    an edit signal. (Measured 2026-08-12; see `docs/regimens-audit.md`.)
 - Server-side profanity check is on `username` only; `bio` is still
   client-only.
 - ~~Weekly Debriefs.~~ **Shipped 2026-08-09 as "Weekly Reviews" — no longer

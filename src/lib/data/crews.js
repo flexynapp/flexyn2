@@ -5,6 +5,7 @@ import { selectProfiles } from '@/lib/data/users';
 import { db } from '@/api/db';
 import { compressImage } from '@/lib/imageCompress';
 import { containsProfanity } from '@/lib/profanityFilter';
+import { reportError } from '@/lib/reportError';
 
 // Display value of one XP-fuel claim. The AUTHORITATIVE number is the
 // constant inside claim_crew_xp_fuel (migration 298) — this is only what
@@ -395,12 +396,45 @@ export async function equipRegimen(regimenId, user) {
   // `clone_count` reference here was a code-vs-schema drift bug surfaced
   // by the 2026-05-25 audit — the .catch swallowed the PGRST204 error so
   // the badge silently showed "0 clones" on every regimen.
+  // Use the SECURITY DEFINER RPC, not a direct UPDATE. A client UPDATE on
+  // ANOTHER user's regimen row cannot succeed: the "owner full access"
+  // policy scopes writes to `created_by = auth.email()`, so PostgREST
+  // matches zero rows and returns 200 with an empty array. There is no
+  // error for the `.catch()` to catch — the write just silently does not
+  // happen, exactly like the storage `remove()` case in CLAUDE.md.
+  //
+  // PROVEN against production 2026-08-12, as keganbergeron@gmail.com
+  // against a regimen owned by sjoudrie@gmail.com, inside a probe that
+  // restored the value afterwards:
+  //     direct cross-user UPDATE -> 0 rows matched, no error, 0 -> 0
+  //     increment_copy_count()   -> 0 -> 1
+  //
+  // This is why `copy_count` is 0 on 33 of 33 rows while TWO clones exist:
+  // both came through this function (identified by the
+  // `original_author_username` fingerprint it writes), and both counter
+  // bumps were dropped on the floor.
+  //
+  // The comment this replaces was itself the fix for a 2026-05-25 audit
+  // finding — but that pass corrected the COLUMN NAME (`clone_count` ->
+  // `copy_count`) and left the mechanism broken, so the badge kept
+  // reading 0 for a different reason than before. `regimens.js`
+  // two files away has always called the RPC.
   if (user.email !== source.created_by) {
-    await supabase
-      .from('regimens')
-      .update({ copy_count: (source.copy_count ?? 0) + 1 })
-      .eq('id', source.id)
-      .catch(() => {}); // non-fatal
+    const { error: bumpError } = await supabase.rpc('increment_copy_count', {
+      p_table: 'regimens',
+      p_id:    source.id,
+    });
+    // Still non-fatal — the clone itself succeeded and is the thing the
+    // user asked for. But it is reported now rather than swallowed, so
+    // the next time this breaks it is visible in Sentry instead of
+    // surfacing three months later as a column of zeros.
+    if (bumpError) {
+      reportError(bumpError, {
+        feature: 'crews.equip-regimen.copy-count',
+        level: 'warning',
+        userEmail: user?.email,
+      });
+    }
   }
 
   return copy;

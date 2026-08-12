@@ -108,7 +108,14 @@ export default function RegimensSection({ onStartRegimen }) {
       if (isFirstRegimen) {
         fireFirstRegimenCelebration({
           regimenName: result?.name,
-          xpGained: 100, // matches the XP grant above
+          // Read the constant, do not restate it. This was a literal 100
+          // with a comment claiming it "matches the XP grant above" — it
+          // did not. The grant beside it was changed to
+          // XP_REWARDS.regimenCreated (60) and this line was left behind,
+          // so the one toast a user sees on their first regimen has been
+          // promising +100 XP against a 60 XP credit. The same mirrored-
+          // constant drift the grant itself was fixed for.
+          xpGained: XP_REWARDS.regimenCreated,
           userEmail: user?.email,
         });
       } else {

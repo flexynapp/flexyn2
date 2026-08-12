@@ -4,6 +4,7 @@ import {
   estimatedMinutes,
   regimenLoad,
   WORK_SECONDS_PER_SET,
+  REST_SECONDS_DEFAULT,
 } from '../regimenLoad';
 
 // Two of the four real public regimens, copied VERBATIM out of
@@ -103,10 +104,47 @@ describe('estimatedMinutes', () => {
     expect(estimatedMinutes({ exercises: [{ target_sets: 3, rest_seconds: 90 }] })).not.toBeNull();
   });
 
-  it('treats a missing rest as no rest rather than dropping the exercise', () => {
-    // 4 sets of pure work, no rest anywhere: 4×40 = 160 s → 3 min.
+  // ── CHANGED 2026-08-12 ────────────────────────────────────────────
+  // This test used to assert `estimatedMinutes({exercises:[{target_sets:4}]})
+  // === 3`, i.e. a missing rest counted as ZERO rest. It was not a
+  // characterization test — it pinned the module's stated intent, and the
+  // intent was wrong about the data.
+  //
+  // Measured across all 33 production regimens / 212 exercises:
+  // rest_seconds is present on every exercise of 6 regimens, on NO
+  // exercise of 27, and partially on 0. Bimodal, not sparse. Under a zero
+  // default those 27 rendered ~14.4 min for sessions of ~46.9.
+  //
+  // Inverted rather than deleted, per the standing rule.
+  it('falls back to the default rest rather than assuming none', () => {
+    // 4 sets at (90 rest + 40 work) = 520 s, less the 90 s trailing
+    // rest = 430 s → 7 min. Under the old zero default this was 3 min.
     expect(estimatedMinutes({ exercises: [{ target_sets: 4 }] }))
-      .toBe(Math.round((4 * WORK_SECONDS_PER_SET) / 60));
+      .toBe(Math.round((4 * (REST_SECONDS_DEFAULT + WORK_SECONDS_PER_SET) - REST_SECONDS_DEFAULT) / 60));
+  });
+
+  it('an explicit rest always beats the default', () => {
+    // Proves the fallback did not become a floor or an override: a
+    // regimen that DOES carry rest must be unaffected by this change.
+    const explicit = estimatedMinutes({ exercises: [{ target_sets: 4, rest_seconds: 30 }] });
+    const defaulted = estimatedMinutes({ exercises: [{ target_sets: 4 }] });
+    expect(explicit).toBe(Math.round((4 * (30 + WORK_SECONDS_PER_SET) - 30) / 60));
+    expect(explicit).toBeLessThan(defaulted);
+  });
+
+  // The regression this shipped to fix, stated as the shape of the real
+  // data rather than as a synthetic case. A hand-built regimen carries no
+  // rest anywhere, because RegimenForm has no per-exercise rest field.
+  it('a rest-less hand-built regimen no longer reads as a third of its length', () => {
+    // "Your Starter Plan — Build Strength" shape: 6 exercises, 24 sets,
+    // no rest_seconds on any of them. Production measured ~24 min under
+    // the old default against a realistic ~78.
+    const handBuilt = {
+      exercises: Array.from({ length: 6 }, () => ({ target_sets: 4, target_reps: 8 })),
+    };
+    const mins = estimatedMinutes(handBuilt);
+    expect(mins).toBeGreaterThan(45);
+    expect(mins).toBeLessThan(60);
   });
 
   it('never reports a sub-minute session as 0 min', () => {
