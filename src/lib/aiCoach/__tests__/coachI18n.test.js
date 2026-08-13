@@ -270,9 +270,7 @@ describe('every coach key a T() call names exists in English', () => {
   it('has no key used in the generators but absent from en', () => {
     const src = ['onboardingCoach', 'responders', 'trainingModifiers']
       .map(f => readFileSync(`src/lib/aiCoach/${f}.js`, 'utf8')).join('\n');
-    const en = new Set(
-      [...readFileSync('src/lib/i18n-langs/en.js', 'utf8').matchAll(/"([^"]+)":/g)].map(m => m[1]),
-    );
+    const en = new Set(Object.keys(JSON.parse(readFileSync('src/locales/en.json', 'utf8'))));
     const used = [...src.matchAll(/T\(\s*'(coach\.[\w.]+)'/g)].map(m => m[1]);
     expect(used.length).toBeGreaterThan(150);
     expect([...new Set(used)].filter(k => !en.has(k)).sort()).toEqual([]);

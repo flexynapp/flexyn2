@@ -17,14 +17,15 @@
  */
 import { describe, it, expect } from 'vitest';
 import { cardioTypeLabel } from '@/lib/cardioTypeLabel';
-import { cardioI18n } from '@/lib/i18n-cardio';
-import { translations_p8 as part8 } from '@/lib/i18n-part8';
+import { catalog, domainByLang } from './i18nCatalogs.fixture';
 
 // Mirrors the real tFallback contract: look the key up in English, and
 // fall back only when it is genuinely absent. NOT `(key, english) => english`
 // — that house stub would pass no matter which keys exist, which is the
 // entire thing under test here.
-const EN = { ...(part8.en || {}), ...(cardioI18n.en || {}) };
+// The flat English catalog already IS the merge these two part files needed.
+const EN = catalog('en');
+const cardioI18n = domainByLang('cardio');
 const tFallback = (key, english) => (EN[key] !== undefined ? EN[key] : english);
 
 // Every type the app can persist: the 4 modes x their environments.

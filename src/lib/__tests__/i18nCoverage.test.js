@@ -24,11 +24,11 @@ import path from 'path';
 
 const LANGS = ['en','es','fr','de','pt','it','ja','ko','zh','ar','hi','ru','tr','pl','nl'];
 const OTHERS = LANGS.filter(l => l !== 'en');
-const DIR = 'src/lib/i18n-langs';
+const DIR = 'src/locales';
 
 const keys = Object.fromEntries(LANGS.map(l => [
   l,
-  new Set([...fs.readFileSync(path.join(DIR, `${l}.js`), 'utf8').matchAll(/"([^"]+)":/g)].map(m => m[1])),
+  new Set(Object.keys(JSON.parse(fs.readFileSync(path.join(DIR, `${l}.json`), 'utf8')))),
 ]));
 const en = keys.en;
 
@@ -40,7 +40,7 @@ function collectCallSites() {
     for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
       const p = path.join(dir, e.name);
       if (e.isDirectory()) {
-        if (!/__tests__|node_modules|i18n-langs/.test(e.name)) walk(p);
+        if (!/__tests__|node_modules|locales/.test(e.name)) walk(p);
         continue;
       }
       if (!/\.jsx?$/.test(e.name) || /^i18n-/.test(e.name)) continue;
@@ -158,7 +158,7 @@ describe('partial-gap ratchet', () => {
     // all 15 languages. A whole new namespace, all English-only, so this is
     // the sanctioned bare-prefix case. Worth a translator rather than a
     // machine despite being seven short strings: the two frames need
-    // rewriting, not translating — see i18n-copy.js.
+    // rewriting, not translating — see `src/locales/*.json`.
     'copy.',
     // Body heat map — extracted from JSX 2026-08-10. Progress → Body had
     // ZERO translation calls: every string on the tab was an English
@@ -175,7 +175,7 @@ describe('partial-gap ratchet', () => {
     // grid of permanent zeros. Prose, and the micros one is a careful claim
     // about what the app does and does not record, so CLAUDE.md forbids
     // machine translation — see the translator note in
-    // src/lib/i18n-nutrition-untracked.js before touching either string.
+    // `src/locales/*.json` before touching either string.
     //
     // Scoped `nutrition.untracked.` and NOT a bare `nutrition.` — that would
     // swallow the whole nutrition namespace, which IS translated across all
@@ -187,7 +187,7 @@ describe('partial-gap ratchet', () => {
     // Those ten keys were already being called by `FoodSearchSheet` and
     // `LogMealForm` from 2026-08-11, with no part file behind them at all —
     // so all 15 languages already rendered the English fallback. Giving them
-    // a dictionary (src/lib/i18n-food-db.js) changes nothing on screen and
+    // a dictionary (`src/locales/*.json`) changes nothing on screen and
     // makes them translatable for the first time; the ratio moves, the user's
     // experience does not. Same case as `goals.badge.` below.
     //
@@ -230,7 +230,7 @@ describe('partial-gap ratchet', () => {
     // Injuries / Recovery Mode — new namespace, 2026-08-09. InjuryForm and
     // InjuryBanner had NO i18n at all: every body part, severity, button,
     // empty state and toast was hardcoded English in a 15-language app. The
-    // strings are now extracted to `i18n-injuries.js` and reached through
+    // strings are now extracted to `src/locales/*.json` and reached through
     // tFallback, so a missing locale renders correct English rather than a
     // key code — which is strictly better than where this started.
     //
@@ -249,7 +249,7 @@ describe('partial-gap ratchet', () => {
     // Progress page main view — new namespaces, 2026-08-10. The hero
     // carousel, timeframe stats card, last-workout callout, Top PRs rail,
     // tab bar and Weekly Review summary were ~55 hardcoded English literals
-    // in a 15-language app. Extracted to `i18n-progress.js` and reached
+    // in a 15-language app. Extracted to `src/locales/*.json` and reached
     // through tFallback, so a missing locale renders correct English.
     //
     // Listed as eleven narrow prefixes rather than a bare `progress.` for
@@ -291,7 +291,7 @@ describe('partial-gap ratchet', () => {
     // that predates this change, so the prefix cannot exempt a translated
     // key by accident. The keys are the metric switch, the three empty
     // states and the two filter chips — see the notes in
-    // `src/lib/i18n-progress.js`, which flag the two that need care
+    // `src/locales/*.json`, which flag the two that need care
     // (`trends.metric.e1rm` must keep its hedge; `trends.oneSession` must
     // not read as an error).
     //
@@ -301,7 +301,7 @@ describe('partial-gap ratchet', () => {
     // second vocabulary, so they stay counted.
     'trends.',
     // Muscle regions (2026-08-10) — the four buckets the validated colour
-    // encoding can carry, in `src/lib/i18n-regions.js`. A whole new
+    // encoding can carry, in `src/locales/*.json`. A whole new
     // namespace, all English-only, so this is the sanctioned bare-prefix
     // case: nothing under `regions.` predates it.
     //
@@ -379,7 +379,7 @@ describe('partial-gap ratchet', () => {
     'quest.crew_fuel_2.',
     // Settings moved out of the ProfileMenu dropdown onto its own route
     // (/settings + seven subpages), 2026-08-09. 67 keys in
-    // src/lib/i18n-settings-nav.js: the index rows and their one-line
+    // `src/locales/*.json`: the index rows and their one-line
     // hints, the group headings inside each subpage, and — this is most of
     // them — strings that were HARDCODED ENGLISH inline in the old
     // SettingsPanel and had no key at all ("Private profile", "Blocked
@@ -458,7 +458,7 @@ describe('partial-gap ratchet', () => {
     // file defined them, so they resolved to their inline fallback and were
     // invisible to both this audit and anyone doing a translation pass. The
     // copy on screen has not changed; the keys simply exist now, in
-    // `i18n-progress.js`. Listed individually because each namespace has
+    // `src/locales/*.json`. Listed individually because each namespace has
     // translated keys elsewhere that a bare prefix would wrongly exempt.
     'photos.saveError',
     'photos.closeCamera',
@@ -493,7 +493,7 @@ describe('partial-gap ratchet', () => {
     // that is finished. Same reasoning as the quest ids above.
     //
     // These five are only the keys added on 2026-08-11. The rest of
-    // i18n-cardio.js's English-only block — 20 more keys, the swim
+    // `src/locales/*.json`'s English-only block — 20 more keys, the swim
     // question/env labels and the utility-tile names — stays COUNTED, and
     // is why `ru` sits close to the floor. Exempting those is a coverage
     // policy call, not a side effect of a labels fix.
@@ -560,7 +560,7 @@ describe('partial-gap ratchet', () => {
     // several languages put the date before the verb, which "Joined" +
     // date cannot express.
     //
-    // It lives in `i18n-home-gym.js`, which is English-only behind its
+    // It lives in `src/locales/*.json`, which is English-only behind its
     // own TODO(i18n) asking for a native-speaker pass. Listed here rather
     // than adding `myGym.` wholesale: that would drop ~20 existing keys
     // out of the denominator and hide the gap this ratchet is measuring.
@@ -681,14 +681,8 @@ describe('the i18n-check allow-lists stay honest', () => {
     // weight that would silently suppress a future regression.
     const stale = [];
     for (const [lang, keys] of Object.entries(perLang)) {
-      const dict = Object.fromEntries(
-        [...fs.readFileSync(path.join(DIR, `${lang}.js`), 'utf8')
-          .matchAll(/"((?:[^"\\]|\\.)+)":\s*"((?:[^"\\]|\\.)*)"/g)].map(m => [m[1], m[2]])
-      );
-      const enDict = Object.fromEntries(
-        [...fs.readFileSync(path.join(DIR, 'en.js'), 'utf8')
-          .matchAll(/"((?:[^"\\]|\\.)+)":\s*"((?:[^"\\]|\\.)*)"/g)].map(m => [m[1], m[2]])
-      );
+      const dict = JSON.parse(fs.readFileSync(path.join(DIR, `${lang}.json`), 'utf8'));
+      const enDict = JSON.parse(fs.readFileSync(path.join(DIR, 'en.json'), 'utf8'));
       for (const k of keys) {
         if (dict[k] !== undefined && enDict[k] !== undefined && dict[k] !== enDict[k]) {
           stale.push(`${lang}:${k}`);

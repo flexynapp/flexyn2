@@ -8,7 +8,7 @@
 //   1. Add an entry below with a unique key (the `quest_id` written to DB)
 //   2. Make sure the action emitted by the relevant code path matches one of
 //      the listed actionType values — see src/lib/data/quests.js → ACTION_TYPES.
-//   3. Add `quest.<id>.label` / `quest.<id>.desc` to src/lib/i18n-gamification.js.
+//   3. Add `quest.<id>.label` / `quest.<id>.desc` to `src/locales/*.json`.
 //
 // Removing a quest:
 //   Don't delete the entry — set `enabled: false` instead so existing rows in

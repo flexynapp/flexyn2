@@ -4,15 +4,14 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "node scripts/split-i18n.mjs && vite",
-    "build": "node scripts/split-i18n.mjs && vite build",
-    "build:i18n": "node scripts/split-i18n.mjs",
+    "dev": "vite",
+    "build": "vite build",
     "analyze": "node scripts/analyze-bundle.mjs",
     "lint": "eslint . --quiet",
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc -p ./jsconfig.json",
     "preview": "vite preview",
-    "test": "node scripts/split-i18n.mjs && vitest run",
+    "test": "vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage"

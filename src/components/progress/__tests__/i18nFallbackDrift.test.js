@@ -26,17 +26,14 @@ import fs from 'fs';
 import path from 'path';
 
 const DIR = 'src/components/progress';
-const AGGREGATE = 'src/lib/i18n-langs/en.js';
+const CATALOG = 'src/locales/en.json';
 
 /** Turn a JS string literal's body into the string JS would produce. */
 const unescape = (s) => s.replace(/\\(n|t|r|\\|'|")/g, (_, c) => (
   { n: '\n', t: '\t', r: '\r', '\\': '\\', "'": "'", '"': '"' }[c]
 ));
 
-const en = Object.fromEntries(
-  [...fs.readFileSync(AGGREGATE, 'utf8').matchAll(/^\s*"([^"]+)":\s*("(?:\\.|[^"])*")/gm)]
-    .map(([, k, v]) => [k, JSON.parse(v)]),
-);
+const en = JSON.parse(fs.readFileSync(CATALOG, 'utf8'));
 
 /** [file, key, fallback] for every tFallback call with a literal fallback. */
 function callSites() {
@@ -64,7 +61,7 @@ function callSites() {
 // longer phrasing, and were kept: they describe exactly what the segment
 // holds, so a Spanish reader is correctly served. Deleting them would have
 // forced English on 14 languages to make a register consistent, which is a
-// worse screen for those users today. See the note in i18n-part4.js.
+// worse screen for those users today. See the note in `src/locales/*.json`.
 //
 // Add an entry only with that kind of reasoning written down. Shrink this
 // list; never grow it casually.

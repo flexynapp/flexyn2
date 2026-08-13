@@ -44,7 +44,7 @@ export const ACTIVITIES = [
   { mode: 'biking', labelKey: 'cardio.modes.biking', label: 'Biking', Icon: Bike,
     where: [{ env: 'outside', labelKey: 'cardio.env.outside', label: 'Outside' },
             { env: 'stationary', labelKey: 'cardio.env.stationary', label: 'Stationary' }] },
-  // Swim's keys are the English-only block in i18n-cardio.js — the whole
+  // Swim's keys are the English-only block in `src/locales/*.json` — the whole
   // swimming set is untranslated together, deliberately.
   { mode: 'swimming', labelKey: 'cardio.modes.swimming', label: 'Swimming', Icon: Waves,
     where: [{ env: 'openwater', labelKey: 'cardio.swim.openWater', label: 'Open Water' },

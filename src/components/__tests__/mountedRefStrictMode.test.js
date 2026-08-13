@@ -37,7 +37,7 @@ const SRC = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 function walk(dir, out = []) {
   for (const name of readdirSync(dir)) {
     const p = join(dir, name);
-    if (name === 'i18n-langs' || name === '__tests__') continue;
+    if (name === 'locales' || name === '__tests__') continue;
     if (statSync(p).isDirectory()) walk(p, out);
     else if (/\.jsx?$/.test(name)) out.push(p);
   }

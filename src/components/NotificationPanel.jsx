@@ -119,7 +119,7 @@ export default function NotificationPanel({ open, onClose }) {
         // badge stays lit and nothing explains why otherwise.
         // `notifications.markAllReadError` has been translated in all 15
         // since long before this surface could call it: its English half
-        // lives in i18n-batch2.js and the other 14 in i18n-notifications.js.
+        // lives in `src/locales/*.json` and the other 14 in `src/locales/*.json`.
         toast.error(tFallback('notifications.markAllReadError', 'Could not mark notifications as read.'));
         reportError(err, {
           feature: 'notifications.markAllRead', level: 'warning', userEmail: user?.email,

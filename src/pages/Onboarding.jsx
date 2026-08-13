@@ -2637,7 +2637,7 @@ const OB_SEVERITIES = [
 
 function InjuryHistoryStep({ step, total, value, onChange, onNext, onBack, onSkip }) {
   const { tFallback } = useLanguage();
-  // Muscle group labels come from `i18n-muscle-groups.js`, which already ships
+  // Muscle group labels come from `src/locales/*.json`, which already ships
   // all 15 languages for exactly these eight and was, until now, loaded into
   // every language bundle with nothing reading it. The stored value stays the
   // English name — `injury_logs.muscle_group` is matched by string downstream.
@@ -3115,7 +3115,7 @@ function RevealStep({ data, onNext, saving = false, previewRegimen = null, coach
               'onboarding.reveal.summary',
               // Plural — "for a {level} lifter" rendered "for a advanced
               // lifter" on the payoff screen. See the key in
-              // i18n-onboarding.js. (Onboarding polish #2)
+              // `src/locales/*.json`. (Onboarding polish #2)
               'A {weeks}-week {goal}{extra} block, dialled in for {level} lifters on {days} days.',
             ),
             {

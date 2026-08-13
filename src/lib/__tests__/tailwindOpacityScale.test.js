@@ -109,7 +109,7 @@ const ROOT = path.resolve(__dirname, '../..');   // src/
 
 function walk(dir, out = []) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-    if (entry.name === 'i18n-langs') continue;   // generated
+    if (entry.name === 'locales') continue;   // i18n catalogs, not code
     // Test files are skipped, and this one is why: the fixtures below
     // contain `bg-primary/18` deliberately, so scanning tests makes the
     // guard fail on its own evidence. Nothing in __tests__ ships as UI.

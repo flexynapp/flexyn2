@@ -1,0 +1,117 @@
+{
+  "$comment": "Translation POLICY, not translation data. Consumed by the i18n guard tests. Keep flat catalogs (<lang>.json) free of metadata so any TMS can read them directly.",
+  "englishOnly": {
+    "$comment": "Deliberately English in every language: full sentences where a machine translation is worse than an honest English fallback. A native reviewer must do these by hand. Guard tests assert NO language block defines them.",
+    "keys": [
+      "journal.attachCap",
+      "journal.attachDropped",
+      "journal.fromTodayHint",
+      "journal.historyEmptyBody",
+      "journal.historyFailedBody",
+      "journal.locked",
+      "journal.migrated",
+      "journal.moodOnly",
+      "journal.saveFailed",
+      "readiness.allLogged3",
+      "readiness.blend3",
+      "readiness.estimate",
+      "readiness.footer",
+      "readiness.logSub"
+    ]
+  },
+  "reviewPending": {
+    "$comment": "Domains whose non-English strings are machine-drafted and still awaiting native review.",
+    "journal": [
+      "es",
+      "fr",
+      "de",
+      "pt",
+      "it",
+      "ja",
+      "ko",
+      "zh",
+      "ar",
+      "hi",
+      "ru",
+      "tr",
+      "pl",
+      "nl"
+    ],
+    "notifications": [
+      "es",
+      "fr",
+      "de",
+      "pt",
+      "it",
+      "ja",
+      "ko",
+      "zh",
+      "ar",
+      "hi",
+      "ru",
+      "tr",
+      "pl",
+      "nl"
+    ],
+    "equipment": [
+      "es",
+      "fr",
+      "de",
+      "pt",
+      "it",
+      "ja",
+      "ko",
+      "zh",
+      "ar",
+      "hi",
+      "ru",
+      "tr",
+      "pl",
+      "nl"
+    ]
+  },
+  "machineTranslated": {
+    "$comment": "Keys drafted by machine, pending native review.",
+    "notifications": [
+      "notifications.clearAllConfirmDesc",
+      "notifications.clearAllConfirmHidden",
+      "notifications.clearAllConfirmTitle",
+      "notifications.empty.filteredDesc",
+      "notifications.empty.filteredTitle",
+      "notifications.group.earlier",
+      "notifications.loadOlder",
+      "notifications.more",
+      "notifications.newCount",
+      "notifications.settings",
+      "notifications.tab.competitive",
+      "notifications.tab.reminders"
+    ]
+  },
+  "domains": {
+    "$comment": "Key prefixes grouping the catalog into reviewable domains. Replaces the old one-part-file-per-domain layout: the guard tests slice the flat catalogs by these prefixes. A prefix list is also the natural unit to hand a translator.",
+    "journal": [
+      "journal.",
+      "mood.",
+      "readiness."
+    ],
+    "equipment": [
+      "gymEquip",
+      "implement."
+    ],
+    "notifications": [
+      "notifications."
+    ],
+    "cardio": [
+      "cardio."
+    ],
+    "bodyMap": [
+      "bodyMap."
+    ]
+  },
+  "englishOnlyDomains": {
+    "$comment": "Domains deliberately shipped English-only for now. bodyMap is the body heat map: the tab is English on every locale, tracked as known debt rather than machine-translated.",
+    "domains": [
+      "bodyMap"
+    ]
+  }
+}

@@ -165,7 +165,7 @@ export default function CardioSection({ onBack, deepLink = null, onDeepLinkConsu
     else if (view.mode === 'running') dispatchTitle(t('cardio.modes.running'));
     else if (view.mode === 'walking') dispatchTitle(t('cardio.modes.walking'));
     else if (view.mode === 'biking') dispatchTitle(t('cardio.modes.biking'));
-    // Was a hardcoded English 'Swimming' — the key exists now (i18n-cardio.js)
+    // Was a hardcoded English 'Swimming' — the key exists now (`src/locales/*.json`)
     // and the other three modes beside it in the same 2x2 grid are translated.
     else if (view.mode === 'swimming') dispatchTitle(tFallback('cardio.modes.swimming', 'Swimming'));
     else dispatchTitle(null);

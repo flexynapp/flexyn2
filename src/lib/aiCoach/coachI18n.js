@@ -34,7 +34,7 @@
 //
 // ── What this is NOT ─────────────────────────────────────────────────────
 //
-// It is not a translation store. Keys live in `src/lib/i18n-coach.js` like
+// It is not a translation store. Keys live in `src/locales/*.json` like
 // every other domain, English-only for now per the no-machine-translation
 // rule. This module only supplies the plumbing and the English fallback.
 

@@ -41,7 +41,7 @@ async function loadAllLanguages() {
       // — it's deduplicated by the module system so this is free after
       // the loadLanguage call cached the module.
       try {
-        const mod = await import(/* @vite-ignore */ `./i18n-langs/${code}.js`);
+        const mod = await import(/* @vite-ignore */ `../locales/${code}.json`);
         out[code] = mod.default || mod;
       } catch (err) {
         console.warn(`[i18n-check] Could not load "${code}":`, err);

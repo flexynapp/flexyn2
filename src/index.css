@@ -491,7 +491,7 @@
 
        "Long case" means longest goal title + an extra count + longest level
        label + two-digit weeks. English only — this copy has no translations
-       yet (see the head of i18n-onboarding.js), and a language that runs
+       yet (see the head of `src/locales/*.json`), and a language that runs
        longer would need this re-measured, not re-guessed. */
     --fluid-heading-sentence: clamp(24px, calc(7.75vw - 3.7px), 30px);
   }

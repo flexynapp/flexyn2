@@ -17,10 +17,9 @@ dist
 dist-ssr
 *.local
 
-# Generated per-language i18n aggregates (built by scripts/split-i18n.mjs
-# via the `dev` / `build` / `build:i18n` npm scripts). Source of truth
-# lives in src/lib/i18n-*.js part files; the aggregates are derived.
-src/lib/i18n-langs/
+# NOTE: src/locales/*.json are the i18n SOURCE OF TRUTH and are committed.
+# (They replaced the generated src/lib/i18n-langs/ aggregates, which used
+# to be ignored here. Do not re-add an ignore for the catalogs.)
 
 # Editor directories and files
 .vscode/*

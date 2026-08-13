@@ -18,10 +18,10 @@
 import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, cleanup, waitFor } from '@testing-library/react';
-import { cardioI18n } from '@/lib/i18n-cardio';
-import { translations_p8 as part8 } from '@/lib/i18n-part8';
+import { catalog } from '@/lib/__tests__/i18nCatalogs.fixture';
 
-const EN = { ...(part8.en || {}), ...(cardioI18n.en || {}) };
+// The flat English catalog already IS the merge these two part files needed.
+const EN = catalog('en');
 const t = (key) => (EN[key] !== undefined ? EN[key] : key);
 const tFallback = (key, english) => (EN[key] !== undefined ? EN[key] : english);
 

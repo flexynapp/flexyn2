@@ -102,9 +102,9 @@ describe('every string in the modal goes through the translation layer', () => {
    to `i18nFallbackDrift.test.js`, which runs it across every component in
    this directory against the MERGED English rather than one part file.
    That distinction stopped being academic the moment this modal started
-   reading `copy.noun.pr` out of i18n-copy.js: the narrow version reported
+   reading `copy.noun.pr` out of `src/locales/*.json`: the narrow version reported
    a correctly-defined key as missing, because it was only ever looking in
-   i18n-progress.js. */
+   `src/locales/*.json`. */
 
 describe('dates follow the language, not a hardcoded pattern', () => {
   it('does not import date-fns format here', () => {

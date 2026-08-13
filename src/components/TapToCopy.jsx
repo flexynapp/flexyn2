@@ -14,7 +14,7 @@
 // that don't expose navigator.clipboard (rare).
 //
 // `label` is the NOUN dropped into both strings — "Copied streak",
-// "Copy rank". Pass a translated one; `copy.noun.*` in i18n-copy.js
+// "Copy rank". Pass a translated one; `copy.noun.*` in `src/locales/*.json`
 // holds the set, and that file's header explains why the frames are
 // the delicate part (a participle that has to agree with a noun the
 // frame cannot see). Callers that pass nothing get `copy.noun.value`.

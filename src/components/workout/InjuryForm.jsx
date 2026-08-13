@@ -24,7 +24,7 @@ import { useDateFormatter } from '@/lib/intl';
 // matched by string downstream (getExcludedMuscleGroups lowercases it, the
 // workout generator tests group and part against it), so translating what we
 // write would silently stop injuries excluding anything. Only the LABEL is
-// localized, out of `i18n-muscle-groups.js`, which already carries these eight
+// localized, out of `src/locales/*.json`, which already carries these eight
 // in all 15 languages and is the same lookup the onboarding injury step uses.
 // The regions a user can report an injury in. 'Forearms' was added when the
 // grip and wrist work was retagged off 'Back': until then a wrist injury was
@@ -52,7 +52,7 @@ const SEVERITY_OPTIONS = [
   { id: 'serious',  label: 'Serious',  desc: 'Sharp pain — that area and what it helps move go',   color: 'text-destructive border-destructive/30 bg-destructive/10' },
 ];
 
-/** English label → the muscle-group key `i18n-muscle-groups.js` publishes. */
+/** English label → the muscle-group key `src/locales/*.json` publishes. */
 const muscleKey = (name) => String(name || '').toLowerCase();
 
 const STATUS_ICON = {

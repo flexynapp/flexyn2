@@ -45,7 +45,7 @@ function walk(dir, out = []) {
   for (const entry of readdirSync(dir)) {
     const p = join(dir, entry);
     if (statSync(p).isDirectory()) {
-      if (entry !== 'node_modules' && entry !== 'i18n-langs' && entry !== '__tests__') walk(p, out);
+      if (entry !== 'node_modules' && entry !== 'locales' && entry !== '__tests__') walk(p, out);
     } else if (/\.jsx?$/.test(entry) && !/^i18n-/.test(entry)) {
       out.push(p);
     }
@@ -59,10 +59,9 @@ const contextTFiles = walk(SRC).filter((f) => {
   return /useLanguage\(\)/.test(src) && /\bt\b\s*[,}]/.test(src);
 });
 
-const enKeys = (() => {
-  const raw = readFileSync(join(SRC, 'lib/i18n-langs/en.js'), 'utf8');
-  return new Set([...raw.matchAll(/^\s*"([^"]+)"\s*:/gm)].map((m) => m[1]));
-})();
+const enKeys = new Set(
+  Object.keys(JSON.parse(readFileSync(join(SRC, 'locales/en.json'), 'utf8'))),
+);
 
 const rel = (f) => f.slice(f.indexOf('/src/') + 1);
 

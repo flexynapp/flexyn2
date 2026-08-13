@@ -2330,7 +2330,7 @@ export default function Workout() {
   // enough — the eyebrow said nothing the screen below it did not. The one
   // survivor is CARDIO, and only once an activity is chosen, where it
   // qualifies a title that would otherwise just read "Running".
-  // `pageHeader.kicker.workout` is left in i18n-pageheader.js, translated and
+  // `pageHeader.kicker.workout` is left in `src/locales/*.json`, translated and
   // now unused; it is a generic key worth keeping over a 15-language delete.
   //
   // The store gets no header at all — RegimenStorePage draws its own

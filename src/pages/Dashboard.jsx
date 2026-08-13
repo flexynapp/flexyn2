@@ -2151,7 +2151,7 @@ export default function Dashboard() {
           for collapse, destructive for hide. Read them here, recognise
           them up there.
 
-          The six strings now live in i18n-dashboard-redesign.js across all
+          The six strings now live in `src/locales/*.json` across all
           15 languages, taken as a set so the part file keeps its "no English
           fallbacks" contract. The inline English stays as the tFallback
           second argument per the app-wide convention — it is the fallback,

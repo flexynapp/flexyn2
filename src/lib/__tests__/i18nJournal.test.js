@@ -1,4 +1,5 @@
-// Structural tests for src/lib/i18n-journal.js.
+// Structural tests for the `journal` i18n domain (src/locales/*.json,
+// sliced by the prefixes in src/locales/_meta.json).
 //
 // These check SHAPE, not translation quality — no test can tell you
 // whether the Korean reads naturally. What they can do is stop the
@@ -13,7 +14,12 @@
 // language and listed in ENGLISH_ONLY. The tests enforce both halves.
 
 import { describe, it, expect } from 'vitest';
-import { journalI18n, REVIEW_PENDING, ENGLISH_ONLY } from '../i18n-journal';
+import { domainByLang, meta } from './i18nCatalogs.fixture';
+
+const journalI18n = domainByLang('journal');
+const { englishOnly, reviewPending } = meta();
+const ENGLISH_ONLY = englishOnly.keys;
+const REVIEW_PENDING = reviewPending.journal;
 
 const LANGS = ['en','es','fr','de','pt','it','ja','ko','zh','ar','hi','ru','tr','pl','nl'];
 const OTHERS = LANGS.filter((l) => l !== 'en');

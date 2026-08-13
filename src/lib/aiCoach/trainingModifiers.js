@@ -37,7 +37,7 @@ import { asT } from './coachI18n';
 import { formatList } from '@/lib/intlFormat';
 
 // Every note below carries `noteKey` beside its English. The English stays
-// in the table rather than moving to i18n-coach.js alone, because it is the
+// in the table rather than moving to `src/locales/*.json` alone, because it is the
 // tFallback fallback — a locale with no coach translations must render this
 // exact sentence, and keeping it at the point of use is what stops the two
 // drifting. See coachI18n.js for why `t` arrives as an argument.

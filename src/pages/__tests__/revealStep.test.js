@@ -19,7 +19,12 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 
 const SOURCE = readFileSync('src/pages/Onboarding.jsx', 'utf8');
-const I18N = readFileSync('src/lib/i18n-onboarding.js', 'utf8');
+// Assert against the PARSED English catalog, not raw source text. The old
+// form grepped i18n-onboarding.js for `'key': 'value'` and so was coupled to
+// that file's quote style; a key lookup says what these tests actually mean.
+const EN = JSON.parse(readFileSync('src/locales/en.json', 'utf8'));
+const hasKey = (k) => Object.prototype.hasOwnProperty.call(EN, k);
+const keysUnder = (p) => Object.keys(EN).filter((k) => k.startsWith(p));
 const CSS = readFileSync('src/index.css', 'utf8');
 
 function revealStep() {
@@ -35,7 +40,7 @@ describe('reveal step', () => {
     // A hardcoded percentage is not a measurement. Nothing on this step ever
     // computed it, and it read as the loudest thing on the page.
     expect(revealStep()).not.toContain('reveal.ready');
-    expect(I18N).not.toContain("'onboarding.reveal.ready'");
+    expect(hasKey('onboarding.reveal.ready')).toBe(false);
   });
 
   it('has no "● READY" badge', () => {
@@ -44,18 +49,18 @@ describe('reveal step', () => {
     const step = revealStep();
     expect(step).not.toContain('readyBadge');
     expect(step).not.toContain('text-emerald-500');
-    expect(I18N).not.toContain("'onboarding.reveal.readyBadge'");
+    expect(hasKey('onboarding.reveal.readyBadge')).toBe(false);
   });
 
   it('reduces planMeta to where the plan went', () => {
     // Three unrelated facts in 12px: the day count (already in the heading),
     // "tap a section to explore" (describing a chevron the user can see), and
     // the one thing in the entire flow that says where the plan was saved.
-    const planMeta = I18N.match(/'onboarding\.reveal\.planMeta':\s*'([^']*)'/);
-    expect(planMeta).not.toBeNull();
-    expect(planMeta[1]).not.toContain('days/week');
-    expect(planMeta[1]).not.toContain('{days}');
-    expect(planMeta[1]).toContain('Workout');
+    const planMeta = EN['onboarding.reveal.planMeta'];
+    expect(planMeta).toBeTruthy();
+    expect(planMeta).not.toContain('days/week');
+    expect(planMeta).not.toContain('{days}');
+    expect(planMeta).toContain('Workout');
     // The {days} param went with it — a param the string no longer names.
     expect(revealStep()).not.toContain('{ days: daysCount || ');
   });
@@ -103,8 +108,8 @@ describe('reveal step', () => {
     const step = revealStep();
     expect(step).not.toContain('reveal.welcome');
     expect(step).not.toContain('reveal.defaultName');
-    expect(I18N).not.toContain("'onboarding.reveal.welcome'");
-    expect(I18N).not.toContain("'onboarding.reveal.defaultName'");
+    expect(hasKey('onboarding.reveal.welcome')).toBe(false);
+    expect(hasKey('onboarding.reveal.defaultName')).toBe(false);
     // The heading is the first thing under the logo/coach bar.
     expect(step.indexOf('<motion.h1')).toBeLessThan(step.indexOf('<StarterPlanCoachCard'));
     expect(step.indexOf('<motion.h1')).toBeGreaterThan(step.indexOf('<RevealCoachButton'));
@@ -120,8 +125,8 @@ describe('reveal step', () => {
     expect(step).not.toContain('reveal.starterPlan');
     expect(step).not.toContain('reveal.planName');
     expect(step).not.toContain('previewRegimen?.name');
-    expect(I18N).not.toContain("'onboarding.reveal.starterPlan'");
-    expect(I18N).not.toContain("'onboarding.reveal.planName'");
+    expect(hasKey('onboarding.reveal.starterPlan')).toBe(false);
+    expect(hasKey('onboarding.reveal.planName')).toBe(false);
     // planMeta is the block's only line of copy, and it sits directly on the
     // sections rather than under a title.
     const block = step.slice(step.indexOf('previewExercises.length > 0'));

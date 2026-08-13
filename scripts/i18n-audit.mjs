@@ -7,9 +7,11 @@
 //                                          but missing in others (the bugs)
 //   node scripts/i18n-audit.mjs --lang ja  one language's missing keys
 //
-// Reads the BUILT aggregates in src/lib/i18n-langs/, which is what the app
-// actually loads — run `node scripts/split-i18n.mjs` first if part files
-// changed. Reading the part files directly would miss the merge step.
+// Reads the catalogs in src/locales/, which ARE the source of truth and what
+// the app actually loads. There is no build step to run first — the old
+// part-file layout needed one, because a key's English half and its
+// translations could live in different files and only the splitter merged
+// them. One flat catalog per language retires that.
 //
 // ── Related: src/lib/i18n-check.js ───────────────────────────────────
 // A DEV-only runtime checker already exists and covers the same two
@@ -38,27 +40,23 @@ import path from 'path';
 
 const LANGS = ['en','es','fr','de','pt','it','ja','ko','zh','ar','hi','ru','tr','pl','nl'];
 const OTHERS = LANGS.filter(l => l !== 'en');
-const DIR = 'src/lib/i18n-langs';
+const DIR = 'src/locales';
 
 const args = process.argv.slice(2);
 const wantPartial = args.includes('--partial');
 const langArg = args.includes('--lang') ? args[args.indexOf('--lang') + 1] : null;
 
 function loadEntries(lang) {
-  const file = path.join(DIR, `${lang}.js`);
-  const o = {};
-  for (const m of fs.readFileSync(file, 'utf8')
-      .matchAll(/"((?:[^"\\]|\\.)+)":\s*"((?:[^"\\]|\\.)*)"/g)) o[m[1]] = m[2];
-  return o;
+  return JSON.parse(fs.readFileSync(path.join(DIR, `${lang}.json`), 'utf8'));
 }
 
 function loadKeys(lang) {
-  const file = path.join(DIR, `${lang}.js`);
+  const file = path.join(DIR, `${lang}.json`);
   if (!fs.existsSync(file)) {
-    console.error(`missing aggregate: ${file} — run scripts/split-i18n.mjs`);
+    console.error(`missing catalog: ${file}`);
     process.exit(1);
   }
-  return new Set([...fs.readFileSync(file, 'utf8').matchAll(/"([^"]+)":/g)].map(m => m[1]));
+  return new Set(Object.keys(JSON.parse(fs.readFileSync(file, 'utf8'))));
 }
 
 const keys = Object.fromEntries(LANGS.map(l => [l, loadKeys(l)]));
@@ -73,7 +71,7 @@ const safeFallback = new Set();
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
     const p = path.join(dir, e.name);
     if (e.isDirectory()) {
-      if (!/__tests__|node_modules|i18n-langs/.test(e.name)) walk(p);
+      if (!/__tests__|node_modules|locales/.test(e.name)) walk(p);
       continue;
     }
     if (!/\.jsx?$/.test(e.name) || /^i18n-/.test(e.name)) continue;

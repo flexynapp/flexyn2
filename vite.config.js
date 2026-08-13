@@ -190,11 +190,11 @@ export default defineConfig({
         //
         // Order matters: more specific patterns first, generic last.
         manualChunks: (id) => {
-          // Per-language i18n aggregates (src/lib/i18n-langs/*.js) MUST stay
-          // as separate chunks so each language is its own dynamic-import
+          // Per-language i18n catalogs (src/locales/*.json) MUST stay as
+          // separate chunks so each language is its own dynamic-import
           // target. Return undefined here so Vite's default code-splitting
           // (driven by import.meta.glob in i18n.js) handles them.
-          if (id.includes('/src/lib/i18n-langs/')) return undefined;
+          if (id.includes('/src/locales/')) return undefined;
           // The i18n.js root module is tiny now (~2 KB of loader logic);
           // let it fall into the entry chunk.
 

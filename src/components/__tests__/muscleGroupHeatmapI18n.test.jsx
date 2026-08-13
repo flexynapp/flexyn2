@@ -48,7 +48,9 @@ vi.mock('@/lib/LanguageContext', () => ({
 }));
 
 import MuscleGroupHeatmap from '@/components/progress/MuscleGroupHeatmap';
-import { bodyMapTranslations } from '@/lib/i18n-body-map';
+import { domainByLang } from '@/lib/__tests__/i18nCatalogs.fixture';
+
+const bodyMapTranslations = domainByLang('bodyMap');
 
 const EN = bodyMapTranslations.en;
 const day = (n) => new Date(Date.now() - n * 86400000).toISOString();
@@ -138,12 +140,12 @@ describe('the key list and the call sites agree', () => {
     .replace(/^\s*\/\/.*$/gm, '');
   const used = new Set([...src.matchAll(/'(bodyMap\.[\w.]+)'/g)].map((m) => m[1]));
 
-  it('every key the component asks for exists in i18n-body-map.js', () => {
+  it('every key the component asks for exists in `src/locales/*.json`', () => {
     const missing = [...used].filter((k) => !(k in EN));
     expect(missing, `keys with no English: ${missing.join(', ')}`).toEqual([]);
   });
 
-  it('every key in i18n-body-map.js is asked for', () => {
+  it('every key in `src/locales/*.json` is asked for', () => {
     const orphans = Object.keys(EN).filter((k) => !used.has(k));
     expect(orphans, `unused keys: ${orphans.join(', ')}`).toEqual([]);
   });

@@ -13,7 +13,12 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 
 const SOURCE = readFileSync('src/pages/Onboarding.jsx', 'utf8');
-const I18N = readFileSync('src/lib/i18n-onboarding.js', 'utf8');
+// Assert against the PARSED English catalog, not raw source text. The old
+// form grepped i18n-onboarding.js for `'key': 'value'` and so was coupled to
+// that file's quote style; a key lookup says what these tests actually mean.
+const EN = JSON.parse(readFileSync('src/locales/en.json', 'utf8'));
+const hasKey = (k) => Object.prototype.hasOwnProperty.call(EN, k);
+const keysUnder = (p) => Object.keys(EN).filter((k) => k.startsWith(p));
 
 // Strips `/* … */`, `{/* … */}` and `// …` so an assertion can ask about the
 // code rather than about the prose explaining it. The reasoning in this
@@ -57,7 +62,7 @@ describe('about step — sex is required', () => {
     expect(step).toContain('onboarding.about.ctaNoSex');
     expect(step).toContain('onboarding.about.ctaNoUsername');
     expect(step).toContain('onboarding.about.ctaBadUsername');
-    expect(I18N).toContain("'onboarding.about.ctaNoSex'");
+    expect(hasKey('onboarding.about.ctaNoSex')).toBe(true);
   });
 
   it('separates "Other" from "Prefer not to say"', () => {
@@ -68,8 +73,8 @@ describe('about step — sex is required', () => {
     const step = aboutStep();
     expect(step).toContain('onboarding.about.sexOther');
     expect(step).toContain('onboarding.about.sexSkip');
-    expect(I18N).toContain("'onboarding.about.sexOther': 'Other'");
-    expect(I18N).toContain("'onboarding.about.sexSkip': 'Prefer not to say'");
+    expect(EN['onboarding.about.sexOther']).toBe('Other');
+    expect(EN['onboarding.about.sexSkip']).toBe('Prefer not to say');
   });
 
   it('does not look the labels up through a key that shadows them', () => {
@@ -80,7 +85,7 @@ describe('about step — sex is required', () => {
     const step = aboutStep();
     expect(step).not.toMatch(/tFallback\(`onboarding\.about\.sex\.\$\{o\.id\}`/);
     for (const dead of ['sex.other', 'sex.male', 'sex.female']) {
-      expect(I18N).not.toContain(`'onboarding.about.${dead}'`);
+      expect(hasKey(`onboarding.about.${dead}`)).toBe(false);
     }
   });
 
@@ -110,7 +115,7 @@ describe('about step — sex is required', () => {
       expect(stripComments(step)).not.toContain(tag);
     }
     // And its 12 i18n keys went with it rather than lingering as dead copy.
-    expect(I18N).not.toContain('onboarding.stage.');
+    expect(keysUnder('onboarding.stage.')).toEqual([]);
   });
 
   it('leaves every downstream consumer on its neutral branch', () => {

@@ -50,7 +50,7 @@ function sourceFiles(dir, out = []) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     const p = path.join(dir, entry.name);
     if (entry.isDirectory()) {
-      if (!/^(__tests__|i18n-langs|test)$/.test(entry.name)) sourceFiles(p, out);
+      if (!/^(__tests__|locales|test)$/.test(entry.name)) sourceFiles(p, out);
     } else if (/\.jsx$/.test(entry.name)) {
       out.push(p);
     }

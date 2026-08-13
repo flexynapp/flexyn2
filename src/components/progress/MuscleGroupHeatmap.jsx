@@ -44,7 +44,7 @@ Object.entries(COARSE_TO_FINE).forEach(([cg, fs]) => fs.forEach((f) => { PARENT[
    `muscleGroups.*` — eight other surfaces read them there — so this maps to
    that namespace rather than restating it. `lowerback` is the only one with
    no key anywhere, and it is the ONLY string this tab adds to the app's
-   muscle vocabulary; see i18n-body-map.js for how to retire it. */
+   muscle vocabulary; see `src/locales/*.json` for how to retire it. */
 const MUSCLE_KEY = {
   chest: 'muscleGroups.chest', shoulders: 'muscleGroups.shoulders',
   triceps: 'muscleGroups.triceps', biceps: 'muscleGroups.biceps',
@@ -54,7 +54,7 @@ const MUSCLE_KEY = {
   glutes: 'muscleGroups.glutes', quads: 'muscleGroups.quads',
   hamstrings: 'muscleGroups.hamstrings', calves: 'muscleGroups.calves',
 };
-/* Push and Pull come from `regions.*` (i18n-regions.js), which named them
+/* Push and Pull come from `regions.*` (`src/locales/*.json`), which named them
    for the muscle-group colour encoding. Legs and Core keep their
    `muscleGroups.*` keys — those already ship in 15 languages, where
    `regions.*` is English-only — and `regions.other` is deliberately NOT

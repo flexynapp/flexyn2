@@ -1,4 +1,5 @@
-// Structural tests for src/lib/i18n-notifications.js.
+// Structural tests for the `notifications` i18n domain (src/locales/*.json,
+// sliced by the prefixes in src/locales/_meta.json).
 //
 // These check SHAPE, not translation quality — no test can tell you whether
 // the Korean reads naturally. What they CAN stop are the silent failures,
@@ -15,15 +16,20 @@
 import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import {
-  notificationsI18n as I18N, MACHINE_TRANSLATED, REVIEW_PENDING,
-} from '../i18n-notifications';
+import { domainByLang, meta, keySet } from './i18nCatalogs.fixture';
+
+const I18N = domainByLang('notifications');
+const { machineTranslated, reviewPending } = meta();
+const MACHINE_TRANSLATED = machineTranslated.notifications;
+const REVIEW_PENDING = reviewPending.notifications;
 
 const LANGS = ['en','es','fr','de','pt','it','ja','ko','zh','ar','hi','ru','tr','pl','nl'];
 const OTHERS = LANGS.filter(l => l !== 'en');
 const enKeys = Object.keys(I18N.en).sort();
-const SRC = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
+// cwd-relative, like every other catalog test. An `import.meta` here trips
+// Vite's transform ("Cannot split a chunk that has already been edited")
+// now that this file imports the shared catalog fixture statically.
+const SRC = path.resolve(process.cwd(), 'src');
 
 describe('coverage', () => {
   it('ships all 15 supported languages', () => {
@@ -35,15 +41,18 @@ describe('coverage', () => {
     expect(missing, `${lang} is missing: ${missing.join(', ')}`).toEqual([]);
   });
 
-  it.each(OTHERS)('%s defines nothing whose English half is missing entirely', async (lang) => {
-    // A non-English block MAY carry a key this file's `en` block does not:
-    // `notifications.markAllReadError` has its English in i18n-batch2.js,
-    // and the splitter merges part files before anything reads them. What
-    // must never happen is a key with NO English anywhere — `getTranslation`
-    // ends in `return enVal ?? key`, so an English speaker would be shown
-    // the raw key path.
-    const { default: parts } = await import('./i18nAllParts.fixture.js');
-    const extra = Object.keys(I18N[lang]).filter(k => !(k in I18N.en) && !parts.en.has(k));
+  it.each(OTHERS)('%s defines nothing whose English half is missing entirely', (lang) => {
+    // What must never happen is a key with NO English at all —
+    // `getTranslation` ends in `return enVal ?? key`, so an English speaker
+    // would be shown the raw key path.
+    //
+    // This used to need the union of every part file, because a key's English
+    // half could sit in a different file from its translations
+    // (`notifications.markAllReadError` had English in i18n-batch2.js). One
+    // flat catalog per language retires that whole class of split: en.json
+    // either has the key or nothing does.
+    const en = keySet('en');
+    const extra = Object.keys(I18N[lang]).filter(k => !en.has(k));
     expect(extra, `${lang} has keys with no English anywhere: ${extra.join(', ')}`).toEqual([]);
   });
 
@@ -159,11 +168,11 @@ describe('every key the UI asks for is defined here', () => {
     'lib/notificationCatalog.js',
   ];
 
-  it('no call site references a notifications.* key the corpus lacks', async () => {
-    // Checked against the UNION of every part file, not this one: a key's
-    // English half may legitimately live elsewhere (markAllReadError is in
-    // i18n-batch2.js) and the splitter merges them before anything reads.
-    const { default: parts } = await import('./i18nAllParts.fixture.js');
+  it('no call site references a notifications.* key the corpus lacks', () => {
+    // Checked against the whole English catalog, not just this domain slice:
+    // a call site may reference a key that sorts outside the `notifications.`
+    // prefix, and en.json is the single place English can live.
+    const parts = { en: keySet('en') };
     const missing = [];
     for (const rel of FILES) {
       const full = path.join(SRC, rel);

@@ -1,4 +1,5 @@
-// Structural tests for src/lib/i18n-equipment.js.
+// Structural tests for the `equipment` i18n domain (src/locales/*.json,
+// sliced by the prefixes in src/locales/_meta.json).
 //
 // These check SHAPE, not translation quality — no test can tell you
 // whether the Korean reads naturally. What they can do is stop the
@@ -7,7 +8,10 @@
 // in English and mistaken for translated.
 
 import { describe, it, expect } from 'vitest';
-import { equipmentI18n, REVIEW_PENDING } from '../i18n-equipment';
+import { domainByLang, meta } from './i18nCatalogs.fixture';
+
+const equipmentI18n = domainByLang('equipment');
+const REVIEW_PENDING = meta().reviewPending.equipment;
 
 const LANGS = ['en','es','fr','de','pt','it','ja','ko','zh','ar','hi','ru','tr','pl','nl'];
 const enKeys = Object.keys(equipmentI18n.en).sort();

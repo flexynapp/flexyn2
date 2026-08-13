@@ -23,7 +23,7 @@
  * nearly happened to #7 and #23.
  *
  *   #7  fixed — `useEffect([weightUnit, userId])`, see the comment there.
- *   #22 fixed — 92 keys in `i18n-insights.js`, every string via tFallback.
+ *   #22 fixed — 92 keys in `src/locales/*.json`, every string via tFallback.
  *   #23 fixed — `directionMismatch`, see the comment there.
  *   #24 OBSOLETE — the arm-asymmetry block it wanted a `created_at`
  *       tiebreak on is gone; see below. There is nothing left to tiebreak.

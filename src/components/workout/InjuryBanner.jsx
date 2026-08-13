@@ -16,7 +16,7 @@ import { reportError } from '@/lib/reportError';
 import * as injuries from '@/lib/data/injuries';
 import { useLanguage } from '@/lib/LanguageContext';
 
-/** English label -> the muscle-group key `i18n-muscle-groups.js` publishes. */
+/** English label -> the muscle-group key `src/locales/*.json` publishes. */
 const muscleKey = (name) => String(name || '').toLowerCase();
 
 // The check-in. Reached by an explicit recovery date when one exists, and by
