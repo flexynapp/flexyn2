@@ -88,6 +88,61 @@ export async function loadLanguage(lang) {
   }
 }
 
+// ────────────────────────────────────────────────────────────────────────────
+// PSEUDOLOCALIZATION (dev only)
+//
+// The coverage audit compares catalogs against each other, and
+// scripts/i18n-hardcoded.mjs greps for literals that never reached one. Both
+// are static, and both are blind to the same thing: a string assembled at
+// runtime, read out of a data file, or produced by a helper that no regex
+// associates with UI. Pseudolocalization catches those by construction —
+// every string that DID come through `t()` is visibly mangled, so anything
+// still rendering in plain English did not.
+//
+// Turn it on in dev with:  localStorage.setItem('fn-pseudo', '1')  and reload.
+//
+// The transform does three jobs at once:
+//   • accents every letter    — proves the string went through t()
+//   • wraps in ⟦…⟧            — shows where the string starts and ends, which
+//                               makes concatenation ("⟦Save⟧⟦ changes⟧") and
+//                               truncation ("⟦Notificatio…") obvious
+//   • pads Latin text by ~35% — German and Russian run long, and this is the
+//                               cheapest way to find a button that cannot
+//                               hold its own label before a translator does
+//
+// Placeholders ({name}, {count}) are left alone — mangling them would break
+// interpolation and hide real bugs behind fake ones.
+const PSEUDO_MAP = {
+  a:'á',b:'ƀ',c:'ç',d:'ð',e:'é',f:'ƒ',g:'ĝ',h:'ĥ',i:'í',j:'ĵ',k:'ķ',l:'ł',m:'ɱ',
+  n:'ñ',o:'ó',p:'ƥ',q:'ɋ',r:'ř',s:'ş',t:'ţ',u:'ú',v:'ṽ',w:'ŵ',x:'ẋ',y:'ý',z:'ž',
+  A:'Á',B:'Ɓ',C:'Ç',D:'Ð',E:'É',F:'Ƒ',G:'Ĝ',H:'Ĥ',I:'Í',J:'Ĵ',K:'Ķ',L:'Ł',M:'Ϻ',
+  N:'Ñ',O:'Ó',P:'Ƥ',Q:'Ɋ',R:'Ř',S:'Ş',T:'Ţ',U:'Ú',V:'Ṽ',W:'Ŵ',X:'Ẋ',Y:'Ý',Z:'Ž',
+};
+
+let _pseudoOn = null;
+function pseudoEnabled() {
+  if (_pseudoOn === null) {
+    try { _pseudoOn = import.meta.env.DEV && localStorage.getItem('fn-pseudo') === '1'; }
+    catch { _pseudoOn = false; }
+  }
+  return _pseudoOn;
+}
+
+/** Exported for tests; `getTranslation` applies it automatically in dev. */
+export function pseudoize(str) {
+  if (typeof str !== 'string' || !str) return str;
+  // Split on {placeholders} so their contents survive untouched.
+  const parts = str.split(/(\{[a-zA-Z0-9_]+\})/g);
+  let letters = 0;
+  const mangled = parts.map((p) => {
+    if (/^\{[a-zA-Z0-9_]+\}$/.test(p)) return p;
+    return p.replace(/[A-Za-z]/g, (c) => { letters++; return PSEUDO_MAP[c] || c; });
+  }).join('');
+  // ~35% expansion, matched to how far German/Russian overrun English.
+  const pad = '·'.repeat(Math.ceil(letters * 0.35));
+  return `⟦${mangled}${pad}⟧`;
+}
+
 /**
  * Synchronous translation lookup. Returns the translated string for `key`
  * in `lang`, falls back to English if missing, and finally returns the
@@ -99,6 +154,12 @@ export async function loadLanguage(lang) {
  * both resolve.
  */
 export function getTranslation(lang, key) {
+  if (pseudoEnabled()) {
+    const v = _translations[lang]?.[key] ?? _translations['en']?.[key];
+    // A missing key stays a raw key path — pseudoizing it would disguise the
+    // one failure this function already surfaces.
+    return v == null ? key : pseudoize(v);
+  }
   const langVal = _translations[lang]?.[key];
   if (langVal != null) return langVal;
   const enVal = _translations['en']?.[key];
