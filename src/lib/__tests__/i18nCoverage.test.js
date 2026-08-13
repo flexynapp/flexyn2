@@ -86,7 +86,7 @@ describe('every language file is loadable and non-trivial', () => {
   });
 });
 
-describe('partial-gap ratchet', () => {
+describe('coverage does not go backwards', () => {
   // Keys translated in SOME languages but not others. Unlike an
   // English-only feature (missing everywhere, usually deliberate), these
   // are oversights. The ceiling only ever moves down — lower it when you
@@ -108,512 +108,66 @@ describe('partial-gap ratchet', () => {
     ).toBeLessThanOrEqual(CEILING);
   });
 
-  // Namespaces shipped English-only ON PURPOSE, awaiting a native-speaker
-  // pass. Excluded from the denominator below — NOT from the app, where they
-  // render English in every locale exactly as they did when the copy was
-  // hardcoded in JSX.
+  // ── NO-REGRESSION GUARD ────────────────────────────────────────────────
   //
-  // Why this list exists at all: the floor used to count TOTAL coverage, so
-  // it fell whenever `en` grew — including when English-only strings were
-  // extracted OUT of JSX into keys. That penalised the workflow CLAUDE.md
-  // prescribes ("ship English-only with a TODO(i18n)") and rewarded leaving
-  // copy hardcoded, where no audit could see it at all. The cardio
-  // extraction cost a notch (0.80 → 0.79) for 18 keys; onboarding's 237 NEW
-  // ones would have cost ten points, for a change that took the flow from
-  // untranslatable to translatable and left not one user-visible string
-  // different.
+  // Replaces a 0.79 floor over a ratio, and the 431-line AWAITING_TRANSLATION
+  // list that floor needed in order to stay meaningful.
   //
-  // So the metric now asks the question it always meant to: of the copy we
-  // have COMMITTED to translating, how much is done? Moving a namespace in
-  // here is a deliberate act with a name attached; it is not the same as
-  // lowering the floor for everybody.
+  // That list existed for a real reason, stated in its own header: the ratio
+  // fell whenever `en` grew, so extracting a hardcoded English string INTO a
+  // key read as a regression — penalising the one workflow that makes a
+  // string translatable at all, and rewarding leaving copy hardcoded in JSX
+  // where no audit can see it. Every exempt prefix was a hand-written apology
+  // for that, carrying a justification comment and owing a later deletion.
   //
-  // Burn-down rules:
-  //   • Add a prefix ONLY when the whole namespace is new and English-only.
-  //   • DELETE the prefix the moment its translations land — the guard below
-  //     fails on a stale entry, so this list cannot quietly become permanent.
-  //   • A partial translation does not belong here. Finish it or leave it
-  //     counted.
-  const AWAITING_TRANSLATION = [
-    // Onboarding flow — extracted from JSX 2026-08-05 (audit 18 #6). The
-    // first thing every new user reads, so CLAUDE.md forbids machine
-    // translation outright. Needs a native pass in 14 languages.
-    //
-    // This prefix exempts the WHOLE namespace, which is **275 keys** today.
-    // The "237" in the preamble above is a different number and is correct:
-    // that extraction ADDED 237 (87 → 324 in one commit, measured against
-    // dfc41585^), which is the cost the old total-coverage metric would have
-    // charged it. The namespace has since been trimmed 324 → 275. Two counts,
-    // both right — don't reconcile them by editing one to match the other.
-    //
-    // WHEN THIS PREFIX GOES, RAISE `FLOOR` TO 0.80 (kegan, 2026-08-10).
-    // Deleting it here is already forced — the stale-prefix guard above
-    // fails otherwise — so this note sits where that edit has to happen
-    // rather than somewhere it would be read too late. The measurement is
-    // in the FLOOR comment below; you do not need to re-derive it.
-    'onboarding.',
-    // Tap-to-copy — extracted from JSX 2026-08-10. `TapToCopy` built both
-    // its toast and its aria-label by interpolating an English noun into an
-    // English frame, so six screens' worth of copy feedback was English in
-    // all 15 languages. A whole new namespace, all English-only, so this is
-    // the sanctioned bare-prefix case. Worth a translator rather than a
-    // machine despite being seven short strings: the two frames need
-    // rewriting, not translating — see `src/locales/*.json`.
-    'copy.',
-    // Body heat map — extracted from JSX 2026-08-10. Progress → Body had
-    // ZERO translation calls: every string on the tab was an English
-    // literal, so all 15 languages already read English there. The keys
-    // change nothing on screen and make the tab translatable for the first
-    // time. Prose (the three headlines and their body copy), so CLAUDE.md
-    // forbids machine translation; needs a native pass in 14 languages.
-    //
-    // Scoped `bodyMap.` and NOT `body.` — `body.` would swallow the
-    // body-metrics namespace next door, which is translated.
-    'bodyMap.',
-    // Nutrition "nothing here" lines — new namespace, 2026-08-11. The two
-    // empty-state sentences the Macros and Vitamins cards show instead of a
-    // grid of permanent zeros. Prose, and the micros one is a careful claim
-    // about what the app does and does not record, so CLAUDE.md forbids
-    // machine translation — see the translator note in
-    // `src/locales/*.json` before touching either string.
-    //
-    // Scoped `nutrition.untracked.` and NOT a bare `nutrition.` — that would
-    // swallow the whole nutrition namespace, which IS translated across all
-    // 15 languages.
-    'nutrition.untracked.',
-    // Food database — Search and the two barcode sheets, 2026-08-12.
-    //
-    // `nutrition.search.` is NOT new debt and should not be read as such.
-    // Those ten keys were already being called by `FoodSearchSheet` and
-    // `LogMealForm` from 2026-08-11, with no part file behind them at all —
-    // so all 15 languages already rendered the English fallback. Giving them
-    // a dictionary (`src/locales/*.json`) changes nothing on screen and
-    // makes them translatable for the first time; the ratio moves, the user's
-    // experience does not. Same case as `goals.badge.` below.
-    //
-    // `nutrition.foodDb.` IS new copy. Most of it replaces hardcoded English
-    // literals in `BarcodeNotFoundModal`, which had 30 of them and two
-    // `tFallback` calls — the half-converted state CLAUDE.md says is worse
-    // than either extreme. Some of it also corrects a claim the old copy made
-    // ("we'll save it for everyone" over a queue that files a request), so it
-    // must not be machine-translated: read the translator note at the head of
-    // the part file first.
-    //
-    // Both scoped narrowly for the same reason as `nutrition.untracked.` —
-    // a bare `nutrition.` would swallow the translated namespace next door.
-    'nutrition.search.',
-    'nutrition.foodDb.',
-    // League activity gating — new namespace, migration 310 (2026-08-08).
-    // Qualification and promote/demote zone copy. Named `league.gate.` rather
-    // than dropped loose under `league.` precisely so this exemption cannot
-    // swallow the league keys that ARE translated (daysLeft, topPromoted, …).
-    'league.gate.',
-    // League seasons — new namespace, migration 312 (2026-08-08).
-    'league.season.',
-    // Season-end ceremony — new namespace, migration 312 (2026-08-08).
-    'league.ceremony.',
-    // "How leagues work" explainer — new namespace, 2026-08-09. Long-form
-    // prose describing the ranking rules, so CLAUDE.md forbids machine
-    // translation; needs a native pass in 14 languages.
-    'league.info.',
-    // Daily-quests expansion, 2026-08-09. The sheet's whole copy deck plus
-    // 19 new quest labels/descriptions. All prose (CLAUDE.md forbids
-    // machine-translating it) and all reached through tFallback or the
-    // catalog's English fallback, so a missing locale renders sensible
-    // English rather than a raw key.
-    //
-    // Listed one quest id at a time rather than as a bare `quest.` prefix on
-    // purpose: `quest.` would also exempt the 14 entries that ARE translated
-    // and hide a future regression in them. The "every prefix still has
-    // untranslated keys" test above then forces each line to be deleted as
-    // its translations land, which is the mechanism working.
-    // Injuries / Recovery Mode — new namespace, 2026-08-09. InjuryForm and
-    // InjuryBanner had NO i18n at all: every body part, severity, button,
-    // empty state and toast was hardcoded English in a 15-language app. The
-    // strings are now extracted to `src/locales/*.json` and reached through
-    // tFallback, so a missing locale renders correct English rather than a
-    // key code — which is strictly better than where this started.
-    //
-    // English-only on purpose. Most of this copy is the app explaining that
-    // it has REMOVED training from someone's plan ("That area comes out until
-    // you clear it", "Those exercises come back into your sessions straight
-    // away"), and a machine translation that lands slightly wrong there reads
-    // as a bug rather than as a coach. CLAUDE.md forbids it for exactly this
-    // shape of copy. Needs a native pass in 14 languages; the file head
-    // carries notes for whoever does it.
-    //
-    // Note this does NOT exempt the muscle-group names — those already ship
-    // in all 15 languages under bare keys (`chest`, `glutes`, …) and both
-    // components look them up there, so they stay counted.
-    'injuries.',
-    // Progress page main view — new namespaces, 2026-08-10. The hero
-    // carousel, timeframe stats card, last-workout callout, Top PRs rail,
-    // tab bar and Weekly Review summary were ~55 hardcoded English literals
-    // in a 15-language app. Extracted to `src/locales/*.json` and reached
-    // through tFallback, so a missing locale renders correct English.
-    //
-    // Listed as eleven narrow prefixes rather than a bare `progress.` for
-    // the reason `league.gate.` is: `progress.` would also exempt the ~96
-    // keys in that namespace that ARE translated (the chart headings, the
-    // filter labels, progress.today / yesterday / all) and hide any future
-    // regression in them. Every prefix below is a namespace this change
-    // created, so each one holds English-only keys and nothing else.
-    //
-    // Note what is deliberately NOT here: 'Today', 'Yesterday' and 'All'
-    // are not new keys at all. `progress.today` / `.yesterday` / `.all`
-    // already shipped in 15 languages and had simply stopped being called;
-    // those call sites now point back at them and stay counted.
-    'progress.tab.',
-    'progress.frame.',
-    'progress.frameShort.',
-    'progress.stat.',
-    'progress.carousel.',
-    'progress.slide.',
-    'progress.lastWorkout.',
-    'progress.topPRs.',
-    'progress.pb.',
-    // Also covers the PR History modal, extracted 2026-08-10 — it had zero
-    // translation calls, the same defect as the Body tab on a smaller
-    // surface, and `progress.pb.history` (the button that opens it) was
-    // already here.
-    'progress.analytics.',
-    'progress.review.',
-    // Added with the layout change (2026-08-10): the Recent section that
-    // replaced the last-workout card and the Top PRs rail.
-    'progress.recent.',
-    // The two Progress modals rebuilt as sheets (2026-08-10). New
-    // namespaces, English-only, reached through tFallback.
-    'analyticsSheet.',
-    'pbSheet.',
-    // Exercise Trends rebuild (2026-08-10). A whole new namespace, all of
-    // it English-only, so this is the sanctioned bare-prefix case rather
-    // than the narrow-prefix one above: there is nothing under `trends.`
-    // that predates this change, so the prefix cannot exempt a translated
-    // key by accident. The keys are the metric switch, the three empty
-    // states and the two filter chips — see the notes in
-    // `src/locales/*.json`, which flag the two that need care
-    // (`trends.metric.e1rm` must keep its hedge; `trends.oneSession` must
-    // not read as an error).
-    //
-    // Deliberately NOT here, and it matters: the muscle-group names on the
-    // group headers, which come from `muscleGroups.<key>` and already ship
-    // in 15 languages. The tab looks them up there rather than carrying a
-    // second vocabulary, so they stay counted.
-    'trends.',
-    // Muscle regions (2026-08-10) — the four buckets the validated colour
-    // encoding can carry, in `src/locales/*.json`. A whole new
-    // namespace, all English-only, so this is the sanctioned bare-prefix
-    // case: nothing under `regions.` predates it.
-    //
-    // Four keys, and worth a translator's attention rather than a machine's
-    // despite being short: Push / Pull / Legs is gym vocabulary that most
-    // training traditions already have their own word for, so the right
-    // translation is the term lifters actually use, not a literal one.
-    'regions.',
-    // Insights tab (2026-08-10, audit 21). The same shape as `trends.`
-    // directly above, and the same sanctioned bare-prefix case: nothing
-    // under `insights.` predates this change, so the prefix cannot exempt
-    // a translated key by accident.
-    //
-    // The tab had ZERO translation calls before — every string in it was a
-    // hardcoded English literal in a 15-language app, which is why 92 keys
-    // arrive at once. They all land through tFallback, so an untranslated
-    // locale renders correct English rather than a key path.
-    //
-    // This is dilution, not regression, and the distinction is the reason
-    // the exemption is legitimate here: no language LOST a key. Measured
-    // before adding this line — every language moved down by the same ~2.4
-    // points purely because 92 English-only keys entered the denominator.
-    // If this prefix is ever reached for after a language actually drops
-    // translated copy, that is the misuse the FLOOR comment warns about.
-    //
-    // The CSV column headers are deliberately absent: they stay English by
-    // design (a localized header breaks whatever script the file is piped
-    // into), so they are literals at the call site rather than keys.
-    'insights.',
-    // AI Coach generated text (2026-08-10). Narrow prefixes, not a bare
-    // `coach.`, for the reason `league.gate.` is narrow: `coach.title`,
-    // `coach.subtitle`, `coach.placeholder` and the welcome copy ARE
-    // translated in several languages, and a blanket prefix would stop
-    // guarding them.
-    //
-    // These are the coach's own sentences — training advice, not labels — so
-    // CLAUDE.md forbids machine-translating them outright. A wrong
-    // translation here tells someone the wrong thing about lifting in a
-    // deficit or about ligament laxity around ovulation.
-    //
-    // Note the English lives TWICE on purpose: here, and as the tFallback
-    // fallback at the point of use. The generators are pure modules that
-    // cannot reach an i18n file, so the sentence has to travel with the rule
-    // it belongs to. Edit both or they drift.
-    'coach.note.',
-    'coach.goal.',
-    'coach.fuel.',
-    'coach.feel.',
-    'coach.plan.',
-    'coach.schedule.',
-    'coach.reply.',
-    'coach.onboarding.',
-    'quests.',
-    'quest.cardio_session.',
-    'quest.log_sleep.',
-    'quest.log_mood.',
-    'quest.steps_5k.',
-    'quest.hub_react_3.',
-    'quest.log_body_metric.',
-    'quest.workout_30min.',
-    'quest.sets_20.',
-    'quest.steps_10k.',
-    'quest.hub_comment_2.',
-    'quest.cardio_double.',
-    'quest.volume_10k.',
-    'quest.workout_60min.',
-    'quest.sets_40.',
-    'quest.volume_25k.',
-    'quest.steps_15k.',
-    'quest.crew_workout.',
-    'quest.crew_cardio.',
-    'quest.crew_chat_3.',
-    'quest.crew_steps_8k.',
-    'quest.crew_volume_15k.',
-    'quest.crew_fuel_2.',
-    // Settings moved out of the ProfileMenu dropdown onto its own route
-    // (/settings + seven subpages), 2026-08-09. 67 keys in
-    // `src/locales/*.json`: the index rows and their one-line
-    // hints, the group headings inside each subpage, and — this is most of
-    // them — strings that were HARDCODED ENGLISH inline in the old
-    // SettingsPanel and had no key at all ("Private profile", "Blocked
-    // users", "Muted users", "My reports", "Default story visibility",
-    // "Body Stats", "Privacy"). So these keys don't reduce what a Spanish
-    // user can read; they make previously-unreachable copy translatable.
-    // All prose, so CLAUDE.md forbids machine-translating it, and every
-    // call site is `tFallback(key, 'English')`.
-    //
-    // Prefixes are narrow ON PURPOSE. A bare `settings.` would exempt the
-    // whole namespace and hide a regression in the ~40 settings keys that
-    // ARE translated — verified that each prefix below catches only the new
-    // keys and nothing else.
-    'settings.section.',
-    'settings.group.',
-    'settings.stat.',
-    'settings.sex.',
-    'settings.appearance.',
-    'settings.privateProfile.',
-    'settings.hideFromSearch.',
-    'settings.blockedUsers.',
-    'settings.mutedUsers.',
-    'settings.myReports.',
-    'settings.export.',
-    'settings.admin.',
-    'settings.build.',
-    // Progress → Photos tab revamp, 2026-08-10. Same shape as the settings
-    // block above and listed exactly for the same reason: the `photos.`
-    // namespace already holds ~17 fully-translated keys, so a bare prefix
-    // would exempt those too and hide a real regression in them.
-    //
-    // Most of these do not reduce what a non-English user can read — they
-    // ADD a key where there was none. The compare slider shipped with
-    // "Compare Photos", "Before", "After", "Choose before", "N days apart",
-    // "Drag the divider to compare" and "Select two photos above to compare
-    // them" HARDCODED in English with no key at all, so a Spanish user read
-    // English there whether or not this list exists. The genuinely new copy
-    // is the Add-photo CTA, the empty-state hint and the viewer chrome.
-    // All `tFallback(key, 'English')`; prose, so CLAUDE.md forbids
-    // machine-translating it.
-    'photos.addPhoto',
-    'photos.emptyHint',
-    'photos.compare',
-    'photos.compareTitle',
-    'photos.compareBefore',
-    'photos.compareAfter',
-    'photos.compareChooseBefore',
-    'photos.compareChooseAfter',
-    'photos.compareApartOne',
-    'photos.compareApartMany',
-    'photos.compareDragHint',
-    'photos.compareEmpty',
-    'photos.viewer',
-    'photos.prev',
-    'photos.next',
-    'photos.position',
-    // The rest sit inside namespaces that already hold translated keys, so
-    // they are listed exactly rather than by prefix.
-    'settings.inAppAlerts.hint',
-    'settings.cycleTracking.hint',
-    'settings.gymRival.title',
-    'settings.gymRival.desc',
-    'settings.story.defaultVisibility',
-    'settings.story.friendsOnly',
-    'settings.story.public',
-    'settings.story.blockedAccounts',
-    'settings.block.placeholder',
-    'settings.block.action',
-    'settings.block.empty',
-    'settings.block.undo',
-    'settings.mute.undo',
-    'settings.quiet.startLabel',
-    'settings.quiet.endLabel',
-    // Progress surfaces, 2026-08-10. These keys were ALREADY being called
-    // — correct `tFallback(key, 'English')` at every site — but no part
-    // file defined them, so they resolved to their inline fallback and were
-    // invisible to both this audit and anyone doing a translation pass. The
-    // copy on screen has not changed; the keys simply exist now, in
-    // `src/locales/*.json`. Listed individually because each namespace has
-    // translated keys elsewhere that a bare prefix would wrongly exempt.
-    'photos.saveError',
-    'photos.closeCamera',
-    'photos.flipCamera',
-    'photos.saving',
-    'photos.migratePartial',
-    'photos.capturedAlt',
-    'photos.cameraError',
-    'calendar.future',
-    'calendar.heatmapLabel',
-    'trainingPattern.kicker',
-    'achievements.shareSuccess',
-    'achievements.shareFailed',
-    'progress.nextUp',
-    'progress.locked',
-    'progress.noneCompletedTitle',
-    // Cardio swimming + activity-tile descriptions, 2026-08-11. Swimming
-    // was added to the picker without `cardio.type.*` keys, so a pool swim
-    // rendered the literal "cardio.type.swimming_pool" on six surfaces
-    // including a shared Hub post; and Running/Walking/Biking all reused
-    // `cardio.subtitle`, so three tiles in one 2x2 grid carried an
-    // identical description.
-    //
-    // English-only because the activity they belong to already is —
-    // `cardio.modes.swimming` has no translation either — so a native pass
-    // should take the whole swimming set in one go rather than these two
-    // labels in isolation.
-    //
-    // Listed as EXACT KEYS, not a `cardio.type.` prefix: six of the eight
-    // cardio.type.* keys are translated in all 15 languages and a bare
-    // prefix would exempt them too, hiding a future regression in copy
-    // that is finished. Same reasoning as the quest ids above.
-    //
-    // These five are only the keys added on 2026-08-11. The rest of
-    // `src/locales/*.json`'s English-only block — 20 more keys, the swim
-    // question/env labels and the utility-tile names — stays COUNTED, and
-    // is why `ru` sits close to the floor. Exempting those is a coverage
-    // policy call, not a side effect of a labels fix.
-    //
-    // MEASURED 2026-08-11, because the FLOOR note below is right that a
-    // floor sitting flush re-trips on the next honest extraction:
-    //   as it stands (these 5 exempt)   ru 79.21%, 1703 counted — 0.21 pts
-    //                                   of headroom, i.e. about four keys
-    //   all 25 cardio English-only keys ru 80.15%, 1683 counted — 1.15 pts
-    // The second option also clears the 0.80 the FLOOR comment wants to
-    // return to. It is left undone deliberately: it changes the measured
-    // coverage of pre-existing debt, which is kegan's call and not a side
-    // effect of naming two swim types. Whoever picks it up does not need
-    // to re-derive these numbers.
-    'cardio.type.swimming_pool',
-    'cardio.type.swimming_openwater',
-    // Start Session, 2026-08-11 — the hero and the picker sheet that
-    // replaced the 2x2 activity grid and the mode → env → input chain.
-    //
-    // The three cardio.modes.*.desc entries that used to sit here are GONE,
-    // not moved: they were the activity tiles' descriptions and the tiles no
-    // longer exist. Deleting them rather than leaving them listed is the
-    // stale-prefix guard above doing its job — an AWAITING_TRANSLATION entry
-    // for a key nobody renders is a promise to translate nothing.
-    //
-    // The "Where" pills needed NO new keys: cardio.env.outside / .treadmill
-    // / .stationary are already translated in all 15 languages, and swim
-    // reuses cardio.swim.openWater / .pool. Choosing per-activity words over
-    // a universal Outside/Inside pair is what made that reuse possible — the
-    // universal pair would have added two more untranslated keys here.
-    'cardio.start.',
-    // Goals: target date, archive, and the status badges — 2026-08-11.
-    //
-    // Scoped to three NARROW prefixes, never a bare `goals.`, which would
-    // swallow the ~30 goals keys already translated in all 15 languages.
-    // Same reasoning as `league.gate.` above.
-    //
-    // `goals.deadline.` and `goals.archive.` are genuinely new copy for two
-    // features that did not exist: the `deadline` column was 0-of-5 populated
-    // with no input anywhere, and there was no archive at all. Prose plus a
-    // pluralised count, so CLAUDE.md forbids machine translation.
-    //
-    // `goals.badge.` is a different case and is exempted for a different
-    // reason: those three strings were RAW ENGLISH LITERALS in GoalsList's
-    // JSX with no key, so all 15 languages already rendered them in English.
-    // Keying them changes nothing on screen and makes them translatable for
-    // the first time — the coverage ratio moves, the user's experience does
-    // not. Do not read this entry as new untranslated debt.
-    'goals.deadline.',
-    'goals.archive.',
-    'goals.badge.',
-    // The row's ⋮ trigger had no accessible name at all. Exact key, not a
-    // `goals.` prefix, for the same swallowing reason as the three above.
-    'goals.rowMenu',
-    // Gym member directory (2026-08-12, MyGym audit). One key, and an
-    // exact one rather than a prefix, because it is the only member of
-    // its namespace and a bare `gymMembers.` would pre-exempt whatever
-    // the rest of that modal's chrome becomes when it is finally wired.
-    //
-    // It replaces a date-fns `format()` call that bound no locale, so the
-    // joined date read "Aug 12, 2026" under a fully translated roster.
-    // The date itself is now localized by Intl before it reaches the
-    // string; this key exists so the SENTENCE around it can move too —
-    // several languages put the date before the verb, which "Joined" +
-    // date cannot express.
-    //
-    // It lives in `src/locales/*.json`, which is English-only behind its
-    // own TODO(i18n) asking for a native-speaker pass. Listed here rather
-    // than adding `myGym.` wholesale: that would drop ~20 existing keys
-    // out of the denominator and hide the gap this ratchet is measuring.
-    'gymMembers.joined',
-  ];
+  // Counting the numerator alone removes the cause rather than the symptom.
+  // `translated` is how many keys a locale defines; adding English copy
+  // cannot move it, so extraction is free and the exemptions are unnecessary.
+  // The numbers live in src/locales/_coverage.json and are regenerated with
+  // `npm run i18n:baseline` — a deliberate act that shows up as a diff, which
+  // is what the prefix list was reaching for.
+  //
+  // Two directions, because there are two ways to go backwards:
+  //   translated  must not FALL — a locale losing copy it already had.
+  //   englishEcho must not RISE — English pasted in as a placeholder and
+  //                               counted as though it were a translation.
+  const baseline = JSON.parse(fs.readFileSync(path.join(DIR, '_coverage.json'), 'utf8'));
+  const dict = (l) => JSON.parse(fs.readFileSync(path.join(DIR, `${l}.json`), 'utf8'));
+  const enDict = dict('en');
+  const hasLetters = (v) => /\p{L}/u.test(String(v));
+  const echoCount = (l) => {
+    const d = dict(l);
+    return Object.keys(d).filter(
+      (k) => enDict[k] != null && d[k] === enDict[k] && hasLetters(enDict[k]),
+    ).length;
+  };
 
-  const pending = (k) => AWAITING_TRANSLATION.some(p => k.startsWith(p));
-  const counted = [...en].filter(k => !pending(k));
-
-  it('every awaiting-translation prefix still has untranslated keys', () => {
-    // A prefix that no longer matches anything untranslated has done its job
-    // and must be removed, or it silently exempts future keys that happen to
-    // share the namespace.
-    for (const prefix of AWAITING_TRANSLATION) {
-      const stillMissing = [...en].some(k =>
-        k.startsWith(prefix) && OTHERS.some(l => !keys[l].has(k)));
-      expect(
-        stillMissing,
-        `"${prefix}" is fully translated — delete it from AWAITING_TRANSLATION`,
-      ).toBe(true);
-    }
+  it('every supported locale has a baseline entry', () => {
+    // A locale with no entry is unguarded — silently, and forever.
+    expect(Object.keys(baseline.locales).sort()).toEqual([...OTHERS].sort());
   });
 
-  // 0.79, lowered from 0.80 (kegan, Aug 2026 — deliberate, not drift).
-  //
-  // Note the failure mode when this trips: `expect` throws on the first
-  // language in OTHERS order, so the message names ONE language when eight
-  // may have moved. Run `node scripts/i18n-audit.mjs` for the full picture
-  // before concluding the damage is small.
-  //
-  // With onboarding excluded the lower bound is `ru` again. If this trips
-  // now it means a language actually LOST ground on copy we said we'd
-  // translate — so translate, don't loosen, and don't reach for
-  // AWAITING_TRANSLATION to make it green.
-  //
-  // GOES BACK TO 0.80 WHEN `onboarding.` LEAVES AWAITING_TRANSLATION
-  // (kegan, 2026-08-10). Measured rather than assumed, on the aggregates as
-  // they stand today: 1,690 counted keys, 275 under `onboarding.`, lower
-  // bound `ru` at 79.5%. Translating those 275 adds the same count to both
-  // sides of the ratio, so every language moves UP — `ru` to 82.4%, `ja` to
-  // 84.0%. 0.80 therefore clears with ~2.4 points of headroom, which is the
-  // point: a floor set flush against the minimum re-trips on the next
-  // honest extraction, which is how it came down from 0.80 in the first
-  // place. 0.82 would also pass today; 0.80 is the deliberate, conservative
-  // number, and the one to use.
-  const FLOOR = 0.79;
+  it.each(OTHERS)('%s has not lost translated keys', (lang) => {
+    const now = keys[lang].size;
+    const was = baseline.locales[lang].translated;
+    expect(
+      now,
+      `${lang} fell from ${was} to ${now} translated keys. A locale losing copy ` +
+      'it already had is a bug, not a baseline change. If the drop is intended ' +
+      '(dead keys deleted, say), run `npm run i18n:baseline` and say why in the commit.',
+    ).toBeGreaterThanOrEqual(was);
+  });
 
-  it(`coverage does not regress below ${FLOOR * 100}% in any language`, () => {
-    for (const l of OTHERS) {
-      const covered = counted.filter(k => keys[l].has(k)).length;
-      const pct = covered / counted.length;
-      expect(pct, `${l} coverage fell to ${(pct * 100).toFixed(1)}%`).toBeGreaterThan(FLOOR);
-    }
+  it.each(OTHERS)('%s has not gained English placeholders', (lang) => {
+    const now = echoCount(lang);
+    const was = baseline.locales[lang].englishEcho;
+    expect(
+      now,
+      `${lang} went from ${was} to ${now} keys holding the English string verbatim. ` +
+      'That is a key which exists and a translation which does not — invisible to ' +
+      'any coverage count, and English on screen. Real cognates belong in ' +
+      'ALLOW_IDENTICAL_BY_LANG in i18n-check.js.',
+    ).toBeLessThanOrEqual(was);
   });
 });
 
