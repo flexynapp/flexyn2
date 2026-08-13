@@ -60,7 +60,12 @@ export default function TwoFactorSection() {
     const res = await enrollTotp('Flexyn');
     setEnrolling(false);
     if (!res.ok) {
-      toast.error(`Couldn't start 2FA: ${res.message || 'try again'}`);
+      // A guest gets a sentence about their account, not GoTrue's wording.
+      // The raw string is "Anonymous user not allowed to perform these
+      // actions", which names a concept the product never uses.
+      toast.error(res.reason === 'anonymous'
+        ? 'Two-factor auth needs an account you can sign back in to. Guest sessions can\'t use it.'
+        : `Couldn't start 2FA: ${res.message || 'try again'}`);
       return;
     }
     setEnrollment(res);

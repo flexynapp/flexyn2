@@ -35,7 +35,23 @@ export async function enrollTotp(friendlyName = 'Flexyn') {
       factorType:    'totp',
       friendlyName,
     });
-    if (error) return { ok: false, reason: 'rpc_error', message: error.message };
+    if (error) {
+      // GoTrue refuses MFA enrollment for anonymous sessions outright:
+      //   422 "Anonymous user not allowed to perform these actions"
+      // Verified against the live project 2026-08-12 by enrolling from a
+      // real anonymous session. Worth naming rather than passing through,
+      // because guests are 34 of 63 accounts here and nothing upstream
+      // stops them tapping Enable — the panel has no is_anonymous gate,
+      // so the server's refusal is the only thing standing there, and
+      // raw it reads like a bug in the app rather than a property of
+      // the account. Same shape as signInAsGuest's 'anonymous_disabled'.
+      const anon = /anonymous user not allowed/i.test(error.message || '');
+      return {
+        ok: false,
+        reason: anon ? 'anonymous' : 'rpc_error',
+        message: error.message,
+      };
+    }
     return {
       ok: true,
       factorId: data?.id,

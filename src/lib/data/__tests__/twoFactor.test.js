@@ -63,6 +63,22 @@ describe('enrollTotp', () => {
     mfa.enroll.mockResolvedValue({ data: null, error: { message: 'mfa not allowed' } });
     const res = await enrollTotp();
     expect(res.ok).toBe(false);
+    expect(res.reason).toBe('rpc_error');
+  });
+
+  // GoTrue's real refusal for an anonymous session, captured verbatim from
+  // the live project on 2026-08-12. Guests are 34 of 63 accounts and the
+  // panel has no is_anonymous gate, so this is the branch most users who
+  // tap Enable will actually hit -- it must not surface as raw server text.
+  it('names the anonymous refusal so the UI can explain it', async () => {
+    mfa.enroll.mockResolvedValue({
+      data: null,
+      error: { message: 'Anonymous user not allowed to perform these actions' },
+    });
+    const res = await enrollTotp();
+    expect(res.ok).toBe(false);
+    expect(res.reason).toBe('anonymous');
+    expect(res.message).toMatch(/anonymous user not allowed/i);
   });
 });
 
