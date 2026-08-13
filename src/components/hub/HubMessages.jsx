@@ -1038,7 +1038,7 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2">
                           <p className={`font-heading text-sm truncate flex items-center gap-1.5 ${unread ? 'font-bold text-foreground' : 'font-semibold text-foreground'}`}>
-                            {isPinned && <Pin className="w-3 h-3 text-primary shrink-0" aria-label="Pinned" />}
+                            {isPinned && <Pin className="w-3 h-3 text-primary shrink-0" aria-label={t('crew.messages.pinned')} />}
                             <span className="truncate">{handle}</span>
                             {isMuted && <BellOff className="w-3 h-3 text-muted-foreground shrink-0" aria-label="Muted" />}
                           </p>

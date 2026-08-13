@@ -643,7 +643,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
         const file = item.getAsFile();
         if (!file) continue;
         if (file.size > MAX_ATTACHMENT_BYTES) {
-          toast.error('Image must be 50 MB or smaller');
+          toast.error(tFallback('hub.chat.attachmentTooLarge', 'Image must be 50 MB or smaller'));
           return;
         }
         if (attachmentPreview) URL.revokeObjectURL(attachmentPreview);
@@ -1734,7 +1734,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
                 className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium hover:bg-secondary active:bg-secondary transition-colors"
               >
                 <CornerUpLeft className="w-4 h-4 text-muted-foreground" />
-                Reply
+                {t('hub.comments.reply')}
               </button>
 
               {/* Pin/Unpin */}

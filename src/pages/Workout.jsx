@@ -1932,7 +1932,7 @@ export default function Workout() {
 
     if (id === 'generate') return (
       <motion.div whileHover={{ y:-2 }} whileTap={{ scale:0.98 }} transition={{ type:'spring', stiffness:380, damping:22 }}>
-        <Card role="button" tabIndex={0} aria-label="Generate Workout"
+        <Card role="button" tabIndex={0} aria-label={t('generator.title')}
           className={cardBase} style={{ background: pal.background }}
           onClick={() => navigate('/coach?generate=1')}
           onKeyDown={(e) => { if (e.key==='Enter'||e.key===' '){e.preventDefault();navigate('/coach?generate=1');} }}>
@@ -2012,7 +2012,7 @@ export default function Workout() {
 
     if (id === 'bounties') return (
       <motion.div whileHover={{ y:-2 }} whileTap={{ scale:0.98 }} transition={{ type:'spring', stiffness:380, damping:22 }}>
-        <Card role="button" tabIndex={0} aria-label="Bounties"
+        <Card role="button" tabIndex={0} aria-label={t('bounties.title')}
           className={cardBase} style={{ background: pal.background }}
           onClick={() => navigate('/bounties')}
           onKeyDown={(e) => { if (e.key==='Enter'||e.key===' '){e.preventDefault();navigate('/bounties');} }}>
@@ -2023,7 +2023,7 @@ export default function Workout() {
             </div>
             <div>
               <div className="flex items-center justify-center gap-1.5 flex-wrap">
-                <p className="font-heading font-bold text-sm leading-tight">Bounties</p>
+                <p className="font-heading font-bold text-sm leading-tight">{t('bounties.title')}</p>
                 {activeBountyClaim && <span className="text-micro font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-primary/15 text-primary">Active</span>}
                 {!activeBountyClaim && activeBounties.length>0 && <span className="text-micro font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-primary/15 text-primary">{activeBounties.length} open</span>}
               </div>

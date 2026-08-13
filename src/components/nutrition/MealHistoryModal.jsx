@@ -171,6 +171,7 @@ function MealRow({ entry, locale, onSelect, index }) {
 }
 
 function DaySection({ dateStr, meals, water, locale, fmt, onSelect }) {
+  const { t } = useLanguage();
   const totals = useMemo(() => macroTotals(meals), [meals]);
   const hasMeals = meals.length > 0;
 
@@ -190,7 +191,7 @@ function DaySection({ dateStr, meals, water, locale, fmt, onSelect }) {
         ) : (
           // Not "0 cal". A day whose only rows were water did not have zero
           // calories — it had no meals logged, which is a different claim.
-          <p className="text-xs text-muted-foreground shrink-0">No meals logged</p>
+          <p className="text-xs text-muted-foreground shrink-0">{t('nutrition.noMeals')}</p>
         )}
       </div>
 

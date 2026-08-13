@@ -841,14 +841,14 @@ export default function JournalView({ userId, userEmail, onClose, initialDate })
         <div className="flex items-end justify-between gap-2 mt-2">
           <div className="min-w-0">
             <div className="flex items-center gap-1">
-              <button onClick={goPrev} className="-ms-1.5 p-1.5 rounded-lg text-muted-foreground hover:bg-secondary active:bg-secondary transition-colors" aria-label="Previous day" data-no-swipe>
+              <button onClick={goPrev} className="-ms-1.5 p-1.5 rounded-lg text-muted-foreground hover:bg-secondary active:bg-secondary transition-colors" aria-label={tFallback('nutrition.prevDay', 'Previous day')} data-no-swipe>
                 <ChevronLeft className="w-4 h-4" />
               </button>
               <h2 className="font-heading font-bold text-xl text-foreground truncate">{displayDate}</h2>
               {/* opacity-30, not opacity-0: hiding it on today collapsed the
                   row's shape and the date jumped sideways when you navigated
                   off today and back. */}
-              <button onClick={goNext} disabled={isToday} className="p-1.5 rounded-lg text-muted-foreground hover:bg-secondary active:bg-secondary transition-colors disabled:opacity-30" aria-label="Next day" data-no-swipe>
+              <button onClick={goNext} disabled={isToday} className="p-1.5 rounded-lg text-muted-foreground hover:bg-secondary active:bg-secondary transition-colors disabled:opacity-30" aria-label={tFallback('nutrition.nextDay', 'Next day')} data-no-swipe>
                 <ChevronRight className="w-4 h-4" />
               </button>
             </div>

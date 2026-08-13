@@ -619,7 +619,7 @@ export default function TemplatesModal({ open, onClose, onLoadTemplate }) {
                   ) : filteredCommunity.length === 0 ? (
                     <div className="text-center py-8">
                       <Globe className="w-10 h-10 mx-auto mb-3 text-muted-foreground opacity-40" />
-                      <p className="font-heading font-semibold text-sm">No public templates yet</p>
+                      <p className="font-heading font-semibold text-sm">{t('regimens.noPublicTemplates')}</p>
                       <p className="text-xs text-muted-foreground mt-1">
                         Create a template and make it public to share with the community!
                       </p>

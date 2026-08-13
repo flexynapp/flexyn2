@@ -109,6 +109,7 @@ function PopularityBadge({ count, index }) {
 
 // ── Regimen card ──────────────────────────────────────────────────────────────
 function RegimenCard({ regimen, index, isMine, user, onAdopted }) {
+  const { t } = useLanguage();
   const qc = useQueryClient();
   const [expanded, setExpanded] = useState(false);
   const muscles = useMemo(() => regimenMuscles(regimen), [regimen]);
@@ -194,7 +195,7 @@ function RegimenCard({ regimen, index, isMine, user, onAdopted }) {
           </h3>
           <PopularityBadge count={copyCount} index={index} />
           {isMine && (
-            <Badge variant="outline" className="text-micro shrink-0">Yours</Badge>
+            <Badge variant="outline" className="text-micro shrink-0">{t('regimens.yourTemplate')}</Badge>
           )}
         </div>
 
