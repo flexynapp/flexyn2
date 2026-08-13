@@ -34,6 +34,7 @@ export default function WeekCalorieStrip({
   onSelect,
   onShift,
   canGoForward = false,
+  canGoBack = true,
 }) {
   const { language } = useLanguage();
   const locale = getDateLocale(language);
@@ -59,8 +60,9 @@ export default function WeekCalorieStrip({
         <button
           type="button"
           onClick={() => onShift?.(-1)}
+          disabled={!canGoBack}
           aria-label="Previous week"
-          className="w-8 h-8 shrink-0 rounded-lg flex items-center justify-center text-muted-foreground active:bg-secondary/60"
+          className="w-8 h-8 shrink-0 rounded-lg flex items-center justify-center text-muted-foreground active:bg-secondary/60 disabled:opacity-25"
         >
           <ChevronLeft className="w-4 h-4" />
         </button>

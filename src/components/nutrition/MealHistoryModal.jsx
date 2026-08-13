@@ -20,12 +20,13 @@ import { reportError } from '@/lib/reportError';
 import { filterAfterReset } from '@/lib/accountReset';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { splitWaterEntries, sumWaterOz } from '@/lib/waterEntries';
-import { MACRO_ORDER } from '@/lib/macroColors';
+import { MACROS, MACRO_ORDER, macroValue } from '@/lib/macroColors';
 import { calculateDailyValues } from '@/lib/nutritionDefaults';
 import { adherenceOf, summarise } from '@/lib/nutritionAdherence';
 
 const KEY = 'yyyy-MM-dd';
 const WEEK = 7;
+const FETCH_LIMIT = 500;
 
 // Reconstruct a recognition-shaped result from a stored log row so the saved
 // meal can be re-opened in the read-only detail view (photo + macros +, for
@@ -53,9 +54,9 @@ function mealEntryToResult(entry) {
 function macroTotals(meals = []) {
   return meals.reduce((acc, e) => ({
     calories: acc.calories + (Number(e.calories) || 0),
-    protein:  acc.protein  + (Number(e.protein_g) || 0),
-    carbs:    acc.carbs    + (Number(e.carbs_g)   || 0),
-    fat:      acc.fat      + (Number(e.fat_g)     || 0),
+    protein:  acc.protein  + macroValue(e, MACROS.protein),
+    carbs:    acc.carbs    + macroValue(e, MACROS.carbs),
+    fat:      acc.fat      + macroValue(e, MACROS.fat),
   }), { calories: 0, protein: 0, carbs: 0, fat: 0 });
 }
 
@@ -105,10 +106,34 @@ function WaterLine({ entries }) {
   );
 }
 
+function MealThumb({ src }) {
+  // A row keeps its image_url after the blob behind it is gone — the storage GC
+  // documented in CLAUDE.md deletes orphans, and a signed URL can expire — so a
+  // dead link is a normal state, not an exceptional one. Fall back to the
+  // placeholder rather than rendering the browser's broken-image glyph.
+  const [failed, setFailed] = useState(false);
+  if (src && !failed) {
+    return (
+      <img
+        src={src}
+        alt=""
+        loading="lazy"
+        onError={() => setFailed(true)}
+        className="w-11 h-11 rounded-lg object-cover bg-secondary/60 shrink-0"
+      />
+    );
+  }
+  return (
+    <span className="w-11 h-11 rounded-lg bg-secondary/60 flex items-center justify-center shrink-0">
+      <ImageIcon className="w-5 h-5 text-muted-foreground/60" />
+    </span>
+  );
+}
+
 function MealRow({ entry, locale, onSelect, index }) {
   const time = formatTime(entry.created_at, locale);
   const macros = MACRO_ORDER
-    .map(m => (Number(entry[m.field]) > 0 ? `${Math.round(entry[m.field])}${m.short}` : null))
+    .map(m => { const v = macroValue(entry, m); return v > 0 ? `${Math.round(v)}${m.short}` : null; })
     .filter(Boolean);
   const meta = [time, ...macros].filter(Boolean).join(' · ');
 
@@ -123,13 +148,7 @@ function MealRow({ entry, locale, onSelect, index }) {
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect?.(entry); } }}
       className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-card border border-border/60 hover:border-primary/40 cursor-pointer transition-colors"
     >
-      {entry.image_url ? (
-        <img src={entry.image_url} alt="" className="w-11 h-11 rounded-lg object-cover shrink-0" />
-      ) : (
-        <span className="w-11 h-11 rounded-lg bg-secondary/60 flex items-center justify-center shrink-0">
-          <ImageIcon className="w-5 h-5 text-muted-foreground/60" />
-        </span>
-      )}
+      <MealThumb src={entry.image_url} />
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold truncate">{entry.food_name}</p>
         {meta && <p className="text-xs text-muted-foreground truncate mt-0.5">{meta}</p>}
@@ -219,7 +238,7 @@ function DayFocusCard({ meals, dv, weekAvg, fmt }) {
           const target = goals[m.key];
           return (
             <div key={m.key} className="flex items-center gap-2.5">
-              <span className={`text-micro font-semibold w-12 shrink-0 ${m.text}`}>{m.label}</span>
+              <span className="text-micro font-semibold w-12 shrink-0 text-muted-foreground">{m.label}</span>
               <div className="flex-1 h-1.5 rounded-full bg-secondary overflow-hidden">
                 <div
                   className="h-full rounded-full"
@@ -274,7 +293,7 @@ export default function MealHistoryModal({ open, onClose, userProfile, onLogPhot
     queryKey: ['nutritionHistory', user?.email],
     // Newest-logged first (created_at, not just date) so today's latest meal
     // is at the top and the user doesn't have to scroll to their latest entry.
-    queryFn: () => db.entities.NutritionLog.filter({ created_by: user.email }, '-created_at', 500),
+    queryFn: () => db.entities.NutritionLog.filter({ created_by: user.email }, '-created_at', FETCH_LIMIT),
     enabled: !!user?.email && open,
   });
 
@@ -335,6 +354,15 @@ export default function MealHistoryModal({ open, onClose, userProfile, onLogPhot
   }, [caloriesByDate, weekOffset]);
 
   const weekAvg = useMemo(() => summarise(weekSeries, goalCal).avg, [weekSeries, goalCal]);
+
+  // We only ever fetch the newest FETCH_LIMIT rows, so anything older than the
+  // oldest row we hold is UNKNOWN, not unlogged. Both the strip and the
+  // calendar stop there rather than drawing empty days over a history we did
+  // not read — a hollow cell is a claim, and this is the one place it would be
+  // a false one.
+  const earliestDate = grouped.length ? grouped[grouped.length - 1].date : todayStr;
+  const truncated = rawLogs.length >= FETCH_LIMIT;
+  const canGoBack = (weekSeries[0]?.date || todayStr) > earliestDate;
 
   const visibleDays = useMemo(
     () => (selectedDate ? grouped.filter(d => d.date === selectedDate) : grouped),
@@ -438,6 +466,7 @@ export default function MealHistoryModal({ open, onClose, userProfile, onLogPhot
                 onSelect={toggleDate}
                 onShift={shiftWeek}
                 canGoForward={weekOffset > 0}
+                canGoBack={canGoBack}
               />
               <div className="flex p-1 rounded-xl bg-secondary/60">
                 {[{ id: 'meals', label: 'Meals' }, { id: 'trends', label: 'Trends' }].map(t => (
@@ -557,6 +586,8 @@ export default function MealHistoryModal({ open, onClose, userProfile, onLogPhot
         goal={goalCal}
         selectedDate={selectedDate}
         todayStr={todayStr}
+        earliestDate={earliestDate}
+        truncated={truncated}
         onSelect={selectDate}
       />
 

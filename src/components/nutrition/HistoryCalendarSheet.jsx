@@ -37,6 +37,8 @@ export default function HistoryCalendarSheet({
   goal = 0,
   selectedDate = null,
   todayStr = '',
+  earliestDate = null,
+  truncated = false,
   onSelect,
 }) {
   const { language } = useLanguage();
@@ -58,6 +60,10 @@ export default function HistoryCalendarSheet({
   }, [month]);
 
   const atCurrentMonth = isSameMonth(month, new Date());
+  // A hollow cell claims "you logged nothing that day". We can only make that
+  // claim about days inside the window we fetched, so paging stops at the
+  // oldest row we hold rather than drawing empty months over unread history.
+  const atEarliestMonth = !!earliestDate && startOfMonth(month) <= startOfMonth(parseISO(earliestDate));
 
   // Locks are reference-counted, so holding the page here as well as in the
   // history sheet behind us is safe — it stays held until the outer one closes.
@@ -112,8 +118,9 @@ export default function HistoryCalendarSheet({
             <button
               type="button"
               onClick={() => setMonth(m => subMonths(m, 1))}
+              disabled={atEarliestMonth}
               aria-label="Previous month"
-              className="w-8 h-8 rounded-lg bg-secondary flex items-center justify-center text-muted-foreground"
+              className="w-8 h-8 rounded-lg bg-secondary flex items-center justify-center text-muted-foreground disabled:opacity-25"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
@@ -186,6 +193,14 @@ export default function HistoryCalendarSheet({
               Not logged
             </span>
           </div>
+
+          {atEarliestMonth && (
+            <p className="px-4 pt-3 text-micro text-muted-foreground">
+              {truncated
+                ? 'Earliest of your most recent 500 entries.'
+                : 'This is as far back as your log goes.'}
+            </p>
+          )}
 
           <div className="px-4 pt-3">
             <button

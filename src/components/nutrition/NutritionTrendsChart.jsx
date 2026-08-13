@@ -210,7 +210,7 @@ export default function NutritionTrendsChart({ entries = [], userProfile = {} })
             const goal = macroGoals[m.key];
             return (
               <div key={m.key} className="flex items-center gap-2.5">
-                <span className={`text-micro font-semibold w-12 shrink-0 ${m.text}`}>{m.label}</span>
+                <span className="text-micro font-semibold w-12 shrink-0 text-muted-foreground">{m.label}</span>
                 <div className="flex-1 h-2 rounded-full bg-secondary overflow-hidden">
                   <motion.div
                     className="h-full rounded-full"

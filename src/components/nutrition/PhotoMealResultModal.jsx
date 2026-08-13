@@ -31,9 +31,9 @@ const num = (v) => {
 const MACRO_KEYS = ['calories', 'protein_g', 'carbs_g', 'fat_g', 'fiber_g', 'sugar_g', 'sodium_mg'];
 
 // One stat tile — read-only, or an inline number input in edit mode.
-function Tile({ label, value, unit, color, editing, onChange, big = false }) {
+function Tile({ label, value, unit, color = 'text-foreground', tint = 'bg-secondary/40', editing, onChange, big = false }) {
   return (
-    <div className={`flex flex-col items-center justify-center rounded-xl bg-secondary/40 ${big ? 'py-3' : 'py-2.5'}`}>
+    <div className={`flex flex-col items-center justify-center rounded-xl ${tint} ${big ? 'py-3' : 'py-2.5'}`}>
       {editing ? (
         <Input
           type="number" inputMode="decimal" min="0"
@@ -262,7 +262,7 @@ export default function PhotoMealResultModal({ open, imageUrl, result, saving, o
                       key={m.key}
                       label={m.label}
                       unit="g"
-                      color={m.text}
+                      tint={m.tint}
                       editing={coreEditable}
                       value={vals[m.field]}
                       onChange={(v) => setVal(m.field, v)}
@@ -282,7 +282,7 @@ export default function PhotoMealResultModal({ open, imageUrl, result, saving, o
                       key={m.key}
                       label={m.label}
                       unit={m.unit}
-                      color={m.text}
+                      tint={m.tint}
                       editing={editing}
                       value={vals[m.field]}
                       onChange={(v) => setVal(m.field, v)}
