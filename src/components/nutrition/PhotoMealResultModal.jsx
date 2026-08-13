@@ -19,6 +19,7 @@ import { X, Pencil, Check, Save, Loader2, Sparkles, Utensils, Trash2, Plus } fro
 import { Input } from '@/components/ui/input';
 import { useKeyboardInset } from '@/hooks/useKeyboardInset';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { MACRO_ORDER, MICRO_ORDER } from '@/lib/macroColors';
 
 const num = (v) => {
   if (v === '' || v == null) return 0;
@@ -181,6 +182,7 @@ export default function PhotoMealResultModal({ open, imageUrl, result, saving, o
   return createPortal(
     <AnimatePresence>
       <motion.div
+        key="meal-detail"
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
         onClick={onClose}
         className="fixed inset-0 z-[9999] bg-black/60 flex items-end sm:items-center justify-center p-0 sm:p-4"
@@ -241,19 +243,31 @@ export default function PhotoMealResultModal({ open, imageUrl, result, saving, o
             className="flex-1 overflow-y-auto"
             style={{ paddingBottom: kbInset ? kbInset + 24 : undefined }}
           >
-            {/* Swipeable macro panel: slide 0 = core, slide 1 = more */}
+            {/* Calories stay PINNED. The pager used to carry this tile with it,
+                so reading your sodium cost you the number every other figure on
+                the screen is judged against. Only the three-tile row swipes. */}
+            <div className="px-4 pt-4">
+              <Tile big label="Calories" unit="" color="text-primary" editing={coreEditable} value={vals.calories} onChange={(v) => setVal('calories', v)} />
+            </div>
             <div
               ref={trackRef}
               onScroll={onTrackScroll}
               className="flex overflow-x-auto snap-x snap-mandatory scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none]"
               style={{ scrollbarWidth: 'none' }}
             >
-              <div className="snap-center shrink-0 basis-full min-w-full px-4 pt-4">
-                <Tile big label="Calories" unit="" color="text-primary" editing={coreEditable} value={vals.calories} onChange={(v) => setVal('calories', v)} />
-                <div className="mt-2 grid grid-cols-3 gap-2">
-                  <Tile label="Protein" unit="g" color="text-destructive"    editing={coreEditable} value={vals.protein_g} onChange={(v) => setVal('protein_g', v)} />
-                  <Tile label="Carbs"   unit="g" color="text-info"   editing={coreEditable} value={vals.carbs_g}   onChange={(v) => setVal('carbs_g', v)} />
-                  <Tile label="Fat"     unit="g" color="text-primary" editing={coreEditable} value={vals.fat_g}     onChange={(v) => setVal('fat_g', v)} />
+              <div className="snap-center shrink-0 basis-full min-w-full px-4 pt-2">
+                <div className="grid grid-cols-3 gap-2">
+                  {MACRO_ORDER.map(m => (
+                    <Tile
+                      key={m.key}
+                      label={m.label}
+                      unit="g"
+                      color={m.text}
+                      editing={coreEditable}
+                      value={vals[m.field]}
+                      onChange={(v) => setVal(m.field, v)}
+                    />
+                  ))}
                 </div>
                 {editing && hasItems && (
                   <p className="mt-2 text-micro text-muted-foreground text-center">
@@ -261,12 +275,19 @@ export default function PhotoMealResultModal({ open, imageUrl, result, saving, o
                   </p>
                 )}
               </div>
-              <div className="snap-center shrink-0 basis-full min-w-full px-4 pt-4">
-                <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground mb-2 text-center">More nutrients</p>
+              <div className="snap-center shrink-0 basis-full min-w-full px-4 pt-2">
                 <div className="grid grid-cols-3 gap-2">
-                  <Tile label="Fiber"  unit="g"  color="text-success" editing={editing} value={vals.fiber_g}   onChange={(v) => setVal('fiber_g', v)} />
-                  <Tile label="Sugar"  unit="g"  color="text-primary"    editing={editing} value={vals.sugar_g}   onChange={(v) => setVal('sugar_g', v)} />
-                  <Tile label="Sodium" unit="mg" color="text-primary"  editing={editing} value={vals.sodium_mg} onChange={(v) => setVal('sodium_mg', v)} />
+                  {MICRO_ORDER.map(m => (
+                    <Tile
+                      key={m.key}
+                      label={m.label}
+                      unit={m.unit}
+                      color={m.text}
+                      editing={editing}
+                      value={vals[m.field]}
+                      onChange={(v) => setVal(m.field, v)}
+                    />
+                  ))}
                 </div>
               </div>
             </div>
@@ -276,9 +297,9 @@ export default function PhotoMealResultModal({ open, imageUrl, result, saving, o
                 <span key={i} className={`h-1.5 rounded-full transition-all ${slide === i ? 'w-4 bg-primary' : 'w-1.5 bg-border'}`} />
               ))}
             </div>
-            {slide === 0 && (
-              <p className="text-micro text-muted-foreground text-center mt-1">Swipe for fiber, sugar &amp; sodium →</p>
-            )}
+            <p className="text-micro text-muted-foreground text-center mt-1">
+              {slide === 0 ? 'Swipe for fiber, sugar & sodium →' : '← Swipe back for macros'}
+            </p>
 
             {/* Per-ingredient breakdown. In Edit mode every row is editable and
                 you can add/remove ingredients; the core macros re-total live. */}

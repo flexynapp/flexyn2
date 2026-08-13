@@ -1,18 +1,31 @@
-import React, { useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import React, { useMemo, useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { format, parseISO, isToday, isYesterday } from 'date-fns';
-import { X, UtensilsCrossed, Flame, ChevronDown, ChevronUp, Calendar as CalendarIcon, BarChart3 } from 'lucide-react';
+import { format, parseISO, subDays, isToday, isYesterday, isValid, differenceInCalendarDays } from 'date-fns';
+import {
+  X, UtensilsCrossed, Droplet, Calendar as CalendarIcon, Image as ImageIcon, Camera, Plus,
+} from 'lucide-react';
 import NutritionTrendsChart from './NutritionTrendsChart';
 import PhotoMealResultModal from './PhotoMealResultModal';
-import { Button } from '@/components/ui/button';
+import WeekCalorieStrip from './WeekCalorieStrip';
+import HistoryCalendarSheet from './HistoryCalendarSheet';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useNumberFormatter } from '@/lib/intl';
+import { getDateLocale } from '@/lib/dateLocales';
 import { db } from '@/api/db';
+import * as nutritionData from '@/lib/data/nutrition';
+import { toast } from '@/lib/toast';
+import { reportError } from '@/lib/reportError';
 import { filterAfterReset } from '@/lib/accountReset';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
-import { useState } from 'react';
+import { splitWaterEntries, sumWaterOz } from '@/lib/waterEntries';
+import { MACRO_ORDER } from '@/lib/macroColors';
+import { calculateDailyValues } from '@/lib/nutritionDefaults';
+import { adherenceOf, summarise } from '@/lib/nutritionAdherence';
+
+const KEY = 'yyyy-MM-dd';
+const WEEK = 7;
 
 // Reconstruct a recognition-shaped result from a stored log row so the saved
 // meal can be re-opened in the read-only detail view (photo + macros +, for
@@ -33,136 +46,229 @@ function mealEntryToResult(entry) {
     portion_estimate: meta.portion_estimate || null,
     confidence:       meta.confidence || null,
     notes:            meta.notes || entry?.notes || null,
+    logged_at:        entry?.created_at || null,
   };
 }
 
-function formatDateHeading(dateStr) {
-  try {
-    const d = parseISO(dateStr);
-    if (isToday(d)) return 'Today';
-    if (isYesterday(d)) return 'Yesterday';
-    return format(d, 'EEEE, MMMM d, yyyy');
-  } catch {
-    return dateStr;
-  }
+function macroTotals(meals = []) {
+  return meals.reduce((acc, e) => ({
+    calories: acc.calories + (Number(e.calories) || 0),
+    protein:  acc.protein  + (Number(e.protein_g) || 0),
+    carbs:    acc.carbs    + (Number(e.carbs_g)   || 0),
+    fat:      acc.fat      + (Number(e.fat_g)     || 0),
+  }), { calories: 0, protein: 0, carbs: 0, fat: 0 });
 }
 
-function MacroPill({ label, value, color }) {
-  if (!value || value <= 0) return null;
-  return (
-    <span className={`inline-flex items-center gap-0.5 text-micro font-semibold px-1.5 py-0.5 rounded-full ${color}`}>
-      {label} {Math.round(value)}g
-    </span>
-  );
+function formatDateHeading(dateStr, locale) {
+  const d = parseISO(dateStr);
+  if (!isValid(d)) return dateStr;
+  if (isToday(d)) return 'Today';
+  if (isYesterday(d)) return 'Yesterday';
+  return format(d, 'EEE, MMM d', { locale });
 }
 
-function DaySection({ dateStr, entries, onSelect }) {
-  const [expanded, setExpanded] = useState(true);
+function formatTime(stamp, locale) {
+  if (!stamp) return null;
+  const d = parseISO(stamp);
+  return isValid(d) ? format(d, 'h:mm a', { locale }) : null;
+}
 
-  const totals = useMemo(() => entries.reduce((acc, e) => ({
-    calories: acc.calories + (e.calories || 0),
-    protein:  acc.protein  + (e.protein_g  || 0),
-    carbs:    acc.carbs    + (e.carbs_g    || 0),
-    fat:      acc.fat      + (e.fat_g      || 0),
-  }), { calories: 0, protein: 0, carbs: 0, fat: 0 }), [entries]);
-
+/**
+ * Per-day macro totals. These used to sit behind `hidden sm:flex`, so on a
+ * mobile-only app they never rendered on a single real device.
+ */
+function MacroChips({ totals }) {
   return (
-    <div className="mb-3">
-      <button
-        onClick={() => setExpanded(v => !v)}
-        className="w-full flex items-center justify-between px-4 py-2.5 bg-secondary/60 rounded-xl hover:bg-secondary/80 active:bg-secondary/80 transition-colors"
-      >
-        <div className="flex flex-col items-start gap-0.5">
-          <span className="text-sm font-heading font-bold tracking-tight">
-            {formatDateHeading(dateStr)}
-          </span>
-          <div className="flex items-center gap-1.5">
-            <span className="flex items-center gap-1 text-xs text-muted-foreground font-medium">
-              <Flame className="w-3 h-3 text-primary" />
-              {Math.round(totals.calories)} cal
-            </span>
-            <span className="text-muted-foreground/40 text-xs">·</span>
-            <span className="text-xs text-muted-foreground">{entries.length} item{entries.length !== 1 ? 's' : ''}</span>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="hidden sm:flex gap-1">
-            <MacroPill label="P" value={totals.protein} color="bg-info/10 text-info dark:text-info" />
-            <MacroPill label="C" value={totals.carbs}   color="bg-primary/10 text-primary dark:text-primary" />
-            <MacroPill label="F" value={totals.fat}     color="bg-destructive/10 text-destructive dark:text-destructive" />
-          </div>
-          {expanded
-            ? <ChevronUp className="w-4 h-4 text-muted-foreground" />
-            : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
-        </div>
-      </button>
-
-      <AnimatePresence initial={false}>
-        {expanded && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.22, ease: 'easeOut' }}
-            className="overflow-hidden"
-          >
-            <div className="pt-1 space-y-1 px-1">
-              {entries.map((entry, i) => (
-                <motion.div
-                  key={entry.id}
-                  initial={{ opacity: 0, x: -8 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: i * 0.03, duration: 0.18 }}
-                  onClick={() => onSelect?.(entry)}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect?.(entry); } }}
-                  className="flex items-center justify-between px-4 py-3 rounded-xl bg-card border border-border/50 hover:border-primary/40 cursor-pointer transition-colors"
-                >
-                  {entry.image_url && (
-                    <img src={entry.image_url} alt="" className="w-10 h-10 rounded-lg object-cover me-3 shrink-0" />
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{entry.food_name}</p>
-                    <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
-                      {entry.protein_g > 0 && (
-                        <MacroPill label="P" value={entry.protein_g} color="bg-info/10 text-info dark:text-info" />
-                      )}
-                      {entry.carbs_g > 0 && (
-                        <MacroPill label="C" value={entry.carbs_g} color="bg-primary/10 text-primary dark:text-primary" />
-                      )}
-                      {entry.fat_g > 0 && (
-                        <MacroPill label="F" value={entry.fat_g} color="bg-destructive/10 text-destructive dark:text-destructive" />
-                      )}
-                    </div>
-                  </div>
-                  <div className="ms-3 text-end shrink-0">
-                    <p className="text-sm font-heading font-bold">{Math.round(entry.calories || 0)}</p>
-                    <p className="text-micro text-muted-foreground">cal</p>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+    <div className="flex items-center gap-1.5 mt-1.5">
+      {MACRO_ORDER.map(m => (
+        <span
+          key={m.key}
+          className={`inline-flex items-center justify-center min-w-[46px] px-1.5 py-0.5 rounded-full text-micro font-bold ${m.chip}`}
+        >
+          {m.short} {Math.round(totals[m.key] || 0)}g
+        </span>
+      ))}
     </div>
   );
 }
 
-export default function MealHistoryModal({ open, onClose, userProfile }) {
+function WaterLine({ entries }) {
+  if (!entries.length) return null;
+  const oz = Math.round(sumWaterOz(entries));
+  return (
+    <div className="flex items-center gap-1.5 mt-2 mb-1 text-info">
+      <Droplet className="w-3.5 h-3.5 shrink-0" />
+      <span className="text-xs font-medium">
+        {entries.length} glass{entries.length === 1 ? '' : 'es'}{oz > 0 ? ` · ${oz} oz` : ''}
+      </span>
+    </div>
+  );
+}
+
+function MealRow({ entry, locale, onSelect, index }) {
+  const time = formatTime(entry.created_at, locale);
+  const macros = MACRO_ORDER
+    .map(m => (Number(entry[m.field]) > 0 ? `${Math.round(entry[m.field])}${m.short}` : null))
+    .filter(Boolean);
+  const meta = [time, ...macros].filter(Boolean).join(' · ');
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: -8 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ delay: Math.min(index, 6) * 0.03, duration: 0.18 }}
+      onClick={() => onSelect?.(entry)}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect?.(entry); } }}
+      className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-card border border-border/60 hover:border-primary/40 cursor-pointer transition-colors"
+    >
+      {entry.image_url ? (
+        <img src={entry.image_url} alt="" className="w-11 h-11 rounded-lg object-cover shrink-0" />
+      ) : (
+        <span className="w-11 h-11 rounded-lg bg-secondary/60 flex items-center justify-center shrink-0">
+          <ImageIcon className="w-5 h-5 text-muted-foreground/60" />
+        </span>
+      )}
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold truncate">{entry.food_name}</p>
+        {meta && <p className="text-xs text-muted-foreground truncate mt-0.5">{meta}</p>}
+      </div>
+      <div className="text-end shrink-0">
+        <p className="font-heading font-bold text-[15px] leading-none tabular-nums">
+          {Math.round(entry.calories || 0)}
+        </p>
+        <p className="text-micro text-muted-foreground mt-0.5">cal</p>
+      </div>
+    </motion.div>
+  );
+}
+
+function DaySection({ dateStr, meals, water, locale, fmt, onSelect }) {
+  const totals = useMemo(() => macroTotals(meals), [meals]);
+  const hasMeals = meals.length > 0;
+
+  return (
+    <div className="mb-5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="font-heading font-bold text-[13px] uppercase tracking-wide truncate">
+            {formatDateHeading(dateStr, locale)}
+          </p>
+          {hasMeals && <MacroChips totals={totals} />}
+        </div>
+        {hasMeals ? (
+          <p className="font-heading font-bold text-[13px] tabular-nums shrink-0">
+            {fmt(Math.round(totals.calories))} cal
+          </p>
+        ) : (
+          // Not "0 cal". A day whose only rows were water did not have zero
+          // calories — it had no meals logged, which is a different claim.
+          <p className="text-xs text-muted-foreground shrink-0">No meals logged</p>
+        )}
+      </div>
+
+      {hasMeals && (
+        <div className="mt-2.5 space-y-1.5">
+          {meals.map((entry, i) => (
+            <MealRow key={entry.id} entry={entry} locale={locale} onSelect={onSelect} index={i} />
+          ))}
+        </div>
+      )}
+      <WaterLine entries={water} />
+    </div>
+  );
+}
+
+/** The payoff for focusing one day: how it sat against goal, and against you. */
+function DayFocusCard({ meals, dv, weekAvg, fmt }) {
+  const totals = macroTotals(meals);
+  const goal = Math.round(dv?.calories || 2000);
+  const pct = goal > 0 ? Math.round((totals.calories / goal) * 100) : 0;
+  const tone = adherenceOf(totals.calories, goal);
+  const delta = weekAvg > 0 ? Math.round(totals.calories - weekAvg) : null;
+  const goals = {
+    protein: dv?.protein_g || 150,
+    carbs:   dv?.carbs_g   || 250,
+    fat:     dv?.fat_g     || 67,
+  };
+
+  return (
+    <div className="rounded-2xl border border-border bg-card p-4 mb-4">
+      <div className="flex items-baseline justify-between gap-2">
+        <div className="flex items-baseline gap-1.5 min-w-0">
+          <span className="font-heading font-bold text-2xl tabular-nums">{fmt(Math.round(totals.calories))}</span>
+          <span className="text-xs font-medium text-muted-foreground truncate">/ {fmt(goal)} cal</span>
+        </div>
+        {tone && <span className={`text-xs font-bold shrink-0 ${tone.text}`}>{pct}% of goal</span>}
+      </div>
+
+      <div className="h-1.5 rounded-full bg-secondary overflow-hidden mt-3">
+        <motion.div
+          className="h-full rounded-full"
+          style={{ background: tone ? tone.css : 'hsl(var(--muted-foreground))' }}
+          initial={{ width: 0 }}
+          animate={{ width: `${Math.min(pct, 100)}%` }}
+          transition={{ duration: 0.5, ease: 'easeOut' }}
+        />
+      </div>
+
+      <div className="space-y-2 mt-3.5">
+        {MACRO_ORDER.map(m => {
+          const value = totals[m.key] || 0;
+          const target = goals[m.key];
+          return (
+            <div key={m.key} className="flex items-center gap-2.5">
+              <span className={`text-micro font-semibold w-12 shrink-0 ${m.text}`}>{m.label}</span>
+              <div className="flex-1 h-1.5 rounded-full bg-secondary overflow-hidden">
+                <div
+                  className="h-full rounded-full"
+                  style={{ background: m.css, width: `${Math.min((value / Math.max(target, 1)) * 100, 100)}%` }}
+                />
+              </div>
+              <span className="text-micro tabular-nums w-[74px] text-end shrink-0">
+                <span className="font-bold">{Math.round(value)}</span>
+                <span className="text-muted-foreground"> / {Math.round(target)}g</span>
+              </span>
+            </div>
+          );
+        })}
+      </div>
+
+      {delta != null && (
+        <div className="mt-3.5 pt-3 border-t border-border">
+          <p className="text-micro font-bold uppercase tracking-[0.12em] text-muted-foreground">Vs your 7-day average</p>
+          <p className={`font-heading font-bold text-base tabular-nums mt-1 ${
+            delta > 0 ? 'text-primary' : delta < 0 ? 'text-info' : 'text-muted-foreground'
+          }`}>
+            {delta > 0 ? '+' : ''}{fmt(delta)} cal
+          </p>
+          <p className="text-micro text-muted-foreground mt-0.5">
+            you averaged {fmt(Math.round(weekAvg))}/day over that window
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function MealHistoryModal({ open, onClose, userProfile, onLogPhoto, onLogManual }) {
   const { user } = useAuth();
-  const { t } = useLanguage();
+  const { language } = useLanguage();
+  const locale = getDateLocale(language);
   const fmt = useNumberFormatter();
-  // 'browse' (default — day list) vs 'trends' (7-day chart) vs
-  // 'picker' (jump to a specific date). The picker is a single
-  // <input type="date"> that scrolls the list to that day's section.
-  const [tab, setTab] = useState('browse');
-  const [pickedDate, setPickedDate] = useState('');
-  // Selected saved meal → read-only detail pop-out (image + macros + ingredients).
+  const queryClient = useQueryClient();
+
+  // 'meals' (day list) vs 'trends'. "Pick day" is no longer a tab — choosing a
+  // date is a filter on this surface, driven by the week strip or the calendar.
+  const [tab, setTab] = useState('meals');
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [weekOffset, setWeekOffset] = useState(0);
+  const [calendarOpen, setCalendarOpen] = useState(false);
   const [detail, setDetail] = useState(null);
-  const openDetail = (entry) => setDetail({ imageUrl: entry?.image_url || null, result: mealEntryToResult(entry) });
   useBodyScrollLock(open);
+
+  const todayStr = format(new Date(), KEY);
 
   const { data: rawLogs = [], isLoading } = useQuery({
     queryKey: ['nutritionHistory', user?.email],
@@ -172,42 +278,108 @@ export default function MealHistoryModal({ open, onClose, userProfile }) {
     enabled: !!user?.email && open,
   });
 
-  const mealLogs = useMemo(() => {
-    // Filter out water-glass rows from the meal history. The legacy
-    // encoding was { food_name: 'Water', water_oz: N } but the new
-    // glasses-counter encoding stores { food_name: 'Water|N' } with
-    // calories = 0. Both shapes must be excluded — previously only
-    // the legacy shape was filtered, so post-migration water entries
-    // showed up in history as "Water|3 — 0 cal meal". (Audit 11 #3.)
-    const isWaterRow = (e) => {
-      const name = (e?.food_name || '').toString();
-      if (name === 'Water' && e?.water_oz > 0) return true;
-      if (/^Water\|/.test(name)) return true;
-      return false;
-    };
-    return filterAfterReset(rawLogs, userProfile).filter(e => !isWaterRow(e));
-  }, [rawLogs, userProfile]);
+  const deleteMutation = useMutation({
+    mutationFn: (id) => nutritionData.remove(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['nutritionHistory', user?.email] });
+      queryClient.invalidateQueries({ queryKey: ['nutritionLogs'] });
+      setDetail(null);
+      toast.success('Meal removed');
+    },
+    onError: (err) => {
+      reportError(err, { feature: 'nutrition.history.delete', userEmail: user?.email });
+      toast.error("Couldn't remove that meal");
+    },
+  });
 
+  const rows = useMemo(() => filterAfterReset(rawLogs, userProfile), [rawLogs, userProfile]);
+
+  // Water is not a meal, but it is also not nothing — it gets one line per day
+  // instead of N zero-calorie rows in the meal list.
   const grouped = useMemo(() => {
     const map = new Map();
-    for (const entry of mealLogs) {
+    for (const entry of rows) {
       const key = entry.date || 'Unknown';
       if (!map.has(key)) map.set(key, []);
       map.get(key).push(entry);
     }
-    return Array.from(map.entries()).sort((a, b) => b[0].localeCompare(a[0]));
-  }, [mealLogs]);
+    return Array.from(map.entries())
+      .map(([date, entries]) => ({ date, ...splitWaterEntries(entries) }))
+      .sort((a, b) => b.date.localeCompare(a.date));
+  }, [rows]);
 
-  const allTimeCalories = useMemo(
-    () => mealLogs.reduce((s, e) => s + (e.calories || 0), 0),
-    [mealLogs]
+  const mealDays = useMemo(() => grouped.filter(d => d.meals.length > 0), [grouped]);
+  const mealCount = useMemo(() => mealDays.reduce((n, d) => n + d.meals.length, 0), [mealDays]);
+
+  const caloriesByDate = useMemo(() => {
+    const map = new Map();
+    for (const day of grouped) {
+      const total = day.meals.reduce((s, e) => s + (Number(e.calories) || 0), 0);
+      if (total > 0) map.set(day.date, total);
+    }
+    return map;
+  }, [grouped]);
+
+  const dv = useMemo(() => calculateDailyValues(userProfile), [userProfile]);
+  const goalCal = Math.round(dv?.calories || 2000);
+
+  // The strip window: the trailing 7 days, shifted by whole weeks. Trailing
+  // rather than calendar-week so today is always the rightmost bar and the
+  // chart is never four-sevenths empty future.
+  const weekSeries = useMemo(() => {
+    const end = subDays(new Date(), weekOffset * WEEK);
+    return Array.from({ length: WEEK }, (_, i) => {
+      const date = format(subDays(end, WEEK - 1 - i), KEY);
+      return { date, calories: caloriesByDate.get(date) || 0 };
+    });
+  }, [caloriesByDate, weekOffset]);
+
+  const weekAvg = useMemo(() => summarise(weekSeries, goalCal).avg, [weekSeries, goalCal]);
+
+  const visibleDays = useMemo(
+    () => (selectedDate ? grouped.filter(d => d.date === selectedDate) : grouped),
+    [grouped, selectedDate],
   );
+
+  const openDetail = (entry) =>
+    setDetail({ id: entry.id, imageUrl: entry?.image_url || null, result: mealEntryToResult(entry) });
+
+  // Scroll the strip to whichever week contains `date`, so a day picked out of
+  // the calendar is never selected off-screen in a window you cannot see.
+  const focusWeekOn = (date) => {
+    const daysAgo = differenceInCalendarDays(new Date(), parseISO(date));
+    if (Number.isFinite(daysAgo)) setWeekOffset(Math.max(0, Math.floor(daysAgo / WEEK)));
+  };
+
+  // Tapping the day you are already scoped to clears the filter — the same
+  // control both selects and deselects, so there is never a stuck state.
+  const toggleDate = (date) => {
+    setTab('meals');
+    setSelectedDate(prev => (prev === date ? null : date));
+  };
+
+  // The calendar always selects: you opened it to go somewhere.
+  const selectDate = (date) => {
+    setTab('meals');
+    setSelectedDate(date);
+    focusWeekOn(date);
+  };
+
+  const shiftWeek = (delta) => setWeekOffset(prev => Math.max(0, prev - delta));
 
   if (!open) return null;
 
+  const showChrome = !isLoading && mealCount > 0;
+
   return (
-    <AnimatePresence>
+    <>
+      {/* Only the sheet itself belongs inside AnimatePresence. The calendar and
+          the meal detail manage their own presence and return null when closed
+          — as direct AnimatePresence children that reads as "exiting", and it
+          kept the calendar's last render mounted after you picked a day. */}
+      <AnimatePresence>
       <motion.div
+        key="history-sheet"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
@@ -221,121 +393,172 @@ export default function MealHistoryModal({ open, onClose, userProfile }) {
           exit={{ y: 60, opacity: 0 }}
           transition={{ type: 'spring', stiffness: 320, damping: 28 }}
           onClick={e => e.stopPropagation()}
-          className="w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl bg-card border border-border flex flex-col"
+          className="w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl bg-background border border-border flex flex-col"
           style={{ maxHeight: '92vh' }}
         >
-          {/* Header */}
-          <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-border shrink-0">
-            <div>
-              <h2 className="font-heading font-bold text-xl tracking-tight">Meal History</h2>
-              {!isLoading && mealLogs.length > 0 && (
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {mealLogs.length} entries · {fmt(Math.round(allTimeCalories))} cal total
-                </p>
-              )}
+          {/* Header — ✕ and swipe-to-dismiss are the close affordances. The
+              full-width orange Close button that used to sit in a footer was
+              the loudest control on the screen and did nothing but dismiss. */}
+          <div className="shrink-0">
+            <div className="flex justify-center pt-2.5 pb-1 sm:hidden">
+              <span className="w-10 h-1 rounded-full bg-border" />
             </div>
-            <button
-              onClick={onClose}
-              className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center hover:bg-secondary/70 active:bg-secondary/70 transition-colors"
-            >
-              <X className="w-4 h-4" />
-            </button>
+            <div className="flex items-center justify-between px-4 pt-2 pb-3">
+              <h2 className="font-heading font-bold text-xl tracking-tight">History</h2>
+              <div className="flex items-center gap-2">
+                {showChrome && (
+                  <button
+                    type="button"
+                    onClick={() => setCalendarOpen(true)}
+                    aria-label="Jump to a day"
+                    className="w-9 h-9 rounded-lg bg-secondary flex items-center justify-center text-muted-foreground active:bg-secondary/70"
+                  >
+                    <CalendarIcon className="w-4 h-4" />
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={onClose}
+                  aria-label="Close"
+                  className="w-9 h-9 rounded-lg bg-secondary flex items-center justify-center text-muted-foreground active:bg-secondary/70"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
           </div>
 
-          {/* Stats bar */}
-          {!isLoading && mealLogs.length > 0 && (
-            <div className="grid grid-cols-3 gap-3 px-5 py-3 border-b border-border shrink-0">
-              {[
-                { label: 'Days logged', value: grouped.length },
-                { label: 'Meals logged', value: mealLogs.length },
-                { label: 'Avg cal/day', value: grouped.length > 0 ? Math.round(allTimeCalories / grouped.length) : 0 },
-              ].map(stat => (
-                <div key={stat.label} className="text-center">
-                  <p className="font-heading font-bold text-lg leading-none">{fmt(stat.value)}</p>
-                  <p className="text-micro text-muted-foreground mt-0.5">{stat.label}</p>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Tab row */}
-          {!isLoading && mealLogs.length > 0 && (
-            <div className="flex gap-1 px-4 pt-3 border-b border-border/60">
-              {[
-                { id: 'browse', label: 'Browse',  Icon: UtensilsCrossed },
-                { id: 'picker', label: 'Pick day', Icon: CalendarIcon },
-                { id: 'trends', label: 'Trends',  Icon: BarChart3 },
-              ].map(({ id, label, Icon }) => (
-                <button
-                  key={id}
-                  onClick={() => setTab(id)}
-                  className={`flex items-center gap-1 px-3 py-1.5 text-xs font-bold uppercase tracking-wide rounded-t-md transition-colors ${
-                    tab === id ? 'text-foreground border-b-2 border-primary' : 'text-muted-foreground'
-                  }`}
-                >
-                  <Icon className="w-3.5 h-3.5" /> {label}
-                </button>
-              ))}
+          {showChrome && (
+            <div className="px-4 pb-3 shrink-0 space-y-3">
+              <WeekCalorieStrip
+                series={weekSeries}
+                goal={goalCal}
+                selectedDate={selectedDate}
+                todayStr={todayStr}
+                onSelect={toggleDate}
+                onShift={shiftWeek}
+                canGoForward={weekOffset > 0}
+              />
+              <div className="flex p-1 rounded-xl bg-secondary/60">
+                {[{ id: 'meals', label: 'Meals' }, { id: 'trends', label: 'Trends' }].map(t => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => setTab(t.id)}
+                    aria-pressed={tab === t.id}
+                    className={`flex-1 h-8 rounded-lg text-[13px] font-semibold transition-colors ${
+                      tab === t.id ? 'bg-secondary text-foreground shadow-sm' : 'text-muted-foreground'
+                    }`}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 
           {/* Body */}
-          <div className="flex-1 overflow-y-auto px-4 py-4">
+          <div className="flex-1 overflow-y-auto px-4 pb-5">
             {isLoading ? (
-              <div className="space-y-3">
+              <div className="space-y-3 pt-1">
                 {[...Array(4)].map((_, i) => (
                   <div key={i} className="h-16 rounded-xl bg-secondary/40 animate-pulse" />
                 ))}
               </div>
-            ) : grouped.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 text-center">
-                <div className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center mb-4">
-                  <UtensilsCrossed className="w-7 h-7 text-muted-foreground" />
+            ) : mealCount === 0 ? (
+              <div className="flex flex-col items-center justify-center py-14 text-center">
+                <div className="w-20 h-20 rounded-full bg-secondary flex items-center justify-center mb-5">
+                  <UtensilsCrossed className="w-8 h-8 text-muted-foreground" />
                 </div>
-                <p className="font-heading font-bold text-base">No meal history yet</p>
-                <p className="text-sm text-muted-foreground mt-1">Start logging meals to see your history here.</p>
+                <p className="font-heading font-bold text-lg">No meals logged yet</p>
+                <p className="text-sm text-muted-foreground mt-1.5 max-w-[19rem]">
+                  Log a meal and it shows up here — grouped by day, with your macros and how that day
+                  tracked against your goal.
+                </p>
+                {(onLogPhoto || onLogManual) && (
+                  <div className="w-full mt-6 space-y-2.5">
+                    {onLogPhoto && (
+                      <button
+                        type="button"
+                        onClick={() => { onClose?.(); onLogPhoto(); }}
+                        className="w-full h-12 rounded-lg bg-primary text-primary-foreground font-heading font-bold text-sm flex items-center justify-center gap-2"
+                      >
+                        <Camera className="w-4 h-4" /> Log with a photo
+                      </button>
+                    )}
+                    {onLogManual && (
+                      <button
+                        type="button"
+                        onClick={() => { onClose?.(); onLogManual(); }}
+                        className="w-full h-12 rounded-lg border border-border font-semibold text-sm flex items-center justify-center gap-2"
+                      >
+                        <Plus className="w-4 h-4" /> Enter it manually
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             ) : tab === 'trends' ? (
-              <NutritionTrendsChart entries={mealLogs} userProfile={userProfile} />
-            ) : tab === 'picker' ? (
-              <div className="space-y-3">
-                <div>
-                  <label className="text-micro font-bold uppercase tracking-wide text-muted-foreground">
-                    Jump to date
-                  </label>
-                  <input
-                    type="date"
-                    value={pickedDate}
-                    onChange={(e) => setPickedDate(e.target.value)}
-                    max={format(new Date(), 'yyyy-MM-dd')}
-                    className="w-full mt-1 px-3 py-2 bg-secondary/40 border border-border rounded-lg text-sm outline-none focus:border-primary/50"
-                  />
-                </div>
-                {pickedDate && (() => {
-                  const found = grouped.find(([d]) => d === pickedDate);
-                  if (!found) {
-                    return <p className="text-xs text-muted-foreground text-center py-4">No entries on {pickedDate}.</p>;
-                  }
-                  return <DaySection dateStr={found[0]} entries={found[1]} onSelect={openDetail} />;
-                })()}
-              </div>
+              <NutritionTrendsChart entries={rows} userProfile={userProfile} />
             ) : (
-              <div>
-                {grouped.map(([dateStr, entries]) => (
-                  <DaySection key={dateStr} dateStr={dateStr} entries={entries} onSelect={openDetail} />
-                ))}
-              </div>
-            )}
-          </div>
+              <>
+                {selectedDate && (
+                  <div className="flex items-center justify-between gap-3 pb-3">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedDate(null)}
+                      className="inline-flex items-center gap-1.5 h-8 ps-3 pe-2.5 rounded-full bg-primary/15 border border-primary/45 text-primary text-xs font-bold uppercase tracking-wide"
+                    >
+                      {formatDateHeading(selectedDate, locale)}
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedDate(null)}
+                      className="text-xs font-semibold text-muted-foreground shrink-0"
+                    >
+                      Show all days
+                    </button>
+                  </div>
+                )}
 
-          {/* Footer */}
-          <div className="px-5 py-4 border-t border-border shrink-0">
-            <Button onClick={onClose} className="w-full font-heading font-semibold">
-              Close
-            </Button>
+                {selectedDate && visibleDays[0]?.meals.length > 0 && (
+                  <DayFocusCard meals={visibleDays[0].meals} dv={dv} weekAvg={weekAvg} fmt={fmt} />
+                )}
+
+                {visibleDays.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-10">
+                    No meals logged on {formatDateHeading(selectedDate, locale)}.
+                  </p>
+                ) : (
+                  visibleDays.map(day => (
+                    <DaySection
+                      key={day.date}
+                      dateStr={day.date}
+                      meals={day.meals}
+                      water={day.water}
+                      locale={locale}
+                      fmt={fmt}
+                      onSelect={openDetail}
+                    />
+                  ))
+                )}
+              </>
+            )}
           </div>
         </motion.div>
       </motion.div>
+      </AnimatePresence>
+
+      <HistoryCalendarSheet
+        open={calendarOpen}
+        onClose={() => setCalendarOpen(false)}
+        caloriesByDate={caloriesByDate}
+        goal={goalCal}
+        selectedDate={selectedDate}
+        todayStr={todayStr}
+        onSelect={selectDate}
+      />
 
       {/* Read-only detail for a tapped saved meal (portals above this modal). */}
       <PhotoMealResultModal
@@ -344,7 +567,8 @@ export default function MealHistoryModal({ open, onClose, userProfile }) {
         imageUrl={detail?.imageUrl}
         result={detail?.result}
         onClose={() => setDetail(null)}
+        onDelete={detail?.id ? () => deleteMutation.mutate(detail.id) : undefined}
       />
-    </AnimatePresence>
+    </>
   );
 }

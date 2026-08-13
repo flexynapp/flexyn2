@@ -66,13 +66,11 @@ import { useSettings } from '@/lib/SettingsContext';
 import { useNumberFormatter } from '@/lib/intl';
 import { useLocation } from 'react-router-dom';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+// Water-entry helpers live in lib so this page and MealHistoryModal cannot
+// disagree about what counts as a glass — they used to, and history showed
+// every pre-migration-006 water row as a "Water — 0 cal" meal.
+import { isWaterEntry, waterEntryOz, waterFoodName } from '@/lib/waterEntries';
 
-// Helpers for water entries — encode oz in food_name so the value survives
-// even when the water_oz DB column doesn't exist (migration 006 not applied).
-// Format: "Water" = 8 oz (legacy/standard glass), "Water|N" = N oz
-const isWaterEntry = (e) => e.food_name === 'Water' || e.food_name?.startsWith('Water|');
-const waterEntryOz = (e) => e.water_oz ?? (e.food_name?.startsWith('Water|') ? Number(e.food_name.split('|')[1]) : 8);
-const waterFoodName = (oz) => oz === 8 ? 'Water' : `Water|${oz}`;
 
 /* ──────────────────────────────────────────────────────────────────
  *  NutritionShortcutsCarousel — mirrors the Progress carousel pattern.
@@ -2293,6 +2291,8 @@ export default function Nutrition() {
           open={showMealHistory}
           onClose={() => setShowMealHistory(false)}
           userProfile={userProfile}
+          onLogPhoto={() => setShowPhotoCapture(true)}
+          onLogManual={() => setOpenLogMeal(true)}
         />
       </ErrorBoundary>
 
