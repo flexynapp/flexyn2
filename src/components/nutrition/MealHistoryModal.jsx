@@ -278,7 +278,7 @@ function DayFocusCard({ meals, dv, weekAvg, fmt }) {
   );
 }
 
-export default function MealHistoryModal({ open, onClose, userProfile, onLogPhoto, onLogManual }) {
+export default function MealHistoryModal({ open, onClose, userProfile, onLogPhoto, onLogManual, onLogAgain }) {
   const { user } = useAuth();
   const { language } = useLanguage();
   const locale = getDateLocale(language);
@@ -614,6 +614,9 @@ export default function MealHistoryModal({ open, onClose, userProfile, onLogPhot
         result={detail?.result}
         onClose={() => setDetail(null)}
         onDelete={detail?.id ? () => deleteMutation.mutate(detail.id) : undefined}
+        // The sheet computes nothing: `detail.result` is already result-shaped,
+        // and Nutrition's reLogMeal stays the single writer.
+        onLogAgain={onLogAgain && detail?.result ? () => { onLogAgain(detail.result); setDetail(null); } : undefined}
       />
     </>
   );

@@ -15,11 +15,17 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createPortal } from 'react-dom';
-import { X, Pencil, Check, Save, Loader2, Sparkles, Utensils, Trash2, Plus } from 'lucide-react';
+import { X, Pencil, Check, Save, Loader2, Sparkles, Utensils, Trash2, Plus, Clock } from 'lucide-react';
+import { format, parseISO, isValid } from 'date-fns';
 import { Input } from '@/components/ui/input';
 import { useKeyboardInset } from '@/hooks/useKeyboardInset';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { MACRO_ORDER, MICRO_ORDER } from '@/lib/macroColors';
+
+/** "a", "a & b", "a, b & c" — the hint names only the tiles that survived. */
+const listPhrase = (parts) =>
+  parts.length <= 1 ? (parts[0] || '')
+    : `${parts.slice(0, -1).join(', ')} & ${parts[parts.length - 1]}`;
 
 const num = (v) => {
   if (v === '' || v == null) return 0;
@@ -51,7 +57,7 @@ function Tile({ label, value, unit, color = 'text-foreground', tint = 'bg-second
   );
 }
 
-export default function PhotoMealResultModal({ open, imageUrl, result, saving, onClose, onSave, readOnly = false, onDelete }) {
+export default function PhotoMealResultModal({ open, imageUrl, result, saving, onClose, onSave, readOnly = false, onDelete, onLogAgain }) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState('');
   const [vals, setVals] = useState({});
@@ -116,6 +122,23 @@ export default function PhotoMealResultModal({ open, imageUrl, result, saving, o
   // Ingredients drive the core macros when present, so those tiles are read-only
   // in Edit mode (you change them by editing the ingredients). Fiber/sugar/sodium
   // aren't itemised, so they stay directly editable.
+  // A nutrient with nothing behind it must not render as "0". `sugar` has NO
+  // COLUMN on nutrition_logs (migration 006 declares it and has never been
+  // applied) and survives only inside ai_meta, so a manually logged meal was
+  // showing a confident "Sugar 0g" that could never have been anything else.
+  // CLAUDE.md: drop the stat rather than render a zero or an em dash — a 0
+  // reads as a failure the user did not commit. Editing still shows all three,
+  // because there the tile is an input, not a claim.
+  // `logged_at` is the row's created_at, i.e. when it was RECORDED — which can
+  // be hours after it was eaten. Said plainly rather than dressed up as a meal
+  // time, and dropped entirely when the row predates our carrying it.
+  const loggedDate = result.logged_at ? parseISO(result.logged_at) : null;
+  const loggedWhen = loggedDate && isValid(loggedDate)
+    ? format(loggedDate, "EEE, MMM d 'at' h:mm a")
+    : null;
+
+  const visibleMicros = editing ? MICRO_ORDER : MICRO_ORDER.filter(m => num(vals[m.field]) > 0);
+  const hasMicros = visibleMicros.length > 0;
   const hasItems = editItems.length > 0;
   const coreEditable = editing && !hasItems;
 
@@ -275,9 +298,10 @@ export default function PhotoMealResultModal({ open, imageUrl, result, saving, o
                   </p>
                 )}
               </div>
+              {hasMicros && (
               <div className="snap-center shrink-0 basis-full min-w-full px-4 pt-2">
-                <div className="grid grid-cols-3 gap-2">
-                  {MICRO_ORDER.map(m => (
+                <div className={`grid gap-2 ${visibleMicros.length === 3 ? 'grid-cols-3' : visibleMicros.length === 2 ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                  {visibleMicros.map(m => (
                     <Tile
                       key={m.key}
                       label={m.label}
@@ -290,16 +314,23 @@ export default function PhotoMealResultModal({ open, imageUrl, result, saving, o
                   ))}
                 </div>
               </div>
+              )}
             </div>
-            {/* Slide dots + hint */}
-            <div className="flex items-center justify-center gap-1.5 mt-2.5">
-              {[0, 1].map((i) => (
-                <span key={i} className={`h-1.5 rounded-full transition-all ${slide === i ? 'w-4 bg-primary' : 'w-1.5 bg-border'}`} />
-              ))}
-            </div>
-            <p className="text-micro text-muted-foreground text-center mt-1">
-              {slide === 0 ? 'Swipe for fiber, sugar & sodium →' : '← Swipe back for macros'}
-            </p>
+            {/* Slide dots + hint — only when there IS a second slide to reach. */}
+            {hasMicros && (
+              <>
+                <div className="flex items-center justify-center gap-1.5 mt-2.5">
+                  {[0, 1].map((i) => (
+                    <span key={i} className={`h-1.5 rounded-full transition-all ${slide === i ? 'w-4 bg-primary' : 'w-1.5 bg-border'}`} />
+                  ))}
+                </div>
+                <p className="text-micro text-muted-foreground text-center mt-1">
+                  {slide === 0
+                    ? `Swipe for ${listPhrase(visibleMicros.map(m => m.label.toLowerCase()))} →`
+                    : '← Swipe back for macros'}
+                </p>
+              </>
+            )}
 
             {/* Per-ingredient breakdown. In Edit mode every row is editable and
                 you can add/remove ingredients; the core macros re-total live. */}
@@ -385,6 +416,29 @@ export default function PhotoMealResultModal({ open, imageUrl, result, saving, o
 
             {result.notes && (
               <p className="px-4 pt-3 text-micro text-muted-foreground italic">{result.notes}</p>
+            )}
+
+            {/* Re-logging a meal you already ate is the job history exists for,
+                and every macro is already stored. The payload goes back to
+                Nutrition's reLogMeal so `saveMutation` stays the single writer
+                and quest credit / celebrations are not reimplemented here. */}
+            {readOnly && onLogAgain && (
+              <div className="px-4 pt-4">
+                <div className="border-t border-border pt-3">
+                  {loggedWhen && (
+                    <p className="flex items-center gap-1.5 text-micro text-muted-foreground">
+                      <Clock className="w-3.5 h-3.5 shrink-0" /> Logged {loggedWhen}
+                    </p>
+                  )}
+                  <button
+                    type="button"
+                    onClick={onLogAgain}
+                    className="w-full h-11 mt-3 rounded-lg border border-border text-sm font-bold flex items-center justify-center gap-1.5"
+                  >
+                    <Plus className="w-4 h-4" /> Log this again
+                  </button>
+                </div>
+              </div>
             )}
             <div className="h-3" />
           </div>

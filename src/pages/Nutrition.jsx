@@ -70,6 +70,7 @@ import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 // disagree about what counts as a glass — they used to, and history showed
 // every pre-migration-006 water row as a "Water — 0 cal" meal.
 import { isWaterEntry, waterEntryOz, waterFoodName } from '@/lib/waterEntries';
+import { makeDuplicateFilter } from '@/lib/submitDedupe';
 
 
 /* ──────────────────────────────────────────────────────────────────
@@ -705,6 +706,10 @@ export default function Nutrition() {
     },
     onSuccess: async (createdRow, variables) => {
       queryClient.invalidateQueries({ queryKey: ['nutritionLogs', user?.email, date] });
+      // History keeps its own 500-row query. It normally refetches on open, but
+      // "Log this again" fires while that sheet is already mounted, so without
+      // this the meal lands and the list you are looking at does not move.
+      queryClient.invalidateQueries({ queryKey: ['nutritionHistory', user?.email] });
 
       // Mirror a photo-logged meal into the weekly planner slot so it shows
       // in its date+meal-type square on the Plans page. Best-effort; stores
@@ -828,36 +833,13 @@ export default function Nutrition() {
     },
   });
 
-  // Content-level double-submit guard.
-  //
-  // `guardSubmit` above is a TIMING guard, and it only ever wrapped the two
-  // water buttons — every meal path called saveMutation.mutate directly with
-  // nothing but the asynchronous `isPending` flag behind it. Production holds
-  // two byte-identical "Sautéed diced onion and red bell pepper" rows logged
-  // 530 ms apart, which is past the 400 ms re-arm (and past `onSettled`, which
-  // reopens the guard as soon as the first save lands), so a timing guard could
-  // not have caught it at any setting that still allows a legitimate retry.
-  //
-  // Dedupe on what was submitted instead of on when. Water is deliberately
-  // exempt: tapping the same glass twice is the feature there, not a mistake.
-  // Long enough to swallow any double-tap (the production pair was 530 ms
-  // apart), short enough that deliberately logging the same item twice —
-  // rescanning a second identical yoghurt — still goes through.
-  const DEDUPE_MS = 2500;
-  const recentSubmitsRef = useRef(new Map());
+  // Content-level double-submit guard. The mechanism, and why it is not a
+  // timing guard, is documented in src/lib/submitDedupe.js — it lives there so
+  // the app's primary write path is testable without rendering this page.
+  const acceptSubmitRef = useRef(null);
+  if (!acceptSubmitRef.current) acceptSubmitRef.current = makeDuplicateFilter({ isExempt: isWaterEntry });
   const submitEntry = (payload) => {
-    if (!isWaterEntry(payload)) {
-      const sig = JSON.stringify([
-        payload.date, payload.meal_type, (payload.food_name || '').trim().toLowerCase(),
-        Number(payload.calories) || 0, Number(payload.protein_g) || 0,
-        Number(payload.carbs_g) || 0, Number(payload.fat_g) || 0,
-      ]);
-      const now = Date.now();
-      const seen = recentSubmitsRef.current;
-      for (const [key, at] of seen) if (now - at > DEDUPE_MS) seen.delete(key);
-      if (seen.has(sig)) return false;
-      seen.set(sig, now);
-    }
+    if (!acceptSubmitRef.current(payload)) return false;
     saveMutation.mutate(payload);
     return true;
   };
@@ -2331,6 +2313,7 @@ export default function Nutrition() {
           userProfile={userProfile}
           onLogPhoto={() => setShowPhotoCapture(true)}
           onLogManual={() => setOpenLogMeal(true)}
+          onLogAgain={reLogMeal}
         />
       </ErrorBoundary>
 
