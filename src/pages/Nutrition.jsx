@@ -828,6 +828,40 @@ export default function Nutrition() {
     },
   });
 
+  // Content-level double-submit guard.
+  //
+  // `guardSubmit` above is a TIMING guard, and it only ever wrapped the two
+  // water buttons — every meal path called saveMutation.mutate directly with
+  // nothing but the asynchronous `isPending` flag behind it. Production holds
+  // two byte-identical "Sautéed diced onion and red bell pepper" rows logged
+  // 530 ms apart, which is past the 400 ms re-arm (and past `onSettled`, which
+  // reopens the guard as soon as the first save lands), so a timing guard could
+  // not have caught it at any setting that still allows a legitimate retry.
+  //
+  // Dedupe on what was submitted instead of on when. Water is deliberately
+  // exempt: tapping the same glass twice is the feature there, not a mistake.
+  // Long enough to swallow any double-tap (the production pair was 530 ms
+  // apart), short enough that deliberately logging the same item twice —
+  // rescanning a second identical yoghurt — still goes through.
+  const DEDUPE_MS = 2500;
+  const recentSubmitsRef = useRef(new Map());
+  const submitEntry = (payload) => {
+    if (!isWaterEntry(payload)) {
+      const sig = JSON.stringify([
+        payload.date, payload.meal_type, (payload.food_name || '').trim().toLowerCase(),
+        Number(payload.calories) || 0, Number(payload.protein_g) || 0,
+        Number(payload.carbs_g) || 0, Number(payload.fat_g) || 0,
+      ]);
+      const now = Date.now();
+      const seen = recentSubmitsRef.current;
+      for (const [key, at] of seen) if (now - at > DEDUPE_MS) seen.delete(key);
+      if (seen.has(sig)) return false;
+      seen.set(sig, now);
+    }
+    saveMutation.mutate(payload);
+    return true;
+  };
+
   const deleteMutation = useMutation({
     mutationFn: (id) => nutritionData.remove(id),
     onSuccess: () => {
@@ -1002,7 +1036,7 @@ export default function Nutrition() {
       source:           'photo_ai',
     };
 
-    saveMutation.mutate({
+    submitEntry({
       date,
       created_by: user?.email,
       user_id: user?.id,
@@ -1213,7 +1247,7 @@ export default function Nutrition() {
   const logProduct = (product) => {
     const n = product.nutrition;
     const v = product.vitamins || {};
-    saveMutation.mutate({
+    submitEntry({
       date,
       food_name: product.name,
       calories:       n.calories ?? 0,
@@ -1240,7 +1274,7 @@ export default function Nutrition() {
     if (!scannedProduct) return;
     const n = scannedProduct.nutrition;
     const v = scannedProduct.vitamins || {};
-    saveMutation.mutate({
+    submitEntry({
       date,
       food_name: scannedProduct.name,
       calories:       n.calories ?? 0,
@@ -1304,13 +1338,17 @@ export default function Nutrition() {
         return [k, Number.isFinite(n) ? n : 0];
       })
     );
-    saveMutation.mutate({
+    // Suppressed as a duplicate counts as an early return, and the contract
+    // above is explicit: report false so the form releases its own in-flight
+    // ref. Returning true here would latch it forever and kill the button —
+    // the exact failure that comment records.
+    if (!submitEntry({
       date,
       created_by: user?.email,
       user_id: user?.id,
       meal_type: mealType,
       ...safeEntry,
-    });
+    })) return false;
     setNewEntry({ food_name: '', calories: '', protein_g: '', carbs_g: '', fat_g: '', sodium_mg: '', fiber_g: '', sugar_g: '', cholesterol_mg: '', iron_mg: '', magnesium_mg: '', calcium_mg: '', potassium_mg: '', vitamin_a_iu: '', vitamin_c_mg: '', vitamin_d_iu: '', vitamin_b12_mcg: '' });
     return true;
   };
@@ -1349,7 +1387,7 @@ export default function Nutrition() {
   // flows through the normal calorie/macro/dashboard update path.
   const reLogMeal = (meal) => {
     if (!meal || saveMutation.isPending) return;
-    saveMutation.mutate({
+    submitEntry({
       date,
       created_by: user?.email,
       user_id: user?.id,
@@ -1988,7 +2026,7 @@ export default function Nutrition() {
                     toast.error(tFallback('nutrition.toast.waterCap', "That's plenty of water for today. Stay safe!"));
                     return;
                   }
-                  saveMutation.mutate({ date, food_name: waterFoodName(8), calories: 0, created_by: user?.email, user_id: user?.id });
+                  submitEntry({ date, food_name: waterFoodName(8), calories: 0, created_by: user?.email, user_id: user?.id });
                 })}
                 // Only the in-flight guard disables this. The cap is enforced
                 // inside onClick, which raises a toast naming the limit —
@@ -2017,7 +2055,7 @@ export default function Nutrition() {
                         toast.error(tFallback('nutrition.toast.waterCap', "That's plenty of water for today. Stay safe!"));
                         return;
                       }
-                      saveMutation.mutate({ date, food_name: waterFoodName(bottle.oz), calories: 0, created_by: user?.email, user_id: user?.id });
+                      submitEntry({ date, food_name: waterFoodName(bottle.oz), calories: 0, created_by: user?.email, user_id: user?.id });
                     })}
                     // Same as the Glass chip above — the cap is enforced in
                     // onClick with an explanatory toast, so disabling here
@@ -2237,7 +2275,7 @@ export default function Nutrition() {
           // so quest credit, the achievement RPC, the first-meal celebration
           // and cache invalidation all happen exactly once and in one place.
           // See the head comment on LogRecipeSheet.
-          onLogRecipe={(payload) => saveMutation.mutate(payload)}
+          onLogRecipe={(payload) => submitEntry(payload)}
         />
       </ErrorBoundary>
 

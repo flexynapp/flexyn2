@@ -20,6 +20,7 @@ import { reportError } from '@/lib/reportError';
 import { filterAfterReset } from '@/lib/accountReset';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { splitWaterEntries, sumWaterOz } from '@/lib/waterEntries';
+import { MEAL_TYPES } from '@/components/nutrition/MealTypePicker';
 import { MACROS, MACRO_ORDER, macroValue } from '@/lib/macroColors';
 import { calculateDailyValues } from '@/lib/nutritionDefaults';
 import { adherenceOf, summarise } from '@/lib/nutritionAdherence';
@@ -27,6 +28,12 @@ import { adherenceOf, summarise } from '@/lib/nutritionAdherence';
 const KEY = 'yyyy-MM-dd';
 const WEEK = 7;
 const FETCH_LIMIT = 500;
+
+// meal_type is set on every meal the app writes (the picker defaults it from the
+// clock) and history showed it nowhere. It is the one thing on the row that
+// says what the meal WAS rather than when it was recorded — `created_at` is
+// the log time, which can be hours after eating.
+const MEAL_TYPE_LABEL = Object.fromEntries(MEAL_TYPES.map(m => [m.id, m.label]));
 
 // Reconstruct a recognition-shaped result from a stored log row so the saved
 // meal can be re-opened in the read-only detail view (photo + macros +, for
@@ -135,7 +142,7 @@ function MealRow({ entry, locale, onSelect, index }) {
   const macros = MACRO_ORDER
     .map(m => { const v = macroValue(entry, m); return v > 0 ? `${Math.round(v)}${m.short}` : null; })
     .filter(Boolean);
-  const meta = [time, ...macros].filter(Boolean).join(' · ');
+  const meta = [MEAL_TYPE_LABEL[entry.meal_type], time, ...macros].filter(Boolean).join(' · ');
 
   return (
     <motion.div
@@ -330,6 +337,13 @@ export default function MealHistoryModal({ open, onClose, userProfile, onLogPhot
   const mealDays = useMemo(() => grouped.filter(d => d.meals.length > 0), [grouped]);
   const mealCount = useMemo(() => mealDays.reduce((n, d) => n + d.meals.length, 0), [mealDays]);
 
+  // Days that carry at least one meal, whatever it totalled. Distinct from
+  // caloriesByDate: a 0-calorie meal is a logged day with nothing to colour.
+  const loggedDates = useMemo(
+    () => new Set(grouped.filter(d => d.meals.length > 0).map(d => d.date)),
+    [grouped],
+  );
+
   const caloriesByDate = useMemo(() => {
     const map = new Map();
     for (const day of grouped) {
@@ -349,9 +363,9 @@ export default function MealHistoryModal({ open, onClose, userProfile, onLogPhot
     const end = subDays(new Date(), weekOffset * WEEK);
     return Array.from({ length: WEEK }, (_, i) => {
       const date = format(subDays(end, WEEK - 1 - i), KEY);
-      return { date, calories: caloriesByDate.get(date) || 0 };
+      return { date, calories: caloriesByDate.get(date) || 0, logged: loggedDates.has(date) };
     });
-  }, [caloriesByDate, weekOffset]);
+  }, [caloriesByDate, loggedDates, weekOffset]);
 
   const weekAvg = useMemo(() => summarise(weekSeries, goalCal).avg, [weekSeries, goalCal]);
 
@@ -583,6 +597,7 @@ export default function MealHistoryModal({ open, onClose, userProfile, onLogPhot
         open={calendarOpen}
         onClose={() => setCalendarOpen(false)}
         caloriesByDate={caloriesByDate}
+        loggedDates={loggedDates}
         goal={goalCal}
         selectedDate={selectedDate}
         todayStr={todayStr}

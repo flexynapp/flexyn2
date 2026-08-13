@@ -66,6 +66,27 @@ describe('summarise', () => {
   it('handles an empty series', () => {
     expect(summarise([], goal)).toMatchObject({ avg: 0, logged: 0, total: 0 });
   });
+
+  it('separates "logged at all" from "logged calories"', () => {
+    // A 0-calorie meal is a day you logged. It must not enter the calorie mean
+    // — that is the bug this whole module exists for — but the consistency
+    // count and the calendar cell are answering a different question.
+    const series = [
+      { date: 'a', calories: 600, logged: true },
+      { date: 'b', calories: 0,   logged: true },   // the junk "ck" row's day
+      { date: 'c', calories: 0,   logged: false },
+    ];
+    const s = summarise(series, goal);
+    expect(s.logged).toBe(1);      // calorie mean divides by this
+    expect(s.recorded).toBe(2);    // consistency counts this
+    expect(s.avg).toBe(600);       // NOT 300, and NOT 200
+  });
+
+  it('falls back to the calorie test when a series carries no flag', () => {
+    const s = summarise([{ date: 'a', calories: 600 }, { date: 'b', calories: 0 }], goal);
+    expect(s.recorded).toBe(1);
+    expect(s.logged).toBe(1);
+  });
 });
 
 describe('longestStreak', () => {
@@ -77,5 +98,13 @@ describe('longestStreak', () => {
   it('is 0 when nothing was logged', () => {
     expect(longestStreak([{ calories: 0 }, { calories: 0 }])).toBe(0);
     expect(longestStreak([])).toBe(0);
+  });
+
+  it('counts a 0-calorie logged day as part of the streak', () => {
+    expect(longestStreak([
+      { calories: 500, logged: true },
+      { calories: 0,   logged: true },
+      { calories: 400, logged: true },
+    ])).toBe(3);
   });
 });

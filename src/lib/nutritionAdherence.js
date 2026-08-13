@@ -39,6 +39,13 @@ export function adherenceOf(calories, goal) {
  */
 export function summarise(series = [], goal = 0) {
   const logged = series.filter(d => Number(d?.calories) > 0);
+  // `logged` answers "how many days do the calorie stats average over"; a day
+  // whose only meal totals 0 cal must not enter that mean. `recorded` answers
+  // the different question "on how many days did you log at all", which is what
+  // a consistency count and a calendar cell are actually claiming. A series that
+  // does not carry the flag falls back to the calorie test, so old callers keep
+  // their old numbers.
+  const recorded = series.filter(d => (d?.logged != null ? d.logged : Number(d?.calories) > 0));
   const sum = logged.reduce((acc, d) => acc + Number(d.calories), 0);
   const counts = { over: 0, on: 0, under: 0 };
   for (const day of logged) {
@@ -49,17 +56,19 @@ export function summarise(series = [], goal = 0) {
     avg: logged.length ? Math.round(sum / logged.length) : 0,
     total: series.length,
     logged: logged.length,
+    recorded: recorded.length,
     peak: logged.length ? Math.round(Math.max(...logged.map(d => Number(d.calories)))) : 0,
     counts,
   };
 }
 
-/** Longest run of consecutive logged days in a chronological series. */
+/** Longest run of consecutive days on which anything was logged. */
 export function longestStreak(series = []) {
   let best = 0;
   let run = 0;
   for (const day of series) {
-    if (Number(day?.calories) > 0) { run += 1; best = Math.max(best, run); }
+    const on = day?.logged != null ? day.logged : Number(day?.calories) > 0;
+    if (on) { run += 1; best = Math.max(best, run); }
     else run = 0;
   }
   return best;

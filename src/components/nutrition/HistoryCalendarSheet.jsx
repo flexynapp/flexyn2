@@ -34,6 +34,7 @@ export default function HistoryCalendarSheet({
   open,
   onClose,
   caloriesByDate,
+  loggedDates,
   goal = 0,
   selectedDate = null,
   todayStr = '',
@@ -150,6 +151,9 @@ export default function HistoryCalendarSheet({
                 const key = format(day, KEY);
                 const cal = caloriesByDate?.get?.(key) || 0;
                 const tone = adherenceOf(cal, goal);
+                // Logged, but nothing to colour by — a hollow ring here would
+                // say "you logged nothing that day", which is false.
+                const bare = !tone && !!loggedDates?.has?.(key);
                 const future = key > todayStr;
                 const isToday = key === todayStr;
                 const isSelected = key === selectedDate;
@@ -159,11 +163,13 @@ export default function HistoryCalendarSheet({
                     type="button"
                     disabled={future}
                     onClick={() => pick(key)}
-                    aria-label={`${format(day, 'EEEE, MMMM d', { locale })}${tone ? ` — ${Math.round(cal)} cal` : ''}`}
+                    aria-label={`${format(day, 'EEEE, MMMM d', { locale })}${
+                      tone ? ` — ${Math.round(cal)} cal` : bare ? ' — logged, no calories' : ''}`}
                     aria-pressed={isSelected}
                     className={`relative h-10 rounded-xl flex items-center justify-center text-[12.5px] tabular-nums ${
                       isSelected ? 'bg-primary text-primary-foreground font-bold'
                         : isToday ? 'ring-1 ring-foreground font-bold'
+                        : bare ? 'bg-secondary text-foreground font-semibold'
                         : !future && !tone ? 'ring-1 ring-border' : ''
                     } ${isSelected ? '' : tone ? `${tone.text} font-semibold` : 'text-muted-foreground'} ${
                       future ? 'opacity-30' : ''

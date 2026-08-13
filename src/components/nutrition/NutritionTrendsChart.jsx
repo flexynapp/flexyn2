@@ -33,11 +33,12 @@ function daysBack(n, now = new Date()) {
 }
 
 function aggregate(entries, dateKeys) {
-  const byDate = new Map(dateKeys.map(k => [k, { calories: 0, protein: 0, carbs: 0, fat: 0 }]));
+  const byDate = new Map(dateKeys.map(k => [k, { calories: 0, protein: 0, carbs: 0, fat: 0, logged: false }]));
   for (const e of entries) {
     if (isWaterEntry(e)) continue;
     const slot = byDate.get(e?.date);
     if (!slot) continue;
+    slot.logged = true;
     slot.calories += Number(e.calories) || 0;
     slot.protein  += Number(e.protein_g ?? e.protein) || 0;
     slot.carbs    += Number(e.carbs_g   ?? e.carbs)   || 0;
@@ -119,8 +120,10 @@ export default function NutritionTrendsChart({ entries = [], userProfile = {} })
               <span className="text-xs font-semibold text-muted-foreground ms-1.5">avg/day</span>
             </p>
             <p className="text-micro text-muted-foreground mt-1.5">
+              {/* NOT "days you logged" — the consistency card below counts those,
+                  and a 0-calorie meal makes the two numbers legitimately differ. */}
               {stats.logged > 0
-                ? `on the ${stats.logged} day${stats.logged === 1 ? '' : 's'} you logged`
+                ? `on the ${stats.logged} day${stats.logged === 1 ? '' : 's'} with calories`
                 : 'nothing logged in this range'}
             </p>
           </div>
@@ -179,10 +182,10 @@ export default function NutritionTrendsChart({ entries = [], userProfile = {} })
       <Card label="Logging consistency">
         <div className="flex items-baseline justify-between gap-2 mt-1.5">
           <p className="font-heading font-bold text-xl leading-none tabular-nums">
-            {stats.logged} of {stats.total} days
+            {stats.recorded} of {stats.total} days
           </p>
           <p className="font-heading font-bold text-lg text-primary tabular-nums shrink-0">
-            {Math.round((stats.logged / Math.max(stats.total, 1)) * 100)}%
+            {Math.round((stats.recorded / Math.max(stats.total, 1)) * 100)}%
           </p>
         </div>
         <div className="grid gap-1 mt-3.5" style={{ gridTemplateColumns: `repeat(${gridCols}, minmax(0, 1fr))` }}>
@@ -192,7 +195,9 @@ export default function NutritionTrendsChart({ entries = [], userProfile = {} })
               <span
                 key={s.date}
                 className="h-3.5 rounded-[3px]"
-                style={tone ? { background: tone.css, opacity: 0.85 } : { background: 'hsl(var(--secondary))' }}
+                style={tone ? { background: tone.css, opacity: 0.85 }
+                     : s.logged ? { background: 'hsl(var(--muted-foreground))', opacity: 0.55 }
+                     : { background: 'hsl(var(--secondary))' }}
               />
             );
           })}
@@ -231,9 +236,9 @@ export default function NutritionTrendsChart({ entries = [], userProfile = {} })
       </Card>
 
       <p className="text-micro text-muted-foreground leading-relaxed px-1">
-        Averages count only the days you logged. The {stats.total - stats.logged} unlogged day
-        {stats.total - stats.logged === 1 ? '' : 's'} in this range {stats.total - stats.logged === 1 ? 'is' : 'are'} shown
-        as gaps, not as zero-calorie days.
+        Averages count only the {stats.logged} day{stats.logged === 1 ? '' : 's'} that carry calories. The{' '}
+        {stats.total - stats.recorded} day{stats.total - stats.recorded === 1 ? '' : 's'} you logged nothing
+        {stats.total - stats.recorded === 1 ? ' is' : ' are'} shown as gaps, not as zero-calorie days.
       </p>
     </div>
   );

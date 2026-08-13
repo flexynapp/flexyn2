@@ -98,7 +98,10 @@ export default function WeekCalorieStrip({
                 key={day.date}
                 type="button"
                 onClick={() => onSelect?.(day.date)}
-                aria-label={`${safeFormat(day.date, 'EEEE, MMMM d', locale)} — ${tone ? `${Math.round(day.calories)} cal` : 'no meals logged'}`}
+                aria-label={`${safeFormat(day.date, 'EEEE, MMMM d', locale)} — ${
+                  tone ? `${Math.round(day.calories)} cal`
+                       : day.logged ? 'logged, no calories'
+                       : 'no meals logged'}`}
                 aria-pressed={selectedDate === day.date}
                 className="relative flex-1 min-w-0 flex flex-col items-center rounded-lg"
                 style={{ height: PLOT_H + LETTER_H }}
@@ -115,13 +118,17 @@ export default function WeekCalorieStrip({
                       animate={{ height: barH }}
                       transition={{ duration: 0.45, ease: 'easeOut', delay: i * 0.03 }}
                     />
+                  ) : day.logged ? (
+                    // A meal WAS logged here, it just carries no calories —
+                    // a dash would claim the day is empty, which it is not.
+                    <span className="w-full max-w-[30px] h-1 rounded-t bg-muted-foreground/70" />
                   ) : (
                     <span className="w-[18px] h-0.5 rounded-full bg-muted-foreground/70" />
                   )}
                 </span>
                 <span
                   className={`relative text-micro leading-5 ${
-                    scoped || isToday ? 'font-bold text-foreground' : `font-semibold text-muted-foreground${tone ? '' : '/50'}`
+                    scoped || isToday ? 'font-bold text-foreground' : `font-semibold text-muted-foreground${tone || day.logged ? '' : '/50'}`
                   }`}
                 >
                   {safeFormat(day.date, 'EEEEE', locale)}
