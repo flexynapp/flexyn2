@@ -134,7 +134,15 @@ export default function TwoFactorSection() {
           ) : (
             <p className="text-xs text-foreground flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-muted-foreground/50" />
-              Off — only your password protects your account.
+              {/* Not "only your password protects your account", which is what
+                  this said and which is false: Flexyn has no password in any
+                  layer. signInWithPassword, resetPasswordForEmail and
+                  updateUser({ password }) appear nowhere in src/ — the four
+                  ways in are a magic link, Google, Apple and guest. Telling
+                  someone a credential they do not have is protecting them is
+                  worse than saying nothing, because it names the wrong thing
+                  to go and secure. */}
+              Off — Flexyn has no password; however you sign in is all that protects this account.
             </p>
           )}
         </div>
