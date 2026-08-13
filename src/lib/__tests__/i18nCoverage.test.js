@@ -565,6 +565,33 @@ describe('partial-gap ratchet', () => {
     // than adding `myGym.` wholesale: that would drop ~20 existing keys
     // out of the denominator and hide the gap this ratchet is measuring.
     'gymMembers.joined',
+    // Inline hub comments (2026-08-13). Six exact keys, not a
+    // `hub.comments.` prefix — that namespace already holds keys the other
+    // languages DO have, and a prefix would drop them out of the
+    // denominator and hide the very gap this ratchet measures.
+    //
+    // These are here because of what they REPLACED, which is the same
+    // reasoning as the `goals.` entries above. Measured at 79b2bc6e (the
+    // last green commit) against HEAD: `ru` covers 1349 keys in BOTH
+    // trees. It did not lose a single translation — the denominator went
+    // 1702 → 1708 when these six landed, and 1349/1708 is 78.98%. The
+    // ratchet read that as Russian regressing. It did not.
+    //
+    // Five were hardcoded English literals in HubCommentsInline.jsx
+    // (:561, :611 ×2, :616, :642 at that commit), so every non-English
+    // reader already saw exactly this text and still does; keying them
+    // changed the ratio and nothing else. `viewProfile` is the
+    // `goals.rowMenu` shape — a control that had NO accessible name at
+    // all, where the alternative to an English label is silence.
+    //
+    // Machine-translating them is not allowed (CLAUDE.md), so this is the
+    // honest place to hold them until a native pass.
+    'hub.comments.viewProfile',
+    'hub.comments.orphanReply',
+    'hub.comments.translate',
+    'hub.comments.translating',
+    'hub.comments.showTranslation',
+    'hub.comments.showOriginal',
   ];
 
   const pending = (k) => AWAITING_TRANSLATION.some(p => k.startsWith(p));
