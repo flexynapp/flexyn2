@@ -1,0 +1,155 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0d0d0f; --card:#151518; --card2:#111114; --line:#232329; --line2:#2c2c33;
+  --fg:#f1f1f3; --mut:#8b8b94; --dim:#63636d;
+  --amber:#d8a24a; --green:#63c07d; --red:#e0603f; --blue:#6f8fd0; --violet:#9b7fd4;
+  --mono:ui-monospace,"SF Mono",Menlo,monospace;
+  --sans:-apple-system,"Helvetica Neue",Helvetica,Arial,sans-serif;
+}
+body{background:var(--bg);color:var(--fg);font-family:var(--sans);-webkit-font-smoothing:antialiased}
+.page{width:1098px;padding:44px 44px 0}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--dim)}
+h1{font-size:52px;line-height:1.02;letter-spacing:-.024em;font-weight:800;margin:14px 0 0}
+.deck{margin-top:16px;font-size:17px;line-height:1.5;color:#b7b7be;max-width:640px}
+.deck em{color:var(--fg);font-style:italic}
+.chip{display:inline-block;margin-top:24px;padding:10px 18px;border-radius:999px;
+  font-family:var(--mono);font-size:11.5px;letter-spacing:.13em;text-transform:uppercase}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:30px;margin-top:44px}
+.colhead{font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--dim);padding-bottom:10px;border-bottom:1px solid var(--line);margin-bottom:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 20px}
+.card + .card{margin-top:14px}
+.cardlabel{font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--dim);margin-bottom:14px}
+.cardtitle{font-size:15px;font-weight:700;margin-bottom:12px}
+.step{display:flex;gap:11px;padding:11px 0;border-bottom:1px solid var(--line)}
+.step:last-child{border-bottom:0;padding-bottom:2px}
+.step:first-of-type{padding-top:2px}
+.dot{width:7px;height:7px;border-radius:50%;margin-top:6px;flex:0 0 auto}
+.step b{display:block;font-size:13.5px;font-weight:600;line-height:1.35}
+.step span{display:block;font-family:var(--mono);font-size:11px;color:var(--mut);margin-top:5px;line-height:1.45}
+.callout{margin-top:14px;border:1px solid rgba(216,162,74,.34);background:rgba(216,162,74,.07);
+  border-radius:12px;padding:15px;text-align:center;font-family:var(--mono);font-size:12px;
+  letter-spacing:.13em;text-transform:uppercase;color:var(--amber)}
+.stats{display:flex;gap:26px;margin-bottom:16px}
+.stat{flex:1}
+.statn{font-size:38px;font-weight:800;line-height:1;letter-spacing:-.02em}
+.statl{margin-top:9px;font-size:11.5px;color:var(--mut);line-height:1.4}
+.note{font-size:12.5px;color:var(--mut);line-height:1.55;margin-top:4px}
+code{font-family:var(--mono);font-size:11.5px;background:#1e1e23;border:1px solid var(--line2);
+  border-radius:5px;padding:1.5px 5px;color:#c9c9d2}
+.cmp{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 0 14px}
+.cmpbox{background:var(--card2);border:1px solid var(--line);border-radius:11px;padding:13px}
+.cmphead{font-family:var(--mono);font-size:9.5px;letter-spacing:.15em;text-transform:uppercase;
+  color:var(--dim);margin-bottom:11px}
+.row{display:flex;align-items:center;gap:10px}
+.tile{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;
+  justify-content:center;font-size:20px;flex:0 0 auto}
+.rowtxt b{display:block;font-size:13px;font-weight:700}
+.rowtxt span{display:block;font-size:11.5px;color:var(--mut);margin-top:2px}
+.verdictline{font-family:var(--mono);font-size:11px;margin-top:11px}
+h2{font-size:28px;font-weight:800;letter-spacing:-.018em;margin:52px 0 18px}
+.list{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:6px 28px}
+.item{display:flex;gap:22px;padding:22px 0;border-bottom:1px solid var(--line)}
+.item:last-child{border-bottom:0}
+.num{font-family:var(--mono);font-size:11px;color:var(--dim);padding-top:3px;width:20px;flex:0 0 auto}
+.item h3{font-size:14.5px;font-weight:700;margin-bottom:8px;line-height:1.4}
+.item p{font-size:13px;line-height:1.6;color:#a2a2ab}
+.foot{display:grid;grid-template-columns:repeat(4,1fr);gap:24px;margin:46px 0 0;
+  padding:26px 0 44px;border-top:1px solid var(--line)}
+.foot div b{display:block;font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--dim);margin-bottom:9px}
+.foot div span{font-size:12.5px;color:#9d9da6;line-height:1.45}
+</style></head><body>
+<div class="page">
+  <div class="eyebrow">02 / 04 &nbsp;·&nbsp; Trophies audit</div>
+  <h1>The Collection</h1>
+  <div class="deck">The set is right — every id resolves, nothing duplicates, and it is the same data the
+         Achievements vault reads. The <em>number above it</em> is wrong three separate ways, and
+         one of them can print a numerator larger than its own denominator.</div>
+  <div class="chip" style="color:#e0603f;border:1px solid #e0603f66;background:#e0603f12">(b) Exists and is wrong · three count defects</div>
+
+  <div class="cols">
+    <div>
+      <div class="colhead">Hypothesis — the header counts what the grid shows</div>
+      <div class="card">
+        <div class="cardlabel">Three defects, one edit closes all three</div>
+        
+      <div class="step"><div class="dot" style="background:#e0603f"></div>
+        <div><b>Tails, seasons and XP milestones are counted</b><span>ProfileTrophies.jsx:136 — the vault filters them, this does not</span></div></div>
+      <div class="step"><div class="dot" style="background:#e0603f"></div>
+        <div><b>A row the catalog cannot resolve counts anyway</b><span>:41 builds earnedIds from ALL rows · :152 drops it from the grid</span></div></div>
+      <div class="step"><div class="dot" style="background:#e0603f"></div>
+        <div><b>The numerator therefore has no ceiling</b><span>120 named + one infinite-tail rung → 121 / 120</span></div></div>
+      <div class="step"><div class="dot" style="background:#d8a24a"></div>
+        <div><b>And the grid packs its last row to the left</b><span>grid-cols-5 on a count that comes from data</span></div></div>
+      </div>
+      <div class="callout">Two numbers for the same 21 objects, one tap apart</div>
+      <div class="card"><div class="cardtitle">One thing worth defending</div><div class="note">The <b>ten-padlock cap</b> is right. Migration 323 took the catalog from 18 to 73 and then
+        to 120, and 99 padlocks is not a shape — it is a wall of grey that buries the earned tiles
+        above it. The comment at <code>:42</code> makes that argument and it is a good one. Its
+        <i>consequence</i> is a finding; the cap is not.</div></div>
+    </div>
+    <div>
+      <div class="colhead">Verified — rendered at 390 px, dark, origin/main</div>
+      
+    <div class="card">
+      <div class="cardtitle" style="margin-bottom:16px">Sean's real 21 rows, rendered</div>
+      <div class="stats">
+        <div class="stat"><div class="statn" style="color:#e0603f">21</div>
+          <div class="statl">what this surface<br>says</div></div>
+        <div class="stat"><div class="statn" style="color:#63c07d">20<span style="font-size:20px">+1</span></div>
+          <div class="statl">what the vault says,<br>one tap away</div></div>
+        <div class="stat"><div class="statn">21</div>
+          <div class="statl">tiles a user can<br>count on screen</div></div>
+      </div>
+      <div class="note">The vault is the careful one — it drops <code>isTail</code>,
+        <code>season</code> and <code>isXpMilestone</code> because "a numerator that can exceed its
+        denominator reads as a broken counter." That fix was written once and applied to one of the
+        two surfaces that needed it.</div>
+    </div>
+    <div class="card">
+      <div class="cardtitle">A junk id inflates the header and renders nothing</div>
+      <div class="cmp">
+        <div class="cmpbox"><div class="cmphead">What the header counted</div>
+          <div class="row"><div class="tile" style="background:#2a1a17;color:#e0603f;font-size:17px;font-weight:800">6</div>
+            <div class="rowtxt"><b>6 / 120</b><span>from six rows in</span></div></div>
+          <div class="verdictline" style="color:#e0603f">counts rows that resolve to nothing ✗</div></div>
+        <div class="cmpbox"><div class="cmphead">What the grid drew</div>
+          <div class="row"><div class="tile" style="background:#17221a;color:#63c07d;font-size:17px;font-weight:800">5</div>
+            <div class="rowtxt"><b>5 tiles</b><span>the sixth was dropped</span></div></div>
+          <div class="verdictline" style="color:#63c07d">getTrophy() null → return null ✓</div></div>
+      </div>
+      <div class="note">Production is clean today — <b>0 of 24</b> ids fail to resolve — so this is
+        latent. It is also the exact shape a renamed ladder id produces, and it fails silently and
+        <i>upward</i>, which is the worse direction for a completion counter.</div>
+    </div>
+    </div>
+  </div>
+
+  <h2>What the audit established</h2>
+  <div class="list">
+      <div class="item"><div class="num">01</div>
+        <div><h3>Nothing changed. Every figure here was rendered or queried.</h3><p>A Vite harness mounts <code>ProfileTrophies</code> at 390 px against six fixtures, including sean’s real production rows in the order PostgREST returns them.</p></div></div>
+      <div class="item"><div class="num">02</div>
+        <div><h3>The set is correct, and that is worth stating plainly.</h3><p>All 24 ids held in production resolve through <code>getTrophy()</code>. <code>earnedIds</code> is a Set, so nothing can double. The grid and the vault read the same rows from the same <code>listEarned()</code>.</p></div></div>
+      <div class="item"><div class="num">03</div>
+        <div><h3>Defect — the header disagrees with the vault, and this was already reported.</h3><p>The Achievements audit filed it as D1 on 2026-08-12 and recommended a one-line fix. Re-verified today at <code>4ff63aa7</code>: the fix has not landed. It is carried here rather than counted twice.</p></div></div>
+      <div class="item"><div class="num">04</div>
+        <div><h3>Defect — an unresolvable id counts in the numerator and draws no tile.</h3><p>Rendered: header <code>6 / 120</code> above five tiles. <code>earnedIds</code> is built from every row at <code>:41</code>; the grid drops unresolvable ones at <code>:152</code>. The two disagree by construction.</p></div></div>
+      <div class="item"><div class="num">05</div>
+        <div><h3>Defect — the numerator has no ceiling, and the clock is running.</h3><p>Both an infinite-tail rung (<code>sessions_x2</code>) and a league season trophy render, count, and sit outside <code>TROPHIES</code> by design. No season has resolved yet, but <code>league_seasons</code> and two crons are live on 28-day seasons — the first resolution puts a row on every participant.</p></div></div>
+      <div class="item"><div class="num">06</div>
+        <div><h3>Defect — <code>grid-cols-5</code> on a collection whose count comes from data.</h3><p>Measured 5+5+<b>1</b> at one trophy and 5+5+5+5+5+5+<b>1</b> at twenty-one: a single tile hard against the left edge with four dead columns beside it. <code>tileRow()</code> exists for exactly this, and no <code>col-span-*</code> is present, so the conversion is clean.</p></div></div>
+      <div class="item"><div class="num">07</div>
+        <div><h3>Defect — a brand-new account sees no locked frames at all.</h3><p>At zero earned, the empty-state branch at <code>:140</code> returns the card instead of the grid. The frames exist to show the shape of what is left, and the one person who is <i>all</i> "what is left" never sees them.</p></div></div>
+      <div class="item"><div class="num">08</div>
+        <div><h3>On a phone, a trophy has no name.</h3><p>A tile is an emoji, a 2 px tier stripe, a <code>title</code> and an <code>sr-only</code> string. <code>title</code> does not open on touch, and this app ships to iOS and Android only. 🌟 Gold and 💫 Platinum sit side by side distinguished by two colours of hairline.</p></div></div>
+      <div class="item"><div class="num">09</div>
+        <div><h3>Recommendation: the first three go together as one edit.</h3><p>Apply the vault’s filter and build <code>earnedIds</code> from rows that resolve. That closes the disagreement, the junk-id inflation and the missing ceiling at once. The grid conversion is separate and independently safe.</p></div></div></div>
+
+  <div class="foot">
+    <div><b>Migration</b><span>No SQL needed — client-side count</span></div><div><b>Tests</b><span>No test asserts the header against the grid</span></div><div><b>i18n</b><span>Header is numerals; label translated</span></div><div><b>Visible change</b><span>None — audit only</span></div>
+  </div>
+</div></body></html>

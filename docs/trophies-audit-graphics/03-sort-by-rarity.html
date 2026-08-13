@@ -1,0 +1,154 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0d0d0f; --card:#151518; --card2:#111114; --line:#232329; --line2:#2c2c33;
+  --fg:#f1f1f3; --mut:#8b8b94; --dim:#63636d;
+  --amber:#d8a24a; --green:#63c07d; --red:#e0603f; --blue:#6f8fd0; --violet:#9b7fd4;
+  --mono:ui-monospace,"SF Mono",Menlo,monospace;
+  --sans:-apple-system,"Helvetica Neue",Helvetica,Arial,sans-serif;
+}
+body{background:var(--bg);color:var(--fg);font-family:var(--sans);-webkit-font-smoothing:antialiased}
+.page{width:1098px;padding:44px 44px 0}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--dim)}
+h1{font-size:52px;line-height:1.02;letter-spacing:-.024em;font-weight:800;margin:14px 0 0}
+.deck{margin-top:16px;font-size:17px;line-height:1.5;color:#b7b7be;max-width:640px}
+.deck em{color:var(--fg);font-style:italic}
+.chip{display:inline-block;margin-top:24px;padding:10px 18px;border-radius:999px;
+  font-family:var(--mono);font-size:11.5px;letter-spacing:.13em;text-transform:uppercase}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:30px;margin-top:44px}
+.colhead{font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--dim);padding-bottom:10px;border-bottom:1px solid var(--line);margin-bottom:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 20px}
+.card + .card{margin-top:14px}
+.cardlabel{font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--dim);margin-bottom:14px}
+.cardtitle{font-size:15px;font-weight:700;margin-bottom:12px}
+.step{display:flex;gap:11px;padding:11px 0;border-bottom:1px solid var(--line)}
+.step:last-child{border-bottom:0;padding-bottom:2px}
+.step:first-of-type{padding-top:2px}
+.dot{width:7px;height:7px;border-radius:50%;margin-top:6px;flex:0 0 auto}
+.step b{display:block;font-size:13.5px;font-weight:600;line-height:1.35}
+.step span{display:block;font-family:var(--mono);font-size:11px;color:var(--mut);margin-top:5px;line-height:1.45}
+.callout{margin-top:14px;border:1px solid rgba(216,162,74,.34);background:rgba(216,162,74,.07);
+  border-radius:12px;padding:15px;text-align:center;font-family:var(--mono);font-size:12px;
+  letter-spacing:.13em;text-transform:uppercase;color:var(--amber)}
+.stats{display:flex;gap:26px;margin-bottom:16px}
+.stat{flex:1}
+.statn{font-size:38px;font-weight:800;line-height:1;letter-spacing:-.02em}
+.statl{margin-top:9px;font-size:11.5px;color:var(--mut);line-height:1.4}
+.note{font-size:12.5px;color:var(--mut);line-height:1.55;margin-top:4px}
+code{font-family:var(--mono);font-size:11.5px;background:#1e1e23;border:1px solid var(--line2);
+  border-radius:5px;padding:1.5px 5px;color:#c9c9d2}
+.cmp{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 0 14px}
+.cmpbox{background:var(--card2);border:1px solid var(--line);border-radius:11px;padding:13px}
+.cmphead{font-family:var(--mono);font-size:9.5px;letter-spacing:.15em;text-transform:uppercase;
+  color:var(--dim);margin-bottom:11px}
+.row{display:flex;align-items:center;gap:10px}
+.tile{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;
+  justify-content:center;font-size:20px;flex:0 0 auto}
+.rowtxt b{display:block;font-size:13px;font-weight:700}
+.rowtxt span{display:block;font-size:11.5px;color:var(--mut);margin-top:2px}
+.verdictline{font-family:var(--mono);font-size:11px;margin-top:11px}
+h2{font-size:28px;font-weight:800;letter-spacing:-.018em;margin:52px 0 18px}
+.list{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:6px 28px}
+.item{display:flex;gap:22px;padding:22px 0;border-bottom:1px solid var(--line)}
+.item:last-child{border-bottom:0}
+.num{font-family:var(--mono);font-size:11px;color:var(--dim);padding-top:3px;width:20px;flex:0 0 auto}
+.item h3{font-size:14.5px;font-weight:700;margin-bottom:8px;line-height:1.4}
+.item p{font-size:13px;line-height:1.6;color:#a2a2ab}
+.foot{display:grid;grid-template-columns:repeat(4,1fr);gap:24px;margin:46px 0 0;
+  padding:26px 0 44px;border-top:1px solid var(--line)}
+.foot div b{display:block;font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--dim);margin-bottom:9px}
+.foot div span{font-size:12.5px;color:#9d9da6;line-height:1.45}
+</style></head><body>
+<div class="page">
+  <div class="eyebrow">03 / 04 &nbsp;·&nbsp; Trophies audit</div>
+  <h1>Sort by Rarity</h1>
+  <div class="deck">The control does not exist, and building it is not the recommendation. The finding
+         underneath is better: the order the grid <em>already</em> uses is undefined for four
+         fifths of it, and a rarity sort would sort almost nothing.</div>
+  <div class="chip" style="color:#6f8fd0;border:1px solid #6f8fd066;background:#6f8fd012">(d) Absent · and the default order is undefined</div>
+
+  <div class="cols">
+    <div>
+      <div class="colhead">Hypothesis — there is an order, and rarity can change it</div>
+      <div class="card">
+        <div class="cardlabel">What was looked for, and what was found</div>
+        
+      <div class="step"><div class="dot" style="background:#e0603f"></div>
+        <div><b>No ordering control anywhere on the surface</b><span>ProfileTrophies holds no state — it is a pure function of props</span></div></div>
+      <div class="step"><div class="dot" style="background:#e0603f"></div>
+        <div><b>There is no rarity field on a trophy at all</b><span>trophies carry a tier; rarity belongs to the loot catalog</span></div></div>
+      <div class="step"><div class="dot" style="background:#e0603f"></div>
+        <div><b>The order comes from earned_at DESC</b><span>src/lib/data/trophies.js:32 — and grants arrive in sweeps</span></div></div>
+      <div class="step"><div class="dot" style="background:#d8a24a"></div>
+        <div><b>So most of the grid has no defined order</b><span>17 of sean’s 21 rows share one identical timestamp</span></div></div>
+      </div>
+      <div class="callout">81% of that grid is ordered by nothing</div>
+      <div class="card"><div class="cardtitle">The two candidate meanings give opposite answers</div><div class="note">Sorting by <b>tier</b> — the axis the stripe already shows — produces one 15-tile bronze
+        block, a 4-tile silver block and two singletons. Sorting by <b>scarcity</b>, which is what
+        "rare" actually means, would be genuinely informative: <b>9 of the 24</b> ids live in
+        production are held by exactly one person. Nothing computes that; it needs a cross-user
+        aggregate this surface has never asked for.</div></div>
+    </div>
+    <div>
+      <div class="colhead">Verified — no control, and no guaranteed order either</div>
+      
+    <div class="card">
+      <div class="cardtitle" style="margin-bottom:16px">What people actually hold, all 24 live ids</div>
+      <div class="stats">
+        <div class="stat"><div class="statn" style="color:#d8a24a">71%</div>
+          <div class="statl">of everything held<br>is bronze</div></div>
+        <div class="stat"><div class="statn" style="color:#e0603f">0</div>
+          <div class="statl">legendary trophies held<br>by anyone, ever</div></div>
+        <div class="stat"><div class="statn">4</div>
+          <div class="statl">rows in the grid at the<br>largest real account</div></div>
+      </div>
+      <div class="note">Catalog: bronze 31 · silver 29 · gold 32 · platinum 13 · legendary 15.
+        Held: bronze 17 · silver 5 · gold 1 · platinum 1 · legendary 0. A sort control over four
+        rows that are 71% one tier is a control that does almost nothing.</div>
+    </div>
+    <div class="card">
+      <div class="cardtitle">The order the grid renders today</div>
+      <div class="cmp">
+        <div class="cmpbox"><div class="cmphead">What the query asks for</div>
+          <div class="row"><div class="tile" style="background:#17221a;font-size:15px">🕐</div>
+            <div class="rowtxt"><b>earned_at DESC</b><span>three distinct timestamps</span></div></div>
+          <div class="verdictline" style="color:#63c07d">3 timestamp groups ✓</div></div>
+        <div class="cmpbox"><div class="cmphead">Inside the biggest group</div>
+          <div class="row"><div class="tile" style="background:#2a1a17;font-size:15px">🎲</div>
+            <div class="rowtxt"><b>nothing</b><span>17 rows, one timestamp</span></div></div>
+          <div class="verdictline" style="color:#e0603f">whatever the plan returns ✗</div></div>
+      </div>
+      <div class="note">Today it falls out as physical row order —
+        <code>post_1 &gt; bounty_1 &gt; regimen_1 &gt; coin_1k &gt; …</code> — which is neither
+        alphabetical, nor insertion order, nor anything a user could name. Sean’s only Gold and
+        only Platinum land at positions 16 and 17, mid-grid, with four more bronzes after them.</div>
+    </div>
+    </div>
+  </div>
+
+  <h2>What the audit established</h2>
+  <div class="list">
+      <div class="item"><div class="num">01</div>
+        <div><h3>Nothing changed. The null hypothesis was tested first and held.</h3><p>The brief said to start from "this control does not exist". It does not — <code>ProfileTrophies</code> takes props and returns markup, with no state of any kind.</p></div></div>
+      <div class="item"><div class="num">02</div>
+        <div><h3>The word "rarity" does not exist in this domain.</h3><p>A trophy has a <code>tier</code>: bronze, silver, gold, platinum, legendary. Rarity is loot vocabulary. Naming that once is worth more than picking a sort key, because the two candidate keys disagree about what the feature is for.</p></div></div>
+      <div class="item"><div class="num">03</div>
+        <div><h3>Defect — the existing order is undefined for most of the grid.</h3><p><code>grant_eligible_trophies()</code> grants in sweeps, so 17 of sean’s 21 rows carry one identical <code>earned_at</code>. SQL guarantees nothing about their relative order, and any row rewrite reshuffles the collection.</p></div></div>
+      <div class="item"><div class="num">04</div>
+        <div><h3>That defect is invisible in code review and cheap to prove.</h3><p>The query looks correct — it has an ORDER BY. One <code>GROUP BY earned_at</code> against production shows the largest group is 17 rows wide, and the whole thing falls apart.</p></div></div>
+      <div class="item"><div class="num">05</div>
+        <div><h3>A tier sort would sort 71% of the grid into one block.</h3><p>Measured across every id anyone holds: 17 bronze, 5 silver, 1 gold, 1 platinum, 0 legendary. The rarest thing in the app has never been earned by anybody.</p></div></div>
+      <div class="item"><div class="num">06</div>
+        <div><h3>Scarcity is the honest key, and it is a different piece of work.</h3><p>9 of 24 live ids are held by exactly one user; the most common, <code>regimen_1</code>, is held by 9 of 16. That is a real ranking — and a server-side aggregate that does not exist today.</p></div></div>
+      <div class="item"><div class="num">07</div>
+        <div><h3>Recommendation: do not build the control. Fix the default instead.</h3><p>Give <code>listEarned()</code> a deterministic secondary sort — <code>earned_at DESC, tier DESC, trophy_id</code>. That closes the undefined order, puts the rarest trophy someone owns in the first row beside their case, and adds no UI at all.</p></div></div>
+      <div class="item"><div class="num">08</div>
+        <div><h3>If it is built anyway, the constraints are already written down.</h3><p><code>tileRow()</code> over <code>grid-cols-N</code>, the two spacing registers, no gradient, no glassmorphism, no coloured shadow — and read <code>CollectionModal.jsx</code> first, which already groups a collection by rarity tier and has been through a redesign pass.</p></div></div></div>
+
+  <div class="foot">
+    <div><b>Migration</b><span>No SQL needed — an ORDER BY clause</span></div><div><b>Tests</b><span>No test asserts collection order</span></div><div><b>i18n</b><span>No new strings under the recommendation</span></div><div><b>Visible change</b><span>None — audit only</span></div>
+  </div>
+</div></body></html>

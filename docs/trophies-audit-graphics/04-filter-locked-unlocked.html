@@ -1,0 +1,151 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0d0d0f; --card:#151518; --card2:#111114; --line:#232329; --line2:#2c2c33;
+  --fg:#f1f1f3; --mut:#8b8b94; --dim:#63636d;
+  --amber:#d8a24a; --green:#63c07d; --red:#e0603f; --blue:#6f8fd0; --violet:#9b7fd4;
+  --mono:ui-monospace,"SF Mono",Menlo,monospace;
+  --sans:-apple-system,"Helvetica Neue",Helvetica,Arial,sans-serif;
+}
+body{background:var(--bg);color:var(--fg);font-family:var(--sans);-webkit-font-smoothing:antialiased}
+.page{width:1098px;padding:44px 44px 0}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--dim)}
+h1{font-size:52px;line-height:1.02;letter-spacing:-.024em;font-weight:800;margin:14px 0 0}
+.deck{margin-top:16px;font-size:17px;line-height:1.5;color:#b7b7be;max-width:640px}
+.deck em{color:var(--fg);font-style:italic}
+.chip{display:inline-block;margin-top:24px;padding:10px 18px;border-radius:999px;
+  font-family:var(--mono);font-size:11.5px;letter-spacing:.13em;text-transform:uppercase}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:30px;margin-top:44px}
+.colhead{font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--dim);padding-bottom:10px;border-bottom:1px solid var(--line);margin-bottom:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 20px}
+.card + .card{margin-top:14px}
+.cardlabel{font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--dim);margin-bottom:14px}
+.cardtitle{font-size:15px;font-weight:700;margin-bottom:12px}
+.step{display:flex;gap:11px;padding:11px 0;border-bottom:1px solid var(--line)}
+.step:last-child{border-bottom:0;padding-bottom:2px}
+.step:first-of-type{padding-top:2px}
+.dot{width:7px;height:7px;border-radius:50%;margin-top:6px;flex:0 0 auto}
+.step b{display:block;font-size:13.5px;font-weight:600;line-height:1.35}
+.step span{display:block;font-family:var(--mono);font-size:11px;color:var(--mut);margin-top:5px;line-height:1.45}
+.callout{margin-top:14px;border:1px solid rgba(216,162,74,.34);background:rgba(216,162,74,.07);
+  border-radius:12px;padding:15px;text-align:center;font-family:var(--mono);font-size:12px;
+  letter-spacing:.13em;text-transform:uppercase;color:var(--amber)}
+.stats{display:flex;gap:26px;margin-bottom:16px}
+.stat{flex:1}
+.statn{font-size:38px;font-weight:800;line-height:1;letter-spacing:-.02em}
+.statl{margin-top:9px;font-size:11.5px;color:var(--mut);line-height:1.4}
+.note{font-size:12.5px;color:var(--mut);line-height:1.55;margin-top:4px}
+code{font-family:var(--mono);font-size:11.5px;background:#1e1e23;border:1px solid var(--line2);
+  border-radius:5px;padding:1.5px 5px;color:#c9c9d2}
+.cmp{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 0 14px}
+.cmpbox{background:var(--card2);border:1px solid var(--line);border-radius:11px;padding:13px}
+.cmphead{font-family:var(--mono);font-size:9.5px;letter-spacing:.15em;text-transform:uppercase;
+  color:var(--dim);margin-bottom:11px}
+.row{display:flex;align-items:center;gap:10px}
+.tile{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;
+  justify-content:center;font-size:20px;flex:0 0 auto}
+.rowtxt b{display:block;font-size:13px;font-weight:700}
+.rowtxt span{display:block;font-size:11.5px;color:var(--mut);margin-top:2px}
+.verdictline{font-family:var(--mono);font-size:11px;margin-top:11px}
+h2{font-size:28px;font-weight:800;letter-spacing:-.018em;margin:52px 0 18px}
+.list{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:6px 28px}
+.item{display:flex;gap:22px;padding:22px 0;border-bottom:1px solid var(--line)}
+.item:last-child{border-bottom:0}
+.num{font-family:var(--mono);font-size:11px;color:var(--dim);padding-top:3px;width:20px;flex:0 0 auto}
+.item h3{font-size:14.5px;font-weight:700;margin-bottom:8px;line-height:1.4}
+.item p{font-size:13px;line-height:1.6;color:#a2a2ab}
+.foot{display:grid;grid-template-columns:repeat(4,1fr);gap:24px;margin:46px 0 0;
+  padding:26px 0 44px;border-top:1px solid var(--line)}
+.foot div b{display:block;font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--dim);margin-bottom:9px}
+.foot div span{font-size:12.5px;color:#9d9da6;line-height:1.45}
+</style></head><body>
+<div class="page">
+  <div class="eyebrow">04 / 04 &nbsp;·&nbsp; Trophies audit</div>
+  <h1>Filter Locked / Unlocked</h1>
+  <div class="deck">No filter exists — and as the surface is built, "show me what's locked" has no answer
+         to give. The locked half is <em>ten identical padlocks</em> with no name, no progress and
+         no accessibility. The real chase list already lives somewhere else.</div>
+  <div class="chip" style="color:#6f8fd0;border:1px solid #6f8fd066;background:#6f8fd012">(d) Absent · and unanswerable as built</div>
+
+  <div class="cols">
+    <div>
+      <div class="colhead">Hypothesis — the locked half is something you could filter to</div>
+      <div class="card">
+        <div class="cardlabel">Four properties of the locked half</div>
+        
+      <div class="step"><div class="dot" style="background:#e0603f"></div>
+        <div><b>Capped at ten frames</b><span>MAX_LOCKED_FRAMES = 10 — 21 of 120 earned shows 10, not 99</span></div></div>
+      <div class="step"><div class="dot" style="background:#e0603f"></div>
+        <div><b>Every frame is identical</b><span>the same 🔒 at 25% opacity, no id, no name, no progress</span></div></div>
+      <div class="step"><div class="dot" style="background:#e0603f"></div>
+        <div><b>aria-hidden="true"</b><span>the locked half does not exist for a screen reader</span></div></div>
+      <div class="step"><div class="dot" style="background:#e0603f"></div>
+        <div><b>Absent entirely at zero earned</b><span>rendered: a brand-new account draws no frames at all</span></div></div>
+      </div>
+      <div class="callout">A "Locked" tab would show ten anonymous padlocks</div>
+      <div class="card"><div class="cardtitle">One thing worth defending</div><div class="note">The cap is a <b>good decision with a good comment</b>. Sixty-five padlocks buried the
+        earned tiles above them, and two rows of five still reads as "there is more". The problem
+        is second-order: capping the frames also capped what they could ever <i>mean</i>, and the
+        header’s exact number is left carrying the whole load.</div></div>
+    </div>
+    <div>
+      <div class="colhead">Verified — there is nothing to filter to</div>
+      
+    <div class="card">
+      <div class="cardtitle" style="margin-bottom:16px">Rendered, 390 px, dark</div>
+      <div class="stats">
+        <div class="stat"><div class="statn" style="color:#e0603f">0</div>
+          <div class="statl">filter controls on<br>the surface</div></div>
+        <div class="stat"><div class="statn">10</div>
+          <div class="statl">locked frames, whether<br>99 or 119 remain</div></div>
+        <div class="stat"><div class="statn" style="color:#e0603f">0</div>
+          <div class="statl">frames on a brand-new<br>account</div></div>
+      </div>
+      <div class="note">The chase list is the whole point of a locked filter, and this one cannot
+        be browsed, read aloud, or counted.</div>
+    </div>
+    <div class="card">
+      <div class="cardtitle">The same control, built well, ten metres away</div>
+      <div class="cmp">
+        <div class="cmpbox"><div class="cmphead">Loot — CollectionModal.jsx</div>
+          <div class="row"><div class="tile" style="background:#17221a;font-size:15px">🎁</div>
+            <div class="rowtxt"><b>All · Owned · Missing</b><span>113 items, plus search</span></div></div>
+          <div class="verdictline" style="color:#63c07d">every missing item has a name ✓</div></div>
+        <div class="cmpbox"><div class="cmphead">Trophies — this surface</div>
+          <div class="row"><div class="tile" style="background:#1c1c21;font-size:15px">🔒</div>
+            <div class="rowtxt"><b>no control</b><span>10 anonymous frames</span></div></div>
+          <div class="verdictline" style="color:#e0603f">nothing to filter to ✗</div></div>
+      </div>
+      <div class="note">That module’s own header calls Missing "the chase list, which is the whole
+        point and was previously unreachable." The argument holds there because a missing loot item
+        has a name, an image, a rarity and a drop source. A locked trophy here has a padlock.</div>
+    </div>
+    </div>
+  </div>
+
+  <h2>What the audit established</h2>
+  <div class="list">
+      <div class="item"><div class="num">01</div>
+        <div><h3>Nothing changed. The absence was confirmed, not assumed.</h3><p>No filter control exists in <code>ProfileTrophies</code> or anywhere that renders it. The component holds no state, so there is nothing a control could drive.</p></div></div>
+      <div class="item"><div class="num">02</div>
+        <div><h3>"Absent" is the smaller half of this finding.</h3><p>The locked frames are capped at ten, identical, <code>aria-hidden</code>, and missing entirely at zero earned. A filter cannot be added to a set that carries no identity — that is a different and larger piece of work than a segmented control.</p></div></div>
+      <div class="item"><div class="num">03</div>
+        <div><h3>The chase list already exists, on the other surface.</h3><p>The Achievements vault’s "In progress" tab renders every unearned ladder with its live progress bar. That is the real answer to "what am I missing", and it is one tap away and better.</p></div></div>
+      <div class="item"><div class="num">04</div>
+        <div><h3>So two surfaces would answer the same question, and only one can.</h3><p>Building a Locked filter here does not add a capability — it adds a second, worse answer beside a good one. That is a finding in itself, and it is the reason the recommendation is negative.</p></div></div>
+      <div class="item"><div class="num">05</div>
+        <div><h3>The in-repo precedent argues against transferring itself.</h3><p><code>CollectionModal.jsx</code> ships All/Owned/Missing over 113 loot items and explains why Missing matters. The reasoning depends on missing items being browsable. Trophies fail that precondition by construction.</p></div></div>
+      <div class="item"><div class="num">06</div>
+        <div><h3>The zero-earned case is the one that should change.</h3><p>A brand-new account gets an empty-state card and no frames — so the app shows the shape of the collection to everyone except the person who has none of it. That is one branch at <code>:140</code>.</p></div></div>
+      <div class="item"><div class="num">07</div>
+        <div><h3>Recommendation: do not build the filter. Make the padlocks a door.</h3><p>The row of frames is already the visual promise of "there is more" and it currently goes nowhere. Linking it to the vault’s In-progress tab is a few lines, removes the duplicate rather than adding one, and gives the promise somewhere to land.</p></div></div>
+      <div class="item"><div class="num">08</div>
+        <div><h3>If a filter is built anyway, it needs its own zero case.</h3><p>A control that can empty the grid needs an empty state distinct from "you have not earned anything yet" — otherwise filtering to Locked on a completed catalog reads as data loss.</p></div></div></div>
+
+  <div class="foot">
+    <div><b>Migration</b><span>No SQL needed — nothing changed</span></div><div><b>Tests</b><span>No test renders the locked frames</span></div><div><b>i18n</b><span>No new strings under the recommendation</span></div><div><b>Visible change</b><span>None — audit only</span></div>
+  </div>
+</div></body></html>
