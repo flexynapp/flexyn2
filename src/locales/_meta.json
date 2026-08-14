@@ -108,10 +108,29 @@
       "bodyMap."
     ]
   },
-  "englishOnlyDomains": {
-    "$comment": "Domains deliberately shipped English-only for now. bodyMap is the body heat map: the tab is English on every locale, tracked as known debt rather than machine-translated.",
-    "domains": [
-      "bodyMap"
-    ]
+  "released": {
+    "$comment": "Locales the app OFFERS in the picker. Authoritative list is SUPPORTED_LANGUAGES in src/lib/i18n.js; this records the decision and why. A locale joins when it is COMPLETE, not when it is started.",
+    "locales": [
+      "en"
+    ],
+    "shelved": {
+      "$comment": "Have catalogs in src/locales/ and are still guarded by _coverage.json and the DEV checker, but are not offered. Shelved 2026-08-13 at ~49% of the English catalog: half a translated screen reads as a broken app, where an absent language reads as a decision. No account had ever selected one. Finishing all fourteen is ~135,000 words, roughly $16k of professional post-editing.",
+      "locales": [
+        "es",
+        "fr",
+        "de",
+        "pt",
+        "it",
+        "ja",
+        "ko",
+        "zh",
+        "ar",
+        "hi",
+        "ru",
+        "tr",
+        "pl",
+        "nl"
+      ]
+    }
   }
 }

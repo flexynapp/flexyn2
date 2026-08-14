@@ -24,7 +24,12 @@
  *
  * Import this file once in src/main.jsx (inside a DEV guard) to activate it.
  */
-import { loadLanguage, SUPPORTED_LANGUAGES } from './i18n';
+import { loadLanguage, ALL_LANGUAGES } from './i18n';
+
+// ALL_LANGUAGES, not the offered list. Most locales are shelved rather than
+// offered (see the note in i18n.js); auditing only the offered ones would mean
+// this file checked English against itself while every shelved catalog drifted
+// unobserved until someone tried to ship it again.
 
 // Lazy-load all per-language aggregates and return them as a single
 // `{ <code>: { key: value, ... } }` object — matches the shape the rest
@@ -34,7 +39,7 @@ import { loadLanguage, SUPPORTED_LANGUAGES } from './i18n';
 async function loadAllLanguages() {
   const out = {};
   await Promise.all(
-    SUPPORTED_LANGUAGES.map(async ({ code }) => {
+    ALL_LANGUAGES.map(async ({ code }) => {
       await loadLanguage(code);
       // After loadLanguage, the i18n module cached the data internally;
       // we need a way to read it. Use a fresh import of the aggregate
@@ -394,7 +399,7 @@ export async function checkI18nCompleteness() {
 
   // ── Pass 1: missing keys ──────────────────────────────────────────────────
   const missingIssues = [];
-  for (const { code } of SUPPORTED_LANGUAGES) {
+  for (const { code } of ALL_LANGUAGES) {
     if (code === 'en') continue;
     const langKeys = new Set(Object.keys(translations[code] || {}));
     for (const key of enKeys) {
@@ -414,7 +419,7 @@ export async function checkI18nCompleteness() {
 
   // ── Pass 2: English-identical (untranslated) values ───────────────────────
   const identicalIssues = [];
-  for (const { code } of SUPPORTED_LANGUAGES) {
+  for (const { code } of ALL_LANGUAGES) {
     if (code === 'en') continue;
     const langDict = translations[code] || {};
     for (const key of enKeys) {

@@ -174,7 +174,15 @@ export function isLanguageLoaded(lang) {
   return _translations[lang] != null;
 }
 
-export const SUPPORTED_LANGUAGES = [
+/**
+ * Every language that HAS a catalog in src/locales/. Not what the app offers —
+ * see SUPPORTED_LANGUAGES below for that.
+ *
+ * Tooling reads this one: the DEV completeness checker, the coverage baseline,
+ * and the audit scripts all need to see a shelved catalog, or a locale would
+ * silently rot the moment it left the picker.
+ */
+export const ALL_LANGUAGES = [
   { code: 'en', label: 'English',    nativeLabel: 'English',    flag: '🇺🇸' },
   { code: 'es', label: 'Spanish',    nativeLabel: 'Español',    flag: '🇪🇸' },
   { code: 'fr', label: 'French',     nativeLabel: 'Français',   flag: '🇫🇷' },
@@ -191,3 +199,29 @@ export const SUPPORTED_LANGUAGES = [
   { code: 'pl', label: 'Polish',     nativeLabel: 'Polski',     flag: '🇵🇱' },
   { code: 'nl', label: 'Dutch',      nativeLabel: 'Nederlands', flag: '🇳🇱' },
 ];
+
+/**
+ * Languages the app actually OFFERS — the picker, and the only values
+ * `setLanguage` and the stored/server preference will accept.
+ *
+ * English only, deliberately, as of 2026-08-13.
+ *
+ * The other fourteen sat at ~49% of the English catalog: a user choosing
+ * العربية got a screen half in Arabic and half in English, which reads as a
+ * broken app rather than as an unfinished translation. Not offering the
+ * language reads as a decision. Measured before deciding — no account had ever
+ * selected a non-English locale (3 explicitly English, the rest unset), and
+ * finishing all fourteen is ~135,000 words, roughly $16k of professional
+ * post-editing, against a real cohort of about 26 profiles.
+ *
+ * The catalogs are NOT deleted. ~1,450 genuine translations per language stay
+ * in src/locales/, still guarded by the no-regression baseline so they cannot
+ * quietly rot, and still checked by the DEV checker. Re-offering one is this
+ * list plus a translation pass to finish it — no code to write, nothing to
+ * recover. That is the whole reason for shelving rather than removing.
+ *
+ * Before adding one back: finish it first. A locale belongs here when it is
+ * complete, not when it is started. `npm run i18n:audit` prints where each
+ * one stands.
+ */
+export const SUPPORTED_LANGUAGES = ALL_LANGUAGES.filter((l) => l.code === 'en');

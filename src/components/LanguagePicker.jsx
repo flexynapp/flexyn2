@@ -57,6 +57,18 @@ export default function LanguagePicker({ variant = 'inline', onSelect, iconOnly 
     damping: 30,
   };
 
+  // One language on offer means there is nothing to pick. Rendering the control
+  // anyway gives the user a menu whose only entry is the state they are already
+  // in — it reads as a setting that does not work, which is worse than no
+  // setting at all. This is derived, not hardcoded: re-release a locale in
+  // SUPPORTED_LANGUAGES and the picker comes back at all four mount points
+  // without anyone remembering it exists.
+  //
+  // Placed AFTER every hook. An early return above them changes the hook count
+  // between renders, which is the crash LanguageContext's own header warns
+  // about.
+  if (SUPPORTED_LANGUAGES.length < 2) return null;
+
   return (
     <div className="relative" ref={containerRef}>
       {/* Trigger */}
