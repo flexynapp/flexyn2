@@ -1,5 +1,18 @@
 -- 344_meal_plans_one_per_slot.sql
 --
+-- ⚠ SUPERSEDED BY 355_meal_plans_multi_meal_slot.sql (2026-08-13).
+-- DO NOT RUN THIS FILE IN ISOLATION. Its `CREATE UNIQUE INDEX IF NOT EXISTS`
+-- would put `meal_plans_user_date_slot_uniq` back and re-break multi-meal
+-- slots, which a day legitimately needs — a plan template's snack1 and snack2
+-- both map to the single `snack` slot. Running the migrations in order is
+-- fine: 344 creates the index and 355 drops it.
+--
+-- The diagnosis below is still correct about the INCIDENT and wrong about the
+-- RULE. The 6 unreachable rows were one diary entry mirrored repeatedly, not
+-- two different dinners, so the identity being violated was the mirror's.
+-- 355 moves the uniqueness to (user_id, food_snapshot->>'log_id') and caps a
+-- slot at three meals with a trigger instead.
+--
 -- One meal plan per (user, date, meal slot).
 --
 -- WHY
