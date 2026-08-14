@@ -16,6 +16,15 @@ import ProfileTrophies from '../ProfileTrophies';
 import ProfileTabs, { ProfileTabPanel } from '../ProfileTabs';
 import { TROPHIES } from '@/lib/trophyDefinitions';
 
+// These components now read tFallback, and useLanguage() throws outside a
+// provider by design. Resolving the real English catalog rather than returning
+// key paths, so any assertion here still reads like the screen.
+vi.mock('@/lib/LanguageContext', async () => {
+  const { languageMock } = await import('@/lib/__tests__/i18nMock');
+  return languageMock();
+});
+
+
 const FORMS = {
   posts:     { one: 'post', other: 'posts' },
   followers: { one: 'follower', other: 'followers' },

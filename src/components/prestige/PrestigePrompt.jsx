@@ -16,11 +16,13 @@ import {
 import { toast } from '@/lib/toast';
 import { reportError } from '@/lib/reportError';
 import { useNumberFormatter } from '@/lib/intl';
+import { useLanguage } from '@/lib/LanguageContext';
 
 const RESETS   = ['Current XP', 'Display level', 'Current season rank'];
 const PERSISTS = ['Lifetime XP total', 'All workout logs', 'All PRs & volume history', 'Flex Coins', 'Crew membership', 'Gym Rival history'];
 
 export default function PrestigePrompt({ currentPrestige = 0, onDismiss }) {
+  const { tFallback } = useLanguage();
   const qc = useQueryClient();
   const fmt = useNumberFormatter();
   const [step, setStep] = useState('prompt'); // 'prompt' | 'confirm'
@@ -53,7 +55,7 @@ export default function PrestigePrompt({ currentPrestige = 0, onDismiss }) {
       qc.invalidateQueries({ queryKey: ['userProfile'] });
     },
     onError: (err) => {
-      toast.error('Prestige failed', { description: err.message });
+      toast.error(tFallback("prestigePrompt.prestigeFailed", "Prestige failed"), { description: err.message });
     },
   });
 
@@ -69,7 +71,7 @@ export default function PrestigePrompt({ currentPrestige = 0, onDismiss }) {
           <div className="w-7 h-7 rounded-full bg-yellow-500/20 flex items-center justify-center">
             <Star className="w-3.5 h-3.5 text-yellow-500 fill-yellow-500" />
           </div>
-          <span className="font-black text-sm">Max Level Reached</span>
+          <span className="font-black text-sm">{tFallback("prestigePrompt.maxLevelReached", "Max Level Reached")}</span>
         </div>
         <button
           onClick={() => dismissMut.mutate()}
@@ -136,7 +138,7 @@ export default function PrestigePrompt({ currentPrestige = 0, onDismiss }) {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <p className="text-micro font-semibold text-rose-500 uppercase tracking-wider mb-1.5">Resets</p>
+                <p className="text-micro font-semibold text-rose-500 uppercase tracking-wider mb-1.5">{tFallback("prestigePrompt.resets", "Resets")}</p>
                 <ul className="space-y-1">
                   {RESETS.map(r => (
                     <li key={r} className="text-xs text-muted-foreground flex items-center gap-1.5">
@@ -147,7 +149,7 @@ export default function PrestigePrompt({ currentPrestige = 0, onDismiss }) {
                 </ul>
               </div>
               <div>
-                <p className="text-micro font-semibold text-emerald-500 uppercase tracking-wider mb-1.5">Persists</p>
+                <p className="text-micro font-semibold text-emerald-500 uppercase tracking-wider mb-1.5">{tFallback("prestigePrompt.persists", "Persists")}</p>
                 <ul className="space-y-1">
                   {PERSISTS.map(p => (
                     <li key={p} className="text-xs text-muted-foreground flex items-center gap-1.5">

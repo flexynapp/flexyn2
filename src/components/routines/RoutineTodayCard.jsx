@@ -13,8 +13,10 @@ import { CalendarDays, Play, Moon, Sparkles, Dumbbell, ChevronRight } from 'luci
 import { Card } from '@/components/ui/card';
 import { useAuth } from '@/lib/AuthContext';
 import { getActiveRoutine, todayIndex, DAY_NAMES_FULL } from '@/lib/data/routines';
+import { useLanguage } from '@/lib/LanguageContext';
 
 export default function RoutineTodayCard({ onStart, onOpenRoutines, onChallenge }) {
+  const { tFallback } = useLanguage();
   const { user } = useAuth();
   const { data: routine } = useQuery({
     queryKey: ['activeRoutine', user?.id],
@@ -40,7 +42,7 @@ export default function RoutineTodayCard({ onStart, onOpenRoutines, onChallenge 
           <CalendarDays className="w-5 h-5 text-primary" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="font-heading font-bold text-sm">Build your routine</p>
+          <p className="font-heading font-bold text-sm">{tFallback("routineTodayCard.buildYourRoutine", "Build your routine")}</p>
           <p className="text-xs text-muted-foreground mt-0.5">Set up your week — label your days and add the lifts you actually do.</p>
         </div>
         <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" />
@@ -54,7 +56,7 @@ export default function RoutineTodayCard({ onStart, onOpenRoutines, onChallenge 
         <div className="flex items-center gap-2 px-4 pt-3">
           <span className="text-micro font-bold uppercase tracking-[0.18em] text-primary">{dayName} · today</span>
           <span className="text-micro text-muted-foreground truncate">{routine.name}</span>
-          <button onClick={onOpenRoutines} aria-label="My Routine"
+          <button onClick={onOpenRoutines} aria-label={tFallback("routineTodayCard.myRoutine", "My Routine")}
             className="ms-auto w-8 h-8 rounded-lg border border-border flex items-center justify-center text-muted-foreground hover:text-foreground active:text-foreground hover:bg-secondary active:bg-secondary shrink-0">
             <CalendarDays className="w-4 h-4" />
           </button>
@@ -64,7 +66,7 @@ export default function RoutineTodayCard({ onStart, onOpenRoutines, onChallenge 
           <div className="px-4 pb-4 pt-2 flex items-center gap-3">
             <Moon className="w-5 h-5 text-muted-foreground" />
             <div>
-              <p className="font-heading font-bold">Rest day</p>
+              <p className="font-heading font-bold">{tFallback("progress.analytics.restDay", "Rest day")}</p>
               <p className="text-xs text-muted-foreground">Recover up — you earned it.</p>
             </div>
           </div>
@@ -83,8 +85,8 @@ export default function RoutineTodayCard({ onStart, onOpenRoutines, onChallenge 
               </button>
               <button
                 onClick={() => onChallenge(day.focus, day.exercises, day.label)}
-                aria-label="Up for a challenge"
-                title="Up for a challenge — add a bonus finisher"
+                aria-label={tFallback("routineTodayCard.upForAChallenge", "Up for a challenge")}
+                title={tFallback("routineTodayCard.upForAChallengeAdd", "Up for a challenge — add a bonus finisher")}
                 className="h-11 px-3 rounded-2xl border border-primary/40 text-primary font-bold text-sm flex items-center gap-1.5"
               >
                 <Sparkles className="w-4 h-4" /> Challenge

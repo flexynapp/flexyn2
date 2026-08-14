@@ -11,11 +11,13 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Download, X } from 'lucide-react';
+import { useLanguage } from '@/lib/LanguageContext';
 
 const DISMISS_STORAGE_KEY = 'fn-pwa-install-dismissed-at';
 const DISMISS_COOLDOWN_DAYS = 14;
 
 export default function PWAInstallPrompt() {
+  const { tFallback } = useLanguage();
   // Cached event handle — needed because beforeinstallprompt fires ONCE.
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   // Whether the banner is currently visible to the user.
@@ -88,13 +90,13 @@ export default function PWAInstallPrompt() {
           // docks to the app's corner rather than the monitor's. See index.css.
           className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] start-3 end-3 lg:left-auto lg:end-[calc(var(--shell-inset)+1.5rem)] lg:bottom-6 lg:max-w-sm z-[60] rounded-2xl bg-card border border-border shadow-xl p-3 flex items-center gap-3"
           role="dialog"
-          aria-label="Install Flexyn"
+          aria-label={tFallback("iosInstall.title", "Install Flexyn")}
         >
           <div className="w-10 h-10 rounded-xl bg-primary/15 text-primary flex items-center justify-center shrink-0">
             <Download className="w-5 h-5" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="font-heading font-bold text-sm leading-tight">Install Flexyn</p>
+            <p className="font-heading font-bold text-sm leading-tight">{tFallback("iosInstall.title", "Install Flexyn")}</p>
             <p className="text-xs text-muted-foreground leading-snug truncate">
               Add to your home screen for faster access.
             </p>
@@ -107,7 +109,7 @@ export default function PWAInstallPrompt() {
           </button>
           <button
             onClick={handleDismiss}
-            aria-label="Dismiss"
+            aria-label={tFallback("discovery.dismiss", "Dismiss")}
             className="shrink-0 p-1 rounded-md text-muted-foreground hover:bg-secondary active:bg-secondary transition-colors"
           >
             <X className="w-4 h-4" />

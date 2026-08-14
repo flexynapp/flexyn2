@@ -17,8 +17,10 @@ import { X } from 'lucide-react';
 import { listRecentlyViewed, removeRecentlyViewed, clearRecentlyViewed } from '@/lib/recentlyViewedListings';
 import { RARITY } from '@/lib/lootCatalog';
 import { useNumberFormatter } from '@/lib/intl';
+import { useLanguage } from '@/lib/LanguageContext';
 
 export default function RecentlyViewedRail({ userEmail, listings = [], onSelect }) {
+  const { tFallback } = useLanguage();
   const fmt = useNumberFormatter();
   const [recents, setRecents] = useState(() => listRecentlyViewed(userEmail));
 
@@ -117,7 +119,7 @@ export default function RecentlyViewedRail({ userEmail, listings = [], onSelect 
                     removeRecentlyViewed(userEmail, entry.id);
                   }}
                   className="absolute -top-1.5 -end-1.5 w-5 h-5 rounded-full bg-secondary border border-border text-muted-foreground hover:text-foreground active:text-foreground hover:bg-secondary/70 active:bg-secondary/70 flex items-center justify-center transition-colors"
-                  aria-label="Remove from recents"
+                  aria-label={tFallback("recentlyViewedRail.removeFromRecents", "Remove from recents")}
                 >
                   <X className="w-3 h-3" />
                 </button>

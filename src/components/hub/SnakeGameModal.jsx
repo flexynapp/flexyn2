@@ -23,6 +23,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Pause, Play, RotateCcw, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Trophy } from 'lucide-react';
 import AnimatedNumber from '@/components/AnimatedNumber';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { useLanguage } from '@/lib/LanguageContext';
 
 // ── Board geometry ────────────────────────────────────────────────────
 const GRID = 17;
@@ -219,6 +220,7 @@ function fireConfetti(colors, big) {
 }
 
 export default function SnakeGameModal({ open, onClose, userId }) {
+  const { tFallback } = useLanguage();
   // Pin the page behind this overlay — see @/lib/scrollLock.
   useBodyScrollLock(open);
   const canvasRef = useRef(null);
@@ -457,7 +459,7 @@ export default function SnakeGameModal({ open, onClose, userId }) {
             onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-modal="true"
-            aria-label="Iron Snake"
+            aria-label={tFallback("snakeGameModal.ironSnake", "Iron Snake")}
             className="relative bg-card border border-border rounded-2xl w-full max-w-[360px] p-4 flex flex-col items-center gap-4"
             style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}
           >
@@ -465,12 +467,12 @@ export default function SnakeGameModal({ open, onClose, userId }) {
             <div className="flex items-center justify-between w-full">
               <div className="flex items-center gap-2">
                 <span className="text-lg leading-none" aria-hidden="true">👾</span>
-                <h3 className="snake-pixel text-label leading-none">Iron Snake</h3>
+                <h3 className="snake-pixel text-label leading-none">{tFallback("snakeGameModal.ironSnake", "Iron Snake")}</h3>
               </div>
               <button
                 type="button"
                 onClick={onClose}
-                aria-label="Close"
+                aria-label={tFallback("common.close", "Close")}
                 className="p-1 rounded-md text-muted-foreground hover:bg-secondary active:bg-secondary transition-colors"
               >
                 <X className="w-4 h-4" />
@@ -583,13 +585,13 @@ export default function SnakeGameModal({ open, onClose, userId }) {
               <button type="button" aria-label="Up"    className={`${dpadArm} rounded-t-[14px]`} style={{ left: 50, top: 0, width: 50, height: 50 }} onClick={() => handleDir('up')}>
                 <ChevronUp className="w-6 h-6" />
               </button>
-              <button type="button" aria-label="Down"  className={`${dpadArm} rounded-b-[14px]`} style={{ left: 50, top: 100, width: 50, height: 50 }} onClick={() => handleDir('down')}>
+              <button type="button" aria-label={tFallback("snakeGameModal.down", "Down")}  className={`${dpadArm} rounded-b-[14px]`} style={{ left: 50, top: 100, width: 50, height: 50 }} onClick={() => handleDir('down')}>
                 <ChevronDown className="w-6 h-6" />
               </button>
-              <button type="button" aria-label="Left"  className={`${dpadArm} rounded-l-[14px]`} style={{ left: 0, top: 50, width: 50, height: 50 }} onClick={() => handleDir('left')}>
+              <button type="button" aria-label={tFallback("snakeGameModal.left", "Left")}  className={`${dpadArm} rounded-l-[14px]`} style={{ left: 0, top: 50, width: 50, height: 50 }} onClick={() => handleDir('left')}>
                 <ChevronLeft className="w-6 h-6" />
               </button>
-              <button type="button" aria-label="Right" className={`${dpadArm} rounded-r-[14px]`} style={{ left: 100, top: 50, width: 50, height: 50 }} onClick={() => handleDir('right')}>
+              <button type="button" aria-label={tFallback("snakeGameModal.right", "Right")} className={`${dpadArm} rounded-r-[14px]`} style={{ left: 100, top: 50, width: 50, height: 50 }} onClick={() => handleDir('right')}>
                 <ChevronRight className="w-6 h-6" />
               </button>
 

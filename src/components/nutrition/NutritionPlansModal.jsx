@@ -7,6 +7,7 @@ import { PLAN_TEMPLATES, PLAN_COLORS, scalePlan, adaptPlan, loadRestrictions } f
 import { useNutritionTargets } from '@/hooks/useNutritionTargets';
 import { isNutritionOnboardingComplete } from '@/lib/nutritionOnboardingGate';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { useLanguage } from '@/lib/LanguageContext';
 
 /* ─── Macro bar ──────────────────────────────────────────────────────────── */
 function MacroBar({ protein, carbs, fat }) {
@@ -104,6 +105,7 @@ function PlanCard({ plan, scaled, onSelect, colors, fitsGoal }) {
 
 /* ─── Meal row (detail view) ─────────────────────────────────────────────── */
 function MealRow({ meal, colors }) {
+  const { tFallback } = useLanguage();
   const [open, setOpen] = useState(false);
   return (
     <div className="border border-border/50 rounded-xl overflow-hidden">
@@ -175,7 +177,7 @@ function MealRow({ meal, colors }) {
               {/* Step-by-step directions */}
               {meal.directions?.length > 0 && (
                 <div className="mt-3 pt-2.5 border-t border-border/40">
-                  <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground mb-1.5">Directions</p>
+                  <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground mb-1.5">{tFallback("nutritionPlansModal.directions", "Directions")}</p>
                   <ol className="space-y-1.5">
                     {meal.directions.map((step, i) => (
                       <li key={i} className="flex gap-2 text-xs text-foreground/80 leading-snug">
@@ -218,6 +220,7 @@ function SupplementCard({ supp, colors }) {
 
 /* ─── Detail view ────────────────────────────────────────────────────────── */
 function PlanDetail({ plan, scaled, onBack, colors }) {
+  const { tFallback } = useLanguage();
   const macros = scaled.scaledMacros || scaled.baseMacros;
   const kcal   = scaled.scaledCalories || scaled.baseCalories;
   return (
@@ -304,6 +307,7 @@ function PlanDetail({ plan, scaled, onBack, colors }) {
  * own selected-plan state. Wrap it in a container with `px-4 sm:px-6` +
  * top padding so PlanDetail's negative-margin hero bleeds correctly. */
 export function NutritionPlansPanel({ userProfile, onStartOnboarding, trainingFuel, onApplyFuel }) {
+  const { tFallback } = useLanguage();
   const [selected, setSelected] = useState(null);
 
   // Plans are tailored to goals + dietary restrictions, both captured in
@@ -365,7 +369,7 @@ export function NutritionPlansPanel({ userProfile, onStartOnboarding, trainingFu
         <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
           <ClipboardList className="w-7 h-7 text-primary" />
         </div>
-        <p className="font-heading font-bold text-lg">Set up your nutrition first</p>
+        <p className="font-heading font-bold text-lg">{tFallback("nutritionPlansModal.setUpYourNutritionFirst", "Set up your nutrition first")}</p>
         <p className="text-sm text-muted-foreground mt-1.5 max-w-xs mx-auto leading-snug">
           Meal plans are built around your goals and dietary restrictions. Finish your nutrition setup and we'll only show plans that actually fit you.
         </p>
@@ -406,7 +410,7 @@ export function NutritionPlansPanel({ userProfile, onStartOnboarding, trainingFu
                   <Flame className="w-4 h-4" />
                 </span>
                 <div className="min-w-0">
-                  <p className="font-heading font-bold text-sm leading-tight">Fuel your training</p>
+                  <p className="font-heading font-bold text-sm leading-tight">{tFallback("coach.plan.fuel", "Fuel your training")}</p>
                   <p className="text-micro text-muted-foreground">
                     ~{trainingFuel.runDays} run{trainingFuel.runDays === 1 ? '' : 's'}/week · ≈{trainingFuel.weeklyKcal.toLocaleString()} kcal burned
                   </p>
@@ -435,7 +439,7 @@ export function NutritionPlansPanel({ userProfile, onStartOnboarding, trainingFu
             <div className="mb-4 px-3 py-2.5 rounded-xl bg-success/5 border border-success/20 flex items-start gap-2">
               <Sparkles className="w-4 h-4 text-success shrink-0 mt-0.5" />
               <p className="text-xs text-muted-foreground">
-                <span className="font-semibold text-foreground">Adapted for your diet:</span>{' '}
+                <span className="font-semibold text-foreground">{tFallback("nutritionPlansModal.adaptedForYourDiet", "Adapted for your diet:")}</span>{' '}
                 {restrictions.join(', ').replace(/_/g, '-')}
                 {totalSwaps > 0 && (
                   <> — {totalSwaps} ingredient{totalSwaps !== 1 ? 's' : ''} swapped for compliant, nutrient-matched picks.</>
@@ -449,7 +453,7 @@ export function NutritionPlansPanel({ userProfile, onStartOnboarding, trainingFu
             <div className="mb-4 px-3 py-2.5 rounded-xl bg-primary/5 border border-primary/20 flex items-start gap-2">
               <Flame className="w-4 h-4 text-primary shrink-0 mt-0.5" />
               <p className="text-xs text-muted-foreground">
-                <span className="font-semibold text-foreground">Scaled to your target:</span>{' '}
+                <span className="font-semibold text-foreground">{tFallback("nutritionPlansModal.scaledToYourTarget", "Scaled to your target:")}</span>{' '}
                 {targetCalories} cal/day — all macros adjusted proportionally
               </p>
             </div>
@@ -483,6 +487,7 @@ export function NutritionPlansPanel({ userProfile, onStartOnboarding, trainingFu
 
 /* ─── Main modal ─────────────────────────────────────────────────────────── */
 export default function NutritionPlansModal({ open, onClose, userProfile, onStartOnboarding, trainingFuel, onApplyFuel }) {
+  const { tFallback } = useLanguage();
   // Pin the page behind this overlay — see @/lib/scrollLock.
   useBodyScrollLock(open);
   const handleClose = () => {
@@ -520,7 +525,7 @@ export default function NutritionPlansModal({ open, onClose, userProfile, onStar
 
             {/* Header */}
             <div className="flex items-center justify-between px-4 sm:px-6 pb-3 shrink-0">
-              <h2 className="font-heading font-bold text-xl">Nutrition Plans</h2>
+              <h2 className="font-heading font-bold text-xl">{tFallback("nutrition.nutritionPlans", "Nutrition Plans")}</h2>
               <button onClick={handleClose} className="p-2 rounded-full hover:bg-secondary active:bg-secondary transition-colors">
                 <X className="w-5 h-5" />
               </button>

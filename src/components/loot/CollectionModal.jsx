@@ -45,6 +45,7 @@ import {
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { RarityBadge, rarityTint, CoinAmount } from './RarityVisuals';
 import { tileRow } from '@/lib/tileRows';
+import { useLanguage } from '@/lib/LanguageContext';
 
 // Tiers that get the premium treatment — gradient, glow, sheen. Kept
 // deliberately short: if everything shimmers, nothing does.
@@ -104,8 +105,9 @@ function CompletionRing({ pct, size = 60, stroke = 5 }) {
  * one strip, and it points straight at the next gap worth closing.
  */
 function RaritySpectrum({ breakdown }) {
+  const { tFallback } = useLanguage();
   return (
-    <div className="flex items-end gap-[3px] h-7" role="img" aria-label="Completion by rarity">
+    <div className="flex items-end gap-[3px] h-7" role="img" aria-label={tFallback("collectionModal.completionByRarity", "Completion by rarity")}>
       {breakdown.map(b => (
         <div
           key={b.rarity}
@@ -233,6 +235,7 @@ function Slot({ item, onSelect, index }) {
  * whether chasing it is realistic.
  */
 function DetailSheet({ item, onBack }) {
+  const { tFallback } = useLanguage();
   const tint = rarityTint(item.rarity);
   const locked = !item.owned;
 
@@ -364,6 +367,7 @@ function DetailSheet({ item, onBack }) {
 
 // ─── Modal ────────────────────────────────────────────────────────────────────
 export default function CollectionModal({ open, onClose, initialTab = 'stickers' }) {
+  const { tFallback } = useLanguage();
   const { user } = useAuth();
   const [tab, setTab] = useState(initialTab);
   const [filter, setFilter] = useState('all');
@@ -437,7 +441,7 @@ export default function CollectionModal({ open, onClose, initialTab = 'stickers'
           onClick={(e) => e.stopPropagation()}
           role="dialog"
           aria-modal="true"
-          aria-label="Collection"
+          aria-label={tFallback("collectionModal.collection", "Collection")}
           className="relative w-full md:max-w-2xl bg-card border border-border rounded-t-2xl md:rounded-2xl shadow-2xl max-h-[90vh] overflow-hidden flex flex-col"
         >
           {/* Header */}
@@ -452,7 +456,7 @@ export default function CollectionModal({ open, onClose, initialTab = 'stickers'
                 <button
                   type="button"
                   onClick={() => setSelected(null)}
-                  aria-label="Back to collection"
+                  aria-label={tFallback("collectionModal.backToCollection", "Back to collection")}
                   className="w-9 h-9 rounded-lg border border-border flex items-center justify-center hover:bg-secondary active:bg-secondary transition-colors shrink-0 rtl:scale-x-[-1]"
                 >
                   <ChevronLeft className="w-4 h-4" />
@@ -464,7 +468,7 @@ export default function CollectionModal({ open, onClose, initialTab = 'stickers'
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5">
                   <LibraryBig className="w-3.5 h-3.5 text-primary shrink-0" />
-                  <h2 className="font-heading font-bold text-base leading-tight">Collection</h2>
+                  <h2 className="font-heading font-bold text-base leading-tight">{tFallback("collectionModal.collection", "Collection")}</h2>
                 </div>
                 <p className="text-micro text-muted-foreground leading-tight mt-0.5">
                   <span className="font-bold text-foreground tabular-nums">{overall.owned}</span>
@@ -478,7 +482,7 @@ export default function CollectionModal({ open, onClose, initialTab = 'stickers'
               <button
                 type="button"
                 onClick={onClose}
-                aria-label="Close"
+                aria-label={tFallback("common.close", "Close")}
                 className="p-2 rounded-md hover:bg-secondary active:bg-secondary transition-colors shrink-0 self-start"
               >
                 <X className="w-4 h-4" />
@@ -563,8 +567,8 @@ export default function CollectionModal({ open, onClose, initialTab = 'stickers'
                     <input
                       value={query}
                       onChange={(e) => setQuery(e.target.value)}
-                      placeholder="Search…"
-                      aria-label="Search the collection"
+                      placeholder={tFallback("collectionModal.search", "Search…")}
+                      aria-label={tFallback("collectionModal.searchTheCollection", "Search the collection")}
                       className="w-full h-8 rounded-lg bg-secondary/60 ps-7 pe-2 text-xs focus:outline-none focus:ring-1 focus:ring-primary/50 placeholder:text-muted-foreground/70"
                     />
                   </div>
@@ -688,7 +692,7 @@ export default function CollectionModal({ open, onClose, initialTab = 'stickers'
                   <span className="flex items-center gap-1">
                     <RarityBadge rarity="legendary" size="sm" /> rarity tier
                   </span>
-                  <span className="ms-auto tabular-nums">Tap any slot for details</span>
+                  <span className="ms-auto tabular-nums">{tFallback("collectionModal.tapAnySlotForDetails", "Tap any slot for details")}</span>
                 </div>
               </motion.div>
             )}

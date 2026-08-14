@@ -35,6 +35,7 @@ import EmptyState from '@/components/EmptyState';
 import {
   getGym, getLeaderboard, listEvents, createEvent,
 } from '@/lib/data/gymBusinesses';
+import { useLanguage } from '@/lib/LanguageContext';
 
 const TABS = [
   { id: 'feed',       label: 'Feed',        Icon: MessageSquare },
@@ -101,6 +102,7 @@ function GymActivityPreview({ preview }) {
 }
 
 export default function GymHub() {
+  const { tFallback } = useLanguage();
   const { id } = useParams();
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -212,7 +214,7 @@ export default function GymHub() {
   if (!gym) {
     return (
       <div className="max-w-2xl mx-auto p-4">
-        <EmptyState icon={Building2} title="Gym not found" body="That gym ID doesn't exist or has been deactivated." />
+        <EmptyState icon={Building2} title={tFallback("gymHub.gymNotFound", "Gym not found")} body="That gym ID doesn't exist or has been deactivated." />
       </div>
     );
   }
@@ -290,7 +292,7 @@ export default function GymHub() {
                     type="button"
                     onClick={() => setMembersOpen(true)}
                     className="flex items-center gap-1 text-muted-foreground hover:text-foreground active:text-foreground transition-colors"
-                    aria-label="View members"
+                    aria-label={tFallback("gymHub.viewMembers", "View members")}
                   >
                     <Users className="w-3 h-3" /> <span className="tabular-nums">{gym.member_count}</span>
                     {(gym.member_count === 1 ? ' member' : ' members')}
@@ -504,6 +506,7 @@ export default function GymHub() {
 
 // ── Events Tab ──────────────────────────────────────────────────────
 function EventsTab({ gymId, canCreate, gymOwnerId }) {
+  const { tFallback } = useLanguage();
   const { user } = useAuth();
   const isOwner = !!(user?.id && gymOwnerId && user.id === gymOwnerId);
   const [events, setEvents] = useState([]);
@@ -559,7 +562,7 @@ function EventsTab({ gymId, canCreate, gymOwnerId }) {
   };
 
   const handleDeleteEvent = async (eventId) => {
-    if (!confirm('Delete this event?')) return;
+    if (!confirm(tFallback("gymHub.deleteThisEvent", "Delete this event?"))) return;
     const { deleteEvent } = await import('@/lib/data/gymBusinesses');
     const res = await deleteEvent(eventId);
     if (res.ok) refresh();
@@ -617,7 +620,7 @@ function EventsTab({ gymId, canCreate, gymOwnerId }) {
       {composing && (
         <div className="rounded-2xl border border-border bg-card p-3 mb-3 space-y-2">
           <Input
-            placeholder="Title"
+            placeholder={tFallback("cardioPlanned.title", "Title")}
             value={form.title}
             onChange={(e) => setForm(f => ({ ...f, title: e.target.value.slice(0, 80) }))}
           />
@@ -632,14 +635,14 @@ function EventsTab({ gymId, canCreate, gymOwnerId }) {
             onChange={(e) => setForm(f => ({ ...f, location_note: e.target.value.slice(0, 80) }))}
           />
           <Textarea
-            placeholder="Details (optional)"
+            placeholder={tFallback("gymHub.detailsOptional", "Details (optional)")}
             value={form.body}
             onChange={(e) => setForm(f => ({ ...f, body: e.target.value.slice(0, 500) }))}
             rows={2}
           />
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setComposing(false)} className="flex-1">Cancel</Button>
-            <Button onClick={handleCreate} disabled={!form.title.trim() || !form.starts_at} className="flex-1">Create</Button>
+            <Button variant="outline" onClick={() => setComposing(false)} className="flex-1">{tFallback("coach.plan.cancel", "Cancel")}</Button>
+            <Button onClick={handleCreate} disabled={!form.title.trim() || !form.starts_at} className="flex-1">{tFallback("workout.templates.createBtn", "Create")}</Button>
           </div>
         </div>
       )}
@@ -647,7 +650,7 @@ function EventsTab({ gymId, canCreate, gymOwnerId }) {
       {loading ? (
         <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
       ) : events.length === 0 ? (
-        <EmptyState icon={Calendar} title="No events scheduled" body="Owners or members can post events here." />
+        <EmptyState icon={Calendar} title={tFallback("gymHub.noEventsScheduled", "No events scheduled")} body="Owners or members can post events here." />
       ) : (
         <div className="space-y-2">
           {events.map(e => {
@@ -669,7 +672,7 @@ function EventsTab({ gymId, canCreate, gymOwnerId }) {
                       type="button"
                       onClick={() => handleDeleteEvent(e.id)}
                       className="w-6 h-6 rounded-full text-muted-foreground hover:text-destructive active:text-destructive flex items-center justify-center"
-                      aria-label="Delete event"
+                      aria-label={tFallback("gymHub.deleteEvent", "Delete event")}
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -723,6 +726,7 @@ function EventsTab({ gymId, canCreate, gymOwnerId }) {
 
 // ── Leaderboard Tab ─────────────────────────────────────────────────
 function LeaderboardTab({ gymId, meUserId }) {
+  const { tFallback } = useLanguage();
   const [mode, setMode] = useState('volume');
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -764,7 +768,7 @@ function LeaderboardTab({ gymId, meUserId }) {
         myRow ? (
           <div className="rounded-xl bg-primary/10 border border-primary/30 p-3 mb-3 flex items-center justify-between">
             <span className="flex items-center gap-2">
-              <span className="text-micro font-bold uppercase tracking-wider text-primary">Your rank</span>
+              <span className="text-micro font-bold uppercase tracking-wider text-primary">{tFallback("league.yourRank", "Your rank")}</span>
               <span className="font-heading font-bold tabular-nums">#{myRow.rank}</span>
             </span>
             <span className="font-bold tabular-nums">{Math.round(myRow.value).toLocaleString()} {modeMeta?.suffix}</span>
@@ -779,7 +783,7 @@ function LeaderboardTab({ gymId, meUserId }) {
       {loading ? (
         <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
       ) : rows.length === 0 ? (
-        <EmptyState icon={Trophy} title="No data yet" body="Members will appear here as they log workouts." />
+        <EmptyState icon={Trophy} title={tFallback("progress.noData", "No data yet")} body="Members will appear here as they log workouts." />
       ) : (
         <div className="space-y-1.5">
           {rows.map(r => {

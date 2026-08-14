@@ -29,6 +29,7 @@ import {
 import { RarityBadge, RarityFrame, CoinAmount } from '@/components/loot/RarityVisuals';
 import { tileRow } from '@/lib/tileRows';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { useLanguage } from '@/lib/LanguageContext';
 
 // Same 3-per-row picker ListItemDialog uses — how many listings you happen to
 // have running is arbitrary, so a partial last row is the normal case.
@@ -44,6 +45,7 @@ const DISCOUNTS = [10, 25, 50, BUNDLE_DISCOUNT_MAX];
 const TITLE_MAX = 60;
 
 export default function CreateBundleDialog({ open, onClose, listings, user, onSuccess }) {
+  const { tFallback } = useLanguage();
   // Pin the page behind this overlay — see @/lib/scrollLock.
   useBodyScrollLock(open);
   const [step, setStep]         = useState('pick');   // 'pick' | 'configure'
@@ -137,7 +139,7 @@ export default function CreateBundleDialog({ open, onClose, listings, user, onSu
             {step === 'configure' && (
               <button
                 onClick={() => setStep('pick')}
-                aria-label="Back to listing picker"
+                aria-label={tFallback("createBundleDialog.backToListingPicker", "Back to listing picker")}
                 className="text-muted-foreground hover:text-foreground active:text-foreground me-1"
               >
                 <ChevronLeft className="w-5 h-5" />
@@ -150,7 +152,7 @@ export default function CreateBundleDialog({ open, onClose, listings, user, onSu
           </div>
           <button
             onClick={handleClose}
-            aria-label="Close"
+            aria-label={tFallback("common.close", "Close")}
             className="text-muted-foreground hover:text-foreground active:text-foreground p-1 rounded-lg hover:bg-secondary active:bg-secondary"
           >
             <X className="w-4 h-4" />
@@ -233,7 +235,7 @@ export default function CreateBundleDialog({ open, onClose, listings, user, onSu
                 <input
                   value={title}
                   onChange={(e) => setTitle(e.target.value.slice(0, TITLE_MAX))}
-                  placeholder="Starter pack"
+                  placeholder={tFallback("createBundleDialog.starterPack", "Starter pack")}
                   maxLength={TITLE_MAX}
                   className="bg-secondary border border-border rounded-xl px-3 py-2 text-sm outline-none focus:border-primary"
                 />
@@ -269,20 +271,20 @@ export default function CreateBundleDialog({ open, onClose, listings, user, onSu
                   exact misunderstanding the old minting bug hid. */}
               <div className="rounded-xl border border-border bg-secondary/40 p-3 flex flex-col gap-1.5">
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Listed separately</span>
+                  <span className="text-muted-foreground">{tFallback("createBundleDialog.listedSeparately", "Listed separately")}</span>
                   <span className="line-through text-muted-foreground">
                     <CoinAmount value={quote.total} />
                   </span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Buyer pays</span>
+                  <span className="text-muted-foreground">{tFallback("createBundleDialog.buyerPays", "Buyer pays")}</span>
                   <span className="font-bold text-amber-600 dark:text-amber-300">
                     <CoinAmount value={quote.price} />
                   </span>
                 </div>
                 <div className="h-px bg-border my-0.5" />
                 <div className="flex items-center justify-between text-sm">
-                  <span className="font-bold">You receive</span>
+                  <span className="font-bold">{tFallback("createBundleDialog.youReceive", "You receive")}</span>
                   <span className="font-bold text-amber-600 dark:text-amber-300">
                     <CoinAmount value={quote.sellerReceives} />
                   </span>

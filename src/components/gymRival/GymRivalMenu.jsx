@@ -24,6 +24,7 @@ import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { formatWeight } from '@/lib/weightUnit';
 import { useNumberFormatter } from '@/lib/intl';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { useLanguage } from '@/lib/LanguageContext';
 
 // Higher of two numbers: true = user wins, false = rival, null = tie.
 const cmp = (a, b) => { const x = Number(a) || 0, y = Number(b) || 0; return x === y ? null : x > y; };
@@ -68,6 +69,7 @@ function StatRow({ icon: Icon, label, userVal, rivalVal, userWins }) {
 }
 
 export default function GymRivalMenu({ open, onClose, assignment, currentUserId, onReroll, rerolling, onDecline, declining, onChallenge }) {
+  const { tFallback } = useLanguage();
   // Pin the page behind this overlay — see @/lib/scrollLock.
   useBodyScrollLock(open);
   const navigate = useNavigate();
@@ -188,7 +190,7 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
             <Target className="w-4 h-4 text-primary" />
             <h2 className="font-heading font-black text-base">{assignment ? typeLabel : 'Rivals'}</h2>
           </div>
-          <button onClick={onClose} aria-label="Close" className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-secondary active:bg-secondary transition-colors">
+          <button onClick={onClose} aria-label={tFallback("common.close", "Close")} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-secondary active:bg-secondary transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -223,7 +225,7 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
                   </motion.p>
                 ) : (
                   <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}>
-                    <p className="text-micro font-black uppercase tracking-[0.2em] text-primary mb-1">Your rival this week</p>
+                    <p className="text-micro font-black uppercase tracking-[0.2em] text-primary mb-1">{tFallback("gymRivalMenu.yourRivalThisWeek", "Your rival this week")}</p>
                     <p className="font-heading font-black text-2xl">@{rival?.username || '—'}</p>
                     <p className="text-xs text-muted-foreground mt-1">Level {rival?.current_level ?? '—'}</p>
                   </motion.div>
@@ -250,8 +252,8 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
                 {myResult === 'win' && (
                   <div className="mt-5 flex items-center gap-4">
                     <div className="text-center"><Trophy className="w-4 h-4 text-primary mx-auto mb-1" /><p className="font-heading font-black text-base tabular-nums">{fmt(reward.xp)}</p><p className="text-micro text-muted-foreground">XP</p></div>
-                    <div className="text-center"><FlexCoinIcon size={16} className="mx-auto mb-1" /><p className="font-heading font-black text-base tabular-nums">{fmt(reward.coins)}</p><p className="text-micro text-muted-foreground">Coins</p></div>
-                    <div className="text-center"><Package className="w-4 h-4 text-primary mx-auto mb-1" /><p className="font-heading font-black text-base tabular-nums">{reward.capsules}</p><p className="text-micro text-muted-foreground">Capsules</p></div>
+                    <div className="text-center"><FlexCoinIcon size={16} className="mx-auto mb-1" /><p className="font-heading font-black text-base tabular-nums">{fmt(reward.coins)}</p><p className="text-micro text-muted-foreground">{tFallback("gymRivalMenu.coins", "Coins")}</p></div>
+                    <div className="text-center"><Package className="w-4 h-4 text-primary mx-auto mb-1" /><p className="font-heading font-black text-base tabular-nums">{reward.capsules}</p><p className="text-micro text-muted-foreground">{tFallback("gymRivalMenu.capsules", "Capsules")}</p></div>
                   </div>
                 )}
                 <button onClick={onReroll} disabled={rerolling}
@@ -266,7 +268,7 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
                 <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center mb-4">
                   <AlertTriangle className="w-7 h-7 text-primary" />
                 </div>
-                <p className="font-heading font-black text-xl">Challenge voided</p>
+                <p className="font-heading font-black text-xl">{tFallback("gymRivalCard.challengeVoided", "Challenge voided")}</p>
                 <p className="text-sm text-muted-foreground mt-2 max-w-[32ch]">
                   A workout wasn't logged within 48 hours of accepting, so this week's match was cancelled — no rewards given.
                 </p>
@@ -281,7 +283,7 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
                 <div className="flex items-stretch justify-between gap-3 mb-6">
                   <div className="flex-1 flex flex-col items-center text-center">
                     <Avatar profile={me} ring="ring-success/40" />
-                    <p className="mt-2 text-sm font-black">You</p>
+                    <p className="mt-2 text-sm font-black">{tFallback("friendLeaderboard.you", "You")}</p>
                     <p className={`text-micro font-bold ${iConfirmed ? 'text-success' : 'text-muted-foreground'}`}>{iConfirmed ? '✓ Ready' : 'Not yet'}</p>
                   </div>
                   <div className="flex flex-col items-center justify-center shrink-0">
@@ -298,7 +300,7 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
                 {/* Size up the matchup before accepting */}
                 <div className="rounded-2xl border border-border bg-card px-4 py-2 mb-4 divide-y divide-border/60">
                   <div className="flex items-center gap-2 pb-1">
-                    <span className="flex-1 text-end text-micro font-black uppercase tracking-wider text-success">You</span>
+                    <span className="flex-1 text-end text-micro font-black uppercase tracking-wider text-success">{tFallback("friendLeaderboard.you", "You")}</span>
                     <span className="w-28" />
                     <span className="flex-1 text-start text-micro font-black uppercase tracking-wider text-primary truncate">@{rival?.username || 'Rival'}</span>
                   </div>
@@ -312,7 +314,7 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
                 </div>
 
                 <div className="rounded-2xl border border-border bg-card p-4 mb-4 text-center">
-                  <p className="text-sm font-bold mb-1">Both players must accept to start</p>
+                  <p className="text-sm font-bold mb-1">{tFallback("gymRivalMenu.bothPlayersMustAccept", "Both players must accept to start")}</p>
                   <p className="text-xs text-muted-foreground">
                     Keeps AFK players out. Once you both accept, log a workout within 48 hours or the match voids.
                   </p>
@@ -357,7 +359,7 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
                 <div className="flex items-stretch justify-between gap-3 mb-5">
                   <div className="flex-1 flex flex-col items-center text-center">
                     <Avatar profile={me} ring="ring-success/40" />
-                    <p className="mt-2 text-sm font-black">You</p>
+                    <p className="mt-2 text-sm font-black">{tFallback("friendLeaderboard.you", "You")}</p>
                     <p className="text-micro text-muted-foreground">Lv {me?.current_level ?? '—'}</p>
                   </div>
                   <div className="flex flex-col items-center justify-center shrink-0">
@@ -373,7 +375,7 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
                 </div>
 
                 <div className="rounded-2xl border border-border bg-card p-4 mb-4">
-                  <p className="text-center text-micro font-black uppercase tracking-[0.2em] text-muted-foreground mb-2">Net Rating</p>
+                  <p className="text-center text-micro font-black uppercase tracking-[0.2em] text-muted-foreground mb-2">{tFallback("gymRivalMenu.netRating", "Net Rating")}</p>
                   <div className="flex items-center justify-center gap-4">
                     <span className={`font-heading font-black text-4xl tabular-nums ${userLeads === true ? 'text-success' : 'text-foreground'}`}>{uNet != null ? fmt(uNet) : '—'}</span>
                     <span className="text-muted-foreground font-bold">—</span>
@@ -388,9 +390,9 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
 
                 <div className="rounded-2xl border border-border bg-card px-4 py-2 mb-4 divide-y divide-border/60">
                   <div className="flex items-center gap-2 pb-1">
-                    <span className="flex-1 text-end text-micro font-black uppercase tracking-wider text-success">You</span>
+                    <span className="flex-1 text-end text-micro font-black uppercase tracking-wider text-success">{tFallback("friendLeaderboard.you", "You")}</span>
                     <span className="w-28" />
-                    <span className="flex-1 text-start text-micro font-black uppercase tracking-wider text-primary">Rival</span>
+                    <span className="flex-1 text-start text-micro font-black uppercase tracking-wider text-primary">{tFallback("gymRivalMenu.rival", "Rival")}</span>
                   </div>
                   {isCardio ? (
                     <StatRow icon={Footprints} label="Distance" userVal={u ? dist(u.distanceMeters) : '—'} rivalVal={r ? dist(r.distanceMeters) : '—'} userWins={u && r ? (u.distanceMeters === r.distanceMeters ? null : u.distanceMeters > r.distanceMeters) : null} />
@@ -402,12 +404,12 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
                 <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4 mb-5">
                   <div className="flex items-center gap-1.5 mb-3">
                     <Trophy className="w-4 h-4 text-primary" />
-                    <p className="text-micro font-black uppercase tracking-wider text-primary dark:text-primary">Winner's prize</p>
+                    <p className="text-micro font-black uppercase tracking-wider text-primary dark:text-primary">{tFallback("gymRivalMenu.winnerSPrize", "Winner's prize")}</p>
                   </div>
                   <div className="grid grid-cols-3 gap-2 text-center">
                     <div><Trophy className="w-4 h-4 text-primary mx-auto mb-1" /><p className="font-heading font-black text-base tabular-nums">{fmt(reward.xp)}</p><p className="text-micro text-muted-foreground">XP</p></div>
-                    <div><FlexCoinIcon size={16} className="mx-auto mb-1" /><p className="font-heading font-black text-base tabular-nums">{fmt(reward.coins)}</p><p className="text-micro text-muted-foreground">Coins</p></div>
-                    <div><Package className="w-4 h-4 text-primary mx-auto mb-1" /><p className="font-heading font-black text-base tabular-nums">{reward.capsules}</p><p className="text-micro text-muted-foreground">Capsules</p></div>
+                    <div><FlexCoinIcon size={16} className="mx-auto mb-1" /><p className="font-heading font-black text-base tabular-nums">{fmt(reward.coins)}</p><p className="text-micro text-muted-foreground">{tFallback("gymRivalMenu.coins", "Coins")}</p></div>
+                    <div><Package className="w-4 h-4 text-primary mx-auto mb-1" /><p className="font-heading font-black text-base tabular-nums">{reward.capsules}</p><p className="text-micro text-muted-foreground">{tFallback("gymRivalMenu.capsules", "Capsules")}</p></div>
                   </div>
                   <p className="text-micro text-muted-foreground mt-3 text-center">Higher net rating when the week ends takes the prize.</p>
                 </div>

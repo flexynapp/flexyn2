@@ -14,11 +14,13 @@ import { motion } from 'framer-motion';
 import { X, ZoomIn, ZoomOut, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { useLanguage } from '@/lib/LanguageContext';
 
 const PREVIEW_SIZE = 260; // px — the circular viewport diameter
 const OUTPUT_SIZE  = 512; // px — exported canvas size
 
 export default function AvatarCropModal({ file, onCrop, onClose }) {
+  const { tFallback } = useLanguage();
   // Pin the page behind this overlay — see @/lib/scrollLock.
   useBodyScrollLock();
   const [imgSrc,  setImgSrc]  = useState(null);
@@ -160,7 +162,7 @@ export default function AvatarCropModal({ file, onCrop, onClose }) {
       >
         {/* Header */}
         <div className="flex items-center justify-between">
-          <p className="font-semibold text-sm">Crop crew photo</p>
+          <p className="font-semibold text-sm">{tFallback("avatarCropModal.cropCrewPhoto", "Crop crew photo")}</p>
           <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground active:text-foreground transition-colors">
             <X className="w-4 h-4" />
           </button>
@@ -223,7 +225,7 @@ export default function AvatarCropModal({ file, onCrop, onClose }) {
 
         {/* Action buttons */}
         <div className="flex gap-2">
-          <Button variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
+          <Button variant="outline" className="flex-1" onClick={onClose}>{tFallback("coach.plan.cancel", "Cancel")}</Button>
           <Button className="flex-1 gap-1.5" onClick={handleConfirm} disabled={!imgSrc}>
             <Check className="w-4 h-4" /> Use photo
           </Button>

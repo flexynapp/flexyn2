@@ -22,6 +22,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 
+// These components now read tFallback, and useLanguage() throws outside a
+// provider by design. Resolving the real English catalog rather than returning
+// key paths, so any assertion here still reads like the screen.
+vi.mock('@/lib/LanguageContext', async () => {
+  const { languageMock } = await import('@/lib/__tests__/i18nMock');
+  return languageMock();
+});
+
+
 // Presentation only — none of it participates in what the button emits, and
 // RarityFrame renders as a plain wrapper so the button stays reachable.
 vi.mock('@/components/loot/RarityVisuals', () => ({

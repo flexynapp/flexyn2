@@ -18,6 +18,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Crown, Trophy, Flame } from 'lucide-react';
+import { useLanguage } from '@/lib/LanguageContext';
 
 // Rank → visual treatment. Heights are graduated so first place reads as
 // first place at a glance; that ordering is the entire point of a podium and
@@ -46,6 +47,7 @@ function initialsOf(name) {
  * @param {Function} [props.onSelect]
  */
 export default function LeaderboardPodium({ rankings = [], currentUserId, onSelect }) {
+  const { tFallback } = useLanguage();
   const top3 = rankings.slice(0, 3);
   if (top3.length === 0) return null;
 
@@ -60,7 +62,7 @@ export default function LeaderboardPodium({ rankings = [], currentUserId, onSele
     <div
       className="grid grid-cols-3 items-end gap-2 pt-1"
       role="list"
-      aria-label="Top 3"
+      aria-label={tFallback("leaderboardPodium.top3", "Top 3")}
     >
       {ordered.map((row, i) => {
         if (!row) return <div key={`empty-${i}`} aria-hidden="true" />;

@@ -32,6 +32,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/AuthContext';
 import { supabase } from '@/api/supabaseClient';
+import { useLanguage } from '@/lib/LanguageContext';
 
 // Tier → accent colour for the league badge
 const TIER_COLORS = {
@@ -75,6 +76,7 @@ function StatPill({ icon: Icon, value, label, className = '' }) {
 }
 
 export default function PublicProfile() {
+  const { tFallback } = useLanguage();
   const { username } = useParams();
   const navigate = useNavigate();
   const { user, isLoadingAuth } = useAuth();
@@ -117,7 +119,7 @@ export default function PublicProfile() {
           <Users className="w-8 h-8 text-muted-foreground" />
         </div>
         <div>
-          <p className="font-heading font-bold text-lg">Profile not found</p>
+          <p className="font-heading font-bold text-lg">{tFallback("publicProfile.profileNotFound", "Profile not found")}</p>
           <p className="text-sm text-muted-foreground mt-1">
             @{cleanUsername} doesn't exist on Flexyn yet.
           </p>
@@ -139,7 +141,7 @@ export default function PublicProfile() {
           type="button"
           onClick={() => navigate(-1)}
           className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center"
-          aria-label="Back"
+          aria-label={tFallback("achievements.vault.back", "Back")}
         >
           <ArrowLeft className="w-4 h-4" />
         </button>
@@ -212,7 +214,7 @@ export default function PublicProfile() {
             <Shield className="w-7 h-7 text-muted-foreground" />
           </div>
           <div>
-            <p className="font-heading font-bold">This profile is private</p>
+            <p className="font-heading font-bold">{tFallback("publicProfile.thisProfileIsPrivate", "This profile is private")}</p>
             <p className="text-sm text-muted-foreground mt-1">
               Sign in and follow @{profile.username} to see their stats and workouts.
             </p>

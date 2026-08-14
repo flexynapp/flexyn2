@@ -190,6 +190,7 @@ function ChallengeDetail({ challenge, status, completedAt, onClose, onStartWorko
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function Gauntlet() {
+  const { tFallback } = useLanguage();
   const navigate = useNavigate();
   const qc       = useQueryClient();
   const { user } = useAuth();
@@ -300,7 +301,7 @@ export default function Gauntlet() {
       qc.invalidateQueries({ queryKey: ['weekly-gauntlet-attempt', weeklyGauntlet?.id] });
       qc.invalidateQueries({ queryKey: ['weekly-gauntlet-active'] });
       if (attempt?.status === 'completed') {
-        toast.success("🏆 You cleared this week's gauntlet!");
+        toast.success(tFallback("gauntlet.youClearedThisWeekS", "🏆 You cleared this week's gauntlet!"));
       } else {
         toast('Score submitted. Keep pushing to clear it.');
       }
@@ -356,7 +357,7 @@ export default function Gauntlet() {
           </button>
           <div className="flex items-center gap-2">
             <Trophy className="w-5 h-5 text-amber-400" />
-            <h1 className="font-heading text-xl font-bold tracking-tight">Gauntlet</h1>
+            <h1 className="font-heading text-xl font-bold tracking-tight">{tFallback("workout.gauntlet", "Gauntlet")}</h1>
           </div>
           {!pathCompleted && challenges.length > 0 && (
             <span className="ml-auto text-xs text-muted-foreground">
@@ -468,14 +469,14 @@ export default function Gauntlet() {
               <p className="text-4xl mb-3">{chestModal.available ? '🎁' : '🔒'}</p>
               {chestModal.available ? (
                 <>
-                  <p className="font-heading font-bold text-lg mb-1">Reward Unlocked!</p>
+                  <p className="font-heading font-bold text-lg mb-1">{tFallback("gauntlet.rewardUnlocked", "Reward Unlocked!")}</p>
                   <p className="text-sm text-muted-foreground">
                     You've cleared challenge {chestModal.seq}. Open the chest to claim your coins and XP bonus.
                   </p>
                 </>
               ) : (
                 <>
-                  <p className="font-heading font-bold text-lg mb-1">Chest Locked</p>
+                  <p className="font-heading font-bold text-lg mb-1">{tFallback("gauntlet.chestLocked", "Chest Locked")}</p>
                   <p className="text-sm text-muted-foreground">
                     Complete challenge {chestModal.seq} to unlock this reward.
                   </p>

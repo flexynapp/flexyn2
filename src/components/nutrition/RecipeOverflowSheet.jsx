@@ -21,6 +21,7 @@ import { createPortal } from 'react-dom';
 import { Pencil, Copy, Globe, Lock, Trash2, Loader2, AlertTriangle } from 'lucide-react';
 import { servingsLabel } from '@/lib/recipeFormat';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { useLanguage } from '@/lib/LanguageContext';
 
 function ActionRow({ Icon, tint, label, sub, danger, disabled, onClick }) {
   return (
@@ -44,6 +45,7 @@ function ActionRow({ Icon, tint, label, sub, danger, disabled, onClick }) {
 export default function RecipeOverflowSheet({
   open, recipe, busy = false, onEdit, onDuplicate, onTogglePublish, onRemove, onClose,
 }) {
+  const { tFallback } = useLanguage();
   useBodyScrollLock(open);
   const [confirming, setConfirming] = useState(false);
 

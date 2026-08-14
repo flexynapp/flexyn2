@@ -24,6 +24,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2, Pipette, Smile, X as XIcon, Pencil, Type, Trash2, Undo2, Move } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { useLanguage } from '@/lib/LanguageContext';
 
 const EMOJI_PALETTE = [
   '🔥','💪','🏋️','🏃','🥇','🎯','⚡','🚀',
@@ -103,6 +104,7 @@ export function contrastOn(color) {
 }
 
 export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfirm, onCancel }) {
+  const { tFallback } = useLanguage();
   // Pin the page behind this overlay — see @/lib/scrollLock.
   useBodyScrollLock();
   // Unified movable overlays: text + emoji. Normalized x/y (0..1 of the frame).
@@ -511,27 +513,27 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
       {/* Top controls */}
       <div className="absolute top-0 start-0 end-0 z-30 flex items-center justify-between px-4"
         style={{ paddingTop: 'max(16px, env(safe-area-inset-top))' }}>
-        <button onClick={onCancel} className="w-10 h-10 rounded-full bg-black/55 flex items-center justify-center border border-white/15 backdrop-blur-sm text-white" aria-label="Cancel">
+        <button onClick={onCancel} className="w-10 h-10 rounded-full bg-black/55 flex items-center justify-center border border-white/15 backdrop-blur-sm text-white" aria-label={tFallback("coach.plan.cancel", "Cancel")}>
           <XIcon className="w-4 h-4" />
         </button>
         <div className="flex items-center gap-2">
           <button onClick={() => { setDrawMode(d => !d); setSelectedId(null); setEditingId(null); }}
             className={`w-10 h-10 rounded-full flex items-center justify-center border transition-colors ${drawMode ? 'bg-white text-black border-white' : 'bg-black/55 text-white border-white/15 backdrop-blur-sm'}`}
-            aria-label="Draw">
+            aria-label={tFallback("storyPreviewSheet.draw", "Draw")}>
             <Pencil className="w-4 h-4" />
           </button>
           {drawMode && strokes.length > 0 && (
-            <button onClick={undoStroke} className="w-10 h-10 rounded-full bg-black/55 text-white border border-white/15 backdrop-blur-sm flex items-center justify-center" aria-label="Undo stroke">
+            <button onClick={undoStroke} className="w-10 h-10 rounded-full bg-black/55 text-white border border-white/15 backdrop-blur-sm flex items-center justify-center" aria-label={tFallback("storyPreviewSheet.undoStroke", "Undo stroke")}>
               <Undo2 className="w-4 h-4" />
             </button>
           )}
           <button onClick={() => { setDrawMode(false); setEmojiPickerOpen(v => !v); }}
             className={`w-10 h-10 rounded-full flex items-center justify-center border transition-colors ${emojiPickerOpen ? 'bg-white text-black border-white' : 'bg-black/55 text-white border-white/15 backdrop-blur-sm'}`}
-            aria-label="Add emoji">
+            aria-label={tFallback("hubCommentsInline.addEmoji", "Add emoji")}>
             <Smile className="w-4 h-4" />
           </button>
           <button onClick={() => { setDrawMode(false); addText(); }}
-            className="w-10 h-10 rounded-full flex items-center justify-center border bg-black/55 text-white border-white/15 backdrop-blur-sm" aria-label="Add text">
+            className="w-10 h-10 rounded-full flex items-center justify-center border bg-black/55 text-white border-white/15 backdrop-blur-sm" aria-label={tFallback("storyPreviewSheet.addText", "Add text")}>
             <Type className="w-4 h-4" />
           </button>
         </div>
@@ -551,7 +553,7 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
             <video ref={mediaElRef} src={dataUrl} autoPlay loop muted playsInline
               className="absolute inset-0 w-full h-full object-contain" style={{ filter: FILTERS[filterIdx].css }} />
           ) : (
-            <img loading="lazy" ref={mediaElRef} src={dataUrl} alt="Story preview" draggable={false}
+            <img loading="lazy" ref={mediaElRef} src={dataUrl} alt={tFallback("storyPreviewSheet.storyPreview", "Story preview")} draggable={false}
               className="absolute inset-0 w-full h-full object-contain" style={{ filter: FILTERS[filterIdx].css }} />
           )}
 
@@ -604,7 +606,7 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
                     value={o.text}
                     onChange={e => updateOverlay(o.id, { text: e.target.value })}
                     onBlur={() => { setEditingId(null); if (!o.text.trim()) deleteOverlay(o.id); }}
-                    placeholder="Type…"
+                    placeholder={tFallback("storyPreviewSheet.type", "Type…")}
                     rows={2}
                     className="bg-transparent border-none outline-none text-center w-full resize-none placeholder-white/40 leading-snug font-bold"
                     style={{
@@ -679,7 +681,7 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
                       onPointerUp={onWidthHandleUp}
                       className="absolute top-1/2 -start-2 -translate-y-1/2 w-2.5 h-10 rounded-full bg-white/85 shadow-md"
                       style={{ cursor: 'ew-resize', touchAction: 'none' }}
-                      aria-label="Adjust text width (left)"
+                      aria-label={tFallback("storyPreviewSheet.adjustTextWidthLeft", "Adjust text width (left)")}
                     />
                     <div
                       onPointerDown={(e) => onWidthHandleDown(e, o, 'right')}
@@ -687,7 +689,7 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
                       onPointerUp={onWidthHandleUp}
                       className="absolute top-1/2 -end-2 -translate-y-1/2 w-2.5 h-10 rounded-full bg-white/85 shadow-md"
                       style={{ cursor: 'ew-resize', touchAction: 'none' }}
-                      aria-label="Adjust text width (right)"
+                      aria-label={tFallback("storyPreviewSheet.adjustTextWidthRight", "Adjust text width (right)")}
                     />
                   </>
                 )}
@@ -699,7 +701,7 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
                     onPointerUp={onHandleUp}
                     className="absolute -bottom-3 -end-3 w-6 h-6 rounded-full bg-white text-black flex items-center justify-center shadow-md"
                     style={{ cursor: 'nwse-resize', touchAction: 'none' }}
-                    aria-label="Resize and rotate"
+                    aria-label={tFallback("storyPreviewSheet.resizeAndRotate", "Resize and rotate")}
                   >
                     <Move className="w-3 h-3" />
                   </div>
@@ -777,7 +779,7 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
             <div className="relative h-7 rounded-full" style={{ background: 'linear-gradient(to right,hsl(0,100%,50%),hsl(60,100%,50%),hsl(120,100%,50%),hsl(180,100%,50%),hsl(240,100%,50%),hsl(300,100%,50%),hsl(360,100%,50%))' }}>
               <input type="range" min="0" max="360" value={hue}
                 onChange={e => { const h = Number(e.target.value); setHue(h); applyColor(`hsl(${h},100%,50%)`); }}
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" aria-label="Color hue" />
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" aria-label={tFallback("storyPreviewSheet.colorHue", "Color hue")} />
               <div className="absolute top-1/2 w-6 h-6 rounded-full border-2 border-white shadow-lg pointer-events-none"
                 style={{ left: `${(hue / 360) * 100}%`, transform: 'translateX(-50%) translateY(-50%)', backgroundColor: `hsl(${hue},100%,50%)` }} />
             </div>
@@ -788,7 +790,7 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
               ))}
               {!isVideo && (
                 <button onClick={activateEyedropper}
-                  className={`w-7 h-7 rounded-full flex items-center justify-center ${eyedropperActive ? 'bg-white text-black' : 'bg-white/15 text-white border border-white/35'}`} aria-label="Pick color from image">
+                  className={`w-7 h-7 rounded-full flex items-center justify-center ${eyedropperActive ? 'bg-white text-black' : 'bg-white/15 text-white border border-white/35'}`} aria-label={tFallback("storyPreviewSheet.pickColorFromImage", "Pick color from image")}>
                   <Pipette className="w-4 h-4" />
                 </button>
               )}
@@ -809,14 +811,14 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
             // mistap on the editor's edge erased minutes of work.
             const hasUnsaved = overlays.length > 0 || strokes.length > 0;
             if (hasUnsaved && typeof window !== 'undefined' && typeof window.confirm === 'function') {
-              const ok = window.confirm('Discard your edits?');
+              const ok = window.confirm(tFallback("storyPreviewSheet.discardYourEdits", "Discard your edits?"));
               if (!ok) return;
             }
             onCancel?.();
           }}
           disabled={uploading}
           className="flex-1 py-3 rounded-2xl border border-white/25 text-white text-sm font-semibold disabled:opacity-40"
-        >Cancel</button>
+        >{tFallback("coach.plan.cancel", "Cancel")}</button>
         <motion.button whileTap={{ scale: 0.96 }} onClick={handleConfirm} disabled={uploading}
           className="flex-1 py-3 rounded-2xl bg-primary text-primary-foreground text-sm font-bold disabled:opacity-60 flex items-center justify-center gap-2">
           {uploading ? <><Loader2 className="w-4 h-4 animate-spin" />Posting…</> : 'Post Story'}
@@ -831,8 +833,8 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
             className="absolute start-0 end-0 bottom-0 z-40 bg-black/90 backdrop-blur-md border-t border-white/15 rounded-t-2xl"
             style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}>
             <div className="flex items-center justify-between px-4 pt-3 pb-2">
-              <span className="text-white/80 text-xs font-bold uppercase tracking-wide">Emoji</span>
-              <button onClick={() => setEmojiPickerOpen(false)} className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center text-white" aria-label="Close">
+              <span className="text-white/80 text-xs font-bold uppercase tracking-wide">{tFallback("storyPreviewSheet.emoji", "Emoji")}</span>
+              <button onClick={() => setEmojiPickerOpen(false)} className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center text-white" aria-label={tFallback("common.close", "Close")}>
                 <XIcon className="w-3.5 h-3.5" />
               </button>
             </div>

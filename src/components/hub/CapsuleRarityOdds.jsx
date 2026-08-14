@@ -22,8 +22,10 @@ import { useQuery } from '@tanstack/react-query';
 import { CAPSULE_ODDS } from '@/lib/lootCatalog';
 import * as capsules from '@/lib/data/capsules';
 import { RarityDot } from '@/components/loot/RarityVisuals';
+import { useLanguage } from '@/lib/LanguageContext';
 
 export default function CapsuleRarityOdds({ capsuleType = 'standard' }) {
+  const { tFallback } = useLanguage();
   const [open, setOpen] = useState(false);
   const odds = CAPSULE_ODDS[capsuleType] || CAPSULE_ODDS.standard;
   const rows = Object.entries(odds).filter(([, p]) => p > 0);
@@ -70,8 +72,8 @@ export default function CapsuleRarityOdds({ capsuleType = 'standard' }) {
           })}
           {pity && (
             <li className="pt-1.5 mt-1 border-t border-border text-micro text-muted-foreground leading-snug">
-              Guaranteed <span className="font-semibold">Epic or better</span> every{' '}
-              {pity.epic_at} opens, and <span className="font-semibold">Legendary or better</span>{' '}
+              Guaranteed <span className="font-semibold">{tFallback("capsuleRarityOdds.epicOrBetter", "Epic or better")}</span> every{' '}
+              {pity.epic_at} opens, and <span className="font-semibold">{tFallback("capsuleRarityOdds.legendaryOrBetter", "Legendary or better")}</span>{' '}
               every {pity.legendary_at}. Legendary odds rise with every open from {pity.soft_pity_from}.
             </li>
           )}

@@ -38,6 +38,7 @@
 
 import { Loader2, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useLanguage } from '@/lib/LanguageContext';
 
 // ── The switch track ────────────────────────────────────────────────────
 // Presentation only — no role, no handler. Both ToggleRow and Switch
@@ -96,6 +97,7 @@ export function Switch({ checked, onChange, labelledBy, ariaLabel, disabled }) {
  * toggle, which waits on a browser permission prompt.
  */
 export function ToggleRow({ icon: Icon, label, hint, checked, onChange, busy, disabled }) {
+  const { tFallback } = useLanguage();
   return (
     <button
       type="button"
@@ -116,7 +118,7 @@ export function ToggleRow({ icon: Icon, label, hint, checked, onChange, busy, di
         <Loader2
           className="w-5 h-5 animate-spin text-muted-foreground shrink-0"
           role="status"
-          aria-label="Loading"
+          aria-label={tFallback("settingsPrimitives.loading", "Loading")}
         />
       ) : (
         <SwitchTrack checked={checked} />

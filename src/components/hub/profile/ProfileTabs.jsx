@@ -1,3 +1,4 @@
+import { useLanguage } from '@/lib/LanguageContext';
 // src/components/hub/profile/ProfileTabs.jsx
 //
 // Stats / Trophies / Posts.
@@ -16,6 +17,7 @@ const TAB_BASE =
   'flex-1 py-3 text-sm font-semibold transition-colors border-b-2 -mb-px focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:rounded-t';
 
 export default function ProfileTabs({ tabs, active, onChange }) {
+  const { tFallback } = useLanguage();
   const onKeyDown = (e) => {
     const i = tabs.findIndex((tab) => tab.id === active);
     if (i < 0) return;
@@ -31,7 +33,7 @@ export default function ProfileTabs({ tabs, active, onChange }) {
   return (
     <div
       role="tablist"
-      aria-label="Profile sections"
+      aria-label={tFallback("profileTabs.profileSections", "Profile sections")}
       onKeyDown={onKeyDown}
       className="flex border-b border-border mb-4"
     >

@@ -6,9 +6,18 @@
 //   • each warning type renders its label
 //   • the freeform `customLabel` shows up when type is 'other'
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import ContentWarningGate from '../ContentWarningGate';
+
+// These components now read tFallback, and useLanguage() throws outside a
+// provider by design. Resolving the real English catalog rather than returning
+// key paths, so any assertion here still reads like the screen.
+vi.mock('@/lib/LanguageContext', async () => {
+  const { languageMock } = await import('@/lib/__tests__/i18nMock');
+  return languageMock();
+});
+
 
 describe('ContentWarningGate', () => {
   it('renders children directly when no warning is set', () => {

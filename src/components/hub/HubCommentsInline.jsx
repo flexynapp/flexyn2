@@ -31,8 +31,9 @@ import { toast } from '@/lib/toast';
 // Orange 3-pronged crown badge for verified admins — defined after all imports
 // so Rollup sees a clean import-first module boundary (avoids TDZ risk).
 function CrownBadge({ size = 14 }) {
+  const { tFallback } = useLanguage();
   return (
-    <svg width={size} height={size} viewBox="0 0 16 14" fill="none" aria-label="Admin" title="Verified Admin">
+    <svg width={size} height={size} viewBox="0 0 16 14" fill="none" aria-label={tFallback("hubCommentsInline.admin", "Admin")} title={tFallback("hubCommentsInline.verifiedAdmin", "Verified Admin")}>
       <path d="M1 12h14M2 12L1 4l4 3.5L8 1l3 6.5L15 4l-1 8H2z" fill="#f97316" stroke="#ea6c00" strokeWidth="0.8" strokeLinejoin="round"/>
     </svg>
   );

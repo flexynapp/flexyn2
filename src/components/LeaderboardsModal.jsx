@@ -7,12 +7,14 @@
 import React from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import LeaderboardsContent from './LeaderboardsContent';
+import { useLanguage } from '@/lib/LanguageContext';
 
 export default function LeaderboardsModal({ open, onClose }) {
+  const { tFallback } = useLanguage();
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent
-        title="Leaderboards"
+        title={tFallback("leaderboardsModal.leaderboards", "Leaderboards")}
         className="max-w-2xl max-h-[88vh] overflow-y-auto p-0 gap-0"
         onInteractOutside={(e) => {
           // Only close when the user clicks the dark backdrop overlay,

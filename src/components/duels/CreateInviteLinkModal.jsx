@@ -13,6 +13,7 @@ import { Swords, Copy, Share2, Loader2, Check, Link as LinkIcon } from 'lucide-r
 import { toast } from '@/lib/toast';
 import { createInviteLink, buildInviteUrl } from '@/lib/data/duelInvites';
 import { useDateFormatter } from '@/lib/intl';
+import { useLanguage } from '@/lib/LanguageContext';
 
 const TYPE_OPTIONS = [
   { id: 'open',     label: 'Open',     desc: 'Most total volume wins' },
@@ -21,6 +22,7 @@ const TYPE_OPTIONS = [
 ];
 
 export default function CreateInviteLinkModal({ open, onOpenChange }) {
+  const { tFallback } = useLanguage();
   const fmtDate = useDateFormatter();
   const [duelType, setDuelType] = useState('open');
   const [windowHours, setWindowHours] = useState(24);
@@ -65,10 +67,10 @@ export default function CreateInviteLinkModal({ open, onOpenChange }) {
     try {
       await navigator.clipboard.writeText(url);
       setCopied(true);
-      toast.success('Link copied');
+      toast.success(tFallback("referral.copied", "Link copied"));
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      toast.error('Could not copy');
+      toast.error(tFallback("createInviteLinkModal.couldNotCopy", "Could not copy"));
     }
   };
 
@@ -109,7 +111,7 @@ export default function CreateInviteLinkModal({ open, onOpenChange }) {
             >
               {/* Type picker */}
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Duel type</p>
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">{tFallback("createInviteLinkModal.duelType", "Duel type")}</p>
                 <div className="space-y-1.5">
                   {TYPE_OPTIONS.map(opt => {
                     const active = duelType === opt.id;

@@ -26,6 +26,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { useLanguage } from '@/lib/LanguageContext';
 
 const W = 640;
 const H = 360;
@@ -106,6 +107,7 @@ function cityBuildingAt(idx) {
 }
 
 export default function SweatJetpackModal({ onClose, userId }) {
+  const { tFallback } = useLanguage();
   // Pin the page behind this overlay — see @/lib/scrollLock.
   useBodyScrollLock();
   const canvasRef = useRef(null);
@@ -467,15 +469,15 @@ export default function SweatJetpackModal({ onClose, userId }) {
     <div className="fixed inset-0 bg-zinc-950/95 backdrop-blur-md z-[110] flex flex-col items-center justify-center select-none touch-none p-3">
       <div className="w-full max-w-[640px] flex justify-between items-center px-2 mb-3 text-zinc-100 font-mono tracking-tight">
         <div>
-          <span className="text-zinc-500 text-micro block uppercase">Distance</span>
+          <span className="text-zinc-500 text-micro block uppercase">{tFallback("cardio.field.distance", "Distance")}</span>
           <span className="text-xl font-black text-orange-300">{distance}<span className="text-xs text-zinc-400"> m</span></span>
         </div>
         <div className="text-center">
-          <span className="text-zinc-500 text-micro block uppercase">Coins</span>
+          <span className="text-zinc-500 text-micro block uppercase">{tFallback("sweatJetpackModal.coins", "Coins")}</span>
           <span className="text-xl font-black text-amber-300">🪙 {coinCount}</span>
         </div>
         <div className="text-end">
-          <span className="text-zinc-500 text-micro block uppercase">Best</span>
+          <span className="text-zinc-500 text-micro block uppercase">{tFallback("dashboard.best", "Best")}</span>
           <span className="text-base font-bold text-primary">{highScore}m · 🪙{bestCoins}</span>
         </div>
       </div>
@@ -500,19 +502,19 @@ export default function SweatJetpackModal({ onClose, userId }) {
 
         {!gameStarted && (
           <div className="absolute inset-0 bg-black/65 flex flex-col items-center justify-center text-center p-6 pointer-events-none">
-            <h2 className="text-2xl font-black text-zinc-100 tracking-wider uppercase mb-1">Sweat Jetpack</h2>
+            <h2 className="text-2xl font-black text-zinc-100 tracking-wider uppercase mb-1">{tFallback("sweatJetpackModal.sweatJetpack", "Sweat Jetpack")}</h2>
             <p className="text-zinc-400 text-xs max-w-[320px] mb-2">Hold to fart. Farts lift you. Release to fall.</p>
             <p className="text-zinc-500 text-micro max-w-[320px] mb-3">Dodge bars in the air, blocks on the floor and ceiling, and the yellow moving ones. Grab coins.</p>
             <p className="text-zinc-500 text-micro mb-3">📱 turn your phone sideways for more room.</p>
-            <span className="animate-pulse bg-orange-300 text-zinc-950 font-mono text-xs px-4 py-2 font-bold uppercase tracking-widest rounded">Hold to start</span>
+            <span className="animate-pulse bg-orange-300 text-zinc-950 font-mono text-xs px-4 py-2 font-bold uppercase tracking-widest rounded">{tFallback("sweatJetpackModal.holdToStart", "Hold to start")}</span>
           </div>
         )}
 
         {gameOver && (
           <div className="absolute inset-0 bg-red-950/75 backdrop-blur-sm flex flex-col items-center justify-center text-center p-6 pointer-events-none">
-            <h2 className="text-3xl font-black text-destructive tracking-tighter uppercase mb-1">Splat</h2>
+            <h2 className="text-3xl font-black text-destructive tracking-tighter uppercase mb-1">{tFallback("sweatJetpackModal.splat", "Splat")}</h2>
             <p className="text-zinc-300 text-xs font-mono mb-2">{distance} m · 🪙 {coinCount}</p>
-            <span className="bg-orange-300 text-zinc-950 font-mono text-xs px-4 py-2 font-bold uppercase rounded">Tap to retry</span>
+            <span className="bg-orange-300 text-zinc-950 font-mono text-xs px-4 py-2 font-bold uppercase rounded">{tFallback("sweatJetpackModal.tapToRetry", "Tap to retry")}</span>
           </div>
         )}
       </div>

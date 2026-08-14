@@ -22,6 +22,7 @@ import { supabase } from '@/api/supabaseClient';
 import { triggerHaptic } from '@/lib/haptic';
 import { playSound, SOUND } from '@/lib/playSound';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { useLanguage } from '@/lib/LanguageContext';
 
 // Quick emoji strip in long-press context menu (same set as DM reactions)
 const QUICK_EMOJIS = ['👍', '❤️', '😂', '🔥', '😮'];
@@ -54,8 +55,9 @@ async function writeFireReaction(msgId, userId, active) {
 
 // ── Admin crown badge ─────────────────────────────────────────────────────────
 function CrownBadge({ size = 13 }) {
+  const { tFallback } = useLanguage();
   return (
-    <svg width={size} height={size} viewBox="0 0 16 14" fill="none" aria-label="Admin" title="Verified Admin">
+    <svg width={size} height={size} viewBox="0 0 16 14" fill="none" aria-label={tFallback("crewMessageItem.admin", "Admin")} title={tFallback("crewMessageItem.verifiedAdmin", "Verified Admin")}>
       <path d="M1 12h14M2 12L1 4l4 3.5L8 1l3 6.5L15 4l-1 8H2z" fill="#f97316" stroke="#ea6c00" strokeWidth="0.8" strokeLinejoin="round"/>
     </svg>
   );
@@ -164,6 +166,7 @@ function Timestamp({ dateStr }) {
 // ── Text bubble ───────────────────────────────────────────────────────────────
 
 function TextMessage({ msg, senderProfile, isOwn, currentUserId, isCurrentModerator, onPin, onViewProfile }) {
+  const { tFallback } = useLanguage();
   const qc = useQueryClient();
   const lastTapRef = useRef(0);
   const longPressTimer = useRef(null);
@@ -348,7 +351,7 @@ function TextMessage({ msg, senderProfile, isOwn, currentUserId, isCurrentModera
                 animate={{ scale: 1, opacity: 1 }}
                 className={`absolute -bottom-2.5 ${isOwn ? '-start-1' : '-end-1'} bg-card border border-border rounded-full px-1.5 py-0.5 text-xs shadow-sm flex items-center gap-0.5 cursor-pointer`}
                 onClick={() => setReactedPersisted(false)}
-                title="Tap to remove"
+                title={tFallback("crewMessageItem.tapToRemove", "Tap to remove")}
               >
                 🔥
               </motion.div>
@@ -441,6 +444,7 @@ function TextMessage({ msg, senderProfile, isOwn, currentUserId, isCurrentModera
 // ── XP Fuel banner ────────────────────────────────────────────────────────────
 
 function XpFuelMessage({ msg, currentUserId, crewId }) {
+  const { tFallback } = useLanguage();
   const [claiming, setClaiming] = useState(false);
   const [claimed,  setClaimed]  = useState(false);
 
@@ -488,7 +492,7 @@ function XpFuelMessage({ msg, currentUserId, crewId }) {
       <div className="rounded-2xl border border-primary/30 bg-primary/5 px-4 py-3 max-w-xs w-full text-center">
         <div className="flex items-center justify-center gap-1.5 mb-1">
           <Zap className="w-4 h-4 text-primary fill-primary" />
-          <span className="text-sm font-bold text-primary">XP Fuel</span>
+          <span className="text-sm font-bold text-primary">{tFallback("crewMessageItem.xpFuel", "XP Fuel")}</span>
         </div>
         <p className="text-xs text-foreground leading-snug mb-2.5">
           <span className="font-semibold">@{username}</span> just fueled the Crew with <span className="font-bold text-primary">{xp} XP!</span>
@@ -517,6 +521,7 @@ function XpFuelMessage({ msg, currentUserId, crewId }) {
 // ── Roll Call ─────────────────────────────────────────────────────────────────
 
 function RollCallMessage({ msg, currentUserId, crewId }) {
+  const { tFallback } = useLanguage();
   const question = msg.content || 'Did you work out today?';
 
   // Only poll while the roll call is live (day-scoped question — votes
@@ -630,6 +635,7 @@ function RollCallMessage({ msg, currentUserId, crewId }) {
 // ── Shared Regimen ────────────────────────────────────────────────────────────
 
 function RegimenMessage({ msg, user, senderProfile }) {
+  const { tFallback } = useLanguage();
   // 'idle' | 'checking' | 'equipping' | 'equipped' | 'duplicate'
   const [state, setState] = useState('idle');
   let meta = {};
@@ -670,7 +676,7 @@ function RegimenMessage({ msg, user, senderProfile }) {
       <div className="rounded-2xl border border-border bg-card px-4 py-3.5 max-w-xs w-full shadow-sm">
         <div className="flex items-center gap-2 mb-2">
           <Dumbbell className="w-4 h-4 text-primary shrink-0" />
-          <p className="text-xs font-bold text-muted-foreground">Shared Regimen</p>
+          <p className="text-xs font-bold text-muted-foreground">{tFallback("crewMessageItem.sharedRegimen", "Shared Regimen")}</p>
         </div>
         <p className="text-sm font-bold text-foreground mb-0.5">{meta.name || 'Untitled Regimen'}</p>
         <div className="flex items-center gap-2 mb-2">
@@ -713,6 +719,7 @@ function RegimenMessage({ msg, user, senderProfile }) {
 // ── One-Time Image ────────────────────────────────────────────────────────────
 
 function OneTimeImageMessage({ msg, senderProfile, isOwn, currentUserId, onViewProfile }) {
+  const { tFallback } = useLanguage();
   // Viewed state is tracked per-user in localStorage so it survives remounts.
   const [viewed,   setViewed]   = useState(() => isOtViewed(msg.id, currentUserId));
   const [open,     setOpen]     = useState(false);
@@ -770,7 +777,7 @@ function OneTimeImageMessage({ msg, senderProfile, isOwn, currentUserId, onViewP
             {!viewed ? (
               <div className="flex flex-col items-center gap-1 text-muted-foreground">
                 <Eye className="w-6 h-6" />
-                <span className="text-xs font-medium">Tap to view once</span>
+                <span className="text-xs font-medium">{tFallback("crewMessageItem.tapToViewOnce", "Tap to view once")}</span>
               </div>
             ) : open ? (
               <>
@@ -783,7 +790,7 @@ function OneTimeImageMessage({ msg, senderProfile, isOwn, currentUserId, onViewP
             ) : (
               <div className="flex flex-col items-center gap-1 text-muted-foreground/50">
                 <EyeOff className="w-6 h-6" />
-                <span className="text-xs">Viewed</span>
+                <span className="text-xs">{tFallback("crewMessageItem.viewed", "Viewed")}</span>
               </div>
             )}
           </button>
@@ -807,7 +814,7 @@ function OneTimeImageMessage({ msg, senderProfile, isOwn, currentUserId, onViewP
               animate={{ scale: 1, opacity: 1 }}
               className={`absolute -bottom-2.5 ${isOwn ? '-start-1' : '-end-1'} bg-card border border-border rounded-full px-1.5 py-0.5 text-xs shadow-sm flex items-center gap-0.5 cursor-pointer`}
               onClick={() => setReactedPersisted(false)}
-              title="Tap to remove"
+              title={tFallback("crewMessageItem.tapToRemove", "Tap to remove")}
             >
               🔥
             </motion.div>
@@ -821,6 +828,7 @@ function OneTimeImageMessage({ msg, senderProfile, isOwn, currentUserId, onViewP
 // ── Timed Image ───────────────────────────────────────────────────────────────
 
 function TimedImageMessage({ msg, senderProfile, isOwn, currentUserId, onViewProfile }) {
+  const { tFallback } = useLanguage();
   const lastTapRef = useRef(0);
   const [reacted, setReacted] = useState(() => loadFire(msg.id, currentUserId));
   const [animating, setAnimating] = useState(false);
@@ -870,7 +878,7 @@ function TimedImageMessage({ msg, senderProfile, isOwn, currentUserId, onViewPro
               animate={{ scale: 1, opacity: 1 }}
               className={`absolute -bottom-2.5 ${isOwn ? '-start-1' : '-end-1'} bg-card border border-border rounded-full px-1.5 py-0.5 text-xs shadow-sm flex items-center gap-0.5 cursor-pointer`}
               onClick={() => setReactedPersisted(false)}
-              title="Tap to remove"
+              title={tFallback("crewMessageItem.tapToRemove", "Tap to remove")}
             >
               🔥
             </motion.div>

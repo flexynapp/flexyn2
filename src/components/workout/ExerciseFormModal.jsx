@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { db } from '@/api/db';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useLanguage } from '@/lib/LanguageContext';
 
 // Exercises that require multiple images to depict the full movement
 const MOVEMENT_EXERCISES = new Set([
@@ -68,6 +69,7 @@ function buildPrompts(exerciseName) {
 }
 
 export default function ExerciseFormModal({ exerciseName, open, onClose }) {
+  const { tFallback } = useLanguage();
   const [imageUrls, setImageUrls] = useState([]);
   const [tips, setTips] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -251,7 +253,7 @@ export default function ExerciseFormModal({ exerciseName, open, onClose }) {
 
               {tips && tips.length > 0 && (
                 <div className="space-y-2">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Form Tips</p>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{tFallback("exerciseFormModal.formTips", "Form Tips")}</p>
                   <ul className="space-y-1.5">
                     {tips.map((tip, i) => (
                       <li key={i} className="flex items-start gap-2 text-sm">

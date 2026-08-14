@@ -38,6 +38,7 @@ import { recognizeMealPhoto } from '@/lib/data/photoMealRecognition';
 import { NutritionPlansPanel } from '@/components/nutrition/NutritionPlansModal';
 import PhotoMealResultModal from '@/components/nutrition/PhotoMealResultModal';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { useLanguage } from '@/lib/LanguageContext';
 
 const MEAL_SLOTS = [
   { key: 'breakfast', label: 'Breakfast', emoji: '🌅' },
@@ -87,6 +88,7 @@ function isoDay(date) {
 
 // ── Recipe-picker sub-modal ────────────────────────────────────────────
 function RecipePickerModal({ open, recipes: recipeList, onPick, onClose }) {
+  const { tFallback } = useLanguage();
   if (!open) return null;
   return (
     <motion.div
@@ -100,7 +102,7 @@ function RecipePickerModal({ open, recipes: recipeList, onPick, onClose }) {
         className="w-full sm:max-w-md bg-card border border-border rounded-2xl shadow-2xl max-h-[80vh] flex flex-col"
       >
         <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-          <h3 className="font-heading font-bold text-sm">Pick a recipe</h3>
+          <h3 className="font-heading font-bold text-sm">{tFallback("weeklyMealPlannerModal.pickARecipe", "Pick a recipe")}</h3>
           <button onClick={onClose} className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center">
             <X className="w-3.5 h-3.5" />
           </button>
@@ -137,6 +139,7 @@ function RecipePickerModal({ open, recipes: recipeList, onPick, onClose }) {
 // PROVISIONAL. The planner redesign replaces the 7-column grid with
 // full-width day rows that show every meal inline and need no sheet at all.
 function SlotMealsSheet({ open, label, plans, recipesById, onPick, onAdd, canAdd, onClose }) {
+  const { tFallback } = useLanguage();
   if (!open) return null;
   return (
     <motion.div
@@ -153,7 +156,7 @@ function SlotMealsSheet({ open, label, plans, recipesById, onPick, onAdd, canAdd
           <h3 className="font-heading font-bold text-sm">
             {label} · {plans.length} meal{plans.length === 1 ? '' : 's'}
           </h3>
-          <button onClick={onClose} aria-label="Close" className="w-11 h-11 -me-2 rounded-full flex items-center justify-center">
+          <button onClick={onClose} aria-label={tFallback("common.close", "Close")} className="w-11 h-11 -me-2 rounded-full flex items-center justify-center">
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -251,6 +254,7 @@ function AddMethodSheet({ open, mealLabel, onPhoto, onRecipe, onManual, onClose 
 // cell (same shape a Photo-AI result produces), so the grid renders the
 // name and the macros ride along for anything that reads them later.
 function ManualMealModal({ open, mealLabel, onSave, onClose }) {
+  const { tFallback } = useLanguage();
   const [name, setName] = useState('');
   const [values, setValues] = useState(emptyNutrients);
   const [showMicros, setShowMicros] = useState(false);
@@ -308,7 +312,7 @@ function ManualMealModal({ open, mealLabel, onSave, onClose }) {
         </div>
         <div className="p-4 space-y-4 overflow-y-auto">
           <div>
-            <label className="text-micro font-bold uppercase tracking-wide text-muted-foreground">Meal name</label>
+            <label className="text-micro font-bold uppercase tracking-wide text-muted-foreground">{tFallback("photoMealResultModal.mealName", "Meal name")}</label>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -320,7 +324,7 @@ function ManualMealModal({ open, mealLabel, onSave, onClose }) {
 
           {/* Macros — always shown. */}
           <div>
-            <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground mb-2">Macros</p>
+            <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground mb-2">{tFallback("weeklyMealPlannerModal.macros", "Macros")}</p>
             <div className="grid grid-cols-2 gap-2">
               {MANUAL_MACRO_FIELDS.map(renderInput)}
             </div>
@@ -360,6 +364,7 @@ function ManualMealModal({ open, mealLabel, onSave, onClose }) {
 
 // ── Main planner modal ────────────────────────────────────────────────
 export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onStartOnboarding }) {
+  const { tFallback } = useLanguage();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const fmtDate = useDateFormatter();
@@ -678,7 +683,7 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
               <CalendarDays className="w-4 h-4 text-primary shrink-0" />
               <h2 className="font-heading font-bold text-base leading-tight">Weekly Plan &amp; Plans</h2>
             </div>
-            <button onClick={onClose} aria-label="Close" className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center">
+            <button onClick={onClose} aria-label={tFallback("common.close", "Close")} className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center">
               <X className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -714,7 +719,7 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
             <button
               onClick={() => setAnchor(addDays(ws, -7))}
               className="w-8 h-8 rounded-full bg-secondary/60 flex items-center justify-center hover:bg-secondary active:bg-secondary"
-              aria-label="Previous week"
+              aria-label={tFallback("weekCalorieStrip.previousWeek", "Previous week")}
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
@@ -724,7 +729,7 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
             <button
               onClick={() => setAnchor(addDays(ws, 7))}
               className="w-8 h-8 rounded-full bg-secondary/60 flex items-center justify-center hover:bg-secondary active:bg-secondary"
-              aria-label="Next week"
+              aria-label={tFallback("weekCalorieStrip.nextWeek", "Next week")}
             >
               <ChevronRight className="w-4 h-4" />
             </button>
@@ -788,7 +793,7 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
                                   // Recipe-only slots keep the quick confirm-remove.
                                   if (plan.food_snapshot) {
                                     setDetailPlan({ plan, date: dateStr, mealType: slot.key });
-                                  } else if (confirm('Remove this meal?')) {
+                                  } else if (confirm(tFallback("weeklyMealPlannerModal.removeThisMeal", "Remove this meal?"))) {
                                     removeMutation.mutate(plan.id);
                                     // If this slot was mirrored into today's diary, un-log it too.
                                     if (dateStr === isoDay(new Date())) {
@@ -903,7 +908,7 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
                   </div>
                   <button
                     onClick={() => setGroceryOpen(false)}
-                    aria-label="Close grocery list"
+                    aria-label={tFallback("weeklyMealPlannerModal.closeGroceryList", "Close grocery list")}
                     className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center shrink-0"
                   >
                     <X className="w-3.5 h-3.5" />
@@ -999,7 +1004,7 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
             setSlotSheet(null);
             if (p.food_snapshot) {
               setDetailPlan({ plan: p, date: s.date, mealType: s.mealType });
-            } else if (confirm('Remove this meal?')) {
+            } else if (confirm(tFallback("weeklyMealPlannerModal.removeThisMeal", "Remove this meal?"))) {
               removeMutation.mutate(p.id);
               // Only the diary-mirrored meal un-logs, and only for today.
               if (s.date === isoDay(new Date())) {

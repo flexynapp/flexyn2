@@ -34,6 +34,7 @@ import {
 import { toast } from '@/lib/toast';
 import GymLeaderboard from '@/components/gyms/GymLeaderboard';
 import { useAuth } from '@/lib/AuthContext';
+import { useLanguage } from '@/lib/LanguageContext';
 
 // ── Constants ──────────────────────────────────────────────────────────
 const US_CENTER        = [-98.5795, 39.8283];
@@ -227,6 +228,7 @@ function buildOsmPin({ gym, onClick, signal }) {
  *   is actually theirs: before that there is nothing to continue FROM.
  */
 export default function GymMap({ onClose, onContinue }) {
+  const { tFallback } = useLanguage();
   // No useBodyScrollLock here, deliberately. This is a ROUTE (/gym-map) as
   // well as an onboarding overlay, and it is `fixed inset-0` either way —
   // there is no page behind it to hold. Taking the lock would hold it for
@@ -788,7 +790,7 @@ export default function GymMap({ onClose, onContinue }) {
       <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-card z-10 shrink-0">
         <button type="button" onClick={() => (onClose ? onClose() : navigate(-1))}
           className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center"
-          aria-label="Back">
+          aria-label={tFallback("achievements.vault.back", "Back")}>
           <ArrowLeft className="w-4 h-4" />
         </button>
 
@@ -802,21 +804,21 @@ export default function GymMap({ onClose, onContinue }) {
             onClick={() => setView(v => v === 'leaderboard' ? 'map' : 'leaderboard')}
             className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
               view === 'leaderboard' ? 'bg-yellow-500 text-white' : 'bg-secondary text-foreground'
-            }`} aria-label="Toggle leaderboard">
+            }`} aria-label={tFallback("gymMap.toggleLeaderboard", "Toggle leaderboard")}>
             <Trophy className="w-4 h-4" />
           </button>
           {view === 'map' && (
             <button type="button" onClick={() => setSearchOpen(o => !o)}
               className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
                 searchOpen ? 'bg-primary text-primary-foreground' : 'bg-secondary text-foreground'
-              }`} aria-label="Search gyms">
+              }`} aria-label={tFallback("gymMap.searchGyms", "Search gyms")}>
               <Search className="w-4 h-4" />
             </button>
           )}
           {view === 'leaderboard' && (
             <button type="button" onClick={() => setView('map')}
               className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center"
-              aria-label="Back to map">
+              aria-label={tFallback("gymMap.backToMap", "Back to map")}>
               <MapIcon className="w-4 h-4" />
             </button>
           )}
@@ -836,7 +838,7 @@ export default function GymMap({ onClose, onContinue }) {
                   because Nominatim's usage policy forbids client-side
                   autocomplete against it. */}
               <Input
-                placeholder="Filter gyms, or go to a place…"
+                placeholder={tFallback("gymMap.filterGymsOrGo", "Filter gyms, or go to a place…")}
                 value={search} onChange={e => setSearch(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') runSearch(); }}
                 enterKeyHint="search"
@@ -859,7 +861,7 @@ export default function GymMap({ onClose, onContinue }) {
                     )}
                     Go
                   </Button>
-                  <Button variant="outline" size="sm" onClick={() => setSearch('')}>Clear</Button>
+                  <Button variant="outline" size="sm" onClick={() => setSearch('')}>{tFallback("implement.clear", "Clear")}</Button>
                 </>
               )}
             </div>
@@ -949,7 +951,7 @@ export default function GymMap({ onClose, onContinue }) {
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 p-6 text-center z-20 bg-background">
             <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center text-3xl">🗺️</div>
             <div>
-              <p className="font-heading font-bold text-base mb-1">Map couldn't load</p>
+              <p className="font-heading font-bold text-base mb-1">{tFallback("gymMap.mapCouldnTLoad", "Map couldn't load")}</p>
               <p className="text-xs text-muted-foreground mb-1">{mapError}</p>
               <p className="text-xs text-muted-foreground">Check your connection and try again.</p>
             </div>
@@ -986,7 +988,7 @@ export default function GymMap({ onClose, onContinue }) {
             }}
             disabled={osmLoading || loading}
             className="absolute top-3 start-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-primary text-primary-foreground text-xs font-bold shadow-lg shadow-primary/30 hover:opacity-95 active:scale-[0.97] transition-all disabled:opacity-60 disabled:cursor-wait"
-            aria-label="Search this area for gyms"
+            aria-label={tFallback("gymMap.searchThisAreaForGyms", "Search this area for gyms")}
           >
             {osmLoading || loading
               ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -1079,7 +1081,7 @@ export default function GymMap({ onClose, onContinue }) {
                 type="button"
                 onClick={() => refreshRef.current?.()}
                 className="ms-2 text-primary font-semibold hover:underline"
-                aria-label="Retry loading nearby gyms"
+                aria-label={tFallback("gymMap.retryLoadingNearbyGyms", "Retry loading nearby gyms")}
               >
                 Retry
               </button>
@@ -1096,7 +1098,7 @@ export default function GymMap({ onClose, onContinue }) {
               className="absolute bottom-20 start-3 end-3 z-10 rounded-2xl border border-border bg-card shadow-2xl p-4">
               <button type="button" onClick={() => setSelected(null)}
                 className="absolute top-2 end-2 w-7 h-7 rounded-full bg-secondary text-muted-foreground flex items-center justify-center"
-                aria-label="Close">
+                aria-label={tFallback("common.close", "Close")}>
                 <X className="w-3.5 h-3.5" />
               </button>
               <div className="flex items-start gap-3 mb-3 pe-6">
@@ -1177,7 +1179,7 @@ export default function GymMap({ onClose, onContinue }) {
               className="absolute bottom-20 start-3 end-3 z-10 rounded-2xl border border-border bg-card shadow-2xl p-4">
               <button type="button" onClick={() => setSelectedOsm(null)}
                 className="absolute top-2 end-2 w-7 h-7 rounded-full bg-secondary text-muted-foreground flex items-center justify-center"
-                aria-label="Close">
+                aria-label={tFallback("common.close", "Close")}>
                 <X className="w-3.5 h-3.5" />
               </button>
               <div className="flex items-start gap-3 pe-6 mb-3">

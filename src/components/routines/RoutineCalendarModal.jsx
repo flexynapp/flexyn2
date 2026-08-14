@@ -14,8 +14,10 @@ import { useAuth } from '@/lib/AuthContext';
 import { getActiveRoutine, todayIndex, DAY_NAMES, DAY_NAMES_FULL } from '@/lib/data/routines';
 import MyRoutineSheet from './MyRoutineSheet';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { useLanguage } from '@/lib/LanguageContext';
 
 export default function RoutineCalendarModal({ open, onClose }) {
+  const { tFallback } = useLanguage();
   // Pin the page behind this overlay — see @/lib/scrollLock.
   useBodyScrollLock(open);
   const { user } = useAuth();
@@ -55,11 +57,11 @@ export default function RoutineCalendarModal({ open, onClose }) {
           <h2 className="font-heading font-bold text-lg flex-1 truncate">
             {routine ? routine.name : 'My Week'}
           </h2>
-          <button onClick={() => setEditOpen(true)} aria-label="Manage routines"
+          <button onClick={() => setEditOpen(true)} aria-label={tFallback("routineCalendarModal.manageRoutines", "Manage routines")}
             className="w-8 h-8 rounded-lg border border-border flex items-center justify-center text-muted-foreground hover:text-foreground active:text-foreground hover:bg-secondary active:bg-secondary">
             <Settings2 className="w-4 h-4" />
           </button>
-          <button onClick={onClose} aria-label="Close" className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-secondary active:bg-secondary">
+          <button onClick={onClose} aria-label={tFallback("common.close", "Close")} className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-secondary active:bg-secondary">
             <XIcon className="w-4 h-4" />
           </button>
         </div>
@@ -67,7 +69,7 @@ export default function RoutineCalendarModal({ open, onClose }) {
         <div className="overflow-y-auto p-3 space-y-2">
           {!routine ? (
             <button onClick={() => setEditOpen(true)} className="w-full rounded-2xl border border-dashed border-primary/40 bg-primary/[0.05] p-4 text-start">
-              <p className="font-heading font-bold text-sm">No active routine yet</p>
+              <p className="font-heading font-bold text-sm">{tFallback("routineCalendarModal.noActiveRoutineYet", "No active routine yet")}</p>
               <p className="text-xs text-muted-foreground mt-0.5">Tap to build your week — label your days and add your lifts.</p>
             </button>
           ) : (

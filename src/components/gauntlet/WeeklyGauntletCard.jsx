@@ -2,6 +2,7 @@
 // Featured community gauntlet card shown at the top of the Gauntlet screen.
 import { motion } from 'framer-motion';
 import { Users, Zap, Clock, CheckCircle, Trophy, Loader2 } from 'lucide-react';
+import { useLanguage } from '@/lib/LanguageContext';
 
 function timeUntil(dateStr) {
   const diff = new Date(dateStr) - Date.now();
@@ -34,6 +35,7 @@ function formatVolume(v) {
 export default function WeeklyGauntletCard({
   gauntlet, attempt, onStart, onLogWorkout, onSubmit, submitting, canSubmit, bestScore,
 }) {
+  const { tFallback } = useLanguage();
   if (!gauntlet) return null;
 
   const passed   = attempt?.status === 'completed';
@@ -111,7 +113,7 @@ export default function WeeklyGauntletCard({
       {/* Stats row */}
       <div className="flex divide-x divide-border border-t border-border">
         <div className="flex-1 flex flex-col items-center py-3 gap-0.5">
-          <span className="text-xs text-muted-foreground">Goal</span>
+          <span className="text-xs text-muted-foreground">{tFallback("achievementDefs.cat.goal", "Goal")}</span>
           <span className="text-sm font-bold text-foreground">
             {formatVolume(gauntlet.passing_threshold)} {goalUnit}
           </span>

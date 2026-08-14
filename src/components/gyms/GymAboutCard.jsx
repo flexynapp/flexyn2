@@ -13,6 +13,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Clock, Wifi, X } from 'lucide-react';
 import { AMENITY_META } from '@/lib/gymAmenities';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { useLanguage } from '@/lib/LanguageContext';
 
 const DAY_ORDER = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 const DAY_LABEL = { mon: 'Mon', tue: 'Tue', wed: 'Wed', thu: 'Thu', fri: 'Fri', sat: 'Sat', sun: 'Sun' };
@@ -43,6 +44,7 @@ function hasAnyHours(hours) {
 }
 
 export default function GymAboutCard({ gym }) {
+  const { tFallback } = useLanguage();
   const [expandedDay, setExpandedDay] = useState(false);
   const [lightbox, setLightbox] = useState(null); // { url, idx }
   // Pin the page behind this overlay — see @/lib/scrollLock.
@@ -169,7 +171,7 @@ export default function GymAboutCard({ gym }) {
               type="button"
               onClick={() => setLightbox(null)}
               className="absolute top-4 end-4 w-9 h-9 rounded-full bg-white/15 text-white flex items-center justify-center"
-              aria-label="Close"
+              aria-label={tFallback("common.close", "Close")}
             >
               <X className="w-5 h-5" />
             </button>

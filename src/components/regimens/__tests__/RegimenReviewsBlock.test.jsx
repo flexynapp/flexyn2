@@ -72,6 +72,15 @@ vi.mock('@/lib/toast', () => ({ toast: toastMock }));
 
 import RegimenReviewsBlock from '../RegimenReviewsBlock';
 
+// These components now read tFallback, and useLanguage() throws outside a
+// provider by design. Resolving the real English catalog rather than returning
+// key paths, so any assertion here still reads like the screen.
+vi.mock('@/lib/LanguageContext', async () => {
+  const { languageMock } = await import('@/lib/__tests__/i18nMock');
+  return languageMock();
+});
+
+
 const USER = { id: 'u-1', email: 'stranger@example.com' };
 const REGIMEN_ID = 'r-1';
 

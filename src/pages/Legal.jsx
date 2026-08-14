@@ -31,6 +31,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import FlexynLogo from '@/components/FlexynLogo';
+import { useLanguage } from '@/lib/LanguageContext';
 
 const LAST_UPDATED = '4 August 2026';
 
@@ -88,6 +89,7 @@ export function resolveLegalBackTarget({ referrer, origin, historyLength, locati
 }
 
 function BackButton() {
+  const { tFallback } = useLanguage();
   const { key: locationKey } = useLocation();
 
   const handleBack = () => {
@@ -106,7 +108,7 @@ function BackButton() {
       type="button"
       onClick={handleBack}
       className="flex items-center justify-center w-9 h-9 -ms-2 rounded-full hover:bg-muted transition-colors"
-      aria-label="Back"
+      aria-label={tFallback("achievements.vault.back", "Back")}
     >
       <ArrowLeft className="w-5 h-5 rtl:scale-x-[-1]" />
     </button>
@@ -114,6 +116,7 @@ function BackButton() {
 }
 
 function Shell({ title, children }) {
+  const { tFallback } = useLanguage();
   return (
     <div className="min-h-screen bg-background text-foreground">
       <header className="sticky top-0 z-10 bg-card/95 backdrop-blur-md border-b border-border">
@@ -139,8 +142,8 @@ function Shell({ title, children }) {
         <div className="mt-6 space-y-6 text-[15px] leading-relaxed">{children}</div>
 
         <nav className="mt-12 pt-6 border-t border-border flex gap-5 text-sm">
-          <Link to="/privacy" className="text-primary hover:underline">Privacy Policy</Link>
-          <Link to="/terms" className="text-primary hover:underline">Terms of Service</Link>
+          <Link to="/privacy" className="text-primary hover:underline">{tFallback("legal.privacyPolicy", "Privacy Policy")}</Link>
+          <Link to="/terms" className="text-primary hover:underline">{tFallback("legal.termsOfService", "Terms of Service")}</Link>
         </nav>
       </main>
     </div>
@@ -159,8 +162,9 @@ function Section({ heading, children }) {
 // ── /privacy ──────────────────────────────────────────────────────────────
 
 export function PrivacyPolicy() {
+  const { tFallback } = useLanguage();
   return (
-    <Shell title="Privacy Policy">
+    <Shell title={tFallback("legal.privacyPolicy", "Privacy Policy")}>
       <p className="text-muted-foreground">
         Flexyn is a fitness companion app operated by <Blank value={ENTITY} label="LEGAL ENTITY" />.
         This policy explains what we collect, why, who processes it on our
@@ -210,18 +214,18 @@ export function PrivacyPolicy() {
 
       <Section heading="Who processes data for us">
         <ul className="list-disc ps-5 space-y-1.5">
-          <li><strong className="text-foreground">Supabase</strong> — database,
+          <li><strong className="text-foreground">{tFallback("legal.supabase", "Supabase")}</strong> — database,
           authentication, file storage and serverless functions. Holds
           essentially all of the data above.</li>
-          <li><strong className="text-foreground">Netlify</strong> — serves the
+          <li><strong className="text-foreground">{tFallback("legal.netlify", "Netlify")}</strong> — serves the
           web application.</li>
-          <li><strong className="text-foreground">Sentry</strong> — error
+          <li><strong className="text-foreground">{tFallback("legal.sentry", "Sentry")}</strong> — error
           monitoring. Receives crash and error diagnostics, which can include
           your user identifier.</li>
-          <li><strong className="text-foreground">Anthropic</strong> — powers
+          <li><strong className="text-foreground">{tFallback("legal.anthropic", "Anthropic")}</strong> — powers
           the AI Coach and meal photo recognition. Receives the training
           context or the food photo needed to answer that one request.</li>
-          <li><strong className="text-foreground">OpenStreetMap</strong> —
+          <li><strong className="text-foreground">{tFallback("legal.openstreetmap", "OpenStreetMap")}</strong> —
           gym search. Receives a coarse area query, no account identifier.</li>
           <li><strong className="text-foreground">Google / Apple</strong> —
           only if you use them to sign in.</li>
@@ -262,8 +266,9 @@ export function PrivacyPolicy() {
 // ── /terms ────────────────────────────────────────────────────────────────
 
 export function TermsOfService() {
+  const { tFallback } = useLanguage();
   return (
-    <Shell title="Terms of Service">
+    <Shell title={tFallback("legal.termsOfService", "Terms of Service")}>
       <p className="text-muted-foreground">
         These terms govern your use of Flexyn, operated by{' '}
         <Blank value={ENTITY} label="LEGAL ENTITY" />. By creating an account

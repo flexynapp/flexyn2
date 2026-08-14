@@ -12,6 +12,7 @@ import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import { Loader2 } from 'lucide-react';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { useLanguage } from '@/lib/LanguageContext';
 
 const CARD_W  = Math.min(typeof window !== 'undefined' ? window.innerWidth * 0.9 : 340, 380);
 const CARD_H  = 280;
@@ -30,6 +31,7 @@ function getTarget() {
 }
 
 export default function StatusNoteEditor({ existingNote, origin, onPost, onDelete, onClose }) {
+  const { tFallback } = useLanguage();
   // Pin the page behind this overlay — see @/lib/scrollLock.
   useBodyScrollLock();
   const [text,     setText]     = useState(existingNote?.text ?? '');
@@ -109,7 +111,7 @@ export default function StatusNoteEditor({ existingNote, origin, onPost, onDelet
               value={text}
               onChange={e => setText(e.target.value.slice(0, 60))}
               onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && text.trim()) { e.preventDefault(); handlePost(); } }}
-              placeholder="What's on your mind?"
+              placeholder={tFallback("statusNoteEditor.whatSOnYourMind", "What's on your mind?")}
               rows={3}
               className="w-full h-full resize-none rounded-xl border border-border bg-secondary/50 px-3 py-2.5 text-sm text-foreground placeholder-muted-foreground/55 focus:outline-none focus:border-primary/50 leading-relaxed"
             />

@@ -27,6 +27,7 @@ import { motion, AnimatePresence, useMotionValue, useTransform, useDragControls 
 import { X } from 'lucide-react';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import prefersReducedMotion from '@/lib/reducedMotion';
+import { useLanguage } from '@/lib/LanguageContext';
 
 // Velocity threshold for swipe-to-dismiss (px/s)
 const VELOCITY_THRESHOLD = 300;
@@ -41,6 +42,7 @@ export default function BottomSheet({
   maxHeight = '90dvh',
   className = '',
 }) {
+  const { tFallback } = useLanguage();
   const y = useMotionValue(0);
   // Backdrop fade tied to how far the sheet has been dragged down. Applied
   // to its own element — see the backdrop below for why it cannot share
@@ -173,7 +175,7 @@ export default function BottomSheet({
                   <button
                     onClick={onClose}
                     className="w-8 h-8 rounded-full bg-secondary hover:bg-secondary/80 active:bg-secondary/80 flex items-center justify-center transition-colors shrink-0"
-                    aria-label="Close"
+                    aria-label={tFallback("common.close", "Close")}
                   >
                     <X className="w-4 h-4 text-muted-foreground" />
                   </button>

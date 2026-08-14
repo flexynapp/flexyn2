@@ -9,6 +9,7 @@ import { ShoppingBag, RefreshCw, ArrowUpDown, Package } from 'lucide-react';
 import { requestOpenBag } from '@/lib/inventoryFlow';
 import { useNumberFormatter } from '@/lib/intl';
 import FlexCoinIcon from '@/components/FlexCoinIcon';
+import { useLanguage } from '@/lib/LanguageContext';
 
 // Ambient drift particles. `tone` resolves against the live theme rather
 // than the old hardcoded violet hexes, which were invisible against a
@@ -61,6 +62,7 @@ export function DriftParticles({ particles }) {
 export default function MarketplaceHeader({
   flexCoins, onRefresh, refreshing = false, onList, listableCount = 0, onOpenTradeHistory,
 }) {
+  const { tFallback } = useLanguage();
   const fmt = useNumberFormatter();
   const bannerRef = useRef(null);
 
@@ -110,7 +112,7 @@ export default function MarketplaceHeader({
           <ShoppingBag className="w-5 h-5 text-primary" />
           {/* This is the page's only <h1> — Market.jsx deliberately doesn't
               render one (see the comment there). */}
-          <h1 className="font-heading font-bold text-lg">Marketplace</h1>
+          <h1 className="font-heading font-bold text-lg">{tFallback("layout.marketplace", "Marketplace")}</h1>
           {/* The icon SPINS while the refetch is in flight, and the button
               disables itself. Without that this control was unfalsifiable:
               the common case is that nothing has changed since the last
@@ -121,9 +123,9 @@ export default function MarketplaceHeader({
           <button
             onClick={onRefresh}
             disabled={refreshing}
-            aria-label="Refresh listings"
+            aria-label={tFallback("marketplaceHeader.refreshListings", "Refresh listings")}
             aria-busy={refreshing}
-            title="Refresh listings"
+            title={tFallback("marketplaceHeader.refreshListings", "Refresh listings")}
             className="text-muted-foreground hover:text-foreground active:text-foreground transition-colors p-1 rounded-lg hover:bg-secondary active:bg-secondary disabled:opacity-100"
           >
             <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
@@ -135,8 +137,8 @@ export default function MarketplaceHeader({
             href="/market/trades"
             onClick={(e) => { e.preventDefault(); onOpenTradeHistory?.(); }}
             className="text-muted-foreground hover:text-foreground active:text-foreground transition-colors p-1 rounded-lg hover:bg-secondary active:bg-secondary"
-            aria-label="Trade history"
-            title="Trade history"
+            aria-label={tFallback("marketplaceHeader.tradeHistory", "Trade history")}
+            title={tFallback("marketplaceHeader.tradeHistory", "Trade history")}
           >
             <ArrowUpDown className="w-4 h-4" />
           </a>
@@ -152,13 +154,13 @@ export default function MarketplaceHeader({
           <button
             onClick={requestOpenBag}
             className="flex items-center gap-1.5 px-3 py-2 rounded-full bg-secondary border border-border font-bold text-sm hover:bg-secondary/70 active:bg-secondary/70 transition-colors shrink-0"
-            aria-label="Open My Bag"
+            aria-label={tFallback("marketplaceHeader.openMyBag", "Open My Bag")}
           >
             <Package className="w-4 h-4 shrink-0" />
             {/* Once the listable count reaches two digits the List Item
                 button grows and squeezes this one until "My Bag" wraps to
                 two lines. Seen at 20 items. */}
-            <span className="whitespace-nowrap">My Bag</span>
+            <span className="whitespace-nowrap">{tFallback("profile.myBag", "My Bag")}</span>
           </button>
           <button
             onClick={onList}

@@ -27,6 +27,7 @@ import { toast } from '@/lib/toast';
 import { RARITY } from '@/lib/lootCatalog';
 import { sendMessage } from '@/lib/data/hubMessages';
 import * as tradeOffers from '@/lib/data/tradeOffers';
+import { useLanguage } from '@/lib/LanguageContext';
 
 // Local persistence key for "did the user already respond to this offer".
 // Without this, the buttons reappeared on chat re-mount and the user could
@@ -100,6 +101,7 @@ export function formatTradeResponseBody(offerId, accepted) {
  * @param {string} props.conversationId - conversation to send replies into
  */
 export default function TradeOfferCard({ payload, isMine, user, conversationId, conversationMessages = [] }) {
+  const { tFallback } = useLanguage();
   const qc = useQueryClient();
   const [busy, setBusy] = useState(false);
   const [responded, setResponded] = useState(null); // 'accepted' | 'declined' | null
@@ -204,7 +206,7 @@ export default function TradeOfferCard({ payload, isMine, user, conversationId, 
       toast.success(accept ? 'Reply sent — yes' : 'Reply sent — no thanks');
     } catch (err) {
       console.warn('[TradeOfferCard] reply failed:', err);
-      toast.error('Could not send reply');
+      toast.error(tFallback("tradeOfferCard.couldNotSendReply", "Could not send reply"));
     } finally {
       setBusy(false);
     }

@@ -28,8 +28,10 @@ import { toast } from '@/lib/toast';
 import { Button } from '@/components/ui/button';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { gymCheckinUrl } from '@/lib/appOrigin';
+import { useLanguage } from '@/lib/LanguageContext';
 
 export default function GymSignageCard({ open, onClose, gym }) {
+  const { tFallback } = useLanguage();
   // Pin the page behind this overlay — see @/lib/scrollLock.
   useBodyScrollLock(open && !!gym);
   const canvasRef = useRef(null);
@@ -129,11 +131,11 @@ export default function GymSignageCard({ open, onClose, gym }) {
       >
         {/* Modal chrome — hidden on print */}
         <div className="flex items-center justify-between px-4 pt-4 pb-2 shrink-0 print:hidden">
-          <h2 className="font-heading font-bold text-base">Gym Signage</h2>
+          <h2 className="font-heading font-bold text-base">{tFallback("gymSignageCard.gymSignage", "Gym Signage")}</h2>
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close"
+            aria-label={tFallback("common.close", "Close")}
             className="w-7 h-7 rounded-full bg-secondary text-muted-foreground hover:text-foreground active:text-foreground flex items-center justify-center"
           >
             <X className="w-3.5 h-3.5" />
@@ -159,7 +161,7 @@ export default function GymSignageCard({ open, onClose, gym }) {
             </div>
           ) : pngUrl ? (
             <img loading="lazy" src={pngUrl}
-              alt="Flexyn Code QR"
+              alt={tFallback("gymSignageCard.flexynCodeQr", "Flexyn Code QR")}
               className="w-full aspect-square object-contain mb-4"
               ref={canvasRef}
             />
@@ -169,7 +171,7 @@ export default function GymSignageCard({ open, onClose, gym }) {
             </div>
           )}
 
-          <p className="text-center text-xs text-slate-500 mb-1">Or type this code in the app:</p>
+          <p className="text-center text-xs text-slate-500 mb-1">{tFallback("gymSignageCard.orTypeThisCode", "Or type this code in the app:")}</p>
           <p className="text-center font-mono text-3xl font-bold tracking-[0.4em] text-slate-900">
             {gym.flexyn_code}
           </p>

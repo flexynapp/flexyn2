@@ -18,6 +18,7 @@ import { useDistanceUnit } from '@/lib/DistanceUnitContext';
 import { formatDistance, formatDuration } from '@/lib/distanceUnit';
 import { supabase } from '@/api/supabaseClient';
 import { reportError } from '@/lib/reportError';
+import { useLanguage } from '@/lib/LanguageContext';
 
 function typeIcon(type = '') {
   if (type.startsWith('running'))  return Footprints;
@@ -42,6 +43,7 @@ const itemVariants = {
 };
 
 export default function CardioTemplates({ onApply }) {
+  const { tFallback } = useLanguage();
   const { user } = useAuth();
   const { distanceUnit } = useDistanceUnit();
   const queryClient = useQueryClient();
@@ -75,7 +77,7 @@ export default function CardioTemplates({ onApply }) {
       toast.success(`Template "${tpl.name}" deleted`);
     } catch (err) {
       reportError(err, { feature: 'cardio.template.delete' });
-      toast.error('Failed to delete template');
+      toast.error(tFallback("cardioTemplates.failedToDeleteTemplate", "Failed to delete template"));
     } finally {
       setDeleting(null);
     }
@@ -95,7 +97,7 @@ export default function CardioTemplates({ onApply }) {
     return (
       <Card className="p-8 border-dashed flex flex-col items-center gap-3 text-center">
         <BookOpen className="w-8 h-8 text-muted-foreground/40" />
-        <p className="text-sm font-semibold text-muted-foreground">No templates yet</p>
+        <p className="text-sm font-semibold text-muted-foreground">{tFallback("workout.templates.noTemplates", "No templates yet")}</p>
         <p className="text-xs text-muted-foreground/70 max-w-[200px]">
           Log a cardio session and tap "Save as Template" to store your go-to workouts here.
         </p>

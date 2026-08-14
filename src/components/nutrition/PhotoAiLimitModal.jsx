@@ -13,8 +13,10 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Camera, Clock, Infinity as InfinityIcon, Sparkles, Loader2 } from 'lucide-react';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { useLanguage } from '@/lib/LanguageContext';
 
 export default function PhotoAiLimitModal({ open, used = 3, cap = 3, purchasing = false, onClose, onPurchase }) {
+  const { tFallback } = useLanguage();
   useBodyScrollLock(open);
   if (!open) return null;
 
@@ -37,7 +39,7 @@ export default function PhotoAiLimitModal({ open, used = 3, cap = 3, purchasing 
           >
             <button
               onClick={onClose}
-              aria-label="Close"
+              aria-label={tFallback("common.close", "Close")}
               className="absolute top-3 end-3 w-8 h-8 rounded-full bg-black/20 text-white flex items-center justify-center"
             >
               <X className="w-4 h-4" />
@@ -45,7 +47,7 @@ export default function PhotoAiLimitModal({ open, used = 3, cap = 3, purchasing 
             <div className="w-14 h-14 rounded-2xl bg-white/15 flex items-center justify-center mx-auto mb-3 backdrop-blur-sm">
               <Camera className="w-7 h-7" />
             </div>
-            <h2 className="font-heading font-bold text-lg leading-tight">You're out of Photo-AI scans</h2>
+            <h2 className="font-heading font-bold text-lg leading-tight">{tFallback("photoAiLimitModal.youReOutOfPhoto", "You're out of Photo-AI scans")}</h2>
             <p className="text-label text-white/85 mt-1">
               You've used all {cap} of today's scans.
             </p>

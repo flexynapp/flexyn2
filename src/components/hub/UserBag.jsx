@@ -34,6 +34,7 @@ import CoinShopModal from './CoinShopModal';
 import { useNumberFormatter } from '@/lib/intl';
 import { tileRow } from '@/lib/tileRows';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { useLanguage } from '@/lib/LanguageContext';
 
 // Lazy — the Collection pulls in every catalog (themes alone is ~800
 // lines) and only mounts on an explicit tap.
@@ -78,6 +79,7 @@ const TITLE = tileRow({ gap: 2, cols: 1, smCols: 2 });
 // means standing up auth, the query client and two live Supabase reads, none
 // of which are the thing under test: what this card hands the opener.
 export function CapsuleCard({ capsuleRow, onOpenCapsule }) {
+  const { tFallback } = useLanguage();
   const meta = CAPSULE_META[capsuleRow.capsule_type] ?? CAPSULE_META.standard;
   return (
     <RarityFrame
@@ -126,6 +128,7 @@ export function sellLabelFor(count) {
 
 // ─── Sticker group card (shows duplicates + sell button) ──────────────────────
 function StickerGroupCard({ group, onSell, selling }) {
+  const { tFallback } = useLanguage();
   // `group` is an array of inventory rows for the same item_id.
   // We use group[0] for display info, count for badge.
   const item   = group[0];
@@ -212,7 +215,7 @@ function StickerGroupCard({ group, onSell, selling }) {
           )}
         </button>
       ) : (
-        <span className="text-muted-foreground text-micro font-medium mt-1">In Bag</span>
+        <span className="text-muted-foreground text-micro font-medium mt-1">{tFallback("userBag.inBag", "In Bag")}</span>
       )}
     </RarityFrame>
   );
@@ -220,6 +223,7 @@ function StickerGroupCard({ group, onSell, selling }) {
 
 // ─── Theme card ───────────────────────────────────────────────────────────────
 function ThemeCard({ item, activeLootThemeId, onApply }) {
+  const { tFallback } = useLanguage();
   const lootTheme = getLootThemeById(item.item_id);
   const isActive  = activeLootThemeId === item.item_id;
 
@@ -287,6 +291,7 @@ function EmptyState({ icon: Icon, label }) {
 // ─── Title equip list ─────────────────────────────────────────────────────────
 
 function TitleList({ items, userId }) {
+  const { tFallback } = useLanguage();
   const qc = useQueryClient();
   const { data: profile } = useQuery({
     queryKey: ['userProfileEquip', userId],
@@ -340,7 +345,7 @@ function TitleList({ items, userId }) {
       id = authUser?.id;
     }
     if (!id) {
-      toast.error('Sign in required to equip titles');
+      toast.error(tFallback("userBag.signInRequiredToEquip2", "Sign in required to equip titles"));
       return;
     }
     const newId = equippedId === titleId ? null : titleId;
@@ -364,9 +369,9 @@ function TitleList({ items, userId }) {
       // their actionable copy.
       reportError(error, { feature: 'userBag.equip-title', level: 'warning', userId: id });
       if (error.code === '42703' || /column.*equipped_title_id/i.test(error.message || '')) {
-        toast.error('Database not migrated — run migration 019');
+        toast.error(tFallback("userBag.databaseNotMigratedRunMigration", "Database not migrated — run migration 019"));
       } else if (error.code === '42501') {
-        toast.error('Permission denied — sign in again');
+        toast.error(tFallback("userBag.permissionDeniedSignInAgain", "Permission denied — sign in again"));
       } else {
         toast.error('Could not save — try again.');
       }
@@ -419,6 +424,7 @@ function TitleList({ items, userId }) {
 // ─── Frame equip list ─────────────────────────────────────────────────────────
 
 function FrameList({ items, userId }) {
+  const { tFallback } = useLanguage();
   const qc = useQueryClient();
   const { data: profile } = useQuery({
     queryKey: ['userProfileEquipFrame', userId],
@@ -466,7 +472,7 @@ function FrameList({ items, userId }) {
       id = authUser?.id;
     }
     if (!id) {
-      toast.error('Sign in required to equip frames');
+      toast.error(tFallback("userBag.signInRequiredToEquip", "Sign in required to equip frames"));
       return;
     }
     const newId = equippedId === frameId ? null : frameId;
@@ -483,9 +489,9 @@ function FrameList({ items, userId }) {
       // See TitleList equip for the rationale on generic toast + Sentry routing.
       reportError(error, { feature: 'userBag.equip-frame', level: 'warning', userId: id });
       if (error.code === '42703' || /column.*equipped_frame_id/i.test(error.message || '')) {
-        toast.error('Database not migrated — run migration 019');
+        toast.error(tFallback("userBag.databaseNotMigratedRunMigration", "Database not migrated — run migration 019"));
       } else if (error.code === '42501') {
-        toast.error('Permission denied — sign in again');
+        toast.error(tFallback("userBag.permissionDeniedSignInAgain", "Permission denied — sign in again"));
       } else {
         toast.error('Could not save — try again.');
       }
@@ -545,6 +551,7 @@ function FrameList({ items, userId }) {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBatch }) {
+  const { tFallback } = useLanguage();
   // Pin the page behind this overlay — see @/lib/scrollLock.
   useBodyScrollLock(open);
   const { user } = useAuth();
@@ -675,7 +682,7 @@ export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBat
 
   // ── Sell a duplicate ────────────────────────────────────────────────────────
   const handleSell = useCallback(async (inventoryRow, price) => {
-    if (!user?.id) { toast.error('Not signed in'); return; }
+    if (!user?.id) { toast.error(tFallback("userBag.notSigned", "Not signed in")); return; }
     setSelling(true);
     try {
       const newTotal = await inventory.sellItem(inventoryRow.id, user.id, price);
@@ -804,7 +811,7 @@ export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBat
           <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-border">
             <div className="flex items-center gap-3">
               <ShoppingBag className="w-5 h-5 text-primary" />
-              <h2 className="font-heading font-bold text-lg">My Bag</h2>
+              <h2 className="font-heading font-bold text-lg">{tFallback("profile.myBag", "My Bag")}</h2>
             </div>
             <div className="flex items-center gap-2">
               {/* Collection — the Bag answers "what do I have"; this is the
@@ -812,15 +819,15 @@ export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBat
                   and the Capsule Opener open. */}
               <button
                 onClick={() => setCollectionOpen(true)}
-                aria-label="Open Collection"
-                title="Collection — everything in the game"
+                aria-label={tFallback("userBag.openCollection", "Open Collection")}
+                title={tFallback("userBag.collectionEverythingInTheGame", "Collection — everything in the game")}
                 className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground active:text-foreground hover:bg-secondary active:bg-secondary transition-colors"
               >
                 <LibraryBig className="w-4.5 h-4.5" aria-hidden="true" />
               </button>
               <button
                 onClick={() => setShopOpen(true)}
-                aria-label="Open Coin Shop"
+                aria-label={tFallback("userBag.openCoinShop", "Open Coin Shop")}
                 className="flex items-center gap-1.5 bg-primary/15 border border-primary/30 rounded-full px-3 py-1 hover:bg-primary/25 active:bg-primary/25 transition-colors"
               >
                 <FlexCoinIcon size={18} />
@@ -829,7 +836,7 @@ export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBat
               </button>
               <button
                 onClick={onClose}
-                aria-label="Close bag"
+                aria-label={tFallback("userBag.closeBag", "Close bag")}
                 className="text-muted-foreground hover:text-foreground active:text-foreground transition-colors p-1.5 rounded-lg hover:bg-secondary active:bg-secondary"
               >
                 <X className="w-5 h-5" aria-hidden="true" />
@@ -893,15 +900,15 @@ export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBat
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search your bag…"
-                aria-label="Search your bag"
+                placeholder={tFallback("userBag.searchYourBag2", "Search your bag…")}
+                aria-label={tFallback("userBag.searchYourBag", "Search your bag")}
                 className="w-full bg-secondary/50 border border-border rounded-lg ps-9 pe-8 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:border-primary/50"
               />
               {query && (
                 <button
                   type="button"
                   onClick={() => setQuery('')}
-                  aria-label="Clear search"
+                  aria-label={tFallback("nutrition.search.clear", "Clear search")}
                   className="absolute end-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground active:text-foreground"
                 >
                   <X className="w-3.5 h-3.5" />

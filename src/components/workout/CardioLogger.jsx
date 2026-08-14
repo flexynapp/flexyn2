@@ -17,6 +17,7 @@ import { Check, Plus, Trash2, Pencil } from 'lucide-react';
 import { useDistanceUnit } from '@/lib/DistanceUnitContext';
 import { metersTo, toMeters, formatPace, paceSecPerKmFrom } from '@/lib/distanceUnit';
 import { triggerHaptic } from '@/lib/haptic';
+import { useLanguage } from '@/lib/LanguageContext';
 
 export const CARDIO_ACTIVITIES = [
   { id: 'walking',  label: 'Walk', emoji: '🚶', name: 'Walking' },
@@ -47,6 +48,7 @@ function readSegments(exercise) {
 }
 
 export default function CardioLogger({ exercise, onChange, gender }) {
+  const { tFallback } = useLanguage();
   const { distanceUnit } = useDistanceUnit();
   const activity = CARDIO_ACTIVITIES.find(a => a.id === exercise.activity) || CARDIO_ACTIVITIES[1];
   const emoji = activityEmoji(activity.id, gender);
@@ -163,7 +165,7 @@ export default function CardioLogger({ exercise, onChange, gender }) {
                 <button
                   type="button"
                   onClick={() => removeSplit(i)}
-                  aria-label="Remove split"
+                  aria-label={tFallback("cardioLogger.removeSplit", "Remove split")}
                   className="h-8 w-8 rounded-lg flex items-center justify-center text-muted-foreground/60 hover:text-destructive active:text-destructive hover:bg-destructive/10 active:bg-destructive/10 transition-colors shrink-0"
                 >
                   <Trash2 className="w-3.5 h-3.5" />

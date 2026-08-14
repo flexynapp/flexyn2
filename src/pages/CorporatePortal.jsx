@@ -29,6 +29,7 @@ import {
   listChallenges, createChallenge, deleteChallenge, getOrgAnalytics, getMemberCount,
 } from '@/lib/data/organizations';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { useLanguage } from '@/lib/LanguageContext';
 
 const METRICS = [
   { id: 'workouts',    label: 'Total workouts' },
@@ -39,6 +40,7 @@ const METRICS = [
 ];
 
 export default function CorporatePortal() {
+  const { tFallback } = useLanguage();
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { user } = useAuth();
@@ -161,11 +163,11 @@ export default function CorporatePortal() {
         // ── No org: create or join ──────────────────────────────────
         <div className="space-y-3">
           <div className="rounded-2xl border border-border bg-card p-4">
-            <p className="text-sm font-semibold mb-1">Join your company</p>
+            <p className="text-sm font-semibold mb-1">{tFallback("corporatePortal.joinYourCompany", "Join your company")}</p>
             <p className="text-xs text-muted-foreground mb-3">Enter the code your wellness admin shared.</p>
             <div className="flex gap-2">
               <Input value={joinCode} onChange={(e) => setJoinCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8))}
-                placeholder="ORG CODE" className="font-mono tracking-[0.2em] text-center uppercase" maxLength={8} />
+                placeholder={tFallback("corporatePortal.orgCode", "ORG CODE")} className="font-mono tracking-[0.2em] text-center uppercase" maxLength={8} />
               <Button onClick={handleJoin} disabled={busy || joinCode.trim().length !== 8}>
                 {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Join'}
               </Button>
@@ -173,10 +175,10 @@ export default function CorporatePortal() {
           </div>
           {creating ? (
             <div className="rounded-2xl border border-border bg-card p-4">
-              <p className="text-sm font-semibold mb-2">New organization</p>
+              <p className="text-sm font-semibold mb-2">{tFallback("corporatePortal.newOrganization", "New organization")}</p>
               <Input value={orgName} onChange={(e) => setOrgName(e.target.value.slice(0, 80))} placeholder="Acme Inc. Wellness" className="mb-2" />
               <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setCreating(false)} className="flex-1">Cancel</Button>
+                <Button variant="outline" onClick={() => setCreating(false)} className="flex-1">{tFallback("coach.plan.cancel", "Cancel")}</Button>
                 <Button onClick={handleCreate} disabled={busy || !orgName.trim()} className="flex-1">
                   {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Create'}
                 </Button>
@@ -185,7 +187,7 @@ export default function CorporatePortal() {
           ) : (
             <EmptyState
               icon={Building2}
-              title="Run wellness for your team"
+              title={tFallback("corporatePortal.runWellnessForYourTeam", "Run wellness for your team")}
               body="Create an organization, share the join code with employees, launch private challenges, and track aggregate engagement — without seeing any individual's data."
               action={{ label: 'Create organization', onClick: () => setCreating(true) }}
             />
@@ -231,6 +233,7 @@ export default function CorporatePortal() {
 
 // ── Org hub (header + analytics + challenges) ─────────────────────────
 function OrgHub({ org, isAdmin, onLeave, onNewChallenge }) {
+  const { tFallback } = useLanguage();
   const qc = useQueryClient();
   const { data: memberCount = 0 } = useQuery({
     queryKey: ['orgMemberCount', org.id],
@@ -268,7 +271,7 @@ function OrgHub({ org, isAdmin, onLeave, onNewChallenge }) {
   };
 
   const handleDeleteChallenge = async (id) => {
-    if (!confirm('Delete this challenge?')) return;
+    if (!confirm(tFallback("corporatePortal.deleteThisChallenge", "Delete this challenge?"))) return;
     const res = await deleteChallenge(id);
     if (res.ok) qc.invalidateQueries({ queryKey: ['orgChallenges', org.id] });
     else toast.error("Couldn't delete.");
@@ -299,7 +302,7 @@ function OrgHub({ org, isAdmin, onLeave, onNewChallenge }) {
         {isAdmin && (
           <button onClick={copyCode} className="mt-3 w-full rounded-xl bg-primary/10 border border-primary/20 p-2.5 flex items-center justify-between hover:bg-primary/10 active:bg-primary/10 transition-colors">
             <div className="text-start">
-              <p className="text-micro font-bold uppercase tracking-wider text-primary">Team join code</p>
+              <p className="text-micro font-bold uppercase tracking-wider text-primary">{tFallback("corporatePortal.teamJoinCode", "Team join code")}</p>
               <p className="font-mono text-lg tracking-[0.3em] font-bold">{org.join_code}</p>
             </div>
             <Copy className="w-4 h-4 text-primary" />
@@ -308,7 +311,7 @@ function OrgHub({ org, isAdmin, onLeave, onNewChallenge }) {
         <Dialog open={showCodeOpen} onOpenChange={setShowCodeOpen}>
           <DialogContent className="max-w-sm">
             <DialogHeader>
-              <DialogTitle>Team join code</DialogTitle>
+              <DialogTitle>{tFallback("corporatePortal.teamJoinCode", "Team join code")}</DialogTitle>
             </DialogHeader>
             <p className="text-xs text-muted-foreground">
               Clipboard access isn't available here. Press and hold to copy the code:
@@ -364,7 +367,7 @@ function OrgHub({ org, isAdmin, onLeave, onNewChallenge }) {
       {/* Challenges */}
       <div>
         <div className="flex items-center justify-between mb-2">
-          <h3 className="font-heading font-bold">Team challenges</h3>
+          <h3 className="font-heading font-bold">{tFallback("corporatePortal.teamChallenges", "Team challenges")}</h3>
           {isAdmin && (
             <Button size="sm" onClick={onNewChallenge} className="gap-1.5">
               <Plus className="w-4 h-4" /> New
@@ -374,7 +377,7 @@ function OrgHub({ org, isAdmin, onLeave, onNewChallenge }) {
         {isLoading ? (
           <div className="flex justify-center py-6"><Loader2 className="w-4 h-4 animate-spin text-muted-foreground" /></div>
         ) : challenges.length === 0 ? (
-          <EmptyState icon={Trophy} title="No challenges yet" body={isAdmin ? 'Launch a step, workout, or streak challenge for your team.' : 'Your admin hasn’t started a challenge yet.'} />
+          <EmptyState icon={Trophy} title={tFallback("corporatePortal.noChallengesYet", "No challenges yet")} body={isAdmin ? 'Launch a step, workout, or streak challenge for your team.' : 'Your admin hasn’t started a challenge yet.'} />
         ) : (
           <div className="space-y-2">
             {challenges.map(c => {
@@ -406,7 +409,7 @@ function OrgHub({ org, isAdmin, onLeave, onNewChallenge }) {
                       </p>
                     </div>
                     {isAdmin && (
-                      <button onClick={() => handleDeleteChallenge(c.id)} className="w-7 h-7 rounded-full text-muted-foreground hover:text-destructive active:text-destructive flex items-center justify-center shrink-0" aria-label="Delete challenge">
+                      <button onClick={() => handleDeleteChallenge(c.id)} className="w-7 h-7 rounded-full text-muted-foreground hover:text-destructive active:text-destructive flex items-center justify-center shrink-0" aria-label={tFallback("corporatePortal.deleteChallenge", "Delete challenge")}>
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     )}
@@ -423,6 +426,7 @@ function OrgHub({ org, isAdmin, onLeave, onNewChallenge }) {
 
 // ── New challenge modal ───────────────────────────────────────────────
 function ChallengeFormModal({ orgId, onClose, onSaved }) {
+  const { tFallback } = useLanguage();
   // Only mounted while open (see the `challengeOpen &&` gate at its call
   // site), so the lock runs for this component's whole lifetime.
   useBodyScrollLock();
@@ -452,11 +456,11 @@ function ChallengeFormModal({ orgId, onClose, onSaved }) {
     <div className="fixed inset-0 z-[200] bg-black/50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
       <motion.div initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} onClick={(e) => e.stopPropagation()}
         className="w-full sm:max-w-md bg-card border border-border rounded-t-2xl sm:rounded-2xl p-4">
-        <h2 className="font-heading font-bold text-lg mb-3">New team challenge</h2>
+        <h2 className="font-heading font-bold text-lg mb-3">{tFallback("corporatePortal.newTeamChallenge", "New team challenge")}</h2>
         <div className="space-y-3">
-          <Input value={title} onChange={(e) => setTitle(e.target.value.slice(0, 120))} placeholder="October Step Challenge" />
+          <Input value={title} onChange={(e) => setTitle(e.target.value.slice(0, 120))} placeholder={tFallback("corporatePortal.octoberStepChallenge", "October Step Challenge")} />
           <div>
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Metric</label>
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{tFallback("corporatePortal.metric", "Metric")}</label>
             <select value={metric} onChange={(e) => setMetric(e.target.value)} className="w-full mt-1 h-10 rounded-md border border-border bg-background px-2 text-sm">
               {METRICS.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
             </select>
@@ -472,7 +476,7 @@ function ChallengeFormModal({ orgId, onClose, onSaved }) {
             </div>
           </div>
           <div className="flex gap-2 pt-1">
-            <Button variant="outline" onClick={onClose} className="flex-1">Cancel</Button>
+            <Button variant="outline" onClick={onClose} className="flex-1">{tFallback("coach.plan.cancel", "Cancel")}</Button>
             <Button onClick={save} disabled={saving || !title.trim()} className="flex-1 gap-2">
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null} Launch
             </Button>

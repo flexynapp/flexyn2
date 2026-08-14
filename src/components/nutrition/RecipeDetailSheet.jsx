@@ -22,6 +22,7 @@ import {
   perServingCals, perServingMacros, servingsLabel, scaledIngredients, microChips,
 } from '@/lib/recipeFormat';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { useLanguage } from '@/lib/LanguageContext';
 
 function MacroTiles({ recipe }) {
   const { p, c, f } = perServingMacros(recipe);
@@ -47,6 +48,7 @@ export default function RecipeDetailSheet({
   open, recipe, mode = 'mine', busy = false,
   onLog, onEdit, onSave, onOverflow, onTogglePublish, onClose,
 }) {
+  const { tFallback } = useLanguage();
   useBodyScrollLock(open);
   if (!open || !recipe) return null;
 
@@ -82,7 +84,7 @@ export default function RecipeDetailSheet({
             )}
             <button
               onClick={onClose}
-              aria-label="Back"
+              aria-label={tFallback("achievements.vault.back", "Back")}
               className="absolute top-3 start-3 w-8 h-8 rounded-full bg-black/55 text-white flex items-center justify-center"
             >
               <ChevronLeft className="w-4 h-4" />
@@ -90,7 +92,7 @@ export default function RecipeDetailSheet({
             {isMine && (
               <button
                 onClick={() => onOverflow?.(recipe)}
-                aria-label="More actions"
+                aria-label={tFallback("recipeDetailSheet.moreActions", "More actions")}
                 className="absolute top-3 end-3 w-8 h-8 rounded-full bg-black/55 text-white flex items-center justify-center"
               >
                 <MoreHorizontal className="w-4 h-4" />
@@ -159,7 +161,7 @@ export default function RecipeDetailSheet({
               <div className="px-4 pt-6">
                 <div className="flex items-center gap-3 pt-3 border-t border-border">
                   <span className="min-w-0 flex-1">
-                    <span className="block text-label font-semibold">Shared to Discover</span>
+                    <span className="block text-label font-semibold">{tFallback("recipeDetailSheet.sharedToDiscover", "Shared to Discover")}</span>
                     <span className="block text-micro text-muted-foreground">
                       {recipe.is_public
                         ? 'Anyone can find and save this recipe'
@@ -170,7 +172,7 @@ export default function RecipeDetailSheet({
                     type="button"
                     role="switch"
                     aria-checked={!!recipe.is_public}
-                    aria-label="Shared to Discover"
+                    aria-label={tFallback("recipeDetailSheet.sharedToDiscover", "Shared to Discover")}
                     disabled={busy}
                     onClick={() => onTogglePublish?.(recipe)}
                     className={`w-11 h-6 shrink-0 rounded-full transition-colors relative ${

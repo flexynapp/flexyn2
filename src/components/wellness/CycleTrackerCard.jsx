@@ -21,8 +21,10 @@ import { db } from '@/api/db';
 import { computeCycleState } from '@/lib/cyclePhase';
 import { format } from 'date-fns';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { useLanguage } from '@/lib/LanguageContext';
 
 function LogStartModal({ open, onClose, onSubmit, submitting }) {
+  const { tFallback } = useLanguage();
   // Pin the page behind this overlay — see @/lib/scrollLock.
   useBodyScrollLock(open);
   const [date, setDate] = useState(() => format(new Date(), 'yyyy-MM-dd'));
@@ -40,7 +42,7 @@ function LogStartModal({ open, onClose, onSubmit, submitting }) {
         className="w-full sm:max-w-sm bg-card border border-border rounded-2xl shadow-2xl p-4"
       >
         <div className="flex items-center justify-between mb-3">
-          <h3 className="font-heading font-bold text-sm">Log period start</h3>
+          <h3 className="font-heading font-bold text-sm">{tFallback("cycleTrackerCard.logPeriodStart", "Log period start")}</h3>
           <button onClick={onClose} className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center">
             <X className="w-3.5 h-3.5" />
           </button>
@@ -66,7 +68,7 @@ function LogStartModal({ open, onClose, onSubmit, submitting }) {
               type="text"
               value={notes}
               onChange={(e) => setNotes(e.target.value.slice(0, 200))}
-              placeholder="cramps, mood, anything to remember"
+              placeholder={tFallback("cycleTrackerCard.crampsMoodAnythingToRemember", "cramps, mood, anything to remember")}
               className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm"
             />
           </div>
@@ -86,6 +88,7 @@ function LogStartModal({ open, onClose, onSubmit, submitting }) {
 }
 
 export default function CycleTrackerCard({ profile }) {
+  const { tFallback } = useLanguage();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const enabled = !!profile?.cycle_tracking_enabled;
@@ -178,7 +181,7 @@ export default function CycleTrackerCard({ profile }) {
               <Heart className="w-4 h-4 text-rose-500" />
             </div>
             <div>
-              <h3 className="font-heading font-bold text-sm">Cycle</h3>
+              <h3 className="font-heading font-bold text-sm">{tFallback("cycleTrackerCard.cycle", "Cycle")}</h3>
               {state ? (
                 <p className="text-micro text-muted-foreground">
                   Day <span className="font-bold tabular-nums">{state.dayOfCycle}</span>
@@ -201,8 +204,8 @@ export default function CycleTrackerCard({ profile }) {
             <button
               type="button"
               onClick={handleDisable}
-              aria-label="Remove cycle tracking"
-              title="Remove cycle tracking"
+              aria-label={tFallback("cycleTrackerCard.removeCycleTracking", "Remove cycle tracking")}
+              title={tFallback("cycleTrackerCard.removeCycleTracking", "Remove cycle tracking")}
               className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-muted-foreground hover:text-destructive active:text-destructive hover:bg-destructive/10 active:bg-destructive/10 transition-colors"
             >
               <X className="w-4 h-4" />

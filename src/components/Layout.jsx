@@ -36,6 +36,7 @@ import { TOOLTIP } from '@/lib/tooltipRegistry';
 //     so the menu popover can anchor above this exact tab)
 //   • Hub-tab special-case styling + the unread dot
 function NavTab({ item, isActive, isHubItem, hubBlue, hubPurple, hubHasNewFollowingPost, hasQuickActions, onLongPress, onTap, showLongPressHint }) {
+  const { tFallback } = useLanguage();
   const ref = useRef(null);
   const longPress = useLongPress(() => onLongPress(ref.current), { ms: 400 });
 
@@ -132,7 +133,7 @@ function NavTab({ item, isActive, isHubItem, hubBlue, hubPurple, hubHasNewFollow
           {isHubItem && hubHasNewFollowingPost && !isActive && (
             <span
               className="absolute -top-0.5 -end-0.5 w-2.5 h-2.5 rounded-full bg-primary border-2 border-card pointer-events-none"
-              aria-label="New posts in Hub"
+              aria-label={tFallback("layout.newPostsInHub", "New posts in Hub")}
             />
           )}
         </motion.div>

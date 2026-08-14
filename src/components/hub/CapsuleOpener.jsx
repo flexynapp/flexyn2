@@ -22,6 +22,7 @@ import StickerDisplay from './StickerDisplay';
 import CapsuleRarityOdds from './CapsuleRarityOdds';
 import CapsuleStreak from './CapsuleStreak';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { useLanguage } from '@/lib/LanguageContext';
 
 // The capsule's "what's in here?" link now opens the same Collection
 // surface as the Marketplace and the Bag, so the odds you just read
@@ -729,6 +730,7 @@ export function splitIntoWaves(results, size = BATCH_WAVE_SIZE) {
 }
 
 function BatchCard({ entry, isBest, delay }) {
+  const { tFallback } = useLanguage();
   const { item } = entry;
   const tint = rarityTint(item.rarity);
   return (
@@ -769,6 +771,7 @@ function BatchCard({ entry, isBest, delay }) {
 const MAX_BATCH = 10;
 
 export default function CapsuleOpener({ capsule, batch, onClaim, onClaimBatch, onClose }) {
+  const { tFallback } = useLanguage();
   const batchRows = Array.isArray(batch) ? batch.slice(0, MAX_BATCH) : null;
   const isBatch = !!batchRows && batchRows.length > 1;
   // [{ capsuleId, item }] — every successful roll from this open.
@@ -1056,7 +1059,7 @@ export default function CapsuleOpener({ capsule, batch, onClaim, onClaimBatch, o
           {(phase === 'idle' || phase === 'claimed') && (
             <button
               onClick={onClose}
-              aria-label="Close capsule dialog"
+              aria-label={tFallback("capsuleOpener.closeCapsuleDialog", "Close capsule dialog")}
               className="text-muted-foreground hover:text-foreground active:text-foreground transition-colors p-1 rounded-lg hover:bg-secondary active:bg-secondary"
             >
               <X className="w-5 h-5" aria-hidden="true" />
@@ -1471,7 +1474,7 @@ export default function CapsuleOpener({ capsule, batch, onClaim, onClaimBatch, o
           type="button"
           onClick={handleCopyBuild}
           className="relative z-10 block w-full pb-3 text-center text-micro text-muted-foreground/50 hover:text-muted-foreground active:text-muted-foreground transition-colors"
-          aria-label="Copy build diagnostic info to clipboard"
+          aria-label={tFallback("capsuleOpener.copyBuildDiagnosticInfo", "Copy build diagnostic info to clipboard")}
         >
           {buildLabel()}
         </button>

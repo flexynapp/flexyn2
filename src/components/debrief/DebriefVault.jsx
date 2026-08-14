@@ -40,10 +40,12 @@ import { reportError } from '@/lib/reportError';
 import { toast } from '@/lib/toast';
 import { useNumberFormatter } from '@/lib/intl';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { useLanguage } from '@/lib/LanguageContext';
 
 // ── One week, as a row ────────────────────────────────────────────────────
 
 function WeekRow({ debrief, onClick, isCurrentWeek, maxVolume, last }) {
+  const { tFallback } = useLanguage();
   const fmt = useNumberFormatter();
   const d   = debrief.data || {};
   const tr  = d.training || {};
@@ -106,6 +108,7 @@ async function exportToPng(ref) {
 // ── One week, expanded ────────────────────────────────────────────────────
 
 function ExpandedReview({ debrief, onClose, onRefresh, isRefreshing }) {
+  const { tFallback } = useLanguage();
   const cardRef = useRef(null);
   const [sharing, setSharing] = useState(false);
 
@@ -154,7 +157,7 @@ function ExpandedReview({ debrief, onClose, onRefresh, isRefreshing }) {
               onClick={onRefresh}
               disabled={isRefreshing}
               className="text-muted-foreground hover:text-foreground active:text-foreground transition-colors disabled:opacity-30"
-              title="Recalculate this week"
+              title={tFallback("debriefVault.recalculateThisWeek", "Recalculate this week")}
             >
               <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
             </button>
@@ -182,6 +185,7 @@ function ExpandedReview({ debrief, onClose, onRefresh, isRefreshing }) {
 // ── Index ─────────────────────────────────────────────────────────────────
 
 export default function DebriefVault({ onClose }) {
+  const { tFallback } = useLanguage();
   const { user } = useAuth();
   const qc = useQueryClient();
   const [expanded, setExpanded] = useState(null);
@@ -276,12 +280,12 @@ export default function DebriefVault({ onClose }) {
         >
           <ChevronLeft className="w-4 h-4" /> Back
         </button>
-        <span className="font-heading font-bold text-base text-foreground">Weekly Reviews</span>
+        <span className="font-heading font-bold text-base text-foreground">{tFallback("profile.debriefVault", "Weekly Reviews")}</span>
         <button
           onClick={() => genMut.mutate(thisWeek)}
           disabled={genMut.isPending}
           className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground active:text-foreground transition-colors disabled:opacity-40"
-          title="Recalculate this week"
+          title={tFallback("debriefVault.recalculateThisWeek", "Recalculate this week")}
         >
           <RefreshCw className={`w-3.5 h-3.5 ${genMut.isPending ? 'animate-spin' : ''}`} />
           Refresh
@@ -291,7 +295,7 @@ export default function DebriefVault({ onClose }) {
       {/* Sort — only earns its place once there is something to reorder */}
       {debriefs.length > 1 && (
         <div className="flex items-center justify-end gap-1 px-4 py-2 shrink-0">
-          <span className="text-micro font-bold uppercase tracking-wider text-muted-foreground me-1">Sort</span>
+          <span className="text-micro font-bold uppercase tracking-wider text-muted-foreground me-1">{tFallback("debriefVault.sort", "Sort")}</span>
           {[{ id: 'recent', label: 'Recent' }, { id: 'oldest', label: 'Oldest' }].map(opt => (
             <button
               key={opt.id}
@@ -318,7 +322,7 @@ export default function DebriefVault({ onClose }) {
         ) : visible.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
             <CalendarRange className="w-10 h-10 text-muted-foreground/30" />
-            <p className="font-heading font-bold text-foreground">Your first review lands Sunday</p>
+            <p className="font-heading font-bold text-foreground">{tFallback("debriefVault.yourFirstReviewLandsSunday", "Your first review lands Sunday")}</p>
             <p className="text-sm text-muted-foreground max-w-[260px]">
               Log a workout, a meal or a night of sleep and this page starts keeping score for you.
             </p>

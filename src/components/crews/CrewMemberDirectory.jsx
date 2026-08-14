@@ -13,6 +13,7 @@ import { banMember } from '@/lib/data/crewMembership';
 import { useQueryClient } from '@tanstack/react-query';
 import CrewJoinRequests from './CrewJoinRequests';
 import CrewTreasuryPanel from './CrewTreasuryPanel';
+import { useLanguage } from '@/lib/LanguageContext';
 
 const ROLE_LABELS = {
   leader:    { label: 'Leader',    color: 'hsl(var(--primary))',   bg: 'hsl(var(--primary) / 0.12)' },
@@ -35,6 +36,7 @@ function RoleBadge({ role }) {
 }
 
 function MemberRow({ member, profile, currentUserRole, isSelf, crewId, onViewProfile }) {
+  const { tFallback } = useLanguage();
   const [busy,     setBusy]     = useState(false);
   const [roleOpen, setRoleOpen] = useState(false);
   const qc = useQueryClient();
@@ -100,7 +102,7 @@ function MemberRow({ member, profile, currentUserRole, isSelf, crewId, onViewPro
                 <button
                   onClick={() => setRoleOpen(v => !v)}
                   className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground active:text-foreground transition-colors"
-                  title="Change role"
+                  title={tFallback("crewMemberDirectory.changeRole", "Change role")}
                 >
                   <Shield className="w-3.5 h-3.5" />
                 </button>
@@ -128,7 +130,7 @@ function MemberRow({ member, profile, currentUserRole, isSelf, crewId, onViewPro
                   'Member removed.'
                 )}
                 className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center text-destructive/70 hover:text-destructive active:text-destructive transition-colors"
-                title="Remove from crew"
+                title={tFallback("crewMemberDirectory.removeFromCrew", "Remove from crew")}
               >
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
@@ -150,7 +152,7 @@ function MemberRow({ member, profile, currentUserRole, isSelf, crewId, onViewPro
                   }, `${username} was banned.`);
                 }}
                 className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center text-destructive/70 hover:text-destructive active:text-destructive transition-colors"
-                title="Ban from crew"
+                title={tFallback("crewMemberDirectory.banFromCrew", "Ban from crew")}
               >
                 <Ban className="w-3.5 h-3.5" />
               </button>
@@ -163,6 +165,7 @@ function MemberRow({ member, profile, currentUserRole, isSelf, crewId, onViewPro
 }
 
 export default function CrewMemberDirectory({ crewId, members, profilesByUserId, currentUserId, isCurrentAdmin, maxCapacity, inline, onClose, onViewProfile }) {
+  const { tFallback } = useLanguage();
   // `inline` renders the roster as a normal block inside the Crew page's
   // tab instead of a slide-in overlay. The panel form is kept because
   // CrewChat still opens it from its own header when it isn't embedded.
@@ -202,7 +205,7 @@ export default function CrewMemberDirectory({ crewId, members, profilesByUserId,
       {!inline && (
         <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
           <div>
-            <h3 className="font-heading font-bold text-base">Members</h3>
+            <h3 className="font-heading font-bold text-base">{tFallback("crewChat.members", "Members")}</h3>
             {/* Not hardcoded 16: the extra_seat perk (migration 251) raises
                 the cap to as much as 20, and a header still reading /16 with
                 17 members in the list reads as a bug. */}

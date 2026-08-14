@@ -34,6 +34,7 @@ import * as storiesData from '@/lib/data/stories';
 import { cdnImageUrl, cdnFallbackSrc } from '@/lib/imageCdn';
 import StoryOverlayRenderer from './StoryOverlayRenderer';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { useLanguage } from '@/lib/LanguageContext';
 
 const STORY_DURATION_MS = 8000;
 
@@ -96,6 +97,7 @@ function MiniAvatar({ profile }) {
 }
 
 function InsightsPanel({ storyId, onClose }) {
+  const { tFallback } = useLanguage();
   const { data: insights, isLoading } = useQuery({
     queryKey: ['storyInsights', storyId],
     queryFn:  () => storiesData.getStoryInsights(storyId),
@@ -138,7 +140,7 @@ function InsightsPanel({ storyId, onClose }) {
         <div className="w-10 h-1 rounded-full bg-muted-foreground/30" />
       </div>
       <div className="flex items-center justify-between px-5 py-3 shrink-0">
-        <h3 className="font-heading font-bold text-base">Story Insights</h3>
+        <h3 className="font-heading font-bold text-base">{tFallback("storyViewer.storyInsights", "Story Insights")}</h3>
         <button onClick={onClose} className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center text-muted-foreground">
           <X className="w-4 h-4" />
         </button>
@@ -199,14 +201,15 @@ function InsightsPanel({ storyId, onClose }) {
 // ── Delete confirmation ───────────────────────────────────────────────────────
 
 function DeletePrompt({ onConfirm, onCancel }) {
+  const { tFallback } = useLanguage();
   return (
     <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/60" aria-hidden="true" onClick={onCancel}>
       <div className="bg-card rounded-2xl p-6 mx-6 text-center" onClick={e => e.stopPropagation()}>
-        <p className="font-heading font-bold text-base mb-1">Remove this story?</p>
+        <p className="font-heading font-bold text-base mb-1">{tFallback("storyViewer.removeThisStory", "Remove this story?")}</p>
         <p className="text-sm text-muted-foreground mb-5">This can't be undone.</p>
         <div className="flex gap-3">
-          <button onClick={onCancel} className="flex-1 py-2.5 rounded-xl border border-border text-sm font-semibold">Cancel</button>
-          <button onClick={onConfirm} className="flex-1 py-2.5 rounded-xl bg-destructive text-destructive-foreground text-sm font-bold">Remove</button>
+          <button onClick={onCancel} className="flex-1 py-2.5 rounded-xl border border-border text-sm font-semibold">{tFallback("coach.plan.cancel", "Cancel")}</button>
+          <button onClick={onConfirm} className="flex-1 py-2.5 rounded-xl bg-destructive text-destructive-foreground text-sm font-bold">{tFallback("gymEquip.remove", "Remove")}</button>
         </div>
       </div>
     </div>
@@ -223,6 +226,7 @@ export default function StoryViewer({
   // story id, returns { ok } (or a promise of it).
   onRemoveFromHighlight,
 }) {
+  const { tFallback } = useLanguage();
   const queryClient = useQueryClient();
   // Pin the page behind this overlay — see @/lib/scrollLock.
   useBodyScrollLock(open);
@@ -435,7 +439,7 @@ export default function StoryViewer({
       // Show an "Open" action on the success toast so the user can
       // jump straight into the new (or existing) DM thread. The
       // conversation already exists server-side; this just navigates.
-      toast.success('Reply sent!', res.conversationId ? {
+      toast.success(tFallback("storyViewer.replySent", "Reply sent!"), res.conversationId ? {
         action: {
           label: 'Open',
           onClick: () => {
@@ -586,7 +590,7 @@ export default function StoryViewer({
                     Mirrors the flag affordance on post cards. */}
                 {!currentGroup.isOwn && (
                   <button onClick={(e) => { e.stopPropagation(); setReportOpen(true); }}
-                    className="w-8 h-8 rounded-full bg-black/40 flex items-center justify-center text-white" aria-label="Report story">
+                    className="w-8 h-8 rounded-full bg-black/40 flex items-center justify-center text-white" aria-label={tFallback("storyViewer.reportStory", "Report story")}>
                     <Flag className="w-4 h-4" />
                   </button>
                 )}
@@ -594,7 +598,7 @@ export default function StoryViewer({
                   onClick={(e) => { e.stopPropagation(); onClose(); }}
                   className="w-8 h-8 rounded-full bg-black/40 flex items-center justify-center text-white"
                   style={{ position: 'relative', zIndex: 200, pointerEvents: 'all' }}
-                  aria-label="Close"
+                  aria-label={tFallback("common.close", "Close")}
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -614,14 +618,14 @@ export default function StoryViewer({
                 style={{ paddingBottom: 'max(24px, env(safe-area-inset-bottom))' }}>
                 {/* View Insights */}
                 <button onClick={(e) => { e.stopPropagation(); setInsightsOpen(v => !v); }}
-                  className="flex flex-col items-center gap-0.5 text-white/80" aria-label="View insights">
+                  className="flex flex-col items-center gap-0.5 text-white/80" aria-label={tFallback("storyViewer.viewInsights", "View insights")}>
                   <Eye className="w-4 h-4" />
-                  <span className="text-micro font-medium">View Insights</span>
+                  <span className="text-micro font-medium">{tFallback("storyViewer.viewInsights2", "View Insights")}</span>
                 </button>
 
                 {/* Delete */}
                 <button onClick={(e) => { e.stopPropagation(); setDeletePrompt(true); }}
-                  className="w-11 h-11 rounded-full bg-black/40 flex items-center justify-center text-white" aria-label="Delete story">
+                  className="w-11 h-11 rounded-full bg-black/40 flex items-center justify-center text-white" aria-label={tFallback("storyViewer.deleteStory", "Delete story")}>
                   <Trash2 className="w-4 h-4" />
                 </button>
               </div>
@@ -647,7 +651,7 @@ export default function StoryViewer({
                       />
                     </div>
                     <div>
-                      <p className="text-white/80 text-xs font-semibold leading-tight drop-shadow">Replying to story</p>
+                      <p className="text-white/80 text-xs font-semibold leading-tight drop-shadow">{tFallback("storyViewer.replyingToStory", "Replying to story")}</p>
                       <p className="text-white/45 text-micro leading-tight mt-0.5">{currentGroup.username}</p>
                     </div>
                   </div>
@@ -671,7 +675,7 @@ export default function StoryViewer({
                     {!currentGroup.storyDmsDisabled && (
                       <motion.button whileTap={{ scale: 0.82 }}
                         onClick={(e) => { e.stopPropagation(); setCommentOpen(true); setTimeout(() => replyInputRef.current?.focus(), 60); }}
-                        className="w-12 h-12 rounded-full bg-black/40 flex items-center justify-center shrink-0" aria-label="Comment">
+                        className="w-12 h-12 rounded-full bg-black/40 flex items-center justify-center shrink-0" aria-label={tFallback("storyViewer.comment", "Comment")}>
                         <MessageCircle className="w-6 h-6 text-white" />
                       </motion.button>
                     )}
@@ -695,7 +699,7 @@ export default function StoryViewer({
                       />
                       {reply.trim() && (
                         <button onClick={handleSendReply} disabled={replySending}
-                          className="text-primary shrink-0 disabled:opacity-50" aria-label="Send reply">
+                          className="text-primary shrink-0 disabled:opacity-50" aria-label={tFallback("storyViewer.sendReply", "Send reply")}>
                           {replySending
                             ? <Loader2 className="w-4 h-4 animate-spin" />
                             : <Send className="w-4 h-4" />}
@@ -709,9 +713,9 @@ export default function StoryViewer({
 
             {/* ── Tap zones (stop 90px from bottom) ───────────────────── */}
             <div className="absolute start-0 top-0 w-[35%] cursor-pointer" style={{ bottom: '90px' }}
-              onClick={goBack} aria-label="Previous story" />
+              onClick={goBack} aria-label={tFallback("storyViewer.previousStory", "Previous story")} />
             <div className="absolute end-0 top-0 w-[35%] cursor-pointer" style={{ bottom: '90px' }}
-              onClick={goNext} aria-label="Next story" />
+              onClick={goNext} aria-label={tFallback("storyViewer.nextStory", "Next story")} />
             {/* Center 30% — tap to toggle pause, hold to pause for as
                 long as the press is held. Matches Instagram /
                 Snapchat conventions; the previous dead-center strip
@@ -724,7 +728,7 @@ export default function StoryViewer({
               onPointerUp={() => setHoldPaused(false)}
               onPointerCancel={() => setHoldPaused(false)}
               onPointerLeave={() => setHoldPaused(false)}
-              aria-label="Tap to pause"
+              aria-label={tFallback("storyViewer.tapToPause", "Tap to pause")}
             />
 
             {/* ── Delete confirm ───────────────────────────────────────── */}

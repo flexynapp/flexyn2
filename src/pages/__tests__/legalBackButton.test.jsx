@@ -17,6 +17,15 @@ import React from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import { TermsOfService, PrivacyPolicy } from '../Legal';
 
+// These components now read tFallback, and useLanguage() throws outside a
+// provider by design. Resolving the real English catalog rather than returning
+// key paths, so any assertion here still reads like the screen.
+vi.mock('@/lib/LanguageContext', async () => {
+  const { languageMock } = await import('@/lib/__tests__/i18nMock');
+  return languageMock();
+});
+
+
 function stubReferrer(value) {
   Object.defineProperty(document, 'referrer', { value, configurable: true });
 }

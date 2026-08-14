@@ -21,6 +21,7 @@ import * as stickerReactions from '@/lib/data/stickerReactions';
 import { reportError } from '@/lib/reportError';
 import StickerDisplay from './StickerDisplay';
 import { RARITY } from '@/lib/lootCatalog';
+import { useLanguage } from '@/lib/LanguageContext';
 
 function RarityBadge({ rarity, variant }) {
   const rc = RARITY[rarity] ?? RARITY.common;
@@ -35,6 +36,7 @@ function RarityBadge({ rarity, variant }) {
 }
 
 export default function StickerPanel({ postId, onClose }) {
+  const { tFallback } = useLanguage();
   const { user } = useAuth();
   const qc = useQueryClient();
   const [tab, setTab] = useState('reactions'); // 'reactions' | 'pick'

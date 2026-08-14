@@ -13,6 +13,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { db } from '@/api/db';
 import { submitDuelResult } from '@/lib/data/duels';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { useLanguage } from '@/lib/LanguageContext';
 
 // Sum weight × reps across a workout log — the volume the duel compares.
 // The server (submit_duel_result_atomic, mig 159) recomputes this from the
@@ -38,6 +39,7 @@ function StatPill({ label, value, highlight }) {
 }
 
 export default function DuelDetailSheet({ duel, currentUserId, opponentProfile, onCancel, onClose }) {
+  const { tFallback } = useLanguage();
   // Pin the page behind this overlay — see @/lib/scrollLock.
   useBodyScrollLock(!!duel);
   // Above the `if (!duel) return null` below, because hooks cannot sit behind
@@ -95,7 +97,7 @@ export default function DuelDetailSheet({ duel, currentUserId, opponentProfile, 
       qc.invalidateQueries({ queryKey: ['duels'] });
       qc.invalidateQueries({ queryKey: ['activeDuel'] });
       qc.invalidateQueries({ queryKey: ['myDuels'] });
-      toast.success('Result submitted!');
+      toast.success(tFallback("duelDetailSheet.resultSubmitted", "Result submitted!"));
       onClose?.();
     } catch (err) {
       toast.error(err?.message || 'Could not submit result — try again.');
@@ -173,7 +175,7 @@ export default function DuelDetailSheet({ duel, currentUserId, opponentProfile, 
               {/* Side-by-side scores */}
               <div className="flex gap-2">
                 <div className="flex-1 rounded-xl bg-secondary/60 p-3 text-center">
-                  <p className="text-micro text-muted-foreground mb-1">You</p>
+                  <p className="text-micro text-muted-foreground mb-1">{tFallback("friendLeaderboard.you", "You")}</p>
                   <p className="text-xl font-black tabular-nums">{fmtVol(myResult?.volume)}</p>
                   {myResult?.sets_completed != null && (
                     <p className="text-micro text-muted-foreground mt-1">
@@ -214,13 +216,13 @@ export default function DuelDetailSheet({ duel, currentUserId, opponentProfile, 
           {duel.status !== 'completed' && (
             <div className="rounded-xl bg-secondary/40 border border-border p-4 space-y-2">
               <div className="flex items-center justify-between text-xs">
-                <span className="text-muted-foreground">Status</span>
+                <span className="text-muted-foreground">{tFallback("hub.share.status", "Status")}</span>
                 <span className={`font-semibold capitalize ${duel.status === 'active' ? 'text-primary' : 'text-amber-500'}`}>
                   {duel.status}
                 </span>
               </div>
               <div className="flex items-center justify-between text-xs">
-                <span className="text-muted-foreground">Your result</span>
+                <span className="text-muted-foreground">{tFallback("duelDetailSheet.yourResult", "Your result")}</span>
                 <span className="font-semibold">{myResult ? fmtVol(myResult.volume) : 'Not submitted'}</span>
               </div>
               <div className="flex items-center justify-between text-xs">
@@ -259,7 +261,7 @@ export default function DuelDetailSheet({ duel, currentUserId, opponentProfile, 
           {/* Mirror — session template */}
           {duel.type === 'mirror' && duel.session_template?.exercises?.length > 0 && (
             <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Session Template</p>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">{tFallback("duelDetailSheet.sessionTemplate", "Session Template")}</p>
               <div className="space-y-1.5">
                 {duel.session_template.exercises.map((ex, i) => (
                   <div key={i} className="flex items-center justify-between px-3 py-2 rounded-lg bg-secondary/40 text-xs">

@@ -1,9 +1,11 @@
 import { useLocation } from 'react-router-dom';
 import { db } from '@/api/db';
 import { useQuery } from '@tanstack/react-query';
+import { useLanguage } from '@/lib/LanguageContext';
 
 
 export default function PageNotFound({}) {
+    const { tFallback } = useLanguage();
     const location = useLocation();
     const pageName = location.pathname.substring(1);
 
@@ -47,7 +49,7 @@ export default function PageNotFound({}) {
                                     <div className="w-2 h-2 rounded-full bg-orange-400"></div>
                                 </div>
                                 <div className="text-start space-y-1">
-                                    <p className="text-sm font-medium text-foreground">Admin Note</p>
+                                    <p className="text-sm font-medium text-foreground">{tFallback("pageNotFound.adminNote", "Admin Note")}</p>
                                     <p className="text-sm text-muted-foreground leading-relaxed">
                                         This could mean that the AI hasn't implemented this page yet. Ask it to implement it in the chat.
                                     </p>

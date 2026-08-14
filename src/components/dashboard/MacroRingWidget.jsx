@@ -18,6 +18,7 @@ import { format } from 'date-fns';
 import { supabase } from '@/api/supabaseClient';
 import { db } from '@/api/db';
 import { useNutritionTargets } from '@/hooks/useNutritionTargets';
+import { useLanguage } from '@/lib/LanguageContext';
 
 // `today` is computed inside the component (see CalorieProgressWidget
 // for the rationale — overnight PWA stays open, date string would
@@ -67,6 +68,7 @@ const MACROS = [
 ];
 
 export default function MacroRingWidget({ userProfile = {} }) {
+  const { tFallback } = useLanguage();
   const { user } = useAuth();
   const navigate = useNavigate();
   const today = format(new Date(), 'yyyy-MM-dd');
@@ -121,7 +123,7 @@ export default function MacroRingWidget({ userProfile = {} }) {
         onClick={() => navigate('/nutrition')}
       >
         <div className="flex items-center gap-2 mb-3">
-          <span className="text-micro font-bold tracking-[0.04em] text-muted-foreground">Today's Macros</span>
+          <span className="text-micro font-bold tracking-[0.04em] text-muted-foreground">{tFallback("macroRingWidget.todaySMacros", "Today's Macros")}</span>
         </div>
 
         <div className="flex items-center gap-4">

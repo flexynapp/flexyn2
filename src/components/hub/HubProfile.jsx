@@ -148,8 +148,9 @@ function PoopBadge({ size = 22 }) {
 
 // Orange 3-pronged crown — shown as an absolute badge on the avatar for verified admins
 function CrownBadge({ size = 18 }) {
+  const { tFallback } = useLanguage();
   return (
-    <svg width={size} height={size} viewBox="0 0 16 14" fill="none" aria-label="Admin" title="Verified Admin">
+    <svg width={size} height={size} viewBox="0 0 16 14" fill="none" aria-label={tFallback("hubProfile.admin", "Admin")} title={tFallback("hubProfile.verifiedAdmin", "Verified Admin")}>
       <path d="M1 12h14M2 12L1 4l4 3.5L8 1l3 6.5L15 4l-1 8H2z" fill="#f97316" stroke="#ea6c00" strokeWidth="0.8" strokeLinejoin="round"/>
     </svg>
   );
@@ -175,6 +176,7 @@ function generateQrUrl(text) {
 
 // ── QR Code modal ─────────────────────────────────────────────────────────────
 function QRModal({ url, username, onClose }) {
+  const { tFallback } = useLanguage();
   const [copied, setCopied] = useState(false);
   const [imgLoaded, setImgLoaded] = useState(false);
   const qrImgUrl = generateQrUrl(url);
@@ -225,7 +227,7 @@ function QRModal({ url, username, onClose }) {
         <div className="relative w-52 h-52 rounded-xl border border-border overflow-hidden bg-white">
           {!imgLoaded && <div className="absolute inset-0 bg-muted animate-pulse" />}
           <img loading="lazy" src={qrImgUrl}
-            alt="Profile QR code"
+            alt={tFallback("hubProfile.profileQrCode", "Profile QR code")}
             className="w-full h-full object-contain"
             onLoad={() => setImgLoaded(true)}
           />

@@ -17,8 +17,10 @@ import { formatDistanceToNowStrict } from 'date-fns';
 import { toast } from '@/lib/toast';
 import StarRating from './StarRating';
 import * as reviews from '@/lib/data/regimenReviews';
+import { useLanguage } from '@/lib/LanguageContext';
 
 export default function RegimenReviewsBlock({ regimenId, user }) {
+  const { tFallback } = useLanguage();
   const queryClient = useQueryClient();
   const { data: list = [], isLoading } = useQuery({
     queryKey: ['regimenReviews', regimenId],
@@ -77,7 +79,7 @@ export default function RegimenReviewsBlock({ regimenId, user }) {
     <div className="mt-3 pt-3 border-t border-border/40 space-y-3">
       {/* Aggregate header */}
       <div className="flex items-center gap-2">
-        <h4 className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Reviews</h4>
+        <h4 className="text-xs font-bold uppercase tracking-wide text-muted-foreground">{tFallback("regimenReviewsBlock.reviews", "Reviews")}</h4>
         {agg && agg.review_count > 0 && (
           <div className="flex items-center gap-1.5">
             <StarRating value={agg.avg_rating} size="sm" />
@@ -130,7 +132,7 @@ export default function RegimenReviewsBlock({ regimenId, user }) {
             <textarea
               value={comment}
               onChange={(e) => setComment(e.target.value.slice(0, 600))}
-              placeholder="What worked? What didn't? (optional)"
+              placeholder={tFallback("regimenReviewsBlock.whatWorkedWhatDidnT", "What worked? What didn't? (optional)")}
               rows={2}
               maxLength={600}
               className="w-full px-2 py-1.5 bg-secondary/40 border border-border rounded-md text-xs outline-none focus:border-primary/50 resize-none"

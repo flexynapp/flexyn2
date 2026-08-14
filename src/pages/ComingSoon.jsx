@@ -14,11 +14,13 @@
 import { useNavigate } from 'react-router-dom';
 import { Lock, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useLanguage } from '@/lib/LanguageContext';
 
 export default function ComingSoon({
   title = 'Coming soon',
   blurb = 'This one is still being built. It will show up here when it is ready.',
 }) {
+  const { tFallback } = useLanguage();
   const navigate = useNavigate();
 
   return (

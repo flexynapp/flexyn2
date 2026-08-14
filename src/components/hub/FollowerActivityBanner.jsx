@@ -25,6 +25,7 @@ import { onHubPostInsert } from '@/lib/hubPostsRealtime';
 import { useAuth } from '@/lib/AuthContext';
 import { useQuery } from '@tanstack/react-query';
 import * as hubFollows from '@/lib/data/hubFollows';
+import { useLanguage } from '@/lib/LanguageContext';
 
 const MAX_VISIBLE = 3;
 const AUTO_DISMISS_MS = 10_000;
@@ -124,6 +125,7 @@ export default function FollowerActivityBanner() {
 }
 
 function BannerCard({ post, onDismiss }) {
+  const { tFallback } = useLanguage();
   const { text, icon: Icon } = summarize(post);
   const name = displayName(post);
 
@@ -173,7 +175,7 @@ function BannerCard({ post, onDismiss }) {
         type="button"
         onClick={onDismiss}
         className="shrink-0 p-1 rounded-md text-muted-foreground hover:text-foreground active:text-foreground hover:bg-secondary active:bg-secondary transition-colors"
-        aria-label="Dismiss"
+        aria-label={tFallback("discovery.dismiss", "Dismiss")}
       >
         <X className="w-3 h-3" />
       </button>

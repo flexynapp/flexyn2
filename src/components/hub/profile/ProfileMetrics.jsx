@@ -17,6 +17,7 @@
 // spend: a user with 2,300 followers reads "2.3K".
 import { formatNumber } from '@/lib/intl';
 import { pluralForm } from '@/lib/pluralize';
+import { useLanguage } from '@/lib/LanguageContext';
 
 function Metric({ value, forms, onClick, language }) {
   // `?? 0` matters twice over: formatNumber returns '' for null/undefined,
@@ -59,6 +60,7 @@ export default function ProfileMetrics({
   forms,
   language,
 }) {
+  const { tFallback } = useLanguage();
   // A brand-new account rendered "0 followers · 0 following · 0 posts" —
   // three zeros in a row, which is a cold thing to show someone who just
   // finished an eleven-step signup. It also isn't information: nobody needs

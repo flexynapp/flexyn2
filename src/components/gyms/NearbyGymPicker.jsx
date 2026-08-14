@@ -30,6 +30,7 @@ import { distanceKm, bboxAround } from '@/lib/osmGyms';
 // an area pays a fill — see the head comment there for the measurements.
 import { fetchOsmGymsNearCached } from '@/lib/data/osmGymCache';
 import { useDistanceUnit } from '@/lib/DistanceUnitContext';
+import { useLanguage } from '@/lib/LanguageContext';
 
 const KM_PER_MILE = 1.609344;
 
@@ -65,6 +66,7 @@ export default function NearbyGymPicker({
   value, onChange, disabled = false, emptyHint,
   deselectable = true, busyKey = null,
 }) {
+  const { tFallback } = useLanguage();
   const [status, setStatus] = useState('locating'); // locating | ready | denied | failed
   const [rows, setRows] = useState([]);
   const [query, setQuery] = useState('');
@@ -396,7 +398,7 @@ export default function NearbyGymPicker({
       <input
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder="Search nearby gyms"
+        placeholder={tFallback("nearbyGymPicker.searchNearbyGyms", "Search nearby gyms")}
         disabled={disabled}
         className="w-full mb-3 px-3 py-2 rounded-xl border border-border bg-card text-sm outline-none focus:border-primary/50 transition-colors disabled:opacity-50"
       />
@@ -443,7 +445,7 @@ export default function NearbyGymPicker({
                   <span
                     className="w-4 h-4 shrink-0 rounded-full border-2 border-primary border-t-transparent animate-spin"
                     role="status"
-                    aria-label="Saving"
+                    aria-label={tFallback("nearbyGymPicker.saving", "Saving")}
                   />
                 )
                 : sel && <span className="text-primary text-lg leading-none shrink-0">✓</span>}
@@ -468,7 +470,7 @@ export default function NearbyGymPicker({
           className="w-full mt-3 py-2 text-xs text-muted-foreground hover:text-foreground active:text-foreground transition-colors disabled:opacity-50"
         >
           Showing gyms within {fmtRadius(radiusKm)} —{' '}
-          <span className="font-semibold text-primary">Search Wider</span>
+          <span className="font-semibold text-primary">{tFallback("nearbyGymPicker.searchWider", "Search Wider")}</span>
         </button>
       )}
     </>

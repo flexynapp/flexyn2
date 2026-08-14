@@ -22,6 +22,7 @@ import {
 } from '@/lib/data/routines';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { ReorderableRow, DragHandle } from '@/components/dashboard/ReorderableRow';
+import { useLanguage } from '@/lib/LanguageContext';
 
 /**
  * React keys for a list whose items carry no id.
@@ -47,6 +48,7 @@ export function exerciseRowKeys(list) {
 }
 
 export default function MyRoutineSheet({ open, onClose }) {
+  const { tFallback } = useLanguage();
   // Pin the page behind this overlay — see @/lib/scrollLock.
   useBodyScrollLock(open);
   const { user } = useAuth();
@@ -96,7 +98,7 @@ export default function MyRoutineSheet({ open, onClose }) {
     setSaving(true);
     const res = await updateRoutine(draft.id, { name: draft.name, days: draft.days });
     setSaving(false);
-    if (res.ok) { invalidate(); toast.success('Routine saved'); setView('list'); }
+    if (res.ok) { invalidate(); toast.success(tFallback("myRoutineSheet.routineSaved", "Routine saved")); setView('list'); }
     else toast.error('Could not save — try again.');
   };
 
@@ -108,7 +110,7 @@ export default function MyRoutineSheet({ open, onClose }) {
 
   const remove = useMutation({
     mutationFn: (id) => deleteRoutine(id),
-    onSuccess: () => { invalidate(); toast.success('Routine deleted'); },
+    onSuccess: () => { invalidate(); toast.success(tFallback("myRoutineSheet.routineDeleted", "Routine deleted")); },
   });
 
   // ── day editing helpers (operate on draft.days) ───────────────────────────
@@ -151,11 +153,11 @@ export default function MyRoutineSheet({ open, onClose }) {
       <div className="flex items-center gap-3 px-4 border-b border-border shrink-0"
         style={{ paddingTop: 'max(14px, env(safe-area-inset-top))', paddingBottom: 12 }}>
         {view === 'edit' ? (
-          <button onClick={() => setView('list')} className="p-1.5 -ms-1.5 rounded-lg hover:bg-secondary active:bg-secondary" aria-label="Back">
+          <button onClick={() => setView('list')} className="p-1.5 -ms-1.5 rounded-lg hover:bg-secondary active:bg-secondary" aria-label={tFallback("achievements.vault.back", "Back")}>
             <ArrowLeft className="w-5 h-5" />
           </button>
         ) : (
-          <button onClick={onClose} className="p-1.5 -ms-1.5 rounded-lg hover:bg-secondary active:bg-secondary" aria-label="Close">
+          <button onClick={onClose} className="p-1.5 -ms-1.5 rounded-lg hover:bg-secondary active:bg-secondary" aria-label={tFallback("common.close", "Close")}>
             <XIcon className="w-5 h-5" />
           </button>
         )}
@@ -191,7 +193,7 @@ export default function MyRoutineSheet({ open, onClose }) {
                 {isLoading ? (
                   <p className="text-sm text-muted-foreground py-6 text-center">Loading…</p>
                 ) : routines.length === 0 ? (
-                  <p className="text-sm text-muted-foreground py-4">No routines yet. Start from a template below, or tap <b>New</b>.</p>
+                  <p className="text-sm text-muted-foreground py-4">No routines yet. Start from a template below, or tap <b>{tFallback("coach.onboarding.levelLabel.newbie", "New")}</b>.</p>
                 ) : (
                   <div className="space-y-2">
                     {routines.map(r => {
@@ -202,18 +204,18 @@ export default function MyRoutineSheet({ open, onClose }) {
                             <div className="flex items-center gap-2">
                               <span className="font-heading font-bold text-sm truncate">{r.name}</span>
                               {r.is_active && (
-                                <span className="px-1.5 py-0.5 rounded-full text-micro font-bold uppercase tracking-wide bg-primary/15 text-primary">Active</span>
+                                <span className="px-1.5 py-0.5 rounded-full text-micro font-bold uppercase tracking-wide bg-primary/15 text-primary">{tFallback("duels.status.active", "Active")}</span>
                               )}
                             </div>
                             <p className="text-xs text-muted-foreground mt-0.5">{dayCount} training day{dayCount === 1 ? '' : 's'}</p>
                           </button>
                           {!r.is_active && (
-                            <button onClick={() => activate.mutate(r.id)} aria-label="Set active"
-                              className="p-2 rounded-lg text-muted-foreground hover:text-primary active:text-primary hover:bg-secondary active:bg-secondary" title="Set active">
+                            <button onClick={() => activate.mutate(r.id)} aria-label={tFallback("myRoutineSheet.setActive", "Set active")}
+                              className="p-2 rounded-lg text-muted-foreground hover:text-primary active:text-primary hover:bg-secondary active:bg-secondary" title={tFallback("myRoutineSheet.setActive", "Set active")}>
                               <Star className="w-4 h-4" />
                             </button>
                           )}
-                          <button onClick={() => { if (window.confirm(`Delete "${r.name}"?`)) remove.mutate(r.id); }} aria-label="Delete"
+                          <button onClick={() => { if (window.confirm(`Delete "${r.name}"?`)) remove.mutate(r.id); }} aria-label={tFallback("common.delete", "Delete")}
                             className="p-2 rounded-lg text-muted-foreground hover:text-destructive active:text-destructive hover:bg-secondary active:bg-secondary">
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -226,7 +228,7 @@ export default function MyRoutineSheet({ open, onClose }) {
 
               {/* Templates */}
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Start from a template</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">{tFallback("myRoutineSheet.startFromATemplate", "Start from a template")}</p>
                 <div className="grid grid-cols-2 gap-2">
                   {TEMPLATES.map(t => (
                     <button key={t.name} onClick={() => createNew(t.name, t.days)} disabled={saving || routines.length >= MAX_ROUTINES}
@@ -246,7 +248,7 @@ export default function MyRoutineSheet({ open, onClose }) {
               <input
                 value={draft?.name || ''}
                 onChange={e => setDraft(d => ({ ...d, name: e.target.value }))}
-                placeholder="Routine name"
+                placeholder={tFallback("myRoutineSheet.routineName", "Routine name")}
                 maxLength={60}
                 className="w-full h-11 rounded-xl border border-border bg-secondary/50 px-3 font-heading font-bold text-foreground focus:outline-none focus:border-primary/50"
               />
@@ -339,7 +341,7 @@ export default function MyRoutineSheet({ open, onClose }) {
                                         />
                                         <Dumbbell className="w-3.5 h-3.5 text-primary shrink-0" />
                                         <span className="flex-1 text-sm truncate">{ex.name}</span>
-                                        <button onClick={() => removeExercise(idx, exIdx)} aria-label="Remove" className="p-1 text-muted-foreground hover:text-destructive active:text-destructive">
+                                        <button onClick={() => removeExercise(idx, exIdx)} aria-label={tFallback("gymEquip.remove", "Remove")} className="p-1 text-muted-foreground hover:text-destructive active:text-destructive">
                                           <XIcon className="w-3.5 h-3.5" />
                                         </button>
                                       </>)}
@@ -353,7 +355,7 @@ export default function MyRoutineSheet({ open, onClose }) {
                               value={expandedDay === idx ? pendingEx : ''}
                               onChange={setPendingEx}
                               onSelect={(ex) => { addExercise(idx, ex); setPendingEx(''); }}
-                              placeholder="Add an exercise…"
+                              placeholder={tFallback("myRoutineSheet.addAnExercise", "Add an exercise…")}
                               userEmail={user?.email}
                             />
                           </>

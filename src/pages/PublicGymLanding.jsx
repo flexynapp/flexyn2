@@ -27,6 +27,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/AuthContext';
 import { getGymPublicCard } from '@/lib/data/gymBusinesses';
+import { useLanguage } from '@/lib/LanguageContext';
 
 // Amenity slug → display label
 const AMENITY_LABELS = {
@@ -47,6 +48,7 @@ const AMENITY_LABELS = {
 };
 
 export default function PublicGymLanding() {
+  const { tFallback } = useLanguage();
   const { id } = useParams();
   const navigate = useNavigate();
   const { user, isLoadingAuth } = useAuth();
@@ -104,7 +106,7 @@ export default function PublicGymLanding() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button onClick={() => setRetryNonce(n => n + 1)}>Try again</Button>
+          <Button onClick={() => setRetryNonce(n => n + 1)}>{tFallback("errorBoundary.tryAgain", "Try again")}</Button>
           <Button onClick={() => { window.location.href = '/'; }} variant="outline">
             Discover Flexyn
           </Button>
@@ -130,7 +132,7 @@ export default function PublicGymLanding() {
           <Building2 className="w-8 h-8 text-muted-foreground" />
         </div>
         <div>
-          <p className="font-heading font-bold text-lg">Gym not found</p>
+          <p className="font-heading font-bold text-lg">{tFallback("gymEdit.gymNotFound", "Gym not found")}</p>
           <p className="text-sm text-muted-foreground mt-1">
             This gym may not be on Flexyn yet.
           </p>
@@ -153,7 +155,7 @@ export default function PublicGymLanding() {
           type="button"
           onClick={() => navigate(-1)}
           className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center"
-          aria-label="Back"
+          aria-label={tFallback("achievements.vault.back", "Back")}
         >
           <ArrowLeft className="w-4 h-4" />
         </button>
@@ -196,7 +198,7 @@ export default function PublicGymLanding() {
         <p className="flex items-center gap-1.5 text-sm font-semibold mt-1.5">
           <Users className="w-3.5 h-3.5 text-primary" />
           <span className="tabular-nums text-primary">{gym.member_count ?? 0}</span>
-          <span className="text-muted-foreground font-normal">Flexyn members</span>
+          <span className="text-muted-foreground font-normal">{tFallback("publicGymLanding.flexynMembers", "Flexyn members")}</span>
         </p>
       </motion.div>
 

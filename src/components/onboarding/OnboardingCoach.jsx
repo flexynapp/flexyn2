@@ -39,13 +39,14 @@ const MAX_INPUT = 500;
  * own close X is already in that corner.
  */
 export function OnboardingCoachButton({ onClick, className = '', size = 'lg' }) {
+  const { tFallback } = useLanguage();
   const box = size === 'sm' ? 'w-9 h-9 rounded-lg' : 'w-11 h-11 rounded-xl';
   const glyph = size === 'sm' ? 'w-4 h-4' : 'w-[18px] h-[18px]';
   return (
     <button
       type="button"
       onClick={onClick}
-      aria-label="Ask the AI Coach"
+      aria-label={tFallback("onboardingCoach.askTheAiCoach", "Ask the AI Coach")}
       className={`${box} border border-primary/30 bg-primary/10 backdrop-blur-sm flex items-center justify-center text-primary hover:bg-primary/20 active:bg-primary/20 active:scale-95 transition-all shrink-0 ${className}`}
     >
       <Sparkles className={glyph} strokeWidth={2.2} />

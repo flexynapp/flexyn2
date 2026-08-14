@@ -35,11 +35,13 @@ import {
   listFeedComments, postFeedComment, deleteFeedComment,
   togglePinPost, uploadFeedImage,
 } from '@/lib/data/gymBusinesses';
+import { useLanguage } from '@/lib/LanguageContext';
 
 const QUICK_EMOJIS = ['🔥', '💪', '👏', '🚀', '🎯', '🙌'];
 const DEFAULT_EMOJI = '🔥';
 
 export default function GymFeedTab({ gymId, gymOwnerId }) {
+  const { tFallback } = useLanguage();
   const { user } = useAuth();
   const qc = useQueryClient();
   const navigate = useNavigate();
@@ -135,7 +137,7 @@ export default function GymFeedTab({ gymId, gymOwnerId }) {
   };
 
   const handleDeletePost = async (postId) => {
-    if (!confirm('Delete this post?')) return;
+    if (!confirm(tFallback("hub.confirmDelete", "Delete this post?"))) return;
     const res = await deleteFeedPost(postId);
     if (res.ok) {
       qc.invalidateQueries({ queryKey: ['gymFeed', gymId] });
@@ -161,7 +163,7 @@ export default function GymFeedTab({ gymId, gymOwnerId }) {
         <Textarea
           value={body}
           onChange={(e) => setBody(e.target.value.slice(0, 500))}
-          placeholder="Share with your gym community…"
+          placeholder={tFallback("gymFeedTab.shareWithYourGymCommunity", "Share with your gym community…")}
           rows={2}
           className="resize-none border-0 focus-visible:ring-0 px-0 mb-1"
         />
@@ -175,7 +177,7 @@ export default function GymFeedTab({ gymId, gymOwnerId }) {
                 setPendingMedia(null);
               }}
               className="absolute top-2 end-2 w-7 h-7 rounded-full bg-black/70 text-white flex items-center justify-center"
-              aria-label="Remove image"
+              aria-label={tFallback("gymFeedTab.removeImage", "Remove image")}
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -214,7 +216,7 @@ export default function GymFeedTab({ gymId, gymOwnerId }) {
       ) : sortedPosts.length === 0 ? (
         <EmptyState
           icon={Sparkles}
-          title="Quiet hours at the gym"
+          title={tFallback("gymFeedTab.quietHoursAtTheGym", "Quiet hours at the gym")}
           body="Be the first to drop a post — share a PR, organize a meetup, or just say hi."
         />
       ) : (
@@ -242,7 +244,7 @@ export default function GymFeedTab({ gymId, gymOwnerId }) {
         <div className="mt-5">
           <div className="flex items-center gap-1.5 mb-1 px-1">
             <Sparkles className="w-3.5 h-3.5 text-primary" />
-            <h3 className="text-xs font-extrabold uppercase tracking-[0.18em] text-primary">From the Flexyn community</h3>
+            <h3 className="text-xs font-extrabold uppercase tracking-[0.18em] text-primary">{tFallback("gymFeedTab.fromTheFlexynCommunity", "From the Flexyn community")}</h3>
           </div>
           <p className="text-micro text-muted-foreground mb-3 px-1">Trending posts while your gym gets going.</p>
           <div className="space-y-2">
@@ -275,6 +277,7 @@ export default function GymFeedTab({ gymId, gymOwnerId }) {
 
 // ── Single post card ──────────────────────────────────────────────
 function FeedPostCard({ post, rxn, meId, isOwner, onDelete, onTogglePin, onReactionChange, onCommentChange }) {
+  const { tFallback } = useLanguage();
   const isAuthor = meId && post.author_id === meId;
   const [menuOpen, setMenuOpen] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -351,7 +354,7 @@ function FeedPostCard({ post, rxn, meId, isOwner, onDelete, onTogglePin, onReact
               type="button"
               onClick={() => setMenuOpen(v => !v)}
               className="w-7 h-7 rounded-full bg-secondary/60 hover:bg-secondary active:bg-secondary text-muted-foreground hover:text-foreground active:text-foreground flex items-center justify-center"
-              aria-label="Post menu"
+              aria-label={tFallback("gymFeedTab.postMenu", "Post menu")}
             >
               <MoreHorizontal className="w-3.5 h-3.5" />
             </button>
@@ -456,6 +459,7 @@ function FeedPostCard({ post, rxn, meId, isOwner, onDelete, onTogglePin, onReact
 
 // ── Inline comments ────────────────────────────────────────────────
 function FeedComments({ postId, meId, isPostAuthorOrGymOwner, onChange }) {
+  const { tFallback } = useLanguage();
   const [comments, setComments] = useState([]);
   const [loading, setLoading]   = useState(true);
   const [body, setBody]         = useState('');
@@ -485,7 +489,7 @@ function FeedComments({ postId, meId, isPostAuthorOrGymOwner, onChange }) {
   };
 
   const handleDelete = async (commentId) => {
-    if (!confirm('Delete this comment?')) return;
+    if (!confirm(tFallback("hub.comments.confirmDelete", "Delete this comment?"))) return;
     const res = await deleteFeedComment(commentId);
     if (res.ok) {
       refresh();
@@ -520,7 +524,7 @@ function FeedComments({ postId, meId, isPostAuthorOrGymOwner, onChange }) {
                     type="button"
                     onClick={() => handleDelete(c.id)}
                     className="opacity-0 group-hover:opacity-100 transition-opacity w-5 h-5 rounded-full text-muted-foreground hover:text-destructive active:text-destructive flex items-center justify-center"
-                    aria-label="Delete comment"
+                    aria-label={tFallback("hubCommentsInline.deleteComment", "Delete comment")}
                   >
                     <Trash2 className="w-3 h-3" />
                   </button>
@@ -535,7 +539,7 @@ function FeedComments({ postId, meId, isPostAuthorOrGymOwner, onChange }) {
           type="text"
           value={body}
           onChange={(e) => setBody(e.target.value.slice(0, 1000))}
-          placeholder="Write a comment…"
+          placeholder={tFallback("gymFeedTab.writeAComment", "Write a comment…")}
           className="flex-1 h-8 px-2 rounded-md border border-border bg-background text-xs"
         />
         <button

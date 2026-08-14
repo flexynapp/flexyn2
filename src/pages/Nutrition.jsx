@@ -2372,6 +2372,7 @@ export default function Nutrition() {
 
 /* ── Grouped water entries ──────────────────────────────────────────────── */
 function WaterEntryGroups({ entries, ozToDisplay, waterUnit, onDelete }) {
+  const { tFallback } = useLanguage();
   // Group entries by their oz value so identical glasses collapse
   const groups = React.useMemo(() => {
     const map = new Map();
@@ -2410,7 +2411,7 @@ function WaterEntryGroups({ entries, ozToDisplay, waterUnit, onDelete }) {
           <button
             onClick={() => onDelete(g.latestId)}
             className="ms-0.5 p-1 rounded-full text-muted-foreground hover:text-destructive active:text-destructive hover:bg-destructive/10 active:bg-destructive/10 transition-colors"
-            title="Remove one"
+            title={tFallback("nutrition.removeOne", "Remove one")}
             aria-label={`Remove one ${g.label}`}
           >
             <X className="w-3 h-3" aria-hidden="true" />

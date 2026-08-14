@@ -35,6 +35,7 @@ import TradeOfferDialog from './TradeOfferDialog';
 import BuyConfirmDialog from './BuyConfirmDialog';
 import { tileRow } from '@/lib/tileRows';
 import { LIST_PRESENCE } from '@/lib/listMotion';
+import { useLanguage } from '@/lib/LanguageContext';
 
 // The listings feed: 2 cards per row on a phone, 3 from sm, wrapped and
 // centred — a marketplace holds however many listings it holds, so a partial
@@ -74,6 +75,7 @@ const SORT_TO_QUERY = {
 };
 
 export default function MarketplaceFeed() {
+  const { tFallback } = useLanguage();
   const { user } = useAuth();
   const qc       = useQueryClient();
   const navigate = useNavigate();
@@ -826,7 +828,7 @@ export default function MarketplaceFeed() {
       ) : listingsError ? (
         <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
           <ShoppingBag className="w-12 h-12 text-muted-foreground/50" />
-          <p className="text-muted-foreground font-medium">Could not load listings</p>
+          <p className="text-muted-foreground font-medium">{tFallback("marketplaceFeed.couldNotLoadListings", "Could not load listings")}</p>
           <button onClick={() => refetch()} className="text-primary text-sm hover:underline">
             Try again
           </button>
@@ -834,7 +836,7 @@ export default function MarketplaceFeed() {
       ) : filters.saved && savedIds.size === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
           <Heart className="w-12 h-12 text-muted-foreground/50" />
-          <p className="font-heading font-bold">No saved listings yet</p>
+          <p className="font-heading font-bold">{tFallback("marketplaceFeed.noSavedListingsYet", "No saved listings yet")}</p>
           <p className="text-muted-foreground text-sm max-w-xs">
             Tap the ♥ on any listing to save it here.
           </p>
@@ -848,7 +850,7 @@ export default function MarketplaceFeed() {
       ) : listings.length === 0 && soldFading.size === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
           <ShoppingBag className="w-12 h-12 text-muted-foreground/50" />
-          <p className="font-heading font-bold">Marketplace is quiet</p>
+          <p className="font-heading font-bold">{tFallback("marketplaceFeed.marketplaceIsQuiet", "Marketplace is quiet")}</p>
           <p className="text-muted-foreground text-sm max-w-xs">
             No one&apos;s listing right now — be the trendsetter.
           </p>
@@ -956,7 +958,7 @@ export default function MarketplaceFeed() {
           {visibleListings.length === 0 && soldFadeListings.length === 0 && filtersActive && (
             <div className="flex flex-col items-center justify-center py-14 gap-3 text-center">
               <SearchX className="w-10 h-10 text-muted-foreground/50" />
-              <p className="font-heading font-bold">Nothing matches those filters</p>
+              <p className="font-heading font-bold">{tFallback("marketplaceFeed.nothingMatchesThoseFilters", "Nothing matches those filters")}</p>
               <p className="text-muted-foreground text-sm max-w-xs">
                 {/* browsableListings, not viewListings: the button below
                     clears Saved too, so this has to promise what clearing

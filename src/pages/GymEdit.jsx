@@ -23,8 +23,10 @@ import { supabase } from '@/api/supabaseClient';
 import EmptyState from '@/components/EmptyState';
 import { getGym } from '@/lib/data/gymBusinesses';
 import GymEquipmentEditor from '@/components/gyms/GymEquipmentEditor';
+import { useLanguage } from '@/lib/LanguageContext';
 
 export default function GymEdit() {
+  const { tFallback } = useLanguage();
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -84,14 +86,14 @@ export default function GymEdit() {
   if (!gym) {
     return (
       <div className="max-w-2xl mx-auto p-4">
-        <EmptyState icon={Building2} title="Gym not found" body="That gym ID doesn't exist." />
+        <EmptyState icon={Building2} title={tFallback("gymEdit.gymNotFound", "Gym not found")} body="That gym ID doesn't exist." />
       </div>
     );
   }
   if (!isOwner) {
     return (
       <div className="max-w-2xl mx-auto p-4">
-        <EmptyState icon={Building2} title="Not authorized" body="Only the gym owner can edit this page." />
+        <EmptyState icon={Building2} title={tFallback("gymEdit.notAuthorized", "Not authorized")} body="Only the gym owner can edit this page." />
       </div>
     );
   }
@@ -287,7 +289,7 @@ export default function GymEdit() {
           <Building2 className="w-5 h-5 text-primary" />
         </div>
         <div>
-          <h1 className="font-heading text-2xl font-bold tracking-tight">Edit gym</h1>
+          <h1 className="font-heading text-2xl font-bold tracking-tight">{tFallback("gymEdit.editGym", "Edit gym")}</h1>
           <p className="text-sm text-muted-foreground">Customize how your gym appears to members.</p>
         </div>
       </div>
@@ -295,11 +297,11 @@ export default function GymEdit() {
       <div className="rounded-2xl border border-border bg-card p-4 space-y-4">
         {/* Cover */}
         <div>
-          <label className="block text-micro font-bold uppercase tracking-wider text-muted-foreground mb-1">Cover image</label>
+          <label className="block text-micro font-bold uppercase tracking-wider text-muted-foreground mb-1">{tFallback("gymEdit.coverImage", "Cover image")}</label>
           <div className="relative rounded-xl overflow-hidden bg-gradient-to-br from-primary/15 to-violet-500/15 aspect-[3/1] mb-2">
             {form.cover_url
               ? <img loading="lazy" src={form.cover_url} alt="" className="w-full h-full object-cover" />
-              : <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">No cover yet</div>}
+              : <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">{tFallback("gymEdit.noCoverYet", "No cover yet")}</div>}
           </div>
           <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-secondary/40 hover:bg-secondary active:bg-secondary text-xs font-bold uppercase tracking-wide cursor-pointer transition-colors">
             {uploadingCover ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
@@ -310,7 +312,7 @@ export default function GymEdit() {
 
         {/* Logo */}
         <div>
-          <label className="block text-micro font-bold uppercase tracking-wider text-muted-foreground mb-1">Logo</label>
+          <label className="block text-micro font-bold uppercase tracking-wider text-muted-foreground mb-1">{tFallback("gymEdit.logo", "Logo")}</label>
           <div className="flex items-center gap-3">
             <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center overflow-hidden shrink-0">
               {form.logo_url
@@ -337,11 +339,11 @@ export default function GymEdit() {
 
         {/* Description */}
         <div>
-          <label className="block text-micro font-bold uppercase tracking-wider text-muted-foreground mb-1">Description</label>
+          <label className="block text-micro font-bold uppercase tracking-wider text-muted-foreground mb-1">{tFallback("regimens.description", "Description")}</label>
           <Textarea
             value={form.description}
             onChange={(e) => setForm(f => ({ ...f, description: e.target.value.slice(0, 500) }))}
-            placeholder="Tell members what makes your gym special…"
+            placeholder={tFallback("gymEdit.tellMembersWhatMakes", "Tell members what makes your gym special…")}
             rows={3}
           />
           <p className="text-micro text-muted-foreground tabular-nums text-end mt-1">
@@ -352,7 +354,7 @@ export default function GymEdit() {
         {/* Contact */}
         <div className="grid grid-cols-2 gap-2">
           <div>
-            <label className="block text-micro font-bold uppercase tracking-wider text-muted-foreground mb-1">Phone</label>
+            <label className="block text-micro font-bold uppercase tracking-wider text-muted-foreground mb-1">{tFallback("gymEdit.phone", "Phone")}</label>
             <Input
               type="tel"
               inputMode="tel"
@@ -361,7 +363,7 @@ export default function GymEdit() {
             />
           </div>
           <div>
-            <label className="block text-micro font-bold uppercase tracking-wider text-muted-foreground mb-1">Website</label>
+            <label className="block text-micro font-bold uppercase tracking-wider text-muted-foreground mb-1">{tFallback("gymEdit.website", "Website")}</label>
             <Input
               type="url"
               inputMode="url"
@@ -375,7 +377,7 @@ export default function GymEdit() {
         {/* Geo */}
         <div className="rounded-xl border border-dashed border-border p-3">
           <div className="flex items-center justify-between gap-2 mb-2">
-            <p className="text-micro font-bold uppercase tracking-wider text-muted-foreground">Map pin</p>
+            <p className="text-micro font-bold uppercase tracking-wider text-muted-foreground">{tFallback("gymEdit.mapPin", "Map pin")}</p>
             <button
               type="button"
               onClick={captureLocation}
@@ -391,13 +393,13 @@ export default function GymEdit() {
               type="number" inputMode="decimal" step="0.000001"
               value={form.latitude}
               onChange={(e) => setForm(f => ({ ...f, latitude: e.target.value }))}
-              placeholder="Latitude"
+              placeholder={tFallback("gymEdit.latitude", "Latitude")}
             />
             <Input
               type="number" inputMode="decimal" step="0.000001"
               value={form.longitude}
               onChange={(e) => setForm(f => ({ ...f, longitude: e.target.value }))}
-              placeholder="Longitude"
+              placeholder={tFallback("gymEdit.longitude", "Longitude")}
             />
           </div>
         </div>
@@ -449,6 +451,7 @@ const DAY_ORDER = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 const DAY_LABEL = { mon: 'Mon', tue: 'Tue', wed: 'Wed', thu: 'Thu', fri: 'Fri', sat: 'Sat', sun: 'Sun' };
 
 function HoursEditor({ value, onChange }) {
+  const { tFallback } = useLanguage();
   const updateDay = (key, field, val) => {
     const next = { ...(value || {}) };
     const slot = { ...(next[key] || {}) };
@@ -517,6 +520,7 @@ function HoursEditor({ value, onChange }) {
 
 // ── Amenities editor ────────────────────────────────────────────────
 function AmenitiesEditor({ value, onChange }) {
+  const { tFallback } = useLanguage();
   const selected = new Set(value || []);
   const toggle = (slug) => {
     const next = new Set(selected);
@@ -558,6 +562,7 @@ function AmenitiesEditor({ value, onChange }) {
 const MAX_GALLERY_PHOTOS = 10;
 
 function PhotoGalleryEditor({ gymId, value, onChange, uploading, setUploading, uploadFn }) {
+  const { tFallback } = useLanguage();
   const handlePick = async (e) => {
     const file = e.target.files?.[0];
     e.target.value = '';
@@ -601,7 +606,7 @@ function PhotoGalleryEditor({ gymId, value, onChange, uploading, setUploading, u
                 type="button"
                 onClick={() => handleRemove(url)}
                 className="absolute top-1 end-1 w-6 h-6 rounded-full bg-black/65 text-white flex items-center justify-center"
-                aria-label="Remove photo"
+                aria-label={tFallback("gymEdit.removePhoto", "Remove photo")}
               >
                 <X className="w-3 h-3" />
               </button>

@@ -35,6 +35,7 @@ import { errorToast } from '@/lib/errorToast';
 import { reportError } from '@/lib/reportError';
 import PageHeader from '@/components/PageHeader';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useLanguage } from '@/lib/LanguageContext';
 
 const CONTENT_TABS = [
   { id: 'pending',   label: 'Pending' },
@@ -71,6 +72,7 @@ const REASON_LABEL = {
 };
 
 export default function AdminReports() {
+  const { tFallback } = useLanguage();
   const { user } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -195,7 +197,7 @@ export default function AdminReports() {
     return (
       <div className="p-6 max-w-md mx-auto text-center">
         <AlertTriangle className="w-10 h-10 text-amber-500 mx-auto mb-3" />
-        <h1 className="font-heading font-bold text-lg">Admin only</h1>
+        <h1 className="font-heading font-bold text-lg">{tFallback("adminReports.adminOnly", "Admin only")}</h1>
         <p className="text-sm text-muted-foreground mt-2">
           This page is restricted to app moderators.
         </p>
@@ -225,7 +227,7 @@ export default function AdminReports() {
 
       <PageHeader
         kicker="Moderation"
-        title="Report queue"
+        title={tFallback("adminReports.reportQueue", "Report queue")}
         icon={ShieldAlert}
         hidePeriod
       />
@@ -324,13 +326,14 @@ export default function AdminReports() {
       )}
 
       <div className="text-xs text-muted-foreground mt-6">
-        Showing up to 50 reports. <button onClick={() => refetch()} className="underline">Refresh</button>
+        Showing up to 50 reports. <button onClick={() => refetch()} className="underline">{tFallback("adminReports.refresh", "Refresh")}</button>
       </div>
     </motion.div>
   );
 }
 
 function ReportRow({ report, isPending, busy, onResolve, onDelete }) {
+  const { tFallback } = useLanguage();
   return (
     <motion.li
       initial={{ opacity: 0, y: 8 }}
@@ -425,6 +428,7 @@ const MACRO_ORDER = [
 ];
 
 function FoodRequestRow({ request, isPending, busy, onApprove, onReject }) {
+  const { tFallback } = useLanguage();
   const n = request.nutrition && typeof request.nutrition === 'object' ? request.nutrition : {};
   const v = request.vitamins && typeof request.vitamins === 'object' ? request.vitamins : {};
   const macros = MACRO_ORDER.filter(([k]) => n[k] != null);
@@ -530,6 +534,7 @@ function FoodRequestRow({ request, isPending, busy, onApprove, onReject }) {
 }
 
 function BugReportRow({ report, isPending, busy, onResolve }) {
+  const { tFallback } = useLanguage();
   return (
     <motion.li
       initial={{ opacity: 0, y: 8 }}

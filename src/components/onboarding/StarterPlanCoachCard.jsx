@@ -34,6 +34,7 @@ import React from 'react';
 import { Sparkles } from 'lucide-react';
 import StarterPlanView from '@/components/workout/StarterPlanView';
 import { parseBoldSegments } from '@/lib/aiCoach/markdownLite';
+import { useLanguage } from '@/lib/LanguageContext';
 
 /** The coach's prose. Supports the one construct the app renders: **bold**. */
 function CoachProse({ text }) {
@@ -56,6 +57,7 @@ function CoachProse({ text }) {
  * @param {string|null} coachReply  the model's intro, or null on any fallback
  */
 export default function StarterPlanCoachCard({ regimen, coachReply = null }) {
+  const { tFallback } = useLanguage();
   return (
     <div className="rounded-2xl border border-primary/25 bg-primary/[0.04] p-2.5 space-y-2.5">
       <div className="flex items-center gap-2.5 px-1 pt-0.5">
@@ -63,7 +65,7 @@ export default function StarterPlanCoachCard({ regimen, coachReply = null }) {
           <Sparkles className="w-4 h-4 text-primary" strokeWidth={2.2} />
         </span>
         <span className="flex-1 min-w-0">
-          <span className="block font-heading font-bold text-label leading-tight">AI Coach</span>
+          <span className="block font-heading font-bold text-label leading-tight">{tFallback("hub.coach.title", "AI Coach")}</span>
           <span className="block text-micro text-muted-foreground leading-tight">
             {coachReply
               ? 'Your starter plan, built around your answers'

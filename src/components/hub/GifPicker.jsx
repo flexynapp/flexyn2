@@ -11,6 +11,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { X, Loader2, Search } from 'lucide-react';
+import { useLanguage } from '@/lib/LanguageContext';
 
 const TENOR_KEY = import.meta.env.VITE_TENOR_API_KEY || '';
 
@@ -23,6 +24,7 @@ const searchUrl = (q) =>
   `https://tenor.googleapis.com/v2/search?q=${encodeURIComponent(q)}&key=${TENOR_KEY}&limit=24&media_filter=gif,tinygif`;
 
 export default function GifPicker({ open, onPick, onClose }) {
+  const { tFallback } = useLanguage();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -69,8 +71,8 @@ export default function GifPicker({ open, onPick, onClose }) {
       style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}
     >
       <div className="flex items-center justify-between px-4 pt-3 pb-2">
-        <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">GIFs</span>
-        <button onClick={onClose} className="relative before:absolute before:content-[''] before:-inset-2.5 w-7 h-7 rounded-full bg-secondary text-muted-foreground flex items-center justify-center" aria-label="Close">
+        <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">{tFallback("gifPicker.gifs", "GIFs")}</span>
+        <button onClick={onClose} className="relative before:absolute before:content-[''] before:-inset-2.5 w-7 h-7 rounded-full bg-secondary text-muted-foreground flex items-center justify-center" aria-label={tFallback("common.close", "Close")}>
           <X className="w-3.5 h-3.5" />
         </button>
       </div>
@@ -81,14 +83,14 @@ export default function GifPicker({ open, onPick, onClose }) {
             autoFocus
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search Tenor…"
+            placeholder={tFallback("gifPicker.searchTenor", "Search Tenor…")}
             className="flex-1 bg-transparent text-sm outline-none placeholder-muted-foreground/60"
           />
         </div>
       </div>
       {error === 'missing_key' ? (
         <div className="px-4 pb-6 text-center">
-          <p className="text-sm font-bold">GIF search unavailable</p>
+          <p className="text-sm font-bold">{tFallback("gifPicker.gifSearchUnavailable", "GIF search unavailable")}</p>
           <p className="text-xs text-muted-foreground mt-1">
             Set VITE_TENOR_API_KEY in the build env to enable Tenor.
           </p>
@@ -99,7 +101,7 @@ export default function GifPicker({ open, onPick, onClose }) {
         </div>
       ) : error ? (
         <div className="px-4 pb-6 text-center">
-          <p className="text-sm font-bold">Couldn't load GIFs</p>
+          <p className="text-sm font-bold">{tFallback("gifPicker.couldnTLoadGifs", "Couldn't load GIFs")}</p>
           <p className="text-xs text-muted-foreground mt-1">Try again in a moment.</p>
         </div>
       ) : (
@@ -116,7 +118,7 @@ export default function GifPicker({ open, onPick, onClose }) {
           ))}
         </div>
       )}
-      <p className="text-micro text-muted-foreground text-center pb-1">Powered by Tenor</p>
+      <p className="text-micro text-muted-foreground text-center pb-1">{tFallback("gifPicker.poweredByTenor", "Powered by Tenor")}</p>
     </motion.div>
   );
 }

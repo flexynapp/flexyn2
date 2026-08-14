@@ -15,6 +15,7 @@ import { reportError } from '@/lib/reportError';
 import { useNumberFormatter } from '@/lib/intl';
 
 function ScoreBar({ myScore, theirScore }) {
+  const { tFallback } = useLanguage();
   const fmt = useNumberFormatter();
   const total = myScore + theirScore || 1;
   const myPct = Math.round((myScore / total) * 100);
@@ -33,8 +34,8 @@ function ScoreBar({ myScore, theirScore }) {
         />
       </div>
       <div className="flex justify-between text-xs text-muted-foreground">
-        <span>Your Crew</span>
-        <span>Rival Crew</span>
+        <span>{tFallback("crewWarPanel.yourCrew", "Your Crew")}</span>
+        <span>{tFallback("crewWarPanel.rivalCrew", "Rival Crew")}</span>
       </div>
     </div>
   );
@@ -79,6 +80,7 @@ function ContribRow({ rank, row, isCurrentUser, isMvp }) {
 // Where the points actually came from, for the viewer's own crew. Text
 // only — the metric name, how it's weighted, and what it produced.
 function MetricBreakdown({ totals, myCrewId }) {
+  const { tFallback } = useLanguage();
   const fmt  = useNumberFormatter();
   const mine = (totals || []).find(t => t.crew_id === myCrewId);
   if (!mine) return null;
@@ -96,7 +98,7 @@ function MetricBreakdown({ totals, myCrewId }) {
 
   return (
     <div>
-      <p className="text-xs font-semibold mb-1">Where your points came from</p>
+      <p className="text-xs font-semibold mb-1">{tFallback("crewWarPanel.whereYourPointsCameFrom", "Where your points came from")}</p>
       {lines.map(l => (
         <div key={l.label} className="flex items-center gap-2 py-1 text-xs">
           <span className="flex-1 text-muted-foreground">

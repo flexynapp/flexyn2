@@ -26,6 +26,7 @@ import {
 } from '@/lib/data/nutritionRecipes';
 import { db } from '@/api/db';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { useLanguage } from '@/lib/LanguageContext';
 
 // Factory rather than module-level shared object so each row gets a
 // fresh reference — eliminates a class of subtle aliasing bugs and
@@ -68,6 +69,7 @@ function NumField({ caption, value, onChange, max, className = '' }) {
 }
 
 export default function RecipeBuilderModal({ open, onClose, editingRecipe = null, seedRecipe = null }) {
+  const { tFallback } = useLanguage();
   // Pin the page behind this overlay — see @/lib/scrollLock.
   useBodyScrollLock(open);
   const { user } = useAuth();
@@ -257,7 +259,7 @@ export default function RecipeBuilderModal({ open, onClose, editingRecipe = null
             <h2 className="font-heading font-bold text-base flex items-center gap-2">
               <ChefHat className="w-4 h-4" /> {editingRecipe ? 'Edit recipe' : 'New recipe'}
             </h2>
-            <button onClick={onClose} aria-label="Close" className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center">
+            <button onClick={onClose} aria-label={tFallback("common.close", "Close")} className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center">
               <X className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -265,9 +267,9 @@ export default function RecipeBuilderModal({ open, onClose, editingRecipe = null
             <Input
               value={name}
               onChange={(e) => setName(e.target.value.slice(0, 60))}
-              placeholder="Recipe name"
+              placeholder={tFallback("recipeBuilderModal.recipeName", "Recipe name")}
               maxLength={60}
-              aria-label="Recipe name"
+              aria-label={tFallback("recipeBuilderModal.recipeName", "Recipe name")}
               className="h-10 text-base"
             />
             {/* Stepper AND field. The stepper is the common case — servings is
@@ -279,7 +281,7 @@ export default function RecipeBuilderModal({ open, onClose, editingRecipe = null
               <button
                 type="button"
                 onClick={() => setServings((s) => String(Math.max(1, (Number(s) || 1) - 0.5)))}
-                aria-label="Fewer servings"
+                aria-label={tFallback("recipeBuilderModal.fewerServings", "Fewer servings")}
                 className="w-10 h-10 shrink-0 rounded-md border border-input bg-background text-base font-bold"
               >
                 –
@@ -288,13 +290,13 @@ export default function RecipeBuilderModal({ open, onClose, editingRecipe = null
                 type="number" inputMode="decimal" min="1" max="99" step="0.5"
                 value={servings}
                 onChange={(e) => setServings(clampRecipeNumber(e.target.value, 99))}
-                aria-label="Servings"
+                aria-label={tFallback("nutrition.form.servings", "Servings")}
                 className="w-14 h-10 text-base text-center px-1"
               />
               <button
                 type="button"
                 onClick={() => setServings((s) => String(Math.min(99, (Number(s) || 1) + 0.5)))}
-                aria-label="More servings"
+                aria-label={tFallback("recipeBuilderModal.moreServings", "More servings")}
                 className="w-10 h-10 shrink-0 rounded-md border border-input bg-background text-base font-bold"
               >
                 +
@@ -359,12 +361,12 @@ export default function RecipeBuilderModal({ open, onClose, editingRecipe = null
                     <Input
                       value={ing.name}
                       onChange={(e) => updateIngredient(i, { name: e.target.value })}
-                      placeholder="Ingredient"
+                      placeholder={tFallback("recipeBuilderModal.ingredient", "Ingredient")}
                       className="h-8 text-base flex-1"
                     />
                     <button
                       onClick={() => removeIngredient(i)}
-                      aria-label="Remove ingredient"
+                      aria-label={tFallback("recipeBuilderModal.removeIngredient", "Remove ingredient")}
                       className="w-8 h-8 shrink-0 rounded-md text-muted-foreground hover:text-destructive active:text-destructive hover:bg-destructive/10 active:bg-destructive/10 flex items-center justify-center disabled:opacity-40"
                       disabled={ingredients.length === 1}
                     >
@@ -384,7 +386,7 @@ export default function RecipeBuilderModal({ open, onClose, editingRecipe = null
                         <select
                           value={recipes.normalizeUnit(ing.unit)}
                           onChange={(e) => updateIngredient(i, { unit: e.target.value })}
-                          aria-label="Unit"
+                          aria-label={tFallback("nutrition.unit", "Unit")}
                           className="h-8 rounded-md border border-input bg-background text-label px-1 shrink-0"
                         >
                           {INGREDIENT_UNITS.map(u => (
@@ -426,11 +428,11 @@ export default function RecipeBuilderModal({ open, onClose, editingRecipe = null
             {finishOpen && (
             <>
             {/* Directions */}
-            <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground mt-2 mb-1">Directions</p>
+            <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground mt-2 mb-1">{tFallback("recipeBuilderModal.directions", "Directions")}</p>
             <textarea
               value={directions}
               onChange={(e) => setDirections(e.target.value.slice(0, 4000))}
-              placeholder="Step 1: …&#10;Step 2: …"
+              placeholder={tFallback("recipeBuilderModal.step110Step2", "Step 1: …&#10;Step 2: …")}
               rows={3}
               className="w-full rounded-md border border-input bg-background text-base p-2 resize-y min-h-[64px]"
             />
@@ -451,7 +453,7 @@ export default function RecipeBuilderModal({ open, onClose, editingRecipe = null
                     <Input
                       value={m.label}
                       onChange={(e) => updateMicro(i, { label: e.target.value })}
-                      placeholder="Nutrient"
+                      placeholder={tFallback("recipeBuilderModal.nutrient", "Nutrient")}
                       readOnly={!m.custom}
                       className={`h-8 text-base flex-1 ${!m.custom ? 'bg-secondary/40' : ''}`}
                     />
@@ -464,14 +466,14 @@ export default function RecipeBuilderModal({ open, onClose, editingRecipe = null
                     <select
                       value={m.unit}
                       onChange={(e) => updateMicro(i, { unit: e.target.value })}
-                      aria-label="Nutrient unit"
+                      aria-label={tFallback("recipeBuilderModal.nutrientUnit", "Nutrient unit")}
                       className="h-8 rounded-md border border-input bg-background text-label px-1"
                     >
                       {MICRO_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
                     </select>
                     <button
                       onClick={() => removeMicro(i)}
-                      aria-label="Remove nutrient"
+                      aria-label={tFallback("recipeBuilderModal.removeNutrient", "Remove nutrient")}
                       className="w-8 h-8 shrink-0 rounded-md text-muted-foreground hover:text-destructive active:text-destructive hover:bg-destructive/10 active:bg-destructive/10 flex items-center justify-center"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
@@ -503,7 +505,7 @@ export default function RecipeBuilderModal({ open, onClose, editingRecipe = null
             )}
 
             {/* Live totals — pure compute via sumIngredients */}
-            <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground mt-4 mb-1">Recipe total</p>
+            <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground mt-4 mb-1">{tFallback("recipeBuilderModal.recipeTotal", "Recipe total")}</p>
             <div className="p-3 rounded-lg bg-secondary/40 grid grid-cols-4 gap-2 text-center">
               {[
                 { k: 'calories',   l: 'cal', unit: '',  txt: 'text-orange-500' },

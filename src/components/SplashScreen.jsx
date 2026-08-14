@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { useLanguage } from '@/lib/LanguageContext';
 
 /**
  * Flexyn opening animation — full "App Opener" design.
@@ -211,6 +212,7 @@ export default function SplashScreen({
   background = "#3F4D5A",
   drawMs = 1600,
 }) {
+  const { tFallback } = useLanguage();
   const doneRef = useRef(false);
 
   const prefersReduced =
@@ -235,7 +237,7 @@ export default function SplashScreen({
   return (
     <div
       role="img"
-      aria-label="Flexyn"
+      aria-label={tFallback("app.name", "Flexyn")}
       style={{ position: "fixed", inset: 0, zIndex: 9999, background, overflow: "hidden" }}
     >
       <style dangerouslySetInnerHTML={{ __html: CSS }} />

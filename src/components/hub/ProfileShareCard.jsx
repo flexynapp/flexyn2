@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Download, Share2, Loader2 } from 'lucide-react';
 import { loadTwemoji } from '@/lib/twemoji';
 import { format } from 'date-fns';
+import { useLanguage } from '@/lib/LanguageContext';
 
 const CANVAS_W = 1080;
 const CANVAS_H = 1080;
@@ -171,6 +172,7 @@ function drawCard(ctx, { username, topLifts, tonnage, streak, recentWorkouts, un
 }
 
 export default function ProfileShareCard({ open, onClose, profile }) {
+  const { tFallback } = useLanguage();
   const canvasRef = useRef(null);
   const [imgUrl, setImgUrl] = useState(null);
   const [busy, setBusy]   = useState(false);
@@ -253,7 +255,7 @@ export default function ProfileShareCard({ open, onClose, profile }) {
       <DialogContent className="max-w-md max-h-[92vh] overflow-y-auto p-0 gap-0">
         <div className="p-5">
           <DialogHeader className="mb-3">
-            <DialogTitle>Share your athlete card</DialogTitle>
+            <DialogTitle>{tFallback("profileShareCard.shareYourAthleteCard", "Share your athlete card")}</DialogTitle>
           </DialogHeader>
           <canvas
             ref={canvasRef}
@@ -268,7 +270,7 @@ export default function ProfileShareCard({ open, onClose, profile }) {
                 animate={{ opacity: 1, scale: 1 }}
                 className="rounded-2xl overflow-hidden border border-border shadow-md mb-4"
               >
-                <img loading="lazy" src={imgUrl} alt="Profile card" className="w-full block" />
+                <img loading="lazy" src={imgUrl} alt={tFallback("profileShareCard.profileCard", "Profile card")} className="w-full block" />
               </motion.div>
             ) : (
               <div className="aspect-square rounded-2xl bg-muted flex items-center justify-center mb-4">

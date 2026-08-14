@@ -16,6 +16,7 @@ import { selectProfiles } from '@/lib/data/users';
 import { useAuth } from '@/lib/AuthContext';
 import { toast } from '@/lib/toast';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { useLanguage } from '@/lib/LanguageContext';
 
 // ── Duel type config ──────────────────────────────────────────────────────────
 
@@ -144,6 +145,7 @@ export default function CreateDuelModal({
   onClose,
   onCreated,
 }) {
+  const { tFallback } = useLanguage();
   const { user } = useAuth();
   // Pin the page behind this overlay — see @/lib/scrollLock.
   useBodyScrollLock();
@@ -227,7 +229,7 @@ export default function CreateDuelModal({
       onCreated?.(duel);
       onClose();
     } catch (err) {
-      toast.error('Failed to send challenge', { description: err.message });
+      toast.error(tFallback("createDuelModal.failedToSendChallenge", "Failed to send challenge"), { description: err.message });
     } finally {
       setLoading(false);
       quickSendRef.current = false;
@@ -257,7 +259,7 @@ export default function CreateDuelModal({
       onCreated?.(duel);
       onClose();
     } catch (err) {
-      toast.error('Failed to send challenge', { description: err.message });
+      toast.error(tFallback("createDuelModal.failedToSendChallenge", "Failed to send challenge"), { description: err.message });
     } finally {
       setLoading(false);
       createRef.current = false;
@@ -323,7 +325,7 @@ export default function CreateDuelModal({
                   <input
                     autoFocus
                     type="text"
-                    placeholder="Search @username…"
+                    placeholder={tFallback("createDuelModal.searchUsername", "Search @username…")}
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     className="w-full ps-9 pe-4 py-2.5 rounded-xl bg-secondary border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500/40"
@@ -378,7 +380,7 @@ export default function CreateDuelModal({
                   ) : (
                     <div className="py-10 text-center">
                       <Search className="w-8 h-8 text-muted-foreground/20 mx-auto mb-2" />
-                      <p className="text-xs text-muted-foreground">Search for someone to challenge</p>
+                      <p className="text-xs text-muted-foreground">{tFallback("createDuelModal.searchForSomeoneToChallenge", "Search for someone to challenge")}</p>
                     </div>
                   )
                 )}
@@ -397,7 +399,7 @@ export default function CreateDuelModal({
             >
               {/* Duel type */}
               <div className="space-y-2">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Duel Type</p>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{tFallback("createDuelModal.duelType", "Duel Type")}</p>
                 {DUEL_TYPES.map(({ id, label, icon: Icon, activeBg, idleBg, color, description }) => {
                   const active = selectedType === id;
                   return (
@@ -421,7 +423,7 @@ export default function CreateDuelModal({
               {/* Mirror template */}
               {selectedType === 'mirror' && (
                 <div className="rounded-xl bg-secondary/50 border border-border p-3">
-                  <p className="text-xs font-semibold text-muted-foreground mb-1">Session Template</p>
+                  <p className="text-xs font-semibold text-muted-foreground mb-1">{tFallback("createDuelModal.sessionTemplate", "Session Template")}</p>
                   {recentSession ? (
                     <p className="text-sm font-medium">{recentSession.regimen_name || 'Your last workout'}</p>
                   ) : (
@@ -432,7 +434,7 @@ export default function CreateDuelModal({
 
               {/* Time window */}
               <div>
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Time Window</p>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">{tFallback("createDuelModal.timeWindow", "Time Window")}</p>
                 <div className="flex gap-2">
                   {[12, 24, 48, 72].map(h => (
                     <button

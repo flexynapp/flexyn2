@@ -30,6 +30,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import maplibregl from 'maplibre-gl';
+import { useLanguage } from '@/lib/LanguageContext';
 // maplibre-gl/dist/maplibre-gl.css is imported globally in main.jsx
 
 // Tile source resolution — two providers, picked at build time:
@@ -71,6 +72,7 @@ function getPrimaryColor() {
 }
 
 export default function RouteMap({ track, height = 240, interactive = true }) {
+  const { tFallback } = useLanguage();
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   // Controls the expanded state of the custom attribution overlay.
@@ -344,7 +346,7 @@ export default function RouteMap({ track, height = 240, interactive = true }) {
         <button
           type="button"
           onClick={() => setAttribOpen((v) => !v)}
-          aria-label="Map data attribution"
+          aria-label={tFallback("routeMap.mapDataAttribution", "Map data attribution")}
           className="pointer-events-auto w-[18px] h-[18px] rounded-full bg-white/85 dark:bg-black/70 backdrop-blur-sm text-gray-700 dark:text-gray-200 text-micro font-bold flex items-center justify-center hover:bg-white dark:hover:bg-black dark:active:bg-black transition-colors shadow-sm"
           style={{ fontFamily: 'system-ui, sans-serif' }}
         >

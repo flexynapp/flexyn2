@@ -24,6 +24,7 @@ import {
   computeProgress,
   formatCountdown,
 } from '@/lib/fastingWindow';
+import { useLanguage } from '@/lib/LanguageContext';
 
 const PRESETS = [
   { id: '16:8',  hours: 16, label: '16:8',  desc: 'Most popular' },
@@ -66,6 +67,7 @@ function FastWindowDial({ eatingHours, className = 'w-5 h-5' }) {
 }
 
 export default function FastingTrackerCard() {
+  const { tFallback } = useLanguage();
   const { user } = useAuth();
   const [state, setState] = useState(() => readState(user?.email));
   const [, tick] = useState(0);
@@ -105,7 +107,7 @@ export default function FastingTrackerCard() {
       <div className="rounded-2xl border border-border bg-card p-4">
         <div className="flex items-center gap-2 mb-2">
           <Hourglass className="w-4 h-4 shrink-0 text-primary" />
-          <h3 className="font-heading font-bold text-sm">Intermittent fasting</h3>
+          <h3 className="font-heading font-bold text-sm">{tFallback("fastingTrackerCard.intermittentFasting", "Intermittent fasting")}</h3>
         </div>
         <p className="text-xs text-muted-foreground mb-3">
           Pick a preset or set your own duration — tracks your eating window without nagging.
@@ -140,7 +142,7 @@ export default function FastingTrackerCard() {
             onChange={e => setCustomHours(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') handleStartCustom(); }}
             className="flex-1 min-w-0 h-8 rounded-md border border-border bg-secondary/30 px-2 text-sm tabular-nums focus:outline-none focus:border-primary/50"
-            aria-label="Custom fasting hours"
+            aria-label={tFallback("fastingTrackerCard.customFastingHours", "Custom fasting hours")}
           />
           <button
             type="button"

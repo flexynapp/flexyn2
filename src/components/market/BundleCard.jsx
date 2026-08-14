@@ -9,6 +9,7 @@ import { displayName } from '@/lib/userDisplay';
 import { listItemMotion } from '@/lib/listMotion';
 import { useNumberFormatter } from '@/lib/intl';
 import { RarityBadge, CoinAmount } from '@/components/loot/RarityVisuals';
+import { useLanguage } from '@/lib/LanguageContext';
 
 /**
  * What a bundle costs, mirroring purchase_bundle (mig 134).
@@ -36,6 +37,7 @@ export function bundlePrice(bundle, rows) {
 export default function BundleCard({
   bundle, listings, currentUser, flexCoins, onBuyBundle, onCancelBundle,
 }) {
+  const { tFallback } = useLanguage();
   const fmt = useNumberFormatter();
   // seller_user_id, not seller_email — the same guest hole ListingCard and
   // ItemDetailSheet both document and fixed. create_marketplace_listing

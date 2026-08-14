@@ -21,6 +21,7 @@ import { Input } from '@/components/ui/input';
 import { useKeyboardInset } from '@/hooks/useKeyboardInset';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { MACRO_ORDER, MICRO_ORDER } from '@/lib/macroColors';
+import { useLanguage } from '@/lib/LanguageContext';
 
 /** "a", "a & b", "a, b & c" — the hint names only the tiles that survived. */
 const listPhrase = (parts) =>
@@ -58,6 +59,7 @@ function Tile({ label, value, unit, color = 'text-foreground', tint = 'bg-second
 }
 
 export default function PhotoMealResultModal({ open, imageUrl, result, saving, onClose, onSave, readOnly = false, onDelete, onLogAgain }) {
+  const { tFallback } = useLanguage();
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState('');
   const [vals, setVals] = useState({});
@@ -223,10 +225,10 @@ export default function PhotoMealResultModal({ open, imageUrl, result, saving, o
             style={imageUrl ? undefined : { background: 'linear-gradient(135deg, hsl(24 90% 55% / 0.45), hsl(265 70% 55% / 0.4))' }}
           >
             {imageUrl
-              ? <img src={imageUrl} alt="Your meal" className="w-full h-full object-cover" />
+              ? <img src={imageUrl} alt={tFallback("photoMealResultModal.yourMeal", "Your meal")} className="w-full h-full object-cover" />
               : <div className="w-full h-full flex items-center justify-center text-white/60"><Utensils className="w-10 h-10" /></div>}
             <div className={`absolute inset-0 bg-gradient-to-t ${imageUrl ? 'from-black/75 via-black/10 to-black/20' : 'from-black/50 via-transparent to-black/10'}`} />
-            <button onClick={onClose} aria-label="Close" className="absolute top-3 end-3 w-8 h-8 rounded-full bg-black/50 text-white flex items-center justify-center">
+            <button onClick={onClose} aria-label={tFallback("common.close", "Close")} className="absolute top-3 end-3 w-8 h-8 rounded-full bg-black/50 text-white flex items-center justify-center">
               <X className="w-4 h-4" />
             </button>
             {/* Photo-AI badge — hidden on the read-only detail view of a
@@ -235,7 +237,7 @@ export default function PhotoMealResultModal({ open, imageUrl, result, saving, o
             {(!readOnly || imageUrl) && (
               <div className="absolute top-3 start-3 flex items-center gap-1.5 rounded-full bg-black/50 px-2.5 py-1">
                 <Sparkles className="w-3 h-3 text-white" />
-                <span className="text-micro font-bold uppercase tracking-wide text-white">Photo-AI</span>
+                <span className="text-micro font-bold uppercase tracking-wide text-white">{tFallback("photoMealResultModal.photoAi", "Photo-AI")}</span>
               </div>
             )}
             <div className="absolute bottom-0 inset-x-0 p-3">
@@ -244,7 +246,7 @@ export default function PhotoMealResultModal({ open, imageUrl, result, saving, o
                   value={name}
                   onChange={(e) => setName(e.target.value.slice(0, 80))}
                   className="h-9 text-base font-semibold bg-white/95"
-                  placeholder="Meal name"
+                  placeholder={tFallback("photoMealResultModal.mealName", "Meal name")}
                 />
               ) : (
                 <h2 className="font-heading font-bold text-white text-lg leading-tight drop-shadow">{name}</h2>
@@ -336,7 +338,7 @@ export default function PhotoMealResultModal({ open, imageUrl, result, saving, o
                 you can add/remove ingredients; the core macros re-total live. */}
             {(editing || editItems.length > 0) && (
               <div className="px-4 pt-4">
-                <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground mb-1.5">Ingredients</p>
+                <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground mb-1.5">{tFallback("photoMealResultModal.ingredients", "Ingredients")}</p>
 
                 {editing ? (
                   <div className="space-y-2">
@@ -346,13 +348,13 @@ export default function PhotoMealResultModal({ open, imageUrl, result, saving, o
                           <Input
                             value={it.name}
                             onChange={(e) => updateItem(i, 'name', e.target.value.slice(0, 60))}
-                            placeholder="Ingredient name"
+                            placeholder={tFallback("photoMealResultModal.ingredientName", "Ingredient name")}
                             className="h-8 flex-1 text-sm"
                           />
                           <button
                             type="button"
                             onClick={() => removeItem(i)}
-                            aria-label="Remove ingredient"
+                            aria-label={tFallback("photoMealResultModal.removeIngredient", "Remove ingredient")}
                             className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center shrink-0"
                           >
                             <X className="w-3.5 h-3.5" />

@@ -32,6 +32,7 @@ import {
   ChevronRight, TrendingUp,
 } from 'lucide-react';
 import { supabase } from '@/api/supabaseClient';
+import { useLanguage } from '@/lib/LanguageContext';
 
 // ── Data fetcher ────────────────────────────────────────────────────
 async function fetchLeaderboard() {
@@ -138,6 +139,7 @@ function LeaderboardRow({ entry, maxScore, isAuthed, onGymPress, delay }) {
 
 // ── Main export ─────────────────────────────────────────────────────
 export default function GymLeaderboard({ isAuthed = false, onGymPress }) {
+  const { tFallback } = useLanguage();
   const { data: rows = [], isLoading, error, dataUpdatedAt } = useQuery({
     queryKey: ['gymVsGymLeaderboard'],
     queryFn: fetchLeaderboard,
@@ -173,7 +175,7 @@ export default function GymLeaderboard({ isAuthed = false, onGymPress }) {
       <div className="flex-1 flex flex-col items-center justify-center gap-3 py-16 px-6 text-center">
         <Trophy className="w-10 h-10 text-muted-foreground/50" />
         <div>
-          <p className="font-heading font-bold">No gyms ranked yet</p>
+          <p className="font-heading font-bold">{tFallback("gymLeaderboard.noGymsRankedYet", "No gyms ranked yet")}</p>
           <p className="text-sm text-muted-foreground mt-1">
             A gym joins the board once five of its members are on Flexyn — that&apos;s
             the point where a week of training says something about the gym rather
@@ -191,7 +193,7 @@ export default function GymLeaderboard({ isAuthed = false, onGymPress }) {
         <div className="flex items-center gap-2">
           <Trophy className="w-4 h-4 text-yellow-500" />
           <div>
-            <p className="font-heading font-bold text-sm">Gym Leaderboard</p>
+            <p className="font-heading font-bold text-sm">{tFallback("gymLeaderboard.gymLeaderboard", "Gym Leaderboard")}</p>
             <p className="text-micro text-muted-foreground">Last 7 days · {rows.length} gyms ranked</p>
           </div>
         </div>

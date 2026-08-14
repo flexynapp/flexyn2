@@ -10,8 +10,10 @@
 import React, { useEffect, useState } from 'react';
 import { Clock } from 'lucide-react';
 import { elapsedSeconds, formatElapsed } from '@/lib/elapsedClock';
+import { useLanguage } from '@/lib/LanguageContext';
 
 export default function WorkoutElapsedChip({ startedAt }) {
+  const { tFallback } = useLanguage();
   const [, tick] = useState(0);
   useEffect(() => {
     if (!startedAt) return undefined;
@@ -25,7 +27,7 @@ export default function WorkoutElapsedChip({ startedAt }) {
     <span
       className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-bold tabular-nums"
       role="timer"
-      aria-label="Workout elapsed time"
+      aria-label={tFallback("workoutElapsedChip.workoutElapsedTime", "Workout elapsed time")}
     >
       <Clock className="w-3 h-3" />
       {formatElapsed(sec)}

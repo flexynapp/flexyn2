@@ -23,6 +23,7 @@ import { useAuth } from '@/lib/AuthContext';
 import * as capsules from '@/lib/data/capsules';
 import { computePity } from '@/lib/pity';
 import { rarityTint } from '@/components/loot/RarityVisuals';
+import { useLanguage } from '@/lib/LanguageContext';
 
 function PityBar({ label, value, max, color }) {
   const pct = max > 0 ? Math.min(100, Math.round((value / max) * 100)) : 0;
@@ -49,6 +50,7 @@ function PityBar({ label, value, max, color }) {
 }
 
 export default function CapsuleStreak() {
+  const { tFallback } = useLanguage();
   const { user } = useAuth();
 
   const { data: pity } = useQuery({
@@ -80,7 +82,7 @@ export default function CapsuleStreak() {
     <div className="rounded-lg bg-secondary/50 border border-border px-3 py-2 flex flex-col gap-2">
       <div className="flex items-center gap-1.5">
         <History className="w-3 h-3 text-muted-foreground" aria-hidden="true" />
-        <span className="text-micro font-bold uppercase tracking-wide">Your progress</span>
+        <span className="text-micro font-bold uppercase tracking-wide">{tFallback("capsuleStreak.yourProgress", "Your progress")}</span>
       </div>
 
       <PityBar

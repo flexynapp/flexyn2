@@ -23,6 +23,7 @@ import {
   submitVerification,
   listMyVerifications,
 } from '@/lib/data/gymBusinesses';
+import { useLanguage } from '@/lib/LanguageContext';
 
 const STATUS_META = {
   pending:  { color: 'text-amber-500',   label: 'Under review',  Icon: Loader2 },
@@ -31,6 +32,7 @@ const STATUS_META = {
 };
 
 export default function RegisterGym() {
+  const { tFallback } = useLanguage();
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -180,7 +182,7 @@ export default function RegisterGym() {
           <Building2 className="w-5 h-5 text-primary" />
         </div>
         <div>
-          <h1 className="font-heading text-2xl font-bold tracking-tight">Register your gym</h1>
+          <h1 className="font-heading text-2xl font-bold tracking-tight">{tFallback("registerGym.registerYourGym", "Register your gym")}</h1>
           <p className="text-sm text-muted-foreground">
             Get your physical location on Flexyn. We review every submission.
           </p>
@@ -234,7 +236,7 @@ export default function RegisterGym() {
           <Input
             value={form.street_address}
             onChange={(e) => setForm(f => ({ ...f, street_address: e.target.value }))}
-            placeholder="123 Main St"
+            placeholder={tFallback("registerGym.123MainSt", "123 Main St")}
           />
         </div>
 
@@ -319,7 +321,7 @@ export default function RegisterGym() {
               step="0.000001"
               value={form.latitude}
               onChange={(e) => setForm(f => ({ ...f, latitude: e.target.value }))}
-              placeholder="Latitude"
+              placeholder={tFallback("registerGym.latitude", "Latitude")}
             />
             <Input
               type="number"
@@ -327,7 +329,7 @@ export default function RegisterGym() {
               step="0.000001"
               value={form.longitude}
               onChange={(e) => setForm(f => ({ ...f, longitude: e.target.value }))}
-              placeholder="Longitude"
+              placeholder={tFallback("registerGym.longitude", "Longitude")}
             />
           </div>
           <p className="text-micro text-muted-foreground mt-1.5">
@@ -349,7 +351,7 @@ export default function RegisterGym() {
         <div className="mt-6">
           <EmptyState
             icon={Building2}
-            title="No submissions yet"
+            title={tFallback("registerGym.noSubmissionsYet", "No submissions yet")}
             body="Fill out the form above to register your gym."
           />
         </div>

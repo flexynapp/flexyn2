@@ -54,6 +54,7 @@ function isDismissedFresh(userId) {
 }
 
 function SuggestedFolloweeCard({ user, onFollow, following, followed }) {
+  const { tFallback } = useLanguage();
   const initial = (user.username || '?').slice(0, 1).toUpperCase();
   const isLive = user.active_until && new Date(user.active_until) > new Date();
   return (
@@ -79,7 +80,7 @@ function SuggestedFolloweeCard({ user, onFollow, following, followed }) {
           <span
             aria-hidden="true"
             className="absolute bottom-0 end-0 w-3 h-3 rounded-full bg-success ring-2 ring-card"
-            title="Working out right now"
+            title={tFallback("followSuggestionRail.workingOutRightNow", "Working out right now")}
           />
         )}
       </div>

@@ -20,6 +20,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { createPortal } from 'react-dom';
 import { X, Loader2, AlertTriangle, ScanLine } from 'lucide-react';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { useLanguage } from '@/lib/LanguageContext';
 
 const CODE_RE = /[A-HJ-NP-Z2-9]{8}/;
 
@@ -46,6 +47,7 @@ function extractCode(raw) {
 }
 
 export default function QrCodeScanner({ open, onClose, onDetect }) {
+  const { tFallback } = useLanguage();
   // Pin the page behind this overlay — see @/lib/scrollLock.
   useBodyScrollLock(open);
   const videoRef    = useRef(null);
@@ -146,7 +148,7 @@ export default function QrCodeScanner({ open, onClose, onDetect }) {
             type="button"
             onClick={onClose}
             className="w-8 h-8 rounded-full bg-white/15 text-white flex items-center justify-center"
-            aria-label="Close scanner"
+            aria-label={tFallback("qrCodeScanner.closeScanner", "Close scanner")}
           >
             <X className="w-4 h-4" />
           </button>

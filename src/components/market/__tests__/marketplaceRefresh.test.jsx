@@ -20,6 +20,15 @@ import { render, screen, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import MarketplaceHeader from '../MarketplaceHeader';
 
+// These components now read tFallback, and useLanguage() throws outside a
+// provider by design. Resolving the real English catalog rather than returning
+// key paths, so any assertion here still reads like the screen.
+vi.mock('@/lib/LanguageContext', async () => {
+  const { languageMock } = await import('@/lib/__tests__/i18nMock');
+  return languageMock();
+});
+
+
 // framer-motion's animation loop and the header's rAF gradient ticker are
 // irrelevant here and noisy under jsdom.
 vi.mock('framer-motion', () => ({

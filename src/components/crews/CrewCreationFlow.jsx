@@ -18,8 +18,10 @@ import { titleCase } from '@/lib/textCase';
 import * as hubMessages from '@/lib/data/hubMessages';
 import { buildCrewInviteBody } from './CrewDMInviteCard';
 import { displayName, handle } from '@/lib/userDisplay';
+import { useLanguage } from '@/lib/LanguageContext';
 
 export default function CrewCreationFlow({ onCreated, onClose }) {
+  const { tFallback } = useLanguage();
   const { user } = useAuth();
   const [step, setStep]         = useState(1);
   const [selected, setSelected] = useState([]); // array of profile objects
@@ -119,7 +121,7 @@ export default function CrewCreationFlow({ onCreated, onClose }) {
           {step === 1 ? <X className="w-4 h-4" /> : <ArrowLeft className="w-4 h-4" />}
         </button>
         <div className="flex-1">
-          <h3 className="font-heading font-bold text-base">Create Crew</h3>
+          <h3 className="font-heading font-bold text-base">{tFallback("crewCreationFlow.createCrew", "Create Crew")}</h3>
           <p className="text-xs text-muted-foreground">Step {step} of 2</p>
         </div>
         {/* Step indicator */}
@@ -148,7 +150,7 @@ export default function CrewCreationFlow({ onCreated, onClose }) {
                 <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
                 <input
                   type="text"
-                  placeholder="Search friends…"
+                  placeholder={tFallback("crewCreationFlow.searchFriends", "Search friends…")}
                   value={query}
                   onChange={e => setQuery(e.target.value)}
                   className="w-full bg-secondary rounded-xl ps-9 pe-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-primary/30"
@@ -250,7 +252,7 @@ export default function CrewCreationFlow({ onCreated, onClose }) {
               <Shield className="w-8 h-8" style={{ color: 'hsl(var(--primary))' }} />
             </div>
 
-            <h4 className="text-center font-heading font-bold text-lg mb-1">Name Your Crew</h4>
+            <h4 className="text-center font-heading font-bold text-lg mb-1">{tFallback("crewCreationFlow.nameYourCrew", "Name Your Crew")}</h4>
             <p className="text-center text-sm text-muted-foreground mb-6">
               {selected.length > 0
                 ? `Inviting ${selected.length} friend${selected.length > 1 ? 's' : ''}`

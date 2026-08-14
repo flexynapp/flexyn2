@@ -10,6 +10,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, Dumbbell, Footprints } from 'lucide-react';
 import ExerciseFormPanel from '@/components/exercise/ExerciseFormPanel';
+import { useLanguage } from '@/lib/LanguageContext';
 
 const CARDIO_MODALITIES = new Set(['Running', 'Cycling', 'Jump Rope', 'Rowing']);
 const isCardio = (ex) => ex?.kind === 'cardio' || CARDIO_MODALITIES.has(ex?.name);
@@ -62,6 +63,7 @@ function Section({ title, subtitle, Icon, hue, items, defaultOpen, children }) {
 }
 
 export default function StarterPlanView({ regimen, cardioDefaultOpen = true, strengthDefaultOpen = true }) {
+  const { tFallback } = useLanguage();
   const exercises = Array.isArray(regimen?.exercises) ? regimen.exercises : [];
   const cardio = exercises.filter(isCardio);
   const strength = exercises.filter((e) => !isCardio(e));
@@ -69,7 +71,7 @@ export default function StarterPlanView({ regimen, cardioDefaultOpen = true, str
   return (
     <div className="space-y-2.5">
       <Section
-        title="Cardio Plan"
+        title={tFallback("starterPlanView.cardioPlan", "Cardio Plan")}
         subtitle={`${cardio.length} running session${cardio.length === 1 ? '' : 's'} / week`}
         Icon={Footprints}
         hue="217 91% 60%"
@@ -94,7 +96,7 @@ export default function StarterPlanView({ regimen, cardioDefaultOpen = true, str
       </Section>
 
       <Section
-        title="Strength Plan"
+        title={tFallback("starterPlanView.strengthPlan", "Strength Plan")}
         subtitle={`${strength.length} lift${strength.length === 1 ? '' : 's'}`}
         Icon={Dumbbell}
         hue="26 95% 56%"

@@ -71,6 +71,7 @@ import ComingSoon from './pages/ComingSoon';
 import { isEnabled } from '@/lib/featureFlags';
 import { readPendingToken, clearPendingToken } from './lib/data/duelInvites';
 import { supabase } from '@/api/supabaseClient';
+import { useLanguage } from '@/lib/LanguageContext';
 
 const LevelUpManager      = lazy(() => import('@/components/LevelUpManager'));
 const RestTimerOverlay    = lazy(() => import('@/components/RestTimerOverlay'));
@@ -196,6 +197,7 @@ function PageLoader() {
 
 
 const AuthenticatedApp = () => {
+  const { tFallback } = useLanguage();
   const { user, isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin, checkUserAuth } = useAuth();
 
   // Public route bypass: anyone landing on /duel-invite/<token> skips
@@ -443,17 +445,17 @@ const AuthenticatedApp = () => {
             // 3.1.1 before this surface can be reachable. See featureFlags.js.
             isEnabled('trainerMarketplace')
               ? <ErrorBoundary label="TrainerStudio"><Suspense fallback={<PageLoader />}><TrainerStudio /></Suspense></ErrorBoundary>
-              : <ComingSoon title="Creator Studio" blurb="Packaging and selling your own programs is coming. Your regimens are safe in the meantime." />
+              : <ComingSoon title={tFallback("app.creatorStudio", "Creator Studio")} blurb="Packaging and selling your own programs is coming. Your regimens are safe in the meantime." />
           } />
           <Route path="/trainer/market" element={
             isEnabled('trainerMarketplace')
               ? <ErrorBoundary label="TrainerMarket"><Suspense fallback={<PageLoader />}><TrainerMarket /></Suspense></ErrorBoundary>
-              : <ComingSoon title="Trainer Programs" blurb="Premium regimens from certified creators are on the way." />
+              : <ComingSoon title={tFallback("market.trainerPrograms", "Trainer Programs")} blurb="Premium regimens from certified creators are on the way." />
           } />
           <Route path="/corporate" element={
             isEnabled('corporatePortal')
               ? <ErrorBoundary label="CorporatePortal"><Suspense fallback={<PageLoader />}><CorporatePortal /></Suspense></ErrorBoundary>
-              : <ComingSoon title="Corporate Wellness" blurb="Team challenges and company leaderboards are still being built." />
+              : <ComingSoon title={tFallback("app.corporateWellness", "Corporate Wellness")} blurb="Team challenges and company leaderboards are still being built." />
           } />
           <Route path="/register-gym" element={<ErrorBoundary label="RegisterGym"><Suspense fallback={<PageLoader />}><RegisterGym /></Suspense></ErrorBoundary>} />
           {/* /my-gyms merged into /my-gym on 2026-08-09 — one page, one

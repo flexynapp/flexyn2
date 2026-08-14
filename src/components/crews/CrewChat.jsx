@@ -28,6 +28,7 @@ import CrewStatsPanel from './CrewStatsPanel';
 import AvatarCropModal from './AvatarCropModal';
 import * as quests from '@/lib/data/quests';
 import { ACTION_TYPES } from '@/lib/questCatalog';
+import { useLanguage } from '@/lib/LanguageContext';
 
 // ── Crew "hype" triggers ────────────────────────────────────────────────────
 // Posting a hype phrase in crew chat pops a burst of emoji over the thread.
@@ -79,16 +80,17 @@ function HypeBurst({ hype }) {
 // ── Roll Call composer ────────────────────────────────────────────────────────
 
 function RollCallComposer({ onSubmit, onCancel }) {
+  const { tFallback } = useLanguage();
   const [question, setQuestion] = useState('Did you work out today?');
   return (
     <div className="absolute inset-x-0 bottom-0 z-10 bg-card border-t border-border px-4 py-4">
-      <p className="text-xs font-bold text-muted-foreground mb-2">Roll Call</p>
+      <p className="text-xs font-bold text-muted-foreground mb-2">{tFallback("crewChat.rollCall", "Roll Call")}</p>
       <textarea
         value={question}
         onChange={e => setQuestion(e.target.value.slice(0, 120))}
         rows={2}
         className="w-full rounded-xl border border-border bg-secondary/50 px-3 py-2 text-sm resize-none focus:outline-none focus:border-primary/50"
-        placeholder="Ask your crew anything…"
+        placeholder={tFallback("crewChat.askYourCrewAnything", "Ask your crew anything…")}
       />
       <div className="flex gap-2 mt-2">
         <button onClick={onCancel} className="flex-1 py-2 rounded-xl border border-border text-sm text-muted-foreground font-semibold">
@@ -111,6 +113,7 @@ function RollCallComposer({ onSubmit, onCancel }) {
 // ── Regimen picker ────────────────────────────────────────────────────────────
 
 function RegimenPicker({ userEmail, onShare, onAssign, canAssign, onCancel }) {
+  const { tFallback } = useLanguage();
   const [tab, setTab] = useState('share'); // 'share' | 'assign'
   const { data: regimenList = [] } = useQuery({
     queryKey: ['regimenPicker', userEmail],
@@ -142,13 +145,13 @@ function RegimenPicker({ userEmail, onShare, onAssign, canAssign, onCancel }) {
                 className={`text-xs px-2 py-0.5 rounded-full font-semibold transition-colors ${
                   tab === 'share' ? 'bg-primary/15 text-primary' : 'text-muted-foreground'
                 }`}
-              >Share</button>
+              >{tFallback("achievements.share.label", "Share")}</button>
               <button
                 onClick={() => setTab('assign')}
                 className={`text-xs px-2 py-0.5 rounded-full font-semibold transition-colors ${
                   tab === 'assign' ? 'bg-primary/15 text-primary' : 'text-muted-foreground'
                 }`}
-              >Assign</button>
+              >{tFallback("crewChat.assign", "Assign")}</button>
             </div>
           )}
         </div>
@@ -179,6 +182,7 @@ function RegimenPicker({ userEmail, onShare, onAssign, canAssign, onCancel }) {
 // ── Assigned Regimen Banner ───────────────────────────────────────────────────
 
 function AssignedRegimenBanner({ crewId, isAdmin, onEquip }) {
+  const { tFallback } = useLanguage();
   const qc = useQueryClient();
   const { data: assigned = [] } = useQuery({
     queryKey: ['crewAssignedRegimens', crewId],
@@ -199,7 +203,7 @@ function AssignedRegimenBanner({ crewId, isAdmin, onEquip }) {
     >
       <Dumbbell className="w-4 h-4 shrink-0" style={{ color: 'hsl(var(--primary))' }} />
       <div className="flex-1 min-w-0">
-        <p className="text-xs font-semibold text-muted-foreground">Crew Plan</p>
+        <p className="text-xs font-semibold text-muted-foreground">{tFallback("crewChat.crewPlan", "Crew Plan")}</p>
         <p className="text-sm font-bold text-foreground truncate">{regimen.name || 'Assigned Regimen'}</p>
         <p className="text-xs text-muted-foreground">{exCount} exercise{exCount !== 1 ? 's' : ''}
           {top.note ? ` · ${top.note}` : ''}
@@ -224,7 +228,7 @@ function AssignedRegimenBanner({ crewId, isAdmin, onEquip }) {
               } catch { toast.error('Could not remove plan.'); }
             }}
             className="p-1 text-muted-foreground hover:text-destructive active:text-destructive transition-colors"
-            title="Remove plan"
+            title={tFallback("crewChat.removePlan", "Remove plan")}
           >
             <X className="w-3.5 h-3.5" />
           </button>
@@ -237,6 +241,7 @@ function AssignedRegimenBanner({ crewId, isAdmin, onEquip }) {
 // ── Pinned Announcement Banner ────────────────────────────────────────────────
 
 function PinnedBanner({ message, isAdmin, crewId, onUnpin }) {
+  const { tFallback } = useLanguage();
   if (!message) return null;
   return (
     <div
@@ -256,7 +261,7 @@ function PinnedBanner({ message, isAdmin, crewId, onUnpin }) {
         <button
           onClick={onUnpin}
           className="p-1 text-muted-foreground hover:text-foreground active:text-foreground transition-colors shrink-0"
-          title="Unpin"
+          title={tFallback("crewChat.unpin", "Unpin")}
         >
           <PinOff className="w-3.5 h-3.5" />
         </button>
@@ -268,6 +273,7 @@ function PinnedBanner({ message, isAdmin, crewId, onUnpin }) {
 // ── Main chat ─────────────────────────────────────────────────────────────────
 
 export default function CrewChat({ crew, onBack, onViewProfile, embedded }) {
+  const { tFallback } = useLanguage();
   const { user } = useAuth();
   const qc = useQueryClient();
   const scrollerRef  = useRef(null);
@@ -343,7 +349,7 @@ export default function CrewChat({ crew, onBack, onViewProfile, embedded }) {
       const url = await crewsData.uploadCrewMedia(file);
       await crewsData.postCrewStory(user.id, user.email, crew.id, url, file.type.startsWith('video/') ? 'video' : 'image', null);
       refetchStories();
-      toast.success('Story posted to the Crew!');
+      toast.success(tFallback("crewChat.storyPostedToTheCrew", "Story posted to the Crew!"));
     } catch {
       toast.error('Could not post story — try again.');
     } finally {
@@ -386,7 +392,7 @@ export default function CrewChat({ crew, onBack, onViewProfile, embedded }) {
       await crewsData.updateCrewProfile(crew.id, { avatar_url: url });
       qc.invalidateQueries({ queryKey: ['myCrews', user?.id] });
       qc.invalidateQueries({ queryKey: ['crewMembers', crew.id] });
-      toast.success('Crew photo updated!');
+      toast.success(tFallback("crewChat.crewPhotoUpdated", "Crew photo updated!"));
     } catch {
       toast.error('Could not update crew photo — try again.');
     } finally {
@@ -534,7 +540,7 @@ export default function CrewChat({ crew, onBack, onViewProfile, embedded }) {
       await crewsData.sendCrewMessage(crew.id, user.id, 'roll_call', question);
       await crewsData.notifyCrewRollCall(crew.id, question, user.username || 'Someone');
       qc.invalidateQueries({ queryKey: ['crewMessages', crew.id] });
-      toast.success('Roll Call sent!');
+      toast.success(tFallback("crewChat.rollCallSent", "Roll Call sent!"));
     } catch { toast.error('Could not send Roll Call.'); }
     finally { rollCallRef.current = false; }
   };
@@ -671,7 +677,7 @@ export default function CrewChat({ crew, onBack, onViewProfile, embedded }) {
                   onClick={() => avatarInputRef.current?.click()}
                   disabled={avatarUploading}
                   className="absolute -bottom-0.5 -end-0.5 w-4 h-4 rounded-full bg-primary flex items-center justify-center"
-                  title="Change crew photo">
+                  title={tFallback("crewChat.changeCrewPhoto", "Change crew photo")}>
                   {avatarUploading
                     ? <Loader2 className="w-2.5 h-2.5 text-white animate-spin" />
                     : <Upload className="w-2.5 h-2.5 text-white" />}
@@ -708,7 +714,7 @@ export default function CrewChat({ crew, onBack, onViewProfile, embedded }) {
               onClick={() => storyFileRef.current?.click()}
               className="flex items-center justify-center shrink-0 rounded-full border-2 border-dashed"
               style={{ width: 30, height: 30, borderColor: 'hsl(var(--primary) / 0.6)' }}
-              title="Add crew story"
+              title={tFallback("crewChat.addCrewStory", "Add crew story")}
             >
               <Plus className="w-3 h-3" style={{ color: 'hsl(var(--primary))' }} />
             </button>
@@ -719,7 +725,7 @@ export default function CrewChat({ crew, onBack, onViewProfile, embedded }) {
         <button
           onClick={() => setStatsPanelOpen(true)}
           className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground active:text-foreground transition-colors shrink-0"
-          title="Crew Stats"
+          title={tFallback("crewStatsPanel.crewStats", "Crew Stats")}
         >
           <BarChart3 className="w-4 h-4" />
         </button>
@@ -728,7 +734,7 @@ export default function CrewChat({ crew, onBack, onViewProfile, embedded }) {
         <button
           onClick={() => setMemberPanelOpen(true)}
           className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground active:text-foreground transition-colors shrink-0"
-          title="Members"
+          title={tFallback("crewChat.members", "Members")}
         >
           <Users className="w-4 h-4" />
         </button>
@@ -807,7 +813,7 @@ export default function CrewChat({ crew, onBack, onViewProfile, embedded }) {
         {messages.length === 0 && (
           <EmptyState
             icon={MessageCircle}
-            title="No messages yet"
+            title={tFallback("hub.messages.empty.title", "No messages yet")}
             body="Be the first to fuel the Crew."
           />
         )}
@@ -841,7 +847,7 @@ export default function CrewChat({ crew, onBack, onViewProfile, embedded }) {
               </button>
             </div>
             <div className="flex flex-col gap-1.5 pt-1">
-              <p className="text-xs text-muted-foreground font-medium mb-0.5">View settings:</p>
+              <p className="text-xs text-muted-foreground font-medium mb-0.5">{tFallback("crewChat.viewSettings", "View settings:")}</p>
               {[
                 { id: 'normal',   label: 'Standard',    icon: <Camera className="w-3 h-3" /> },
                 { id: 'one_time', label: 'One-time',     icon: <Eye    className="w-3 h-3" /> },
@@ -876,7 +882,7 @@ export default function CrewChat({ crew, onBack, onViewProfile, embedded }) {
         <button
           onClick={() => { setRollCallOpen(true); setRegimenOpen(false); }}
           className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground active:text-foreground transition-colors shrink-0"
-          title="Roll Call"
+          title={tFallback("crewChat.rollCall", "Roll Call")}
         >
           <span className="text-base leading-none">📣</span>
         </button>
@@ -896,8 +902,8 @@ export default function CrewChat({ crew, onBack, onViewProfile, embedded }) {
         <button
           onClick={handleFireFuel}
           className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary hover:bg-primary/20 active:bg-primary/20 transition-colors shrink-0"
-          title="Drop XP fuel for the crew"
-          aria-label="Drop XP fuel for the crew"
+          title={tFallback("crewChat.dropXpFuel", "Drop XP fuel for the crew")}
+          aria-label={tFallback("crewChat.dropXpFuel", "Drop XP fuel for the crew")}
         >
           <Zap className="w-4 h-4" />
         </button>
@@ -906,7 +912,7 @@ export default function CrewChat({ crew, onBack, onViewProfile, embedded }) {
           value={draft}
           onChange={e => setDraft(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
-          placeholder="Message the Crew…"
+          placeholder={tFallback("crewChat.messageTheCrew", "Message the Crew…")}
           rows={1}
           className="flex-1 resize-none rounded-2xl border border-border bg-secondary/50 px-3.5 py-2 text-sm focus:outline-none focus:border-primary/50 leading-relaxed max-h-28 overflow-y-auto"
           style={{ minHeight: '40px' }}

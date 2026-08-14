@@ -20,6 +20,15 @@ import { render, screen, cleanup, waitFor, act } from '@testing-library/react';
 import React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
+// These components now read tFallback, and useLanguage() throws outside a
+// provider by design. Resolving the real English catalog rather than returning
+// key paths, so any assertion here still reads like the screen.
+vi.mock('@/lib/LanguageContext', async () => {
+  const { languageMock } = await import('@/lib/__tests__/i18nMock');
+  return languageMock();
+});
+
+
 // Two pages of the same market, as listActive would return them above the
 // 60-row cap. Ids 1-3 are only on the "newest" page, 6-8 only on "priciest";
 // 4 and 5 are on both. Nothing here has sold.

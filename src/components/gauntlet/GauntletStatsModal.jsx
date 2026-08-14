@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Share2, Trophy, Star, Zap } from 'lucide-react';
 import { useNumberFormatter } from '@/lib/intl';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { useLanguage } from '@/lib/LanguageContext';
 
 function StatPill({ label, value, accent }) {
   return (
@@ -36,6 +37,7 @@ export default function GauntletStatsModal({
   stats = {},
   pathCompleted = false,
 }) {
+  const { tFallback } = useLanguage();
   const cardRef = useRef(null);
   const fmt = useNumberFormatter();
   // Pin the page behind this overlay — see @/lib/scrollLock.

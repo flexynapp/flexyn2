@@ -209,6 +209,7 @@ function DaySection({ dateStr, meals, water, locale, fmt, onSelect }) {
 
 /** The payoff for focusing one day: how it sat against goal, and against you. */
 function DayFocusCard({ meals, dv, weekAvg, fmt }) {
+  const { tFallback } = useLanguage();
   const totals = macroTotals(meals);
   const goal = Math.round(dv?.calories || 2000);
   const pct = goal > 0 ? Math.round((totals.calories / goal) * 100) : 0;
@@ -264,7 +265,7 @@ function DayFocusCard({ meals, dv, weekAvg, fmt }) {
 
       {delta != null && (
         <div className="mt-3.5 pt-3 border-t border-border">
-          <p className="text-micro font-bold uppercase tracking-[0.12em] text-muted-foreground">Vs your 7-day average</p>
+          <p className="text-micro font-bold uppercase tracking-[0.12em] text-muted-foreground">{tFallback("mealHistoryModal.vsYour7DayAverage", "Vs your 7-day average")}</p>
           <p className={`font-heading font-bold text-base tabular-nums mt-1 ${
             delta > 0 ? 'text-primary' : delta < 0 ? 'text-info' : 'text-muted-foreground'
           }`}>

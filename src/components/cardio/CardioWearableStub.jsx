@@ -15,6 +15,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Link2, Link2Off, Loader2, Smartphone, Watch } from 'lucide-react';
 import { toast } from '@/lib/toast';
+import { useLanguage } from '@/lib/LanguageContext';
 
 const WEARABLES = [
   {
@@ -75,6 +76,7 @@ const HEALTH_PLATFORMS = [
 ];
 
 function IntegrationCard({ item, connected, onConnect, onDisconnect, connecting }) {
+  const { tFallback } = useLanguage();
   const isConnecting = connecting === item.id;
   const unavailable = !item.available;
 
@@ -129,6 +131,7 @@ function IntegrationCard({ item, connected, onConnect, onDisconnect, connecting 
 }
 
 export default function CardioWearableStub() {
+  const { tFallback } = useLanguage();
   const [connected, setConnected] = useState({});
   const [connecting, setConnecting] = useState(null);
 
@@ -149,7 +152,7 @@ export default function CardioWearableStub() {
 
   const handleDisconnect = (id) => {
     setConnected(prev => ({ ...prev, [id]: false }));
-    toast.success('Disconnected');
+    toast.success(tFallback("cardioWearableStub.disconnected", "Disconnected"));
   };
 
   return (
@@ -158,7 +161,7 @@ export default function CardioWearableStub() {
       <div className="space-y-3">
         <div className="flex items-center gap-2 mb-1">
           <Watch className="w-4 h-4 text-muted-foreground" />
-          <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Wearable Devices</p>
+          <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{tFallback("cardioWearableStub.wearableDevices", "Wearable Devices")}</p>
         </div>
         {WEARABLES.map(w => (
           <motion.div
@@ -181,7 +184,7 @@ export default function CardioWearableStub() {
       <div className="space-y-3">
         <div className="flex items-center gap-2 mb-1">
           <Smartphone className="w-4 h-4 text-muted-foreground" />
-          <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Health Platforms</p>
+          <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{tFallback("cardioWearableStub.healthPlatforms", "Health Platforms")}</p>
         </div>
         {HEALTH_PLATFORMS.map(p => (
           <motion.div

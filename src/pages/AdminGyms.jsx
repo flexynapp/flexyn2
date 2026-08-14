@@ -30,8 +30,10 @@ import {
   approveVerification,
   rejectVerification,
 } from '@/lib/data/gymBusinesses';
+import { useLanguage } from '@/lib/LanguageContext';
 
 export default function AdminGyms() {
+  const { tFallback } = useLanguage();
   const { user } = useAuth();
   const navigate = useNavigate();
   const isAdmin = isAppAdmin(user);
@@ -68,7 +70,7 @@ export default function AdminGyms() {
       <div className="max-w-2xl mx-auto p-4">
         <EmptyState
           icon={AlertTriangle}
-          title="Not authorized"
+          title={tFallback("adminGyms.notAuthorized", "Not authorized")}
           body="This page is for Flexyn admins only."
         />
       </div>
@@ -134,7 +136,7 @@ export default function AdminGyms() {
           <Building2 className="w-5 h-5 text-amber-500" />
         </div>
         <div>
-          <h1 className="font-heading text-2xl font-bold tracking-tight">Gym verifications</h1>
+          <h1 className="font-heading text-2xl font-bold tracking-tight">{tFallback("adminGyms.gymVerifications", "Gym verifications")}</h1>
           <p className="text-sm text-muted-foreground">
             {pending.length} pending submission{pending.length === 1 ? '' : 's'}
           </p>
@@ -148,7 +150,7 @@ export default function AdminGyms() {
       ) : pending.length === 0 ? (
         <EmptyState
           icon={Building2}
-          title="No pending submissions"
+          title={tFallback("adminGyms.noPendingSubmissions", "No pending submissions")}
           body="New verification requests will appear here."
         />
       ) : (
@@ -218,7 +220,7 @@ export default function AdminGyms() {
                 {rejecting && (
                   <div className="mt-3">
                     <Input
-                      placeholder="Reason (optional)"
+                      placeholder={tFallback("adminGyms.reasonOptional", "Reason (optional)")}
                       value={rejectReason}
                       onChange={(e) => setRejectReason(e.target.value.slice(0, 200))}
                     />

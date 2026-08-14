@@ -12,8 +12,10 @@ import { db } from '@/api/db';
 import { checkInWithCode, GYM_CHECKIN_XP_MULTIPLIER } from '@/lib/data/gymCheckins';
 import { getGymByCode } from '@/lib/data/gymBusinesses';
 import { publicGymUrl } from '@/lib/appOrigin';
+import { useLanguage } from '@/lib/LanguageContext';
 
 export default function CheckInPage() {
+  const { tFallback } = useLanguage();
   const { code } = useParams();
   const navigate = useNavigate();
   const { user, isLoadingAuth } = useAuth();
@@ -102,7 +104,7 @@ export default function CheckInPage() {
             <div className="w-16 h-16 rounded-full bg-emerald-500/15 flex items-center justify-center">
               <CheckCircle2 className="w-9 h-9 text-emerald-500" />
             </div>
-            <p className="font-heading font-black text-xl">Checked in!</p>
+            <p className="font-heading font-black text-xl">{tFallback("checkInPage.checked", "Checked in!")}</p>
             {gymName && <p className="text-sm text-muted-foreground">{gymName}</p>}
             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/15 text-amber-500 text-sm font-bold">
               <Zap className="w-4 h-4" /> {multiplierLabel} XP on today's workouts
@@ -125,7 +127,7 @@ export default function CheckInPage() {
             <div className="w-16 h-16 rounded-full bg-emerald-500/15 flex items-center justify-center">
               <CheckCircle2 className="w-9 h-9 text-emerald-500" />
             </div>
-            <p className="font-heading font-bold text-lg">You're already checked in</p>
+            <p className="font-heading font-bold text-lg">{tFallback("checkInPage.youReAlreadyChecked", "You're already checked in")}</p>
             {gymName && <p className="text-sm text-muted-foreground">{gymName}</p>}
             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/15 text-amber-500 text-sm font-bold">
               <Zap className="w-4 h-4" /> {multiplierLabel} XP active today
@@ -141,7 +143,7 @@ export default function CheckInPage() {
             <div className="w-16 h-16 rounded-full bg-rose-500/15 flex items-center justify-center">
               <AlertTriangle className="w-9 h-9 text-rose-500" />
             </div>
-            <p className="font-heading font-bold text-lg">Couldn't check in</p>
+            <p className="font-heading font-bold text-lg">{tFallback("checkInPage.couldnTCheck", "Couldn't check in")}</p>
             <p className="text-sm text-muted-foreground">That code didn't match an active gym. Double-check the signage code.</p>
             <button type="button" onClick={() => navigate('/dashboard')} className="mt-2 w-full py-3 rounded-xl bg-secondary font-semibold hover:bg-secondary/70 active:bg-secondary/70 transition-colors">
               Go to dashboard
@@ -154,7 +156,7 @@ export default function CheckInPage() {
             <div className="w-16 h-16 rounded-full bg-primary/15 flex items-center justify-center">
               <Dumbbell className="w-9 h-9 text-primary" />
             </div>
-            <p className="font-heading font-bold text-lg">Sign in to check in</p>
+            <p className="font-heading font-bold text-lg">{tFallback("checkInPage.signInToCheck", "Sign in to check in")}</p>
             <p className="text-sm text-muted-foreground">Log in to Flexyn, then scan again to claim your {multiplierLabel} XP.</p>
             <button type="button" onClick={() => db.auth.redirectToLogin()} className="mt-2 w-full py-3 rounded-xl bg-primary text-primary-foreground font-bold hover:opacity-90 transition-opacity">
               Sign in

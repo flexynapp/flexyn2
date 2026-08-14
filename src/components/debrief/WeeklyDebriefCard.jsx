@@ -38,6 +38,7 @@ import {
   Flame, Trophy, Dumbbell, Star, TrendingUp, TrendingDown, Minus,
   Utensils, Moon, Users, Swords, Target,
 } from 'lucide-react';
+import { useLanguage } from '@/lib/LanguageContext';
 
 // ── Formatting ────────────────────────────────────────────────────────────
 
@@ -164,6 +165,7 @@ function FactRow({ icon: Icon, label, detail, value, last = false }) {
 // ── Main ──────────────────────────────────────────────────────────────────
 
 export default function WeeklyDebriefCard({ debrief, forExport = false, exportRef }) {
+  const { tFallback } = useLanguage();
   const { weightUnit } = useWeightUnit();
   const { distanceUnit } = useDistanceUnit();
   if (!debrief) return null;
@@ -263,7 +265,7 @@ export default function WeeklyDebriefCard({ debrief, forExport = false, exportRe
             <p className="text-micro text-muted-foreground">{d.week_start} → {d.week_end}</p>
           )}
         </div>
-        <span className="text-micro font-bold uppercase tracking-widest text-primary">Flexyn</span>
+        <span className="text-micro font-bold uppercase tracking-widest text-primary">{tFallback("app.name", "Flexyn")}</span>
       </div>
 
       {/* ── HERO — the one dominant element, and the only thing that bleeds
@@ -314,7 +316,7 @@ export default function WeeklyDebriefCard({ debrief, forExport = false, exportRe
 
         {/* LOAD */}
         {hasTraining && (
-          <Section title="Load" meta={baseline ? 'vs your 4-week normal' : null}>
+          <Section title={tFallback("workout.templates.loadBtn", "Load")} meta={baseline ? 'vs your 4-week normal' : null}>
             <div className="flex items-end gap-2">
               <span className="font-heading font-black text-3xl leading-none tabular-nums text-foreground">
                 {n0(fromLbs(volume, weightUnit))}
@@ -365,7 +367,7 @@ export default function WeeklyDebriefCard({ debrief, forExport = false, exportRe
             hypertrophy and the one a lifter can act on. The old card showed
             eight binary chips, which said trained/not and nothing else. */}
         {muscleRows.length > 0 && (
-          <Section title="Balance" meta="sets per muscle group">
+          <Section title={tFallback("weeklyDebriefCard.balance", "Balance")} meta="sets per muscle group">
             <div className="space-y-2">
               {muscleRows.map(([group, count]) => {
                 const light = count <= Math.max(2, maxSets * 0.3);
@@ -385,7 +387,7 @@ export default function WeeklyDebriefCard({ debrief, forExport = false, exportRe
 
         {/* PROGRESSION */}
         {topLift?.name && (
-          <Section title="Progression" meta="heaviest set · records">
+          <Section title={tFallback("weeklyDebriefCard.progression", "Progression")} meta="heaviest set · records">
             <div className="flex items-center justify-between gap-2 rounded-xl bg-secondary/40 border border-border px-3 py-2.5">
               <div className="min-w-0">
                 <p className="font-heading font-bold text-[15px] text-foreground truncate">{topLift.name}</p>
@@ -412,7 +414,7 @@ export default function WeeklyDebriefCard({ debrief, forExport = false, exportRe
 
         {/* CONDITIONING */}
         {hasCond && (
-          <Section title="Conditioning" meta="cardio · steps" seam>
+          <Section title={tFallback("weeklyDebriefCard.conditioning", "Conditioning")} meta="cardio · steps" seam>
             {cardioN > 0 && (
               <StatRow items={[
                 { value: n0(cardioN), label: `session${cardioN === 1 ? '' : 's'}` },
@@ -476,7 +478,7 @@ export default function WeeklyDebriefCard({ debrief, forExport = false, exportRe
         {/* FUEL — averaged per DAY LOGGED, not per seven. Dividing a 3-day
             week by 7 makes honest logging look like undereating. */}
         {hasFuel && (
-          <Section title="Fuel" meta={`per day logged · ${n0(fuelDays)} of 7`} seam={!hasCond}>
+          <Section title={tFallback("weeklyDebriefCard.fuel", "Fuel")} meta={`per day logged · ${n0(fuelDays)} of 7`} seam={!hasCond}>
             {num(fu.avg_calories) > 0 ? (
               <>
                 <div className="flex items-end gap-2">
@@ -537,7 +539,7 @@ export default function WeeklyDebriefCard({ debrief, forExport = false, exportRe
 
         {/* RECOVERY */}
         {hasRecovery && (
-          <Section title="Recovery" meta="sleep · mood · body" seam={!hasCond && !hasFuel}>
+          <Section title={tFallback("bodyMap.mode.recovery", "Recovery")} meta="sleep · mood · body" seam={!hasCond && !hasFuel}>
             {/* quality is set on 1 of 7 production rows and soreness on 0 of
                 7 — both are optional fields on the sleep form, so they drop
                 out individually rather than dashing out the whole row. */}
@@ -570,7 +572,7 @@ export default function WeeklyDebriefCard({ debrief, forExport = false, exportRe
 
         {/* THE GAME — XP comes from xp_grant_log, the authoritative ledger.
             The old card printed a number the client invented. */}
-        <Section title="The game" meta="earned this week" seam={!hasCond && !hasFuel && !hasRecovery}>
+        <Section title={tFallback("weeklyDebriefCard.theGame", "The game")} meta="earned this week" seam={!hasCond && !hasFuel && !hasRecovery}>
           <div className="flex items-end gap-2">
             <span className="font-heading font-black text-3xl leading-none tabular-nums text-foreground">
               {n0(xp)}
@@ -599,7 +601,7 @@ export default function WeeklyDebriefCard({ debrief, forExport = false, exportRe
 
         {/* YOUR PEOPLE */}
         {hasPeople && (
-          <Section title="Your people" meta="crew · duels · league">
+          <Section title={tFallback("weeklyDebriefCard.yourPeople", "Your people")} meta="crew · duels · league">
             <div>
               {pe.crew_name && (
                 <FactRow icon={Users} label={pe.crew_name}
@@ -637,7 +639,7 @@ export default function WeeklyDebriefCard({ debrief, forExport = false, exportRe
             the week, everything above is a scoreboard rather than a review. */}
         {insight && (
           <div className="rounded-xl bg-secondary/40 border border-border px-3 py-3">
-            <p className="text-micro font-bold uppercase tracking-widest text-primary mb-1">The read</p>
+            <p className="text-micro font-bold uppercase tracking-widest text-primary mb-1">{tFallback("weeklyDebriefCard.theRead", "The read")}</p>
             <p className="text-[13px] text-foreground leading-relaxed">{insight}</p>
           </div>
         )}

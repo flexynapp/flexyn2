@@ -16,8 +16,10 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Images, Zap, ZapOff, Loader2, CameraOff, Sparkles } from 'lucide-react';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { useLanguage } from '@/lib/LanguageContext';
 
 export default function FoodPhotoCaptureModal({ open, onClose, onCapture, onPickLibrary }) {
+  const { tFallback } = useLanguage();
   useBodyScrollLock(open);
   const videoRef  = useRef(null);
   const streamRef = useRef(null);
@@ -167,9 +169,9 @@ export default function FoodPhotoCaptureModal({ open, onClose, onCapture, onPick
             <div className="absolute inset-x-0 top-[14%] flex flex-col items-center px-8 text-center">
               <span className="inline-flex items-center gap-1.5 rounded-full bg-black/45 px-3 py-1.5">
                 <Sparkles className="w-3.5 h-3.5 text-white" />
-                <span className="text-sm font-semibold text-white">Fit the whole plate in the frame</span>
+                <span className="text-sm font-semibold text-white">{tFallback("foodPhotoCaptureModal.fitTheWholePlate", "Fit the whole plate in the frame")}</span>
               </span>
-              <span className="mt-2 text-micro text-white/70">Good, even lighting gives the best results</span>
+              <span className="mt-2 text-micro text-white/70">{tFallback("foodPhotoCaptureModal.goodEvenLightingGives", "Good, even lighting gives the best results")}</span>
             </div>
           </div>
         )}
@@ -205,7 +207,7 @@ export default function FoodPhotoCaptureModal({ open, onClose, onCapture, onPick
         <div className="absolute top-0 inset-x-0 flex items-center justify-between p-4">
           <button
             onClick={onClose}
-            aria-label="Close camera"
+            aria-label={tFallback("photos.closeCamera", "Close camera")}
             className="w-10 h-10 rounded-full bg-black/45 text-white flex items-center justify-center"
           >
             <X className="w-5 h-5" />
@@ -213,7 +215,7 @@ export default function FoodPhotoCaptureModal({ open, onClose, onCapture, onPick
           {status === 'ready' && torchAvailable && (
             <button
               onClick={toggleTorch}
-              aria-label="Toggle flashlight"
+              aria-label={tFallback("foodPhotoCaptureModal.toggleFlashlight", "Toggle flashlight")}
               className={`w-10 h-10 rounded-full flex items-center justify-center ${torchOn ? 'bg-white text-black' : 'bg-black/45 text-white'}`}
             >
               {torchOn ? <Zap className="w-5 h-5" /> : <ZapOff className="w-5 h-5" />}
@@ -227,7 +229,7 @@ export default function FoodPhotoCaptureModal({ open, onClose, onCapture, onPick
             <div className="flex items-center justify-between">
               <button
                 onClick={onPickLibrary}
-                aria-label="Choose from library"
+                aria-label={tFallback("foodPhotoCaptureModal.chooseFromLibrary", "Choose from library")}
                 className="w-12 h-12 rounded-2xl bg-white/15 text-white flex items-center justify-center backdrop-blur-sm"
               >
                 <Images className="w-5 h-5" />
@@ -237,7 +239,7 @@ export default function FoodPhotoCaptureModal({ open, onClose, onCapture, onPick
               <button
                 onClick={capture}
                 disabled={status !== 'ready'}
-                aria-label="Take photo"
+                aria-label={tFallback("photos.takePhoto", "Take photo")}
                 className="w-[72px] h-[72px] rounded-full bg-white/25 flex items-center justify-center disabled:opacity-50"
               >
                 <span className="w-[58px] h-[58px] rounded-full bg-white flex items-center justify-center">

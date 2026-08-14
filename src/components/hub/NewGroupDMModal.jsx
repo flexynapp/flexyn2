@@ -20,10 +20,12 @@ import * as hubFollows from '@/lib/data/hubFollows';
 import * as users from '@/lib/data/users';
 import { createGroupConversation } from '@/lib/data/hubMessages';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { useLanguage } from '@/lib/LanguageContext';
 
 const MAX_OTHERS = 9;
 
 export default function NewGroupDMModal({ open, onClose, onCreated }) {
+  const { tFallback } = useLanguage();
   // Pin the page behind this overlay — see @/lib/scrollLock.
   useBodyScrollLock(open);
   const { user } = useAuth();
@@ -135,7 +137,7 @@ export default function NewGroupDMModal({ open, onClose, onCreated }) {
           <h2 className="font-heading font-bold text-base flex items-center gap-2">
             <Users className="w-4 h-4" /> New group
           </h2>
-          <button onClick={onClose} aria-label="Close" className="relative before:absolute before:content-[''] before:-inset-2.5 w-7 h-7 rounded-full bg-secondary flex items-center justify-center">
+          <button onClick={onClose} aria-label={tFallback("common.close", "Close")} className="relative before:absolute before:content-[''] before:-inset-2.5 w-7 h-7 rounded-full bg-secondary flex items-center justify-center">
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -144,7 +146,7 @@ export default function NewGroupDMModal({ open, onClose, onCreated }) {
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="Group name (optional)"
+            placeholder={tFallback("newGroupDMModal.groupNameOptional", "Group name (optional)")}
             maxLength={60}
             className="w-full px-3 py-2 bg-secondary/40 border border-border rounded-lg text-sm outline-none focus:border-primary/50"
           />
@@ -156,7 +158,7 @@ export default function NewGroupDMModal({ open, onClose, onCreated }) {
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search people you follow…"
+              placeholder={tFallback("newGroupDMModal.searchPeopleYouFollow", "Search people you follow…")}
               className="flex-1 bg-transparent text-sm outline-none placeholder-muted-foreground/60"
             />
           </div>

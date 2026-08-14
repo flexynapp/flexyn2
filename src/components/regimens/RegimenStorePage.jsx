@@ -90,6 +90,7 @@ function DownloadBadge({ count }) {
 
 // ── Popularity tier badge ─────────────────────────────────────────────────────
 function PopularityBadge({ count, index }) {
+  const { tFallback } = useLanguage();
   if (index === 0 && count > 0) {
     return (
       <span className="inline-flex items-center gap-0.5 text-micro font-bold uppercase tracking-wider text-amber-500 bg-amber-500/10 rounded-full px-2 py-0.5">

@@ -24,6 +24,7 @@ import { tileRow } from '@/lib/tileRows';
 import {
   listPublishedListings, listMyPurchasedListingIds, startCheckout,
 } from '@/lib/data/trainerMarket';
+import { useLanguage } from '@/lib/LanguageContext';
 
 // Published programs: one per row on a phone, two from sm. The phone case is
 // `basis-full`, identical to the grid-cols-1 it replaces, so centring only
@@ -31,6 +32,7 @@ import {
 const PROGRAM = tileRow({ gap: 3, cols: 1, smCols: 2 });
 
 export default function TrainerMarket() {
+  const { tFallback } = useLanguage();
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { user } = useAuth();
@@ -67,9 +69,9 @@ export default function TrainerMarket() {
     buyingRef.current = false;
     if (res.ok) {
       if (res.mock) {
-        toast.success('Unlocked! (test mode — no charge)');
+        toast.success(tFallback("trainerMarket.unlockedTestModeNoCharge", "Unlocked! (test mode — no charge)"));
       } else {
-        toast.success('Unlocked!');
+        toast.success(tFallback("trainerMarket.unlocked", "Unlocked!"));
       }
       qc.invalidateQueries({ queryKey: ['myTrainerPurchases', user?.id] });
       qc.invalidateQueries({ queryKey: ['publishedTrainerListings'] });
@@ -131,7 +133,7 @@ export default function TrainerMarket() {
       ) : listings.length === 0 ? (
         <EmptyState
           icon={ShoppingBag}
-          title="No programs yet"
+          title={tFallback("trainerMarket.noProgramsYet", "No programs yet")}
           body="When creators publish premium regimens, they'll show up here. Want to be first? Tap Sell to open your studio."
           action={{ label: 'Open creator studio', onClick: () => navigate('/trainer/studio') }}
         />
@@ -157,7 +159,7 @@ export default function TrainerMarket() {
                   <p className="font-heading font-bold text-base leading-tight">{listing.title}</p>
                   {owned && <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />}
                   {isOwn && !owned && (
-                    <span className="text-micro font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-primary/15 text-primary shrink-0">Your listing</span>
+                    <span className="text-micro font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-primary/15 text-primary shrink-0">{tFallback("trainerMarket.yourListing", "Your listing")}</span>
                   )}
                 </div>
                 {listing.description && (

@@ -18,6 +18,7 @@ import { BRANDED_ITEMS, getDailyDrop } from '@/lib/lootCatalog';
 import { rarityTint, COIN } from '@/components/loot/RarityVisuals';
 import { supabase } from '@/api/supabaseClient';
 import { useAuth } from '@/lib/AuthContext';
+import { useLanguage } from '@/lib/LanguageContext';
 
 // Tints derive from lootCatalog.RARITY via rarityTint. The hand-written
 // map that used to live here covered only six of the seven tiers (no
@@ -42,6 +43,7 @@ function formatCountdown(ms) {
 }
 
 export default function DailyFlexynDrop() {
+  const { tFallback } = useLanguage();
   const { user } = useAuth();
   const [drop, setDrop] = useState(() => getDailyDrop());
   const [purchasing, setPurchasing] = useState(null); // sku of in-flight buy
@@ -80,7 +82,7 @@ export default function DailyFlexynDrop() {
   };
 
   const buy = async (item) => {
-    if (!user?.id) { toast.error('Sign in to buy'); return; }
+    if (!user?.id) { toast.error(tFallback("dailyFlexynDrop.signInToBuy", "Sign in to buy")); return; }
     if (purchased.has(item.id)) return;
     setPurchasing(item.id);
     try {
@@ -121,7 +123,7 @@ export default function DailyFlexynDrop() {
             <Sparkles className="w-3.5 h-3.5 text-primary" />
           </div>
           <div>
-            <p className="font-heading font-bold text-sm leading-none">Today's Flexyn Drop</p>
+            <p className="font-heading font-bold text-sm leading-none">{tFallback("dailyFlexynDrop.todaySFlexynDrop", "Today's Flexyn Drop")}</p>
             <p className="text-micro text-muted-foreground mt-0.5">Rotates in {formatCountdown(remaining)}</p>
           </div>
         </div>

@@ -19,10 +19,12 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { RotateCw, X } from 'lucide-react';
+import { useLanguage } from '@/lib/LanguageContext';
 
 const DISMISS_KEY = 'flexyn.appUpdateDismissed';
 
 export default function AppUpdatePrompt() {
+  const { tFallback } = useLanguage();
   const [needRefresh, setNeedRefresh] = useState(false);
   const [updateFn, setUpdateFn] = useState(() => () => {});
   // Persist dismissal in sessionStorage so a navigation within the same
@@ -100,7 +102,7 @@ export default function AppUpdatePrompt() {
           <RotateCw className="w-4 h-4" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="font-bold text-sm">A new version is available</p>
+          <p className="font-bold text-sm">{tFallback("appUpdatePrompt.aNewVersionIsAvailable", "A new version is available")}</p>
           <p className="text-xs text-muted-foreground">Reload to get the latest features.</p>
         </div>
         <button
@@ -112,7 +114,7 @@ export default function AppUpdatePrompt() {
         <button
           onClick={handleDismiss}
           className="p-1.5 rounded-md text-muted-foreground hover:bg-secondary active:bg-secondary"
-          aria-label="Dismiss"
+          aria-label={tFallback("discovery.dismiss", "Dismiss")}
         >
           <X className="w-4 h-4" />
         </button>

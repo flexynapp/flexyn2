@@ -18,8 +18,10 @@ import { motion, useMotionValue, animate } from 'framer-motion';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { formatWeight } from '@/lib/weightUnit';
 import { totalVolume as computeTotalVolume } from '@/lib/workoutVolume';
+import { useLanguage } from '@/lib/LanguageContext';
 
 export default function LiveVolumePill({ exercises = [], includeBarWeight = false }) {
+  const { tFallback } = useLanguage();
   const { weightUnit } = useWeightUnit();
   // Volume math lives in src/lib/workoutVolume.js so the live pill,
   // save mutation, and downstream displays all share the same
@@ -61,7 +63,7 @@ export default function LiveVolumePill({ exercises = [], includeBarWeight = fals
       transition={{ duration: 0.25 }}
       className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-card border border-border text-xs font-bold tabular-nums"
       aria-live="polite"
-      aria-label="Total volume this session"
+      aria-label={tFallback("liveVolumePill.totalVolumeThisSession", "Total volume this session")}
     >
       <motion.span
         className={colorClass}

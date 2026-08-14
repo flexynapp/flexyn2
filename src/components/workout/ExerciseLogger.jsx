@@ -505,6 +505,7 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
 
 // ── Tempo + notes drawer ──────────────────────────────────────────────────────
 function ExerciseExtras({ exercise, onChange }) {
+  const { tFallback } = useLanguage();
   const hasExtras = !!(exercise?.tempo || exercise?.notes);
   const [open, setOpen] = React.useState(hasExtras);
   return (
@@ -522,7 +523,7 @@ function ExerciseExtras({ exercise, onChange }) {
       {open && (
         <div className="mt-2 space-y-2">
           <div>
-            <label className="text-micro font-bold uppercase tracking-wide text-muted-foreground">Tempo</label>
+            <label className="text-micro font-bold uppercase tracking-wide text-muted-foreground">{tFallback("exerciseLogger.tempo", "Tempo")}</label>
             <input
               type="text"
               value={exercise?.tempo || ''}
@@ -533,11 +534,11 @@ function ExerciseExtras({ exercise, onChange }) {
             />
           </div>
           <div>
-            <label className="text-micro font-bold uppercase tracking-wide text-muted-foreground">Notes</label>
+            <label className="text-micro font-bold uppercase tracking-wide text-muted-foreground">{tFallback("cardio.field.notes", "Notes")}</label>
             <textarea
               value={exercise?.notes || ''}
               onChange={(e) => onChange({ ...exercise, notes: e.target.value.slice(0, 240) || null })}
-              placeholder="Felt weak today, lower the working weight next time…"
+              placeholder={tFallback("exerciseLogger.feltWeakTodayLower", "Felt weak today, lower the working weight next time…")}
               rows={2}
               maxLength={240}
               className="w-full mt-0.5 px-2 py-1.5 text-xs bg-secondary/40 border border-border rounded-md outline-none focus:border-primary/50 resize-none"

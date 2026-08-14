@@ -16,12 +16,14 @@ import { RarityBadge, RarityFrame, COIN } from '@/components/loot/RarityVisuals'
 import FlexCoinIcon from '@/components/FlexCoinIcon';
 import { tileRow } from '@/lib/tileRows';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { useLanguage } from '@/lib/LanguageContext';
 
 // The sticker picker — 3 per row at every width. How many unlisted stickers
 // you hold is arbitrary, so a partial last row was the usual case.
 const PICKER = tileRow({ gap: 2, cols: 3 });
 
 export default function ListItemDialog({ open, onClose, userItems, user, onSuccess }) {
+  const { tFallback } = useLanguage();
   // Pin the page behind this overlay — see @/lib/scrollLock.
   useBodyScrollLock(open);
   const qc = useQueryClient();
@@ -120,7 +122,7 @@ export default function ListItemDialog({ open, onClose, userItems, user, onSucce
             {step === 'configure' && (
               <button
                 onClick={() => setStep('pick')}
-                aria-label="Back to item picker"
+                aria-label={tFallback("listItemDialog.backToItemPicker", "Back to item picker")}
                 className="text-muted-foreground hover:text-foreground active:text-foreground me-1"
               >
                 <ChevronLeft className="w-5 h-5" />
@@ -133,7 +135,7 @@ export default function ListItemDialog({ open, onClose, userItems, user, onSucce
           </div>
           <button
             onClick={handleClose}
-            aria-label="Close"
+            aria-label={tFallback("common.close", "Close")}
             className="text-muted-foreground hover:text-foreground active:text-foreground p-1 rounded-lg hover:bg-secondary active:bg-secondary"
           >
             <X className="w-4 h-4" />

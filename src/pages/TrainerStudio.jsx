@@ -26,10 +26,12 @@ import { formatCents, calculateSplit } from '@/lib/trainerSplit';
 import {
   getMyListings, getMyRevenue, setPublished, deleteListing, becomeTrainer,
 } from '@/lib/data/trainerMarket';
+import { useLanguage } from '@/lib/LanguageContext';
 
 const ListingFormModal = lazy(() => import('@/components/trainer/ListingFormModal'));
 
 export default function TrainerStudio() {
+  const { tFallback } = useLanguage();
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { user } = useAuth();
@@ -144,12 +146,12 @@ export default function TrainerStudio() {
           <div className="mb-3 flex items-start gap-2 px-3 py-2 rounded-xl border border-amber-500/30 bg-amber-500/10">
             <Sparkles className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" aria-hidden="true" />
             <p className="text-xs text-foreground/80">
-              <span className="font-bold text-amber-600">Beta</span> · creator mode is rolling out — the storefront, payouts and review tools come online over the next few weeks.
+              <span className="font-bold text-amber-600">{tFallback("formcoach.beta", "Beta")}</span> · creator mode is rolling out — the storefront, payouts and review tools come online over the next few weeks.
             </p>
           </div>
           <EmptyState
             icon={Sparkles}
-            title="Become a creator"
+            title={tFallback("trainerStudio.becomeACreator", "Become a creator")}
             body="Turn your best regimens into paid programs. Flexyn handles checkout and takes a 15% platform fee; you keep 85%."
             action={{ label: 'Enable creator mode', onClick: handleBecomeTrainer }}
           />
@@ -194,7 +196,7 @@ export default function TrainerStudio() {
           </div>
 
           <div className="flex items-center justify-between mb-3">
-            <h2 className="font-heading font-bold">Your listings</h2>
+            <h2 className="font-heading font-bold">{tFallback("trainerStudio.yourListings", "Your listings")}</h2>
             <Button size="sm" onClick={() => { setEditingListing(null); setFormOpen(true); }} className="gap-1.5">
               <Plus className="w-4 h-4" /> New listing
             </Button>
@@ -205,7 +207,7 @@ export default function TrainerStudio() {
           ) : listings.length === 0 ? (
             <EmptyState
               icon={DollarSign}
-              title="No listings yet"
+              title={tFallback("trainerStudio.noListingsYet", "No listings yet")}
               body="Create your first premium program — pick a regimen, set a price, and publish."
               action={{ label: 'New listing', onClick: () => { setEditingListing(null); setFormOpen(true); } }}
             />
@@ -220,9 +222,9 @@ export default function TrainerStudio() {
                         <div className="flex items-center gap-2">
                           <p className="font-heading font-bold text-sm truncate">{listing.title}</p>
                           {listing.is_published ? (
-                            <span className="text-micro font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-600 shrink-0">Live</span>
+                            <span className="text-micro font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-600 shrink-0">{tFallback("trainerStudio.live", "Live")}</span>
                           ) : (
-                            <span className="text-micro font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-secondary text-muted-foreground shrink-0">Draft</span>
+                            <span className="text-micro font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-secondary text-muted-foreground shrink-0">{tFallback("trainerStudio.draft", "Draft")}</span>
                           )}
                         </div>
                         <p className="text-xs text-muted-foreground mt-0.5">
@@ -243,7 +245,7 @@ export default function TrainerStudio() {
                           type="button"
                           onClick={() => { setEditingListing(listing); setFormOpen(true); }}
                           className="w-8 h-8 rounded-full hover:bg-secondary active:bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground active:text-foreground"
-                          aria-label="Edit"
+                          aria-label={tFallback("coach.plan.edit", "Edit")}
                         >
                           <Pencil className="w-4 h-4" />
                         </button>
@@ -251,7 +253,7 @@ export default function TrainerStudio() {
                           type="button"
                           onClick={() => handleDelete(listing)}
                           className="w-8 h-8 rounded-full hover:bg-destructive/10 active:bg-destructive/10 flex items-center justify-center text-muted-foreground hover:text-destructive active:text-destructive"
-                          aria-label="Delete"
+                          aria-label={tFallback("common.delete", "Delete")}
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>

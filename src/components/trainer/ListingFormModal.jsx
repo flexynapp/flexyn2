@@ -16,8 +16,10 @@ import { db } from '@/api/db';
 import { calculateSplit, formatCents, dollarsToCents } from '@/lib/trainerSplit';
 import { createListing, updateListing } from '@/lib/data/trainerMarket';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { useLanguage } from '@/lib/LanguageContext';
 
 export default function ListingFormModal({ open, onClose, listing, trainerId, userEmail, onSaved }) {
+  const { tFallback } = useLanguage();
   // Pin the page behind this overlay — see @/lib/scrollLock.
   useBodyScrollLock(open);
   const editing = !!listing;
@@ -78,14 +80,14 @@ export default function ListingFormModal({ open, onClose, listing, trainerId, us
       >
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-heading font-bold text-lg">{editing ? 'Edit listing' : 'New listing'}</h2>
-          <button type="button" onClick={onClose} className="w-8 h-8 rounded-full hover:bg-secondary active:bg-secondary flex items-center justify-center" aria-label="Close">
+          <button type="button" onClick={onClose} className="w-8 h-8 rounded-full hover:bg-secondary active:bg-secondary flex items-center justify-center" aria-label={tFallback("common.close", "Close")}>
             <X className="w-4 h-4" />
           </button>
         </div>
 
         <div className="space-y-3">
           <div>
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Regimen</label>
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{tFallback("achievementDefs.cat.regimen", "Regimen")}</label>
             <select
               value={regimenId}
               onChange={(e) => setRegimenId(e.target.value)}
@@ -104,21 +106,21 @@ export default function ListingFormModal({ open, onClose, listing, trainerId, us
           </div>
 
           <div>
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Title</label>
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{tFallback("cardioPlanned.title", "Title")}</label>
             <Input
               value={title}
               onChange={(e) => setTitle(e.target.value.slice(0, 120))}
-              placeholder="12-Week Hypertrophy Block"
+              placeholder={tFallback("listingFormModal.12WeekHypertrophyBlock", "12-Week Hypertrophy Block")}
               className="mt-1"
             />
           </div>
 
           <div>
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Description</label>
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{tFallback("regimens.description", "Description")}</label>
             <Textarea
               value={description}
               onChange={(e) => setDescription(e.target.value.slice(0, 2000))}
-              placeholder="What's inside, who it's for, expected results…"
+              placeholder={tFallback("listingFormModal.whatSInsideWho", "What's inside, who it's for, expected results…")}
               rows={3}
               className="mt-1 resize-none"
             />
@@ -139,7 +141,7 @@ export default function ListingFormModal({ open, onClose, listing, trainerId, us
             {priceInput && (
               <div className="mt-2 rounded-lg bg-secondary/40 border border-border p-2.5 text-xs space-y-1">
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">List price</span>
+                  <span className="text-muted-foreground">{tFallback("listingFormModal.listPrice", "List price")}</span>
                   <span className="font-semibold tabular-nums">{formatCents(priceCents)}</span>
                 </div>
                 <div className="flex justify-between">
@@ -147,7 +149,7 @@ export default function ListingFormModal({ open, onClose, listing, trainerId, us
                   <span className="tabular-nums text-muted-foreground">−{formatCents(split.platformFeeCents)}</span>
                 </div>
                 <div className="flex justify-between border-t border-border/60 pt-1">
-                  <span className="font-semibold text-emerald-600">You keep</span>
+                  <span className="font-semibold text-emerald-600">{tFallback("listingFormModal.youKeep", "You keep")}</span>
                   <span className="font-bold tabular-nums text-emerald-600">{formatCents(split.trainerPayoutCents)}</span>
                 </div>
                 {!priceValid && <p className="text-micro text-destructive">Minimum is $1.00.</p>}

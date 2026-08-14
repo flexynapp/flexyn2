@@ -16,6 +16,7 @@ import { useMemo } from 'react';
 import { SlidersHorizontal, X, Heart } from 'lucide-react';
 import { RARITY } from '@/lib/lootCatalog';
 import { rarityTint, COIN } from '@/components/loot/RarityVisuals';
+import { useLanguage } from '@/lib/LanguageContext';
 
 export const DEFAULT_FILTERS = {
   type: 'all',        // 'all' | 'sale' | 'trade'
@@ -91,6 +92,7 @@ function byFeaturedThen(tiebreak) {
 export default function MarketFilterBar({
   filters, onChange, resultCount, totalCount, savedCount = 0, availableRarities,
 }) {
+  const { tFallback } = useLanguage();
   const activeCount = activeFilterCount(filters);
 
   // Rarities that are actually ON THE MARKET, in catalog ladder order.
@@ -156,7 +158,7 @@ export default function MarketFilterBar({
         >
         <SlidersHorizontal className="w-3.5 h-3.5 text-muted-foreground shrink-0" aria-hidden="true" />
 
-        <div className="flex gap-1 shrink-0" role="group" aria-label="Listing type">
+        <div className="flex gap-1 shrink-0" role="group" aria-label={tFallback("marketFilterBar.listingType", "Listing type")}>
           {TYPES.map(t => (
             <button
               key={t.id}
@@ -213,7 +215,7 @@ export default function MarketFilterBar({
         <select
           value={filters.sort}
           onChange={(e) => set({ sort: e.target.value })}
-          aria-label="Sort listings"
+          aria-label={tFallback("marketFilterBar.sortListings", "Sort listings")}
           className="shrink-0 bg-secondary border border-border rounded-full px-2 py-1 text-micro font-bold outline-none max-w-[104px]"
         >
           {SORTS.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}

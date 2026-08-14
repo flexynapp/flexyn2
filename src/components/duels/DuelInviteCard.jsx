@@ -9,6 +9,7 @@ import { Swords, Dumbbell, Timer, Trophy, Check, X, Loader2 } from 'lucide-react
 import { acceptDuel, declineDuel } from '@/lib/data/duels';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/lib/toast';
+import { useLanguage } from '@/lib/LanguageContext';
 
 // ── Protocol helpers (imported by HubChat) ────────────────────────────────────
 
@@ -52,6 +53,7 @@ const TYPE_META = {
 // ── Card ──────────────────────────────────────────────────────────────────────
 
 export default function DuelInviteCard({ payload, isMine }) {
+  const { tFallback } = useLanguage();
   const qc = useQueryClient();
   const [state, setState] = useState('idle'); // idle | accepting | declining | accepted | declined
 
@@ -73,7 +75,7 @@ export default function DuelInviteCard({ payload, isMine }) {
       qc.invalidateQueries({ queryKey: ['myDuels'] });
     } catch (err) {
       setState('idle');
-      toast.error('Could not accept duel', { description: err.message });
+      toast.error(tFallback("duelInviteCard.couldNotAcceptDuel", "Could not accept duel"), { description: err.message });
     }
   };
 
@@ -88,7 +90,7 @@ export default function DuelInviteCard({ payload, isMine }) {
       qc.invalidateQueries({ queryKey: ['myDuels'] });
     } catch (err) {
       setState('idle');
-      toast.error('Could not decline duel', { description: err.message });
+      toast.error(tFallback("duelInviteCard.couldNotDeclineDuel", "Could not decline duel"), { description: err.message });
     }
   };
 
@@ -99,7 +101,7 @@ export default function DuelInviteCard({ payload, isMine }) {
         {/* Rose header band */}
         <div className="px-4 py-2.5 flex items-center gap-2 bg-rose-500">
           <Swords className="w-4 h-4 text-white shrink-0" />
-          <span className="text-white text-xs font-bold tracking-wide uppercase">Duel Challenge</span>
+          <span className="text-white text-xs font-bold tracking-wide uppercase">{tFallback("duelInviteCard.duelChallenge", "Duel Challenge")}</span>
         </div>
 
         <div className="px-4 py-3 space-y-3">
@@ -115,7 +117,7 @@ export default function DuelInviteCard({ payload, isMine }) {
               </div>
             )}
             <div>
-              <p className="text-xs text-muted-foreground">Challenge from</p>
+              <p className="text-xs text-muted-foreground">{tFallback("duelInviteCard.challengeFrom", "Challenge from")}</p>
               <p className="text-sm font-bold">@{challengerUsername}</p>
             </div>
           </div>

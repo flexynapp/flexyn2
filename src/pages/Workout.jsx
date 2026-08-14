@@ -171,6 +171,7 @@ function pickSetMeta(s) {
  * normal logger UI.
  */
 function ReorderItemWithHandle({ value, children, className }) {
+  const { tFallback } = useLanguage();
   const controls = useDragControls();
   return (
     <Reorder.Item
@@ -184,7 +185,7 @@ function ReorderItemWithHandle({ value, children, className }) {
       <div
         onPointerDown={(e) => controls.start(e)}
         className="absolute top-1 start-1/2 -translate-x-1/2 z-10 w-10 h-5 flex items-center justify-center cursor-grab active:cursor-grabbing touch-none select-none"
-        aria-label="Drag to reorder"
+        aria-label={tFallback("workout.dragToReorder", "Drag to reorder")}
         role="button"
       >
         <span className="w-8 h-1 rounded-full bg-muted-foreground/30 hover:bg-muted-foreground/60 active:bg-muted-foreground/60 transition-colors" />

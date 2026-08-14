@@ -1,6 +1,7 @@
 // src/components/nutrition/MealTypePicker.jsx
 import React from 'react';
 import { Coffee, Sun, Moon, Cookie } from 'lucide-react';
+import { useLanguage } from '@/lib/LanguageContext';
 
 export const MEAL_TYPES = [
   { id: 'breakfast', label: 'Breakfast', icon: Coffee },
@@ -18,9 +19,10 @@ export function autoPickMealType(now = new Date()) {
 }
 
 export default function MealTypePicker({ value, onChange, size = 'sm', className = '' }) {
+  const { tFallback } = useLanguage();
   const pad = size === 'sm' ? 'px-2.5 py-1 text-micro' : 'px-3 py-1.5 text-xs';
   return (
-    <div role="radiogroup" aria-label="Meal type" className={`flex gap-1 ${className}`}>
+    <div role="radiogroup" aria-label={tFallback("mealTypePicker.mealType", "Meal type")} className={`flex gap-1 ${className}`}>
       {MEAL_TYPES.map(({ id, label, icon: Icon }) => {
         const isActive = value === id;
         return (

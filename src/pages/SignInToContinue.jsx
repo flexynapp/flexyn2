@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from '@/lib/toast';
 import { db } from '@/api/db';
+import { useLanguage } from '@/lib/LanguageContext';
 
 // Inline SVG glyphs for the OAuth buttons — keeps us off of brand-asset
 // CDN fetches and lets the buttons render before any external request.
@@ -32,6 +33,7 @@ export default function SignInToContinue({
   heading = 'Sign in to continue',
   subtext = 'Pick up right where you left off — your workouts, streaks, and progress are waiting.',
 }) {
+  const { tFallback } = useLanguage();
   const [email, setEmail] = useState('');
   const [emailSent, setEmailSent] = useState(false);
   // Whether the address they entered already had an account. A magic link
@@ -164,7 +166,7 @@ export default function SignInToContinue({
         <button
           type="button"
           onClick={onBack}
-          aria-label="Back"
+          aria-label={tFallback("achievements.vault.back", "Back")}
           className="absolute top-5 start-5 z-20 w-11 h-11 rounded-xl border border-border bg-card/80 backdrop-blur-sm flex items-center justify-center text-foreground hover:bg-secondary active:bg-secondary transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
@@ -185,9 +187,9 @@ export default function SignInToContinue({
           {/* Self-hosted flame app icon — was the base44 CDN LOGO_URL, an
               external dependency with no onError fallback on the FIRST screen
               a user sees. /favicon.svg ships in the app bundle. */}
-          <img src="/favicon.svg" alt="Flexyn" className="w-full h-full object-contain" />
+          <img src="/favicon.svg" alt={tFallback("app.name", "Flexyn")} className="w-full h-full object-contain" />
         </div>
-        <p className="font-heading text-3xl font-bold tracking-tight mb-4">Flexyn</p>
+        <p className="font-heading text-3xl font-bold tracking-tight mb-4">{tFallback("app.name", "Flexyn")}</p>
         <h2 className="font-heading text-xl font-bold tracking-tight mb-2 max-w-xs">{heading}</h2>
         <p className="text-muted-foreground text-sm leading-relaxed max-w-xs">
           {subtext}
@@ -325,9 +327,9 @@ export default function SignInToContinue({
                 routes, not in-app links behind the auth gate. */}
             <p className="text-[10px] text-muted-foreground/70 text-center leading-relaxed">
               By continuing you agree to our{' '}
-              <a href="/terms" className="underline hover:text-foreground">Terms</a>
+              <a href="/terms" className="underline hover:text-foreground">{tFallback("signInToContinue.terms", "Terms")}</a>
               {' '}and{' '}
-              <a href="/privacy" className="underline hover:text-foreground">Privacy Policy</a>.
+              <a href="/privacy" className="underline hover:text-foreground">{tFallback("legal.privacyPolicy", "Privacy Policy")}</a>.
             </p>
           </>
         )}

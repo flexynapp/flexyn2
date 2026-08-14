@@ -123,8 +123,9 @@ function RepostCard({ originalPostId, onAuthorClick }) {
 }
 
 function CrownBadge({ size = 14 }) {
+  const { tFallback } = useLanguage();
   return (
-    <svg width={size} height={size} viewBox="0 0 16 14" fill="none" aria-label="Admin" title="Verified Admin">
+    <svg width={size} height={size} viewBox="0 0 16 14" fill="none" aria-label={tFallback("hubPostCard.admin", "Admin")} title={tFallback("hubPostCard.verifiedAdmin", "Verified Admin")}>
       <path d="M1 12h14M2 12L1 4l4 3.5L8 1l3 6.5L15 4l-1 8H2z" fill="#f97316" stroke="#ea6c00" strokeWidth="0.8" strokeLinejoin="round"/>
     </svg>
   );
@@ -157,6 +158,7 @@ function getPostTypeAccent(/* post */) {
 const VOTE_KEY = (postId, userEmail) => `poll_vote_${postId}_${userEmail}`;
 
 function PollCard({ post, userEmail }) {
+  const { tFallback } = useLanguage();
   // Parse the poll payload from the post body. Failures and shape
   // mismatches are tracked as `isValid = false` and we render null at
   // the END — Rules of Hooks forbids early returns before hooks below,
@@ -254,7 +256,7 @@ function PollCard({ post, userEmail }) {
       <div className="rounded-xl border border-border bg-secondary/20 p-3">
         <div className="flex items-center gap-1.5 mb-2">
           <BarChart3 className="w-3.5 h-3.5 text-primary" />
-          <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Poll</p>
+          <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide">{tFallback("hubPostCard.poll", "Poll")}</p>
         </div>
         <p className="text-sm font-semibold text-foreground mb-3">{question}</p>
         <div className="space-y-2">
@@ -306,7 +308,7 @@ function PollCard({ post, userEmail }) {
         {/* Vote timeline */}
         {showTimeline && timelineVotes.length > 0 && (
           <div className="mt-3 border-t border-border pt-2">
-            <p className="text-micro font-bold uppercase tracking-wider text-muted-foreground mb-2">Vote history</p>
+            <p className="text-micro font-bold uppercase tracking-wider text-muted-foreground mb-2">{tFallback("hubPostCard.voteHistory", "Vote history")}</p>
             <div className="relative ps-3">
               {/* Vertical line */}
               <div className="absolute start-1 top-0 bottom-0 w-px bg-border" />
@@ -336,6 +338,7 @@ function PollCard({ post, userEmail }) {
 // Default: compact blurred thumbnail with "Tap to view" overlay.
 // Tap once to expand to full image; tap again to collapse.
 function ImagePreview({ src }) {
+  const { tFallback } = useLanguage();
   const [expanded, setExpanded] = useState(false);
   // CDN transforms (no-ops until VITE_IMAGE_CDN=1 — see lib/imageCdn.js):
   // the collapsed teaser renders 100px tall + blurred, so it never needs
@@ -371,7 +374,7 @@ function ImagePreview({ src }) {
             type="button"
             onClick={(e) => { e.stopPropagation(); setExpanded(false); }}
             className="absolute top-2 end-2 w-7 h-7 rounded-full bg-black/50 flex items-center justify-center text-white hover:bg-black/70 active:bg-black/70 transition-colors"
-            aria-label="Collapse image"
+            aria-label={tFallback("hubPostCard.collapseImage", "Collapse image")}
           >
             <ChevronDown className="w-4 h-4" />
           </button>

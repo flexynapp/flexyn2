@@ -9,6 +9,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { useLanguage } from '@/lib/LanguageContext';
 
 // Ambient white embers drifting up over the blue gym backdrop.
 function makeEmbers() {
@@ -22,6 +23,7 @@ function makeEmbers() {
 }
 
 export default function HeavyBirdModal({ onClose, userId, onUnlockCosmetic }) {
+  const { tFallback } = useLanguage();
   // Pin the page behind this overlay — see @/lib/scrollLock.
   useBodyScrollLock();
   const canvasRef = useRef(null);
@@ -216,11 +218,11 @@ export default function HeavyBirdModal({ onClose, userId, onUnlockCosmetic }) {
       {/* Status dashboard */}
       <div className="w-[360px] max-w-full flex justify-between items-center px-2 mb-4 text-zinc-100 font-mono tracking-tight">
         <div>
-          <span className="text-zinc-500 text-xs block uppercase">Current Load</span>
+          <span className="text-zinc-500 text-xs block uppercase">{tFallback("heavyBirdModal.currentLoad", "Current Load")}</span>
           <span className="text-2xl font-black text-success">{currentWeight} <span className="text-sm text-zinc-400">lbs</span></span>
         </div>
         <div className="text-end">
-          <span className="text-zinc-500 text-xs block uppercase">Personal Record</span>
+          <span className="text-zinc-500 text-xs block uppercase">{tFallback("gauntlet.type.pr", "Personal Record")}</span>
           <span className="text-xl font-bold text-primary">{highScore} lbs</span>
         </div>
       </div>
@@ -235,9 +237,9 @@ export default function HeavyBirdModal({ onClose, userId, onUnlockCosmetic }) {
 
         {!gameStarted && (
           <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center text-center p-6 pointer-events-none">
-            <h2 className="text-2xl font-black text-zinc-100 tracking-wider uppercase mb-1">Gainz Bird</h2>
+            <h2 className="text-2xl font-black text-zinc-100 tracking-wider uppercase mb-1">{tFallback("heavyBirdModal.gainzBird", "Gainz Bird")}</h2>
             <p className="text-zinc-400 text-xs max-w-[240px] mb-6">Tap to contract biceps, dodge heavy racks, and stack plates.</p>
-            <span className="animate-pulse bg-zinc-100 text-zinc-950 font-mono text-xs px-4 py-2 font-bold uppercase tracking-widest rounded">Tap to lift</span>
+            <span className="animate-pulse bg-zinc-100 text-zinc-950 font-mono text-xs px-4 py-2 font-bold uppercase tracking-widest rounded">{tFallback("heavyBirdModal.tapToLift", "Tap to lift")}</span>
           </div>
         )}
 
@@ -245,7 +247,7 @@ export default function HeavyBirdModal({ onClose, userId, onUnlockCosmetic }) {
           <div className="absolute inset-0 bg-red-950/70 backdrop-blur-sm flex flex-col items-center justify-center text-center p-6 pointer-events-none">
             <h2 className="text-3xl font-black text-destructive tracking-tighter uppercase mb-1">Misfire / Fatigue</h2>
             <p className="text-zinc-300 text-xs font-mono mb-4">You got crushed at {currentWeight} lbs.</p>
-            <span className="bg-zinc-100 text-zinc-950 font-mono text-xs px-4 py-2 font-bold uppercase rounded">Tap to Re-rack</span>
+            <span className="bg-zinc-100 text-zinc-950 font-mono text-xs px-4 py-2 font-bold uppercase rounded">{tFallback("heavyBirdModal.tapToReRack", "Tap to Re-rack")}</span>
           </div>
         )}
       </div>

@@ -30,6 +30,7 @@
 
 import { useState } from 'react';
 import { EyeOff, AlertTriangle } from 'lucide-react';
+import { useLanguage } from '@/lib/LanguageContext';
 
 const CW_LABELS = {
   graphic_injury: 'Graphic injury',
@@ -39,6 +40,7 @@ const CW_LABELS = {
 };
 
 export default function ContentWarningGate({ warning, customLabel, children }) {
+  const { tFallback } = useLanguage();
   const [revealed, setRevealed] = useState(false);
 
   if (!warning) return <>{children}</>;

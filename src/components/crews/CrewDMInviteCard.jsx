@@ -8,6 +8,7 @@ import { motion } from 'framer-motion';
 import { Shield, Loader2, Check } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import * as crews from '@/lib/data/crews';
+import { useLanguage } from '@/lib/LanguageContext';
 
 export const CREW_INVITE_PREFIX = '[CREW_INVITE_V1]';
 
@@ -25,6 +26,7 @@ export function buildCrewInviteBody(crewId, crewName, inviterName, inviterAvatar
 }
 
 export default function CrewDMInviteCard({ payload, userId, isMine }) {
+  const { tFallback } = useLanguage();
   const [state, setState] = useState('idle'); // idle | joining | joined | full
   // Synchronous double-tap guard. The state-only `if (state !== 'idle')`
   // gate is async — fast double-tap fires joinCrew twice. The RPC is
@@ -60,7 +62,7 @@ export default function CrewDMInviteCard({ payload, userId, isMine }) {
         {/* Orange header band */}
         <div className="px-4 py-2.5 flex items-center gap-2" style={{ background: 'hsl(var(--primary))' }}>
           <Shield className="w-4 h-4 text-white shrink-0" />
-          <span className="text-white text-xs font-bold">Crew Invite</span>
+          <span className="text-white text-xs font-bold">{tFallback("crewDMInviteCard.crewInvite", "Crew Invite")}</span>
         </div>
 
         <div className="px-4 py-3">

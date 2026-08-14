@@ -49,6 +49,7 @@ import RecipeDetailSheet from './RecipeDetailSheet';
 import RecipeOverflowSheet from './RecipeOverflowSheet';
 import LogRecipeSheet from './LogRecipeSheet';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { useLanguage } from '@/lib/LanguageContext';
 
 // Square thumbnail — the recipe photo, or a placeholder.
 function RecipeThumb({ recipe, className = 'w-14 h-14' }) {
@@ -91,6 +92,7 @@ export default function RecipesHubModal({
   open, onClose, userProfile,
   logDate, defaultMealType = 'snack', onLogRecipe, logBusy = false,
 }) {
+  const { tFallback } = useLanguage();
   // Pin the page behind this overlay — see @/lib/scrollLock.
   useBodyScrollLock(open);
   const { user } = useAuth();
@@ -291,7 +293,7 @@ export default function RecipesHubModal({
               <h2 className="font-heading font-bold text-base flex items-center gap-2">
                 <ChefHat className="w-4 h-4" /> Recipes
               </h2>
-              <button onClick={onClose} aria-label="Close" className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center">
+              <button onClick={onClose} aria-label={tFallback("common.close", "Close")} className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center">
                 <X className="w-3.5 h-3.5" />
               </button>
             </div>
@@ -366,7 +368,7 @@ export default function RecipesHubModal({
                         </>
                       ) : (
                         <>
-                          <h3 className="font-heading font-bold text-base">Save a meal you eat often</h3>
+                          <h3 className="font-heading font-bold text-base">{tFallback("recipesHubModal.saveAMealYouEat", "Save a meal you eat often")}</h3>
                           <p className="text-caption text-muted-foreground mt-1">
                             Build it once. From then on it logs in one tap, with the macros
                             already filled in.
@@ -378,14 +380,14 @@ export default function RecipesHubModal({
                             <RouteCard
                               Icon={PencilLine}
                               tint="bg-primary/15 text-primary"
-                              title="Build from scratch"
+                              title={tFallback("recipesHubModal.buildFromScratch", "Build from scratch")}
                               sub="Ingredients, macros, directions"
                               onClick={openNew}
                             />
                             <RouteCard
                               Icon={History}
                               tint="bg-info/15 text-info"
-                              title="From a meal you logged"
+                              title={tFallback("recipesHubModal.fromAMealYouLogged", "From a meal you logged")}
                               sub={seedableLogs.length
                                 ? `Turn “${seedableLogs[0].food_name}” into one`
                                 : 'Reuse something already in your diary'}
@@ -394,7 +396,7 @@ export default function RecipesHubModal({
                             <RouteCard
                               Icon={Compass}
                               tint="bg-success/15 text-success"
-                              title="Browse Discover"
+                              title={tFallback("recipesHubModal.browseDiscover", "Browse Discover")}
                               sub="Save someone else’s, then make it yours"
                               onClick={() => setTab('discover')}
                             />
@@ -406,7 +408,7 @@ export default function RecipesHubModal({
                     /* ── Saved list — board B ──────────────────────────── */
                     <>
                       <div className="flex items-baseline justify-between mb-2">
-                        <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground">Saved</p>
+                        <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground">{tFallback("journal.saved", "Saved")}</p>
                         <p className="text-micro text-muted-foreground">values per serving</p>
                       </div>
                       <div className="space-y-2">
@@ -476,8 +478,8 @@ export default function RecipesHubModal({
                     <input
                       value={query}
                       onChange={(e) => setQuery(e.target.value)}
-                      placeholder="Search community recipes"
-                      aria-label="Search community recipes"
+                      placeholder={tFallback("recipesHubModal.searchCommunityRecipes", "Search community recipes")}
+                      aria-label={tFallback("recipesHubModal.searchCommunityRecipes", "Search community recipes")}
                       // text-base keeps iOS Safari from zooming the viewport
                       // on focus — anything under 16px triggers the auto-zoom.
                       className="w-full h-10 ps-9 pe-3 rounded-lg border border-input bg-background text-base"
@@ -508,14 +510,14 @@ export default function RecipesHubModal({
                       <Utensils className="w-8 h-8 mx-auto mb-2 opacity-40" />
                       {publicRecipes.length === 0 ? (
                         <>
-                          <p className="text-sm font-semibold">No community recipes yet</p>
+                          <p className="text-sm font-semibold">{tFallback("recipesHubModal.noCommunityRecipesYet", "No community recipes yet")}</p>
                           <p className="text-xs mt-1">
                             Share one of yours from its detail screen and it lands here.
                           </p>
                         </>
                       ) : (
                         <>
-                          <p className="text-sm font-semibold">Nothing matches that</p>
+                          <p className="text-sm font-semibold">{tFallback("recipesHubModal.nothingMatches", "Nothing matches that")}</p>
                           <p className="text-xs mt-1">Try a different search or filter.</p>
                         </>
                       )}

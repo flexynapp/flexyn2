@@ -518,6 +518,7 @@ function MessageBubble({ m }) {
 // Horizontally-scrollable suggested-prompt chips with left/right arrow
 // controls. Arrows hide at the respective scroll extremes.
 function PromptStrip({ prompts, onPick, disabled }) {
+  const { tFallback } = useLanguage();
   const ref = useRef(null);
   const [atStart, setAtStart] = useState(true);
   const [atEnd, setAtEnd] = useState(false);
@@ -539,7 +540,7 @@ function PromptStrip({ prompts, onPick, disabled }) {
         <button
           type="button"
           onClick={() => scrollByAmount(-160)}
-          aria-label="Scroll prompts left"
+          aria-label={tFallback("coachChat.scrollPromptsLeft", "Scroll prompts left")}
           className="absolute start-0 top-1/2 -translate-y-1/2 z-10 p-1 rounded-full bg-card border border-border shadow-sm text-muted-foreground hover:text-foreground active:text-foreground"
         >
           <ChevronLeft className="w-4 h-4" />
@@ -574,7 +575,7 @@ function PromptStrip({ prompts, onPick, disabled }) {
         <button
           type="button"
           onClick={() => scrollByAmount(160)}
-          aria-label="Scroll prompts right"
+          aria-label={tFallback("coachChat.scrollPromptsRight", "Scroll prompts right")}
           className="absolute end-0 top-1/2 -translate-y-1/2 z-10 p-1 rounded-full bg-card border border-border shadow-sm text-muted-foreground hover:text-foreground active:text-foreground"
         >
           <ChevronRight className="w-4 h-4" />

@@ -14,12 +14,14 @@ import { motion } from 'framer-motion';
 import { X } from 'lucide-react';
 import * as inventory from '@/lib/data/inventory';
 import { ITEMS } from '@/lib/lootCatalog';
+import { useLanguage } from '@/lib/LanguageContext';
 
 const STICKERS_BY_ID = Object.fromEntries(
   ITEMS.filter(i => i.type === 'sticker').map(s => [s.id, s])
 );
 
 export default function DMStickerPicker({ open, userId, userEmail, onPick, onClose }) {
+  const { tFallback } = useLanguage();
   const { data: ownedRows = [] } = useQuery({
     queryKey: ['dmStickerInventory', userEmail || userId],
     // inventory.listItems(userEmail) is the real export — the old call
@@ -65,14 +67,14 @@ export default function DMStickerPicker({ open, userId, userEmail, onPick, onClo
       style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}
     >
       <div className="flex items-center justify-between px-4 pt-3 pb-2">
-        <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Stickers</span>
-        <button onClick={onClose} className="relative before:absolute before:content-[''] before:-inset-2.5 w-7 h-7 rounded-full bg-secondary text-muted-foreground flex items-center justify-center" aria-label="Close">
+        <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">{tFallback("dMStickerPicker.stickers", "Stickers")}</span>
+        <button onClick={onClose} className="relative before:absolute before:content-[''] before:-inset-2.5 w-7 h-7 rounded-full bg-secondary text-muted-foreground flex items-center justify-center" aria-label={tFallback("common.close", "Close")}>
           <X className="w-3.5 h-3.5" />
         </button>
       </div>
       {groups.length === 0 ? (
         <div className="px-4 pb-6 text-center">
-          <p className="text-sm font-bold">No stickers yet</p>
+          <p className="text-sm font-bold">{tFallback("dMStickerPicker.noStickersYet", "No stickers yet")}</p>
           <p className="text-xs text-muted-foreground mt-1">Open capsules in the Market to collect stickers.</p>
         </div>
       ) : (

@@ -16,12 +16,14 @@ import { displayName } from '@/lib/userDisplay';
 import { RarityBadge, RarityFrame } from '@/components/loot/RarityVisuals';
 import { tileRow } from '@/lib/tileRows';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { useLanguage } from '@/lib/LanguageContext';
 
 // The sticker picker — 3 per row at every width. How many unlisted stickers
 // you hold is arbitrary, so a partial last row was the usual case.
 const PICKER = tileRow({ gap: 2, cols: 3 });
 
 export default function TradeOfferDialog({ open, listing, userItems, user, onClose }) {
+  const { tFallback } = useLanguage();
   // Pin the page behind this overlay — see @/lib/scrollLock.
   useBodyScrollLock(open && !!listing);
   const [selectedOffer, setSelectedOffer] = useState(null);
@@ -151,7 +153,7 @@ export default function TradeOfferDialog({ open, listing, userItems, user, onClo
           </h3>
           <button
             onClick={onClose}
-            aria-label="Close"
+            aria-label={tFallback("common.close", "Close")}
             className="text-muted-foreground hover:text-foreground active:text-foreground p-1 rounded-lg hover:bg-secondary active:bg-secondary"
           >
             <X className="w-4 h-4" />

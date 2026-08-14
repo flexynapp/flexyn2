@@ -5,8 +5,10 @@
 import { motion } from 'framer-motion';
 import { RarityBadge, CoinAmount } from '@/components/loot/RarityVisuals';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { useLanguage } from '@/lib/LanguageContext';
 
 export default function BuyConfirmDialog({ open, listing, onClose, onConfirm, busy }) {
+  const { tFallback } = useLanguage();
   // Pin the page behind this overlay — see @/lib/scrollLock.
   useBodyScrollLock(open && !!listing);
   if (!open || !listing) return null;
@@ -22,7 +24,7 @@ export default function BuyConfirmDialog({ open, listing, onClose, onConfirm, bu
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
       >
-        <h3 className="font-heading font-bold text-lg text-center">Confirm Purchase</h3>
+        <h3 className="font-heading font-bold text-lg text-center">{tFallback("buyConfirmDialog.confirmPurchase", "Confirm Purchase")}</h3>
         <div className="flex flex-col items-center gap-2">
           <span className="text-5xl">{listing.item_emoji}</span>
           <p className="font-semibold">{listing.item_name}</p>

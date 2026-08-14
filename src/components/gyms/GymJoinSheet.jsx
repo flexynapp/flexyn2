@@ -42,6 +42,7 @@ import {
 import { leaveGym } from '@/lib/data/gymBusinesses';
 import { useDistanceUnit } from '@/lib/DistanceUnitContext';
 import { reportError } from '@/lib/reportError';
+import { useLanguage } from '@/lib/LanguageContext';
 
 const KM_PER_MILE = 1.609344;
 
@@ -105,6 +106,7 @@ function StaticMapCard({ lat, lng, label }) {
  * @param {Function} onContinue advance the step
  */
 export default function GymJoinSheet({ pick, open, onCancel, onJoined, onContinue }) {
+  const { tFallback } = useLanguage();
   const { distanceUnit } = useDistanceUnit();
   const imperial = distanceUnit !== 'km';
 

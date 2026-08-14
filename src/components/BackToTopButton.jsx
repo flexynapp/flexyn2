@@ -10,8 +10,10 @@ import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowUp } from 'lucide-react';
 import { useScrollPosition } from '@/hooks/useScrollPosition';
+import { useLanguage } from '@/lib/LanguageContext';
 
 export default function BackToTopButton() {
+  const { tFallback } = useLanguage();
   const scrollY = useScrollPosition();
   const threshold = typeof window !== 'undefined'
     ? window.innerHeight * 2
@@ -68,7 +70,7 @@ export default function BackToTopButton() {
           // 2560 display otherwise. 0 below --shell-max, so mobile is
           // unchanged and keeps the bare `end-4`.
           className="fixed end-4 lg:end-[calc(var(--shell-inset)+1rem)] bottom-[var(--above-nav)] lg:bottom-6 z-30 w-12 h-12 rounded-full bg-card/95 backdrop-blur-sm border border-border shadow-lg flex items-center justify-center text-foreground hover:bg-secondary active:bg-secondary transition-colors"
-          aria-label="Back to top"
+          aria-label={tFallback("backToTopButton.backToTop", "Back to top")}
           type="button"
         >
           <ArrowUp className="w-5 h-5" />

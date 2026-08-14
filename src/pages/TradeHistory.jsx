@@ -27,6 +27,7 @@ import * as tradeHistory from '@/lib/data/tradeHistory';
 import * as tradeOffers from '@/lib/data/tradeOffers';
 import PageHeader from '@/components/PageHeader';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useLanguage } from '@/lib/LanguageContext';
 
 const FILTERS = [
   { id: 'all',       label: 'All' },
@@ -72,6 +73,7 @@ function fromLegacy(t) {
 }
 
 export default function TradeHistory() {
+  const { tFallback } = useLanguage();
   const { user } = useAuth();
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -136,7 +138,7 @@ export default function TradeHistory() {
         <ArrowLeft className="w-4 h-4" /> Back
       </button>
 
-      <PageHeader kicker="Marketplace" title="Trade history" icon={ArrowRightLeft} hidePeriod />
+      <PageHeader kicker="Marketplace" title={tFallback("marketplaceHeader.tradeHistory", "Trade history")} icon={ArrowRightLeft} hidePeriod />
 
       <div className="flex gap-1.5 mb-4 overflow-x-auto scrollbar-hide" style={{ scrollbarWidth: 'none' }}>
         {FILTERS.map(f => (
@@ -189,6 +191,7 @@ export default function TradeHistory() {
 }
 
 function TradeRow({ trade, authorsById, onCancel, busy }) {
+  const { tFallback } = useLanguage();
   // Real trades resolve a live @username from the user id.
   //
   // Legacy trades came from DMs, which carry an email and no user_id. Those
@@ -244,12 +247,12 @@ function TradeRow({ trade, authorsById, onCancel, busy }) {
           {trade.real ? (
             <span
               className="flex items-center gap-0.5 text-emerald-600 dark:text-emerald-400"
-              title="Items were swapped automatically"
+              title={tFallback("tradeHistory.itemsWereSwappedAutomatically", "Items were swapped automatically")}
             >
               <ShieldCheck className="w-3 h-3" /> escrow
             </span>
           ) : (
-            <span title="Sent before automatic trading — items were hand-delivered">manual</span>
+            <span title={tFallback("tradeHistory.sentBeforeAutomaticTradingItems", "Sent before automatic trading — items were hand-delivered")}>manual</span>
           )}
         </div>
       </div>

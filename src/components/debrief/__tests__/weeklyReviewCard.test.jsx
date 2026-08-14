@@ -1,8 +1,17 @@
 import React from 'react';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import WeeklyDebriefCard from '../WeeklyDebriefCard';
+
+// These components now read tFallback, and useLanguage() throws outside a
+// provider by design. Resolving the real English catalog rather than returning
+// key paths, so any assertion here still reads like the screen.
+vi.mock('@/lib/LanguageContext', async () => {
+  const { languageMock } = await import('@/lib/__tests__/i18nMock');
+  return languageMock();
+});
+
 
 // The card's whole design premise is that A SECTION WITH NO DATA IS NOT
 // RENDERED — never as zeros, never as em dashes. That rule is the thing most

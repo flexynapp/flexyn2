@@ -15,8 +15,10 @@ import { BAR_PRESETS, getActiveBarLbs, setActiveBarLbs, platesPerSide } from '@/
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { toLbs, formatWeightNumber } from '@/lib/weightUnit';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { useLanguage } from '@/lib/LanguageContext';
 
 export default function PlateCalculatorModal({ open, onClose, initialWeightLbs = null }) {
+  const { tFallback } = useLanguage();
   // Pin the page behind this overlay — see @/lib/scrollLock.
   useBodyScrollLock(open);
   const { weightUnit } = useWeightUnit();
@@ -62,7 +64,7 @@ export default function PlateCalculatorModal({ open, onClose, initialWeightLbs =
             onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-modal="true"
-            aria-label="Plate calculator"
+            aria-label={tFallback("plateCalculatorModal.plateCalculator", "Plate calculator")}
             className="bg-card border border-border rounded-t-2xl sm:rounded-2xl w-full max-w-sm p-5 flex flex-col gap-4"
             style={{ paddingBottom: 'max(20px, env(safe-area-inset-bottom))' }}
           >
@@ -70,16 +72,16 @@ export default function PlateCalculatorModal({ open, onClose, initialWeightLbs =
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Calculator className="w-5 h-5 text-primary" />
-                <h3 className="font-heading font-bold text-base">Plate calculator</h3>
+                <h3 className="font-heading font-bold text-base">{tFallback("plateCalculatorModal.plateCalculator", "Plate calculator")}</h3>
               </div>
-              <button onClick={onClose} aria-label="Close" className="p-1 rounded-md text-muted-foreground hover:bg-secondary active:bg-secondary transition-colors">
+              <button onClick={onClose} aria-label={tFallback("common.close", "Close")} className="p-1 rounded-md text-muted-foreground hover:bg-secondary active:bg-secondary transition-colors">
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             {/* Target weight input */}
             <div>
-              <label className="text-micro font-bold uppercase tracking-wide text-muted-foreground">Target weight</label>
+              <label className="text-micro font-bold uppercase tracking-wide text-muted-foreground">{tFallback("nutritionOnboarding.step.target.weightLabel", "Target weight")}</label>
               <div className="relative mt-1">
                 <input
                   type="number"
@@ -96,7 +98,7 @@ export default function PlateCalculatorModal({ open, onClose, initialWeightLbs =
 
             {/* Bar selector */}
             <div>
-              <label className="text-micro font-bold uppercase tracking-wide text-muted-foreground">Bar</label>
+              <label className="text-micro font-bold uppercase tracking-wide text-muted-foreground">{tFallback("exerciseLogger.bar", "Bar")}</label>
               <div className="flex flex-wrap gap-1.5 mt-1.5">
                 {BAR_PRESETS.map((bar) => {
                   const active = bar.lbs === barLbs;
@@ -127,7 +129,7 @@ export default function PlateCalculatorModal({ open, onClose, initialWeightLbs =
                 <p className="text-sm font-semibold">Just the bar — no plates needed.</p>
               ) : (
                 <>
-                  <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground mb-1">Per side</p>
+                  <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground mb-1">{tFallback("plateCalculatorModal.perSide", "Per side")}</p>
                   <p className="font-heading font-black text-lg mb-2">{breakdownText}</p>
                   <PlateDiagram plates={perSide} barLbs={barLbs} />
                   {remainderLbs > 0.1 && (

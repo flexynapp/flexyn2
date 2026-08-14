@@ -34,6 +34,7 @@ import {
   stashPendingToken,
   clearPendingToken,
 } from '@/lib/data/duelInvites';
+import { useLanguage } from '@/lib/LanguageContext';
 
 const DUEL_TYPE_LABEL = {
   open:     'Open duel — most total volume wins',
@@ -42,6 +43,7 @@ const DUEL_TYPE_LABEL = {
 };
 
 export default function DuelInviteLanding() {
+  const { tFallback } = useLanguage();
   const { token } = useParams();
   const navigate = useNavigate();
   const { user, isLoadingAuth } = useAuth();
@@ -114,9 +116,9 @@ export default function DuelInviteLanding() {
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(buildInviteUrl(token));
-      toast.success('Link copied');
+      toast.success(tFallback("referral.copied", "Link copied"));
     } catch {
-      toast.error('Could not copy');
+      toast.error(tFallback("duelInviteLanding.couldNotCopy", "Could not copy"));
     }
   };
 
@@ -136,7 +138,7 @@ export default function DuelInviteLanding() {
   if (loading || isLoadingAuth) {
     return (
       <Shell>
-        <Loader2 className="w-8 h-8 animate-spin text-primary" aria-label="Loading" />
+        <Loader2 className="w-8 h-8 animate-spin text-primary" aria-label={tFallback("duelInviteLanding.loading", "Loading")} />
       </Shell>
     );
   }
@@ -145,7 +147,7 @@ export default function DuelInviteLanding() {
     return (
       <Shell>
         <AlertTriangle className="w-10 h-10 text-amber-500" />
-        <h1 className="font-heading font-bold text-2xl">Invite not found</h1>
+        <h1 className="font-heading font-bold text-2xl">{tFallback("duelInviteLanding.inviteNotFound", "Invite not found")}</h1>
         <p className="text-sm text-muted-foreground max-w-xs">
           This duel-invite link is invalid or has been deleted. Ask the
           challenger to send a new one.
@@ -158,7 +160,7 @@ export default function DuelInviteLanding() {
     return (
       <Shell>
         <AlertTriangle className="w-10 h-10 text-amber-500" />
-        <h1 className="font-heading font-bold text-2xl">Invite expired</h1>
+        <h1 className="font-heading font-bold text-2xl">{tFallback("duelInviteLanding.inviteExpired", "Invite expired")}</h1>
         <p className="text-sm text-muted-foreground max-w-xs">
           This invite has expired. Ask {invite.challenger_username || 'them'} for a new one.
         </p>
@@ -170,7 +172,7 @@ export default function DuelInviteLanding() {
     return (
       <Shell>
         <Trophy className="w-10 h-10 text-amber-500" />
-        <h1 className="font-heading font-bold text-2xl">Already accepted</h1>
+        <h1 className="font-heading font-bold text-2xl">{tFallback("duelInviteLanding.alreadyAccepted", "Already accepted")}</h1>
         <p className="text-sm text-muted-foreground max-w-xs">
           Someone already accepted this invite. Ask {invite.challenger_username || 'them'} for a fresh one.
         </p>
@@ -274,6 +276,7 @@ function Shell({ children }) {
 }
 
 function ChallengerHeader({ invite }) {
+  const { tFallback } = useLanguage();
   const initials = (invite.challenger_username || '?').slice(0, 2).toUpperCase();
   return (
     <div className="flex flex-col items-center gap-3">

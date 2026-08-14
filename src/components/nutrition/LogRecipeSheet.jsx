@@ -23,6 +23,7 @@ import { X, Loader2 } from 'lucide-react';
 import { recipeLogPayload, servingsOf } from '@/lib/data/nutritionRecipes';
 import { servingsLabel } from '@/lib/recipeFormat';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { useLanguage } from '@/lib/LanguageContext';
 
 const MEALS = [
   { id: 'breakfast', label: 'Breakfast' },
@@ -40,6 +41,7 @@ const MAX_SERVINGS = 20;
 export default function LogRecipeSheet({
   open, recipe, date, defaultMealType = 'snack', busy = false, onLog, onClose,
 }) {
+  const { tFallback } = useLanguage();
   useBodyScrollLock(open);
   const [servings, setServings] = useState(1);
   const [mealType, setMealType] = useState(defaultMealType);
@@ -90,14 +92,14 @@ export default function LogRecipeSheet({
         >
           <div className="flex items-start justify-between px-4 pt-4">
             <div className="min-w-0">
-              <h2 className="font-heading font-bold text-base">Log this recipe</h2>
+              <h2 className="font-heading font-bold text-base">{tFallback("logRecipeSheet.logThisRecipe", "Log this recipe")}</h2>
               <p className="text-caption text-muted-foreground mt-0.5 truncate">
                 {recipe.name} · {servingsLabel(recipe)} saved
               </p>
             </div>
             <button
               onClick={onClose}
-              aria-label="Close"
+              aria-label={tFallback("common.close", "Close")}
               className="w-7 h-7 shrink-0 rounded-full bg-secondary flex items-center justify-center"
             >
               <X className="w-3.5 h-3.5" />
@@ -105,7 +107,7 @@ export default function LogRecipeSheet({
           </div>
 
           <div className="px-4 pt-4">
-            <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground mb-2">Meal</p>
+            <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground mb-2">{tFallback("hub.share.meal", "Meal")}</p>
             <div className="grid grid-cols-4 gap-2">
               {MEALS.map((m) => (
                 <button
@@ -126,13 +128,13 @@ export default function LogRecipeSheet({
           </div>
 
           <div className="px-4 pt-6">
-            <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground mb-2">Servings</p>
+            <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground mb-2">{tFallback("nutrition.form.servings", "Servings")}</p>
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={() => bump(-STEP)}
                 disabled={servings <= STEP}
-                aria-label="One less serving"
+                aria-label={tFallback("logRecipeSheet.oneLessServing", "One less serving")}
                 className="w-11 h-11 rounded-lg border border-border bg-secondary/40 text-base font-bold disabled:opacity-40"
               >
                 –
@@ -144,7 +146,7 @@ export default function LogRecipeSheet({
                 type="button"
                 onClick={() => bump(STEP)}
                 disabled={servings >= MAX_SERVINGS}
-                aria-label="One more serving"
+                aria-label={tFallback("logRecipeSheet.oneMoreServing", "One more serving")}
                 className="w-11 h-11 rounded-lg border border-border bg-secondary/40 text-base font-bold disabled:opacity-40"
               >
                 +

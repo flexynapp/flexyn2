@@ -12,8 +12,10 @@
 import { motion } from 'framer-motion';
 import { Package } from 'lucide-react';
 import DailyChestBlock from './DailyChestBlock';
+import { useLanguage } from '@/lib/LanguageContext';
 
 export default function TodayRail({ user, onClaimed, onOpenShop }) {
+  const { tFallback } = useLanguage();
   return (
     <div className="grid grid-cols-2 gap-3">
       {user && <DailyChestBlock user={user} onClaimed={onClaimed} />}
@@ -33,7 +35,7 @@ export default function TodayRail({ user, onClaimed, onOpenShop }) {
             <Package className="w-4 h-4 text-primary" />
           </div>
           <div className="min-w-0">
-            <p className="font-heading font-bold text-sm leading-tight">Capsules</p>
+            <p className="font-heading font-bold text-sm leading-tight">{tFallback("todayRail.capsules", "Capsules")}</p>
             <p className="text-micro text-muted-foreground leading-tight">
               Standard · Premium · Elite
             </p>

@@ -25,8 +25,10 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { useLanguage } from '@/lib/LanguageContext';
 
 export default function TwoFactorSection() {
+  const { tFallback } = useLanguage();
   const [loading, setLoading] = useState(true);
   const [factors, setFactors] = useState([]);
   const [modalOpen, setModalOpen] = useState(false);
@@ -122,7 +124,7 @@ export default function TwoFactorSection() {
     <div className="border-t border-border pt-3 mt-1">
       <div className="flex items-center gap-2 mb-2">
         <Shield className="w-3.5 h-3.5 text-muted-foreground" />
-        <h3 className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Two-factor auth</h3>
+        <h3 className="text-xs font-bold uppercase tracking-wide text-muted-foreground">{tFallback("twoFactorSection.twoFactorAuth", "Two-factor auth")}</h3>
       </div>
       <div className="flex items-center justify-between gap-3">
         <div className="flex-1 min-w-0">
@@ -191,7 +193,7 @@ export default function TwoFactorSection() {
                 <h3 className="font-heading font-bold text-base flex items-center gap-2">
                   <Shield className="w-4 h-4" /> Set up 2FA
                 </h3>
-                <button onClick={() => setModalOpen(false)} aria-label="Close" className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center">
+                <button onClick={() => setModalOpen(false)} aria-label={tFallback("common.close", "Close")} className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center">
                   <X className="w-3.5 h-3.5" />
                 </button>
               </div>
@@ -202,12 +204,12 @@ export default function TwoFactorSection() {
               </ol>
               {enrollment.qr && (
                 <div className="flex justify-center mb-3">
-                  <img loading="lazy" src={enrollment.qr} alt="2FA QR code" className="w-40 h-40 rounded-md bg-white p-2" />
+                  <img loading="lazy" src={enrollment.qr} alt={tFallback("twoFactorSection.2faQrCode", "2FA QR code")} className="w-40 h-40 rounded-md bg-white p-2" />
                 </div>
               )}
               {enrollment.secret && (
                 <div className="mb-3 text-center">
-                  <p className="text-micro text-muted-foreground uppercase tracking-wide">Manual key</p>
+                  <p className="text-micro text-muted-foreground uppercase tracking-wide">{tFallback("twoFactorSection.manualKey", "Manual key")}</p>
                   <p className="text-xs font-mono tracking-wide break-all">{enrollment.secret}</p>
                 </div>
               )}
@@ -241,13 +243,13 @@ export default function TwoFactorSection() {
       <AlertDialog open={disableOpen} onOpenChange={setDisableOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Turn off two-factor authentication?</AlertDialogTitle>
+            <AlertDialogTitle>{tFallback("twoFactorSection.turnOffTwoFactorAuthentication", "Turn off two-factor authentication?")}</AlertDialogTitle>
             <AlertDialogDescription>
               Your account will be less protected. You can re-enable 2FA at any time.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Keep on</AlertDialogCancel>
+            <AlertDialogCancel>{tFallback("twoFactorSection.keep", "Keep on")}</AlertDialogCancel>
             <AlertDialogAction onClick={confirmDisable} className="bg-destructive text-destructive-foreground hover:bg-destructive/90 active:bg-destructive/90">
               Turn off
             </AlertDialogAction>
