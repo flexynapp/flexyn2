@@ -1047,7 +1047,7 @@ export default function HubComposer({ onClose }) {
     <div className="flex-1 flex flex-col px-4 pt-4 pb-4">
       <div className="mb-3 flex items-center gap-2 text-xs text-muted-foreground">
         <Apple className="w-3.5 h-3.5 text-success" />
-        Share a meal with your community
+        {tFallback("hubComposer.shareAMeal2", "Share a meal with your community")}
       </div>
 
       {/* Meal name */}
@@ -1393,7 +1393,7 @@ export default function HubComposer({ onClose }) {
     <div className="flex-1 flex flex-col px-4 pt-4 pb-4">
       <div className="mb-3 flex items-center gap-2 text-xs text-muted-foreground">
         <Film className="w-3.5 h-3.5 text-destructive" />
-        Share a short workout clip
+        {tFallback("hubComposer.shareAShortWorkoutClip", "Share a short workout clip")}
       </div>
 
       {/* Video picker / preview */}
@@ -1545,7 +1545,7 @@ export default function HubComposer({ onClose }) {
       <div className="mt-3 border-t border-border/40 pt-3">
         <div className="flex items-center justify-between">
           <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
-            <span>🕐</span> Schedule post
+            <span>🕐</span> {tFallback("hubComposer.schedulePost", "Schedule post")}
           </label>
           <button
             type="button"

@@ -125,7 +125,7 @@ export default function PublicProfile() {
           </p>
         </div>
         <Button onClick={() => window.location.href = 'https://flexyn.app'} variant="outline">
-          Discover Flexyn
+          {tFallback("publicProfile.discoverFlexyn", "Discover Flexyn")}
         </Button>
       </div>
     );
@@ -220,7 +220,7 @@ export default function PublicProfile() {
             </p>
           </div>
           <Button onClick={() => window.location.href = '/'} className="w-full max-w-xs">
-            Join Flexyn to Follow
+            {tFallback("publicProfile.joinFlexynToFollow", "Join Flexyn to Follow")}
           </Button>
         </motion.div>
       ) : (
@@ -268,7 +268,7 @@ export default function PublicProfile() {
                 onClick={() => navigate('/hub')}
                 className="w-full"
               >
-                Go to my Hub <ChevronRight className="w-4 h-4 ms-1" />
+                {tFallback("publicProfile.goToMyHub", "Go to my Hub")} <ChevronRight className="w-4 h-4 ms-1" />
               </Button>
             ) : isAuthed ? (
               // Authenticated visitor viewing someone else
@@ -278,7 +278,7 @@ export default function PublicProfile() {
                   className="w-full"
                 >
                   <ExternalLink className="w-4 h-4 me-2" />
-                  View full profile
+                  {tFallback("publicProfile.viewFullProfile", "View full profile")}
                 </Button>
                 <Button
                   variant="outline"
@@ -286,7 +286,7 @@ export default function PublicProfile() {
                   className="w-full"
                 >
                   <MessageCircle className="w-4 h-4 me-2" />
-                  Send message
+                  {tFallback("publicProfile.sendMessage", "Send message")}
                 </Button>
               </>
             ) : (
@@ -315,7 +315,7 @@ export default function PublicProfile() {
                     onClick={() => window.location.href = '/'}
                     className="text-primary underline"
                   >
-                    Sign in
+                    {tFallback("profile.signIn", "Sign in")}
                   </button>
                 </p>
               </>

@@ -280,10 +280,10 @@ export default function ProfileShareCard({ open, onClose, profile }) {
           </AnimatePresence>
           <div className="flex gap-2">
             <Button onClick={handleDownload} variant="outline" disabled={busy || !imgUrl} className="flex-1 gap-2">
-              <Download className="w-4 h-4" /> Save
+              <Download className="w-4 h-4" /> {tFallback("common.save", "Save")}
             </Button>
             <Button onClick={handleShare} disabled={busy || !imgUrl} className="flex-1 gap-2">
-              <Share2 className="w-4 h-4" /> Share
+              <Share2 className="w-4 h-4" /> {tFallback("common.share", "Share")}
             </Button>
           </div>
         </div>

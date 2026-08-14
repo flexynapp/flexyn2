@@ -242,7 +242,7 @@ export default function LiveSessionBroadcaster({ onClose }) {
             <>
               <div>
                 <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-1.5">
-                  Session title
+                  {tFallback("liveSessionBroadcaster.sessionTitle", "Session title")}
                 </label>
                 <input
                   value={title}
@@ -259,7 +259,7 @@ export default function LiveSessionBroadcaster({ onClose }) {
                 className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-destructive text-white font-bold hover:bg-destructive active:bg-destructive transition-colors"
               >
                 <Radio className="w-4 h-4" />
-                Start Live Session
+                {tFallback("liveSessionBroadcaster.startLiveSession", "Start Live Session")}
               </button>
             </>
           )}
@@ -276,7 +276,7 @@ export default function LiveSessionBroadcaster({ onClose }) {
             <>
               <div>
                 <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-1.5">
-                  Current exercise
+                  {tFallback("liveSessionBroadcaster.currentExercise", "Current exercise")}
                 </label>
                 <input
                   value={exercise}
@@ -337,7 +337,7 @@ export default function LiveSessionBroadcaster({ onClose }) {
                 className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-destructive text-destructive font-bold hover:bg-destructive/10 active:bg-destructive/10 transition-colors disabled:opacity-50"
               >
                 <StopCircle className="w-4 h-4" />
-                End Session
+                {tFallback("liveSessionBroadcaster.endSession", "End Session")}
               </button>
             </>
           )}

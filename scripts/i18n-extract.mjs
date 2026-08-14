@@ -128,10 +128,38 @@ for (const f of ordered) {
       if (src.includes(needle)) { next = src.replace(needle, `${attr}={${call}}`); break; }
     }
   } else if (f.kind === 'jsxText') {
-    // Only the unambiguous `>Text<` shape on one line. Anything spanning lines
-    // or sharing a parent with an expression is left alone.
-    const needle = `>${lit}<`;
-    if (src.includes(needle)) next = src.replace(needle, `>{${call}}<`);
+    // Three shapes, all of which leave the rendered output byte-identical
+    // because only the text run is swapped for an expression yielding the same
+    // string. JSX strips whitespace containing a newline around both a text
+    // node and an expression alike, and keeps same-line spacing around both, so
+    // the surrounding characters decide the spacing and none of them move.
+    //
+    //   >Text<                     one line, inside its element
+    //   \n  Text\n                 alone on its line, between tags
+    //   <Icon /> Text              beside an inline tag, same line
+    //
+    // Deliberately NOT handled, because these change meaning rather than form:
+    // a sentence continuing into an element (`Your level: <span>{level}</span>`
+    // is one message whose word order differs by language, so it wants one key
+    // with a placeholder), text spanning lines, and a literal appearing twice
+    // on one line. Those are edited by hand.
+    const trimmed = src.trim();
+    const indent = src.slice(0, src.length - src.trimStart().length);
+    if (src.includes(`>${lit}<`)) {
+      next = src.replace(`>${lit}<`, `>{${call}}<`);
+    } else if (trimmed === lit) {
+      next = `${indent}{${call}}`;
+    } else if (src.split(lit).length === 2) {
+      const at = src.indexOf(lit);
+      const before = src.slice(0, at);
+      const after = src.slice(at + lit.length);
+      const beforeOk = before.trimEnd().endsWith('>');
+      const afterOk = after.trim() === '' || after.trimStart().startsWith('<');
+      const splitSentence = after.includes('{') && after.includes('<');
+      if (beforeOk && afterOk && !splitSentence && !/<(text|tspan)\b/.test(src)) {
+        next = `${before}{${call}}${after}`;
+      }
+    }
   }
 
   if (!next || next === src) { skipped.push([f, 'no unambiguous match on its line']); continue; }
@@ -167,7 +195,19 @@ for (const [file, st] of edits) {
   const text = st.lines.join('\n');
   if (!/useLanguage/.test(text)) continue;
   if (/import\s*\{[^}]*useLanguage[^}]*\}\s*from\s*['"]@\/lib\/LanguageContext['"]/.test(text)) continue;
-  const lastImport = st.lines.reduce((acc, l, i) => (/^import\s/.test(l) ? i : acc), -1);
+  // End of the last import STATEMENT. A multi-line `import {\n …\n} from 'x';`
+  // opens with a line matching /^import/, so inserting after that line lands
+  // INSIDE the braces and the file stops parsing. Same trap as in
+  // i18n-add-hooks.mjs, which had it fixed while this copy did not.
+  let lastImport = -1;
+  for (let i = 0; i < st.lines.length; i++) {
+    if (!/^import\s/.test(st.lines[i])) continue;
+    let j = i;
+    while (j < st.lines.length
+      && !/from\s*['"][^'"]+['"]\s*;?\s*$|^import\s+['"][^'"]+['"]\s*;?\s*$/.test(st.lines[j])) j++;
+    lastImport = Math.min(j, st.lines.length - 1);
+    i = lastImport;
+  }
   if (lastImport >= 0) st.lines.splice(lastImport + 1, 0, "import { useLanguage } from '@/lib/LanguageContext';");
 }
 

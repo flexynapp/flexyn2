@@ -232,7 +232,7 @@ export default function CrewsSection({ initialCrewId, onViewProfile }) {
           }`}
         >
           <Shield className="w-3.5 h-3.5" />
-          My Crews
+          {tFallback("crewsSection.myCrews", "My Crews")}
         </button>
         <button
           onClick={() => setWarTab('discover')}
@@ -241,7 +241,7 @@ export default function CrewsSection({ initialCrewId, onViewProfile }) {
           }`}
         >
           <Globe2 className="w-3.5 h-3.5" />
-          Discover
+          {tFallback("hub.search.discoverTitle", "Discover")}
         </button>
         <button
           onClick={() => setWarTab('top')}
@@ -250,7 +250,7 @@ export default function CrewsSection({ initialCrewId, onViewProfile }) {
           }`}
         >
           <Trophy className="w-3.5 h-3.5" />
-          Top
+          {tFallback("league.info.terminal", "Top")}
         </button>
       </div>
 

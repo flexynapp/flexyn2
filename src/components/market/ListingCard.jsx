@@ -8,6 +8,7 @@ import FlexCoinIcon from '@/components/FlexCoinIcon';
 import { displayName } from '@/lib/userDisplay';
 import { tileRow } from '@/lib/tileRows';
 import { listItemMotion } from '@/lib/listMotion';
+import { useLanguage } from '@/lib/LanguageContext';
 import {
   RarityBadge, RarityFrame, RarityGlow, CoinAmount,
 } from '@/components/loot/RarityVisuals';
@@ -37,6 +38,7 @@ function ListingCard({
   isSaved = false,
   onToggleSave,
 }) {
+  const { tFallback } = useLanguage();
   // Key on seller_user_id, NOT seller_email. create_marketplace_listing
   // (mig 025) stamps seller_email from auth.email(), which is '' for guest
   // accounts — while the profile's email is the synthesized
@@ -71,7 +73,7 @@ function ListingCard({
       {/* Featured ribbon (mig 122) */}
       {isFeatured && (
         <div className="absolute top-2 start-2 z-20 flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-400 text-amber-950 text-micro font-extrabold uppercase tracking-wider">
-          <Star className="w-2.5 h-2.5 fill-current" /> Featured
+          <Star className="w-2.5 h-2.5 fill-current" /> {tFallback("listingCard.featured", "Featured")}
         </div>
       )}
 
@@ -142,11 +144,11 @@ function ListingCard({
       <div className="flex justify-center relative z-10">
         {isSale ? (
           <span className="flex items-center gap-1 text-micro font-bold bg-amber-500/20 text-amber-600 dark:text-amber-300 border border-amber-400/30 rounded-full px-2 py-0.5">
-            <FlexCoinIcon size={12} /> For Sale
+            <FlexCoinIcon size={12} /> {tFallback("listingCard.forSale", "For Sale")}
           </span>
         ) : (
           <span className="flex items-center gap-1 text-micro font-bold bg-blue-500/20 text-blue-600 dark:text-blue-300 border border-blue-400/30 rounded-full px-2 py-0.5">
-            <Zap className="w-3 h-3" /> For Trade
+            <Zap className="w-3 h-3" /> {tFallback("listingCard.forTrade", "For Trade")}
           </span>
         )}
       </div>
@@ -178,7 +180,7 @@ function ListingCard({
               onClick={() => onCancel(listing)}
               className="flex-1 py-1.5 rounded-lg text-xs font-bold text-red-600 dark:text-red-300 bg-red-500/10 border border-red-500/30 hover:bg-red-500/20 active:bg-red-500/20 transition-colors"
             >
-              Cancel
+              {tFallback("coach.plan.cancel", "Cancel")}
             </button>
             {onDelete && (
               <button
@@ -188,7 +190,7 @@ function ListingCard({
                 // listing" rather than "Delete" — a screen reader hits this
                 // inside a grid of tiles with no other context.
                 aria-label={`Delete listing for ${listing.item_name}`}
-                title="Delete listing"
+                title={tFallback("listingCard.deleteListing", "Delete listing")}
                 // 44px, the iOS minimum for a touch target — and 44 in BOTH
                 // axes, which is the whole point of the number. `w-11` gives
                 // the width outright; the height comes from the `after:`
@@ -228,7 +230,7 @@ function ListingCard({
             onClick={() => onOfferTrade(listing)}
             className="w-full py-1.5 rounded-lg text-xs font-bold text-blue-600 dark:text-blue-300 bg-blue-500/10 border border-blue-400/30 hover:bg-blue-500/20 active:bg-blue-500/20 transition-colors"
           >
-            Offer Trade
+            {tFallback("listingCard.offerTrade", "Offer Trade")}
           </button>
         )}
       </div>

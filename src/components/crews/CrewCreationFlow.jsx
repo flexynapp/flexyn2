@@ -230,7 +230,7 @@ export default function CrewCreationFlow({ onCreated, onClose }) {
                 className="w-full py-3 rounded-2xl text-sm font-bold text-white flex items-center justify-center gap-2"
                 style={{ background: 'hsl(var(--primary))' }}
               >
-                Next
+                {tFallback("common.next", "Next")}
                 <ArrowRight className="w-4 h-4" />
               </motion.button>
             </div>

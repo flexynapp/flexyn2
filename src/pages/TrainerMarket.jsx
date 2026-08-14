@@ -113,18 +113,18 @@ export default function TrainerMarket() {
         onClick={() => navigate('/market')}
         className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground active:text-foreground mb-3"
       >
-        <ArrowLeft className="w-4 h-4" /> Market
+        <ArrowLeft className="w-4 h-4" /> {tFallback("trainerMarket.market", "Market")}
       </button>
 
       <div className="flex items-center justify-between mb-4">
         <div>
           <h1 className="font-heading text-2xl font-bold tracking-tight flex items-center gap-2">
-            <ShoppingBag className="w-5 h-5 text-primary" /> Trainer Programs
+            <ShoppingBag className="w-5 h-5 text-primary" /> {tFallback("market.trainerPrograms", "Trainer Programs")}
           </h1>
           <p className="text-sm text-muted-foreground">Premium regimens built by creators.</p>
         </div>
         <Button variant="outline" size="sm" onClick={() => navigate('/trainer/studio')} className="gap-1.5 shrink-0">
-          <Sparkles className="w-3.5 h-3.5" /> Sell
+          <Sparkles className="w-3.5 h-3.5" /> {tFallback("trainerMarket.sell", "Sell")}
         </Button>
       </div>
 
@@ -171,11 +171,11 @@ export default function TrainerMarket() {
                 <div className="mt-auto">
                   {owned ? (
                     <Button variant="outline" className="w-full gap-1.5" onClick={() => openProgram(listing)}>
-                      <CheckCircle2 className="w-4 h-4" /> Open program
+                      <CheckCircle2 className="w-4 h-4" /> {tFallback("trainerMarket.openProgram", "Open program")}
                     </Button>
                   ) : isOwn ? (
                     <Button variant="outline" className="w-full gap-1.5" onClick={() => navigate('/trainer/studio')}>
-                      <Sparkles className="w-4 h-4" /> Edit in Studio
+                      <Sparkles className="w-4 h-4" /> {tFallback("trainerMarket.editInStudio", "Edit in Studio")}
                     </Button>
                   ) : !listing.regimen_id ? (
                     // The trainer published the listing but never linked
@@ -184,7 +184,7 @@ export default function TrainerMarket() {
                     // CTA + show a clear "not ready" label so the user
                     // doesn't pay for an empty product. (Audit 12 #16.)
                     <Button variant="outline" className="w-full gap-1.5" disabled>
-                      <Lock className="w-4 h-4" /> Coming soon
+                      <Lock className="w-4 h-4" /> {tFallback("trainerMarket.comingSoon", "Coming soon")}
                     </Button>
                   ) : (
                     <Button

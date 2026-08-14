@@ -239,7 +239,7 @@ function ShareToHubForm({ template, user, onClose }) {
           onClick={() => setPrivacy('public')}
           className="gap-1 text-xs"
         >
-          <Globe className="w-3 h-3" /> Public
+          <Globe className="w-3 h-3" /> {tFallback("hub.privacy.public", "Public")}
         </Button>
         <Button
           type="button" size="sm"
@@ -247,7 +247,7 @@ function ShareToHubForm({ template, user, onClose }) {
           onClick={() => setPrivacy('followers-only')}
           className="gap-1 text-xs"
         >
-          <Lock className="w-3 h-3" /> Followers only
+          <Lock className="w-3 h-3" /> {tFallback("hub.privacy.followersOnly", "Followers only")}
         </Button>
       </div>
       <div className="flex justify-end gap-2">
@@ -264,7 +264,7 @@ function ShareToHubForm({ template, user, onClose }) {
 // ── Personal template card ────────────────────────────────────────────────────
 
 function MyTemplateCard({ template, user, onUse, onDelete, onTogglePublic }) {
-  const { t } = useLanguage();
+  const { t, tFallback } = useLanguage();
   const [sharingOpen, setSharingOpen] = useState(false);
 
   return (
@@ -274,8 +274,8 @@ function MyTemplateCard({ template, user, onUse, onDelete, onTogglePublic }) {
           <div className="flex items-center gap-2 flex-wrap">
             <p className="font-heading font-bold">{template.name}</p>
             {template.is_public
-              ? <Badge variant="secondary" className="text-xs gap-1"><Globe className="w-3 h-3" /> Public</Badge>
-              : <Badge variant="outline" className="text-xs gap-1"><Lock className="w-3 h-3" /> Private</Badge>}
+              ? <Badge variant="secondary" className="text-xs gap-1"><Globe className="w-3 h-3" /> {tFallback("hub.privacy.public", "Public")}</Badge>
+              : <Badge variant="outline" className="text-xs gap-1"><Lock className="w-3 h-3" /> {tFallback("hub.messages.privateNote.short", "Private")}</Badge>}
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">
             {t('workout.templates.exerciseCount').replace('{n}', template.exercises?.length || 0)}
@@ -304,8 +304,8 @@ function MyTemplateCard({ template, user, onUse, onDelete, onTogglePublic }) {
             onClick={onTogglePublic}
           >
             {template.is_public
-              ? <><Lock className="w-3 h-3" /> Make private</>
-              : <><Globe className="w-3 h-3" /> Make public</>}
+              ? <><Lock className="w-3 h-3" /> {tFallback("templatesModal.makePrivate", "Make private")}</>
+              : <><Globe className="w-3 h-3" /> {tFallback("templatesModal.makePublic", "Make public")}</>}
           </Button>
 
           {/* Share to Hub */}
@@ -315,14 +315,14 @@ function MyTemplateCard({ template, user, onUse, onDelete, onTogglePublic }) {
             className="gap-1 text-xs"
             onClick={() => setSharingOpen(s => !s)}
           >
-            <Send className="w-3 h-3" /> Share to Hub
+            <Send className="w-3 h-3" /> {tFallback("templatesModal.shareToHub", "Share to Hub")}
           </Button>
 
           {/* Delete */}
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button variant="ghost" size="sm" className="gap-1 text-xs text-destructive hover:text-destructive active:text-destructive">
-                <Trash2 className="w-3 h-3" /> Delete
+                <Trash2 className="w-3 h-3" /> {tFallback("common.delete", "Delete")}
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
@@ -557,7 +557,7 @@ export default function TemplatesModal({ open, onClose, onLoadTemplate }) {
                   }`}
                   onClick={() => setLoadTab('mine')}
                 >
-                  <FolderOpen className="w-3.5 h-3.5" /> My Templates
+                  <FolderOpen className="w-3.5 h-3.5" /> {tFallback("templatesModal.myTemplates", "My Templates")}
                 </button>
                 <button
                   className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-sm font-medium rounded-lg transition-colors ${
@@ -565,7 +565,7 @@ export default function TemplatesModal({ open, onClose, onLoadTemplate }) {
                   }`}
                   onClick={() => setLoadTab('community')}
                 >
-                  <Users className="w-3.5 h-3.5" /> Community
+                  <Users className="w-3.5 h-3.5" /> {tFallback("templatesModal.community", "Community")}
                 </button>
               </div>
 
@@ -621,7 +621,7 @@ export default function TemplatesModal({ open, onClose, onLoadTemplate }) {
                       <Globe className="w-10 h-10 mx-auto mb-3 text-muted-foreground opacity-40" />
                       <p className="font-heading font-semibold text-sm">{t('regimens.noPublicTemplates')}</p>
                       <p className="text-xs text-muted-foreground mt-1">
-                        Create a template and make it public to share with the community!
+                        {tFallback("templatesModal.createATemplateAndMake", "Create a template and make it public to share with the community!")}
                       </p>
                     </div>
                   ) : (

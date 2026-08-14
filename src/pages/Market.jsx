@@ -37,7 +37,7 @@ export default function Market() {
           title={tFallback("market.everythingInTheGame", "Everything in the game, and what you're still missing")}
         >
           <LibraryBig className="w-3.5 h-3.5" />
-          Collection
+          {tFallback("collectionModal.collection", "Collection")}
         </button>
       </div>
 
@@ -62,7 +62,7 @@ export default function Market() {
             <p className="font-heading font-bold text-sm text-foreground/70">{tFallback("market.trainerPrograms", "Trainer Programs")}</p>
             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-violet-500/15 border border-violet-400/25 text-micro font-bold uppercase tracking-wider text-violet-500">
               <Lock className="w-2.5 h-2.5" />
-              Coming Soon
+              {tFallback("levelBar.comingSoon", "Coming Soon")}
             </span>
           </div>
           <p className="text-xs text-muted-foreground/70">Premium regimens from certified creators — launching soon</p>

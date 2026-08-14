@@ -84,7 +84,7 @@ export default function RoutineCalendarModal({ open, onClose }) {
                   </div>
                   <div className="flex-1 min-w-0">
                     {day.isRest ? (
-                      <span className="text-sm text-muted-foreground flex items-center gap-1.5"><Moon className="w-3.5 h-3.5" /> Rest</span>
+                      <span className="text-sm text-muted-foreground flex items-center gap-1.5"><Moon className="w-3.5 h-3.5" /> {tFallback("restTimer.rest", "Rest")}</span>
                     ) : (
                       <>
                         <p className="font-heading font-bold text-sm truncate">{day.label || DAY_NAMES_FULL[idx]}</p>

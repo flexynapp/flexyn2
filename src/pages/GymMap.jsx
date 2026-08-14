@@ -796,7 +796,7 @@ export default function GymMap({ onClose, onContinue }) {
 
         <h1 className="font-heading font-bold text-base flex items-center gap-1.5">
           <MapPin className="w-4 h-4 text-primary" />
-          Flexyn Gym Map
+          {tFallback("gymMap.flexynGymMap", "Flexyn Gym Map")}
         </h1>
 
         <div className="flex items-center gap-1">
@@ -881,7 +881,7 @@ export default function GymMap({ onClose, onContinue }) {
                       onClick={runSearch}
                       className="font-semibold text-primary underline underline-offset-2"
                     >
-                      Retry
+                      {tFallback("gymMap.retry", "Retry")}
                     </button>
                   </p>
                 )}
@@ -956,7 +956,7 @@ export default function GymMap({ onClose, onContinue }) {
               <p className="text-xs text-muted-foreground">Check your connection and try again.</p>
             </div>
             <Button onClick={() => { setMapError(null); window.location.reload(); }}>
-              Retry
+              {tFallback("gymMap.retry", "Retry")}
             </Button>
           </div>
         )}
@@ -1010,7 +1010,7 @@ export default function GymMap({ onClose, onContinue }) {
             className="absolute bottom-4 start-3 end-3 z-30"
           >
             <Button className="w-full h-12 text-base font-bold" onClick={onContinue}>
-              Continue
+              {tFallback("levelUp.continue", "Continue")}
             </Button>
           </motion.div>
         )}
@@ -1083,7 +1083,7 @@ export default function GymMap({ onClose, onContinue }) {
                 className="ms-2 text-primary font-semibold hover:underline"
                 aria-label={tFallback("gymMap.retryLoadingNearbyGyms", "Retry loading nearby gyms")}
               >
-                Retry
+                {tFallback("gymMap.retry", "Retry")}
               </button>
             )}
           </div>
@@ -1141,7 +1141,7 @@ export default function GymMap({ onClose, onContinue }) {
                 {onContinue ? (
                   isHome(selected.id) && (
                     <Button className="flex-1" onClick={onContinue}>
-                      Continue
+                      {tFallback("levelUp.continue", "Continue")}
                     </Button>
                   )
                 ) : myGymIds.has(selected.id) ? (
@@ -1153,7 +1153,7 @@ export default function GymMap({ onClose, onContinue }) {
                   // onboarding about a route it couldn't reach.
                   <Button variant="outline" className="flex-1"
                     onClick={() => navigate(`/gym/${selected.id}?members=1`)}>
-                    View Members
+                    {tFallback("gymMap.viewMembers", "View Members")}
                   </Button>
                 ) : (
                   // The roster is members-only (mig 301), so for a gym
@@ -1162,7 +1162,7 @@ export default function GymMap({ onClose, onContinue }) {
                   // activity preview and a Join.
                   <Button variant="outline" className="flex-1"
                     onClick={() => navigate(`/gym/${selected.id}`)}>
-                    View Gym
+                    {tFallback("gymMap.viewGym", "View Gym")}
                   </Button>
                 )}
               </div>
@@ -1187,7 +1187,7 @@ export default function GymMap({ onClose, onContinue }) {
                 <div className="flex-1 min-w-0">
                   <p className="font-heading font-bold text-base truncate">{selectedOsm.name}</p>
                   <span className="inline-block mt-0.5 px-2 py-0.5 rounded-full bg-muted text-xs text-muted-foreground">
-                    Not on Flexyn yet
+                    {tFallback("gymMap.notOnFlexynYet", "Not on Flexyn yet")}
                   </span>
                   {selectedOsm.brand && (
                     <p className="text-xs text-muted-foreground mt-1 truncate">{selectedOsm.brand}</p>

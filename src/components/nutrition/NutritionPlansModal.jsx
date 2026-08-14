@@ -234,7 +234,7 @@ function PlanDetail({ plan, scaled, onBack, colors }) {
       {/* Hero */}
       <div className={`bg-gradient-to-br ${colors.card} -mx-4 sm:-mx-6 -mt-4 sm:-mt-6 px-4 sm:px-6 pt-5 pb-5`}>
         <button onClick={onBack} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground active:text-foreground mb-3 transition-colors">
-          <ArrowLeft className="w-3.5 h-3.5" /> All plans
+          <ArrowLeft className="w-3.5 h-3.5" /> {tFallback("nutritionPlansModal.allPlans", "All plans")}
         </button>
         <div className="flex items-start gap-3">
           <span className="text-4xl leading-none">{plan.icon}</span>
@@ -272,7 +272,7 @@ function PlanDetail({ plan, scaled, onBack, colors }) {
       {/* Meals */}
       <div className="mt-5">
         <h3 className="font-heading font-bold text-base mb-3 flex items-center gap-2">
-          <Beef className="w-4 h-4" /> Daily Meals
+          <Beef className="w-4 h-4" /> {tFallback("nutritionPlansModal.dailyMeals", "Daily Meals")}
           <span className="text-xs font-normal text-muted-foreground">— tap to expand ingredients</span>
         </h3>
         <div className="space-y-2">
@@ -286,7 +286,7 @@ function PlanDetail({ plan, scaled, onBack, colors }) {
       {plan.supplements?.length > 0 && (
         <div className="mt-6">
           <h3 className="font-heading font-bold text-base mb-3 flex items-center gap-2">
-            <Pill className="w-4 h-4" /> Recommended Supplements
+            <Pill className="w-4 h-4" /> {tFallback("nutritionPlansModal.recommendedSupplements", "Recommended Supplements")}
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {plan.supplements.map((s, i) => (
@@ -378,7 +378,7 @@ export function NutritionPlansPanel({ userProfile, onStartOnboarding, trainingFu
             onClick={onStartOnboarding}
             className="mt-5 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground font-bold text-sm hover:opacity-90 transition-opacity"
           >
-            Start nutrition setup
+            {tFallback("nutritionPlansModal.startNutritionSetup", "Start nutrition setup")}
             <ChevronRight className="w-4 h-4 rtl:scale-x-[-1]" />
           </button>
         )}
@@ -428,7 +428,7 @@ export function NutritionPlansPanel({ userProfile, onStartOnboarding, trainingFu
                   className="mt-2.5 w-full inline-flex items-center justify-center gap-1.5 rounded-xl bg-primary text-white font-semibold text-sm py-2.5 hover:bg-primary/90 active:bg-primary/90 transition-colors"
                 >
                   <ArrowLeftRight className="w-4 h-4" />
-                  Set training-day fuel
+                  {tFallback("nutritionPlansModal.setTrainingDayFuel", "Set training-day fuel")}
                 </button>
               )}
             </div>

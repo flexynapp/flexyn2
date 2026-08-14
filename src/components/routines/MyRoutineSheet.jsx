@@ -167,7 +167,7 @@ export default function MyRoutineSheet({ open, onClose }) {
         {view === 'edit' && (
           <button onClick={saveDraft} disabled={saving}
             className="px-4 py-1.5 rounded-xl bg-primary text-primary-foreground text-sm font-bold disabled:opacity-50">
-            Save
+            {tFallback("common.save", "Save")}
           </button>
         )}
       </div>
@@ -187,7 +187,7 @@ export default function MyRoutineSheet({ open, onClose }) {
                     disabled={saving || routines.length >= MAX_ROUTINES}
                     className="flex items-center gap-1 text-xs font-bold text-primary disabled:opacity-40"
                   >
-                    <Plus className="w-3.5 h-3.5" /> New
+                    <Plus className="w-3.5 h-3.5" /> {tFallback("coach.onboarding.levelLabel.newbie", "New")}
                   </button>
                 </div>
                 {isLoading ? (
@@ -267,14 +267,14 @@ export default function MyRoutineSheet({ open, onClose }) {
                       </div>
                       <div className="flex-1 min-w-0">
                         {day.isRest ? (
-                          <span className="text-sm text-muted-foreground flex items-center gap-1.5"><Moon className="w-3.5 h-3.5" /> Rest day</span>
+                          <span className="text-sm text-muted-foreground flex items-center gap-1.5"><Moon className="w-3.5 h-3.5" /> {tFallback("progress.analytics.restDay", "Rest day")}</span>
                         ) : day.label || day.exercises.length ? (
                           <>
                             <p className="font-heading font-bold text-sm truncate">{day.label || 'Untitled day'}</p>
                             <p className="text-micro text-muted-foreground">{day.exercises.length} exercise{day.exercises.length === 1 ? '' : 's'}</p>
                           </>
                         ) : (
-                          <span className="text-sm text-primary font-semibold flex items-center gap-1.5"><Plus className="w-3.5 h-3.5" /> Add a workout</span>
+                          <span className="text-sm text-primary font-semibold flex items-center gap-1.5"><Plus className="w-3.5 h-3.5" /> {tFallback("myRoutineSheet.addAWorkout", "Add a workout")}</span>
                         )}
                       </div>
                     </button>
@@ -283,7 +283,7 @@ export default function MyRoutineSheet({ open, onClose }) {
                       <div className="px-3 pb-3 space-y-3 border-t border-border pt-3">
                         {/* Rest toggle */}
                         <label className="flex items-center justify-between">
-                          <span className="text-sm font-medium flex items-center gap-1.5"><Moon className="w-4 h-4 text-muted-foreground" /> Rest day</span>
+                          <span className="text-sm font-medium flex items-center gap-1.5"><Moon className="w-4 h-4 text-muted-foreground" /> {tFallback("progress.analytics.restDay", "Rest day")}</span>
                           <button onClick={() => patchDay(idx, { isRest: !day.isRest })} role="switch" aria-checked={day.isRest}
                             className={`w-11 h-6 rounded-full transition-colors relative ${day.isRest ? 'bg-primary' : 'bg-secondary border border-border'}`}>
                             <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${day.isRest ? 'start-[22px]' : 'start-0.5'}`} />

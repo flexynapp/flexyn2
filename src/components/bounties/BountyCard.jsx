@@ -125,15 +125,15 @@ export default function BountyCard({ bounty, hasActiveClaim = false, compact = f
           {(isTaken || claimed) ? (
             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-secondary text-xs font-semibold text-muted-foreground">
               <Lock className="w-3 h-3" />
-              Claimed
+              {tFallback("marketplace.dailyChest.claimed", "Claimed")}
             </div>
           ) : hasActiveClaim ? (
             <div className="px-3 py-1.5 rounded-xl bg-secondary text-xs font-semibold text-muted-foreground">
-              Finish active bounty first
+              {tFallback("bountyCard.finishActiveBountyFirst", "Finish active bounty first")}
             </div>
           ) : isExpired ? (
             <div className="px-3 py-1.5 rounded-xl bg-secondary text-xs font-semibold text-muted-foreground">
-              Expired
+              {tFallback("duels.status.expired", "Expired")}
             </div>
           ) : (
             <button

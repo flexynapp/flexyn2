@@ -80,7 +80,7 @@ function CommunityProgress({ progress, tFallback }) {
           {tFallback('myGym.communityProgress', 'Community progress')}
         </p>
         <span className="ms-auto text-micro text-muted-foreground">
-          Last 7 days
+          {tFallback("progress.last7Days", "Last 7 days")}
         </span>
       </div>
 
@@ -378,7 +378,7 @@ export default function MyGym() {
             className="gap-2 shrink-0"
           >
             <Pencil className="w-3.5 h-3.5" />
-            Change gym
+            {tFallback("myGym.changeGym", "Change gym")}
           </Button>
         )}
       </div>
@@ -433,7 +433,7 @@ export default function MyGym() {
             onClick={() => navigate('/gym-map')}
             className="w-full mt-6 py-2.5 rounded-lg text-sm font-bold border border-border bg-card text-primary hover:border-primary/40 active:border-primary/40 transition-all"
           >
-            Browse the map
+            {tFallback("myGym.browseTheMap", "Browse the map")}
           </button>
         </div>
       ) : !gym ? (
@@ -683,7 +683,7 @@ export default function MyGym() {
         className="mt-6 w-full py-2.5 rounded-lg text-sm font-bold border border-border bg-card text-primary hover:border-primary/40 active:border-primary/40 transition-all inline-flex items-center justify-center gap-2"
       >
         <MapPin className="w-4 h-4" />
-        Browse the map
+        {tFallback("myGym.browseTheMap", "Browse the map")}
       </button>
       )}
 

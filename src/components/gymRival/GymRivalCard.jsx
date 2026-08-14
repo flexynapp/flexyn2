@@ -139,13 +139,13 @@ export default function GymRivalCard({ currentUserId }) {
             <button onClick={() => rollMut.mutate('gym')} disabled={rollMut.isPending}
               className="flex-1 inline-flex flex-col items-center gap-1 px-3 py-3 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 active:bg-primary/90 disabled:opacity-50 transition-colors">
               <Dumbbell className="w-4 h-4" />
-              Gym Rival
+              {tFallback("gymRivalCard.gymRival", "Gym Rival")}
               <span className="text-micro font-medium opacity-80">{tFallback("bodyMap.mode.volume", "Volume")}</span>
             </button>
             <button onClick={() => rollMut.mutate('cardio')} disabled={rollMut.isPending}
               className="flex-1 inline-flex flex-col items-center gap-1 px-3 py-3 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 active:bg-primary/90 disabled:opacity-50 transition-colors">
               <Footprints className="w-4 h-4" />
-              Cardio Rival
+              {tFallback("gymRivalCard.cardioRival", "Cardio Rival")}
               <span className="text-micro font-medium opacity-80">{tFallback("cardio.field.distance", "Distance")}</span>
             </button>
           </div>

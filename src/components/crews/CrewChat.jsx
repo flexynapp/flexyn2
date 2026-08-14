@@ -94,7 +94,7 @@ function RollCallComposer({ onSubmit, onCancel }) {
       />
       <div className="flex gap-2 mt-2">
         <button onClick={onCancel} className="flex-1 py-2 rounded-xl border border-border text-sm text-muted-foreground font-semibold">
-          Cancel
+          {tFallback("coach.plan.cancel", "Cancel")}
         </button>
         <motion.button
           whileTap={{ scale: 0.96 }}
@@ -216,7 +216,7 @@ function AssignedRegimenBanner({ crewId, isAdmin, onEquip }) {
           className="px-2.5 py-1 rounded-lg text-xs font-bold text-white"
           style={{ background: 'hsl(var(--primary))' }}
         >
-          Start
+          {tFallback("cardio.live.start", "Start")}
         </motion.button>
         {isAdmin && (
           <button

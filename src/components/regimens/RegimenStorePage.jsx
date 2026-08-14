@@ -94,14 +94,14 @@ function PopularityBadge({ count, index }) {
   if (index === 0 && count > 0) {
     return (
       <span className="inline-flex items-center gap-0.5 text-micro font-bold uppercase tracking-wider text-amber-500 bg-amber-500/10 rounded-full px-2 py-0.5">
-        <Star className="w-2.5 h-2.5 fill-current" /> Top
+        <Star className="w-2.5 h-2.5 fill-current" /> {tFallback("league.info.terminal", "Top")}
       </span>
     );
   }
   if (count >= 10) {
     return (
       <span className="inline-flex items-center gap-0.5 text-micro font-bold uppercase tracking-wider text-orange-500 bg-orange-500/10 rounded-full px-2 py-0.5">
-        <Flame className="w-2.5 h-2.5" /> Hot
+        <Flame className="w-2.5 h-2.5" /> {tFallback("regimenStorePage.hot", "Hot")}
       </span>
     );
   }
@@ -600,7 +600,7 @@ export default function RegimenStorePage({ onBack, onPublish }) {
             className="inline-flex items-center gap-2 px-5 h-11 rounded-lg bg-primary text-primary-foreground font-bold text-sm hover:bg-primary/90 active:bg-primary/90 transition-colors"
           >
             <Plus className="w-4 h-4" />
-            Publish a regimen
+            {tFallback("regimenStorePage.publishARegimen2", "Publish a regimen")}
           </motion.button>
         </motion.div>
       ) : filtered.length === 0 ? (
@@ -676,10 +676,10 @@ export default function RegimenStorePage({ onBack, onPublish }) {
             >
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-sm text-foreground group-hover:text-primary transition-colors">
-                  Built something that works?
+                  {tFallback("regimenStorePage.builtSomethingThatWorks", "Built something that works?")}
                 </p>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Publish a regimen for the community
+                  {tFallback("regimenStorePage.publishARegimen", "Publish a regimen for the community")}
                 </p>
               </div>
               <ChevronLeft className="w-4 h-4 text-muted-foreground/50 group-hover:text-primary transition-colors rotate-180 rtl:rotate-0 shrink-0" />

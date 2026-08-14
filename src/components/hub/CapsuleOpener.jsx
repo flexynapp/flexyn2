@@ -746,7 +746,7 @@ function BatchCard({ entry, isBest, delay }) {
           className="absolute -top-1.5 px-1.5 rounded-full text-micro font-extrabold uppercase tracking-wider"
           style={{ backgroundColor: tint.color, color: '#000' }}
         >
-          Best
+          {tFallback("dashboard.best", "Best")}
         </span>
       )}
       <StickerDisplay emoji={item.emoji} variant={item.variant} size={30} />
@@ -1054,7 +1054,7 @@ export default function CapsuleOpener({ capsule, batch, onClaim, onClaimBatch, o
         <div className="relative flex items-center justify-between px-5 pt-5 pb-3">
           <h2 id="capsule-opener-title" className="text-lg font-bold tracking-wide flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-primary" aria-hidden="true" />
-            Open Capsule
+            {tFallback("capsuleOpener.openCapsule", "Open Capsule")}
           </h2>
           {(phase === 'idle' || phase === 'claimed') && (
             <button
@@ -1115,7 +1115,7 @@ export default function CapsuleOpener({ capsule, batch, onClaim, onClaimBatch, o
                 className="mb-4 inline-flex items-center gap-1.5 text-micro font-semibold text-primary hover:opacity-80 underline-offset-2 hover:underline transition-opacity"
               >
                 <BookOpen className="w-3 h-3" aria-hidden="true" />
-                Browse collection
+                {tFallback("capsuleOpener.browseCollection", "Browse collection")}
               </button>
 
               <motion.button
@@ -1306,12 +1306,12 @@ export default function CapsuleOpener({ capsule, batch, onClaim, onClaimBatch, o
                     {lootTheme.animated && (
                       <span className="relative z-10 mt-1.5 text-micro font-bold px-2 py-0.5 rounded-full uppercase tracking-wider"
                         style={{ background: `${rarityConfig.color}30`, color: rarityConfig.color, border: `1px solid ${rarityConfig.color}60` }}>
-                        Animated
+                        {tFallback("capsuleOpener.animated", "Animated")}
                       </span>
                     )}
                     <div className="relative z-10 mt-2 flex items-center justify-center">
                       <span className="text-micro font-semibold uppercase tracking-widest" style={{ color: rarityConfig.color }}>
-                        Theme Drop
+                        {tFallback("capsuleOpener.themeDrop", "Theme Drop")}
                       </span>
                     </div>
                   </motion.div>
@@ -1424,7 +1424,7 @@ export default function CapsuleOpener({ capsule, batch, onClaim, onClaimBatch, o
                 onClick={onClose}
                 className="mt-2 px-6 py-2.5 rounded-xl bg-secondary hover:bg-secondary/70 active:bg-secondary/70 text-secondary-foreground font-semibold transition-colors"
               >
-                Close
+                {tFallback("common.close", "Close")}
               </button>
             </motion.div>
           )}
@@ -1453,7 +1453,7 @@ export default function CapsuleOpener({ capsule, batch, onClaim, onClaimBatch, o
                 onClick={onClose}
                 className="mt-2 px-6 py-2.5 rounded-xl bg-secondary hover:bg-secondary/70 active:bg-secondary/70 text-secondary-foreground font-semibold transition-colors"
               >
-                Close
+                {tFallback("common.close", "Close")}
               </button>
             </motion.div>
           )}

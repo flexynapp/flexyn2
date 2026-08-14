@@ -104,7 +104,7 @@ export function CapsuleCard({ capsuleRow, onOpenCapsule }) {
         onClick={() => onOpenCapsule?.({ ...meta, ...capsuleRow })}
         className="mt-1 w-full py-1.5 rounded-lg text-xs font-bold bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
       >
-        Open
+        {tFallback("onboarding.invite_friend.cta", "Open")}
       </button>
     </RarityFrame>
   );
@@ -254,7 +254,7 @@ function ThemeCard({ item, activeLootThemeId, onApply }) {
       <RarityBadge rarity={item.item_rarity} />
       {lootTheme?.animated && (
         <span className="text-micro font-bold px-1.5 py-0.5 rounded-full bg-primary/20 text-primary border border-primary/30 uppercase tracking-wider">
-          Animated
+          {tFallback("userBag.animated", "Animated")}
         </span>
       )}
       {/* Themes are off (src/lib/featureFlags.js) — a theme you already own

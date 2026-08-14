@@ -222,7 +222,7 @@ export default function TradeOfferCard({ payload, isMine, user, conversationId, 
       <div className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-primary/15 to-primary/15 border-b border-border">
         <ArrowRightLeft className="w-3.5 h-3.5 text-primary" />
         <p className="text-micro font-bold uppercase tracking-[0.18em] text-primary">
-          Trade Offer
+          {tFallback("tradeOfferCard.tradeOffer", "Trade Offer")}
         </p>
         <span className="ml-auto text-micro text-muted-foreground">
           {isMine ? 'You sent' : `From ${payload.fromName || 'someone'}`}
@@ -293,7 +293,7 @@ export default function TradeOfferCard({ payload, isMine, user, conversationId, 
                 className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-md border border-border text-xs font-bold hover:bg-secondary active:bg-secondary transition-colors disabled:opacity-50"
               >
                 <X className="w-3.5 h-3.5" />
-                No thanks
+                {tFallback("tradeOfferCard.noThanks", "No thanks")}
               </button>
               <button
                 onClick={() => handleResponse(true)}
@@ -301,7 +301,7 @@ export default function TradeOfferCard({ payload, isMine, user, conversationId, 
                 className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-md bg-primary text-primary-foreground text-xs font-bold hover:opacity-90 transition-opacity disabled:opacity-50"
               >
                 <Check className="w-3.5 h-3.5" />
-                I'm in
+                {tFallback("tradeOfferCard.iM", "I'm in")}
               </button>
             </div>
             {isReal ? (

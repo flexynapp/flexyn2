@@ -109,7 +109,7 @@ export default function GymAboutCard({ gym }) {
               aria-expanded={expandedDay}
             >
               <span className="flex items-center gap-1.5 text-micro font-bold uppercase tracking-wider text-muted-foreground">
-                <Clock className="w-3 h-3" /> Hours
+                <Clock className="w-3 h-3" /> {tFallback("gymAboutCard.hours", "Hours")}
               </span>
               {todayLine && (
                 <span className="text-xs font-semibold text-foreground">{todayLine}</span>
@@ -139,7 +139,7 @@ export default function GymAboutCard({ gym }) {
         {showAmenities && (
           <div>
             <p className="flex items-center gap-1.5 text-micro font-bold uppercase tracking-wider text-muted-foreground mb-2">
-              <Wifi className="w-3 h-3" /> Amenities
+              <Wifi className="w-3 h-3" /> {tFallback("gymAboutCard.amenities", "Amenities")}
             </p>
             <div className="flex flex-wrap gap-1.5">
               {amenities.map(slug => {

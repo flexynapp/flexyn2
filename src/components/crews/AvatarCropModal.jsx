@@ -227,7 +227,7 @@ export default function AvatarCropModal({ file, onCrop, onClose }) {
         <div className="flex gap-2">
           <Button variant="outline" className="flex-1" onClick={onClose}>{tFallback("coach.plan.cancel", "Cancel")}</Button>
           <Button className="flex-1 gap-1.5" onClick={handleConfirm} disabled={!imgSrc}>
-            <Check className="w-4 h-4" /> Use photo
+            <Check className="w-4 h-4" /> {tFallback("avatarCropModal.usePhoto", "Use photo")}
           </Button>
         </div>
       </motion.div>

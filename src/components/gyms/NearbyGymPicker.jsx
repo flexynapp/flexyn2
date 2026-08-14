@@ -300,7 +300,7 @@ export default function NearbyGymPicker({
           onClick={() => load(radiusKm, fix)}
           className="w-full py-2 rounded-xl text-sm font-bold border border-border bg-secondary hover:border-primary/40 transition-all"
         >
-          Retry
+          {tFallback("nearbyGymPicker.retry", "Retry")}
         </button>
       </div>
     );
@@ -356,7 +356,7 @@ export default function NearbyGymPicker({
             onClick={() => load(radiusKm, fix)}
             className="flex-1 py-2 rounded-xl text-sm font-bold border border-border bg-secondary hover:border-primary/40 transition-all"
           >
-            Try again
+            {tFallback("errorBoundary.tryAgain", "Try again")}
           </button>
           {radiusKm < MAX_RADIUS_KM && (
             <button
@@ -364,7 +364,7 @@ export default function NearbyGymPicker({
               onClick={widen}
               className="flex-1 py-2 rounded-xl text-sm font-bold border border-border bg-secondary text-primary hover:border-primary/40 transition-all"
             >
-              Search Wider
+              {tFallback("nearbyGymPicker.searchWider", "Search Wider")}
             </button>
           )}
         </div>
@@ -389,7 +389,7 @@ export default function NearbyGymPicker({
               onClick={() => load(radiusKm, fix)}
               className="font-semibold text-primary underline underline-offset-2"
             >
-              Retry
+              {tFallback("nearbyGymPicker.retry", "Retry")}
             </button>
           </p>
         </div>

@@ -306,7 +306,7 @@ export default function RegimenForm({ initial, onSubmit, onCancel, userProfile =
                   onClick={() => { setSelecting(true); setSelectedIndices(new Set()); }}
                   className="gap-1.5 text-xs"
                 >
-                  <Zap className="w-3.5 h-3.5" /> Group
+                  <Zap className="w-3.5 h-3.5" /> {tFallback("regimenForm.group", "Group")}
                 </Button>
                 <Button type="button" variant="outline" size="sm" onClick={addExercise}>
                   <Plus className="w-4 h-4 me-1" /> {t('regimens.addExercise')}
@@ -318,7 +318,7 @@ export default function RegimenForm({ initial, onSubmit, onCancel, userProfile =
                 onClick={() => { setSelecting(false); setSelectedIndices(new Set()); }}
                 className="text-muted-foreground gap-1"
               >
-                <X className="w-3.5 h-3.5" /> Cancel
+                <X className="w-3.5 h-3.5" /> {tFallback("coach.plan.cancel", "Cancel")}
               </Button>
             )}
           </div>
@@ -407,7 +407,7 @@ export default function RegimenForm({ initial, onSubmit, onCancel, userProfile =
                         onClick={() => ungroupExercises(groupId)}
                         className="text-xs text-muted-foreground hover:text-destructive active:text-destructive transition-colors flex items-center gap-1"
                       >
-                        <X className="w-3 h-3" /> Ungroup
+                        <X className="w-3 h-3" /> {tFallback("regimenForm.ungroup", "Ungroup")}
                       </button>
                     </div>
 
@@ -541,14 +541,14 @@ export default function RegimenForm({ initial, onSubmit, onCancel, userProfile =
               className="gap-1.5 bg-violet-600 hover:bg-violet-700 active:bg-violet-700 text-white text-xs"
               onClick={() => createGroup('superset')}
             >
-              <Zap className="w-3.5 h-3.5" /> Superset
+              <Zap className="w-3.5 h-3.5" /> {tFallback("regimenForm.superset", "Superset")}
             </Button>
             <Button
               type="button" size="sm"
               className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-700 text-white text-xs"
               onClick={() => createGroup('circuit')}
             >
-              <RotateCcw className="w-3.5 h-3.5" /> Circuit
+              <RotateCcw className="w-3.5 h-3.5" /> {tFallback("regimenForm.circuit", "Circuit")}
             </Button>
           </motion.div>
         )}

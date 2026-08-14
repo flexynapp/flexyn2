@@ -81,18 +81,18 @@ export default function WeeklyGauntletCard({
         <div className="flex items-start justify-between gap-2 mb-1">
           <div>
             <span className="text-micro font-bold uppercase tracking-widest text-purple-400 mb-1 block">
-              Community Gauntlet
+              {tFallback("weeklyGauntletCard.communityGauntlet", "Community Gauntlet")}
             </span>
             <h3 className="text-base font-bold leading-tight">{gauntlet.title}</h3>
           </div>
           <div className="shrink-0">
             {passed ? (
               <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-emerald-500/20 text-emerald-400 text-xs font-bold">
-                <CheckCircle className="w-3.5 h-3.5" /> Cleared
+                <CheckCircle className="w-3.5 h-3.5" /> {tFallback("injuries.section.cleared", "Cleared")}
               </div>
             ) : failed ? (
               <div className="px-2 py-1 rounded-full bg-rose-500/20 text-rose-400 text-xs font-bold">
-                Failed
+                {tFallback("weeklyGauntletCard.failed", "Failed")}
               </div>
             ) : (
               <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
@@ -120,13 +120,13 @@ export default function WeeklyGauntletCard({
         </div>
         <div className="flex-1 flex flex-col items-center py-3 gap-0.5">
           <span className="text-xs text-muted-foreground flex items-center gap-1">
-            <Users className="w-3 h-3" /> Attempts
+            <Users className="w-3 h-3" /> {tFallback("weeklyGauntletCard.attempts", "Attempts")}
           </span>
           <span className="text-sm font-bold text-foreground">{gauntlet.attempt_count ?? 0}</span>
         </div>
         <div className="flex-1 flex flex-col items-center py-3 gap-0.5">
           <span className="text-xs text-muted-foreground flex items-center gap-1">
-            <Trophy className="w-3 h-3 text-amber-400" /> Cleared
+            <Trophy className="w-3 h-3 text-amber-400" /> {tFallback("injuries.section.cleared", "Cleared")}
           </span>
           <span className="text-sm font-bold text-foreground">{gauntlet.completion_count ?? 0}</span>
         </div>

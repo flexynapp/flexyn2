@@ -339,7 +339,7 @@ function FeedPostCard({ post, rxn, meId, isOwner, onDelete, onTogglePin, onReact
           <div className="flex items-center gap-1.5">
             {post.is_pinned && (
               <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-micro font-bold uppercase tracking-wider bg-primary/15 text-primary border border-primary/25">
-                <Pin className="w-2.5 h-2.5" /> Pinned
+                <Pin className="w-2.5 h-2.5" /> {tFallback("crew.messages.pinned", "Pinned")}
               </span>
             )}
             <span className="text-sm font-semibold truncate">
@@ -377,7 +377,7 @@ function FeedPostCard({ post, rxn, meId, isOwner, onDelete, onTogglePin, onReact
                     className="w-full text-start flex items-center gap-2 px-3 py-1.5 text-xs text-destructive hover:bg-destructive/10 active:bg-destructive/10"
                   >
                     <Trash2 className="w-3 h-3" />
-                    Delete
+                    {tFallback("common.delete", "Delete")}
                   </button>
                 )}
               </div>

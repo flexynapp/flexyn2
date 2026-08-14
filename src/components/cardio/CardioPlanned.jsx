@@ -323,7 +323,7 @@ export default function CardioPlanned() {
           onClick={() => setAdding(true)}
         >
           <Plus className="w-4 h-4 me-2" />
-          Schedule a Session
+          {tFallback("cardioPlanned.scheduleASession", "Schedule a Session")}
         </Button>
       )}
 
@@ -356,7 +356,7 @@ export default function CardioPlanned() {
                       <p className="text-sm font-semibold truncate">{plan.title}</p>
                       {isDue && (
                         <span className="text-micro font-bold uppercase text-primary bg-primary/10 px-1.5 py-0.5 rounded-full shrink-0">
-                          Today
+                          {tFallback("coach.schedule.today", "Today")}
                         </span>
                       )}
                     </div>

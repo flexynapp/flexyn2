@@ -135,7 +135,7 @@ export default function NewGroupDMModal({ open, onClose, onCreated }) {
       >
         <div className="flex items-center justify-between px-4 pt-4 pb-2">
           <h2 className="font-heading font-bold text-base flex items-center gap-2">
-            <Users className="w-4 h-4" /> New group
+            <Users className="w-4 h-4" /> {tFallback("newGroupDMModal.newGroup", "New group")}
           </h2>
           <button onClick={onClose} aria-label={tFallback("common.close", "Close")} className="relative before:absolute before:content-[''] before:-inset-2.5 w-7 h-7 rounded-full bg-secondary flex items-center justify-center">
             <X className="w-3.5 h-3.5" />

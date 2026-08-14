@@ -194,7 +194,7 @@ export default function ExerciseFormModal({ exerciseName, open, onClose }) {
             <div className="space-y-3 text-center py-6">
               <p className="text-sm text-destructive">{error}</p>
               <Button variant="outline" size="sm" onClick={() => loadOrGenerate()}>
-                Try Again
+                {tFallback("exerciseFormModal.tryAgain", "Try Again")}
               </Button>
             </div>
           ) : (

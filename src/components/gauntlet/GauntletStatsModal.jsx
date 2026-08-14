@@ -156,7 +156,7 @@ export default function GauntletStatsModal({
               {/* Global stats */}
               <div className="px-5 py-4">
                 <p className="text-micro font-bold uppercase tracking-widest text-muted-foreground mb-3 text-center">
-                  Community Stats
+                  {tFallback("gauntletStatsModal.communityStats", "Community Stats")}
                 </p>
                 <div className="flex gap-2">
                   <StatPill
@@ -198,7 +198,7 @@ export default function GauntletStatsModal({
 
               {/* Branding for share */}
               <div className="flex items-center justify-center gap-2 pb-4 text-micro text-muted-foreground/50">
-                <Star className="w-3 h-3" /> Flexyn Gauntlet
+                <Star className="w-3 h-3" /> {tFallback("gauntletStatsModal.flexynGauntlet", "Flexyn Gauntlet")}
               </div>
             </div>
 
@@ -211,7 +211,7 @@ export default function GauntletStatsModal({
               style={{ background: 'linear-gradient(135deg, #7c3aed, #db2777)' }}
             >
               <Share2 className="w-4 h-4" />
-              Share Result
+              {tFallback("gauntletStatsModal.shareResult", "Share Result")}
             </motion.button>
 
             <button
@@ -219,7 +219,7 @@ export default function GauntletStatsModal({
               onClick={onClose}
               className="w-full mt-2 py-2.5 text-sm text-muted-foreground hover:text-foreground active:text-foreground transition-colors"
             >
-              Continue
+              {tFallback("levelUp.continue", "Continue")}
             </button>
           </motion.div>
         </motion.div>

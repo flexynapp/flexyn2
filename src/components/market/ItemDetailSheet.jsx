@@ -26,6 +26,7 @@ import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import {
   RarityBadge, RarityGlow, CoinAmount, rarityTint,
 } from '@/components/loot/RarityVisuals';
+import { useLanguage } from '@/lib/LanguageContext';
 
 // ─── Price history sparkline ──────────────────────────────────────────────────
 // Deliberately a bar chart, not a line: marketplace_listings has no sold_at
@@ -66,6 +67,7 @@ export default function ItemDetailSheet({
   onSelectListing,
   onClose,
 }) {
+  const { tFallback } = useLanguage();
   useBodyScrollLock(!!listing);
 
   const itemId = listing?.item_id;
@@ -147,7 +149,7 @@ export default function ItemDetailSheet({
             <button
               type="button"
               onClick={onClose}
-              aria-label="Close"
+              aria-label={tFallback("common.close", "Close")}
               className="absolute top-0 end-0 p-1.5 rounded-lg text-muted-foreground hover:text-foreground active:text-foreground hover:bg-secondary active:bg-secondary transition-colors"
             >
               <X className="w-4 h-4" />
@@ -190,7 +192,7 @@ export default function ItemDetailSheet({
               <div className="flex items-center gap-1.5 mb-2">
                 <TrendingUp className="w-3.5 h-3.5 text-muted-foreground" />
                 <h3 className="text-micro font-extrabold uppercase tracking-[0.18em] text-muted-foreground">
-                  Sold for
+                  {tFallback("itemDetailSheet.sold", "Sold for")}
                 </h3>
                 <span className="text-micro text-muted-foreground ms-auto">
                   last {priceStats.count}
@@ -232,7 +234,7 @@ export default function ItemDetailSheet({
           {alternatives.length > 0 && (
             <section>
               <h3 className="text-micro font-extrabold uppercase tracking-[0.18em] text-muted-foreground mb-2">
-                Also listed right now
+                {tFallback("itemDetailSheet.alsoListedRightNow", "Also listed right now")}
               </h3>
               <ul className="space-y-1.5">
                 {alternatives.map(alt => (
@@ -250,7 +252,7 @@ export default function ItemDetailSheet({
                         </span>
                       ) : (
                         <span className="text-micro font-bold text-blue-600 dark:text-blue-300 shrink-0">
-                          Trade
+                          {tFallback("itemDetailSheet.trade", "Trade")}
                         </span>
                       )}
                     </button>
@@ -284,7 +286,7 @@ export default function ItemDetailSheet({
               onClick={() => onCancel(listing)}
               className="w-full py-2.5 rounded-xl text-sm font-bold text-red-600 dark:text-red-300 bg-red-500/10 border border-red-500/30 hover:bg-red-500/20 active:bg-red-500/20 transition-colors"
             >
-              Cancel listing
+              {tFallback("itemDetailSheet.cancelListing", "Cancel listing")}
             </button>
           ) : isSale ? (
             <button
@@ -307,7 +309,7 @@ export default function ItemDetailSheet({
               onClick={() => onOfferTrade(listing)}
               className="w-full py-2.5 rounded-xl text-sm font-bold text-blue-600 dark:text-blue-300 bg-blue-500/10 border border-blue-400/30 hover:bg-blue-500/20 active:bg-blue-500/20 transition-colors"
             >
-              Offer a trade
+              {tFallback("itemDetailSheet.offerATrade", "Offer a trade")}
             </button>
           )}
         </div>

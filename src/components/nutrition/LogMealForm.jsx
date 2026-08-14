@@ -365,7 +365,7 @@ export default function LogMealForm({ newEntry, setNewEntry, onPhotoAI, onSearch
                         >
                           {reloggingId === meal.id
                             ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            : <><Repeat className="w-3.5 h-3.5 me-1" /> Re-Log</>}
+                            : <><Repeat className="w-3.5 h-3.5 me-1" /> {tFallback("logMealForm.reLog", "Re-Log")}</>}
                         </Button>
                       </div>
                     ))}

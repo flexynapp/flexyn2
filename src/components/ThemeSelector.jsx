@@ -156,7 +156,7 @@ export default function ThemeSelector({ open, onClose }) {
                             {lootTheme.animated && (
                               <span className="text-micro font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider"
                                 style={{ background: `${rc.ring}30`, color: rc.ring }}>
-                                Animated
+                                {tFallback("themeSelector.animated", "Animated")}
                               </span>
                             )}
                           </div>

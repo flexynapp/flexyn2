@@ -50,7 +50,7 @@ export default function CapsuleRarityOdds({ capsuleType = 'standard' }) {
         aria-expanded={open}
       >
         <span className="flex items-center gap-1.5 text-micro font-bold uppercase tracking-wide">
-          <Percent className="w-3 h-3" /> Drop rates
+          <Percent className="w-3 h-3" /> {tFallback("capsuleRarityOdds.dropRates", "Drop rates")}
         </span>
         {open
           ? <ChevronUp className="w-3.5 h-3.5 text-muted-foreground" />

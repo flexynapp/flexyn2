@@ -154,7 +154,7 @@ export default function QrCodeScanner({ open, onClose, onDetect }) {
           </button>
           <p className="text-white text-sm font-medium flex items-center gap-1.5">
             <ScanLine className="w-4 h-4" />
-            Scan gym QR code
+            {tFallback("qrCodeScanner.scanGymQrCode", "Scan gym QR code")}
           </p>
           <div className="w-8" />
         </div>
@@ -200,7 +200,7 @@ export default function QrCodeScanner({ open, onClose, onDetect }) {
                 onClick={onClose}
                 className="mt-4 px-4 py-2 rounded-lg bg-white/15 text-white text-sm font-medium"
               >
-                Close
+                {tFallback("common.close", "Close")}
               </button>
             </div>
           )}

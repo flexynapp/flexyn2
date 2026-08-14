@@ -118,7 +118,7 @@ export default function BundleCard({
               onClick={() => onCancelBundle(bundle)}
               className="w-full py-2 rounded-lg text-sm font-bold text-red-600 dark:text-red-300 bg-red-500/10 border border-red-500/30 hover:bg-red-500/20 active:bg-red-500/20 transition-colors"
             >
-              Break up bundle
+              {tFallback("bundleCard.breakUpBundle", "Break up bundle")}
             </button>
           )}
         </div>

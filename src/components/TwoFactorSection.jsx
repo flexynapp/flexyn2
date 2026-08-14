@@ -158,7 +158,7 @@ export default function TwoFactorSection() {
             onClick={() => requestDisable(factors[0].id)}
             className="px-2.5 py-1 rounded-md border border-border text-micro font-bold uppercase tracking-wide hover:bg-secondary active:bg-secondary"
           >
-            Disable
+            {tFallback("twoFactorSection.disable", "Disable")}
           </button>
         ) : (
           <button
@@ -191,7 +191,7 @@ export default function TwoFactorSection() {
             >
               <div className="flex items-center justify-between mb-3">
                 <h3 className="font-heading font-bold text-base flex items-center gap-2">
-                  <Shield className="w-4 h-4" /> Set up 2FA
+                  <Shield className="w-4 h-4" /> {tFallback("twoFactorSection.setUp2fa", "Set up 2FA")}
                 </h3>
                 <button onClick={() => setModalOpen(false)} aria-label={tFallback("common.close", "Close")} className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center">
                   <X className="w-3.5 h-3.5" />
@@ -251,7 +251,7 @@ export default function TwoFactorSection() {
           <AlertDialogFooter>
             <AlertDialogCancel>{tFallback("twoFactorSection.keep", "Keep on")}</AlertDialogCancel>
             <AlertDialogAction onClick={confirmDisable} className="bg-destructive text-destructive-foreground hover:bg-destructive/90 active:bg-destructive/90">
-              Turn off
+              {tFallback("twoFactorSection.turnOff", "Turn off")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

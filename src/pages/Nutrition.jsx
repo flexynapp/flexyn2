@@ -1528,7 +1528,7 @@ export default function Nutrition() {
                   className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold text-primary dark:text-primary hover:bg-primary/10 active:bg-primary/10 transition-colors"
                 >
                   <Save className="w-3 h-3" />
-                  Set default
+                  {tFallback("dashboard.setDefault", "Set default")}
                 </button>
               )}
               {editMode && (
@@ -1539,7 +1539,7 @@ export default function Nutrition() {
                   className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold text-muted-foreground hover:text-foreground active:text-foreground hover:bg-secondary active:bg-secondary transition-colors"
                 >
                   <RotateCcw className="w-3 h-3" />
-                  Reset
+                  {tFallback("workout.reset", "Reset")}
                 </button>
               )}
             </div>
@@ -1550,7 +1550,7 @@ export default function Nutrition() {
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground active:text-foreground hover:bg-secondary active:bg-secondary transition-colors shrink-0"
           >
             <Target className="w-3.5 h-3.5" />
-            Edit Goals
+            {tFallback("nutrition.editGoals", "Edit Goals")}
           </button>
         </div>
       </motion.div>
@@ -1869,7 +1869,7 @@ export default function Nutrition() {
                     onClick={() => showWidget(rowId)}
                     className="ms-auto flex items-center gap-1 px-2 py-0.5 rounded-md text-micro font-bold text-primary hover:bg-primary/10 active:bg-primary/10 transition-colors"
                   >
-                    <Eye className="w-3 h-3" /> Show
+                    <Eye className="w-3 h-3" /> {tFallback("injuries.cleared.show", "Show")}
                   </button>
                 )}
               </div>
@@ -2099,7 +2099,7 @@ export default function Nutrition() {
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <label htmlFor="bottle-nickname" className="text-sm font-medium mb-2 block">Nickname <span className="text-muted-foreground font-normal">(optional)</span></label>
+              <label htmlFor="bottle-nickname" className="text-sm font-medium mb-2 block">{tFallback("nutrition.nickname", "Nickname")} <span className="text-muted-foreground font-normal">(optional)</span></label>
               <Input
                 id="bottle-nickname"
                 type="text"
@@ -2168,7 +2168,7 @@ export default function Nutrition() {
               onClick={() => hideWidget('fasting')}
               className="flex items-center gap-1 text-micro font-medium text-muted-foreground hover:text-foreground active:text-foreground transition-colors"
             >
-              <EyeOff className="w-3 h-3" /> Hide
+              <EyeOff className="w-3 h-3" /> {tFallback("injuries.cleared.hide", "Hide")}
             </button>
           </div>
         )}

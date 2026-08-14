@@ -495,12 +495,12 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
         <button type="button"
           onClick={() => { setSort('newest'); setVisibleCount(PAGE_SIZE); }}
           className={`flex items-center gap-1 px-2.5 py-1.5 transition-colors ${sort === 'newest' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:text-foreground active:text-foreground'}`}>
-          <Clock className="w-3 h-3" />New
+          <Clock className="w-3 h-3" />{tFallback("coach.onboarding.levelLabel.newbie", "New")}
         </button>
         <button type="button"
           onClick={() => { setSort('popular'); setVisibleCount(PAGE_SIZE); }}
           className={`flex items-center gap-1 px-2.5 py-1.5 border-s border-border transition-colors ${sort === 'popular' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:text-foreground active:text-foreground'}`}>
-          <Flame className="w-3 h-3" />Hot
+          <Flame className="w-3 h-3" />{tFallback("hubFeed.hot", "Hot")}
         </button>
       </div>
       {/* Time sub-filter (Hot only) */}
@@ -523,7 +523,7 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
           <span className="relative inline-flex w-2 h-2 rounded-full bg-destructive" />
         </span>
         <Radio className="w-3 h-3" />
-        Go Live
+        {tFallback("hubFeed.goLive", "Go Live")}
       </button>
     </div>
   );

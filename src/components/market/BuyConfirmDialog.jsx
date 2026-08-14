@@ -30,7 +30,7 @@ export default function BuyConfirmDialog({ open, listing, onClose, onConfirm, bu
           <p className="font-semibold">{listing.item_name}</p>
           <RarityBadge rarity={listing.item_rarity} />
           <p className="text-amber-500 dark:text-amber-300 font-bold text-lg mt-1">
-            <CoinAmount value={listing.asking_price ?? 0} /> Flex Coins
+            <CoinAmount value={listing.asking_price ?? 0} /> {tFallback("buyConfirmDialog.flexCoins", "Flex Coins")}
           </p>
         </div>
         <div className="flex gap-3">
@@ -39,7 +39,7 @@ export default function BuyConfirmDialog({ open, listing, onClose, onConfirm, bu
             disabled={busy}
             className="flex-1 py-2.5 rounded-xl bg-secondary text-secondary-foreground font-semibold text-sm hover:bg-secondary/80 active:bg-secondary/80 transition-colors"
           >
-            Cancel
+            {tFallback("coach.plan.cancel", "Cancel")}
           </button>
           <button
             onClick={onConfirm}

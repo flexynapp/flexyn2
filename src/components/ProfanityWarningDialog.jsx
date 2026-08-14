@@ -35,7 +35,7 @@ export default function ProfanityWarningDialog({ open, onContinue }) {
               That word isn't allowed here. Tap Continue and we'll clear it for you.
             </p>
             <Button className="w-full" onClick={onContinue}>
-              Continue
+              {tFallback("levelUp.continue", "Continue")}
             </Button>
           </motion.div>
         </div>

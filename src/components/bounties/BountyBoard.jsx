@@ -140,7 +140,7 @@ export default function BountyBoard() {
           }`}
         >
           <Zap className="w-3.5 h-3.5" />
-          Board
+          {tFallback("bountyBoard.board", "Board")}
         </button>
         <button
           onClick={() => setTab('mine')}
@@ -151,7 +151,7 @@ export default function BountyBoard() {
           }`}
         >
           <History className="w-3.5 h-3.5" />
-          My Bounties
+          {tFallback("bountyBoard.myBounties", "My Bounties")}
         </button>
       </div>
 

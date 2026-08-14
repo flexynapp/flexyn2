@@ -829,7 +829,7 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
                                 </>
                               ) : (
                                 <span className="flex items-center gap-0.5 mt-0.5 text-muted-foreground/60">
-                                  <Plus className="w-2.5 h-2.5" /> Add
+                                  <Plus className="w-2.5 h-2.5" /> {tFallback("gymEquip.save", "Add")}
                                 </span>
                               )}
                             </button>

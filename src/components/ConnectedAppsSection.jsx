@@ -63,7 +63,7 @@ export default function ConnectedAppsSection() {
                 </div>
               </div>
               <span className="text-micro font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-secondary text-muted-foreground shrink-0">
-                Soon
+                {tFallback("connectedAppsSection.soon", "Soon")}
               </span>
             </li>
           );

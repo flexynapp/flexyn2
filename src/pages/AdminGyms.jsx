@@ -128,7 +128,7 @@ export default function AdminGyms() {
         onClick={() => navigate(-1)}
         className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground active:text-foreground mb-3"
       >
-        <ArrowLeft className="w-4 h-4" /> Back
+        <ArrowLeft className="w-4 h-4" /> {tFallback("achievements.vault.back", "Back")}
       </button>
 
       <div className="flex items-center gap-3 mb-4">
@@ -238,7 +238,7 @@ export default function AdminGyms() {
                         className="flex-1 text-destructive border-destructive/30 hover:bg-destructive/10 active:bg-destructive/10"
                       >
                         <X className="w-4 h-4 me-1" />
-                        Reject
+                        {tFallback("adminGyms.reject", "Reject")}
                       </Button>
                       <Button
                         size="sm"
@@ -260,7 +260,7 @@ export default function AdminGyms() {
                         onClick={() => setRejectingId(null)}
                         className="flex-1"
                       >
-                        Cancel
+                        {tFallback("coach.plan.cancel", "Cancel")}
                       </Button>
                       <Button
                         size="sm"

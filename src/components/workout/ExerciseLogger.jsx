@@ -290,7 +290,7 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
               onClick={reopen}
               className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground active:text-foreground px-2 py-1.5 rounded-lg hover:bg-secondary active:bg-secondary transition-colors shrink-0"
             >
-              <Pencil className="w-3.5 h-3.5" /> Edit
+              <Pencil className="w-3.5 h-3.5" /> {tFallback("coach.plan.edit", "Edit")}
             </button>
           </div>
         </Card>
@@ -494,7 +494,7 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
           <AlertDialogFooter>
             <AlertDialogCancel>{tFallback("exerciseLogger.keepGoing", "Keep going")}</AlertDialogCancel>
             <AlertDialogAction onClick={() => { setConfirmOpen(false); markComplete(); }}>
-              Complete anyway
+              {tFallback("exerciseLogger.completeAnyway", "Complete anyway")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

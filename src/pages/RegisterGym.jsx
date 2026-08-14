@@ -174,7 +174,7 @@ export default function RegisterGym() {
         onClick={() => navigate('/')}
         className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground active:text-foreground mb-3"
       >
-        <ArrowLeft className="w-4 h-4" /> Home
+        <ArrowLeft className="w-4 h-4" /> {tFallback("registerGym.home", "Home")}
       </button>
 
       <div className="flex items-center gap-3 mb-2">
@@ -193,7 +193,7 @@ export default function RegisterGym() {
       {!loading && submissions.length > 0 && (
         <div className="mt-4 mb-6 space-y-2">
           <p className="text-micro font-bold uppercase tracking-wider text-muted-foreground">
-            Your submissions
+            {tFallback("registerGym.yourSubmissions", "Your submissions")}
           </p>
           {submissions.map(s => {
             const meta = STATUS_META[s.status] || STATUS_META.pending;
@@ -231,7 +231,7 @@ export default function RegisterGym() {
 
         <div>
           <label className="block text-micro font-bold uppercase tracking-wider text-muted-foreground mb-1">
-            Street address
+            {tFallback("registerGym.streetAddress", "Street address")}
           </label>
           <Input
             value={form.street_address}
@@ -243,13 +243,13 @@ export default function RegisterGym() {
         <div className="grid grid-cols-3 gap-2">
           <div className="col-span-2">
             <label className="block text-micro font-bold uppercase tracking-wider text-muted-foreground mb-1">
-              City
+              {tFallback("registerGym.city", "City")}
             </label>
             <Input value={form.city} onChange={(e) => setForm(f => ({ ...f, city: e.target.value }))} />
           </div>
           <div>
             <label className="block text-micro font-bold uppercase tracking-wider text-muted-foreground mb-1">
-              State
+              {tFallback("leaderboards.region.state", "State")}
             </label>
             <Input
               value={form.state_code}
@@ -273,7 +273,7 @@ export default function RegisterGym() {
           </div>
           <div>
             <label className="block text-micro font-bold uppercase tracking-wider text-muted-foreground mb-1">
-              Phone
+              {tFallback("gymEdit.phone", "Phone")}
             </label>
             <Input
               type="tel"
@@ -286,7 +286,7 @@ export default function RegisterGym() {
 
         <div>
           <label className="block text-micro font-bold uppercase tracking-wider text-muted-foreground mb-1">
-            Website
+            {tFallback("gymEdit.website", "Website")}
           </label>
           <Input
             type="url"
@@ -300,7 +300,7 @@ export default function RegisterGym() {
         <div className="rounded-xl border border-dashed border-border p-3">
           <div className="flex items-center justify-between gap-2 mb-2">
             <p className="text-micro font-bold uppercase tracking-wider text-muted-foreground">
-              Pin location
+              {tFallback("registerGym.pinLocation", "Pin location")}
             </p>
             <button
               type="button"

@@ -230,7 +230,7 @@ export default function GymHub() {
         onClick={() => navigate('/my-gym')}
         className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground active:text-foreground mb-3"
       >
-        <ArrowLeft className="w-4 h-4" /> My Gym
+        <ArrowLeft className="w-4 h-4" /> {tFallback("myGym.title", "My Gym")}
       </button>
 
       {/* Arrived from a signage QR scan — say what the scan bought you. */}
@@ -246,7 +246,7 @@ export default function GymHub() {
             </p>
           </div>
           <Button size="sm" onClick={() => navigate('/workout')} className="shrink-0 gap-2">
-            <Dumbbell className="w-3.5 h-3.5" /> Start
+            <Dumbbell className="w-3.5 h-3.5" /> {tFallback("cardio.live.start", "Start")}
           </Button>
         </div>
       )}
@@ -305,7 +305,7 @@ export default function GymHub() {
                 )}
                 {isOwner && (
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-600 dark:text-amber-300 border border-amber-400/30 font-bold uppercase tracking-wide text-micro">
-                    <Crown className="w-2.5 h-2.5" /> Owner
+                    <Crown className="w-2.5 h-2.5" /> {tFallback("gymHub.owner", "Owner")}
                   </span>
                 )}
               </div>
@@ -377,7 +377,7 @@ export default function GymHub() {
               }}
               className="gap-1.5"
             >
-              <Share2 className="w-3.5 h-3.5" /> Share
+              <Share2 className="w-3.5 h-3.5" /> {tFallback("common.share", "Share")}
             </Button>
             {isOwner && (
               <Button
@@ -386,7 +386,7 @@ export default function GymHub() {
                 onClick={() => navigate(`/gym/${gym.id}/edit`)}
                 className="gap-1.5"
               >
-                <Pencil className="w-3.5 h-3.5" /> Edit
+                <Pencil className="w-3.5 h-3.5" /> {tFallback("coach.plan.edit", "Edit")}
               </Button>
             )}
             {!isOwner && isMember && (
@@ -405,7 +405,7 @@ export default function GymHub() {
                 }}
                 className="gap-1.5 text-muted-foreground hover:text-destructive active:text-destructive"
               >
-                <LogOut className="w-3.5 h-3.5" /> Leave
+                <LogOut className="w-3.5 h-3.5" /> {tFallback("gymHub.leave", "Leave")}
               </Button>
             )}
           </div>
@@ -614,7 +614,7 @@ function EventsTab({ gymId, canCreate, gymOwnerId }) {
       </div>
       {canCreate && !composing && scope === 'upcoming' && (
         <Button variant="outline" onClick={() => setComposing(true)} className="w-full mb-3 gap-1.5">
-          <Plus className="w-4 h-4" /> New event
+          <Plus className="w-4 h-4" /> {tFallback("gymHub.newEvent", "New event")}
         </Button>
       )}
       {composing && (

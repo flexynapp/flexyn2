@@ -87,7 +87,7 @@ export default function RecipeOverflowSheet({
                   disabled={busy}
                   className="flex-1 h-11 rounded-lg border border-border bg-secondary/40 text-sm font-semibold disabled:opacity-60"
                 >
-                  Keep it
+                  {tFallback("recipeOverflowSheet.keep", "Keep it")}
                 </button>
                 <button
                   type="button"
@@ -153,7 +153,7 @@ export default function RecipeOverflowSheet({
                   onClick={onClose}
                   className="w-full h-11 rounded-lg text-sm font-semibold text-muted-foreground"
                 >
-                  Cancel
+                  {tFallback("coach.plan.cancel", "Cancel")}
                 </button>
               </div>
             </>

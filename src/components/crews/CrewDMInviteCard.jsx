@@ -87,7 +87,7 @@ export default function CrewDMInviteCard({ payload, userId, isMine }) {
           ) : state === 'joined' ? (
             <div className="flex items-center gap-1.5 text-sm font-semibold" style={{ color: 'hsl(var(--primary))' }}>
               <Check className="w-4 h-4" />
-              Joined!
+              {tFallback("crewDMInviteCard.joined", "Joined!")}
             </div>
           ) : state === 'full' ? (
             <p className="text-xs text-destructive font-medium">This Crew is full.</p>

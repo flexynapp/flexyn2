@@ -270,7 +270,7 @@ export default function MarketFilterBar({
             onClick={() => onChange({ ...DEFAULT_FILTERS, sort: filters.sort })}
             className="flex items-center gap-1 text-micro font-bold text-primary hover:underline"
           >
-            <X className="w-3 h-3" /> Clear filters
+            <X className="w-3 h-3" /> {tFallback("trends.clearFilters", "Clear filters")}
           </button>
         </div>
       )}

@@ -114,10 +114,10 @@ export default function CheckInPage() {
               onClick={() => navigate('/workout')}
               className="mt-2 w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-primary text-primary-foreground font-bold hover:opacity-90 transition-opacity"
             >
-              <Dumbbell className="w-4 h-4" /> Start your workout
+              <Dumbbell className="w-4 h-4" /> {tFallback("checkInPage.startYourWorkout", "Start your workout")}
             </button>
             <button type="button" onClick={() => navigate('/dashboard')} className="text-sm text-muted-foreground hover:text-foreground active:text-foreground">
-              Go to dashboard
+              {tFallback("header.goToDashboard", "Go to dashboard")}
             </button>
           </>
         )}
@@ -133,7 +133,7 @@ export default function CheckInPage() {
               <Zap className="w-4 h-4" /> {multiplierLabel} XP active today
             </div>
             <button type="button" onClick={() => navigate('/workout')} className="mt-2 w-full py-3 rounded-xl bg-primary text-primary-foreground font-bold hover:opacity-90 transition-opacity">
-              Start your workout
+              {tFallback("checkInPage.startYourWorkout", "Start your workout")}
             </button>
           </>
         )}
@@ -146,7 +146,7 @@ export default function CheckInPage() {
             <p className="font-heading font-bold text-lg">{tFallback("checkInPage.couldnTCheck", "Couldn't check in")}</p>
             <p className="text-sm text-muted-foreground">That code didn't match an active gym. Double-check the signage code.</p>
             <button type="button" onClick={() => navigate('/dashboard')} className="mt-2 w-full py-3 rounded-xl bg-secondary font-semibold hover:bg-secondary/70 active:bg-secondary/70 transition-colors">
-              Go to dashboard
+              {tFallback("header.goToDashboard", "Go to dashboard")}
             </button>
           </>
         )}
@@ -159,7 +159,7 @@ export default function CheckInPage() {
             <p className="font-heading font-bold text-lg">{tFallback("checkInPage.signInToCheck", "Sign in to check in")}</p>
             <p className="text-sm text-muted-foreground">Log in to Flexyn, then scan again to claim your {multiplierLabel} XP.</p>
             <button type="button" onClick={() => db.auth.redirectToLogin()} className="mt-2 w-full py-3 rounded-xl bg-primary text-primary-foreground font-bold hover:opacity-90 transition-opacity">
-              Sign in
+              {tFallback("profile.signIn", "Sign in")}
             </button>
           </>
         )}

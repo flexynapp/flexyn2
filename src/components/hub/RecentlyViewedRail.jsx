@@ -45,14 +45,14 @@ export default function RecentlyViewedRail({ userEmail, listings = [], onSelect 
     <div className="mb-3">
       <div className="flex items-center justify-between mb-2 px-1">
         <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-          Recently viewed
+          {tFallback("recentlyViewedRail.recentlyViewed", "Recently viewed")}
         </h3>
         <button
           type="button"
           onClick={() => clearRecentlyViewed(userEmail)}
           className="text-micro text-muted-foreground/70 hover:text-muted-foreground active:text-muted-foreground transition-colors"
         >
-          Clear
+          {tFallback("implement.clear", "Clear")}
         </button>
       </div>
       <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-thin">
@@ -106,7 +106,7 @@ export default function RecentlyViewedRail({ userEmail, listings = [], onSelect 
                     className="absolute inset-x-0 top-1/2 -translate-y-1/2 text-center text-micro font-bold uppercase tracking-wider text-destructive bg-black/50 py-0.5 pointer-events-none"
                     aria-hidden="true"
                   >
-                    Sold
+                    {tFallback("recentlyViewedRail.sold", "Sold")}
                   </span>
                 )}
                 {/* × removal — appears on hover (desktop) / always tappable

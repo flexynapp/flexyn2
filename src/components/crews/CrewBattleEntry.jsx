@@ -188,7 +188,7 @@ export default function CrewBattleEntry({ crew, currentUserId }) {
           <div>
             <p className="text-xs font-semiboldr text-muted-foreground flex items-center gap-1.5 mb-2">
               <History className="w-3 h-3" />
-              Past Battles
+              {tFallback("crewBattleEntry.pastBattles", "Past Battles")}
             </p>
             <div className="space-y-2">
               {history.map(w => {

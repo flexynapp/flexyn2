@@ -254,7 +254,7 @@ export default function DuelDetailSheet({ duel, currentUserId, opponentProfile, 
               onClick={() => onCancel(duel.id)}
               className="w-full py-2.5 rounded-xl border border-rose-500/30 text-rose-500 text-sm font-semibold hover:bg-rose-500/10 active:bg-rose-500/10 transition-colors"
             >
-              Cancel challenge
+              {tFallback("duelDetailSheet.cancelChallenge", "Cancel challenge")}
             </button>
           )}
 

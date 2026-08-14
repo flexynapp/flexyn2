@@ -182,7 +182,7 @@ export function OnboardingCoachSheet({ open, onClose, stepId, draft = {}, onAppl
                           className="mt-2.5 w-full rounded-lg bg-primary text-primary-foreground text-xs font-bold py-2 px-3 flex items-center justify-center gap-1.5 disabled:opacity-60 hover:opacity-90 transition-opacity"
                         >
                           {applied[i]
-                            ? <><Check className="w-3.5 h-3.5" /> Applied</>
+                            ? <><Check className="w-3.5 h-3.5" /> {tFallback("onboardingCoach.applied", "Applied")}</>
                             : <><Sparkles className="w-3.5 h-3.5" /> {m.apply.label}</>}
                         </button>
                       )}

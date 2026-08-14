@@ -135,7 +135,7 @@ export default function TradeHistory() {
         onClick={() => navigate(-1)}
         className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground active:text-foreground transition-colors mb-3"
       >
-        <ArrowLeft className="w-4 h-4" /> Back
+        <ArrowLeft className="w-4 h-4" /> {tFallback("achievements.vault.back", "Back")}
       </button>
 
       <PageHeader kicker="Marketplace" title={tFallback("marketplaceHeader.tradeHistory", "Trade history")} icon={ArrowRightLeft} hidePeriod />

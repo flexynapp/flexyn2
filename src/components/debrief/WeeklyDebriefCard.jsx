@@ -397,7 +397,7 @@ export default function WeeklyDebriefCard({ debrief, forExport = false, exportRe
               </div>
               {topLift.is_pr && (
                 <span className="shrink-0 inline-flex items-center gap-1 text-micro font-bold uppercase tracking-wider text-primary border border-primary/50 rounded-full px-2 py-0.5">
-                  <Trophy className="w-3 h-3" /> New PR
+                  <Trophy className="w-3 h-3" /> {tFallback("weeklyDebriefCard.newPr", "New PR")}
                 </span>
               )}
             </div>

@@ -259,7 +259,7 @@ export default function CoachPlanCard({ plan, onSaveRegimen, onStartWorkout, onP
             className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm py-2.5 transition-opacity active:opacity-80"
           >
             <Play className="w-4 h-4" />
-            Start workout
+            {tFallback("coachPlanCard.startWorkout", "Start workout")}
           </button>
         )}
         {/* Schedule outranks Save on a session, and that ordering is the whole

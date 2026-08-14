@@ -266,7 +266,7 @@ export default function SignInToContinue({
               onClick={handleResetEmail}
               className="w-full text-xs text-muted-foreground hover:text-foreground active:text-foreground transition-colors py-1.5"
             >
-              Wrong email? Send another link
+              {tFallback("signInToContinue.wrongEmailSendAnotherLink", "Wrong email? Send another link")}
             </button>
           </div>
         ) : (

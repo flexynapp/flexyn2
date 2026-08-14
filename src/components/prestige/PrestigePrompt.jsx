@@ -110,13 +110,13 @@ export default function PrestigePrompt({ currentPrestige = 0, onDismiss }) {
                 onClick={() => dismissMut.mutate()}
                 className="flex-1 py-2 rounded-xl border border-border text-xs font-semibold hover:bg-secondary active:bg-secondary transition-colors"
               >
-                Not Yet
+                {tFallback("prestigePrompt.notYet", "Not Yet")}
               </button>
               <button
                 onClick={() => setStep('confirm')}
                 className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-yellow-500 text-slate-900 text-xs font-black hover:bg-yellow-400 active:bg-yellow-400 transition-colors"
               >
-                Prestige Now
+                {tFallback("prestigePrompt.prestigeNow", "Prestige Now")}
                 <ChevronRight className="w-3.5 h-3.5" />
               </button>
             </div>
@@ -166,7 +166,7 @@ export default function PrestigePrompt({ currentPrestige = 0, onDismiss }) {
                 onClick={() => setStep('prompt')}
                 className="flex-1 py-2 rounded-xl border border-border text-xs font-semibold hover:bg-secondary active:bg-secondary transition-colors"
               >
-                Go Back
+                {tFallback("prestigePrompt.goBack", "Go Back")}
               </button>
               <button
                 onClick={() => prestigeMut.mutate()}
@@ -175,7 +175,7 @@ export default function PrestigePrompt({ currentPrestige = 0, onDismiss }) {
               >
                 {prestigeMut.isPending
                   ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  : <><Sparkles className="w-3.5 h-3.5" /> Confirm Prestige</>
+                  : <><Sparkles className="w-3.5 h-3.5" /> {tFallback("prestigePrompt.confirmPrestige", "Confirm Prestige")}</>
                 }
               </button>
             </div>

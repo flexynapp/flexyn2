@@ -149,7 +149,7 @@ export default function TradeOfferDialog({ open, listing, userItems, user, onClo
       >
         <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-border">
           <h3 className="font-heading font-bold flex items-center gap-2">
-            <Zap className="w-5 h-5 text-blue-500" /> Offer a Trade
+            <Zap className="w-5 h-5 text-blue-500" /> {tFallback("tradeOfferDialog.offerATrade", "Offer a Trade")}
           </h3>
           <button
             onClick={onClose}

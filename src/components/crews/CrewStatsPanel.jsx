@@ -135,7 +135,7 @@ export default function CrewStatsPanel({ crewId, onClose }) {
               <div className="pt-2">
                 <p className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5">
                   <Award className="w-3 h-3 text-yellow-500" />
-                  First to Achieve
+                  {tFallback("crewStatsPanel.firstToAchieve", "First to Achieve")}
                 </p>
                 <div className="space-y-1.5">
                   {firstAchievers.slice(0, 8).map((row) => {
@@ -168,7 +168,7 @@ export default function CrewStatsPanel({ crewId, onClose }) {
               <div className="pt-2">
                 <p className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5">
                   <Users className="w-3 h-3" />
-                  Member Breakdown
+                  {tFallback("crewStatsPanel.memberBreakdown", "Member Breakdown")}
                 </p>
                 <div className="space-y-1.5">
                   {[...stats.memberStats]

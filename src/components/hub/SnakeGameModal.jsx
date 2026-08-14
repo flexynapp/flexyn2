@@ -565,7 +565,7 @@ export default function SnakeGameModal({ open, onClose, userId }) {
                 <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-2 bg-black/60 backdrop-blur-[2px]">
                   <p className="snake-pixel text-base text-white leading-tight text-center">GAME<br />OVER</p>
                   {isNewHigh ? (
-                    <p className="text-sm font-semibold text-primary flex items-center gap-1"><Trophy className="w-4 h-4" /> New best!</p>
+                    <p className="text-sm font-semibold text-primary flex items-center gap-1"><Trophy className="w-4 h-4" /> {tFallback("snakeGameModal.newBest", "New best!")}</p>
                   ) : (
                     <p className="text-xs text-slate-300">Score {score} · Best {highScore}</p>
                   )}

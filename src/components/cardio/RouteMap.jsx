@@ -269,7 +269,7 @@ export default function RouteMap({ track, height = 240, interactive = true }) {
         className="rounded-xl overflow-hidden border border-border bg-secondary/30 flex items-center justify-center text-xs text-muted-foreground"
         style={{ height }}
       >
-        Map unavailable
+        {tFallback("routeMap.mapUnavailable", "Map unavailable")}
       </div>
     );
   }
@@ -308,7 +308,7 @@ export default function RouteMap({ track, height = 240, interactive = true }) {
                   rel="noopener noreferrer"
                   className="hover:underline"
                 >
-                  MapTiler
+                  {tFallback("routeMap.maptiler", "MapTiler")}
                 </a>
                 {' · '}
                 <a

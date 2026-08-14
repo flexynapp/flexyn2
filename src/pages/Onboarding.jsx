@@ -233,6 +233,7 @@ function FeatVisualProgress({ accent }) {
 }
 
 function FeatVisualRecovery({ accent }) {
+  const { tFallback } = useLanguage();
   return (
     <div style={{ position: 'relative', width: 100, height: 100, flexShrink: 0 }}>
       <svg width="100" height="100" viewBox="0 0 100 100" style={{ transform: 'rotate(-90deg)' }}>
@@ -252,7 +253,7 @@ function FeatVisualRecovery({ accent }) {
         }}>
           <span style={{ display: 'block', animation: 'ob-streak-roll 0.7s 0.6s cubic-bezier(0.16,1,0.3,1) both' }}>82</span>
         </div>
-        <div style={{ fontFamily: 'monospace', fontSize: 8, fontWeight: 600, color: 'hsl(var(--muted-foreground))', letterSpacing: '0.14em', textTransform: 'uppercase', marginTop: 2 }}>Ready</div>
+        <div style={{ fontFamily: 'monospace', fontSize: 8, fontWeight: 600, color: 'hsl(var(--muted-foreground))', letterSpacing: '0.14em', textTransform: 'uppercase', marginTop: 2 }}>{tFallback("onboarding.ready", "Ready")}</div>
       </div>
     </div>
   );

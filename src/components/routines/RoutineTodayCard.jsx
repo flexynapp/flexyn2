@@ -89,7 +89,7 @@ export default function RoutineTodayCard({ onStart, onOpenRoutines, onChallenge 
                 title={tFallback("routineTodayCard.upForAChallengeAdd", "Up for a challenge — add a bonus finisher")}
                 className="h-11 px-3 rounded-2xl border border-primary/40 text-primary font-bold text-sm flex items-center gap-1.5"
               >
-                <Sparkles className="w-4 h-4" /> Challenge
+                <Sparkles className="w-4 h-4" /> {tFallback("routineTodayCard.challenge", "Challenge")}
               </button>
             </div>
           </div>

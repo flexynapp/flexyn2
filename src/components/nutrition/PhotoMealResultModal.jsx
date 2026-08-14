@@ -392,7 +392,7 @@ export default function PhotoMealResultModal({ open, imageUrl, result, saving, o
                       onClick={addItem}
                       className="w-full h-10 rounded-lg border border-dashed border-primary/50 text-primary text-sm font-bold flex items-center justify-center gap-1.5"
                     >
-                      <Plus className="w-4 h-4" /> Add ingredient
+                      <Plus className="w-4 h-4" /> {tFallback("photoMealResultModal.addIngredient", "Add ingredient")}
                     </button>
                   </div>
                 ) : (
@@ -437,7 +437,7 @@ export default function PhotoMealResultModal({ open, imageUrl, result, saving, o
                     onClick={onLogAgain}
                     className="w-full h-11 mt-3 rounded-lg border border-border text-sm font-bold flex items-center justify-center gap-1.5"
                   >
-                    <Plus className="w-4 h-4" /> Log this again
+                    <Plus className="w-4 h-4" /> {tFallback("photoMealResultModal.logThisAgain", "Log this again")}
                   </button>
                 </div>
               </div>
@@ -454,7 +454,7 @@ export default function PhotoMealResultModal({ open, imageUrl, result, saving, o
                   onClick={onDelete}
                   className="flex-1 h-11 rounded-lg border border-destructive/40 text-destructive text-sm font-bold flex items-center justify-center gap-1.5"
                 >
-                  <Trash2 className="w-4 h-4" /> Delete
+                  <Trash2 className="w-4 h-4" /> {tFallback("common.delete", "Delete")}
                 </button>
               )}
               <button
@@ -462,7 +462,7 @@ export default function PhotoMealResultModal({ open, imageUrl, result, saving, o
                 onClick={onClose}
                 className="flex-[1.4] h-11 rounded-lg bg-primary text-primary-foreground text-sm font-bold flex items-center justify-center gap-1.5"
               >
-                <Check className="w-4 h-4" /> Done
+                <Check className="w-4 h-4" /> {tFallback("coach.plan.done", "Done")}
               </button>
             </div>
           ) : (
@@ -474,7 +474,7 @@ export default function PhotoMealResultModal({ open, imageUrl, result, saving, o
                   editing ? 'border-primary text-primary bg-primary/10' : 'border-border text-foreground'
                 }`}
               >
-                {editing ? <><Check className="w-4 h-4" /> Done</> : <><Pencil className="w-4 h-4" /> Edit</>}
+                {editing ? <><Check className="w-4 h-4" /> {tFallback("coach.plan.done", "Done")}</> : <><Pencil className="w-4 h-4" /> {tFallback("coach.plan.edit", "Edit")}</>}
               </button>
               <button
                 type="button"

@@ -212,13 +212,13 @@ export default function DuelInviteLanding() {
                 onClick={handleCopy}
                 className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-secondary text-sm font-bold border border-border hover:bg-secondary/80 active:bg-secondary/80 transition-colors"
               >
-                <Copy className="w-4 h-4" /> Copy
+                <Copy className="w-4 h-4" /> {tFallback("common.copy", "Copy")}
               </button>
               <button
                 onClick={handleNativeShare}
                 className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 active:bg-primary/90 transition-colors"
               >
-                <Share2 className="w-4 h-4" /> Share
+                <Share2 className="w-4 h-4" /> {tFallback("common.share", "Share")}
               </button>
             </div>
           </div>
@@ -246,7 +246,7 @@ export default function DuelInviteLanding() {
               className="w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-rose-500 text-white text-base font-bold hover:bg-rose-600 active:bg-rose-600 transition-colors shadow-lg shadow-rose-500/30"
             >
               <Swords className="w-5 h-5" />
-              Sign up to accept
+              {tFallback("duelInviteLanding.signUpToAccept", "Sign up to accept")}
             </button>
             <p className="text-micro text-center text-muted-foreground">
               Free. Takes ~30 seconds. We'll bring you back here.
@@ -299,7 +299,7 @@ function ChallengerHeader({ invite }) {
 
       <div className="text-center">
         <span className="text-micro font-semibold tracking-[0.2em] uppercase text-rose-500">
-          Duel challenge
+          {tFallback("duelInviteLanding.duelChallenge", "Duel challenge")}
         </span>
         <h1 className="font-heading font-bold text-2xl mt-1">
           {invite.challenger_username || 'Someone'}

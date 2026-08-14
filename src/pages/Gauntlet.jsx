@@ -84,7 +84,7 @@ function ChallengeDetail({ challenge, status, completedAt, onClose, onStartWorko
           {status === 'next'      && <span className="text-muted-foreground text-sm font-medium">{tFallback("gauntlet.upNext", "Up Next")}</span>}
           {status === 'locked'    && (
             <span className="text-muted-foreground/50 text-sm flex items-center gap-1.5">
-              <Lock className="w-3 h-3" /> Locked
+              <Lock className="w-3 h-3" /> {tFallback("progress.locked", "Locked")}
             </span>
           )}
           {completedAt && status === 'completed' && (
@@ -393,7 +393,7 @@ export default function Gauntlet() {
         <div className="flex items-center gap-2 mb-3">
           <Swords className="w-4 h-4 text-muted-foreground" />
           <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">
-            The Path
+            {tFallback("gauntlet.thePath", "The Path")}
           </h2>
         </div>
 
@@ -487,7 +487,7 @@ export default function Gauntlet() {
                 onClick={() => setChestModal(null)}
                 className="mt-5 w-full py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:opacity-90 transition-opacity"
               >
-                Got it
+                {tFallback("workout.tutorial.gotIt", "Got it")}
               </button>
             </motion.div>
           </motion.div>

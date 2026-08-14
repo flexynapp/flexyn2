@@ -291,7 +291,7 @@ export default function RecipesHubModal({
           >
             <div className="flex items-center justify-between px-4 pt-4 pb-2">
               <h2 className="font-heading font-bold text-base flex items-center gap-2">
-                <ChefHat className="w-4 h-4" /> Recipes
+                <ChefHat className="w-4 h-4" /> {tFallback("recipesHubModal.recipes", "Recipes")}
               </h2>
               <button onClick={onClose} aria-label={tFallback("common.close", "Close")} className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center">
                 <X className="w-3.5 h-3.5" />
@@ -330,14 +330,14 @@ export default function RecipesHubModal({
                         <>
                           <div className="flex items-center justify-between mb-2">
                             <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground">
-                              Pick a meal to start from
+                              {tFallback("recipesHubModal.pickAMealToStart", "Pick a meal to start from")}
                             </p>
                             <button
                               type="button"
                               onClick={() => setPickingLog(false)}
                               className="text-micro font-semibold text-muted-foreground"
                             >
-                              Back
+                              {tFallback("achievements.vault.back", "Back")}
                             </button>
                           </div>
                           {seedableLogs.length === 0 ? (
@@ -374,7 +374,7 @@ export default function RecipesHubModal({
                             already filled in.
                           </p>
                           <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground mt-6 mb-2">
-                            Three ways to start
+                            {tFallback("recipesHubModal.threeWaysToStart", "Three ways to start")}
                           </p>
                           <div className="space-y-2">
                             <RouteCard
@@ -430,7 +430,7 @@ export default function RecipesHubModal({
                                   <span className="flex items-center gap-1.5 mt-1">
                                     {recipe.is_public && (
                                       <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-success/60 text-micro font-bold text-success">
-                                        <Globe className="w-2.5 h-2.5" /> Shared
+                                        <Globe className="w-2.5 h-2.5" /> {tFallback("recipesHubModal.shared", "Shared")}
                                       </span>
                                     )}
                                     <span className="text-micro text-muted-foreground">
@@ -444,7 +444,7 @@ export default function RecipesHubModal({
                                   onClick={() => setLogTarget(recipe)}
                                   className="h-8 px-3 rounded-md border border-primary text-primary text-caption font-bold"
                                 >
-                                  Log
+                                  {tFallback("cardio.start.cta.manual", "Log")}
                                 </button>
                                 <button
                                   onClick={() => setOverflowRecipe(recipe)}
@@ -465,7 +465,7 @@ export default function RecipesHubModal({
                         onClick={openNew}
                         className="w-full flex items-center justify-center gap-1.5 py-3 mt-6 rounded-lg bg-primary text-primary-foreground text-sm font-bold"
                       >
-                        <Plus className="w-4 h-4" /> New recipe
+                        <Plus className="w-4 h-4" /> {tFallback("recipesHubModal.newRecipe", "New recipe")}
                       </button>
                     </>
                   )}

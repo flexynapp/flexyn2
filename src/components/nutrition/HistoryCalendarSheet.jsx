@@ -196,7 +196,7 @@ export default function HistoryCalendarSheet({
             ))}
             <span className="flex items-center gap-1.5 text-micro font-semibold text-muted-foreground">
               <span className="w-[7px] h-[7px] rounded-full border border-muted-foreground" />
-              Not logged
+              {tFallback("historyCalendarSheet.notLogged", "Not logged")}
             </span>
           </div>
 
@@ -214,7 +214,7 @@ export default function HistoryCalendarSheet({
               onClick={() => pick(todayStr)}
               className="w-full h-11 rounded-lg border border-border text-sm font-bold"
             >
-              Jump to today
+              {tFallback("historyCalendarSheet.jumpToToday", "Jump to today")}
             </button>
           </div>
         </motion.div>

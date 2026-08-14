@@ -130,7 +130,7 @@ export default function FastingTrackerCard() {
             presets don't cover (e.g. 14h, 22h, 24h). */}
         <div className="flex items-center gap-2">
           <label className="text-micro uppercase tracking-wider text-muted-foreground font-semibold shrink-0">
-            Custom
+            {tFallback("nutrition.water.custom", "Custom")}
           </label>
           <input
             type="number"
@@ -150,7 +150,7 @@ export default function FastingTrackerCard() {
             disabled={!customHours}
             className="h-8 px-3 rounded-md bg-primary text-primary-foreground text-xs font-bold disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
           >
-            Start
+            {tFallback("cardio.live.start", "Start")}
           </button>
         </div>
       </div>
@@ -212,7 +212,7 @@ export default function FastingTrackerCard() {
             onClick={handleEnd}
             className="mt-2 h-8 px-3 text-xs"
           >
-            <StopCircle className="w-3.5 h-3.5 me-1" /> End fast
+            <StopCircle className="w-3.5 h-3.5 me-1" /> {tFallback("fastingTrackerCard.endFast", "End fast")}
           </Button>
         </div>
       </div>

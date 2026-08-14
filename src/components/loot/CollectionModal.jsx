@@ -324,7 +324,7 @@ function DetailSheet({ item, onBack }) {
         {odds.length > 0 && (
           <div>
             <p className="text-micro font-bold uppercase tracking-[0.18em] text-muted-foreground mb-1.5 text-start">
-              Drop chance
+              {tFallback("collectionModal.dropChance", "Drop chance")}
             </p>
             <div className="space-y-1.5">
               {odds.map(o => (
@@ -358,7 +358,7 @@ function DetailSheet({ item, onBack }) {
           onClick={onBack}
           className="w-full rounded-xl border border-border py-2 text-xs font-bold hover:bg-secondary active:bg-secondary transition-colors"
         >
-          Back to collection
+          {tFallback("collectionModal.backToCollection", "Back to collection")}
         </button>
       </div>
     </motion.div>
@@ -612,7 +612,7 @@ export default function CollectionModal({ open, onClose, initialTab = 'stickers'
                           onClick={() => setQuery('')}
                           className="mt-3 text-xs font-bold text-primary hover:underline"
                         >
-                          Clear search
+                          {tFallback("nutrition.search.clear", "Clear search")}
                         </button>
                       )}
                     </div>
@@ -658,7 +658,7 @@ export default function CollectionModal({ open, onClose, initialTab = 'stickers'
                       aria-expanded={showOdds}
                       className="flex items-center gap-1.5 text-micro font-bold uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground active:text-foreground transition-colors"
                     >
-                      <Percent className="w-3 h-3" /> Capsule odds
+                      <Percent className="w-3 h-3" /> {tFallback("collectionModal.capsuleOdds", "Capsule odds")}
                     </button>
                     {showOdds && (
                       <div className="space-y-2 text-micro mt-2">

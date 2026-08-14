@@ -94,7 +94,7 @@ export default function CardioLogger({ exercise, onChange, gender }) {
               onClick={toggleComplete}
               className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground active:text-foreground px-2 py-1.5 rounded-lg hover:bg-secondary active:bg-secondary transition-colors shrink-0"
             >
-              <Pencil className="w-3.5 h-3.5" /> Edit
+              <Pencil className="w-3.5 h-3.5" /> {tFallback("coach.plan.edit", "Edit")}
             </button>
           </div>
         </Card>
@@ -184,7 +184,7 @@ export default function CardioLogger({ exercise, onChange, gender }) {
         onClick={addSplit}
         className="mt-2 w-full inline-flex items-center justify-center gap-1.5 rounded-lg border border-dashed border-border py-2 text-xs font-semibold text-muted-foreground hover:text-foreground active:text-foreground hover:bg-secondary active:bg-secondary transition-colors"
       >
-        <Plus className="w-3.5 h-3.5" /> Add split
+        <Plus className="w-3.5 h-3.5" /> {tFallback("cardioLogger.addSplit", "Add split")}
       </button>
 
       {pace && (
@@ -206,7 +206,7 @@ export default function CardioLogger({ exercise, onChange, gender }) {
           hasData ? 'bg-success text-white hover:bg-success/90 active:bg-success/90' : 'border border-border text-muted-foreground/60',
         ].join(' ')}
       >
-        <Check className="w-4 h-4" strokeWidth={3} /> Complete cardio
+        <Check className="w-4 h-4" strokeWidth={3} /> {tFallback("cardioLogger.completeCardio", "Complete cardio")}
       </motion.button>
     </Card>
   );

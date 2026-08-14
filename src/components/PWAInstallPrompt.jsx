@@ -105,7 +105,7 @@ export default function PWAInstallPrompt() {
             onClick={handleInstall}
             className="shrink-0 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-bold hover:opacity-90 transition-opacity"
           >
-            Install
+            {tFallback("pWAInstallPrompt.install", "Install")}
           </button>
           <button
             onClick={handleDismiss}

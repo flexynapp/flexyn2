@@ -5,6 +5,7 @@ import * as DialogPrimitive from "@radix-ui/react-dialog"
 import { X } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import { useLanguage } from '@/lib/LanguageContext';
 
 const Dialog = DialogPrimitive.Root
 
@@ -33,7 +34,12 @@ DialogOverlay.displayName = DialogPrimitive.Overlay.displayName
 // league tiers, for one) need a different X colour than the default
 // foreground-on-background, and the focus halo reads as a circle drawn
 // around the icon once a touch has focused it.
-const DialogContent = React.forwardRef(({ className, children, title, closeClassName, ...props }, ref) => (
+// Block body rather than an implicit return: the sr-only close label below is
+// a real string a screen-reader user hears, so it needs tFallback, and a hook
+// cannot live in an expression-bodied arrow.
+const DialogContent = React.forwardRef(({ className, children, title, closeClassName, ...props }, ref) => {
+  const { tFallback } = useLanguage();
+  return (
   <DialogPortal>
     <DialogOverlay />
     <DialogPrimitive.Content
@@ -66,11 +72,12 @@ const DialogContent = React.forwardRef(({ className, children, title, closeClass
           closeClassName
         )}>
         <X className="h-4 w-4" />
-        <span className="sr-only">Close</span>
+        <span className="sr-only">{tFallback("common.close", "Close")}</span>
       </DialogPrimitive.Close>
     </DialogPrimitive.Content>
   </DialogPortal>
-))
+  );
+})
 DialogContent.displayName = DialogPrimitive.Content.displayName
 
 const DialogHeader = ({

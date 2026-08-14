@@ -565,7 +565,7 @@ export default function NutritionOnboardingModal({ open, userProfile, onComplete
                       disabled={customInput.trim().length < 2}
                       className="px-3 py-2 rounded-lg bg-destructive text-white text-sm font-semibold disabled:opacity-40 transition-opacity"
                     >
-                      Add
+                      {tFallback("gymEquip.save", "Add")}
                     </button>
                   </div>
                   {customRestrictions.length > 0 && (

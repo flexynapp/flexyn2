@@ -409,7 +409,7 @@ export default function RecipeBuilderModal({ open, onClose, editingRecipe = null
               onClick={addIngredient}
               className="mt-2 w-full flex items-center justify-center gap-1 py-1.5 rounded-md border border-dashed border-border text-xs font-bold uppercase tracking-wide text-muted-foreground hover:bg-secondary/40 active:bg-secondary/40"
             >
-              <Plus className="w-3.5 h-3.5" /> Add ingredient
+              <Plus className="w-3.5 h-3.5" /> {tFallback("recipeBuilderModal.addIngredient", "Add ingredient")}
             </button>
 
             {/* The finish — directions, nutrients and totals. One disclosure,
@@ -499,7 +499,7 @@ export default function RecipeBuilderModal({ open, onClose, editingRecipe = null
                   onClick={addCustomMicro}
                   className="w-full flex items-center justify-center gap-1 py-1.5 rounded-md border border-dashed border-border text-micro font-bold uppercase tracking-wide text-muted-foreground hover:bg-secondary/40 active:bg-secondary/40"
                 >
-                  <Plus className="w-3.5 h-3.5" /> Custom nutrient
+                  <Plus className="w-3.5 h-3.5" /> {tFallback("recipeBuilderModal.customNutrient", "Custom nutrient")}
                 </button>
               </div>
             )}

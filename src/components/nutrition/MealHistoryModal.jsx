@@ -528,7 +528,7 @@ export default function MealHistoryModal({ open, onClose, userProfile, onLogPhot
                         onClick={() => { onClose?.(); onLogPhoto(); }}
                         className="w-full h-12 rounded-lg bg-primary text-primary-foreground font-heading font-bold text-sm flex items-center justify-center gap-2"
                       >
-                        <Camera className="w-4 h-4" /> Log with a photo
+                        <Camera className="w-4 h-4" /> {tFallback("mealHistoryModal.logWithAPhoto", "Log with a photo")}
                       </button>
                     )}
                     {onLogManual && (
@@ -537,7 +537,7 @@ export default function MealHistoryModal({ open, onClose, userProfile, onLogPhot
                         onClick={() => { onClose?.(); onLogManual(); }}
                         className="w-full h-12 rounded-lg border border-border font-semibold text-sm flex items-center justify-center gap-2"
                       >
-                        <Plus className="w-4 h-4" /> Enter it manually
+                        <Plus className="w-4 h-4" /> {tFallback("mealHistoryModal.enterItManually", "Enter it manually")}
                       </button>
                     )}
                   </div>
@@ -562,7 +562,7 @@ export default function MealHistoryModal({ open, onClose, userProfile, onLogPhot
                       onClick={() => setSelectedDate(null)}
                       className="text-xs font-semibold text-muted-foreground shrink-0"
                     >
-                      Show all days
+                      {tFallback("mealHistoryModal.showAllDays", "Show all days")}
                     </button>
                   </div>
                 )}

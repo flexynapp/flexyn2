@@ -212,7 +212,7 @@ function ExpandedPanel({ onCollapse, defaultDuration, setDefaultDuration, soundE
           minute on the minute" = 60s rest interval. */}
       <div className="mb-4">
         <span className="block text-micro font-semibold tracking-[0.18em] uppercase text-muted-foreground mb-2">
-          HIIT presets
+          {tFallback("restTimerOverlay.hiitPresets", "HIIT presets")}
         </span>
         <div className="grid grid-cols-2 gap-1.5">
           {[

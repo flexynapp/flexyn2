@@ -224,7 +224,7 @@ function CardioBlock({ snap }) {
                 style={{ height: 220 }}
                 className="bg-secondary/30 border border-border flex items-center justify-center text-xs text-muted-foreground"
               >
-                Map unavailable
+                {tFallback("postActivityBlock.mapUnavailable", "Map unavailable")}
               </div>
             }
           >

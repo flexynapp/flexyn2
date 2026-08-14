@@ -149,7 +149,7 @@ export default function GymSignageCard({ open, onClose, gym }) {
           style={{ width: '100%', maxWidth: '480px' }}
         >
           <p className="text-center text-xs font-bold uppercase tracking-[0.3em] text-slate-500">
-            Flexyn Gym
+            {tFallback("gymSignageCard.flexynGym", "Flexyn Gym")}
           </p>
           <h1 className="text-center font-bold text-2xl mt-1 mb-6 text-slate-900">
             {gym.name}
@@ -167,7 +167,7 @@ export default function GymSignageCard({ open, onClose, gym }) {
             />
           ) : (
             <div className="aspect-square bg-slate-100 rounded-2xl flex items-center justify-center mb-4 text-slate-500 text-sm">
-              QR generation failed
+              {tFallback("gymSignageCard.qrGenerationFailed", "QR generation failed")}
             </div>
           )}
 
@@ -192,7 +192,7 @@ export default function GymSignageCard({ open, onClose, gym }) {
           </Button>
           <Button variant="outline" onClick={handleSave} disabled={!pngUrl} className="w-full gap-2">
             <Download className="w-4 h-4" />
-            Save to Camera Roll
+            {tFallback("gymSignageCard.saveToCameraRoll", "Save to Camera Roll")}
           </Button>
         </div>
       </motion.div>

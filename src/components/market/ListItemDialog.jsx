@@ -254,7 +254,7 @@ export default function ListItemDialog({ open, onClose, userItems, user, onSucce
                     htmlFor="listing-trade-rarity"
                     className="text-muted-foreground text-xs font-semibold mb-1.5 block"
                   >
-                    Minimum Rarity Wanted
+                    {tFallback("listItemDialog.minimumRarityWanted", "Minimum Rarity Wanted")}
                   </label>
                   <select
                     id="listing-trade-rarity"

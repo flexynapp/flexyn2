@@ -2561,7 +2561,7 @@ export default function Workout() {
                             <span className="font-heading font-black text-3xl md:text-4xl leading-none block tracking-tight min-h-[2em]">{t('workout.freestyle')}</span>
                             <span className="text-label text-white/50 mt-2.5 block max-w-[36ch] leading-relaxed min-h-[3.25em]">{t('workout.freestyleDesc')}</span>
                             <span className="inline-flex items-center gap-1 mt-3 px-2.5 py-1 rounded-full bg-white/10 border border-white/10 text-micro font-semibold text-white/60 tracking-wide uppercase">
-                              <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />Ready to go
+                              <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />{tFallback("workout.readyToGo", "Ready to go")}
                             </span>
                           </div>
                           <div className="shrink-0">
@@ -2627,7 +2627,7 @@ export default function Workout() {
                             <span className="font-heading font-black text-3xl md:text-4xl leading-none block tracking-tight min-h-[2em]">{tFallback("workout.crewWars", "Crew Wars")}</span>
                             <span className="text-label text-white/50 mt-2.5 block max-w-[36ch] leading-relaxed min-h-[3.25em]">Rally your crew. Crush rivals. Dominate the leaderboard.</span>
                             <span className="inline-flex items-center gap-1 mt-3 px-2.5 py-1 rounded-full bg-success/15 border border-success/20 text-micro font-semibold text-success/80 tracking-wide uppercase">
-                              <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />Join the fight
+                              <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />{tFallback("workout.joinTheFight", "Join the fight")}
                             </span>
                           </div>
                           <div className="shrink-0">
@@ -2748,7 +2748,7 @@ export default function Workout() {
                         title={tFallback("workout.saveThisLayoutAsDefault", "Save this layout as default for all new users")}
                         className="px-2.5 py-1 rounded-lg bg-primary/15 border border-primary/40 text-primary dark:text-primary text-micro font-bold hover:bg-primary/25 active:bg-primary/25 transition-colors"
                       >
-                        Set default
+                        {tFallback("dashboard.setDefault", "Set default")}
                       </button>
                     )}
                     <button onClick={() => { setCardOrder([...CARD_ORDER_DEFAULT]); localStorage.removeItem(cardOrderKey); setGridEditing(false); resetGridDrag(); }}
@@ -3429,7 +3429,7 @@ export default function Workout() {
           <AlertDialogFooter>
             <AlertDialogCancel>{tFallback("workout.keepGoing", "Keep going")}</AlertDialogCancel>
             <AlertDialogAction onClick={() => { setIncompleteWarnOpen(false); saveWorkout(); }}>
-              Finish anyway
+              {tFallback("workout.finishAnyway", "Finish anyway")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -3443,7 +3443,7 @@ export default function Workout() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 font-heading">
               <AlertTriangle className="w-5 h-5 text-destructive shrink-0" />
-              Unrealistic values detected
+              {tFallback("workout.unrealisticValuesDetected", "Unrealistic values detected")}
             </DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
@@ -3519,7 +3519,7 @@ export default function Workout() {
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <AlertTriangle className="w-5 h-5 text-destructive" />
-              Missing Data
+              {tFallback("workout.missingData", "Missing Data")}
             </AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-2">
@@ -3542,7 +3542,7 @@ export default function Workout() {
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setMissingDataWarning(null)}>{tFallback("workout.goBackAndFix", "Go back and fix")}</AlertDialogCancel>
             <AlertDialogAction onClick={() => { setMissingDataWarning(null); saveWorkout(true); }}>
-              Save anyway
+              {tFallback("workout.saveAnyway", "Save anyway")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -3554,12 +3554,12 @@ export default function Workout() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 font-heading">
               <AlertTriangle className="w-5 h-5 text-destructive shrink-0" />
-              Workout looks unrealistic
+              {tFallback("workout.workoutLooksUnrealistic", "Workout looks unrealistic")}
             </DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">{implausibleWarning}</p>
           <Button className="w-full mt-2" onClick={() => setImplausibleWarning(null)}>
-            Dismiss
+            {tFallback("discovery.dismiss", "Dismiss")}
           </Button>
         </DialogContent>
       </Dialog>

@@ -164,7 +164,7 @@ export default function DailyFlexynDrop() {
                 }`}
               >
                 {owned
-                  ? <><Check className="w-3 h-3" /> Owned</>
+                  ? <><Check className="w-3 h-3" /> {tFallback("dailyFlexynDrop.owned", "Owned")}</>
                   : busy
                     ? <><Loader2 className="w-3 h-3 animate-spin" /> ...</>
                     : <>{COIN} {item.baseCoins}</>}

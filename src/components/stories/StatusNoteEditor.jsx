@@ -139,7 +139,7 @@ export default function StatusNoteEditor({ existingNote, origin, onPost, onDelet
               disabled={saving || deleting}
               className="flex-1 py-2.5 rounded-xl border border-border text-sm font-semibold text-muted-foreground disabled:opacity-50"
             >
-              Cancel
+              {tFallback("coach.plan.cancel", "Cancel")}
             </button>
             <motion.button
               whileTap={{ scale: 0.96 }}

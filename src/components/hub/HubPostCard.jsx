@@ -395,7 +395,7 @@ function ImagePreview({ src }) {
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-background/85 backdrop-blur-sm border border-border/60 text-xs font-semibold text-foreground shadow-sm">
               <ImageIcon className="w-3.5 h-3.5" />
-              Tap to view photo
+              {tFallback("hubPostCard.tapToViewPhoto", "Tap to view photo")}
             </div>
           </div>
         </div>
@@ -1542,14 +1542,14 @@ function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
                     }}
                     className="flex-1 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold"
                   >
-                    View Profile
+                    {tFallback("hubPostCard.viewProfile", "View Profile")}
                   </button>
                 )}
                 <button
                   onClick={() => setAvatarPreviewOpen(false)}
                   className="flex-1 py-2.5 rounded-xl border border-border text-sm font-medium text-muted-foreground hover:bg-secondary active:bg-secondary transition-colors"
                 >
-                  Dismiss
+                  {tFallback("discovery.dismiss", "Dismiss")}
                 </button>
               </div>
             </motion.div>

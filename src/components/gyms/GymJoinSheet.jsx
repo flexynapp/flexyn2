@@ -216,7 +216,7 @@ export default function GymJoinSheet({ pick, open, onCancel, onJoined, onContinu
                 disabled={stage === 'joining'}
                 className="flex-1 py-3 rounded-xl text-sm font-bold border border-border bg-secondary disabled:opacity-50 transition-all"
               >
-                Cancel
+                {tFallback("coach.plan.cancel", "Cancel")}
               </button>
               <button
                 type="button"
@@ -259,7 +259,7 @@ export default function GymJoinSheet({ pick, open, onCancel, onJoined, onContinu
               onClick={onContinue}
               className="w-full py-3 rounded-xl text-sm font-bold bg-primary text-primary-foreground transition-all"
             >
-              Continue
+              {tFallback("levelUp.continue", "Continue")}
             </button>
           </>
         ) : (
@@ -301,7 +301,7 @@ export default function GymJoinSheet({ pick, open, onCancel, onJoined, onContinu
               onClick={onContinue}
               className="w-full py-3 rounded-xl text-sm font-bold bg-primary text-primary-foreground transition-all"
             >
-              Continue
+              {tFallback("levelUp.continue", "Continue")}
             </button>
           </>
         )}

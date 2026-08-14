@@ -643,7 +643,7 @@ export default function MarketplaceFeed() {
       } else if (/cannot purchase your own listing/.test(msg)) {
         toast.error("You can't buy your own listing.");
       } else {
-        toast.error('Purchase failed: ' + (msg || 'unknown error'));
+        toast.error(tFallback("marketplaceFeed.purchaseFailed", "Purchase failed: {reason}", { reason: msg || 'unknown error' }));
       }
     } finally {
       setBuyBusy(false);
@@ -830,7 +830,7 @@ export default function MarketplaceFeed() {
           <ShoppingBag className="w-12 h-12 text-muted-foreground/50" />
           <p className="text-muted-foreground font-medium">{tFallback("marketplaceFeed.couldNotLoadListings", "Could not load listings")}</p>
           <button onClick={() => refetch()} className="text-primary text-sm hover:underline">
-            Try again
+            {tFallback("errorBoundary.tryAgain", "Try again")}
           </button>
         </div>
       ) : filters.saved && savedIds.size === 0 ? (
@@ -890,7 +890,7 @@ export default function MarketplaceFeed() {
               <div className="flex items-center gap-1.5 mb-2 px-1">
                 <Package className="w-3.5 h-3.5 text-amber-500" />
                 <h3 className="text-xs font-extrabold uppercase tracking-[0.18em] text-amber-500">
-                  Bundle deals
+                  {tFallback("marketplaceFeed.bundleDeals", "Bundle deals")}
                 </h3>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 relative">
@@ -970,7 +970,7 @@ export default function MarketplaceFeed() {
                 onClick={() => setFilters({ ...DEFAULT_FILTERS, sort: filters.sort })}
                 className="mt-1 px-4 py-2 rounded-full bg-primary text-primary-foreground font-bold text-sm"
               >
-                Clear filters
+                {tFallback("trends.clearFilters", "Clear filters")}
               </button>
             </div>
           )}

@@ -478,7 +478,7 @@ function HoursEditor({ value, onChange }) {
     <div className="rounded-xl border border-dashed border-border p-3">
       <div className="flex items-center justify-between mb-2">
         <p className="text-micro font-bold uppercase tracking-wider text-muted-foreground">
-          <Clock className="w-3 h-3 inline-block me-1" /> Hours
+          <Clock className="w-3 h-3 inline-block me-1" /> {tFallback("gymEdit.hours", "Hours")}
         </p>
         <button
           type="button"
@@ -531,7 +531,7 @@ function AmenitiesEditor({ value, onChange }) {
   return (
     <div className="rounded-xl border border-dashed border-border p-3">
       <p className="text-micro font-bold uppercase tracking-wider text-muted-foreground mb-2">
-        Amenities
+        {tFallback("gymEdit.amenities", "Amenities")}
       </p>
       <div className="flex flex-wrap gap-1.5">
         {AMENITY_SLUGS.map(slug => {
@@ -585,7 +585,7 @@ function PhotoGalleryEditor({ gymId, value, onChange, uploading, setUploading, u
     <div className="rounded-xl border border-dashed border-border p-3">
       <div className="flex items-center justify-between mb-2">
         <p className="text-micro font-bold uppercase tracking-wider text-muted-foreground">
-          <ImageIcon className="w-3 h-3 inline-block me-1" /> Photo gallery
+          <ImageIcon className="w-3 h-3 inline-block me-1" /> {tFallback("gymEdit.photoGallery", "Photo gallery")}
         </p>
         <label className="inline-flex items-center gap-1 text-micro font-bold uppercase tracking-wide text-primary hover:bg-primary/10 active:bg-primary/10 px-2 py-1 rounded cursor-pointer">
           {uploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}

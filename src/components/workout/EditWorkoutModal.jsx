@@ -391,7 +391,7 @@ export default function EditWorkoutModal({ log, userProfile = {}, logs = [], car
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 font-heading">
                 <AlertTriangle className="w-5 h-5 text-destructive shrink-0" />
-                Cheating is only cheating yourself
+                {tFallback("editWorkoutModal.cheatingIsOnlyCheatingYourself", "Cheating is only cheating yourself")}
               </DialogTitle>
             </DialogHeader>
             <p className="text-sm text-muted-foreground">
@@ -432,12 +432,12 @@ export default function EditWorkoutModal({ log, userProfile = {}, logs = [], car
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 font-heading">
                 <AlertTriangle className="w-5 h-5 text-destructive shrink-0" />
-                Workout looks unrealistic
+                {tFallback("editWorkoutModal.workoutLooksUnrealistic", "Workout looks unrealistic")}
               </DialogTitle>
             </DialogHeader>
             <p className="text-sm text-muted-foreground">{implausibleWarning}</p>
             <Button className="w-full mt-2" onClick={() => setImplausibleWarning(null)}>
-              Dismiss
+              {tFallback("discovery.dismiss", "Dismiss")}
             </Button>
           </DialogContent>
         </Dialog>

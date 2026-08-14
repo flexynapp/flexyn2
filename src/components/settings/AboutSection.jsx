@@ -123,7 +123,7 @@ export default function AboutSection() {
           rel="noopener noreferrer"
           className="underline hover:text-foreground active:text-foreground transition-colors"
         >
-          Twemoji
+          {tFallback("aboutSection.twemoji", "Twemoji")}
         </a>
         {' '}© Twitter, Inc and other contributors, licensed under{' '}
         <a

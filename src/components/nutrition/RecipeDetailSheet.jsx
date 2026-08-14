@@ -108,7 +108,7 @@ export default function RecipeDetailSheet({
 
             <div className="px-4 pt-6">
               <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground mb-2">
-                Per serving
+                {tFallback("nutrition.perServing", "Per serving")}
               </p>
               <MacroTiles recipe={recipe} />
             </div>
@@ -132,7 +132,7 @@ export default function RecipeDetailSheet({
             {recipe.directions && (
               <div className="px-4 pt-6">
                 <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground mb-1">
-                  Directions
+                  {tFallback("nutritionPlansModal.directions", "Directions")}
                 </p>
                 <p className="text-caption text-muted-foreground whitespace-pre-wrap leading-relaxed">
                   {recipe.directions}
@@ -219,7 +219,7 @@ export default function RecipeDetailSheet({
                   onClick={() => onEdit?.(recipe)}
                   className="w-24 h-12 rounded-lg border border-border bg-secondary/40 text-label font-semibold"
                 >
-                  Edit
+                  {tFallback("coach.plan.edit", "Edit")}
                 </button>
               </>
             ) : (
@@ -238,7 +238,7 @@ export default function RecipeDetailSheet({
                   onClick={() => onLog?.(recipe)}
                   className="w-24 h-12 rounded-lg border border-border bg-secondary/40 text-label font-semibold"
                 >
-                  Log
+                  {tFallback("cardio.start.cta.manual", "Log")}
                 </button>
               </>
             )}
@@ -247,7 +247,7 @@ export default function RecipeDetailSheet({
           {/* Screen readers get the sharing state as text, not as a colour. */}
           {isMine && recipe.is_public && (
             <span className="sr-only">
-              <Globe className="w-3 h-3" /> This recipe is shared to Discover
+              <Globe className="w-3 h-3" /> {tFallback("recipeDetailSheet.thisRecipeIsShared", "This recipe is shared to Discover")}
             </span>
           )}
         </motion.div>

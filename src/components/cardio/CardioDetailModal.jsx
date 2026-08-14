@@ -180,7 +180,7 @@ export default function CardioDetailModal({ log: summary, open, onOpenChange, on
               label="CardioDetailRouteMap"
               fallback={
                 <div className="w-full h-60 rounded-lg bg-secondary/30 border border-border flex items-center justify-center text-xs text-muted-foreground">
-                  Map unavailable
+                  {tFallback("cardioDetailModal.mapUnavailable", "Map unavailable")}
                 </div>
               }
             >
@@ -276,25 +276,25 @@ export default function CardioDetailModal({ log: summary, open, onOpenChange, on
           {/* New enhanced fields */}
           {log.avg_heart_rate && (
             <DetailRow
-              label={<span className="flex items-center gap-1"><Heart className="w-3 h-3 text-rose-500" /> Avg HR</span>}
+              label={<span className="flex items-center gap-1"><Heart className="w-3 h-3 text-rose-500" /> {tFallback("cardioDetailModal.avgHr", "Avg HR")}</span>}
               value={`${log.avg_heart_rate} bpm`}
             />
           )}
           {log.cadence_spm && (
             <DetailRow
-              label={<span className="flex items-center gap-1"><Wind className="w-3 h-3 text-primary" /> Cadence</span>}
+              label={<span className="flex items-center gap-1"><Wind className="w-3 h-3 text-primary" /> {tFallback("cardioDetailModal.cadence", "Cadence")}</span>}
               value={`${log.cadence_spm} spm`}
             />
           )}
           {log.power_watts && (
             <DetailRow
-              label={<span className="flex items-center gap-1"><Zap className="w-3 h-3 text-amber-500" /> Avg Power</span>}
+              label={<span className="flex items-center gap-1"><Zap className="w-3 h-3 text-amber-500" /> {tFallback("cardioDetailModal.avgPower", "Avg Power")}</span>}
               value={`${log.power_watts} W`}
             />
           )}
           {log.pool_length_m && (
             <DetailRow
-              label={<span className="flex items-center gap-1"><Waves className="w-3 h-3 text-blue-500" /> Pool Length</span>}
+              label={<span className="flex items-center gap-1"><Waves className="w-3 h-3 text-blue-500" /> {tFallback("cardioManualForm.poolLength", "Pool Length")}</span>}
               value={`${log.pool_length_m} m`}
             />
           )}
@@ -306,7 +306,7 @@ export default function CardioDetailModal({ log: summary, open, onOpenChange, on
           )}
           {log.route_name && (
             <DetailRow
-              label={<span className="flex items-center gap-1"><Map className="w-3 h-3 text-green-500" /> Route</span>}
+              label={<span className="flex items-center gap-1"><Map className="w-3 h-3 text-green-500" /> {tFallback("cardioDetailModal.route", "Route")}</span>}
               value={log.route_name}
             />
           )}

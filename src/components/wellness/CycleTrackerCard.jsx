@@ -50,7 +50,7 @@ function LogStartModal({ open, onClose, onSubmit, submitting }) {
         <div className="space-y-3">
           <div>
             <label className="block text-micro font-semibold uppercase tracking-wide text-muted-foreground mb-1">
-              Start date
+              {tFallback("cycleTrackerCard.startDate", "Start date")}
             </label>
             <input
               type="date"
@@ -199,7 +199,7 @@ export default function CycleTrackerCard({ profile }) {
               onClick={() => setLogOpen(true)}
               className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-secondary/60 hover:bg-secondary active:bg-secondary text-xs font-bold transition-colors"
             >
-              <Plus className="w-3 h-3" /> Log
+              <Plus className="w-3 h-3" /> {tFallback("cardio.start.cta.manual", "Log")}
             </button>
             <button
               type="button"
@@ -289,7 +289,7 @@ export default function CycleTrackerCard({ profile }) {
                             disabled={busy}
                             className="px-2 py-1 rounded text-micro font-bold uppercase tracking-wide border border-border text-muted-foreground hover:bg-secondary active:bg-secondary disabled:opacity-50"
                           >
-                            Cancel
+                            {tFallback("coach.plan.cancel", "Cancel")}
                           </button>
                         </div>
                       ) : (

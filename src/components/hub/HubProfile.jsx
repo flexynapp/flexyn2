@@ -245,7 +245,7 @@ function QRModal({ url, username, onClose }) {
             onClick={handleShare}
             className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-opacity"
           >
-            Share
+            {tFallback("achievements.share.label", "Share")}
           </button>
         </div>
       </motion.div>
@@ -2006,7 +2006,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
                   onClick={() => setEditProfileOpen(false)}
                   className="flex-1 py-1.5 text-xs rounded-lg border border-border text-muted-foreground hover:bg-secondary active:bg-secondary transition-colors"
                 >
-                  Cancel
+                  {tFallback("coach.plan.cancel", "Cancel")}
                 </button>
                 <button
                   type="button"
@@ -2180,12 +2180,12 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
               <button type="button"
                 onClick={() => setProfilePostSort('newest')}
                 className={`px-3 py-1.5 transition-colors ${profilePostSort === 'newest' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground active:text-foreground'}`}>
-                New
+                {tFallback("coach.onboarding.levelLabel.newbie", "New")}
               </button>
               <button type="button"
                 onClick={() => setProfilePostSort('popular')}
                 className={`px-3 py-1.5 border-s border-border transition-colors ${profilePostSort === 'popular' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground active:text-foreground'}`}>
-                Top
+                {tFallback("league.info.terminal", "Top")}
               </button>
             </div>
           </div>
@@ -2356,7 +2356,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
                       onClick={() => handleTrophySlotSet(trophyPickerSlot, null)}
                       className="text-xs text-destructive hover:opacity-70 transition-opacity"
                     >
-                      Remove
+                      {tFallback("gymEquip.remove", "Remove")}
                     </button>
                   )}
                   <button type="button" onClick={() => setTrophyPickerSlot(null)} className="p-1 rounded text-muted-foreground">

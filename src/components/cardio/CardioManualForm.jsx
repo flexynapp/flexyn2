@@ -828,7 +828,7 @@ export default function CardioManualForm({
               className="w-full h-11 rounded-xl bg-primary text-primary-foreground font-semibold"
               onClick={() => setSpeedWarning(null)}
             >
-              Go back and fix
+              {tFallback("workout.goBackAndFix", "Go back and fix")}
             </button>
           </div>
         </div>

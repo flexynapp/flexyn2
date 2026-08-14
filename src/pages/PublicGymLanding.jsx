@@ -108,7 +108,7 @@ export default function PublicGymLanding() {
         <div className="flex gap-2">
           <Button onClick={() => setRetryNonce(n => n + 1)}>{tFallback("errorBoundary.tryAgain", "Try again")}</Button>
           <Button onClick={() => { window.location.href = '/'; }} variant="outline">
-            Discover Flexyn
+            {tFallback("publicGymLanding.discoverFlexyn", "Discover Flexyn")}
           </Button>
         </div>
       </div>
@@ -138,7 +138,7 @@ export default function PublicGymLanding() {
           </p>
         </div>
         <Button onClick={() => window.location.href = '/'} variant="outline">
-          Discover Flexyn
+          {tFallback("publicGymLanding.discoverFlexyn", "Discover Flexyn")}
         </Button>
       </div>
     );
@@ -211,7 +211,7 @@ export default function PublicGymLanding() {
           className="px-4 mt-4"
         >
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-            Amenities
+            {tFallback("publicGymLanding.amenities", "Amenities")}
           </p>
           <div className="flex flex-wrap gap-2">
             {amenities.slice(0, 10).map(slug => (
@@ -236,7 +236,7 @@ export default function PublicGymLanding() {
           className="px-4 mt-5"
         >
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-            Gallery
+            {tFallback("publicGymLanding.gallery", "Gallery")}
           </p>
           <div className={`grid gap-2 ${photos.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
             {photos.map((url, i) => (
@@ -261,7 +261,7 @@ export default function PublicGymLanding() {
             className="w-full"
             size="lg"
           >
-            Enter Hub <ChevronRight className="w-4 h-4 ms-1" />
+            {tFallback("publicGymLanding.enterHub", "Enter Hub")} <ChevronRight className="w-4 h-4 ms-1" />
           </Button>
         ) : (
           <>
@@ -290,7 +290,7 @@ export default function PublicGymLanding() {
                 onClick={() => window.location.href = '/'}
                 className="text-primary underline"
               >
-                Sign in
+                {tFallback("profile.signIn", "Sign in")}
               </button>
             </p>
           </>

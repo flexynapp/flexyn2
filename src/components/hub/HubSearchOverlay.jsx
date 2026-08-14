@@ -239,7 +239,7 @@ export default function HubSearchOverlay({ open, onClose, onSelectUser, onSelect
                   activeTab === 'people' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground active:text-foreground'
                 }`}
               >
-                <Users className="w-4 h-4" /> People
+                <Users className="w-4 h-4" /> {tFallback("hubSearchOverlay.people", "People")}
               </button>
               <button
                 onClick={() => setActiveTab('posts')}
@@ -247,7 +247,7 @@ export default function HubSearchOverlay({ open, onClose, onSelectUser, onSelect
                   activeTab === 'posts' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground active:text-foreground'
                 }`}
               >
-                <MessageSquare className="w-4 h-4" /> Posts
+                <MessageSquare className="w-4 h-4" /> {tFallback("hub.profile.posts", "Posts")}
               </button>
             </div>
 

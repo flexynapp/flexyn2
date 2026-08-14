@@ -87,7 +87,7 @@ export default function PhotoAiLimitModal({ open, used = 3, cap = 3, purchasing 
               </span>
               <span className="flex-1 min-w-0">
                 <span className="flex items-center gap-1.5 font-heading font-bold text-body">
-                  Unlimited Photo-AI <Sparkles className="w-3.5 h-3.5" />
+                  {tFallback("photoAiLimitModal.unlimitedPhotoAi", "Unlimited Photo-AI")} <Sparkles className="w-3.5 h-3.5" />
                 </span>
                 <span className="block text-micro text-white/85">One-time unlock — scan as much as you want</span>
               </span>
@@ -99,7 +99,7 @@ export default function PhotoAiLimitModal({ open, used = 3, cap = 3, purchasing 
               onClick={onClose}
               className="w-full text-center text-label font-semibold text-muted-foreground hover:text-foreground active:text-foreground py-1.5 transition-colors"
             >
-              Maybe tomorrow
+              {tFallback("photoAiLimitModal.maybeTomorrow", "Maybe tomorrow")}
             </button>
           </div>
         </motion.div>

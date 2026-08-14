@@ -109,7 +109,7 @@ export default function AppUpdatePrompt() {
           onClick={() => { try { updateFn(); } catch { /* ignore */ } }}
           className="px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-xs font-bold"
         >
-          Update
+          {tFallback("appUpdatePrompt.update", "Update")}
         </button>
         <button
           onClick={handleDismiss}

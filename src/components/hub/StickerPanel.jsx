@@ -153,7 +153,7 @@ export default function StickerPanel({ postId, onClose }) {
                 : 'text-muted-foreground hover:bg-secondary active:bg-secondary'
             }`}
           >
-            My Stickers
+            {tFallback("stickerPanel.myStickers", "My Stickers")}
           </button>
         </div>
         <button onClick={onClose} className="text-muted-foreground hover:text-foreground active:text-foreground p-1 rounded-md">

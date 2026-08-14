@@ -1235,7 +1235,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
               }}
               className="px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-xs font-bold"
             >
-              Accept
+              {tFallback("hubChat.accept", "Accept")}
             </button>
           </div>
         );
@@ -1753,7 +1753,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
                   className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium hover:bg-secondary active:bg-secondary transition-colors border-t border-border text-destructive"
                 >
                   <span className="text-base">🗑️</span>
-                  Delete message
+                  {tFallback("hubChat.deleteMessage", "Delete message")}
                 </button>
               )}
 
@@ -1763,7 +1763,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
                 className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-muted-foreground hover:bg-secondary active:bg-secondary transition-colors border-t border-border"
               >
                 <X className="w-4 h-4" />
-                Cancel
+                {tFallback("coach.plan.cancel", "Cancel")}
               </button>
             </motion.div>
           </motion.div>
@@ -1824,7 +1824,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
                 onClick={() => handleCancelScheduled(s.id)}
                 className="text-micro font-bold uppercase tracking-wide text-muted-foreground hover:text-destructive active:text-destructive"
               >
-                Cancel
+                {tFallback("coach.plan.cancel", "Cancel")}
               </button>
             </div>
           ))}
@@ -1975,7 +1975,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
             className="absolute bottom-16 end-0 start-0 z-40 mx-2 p-3 rounded-xl bg-card border border-border shadow-lg"
           >
             <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-2 flex items-center gap-1.5">
-              <Clock className="w-3.5 h-3.5" /> Schedule send
+              <Clock className="w-3.5 h-3.5" /> {tFallback("hubChat.scheduleSend", "Schedule send")}
             </p>
             <input
               type="datetime-local"
@@ -1989,14 +1989,14 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
                 onClick={() => { setScheduleOpen(false); setScheduleAt(''); }}
                 className="px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground"
               >
-                Cancel
+                {tFallback("coach.plan.cancel", "Cancel")}
               </button>
               <button
                 onClick={handleSchedule}
                 disabled={!scheduleAt}
                 className="px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-xs font-bold disabled:opacity-50"
               >
-                Schedule
+                {tFallback("onboarding.schedule.kicker", "Schedule")}
               </button>
             </div>
           </motion.div>

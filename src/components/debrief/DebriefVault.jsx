@@ -68,7 +68,7 @@ function WeekRow({ debrief, onClick, isCurrentWeek, maxVolume, last }) {
           <span className="text-[13px] font-semibold text-foreground truncate">{debrief.week_label}</span>
           {isCurrentWeek && (
             <span className="shrink-0 text-micro font-bold uppercase tracking-wider text-primary border border-primary/50 rounded-full px-1.5 py-0.5">
-              This week
+              {tFallback("dashboard.stats.thisWeek", "This week")}
             </span>
           )}
         </span>
@@ -148,7 +148,7 @@ function ExpandedReview({ debrief, onClose, onRefresh, isRefreshing }) {
           onClick={onClose}
           className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground active:text-foreground transition-colors"
         >
-          <ChevronLeft className="w-4 h-4" /> Back
+          <ChevronLeft className="w-4 h-4" /> {tFallback("achievements.vault.back", "Back")}
         </button>
         <span className="font-heading font-bold text-foreground text-sm">{debrief.week_label}</span>
         <div className="flex items-center gap-3">
@@ -278,7 +278,7 @@ export default function DebriefVault({ onClose }) {
           onClick={onClose}
           className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground active:text-foreground transition-colors"
         >
-          <ChevronLeft className="w-4 h-4" /> Back
+          <ChevronLeft className="w-4 h-4" /> {tFallback("achievements.vault.back", "Back")}
         </button>
         <span className="font-heading font-bold text-base text-foreground">{tFallback("profile.debriefVault", "Weekly Reviews")}</span>
         <button
@@ -288,7 +288,7 @@ export default function DebriefVault({ onClose }) {
           title={tFallback("debriefVault.recalculateThisWeek", "Recalculate this week")}
         >
           <RefreshCw className={`w-3.5 h-3.5 ${genMut.isPending ? 'animate-spin' : ''}`} />
-          Refresh
+          {tFallback("adminReports.refresh", "Refresh")}
         </button>
       </div>
 

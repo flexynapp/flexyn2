@@ -978,13 +978,13 @@ export default function StoriesRow({ onViewProfile } = {}) {
                 /* All 6 added — show calm placeholder until noon refresh */
                 <div className="self-center shrink-0 flex flex-col items-center justify-center px-3 py-2 max-w-[140px]">
                   <p className="text-micro text-muted-foreground/70 text-center leading-snug">
-                    Check back at noon for more suggestions!
+                    {tFallback("storiesRow.checkBackAtNoon", "Check back at noon for more suggestions!")}
                   </p>
                   <button
                     onClick={() => setQaDismissed(true)}
                     className="mt-1.5 text-micro text-muted-foreground/50 underline underline-offset-2"
                   >
-                    Dismiss
+                    {tFallback("discovery.dismiss", "Dismiss")}
                   </button>
                 </div>
               )}

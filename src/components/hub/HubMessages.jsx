@@ -831,7 +831,7 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                 className="flex items-center gap-1.5 px-2.5 py-1 rounded-full font-semibold text-primary hover:bg-secondary active:bg-secondary"
                 aria-label={tFallback("hubMessages.startANewGroupConversation", "Start a new group conversation")}
               >
-                <UserPlus className="w-3.5 h-3.5" /> New group
+                <UserPlus className="w-3.5 h-3.5" /> {tFallback("hubMessages.newGroup", "New group")}
               </button>
             </div>
           )}
@@ -1286,7 +1286,7 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                             className="ms-1.5 px-1.5 py-0.5 rounded-full text-micro font-bold uppercase tracking-wide"
                             style={{ background: 'hsl(var(--primary) / 0.15)', color: 'hsl(var(--primary))' }}
                           >
-                            Admin
+                            {tFallback("crewMessageItem.admin", "Admin")}
                           </span>
                         )}
                       </p>

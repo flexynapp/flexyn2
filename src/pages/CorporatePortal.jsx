@@ -147,12 +147,12 @@ export default function CorporatePortal() {
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="max-w-2xl mx-auto p-4 pb-24">
       <button type="button" onClick={() => navigate('/dashboard')} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground active:text-foreground mb-3">
-        <ArrowLeft className="w-4 h-4" /> Dashboard
+        <ArrowLeft className="w-4 h-4" /> {tFallback("dashboard.title", "Dashboard")}
       </button>
 
       <div className="mb-4">
         <h1 className="font-heading text-2xl font-bold tracking-tight flex items-center gap-2">
-          <Building2 className="w-5 h-5 text-primary" /> Corporate Wellness
+          <Building2 className="w-5 h-5 text-primary" /> {tFallback("app.corporateWellness", "Corporate Wellness")}
         </h1>
         <p className="text-sm text-muted-foreground">Private team challenges + aggregate engagement insights.</p>
       </div>
@@ -287,7 +287,7 @@ function OrgHub({ org, isAdmin, onLeave, onNewChallenge }) {
               <h2 className="font-heading text-xl font-bold truncate">{org.name}</h2>
               {isAdmin && (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-600 dark:text-amber-300 border border-amber-400/30 font-bold uppercase tracking-wide text-micro">
-                  <Crown className="w-2.5 h-2.5" /> Admin
+                  <Crown className="w-2.5 h-2.5" /> {tFallback("crewMessageItem.admin", "Admin")}
                 </span>
               )}
             </div>
@@ -296,7 +296,7 @@ function OrgHub({ org, isAdmin, onLeave, onNewChallenge }) {
             </p>
           </div>
           <Button variant="outline" size="sm" onClick={onLeave} className="gap-1.5 text-muted-foreground hover:text-destructive active:text-destructive shrink-0">
-            <LogOut className="w-3.5 h-3.5" /> Leave
+            <LogOut className="w-3.5 h-3.5" /> {tFallback("corporatePortal.leave", "Leave")}
           </Button>
         </div>
         {isAdmin && (
@@ -370,7 +370,7 @@ function OrgHub({ org, isAdmin, onLeave, onNewChallenge }) {
           <h3 className="font-heading font-bold">{tFallback("corporatePortal.teamChallenges", "Team challenges")}</h3>
           {isAdmin && (
             <Button size="sm" onClick={onNewChallenge} className="gap-1.5">
-              <Plus className="w-4 h-4" /> New
+              <Plus className="w-4 h-4" /> {tFallback("coach.onboarding.levelLabel.newbie", "New")}
             </Button>
           )}
         </div>

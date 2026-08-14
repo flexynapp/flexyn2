@@ -30,7 +30,7 @@ export default function ComingSoon({
       </div>
 
       <span className="inline-flex items-center gap-1 px-2.5 py-0.5 mb-3 rounded-full bg-violet-500/15 border border-violet-400/25 text-[10px] font-bold uppercase tracking-wider text-violet-500">
-        Coming soon
+        {tFallback("comingSoon.comingSoon", "Coming soon")}
       </span>
 
       <h1 className="font-heading font-bold text-xl text-foreground">{title}</h1>
@@ -42,7 +42,7 @@ export default function ComingSoon({
         onClick={() => navigate('/dashboard')}
       >
         <ArrowLeft className="w-4 h-4 rtl:scale-x-[-1]" aria-hidden="true" />
-        Back to dashboard
+        {tFallback("comingSoon.backToDashboard", "Back to dashboard")}
       </Button>
     </div>
   );

@@ -131,12 +131,12 @@ export default function TrainerStudio() {
         onClick={() => navigate('/market')}
         className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground active:text-foreground mb-3"
       >
-        <ArrowLeft className="w-4 h-4" /> Market
+        <ArrowLeft className="w-4 h-4" /> {tFallback("trainerStudio.market", "Market")}
       </button>
 
       <div className="mb-4">
         <h1 className="font-heading text-2xl font-bold tracking-tight flex items-center gap-2">
-          <Sparkles className="w-5 h-5 text-primary" /> Creator Studio
+          <Sparkles className="w-5 h-5 text-primary" /> {tFallback("app.creatorStudio", "Creator Studio")}
         </h1>
         <p className="text-sm text-muted-foreground">Package your regimens into premium programs.</p>
       </div>
@@ -190,7 +190,7 @@ export default function TrainerStudio() {
             </div>
             {!connectLinked && (
               <span className="text-micro font-bold uppercase tracking-wider px-2 py-1 rounded-full bg-amber-500/15 text-amber-600 shrink-0">
-                Test mode
+                {tFallback("trainerStudio.testMode", "Test mode")}
               </span>
             )}
           </div>
@@ -198,7 +198,7 @@ export default function TrainerStudio() {
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-heading font-bold">{tFallback("trainerStudio.yourListings", "Your listings")}</h2>
             <Button size="sm" onClick={() => { setEditingListing(null); setFormOpen(true); }} className="gap-1.5">
-              <Plus className="w-4 h-4" /> New listing
+              <Plus className="w-4 h-4" /> {tFallback("trainerStudio.newListing", "New listing")}
             </Button>
           </div>
 

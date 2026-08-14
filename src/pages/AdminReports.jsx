@@ -205,7 +205,7 @@ export default function AdminReports() {
           onClick={() => navigate('/dashboard')}
           className="mt-4 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-bold"
         >
-          Back to dashboard
+          {tFallback("adminReports.backToDashboard", "Back to dashboard")}
         </button>
       </div>
     );
@@ -222,7 +222,7 @@ export default function AdminReports() {
         onClick={() => navigate(-1)}
         className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground active:text-foreground transition-colors mb-3"
       >
-        <ChevronLeft className="w-4 h-4" /> Back
+        <ChevronLeft className="w-4 h-4" /> {tFallback("achievements.vault.back", "Back")}
       </button>
 
       <PageHeader
@@ -392,7 +392,7 @@ function ReportRow({ report, isPending, busy, onResolve, onDelete }) {
             disabled={busy}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-xs font-semibold hover:bg-secondary active:bg-secondary transition-colors disabled:opacity-50"
           >
-            <Check className="w-3.5 h-3.5" /> Mark reviewed
+            <Check className="w-3.5 h-3.5" /> {tFallback("adminReports.markReviewed", "Mark reviewed")}
           </button>
           <button
             onClick={() => {
@@ -401,7 +401,7 @@ function ReportRow({ report, isPending, busy, onResolve, onDelete }) {
             disabled={busy}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-destructive text-destructive-foreground text-xs font-bold hover:opacity-90 transition-opacity disabled:opacity-50"
           >
-            <Trash2 className="w-3.5 h-3.5" /> Delete content
+            <Trash2 className="w-3.5 h-3.5" /> {tFallback("adminReports.deleteContent", "Delete content")}
           </button>
           <button
             onClick={() => {
@@ -410,7 +410,7 @@ function ReportRow({ report, isPending, busy, onResolve, onDelete }) {
             disabled={busy}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-muted-foreground text-xs font-medium hover:text-foreground active:text-foreground transition-colors disabled:opacity-50"
           >
-            <X className="w-3.5 h-3.5" /> Dismiss
+            <X className="w-3.5 h-3.5" /> {tFallback("discovery.dismiss", "Dismiss")}
           </button>
         </div>
       )}
@@ -525,7 +525,7 @@ function FoodRequestRow({ request, isPending, busy, onApprove, onReject }) {
             disabled={busy}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-muted-foreground text-xs font-medium hover:text-foreground active:text-foreground transition-colors disabled:opacity-50"
           >
-            <X className="w-3.5 h-3.5" /> Reject
+            <X className="w-3.5 h-3.5" /> {tFallback("adminReports.reject", "Reject")}
           </button>
         </div>
       )}
@@ -569,14 +569,14 @@ function BugReportRow({ report, isPending, busy, onResolve }) {
             disabled={busy}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-xs font-semibold hover:bg-secondary active:bg-secondary transition-colors disabled:opacity-50"
           >
-            <Check className="w-3.5 h-3.5" /> Mark reviewed
+            <Check className="w-3.5 h-3.5" /> {tFallback("adminReports.markReviewed", "Mark reviewed")}
           </button>
           <button
             onClick={() => onResolve('dismissed')}
             disabled={busy}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-muted-foreground text-xs font-medium hover:text-foreground active:text-foreground transition-colors disabled:opacity-50"
           >
-            <X className="w-3.5 h-3.5" /> Dismiss
+            <X className="w-3.5 h-3.5" /> {tFallback("discovery.dismiss", "Dismiss")}
           </button>
         </div>
       )}

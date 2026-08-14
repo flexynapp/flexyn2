@@ -106,7 +106,7 @@ function IntegrationCard({ item, connected, onConnect, onDisconnect, connecting 
               disabled={isConnecting || unavailable}
             >
               <Link2Off className="w-3 h-3 me-1" />
-              Disconnect
+              {tFallback("cardioWearableStub.disconnect", "Disconnect")}
             </Button>
           ) : (
             <Button
@@ -119,7 +119,7 @@ function IntegrationCard({ item, connected, onConnect, onDisconnect, connecting 
               ) : (
                 <>
                   <Link2 className="w-3 h-3 me-1" />
-                  Connect
+                  {tFallback("cardioWearableStub.connect", "Connect")}
                 </>
               )}
             </Button>

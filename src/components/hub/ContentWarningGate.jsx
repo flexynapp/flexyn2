@@ -77,7 +77,7 @@ export default function ContentWarningGate({ warning, customLabel, children }) {
         </p>
         <p className="text-sm font-medium flex items-center gap-1.5">
           <EyeOff className="w-3.5 h-3.5" />
-          Tap to reveal
+          {tFallback("contentWarningGate.tapToReveal", "Tap to reveal")}
         </p>
       </button>
     </div>

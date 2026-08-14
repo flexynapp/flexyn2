@@ -92,7 +92,7 @@ export default function CreateInviteLinkModal({ open, onOpenChange }) {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 font-heading">
             <LinkIcon className="w-5 h-5 text-rose-500" />
-            Challenge by link
+            {tFallback("createInviteLinkModal.challengeByLink", "Challenge by link")}
           </DialogTitle>
           <DialogDescription className="text-sm text-muted-foreground">
             Generate a shareable URL. Anyone with the link can accept —
@@ -140,7 +140,7 @@ export default function CreateInviteLinkModal({ open, onOpenChange }) {
               {/* Window picker — simple chips */}
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-                  Time window after accept
+                  {tFallback("createInviteLinkModal.timeWindowAfterAccept", "Time window after accept")}
                 </p>
                 <div className="flex gap-2">
                   {[24, 48, 72].map(h => {
@@ -184,7 +184,7 @@ export default function CreateInviteLinkModal({ open, onOpenChange }) {
             >
               <div className="rounded-xl bg-secondary/50 border border-border p-3">
                 <p className="text-micro font-semibold uppercase tracking-wider text-muted-foreground mb-1">
-                  Your invite link
+                  {tFallback("createInviteLinkModal.yourInviteLink", "Your invite link")}
                 </p>
                 <p className="text-xs font-mono break-all text-foreground">{url}</p>
               </div>
@@ -200,7 +200,7 @@ export default function CreateInviteLinkModal({ open, onOpenChange }) {
                   onClick={handleNativeShare}
                   className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 active:bg-primary/90 transition-colors"
                 >
-                  <Share2 className="w-4 h-4" /> Share
+                  <Share2 className="w-4 h-4" /> {tFallback("common.share", "Share")}
                 </button>
               </div>
               <p className="text-micro text-muted-foreground text-center">

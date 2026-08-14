@@ -42,7 +42,7 @@ export default function TodayRail({ user, onClaimed, onOpenShop }) {
           </div>
         </div>
         <span className="w-full py-1.5 rounded-lg text-xs font-bold bg-secondary text-secondary-foreground text-center">
-          Open shop
+          {tFallback("todayRail.openShop", "Open shop")}
         </span>
       </motion.button>
     </div>

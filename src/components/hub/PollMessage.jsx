@@ -99,7 +99,7 @@ export function PollComposer({ onCreate, onClose, tFallback }) {
           <BarChart3 className="w-4 h-4 text-primary" />
           <span className="text-sm font-bold">{tFallback('hub.poll.create', 'Create a poll')}</span>
         </div>
-        <button onClick={onClose} aria-label="Close" className="p-1 rounded text-muted-foreground hover:text-foreground active:text-foreground">
+        <button onClick={onClose} aria-label={tFallback("common.close", "Close")} className="p-1 rounded text-muted-foreground hover:text-foreground active:text-foreground">
           <X className="w-4 h-4" />
         </button>
       </div>
@@ -125,7 +125,7 @@ export function PollComposer({ onCreate, onClose, tFallback }) {
             {options.length > MIN_POLL_OPTIONS && (
               <button
                 onClick={() => removeOption(i)}
-                aria-label="Remove option"
+                aria-label={tFallback("pollMessage.removeOption", "Remove option")}
                 className="p-1.5 rounded text-muted-foreground hover:text-foreground active:text-foreground shrink-0"
               >
                 <X className="w-4 h-4" />

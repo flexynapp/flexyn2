@@ -85,7 +85,7 @@ export default function ProfileMetrics({
           onClick={onOpenFollowing}
           className="text-sm text-muted-foreground hover:text-foreground transition-colors underline-offset-2 hover:underline"
         >
-          Find people to follow
+          {tFallback("profileMetrics.findPeopleToFollow", "Find people to follow")}
         </button>
       </div>
     );

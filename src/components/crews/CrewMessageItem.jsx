@@ -424,14 +424,14 @@ function TextMessage({ msg, senderProfile, isOwn, currentUserId, isCurrentModera
                   className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium hover:bg-secondary active:bg-secondary transition-colors"
                 >
                   <span className="text-base">📌</span>
-                  Pin as announcement
+                  {tFallback("crewMessageItem.pinAsAnnouncement", "Pin as announcement")}
                 </button>
               )}
               <button
                 onClick={() => setShowContext(false)}
                 className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-muted-foreground hover:bg-secondary active:bg-secondary transition-colors ${isCurrentModerator ? 'border-t border-border' : ''}`}
               >
-                Cancel
+                {tFallback("coach.plan.cancel", "Cancel")}
               </button>
             </motion.div>
           </motion.div>
@@ -510,7 +510,7 @@ function XpFuelMessage({ msg, currentUserId, crewId }) {
           </motion.button>
         ) : (
           <div className="flex items-center justify-center gap-1 text-xs font-semibold text-muted-foreground">
-            <Check className="w-3.5 h-3.5" /> Claimed
+            <Check className="w-3.5 h-3.5" /> {tFallback("marketplace.dailyChest.claimed", "Claimed")}
           </div>
         )}
       </div>
@@ -615,7 +615,7 @@ function RollCallMessage({ msg, currentUserId, crewId }) {
               myVote === 'yes' ? 'bg-green-500 border-green-500 text-white' : 'border-border text-foreground hover:border-green-400'
             }`}
           >
-            <ThumbsUp className="w-3.5 h-3.5" /> Yes
+            <ThumbsUp className="w-3.5 h-3.5" /> {tFallback("onboarding.assessment.answer.yes", "Yes")}
           </motion.button>
           <motion.button
             whileTap={{ scale: 0.93 }}

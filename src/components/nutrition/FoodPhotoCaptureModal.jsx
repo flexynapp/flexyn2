@@ -198,7 +198,7 @@ export default function FoodPhotoCaptureModal({ open, onClose, onCapture, onPick
               onClick={onPickLibrary}
               className="mt-2 inline-flex items-center gap-2 rounded-full bg-white text-black px-5 py-2.5 text-sm font-bold"
             >
-              <Images className="w-4 h-4" /> Choose from library
+              <Images className="w-4 h-4" /> {tFallback("foodPhotoCaptureModal.chooseFromLibrary", "Choose from library")}
             </button>
           </div>
         )}
