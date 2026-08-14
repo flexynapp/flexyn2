@@ -128,6 +128,73 @@ function RecipePickerModal({ open, recipes: recipeList, onPick, onClose }) {
   );
 }
 
+// ── Which meal in this slot? ───────────────────────────────────────────
+// A slot holds up to SLOT_CAPACITY meals (migration 355). The grid cell is
+// 89.7pt wide and can show one name, so when a slot holds several this is
+// what keeps the rest reachable instead of hidden — which is the defect the
+// 2026-08-11 audit found, where 6 of 8 production rows were invisible.
+//
+// PROVISIONAL. The planner redesign replaces the 7-column grid with
+// full-width day rows that show every meal inline and need no sheet at all.
+function SlotMealsSheet({ open, label, plans, recipesById, onPick, onAdd, canAdd, onClose }) {
+  if (!open) return null;
+  return (
+    <motion.div
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+      onClick={onClose}
+      className="fixed inset-0 z-[10000] bg-black/60 flex items-end sm:items-center justify-center p-4"
+    >
+      <motion.div
+        initial={{ y: 24 }} animate={{ y: 0 }}
+        onClick={(e) => e.stopPropagation()}
+        className="w-full sm:max-w-md bg-card border border-border rounded-2xl max-h-[80vh] flex flex-col"
+      >
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+          <h3 className="font-heading font-bold text-sm">
+            {label} · {plans.length} meal{plans.length === 1 ? '' : 's'}
+          </h3>
+          <button onClick={onClose} aria-label="Close" className="w-11 h-11 -me-2 rounded-full flex items-center justify-center">
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-3 space-y-1.5">
+          {plans.map(p => {
+            const recipe = p.recipe_id ? recipesById.get(p.recipe_id) : null;
+            const kcal = Number(p.food_snapshot?.calories);
+            return (
+              <button
+                key={p.id}
+                onClick={() => onPick(p)}
+                className="w-full flex items-center justify-between gap-3 text-start px-3 py-2.5 rounded-lg border border-border bg-secondary/40 hover:bg-secondary active:bg-secondary transition-colors"
+              >
+                <span className="text-sm font-medium min-w-0 truncate">
+                  {recipe?.name || p.food_snapshot?.name || '—'}
+                </span>
+                {Number.isFinite(kcal) && kcal > 0 && (
+                  <span className="text-micro font-semibold text-muted-foreground shrink-0 tabular-nums">
+                    {kcal} cal
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+        <div className="p-3 border-t border-border">
+          <button
+            type="button"
+            onClick={onAdd}
+            disabled={!canAdd}
+            className="w-full inline-flex items-center justify-center gap-1.5 rounded-xl bg-secondary text-foreground font-semibold text-sm py-2.5 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
+          >
+            <Plus className="w-4 h-4" />
+            {canAdd ? 'Add another' : `${label} is full — ${plans.length} of ${mealPlans.SLOT_CAPACITY}`}
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
 // ── "How do you want to add this meal?" chooser ────────────────────────
 // Shown when a user taps an empty meal slot. Three ways in: Photo-AI
 // (snap the plate), Recipe (their saved recipes), or Manual (type the
@@ -302,6 +369,7 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
   const [addSlot, setAddSlot]       = useState(null); // { date, mealType, label } → method chooser
   const [manualSlot, setManualSlot] = useState(null); // { date, mealType, label } → manual form
   const [detailPlan, setDetailPlan] = useState(null); // { plan, date, mealType } → read-only detail view
+  const [slotSheet, setSlotSheet]   = useState(null); // { plans, date, mealType, label } → which meal?
   const [photoBusy, setPhotoBusy]   = useState(false);
   // Custom horizontal scroll indicator metrics (pct = position 0..1,
   // ratio = viewport/content). Replaces the native scrollbar so the
@@ -401,17 +469,34 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
     }
   };
 
-  // Plans keyed by `${date}-${mealType}` for O(1) cell lookup.
+  // Plans keyed by `${date}-${mealType}` for O(1) cell lookup. The value is a
+  // LIST: since migration 355 a slot holds up to mealPlans.SLOT_CAPACITY meals,
+  // because a real day carries two dinners and every plan template needs two in
+  // one slot (snack1 and snack2 both map to `snack`).
+  //
+  // This was `m.set(key, p)` — last write wins — which is precisely how the
+  // 2026-08-11 incident hid 6 of 8 production rows. Keeping it as a scalar
+  // while the database now accepts siblings would reproduce that bug exactly.
   const planMap = useMemo(() => {
     const m = new Map();
-    for (const p of plans) m.set(`${p.plan_date}-${p.meal_type}`, p);
+    for (const p of plans) {
+      const k = `${p.plan_date}-${p.meal_type}`;
+      const list = m.get(k);
+      if (list) list.push(p); else m.set(k, [p]);
+    }
     return m;
   }, [plans]);
 
   const upsertMutation = useMutation({
     mutationFn: (args) => mealPlans.upsert(args),
     onSuccess:  () => queryClient.invalidateQueries({ queryKey: ['mealPlans', user?.id, startStr, endStr] }),
-    onError:    () => toast.error('Could not save plan.'),
+    // The slot cap is a trigger (migration 355), so a full slot arrives here as
+    // 23514 rather than being prevented. Say which rule was hit — "Could not
+    // save plan" on a deliberate limit reads as the app being broken.
+    onError:    (err) => toast.error(
+      mealPlans.isSlotFull(err)
+        ? `That slot already holds ${mealPlans.SLOT_CAPACITY} meals.`
+        : 'Could not save plan.'),
   });
 
   const removeMutation = useMutation({
@@ -680,7 +765,9 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
                       <div className="space-y-1.5">
                         {MEAL_SLOTS.map(slot => {
                           const cellKey = `${dateStr}-${slot.key}`;
-                          const plan = planMap.get(cellKey);
+                          const slotPlans = planMap.get(cellKey) || [];
+                          const plan = slotPlans[0] || null;
+                          const extra = slotPlans.length - 1;
                           const recipe = plan?.recipe_id ? recipesById.get(plan.recipe_id) : null;
                           return (
                             <button
@@ -688,7 +775,14 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
                               onClick={() => {
                                 // Ignore the click that ends a drag-scroll.
                                 if (drag.current.moved) { drag.current.moved = false; return; }
-                                if (plan) {
+                                if (slotPlans.length > 1) {
+                                  // Several meals here — let the user say which.
+                                  // Provisional: this cell is 89.7pt wide and cannot
+                                  // show them inline. The redesign replaces the grid
+                                  // with full-width rows; until then a sheet is what
+                                  // keeps the extra rows REACHABLE rather than hidden.
+                                  setSlotSheet({ plans: slotPlans, date: dateStr, mealType: slot.key, label: slot.label });
+                                } else if (plan) {
                                   // Meals with a food_snapshot (Photo-AI / manual) open a
                                   // read-only detail view with the photo + metrics + Delete.
                                   // Recipe-only slots keep the quick confirm-remove.
@@ -718,9 +812,16 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
                                 <span className="opacity-70">{slot.label}</span>
                               </span>
                               {plan ? (
-                                <span className="font-bold text-foreground truncate mt-0.5 text-micro leading-tight">
-                                  {recipe?.name || plan.food_snapshot?.name || '—'}
-                                </span>
+                                <>
+                                  <span className="font-bold text-foreground truncate mt-0.5 text-micro leading-tight">
+                                    {recipe?.name || plan.food_snapshot?.name || '—'}
+                                  </span>
+                                  {extra > 0 && (
+                                    <span className="text-micro font-semibold text-success mt-0.5">
+                                      +{extra} more
+                                    </span>
+                                  )}
+                                </>
                               ) : (
                                 <span className="flex items-center gap-0.5 mt-0.5 text-muted-foreground/60">
                                   <Plus className="w-2.5 h-2.5" /> Add
@@ -881,6 +982,34 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
           onRecipe={() => { setPickerSlot({ date: addSlot.date, mealType: addSlot.mealType }); setAddSlot(null); }}
           onManual={() => { setManualSlot(addSlot); setAddSlot(null); }}
           onClose={() => setAddSlot(null)}
+        />
+
+        <SlotMealsSheet
+          open={!!slotSheet}
+          label={slotSheet?.label}
+          plans={slotSheet?.plans || []}
+          recipesById={recipesById}
+          canAdd={(slotSheet?.plans?.length || 0) < mealPlans.SLOT_CAPACITY}
+          onAdd={() => {
+            setAddSlot({ date: slotSheet.date, mealType: slotSheet.mealType, label: slotSheet.label });
+            setSlotSheet(null);
+          }}
+          onPick={(p) => {
+            const s = slotSheet;
+            setSlotSheet(null);
+            if (p.food_snapshot) {
+              setDetailPlan({ plan: p, date: s.date, mealType: s.mealType });
+            } else if (confirm('Remove this meal?')) {
+              removeMutation.mutate(p.id);
+              // Only the diary-mirrored meal un-logs, and only for today.
+              if (s.date === isoDay(new Date())) {
+                removePlannerDiaryLog({ user, date: s.date, mealType: s.mealType })
+                  .then(invalidateDiary)
+                  .catch(() => {});
+              }
+            }
+          }}
+          onClose={() => setSlotSheet(null)}
         />
 
         <RecipePickerModal

@@ -1,13 +1,20 @@
-// One plan per (user, date, meal slot) — and an honest grocery count.
+// Several meals per (user, date, meal slot) — and an honest grocery count.
 //
-// These cover the two defects the 2026-08-11 meal-plans audit confirmed
-// against production:
+// The slot half of this file was INVERTED on 2026-08-13 by migration 355, and
+// the inversion is the point rather than a regression:
 //
-//   1. `upsert` sent no `id` on a fresh save, so `onConflict: 'id'` never
-//      matched and every re-fill of an occupied slot INSERTed a second row.
-//      Production held 8 rows across 2 slots; 6 were unreachable in the grid.
+//   1. The 2026-08-11 audit read "8 rows across 2 slots, 6 unreachable" as
+//      "a slot must hold one meal", and 344 indexed that rule in. But those
+//      rows were one diary entry mirrored repeatedly — the mirror writes a
+//      plan row 120-192ms after its nutrition_logs row — never two different
+//      dinners. The identity being violated was the MIRROR's, so uniqueness
+//      moved to (user_id, log_id) and the slot took a cap of 3 instead.
+//      Two is the floor that must work: every plan template's snack1 and
+//      snack2 both map to `snack`, so no template could be applied whole
+//      while 344 existed.
 //   2. The grocery CTA counted plans, not plans that contribute ingredients,
 //      so it advertised 6 meals and opened a sheet reading "Nothing to buy".
+//      Unchanged — that half of the audit still holds.
 //
 // The shapes here are the REAL production shapes. Note especially
 // `PHOTO_AI_SNAPSHOT`: 14 keys, no `ingredients`. Every pre-existing test in
@@ -45,7 +52,8 @@ vi.mock('@/api/supabaseClient', () => {
   return { supabase: { from: (table) => makeChain(table) } };
 });
 
-const { upsert, findSlot, buildGroceryList, shoppablePlans, planIngredients } =
+const { upsert, findSlot, isSlotFull, SLOT_CAPACITY,
+        buildGroceryList, shoppablePlans, planIngredients } =
   await import('../mealPlans');
 
 const USER = { id: 'u1', email: 'a@b.c' };
@@ -64,42 +72,44 @@ const PHOTO_AI_SNAPSHOT = {
 
 beforeEach(() => { calls.length = 0; selectRows = []; });
 
-describe('upsert — one plan per slot', () => {
-  it('looks the slot up before writing when no id is supplied', async () => {
+describe('upsert — a slot holds several meals', () => {
+  // Migration 355 reversed 344. These assertions are the INVERSE of the ones
+  // this file shipped with, deliberately: the 8-rows-across-2-slots incident
+  // was one diary entry mirrored repeatedly, never two different dinners, so
+  // uniqueness moved to (user_id, log_id) and the slot gained a cap instead.
+  it('does NOT look the slot up when no id is supplied — a new meal is a new row', async () => {
     selectRows = [{ id: 'existing-plan' }];
     await upsert({ user: USER, planDate: '2026-08-11', mealType: 'dinner', foodSnapshot: PHOTO_AI_SNAPSHOT });
 
-    const lookup = calls.find(c => c.op === 'select');
-    expect(lookup).toBeTruthy();
-    expect(lookup.table).toBe('meal_plans');
-    expect(lookup.filters).toEqual({
-      user_id: 'u1', plan_date: '2026-08-11', meal_type: 'dinner',
-    });
-  });
-
-  it('carries the found id onto the row so onConflict:id actually matches', async () => {
-    selectRows = [{ id: 'existing-plan' }];
-    await upsert({ user: USER, planDate: '2026-08-11', mealType: 'dinner', foodSnapshot: PHOTO_AI_SNAPSHOT });
-
+    expect(calls.filter(c => c.op === 'select')).toHaveLength(0);
     const write = calls.find(c => c.op === 'upsert');
-    expect(write.row.id).toBe('existing-plan');
+    expect(write.row).not.toHaveProperty('id');
     expect(write.opts).toEqual({ onConflict: 'id' });
   });
 
-  it('REGRESSION: a second save into an occupied slot updates, it does not append', async () => {
+  it('REGRESSION (355): a second save into an occupied slot APPENDS', async () => {
     selectRows = [{ id: 'plan-A' }];
     await upsert({ user: USER, planDate: '2026-07-16', mealType: 'snack', foodSnapshot: PHOTO_AI_SNAPSHOT });
     await upsert({ user: USER, planDate: '2026-07-16', mealType: 'snack', foodSnapshot: PHOTO_AI_SNAPSHOT });
 
     const writes = calls.filter(c => c.op === 'upsert');
     expect(writes).toHaveLength(2);
-    // Before the fix both of these had `id: undefined` and produced two rows.
-    expect(writes.every(w => w.row.id === 'plan-A')).toBe(true);
+    // Under 344 both carried `id: 'plan-A'` and the second overwrote the first.
+    expect(writes.every(w => !('id' in w.row))).toBe(true);
   });
 
-  it('omits id entirely on a genuinely empty slot, so the row is created', async () => {
+  it('replaceSlot:true still swaps the slot in place, for an explicit swap', async () => {
+    selectRows = [{ id: 'plan-A' }];
+    await upsert({ replaceSlot: true, user: USER, planDate: '2026-07-16', mealType: 'snack', foodSnapshot: PHOTO_AI_SNAPSHOT });
+
+    const lookup = calls.find(c => c.op === 'select');
+    expect(lookup.filters).toEqual({ user_id: 'u1', plan_date: '2026-07-16', meal_type: 'snack' });
+    expect(calls.find(c => c.op === 'upsert').row.id).toBe('plan-A');
+  });
+
+  it('replaceSlot on an empty slot omits id, so the row is created', async () => {
     selectRows = [];
-    await upsert({ user: USER, planDate: '2026-08-12', mealType: 'lunch', foodSnapshot: PHOTO_AI_SNAPSHOT });
+    await upsert({ replaceSlot: true, user: USER, planDate: '2026-08-12', mealType: 'lunch', foodSnapshot: PHOTO_AI_SNAPSHOT });
 
     const write = calls.find(c => c.op === 'upsert');
     expect(write.row).not.toHaveProperty('id');
@@ -114,9 +124,16 @@ describe('upsert — one plan per slot', () => {
 
   it('defaults a missing mealType to snack on BOTH the lookup and the write', async () => {
     selectRows = [];
-    await upsert({ user: USER, planDate: '2026-08-11' });
+    await upsert({ replaceSlot: true, user: USER, planDate: '2026-08-11' });
     expect(calls.find(c => c.op === 'select').filters.meal_type).toBe('snack');
     expect(calls.find(c => c.op === 'upsert').row.meal_type).toBe('snack');
+  });
+
+  it('isSlotFull recognises the cap trigger and nothing else', async () => {
+    expect(isSlotFull({ code: '23514' })).toBe(true);
+    expect(isSlotFull({ code: '23505' })).toBe(false);   // the mirror dedupe
+    expect(isSlotFull(null)).toBe(false);
+    expect(SLOT_CAPACITY).toBe(3);
   });
 
   it('findSlot returns null rather than throwing when the slot is empty', async () => {

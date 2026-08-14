@@ -23,9 +23,9 @@ export async function listInRange(userId, startDate, endDate) {
 /**
  * The id of the plan already occupying a (user, date, meal) slot, or null.
  *
- * Newest-first because production contains slots that were filled more than
- * once before `upsert` resolved the id (see below) — when there are several,
- * the most recent is the one the grid was showing.
+ * Newest-first: a slot may legitimately hold several meals since migration
+ * 355, and this answers "which one would a swap replace" — the most recent.
+ * Only `upsert({ replaceSlot: true })` uses it; see the note there.
  */
 export async function findSlot(userId, planDate, mealType) {
   if (!userId || !planDate) return null;
@@ -42,22 +42,51 @@ export async function findSlot(userId, planDate, mealType) {
 }
 
 /**
- * A slot holds ONE plan. `onConflict: 'id'` cannot enforce that on its own:
- * a caller that doesn't already know the row id sends no `id` at all, Postgres
- * generates a fresh one, nothing conflicts, and the "upsert" INSERTs. Every
- * re-fill of an occupied slot therefore appended a row, and the grid keys
- * cells by `${plan_date}-${meal_type}` so only the last one won — the rest
- * became invisible rows that still counted toward the grocery-list CTA.
- * Measured on production 2026-08-11: 8 rows across 2 slots, 6 unreachable.
+ * How many meals one slot holds. Mirrors the trigger migration 355 installs —
+ * change both together or the UI promises something the database refuses.
  *
- * Resolving the id first makes the update path work whether or not the
- * uniqueness migration has been applied, which matters because the frontend
- * auto-deploys and the SQL is pasted by hand.
+ * Three, because TWO is the floor that has to work (every plan template's
+ * snack1 and snack2 both map to the single `snack` type, so applying a plan
+ * needs two in one slot) and past three a day stops being a plan and becomes
+ * a record — which `syncPlannerDiaryLog` already mirrors into nutrition_logs,
+ * uncapped.
  */
-export async function upsert({ id, user, planDate, mealType, recipeId, foodSnapshot, notes }) {
+export const SLOT_CAPACITY = 3;
+
+/**
+ * True when a write bounced off that cap.
+ *
+ * Matched on SQLSTATE alone: `meal_plans` carries no other CHECK constraint
+ * (verified against production — pg_constraint holds only the primary key and
+ * the user_id foreign key), so 23514 on this table can only be the trigger.
+ * Matching the message instead would break the moment it is translated.
+ */
+export function isSlotFull(err) {
+  return err?.code === '23514';
+}
+
+/**
+ * A slot holds up to SLOT_CAPACITY meals.
+ *
+ * This used to resolve the slot's existing row and update it, which made a
+ * second dinner overwrite the first — correct while migration 344's unique
+ * index existed, and wrong as a rule. 355 reverses that: a day can carry two
+ * dinners, and uniqueness moved to the mirror identity (user_id, log_id),
+ * which is what the 2026-08-11 duplicate incident was actually about. Those 6
+ * unreachable rows were one diary entry mirrored repeatedly, never two
+ * different meals.
+ *
+ * So the default is now an INSERT. Resolving an id is right when the caller
+ * KNOWS the row — editing one — and wrong as a default:
+ *
+ *   upsert({ id })              → update that row
+ *   upsert({ replaceSlot: true }) → swap the slot's newest meal in place
+ *   upsert({})                  → a new meal in the slot
+ */
+export async function upsert({ id, replaceSlot = false, user, planDate, mealType, recipeId, foodSnapshot, notes }) {
   if (!user?.id || !planDate) throw new Error('user + planDate required');
   const slotType = mealType || 'snack';
-  const rowId = id || await findSlot(user.id, planDate, slotType);
+  const rowId = id || (replaceSlot ? await findSlot(user.id, planDate, slotType) : null);
   const row = {
     user_id:       user.id,
     user_email:    user.email,
