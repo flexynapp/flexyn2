@@ -97,7 +97,7 @@ export default function ThemeSelector({ open, onClose }) {
             {/* Header */}
             <div className="flex items-start justify-between px-6 pt-6 pb-4 border-b border-border shrink-0">
               <div>
-                <h2 className="font-heading font-bold text-xl tracking-tight">Themes</h2>
+                <h2 className="font-heading font-bold text-xl tracking-tight">{tFallback("hub.profile.themes", "Themes")}</h2>
                 <div className="flex items-center gap-1.5 mt-1">
                   <div className="w-2 h-2 rounded-full bg-primary" />
                   <p className="text-sm text-muted-foreground">
@@ -122,7 +122,7 @@ export default function ThemeSelector({ open, onClose }) {
                 <div>
                   <div className="flex items-center gap-2 mb-3">
                     <Package className="w-3.5 h-3.5 text-primary" />
-                    <span className="text-xs font-semibold text-primary uppercase tracking-wide">Capsule Drops</span>
+                    <span className="text-xs font-semibold text-primary uppercase tracking-wide">{tFallback("themeSelector.capsuleDrops", "Capsule Drops")}</span>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     {ownedLootThemes.map((lootTheme) => {
@@ -190,7 +190,7 @@ export default function ThemeSelector({ open, onClose }) {
                           {isCurrent && (
                             <div className="flex items-center gap-1 mt-2">
                               <div className="w-1.5 h-1.5 rounded-full" style={{ background: rc.ring }} />
-                              <span className="text-micro font-semibold" style={{ color: rc.ring }}>Active</span>
+                              <span className="text-micro font-semibold" style={{ color: rc.ring }}>{tFallback("duels.status.active", "Active")}</span>
                             </div>
                           )}
                         </motion.button>
@@ -205,7 +205,7 @@ export default function ThemeSelector({ open, onClose }) {
                 {ownedLootThemes.length > 0 && (
                   <div className="flex items-center gap-2 mb-3">
                     <Sparkles className="w-3.5 h-3.5 text-muted-foreground" />
-                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Level Themes</span>
+                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{tFallback("themeSelector.levelThemes", "Level Themes")}</span>
                   </div>
                 )}
                 <div className="grid grid-cols-2 gap-3">
@@ -272,7 +272,7 @@ export default function ThemeSelector({ open, onClose }) {
                         {isCurrent && !isLocked && (
                           <div className="flex items-center gap-1 mt-2.5">
                             <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-                            <span className="text-micro font-semibold text-primary">Active</span>
+                            <span className="text-micro font-semibold text-primary">{tFallback("duels.status.active", "Active")}</span>
                           </div>
                         )}
                       </motion.button>
@@ -289,7 +289,7 @@ export default function ThemeSelector({ open, onClose }) {
                   <div>
                     <div className="flex items-center gap-2 mb-3">
                       <Shield className="w-3.5 h-3.5 text-amber-400" />
-                      <span className="text-xs font-semibold text-amber-400 uppercase tracking-wide">Admin Testing</span>
+                      <span className="text-xs font-semibold text-amber-400 uppercase tracking-wide">{tFallback("themeSelector.adminTesting", "Admin Testing")}</span>
                     </div>
                     <motion.button
                       whileTap={{ scale: 0.97 }}
@@ -328,7 +328,7 @@ export default function ThemeSelector({ open, onClose }) {
                         {isSteelActive && (
                           <div className="flex items-center gap-1 mt-1.5">
                             <div className="w-1.5 h-1.5 rounded-full bg-slate-400" />
-                            <span className="text-micro font-semibold text-slate-400">Active</span>
+                            <span className="text-micro font-semibold text-slate-400">{tFallback("duels.status.active", "Active")}</span>
                           </div>
                         )}
                       </div>
@@ -341,7 +341,7 @@ export default function ThemeSelector({ open, onClose }) {
               <div className="flex items-center justify-center gap-2 mb-2 py-3 px-4 rounded-2xl bg-secondary/40 border border-border/50">
                 <Package className="w-3.5 h-3.5 text-primary shrink-0" />
                 <p className="text-xs text-muted-foreground text-center leading-tight">
-                  Animated themes drop from <span className="font-semibold text-foreground">Loot Capsules</span> — higher tier capsules have better odds
+                  Animated themes drop from <span className="font-semibold text-foreground">{tFallback("themeSelector.lootCapsules", "Loot Capsules")}</span> — higher tier capsules have better odds
                 </p>
               </div>
             </div>

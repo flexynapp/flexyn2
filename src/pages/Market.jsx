@@ -15,7 +15,7 @@ import { useStartConversation } from '@/lib/hubMessaging';
 import { useLanguage } from '@/lib/LanguageContext';
 
 export default function Market() {
-  const { t } = useLanguage();
+  const { t, tFallback } = useLanguage();
   const navigate = useNavigate();
   const startConversation = useStartConversation();
   const [indexOpen, setIndexOpen] = useState(false);
@@ -34,7 +34,7 @@ export default function Market() {
           type="button"
           onClick={() => setIndexOpen(true)}
           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-card hover:bg-secondary active:bg-secondary transition-colors text-xs font-semibold"
-          title="Everything in the game, and what you're still missing"
+          title={tFallback("market.everythingInTheGame", "Everything in the game, and what you're still missing")}
         >
           <LibraryBig className="w-3.5 h-3.5" />
           Collection
@@ -59,7 +59,7 @@ export default function Market() {
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <p className="font-heading font-bold text-sm text-foreground/70">Trainer Programs</p>
+            <p className="font-heading font-bold text-sm text-foreground/70">{tFallback("market.trainerPrograms", "Trainer Programs")}</p>
             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-violet-500/15 border border-violet-400/25 text-micro font-bold uppercase tracking-wider text-violet-500">
               <Lock className="w-2.5 h-2.5" />
               Coming Soon

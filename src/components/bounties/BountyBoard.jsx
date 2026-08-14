@@ -73,7 +73,7 @@ function ClaimRow({ claim }) {
 
 export default function BountyBoard() {
   const { user } = useAuth();
-  const { language } = useLanguage();
+  const { language, tFallback } = useLanguage();
   const { weightUnit } = useWeightUnit();
   const qc = useQueryClient();
   const [tab, setTab] = useState('active'); // 'active' | 'mine'
@@ -105,7 +105,7 @@ export default function BountyBoard() {
       toast.success(`${data.length} bounties generated!`);
       qc.invalidateQueries({ queryKey: ['activeBounties'] });
     },
-    onError: (err) => toast.error('Could not generate bounties', { description: err.message }),
+    onError: (err) => toast.error(tFallback("bountyBoard.couldNotGenerateBounties", "Could not generate bounties"), { description: err.message }),
   });
 
   const hasActiveClaim = !!activeClaim;
@@ -121,7 +121,7 @@ export default function BountyBoard() {
         >
           <Zap className="w-4 h-4 text-amber-500 shrink-0" />
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-bold text-amber-600">Active Bounty</p>
+            <p className="text-xs font-bold text-amber-600">{tFallback("bountyBoard.activeBounty", "Active Bounty")}</p>
             <p className="text-xs text-muted-foreground truncate">
               {bountyDescription(activeClaim.bounties, language, weightUnit)} · Reward: {DIFFICULTY_CONFIG[activeClaim.bounties?.difficulty]?.reward} 🪙
             </p>
@@ -178,7 +178,7 @@ export default function BountyBoard() {
                 <div className="w-16 h-16 rounded-3xl bg-amber-500/10 flex items-center justify-center mb-4">
                   <Zap className="w-8 h-8 text-amber-500" />
                 </div>
-                <p className="font-heading font-bold text-lg mb-2">No Active Bounties</p>
+                <p className="font-heading font-bold text-lg mb-2">{tFallback("bountyBoard.noActiveBounties", "No Active Bounties")}</p>
                 <p className="text-sm text-muted-foreground leading-relaxed mb-6">
                   Bounties are generated daily based on your social graph. Come back tomorrow — or generate sample bounties to test the feature.
                 </p>
@@ -236,7 +236,7 @@ export default function BountyBoard() {
             ) : myHistory.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
                 <History className="w-10 h-10 text-muted-foreground/40 mb-4" />
-                <p className="text-sm font-semibold text-muted-foreground">No claims yet</p>
+                <p className="text-sm font-semibold text-muted-foreground">{tFallback("bountyBoard.noClaimsYet", "No claims yet")}</p>
                 <p className="text-xs text-muted-foreground mt-1">Claim a bounty from the board to get started.</p>
               </div>
             ) : (

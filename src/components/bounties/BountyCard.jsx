@@ -14,7 +14,7 @@ import { useWeightUnit } from '@/lib/WeightUnitContext';
 
 export default function BountyCard({ bounty, hasActiveClaim = false, compact = false }) {
   const qc = useQueryClient();
-  const { language } = useLanguage();
+  const { language, tFallback } = useLanguage();
   const { weightUnit } = useWeightUnit();
   const [busy, setBusy] = useState(false);
   const [claimed, setClaimed] = useState(false);
@@ -54,7 +54,7 @@ export default function BountyCard({ bounty, hasActiveClaim = false, compact = f
       else if (/bounty_already_claimed/.test(msg))    toast.error('Someone else already claimed this bounty.');
       else if (/bounty_expired/.test(msg))            toast.error('This bounty has expired.');
       else if (/cannot_claim_own_bounty/.test(msg))   toast.error("You can't claim a bounty on yourself.");
-      else toast.error('Could not claim bounty', { description: msg });
+      else toast.error(tFallback("bountyCard.couldNotClaimBounty", "Could not claim bounty"), { description: msg });
     } finally {
       setBusy(false);
     }
@@ -86,7 +86,7 @@ export default function BountyCard({ bounty, hasActiveClaim = false, compact = f
             </div>
           )}
           <div className="flex-1 min-w-0">
-            <p className="text-micro text-muted-foreground">Target</p>
+            <p className="text-micro text-muted-foreground">{tFallback("hub.activity.target", "Target")}</p>
             <p className="text-sm font-bold truncate">@{bounty.target_username}</p>
           </div>
           <span className={`text-micro font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${cfg.bg} ${cfg.color}`}>
@@ -100,12 +100,12 @@ export default function BountyCard({ bounty, hasActiveClaim = false, compact = f
         {/* Economy row */}
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1 text-xs text-muted-foreground">
-            <span>Entry</span>
+            <span>{tFallback("bountyCard.entry", "Entry")}</span>
             <span className="font-bold text-foreground">{cfg.entry_fee} 🪙</span>
           </div>
           <div className="w-px h-3 bg-border" />
           <div className="flex items-center gap-1 text-xs text-muted-foreground">
-            <span>Reward</span>
+            <span>{tFallback("bountyCard.reward", "Reward")}</span>
             <span className="font-bold text-amber-500">{cfg.reward} 🪙</span>
           </div>
           <div className="w-px h-3 bg-border" />

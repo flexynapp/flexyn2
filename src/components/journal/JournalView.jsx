@@ -942,16 +942,16 @@ export default function JournalView({ userId, userEmail, onClose, initialDate })
               belonged to nothing. */}
           {!readOnly && (
             <div className="flex items-center gap-1 mx-4 my-2 px-1.5 py-1.5 w-fit rounded-lg bg-secondary shrink-0" data-no-swipe>
-              <button onClick={() => applyFormat('bullet')} title="Bullet list" className="w-8 h-8 rounded-md hover:bg-secondary active:bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground active:text-foreground">
+              <button onClick={() => applyFormat('bullet')} title={tFallback("journalView.bulletList", "Bullet list")} className="w-8 h-8 rounded-md hover:bg-secondary active:bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground active:text-foreground">
                 <List className="w-4 h-4" />
               </button>
-              <button onClick={() => applyFormat('bold')} title="Bold" className="w-8 h-8 rounded-md hover:bg-secondary active:bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground active:text-foreground">
+              <button onClick={() => applyFormat('bold')} title={tFallback("journalView.bold", "Bold")} className="w-8 h-8 rounded-md hover:bg-secondary active:bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground active:text-foreground">
                 <Bold className="w-4 h-4" />
               </button>
               {isVoiceInputSupported() && (
                 <button
                   onClick={toggleDictation}
-                  title="Dictate"
+                  title={tFallback("journalView.dictate", "Dictate")}
                   className={`w-8 h-8 rounded-md flex items-center justify-center transition-colors ${
                     listening ? 'bg-red-500/15 text-red-500' : 'hover:bg-secondary active:bg-secondary text-muted-foreground hover:text-foreground active:text-foreground'
                   }`}
@@ -959,7 +959,7 @@ export default function JournalView({ userId, userEmail, onClose, initialDate })
                   {listening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
                 </button>
               )}
-              <button onClick={() => fileRef.current?.click()} title="Attach" className="w-8 h-8 rounded-md hover:bg-secondary active:bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground active:text-foreground">
+              <button onClick={() => fileRef.current?.click()} title={tFallback("journalView.attach", "Attach")} className="w-8 h-8 rounded-md hover:bg-secondary active:bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground active:text-foreground">
                 {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Paperclip className="w-4 h-4" />}
               </button>
               {/* Only the types `ATTACHMENT_MIMES` in journal.js will actually
@@ -1055,7 +1055,7 @@ export default function JournalView({ userId, userEmail, onClose, initialDate })
                         <button
                           onClick={() => removeAttachment(att.url)}
                           className="absolute -top-1.5 -end-1.5 w-5 h-5 rounded-full bg-black/70 text-white flex items-center justify-center"
-                          aria-label="Remove attachment"
+                          aria-label={tFallback("journalView.removeAttachment", "Remove attachment")}
                         >
                           <X className="w-3 h-3" />
                         </button>

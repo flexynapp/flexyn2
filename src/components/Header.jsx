@@ -90,7 +90,7 @@ export default function Header() {
           <Button
             variant="ghost"
             size="icon"
-            aria-label="Back"
+            aria-label={tFallback("achievements.vault.back", "Back")}
             className="shrink-0"
             onClick={() => {
               // Give the current page a chance to intercept back navigation
@@ -106,7 +106,7 @@ export default function Header() {
         ) : (
           <button
             onClick={handleLogoTap}
-            aria-label="Go to dashboard"
+            aria-label={tFallback("header.goToDashboard", "Go to dashboard")}
             className="h-11 px-1 -ms-1 flex items-center rounded-xl shrink-0 hover:opacity-80 transition-opacity touch-manipulation"
           >
             <FlexynLogo className="h-11" />

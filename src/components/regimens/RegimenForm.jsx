@@ -30,7 +30,7 @@ const TYPE_COLOR  = { superset: 'border-violet-500/40 bg-violet-500/5', circuit:
 const TYPE_BADGE  = { superset: 'text-violet-500 bg-violet-500/10 border-violet-500/25', circuit: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/25' };
 
 export default function RegimenForm({ initial, onSubmit, onCancel, userProfile = {}, isSubmitting = false }) {
-  const { t } = useLanguage();
+  const { t, tFallback } = useLanguage();
   const maxSetsPerExercise = getMaxSetsPerExercise(userProfile);
 
   // Auto-focus the name field on open so users can start typing right
@@ -220,7 +220,7 @@ export default function RegimenForm({ initial, onSubmit, onCancel, userProfile =
     if (issues.length > 0) {
       const preview = issues.slice(0, 3).join(' • ');
       const more = issues.length > 3 ? ` (+${issues.length - 3} more)` : '';
-      toast.error('Please complete every exercise', { description: `${preview}${more}` });
+      toast.error(tFallback("regimenForm.pleaseCompleteEveryExercise", "Please complete every exercise"), { description: `${preview}${more}` });
       return;
     }
 
@@ -397,7 +397,7 @@ export default function RegimenForm({ initial, onSubmit, onCancel, userProfile =
                           type="button"
                           onClick={() => toggleGroupType(groupId)}
                           className={`text-micro font-black uppercase tracking-wider px-2 py-0.5 rounded-full border transition-colors ${TYPE_BADGE[type] || TYPE_BADGE.superset}`}
-                          title="Click to toggle type"
+                          title={tFallback("regimenForm.clickToToggleType", "Click to toggle type")}
                         >
                           {type === 'superset' ? 'Superset' : 'Circuit'}
                         </button>
@@ -414,7 +414,7 @@ export default function RegimenForm({ initial, onSubmit, onCancel, userProfile =
                     {/* Rest / round settings */}
                     <div className="flex items-center gap-4 px-3 py-2 border-b border-border/40 bg-background/40">
                       <div className="flex items-center gap-1.5">
-                        <span className="text-micro text-muted-foreground">Intra rest</span>
+                        <span className="text-micro text-muted-foreground">{tFallback("regimenForm.intraRest", "Intra rest")}</span>
                         <input
                           type="number" inputMode="decimal" min="0" max="300"
                           value={groupMeta.intra_rest_seconds ?? 15}
@@ -424,7 +424,7 @@ export default function RegimenForm({ initial, onSubmit, onCancel, userProfile =
                         <span className="text-micro text-muted-foreground">s</span>
                       </div>
                       <div className="flex items-center gap-1.5">
-                        <span className="text-micro text-muted-foreground">Inter rest</span>
+                        <span className="text-micro text-muted-foreground">{tFallback("regimenForm.interRest", "Inter rest")}</span>
                         <input
                           type="number" inputMode="decimal" min="0" max="600"
                           value={groupMeta.inter_rest_seconds ?? 90}

@@ -325,7 +325,7 @@ export default function LogMealForm({ newEntry, setNewEntry, onPhotoAI, onSearch
                 ) : historyMeals.length === 0 ? (
                   <div className="text-center py-8">
                     <History className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
-                    <p className="font-heading font-semibold text-sm">No meal history yet</p>
+                    <p className="font-heading font-semibold text-sm">{tFallback("logMealForm.noMealHistoryYet", "No meal history yet")}</p>
                     <p className="text-xs text-muted-foreground mt-1">Meals you log show up here so you can re-log them in one tap.</p>
                   </div>
                 ) : (

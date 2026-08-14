@@ -797,7 +797,7 @@ export default function CardioLiveTrackerOutside({ mode, onCancel, onSaved, user
                 </div>
                 {weather.uv != null && (
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground">UV Index</span>
+                    <span className="text-xs text-muted-foreground">{tFallback("cardioLiveTrackerOutside.uvIndex", "UV Index")}</span>
                     <span className={`inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full ${
                       weather.uv <= 2  ? 'bg-green-500/15 text-green-600 dark:text-green-400' :
                       weather.uv <= 5  ? 'bg-yellow-400/20 text-yellow-600 dark:text-yellow-400' :

@@ -874,7 +874,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
       await checkUserAuth?.();
       queryClient.invalidateQueries({ queryKey: ['hubProfileLookup', email] });
     } catch {
-      toast.error('Could not update trophy case');
+      toast.error(tFallback("hubProfile.couldNotUpdateTrophyCase", "Could not update trophy case"));
     }
     setTrophyPickerSlot(null);
   };
@@ -885,7 +885,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
       await checkUserAuth?.();
       queryClient.invalidateQueries({ queryKey: ['hubProfileLookup', email] });
     } catch {
-      toast.error('Could not update visibility');
+      toast.error(tFallback("hubProfile.couldNotUpdateVisibility", "Could not update visibility"));
     }
   };
 
@@ -898,7 +898,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
       queryClient.invalidateQueries({ queryKey: ['hubProfileLookup', email] });
       queryClient.invalidateQueries({ queryKey: ['hubAuthorsList'] });
     } catch {
-      toast.error('Could not update signature');
+      toast.error(tFallback("hubProfile.couldNotUpdateSignature", "Could not update signature"));
     }
   };
 
@@ -1625,7 +1625,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
             <h2 className="font-heading font-bold text-xl leading-tight min-w-0 truncate">
               {displayName}
               {signatureTrophy && (
-                <span className="ms-1.5 align-middle" title="Signature trophy" aria-label="Signature trophy">{signatureTrophy}</span>
+                <span className="ms-1.5 align-middle" title={tFallback("hubPostCard.signatureTrophy", "Signature trophy")} aria-label={tFallback("hubProfile.signatureTrophy", "Signature trophy")}>{signatureTrophy}</span>
               )}
             </h2>
           )}
@@ -1643,7 +1643,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
                 {/* The trophy rides whichever line is the NAME, so it never
                     renders twice when both lines exist. */}
                 {signatureTrophy && (
-                  <span className="ms-1.5 align-middle" title="Signature trophy" aria-label="Signature trophy">{signatureTrophy}</span>
+                  <span className="ms-1.5 align-middle" title={tFallback("hubPostCard.signatureTrophy", "Signature trophy")} aria-label={tFallback("hubProfile.signatureTrophy", "Signature trophy")}>{signatureTrophy}</span>
                 )}
               </h2>
             )}
@@ -1976,7 +1976,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
                   your name on the feed + profile. */}
               {trophyCase.some(tt => tt?.value) && (
                 <div className="border-t border-border/40 pt-2">
-                  <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5">Signature trophy</p>
+                  <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5">{tFallback("hubPostCard.signatureTrophy", "Signature trophy")}</p>
                   <div className="flex flex-wrap items-center gap-1.5">
                     {trophyCase.filter(tt => tt?.value).map((tt, i) => {
                       const active = signatureTrophy === tt.value;
@@ -2346,7 +2346,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
               style={{ paddingBottom: 'max(20px, env(safe-area-inset-bottom))' }}
             >
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-heading font-bold text-base">Choose Trophy</h3>
+                <h3 className="font-heading font-bold text-base">{tFallback("hubProfile.chooseTrophy", "Choose Trophy")}</h3>
                 <div className="flex items-center gap-2">
                   {trophyCase[trophyPickerSlot] && (
                     <button
@@ -2400,7 +2400,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
               style={{ paddingBottom: 'max(20px, env(safe-area-inset-bottom))' }}
             >
               <div className="flex items-center justify-between mb-3 shrink-0">
-                <h3 className="font-heading font-bold text-base">Country Flag</h3>
+                <h3 className="font-heading font-bold text-base">{tFallback("hubProfile.countryFlag", "Country Flag")}</h3>
                 <button type="button" onClick={() => setFlagPickerOpen(false)} className="p-1 rounded text-muted-foreground">
                   <X className="w-4 h-4" />
                 </button>
@@ -2428,7 +2428,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
                             await checkUserAuth?.();
                             queryClient.invalidateQueries({ queryKey: ['hubProfileLookup', email] });
                           } catch {
-                            toast.error('Could not save flag');
+                            toast.error(tFallback("hubProfile.couldNotSaveFlag", "Could not save flag"));
                           }
                         }}
                         className="aspect-square flex flex-col items-center justify-center gap-0.5 rounded hover:bg-secondary active:bg-secondary transition-colors p-1"
@@ -2585,7 +2585,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
           <HeavyBirdModal
             onClose={() => setBirdOpen(false)}
             userId={user?.id}
-            onUnlockCosmetic={() => toast.success('🏆 315 lb Club unlocked!')}
+            onUnlockCosmetic={() => toast.success(tFallback("hubProfile.315LbClubUnlocked", "🏆 315 lb Club unlocked!"))}
           />
         </Suspense>
       )}

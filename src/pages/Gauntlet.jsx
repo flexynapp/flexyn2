@@ -59,7 +59,7 @@ function metricHint(challenge, t) {
 
 // ── Challenge detail card (shown when node is tapped) ────────────────────────
 function ChallengeDetail({ challenge, status, completedAt, onClose, onStartWorkout }) {
-  const { t } = useLanguage();
+  const { t, tFallback } = useLanguage();
   const fmtDate = useDateFormatter();
   const hint = metricHint(challenge, t);
   const isLocked = status === 'locked';
@@ -81,7 +81,7 @@ function ChallengeDetail({ challenge, status, completedAt, onClose, onStartWorko
         <div className="flex items-center gap-2">
           {status === 'completed' && <span className="text-emerald-400 text-sm font-bold">✓ Completed</span>}
           {status === 'active'    && <span className="text-amber-400 text-sm font-bold">⚡ Your Current Challenge</span>}
-          {status === 'next'      && <span className="text-muted-foreground text-sm font-medium">Up Next</span>}
+          {status === 'next'      && <span className="text-muted-foreground text-sm font-medium">{tFallback("gauntlet.upNext", "Up Next")}</span>}
           {status === 'locked'    && (
             <span className="text-muted-foreground/50 text-sm flex items-center gap-1.5">
               <Lock className="w-3 h-3" /> Locked
@@ -137,7 +137,7 @@ function ChallengeDetail({ challenge, status, completedAt, onClose, onStartWorko
             </p>
             {hint && (
               <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-secondary/60 mb-3">
-                <span className="text-xs font-bold text-foreground">Goal:</span>
+                <span className="text-xs font-bold text-foreground">{tFallback("gauntlet.goal", "Goal:")}</span>
                 <span className="text-xs text-muted-foreground">{hint}</span>
               </div>
             )}

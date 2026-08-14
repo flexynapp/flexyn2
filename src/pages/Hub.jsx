@@ -480,7 +480,7 @@ export default function Hub() {
             >
               <Store className="w-5 h-5 shrink-0" />
               <div className="flex-1 text-start min-w-0">
-                <p className="text-sm font-bold leading-tight">Marketplace</p>
+                <p className="text-sm font-bold leading-tight">{tFallback("layout.marketplace", "Marketplace")}</p>
                 <p className="text-micro opacity-80 leading-tight truncate">Trade gear &amp; regimens</p>
               </div>
             </motion.button>
@@ -496,7 +496,7 @@ export default function Hub() {
             style={{ borderColor: 'hsl(var(--primary))' }}
           >
             <Plus className="w-4 h-4 stroke-[2.5]" style={{ color: 'hsl(var(--primary))' }} />
-            <span className="text-xs font-bold leading-tight" style={{ color: 'hsl(var(--primary))' }}>New Post</span>
+            <span className="text-xs font-bold leading-tight" style={{ color: 'hsl(var(--primary))' }}>{tFallback("hub.newPost", "New Post")}</span>
           </motion.button>
         </div>
       )}

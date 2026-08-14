@@ -829,7 +829,7 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
               <button
                 onClick={() => setNewGroupOpen(true)}
                 className="flex items-center gap-1.5 px-2.5 py-1 rounded-full font-semibold text-primary hover:bg-secondary active:bg-secondary"
-                aria-label="Start a new group conversation"
+                aria-label={tFallback("hubMessages.startANewGroupConversation", "Start a new group conversation")}
               >
                 <UserPlus className="w-3.5 h-3.5" /> New group
               </button>
@@ -1040,7 +1040,7 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                           <p className={`font-heading text-sm truncate flex items-center gap-1.5 ${unread ? 'font-bold text-foreground' : 'font-semibold text-foreground'}`}>
                             {isPinned && <Pin className="w-3 h-3 text-primary shrink-0" aria-label={t('crew.messages.pinned')} />}
                             <span className="truncate">{handle}</span>
-                            {isMuted && <BellOff className="w-3 h-3 text-muted-foreground shrink-0" aria-label="Muted" />}
+                            {isMuted && <BellOff className="w-3 h-3 text-muted-foreground shrink-0" aria-label={tFallback("hubMessages.muted", "Muted")} />}
                           </p>
                         </div>
                         <div className="flex items-center justify-between gap-2 mt-0.5">
@@ -1187,7 +1187,7 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                             aria-label={tFallback('hub.messages.status.sent', 'Sent')}
                           />
                         ) : null}
-                        {unread && <span className="w-2.5 h-2.5 rounded-full bg-primary shrink-0" aria-label="Unread" />}
+                        {unread && <span className="w-2.5 h-2.5 rounded-full bg-primary shrink-0" aria-label={tFallback("hubMessages.unread", "Unread")} />}
                       </span>
 
                     {/* Pointer-device trigger for the SAME sheet the

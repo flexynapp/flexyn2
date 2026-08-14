@@ -96,7 +96,7 @@ function NewChallengeModal({ open, onClose, crewId, onCreated }) {
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="Crush 100k lb together"
+                placeholder={tFallback("crewChallengeCard.crush100kLbTogether", "Crush 100k lb together")}
                 maxLength={80}
                 className="w-full px-3 py-2 rounded-lg bg-secondary border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
               />

@@ -225,15 +225,15 @@ export default function Duels() {
         <div className="mx-4 mb-4 flex gap-3">
           <div className="flex-1 rounded-xl bg-primary/10 border border-primary/20 p-3 text-center">
             <p className="text-2xl font-black text-primary">{wins}</p>
-            <p className="text-xs text-muted-foreground">Wins</p>
+            <p className="text-xs text-muted-foreground">{tFallback("duels.wins", "Wins")}</p>
           </div>
           <div className="flex-1 rounded-xl bg-rose-500/10 border border-rose-500/20 p-3 text-center">
             <p className="text-2xl font-black text-rose-500">{losses}</p>
-            <p className="text-xs text-muted-foreground">Losses</p>
+            <p className="text-xs text-muted-foreground">{tFallback("duels.losses", "Losses")}</p>
           </div>
           <div className="flex-1 rounded-xl bg-secondary border border-border p-3 text-center">
             <p className="text-2xl font-black">{duels.filter(d => d.status === 'completed').length}</p>
-            <p className="text-xs text-muted-foreground">Total</p>
+            <p className="text-xs text-muted-foreground">{tFallback("duels.total", "Total")}</p>
           </div>
         </div>
       )}
@@ -242,7 +242,7 @@ export default function Duels() {
         {/* Active / Pending */}
         {active.length > 0 && (
           <div>
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Active</p>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">{tFallback("duels.status.active", "Active")}</p>
             <div className="space-y-2">
               {active.map(d => (
                 <DuelRow key={d.id} duel={d} currentUserId={user?.id} opponent={opponentFor(d)} onClick={() => setSelectedDuel(d)} />
@@ -254,7 +254,7 @@ export default function Duels() {
         {/* Completed / History */}
         {history.length > 0 && (
           <div>
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Completed</p>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">{tFallback("hub.activity.completed", "Completed")}</p>
             <div className="space-y-2">
               {history.map(d => (
                 <DuelRow key={d.id} duel={d} currentUserId={user?.id} opponent={opponentFor(d)} onClick={() => setSelectedDuel(d)} />
@@ -267,8 +267,8 @@ export default function Duels() {
         {!isLoading && duels.length === 0 && (
           <div className="text-center py-16">
             <Swords className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
-            <p className="font-semibold text-muted-foreground">No duels yet</p>
-            <p className="text-sm text-muted-foreground/60 mt-1">Challenge someone from their profile</p>
+            <p className="font-semibold text-muted-foreground">{tFallback("duels.noDuelsYet", "No duels yet")}</p>
+            <p className="text-sm text-muted-foreground/60 mt-1">{tFallback("duels.challengeSomeoneFromTheirProfile", "Challenge someone from their profile")}</p>
           </div>
         )}
       </div>

@@ -92,7 +92,7 @@ export default function ProfileCompletionMeter({ user, targetProfile }) {
             <button
               type="button"
               onClick={handleDismiss}
-              aria-label="Dismiss"
+              aria-label={tFallback("discovery.dismiss", "Dismiss")}
               className="relative before:absolute before:content-[''] before:-inset-2.5 w-5 h-5 rounded-full bg-secondary/60 hover:bg-secondary active:bg-secondary text-muted-foreground hover:text-foreground active:text-foreground flex items-center justify-center"
             >
               <X className="w-3 h-3" />

@@ -343,7 +343,7 @@ export default function CoachChat({ mode, onSaveRegimen, onStartWorkout }) {
         {messages.length > 0 && (
           <button
             onClick={handleClear}
-            aria-label="Clear chat"
+            aria-label={tFallback("coachChat.clearChat", "Clear chat")}
             className="p-2.5 rounded-lg text-muted-foreground hover:bg-secondary active:bg-secondary hover:text-foreground active:text-foreground transition-colors touch-manipulation"
           >
             <Trash2 className="w-6 h-6" />
@@ -455,7 +455,7 @@ export default function CoachChat({ mode, onSaveRegimen, onStartWorkout }) {
           <button
             onClick={() => handleSend()}
             disabled={thinking || !draft.trim()}
-            aria-label="Send"
+            aria-label={tFallback("coachChat.send", "Send")}
             className="p-2 rounded-xl bg-primary text-primary-foreground disabled:opacity-50 disabled:cursor-not-allowed transition-opacity shrink-0"
           >
             <Send className="w-4 h-4" />

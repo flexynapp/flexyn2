@@ -281,7 +281,7 @@ function DayFocusCard({ meals, dv, weekAvg, fmt }) {
 
 export default function MealHistoryModal({ open, onClose, userProfile, onLogPhoto, onLogManual, onLogAgain }) {
   const { user } = useAuth();
-  const { language } = useLanguage();
+  const { language, tFallback } = useLanguage();
   const locale = getDateLocale(language);
   const fmt = useNumberFormatter();
   const queryClient = useQueryClient();
@@ -311,11 +311,11 @@ export default function MealHistoryModal({ open, onClose, userProfile, onLogPhot
       queryClient.invalidateQueries({ queryKey: ['nutritionHistory', user?.email] });
       queryClient.invalidateQueries({ queryKey: ['nutritionLogs'] });
       setDetail(null);
-      toast.success('Meal removed');
+      toast.success(tFallback("mealHistoryModal.mealRemoved", "Meal removed"));
     },
     onError: (err) => {
       reportError(err, { feature: 'nutrition.history.delete', userEmail: user?.email });
-      toast.error("Couldn't remove that meal");
+      toast.error(tFallback("mealHistoryModal.couldnTRemoveThatMeal", "Couldn't remove that meal"));
     },
   });
 
@@ -447,13 +447,13 @@ export default function MealHistoryModal({ open, onClose, userProfile, onLogPhot
               <span className="w-10 h-1 rounded-full bg-border" />
             </div>
             <div className="flex items-center justify-between px-4 pt-2 pb-3">
-              <h2 className="font-heading font-bold text-xl tracking-tight">History</h2>
+              <h2 className="font-heading font-bold text-xl tracking-tight">{tFallback("progress.bodyMetrics.history", "History")}</h2>
               <div className="flex items-center gap-2">
                 {showChrome && (
                   <button
                     type="button"
                     onClick={() => setCalendarOpen(true)}
-                    aria-label="Jump to a day"
+                    aria-label={tFallback("mealHistoryModal.jumpToADay", "Jump to a day")}
                     className="w-9 h-9 rounded-lg bg-secondary flex items-center justify-center text-muted-foreground active:bg-secondary/70"
                   >
                     <CalendarIcon className="w-4 h-4" />
@@ -462,7 +462,7 @@ export default function MealHistoryModal({ open, onClose, userProfile, onLogPhot
                 <button
                   type="button"
                   onClick={onClose}
-                  aria-label="Close"
+                  aria-label={tFallback("common.close", "Close")}
                   className="w-9 h-9 rounded-lg bg-secondary flex items-center justify-center text-muted-foreground active:bg-secondary/70"
                 >
                   <X className="w-4 h-4" />
@@ -514,7 +514,7 @@ export default function MealHistoryModal({ open, onClose, userProfile, onLogPhot
                 <div className="w-20 h-20 rounded-full bg-secondary flex items-center justify-center mb-5">
                   <UtensilsCrossed className="w-8 h-8 text-muted-foreground" />
                 </div>
-                <p className="font-heading font-bold text-lg">No meals logged yet</p>
+                <p className="font-heading font-bold text-lg">{tFallback("mealHistoryModal.noMealsLoggedYet", "No meals logged yet")}</p>
                 <p className="text-sm text-muted-foreground mt-1.5 max-w-[19rem]">
                   Log a meal and it shows up here — grouped by day, with your macros and how that day
                   tracked against your goal.

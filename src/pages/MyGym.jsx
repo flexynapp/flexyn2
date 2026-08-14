@@ -563,7 +563,7 @@ export default function MyGym() {
           neither reads as the break. */}
       <div className="mt-8">
         <div className="flex items-baseline justify-between gap-2 mb-2">
-          <h2 className="font-heading text-base font-bold">Other gyms</h2>
+          <h2 className="font-heading text-base font-bold">{tFallback("myGym.otherGyms", "Other gyms")}</h2>
           {!gymsLoading && otherGyms.length > 0 && (
             <p className="text-micro text-muted-foreground shrink-0 tabular-nums">
               {otherGyms.length} joined
@@ -616,7 +616,7 @@ export default function MyGym() {
       <form onSubmit={handleJoin} className="mt-6 rounded-2xl border border-border p-4">
         <div className="flex items-center gap-2 mb-2">
           <QrCode className="w-4 h-4 text-muted-foreground" />
-          <p className="text-sm font-semibold">Join another gym</p>
+          <p className="text-sm font-semibold">{tFallback("myGym.joinAnotherGym", "Join another gym")}</p>
         </div>
         <p className="text-xs text-muted-foreground mb-6">
           Scan the QR code or type the 8-character Flexyn Code printed inside the gym.
@@ -627,7 +627,7 @@ export default function MyGym() {
             variant="outline"
             onClick={() => setScannerOpen(true)}
             className="shrink-0"
-            aria-label="Scan QR code"
+            aria-label={tFallback("myGym.scanQrCode", "Scan QR code")}
           >
             <ScanLine className="w-4 h-4" />
           </Button>
@@ -647,7 +647,7 @@ export default function MyGym() {
                 : raw.toUpperCase().replace(/[^A-HJ-NP-Z2-9]/g, '').slice(0, 8);
               setCodeInput(next);
             }}
-            placeholder="ABCD2345"
+            placeholder={tFallback("myGym.abcd2345", "ABCD2345")}
             maxLength={8}
             className="font-mono tracking-[0.3em] text-center text-lg uppercase"
             inputMode="text"
@@ -701,7 +701,7 @@ export default function MyGym() {
             <Building2 className="w-5 h-5 text-violet-500" />
           </div>
           <div className="flex-1 min-w-0 ms-2">
-            <p className="font-heading font-bold text-sm">Own a gym?</p>
+            <p className="font-heading font-bold text-sm">{tFallback("myGym.ownAGym", "Own a gym?")}</p>
             <p className="text-xs text-muted-foreground">
               Register your location so members can join and you show up on the national map.
             </p>

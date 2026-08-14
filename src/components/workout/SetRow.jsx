@@ -184,7 +184,7 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
               <button
                 type="button"
                 tabIndex={-1}
-                aria-label="Decrease weight"
+                aria-label={tFallback("setRow.decreaseWeight", "Decrease weight")}
                 onClick={() => bump(-stepLbs)}
                 className="w-6 h-11 flex items-center justify-center rounded-md text-muted-foreground hover:bg-secondary/60 active:bg-secondary/60 hover:text-foreground active:text-foreground transition-colors shrink-0"
               >
@@ -271,7 +271,7 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
             <button
               type="button"
               tabIndex={-1}
-              aria-label="Increase weight"
+              aria-label={tFallback("setRow.increaseWeight", "Increase weight")}
               onClick={bumpUp}
               className="w-6 h-11 flex items-center justify-center rounded-md text-muted-foreground hover:bg-secondary/60 active:bg-secondary/60 hover:text-foreground active:text-foreground transition-colors shrink-0"
             >
@@ -347,8 +347,8 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
           animate={{ scale: 1, opacity: 1 }}
           transition={{ type: 'spring', stiffness: 480, damping: 20 }}
           className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary/15 text-primary shrink-0"
-          aria-label="New PR pace"
-          title="New PR pace"
+          aria-label={tFallback("setRow.newPrPace", "New PR pace")}
+          title={tFallback("setRow.newPrPace", "New PR pace")}
         >
           <Trophy className="w-3.5 h-3.5" />
         </motion.span>
@@ -367,7 +367,7 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
       <button
         type="button"
         onClick={() => setMoreOpen(o => !o)}
-        aria-label="More set options"
+        aria-label={tFallback("setRow.moreSetOptions", "More set options")}
         aria-expanded={moreOpen}
         className={[
           'h-11 w-8 rounded-lg flex items-center justify-center shrink-0 transition-colors',
@@ -414,7 +414,7 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
             <button
               type="button"
               onClick={onRemove}
-              aria-label="Delete set"
+              aria-label={tFallback("setRow.deleteSet", "Delete set")}
               className="h-8 w-8 ms-auto rounded-lg flex items-center justify-center text-muted-foreground/60 hover:text-destructive active:text-destructive hover:bg-destructive/10 active:bg-destructive/10 transition-colors shrink-0"
             >
               <Trash2 className="w-4 h-4" />
@@ -475,7 +475,7 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
               if (Number.isNaN(num)) return;
               onChange({ ...set, rpe: Math.max(1, Math.min(10, num)) });
             }}
-            placeholder="1–10 (optional)"
+            placeholder={tFallback("setRow.110Optional", "1–10 (optional)")}
             className="h-7 text-center text-xs flex-1"
           />
         </div>

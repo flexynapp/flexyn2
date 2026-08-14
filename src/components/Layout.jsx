@@ -359,7 +359,7 @@ export default function Layout() {
         className="hidden lg:flex fixed top-0 bottom-0 w-64 flex-col bg-card border-e border-border z-30"
       >
         <div className="p-6 flex flex-col items-center gap-2">
-          <Link to="/dashboard" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} aria-label="Flexyn — go to dashboard" className="flex items-center justify-center hover:opacity-80 transition-opacity">
+          <Link to="/dashboard" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} aria-label={tFallback("layout.flexynGoToDashboard", "Flexyn — go to dashboard")} className="flex items-center justify-center hover:opacity-80 transition-opacity">
             <FlexynLogo className="h-14" />
           </Link>
           {/* Row 1: Profile menu (full width) */}
@@ -407,7 +407,7 @@ export default function Layout() {
             <button
               type="button"
               onClick={() => navigate('/market')}
-              aria-label="Marketplace"
+              aria-label={tFallback("layout.marketplace", "Marketplace")}
               className={`relative p-2 rounded-lg transition-colors ${
                 location.pathname === '/market'
                   ? 'bg-primary/10 text-primary'

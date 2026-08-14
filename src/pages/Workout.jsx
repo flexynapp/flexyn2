@@ -1266,7 +1266,7 @@ export default function Workout() {
             if (!res?.ok || !res.wars) return;
             queryClient.invalidateQueries({ queryKey: ['activeWar'] });
             queryClient.invalidateQueries({ queryKey: ['warBreakdown'] });
-            toast.success('Your session counted toward the Crew War', {
+            toast.success(tFallback("workout.yourSessionCountedToward", "Your session counted toward the Crew War"), {
               description: 'Volume, sessions and days trained all score.',
               duration: 4000,
             });
@@ -1509,7 +1509,7 @@ export default function Workout() {
     if (clampedSomething) {
       toast.success('Workout loaded — some sets were trimmed to realistic limits.');
     } else {
-      toast.success('Workout loaded — log your sets!');
+      toast.success(tFallback("workout.workoutLoadedLogYourSets", "Workout loaded — log your sets!"));
     }
   };
 
@@ -1893,7 +1893,7 @@ export default function Workout() {
     const InfoBtn = ({ bid }) => (
       <button type="button"
         onClick={(e) => { e.stopPropagation(); setActiveInfo(activeInfo === bid ? null : bid); }}
-        aria-label="What is this card?"
+        aria-label={tFallback("workout.whatIsThisCard", "What is this card?")}
         aria-expanded={activeInfo === bid}
         // The badge keeps its rendered size; `before:` grows the TAP box to
         // ~44px. Four of these render in a single viewport and every one was
@@ -1964,7 +1964,7 @@ export default function Workout() {
 
     if (id === 'explore') return (
       <motion.div whileHover={{ y:-2 }} whileTap={{ scale:0.98 }} transition={{ type:'spring', stiffness:380, damping:22 }}>
-        <Card role="button" tabIndex={0} aria-label="Explore Regimens"
+        <Card role="button" tabIndex={0} aria-label={tFallback("workout.exploreRegimens", "Explore Regimens")}
           className={`${cardBase} overflow-hidden`} style={{ background: pal.background }}
           onClick={() => setStoreOpen(true)}
           onKeyDown={(e) => { if (e.key==='Enter'||e.key===' '){e.preventDefault();setStoreOpen(true);} }}>
@@ -1978,7 +1978,7 @@ export default function Workout() {
               <Globe className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <p className="font-heading font-bold text-sm leading-tight">Explore Regimens</p>
+              <p className="font-heading font-bold text-sm leading-tight">{tFallback("workout.exploreRegimens", "Explore Regimens")}</p>
               <InfoText bid="explore" text="Browse top-rated community training programs and adopt one." />
             </div>
           </div>
@@ -1988,7 +1988,7 @@ export default function Workout() {
 
     if (id === 'duels') return (
       <motion.div whileHover={{ y:-2 }} whileTap={{ scale:0.98 }} transition={{ type:'spring', stiffness:380, damping:22 }}>
-        <Card role="button" tabIndex={0} aria-label="Duels"
+        <Card role="button" tabIndex={0} aria-label={tFallback("workout.duels", "Duels")}
           className={cardBase} style={{ background: pal.background }}
           onClick={() => navigate('/duels')}
           onKeyDown={(e) => { if (e.key==='Enter'||e.key===' '){e.preventDefault();navigate('/duels');} }}>
@@ -2000,8 +2000,8 @@ export default function Workout() {
             </div>
             <div>
               <div className="flex items-center justify-center gap-1.5 flex-wrap">
-                <p className="font-heading font-bold text-sm leading-tight">Duels</p>
-                {activeDuel && <span className="text-micro font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-success/15 text-success">Active</span>}
+                <p className="font-heading font-bold text-sm leading-tight">{tFallback("workout.duels", "Duels")}</p>
+                {activeDuel && <span className="text-micro font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-success/15 text-success">{tFallback("duels.status.active", "Active")}</span>}
               </div>
               <InfoText bid="duels" text="Challenge someone to a head-to-head workout battle." />
             </div>
@@ -2024,7 +2024,7 @@ export default function Workout() {
             <div>
               <div className="flex items-center justify-center gap-1.5 flex-wrap">
                 <p className="font-heading font-bold text-sm leading-tight">{t('bounties.title')}</p>
-                {activeBountyClaim && <span className="text-micro font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-primary/15 text-primary">Active</span>}
+                {activeBountyClaim && <span className="text-micro font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-primary/15 text-primary">{tFallback("duels.status.active", "Active")}</span>}
                 {!activeBountyClaim && activeBounties.length>0 && <span className="text-micro font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-primary/15 text-primary">{activeBounties.length} open</span>}
               </div>
               <InfoText bid="bounties" text="Daily fitness challenges — complete them to earn Flex Coins." />
@@ -2128,7 +2128,7 @@ export default function Workout() {
 
     if (id === 'gauntlet') return (
       <motion.div whileHover={{ y:-2 }} whileTap={{ scale:0.98 }} transition={{ type:'spring', stiffness:380, damping:22 }}>
-        <Card role="button" tabIndex={0} aria-label="Gauntlet"
+        <Card role="button" tabIndex={0} aria-label={tFallback("workout.gauntlet", "Gauntlet")}
           className={cardBase} style={{ background: pal.background }}
           onClick={() => navigate('/gauntlet')}
           onKeyDown={(e) => { if (e.key==='Enter'||e.key===' '){e.preventDefault();navigate('/gauntlet');} }}>
@@ -2139,8 +2139,8 @@ export default function Workout() {
             </div>
             <div>
               <div className="flex items-center justify-center gap-1.5 flex-wrap">
-                <p className="font-heading font-bold text-sm leading-tight">Gauntlet</p>
-                {gauntletProgress?.path_completed && <span className="text-micro font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-primary/15 text-primary">Done</span>}
+                <p className="font-heading font-bold text-sm leading-tight">{tFallback("workout.gauntlet", "Gauntlet")}</p>
+                {gauntletProgress?.path_completed && <span className="text-micro font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-primary/15 text-primary">{tFallback("coach.plan.done", "Done")}</span>}
                 {!gauntletProgress?.path_completed && gauntletProgress && <span className="text-micro font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-primary/15 text-primary">#{gauntletProgress.current_challenge_sequence}</span>}
               </div>
               <InfoText bid="gauntlet" text="Complete 10 epic challenges to earn prizes and climb the leaderboard." />
@@ -2156,7 +2156,7 @@ export default function Workout() {
 
     if (id === 'crew') return (
       <motion.div whileHover={{ y:-2 }} whileTap={{ scale:0.98 }} transition={{ type:'spring', stiffness:380, damping:22 }}>
-        <Card role="button" tabIndex={0} aria-label="Crew Wars"
+        <Card role="button" tabIndex={0} aria-label={tFallback("workout.crewWars", "Crew Wars")}
           className={cardBase} style={{ background: pal.background }}
           onClick={() => navigate('/hub', { state:{ openCrewWars:true } })}
           onKeyDown={(e) => { if (e.key==='Enter'||e.key===' '){e.preventDefault();navigate('/hub',{state:{openCrewWars:true}});} }}>
@@ -2170,7 +2170,7 @@ export default function Workout() {
               <Shield className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <p className="font-heading font-bold text-sm leading-tight">Crew Wars</p>
+              <p className="font-heading font-bold text-sm leading-tight">{tFallback("workout.crewWars", "Crew Wars")}</p>
               <InfoText bid="crew" text="Battle rival crews — contribute XP and fight for crew supremacy." />
             </div>
           </div>
@@ -2419,7 +2419,7 @@ export default function Workout() {
                 }}
                 className="relative w-10 h-5 rounded-full transition-colors shrink-0"
                 style={{ background: rollingDay ? 'hsl(var(--primary))' : 'hsl(var(--muted))' }}
-                aria-label="Toggle rolling day"
+                aria-label={tFallback("workout.toggleRollingDay", "Toggle rolling day")}
               >
                 <span
                   className="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform"
@@ -2445,7 +2445,7 @@ export default function Workout() {
               <button type="button" onClick={() => navigate('/duels')}
                 className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-destructive/10 border border-destructive/25 text-destructive text-micro font-semibold hover:bg-destructive/20 active:bg-destructive/20 transition-colors">
                 <Swords className="w-3 h-3" />
-                <span>Duel</span>
+                <span>{tFallback("workout.duel", "Duel")}</span>
                 <span className="w-1.5 h-1.5 rounded-full bg-destructive animate-pulse ms-0.5" />
               </button>
             )}
@@ -2453,7 +2453,7 @@ export default function Workout() {
               <button type="button" onClick={() => navigate('/bounties')}
                 className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-primary/10 border border-primary/25 text-primary text-micro font-semibold hover:bg-primary/20 active:bg-primary/20 transition-colors">
                 <Zap className="w-3 h-3" />
-                <span>Bounty</span>
+                <span>{tFallback("workout.bounty", "Bounty")}</span>
                 <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse ms-0.5" />
               </button>
             )}
@@ -2589,8 +2589,8 @@ export default function Workout() {
                         <div className="absolute top-0 start-8 end-8 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent pointer-events-none" />
                         <div className="relative flex items-center justify-between gap-4 p-6 md:p-8">
                           <div className="min-w-0">
-                            <span className="block text-micro font-bold tracking-[0.25em] uppercase text-primary/80 mb-2">CHALLENGE YOURSELF</span>
-                            <span className="font-heading font-black text-3xl md:text-4xl leading-none block tracking-tight min-h-[2em]">The Gauntlet</span>
+                            <span className="block text-micro font-bold tracking-[0.25em] uppercase text-primary/80 mb-2">{tFallback("workout.challengeYourself", "CHALLENGE YOURSELF")}</span>
+                            <span className="font-heading font-black text-3xl md:text-4xl leading-none block tracking-tight min-h-[2em]">{tFallback("workout.theGauntlet", "The Gauntlet")}</span>
                             <span className="text-label text-white/50 mt-2.5 block max-w-[36ch] leading-relaxed min-h-[3.25em]">10 challenges. One path. Prove what you are made of.</span>
                             <span className="inline-flex items-center gap-1 mt-3 px-2.5 py-1 rounded-full bg-primary/15 border border-primary/20 text-micro font-semibold text-primary/80 tracking-wide uppercase">
                               {gauntletProgress?.path_completed ? 'Completed' : gauntletProgress ? `Challenge #${gauntletProgress.current_challenge_sequence}` : 'Start now'}
@@ -2622,8 +2622,8 @@ export default function Workout() {
                         <div className="absolute top-0 start-8 end-8 h-px bg-gradient-to-r from-transparent via-success/25 to-transparent pointer-events-none" />
                         <div className="relative flex items-center justify-between gap-4 p-6 md:p-8">
                           <div className="min-w-0">
-                            <span className="block text-micro font-bold tracking-[0.25em] uppercase text-success/80 mb-2">CREW BATTLES</span>
-                            <span className="font-heading font-black text-3xl md:text-4xl leading-none block tracking-tight min-h-[2em]">Crew Wars</span>
+                            <span className="block text-micro font-bold tracking-[0.25em] uppercase text-success/80 mb-2">{tFallback("workout.crewBattles", "CREW BATTLES")}</span>
+                            <span className="font-heading font-black text-3xl md:text-4xl leading-none block tracking-tight min-h-[2em]">{tFallback("workout.crewWars", "Crew Wars")}</span>
                             <span className="text-label text-white/50 mt-2.5 block max-w-[36ch] leading-relaxed min-h-[3.25em]">Rally your crew. Crush rivals. Dominate the leaderboard.</span>
                             <span className="inline-flex items-center gap-1 mt-3 px-2.5 py-1 rounded-full bg-success/15 border border-success/20 text-micro font-semibold text-success/80 tracking-wide uppercase">
                               <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />Join the fight
@@ -2734,7 +2734,7 @@ export default function Workout() {
                   <p className="text-micro text-muted-foreground/60 font-medium">Drag a card&rsquo;s grip to reorder</p>
                   <div className="flex items-center gap-1.5">
                     <button onClick={() => { localStorage.setItem(cardOrderKey, JSON.stringify(cardOrder)); setGridEditing(false); toast.success('Layout saved.'); resetGridDrag(); }}
-                      className="px-2.5 py-1 rounded-lg bg-primary text-primary-foreground text-micro font-bold hover:bg-primary/90 active:bg-primary/90 transition-colors">Save</button>
+                      className="px-2.5 py-1 rounded-lg bg-primary text-primary-foreground text-micro font-bold hover:bg-primary/90 active:bg-primary/90 transition-colors">{tFallback("common.save", "Save")}</button>
                     {isAppAdmin(user) && (
                       <button
                         onClick={async () => {
@@ -2744,14 +2744,14 @@ export default function Workout() {
                           else if (res.error === 'admin_only')  toast.error('Admins only.');
                           else toast.error('Could not save default layout.');
                         }}
-                        title="Save this layout as default for all new users"
+                        title={tFallback("workout.saveThisLayoutAsDefault", "Save this layout as default for all new users")}
                         className="px-2.5 py-1 rounded-lg bg-primary/15 border border-primary/40 text-primary dark:text-primary text-micro font-bold hover:bg-primary/25 active:bg-primary/25 transition-colors"
                       >
                         Set default
                       </button>
                     )}
                     <button onClick={() => { setCardOrder([...CARD_ORDER_DEFAULT]); localStorage.removeItem(cardOrderKey); setGridEditing(false); resetGridDrag(); }}
-                      className="px-2.5 py-1 rounded-lg bg-secondary text-muted-foreground text-micro font-semibold hover:bg-secondary/80 active:bg-secondary/80 transition-colors">Reset</button>
+                      className="px-2.5 py-1 rounded-lg bg-secondary text-muted-foreground text-micro font-semibold hover:bg-secondary/80 active:bg-secondary/80 transition-colors">{tFallback("workout.reset", "Reset")}</button>
                   </div>
                 </div>
               )}
@@ -3321,8 +3321,8 @@ export default function Workout() {
                         toast.success('Paired as superset with the previous exercise.');
                       }}
                       className="p-1.5 rounded-md text-muted-foreground hover:text-primary active:text-primary hover:bg-primary/10 active:bg-primary/10 transition-colors"
-                      aria-label="Pair with previous exercise as superset"
-                      title="Pair as superset"
+                      aria-label={tFallback("workout.pairWithPreviousExercise", "Pair with previous exercise as superset")}
+                      title={tFallback("workout.pairAsSuperset", "Pair as superset")}
                     >
                       <Link2 className="w-3.5 h-3.5" />
                     </button>
@@ -3357,8 +3357,8 @@ export default function Workout() {
                       });
                     }}
                     className="p-1.5 rounded-md text-muted-foreground hover:text-destructive active:text-destructive hover:bg-destructive/10 active:bg-destructive/10 transition-colors"
-                    aria-label="Skip this exercise"
-                    title="Skip exercise"
+                    aria-label={tFallback("workout.skipThisExercise", "Skip this exercise")}
+                    title={tFallback("workout.skipExercise", "Skip exercise")}
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
@@ -3419,14 +3419,14 @@ export default function Workout() {
       <AlertDialog open={incompleteWarnOpen} onOpenChange={setIncompleteWarnOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Finish your workout?</AlertDialogTitle>
+            <AlertDialogTitle>{tFallback("workout.finishYourWorkout", "Finish your workout?")}</AlertDialogTitle>
             <AlertDialogDescription>
               You still have {uncheckedOnFinish()} item{uncheckedOnFinish() === 1 ? '' : 's'} that {uncheckedOnFinish() === 1 ? "isn't" : "aren't"} checked off.
               You can finish now — they just won't be marked done.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Keep going</AlertDialogCancel>
+            <AlertDialogCancel>{tFallback("workout.keepGoing", "Keep going")}</AlertDialogCancel>
             <AlertDialogAction onClick={() => { setIncompleteWarnOpen(false); saveWorkout(); }}>
               Finish anyway
             </AlertDialogAction>
@@ -3534,12 +3534,12 @@ export default function Workout() {
                     <li className="text-muted-foreground">…and {missingDataWarning.length - 8} more</li>
                   )}
                 </ul>
-                <p className="pt-2">Save the workout anyway?</p>
+                <p className="pt-2">{tFallback("workout.saveTheWorkoutAnyway", "Save the workout anyway?")}</p>
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setMissingDataWarning(null)}>Go back and fix</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => setMissingDataWarning(null)}>{tFallback("workout.goBackAndFix", "Go back and fix")}</AlertDialogCancel>
             <AlertDialogAction onClick={() => { setMissingDataWarning(null); saveWorkout(true); }}>
               Save anyway
             </AlertDialogAction>

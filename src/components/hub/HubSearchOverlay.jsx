@@ -55,7 +55,7 @@ function removeRecentSearch(userId, id) {
 export default function HubSearchOverlay({ open, onClose, onSelectUser, onSelectPost = null }) {
   // Pin the page behind this overlay — see @/lib/scrollLock.
   useBodyScrollLock(open);
-  const { t } = useLanguage();
+  const { t, tFallback } = useLanguage();
   const { user: currentUser } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
@@ -224,7 +224,7 @@ export default function HubSearchOverlay({ open, onClose, onSelectUser, onSelect
                 <button
                   onClick={onClose}
                   className="p-2 rounded-lg hover:bg-secondary active:bg-secondary transition-colors text-muted-foreground hover:text-foreground active:text-foreground shrink-0"
-                  aria-label="Close search"
+                  aria-label={tFallback("hubSearchOverlay.closeSearch", "Close search")}
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -265,7 +265,7 @@ export default function HubSearchOverlay({ open, onClose, onSelectUser, onSelect
                       <div className="w-16 h-16 rounded-full bg-primary/5 flex items-center justify-center mb-4">
                         <MessageSquare className="w-8 h-8 text-primary/40" />
                       </div>
-                      <p className="text-muted-foreground text-sm">Search for posts by keyword or author</p>
+                      <p className="text-muted-foreground text-sm">{tFallback("hubSearchOverlay.searchForPostsByKeyword", "Search for posts by keyword or author")}</p>
                     </div>
                   )}
                   {searchQuery && postsLoading && (
@@ -331,7 +331,7 @@ export default function HubSearchOverlay({ open, onClose, onSelectUser, onSelect
                 <div className="flex flex-col items-center justify-center py-12 text-center">
                   {recentSearches.length > 0 && (
                     <div className="w-full mb-8">
-                      <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3 text-start">Recent Searches</h3>
+                      <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3 text-start">{tFallback("hubSearchOverlay.recentSearches", "Recent Searches")}</h3>
                       <div className="space-y-1.5">
                         {recentSearches.map((user, idx) => (
                           <RecentSearchCard
@@ -433,7 +433,7 @@ export default function HubSearchOverlay({ open, onClose, onSelectUser, onSelect
 }
 
 function RecentSearchCard({ user, onClick, onRemove }) {
-  const { t } = useLanguage();
+  const { t, tFallback } = useLanguage();
   const userXp = Number(user?.total_xp) || 0;
   const levelData = calculateLevelFromXp(userXp);
   const tier = getTier(levelData.level, t);
@@ -490,7 +490,7 @@ function RecentSearchCard({ user, onClick, onRemove }) {
       <button
         onClick={onRemove}
         className="p-1.5 rounded-md text-muted-foreground hover:text-destructive active:text-destructive hover:bg-destructive/10 active:bg-destructive/10 transition-colors shrink-0"
-        aria-label="Remove from recent"
+        aria-label={tFallback("hubSearchOverlay.removeFromRecent", "Remove from recent")}
       >
         <Trash2 className="w-4 h-4" />
       </button>

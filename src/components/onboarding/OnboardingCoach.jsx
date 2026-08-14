@@ -141,7 +141,7 @@ export function OnboardingCoachSheet({ open, onClose, stepId, draft = {}, onAppl
             initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
             transition={{ type: 'spring', stiffness: 380, damping: 38 }}
             role="dialog"
-            aria-label="AI Coach"
+            aria-label={tFallback("hub.coach.title", "AI Coach")}
             className="fixed inset-x-0 bottom-0 z-[61] mx-auto w-full max-w-[420px] rounded-t-3xl border-t border-x border-border bg-card shadow-2xl flex flex-col"
             // 82dvh, not vh: the sheet holds a text input, and on iOS the
             // keyboard shrinks the dynamic viewport but not the static one.
@@ -152,11 +152,11 @@ export function OnboardingCoachSheet({ open, onClose, stepId, draft = {}, onAppl
                 <Sparkles className="w-4 h-4 text-primary" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="font-heading font-bold text-sm leading-tight">AI Coach</p>
-                <p className="text-micro text-muted-foreground leading-tight">Here to help you set this up</p>
+                <p className="font-heading font-bold text-sm leading-tight">{tFallback("hub.coach.title", "AI Coach")}</p>
+                <p className="text-micro text-muted-foreground leading-tight">{tFallback("onboardingCoach.hereToHelpYouSet", "Here to help you set this up")}</p>
               </div>
               <button
-                type="button" onClick={onClose} aria-label="Close coach"
+                type="button" onClick={onClose} aria-label={tFallback("onboardingCoach.closeCoach", "Close coach")}
                 className="w-9 h-9 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-secondary active:bg-secondary transition-colors shrink-0"
               >
                 <X className="w-4 h-4" />
@@ -217,14 +217,14 @@ export function OnboardingCoachSheet({ open, onClose, stepId, draft = {}, onAppl
                 ref={inputRef}
                 value={input}
                 onChange={(e) => setInput(e.target.value.slice(0, MAX_INPUT))}
-                placeholder="Ask, or describe yourself…"
-                aria-label="Ask the AI Coach"
+                placeholder={tFallback("onboardingCoach.askOrDescribeYourself", "Ask, or describe yourself…")}
+                aria-label={tFallback("onboardingCoach.askTheAiCoach", "Ask the AI Coach")}
                 className="flex-1 min-w-0 h-10 rounded-xl border border-border bg-background px-3 text-sm focus:outline-none focus:border-primary/60"
               />
               <button
                 type="submit"
                 disabled={!input.trim()}
-                aria-label="Send"
+                aria-label={tFallback("onboardingCoach.send", "Send")}
                 className="w-10 h-10 rounded-xl bg-primary text-primary-foreground flex items-center justify-center disabled:opacity-40 shrink-0"
               >
                 <Send className="w-4 h-4" />

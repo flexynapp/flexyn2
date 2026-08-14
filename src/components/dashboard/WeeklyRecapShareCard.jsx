@@ -346,7 +346,7 @@ export default function WeeklyRecapShareCard({ open, onClose, recap, username })
                     sized itself to its natural width while the
                     skeleton was square — visible reflow on every
                     open. */}
-                <img loading="lazy" src={imgUrl} alt="Weekly recap" className="w-full block aspect-square object-cover" />
+                <img loading="lazy" src={imgUrl} alt={tFallback("weeklyRecapShareCard.weeklyRecap", "Weekly recap")} className="w-full block aspect-square object-cover" />
               </motion.div>
             ) : drawFailed ? (
               <div className="aspect-square rounded-2xl bg-muted flex items-center justify-center mb-4 px-6 text-center">

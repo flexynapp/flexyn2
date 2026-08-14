@@ -116,7 +116,7 @@ export default function ShareSheetModal({ post, open, onClose }) {
         recipientEmail: otherEmail,
         body: forwardBody,
       });
-      toast.success('Sent in DM!');
+      toast.success(tFallback("shareSheetModal.sentInDm", "Sent in DM!"));
       onClose();
     } catch {
       toast.error('Could not send — try again.');
@@ -287,7 +287,7 @@ export default function ShareSheetModal({ post, open, onClose }) {
                     className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-secondary hover:bg-secondary/80 active:bg-secondary/80 transition-colors text-success"
                   >
                     <WhatsAppIcon size={20} />
-                    <span className="text-micro font-medium text-foreground">WhatsApp</span>
+                    <span className="text-micro font-medium text-foreground">{tFallback("shareSheetModal.whatsapp", "WhatsApp")}</span>
                   </button>
 
                   {/* Copy link */}

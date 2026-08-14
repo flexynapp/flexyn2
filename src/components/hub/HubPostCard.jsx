@@ -532,7 +532,7 @@ function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
     if (mealSaved) {
       removeSavedMeal(post.id);
       setMealSaved(false);
-      toast.success('Removed from saved meals');
+      toast.success(tFallback("hubPostCard.removedFromSavedMeals", "Removed from saved meals"));
     } else {
       const snap = post.linked_entity_snapshot || {};
       saveMeal({
@@ -546,7 +546,7 @@ function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
         author_name: post.author_name || null,
       });
       setMealSaved(true);
-      toast.success('Meal saved! Find it in + Log Meal → Saved');
+      toast.success(tFallback("hubPostCard.mealSavedFind", "Meal saved! Find it in + Log Meal → Saved"));
     }
   };
   const desiredRef = useRef(undefined);
@@ -963,7 +963,7 @@ function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
               </p>
             )}
             {author.signatureTrophy && (
-              <span className="text-sm leading-none shrink-0" title="Signature trophy" aria-label="Signature trophy">
+              <span className="text-sm leading-none shrink-0" title={tFallback("hubPostCard.signatureTrophy", "Signature trophy")} aria-label={tFallback("hubPostCard.signatureTrophy", "Signature trophy")}>
                 {author.signatureTrophy}
               </span>
             )}
@@ -1317,8 +1317,8 @@ function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
             whileTap={{ scale: 0.88 }}
             onClick={(e) => { e.stopPropagation(); setAnalyticsOpen(o => !o); }}
             className={`p-2 rounded-md transition-colors ${analyticsOpen ? 'text-primary bg-secondary' : 'text-muted-foreground hover:bg-secondary active:bg-secondary hover:text-foreground active:text-foreground'}`}
-            aria-label="Post analytics"
-            title="View analytics"
+            aria-label={tFallback("hubPostCard.postAnalytics", "Post analytics")}
+            title={tFallback("hubPostCard.viewAnalytics", "View analytics")}
           >
             <BarChart2 className="w-4 h-4" />
           </motion.button>
@@ -1364,7 +1364,7 @@ function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
           whileTap={{ scale: 0.88 }}
           onClick={(e) => { e.stopPropagation(); setShareSheetOpen(true); }}
           className="p-2 rounded-md text-muted-foreground hover:bg-secondary active:bg-secondary hover:text-foreground active:text-foreground transition-colors"
-          aria-label="Share post"
+          aria-label={tFallback("hubPostCard.sharePost", "Share post")}
         >
           <Share2 className="w-4 h-4" />
         </motion.button>

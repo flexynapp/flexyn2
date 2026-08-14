@@ -120,7 +120,7 @@ export default function AddToHighlightModal({ open, onClose, storyId }) {
                 type="text"
                 value={newTitle}
                 onChange={(e) => setNewTitle(e.target.value)}
-                placeholder="PRs · Meals · Trip"
+                placeholder={tFallback("addToHighlightModal.prsMealsTrip", "PRs · Meals · Trip")}
                 maxLength={40}
                 className="flex-1 px-3 py-2 rounded-lg bg-secondary border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
               />

@@ -179,7 +179,7 @@ function NewTemplateForm({ onSave, onCancel }) {
 // ── Share to Hub mini-form ────────────────────────────────────────────────────
 
 function ShareToHubForm({ template, user, onClose }) {
-  const { t } = useLanguage();
+  const { t, tFallback } = useLanguage();
   const [caption, setCaption] = useState('');
   const [privacy, setPrivacy] = useState('public');
   const [posting, setPosting] = useState(false);
@@ -226,7 +226,7 @@ function ShareToHubForm({ template, user, onClose }) {
   return (
     <div className="space-y-3 pt-2 border-t mt-3">
       <Textarea
-        placeholder="Add a caption (optional)…"
+        placeholder={tFallback("hub.composer.captionPlaceholder", "Add a caption (optional)…")}
         value={caption}
         onChange={e => setCaption(e.target.value)}
         rows={2}
@@ -421,7 +421,7 @@ function CommunityTemplateCard({ template, user, queryClient, onCopied }) {
 // loadTab: 'mine' | 'community'
 
 export default function TemplatesModal({ open, onClose, onLoadTemplate }) {
-  const { t } = useLanguage();
+  const { t, tFallback } = useLanguage();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [view, setView] = useState('choice');
@@ -608,7 +608,7 @@ export default function TemplatesModal({ open, onClose, onLoadTemplate }) {
                     <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input
                       className="ps-9"
-                      placeholder="Search templates or exercises…"
+                      placeholder={tFallback("templatesModal.searchTemplatesOrExercises", "Search templates or exercises…")}
                       value={search}
                       onChange={e => setSearch(e.target.value)}
                     />

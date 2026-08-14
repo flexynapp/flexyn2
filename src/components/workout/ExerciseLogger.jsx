@@ -323,11 +323,11 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
           )}
           {isBarbell && (
             <div className="flex items-center gap-1.5 mt-1.5">
-              <span className="text-micro font-bold uppercase tracking-wide text-muted-foreground">Bar</span>
+              <span className="text-micro font-bold uppercase tracking-wide text-muted-foreground">{tFallback("exerciseLogger.bar", "Bar")}</span>
               <select
                 value={barLbs}
                 onChange={(e) => { const v = Number(e.target.value); setActiveBarLbs(v); setBarLbs(v); }}
-                aria-label="Barbell weight"
+                aria-label={tFallback("exerciseLogger.barbellWeight", "Barbell weight")}
                 className="text-xs bg-secondary/60 border border-border rounded-md px-1.5 py-0.5 focus:outline-none focus:border-primary/50"
               >
                 {BAR_PRESETS.map(b => (
@@ -485,14 +485,14 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Finish this exercise?</AlertDialogTitle>
+            <AlertDialogTitle>{tFallback("exerciseLogger.finishThisExercise", "Finish this exercise?")}</AlertDialogTitle>
             <AlertDialogDescription>
               {sets.length - doneCount} of {sets.length} set{sets.length - doneCount === 1 ? " isn't" : "s aren't"} checked off yet.
               You can still complete the exercise — those sets just won't be marked done.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Keep going</AlertDialogCancel>
+            <AlertDialogCancel>{tFallback("exerciseLogger.keepGoing", "Keep going")}</AlertDialogCancel>
             <AlertDialogAction onClick={() => { setConfirmOpen(false); markComplete(); }}>
               Complete anyway
             </AlertDialogAction>

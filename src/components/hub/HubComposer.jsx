@@ -555,7 +555,7 @@ export default function HubComposer({ onClose }) {
           ...(scheduleEnabled && scheduledAt ? { publish_at: new Date(scheduledAt).toISOString() } : {}),
         });
         queryClient.invalidateQueries({ queryKey: ['hubFeed'] });
-        toast.success('Video posted!');
+        toast.success(tFallback("hubComposer.videoPosted", "Video posted!"));
         draft.clear();
         clearVideo();
         onClose();
@@ -926,7 +926,7 @@ export default function HubComposer({ onClose }) {
           <PickCard
             kind="poll"
             onClick={() => handlePick('poll')}
-            title="Create a Poll"
+            title={tFallback("hubComposer.createAPoll", "Create a Poll")}
             subtitle="Ask your followers to vote on something"
           />
           {/* "Share a Video" used to be a third card here. It is now an
@@ -979,7 +979,7 @@ export default function HubComposer({ onClose }) {
 
         <Section title={t('hub.share.meal')} count={recentMeals.length || undefined}>
           <PickCard kind="meal" onClick={() => handlePick('meal', null)}
-            title="Share a meal"
+            title={tFallback("hubComposer.shareAMeal", "Share a meal")}
             subtitle="Enter macros + optional photo"
             highlight />
           {recentMeals.map(m => (
@@ -1087,7 +1087,7 @@ export default function HubComposer({ onClose }) {
       {/* Photo */}
       {mealImagePreview ? (
         <div className="relative rounded-xl overflow-hidden border border-border mb-3">
-          <img loading="lazy" src={mealImagePreview} alt="Meal" className="w-full max-h-48 object-cover" />
+          <img loading="lazy" src={mealImagePreview} alt={tFallback("hub.share.meal", "Meal")} className="w-full max-h-48 object-cover" />
           <button onClick={clearMealImage} className="absolute top-2 end-2 p-1.5 rounded-full bg-black/60 text-white hover:bg-black/80 active:bg-black/80">
             <XCircle className="w-4 h-4" />
           </button>
@@ -1104,7 +1104,7 @@ export default function HubComposer({ onClose }) {
       <textarea
         value={body}
         onChange={e => bodyGuard.handleChange(e.target.value)}
-        placeholder="Add a caption… (optional)"
+        placeholder={tFallback("hubComposer.addACaptionOptional", "Add a caption… (optional)")}
         maxLength={500}
         rows={2}
         className="w-full p-3 bg-secondary/40 border border-border rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/40 mb-3"
@@ -1292,7 +1292,7 @@ export default function HubComposer({ onClose }) {
         <div className="mb-3">
           {mealImagePreview ? (
             <div className="relative rounded-xl overflow-hidden border border-border">
-              <img loading="lazy" src={mealImagePreview} alt="Meal" className="w-full max-h-48 object-cover" />
+              <img loading="lazy" src={mealImagePreview} alt={tFallback("hub.share.meal", "Meal")} className="w-full max-h-48 object-cover" />
               <button
                 onClick={clearMealImage}
                 className="absolute top-2 end-2 p-1.5 rounded-full bg-black/60 text-white hover:bg-black/80 active:bg-black/80 transition-colors"
@@ -1357,7 +1357,7 @@ export default function HubComposer({ onClose }) {
           <input
             value={collaboratorInput}
             onChange={e => setCollaboratorInput(e.target.value)}
-            placeholder="Tag a co-author by username…"
+            placeholder={tFallback("hubComposer.tagACoAuthorBy", "Tag a co-author by username…")}
             className="flex-1 bg-transparent text-sm focus:outline-none"
           />
         </div>
@@ -1417,7 +1417,7 @@ export default function HubComposer({ onClose }) {
           className="w-full flex flex-col items-center justify-center gap-2 py-8 rounded-xl border-2 border-dashed border-border text-sm text-muted-foreground hover:border-primary/50 hover:text-foreground active:text-foreground transition-colors mb-3"
         >
           <Film className="w-8 h-8 opacity-40" />
-          <span>Tap to select a video</span>
+          <span>{tFallback("hubComposer.tapToSelectAVideo", "Tap to select a video")}</span>
           <span className="text-micro opacity-60">MP4 / MOV · max 50 MB</span>
         </button>
       )}
@@ -1433,7 +1433,7 @@ export default function HubComposer({ onClose }) {
       <textarea
         value={body}
         onChange={e => bodyGuard.handleChange(e.target.value)}
-        placeholder="Add a caption… (optional)"
+        placeholder={tFallback("hubComposer.addACaptionOptional", "Add a caption… (optional)")}
         maxLength={500}
         rows={2}
         className="w-full p-3 bg-secondary/40 border border-border rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/40 mb-3"
@@ -1532,7 +1532,7 @@ export default function HubComposer({ onClose }) {
                 type="text"
                 value={cwLabel}
                 onChange={e => setCwLabel(e.target.value.slice(0, 60))}
-                placeholder="Brief description (max 60 chars)"
+                placeholder={tFallback("hubComposer.briefDescriptionMax60Chars", "Brief description (max 60 chars)")}
                 className="w-full mt-1 px-2 py-1.5 text-sm rounded-md border border-border bg-background focus:outline-none focus:border-primary/50"
                 maxLength={60}
               />

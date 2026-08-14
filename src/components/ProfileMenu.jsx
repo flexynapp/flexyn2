@@ -419,7 +419,7 @@ export default function ProfileMenu({ compact = false } = {}) {
                         <button
                           onClick={() => setOpen(false)}
                           className="p-1 rounded-md hover:bg-secondary active:bg-secondary transition-colors shrink-0 text-muted-foreground"
-                          aria-label="Close menu"
+                          aria-label={tFallback("profileMenu.closeMenu", "Close menu")}
                         >
                           <X className="w-4 h-4" />
                         </button>

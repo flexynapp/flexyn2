@@ -63,7 +63,7 @@ export default function MemberDirectoryModal({ open, onClose, gymId, gymOwnerId 
             </h2>
             <button
               onClick={onClose}
-              aria-label="Close"
+              aria-label={tFallback("common.close", "Close")}
               className="w-7 h-7 rounded-full bg-secondary text-muted-foreground hover:text-foreground active:text-foreground flex items-center justify-center"
             >
               <X className="w-3.5 h-3.5" />
@@ -78,7 +78,7 @@ export default function MemberDirectoryModal({ open, onClose, gymId, gymOwnerId 
             ) : members.length === 0 ? (
               <EmptyState
                 icon={Users}
-                title="No members yet"
+                title={tFallback("memberDirectoryModal.noMembersYet", "No members yet")}
                 body="Be the first to share the Flexyn Code with your gym crew."
               />
             ) : (
@@ -113,7 +113,7 @@ export default function MemberDirectoryModal({ open, onClose, gymId, gymOwnerId 
                           <div className="flex items-center gap-1.5">
                             <span className="text-sm font-semibold truncate">@{handle}</span>
                             {isOwner && (
-                              <Crown className="w-3 h-3 text-amber-500 shrink-0" title="Gym owner" />
+                              <Crown className="w-3 h-3 text-amber-500 shrink-0" title={tFallback("memberDirectoryModal.gymOwner", "Gym owner")} />
                             )}
                           </div>
                           <div className="flex items-center gap-2 text-micro text-muted-foreground">

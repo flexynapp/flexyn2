@@ -55,7 +55,7 @@ function NewHighlightModal({ open, onClose, onCreated }) {
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="PRs · Meals · Trip"
+            placeholder={tFallback("storyHighlightsRail.prsMealsTrip", "PRs · Meals · Trip")}
             maxLength={40}
             className="w-full px-3 py-2 rounded-lg bg-secondary border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
             autoFocus
@@ -93,7 +93,7 @@ export default function StoryHighlightsRail({ userEmail, isOwn, onOpenAlbum }) {
   if (!isOwn && highlights.length === 0) return null;
 
   const handleDelete = async (id) => {
-    if (!confirm('Delete this highlight album?')) return;
+    if (!confirm(tFallback("storyHighlightsRail.deleteThisHighlightAlbum", "Delete this highlight album?"))) return;
     const res = await deleteHighlight(id);
     if (res.ok) {
       qc.invalidateQueries({ queryKey: ['storyHighlights', userEmail] });

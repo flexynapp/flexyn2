@@ -39,7 +39,7 @@ export default function CrewStatsPanel({ crewId, onClose }) {
   const fmt = useNumberFormatter();
   const { weightUnit } = useWeightUnit();
   const fmtDate = useDateFormatter();
-  const { t } = useLanguage();
+  const { t, tFallback } = useLanguage();
   const { data: stats, isLoading } = useQuery({
     queryKey: ['crewStats', crewId],
     queryFn:  () => getCrewStats(crewId),
@@ -91,7 +91,7 @@ export default function CrewStatsPanel({ crewId, onClose }) {
       <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
         <div className="flex items-center gap-2">
           <BarChart3 className="w-4 h-4" style={{ color: 'hsl(var(--primary))' }} />
-          <h3 className="font-heading font-bold text-base">Crew Stats</h3>
+          <h3 className="font-heading font-bold text-base">{tFallback("crewStatsPanel.crewStats", "Crew Stats")}</h3>
           <span className="text-xs text-muted-foreground">(this week)</span>
         </div>
         <button

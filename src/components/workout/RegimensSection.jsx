@@ -24,7 +24,7 @@ import { reportError } from '@/lib/reportError';
 import { fireFirstRegimenCelebration } from '@/lib/firstRegimenCelebration';
 
 export default function RegimensSection({ onStartRegimen }) {
-  const { t } = useLanguage();
+  const { t, tFallback } = useLanguage();
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
   const [expandedId, setExpandedId] = useState(null);
@@ -351,7 +351,7 @@ export default function RegimensSection({ onStartRegimen }) {
               {/* Ghost-button action row — wraps cleanly on narrow phones */}
               <div className="flex flex-wrap items-center gap-1 mb-2 -ms-2">
                 <motion.div whileHover={{ scale: 1.07 }} whileTap={{ scale: 0.93 }} transition={{ type: 'spring', stiffness: 420, damping: 18 }}>
-                  <Button variant="ghost" size="icon" onClick={() => toggleExpand(r.id)} title="View exercises">
+                  <Button variant="ghost" size="icon" onClick={() => toggleExpand(r.id)} title={tFallback("regimensSection.viewExercises", "View exercises")}>
                     {expandedId === r.id ? <ChevronUp className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </Button>
                 </motion.div>

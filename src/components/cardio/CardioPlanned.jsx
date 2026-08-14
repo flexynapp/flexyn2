@@ -102,7 +102,7 @@ function PlanForm({ onSave, onCancel, distanceUnit }) {
   const today = localDateKey();
 
   const handleSave = async () => {
-    if (!title.trim()) { toast.error('Give this plan a title'); return; }
+    if (!title.trim()) { toast.error(tFallback("cardioPlanned.giveThisPlanATitle", "Give this plan a title")); return; }
     // Reject past dates explicitly. The HTML `min={today}` attribute is
     // advisory only — a paste / direct-value set bypasses it and a
     // past-dated plan silently lands in the upcoming list as already-
@@ -144,11 +144,11 @@ function PlanForm({ onSave, onCancel, distanceUnit }) {
       exit={{ opacity: 0, y: -8 }}
     >
       <Card className="p-4 space-y-4 border-primary/30 bg-primary/5">
-        <p className="text-sm font-semibold">New Planned Session</p>
+        <p className="text-sm font-semibold">{tFallback("cardioPlanned.newPlannedSession", "New Planned Session")}</p>
 
         {/* Title */}
         <div>
-          <label className="text-xs font-medium text-muted-foreground mb-1 block">Title</label>
+          <label className="text-xs font-medium text-muted-foreground mb-1 block">{tFallback("cardioPlanned.title", "Title")}</label>
           <Input
             placeholder="e.g. Morning 5k, Long ride…"
             value={title}
@@ -159,7 +159,7 @@ function PlanForm({ onSave, onCancel, distanceUnit }) {
 
         {/* Type */}
         <div>
-          <label className="text-xs font-medium text-muted-foreground mb-1 block">Activity</label>
+          <label className="text-xs font-medium text-muted-foreground mb-1 block">{tFallback("calendar.title", "Activity")}</label>
           <select
             className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
             value={type}
@@ -173,7 +173,7 @@ function PlanForm({ onSave, onCancel, distanceUnit }) {
 
         {/* Date */}
         <div>
-          <label className="text-xs font-medium text-muted-foreground mb-1 block">Date</label>
+          <label className="text-xs font-medium text-muted-foreground mb-1 block">{tFallback("cardio.field.date", "Date")}</label>
           <Input
             type="date"
             value={date}
@@ -186,7 +186,7 @@ function PlanForm({ onSave, onCancel, distanceUnit }) {
             point is to commit to a slot, not to a minute, and a plan with
             no time is a plan nothing can remind you about. */}
         <div>
-          <label className="text-xs font-medium text-muted-foreground mb-1 block">Time</label>
+          <label className="text-xs font-medium text-muted-foreground mb-1 block">{tFallback("cardio.detail.time", "Time")}</label>
           <div className="flex gap-2">
             {HOUR_SLOTS.map(slot => {
               const past = slotIsPast(date, slot.hour);
@@ -243,7 +243,7 @@ function PlanForm({ onSave, onCancel, distanceUnit }) {
           <Button className="flex-1" onClick={handleSave} disabled={saving}>
             {saving ? 'Saving…' : 'Add Plan'}
           </Button>
-          <Button variant="outline" onClick={onCancel} disabled={saving}>Cancel</Button>
+          <Button variant="outline" onClick={onCancel} disabled={saving}>{tFallback("coach.plan.cancel", "Cancel")}</Button>
         </div>
       </Card>
     </motion.div>
@@ -251,7 +251,7 @@ function PlanForm({ onSave, onCancel, distanceUnit }) {
 }
 
 export default function CardioPlanned() {
-  const { language } = useLanguage();
+  const { language, tFallback } = useLanguage();
   const { user } = useAuth();
   const { distanceUnit } = useDistanceUnit();
   const queryClient = useQueryClient();
@@ -276,7 +276,7 @@ export default function CardioPlanned() {
       setAdding(false);
     } catch (err) {
       reportError(err, { feature: 'cardio.planned.add' });
-      toast.error('Failed to schedule');
+      toast.error(tFallback("cardioPlanned.failedToSchedule", "Failed to schedule"));
     }
   };
 
@@ -289,10 +289,10 @@ export default function CardioPlanned() {
       const ok = await cancelScheduledWorkout(plan.id);
       if (!ok) throw new Error('cancel failed');
       queryClient.invalidateQueries({ queryKey: ['cardioSchedules', user?.email] });
-      toast.success('Plan cancelled');
+      toast.success(tFallback("cardioPlanned.planCancelled", "Plan cancelled"));
     } catch (err) {
       reportError(err, { feature: 'cardio.planned.cancel' });
-      toast.error('Failed to cancel plan');
+      toast.error(tFallback("cardioPlanned.failedToCancelPlan", "Failed to cancel plan"));
     } finally {
       setDeleting(null);
     }
@@ -340,7 +340,7 @@ export default function CardioPlanned() {
       {/* Upcoming */}
       {upcoming.length > 0 && (
         <div className="space-y-2">
-          <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground px-1">Upcoming</p>
+          <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground px-1">{tFallback("cardioPlanned.upcoming", "Upcoming")}</p>
           {upcoming.map(plan => {
             const info = typeInfo(planType(plan));
             const planDate = parseISO(plan.scheduled_date);
@@ -395,7 +395,7 @@ export default function CardioPlanned() {
       {/* Past (uncompleted) */}
       {past.length > 0 && (
         <div className="space-y-2">
-          <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground/60 px-1">Past Plans</p>
+          <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground/60 px-1">{tFallback("cardioPlanned.pastPlans", "Past Plans")}</p>
           {past.map(plan => {
             const info = typeInfo(planType(plan));
             const isDone = plan.status === 'completed';
@@ -433,7 +433,7 @@ export default function CardioPlanned() {
       {plans.length === 0 && !adding && (
         <Card className="p-8 border-dashed flex flex-col items-center gap-3 text-center">
           <Clock className="w-8 h-8 text-muted-foreground/40" />
-          <p className="text-sm font-semibold text-muted-foreground">No planned sessions</p>
+          <p className="text-sm font-semibold text-muted-foreground">{tFallback("cardioPlanned.noPlannedSessions", "No planned sessions")}</p>
           <p className="text-xs text-muted-foreground/70 max-w-[200px]">
             Schedule your upcoming workouts to stay on track with your goals.
           </p>

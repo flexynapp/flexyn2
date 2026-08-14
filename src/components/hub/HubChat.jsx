@@ -1076,10 +1076,10 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
 
       if (uploadFailed && !trimmed) {
         queryClient.setQueryData(queryKey, (rows) => (rows || []).filter(r => r.id !== tempId));
-        toast.error('Image upload failed — try again');
+        toast.error(tFallback("hubChat.imageUploadFailedTryAgain", "Image upload failed — try again"));
         return;
       }
-      if (uploadFailed) toast.error('Image upload failed — message sent without attachment');
+      if (uploadFailed) toast.error(tFallback("hubChat.imageUploadFailedMessageSent", "Image upload failed — message sent without attachment"));
 
       const sent = await hubMessages.sendMessage({
         conversationId: conversation.id,
@@ -1197,14 +1197,14 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
             the search clears the query so the next open starts fresh. */}
         <button
           onClick={() => { setSearchOpen(v => { if (v) setSearchQuery(''); return !v; }); }}
-          aria-label="Search this conversation"
+          aria-label={tFallback("hubChat.searchThisConversation", "Search this conversation")}
           className={`p-1.5 rounded-md transition-colors ${searchOpen ? 'bg-primary/15 text-primary' : 'hover:bg-secondary active:bg-secondary'}`}
         >
           <Search className="w-4 h-4" />
         </button>
         <button
           onClick={() => setPinnedOpen(v => !v)}
-          aria-label="Pinned messages"
+          aria-label={tFallback("hubChat.pinnedMessages", "Pinned messages")}
           className={`p-1.5 rounded-md transition-colors text-base leading-none ${pinnedOpen ? 'bg-primary/15' : 'hover:bg-secondary active:bg-secondary'}`}
         >
           📌
@@ -1223,7 +1223,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
         return (
           <div className="mb-2 shrink-0 flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/10 border border-primary/30">
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-bold text-primary uppercase tracking-wide">Message request</p>
+              <p className="text-xs font-bold text-primary uppercase tracking-wide">{tFallback("hubChat.messageRequest", "Message request")}</p>
               <p className="text-micro text-muted-foreground">Accept to move this conversation to your inbox.</p>
             </div>
             <button
@@ -1249,11 +1249,11 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
             autoFocus
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search this conversation…"
+            placeholder={tFallback("hubChat.searchThisConversation2", "Search this conversation…")}
             className="flex-1 bg-transparent text-sm outline-none placeholder-muted-foreground/60"
           />
           {searchQuery && (
-            <button onClick={() => setSearchQuery('')} className="text-muted-foreground hover:text-foreground active:text-foreground" aria-label="Clear">
+            <button onClick={() => setSearchQuery('')} className="text-muted-foreground hover:text-foreground active:text-foreground" aria-label={tFallback("implement.clear", "Clear")}>
               <X className="w-3.5 h-3.5" />
             </button>
           )}
@@ -1267,7 +1267,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
           <div className="mb-2 shrink-0 rounded-xl border border-primary/30 bg-primary/5 overflow-hidden">
             <div className="flex items-center gap-2 px-3 py-2 border-b border-primary/20">
               <span className="text-sm">📌</span>
-              <span className="text-xs font-bold text-primary uppercase tracking-wide">Pinned Messages</span>
+              <span className="text-xs font-bold text-primary uppercase tracking-wide">{tFallback("hubChat.pinnedMessages2", "Pinned Messages")}</span>
               <span className="ms-auto text-xs text-muted-foreground">{pinned.length}</span>
             </div>
             {pinned.length === 0 ? (
@@ -1508,7 +1508,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
                             // recipient sees that something used to be here
                             // (iMessage / IG pattern).
                             if (m.deleted_at) {
-                              return <span className="italic opacity-70">This message was deleted</span>;
+                              return <span className="italic opacity-70">{tFallback("hubChat.thisMessageWasDeleted", "This message was deleted")}</span>;
                             }
                             // Sticker message (mig 115) — render the emoji
                             // glyph from the loot catalog at large size with
@@ -1560,7 +1560,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
                             <button
                               type="button"
                               onClick={(e) => { e.stopPropagation(); window.open(m.attachment_url, '_blank', 'noopener,noreferrer'); }}
-                              aria-label="Open GIF in new tab"
+                              aria-label={tFallback("hubChat.openGifInNewTab", "Open GIF in new tab")}
                               className={`block rounded-lg overflow-hidden focus:outline-none ${(m.body || m.content) ? 'mt-1.5' : ''}`}
                             >
                               <img loading="lazy" src={m.attachment_url} alt="GIF" className="rounded-lg max-h-64 object-cover max-w-full" />
@@ -1571,10 +1571,10 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
                             <button
                               type="button"
                               onClick={(e) => { e.stopPropagation(); window.open(m.attachment_url, '_blank', 'noopener,noreferrer'); }}
-                              aria-label="Open attachment in new tab"
+                              aria-label={tFallback("hubChat.openAttachmentInNewTab", "Open attachment in new tab")}
                               className={`block rounded-lg overflow-hidden focus:outline-none ${(m.body || m.content) ? 'mt-1.5' : ''}`}
                             >
-                              <img loading="lazy" src={m.attachment_url} alt="Message attachment" className="rounded-lg max-h-64 object-cover max-w-full" />
+                              <img loading="lazy" src={m.attachment_url} alt={tFallback("hubChat.messageAttachment", "Message attachment")} className="rounded-lg max-h-64 object-cover max-w-full" />
                             </button>
                           )}
                         </div>
@@ -1605,7 +1605,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
                             className={`absolute -top-2 text-xs leading-none pointer-events-none select-none ${
                               isMine ? '-start-3' : '-end-3'
                             }`}
-                            title="Pinned message"
+                            title={tFallback("hubChat.pinnedMessage", "Pinned message")}
                           >📌</span>
                         )}
                       </div>
@@ -1793,10 +1793,10 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
       {attachmentPreview && (
         <div className="flex items-center gap-2 px-1 py-1.5 border-t border-border shrink-0">
           <div className="relative w-14 h-14 shrink-0">
-            <img loading="lazy" src={attachmentPreview} alt="Attachment preview" className="w-full h-full object-cover rounded-lg" />
+            <img loading="lazy" src={attachmentPreview} alt={tFallback("hubChat.attachmentPreview", "Attachment preview")} className="w-full h-full object-cover rounded-lg" />
             <button
               onClick={clearAttachment}
-              aria-label="Remove attachment"
+              aria-label={tFallback("hubChat.removeAttachment", "Remove attachment")}
               className="relative before:absolute before:content-[''] before:-inset-2.5 absolute -top-1.5 -end-1.5 w-5 h-5 rounded-full bg-foreground text-background flex items-center justify-center shadow"
             >
               <X className="w-3 h-3" />
@@ -1860,7 +1860,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
         <button
           onClick={() => setStickerPickerOpen(true)}
           disabled={pendingSendBlocked}
-          aria-label="Send sticker"
+          aria-label={tFallback("hubChat.sendSticker", "Send sticker")}
           className="p-2 rounded-lg text-muted-foreground hover:text-foreground active:text-foreground hover:bg-secondary active:bg-secondary transition-colors shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <Smile className="w-4 h-4" />
@@ -1872,7 +1872,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
           <button
             onClick={() => setGifPickerOpen(true)}
             disabled={pendingSendBlocked}
-            aria-label="Send GIF"
+            aria-label={tFallback("hubChat.sendGif", "Send GIF")}
             className="px-2 py-1.5 rounded-lg text-micro font-extrabold text-muted-foreground hover:text-foreground active:text-foreground hover:bg-secondary active:bg-secondary transition-colors shrink-0 border border-border disabled:opacity-40 disabled:cursor-not-allowed"
           >
             GIF
@@ -1912,8 +1912,8 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
         {draft.trim() && (
           <button
             onClick={() => setScheduleOpen(v => !v)}
-            aria-label="Schedule message"
-            title="Schedule send"
+            aria-label={tFallback("hubChat.scheduleMessage", "Schedule message")}
+            title={tFallback("hubChat.scheduleSend", "Schedule send")}
             className={`p-2 rounded-lg transition-colors shrink-0 ${scheduleOpen ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:text-foreground active:text-foreground hover:bg-secondary active:bg-secondary'}`}
           >
             <Clock className="w-4 h-4" />
@@ -1922,7 +1922,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
         <button
           onClick={handleSend}
           disabled={sending || uploading || pendingSendBlocked || (!draft.trim() && !attachmentFile)}
-          aria-label="Send"
+          aria-label={tFallback("hubChat.send", "Send")}
           className="p-2 rounded-lg bg-primary text-primary-foreground disabled:opacity-50 disabled:cursor-not-allowed transition-opacity shrink-0"
         >
           <Send className="w-4 h-4" />

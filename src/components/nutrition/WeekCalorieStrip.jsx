@@ -36,7 +36,7 @@ export default function WeekCalorieStrip({
   canGoForward = false,
   canGoBack = true,
 }) {
-  const { language } = useLanguage();
+  const { language, tFallback } = useLanguage();
   const locale = getDateLocale(language);
   const fmt = useNumberFormatter();
 
@@ -61,7 +61,7 @@ export default function WeekCalorieStrip({
           type="button"
           onClick={() => onShift?.(-1)}
           disabled={!canGoBack}
-          aria-label="Previous week"
+          aria-label={tFallback("weekCalorieStrip.previousWeek", "Previous week")}
           className="w-8 h-8 shrink-0 rounded-lg flex items-center justify-center text-muted-foreground active:bg-secondary/60 disabled:opacity-25"
         >
           <ChevronLeft className="w-4 h-4" />
@@ -73,7 +73,7 @@ export default function WeekCalorieStrip({
           type="button"
           onClick={() => onShift?.(1)}
           disabled={!canGoForward}
-          aria-label="Next week"
+          aria-label={tFallback("weekCalorieStrip.nextWeek", "Next week")}
           className="w-8 h-8 shrink-0 rounded-lg flex items-center justify-center text-muted-foreground active:bg-secondary/60 disabled:opacity-25"
         >
           <ChevronRight className="w-4 h-4" />

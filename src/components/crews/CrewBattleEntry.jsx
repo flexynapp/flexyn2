@@ -78,7 +78,7 @@ export default function CrewBattleEntry({ crew, currentUserId }) {
     onMutate: () => { enteringRef.current = true; },
     onSuccess: (res) => {
       if (res?.status === 'matched') {
-        toast.success('Rival found — the battle is live!', {
+        toast.success(tFallback("crewBattleEntry.rivalFoundTheBattle", "Rival found — the battle is live!"), {
           description: 'Seven days. Most XP wins.',
         });
       } else if (res?.status === 'already_queued') {
@@ -89,7 +89,7 @@ export default function CrewBattleEntry({ crew, currentUserId }) {
       qc.invalidateQueries({ queryKey: ['activeWar', crew.id] });
       qc.invalidateQueries({ queryKey: ['queuedWar', crew.id] });
     },
-    onError: (err) => toast.error('Could not enter battle', { description: err.message }),
+    onError: (err) => toast.error(tFallback("crewBattleEntry.couldNotEnterBattle", "Could not enter battle"), { description: err.message }),
     onSettled: () => { enteringRef.current = false; },
   });
   const handleEnter = () => {
@@ -103,7 +103,7 @@ export default function CrewBattleEntry({ crew, currentUserId }) {
       toast.success('Left the queue.');
       qc.invalidateQueries({ queryKey: ['queuedWar', crew.id] });
     },
-    onError: (err) => toast.error('Could not leave the queue', { description: err.message }),
+    onError: (err) => toast.error(tFallback("crewBattleEntry.couldNotLeaveTheQueue", "Could not leave the queue"), { description: err.message }),
   });
 
   if (warLoading) {
@@ -145,7 +145,7 @@ export default function CrewBattleEntry({ crew, currentUserId }) {
           </div>
           {queued ? (
             <>
-              <p className="text-sm font-bold mb-1">Waiting for a rival</p>
+              <p className="text-sm font-bold mb-1">{tFallback("crewBattleEntry.waitingForARival", "Waiting for a rival")}</p>
               <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
                 You're in the queue. The next crew to enter gets matched against you,
                 and the battle starts the moment they do.
@@ -164,7 +164,7 @@ export default function CrewBattleEntry({ crew, currentUserId }) {
             </>
           ) : (
             <>
-              <p className="text-sm font-bold mb-1">No Active Battle</p>
+              <p className="text-sm font-bold mb-1">{tFallback("crewBattleEntry.noActiveBattle", "No Active Battle")}</p>
               <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
                 Enter matchmaking to get paired with a rival crew in your division. Wars run
                 for 7 days, scored on volume lifted, sessions logged and days trained.

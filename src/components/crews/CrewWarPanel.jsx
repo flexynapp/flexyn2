@@ -168,7 +168,7 @@ function markNotified(userId, warId) {
 
 export default function CrewWarPanel({ crewId, currentUserId }) {
   const { user } = useAuth();
-  const { language } = useLanguage();
+  const { language, tFallback } = useLanguage();
   const { data: war } = useQuery({
     queryKey:  ['activeWar', crewId],
     queryFn:   () => getActiveWarForCrew(crewId),
@@ -299,9 +299,9 @@ export default function CrewWarPanel({ crewId, currentUserId }) {
       <div className={`px-4 py-3 flex items-center justify-between ${winning ? 'bg-primary/10' : tied ? 'bg-amber-500/5' : 'bg-rose-500/5'}`}>
         <div className="flex items-center gap-2">
           <Shield className={`w-4 h-4 ${winning ? 'text-primary' : tied ? 'text-amber-500' : 'text-rose-500'}`} />
-          <span className="font-black text-sm">Crew War</span>
-          {winning && <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">Leading</span>}
-          {tied && !completed && <span className="text-xs font-bold text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded-full">Tied</span>}
+          <span className="font-black text-sm">{tFallback("crewWarPanel.crewWar", "Crew War")}</span>
+          {winning && <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">{tFallback("crewWarPanel.leading", "Leading")}</span>}
+          {tied && !completed && <span className="text-xs font-bold text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded-full">{tFallback("crewWarPanel.tied", "Tied")}</span>}
         </div>
         {/* Hide the running countdown on completed wars — otherwise
             "5h left" and "Victory!" both render simultaneously and
@@ -323,7 +323,7 @@ export default function CrewWarPanel({ crewId, currentUserId }) {
 
         {/* My crew's ranked members */}
         <div>
-          <p className="text-xs font-semibold mb-1">Who's carrying</p>
+          <p className="text-xs font-semibold mb-1">{tFallback("crewWarPanel.whoSCarrying", "Who's carrying")}</p>
           {myContribs.length === 0 ? (
             <p className="text-xs text-muted-foreground">
               Nobody has trained toward this yet — log a session to put your crew on the board.
@@ -358,7 +358,7 @@ export default function CrewWarPanel({ crewId, currentUserId }) {
             {war.winner_crew_id === crewId ? (
               <>
                 <Crown className="w-4 h-4 text-yellow-500" />
-                <span className="font-black text-sm text-primary">Victory!</span>
+                <span className="font-black text-sm text-primary">{tFallback("crewWarPanel.victory", "Victory!")}</span>
               </>
             ) : (
               <>

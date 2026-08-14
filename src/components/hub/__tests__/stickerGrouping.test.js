@@ -135,7 +135,10 @@ describe('the sticker button', () => {
 
   it('sits before Share and carries the trailing margin', () => {
     const starAt = CARD.indexOf('hub.post.addSticker');
-    const shareAt = CARD.indexOf('aria-label="Share post"');
+    // By key, like the sticker button on the line above. The share button used
+    // to be found by its literal aria-label, which stopped existing the moment
+    // that label was extracted — the position this test guards had not moved.
+    const shareAt = CARD.indexOf('hubPostCard.sharePost');
     expect(starAt).toBeGreaterThan(-1);
     expect(shareAt).toBeGreaterThan(starAt);
     // ms-auto, not ml-auto: the row must mirror in RTL.

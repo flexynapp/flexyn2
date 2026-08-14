@@ -1515,7 +1515,7 @@ export default function Nutrition() {
                 }`}
               >
                 {editMode ? (
-                  <><CheckCircle2 className="w-3.5 h-3.5" /><span>Done</span></>
+                  <><CheckCircle2 className="w-3.5 h-3.5" /><span>{tFallback("coach.plan.done", "Done")}</span></>
                 ) : (
                   <LayoutGrid className="w-3.5 h-3.5" />
                 )}
@@ -1524,7 +1524,7 @@ export default function Nutrition() {
                 <button
                   type="button"
                   onClick={handleSetAsDefault}
-                  title="Save this layout as default for all new users"
+                  title={tFallback("nutrition.saveThisLayoutAsDefault", "Save this layout as default for all new users")}
                   className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold text-primary dark:text-primary hover:bg-primary/10 active:bg-primary/10 transition-colors"
                 >
                   <Save className="w-3 h-3" />
@@ -1535,7 +1535,7 @@ export default function Nutrition() {
                 <button
                   type="button"
                   onClick={handleResetOrder}
-                  title="Reset to default"
+                  title={tFallback("nutrition.resetToDefault", "Reset to default")}
                   className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold text-muted-foreground hover:text-foreground active:text-foreground hover:bg-secondary active:bg-secondary transition-colors"
                 >
                   <RotateCcw className="w-3 h-3" />
@@ -1569,7 +1569,7 @@ export default function Nutrition() {
               <div className="flex items-center justify-between px-4 py-3 border-b border-border">
                 <div className="flex items-center gap-2">
                   <Clock className="w-4 h-4 text-primary" />
-                  <span className="font-heading font-bold text-sm">Scanner History</span>
+                  <span className="font-heading font-bold text-sm">{tFallback("nutrition.scannerHistory", "Scanner History")}</span>
                 </div>
                 {scanHistory.length > 0 && (
                   <button
@@ -1631,7 +1631,7 @@ export default function Nutrition() {
                           }}
                           disabled={saveMutation.isPending}
                           className="shrink-0 w-8 h-8 rounded-full bg-primary/10 hover:bg-primary active:bg-primary text-primary hover:text-primary-foreground active:text-primary-foreground flex items-center justify-center transition-colors disabled:opacity-50"
-                          title="Log to today"
+                          title={tFallback("nutrition.logToToday", "Log to today")}
                         >
                           <Plus className="w-4 h-4" />
                         </motion.button>
@@ -1940,7 +1940,7 @@ export default function Nutrition() {
       >
         {/* Meal-type compact pills — right above the form */}
         <div className="mb-2 flex items-center justify-between gap-2">
-          <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Meal</p>
+          <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">{tFallback("hub.share.meal", "Meal")}</p>
           <MealTypePicker value={mealType} onChange={setMealType} />
         </div>
         <ErrorBoundary label="LogMealForm">
@@ -2063,7 +2063,7 @@ export default function Nutrition() {
                 className="border-dashed text-xs md:text-sm"
                 onClick={() => setShowBottleModal(true)}
               >
-                <Beaker className="w-4 h-4 me-1" /> <span className="hidden sm:inline">{t('nutrition.customBottle')}</span><span className="sm:hidden">Bottle</span>
+                <Beaker className="w-4 h-4 me-1" /> <span className="hidden sm:inline">{t('nutrition.customBottle')}</span><span className="sm:hidden">{tFallback("nutrition.bottle", "Bottle")}</span>
               </Button>
             </div>
 

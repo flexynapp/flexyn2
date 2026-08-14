@@ -105,7 +105,7 @@ function computePreview({ userProfile, goal, targetLbs, targetDate, activity }) 
 }
 
 export default function NutritionOnboardingModal({ open, userProfile, onComplete, onDismiss }) {
-  const { t } = useLanguage();
+  const { t, tFallback } = useLanguage();
   const { weightUnit } = useWeightUnit();
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -296,7 +296,7 @@ export default function NutritionOnboardingModal({ open, userProfile, onComplete
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) handleDismissWithoutCompleting(); }}>
-      <DialogContent className="max-w-md p-0 overflow-hidden" title="Set your nutrition targets">
+      <DialogContent className="max-w-md p-0 overflow-hidden" title={tFallback("nutritionOnboardingModal.setYourNutritionTargets", "Set your nutrition targets")}>
         {/* Progress bar */}
         <div className="w-full h-1 bg-secondary">
           <motion.div
@@ -316,7 +316,7 @@ export default function NutritionOnboardingModal({ open, userProfile, onComplete
         <button
           type="button"
           onClick={handleDismissWithoutCompleting}
-          aria-label="Close"
+          aria-label={tFallback("common.close", "Close")}
           className="absolute end-0 top-0 z-20 w-12 h-12 bg-transparent touch-manipulation"
         />
 
@@ -550,7 +550,7 @@ export default function NutritionOnboardingModal({ open, userProfile, onComplete
                 {/* Custom / free-text exclusions — for anything not in the list
                     (e.g. shrimp but not all shellfish, cilantro, a nightshade). */}
                 <div className="mt-4 pt-4 border-t border-border/50">
-                  <p className="text-xs font-semibold text-foreground mb-1.5">Something else to avoid?</p>
+                  <p className="text-xs font-semibold text-foreground mb-1.5">{tFallback("nutritionOnboardingModal.somethingElseToAvoid", "Something else to avoid?")}</p>
                   <div className="flex gap-2">
                     <input
                       value={customInput}

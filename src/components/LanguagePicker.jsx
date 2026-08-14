@@ -5,7 +5,7 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 export default function LanguagePicker({ variant = 'inline', onSelect, iconOnly = false }) {
-  const { language, setLanguage, SUPPORTED_LANGUAGES, currentLanguage } = useLanguage();
+  const { language, setLanguage, SUPPORTED_LANGUAGES, currentLanguage, tFallback } = useLanguage();
   const [open, setOpen] = useState(false);
   const [dropdownStyle, setDropdownStyle] = useState({});
   // Pin the page behind this overlay — see @/lib/scrollLock.
@@ -93,7 +93,7 @@ export default function LanguagePicker({ variant = 'inline', onSelect, iconOnly 
           ref={triggerRef}
           onClick={handleOpen}
           className="flex items-center gap-0.5 justify-center px-2 h-8 rounded-lg border border-border hover:bg-secondary active:bg-secondary transition-colors"
-          title="Change language"
+          title={tFallback("languagePicker.changeLanguage", "Change language")}
         >
           <span className="text-base leading-none">🌐</span>
         </button>

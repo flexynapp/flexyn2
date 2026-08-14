@@ -109,7 +109,7 @@ function PopularityBadge({ count, index }) {
 
 // ── Regimen card ──────────────────────────────────────────────────────────────
 function RegimenCard({ regimen, index, isMine, user, onAdopted }) {
-  const { t } = useLanguage();
+  const { t, tFallback } = useLanguage();
   const qc = useQueryClient();
   const [expanded, setExpanded] = useState(false);
   const muscles = useMemo(() => regimenMuscles(regimen), [regimen]);
@@ -305,7 +305,7 @@ function RegimenCard({ regimen, index, isMine, user, onAdopted }) {
                 {adoptMutation.isSuccess ? 'Saved!' : adoptMutation.isPending ? '…' : 'Add'}
               </motion.button>
             ) : (
-              <span className="text-micro text-muted-foreground">Your regimen</span>
+              <span className="text-micro text-muted-foreground">{tFallback("regimenStorePage.yourRegimen", "Your regimen")}</span>
             )}
           </div>
         </div>
@@ -352,7 +352,7 @@ function RegimenCard({ regimen, index, isMine, user, onAdopted }) {
 
 export default function RegimenStorePage({ onBack, onPublish }) {
   const { user } = useAuth();
-  const { t } = useLanguage();
+  const { t, tFallback } = useLanguage();
   const [search, setSearch] = useState('');
   const [muscleFilter, setMuscleFilter] = useState('All');
   // The search field is collapsed to an icon until asked for. It is a
@@ -455,14 +455,14 @@ export default function RegimenStorePage({ onBack, onPublish }) {
         <motion.button
           whileTap={{ scale: 0.93 }}
           onClick={onBack}
-          aria-label="Back"
+          aria-label={tFallback("achievements.vault.back", "Back")}
           className="flex items-center justify-center w-9 h-9 -ms-2 shrink-0 text-muted-foreground hover:text-foreground active:text-foreground transition-colors rounded-lg hover:bg-secondary active:bg-secondary"
         >
           <ChevronLeft className="w-5 h-5 rtl:scale-x-[-1]" />
         </motion.button>
 
         <div className="flex-1 min-w-0">
-          <h2 className="font-heading font-bold text-xl leading-tight">Explore Regimens</h2>
+          <h2 className="font-heading font-bold text-xl leading-tight">{tFallback("workout.exploreRegimens", "Explore Regimens")}</h2>
           {!isLoading && templates.length > 0 && (
             <p className="text-xs text-muted-foreground mt-0.5">
               {templates.length === 1 ? '1 program' : `${templates.length} programs`} shared by the community
@@ -481,7 +481,7 @@ export default function RegimenStorePage({ onBack, onPublish }) {
           <motion.button
             whileTap={{ scale: 0.93 }}
             onClick={() => { setSearchOpen(true); setTimeout(() => searchRef.current?.focus(), 60); }}
-            aria-label="Search regimens"
+            aria-label={tFallback("regimenStorePage.searchRegimens", "Search regimens")}
             aria-expanded={false}
             className="flex items-center justify-center w-9 h-9 shrink-0 rounded-full border border-border bg-card text-muted-foreground hover:text-foreground active:text-foreground transition-colors"
           >
@@ -506,8 +506,8 @@ export default function RegimenStorePage({ onBack, onPublish }) {
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Escape') { setSearch(''); setSearchOpen(false); } }}
-                placeholder="Search regimens, exercises…"
-                aria-label="Search regimens"
+                placeholder={tFallback("regimenStorePage.searchRegimensExercises", "Search regimens, exercises…")}
+                aria-label={tFallback("regimenStorePage.searchRegimens", "Search regimens")}
                 className="ps-9 pe-9 h-11 text-sm"
               />
               <button
@@ -589,7 +589,7 @@ export default function RegimenStorePage({ onBack, onPublish }) {
           <div className="w-16 h-16 rounded-full bg-card border border-border flex items-center justify-center mx-auto mb-4">
             <Dumbbell className="w-7 h-7 text-muted-foreground/50" />
           </div>
-          <p className="font-heading font-bold text-base">No public regimens yet</p>
+          <p className="font-heading font-bold text-base">{tFallback("regimenStorePage.noPublicRegimensYet", "No public regimens yet")}</p>
           <p className="text-sm text-muted-foreground mt-1 mb-6 max-w-xs mx-auto">
             Build a program you actually run, then share it. Yours would be the first.
           </p>
@@ -617,7 +617,7 @@ export default function RegimenStorePage({ onBack, onPublish }) {
           animate={{ opacity: 1 }}
           className="text-center py-10"
         >
-          <p className="font-heading font-bold text-base">No matches</p>
+          <p className="font-heading font-bold text-base">{tFallback("regimenStorePage.noMatches", "No matches")}</p>
           <p className="text-sm text-muted-foreground mt-1 mb-5 max-w-xs mx-auto">
             {search.trim() && muscleFilter !== 'All'
               ? <>Nothing for “{search.trim()}” in {muscleFilter}. {muscleCount(templates, muscleFilter)} {muscleCount(templates, muscleFilter) === 1 ? 'regimen trains' : 'regimens train'} {muscleFilter} — try clearing the search.</>

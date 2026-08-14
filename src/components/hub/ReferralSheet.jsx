@@ -206,7 +206,7 @@ export default function ReferralSheet({
                         value={entry}
                         onChange={(e) => setEntry(normaliseCode(e.target.value))}
                         onKeyDown={(e) => { if (e.key === 'Enter' && !claiming) handleRedeem(); }}
-                        placeholder="ABC123"
+                        placeholder={tFallback("referralSheet.abc123", "ABC123")}
                         autoCapitalize="characters"
                         autoCorrect="off"
                         autoComplete="off"

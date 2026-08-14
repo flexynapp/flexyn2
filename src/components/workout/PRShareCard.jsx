@@ -257,7 +257,7 @@ export default function PRShareCard({ open, onClose, pr, unit = 'lb', username }
                 animate={{ opacity: 1, scale: 1 }}
                 className="rounded-2xl overflow-hidden border border-border shadow-md mb-4"
               >
-                <img loading="lazy" src={imgUrl} alt="PR card" className="w-full block" />
+                <img loading="lazy" src={imgUrl} alt={tFallback("pRShareCard.prCard", "PR card")} className="w-full block" />
               </motion.div>
             ) : (
               <div className="aspect-square rounded-2xl bg-muted flex items-center justify-center mb-4">

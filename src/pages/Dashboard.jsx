@@ -1833,7 +1833,7 @@ export default function Dashboard() {
               <button
                 type="button"
                 onClick={handleSetAsDefault}
-                title="Save this layout as the default for all new users"
+                title={tFallback("dashboard.saveThisLayout", "Save this layout as the default for all new users")}
                 className="flex items-center gap-1 px-2 py-1.5 rounded-full bg-secondary text-micro font-semibold text-foreground hover:bg-secondary/80 active:bg-secondary/70 transition-colors"
               >
                 {/* Board 03 draws a plus here, not a floppy disk. "Set
@@ -1841,7 +1841,7 @@ export default function Dashboard() {
                     is what the button does to the record, not what the user
                     is doing. */}
                 <Plus className="w-3 h-3" />
-                <span>Set default</span>
+                <span>{tFallback("dashboard.setDefault", "Set default")}</span>
               </button>
             )}
             {editMode && (

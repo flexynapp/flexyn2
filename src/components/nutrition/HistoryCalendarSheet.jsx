@@ -42,7 +42,7 @@ export default function HistoryCalendarSheet({
   truncated = false,
   onSelect,
 }) {
-  const { language } = useLanguage();
+  const { language, tFallback } = useLanguage();
   const locale = getDateLocale(language);
   const [month, setMonth] = useState(() => monthAnchor(selectedDate || todayStr));
 
@@ -96,7 +96,7 @@ export default function HistoryCalendarSheet({
           transition={{ type: 'spring', stiffness: 320, damping: 30 }}
           onClick={e => e.stopPropagation()}
           role="dialog"
-          aria-label="Jump to a day"
+          aria-label={tFallback("historyCalendarSheet.jumpToADay", "Jump to a day")}
           className="w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl bg-card border-t sm:border border-border pb-5"
         >
           <div className="flex justify-center pt-2.5 pb-1">
@@ -104,11 +104,11 @@ export default function HistoryCalendarSheet({
           </div>
 
           <div className="flex items-center justify-between px-4 pt-1 pb-3">
-            <h3 className="font-heading font-bold text-lg tracking-tight">Jump to a day</h3>
+            <h3 className="font-heading font-bold text-lg tracking-tight">{tFallback("historyCalendarSheet.jumpToADay", "Jump to a day")}</h3>
             <button
               type="button"
               onClick={onClose}
-              aria-label="Close"
+              aria-label={tFallback("common.close", "Close")}
               className="w-8 h-8 rounded-lg bg-secondary flex items-center justify-center text-muted-foreground"
             >
               <X className="w-4 h-4" />
@@ -120,7 +120,7 @@ export default function HistoryCalendarSheet({
               type="button"
               onClick={() => setMonth(m => subMonths(m, 1))}
               disabled={atEarliestMonth}
-              aria-label="Previous month"
+              aria-label={tFallback("historyCalendarSheet.previousMonth", "Previous month")}
               className="w-8 h-8 rounded-lg bg-secondary flex items-center justify-center text-muted-foreground disabled:opacity-25"
             >
               <ChevronLeft className="w-4 h-4" />
@@ -132,7 +132,7 @@ export default function HistoryCalendarSheet({
               type="button"
               onClick={() => setMonth(m => addMonths(m, 1))}
               disabled={atCurrentMonth}
-              aria-label="Next month"
+              aria-label={tFallback("historyCalendarSheet.nextMonth", "Next month")}
               className="w-8 h-8 rounded-lg bg-secondary flex items-center justify-center text-muted-foreground disabled:opacity-25"
             >
               <ChevronRight className="w-4 h-4" />

@@ -500,7 +500,7 @@ export default function HubCommentsInline({ post, open, onClose }) {
           <button
             type="button"
             onClick={() => setEmojiOpen((o) => !o)}
-            aria-label="Add emoji"
+            aria-label={tFallback("hubCommentsInline.addEmoji", "Add emoji")}
             aria-expanded={emojiOpen}
             className={`p-2 rounded-lg transition-colors shrink-0 ${emojiOpen ? 'bg-secondary text-primary' : 'text-muted-foreground hover:bg-secondary active:bg-secondary hover:text-foreground active:text-foreground'}`}
           >
@@ -804,7 +804,7 @@ function CommentRow({ comment: c, user, authorsById, isLiked, likeCount, onLike,
           <button
             onClick={onDelete}
             className="p-1 rounded text-muted-foreground hover:text-destructive active:text-destructive transition-colors shrink-0"
-            aria-label="Delete comment"
+            aria-label={tFallback("hubCommentsInline.deleteComment", "Delete comment")}
           >
             <Trash2 className="w-3 h-3" />
           </button>

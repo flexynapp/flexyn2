@@ -173,7 +173,7 @@ export default function CardioManualForm({
 
   const handleSaveAsTemplate = async () => {
     if (!routeName && !notes) {
-      toast.info('Enter a route name or notes to identify this template');
+      toast.info(tFallback("cardioManualForm.enterARouteName", "Enter a route name or notes to identify this template"));
       return;
     }
     const tplName = routeName ||
@@ -200,7 +200,7 @@ export default function CardioManualForm({
       toast.success(`Template "${tplName}" saved`);
     } catch (err) {
       reportError(err, { feature: 'cardio.template.save' });
-      toast.error('Failed to save template');
+      toast.error(tFallback("cardioManualForm.failedToSaveTemplate", "Failed to save template"));
     } finally {
       setSavingTemplate(false);
     }
@@ -501,13 +501,13 @@ export default function CardioManualForm({
           <div className="space-y-4 rounded-xl border border-blue-500/20 bg-blue-500/5 p-4">
             <div className="flex items-center gap-2 mb-1">
               <Waves className="w-4 h-4 text-blue-500" />
-              <span className="text-xs font-bold uppercase tracking-wider text-blue-500">Swim Details</span>
+              <span className="text-xs font-bold uppercase tracking-wider text-blue-500">{tFallback("cardioManualForm.swimDetails", "Swim Details")}</span>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               {/* Pool Length */}
               <div>
-                <label className="text-sm font-medium mb-1.5 block">Pool Length</label>
+                <label className="text-sm font-medium mb-1.5 block">{tFallback("cardioManualForm.poolLength", "Pool Length")}</label>
                 <div className="relative">
                   <Input
                     type="number"
@@ -536,7 +536,7 @@ export default function CardioManualForm({
               </div>
               {/* Laps */}
               <div>
-                <label className="text-sm font-medium mb-1.5 block">Laps</label>
+                <label className="text-sm font-medium mb-1.5 block">{tFallback("cardio.detail.laps", "Laps")}</label>
                 <Input
                   type="number"
                   min={1}
@@ -551,7 +551,7 @@ export default function CardioManualForm({
 
             {/* Stroke Type */}
             <div>
-              <label className="text-sm font-medium mb-1.5 block">Stroke</label>
+              <label className="text-sm font-medium mb-1.5 block">{tFallback("cardio.detail.stroke", "Stroke")}</label>
               <div className="flex flex-wrap gap-2">
                 {STROKE_OPTIONS.map(s => (
                   <button
@@ -818,7 +818,7 @@ export default function CardioManualForm({
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" aria-hidden="true" onClick={() => setSpeedWarning(null)} />
           <div className="relative bg-card border border-border rounded-2xl shadow-2xl p-6 max-w-sm w-full text-center z-10">
             <div className="text-4xl mb-3">⚡</div>
-            <h2 className="font-heading font-bold text-xl mb-2">That speed isn't realistic</h2>
+            <h2 className="font-heading font-bold text-xl mb-2">{tFallback("cardioManualForm.thatSpeedIsnTRealistic", "That speed isn't realistic")}</h2>
             <p className="text-sm text-muted-foreground mb-5 leading-relaxed">
               Your entry works out to <strong>{speedWarning.speedKmh} km/h</strong>, which exceeds the
               realistic maximum for this activity type ({speedWarning.maxKmh} km/h). Please check your
