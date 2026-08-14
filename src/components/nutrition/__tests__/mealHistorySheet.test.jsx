@@ -15,24 +15,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
-// `t` resolves against the REAL English catalog rather than returning the key.
+// Resolves against the real English catalog rather than returning the key.
 // These tests assert on copy the user sees — the water-only case below is named
-// for the sentence it expects — and `t: (k) => k` renders 'nutrition.noMeals'
-// instead, so the assertion passes only while the string stays hardcoded and
-// breaks the moment it is correctly extracted. Reading en.json also means a key
-// that does not exist fails here rather than rendering its own path.
+// for the sentence it expects — and an identity mock renders the key path
+// instead, so the assertion would hold only while the string stayed hardcoded
+// and break on the change that extracted it correctly.
 vi.mock('@/lib/LanguageContext', async () => {
-  const en = (await import('@/locales/en.json')).default;
-  const fill = (s, vars) => (vars
-    ? Object.entries(vars).reduce((acc, [k, v]) => acc.replaceAll(`{${k}}`, String(v)), s)
-    : s);
-  return {
-    useLanguage: () => ({
-      language: 'en',
-      t: (k, vars) => fill(en[k] ?? k, vars),
-      tFallback: (k, english, vars) => fill(en[k] ?? english, vars),
-    }),
-  };
+  const { languageMock } = await import('@/lib/__tests__/i18nMock');
+  return languageMock();
 });
 vi.mock('@/lib/AuthContext', () => ({
   useAuth: () => ({ user: { email: 'kegan@example.com', id: 'u1' } }),

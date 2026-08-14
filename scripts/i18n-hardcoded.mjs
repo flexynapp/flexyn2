@@ -116,7 +116,86 @@ const findings = [];
 const byKind = {};
 for (const f of findings) (byKind[f.kind] ||= []).push(f);
 
-if (args.includes('--json')) {
+if (args.includes('--blocked')) {
+  // Hardcoded strings a test asserts BY LITERAL TEXT AND EXPECTS TO BE PRESENT,
+  // in a suite that mocks `t` as the identity function.
+  //
+  // Which extraction form you use decides whether this matters, and the
+  // difference was measured rather than reasoned about:
+  //
+  //   tFallback(key, 'English')  SAFE. Every one of these suites mocks
+  //                              tFallback as (_k, english) => english, so the
+  //                              assertion still sees its English and passes.
+  //                              This is the house form for NEW English-only
+  //                              copy, which is why extraction is mostly free.
+  //
+  //   t(key)                     BREAKS. The identity mock returns the key, so
+  //                              the element now reads 'cardio.planned.upcoming'
+  //                              and a getByText for the English finds nothing.
+  //                              This is the form a swap to an ALREADY
+  //                              TRANSLATED key takes — there is no English
+  //                              fallback to pass — so it is exactly the
+  //                              highest-value extraction that trips here.
+  //
+  // mealHistorySheet was the real instance: 'a water-only day says "No meals
+  // logged"' went red when that string became t('nutrition.noMeals').
+  //
+  // So this is not a bug list. It is the set of tests to update in the same
+  // commit as a bare-t() swap, so that lands as a decision and not a surprise.
+  // Absence assertions are excluded — see the note on `presence` below.
+  const testFiles = [];
+  (function walk(dir) {
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      const p = path.join(dir, e.name);
+      if (e.isDirectory()) { walk(p); continue; }
+      if (/\.(test|spec)\.[jt]sx?$/.test(e.name)) testFiles.push(p);
+    }
+  })(SRC);
+
+  // Comments must be stripped BEFORE either test below. A file whose comment
+  // explains the identity-mock problem contains the literal `t: (k) => k`, and
+  // reporting it as an offender is how this report first accused the one suite
+  // that had already been fixed.
+  const IDENTITY_T = /t:\s*\(?k(?:ey)?\)?\s*=>\s*k(?:ey)?\b/;
+  const suites = testFiles.map((f) => {
+    const src = stripNonCode(fs.readFileSync(f, 'utf8'));
+    return { file: f, src, identity: IDENTITY_T.test(src) };
+  });
+
+  const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const seen = new Map();
+  for (const f of findings) {
+    if (f.text.length < 6) continue;                 // 'Save' matches everything
+    if (seen.has(f.text)) continue;
+    // PRESENCE assertions only. `queryByText('X')).toBeNull()` asserts the
+    // string is ABSENT, and extracting it keeps it absent — reporting those
+    // was this check's first and loudest false positive, and it named a test
+    // that passes fine either way.
+    const presence = new RegExp(
+      `(?:get|find)(?:All)?By(?:Text|LabelText|PlaceholderText)\\(\\s*(['"])${esc(f.text)}\\1`
+      + `|toHaveTextContent\\(\\s*(['"])${esc(f.text)}\\2`,
+    );
+    const blockers = suites.filter((s) => s.identity && presence.test(s.src)).map((s) => s.file);
+    if (blockers.length) seen.set(f.text, { at: `${f.file}:${f.line}`, blockers: [...new Set(blockers)] });
+  }
+
+  if (!seen.size) {
+    console.log('No extraction is blocked by a literal-text assertion.');
+  } else {
+    console.log('Hardcoded strings a test asserts by literal text, expecting it present.\n');
+    console.log('Swapping one to an existing key — bare t(\'key\'), no English fallback —');
+    console.log('turns that assertion red. Extracting to tFallback(key, \'English\') does not.\n');
+    for (const [text, v] of [...seen].sort()) {
+      console.log(`  ${JSON.stringify(text)}`);
+      console.log(`      hardcoded  ${v.at}`);
+      for (const b of v.blockers) console.log(`      update     ${b}`);
+    }
+    console.log(`\n  ${seen.size} string(s). If you swap one with bare t(), fix its test in the`);
+    console.log('  same commit: point the mock at the real catalog');
+    console.log('  (src/lib/__tests__/i18nMock.js) so the assertion keeps reading');
+    console.log('  like the screen rather than being rewritten to match a key path.');
+  }
+} else if (args.includes('--json')) {
   // Untruncated, machine-readable — `--list` clips long strings for reading.
   console.log(JSON.stringify(kindArg ? (byKind[kindArg] || []) : findings, null, 1));
 } else if (wantList || kindArg) {
