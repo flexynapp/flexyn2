@@ -164,7 +164,7 @@ function SlotFullSheet({ open, label, items, recipesById, isToday, onReplace, on
           </h3>
           <button
             onClick={onClose}
-            aria-label={tFallback('weeklyMealPlannerModal.close', 'Close')}
+            aria-label={tFallback("common.close", "Close")}
             className="w-11 h-11 rounded-full flex items-center justify-center text-muted-foreground"
           >
             <X className="w-3.5 h-3.5" />
@@ -921,7 +921,7 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
                               onClick={() => setFullSlot({ label: slot.label, mealType: slot.key, items })}
                               className="w-full min-h-[40px] flex items-center justify-center rounded-lg text-micro font-semibold text-muted-foreground hover:bg-secondary/60 active:bg-secondary/60 transition-colors"
                             >
-                              {tFallback('weeklyMealPlannerModal.slotFull', '{label} is full — {n} of {n}', { label: slot.label, n: mealPlans.SLOT_CAPACITY })}
+                              {tFallback('weeklyMealPlannerModal.slotFull', '{label} is full — {n} of {max}', { label: slot.label, n: items.length, max: mealPlans.SLOT_CAPACITY })}
                             </button>
                           )}
                         </div>
