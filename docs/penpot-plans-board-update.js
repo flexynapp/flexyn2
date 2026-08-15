@@ -16,8 +16,12 @@
 //   270f49d2  catalog + detail — split leads, six gradients and the
 //             backdrop-blur gone, PLAN_COLORS gone, "add to your day" wired.
 //   628ce3f8  the capacity sheet — a full slot offers replace-one or the
-//             diary instead of only refusing. Nothing on the board is
-//             unbuilt after this one.
+//             diary instead of only refusing.
+//   83ec2f41  the device pass — three things only a browser could show:
+//             "15 Saturday", ungrouped numbers, and "Add another" drawn
+//             louder than the meals above it.
+//   6daa3e75  the rename — the sheet stops being called "Weekly Plan &
+//             Plans" over tabs "Weekly Plan" / "Nutritional Plans".
 //
 // WHY THIS IS A FILE. The plugin bridge hangs — `execute_code` times out on
 // the SERVER→PLUGIN hop while the page is plainly open — which is the same
@@ -88,7 +92,15 @@ let patched = 0;
 // ── 1 · The status bar: the proposal is BUILT ─────────────────────────
 patched += set('chip l / 02dep / DEPENDS ON', 'BUILT');
 patched += set('02 dep t',
-  'Everything on this board is on main. 5f3fa75d builds the week (day strip, one open day, day totals against the goal-driven target, multi-meal slot groups) and removes the grocery list; 270f49d2 builds the catalog and the detail (the split leads, six gradients and the backdrop-blur gone, PLAN_COLORS gone, "add these meals to your day" wired); 628ce3f8 builds the capacity sheet below. What is left is a device pass, not a build.');
+  'Everything on this board is on main, and it has been seen in a browser. 5f3fa75d builds the week; 270f49d2 the catalog and detail; 628ce3f8 the capacity sheet; 83ec2f41 fixes what the device pass found; 6daa3e75 renames the sheet — it was titled "Weekly Plan & Plans" over tabs reading "Weekly Plan" and "Nutritional Plans", the whole named after one of its halves and that half then named twice.');
+
+// 08a's drawing predates the rename and the formatting fixes.
+[['sh title','Plans'],['sh seg al','This week'],['sh seg bl','Meal plans'],
+ ['sh dayname','Saturday, Aug 15'],['sh total','1,200'],['sh target','/ 2,763 cal'],
+ ['sh left','1,563 left'],['sh gc','2 · 1,200 cal']].forEach(([k, v]) => { patched += set(k, v); });
+
+patched += set('07 note se',
+  'MEASURED, not derived. At 375 pt the chip is 45.6 pt — clear of the 44 pt floor by 1.6 pt — and the harness confirms it: chips fit, the 52-character meal names wrap to two lines, nothing clipped. This was drawn before it was ever checked and it had 1.6 pt of room.');
 
 patched += set('cap caption',
   'BUILT in 628ce3f8, with one change. The drawing gives "Replace one of them" its own row leading to a list; the build makes the LIST the affordance — every meal is tappable and replacing is what tapping does, which collapses a two-step into one and says the same thing. The diary option is gated on the open day being TODAY: on a future Thursday there is no today\'s diary to divert into, and the cap is on the plan rather than on what someone may eat.');
