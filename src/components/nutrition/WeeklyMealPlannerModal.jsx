@@ -1,21 +1,27 @@
 // src/components/nutrition/WeeklyMealPlannerModal.jsx
 //
-// 7-day meal-planner grid. The `meal_plans` table + the
-// `buildGroceryList` helper (mig 123 + lib/data/mealPlans.js) shipped
-// weeks ago; this is the UI that finally surfaces both.
+// The weekly meal planner: a day strip and ONE open day.
 //
-// Layout:
-//   Row 1: 7 day cards (Mon → Sun), each with 4 meal slots
-//          (Breakfast / Lunch / Dinner / Snack).
-//   Row 2: "Generate grocery list" CTA → sums ingredients across all
-//          uncompleted plans in the visible week and opens a copyable
-//          list sheet. (An earlier draft of this comment promised a
-//          Canvas PNG; text you can paste into a shopping app is more
-//          useful on a phone, and the helper output is the same.)
+// It was a 7-column grid at min-w-[700px] inside a 390pt viewport, so
+// Fri/Sat/Sun sat behind a horizontal drag and each 89.7pt cell truncated
+// its meal name near 14 characters — production names run to 52. The strip
+// gives each meal the full column, which is what lets a name, its calories
+// and its macros all render, and it lets the day report what it adds up to.
 //
-// Tap a slot → recipe picker (your saved recipes). Tap an already-
-// filled slot → swap or remove via a small menu. Long-press isn't
-// used here; tapping a filled slot reveals the action menu inline.
+//   Day strip   7 chips, filled by SLOTS USED out of four (never by meals,
+//               which a 3-meal slot would overflow).
+//   Open day    total against the goal-driven target, then one group per
+//               slot. A slot is a GROUP HEADER, not a box: a second dinner
+//               is a second row under the same header, up to SLOT_CAPACITY.
+//
+// The grocery list is gone. It could only ever draw from a saved recipe,
+// and across 63 profiles production held one recipe with one ingredient —
+// so its CTA, the single full-width primary on this tab, was wired to
+// nothing. See docs and the Penpot board "Plans — proposed".
+//
+// Tap an empty slot → how do you want to add this? (Photo-AI / recipe /
+// manual). Tap a planned meal → its detail, or a remove sheet when there is
+// no snapshot to show.
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
@@ -24,7 +30,6 @@ import { createPortal } from 'react-dom';
 import {
   X, ChevronLeft, ChevronRight, ChevronDown, Loader2, Plus,
   CalendarDays, Camera, ChefHat, Pencil, ChevronRight as ChevRight,
-  ShoppingCart, Copy, Check,
 } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { format, addDays, startOfWeek } from 'date-fns';
@@ -32,6 +37,7 @@ import { useDateFormatter } from '@/lib/intl';
 import { useAuth } from '@/lib/AuthContext';
 import * as mealPlans from '@/lib/data/mealPlans';
 import * as recipes from '@/lib/data/nutritionRecipes';
+import { calculateDailyValues } from '@/lib/nutritionDefaults';
 import { plannerSnapshot } from '@/lib/recipeFormat';
 import { syncPlannerDiaryLog, removePlannerDiaryLog, remove as removeDiaryLog } from '@/lib/data/nutrition';
 import { recognizeMealPhoto } from '@/lib/data/photoMealRecognition';
@@ -124,74 +130,6 @@ function RecipePickerModal({ open, recipes: recipeList, onPick, onClose }) {
               </p>
             </button>
           ))}
-        </div>
-      </motion.div>
-    </motion.div>
-  );
-}
-
-// ── Which meal in this slot? ───────────────────────────────────────────
-// A slot holds up to SLOT_CAPACITY meals (migration 355). The grid cell is
-// 89.7pt wide and can show one name, so when a slot holds several this is
-// what keeps the rest reachable instead of hidden — which is the defect the
-// 2026-08-11 audit found, where 6 of 8 production rows were invisible.
-//
-// PROVISIONAL. The planner redesign replaces the 7-column grid with
-// full-width day rows that show every meal inline and need no sheet at all.
-function SlotMealsSheet({ open, label, plans, recipesById, onPick, onAdd, canAdd, onClose }) {
-  const { tFallback } = useLanguage();
-  if (!open) return null;
-  return (
-    <motion.div
-      initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-      onClick={onClose}
-      className="fixed inset-0 z-[10000] bg-black/60 flex items-end sm:items-center justify-center p-4"
-    >
-      <motion.div
-        initial={{ y: 24 }} animate={{ y: 0 }}
-        onClick={(e) => e.stopPropagation()}
-        className="w-full sm:max-w-md bg-card border border-border rounded-2xl max-h-[80vh] flex flex-col"
-      >
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-          <h3 className="font-heading font-bold text-sm">
-            {label} · {plans.length} meal{plans.length === 1 ? '' : 's'}
-          </h3>
-          <button onClick={onClose} aria-label={tFallback("common.close", "Close")} className="w-11 h-11 -me-2 rounded-full flex items-center justify-center">
-            <X className="w-3.5 h-3.5" />
-          </button>
-        </div>
-        <div className="flex-1 overflow-y-auto p-3 space-y-1.5">
-          {plans.map(p => {
-            const recipe = p.recipe_id ? recipesById.get(p.recipe_id) : null;
-            const kcal = Number(p.food_snapshot?.calories);
-            return (
-              <button
-                key={p.id}
-                onClick={() => onPick(p)}
-                className="w-full flex items-center justify-between gap-3 text-start px-3 py-2.5 rounded-lg border border-border bg-secondary/40 hover:bg-secondary active:bg-secondary transition-colors"
-              >
-                <span className="text-sm font-medium min-w-0 truncate">
-                  {recipe?.name || p.food_snapshot?.name || '—'}
-                </span>
-                {Number.isFinite(kcal) && kcal > 0 && (
-                  <span className="text-micro font-semibold text-muted-foreground shrink-0 tabular-nums">
-                    {kcal} cal
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-        <div className="p-3 border-t border-border">
-          <button
-            type="button"
-            onClick={onAdd}
-            disabled={!canAdd}
-            className="w-full inline-flex items-center justify-center gap-1.5 rounded-xl bg-secondary text-foreground font-semibold text-sm py-2.5 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
-          >
-            <Plus className="w-4 h-4" />
-            {canAdd ? 'Add another' : `${label} is full — ${plans.length} of ${mealPlans.SLOT_CAPACITY}`}
-          </button>
         </div>
       </motion.div>
     </motion.div>
@@ -374,21 +312,12 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
   const [addSlot, setAddSlot]       = useState(null); // { date, mealType, label } → method chooser
   const [manualSlot, setManualSlot] = useState(null); // { date, mealType, label } → manual form
   const [detailPlan, setDetailPlan] = useState(null); // { plan, date, mealType } → read-only detail view
-  const [slotSheet, setSlotSheet]   = useState(null); // { plans, date, mealType, label } → which meal?
+  const [removePlan, setRemovePlan] = useState(null); // { plan, date, mealType, label } → confirm removal
   const [photoBusy, setPhotoBusy]   = useState(false);
-  // Custom horizontal scroll indicator metrics (pct = position 0..1,
-  // ratio = viewport/content). Replaces the native scrollbar so the
-  // slide bar sits centered under the calendar instead of pinned left.
-  const [scrollMeta, setScrollMeta] = useState({ pct: 0, ratio: 1 });
-  // Two tabs: the 7-day grid ('planner') and the Nutrition Plans browser
+  // Two tabs: the week ('planner') and the Nutrition Plans browser
   // ('plans'), which was folded in here from its own modal.
   const [tab, setTab] = useState('planner');
 
-  // Horizontal-scroll centering: keep today's column in the middle of the
-  // viewport when the current week is shown, so the user opens straight
-  // onto "today" rather than Monday scrolled off-screen.
-  const scrollRef = useRef(null);
-  const todayRef  = useRef(null);
   // Photo-AI: hidden file input + the slot the photo is being added to.
   const photoInputRef  = useRef(null);
   const photoTargetRef = useRef(null);
@@ -400,6 +329,18 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
   );
   const startStr = isoDay(days[0]);
   const endStr   = isoDay(days[6]);
+
+  // One day is open at a time. The week used to be a 700pt grid inside a
+  // 390pt viewport — 89.7pt columns that truncated every meal name near 14
+  // characters and put Fri/Sat/Sun behind a horizontal drag. A day strip plus
+  // one open day gives each meal the full column, which is what lets a name,
+  // its calories and its macros all render.
+  const [selectedISO, setSelectedISO] = useState(() => isoDay(new Date()));
+  // Keep the selection inside the visible week when the arrows move it.
+  const selectedDate = useMemo(
+    () => (selectedISO >= startStr && selectedISO <= endStr) ? selectedISO : startStr,
+    [selectedISO, startStr, endStr],
+  );
 
   const { data: plans = [], isLoading } = useQuery({
     queryKey: ['mealPlans', user?.id, startStr, endStr],
@@ -421,67 +362,13 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
     return m;
   }, [recipeList]);
 
-  // Grocery list. buildGroceryList + the meal_plans schema shipped with
-  // migration 123 and this file's own header has always described the CTA —
-  // it was simply never imported, so the helper sat unreachable. It sums
-  // ingredient grams across every UNCOMPLETED plan in the visible week.
-  const [groceryOpen, setGroceryOpen] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const groceryList = useMemo(
-    () => (groceryOpen ? mealPlans.buildGroceryList(plans, recipesById) : []),
-    [groceryOpen, plans, recipesById],
-  );
-
-  // Two different counts, and conflating them is what made the CTA lie.
-  //
-  // `plannedCount` is how many meals are on the grid. `shoppableCount` is how
-  // many of them will actually put an ingredient on the list — which needs a
-  // recipe or a snapshot carrying `ingredients`, and neither the Photo-AI nor
-  // the manual path writes one. The button used to show `plannedCount` and
-  // then open a sheet reading "Nothing to buy yet"; on production's 8 rows it
-  // promised 6 meals and produced 0 items. Both come from `mealPlans` so the
-  // number on the button is computed by the same code that builds the list.
-  const plannedCount = useMemo(
-    () => plans.filter(p => !p.is_completed).length,
-    [plans],
-  );
-  const shoppableCount = useMemo(
-    () => mealPlans.shoppablePlans(plans, recipesById).length,
-    [plans, recipesById],
-  );
-
-  const groceryText = useMemo(
-    () => groceryList
-      .map(i => (i.total_grams > 0 ? `${i.name} — ${i.total_grams}g` : i.name))
-      .join('\n'),
-    [groceryList],
-  );
-
-  const handleCopyGrocery = async () => {
-    // Explicit capability check rather than `navigator.clipboard?.writeText()`,
-    // which resolves to undefined on insecure origins and would show a false
-    // "Copied" state.
-    if (!navigator?.clipboard?.writeText) {
-      toast.error('Clipboard not available — select and copy the list manually.');
-      return;
-    }
-    try {
-      await navigator.clipboard.writeText(groceryText);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      toast.error('Could not copy — your browser blocked clipboard access.');
-    }
-  };
-
-  // Plans keyed by `${date}-${mealType}` for O(1) cell lookup. The value is a
-  // LIST: since migration 355 a slot holds up to mealPlans.SLOT_CAPACITY meals,
-  // because a real day carries two dinners and every plan template needs two in
-  // one slot (snack1 and snack2 both map to `snack`).
+  // Plans keyed by `${date}-${mealType}`. The value is a LIST: since migration
+  // 355 a slot holds up to mealPlans.SLOT_CAPACITY meals, because a real day
+  // carries two dinners and every plan template needs two in one slot (snack1
+  // and snack2 both map to `snack`).
   //
   // This was `m.set(key, p)` — last write wins — which is precisely how the
-  // 2026-08-11 incident hid 6 of 8 production rows. Keeping it as a scalar
-  // while the database now accepts siblings would reproduce that bug exactly.
+  // 2026-08-11 incident hid 6 of 8 production rows.
   const planMap = useMemo(() => {
     const m = new Map();
     for (const p of plans) {
@@ -491,6 +378,33 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
     }
     return m;
   }, [plans]);
+
+  // How full each day is, for the strip. Counts SLOTS USED, never meals — a
+  // slot holding three meals would otherwise overflow its own indicator.
+  const slotsUsedByDate = useMemo(() => {
+    const m = new Map();
+    for (const key of planMap.keys()) {
+      const d = key.slice(0, 10);
+      m.set(d, (m.get(d) || 0) + 1);
+    }
+    return m;
+  }, [planMap]);
+
+  // The same goal-driven target the rest of the nutrition UI shows. Onboarding
+  // stores the inputs, not a calorie number, so this must be derived.
+  const targetCalories = useMemo(
+    () => calculateDailyValues(userProfile)?.calories || null,
+    [userProfile],
+  );
+
+  const selectedPlans = useMemo(
+    () => MEAL_SLOTS.map(s => ({ slot: s, items: planMap.get(`${selectedDate}-${s.key}`) || [] })),
+    [planMap, selectedDate],
+  );
+  const dayTotal = useMemo(
+    () => mealPlans.dayTotals(selectedPlans.flatMap(s => s.items)),
+    [selectedPlans],
+  );
 
   const upsertMutation = useMutation({
     mutationFn: (args) => mealPlans.upsert(args),
@@ -533,65 +447,6 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
     logToDiaryIfToday(pickerSlot.date, snapshot, pickerSlot.mealType);
     setPickerSlot(null);
   };
-
-  // Drag-to-scroll for mouse / trackpad. Touch keeps native horizontal
-  // panning (touch-action: pan-x below), so we skip touch pointers here.
-  // `moved` lets the meal-slot buttons ignore the click that ends a drag.
-  const drag = useRef({ down: false, moved: false, startX: 0, startScroll: 0 });
-
-  const onGridPointerDown = (e) => {
-    if (e.pointerType === 'touch') return;
-    const c = scrollRef.current;
-    if (!c) return;
-    drag.current = { down: true, moved: false, startX: e.clientX, startScroll: c.scrollLeft };
-  };
-  const onGridPointerMove = (e) => {
-    const d = drag.current;
-    if (!d.down) return;
-    const c = scrollRef.current;
-    if (!c) return;
-    const dx = e.clientX - d.startX;
-    if (!d.moved && Math.abs(dx) < 5) return; // let small movements stay a click
-    d.moved = true;
-    c.scrollLeft = d.startScroll - dx;
-  };
-  const endGridDrag = () => { drag.current.down = false; };
-
-  // Recompute the custom scroll-indicator geometry from the container.
-  // rAF-throttled so a burst of scroll events coalesces to one state update
-  // per frame instead of re-rendering the whole modal on every event.
-  const scrollRaf = useRef(0);
-  const updateScrollMeta = () => {
-    if (scrollRaf.current) return;
-    scrollRaf.current = requestAnimationFrame(() => {
-      scrollRaf.current = 0;
-      const c = scrollRef.current;
-      if (!c) return;
-      const max = c.scrollWidth - c.clientWidth;
-      setScrollMeta({
-        pct:   max > 0 ? c.scrollLeft / max : 0,
-        ratio: c.scrollWidth > 0 ? Math.min(1, c.clientWidth / c.scrollWidth) : 1,
-      });
-    });
-  };
-
-  // Center today's column in the horizontal scroll whenever the planner
-  // tab shows the current week's grid. rAF so we measure after layout.
-  useEffect(() => {
-    if (!open || tab !== 'planner' || isLoading) return;
-    const id = requestAnimationFrame(() => {
-      const c = scrollRef.current;
-      const tEl = todayRef.current;
-      if (c && tEl) {
-        const cRect = c.getBoundingClientRect();
-        const tRect = tEl.getBoundingClientRect();
-        const delta = (tRect.left - cRect.left) - (c.clientWidth - tRect.width) / 2;
-        c.scrollLeft += delta;
-      }
-      updateScrollMeta();
-    });
-    return () => cancelAnimationFrame(id);
-  }, [open, tab, isLoading, ws]);
 
   const finiteOr = (val, fb) => {
     const n = Number(val);
@@ -715,255 +570,223 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
           ) : (
           <>
           {/* Week nav */}
-          <div className="flex items-center justify-between px-4 py-2 border-b border-border shrink-0">
+          <div className="flex items-center justify-between px-4 py-2 shrink-0">
             <button
               onClick={() => setAnchor(addDays(ws, -7))}
-              className="w-8 h-8 rounded-full bg-secondary/60 flex items-center justify-center hover:bg-secondary active:bg-secondary"
-              aria-label={tFallback("weekCalorieStrip.previousWeek", "Previous week")}
+              className="w-11 h-11 -ms-2 rounded-full flex items-center justify-center text-muted-foreground hover:bg-secondary active:bg-secondary transition-colors"
+              aria-label={tFallback('weeklyMealPlannerModal.previousWeek', 'Previous week')}
             >
-              <ChevronLeft className="w-4 h-4" />
+              <ChevronLeft className="w-4 h-4 rtl:scale-x-[-1]" />
             </button>
             <span className="text-sm font-bold tabular-nums">
-              {fmtDate(days[0], { month: 'short', day: 'numeric' })} – {fmtDate(days[6], { month: 'short', day: 'numeric', year: 'numeric' })}
+              {fmtDate(days[0], { month: 'short', day: 'numeric' })} – {fmtDate(days[6], { month: 'short', day: 'numeric' })}
             </span>
             <button
               onClick={() => setAnchor(addDays(ws, 7))}
-              className="w-8 h-8 rounded-full bg-secondary/60 flex items-center justify-center hover:bg-secondary active:bg-secondary"
-              aria-label={tFallback("weekCalorieStrip.nextWeek", "Next week")}
+              className="w-11 h-11 -me-2 rounded-full flex items-center justify-center text-muted-foreground hover:bg-secondary active:bg-secondary transition-colors"
+              aria-label={tFallback('weeklyMealPlannerModal.nextWeek', 'Next week')}
             >
-              <ChevronRight className="w-4 h-4" />
+              <ChevronRight className="w-4 h-4 rtl:scale-x-[-1]" />
             </button>
           </div>
 
-          {/* Grid — horizontal scroll on mobile, grid on desktop.
-              Native scrollbar hidden; a centered custom indicator below
-              reflects scroll position. */}
-          <div
-            ref={scrollRef}
-            onScroll={updateScrollMeta}
-            onPointerDown={onGridPointerDown}
-            onPointerMove={onGridPointerMove}
-            onPointerUp={endGridDrag}
-            onPointerLeave={endGridDrag}
-            style={{ touchAction: 'pan-x' }}
-            className="flex-1 overflow-x-auto overflow-y-auto scrollbar-hide p-3 cursor-grab active:cursor-grabbing select-none"
-          >
+          {/* Day strip. Seven chips across the column — 47.7pt at 390px and
+              45.6pt on a 375px SE, both clear of the 44pt tap floor. The bar
+              under each counts SLOTS USED out of four, never MEALS, so a slot
+              holding three cannot overflow its own indicator. This replaces a
+              700pt grid that needed a horizontal drag to reach Fri/Sat/Sun. */}
+          <div className="flex gap-1 px-4 pb-2 shrink-0">
+            {days.map(d => {
+              const iso = isoDay(d);
+              const sel = iso === selectedDate;
+              const used = slotsUsedByDate.get(iso) || 0;
+              return (
+                <button
+                  key={iso}
+                  onClick={() => setSelectedISO(iso)}
+                  aria-current={sel ? 'date' : undefined}
+                  className={`flex-1 min-w-0 rounded-lg py-2 flex flex-col items-center gap-1 transition-colors ${
+                    sel ? 'bg-primary text-primary-foreground' : 'bg-card border border-border hover:bg-secondary active:bg-secondary'
+                  }`}
+                >
+                  <span className={`text-micro font-semibold uppercase tracking-wide ${sel ? 'opacity-80' : 'text-muted-foreground'}`}>
+                    {fmtDate(d, { weekday: 'short' })}
+                  </span>
+                  <span className="font-heading font-bold text-base leading-none">
+                    {fmtDate(d, { day: 'numeric' })}
+                  </span>
+                  <span className={`h-1 w-6 rounded-full overflow-hidden ${sel ? 'bg-primary-foreground/30' : 'bg-border'}`}>
+                    <span
+                      className={`block h-full rounded-full ${sel ? 'bg-primary-foreground' : 'bg-success'}`}
+                      style={{ width: `${Math.min(1, used / MEAL_SLOTS.length) * 100}%` }}
+                    />
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* The open day. Everything the 89.7pt cell had to throw away. */}
+          <div className="flex-1 overflow-y-auto overscroll-contain px-4 pb-6">
             {isLoading ? (
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
               </div>
             ) : (
-              <div className="grid grid-cols-7 gap-2 min-w-[700px]">
-                {days.map(d => {
-                  const dateStr = isoDay(d);
-                  const isToday = dateStr === isoDay(new Date());
-                  return (
-                    <div key={dateStr} ref={isToday ? todayRef : undefined} className="flex flex-col">
-                      <div className={`text-center pb-2 mb-1 border-b border-border/60 ${isToday ? 'text-primary font-bold' : ''}`}>
-                        <p className="text-micro uppercase tracking-wider text-muted-foreground">
-                          {fmtDate(d, { weekday: 'short' })}
-                        </p>
-                        <p className={`font-heading font-bold text-base ${isToday ? 'text-primary' : ''}`}>
-                          {fmtDate(d, { day: 'numeric' })}
-                        </p>
-                      </div>
-                      <div className="space-y-1.5">
-                        {MEAL_SLOTS.map(slot => {
-                          const cellKey = `${dateStr}-${slot.key}`;
-                          const slotPlans = planMap.get(cellKey) || [];
-                          const plan = slotPlans[0] || null;
-                          const extra = slotPlans.length - 1;
-                          const recipe = plan?.recipe_id ? recipesById.get(plan.recipe_id) : null;
-                          return (
-                            <button
-                              key={slot.key}
-                              onClick={() => {
-                                // Ignore the click that ends a drag-scroll.
-                                if (drag.current.moved) { drag.current.moved = false; return; }
-                                if (slotPlans.length > 1) {
-                                  // Several meals here — let the user say which.
-                                  // Provisional: this cell is 89.7pt wide and cannot
-                                  // show them inline. The redesign replaces the grid
-                                  // with full-width rows; until then a sheet is what
-                                  // keeps the extra rows REACHABLE rather than hidden.
-                                  setSlotSheet({ plans: slotPlans, date: dateStr, mealType: slot.key, label: slot.label });
-                                } else if (plan) {
-                                  // Meals with a food_snapshot (Photo-AI / manual) open a
-                                  // read-only detail view with the photo + metrics + Delete.
-                                  // Recipe-only slots keep the quick confirm-remove.
-                                  if (plan.food_snapshot) {
-                                    setDetailPlan({ plan, date: dateStr, mealType: slot.key });
-                                  } else if (confirm(tFallback("weeklyMealPlannerModal.removeThisMeal", "Remove this meal?"))) {
-                                    removeMutation.mutate(plan.id);
-                                    // If this slot was mirrored into today's diary, un-log it too.
-                                    if (dateStr === isoDay(new Date())) {
-                                      removePlannerDiaryLog({ user, date: dateStr, mealType: slot.key })
-                                        .then(invalidateDiary)
-                                        .catch(() => {});
-                                    }
-                                  }
-                                } else {
-                                  setAddSlot({ date: dateStr, mealType: slot.key, label: slot.label });
-                                }
-                              }}
-                              className={`w-full min-h-[58px] rounded-lg px-1.5 py-1.5 text-start text-micro font-medium transition-colors flex flex-col ${
-                                plan
-                                  ? 'bg-success/15 border border-success/30 text-foreground'
-                                  : 'bg-secondary/40 border border-dashed border-border text-muted-foreground hover:bg-secondary/60 active:bg-secondary/60'
-                              }`}
-                            >
-                              <span className="text-micro flex items-center gap-1">
-                                <span aria-hidden="true">{slot.emoji}</span>
-                                <span className="opacity-70">{slot.label}</span>
-                              </span>
-                              {plan ? (
-                                <>
-                                  <span className="font-bold text-foreground truncate mt-0.5 text-micro leading-tight">
-                                    {recipe?.name || plan.food_snapshot?.name || '—'}
-                                  </span>
-                                  {extra > 0 && (
-                                    <span className="text-micro font-semibold text-success mt-0.5">
-                                      +{extra} more
-                                    </span>
-                                  )}
-                                </>
-                              ) : (
-                                <span className="flex items-center gap-0.5 mt-0.5 text-muted-foreground/60">
-                                  <Plus className="w-2.5 h-2.5" /> {tFallback("gymEquip.save", "Add")}
-                                </span>
-                              )}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* Grocery list CTA — the "Row 2" this file's header has always
-              described. Counts only uncompleted plans, matching
-              buildGroceryList's own filter, so the button never promises a
-              list bigger than what it will actually produce. */}
-          <div className="shrink-0 px-3 pb-2 pt-1">
-            <button
-              type="button"
-              onClick={() => setGroceryOpen(true)}
-              disabled={shoppableCount === 0}
-              className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-primary text-primary-foreground font-semibold text-sm py-2.5 transition-opacity active:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              <ShoppingCart className="w-4 h-4" />
-              {shoppableCount > 0
-                ? `Generate grocery list · ${shoppableCount} meal${shoppableCount === 1 ? '' : 's'}`
-                : plannedCount === 0
-                  ? 'Plan a meal to build a grocery list'
-                  : 'Add a recipe to build a grocery list'}
-            </button>
-          </div>
-
-          {/* Centered scroll indicator — only when the grid overflows.
-              Track is centered under the calendar; the thumb inside
-              tracks the horizontal scroll position. */}
-          {scrollMeta.ratio < 0.999 && (
-            <div className="flex justify-center pb-3 pt-1 shrink-0">
-              <div className="relative h-1.5 w-24 rounded-full bg-border/50 overflow-hidden">
-                <div
-                  className="absolute top-0 h-full rounded-full bg-muted-foreground/50 transition-[left] duration-75"
-                  style={{
-                    width: `${scrollMeta.ratio * 100}%`,
-                    left:  `${scrollMeta.pct * (1 - scrollMeta.ratio) * 100}%`,
-                  }}
-                />
-              </div>
-            </div>
-          )}
-          </>
-          )}
-        </motion.div>
-
-        {/* Grocery list sheet. Deliberately a readable, copyable list rather
-            than the Canvas PNG the old header comment imagined — on a phone,
-            text you can paste straight into Notes or a shopping app beats an
-            image you have to read off the screen while holding a basket. */}
-        <AnimatePresence>
-          {groceryOpen && (
-            <motion.div
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              onClick={() => setGroceryOpen(false)}
-              className="fixed inset-0 z-[10001] bg-black/55 backdrop-blur-[2px] flex items-end sm:items-center justify-center p-0 sm:p-4"
-            >
-              <motion.div
-                initial={{ y: 24 }} animate={{ y: 0 }} exit={{ y: 24 }}
-                onClick={(e) => e.stopPropagation()}
-                className="w-full sm:max-w-md bg-card border border-border rounded-t-2xl sm:rounded-2xl shadow-2xl max-h-[80vh] flex flex-col"
-              >
-                <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <ShoppingCart className="w-4 h-4 text-primary shrink-0" />
-                    <h3 className="font-heading font-bold text-sm truncate">
-                      Grocery list · {groceryList.length} item{groceryList.length === 1 ? '' : 's'}
-                    </h3>
-                  </div>
-                  <button
-                    onClick={() => setGroceryOpen(false)}
-                    aria-label={tFallback("weeklyMealPlannerModal.closeGroceryList", "Close grocery list")}
-                    className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center shrink-0"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-
-                <div className="flex-1 overflow-y-auto p-3">
-                  {groceryList.length === 0 ? (
-                    <p className="text-center text-sm text-muted-foreground py-8 px-4">
-                      Nothing to buy yet. The list is built from planned meals that
-                      have ingredients — recipe slots contribute theirs, and manually
-                      entered macros don't.
-                    </p>
-                  ) : (
-                    <ul className="space-y-1">
-                      {groceryList.map(item => (
-                        <li
-                          key={item.name}
-                          className="flex items-start justify-between gap-3 rounded-lg bg-secondary/40 px-3 py-2"
-                        >
-                          <div className="min-w-0">
-                            <p className="text-sm text-foreground leading-tight">{item.name}</p>
-                            {item.recipes.length > 0 && (
-                              <p className="text-micro text-muted-foreground truncate mt-0.5">
-                                {item.recipes.join(' · ')}
-                              </p>
-                            )}
-                          </div>
-                          {item.total_grams > 0 && (
-                            <span className="text-xs font-semibold tabular-nums text-muted-foreground shrink-0">
-                              {item.total_grams}g
-                            </span>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
+              <>
+                <div className="flex items-baseline justify-between">
+                  <h3 className="font-heading font-bold text-base">
+                    {fmtDate(new Date(`${selectedDate}T00:00:00`), { weekday: 'long', day: 'numeric' })}
+                  </h3>
+                  {selectedDate === isoDay(new Date()) && (
+                    <span className="text-micro font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-primary/15 text-primary">
+                      {tFallback('weeklyMealPlannerModal.today', 'Today')}
+                    </span>
                   )}
                 </div>
 
-                {groceryList.length > 0 && (
-                  <div className="p-3 border-t border-border shrink-0">
-                    <button
-                      type="button"
-                      onClick={handleCopyGrocery}
-                      className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-secondary text-foreground font-semibold text-sm py-2.5 hover:bg-secondary/80 active:bg-secondary/80 transition-colors"
-                    >
-                      {copied ? <Check className="w-4 h-4 text-success" /> : <Copy className="w-4 h-4" />}
-                      {copied ? 'Copied' : 'Copy list'}
-                    </button>
+                {/* A day with no numbers behind it must not render as a zero —
+                    "0 cal" at someone who has planned nothing is the app
+                    calling them lazy. `counted` is meals carrying macros, which
+                    a recipe-backed plan does not have. */}
+                {dayTotal.counted > 0 && (
+                  <div className="mt-1">
+                    <div className="flex items-baseline gap-1.5">
+                      <span className="font-heading font-bold text-2xl tabular-nums">
+                        {Math.round(dayTotal.calories)}
+                      </span>
+                      {targetCalories
+                        ? <span className="text-xs text-muted-foreground">/ {targetCalories} cal</span>
+                        : <span className="text-xs text-muted-foreground">cal</span>}
+                      {targetCalories && (
+                        <span className={`text-xs font-bold ms-auto ${
+                          dayTotal.calories > targetCalories ? 'text-destructive' : 'text-success'}`}>
+                          {dayTotal.calories > targetCalories
+                            ? tFallback('weeklyMealPlannerModal.overBy', '{n} over', { n: Math.round(dayTotal.calories - targetCalories) })
+                            : tFallback('weeklyMealPlannerModal.leftOver', '{n} left', { n: Math.round(targetCalories - dayTotal.calories) })}
+                        </span>
+                      )}
+                    </div>
+                    {targetCalories && (
+                      <div className="h-1.5 rounded-full bg-secondary overflow-hidden mt-2">
+                        <div
+                          className={`h-full rounded-full ${dayTotal.calories > targetCalories ? 'bg-destructive' : 'bg-primary'}`}
+                          style={{ width: `${Math.min(100, (dayTotal.calories / targetCalories) * 100)}%` }}
+                        />
+                      </div>
+                    )}
+                    <div className="flex gap-2 mt-2 text-micro">
+                      <span className="text-destructive font-medium">{Math.round(dayTotal.protein)}g P</span>
+                      <span className="text-muted-foreground">·</span>
+                      <span className="text-info font-medium">{Math.round(dayTotal.carbs)}g C</span>
+                      <span className="text-muted-foreground">·</span>
+                      <span className="text-primary font-medium">{Math.round(dayTotal.fat)}g F</span>
+                    </div>
                   </div>
                 )}
-              </motion.div>
-            </motion.div>
+
+                {dayTotal.meals === 0 && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {tFallback('weeklyMealPlannerModal.nothingPlanned', 'Nothing planned yet. Add a meal below.')}
+                  </p>
+                )}
+
+                {/* One group per slot. The label is a GROUP HEADER, not a box:
+                    a second dinner is a second row under the same header, which
+                    the old 89.7pt cell could never show. */}
+                <div className="mt-6 space-y-2">
+                  {selectedPlans.map(({ slot, items }) => {
+                    const slotTotal = mealPlans.dayTotals(items);
+                    const openAdd = () => setAddSlot({ date: selectedDate, mealType: slot.key, label: slot.label });
+                    if (items.length === 0) {
+                      return (
+                        <button
+                          key={slot.key}
+                          onClick={openAdd}
+                          className="w-full min-h-[48px] flex items-center gap-2 px-3 rounded-lg border border-dashed border-border text-start hover:bg-secondary/60 active:bg-secondary/60 transition-colors"
+                        >
+                          <span aria-hidden="true">{slot.emoji}</span>
+                          <span className="text-sm font-medium text-muted-foreground">{slot.label}</span>
+                          <span className="ms-auto inline-flex items-center gap-1 text-xs font-bold text-primary">
+                            <Plus className="w-3.5 h-3.5" />
+                            {tFallback('weeklyMealPlannerModal.add', 'Add')}
+                          </span>
+                        </button>
+                      );
+                    }
+                    return (
+                      <div key={slot.key}>
+                        <div className="flex items-baseline gap-2 px-1 pb-1">
+                          <span aria-hidden="true" className="text-micro">{slot.emoji}</span>
+                          <span className="text-micro font-bold uppercase tracking-wide text-muted-foreground">{slot.label}</span>
+                          {items.length > 1 && (
+                            <span className="ms-auto text-micro font-bold text-primary tabular-nums">
+                              {items.length} · {Math.round(slotTotal.calories)} cal
+                            </span>
+                          )}
+                        </div>
+                        <div className="space-y-1.5">
+                          {items.map(plan => {
+                            const recipe = plan.recipe_id ? recipesById.get(plan.recipe_id) : null;
+                            const snap = plan.food_snapshot;
+                            const kcal = Number(snap?.calories);
+                            return (
+                              <button
+                                key={plan.id}
+                                onClick={() => {
+                                  if (snap) {
+                                    setDetailPlan({ plan, date: selectedDate, mealType: slot.key });
+                                  } else {
+                                    setRemovePlan({ plan, date: selectedDate, mealType: slot.key, label: slot.label });
+                                  }
+                                }}
+                                className="w-full text-start px-3 py-2.5 rounded-lg bg-card border border-border hover:bg-secondary/40 active:bg-secondary/40 transition-colors"
+                              >
+                                <div className="flex items-start gap-2">
+                                  <span className="flex-1 min-w-0 text-sm font-medium leading-snug">
+                                    {recipe?.name || snap?.name || '—'}
+                                  </span>
+                                  {Number.isFinite(kcal) && kcal > 0 && (
+                                    <span className="text-xs font-bold tabular-nums shrink-0">{kcal} cal</span>
+                                  )}
+                                  <ChevRight className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5 rtl:scale-x-[-1]" />
+                                </div>
+                                {snap && (
+                                  <div className="flex gap-1.5 mt-1 text-micro">
+                                    <span className="text-destructive font-medium">{Math.round(Number(snap.protein_g) || 0)}P</span>
+                                    <span className="text-muted-foreground">·</span>
+                                    <span className="text-info font-medium">{Math.round(Number(snap.carbs_g) || 0)}C</span>
+                                    <span className="text-muted-foreground">·</span>
+                                    <span className="text-primary font-medium">{Math.round(Number(snap.fat_g) || 0)}F</span>
+                                  </div>
+                                )}
+                              </button>
+                            );
+                          })}
+                          {items.length < mealPlans.SLOT_CAPACITY ? (
+                            <button
+                              onClick={openAdd}
+                              className="w-full min-h-[40px] flex items-center justify-center gap-1 rounded-lg border border-dashed border-border text-xs font-semibold text-muted-foreground hover:bg-secondary/60 active:bg-secondary/60 transition-colors"
+                            >
+                              <Plus className="w-3.5 h-3.5" />
+                              {tFallback('weeklyMealPlannerModal.addAnother', 'Add another')}
+                            </button>
+                          ) : (
+                            <p className="text-micro text-muted-foreground text-center py-1.5">
+                              {tFallback('weeklyMealPlannerModal.slotFull', '{label} is full — {n} of {n}', { label: slot.label, n: mealPlans.SLOT_CAPACITY })}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </div>
+          </>
           )}
-        </AnimatePresence>
+        </motion.div>
 
         {/* Hidden file input driving the Photo-AI path. */}
         <input
@@ -989,33 +812,54 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
           onClose={() => setAddSlot(null)}
         />
 
-        <SlotMealsSheet
-          open={!!slotSheet}
-          label={slotSheet?.label}
-          plans={slotSheet?.plans || []}
-          recipesById={recipesById}
-          canAdd={(slotSheet?.plans?.length || 0) < mealPlans.SLOT_CAPACITY}
-          onAdd={() => {
-            setAddSlot({ date: slotSheet.date, mealType: slotSheet.mealType, label: slotSheet.label });
-            setSlotSheet(null);
-          }}
-          onPick={(p) => {
-            const s = slotSheet;
-            setSlotSheet(null);
-            if (p.food_snapshot) {
-              setDetailPlan({ plan: p, date: s.date, mealType: s.mealType });
-            } else if (confirm(tFallback("weeklyMealPlannerModal.removeThisMeal", "Remove this meal?"))) {
-              removeMutation.mutate(p.id);
-              // Only the diary-mirrored meal un-logs, and only for today.
-              if (s.date === isoDay(new Date())) {
-                removePlannerDiaryLog({ user, date: s.date, mealType: s.mealType })
-                  .then(invalidateDiary)
-                  .catch(() => {});
-              }
-            }
-          }}
-          onClose={() => setSlotSheet(null)}
-        />
+        {/* Removing a meal with no snapshot to show. The last native
+            confirm() in this flow lived here — unstyled, untranslatable, and
+            the only browser dialog left anywhere in the planner. */}
+        {removePlan && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+            onClick={() => setRemovePlan(null)}
+            className="fixed inset-0 z-[10001] bg-black/60 flex items-end sm:items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ y: 24 }} animate={{ y: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full sm:max-w-md bg-card border border-border rounded-2xl p-4"
+            >
+              <h3 className="font-heading font-bold text-sm">
+                {recipesById.get(removePlan.plan.recipe_id)?.name
+                  || tFallback('weeklyMealPlannerModal.thisMeal', 'This meal')}
+              </h3>
+              <p className="text-xs text-muted-foreground mt-1">
+                {tFallback('weeklyMealPlannerModal.removeFrom', 'Remove it from {label}?', { label: removePlan.label })}
+              </p>
+              <div className="flex gap-2 mt-6">
+                <button
+                  onClick={() => setRemovePlan(null)}
+                  className="flex-1 min-h-[44px] rounded-xl bg-secondary text-foreground font-semibold text-sm"
+                >
+                  {tFallback('weeklyMealPlannerModal.keep', 'Keep')}
+                </button>
+                <button
+                  onClick={() => {
+                    const r = removePlan;
+                    setRemovePlan(null);
+                    removeMutation.mutate(r.plan.id);
+                    // Only a meal mirrored into TODAY's diary needs un-logging.
+                    if (r.date === isoDay(new Date())) {
+                      removePlannerDiaryLog({ user, date: r.date, mealType: r.mealType })
+                        .then(invalidateDiary)
+                        .catch(() => {});
+                    }
+                  }}
+                  className="flex-1 min-h-[44px] rounded-xl border border-destructive/60 text-destructive font-semibold text-sm"
+                >
+                  {tFallback('weeklyMealPlannerModal.remove', 'Remove')}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
 
         <RecipePickerModal
           open={!!pickerSlot}

@@ -79,49 +79,52 @@ async function mountLoaded() {
 
 beforeEach(() => { PLANS = []; LANGUAGE = 'en'; });
 
-describe('grocery CTA — honest about what it can produce', () => {
-  it('no plans at all: invites the user to plan one, and is disabled', async () => {
-    await mountLoaded();
-    const btn = screen.getByRole('button', { name: /grocery list/i });
-    expect(btn).toBeDisabled();
-    expect(btn.textContent).toMatch(/Plan a meal to build a grocery list/);
-    expect(document.body.textContent).not.toMatch(/Generate grocery list/);
-  });
+// The grocery CTA's four tests lived here and went with the feature — it
+// could only ever draw from a saved recipe, and production held one recipe
+// with one ingredient across 63 profiles. What replaced them is the open day,
+// which is what the surface now actually puts on screen.
+describe('the open day — what the 89.7pt cell could never show', () => {
+  const TODAY = new Date().toISOString().slice(0, 10);
 
-  it('THE DEFECT: real photo-AI plans no longer advertise a meal count', async () => {
+  it("sums the day's calories rather than dropping them", async () => {
     PLANS = [
-      plan('2026-07-16', 'snack',  photoSnapshot('Sautéed onion and pepper')),
-      plan('2026-08-11', 'dinner', photoSnapshot('Farro bowl')),
+      plan(TODAY, 'lunch',  photoSnapshot('Grilled chicken with quinoa')),
+      plan(TODAY, 'dinner', photoSnapshot('Mac and cheese with peas')),
     ];
     await mountLoaded();
-    const btn = screen.getByRole('button', { name: /grocery list/i });
-    // Before the fix this read "Generate grocery list · 2 meals" and opened
-    // a sheet saying "Nothing to buy yet."
-    expect(btn.textContent).not.toMatch(/\d+\s*meal/);
-    expect(btn.textContent).toMatch(/Add a recipe to build a grocery list/);
-    expect(btn).toBeDisabled();
+    // Two 520-kcal snapshots. The grid rendered neither number.
+    expect(document.body.textContent).toMatch(/1040/);
   });
 
-  it('a plan carrying ingredients does advertise, and enables the button', async () => {
+  it('REGRESSION: a slot holding TWO meals renders both', async () => {
+    // The grid keyed cells `${date}-${mealType}` with last-write-wins, so the
+    // first of these was written, counted, and invisible. That is the
+    // 2026-08-11 defect — 6 of 8 production rows were unreachable this way.
     PLANS = [
-      plan('2026-08-11', 'dinner', { name: 'Stew', ingredients: [{ name: 'Carrot', grams: 80 }] }),
-      plan('2026-08-11', 'snack',  photoSnapshot('Farro bowl')),
+      { ...plan(TODAY, 'dinner', photoSnapshot('Mac and cheese with peas')), id: 'd1' },
+      { ...plan(TODAY, 'dinner', photoSnapshot('Steak and red potato')),     id: 'd2' },
     ];
     await mountLoaded();
-    const btn = screen.getByRole('button', { name: /grocery list/i });
-    // One of the two contributes — the count is 1, not 2.
-    expect(btn.textContent).toMatch(/Generate grocery list · 1 meal\b/);
-    expect(btn).toBeEnabled();
+    const text = document.body.textContent;
+    expect(text).toMatch(/Mac and cheese with peas/);
+    expect(text).toMatch(/Steak and red potato/);
   });
 
-  it('a completed plan is not counted', async () => {
-    PLANS = [{
-      ...plan('2026-08-11', 'dinner', { name: 'Stew', ingredients: [{ name: 'Carrot', grams: 80 }] }),
-      is_completed: true,
-    }];
+  it('a full name is rendered, not truncated to fit a column', async () => {
+    // 52 characters — the real length of a production row's name.
+    const long = 'Grilled panini sandwich with french fries and ketchup';
+    PLANS = [plan(TODAY, 'snack', photoSnapshot(long))];
     await mountLoaded();
-    const btn = screen.getByRole('button', { name: /grocery list/i });
-    expect(btn).toBeDisabled();
+    expect(screen.getByText(long)).toBeTruthy();
+  });
+
+  it('a day with no macros behind it shows no calorie total', async () => {
+    // A recipe-backed plan carries `recipe_id` and no snapshot, so there is
+    // nothing to add up. Rendering "0" at someone who planned a meal is the
+    // app calling them lazy — the rule CLAUDE.md states for empty sections.
+    PLANS = [{ ...plan(TODAY, 'lunch', null), recipe_id: 'r1' }];
+    await mountLoaded();
+    expect(document.body.textContent).not.toMatch(/\b0 cal\b/);
   });
 });
 

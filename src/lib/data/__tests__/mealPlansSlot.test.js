@@ -1,4 +1,4 @@
-// Several meals per (user, date, meal slot) — and an honest grocery count.
+// Several meals per (user, date, meal slot), and what a day adds up to.
 //
 // The slot half of this file was INVERTED on 2026-08-13 by migration 355, and
 // the inversion is the point rather than a regression:
@@ -12,14 +12,17 @@
 //      Two is the floor that must work: every plan template's snack1 and
 //      snack2 both map to `snack`, so no template could be applied whole
 //      while 344 existed.
-//   2. The grocery CTA counted plans, not plans that contribute ingredients,
-//      so it advertised 6 meals and opened a sheet reading "Nothing to buy".
-//      Unchanged — that half of the audit still holds.
+//   2. The grocery list is GONE (2026-08-13). It could only ever draw from a
+//      saved recipe, and production held one recipe with one ingredient
+//      across 63 profiles, so the CTA — the single full-width primary on the
+//      tab — was wired to nothing. Its tests went with it; what replaced them
+//      is `dayTotals`, which is what the planner now puts on screen.
 //
 // The shapes here are the REAL production shapes. Note especially
-// `PHOTO_AI_SNAPSHOT`: 14 keys, no `ingredients`. Every pre-existing test in
-// `mealPlans.test.js` uses a recipe or a snapshot carrying `ingredients` —
-// neither of which any production row has ever had.
+// `PHOTO_AI_SNAPSHOT`: 14 keys and no `ingredients`. The retired
+// `mealPlans.test.js` only ever used a recipe or a snapshot carrying
+// `ingredients` — neither of which any production row has ever had, which is
+// how the grocery CTA's defect stayed invisible for as long as it did.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
@@ -52,8 +55,7 @@ vi.mock('@/api/supabaseClient', () => {
   return { supabase: { from: (table) => makeChain(table) } };
 });
 
-const { upsert, findSlot, isSlotFull, SLOT_CAPACITY,
-        buildGroceryList, shoppablePlans, planIngredients } =
+const { upsert, findSlot, isSlotFull, SLOT_CAPACITY, dayTotals } =
   await import('../mealPlans');
 
 const USER = { id: 'u1', email: 'a@b.c' };
@@ -148,52 +150,39 @@ describe('upsert — a slot holds several meals', () => {
   });
 });
 
-describe('grocery count — what the CTA is allowed to promise', () => {
-  const recipes = new Map([
-    ['r1', { id: 'r1', name: 'Chicken Bowl', ingredients: [{ name: 'Rice', grams: 150 }] }],
-  ]);
+describe('dayTotals — what the open day puts on screen', () => {
+  const snap = (o) => ({ food_snapshot: o });
 
-  it('a real photo-AI plan contributes NOTHING — it has macros, not ingredients', () => {
-    const plans = [{ food_snapshot: PHOTO_AI_SNAPSHOT }];
-    expect(planIngredients(plans[0], recipes)).toEqual([]);
-    expect(shoppablePlans(plans, recipes)).toHaveLength(0);
-    expect(buildGroceryList(plans, recipes)).toEqual([]);
+  it('sums calories and macros across a slot holding several meals', () => {
+    const t = dayTotals([
+      snap({ calories: 330, protein_g: 9,  carbs_g: 69,  fat_g: 2 }),
+      snap({ calories: 870, protein_g: 33, carbs_g: 104, fat_g: 36 }),
+    ]);
+    expect(t).toMatchObject({ calories: 1200, protein: 42, carbs: 173, fat: 38, meals: 2, counted: 2 });
   });
 
-  it('THE DEFECT: production\'s 8-row shape counted 8 and produced 0 items', () => {
-    const plans = Array.from({ length: 8 }, () => ({ is_completed: false, food_snapshot: PHOTO_AI_SNAPSHOT }));
-    // What the old CTA showed:
-    expect(plans.filter(p => !p.is_completed)).toHaveLength(8);
-    // What the sheet actually renders:
-    expect(buildGroceryList(plans, recipes)).toEqual([]);
-    // What the CTA now shows — the two agree.
-    expect(shoppablePlans(plans, recipes)).toHaveLength(0);
+  it('counts a recipe-backed plan as a MEAL but not as a number', () => {
+    // A recipe slot stores `recipe_id` and no snapshot, so it has no macros to
+    // add. `meals` moves and `counted` does not — the caller renders "no
+    // macros yet" rather than a zero, which is the rule for empty sections.
+    const t = dayTotals([{ recipe_id: 'r1' }, snap({ calories: 500, protein_g: 40 })]);
+    expect(t.meals).toBe(2);
+    expect(t.counted).toBe(1);
+    expect(t.calories).toBe(500);
   });
 
-  it('the count and the list always agree, on a mixed week', () => {
-    const plans = [
-      { recipe_id: 'r1' },                                     // contributes
-      { food_snapshot: PHOTO_AI_SNAPSHOT },                    // does not
-      { food_snapshot: { ingredients: [{ name: 'Banana', grams: 100 }] } }, // contributes
-      { recipe_id: 'r1', is_completed: true },                 // completed → skipped
-    ];
-    expect(shoppablePlans(plans, recipes)).toHaveLength(2);
-    expect(buildGroceryList(plans, recipes).map(i => i.name)).toEqual(['Banana', 'Rice']);
+  it('ignores an all-zero snapshot rather than counting it as measured', () => {
+    // Production holds exactly this row: calories 0 with 5/5/5 macros is a
+    // real meal, but a snapshot with nothing above zero is not a measurement.
+    expect(dayTotals([snap({ calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 })]))
+      .toMatchObject({ meals: 1, counted: 0, calories: 0 });
+    expect(dayTotals([snap({ calories: 0, protein_g: 5, carbs_g: 5, fat_g: 5 })]))
+      .toMatchObject({ meals: 1, counted: 1, protein: 5 });
   });
 
-  it('a completed plan contributes nothing — the flag still gates the list', () => {
-    const plans = [{ recipe_id: 'r1', is_completed: true }];
-    expect(shoppablePlans(plans, recipes)).toHaveLength(0);
-    expect(buildGroceryList(plans, recipes)).toEqual([]);
-  });
-
-  it('an ingredients array of blank names is not shoppable', () => {
-    const plans = [{ food_snapshot: { ingredients: [{ name: '   ' }, { name: '' }] } }];
-    expect(shoppablePlans(plans, recipes)).toHaveLength(0);
-  });
-
-  it('tolerates a missing recipe map rather than throwing', () => {
-    expect(() => buildGroceryList([{ recipe_id: 'r1' }], undefined)).not.toThrow();
-    expect(shoppablePlans([{ recipe_id: 'r1' }], undefined)).toHaveLength(0);
+  it('is inert on empty and non-numeric input', () => {
+    expect(dayTotals([])).toMatchObject({ calories: 0, meals: 0, counted: 0 });
+    expect(dayTotals(null)).toMatchObject({ meals: 0 });
+    expect(dayTotals([snap({ calories: 'lots' })])).toMatchObject({ meals: 1, counted: 0, calories: 0 });
   });
 });

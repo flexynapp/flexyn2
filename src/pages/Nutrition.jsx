@@ -845,9 +845,22 @@ export default function Nutrition() {
   };
 
   const deleteMutation = useMutation({
-    mutationFn: (id) => nutritionData.remove(id),
+    mutationFn: async (id) => {
+      await nutritionData.remove(id);
+      // A photo-logged meal is MIRRORED into the planner, with this log's id
+      // on the snapshot. Removing only the log left the plan behind pointing
+      // at a row that no longer exists — 3 of 8 production rows were orphans
+      // that way. It matters more now that the planner sums a day's calories:
+      // an orphan is the app counting a meal the user just deleted.
+      // Best-effort — the diary delete has already succeeded and must stand.
+      try { await mealPlans.removeMirrorForLog(id); } catch (mirrorErr) {
+        reportError(mirrorErr, { feature: 'nutrition.mirror-cleanup', level: 'warning', userEmail: user?.email });
+      }
+      return id;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['nutritionLogs', user?.email, date] });
+      queryClient.invalidateQueries({ queryKey: ['mealPlans', user?.id] });
       toast.success(t('nutrition.toast.entryRemoved'));
     },
     onError: (err) => {

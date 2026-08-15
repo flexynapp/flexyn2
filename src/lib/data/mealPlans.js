@@ -125,56 +125,53 @@ export async function markCompleted(id, isCompleted) {
 }
 
 /**
- * The ingredients a single plan contributes to a grocery list — the one
- * place that decides it, so the CTA's count and the list itself can never
- * disagree.
+ * Delete the planner row that MIRRORS a diary entry.
  *
- * A plan contributes NOTHING unless a recipe is attached or its snapshot
- * carries an `ingredients` array. Neither the Photo-AI nor the manual entry
- * path writes one (they store macros), so in production this is empty for
- * every row that exists: 0 of 8 snapshots carry `ingredients`.
+ * The Nutrition page's photo logger writes a meal_plans row 120-192ms after
+ * its nutrition_logs row, stamping the new log's id onto the snapshot.
+ * Deleting the diary entry used to remove only the log, leaving the plan
+ * behind pointing at a row that no longer exists — 3 of 8 production rows
+ * were in that state before a dedupe cleared them incidentally. The planner
+ * now sums a day's calories, so an orphan is no longer a stale cell: it is
+ * the app reporting calories for a meal the user deleted.
+ *
+ * Filtering on the JSON path is what makes this one statement instead of a
+ * read-then-delete, and `meal_plans_user_log_uniq` (migration 355) means it
+ * can only ever match one row.
  */
-export function planIngredients(plan, recipesById) {
-  if (!plan || plan.is_completed) return [];
-  const recipe = plan.recipe_id ? recipesById?.get(plan.recipe_id) : null;
-  const ingredients = recipe?.ingredients
-    || (Array.isArray(plan.food_snapshot?.ingredients) ? plan.food_snapshot.ingredients : []);
-  if (!Array.isArray(ingredients)) return [];
-  return ingredients.filter(ing => String(ing?.name || '').trim());
-}
-
-/** Plans in `plans` that will actually put something on the list. */
-export function shoppablePlans(plans, recipesById) {
-  return (plans || []).filter(p => planIngredients(p, recipesById).length > 0);
+export async function removeMirrorForLog(logId) {
+  if (!logId) return;
+  const { error } = await supabase
+    .from('meal_plans')
+    .delete()
+    .eq('food_snapshot->>log_id', String(logId));
+  if (error) throw error;
 }
 
 /**
- * Build a consolidated grocery list from upcoming meal plans:
- * walks every plan in the range, sums ingredient grams across all
- * meals, returns one item per unique ingredient name.
+ * What a day adds up to. Pure, so the arithmetic is testable without a grid.
  *
- * @param {Array} plans   meal_plans rows with embedded recipes
- * @param {Map<string, object>} recipesById  recipe lookup
- * @returns {Array<{ name, total_grams, recipes: string[] }>}
+ * Only a snapshot carries numbers — a recipe-backed plan stores `recipe_id`
+ * and nothing else — so a day of recipe slots reports `counted: 0` against a
+ * non-zero `meals`. The caller must render that as "no macros yet" rather
+ * than as a zero: a 0 kcal at someone who planned three meals is the app
+ * calling them lazy, which is the rule CLAUDE.md states for empty sections.
  */
-export function buildGroceryList(plans, recipesById) {
-  const out = new Map();
+export function dayTotals(plans) {
+  const out = { calories: 0, protein: 0, carbs: 0, fat: 0, meals: 0, counted: 0 };
   for (const p of plans || []) {
-    const recipe = p.recipe_id ? recipesById?.get(p.recipe_id) : null;
-    for (const ing of planIngredients(p, recipesById)) {
-      const key = String(ing?.name || '').trim().toLowerCase();
-      if (!key) continue;
-      if (!out.has(key)) {
-        out.set(key, { name: ing.name, total_grams: 0, recipes: new Set() });
-      }
-      const slot = out.get(key);
-      slot.total_grams += Number(ing.grams) || 0;
-      if (recipe?.name) slot.recipes.add(recipe.name);
-    }
+    out.meals += 1;
+    const s = p?.food_snapshot;
+    if (!s) continue;
+    const kcal = Number(s.calories);
+    const pr = Number(s.protein_g), c = Number(s.carbs_g), f = Number(s.fat_g);
+    const any = [kcal, pr, c, f].some(v => Number.isFinite(v) && v > 0);
+    if (!any) continue;
+    out.counted += 1;
+    if (Number.isFinite(kcal)) out.calories += kcal;
+    if (Number.isFinite(pr)) out.protein += pr;
+    if (Number.isFinite(c)) out.carbs += c;
+    if (Number.isFinite(f)) out.fat += f;
   }
-  return Array.from(out.values()).map(v => ({
-    name: v.name,
-    total_grams: Math.round(v.total_grams),
-    recipes: Array.from(v.recipes),
-  })).sort((a, b) => a.name.localeCompare(b.name));
+  return out;
 }
