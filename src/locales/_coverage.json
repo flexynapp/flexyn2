@@ -1,13 +1,13 @@
 {
   "$comment": "Committed per-locale baseline for the i18n no-regression guard. `translated` must never decrease; `englishEcho` must never increase. Regenerate deliberately with `npm run i18n:baseline` and say why in the commit.",
-  "sourceKeys": 3780,
+  "sourceKeys": 3790,
   "locales": {
     "es": {
-      "translated": 3763,
+      "translated": 3773,
       "englishEcho": 108
     },
     "fr": {
-      "translated": 3763,
+      "translated": 3773,
       "englishEcho": 176
     },
     "de": {

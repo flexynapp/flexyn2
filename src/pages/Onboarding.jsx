@@ -29,6 +29,7 @@ import { escapeLikePattern } from '@/lib/sqlPattern';
 import { buildProfilePayload, resolveMeasurements, parseHeightInput, PROFILE_RANGES, MIN_USERNAME_LENGTH, canLeaveAboutStep } from '@/lib/data/onboardingProfile';
 import { todayLocalDateString } from '@/lib/dateUtils';
 import { useDateFormatter } from '@/lib/intl';
+import { isAccent } from '@/lib/accentWord';
 import NearbyGymPicker from '@/components/gyms/NearbyGymPicker';
 import GymJoinSheet from '@/components/gyms/GymJoinSheet';
 // Lazy on purpose: GymMap statically imports maplibre-gl, and
@@ -478,7 +479,7 @@ function KineticHeading({ text, accentWord }) {
           <motion.span key={i} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.08 + i * 0.06, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
             className="inline-block me-2"
-            style={{ color: w.replace(/[.,!?]/g, '') === accentWord ? 'hsl(var(--primary))' : undefined }}>
+            style={{ color: isAccent(w, accentWord) ? 'hsl(var(--primary))' : undefined }}>
             {w}
           </motion.span>
         ))}
@@ -798,7 +799,7 @@ function WelcomeStep({ onNext, onSignIn }) {
           {line2.map((w, i) => (
             <motion.span key={`l2-${i}`} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
               transition={{ delay: (delay += 0.1) - 0.1, duration: 0.55, ease: [0.16,1,0.3,1] }}
-              className={`inline-block me-3 ${w.replace(/[.,!?]/g, '') === accent ? 'text-primary' : ''}`}>{w}</motion.span>
+              className={`inline-block me-3 ${isAccent(w, accent) ? 'text-primary' : ''}`}>{w}</motion.span>
           ))}
         </h1>
       </div>
@@ -856,7 +857,7 @@ function GoalStep({ value, onChange, onNext, onBack, step, total }) {
       <div className="flex-1 overflow-y-auto pb-2">
         <KineticHeading
           text={tFallback('onboarding.goal.heading', 'What are you here for?')}
-          accentWord="for?" />
+          accentWord={tFallback('onboarding.goal.accentWord', 'for')} />
         {/* min-h holds two lines so the cards don't jump as the helper text
             changes length with the number of picks. */}
         <p className="text-sm text-muted-foreground min-h-[40px] transition-all"
@@ -1048,7 +1049,7 @@ function SharpenStep({ goals, value, onChange, onNext, onBack, step, total }) {
       <div className="flex-1 overflow-y-auto pb-2">
         <KineticHeading
           text={tFallback('onboarding.sharpen.heading', "Let's sharpen your plan.")}
-          accentWord="sharpen" />
+          accentWord={tFallback('onboarding.sharpen.accentWord', 'sharpen')} />
         <p className="text-sm text-muted-foreground" style={{ marginBottom: 'var(--fluid-section)' }}>
           {tFallback('onboarding.sharpen.sub', 'A few quick details make your starter plan spot-on — all optional.')}
         </p>
@@ -1144,7 +1145,7 @@ function ExperienceStep({ value, onChange, onNext, onBack, step, total }) {
       <div className="flex-1 overflow-y-auto pb-2">
         <KineticHeading
           text={tFallback('onboarding.experience.heading', 'How long have you been training?')}
-          accentWord="training?" />
+          accentWord={tFallback('onboarding.experience.accentWord', 'training')} />
         {/* Tightened for the same reason as the goal step: with the meter
             open, the fourth level card was being sliced by the CTA. */}
         <p className="text-sm text-muted-foreground mb-2">
@@ -1372,7 +1373,7 @@ function AssessmentStep({ value, onChange, onNext, onBack, onSkip, step, total }
       <div className="flex-1 overflow-y-auto pb-2">
         <KineticHeading
           text={tFallback('onboarding.assessment.heading', 'Quick lift check')}
-          accentWord="lift"
+          accentWord={tFallback('onboarding.assessment.accentWord', 'lift')}
         />
         <p className="text-sm text-muted-foreground" style={{ marginBottom: 'var(--fluid-section)' }}>
           {tFallback('onboarding.assessment.sub', 'Optional — the more honest you are, the better the plan. Your AI Coach uses these to set starting volume.')}
@@ -1653,7 +1654,7 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
       <div className="flex-1 overflow-y-auto pb-4">
         <KineticHeading
           text={tFallback('onboarding.about.heading', 'Tell us about yourself.')}
-          accentWord="yourself." />
+          accentWord={tFallback('onboarding.about.accentWord', 'yourself')} />
         {/* mb-5 was 20px flat, which is both in the banned 12–20px register
             and the wrong axis: it cost a 667pt screen exactly what it cost a
             932pt one, on the step with the least room to spare. */}
@@ -2052,7 +2053,7 @@ function HeightStep({ stats, onChange, onNext, onBack, step, total }) {
       <div className="flex-1 overflow-y-auto pb-2">
         <KineticHeading
           text={tFallback('onboarding.height.heading', 'How tall are you?')}
-          accentWord="tall" />
+          accentWord={tFallback('onboarding.height.accentWord', 'tall')} />
         <div style={{ height: 'var(--fluid-stack)' }} />
         <div style={{ marginBottom: 'var(--fluid-section)' }}>
           <PillUnitToggle
@@ -2352,7 +2353,7 @@ function WeightStep({ stats, onChange, onNext, onBack, step, total }) {
         <div className="flex justify-between items-start mb-3">
           <KineticHeading
             text={tFallback('onboarding.weight.heading', 'How much do you weigh?')}
-            accentWord="weigh?" />
+            accentWord={tFallback('onboarding.weight.accentWord', 'weigh')} />
         </div>
         <div className="mb-4">
           <PillUnitToggle options={[{id:'lb',label:'lb'},{id:'kg',label:'kg'}]} value={unit} onChange={setUnit} />
@@ -2476,7 +2477,7 @@ function DaysStep({ days, preferredTime, onDaysChange, onTimeChange, onNext, onB
       <div className="flex-1 overflow-y-auto pb-4 space-y-5">
         <KineticHeading
           text={tFallback('onboarding.schedule.heading', 'Which days can you train?')}
-          accentWord="train?" />
+          accentWord={tFallback('onboarding.schedule.accentWord', 'train')} />
         <p className="text-sm text-muted-foreground mt-2">
           {tFallback('onboarding.schedule.sub', "Plan around real life — we'll keep recovery in check.")}
         </p>
@@ -2663,7 +2664,7 @@ function InjuryHistoryStep({ step, total, value, onChange, onNext, onBack, onSki
       <div className="flex-1 overflow-y-auto pb-4">
         <KineticHeading
           text={tFallback('onboarding.injury.heading', "We'll work around them from day one.")}
-          accentWord="around"
+          accentWord={tFallback('onboarding.injury.accentWord', 'around')}
         />
         <p className="text-sm text-muted-foreground mt-1 mb-5">
           {tFallback('onboarding.injury.sub', "Anything you flag comes out of your plan until you clear it, whatever the severity. Skip if you're all good.")}
@@ -2847,7 +2848,7 @@ function HomeGymStep({ step, total, value, onChange, onNext, onBack, onSkip }) {
       <div className="flex-1 overflow-y-auto pb-4">
         <KineticHeading
           text={tFallback('onboarding.homeGym.heading', 'Pick your gym and meet your floor.')}
-          accentWord="floor"
+          accentWord={tFallback('onboarding.homeGym.accentWord', 'floor')}
         />
         <p className="text-sm text-muted-foreground mt-1 mb-4">
           {tFallback('onboarding.homeGym.sub', "Your gym gets a bubble on the Flexyn map, and you'll get a leaderboard with everyone else who trains there. You can change this any time.")}
