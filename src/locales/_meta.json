@@ -12,11 +12,16 @@
       "journal.migrated",
       "journal.moodOnly",
       "journal.saveFailed",
+      "nutritionPlansModal.differInSplit",
+      "nutritionPlansModal.sameOnEvery",
       "readiness.allLogged3",
       "readiness.blend3",
       "readiness.estimate",
       "readiness.footer",
-      "readiness.logSub"
+      "readiness.logSub",
+      "weeklyMealPlannerModal.diaryNoCap",
+      "weeklyMealPlannerModal.nothingPlanned",
+      "weeklyMealPlannerModal.slotFullLead"
     ]
   },
   "reviewPending": {
@@ -78,7 +83,23 @@
       "$comment": "The whole French catalog is a machine draft produced 2026-08-14, consistent with _glossary.json — register VOUS, which is the opposite of Spanish — and verified for placeholder, newline and markdown parity. NOT natively reviewed. Read _glossary.json first; it also records that the pre-existing translation uses 'Série' for both Streak and Set, which a native pass should settle.",
       "status": "machine-drafted, awaiting native review",
       "coverage": "99.6%"
-    }
+    },
+    "plans": [
+      "es",
+      "fr",
+      "de",
+      "pt",
+      "it",
+      "ja",
+      "ko",
+      "zh",
+      "ar",
+      "hi",
+      "ru",
+      "tr",
+      "pl",
+      "nl"
+    ]
   },
   "machineTranslated": {
     "$comment": "Keys drafted by machine, pending native review.",
@@ -116,6 +137,10 @@
     ],
     "bodyMap": [
       "bodyMap."
+    ],
+    "plans": [
+      "weeklyMealPlannerModal.",
+      "nutritionPlansModal."
     ]
   },
   "released": {

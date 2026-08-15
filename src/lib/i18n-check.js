@@ -123,6 +123,9 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'workout.templates.reps',
   ]),
   fr: new Set([
+    // Plans surface: 'Macros' and 'Plans' are the French words too.
+    'weeklyMealPlannerModal.macros',
+    'weeklyMealPlannerModal.title',
     'achievementDefs.cat.nutrition',
     'biceps',
     'bodyMetrics.dateRequired',
@@ -228,6 +231,8 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'widgetDefs.cat.motivation',
   ]),
   pt: new Set([
+    // 'Macros' is the Portuguese word too.
+    'weeklyMealPlannerModal.macros',
     'cardio',
     'cardio.field.hours',
     'cardio.field.minutes',
@@ -260,6 +265,8 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'workout.templates.reps',
   ]),
   it: new Set([
+    // "{n} cal in {label}" is valid Italian unchanged — 'in' is the same word.
+    'weeklyMealPlannerModal.calInSlot',
     'cardio',
     'cardio.field.hours',
     'cardio.field.minutes',
@@ -315,6 +322,8 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'workout.minutes',
   ]),
   nl: new Set([
+    // "{n} cal in {label}" is valid Dutch unchanged — 'in' is the same word.
+    'weeklyMealPlannerModal.calInSlot',
     'biceps',
     'cardio',
     'cardio.field.minutes',

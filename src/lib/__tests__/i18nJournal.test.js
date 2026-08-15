@@ -18,7 +18,12 @@ import { domainByLang, meta } from './i18nCatalogs.fixture';
 
 const journalI18n = domainByLang('journal');
 const { englishOnly, reviewPending } = meta();
-const ENGLISH_ONLY = englishOnly.keys;
+// `englishOnly.keys` is flat and shared across domains — `plans` added its
+// own prose to it. Scope to this domain, or the assertions below read as
+// "journal must define every held key in the app", which they never meant.
+const ENGLISH_ONLY = englishOnly.keys.filter(
+  (k) => k.startsWith('journal.') || k.startsWith('mood.') || k.startsWith('readiness.'),
+);
 const REVIEW_PENDING = reviewPending.journal;
 
 const LANGS = ['en','es','fr','de','pt','it','ja','ko','zh','ar','hi','ru','tr','pl','nl'];
