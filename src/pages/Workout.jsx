@@ -9,6 +9,7 @@ import { supabase } from '@/api/supabaseClient';
 import { useAuth } from '@/lib/AuthContext';
 import { isAppAdmin } from '@/lib/adminRoles';
 import { setLayoutDefault } from '@/lib/data/layoutDefaults';
+import * as crewsData from '@/lib/data/crews';
 import { format, parseISO, subDays } from 'date-fns';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -99,16 +100,23 @@ const ProgressPhotoCapture = lazy(() => import('@/components/progress/ProgressPh
 const InjuryForm           = lazy(() => import('@/components/workout/InjuryForm'));
 const PRShareCard          = lazy(() => import('@/components/workout/PRShareCard'));
 const GoalsModal           = lazy(() => import('@/components/goals/GoalsModal'));
+const CrewWarsMenu         = lazy(() => import('@/components/crews/CrewWarsMenu'));
 
-// The Workout hero's three destinations. HeroPager keys its pages off `id`
+// The Workout hero's destinations. HeroPager keys its pages off `id`
 // and paints its dots from `color`, so both live here rather than inside the
 // slide bodies. `color` is an HSL triple the pager drops into `hsl(...)` —
 // the gauntlet's purple is the same 139,92,246 its gradient uses, converted.
-const HERO_SLIDES = [
+//
+// Crew Wars is CONDITIONAL: a user who is not in a crew cannot be in a crew
+// war, so the slide is not rendered for them and the dots count two. The
+// list is built per-render from membership rather than being this constant,
+// because HeroPager wraps modulo `slides.length` — a fixed 3 with a hidden
+// third page would leave a blank slide in the rotation.
+const HERO_SLIDES_BASE = [
   { id: 'freestyle', color: 'var(--primary)' },
   { id: 'gauntlet',  color: '258 90% 66%' },
-  { id: 'crew-wars', color: 'var(--success)' },
 ];
+const HERO_SLIDE_CREW = { id: 'crew-wars', color: 'var(--success)' };
 
 const EXERCISE_NAMES = new Set(EXERCISE_LIBRARY.map(e => e.name.toLowerCase()));
 
@@ -618,6 +626,24 @@ export default function Workout() {
     queryFn: () => db.auth.me(),
     enabled: !!user?.email,
   });
+
+  // Crew membership decides whether the Crew Wars hero slide exists at all.
+  // Migration 252 made this at most one crew, so `myCrew` is the crew, not
+  // a pick from a list. Shares the ['myCrews', user.id] key with the Hub
+  // Crews tab, so opening one warms the other.
+  const { data: myCrews = [] } = useQuery({
+    queryKey:  ['myCrews', user?.id],
+    queryFn:   () => crewsData.getMyCrews(user.id),
+    enabled:   !!user?.id,
+    staleTime: 60_000,
+  });
+  const myCrew = myCrews[0] ?? null;
+  const [crewWarsOpen, setCrewWarsOpen] = useState(false);
+
+  const heroSlides = useMemo(
+    () => (myCrew ? [...HERO_SLIDES_BASE, HERO_SLIDE_CREW] : HERO_SLIDES_BASE),
+    [myCrew],
+  );
 
   // ── The STORED volume is raw. Do not re-add the preference here. ──
   //
@@ -2154,31 +2180,14 @@ export default function Workout() {
 
     // Form Coach moved out of the grid — it's now a button inside the
     // active workout view (next to the plate calculator).
-
-
-    if (id === 'crew') return (
-      <motion.div whileHover={{ y:-2 }} whileTap={{ scale:0.98 }} transition={{ type:'spring', stiffness:380, damping:22 }}>
-        <Card role="button" tabIndex={0} aria-label={tFallback("workout.crewWars", "Crew Wars")}
-          className={cardBase} style={{ background: pal.background }}
-          onClick={() => navigate('/hub', { state:{ openCrewWars:true } })}
-          onKeyDown={(e) => { if (e.key==='Enter'||e.key===' '){e.preventDefault();navigate('/hub',{state:{openCrewWars:true}});} }}>
-          <InfoBtn bid="crew" />
-          <div className="flex flex-col items-center text-center gap-1.5">
-            {/* Crew Wars was the one tile whose border was half-alive:
-                `bg-primary/22` emitted nothing but `border-primary/35` did,
-                so it rendered an orange outline around an empty square and
-                matched neither the plain seven nor the orange two. */}
-            <div className={iconTile}>
-              <Shield className="w-5 h-5 text-primary" />
-            </div>
-            <div>
-              <p className="font-heading font-bold text-sm leading-tight">{tFallback("workout.crewWars", "Crew Wars")}</p>
-              <InfoText bid="crew" text="Battle rival crews — contribute XP and fight for crew supremacy." />
-            </div>
-          </div>
-        </Card>
-      </motion.div>
-    );
+    //
+    // A `crew` tile used to sit here too, and it was unreachable: `id` comes
+    // from `cardOrder`, which is either CARD_ORDER_DEFAULT or a persisted
+    // permutation validated to hold exactly those nine ids, and 'crew' is
+    // not one of them. It carried the same dead
+    // navigate('/hub', { state: { openCrewWars: true } }) as the hero slide,
+    // so it was a second copy of the bug nobody could trigger. Removed with
+    // the navigation it depended on; the hero slide is the entry point.
 
     return null;
   };
@@ -2541,7 +2550,7 @@ export default function Workout() {
               style={{ touchAction: 'pan-y' }}
             >
               <HeroPager
-                slides={HERO_SLIDES}
+                slides={heroSlides}
                 wrap
                 dotsClassName="justify-center mt-2.5"
                 renderSlide={(slide) => (
@@ -2613,7 +2622,7 @@ export default function Workout() {
                       </button>
                     )}
                     {slide.id === 'crew-wars' && (
-                      <button type="button" onClick={() => navigate('/hub', { state: { openCrewWars: true } })}
+                      <button type="button" onClick={() => setCrewWarsOpen(true)}
                         className="group w-full h-full relative overflow-hidden rounded-3xl text-white text-start"
                         style={{ background: 'linear-gradient(135deg, #0c1a10 0%, #14281c 40%, #091510 100%)', boxShadow: '0 20px 60px -12px rgba(16,185,129,0.3), 0 0 0 1px rgba(52,211,153,0.08) inset' }}>
                         <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-3xl">
@@ -2887,6 +2896,20 @@ export default function Workout() {
         <Suspense fallback={null}>
           <GoalsModal open={goalsModalOpen} onClose={() => setGoalsModalOpen(false)} goals={goals} logs={logs} userProfile={userProfile} />
         </Suspense>
+
+        {/* Only mounted once the user has opened it, so a member of no crew
+            never pays for the chunk — and neither does anyone else until
+            they tap the slide. */}
+        {crewWarsOpen && myCrew && (
+          <Suspense fallback={null}>
+            <CrewWarsMenu
+              open={crewWarsOpen}
+              onClose={() => setCrewWarsOpen(false)}
+              crew={myCrew}
+              currentUserId={user?.id}
+            />
+          </Suspense>
+        )}
 
         <Dialog open={savedWorkoutsOpen} onOpenChange={setSavedWorkoutsOpen}>
           <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">

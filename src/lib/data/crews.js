@@ -118,6 +118,28 @@ export async function getCrew(crewId) {
 
 // ── Members ───────────────────────────────────────────────────────────────────
 
+/**
+ * How many lifters are on a crew.
+ *
+ * `crews` has no member_count column — every count in this app is derived,
+ * because a denormalised counter is only ever as correct as every increment
+ * before it (see the gym_businesses.member_count drift in CLAUDE.md). A head
+ * count sends no rows over the wire, so this is cheaper than getCrewMembers
+ * for callers that only want the number.
+ *
+ * Returns null rather than 0 on failure: 0 is a claim about the crew, and a
+ * caller that cannot tell the two apart renders "0 lifters" at a crew that
+ * has members.
+ */
+export async function getCrewMemberCount(crewId) {
+  if (!crewId) return null;
+  const { count, error } = await supabase
+    .from('crew_members')
+    .select('id', { count: 'exact', head: true })
+    .eq('crew_id', crewId);
+  return error ? null : (count ?? null);
+}
+
 export async function getCrewMembers(crewId) {
   if (!crewId) return [];
   const { data, error } = await supabase

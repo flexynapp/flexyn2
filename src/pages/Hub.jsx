@@ -230,6 +230,25 @@ export default function Hub() {
     return () => window.removeEventListener('flexyn:open-crew', handler);
   }, []);
 
+  // Router-state twin of the event above, for callers on ANOTHER page.
+  // The event only works for a dispatcher that is already inside Hub
+  // (HubProfile) or that fires while Hub is mounted — Workout's Crew Wars
+  // menu is neither, so an event dispatched next to its navigate() would
+  // land before this listener exists and be lost. That is the same class of
+  // failure as the `openCrewWars` state this replaced, which Hub never read
+  // at all. Router state survives the transition, so it is what a
+  // cross-page hand-off uses.
+  useEffect(() => {
+    const crewId = location.state?.openCrewId;
+    if (!crewId) return;
+    setPendingCrewId(crewId);
+    setFeedTab('crews');
+    setSection('feed');
+    // Clear it, or a back-navigation into Hub re-opens the crew page the
+    // user just backed out of.
+    window.history.replaceState({}, document.title);
+  }, [location.state]);
+
   // The sub-header below is `fixed`, so it's out of flow and the page
   // content has to reserve its height by hand. That used to be a hardcoded
   // `pt-[120px]`, which was ~7px short of the header's real 127px on the
