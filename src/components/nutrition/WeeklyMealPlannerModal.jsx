@@ -33,7 +33,7 @@ import {
 } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { format, addDays, startOfWeek } from 'date-fns';
-import { useDateFormatter } from '@/lib/intl';
+import { useDateFormatter, useNumberFormatter } from '@/lib/intl';
 import { useAuth } from '@/lib/AuthContext';
 import * as mealPlans from '@/lib/data/mealPlans';
 import * as recipes from '@/lib/data/nutritionRecipes';
@@ -404,6 +404,7 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const fmtDate = useDateFormatter();
+  const fmtNum  = useNumberFormatter();
   useBodyScrollLock(open);
   const [anchor, setAnchor] = useState(() => new Date());
   const [pickerSlot, setPickerSlot] = useState(null); // { date, mealType } → recipe picker
@@ -768,7 +769,7 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
               <>
                 <div className="flex items-baseline justify-between">
                   <h3 className="font-heading font-bold text-base">
-                    {fmtDate(new Date(`${selectedDate}T00:00:00`), { weekday: 'long', day: 'numeric' })}
+                    {fmtDate(new Date(`${selectedDate}T00:00:00`), { weekday: 'long', month: 'short', day: 'numeric' })}
                   </h3>
                   {selectedDate === isoDay(new Date()) && (
                     <span className="text-micro font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-primary/15 text-primary">
@@ -785,17 +786,17 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
                   <div className="mt-1">
                     <div className="flex items-baseline gap-1.5">
                       <span className="font-heading font-bold text-2xl tabular-nums">
-                        {Math.round(dayTotal.calories)}
+                        {fmtNum(Math.round(dayTotal.calories))}
                       </span>
                       {targetCalories
-                        ? <span className="text-xs text-muted-foreground">/ {targetCalories} cal</span>
+                        ? <span className="text-xs text-muted-foreground">/ {fmtNum(targetCalories)} cal</span>
                         : <span className="text-xs text-muted-foreground">cal</span>}
                       {targetCalories && (
                         <span className={`text-xs font-bold ms-auto ${
                           dayTotal.calories > targetCalories ? 'text-destructive' : 'text-success'}`}>
                           {dayTotal.calories > targetCalories
-                            ? tFallback('weeklyMealPlannerModal.overBy', '{n} over', { n: Math.round(dayTotal.calories - targetCalories) })
-                            : tFallback('weeklyMealPlannerModal.leftOver', '{n} left', { n: Math.round(targetCalories - dayTotal.calories) })}
+                            ? tFallback('weeklyMealPlannerModal.overBy', '{n} over', { n: fmtNum(Math.round(dayTotal.calories - targetCalories)) })
+                            : tFallback('weeklyMealPlannerModal.leftOver', '{n} left', { n: fmtNum(Math.round(targetCalories - dayTotal.calories)) })}
                         </span>
                       )}
                     </div>
@@ -853,7 +854,7 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
                           <span className="text-micro font-bold uppercase tracking-wide text-muted-foreground">{slot.label}</span>
                           {items.length > 1 && (
                             <span className="ms-auto text-micro font-bold text-primary tabular-nums">
-                              {items.length} · {Math.round(slotTotal.calories)} cal
+                              {items.length} · {fmtNum(Math.round(slotTotal.calories))} cal
                             </span>
                           )}
                         </div>
@@ -879,7 +880,7 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
                                     {recipe?.name || snap?.name || '—'}
                                   </span>
                                   {Number.isFinite(kcal) && kcal > 0 && (
-                                    <span className="text-xs font-bold tabular-nums shrink-0">{kcal} cal</span>
+                                    <span className="text-xs font-bold tabular-nums shrink-0">{fmtNum(kcal)} cal</span>
                                   )}
                                   <ChevRight className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5 rtl:scale-x-[-1]" />
                                 </div>
@@ -898,7 +899,7 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
                           {items.length < mealPlans.SLOT_CAPACITY ? (
                             <button
                               onClick={openAdd}
-                              className="w-full min-h-[40px] flex items-center justify-center gap-1 rounded-lg border border-dashed border-border text-xs font-semibold text-muted-foreground hover:bg-secondary/60 active:bg-secondary/60 transition-colors"
+                              className="w-full min-h-[40px] flex items-center justify-center gap-1 rounded-lg text-xs font-semibold text-muted-foreground hover:bg-secondary/60 active:bg-secondary/60 transition-colors"
                             >
                               <Plus className="w-3.5 h-3.5" />
                               {tFallback('weeklyMealPlannerModal.addAnother', 'Add another')}

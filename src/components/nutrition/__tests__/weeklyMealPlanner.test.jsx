@@ -103,8 +103,9 @@ describe('the open day — what the 89.7pt cell could never show', () => {
       plan(TODAY, 'dinner', photoSnapshot('Mac and cheese with peas')),
     ];
     await mountLoaded();
-    // Two 520-kcal snapshots. The grid rendered neither number.
-    expect(document.body.textContent).toMatch(/1040/);
+    // Two 520-kcal snapshots. The grid rendered neither number — and the
+    // total is grouped, because a bare "1040" is what the device pass caught.
+    expect(document.body.textContent).toMatch(/1,040/);
   });
 
   it('REGRESSION: a slot holding TWO meals renders both', async () => {
