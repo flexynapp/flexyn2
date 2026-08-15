@@ -2,11 +2,23 @@
   "$comment": "Term base. The vocabulary a translation must not reinvent — derived from the 1,449 Spanish strings that already shipped, so a new pass agrees with the old one instead of introducing a second word for the same thing. Add a row when a term first appears; a reviewer reads this before the catalog.",
   "register": {
     "es": "tú",
-    "$note": "Informal throughout — measured on the existing translations, 166 tú-forms against 27 usted. A fitness app addresses the person training, not a customer."
+    "$note": "Informal throughout — measured on the existing translations, 166 tú-forms against 27 usted. A fitness app addresses the person training, not a customer. French is the opposite: vous throughout, measured at 118 vous-forms against 62 tu. Do not assume one register carries across languages.",
+    "fr": "vous"
   },
   "doNotTranslate": {
     "$note": "Product and brand nouns. Kept in English by the existing translations, so keep them.",
-    "terms": ["Flexyn", "Hub", "Crew", "Crews", "Coach", "Reps", "Cardio", "XP", "PR", "Capsule"]
+    "terms": [
+      "Flexyn",
+      "Hub",
+      "Crew",
+      "Crews",
+      "Coach",
+      "Reps",
+      "Cardio",
+      "XP",
+      "PR",
+      "Capsule"
+    ]
   },
   "es": {
     "Workout": "Entrenamiento",
@@ -58,5 +70,56 @@
     "Template": "Plantilla",
     "Routine": "Rutina",
     "Regimen": "Régimen"
+  },
+  "fr": {
+    "$note": "COLLISION worth a reviewer's attention: the shipped translation uses 'Série' for BOTH Streak and Set ('Séries' for Sets). Kept as-is because it is what already ships and consistency beats a unilateral change, but a native pass should decide — 'Série' for a training set and something like 'Série en cours' or 'Suite' for a streak would remove the ambiguity.",
+    "Workout": "Entraînement",
+    "Set": "Série",
+    "Sets": "Séries",
+    "Rep": "Rep",
+    "Reps": "Reps",
+    "Exercise": "Exercice",
+    "Exercises": "Exercices",
+    "Streak": "Série",
+    "Goal": "Objectif",
+    "Goals": "Objectifs",
+    "Progress": "Progrès",
+    "Rest": "Repos",
+    "Level": "Niveau",
+    "League": "Ligue",
+    "Leaderboard": "Classement",
+    "Settings": "Paramètres",
+    "Profile": "Profil",
+    "Friends": "Amis",
+    "Followers": "Abonnés",
+    "Following": "Abonnements",
+    "Share": "Partager",
+    "Save": "Sauvegarder",
+    "Cancel": "Annuler",
+    "Delete": "Supprimer",
+    "Done": "Terminé",
+    "Next": "Suivant",
+    "Close": "Fermer",
+    "Today": "Aujourd'hui",
+    "Nutrition": "Nutrition",
+    "Meal": "Repas",
+    "Calories": "Calories",
+    "Protein": "Protéine",
+    "Carbs": "Glucides",
+    "Fat": "Lipides",
+    "Gym": "Salle de sport",
+    "Weight": "Poids",
+    "Volume": "Volume",
+    "Recovery": "Récupération",
+    "Readiness": "Forme",
+    "Injury": "Blessure",
+    "Warm-up": "Échauffement",
+    "Badge": "Badge",
+    "Quest": "Quête",
+    "Duel": "Duel",
+    "Bounty": "Prime",
+    "Template": "Modèle",
+    "Routine": "Routine",
+    "Regimen": "Programme"
   }
 }

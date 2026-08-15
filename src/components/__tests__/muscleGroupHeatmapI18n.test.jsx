@@ -158,6 +158,12 @@ describe('the key list and the call sites agree', () => {
     const released = JSON.parse(
       fs.readFileSync('src/locales/_meta.json', 'utf8'),
     ).released.locales;
-    expect(Object.keys(bodyMapTranslations).sort()).toEqual([...released].sort());
+    // A SUPERSET, not equality. A shelved locale carrying translations is fine
+    // and is how a locale gets finished before it is offered — French reached
+    // this domain while still shelved. What must hold is that every locale the
+    // app actually offers is covered.
+    const present = new Set(Object.keys(bodyMapTranslations));
+    const uncovered = released.filter((l) => !present.has(l));
+    expect(uncovered, `released locales missing from bodyMap: ${uncovered.join(', ')}`).toEqual([]);
   });
 });
