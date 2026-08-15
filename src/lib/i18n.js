@@ -204,7 +204,9 @@ export const ALL_LANGUAGES = [
  * Languages the app actually OFFERS — the picker, and the only values
  * `setLanguage` and the stored/server preference will accept.
  *
- * English only, deliberately, as of 2026-08-13.
+ * English and Spanish, as of 2026-08-14. Spanish rejoined at 99.6% of the
+ * English catalog — everything except the keys _meta.json holds English by
+ * policy. It is a machine draft awaiting a native pass; see _meta.json.
  *
  * The other fourteen sat at ~49% of the English catalog: a user choosing
  * العربية got a screen half in Arabic and half in English, which reads as a
@@ -224,4 +226,4 @@ export const ALL_LANGUAGES = [
  * complete, not when it is started. `npm run i18n:audit` prints where each
  * one stands.
  */
-export const SUPPORTED_LANGUAGES = ALL_LANGUAGES.filter((l) => l.code === 'en');
+export const SUPPORTED_LANGUAGES = ALL_LANGUAGES.filter((l) => ['en', 'es'].includes(l.code));

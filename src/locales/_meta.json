@@ -68,7 +68,12 @@
       "tr",
       "pl",
       "nl"
-    ]
+    ],
+    "spanish": {
+      "$comment": "The whole Spanish catalog is a machine draft produced 2026-08-14, consistent with _glossary.json (tú register, 49 fixed terms) and verified for placeholder, newline and markdown parity. It has NOT had a native pass. A reviewer should read _glossary.json first, then work namespace by namespace — coach.* and onboarding.* carry the long-form coaching prose and are where a wrong register or a mistranslated cue costs the most.",
+      "status": "machine-drafted, awaiting native review",
+      "coverage": "99.6%"
+    }
   },
   "machineTranslated": {
     "$comment": "Keys drafted by machine, pending native review.",
@@ -111,12 +116,12 @@
   "released": {
     "$comment": "Locales the app OFFERS in the picker. Authoritative list is SUPPORTED_LANGUAGES in src/lib/i18n.js; this records the decision and why. A locale joins when it is COMPLETE, not when it is started.",
     "locales": [
-      "en"
+      "en",
+      "es"
     ],
     "shelved": {
       "$comment": "Have catalogs in src/locales/ and are still guarded by _coverage.json and the DEV checker, but are not offered. Shelved 2026-08-13 at ~49% of the English catalog: half a translated screen reads as a broken app, where an absent language reads as a decision. No account had ever selected one. Finishing all fourteen is ~135,000 words, roughly $16k of professional post-editing.",
       "locales": [
-        "es",
         "fr",
         "de",
         "pt",

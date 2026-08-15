@@ -150,7 +150,14 @@ describe('the key list and the call sites agree', () => {
     expect(orphans, `unused keys: ${orphans.join(', ')}`).toEqual([]);
   });
 
-  it('ships English only, so a missing language falls back rather than blanks', () => {
-    expect(Object.keys(bodyMapTranslations)).toEqual(['en']);
+  it('ships every RELEASED locale, so nothing here falls back to English', () => {
+    // Was 'ships English only'. That described the shelved state rather than a
+    // policy: the reason given was that a missing language should fall back
+    // rather than blank, and a present translation does not blank either. What
+    // matters is that this domain covers whatever the app actually offers.
+    const released = JSON.parse(
+      fs.readFileSync('src/locales/_meta.json', 'utf8'),
+    ).released.locales;
+    expect(Object.keys(bodyMapTranslations).sort()).toEqual([...released].sort());
   });
 });
