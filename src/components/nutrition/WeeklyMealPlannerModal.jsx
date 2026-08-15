@@ -665,18 +665,27 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
           <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
             <div className="flex items-center gap-2">
               <CalendarDays className="w-4 h-4 text-primary shrink-0" />
-              <h2 className="font-heading font-bold text-base leading-tight">Weekly Plan &amp; Plans</h2>
+              <h2 className="font-heading font-bold text-base leading-tight">
+                {tFallback('weeklyMealPlannerModal.title', 'Plans')}
+              </h2>
             </div>
-            <button onClick={onClose} aria-label={tFallback("common.close", "Close")} className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center">
+            <button
+              onClick={onClose}
+              aria-label={tFallback("common.close", "Close")}
+              className="w-11 h-11 -me-2 rounded-full flex items-center justify-center text-muted-foreground hover:bg-secondary active:bg-secondary transition-colors"
+            >
               <X className="w-3.5 h-3.5" />
             </button>
           </div>
 
-          {/* Tab switcher — Weekly plan grid vs. Nutrition Plans browser */}
+          {/* Two halves of one surface. It used to be titled "Weekly Plan &
+              Plans" over tabs reading "Weekly Plan" and "Nutritional Plans" —
+              the whole named after one of its halves, and that half named
+              twice. The sheet is Plans; these are what it holds. */}
           <div className="flex gap-1 p-1 mx-4 my-2 bg-secondary rounded-lg shrink-0">
             {[
-              { id: 'planner', label: 'Weekly Plan' },
-              { id: 'plans',   label: 'Nutritional Plans' },
+              { id: 'planner', label: tFallback('weeklyMealPlannerModal.tabWeek', 'This week') },
+              { id: 'plans',   label: tFallback('weeklyMealPlannerModal.tabPlans', 'Meal plans') },
             ].map(tb => (
               <button
                 key={tb.id}

@@ -136,7 +136,7 @@ function NutritionShortcutsCarousel({ onScan, onRecipes, onHistory, onPlans, onP
       color: 'var(--destructive)',
       kicker: 'Nutrition Plans',
       title: 'Nutrition Plans',
-      tip: 'Pre-built macro splits — cut, bulk, recomp, keto, maintenance. Apply one and your goals update.',
+      tip: 'Pre-built macro splits — cut, bulk, recomp, keto, maintenance. Apply one and its meals land on your day.',
       ctaLabel: 'See plans',
       onCta: onPlans,
     },
@@ -147,7 +147,7 @@ function NutritionShortcutsCarousel({ onScan, onRecipes, onHistory, onPlans, onP
       color: 'var(--primary)',
       kicker: 'Weekly Planner',
       title: 'Weekly Planner',
-      tip: 'Drop meals into a 7-day grid. Hit your macro targets across the week, not just one day.',
+      tip: 'Plan a day at a time and watch it add up. Every meal you drop in counts toward that day\'s target.',
       // Not "Plan the week" — that label now belongs to the Dashboard hero
       // CTA that opens the My Week routine calendar, and two buttons with
       // the same words opening different planners is a coin flip for the
