@@ -15,6 +15,9 @@
 //             DELETED, orphaned mirrors fixed at the cause.
 //   270f49d2  catalog + detail — split leads, six gradients and the
 //             backdrop-blur gone, PLAN_COLORS gone, "add to your day" wired.
+//   628ce3f8  the capacity sheet — a full slot offers replace-one or the
+//             diary instead of only refusing. Nothing on the board is
+//             unbuilt after this one.
 //
 // WHY THIS IS A FILE. The plugin bridge hangs — `execute_code` times out on
 // the SERVER→PLUGIN hop while the page is plainly open — which is the same
@@ -85,11 +88,14 @@ let patched = 0;
 // ── 1 · The status bar: the proposal is BUILT ─────────────────────────
 patched += set('chip l / 02dep / DEPENDS ON', 'BUILT');
 patched += set('02 dep t',
-  'Everything in group 02 is on main. 5f3fa75d builds the week (day strip, one open day, day totals against the goal-driven target, multi-meal slot groups) and removes the grocery list; 270f49d2 builds the catalog and the detail (the split leads, six gradients and the backdrop-blur gone, PLAN_COLORS gone, "add these meals to your day" wired). What is NOT built is the capacity sheet in 03e — the cap surfaces as a toast instead, which covers it functionally.');
+  'Everything on this board is on main. 5f3fa75d builds the week (day strip, one open day, day totals against the goal-driven target, multi-meal slot groups) and removes the grocery list; 270f49d2 builds the catalog and the detail (the split leads, six gradients and the backdrop-blur gone, PLAN_COLORS gone, "add these meals to your day" wired); 628ce3f8 builds the capacity sheet below. What is left is a device pass, not a build.');
+
+patched += set('cap caption',
+  'BUILT in 628ce3f8, with one change. The drawing gives "Replace one of them" its own row leading to a list; the build makes the LIST the affordance — every meal is tappable and replacing is what tapping does, which collapses a two-step into one and says the same thing. The diary option is gated on the open day being TODAY: on a future Thursday there is no today\'s diary to divert into, and the cap is on the plan rather than on what someone may eat.');
 
 for (const k of ['sheet full', 'state slot full']) {
   const t = find('chip l / dep ' + k + ' / NEEDS 344 DROPPED');
-  if (t) { t.characters = k === 'sheet full' ? 'NOT BUILT — toast covers it' : 'BUILT'; t.growType = 'auto-width'; patched++; }
+  if (t) { t.characters = 'BUILT'; t.growType = 'auto-width'; patched++; }
 }
 
 // ── 2 · Audit rows that the shipped work closes ───────────────────────
