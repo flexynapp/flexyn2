@@ -136,6 +136,104 @@ function RecipePickerModal({ open, recipes: recipeList, onPick, onClose }) {
   );
 }
 
+// ── The slot is at capacity ───────────────────────────────────────────
+// A cap that only refuses is a worse cap. SLOT_CAPACITY is three because TWO
+// is the floor a plan template needs — snack1 and snack2 both map to `snack`
+// — and past three a day stops being a plan and becomes a record. The record
+// already exists and has no cap: syncPlannerDiaryLog mirrors planner meals
+// into nutrition_logs. So this names the rule and then offers both ways
+// through it, rather than saying no and stopping there.
+function SlotFullSheet({ open, label, items, recipesById, isToday, onReplace, onLogToDiary, onClose }) {
+  const { tFallback } = useLanguage();
+  if (!open) return null;
+  const total = Math.round(mealPlans.dayTotals(items).calories);
+  return (
+    <motion.div
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+      onClick={onClose}
+      className="fixed inset-0 z-[10001] bg-black/60 flex items-end sm:items-center justify-center p-4"
+    >
+      <motion.div
+        initial={{ y: 24 }} animate={{ y: 0 }}
+        onClick={(e) => e.stopPropagation()}
+        className="w-full sm:max-w-md bg-card border border-border rounded-2xl max-h-[85vh] flex flex-col"
+      >
+        <div className="flex items-center justify-between ps-4 pe-2 py-2 border-b border-border shrink-0">
+          <h3 className="font-heading font-bold text-sm">
+            {tFallback('weeklyMealPlannerModal.slotIsFull', '{label} is full', { label })}
+          </h3>
+          <button
+            onClick={onClose}
+            aria-label={tFallback('weeklyMealPlannerModal.close', 'Close')}
+            className="w-11 h-11 rounded-full flex items-center justify-center text-muted-foreground"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-4">
+          <p className="text-xs text-muted-foreground leading-snug">
+            {tFallback(
+              'weeklyMealPlannerModal.slotFullLead',
+              '{n} meals is the most one slot holds. Past that a day stops being a plan and starts being a diary — and you already have one.',
+              { n: mealPlans.SLOT_CAPACITY },
+            )}
+          </p>
+
+          <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground mt-6 mb-2">
+            {tFallback('weeklyMealPlannerModal.replaceOne', 'Replace one of them')}
+          </p>
+          <div className="space-y-1.5">
+            {items.map(plan => {
+              const recipe = plan.recipe_id ? recipesById.get(plan.recipe_id) : null;
+              const kcal = Number(plan.food_snapshot?.calories);
+              return (
+                <button
+                  key={plan.id}
+                  onClick={() => onReplace(plan)}
+                  className="w-full flex items-center justify-between gap-3 text-start px-3 py-2.5 rounded-lg border border-border bg-secondary/40 hover:bg-secondary active:bg-secondary transition-colors"
+                >
+                  <span className="text-sm font-medium min-w-0">
+                    {recipe?.name || plan.food_snapshot?.name || '—'}
+                  </span>
+                  {Number.isFinite(kcal) && kcal > 0 && (
+                    <span className="text-micro font-semibold text-muted-foreground shrink-0 tabular-nums">{kcal} cal</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+          {total > 0 && (
+            <p className="text-micro text-primary font-semibold text-end mt-2 tabular-nums">
+              {tFallback('weeklyMealPlannerModal.calInSlot', '{n} cal in {label}', { n: total, label: String(label).toLowerCase() })}
+            </p>
+          )}
+
+          {/* Only offered where it is true. On a future date there is no
+              "today's diary" to divert into, and the cap is on the PLAN
+              rather than on what the user is allowed to eat. */}
+          {isToday && (
+            <button
+              onClick={onLogToDiary}
+              className="w-full flex items-center gap-3 text-start px-3 py-3 mt-6 rounded-xl border border-border bg-secondary/40 hover:bg-secondary active:bg-secondary transition-colors"
+            >
+              <span className="flex-1 min-w-0">
+                <span className="block font-bold text-sm">
+                  {tFallback('weeklyMealPlannerModal.logToDiary', "Log it to today's diary instead")}
+                </span>
+                <span className="block text-micro text-muted-foreground mt-0.5">
+                  {tFallback('weeklyMealPlannerModal.diaryNoCap', 'The diary has no cap — planner meals already mirror into it.')}
+                </span>
+              </span>
+              <ChevRight className="w-4 h-4 text-muted-foreground shrink-0 rtl:scale-x-[-1]" />
+            </button>
+          )}
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
 // ── "How do you want to add this meal?" chooser ────────────────────────
 // Shown when a user taps an empty meal slot. Three ways in: Photo-AI
 // (snap the plate), Recipe (their saved recipes), or Manual (type the
@@ -313,6 +411,7 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
   const [manualSlot, setManualSlot] = useState(null); // { date, mealType, label } → manual form
   const [detailPlan, setDetailPlan] = useState(null); // { plan, date, mealType } → read-only detail view
   const [removePlan, setRemovePlan] = useState(null); // { plan, date, mealType, label } → confirm removal
+  const [fullSlot, setFullSlot]     = useState(null); // { label, mealType, items } → the slot is at capacity
   const [photoBusy, setPhotoBusy]   = useState(false);
   // Two tabs: the week ('planner') and the Nutrition Plans browser
   // ('plans'), which was folded in here from its own modal.
@@ -414,8 +513,8 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
     // save plan" on a deliberate limit reads as the app being broken.
     onError:    (err) => toast.error(
       mealPlans.isSlotFull(err)
-        ? `That slot already holds ${mealPlans.SLOT_CAPACITY} meals.`
-        : 'Could not save plan.'),
+        ? tFallback('weeklyMealPlannerModal.slotFullShort', 'That slot already holds {n} meals.', { n: mealPlans.SLOT_CAPACITY })
+        : tFallback('weeklyMealPlannerModal.couldNotSave', 'Could not save plan.')),
   });
 
   const removeMutation = useMutation({
@@ -805,9 +904,15 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
                               {tFallback('weeklyMealPlannerModal.addAnother', 'Add another')}
                             </button>
                           ) : (
-                            <p className="text-micro text-muted-foreground text-center py-1.5">
+                            // A cap that only refuses is worse than one that
+                            // offers a way through. Tapping this opens the
+                            // sheet rather than doing nothing.
+                            <button
+                              onClick={() => setFullSlot({ label: slot.label, mealType: slot.key, items })}
+                              className="w-full min-h-[40px] flex items-center justify-center rounded-lg text-micro font-semibold text-muted-foreground hover:bg-secondary/60 active:bg-secondary/60 transition-colors"
+                            >
                               {tFallback('weeklyMealPlannerModal.slotFull', '{label} is full — {n} of {n}', { label: slot.label, n: mealPlans.SLOT_CAPACITY })}
-                            </p>
+                            </button>
                           )}
                         </div>
                       </div>
@@ -893,6 +998,29 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
             </motion.div>
           </motion.div>
         )}
+
+        <SlotFullSheet
+          open={!!fullSlot}
+          label={fullSlot?.label}
+          items={fullSlot?.items || []}
+          recipesById={recipesById}
+          isToday={selectedDate === isoDay(new Date())}
+          onReplace={async (plan) => {
+            const slot = fullSlot;
+            setFullSlot(null);
+            // Free the space BEFORE offering to fill it — the cap is a
+            // trigger, so opening the add flow first would just earn a 23514.
+            await removeMutation.mutateAsync(plan.id);
+            if (selectedDate === isoDay(new Date())) {
+              removePlannerDiaryLog({ user, date: selectedDate, mealType: slot.mealType })
+                .then(invalidateDiary)
+                .catch(() => {});
+            }
+            setAddSlot({ date: selectedDate, mealType: slot.mealType, label: slot.label });
+          }}
+          onLogToDiary={() => { setFullSlot(null); onClose(); }}
+          onClose={() => setFullSlot(null)}
+        />
 
         <RecipePickerModal
           open={!!pickerSlot}

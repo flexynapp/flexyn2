@@ -17,7 +17,7 @@
 
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 let LANGUAGE = 'en';
@@ -25,8 +25,19 @@ let LANGUAGE = 'en';
 vi.mock('@/lib/AuthContext', () => ({
   useAuth: () => ({ user: { id: 'u1', email: 'a@b.c' } }),
 }));
+// `tFallback(key, 'English {n}', { n })` is the three-argument form, and the
+// usual stub — `(_k, e) => e` — silently drops the third. That returns the
+// pre-interpolated fallback, so a string carrying a placeholder passes whether
+// or not the call site forwards its vars, and the hole only appears once
+// somebody switches language. CLAUDE.md documents this exact blind spot. This
+// stub interpolates, so a dropped var fails here instead of in Spanish.
 vi.mock('@/lib/LanguageContext', () => ({
-  useLanguage: () => ({ language: LANGUAGE, t: (k) => k, tFallback: (_k, e) => e }),
+  useLanguage: () => ({
+    language: LANGUAGE,
+    t: (k) => k,
+    tFallback: (_k, e, vars) =>
+      String(e).replace(/\{(\w+)\}/g, (m, name) => (vars && name in vars ? vars[name] : m)),
+  }),
 }));
 vi.mock('@/hooks/useBodyScrollLock', () => ({ useBodyScrollLock: () => {} }));
 vi.mock('@/components/nutrition/NutritionPlansModal', () => ({
@@ -145,5 +156,57 @@ describe('dates move with the language', () => {
     // the English one.
     expect(text).toMatch(/lun|mar|mié|jue|vie|sáb|dom/);
     expect(text).not.toMatch(/\bMon\b/);
+  });
+});
+
+describe('the slot cap — a refusal that offers a way through', () => {
+  const TODAY = new Date().toISOString().slice(0, 10);
+  const fullDinner = () => ([
+    { ...plan(TODAY, 'dinner', photoSnapshot('Mac and cheese with peas')),  id: 'd1' },
+    { ...plan(TODAY, 'dinner', photoSnapshot('Grilled panini sandwich')),   id: 'd2' },
+    { ...plan(TODAY, 'dinner', photoSnapshot('Steak and red potato')),      id: 'd3' },
+  ]);
+
+  it('a full slot offers no Add — it says which rule was hit', async () => {
+    PLANS = fullDinner();
+    await mountLoaded();
+    expect(document.body.textContent).toMatch(/Dinner is full — 3 of 3/);
+  });
+
+  it('tapping it opens the sheet, with both ways forward', async () => {
+    PLANS = fullDinner();
+    await mountLoaded();
+    fireEvent.click(screen.getByRole('button', { name: /Dinner is full/i }));
+
+    // Names the rule and the reason, rather than only refusing.
+    expect(await screen.findByText(/3 meals is the most one slot holds/i)).toBeTruthy();
+    // Way out 1: replace one — every meal in the slot is offered.
+    expect(screen.getByText(/Replace one of them/i)).toBeTruthy();
+    // Twice on screen now: once in the day, once offered for replacement.
+    expect(screen.getAllByText('Steak and red potato')).toHaveLength(2);
+    // Way out 2: the diary, which genuinely has no cap.
+    expect(screen.getByText(/Log it to today's diary instead/i)).toBeTruthy();
+  });
+
+  it("does not offer today's diary for a day that is not today", async () => {
+    // The cap is on the PLAN, not on what someone may eat — but there is no
+    // "today's diary" to divert a future Thursday's dinner into.
+    // Must be in the VISIBLE week — the grid loads Mon–Sun, so "today + 3"
+    // can fall outside it and render no chip at all. Monday, unless today is
+    // Monday, in which case Tuesday.
+    const now = new Date();
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+    if (monday.toISOString().slice(0, 10) === TODAY) monday.setDate(monday.getDate() + 1);
+    const future = monday.toISOString().slice(0, 10);
+    PLANS = fullDinner().map((p, i) => ({ ...p, plan_date: future, id: `f${i}` }));
+    await mountLoaded();
+    // Open that day first, then the sheet.
+    const dayNum = String(Number(future.slice(8, 10)));
+    fireEvent.click(screen.getAllByRole('button').find(b => b.textContent.endsWith(dayNum)));
+    fireEvent.click(await screen.findByRole('button', { name: /Dinner is full/i }));
+
+    expect(screen.getByText(/Replace one of them/i)).toBeTruthy();
+    expect(document.body.textContent).not.toMatch(/Log it to today's diary/i);
   });
 });
