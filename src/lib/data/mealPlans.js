@@ -1,8 +1,10 @@
 // src/lib/data/mealPlans.js
 //
-// Planned future meals (mig 123). Used by the meal-planner UI to let
-// the user pre-schedule tomorrow's meals + by the grocery-list
-// generator which walks 7 days of plans and sums ingredients.
+// Planned future meals (mig 123, 355). A slot holds up to SLOT_CAPACITY of
+// them; uniqueness is on the MIRROR identity (user_id, log_id) rather than on
+// the slot. The grocery-list generator this file used to carry is gone — it
+// could only ever draw from a saved recipe, and production held one recipe
+// with one ingredient across 63 profiles.
 
 import { supabase } from '@/api/supabaseClient';
 
@@ -146,6 +148,31 @@ export async function removeMirrorForLog(logId) {
     .delete()
     .eq('food_snapshot->>log_id', String(logId));
   if (error) throw error;
+}
+
+/**
+ * A plan template's meals, mapped onto the planner's four slots.
+ *
+ * Templates carry FIVE meals — breakfast, lunch, snack1, dinner, snack2 —
+ * against four slot types, and both snacks map to `snack`. That collision is
+ * exactly why no template could be applied whole until migration 355 lifted
+ * one-plan-per-slot: the second snack had nowhere to go. Five meals into four
+ * slots, snack holding two, inside the cap of three.
+ *
+ * Pure, and separate from the writer, so the mapping can be proven without
+ * mounting a modal.
+ */
+export function planMealsToSlots(scaledPlan) {
+  return (scaledPlan?.meals || []).map(meal => ({
+    mealType: String(meal.id || '').startsWith('snack') ? 'snack' : meal.id,
+    foodSnapshot: {
+      name:      meal.name,
+      calories:  Number(meal.kcal) || 0,
+      protein_g: Number(meal.macros?.p) || 0,
+      carbs_g:   Number(meal.macros?.c) || 0,
+      fat_g:     Number(meal.macros?.f) || 0,
+    },
+  }));
 }
 
 /**

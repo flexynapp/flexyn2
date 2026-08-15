@@ -424,6 +424,35 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
     onError:    () => toast.error('Could not remove plan.'),
   });
 
+  // Applying a plan template. A template IS one day's meals — breakfast,
+  // lunch, snack1, dinner, snack2 — so it lands on the OPEN DAY rather than
+  // spreading across the week, and it replaces that day rather than
+  // interleaving with what is already there.
+  //
+  // snack1 and snack2 both map to the single `snack` slot, which is exactly
+  // why no template could be applied whole until migration 355 lifted
+  // one-plan-per-slot. Five meals into four slots, snack holding two, inside
+  // the cap of three.
+  const applyPlanMutation = useMutation({
+    mutationFn: async (scaledPlan) => {
+      for (const p of plans.filter(p => p.plan_date === selectedDate)) {
+        await mealPlans.remove(p.id);
+      }
+      for (const { mealType, foodSnapshot } of mealPlans.planMealsToSlots(scaledPlan)) {
+        await mealPlans.upsert({ user, planDate: selectedDate, mealType, foodSnapshot });
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['mealPlans', user?.id, startStr, endStr] });
+      setTab('planner');
+      toast.success(tFallback('weeklyMealPlannerModal.planApplied', 'Added to your day'));
+    },
+    onError: (err) => toast.error(
+      mealPlans.isSlotFull(err)
+        ? tFallback('weeklyMealPlannerModal.slotFullShort', 'That slot already holds {n} meals.', { n: mealPlans.SLOT_CAPACITY })
+        : tFallback('weeklyMealPlannerModal.couldNotApply', 'Could not add that plan.')),
+  });
+
   // A planned recipe stores BOTH the id and a snapshot of what was planned.
   //
   // The id alone was the whole row: migration 123 deliberately omits the FK so
@@ -565,7 +594,11 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
             /* Nutrition Plans — folded in from the old standalone modal.
                px-4/pt-4 so PlanDetail's negative-margin hero bleeds right. */
             <div className="flex-1 overflow-y-auto overscroll-contain px-4 sm:px-6 pt-4 pb-6">
-              <NutritionPlansPanel userProfile={userProfile} onStartOnboarding={onStartOnboarding} />
+              <NutritionPlansPanel
+                userProfile={userProfile}
+                onStartOnboarding={onStartOnboarding}
+                onApplyPlan={(scaledPlan) => applyPlanMutation.mutate(scaledPlan)}
+              />
             </div>
           ) : (
           <>

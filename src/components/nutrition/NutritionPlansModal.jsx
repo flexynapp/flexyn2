@@ -3,7 +3,7 @@ import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ChevronRight, ChevronDown, ChevronUp, ArrowLeft, Clock, Flame, Beef, Pill, ClipboardList, Sparkles, ArrowLeftRight } from 'lucide-react';
 import { Card } from '@/components/ui/card';
-import { PLAN_TEMPLATES, PLAN_COLORS, scalePlan, adaptPlan, loadRestrictions } from '@/lib/nutritionPlans';
+import { PLAN_TEMPLATES, scalePlan, adaptPlan, loadRestrictions } from '@/lib/nutritionPlans';
 import { useNutritionTargets } from '@/hooks/useNutritionTargets';
 import { isNutritionOnboardingComplete } from '@/lib/nutritionOnboardingGate';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
@@ -25,17 +25,9 @@ function MacroBar({ protein, carbs, fat }) {
   );
 }
 
-function MacroPill({ label, value, unit = 'g', color }) {
-  return (
-    <div className={`flex flex-col items-center px-3 py-1.5 rounded-xl ${color}`}>
-      <span className="text-micro font-medium opacity-70">{label}</span>
-      <span className="font-heading font-bold text-sm leading-tight">{value}{unit}</span>
-    </div>
-  );
-}
-
 /* ─── Plan card (list view) ──────────────────────────────────────────────── */
-function PlanCard({ plan, scaled, onSelect, colors, fitsGoal }) {
+function PlanCard({ plan, scaled, onSelect, fitsGoal }) {
+  const { tFallback } = useLanguage();
   const macros = scaled.scaledMacros || scaled.baseMacros;
   const kcal   = scaled.scaledCalories || scaled.baseCalories;
   return (
@@ -46,66 +38,67 @@ function PlanCard({ plan, scaled, onSelect, colors, fitsGoal }) {
       transition={{ type: 'spring', stiffness: 380, damping: 22 }}
       className="w-full text-start"
     >
-      <Card className="overflow-hidden border border-border/60 shadow-sm">
-        {/* Gradient header */}
-        <div className={`bg-gradient-to-br ${colors.card} px-4 pt-4 pb-3`}>
-          <div className="flex items-start justify-between">
-            <div className="flex items-center gap-2 flex-1 min-w-0">
-              <span className="text-2xl leading-none shrink-0">{plan.icon}</span>
-              <div className="min-w-0">
-                <h3 className="font-heading font-bold text-base leading-tight truncate">{plan.name}</h3>
-                <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{plan.tagline}</p>
-              </div>
-            </div>
-            <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5 ms-2 rtl:scale-x-[-1]" />
+      {/* Flat, hairline border, no gradient and no per-plan hue. The header
+          used to be `bg-gradient-to-br from-<hue>-500/20` over five colours
+          keyed straight off the raw Tailwind palette — a decorative gradient
+          and a fifth, sixth, seventh hue, all three of which the composition
+          rules ban. Plans are told apart by their icon and their goal badge. */}
+      <Card className="border border-border p-4">
+        <div className="flex items-start gap-2">
+          <span className="text-xl leading-none shrink-0">{plan.icon}</span>
+          <div className="min-w-0 flex-1">
+            <h3 className="font-heading font-bold text-base leading-tight truncate">{plan.name}</h3>
+            <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{plan.tagline}</p>
           </div>
-
-          {/* Goal badges */}
-          <div className="flex gap-1.5 mt-2.5 flex-wrap items-center">
-            {plan.goalFit.map(g => (
-              <span key={g} className={`text-micro font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full ${colors.badge}`}>
-                {g}
-              </span>
-            ))}
-            {fitsGoal && (
-              <span className="inline-flex items-center gap-1 text-micro font-semibold px-2 py-0.5 rounded-full bg-primary/15 text-primary">
-                matches your goal
-              </span>
-            )}
-            {plan.swapCount > 0 && (
-              <span className="inline-flex items-center gap-1 text-micro font-semibold px-2 py-0.5 rounded-full bg-success/15 text-success dark:text-success">
-                <Sparkles className="w-2.5 h-2.5" />
-                adapted for you
-              </span>
-            )}
-          </div>
+          <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5 rtl:scale-x-[-1]" />
         </div>
 
-        {/* Stats row */}
-        <div className="px-4 py-3 bg-card">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-              <Flame className="w-3 h-3" />
-              <span className="font-heading font-bold text-foreground">{kcal}</span>
-              <span>cal/day</span>
+        <div className="flex gap-1.5 mt-2 flex-wrap items-center">
+          {plan.goalFit.map(g => (
+            <span key={g} className="text-micro font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-secondary text-muted-foreground">
+              {g}
+            </span>
+          ))}
+          {fitsGoal && (
+            <span className="inline-flex items-center gap-1 text-micro font-semibold px-2 py-0.5 rounded-full bg-primary/15 text-primary">
+              matches your goal
+            </span>
+          )}
+          {plan.swapCount > 0 && (
+            <span className="inline-flex items-center gap-1 text-micro font-semibold px-2 py-0.5 rounded-full bg-success/15 text-success dark:text-success">
+              <Sparkles className="w-2.5 h-2.5" />
+              adapted for you
+            </span>
+          )}
+        </div>
+
+        {/* The split leads, because the split is the ONLY thing that differs.
+            scalePlan multiplies every plan up to the same target, so
+            `scaledCalories === targetCalories` by construction — that figure
+            is identical on all seven cards and used to be the largest thing
+            on each of them. Keto's 26g of carbs against Plant Power's 270g is
+            what a browser is actually choosing between. */}
+        <div className="flex items-end gap-6 mt-6">
+          {[['protein', 'P', 'text-destructive'], ['carbs', 'C', 'text-info'], ['fat', 'F', 'text-primary']].map(([k, letter, tint]) => (
+            <div key={k} className="flex items-baseline gap-0.5">
+              <span className="font-heading font-bold text-xl tabular-nums">{macros[k]}</span>
+              <span className={`text-xs font-bold ${tint}`}>g {letter}</span>
             </div>
-            <div className="flex gap-1 text-micro text-muted-foreground">
-              <span className="text-destructive font-medium">{macros.protein}g P</span>
-              <span>·</span>
-              <span className="text-info font-medium">{macros.carbs}g C</span>
-              <span>·</span>
-              <span className="text-primary font-medium">{macros.fat}g F</span>
-            </div>
-          </div>
+          ))}
+        </div>
+        <div className="mt-2">
           <MacroBar protein={macros.protein} carbs={macros.carbs} fat={macros.fat} />
         </div>
+        <p className="text-micro text-muted-foreground mt-2">
+          {tFallback('nutritionPlansModal.sameOnEvery', '{n} cal/day — your target, the same on every plan', { n: kcal })}
+        </p>
       </Card>
     </motion.button>
   );
 }
 
 /* ─── Meal row (detail view) ─────────────────────────────────────────────── */
-function MealRow({ meal, colors }) {
+function MealRow({ meal }) {
   const { tFallback } = useLanguage();
   const [open, setOpen] = useState(false);
   return (
@@ -162,7 +155,7 @@ function MealRow({ meal, colors }) {
                     <div className={`w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${ing.swapped ? 'bg-success' : 'bg-primary/60'}`} />
                     <div className="flex-1 flex items-baseline gap-1.5 flex-wrap">
                       <span className="text-sm font-medium">{ing.name}</span>
-                      <span className={`text-xs font-semibold ${colors.badge.split(' ')[1] || 'text-primary'}`}>{ing.amount}</span>
+                      <span className="text-xs font-semibold text-primary">{ing.amount}</span>
                       {ing.note && <span className="text-xs text-muted-foreground">— {ing.note}</span>}
                       {ing.swapped && (
                         <span className="inline-flex items-center gap-1 text-micro font-semibold text-success dark:text-success bg-success/10 px-1.5 py-0.5 rounded-full">
@@ -182,7 +175,7 @@ function MealRow({ meal, colors }) {
                   <ol className="space-y-1.5">
                     {meal.directions.map((step, i) => (
                       <li key={i} className="flex gap-2 text-xs text-foreground/80 leading-snug">
-                        <span className={`font-bold shrink-0 ${colors.badge.split(' ')[1] || 'text-primary'}`}>{i + 1}.</span>
+                        <span className="font-bold shrink-0 text-primary">{i + 1}.</span>
                         <span>{step}</span>
                       </li>
                     ))}
@@ -198,9 +191,9 @@ function MealRow({ meal, colors }) {
 }
 
 /* ─── Supplement card ────────────────────────────────────────────────────── */
-function SupplementCard({ supp, colors }) {
+function SupplementCard({ supp }) {
   return (
-    <div className={`rounded-xl px-3 py-2.5 bg-gradient-to-br ${colors.card} border border-border/40`}>
+    <div className="rounded-xl px-3 py-2.5 bg-card border border-border">
       <div className="flex items-start gap-2">
         <span className="text-xl leading-none shrink-0">{supp.icon}</span>
         <div className="min-w-0">
@@ -220,7 +213,7 @@ function SupplementCard({ supp, colors }) {
 }
 
 /* ─── Detail view ────────────────────────────────────────────────────────── */
-function PlanDetail({ plan, scaled, onBack, colors }) {
+function PlanDetail({ plan, scaled, onBack, onApply }) {
   const { tFallback } = useLanguage();
   const macros = scaled.scaledMacros || scaled.baseMacros;
   const kcal   = scaled.scaledCalories || scaled.baseCalories;
@@ -232,19 +225,21 @@ function PlanDetail({ plan, scaled, onBack, colors }) {
       exit={{ opacity: 0, x: 40 }}
       transition={{ duration: 0.22 }}
     >
-      {/* Hero */}
-      <div className={`bg-gradient-to-br ${colors.card} -mx-4 sm:-mx-6 -mt-4 sm:-mt-6 px-4 sm:px-6 pt-5 pb-5`}>
+      {/* Hero. Flat — the gradient bled edge to edge via negative margins,
+          and the macro box under it carried backdrop-blur-sm. Both are on
+          the published list of signals used to spot generated UI. */}
+      <div className="-mx-4 sm:-mx-6 px-4 sm:px-6 pb-6 border-b border-border">
         <button onClick={onBack} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground active:text-foreground mb-3 transition-colors">
-          <ArrowLeft className="w-3.5 h-3.5" /> {tFallback("nutritionPlansModal.allPlans", "All plans")}
+          <ArrowLeft className="w-3.5 h-3.5 rtl:scale-x-[-1]" /> {tFallback("nutritionPlansModal.allPlans", "All plans")}
         </button>
         <div className="flex items-start gap-3">
-          <span className="text-4xl leading-none">{plan.icon}</span>
+          <span className="text-3xl leading-none">{plan.icon}</span>
           <div>
             <h2 className="font-heading font-bold text-xl">{plan.name}</h2>
             <p className="text-sm text-muted-foreground mt-0.5">{plan.tagline}</p>
             <div className="flex gap-1.5 mt-2 flex-wrap">
               {plan.goalFit.map(g => (
-                <span key={g} className={`text-micro font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full ${colors.badge}`}>
+                <span key={g} className="text-micro font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-secondary text-muted-foreground">
                   {g}
                 </span>
               ))}
@@ -252,21 +247,23 @@ function PlanDetail({ plan, scaled, onBack, colors }) {
           </div>
         </div>
 
-        {/* Macro summary */}
-        <div className="mt-4 p-3 rounded-xl bg-background/40 backdrop-blur-sm">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-1.5">
-              <Flame className="w-4 h-4 text-primary" />
-              <span className="font-heading font-bold text-lg">{kcal}</span>
-              <span className="text-xs text-muted-foreground">cal/day</span>
-            </div>
-            <div className="flex gap-2">
-              <MacroPill label="Protein" value={macros.protein} color="bg-destructive/15 text-destructive dark:text-destructive" />
-              <MacroPill label="Carbs"   value={macros.carbs}   color="bg-info/15 text-info dark:text-info" />
-              <MacroPill label="Fat"     value={macros.fat}     color="bg-primary/15 text-primary dark:text-primary" />
-            </div>
+        {/* Macro summary. Same inversion as the card: the split is what this
+            plan IS, and the calorie figure is the target every plan shares. */}
+        <div className="mt-6 p-3 rounded-xl bg-card border border-border">
+          <div className="flex items-end gap-6">
+            {[['protein', 'P', 'text-destructive'], ['carbs', 'C', 'text-info'], ['fat', 'F', 'text-primary']].map(([k, letter, tint]) => (
+              <div key={k} className="flex items-baseline gap-0.5">
+                <span className="font-heading font-bold text-2xl tabular-nums">{macros[k]}</span>
+                <span className={`text-sm font-bold ${tint}`}>g {letter}</span>
+              </div>
+            ))}
           </div>
-          <MacroBar protein={macros.protein} carbs={macros.carbs} fat={macros.fat} />
+          <div className="mt-2">
+            <MacroBar protein={macros.protein} carbs={macros.carbs} fat={macros.fat} />
+          </div>
+          <p className="text-micro text-muted-foreground mt-2">
+            {tFallback('nutritionPlansModal.scaledToTarget', '{n} cal/day · scaled to your target', { n: kcal })}
+          </p>
         </div>
       </div>
 
@@ -278,7 +275,7 @@ function PlanDetail({ plan, scaled, onBack, colors }) {
         </h3>
         <div className="space-y-2">
           {scaled.meals.map(meal => (
-            <MealRow key={meal.id} meal={meal} colors={colors} />
+            <MealRow key={meal.id} meal={meal} />
           ))}
         </div>
       </div>
@@ -291,9 +288,26 @@ function PlanDetail({ plan, scaled, onBack, colors }) {
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {plan.supplements.map((s, i) => (
-              <SupplementCard key={i} supp={s} colors={colors} />
+              <SupplementCard key={i} supp={s} />
             ))}
           </div>
+        </div>
+      )}
+
+      {/* A catalog you cannot act on is a brochure. This was the only screen
+          in the flow with nothing to press — you could read five meals, every
+          ingredient, the directions and four supplements, and then had to go
+          key it in by hand. It is offered only where there is a day to apply
+          it TO, which is the planner. */}
+      {onApply && (
+        <div className="mt-6">
+          <button
+            type="button"
+            onClick={() => onApply(scaled)}
+            className="w-full min-h-[48px] rounded-xl bg-primary text-primary-foreground font-bold text-sm hover:opacity-90 transition-opacity"
+          >
+            {tFallback('nutritionPlansModal.addToDay', 'Add these meals to your day')}
+          </button>
         </div>
       )}
 
@@ -307,7 +321,7 @@ function PlanDetail({ plan, scaled, onBack, colors }) {
  * the standalone modal AND as a tab inside the Weekly Planner. Manages its
  * own selected-plan state. Wrap it in a container with `px-4 sm:px-6` +
  * top padding so PlanDetail's negative-margin hero bleeds correctly. */
-export function NutritionPlansPanel({ userProfile, onStartOnboarding, trainingFuel, onApplyFuel }) {
+export function NutritionPlansPanel({ userProfile, onStartOnboarding, trainingFuel, onApplyFuel, onApplyPlan }) {
   const { tFallback } = useLanguage();
   const [selected, setSelected] = useState(null);
 
@@ -397,15 +411,21 @@ export function NutritionPlansPanel({ userProfile, onStartOnboarding, trainingFu
           exit={{ opacity: 0, x: -30 }}
           transition={{ duration: 0.18 }}
         >
-          <p className="text-xs text-muted-foreground mb-4">
+          {/* Say what the cards are actually distinguishing. Every plan is
+              scaled to the same target, so the calorie figure is identical on
+              all seven — the split is the choice. */}
+          <p className="text-xs text-muted-foreground mb-1">
             {PLAN_TEMPLATES.length} plans · every one tailored to you
+          </p>
+          <p className="text-xs font-semibold mb-4">
+            {tFallback('nutritionPlansModal.differInSplit', 'They differ in the split, not the total.')}
           </p>
 
           {/* Training-fuel banner — ties the running plan's load to the diet:
               how many extra calories/carbs to add on run days, applied via
               calorie cycling. Only shows when the user is actually running. */}
           {trainingFuel && trainingFuel.runDays > 0 && (
-            <div className="mb-4 rounded-2xl border border-primary/25 bg-gradient-to-br from-primary/10 to-primary/5 p-3.5">
+            <div className="mb-4 rounded-2xl border border-primary/25 bg-primary/5 p-3.5">
               <div className="flex items-center gap-2 mb-1.5">
                 <span className="w-8 h-8 rounded-lg bg-primary/15 text-primary dark:text-primary flex items-center justify-center shrink-0">
                   <Flame className="w-4 h-4" />
@@ -471,7 +491,6 @@ export function NutritionPlansPanel({ userProfile, onStartOnboarding, trainingFu
                 key={plan.id}
                 plan={plan}
                 scaled={scaled}
-                colors={PLAN_COLORS[plan.color]}
                 fitsGoal={fitsGoal}
                 onSelect={() => setSelected(plan.id)}
               />
@@ -483,8 +502,8 @@ export function NutritionPlansPanel({ userProfile, onStartOnboarding, trainingFu
           key="detail"
           plan={selectedEntry.plan}
           scaled={selectedEntry.scaled}
-          colors={PLAN_COLORS[selectedEntry.plan.color]}
           onBack={() => setSelected(null)}
+          onApply={onApplyPlan}
         />
       ) : null}
     </AnimatePresence>

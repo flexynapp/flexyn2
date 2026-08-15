@@ -55,7 +55,7 @@ vi.mock('@/api/supabaseClient', () => {
   return { supabase: { from: (table) => makeChain(table) } };
 });
 
-const { upsert, findSlot, isSlotFull, SLOT_CAPACITY, dayTotals } =
+const { upsert, findSlot, isSlotFull, SLOT_CAPACITY, dayTotals, planMealsToSlots } =
   await import('../mealPlans');
 
 const USER = { id: 'u1', email: 'a@b.c' };
@@ -184,5 +184,44 @@ describe('dayTotals — what the open day puts on screen', () => {
     expect(dayTotals([])).toMatchObject({ calories: 0, meals: 0, counted: 0 });
     expect(dayTotals(null)).toMatchObject({ meals: 0 });
     expect(dayTotals([snap({ calories: 'lots' })])).toMatchObject({ meals: 1, counted: 0, calories: 0 });
+  });
+});
+
+describe('planMealsToSlots — five template meals into four slots', () => {
+  // The real shape of a PLAN_TEMPLATES entry after scalePlan.
+  const TEMPLATE = { meals: [
+    { id: 'breakfast', name: 'Power Breakfast',     kcal: 523, macros: { p: 41, c: 57, f: 13 } },
+    { id: 'lunch',     name: 'Chicken & Rice Bowl', kcal: 632, macros: { p: 57, c: 74, f: 9 } },
+    { id: 'snack1',    name: 'Afternoon Fuel',      kcal: 218, macros: { p: 22, c: 20, f: 7 } },
+    { id: 'dinner',    name: 'Steak & Red Potato',  kcal: 676, macros: { p: 57, c: 50, f: 24 } },
+    { id: 'snack2',    name: 'Evening Protein',     kcal: 131, macros: { p: 15, c: 12, f: 2 } },
+  ] };
+
+  it('collapses BOTH snacks onto the single snack slot', () => {
+    const out = planMealsToSlots(TEMPLATE);
+    expect(out.map(o => o.mealType)).toEqual(['breakfast', 'lunch', 'snack', 'dinner', 'snack']);
+    // Two in one slot is the whole reason 344 had to be reversed — under it
+    // the second snack had nowhere to land, so no template applied whole.
+    expect(out.filter(o => o.mealType === 'snack')).toHaveLength(2);
+    expect(out.filter(o => o.mealType === 'snack').length).toBeLessThanOrEqual(SLOT_CAPACITY);
+  });
+
+  it('carries the scaled numbers onto the snapshot the planner reads', () => {
+    const [first] = planMealsToSlots(TEMPLATE);
+    expect(first.foodSnapshot).toEqual({
+      name: 'Power Breakfast', calories: 523, protein_g: 41, carbs_g: 57, fat_g: 13,
+    });
+  });
+
+  it('a mapped template still sums to the target the plan was scaled to', () => {
+    // scalePlan multiplies every meal by one factor, so the five kcals add up
+    // to exactly the target — dayTotals must agree with the catalog card.
+    const rows = planMealsToSlots(TEMPLATE).map(o => ({ food_snapshot: o.foodSnapshot }));
+    expect(dayTotals(rows).calories).toBe(2180);
+  });
+
+  it('is inert on a plan with no meals', () => {
+    expect(planMealsToSlots(null)).toEqual([]);
+    expect(planMealsToSlots({})).toEqual([]);
   });
 });
