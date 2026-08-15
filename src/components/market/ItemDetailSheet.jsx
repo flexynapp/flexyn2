@@ -27,6 +27,7 @@ import {
   RarityBadge, RarityGlow, CoinAmount, rarityTint,
 } from '@/components/loot/RarityVisuals';
 import { useLanguage } from '@/lib/LanguageContext';
+import TransText from '@/components/TransText';
 
 // ─── Price history sparkline ──────────────────────────────────────────────────
 // Deliberately a bar chart, not a line: marketplace_listings has no sold_at
@@ -168,7 +169,8 @@ export default function ItemDetailSheet({
             ) : (
               <span className="flex items-center gap-1.5 text-blue-600 dark:text-blue-300 font-bold">
                 <Zap className="w-4 h-4" />
-                Wants <span className="capitalize">{listing.trade_for_rarity ?? 'any'}+</span>
+                <TransText k="itemDetailSheet.wantsRarity" en="Wants {rarity}"
+                  values={{ rarity: <span className="capitalize">{listing.trade_for_rarity ?? 'any'}+</span> }} />
               </span>
             )}
             {!isMine && onToggleSave && (
@@ -265,7 +267,8 @@ export default function ItemDetailSheet({
           {/* Seller */}
           <section className="flex items-center justify-between pt-1">
             <span className="text-micro text-muted-foreground">
-              Listed by <span className="text-foreground font-medium">{displayName(listing)}</span>
+              <TransText k="itemDetailSheet.listedBy" en="Listed by {seller}"
+                values={{ seller: <span className="text-foreground font-medium">{displayName(listing)}</span> }} />
             </span>
             {!isMine && onSellerClick && (
               <button
@@ -301,8 +304,10 @@ export default function ItemDetailSheet({
             >
               {!canAfford && <Lock className="w-3.5 h-3.5" />}
               {canAfford
-                ? <>Buy · <CoinAmount value={listing.asking_price ?? 0} /></>
-                : <>Need <CoinAmount value={(listing.asking_price ?? 0) - flexCoins} /> more</>}
+                ? <TransText k="itemDetailSheet.buyForPrice" en="Buy · {price}"
+                    values={{ price: <CoinAmount value={listing.asking_price ?? 0} /> }} />
+                : <TransText k="itemDetailSheet.needMoreCoins" en="Need {amount} more"
+                    values={{ amount: <CoinAmount value={(listing.asking_price ?? 0) - flexCoins} /> }} />}
             </button>
           ) : (
             <button

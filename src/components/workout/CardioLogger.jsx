@@ -18,6 +18,7 @@ import { useDistanceUnit } from '@/lib/DistanceUnitContext';
 import { metersTo, toMeters, formatPace, paceSecPerKmFrom } from '@/lib/distanceUnit';
 import { triggerHaptic } from '@/lib/haptic';
 import { useLanguage } from '@/lib/LanguageContext';
+import TransText from '@/components/TransText';
 
 export const CARDIO_ACTIVITIES = [
   { id: 'walking',  label: 'Walk', emoji: '🚶', name: 'Walking' },
@@ -189,7 +190,8 @@ export default function CardioLogger({ exercise, onChange, gender }) {
 
       {pace && (
         <p className="mt-2 text-xs text-muted-foreground">
-          Pace <span className="font-semibold text-foreground">{pace}</span>
+          <TransText k="cardioLogger.pace" en="Pace {value}"
+            values={{ value: <span className="font-semibold text-foreground">{pace}</span> }} />
           <span className="mx-1.5 opacity-40">·</span>
           {Math.round(totalSec / 60)} min · {metersTo(distanceUnit, totalM).toFixed(2)} {distanceUnit}
         </p>

@@ -23,6 +23,7 @@ import CapsuleRarityOdds from './CapsuleRarityOdds';
 import CapsuleStreak from './CapsuleStreak';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { useLanguage } from '@/lib/LanguageContext';
+import TransText from '@/components/TransText';
 
 // The capsule's "what's in here?" link now opens the same Collection
 // surface as the Marketplace and the Bag, so the odds you just read
@@ -1418,7 +1419,8 @@ export default function CapsuleOpener({ capsule, batch, onClaim, onClaimBatch, o
               </motion.span>
               <p className="font-bold text-lg">{results.length} items added to your bag!</p>
               <p className="text-muted-foreground text-sm">
-                Best pull: <span style={{ color: rarityConfig?.color }}>{wonItem?.name}</span>
+                <TransText k="capsuleOpener.bestPull" en="Best pull: {item}"
+                  values={{ item: <span style={{ color: rarityConfig?.color }}>{wonItem?.name}</span> }} />
               </p>
               <button
                 onClick={onClose}

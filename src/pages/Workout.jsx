@@ -84,6 +84,7 @@ import { detectImplausibleWorkout, getMaxSetsPerExercise, getMuscleGroupCap } fr
 import { totalVolume as computeTotalVolume } from '@/lib/workoutVolume';
 import { seedSetsForExercise } from '@/lib/seedRegimenSets';
 import { cardioLogsKey } from '@/lib/data/cardioKeys';
+import TransText from '@/components/TransText';
 
 // Lazy-loaded modals — all consolidated AFTER imports so Vite's bundle
 // init doesn't hit a TDZ when consts sit between import statements
@@ -2406,7 +2407,11 @@ export default function Workout() {
                 {'🌙'} Late-night session
               </p>
               <p className="text-xs text-muted-foreground mt-0.5 leading-tight">
-                Log as <span className="font-semibold">{rollingDay ? `yesterday (${yesterdayStr})` : `today (${todayStr})`}</span> — toggle to roll back
+                <TransText
+                  k="workout.logAsDay"
+                  en="Log as {day} — toggle to roll back"
+                  values={{ day: <span className="font-semibold">{rollingDay ? `yesterday (${yesterdayStr})` : `today (${todayStr})`}</span> }}
+                />
               </p>
             </div>
             <div className="flex items-center gap-2 shrink-0">

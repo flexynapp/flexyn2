@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { toast } from '@/lib/toast';
 import { db } from '@/api/db';
 import { useLanguage } from '@/lib/LanguageContext';
+import TransText from '@/components/TransText';
 
 // Inline SVG glyphs for the OAuth buttons — keeps us off of brand-asset
 // CDN fetches and lets the buttons render before any external request.
@@ -250,9 +251,14 @@ export default function SignInToContinue({
               <div className="flex items-start gap-2 px-4 py-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-600 text-sm">
                 <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                 <span>
-                  <strong>You already have a Flexyn account.</strong> We sent a
-                  sign-in link to <strong>{email}</strong> — tap it and you're
-                  back in, with your workouts and streaks intact.
+                  <TransText
+                    k="signInToContinue.accountExists"
+                    en="{headline} We sent a sign-in link to {email} — tap it and you're back in, with your workouts and streaks intact."
+                    values={{
+                      headline: <strong>{tFallback("signInToContinue.accountExistsHeadline", "You already have a Flexyn account.")}</strong>,
+                      email: <strong>{email}</strong>,
+                    }}
+                  />
                 </span>
               </div>
             ) : (

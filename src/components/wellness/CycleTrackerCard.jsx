@@ -22,6 +22,7 @@ import { computeCycleState } from '@/lib/cyclePhase';
 import { format } from 'date-fns';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { useLanguage } from '@/lib/LanguageContext';
+import TransText from '@/components/TransText';
 
 function LogStartModal({ open, onClose, onSubmit, submitting }) {
   const { tFallback } = useLanguage();
@@ -184,7 +185,8 @@ export default function CycleTrackerCard({ profile }) {
               <h3 className="font-heading font-bold text-sm">{tFallback("cycleTrackerCard.cycle", "Cycle")}</h3>
               {state ? (
                 <p className="text-micro text-muted-foreground">
-                  Day <span className="font-bold tabular-nums">{state.dayOfCycle}</span>
+                  <TransText k="cycleTrackerCard.dayOfCycle" en="Day {value}"
+                    values={{ value: <span className="font-bold tabular-nums">{state.dayOfCycle}</span> }} />
                   {' · '}
                   {state.daysUntilNext} day{state.daysUntilNext === 1 ? '' : 's'} until next
                 </p>

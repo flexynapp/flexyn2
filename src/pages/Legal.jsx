@@ -32,6 +32,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import FlexynLogo from '@/components/FlexynLogo';
 import { useLanguage } from '@/lib/LanguageContext';
+import TransText from '@/components/TransText';
 
 const LAST_UPDATED = '4 August 2026';
 
@@ -134,8 +135,7 @@ function Shell({ title, children }) {
 
         {(!ENTITY || !CONTACT_EMAIL || !JURISDICTION) && (
           <div className="mt-5 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-            This document is not yet final. Highlighted fields must be
-            completed before public release.
+            {tFallback("legal.draftNotice", "This document is not yet final. Highlighted fields must be completed before public release.")}
           </div>
         )}
 
@@ -166,9 +166,11 @@ export function PrivacyPolicy() {
   return (
     <Shell title={tFallback("legal.privacyPolicy", "Privacy Policy")}>
       <p className="text-muted-foreground">
-        Flexyn is a fitness companion app operated by <Blank value={ENTITY} label="LEGAL ENTITY" />.
-        This policy explains what we collect, why, who processes it on our
-        behalf, and how you get it back or delete it.
+        <TransText
+          k="legal.privacyIntro"
+          en="Flexyn is a fitness companion app operated by {entity}. This policy explains what we collect, why, who processes it on our behalf, and how you get it back or delete it."
+          values={{ entity: <Blank value={ENTITY} label="LEGAL ENTITY" /> }}
+        />
       </p>
 
       <Section heading="Data we collect">
@@ -187,8 +189,11 @@ export function PrivacyPolicy() {
         which you can withdraw at any time by turning the feature off or
         deleting your account.</p>
 
-        <p><strong className="text-foreground">Nutrition.</strong> Meals,
-        macros and any food photos you submit for recognition.</p>
+        <p><TransText
+          k="legal.dataNutrition"
+          en="{label} Meals, macros and any food photos you submit for recognition."
+          values={{ label: <strong className="text-foreground">{tFallback("legal.dataNutritionLabel", "Nutrition.")}</strong> }}
+        /></p>
 
         <p><strong className="text-foreground">Social.</strong> Posts,
         comments, stories, direct messages, crew membership, follows, and
@@ -239,7 +244,8 @@ export function PrivacyPolicy() {
         uploaded files. Depending on where you live you may also have the
         right to object to or restrict processing, and to complain to your
         data protection authority.</p>
-        <p>To make a request, contact <Blank value={CONTACT_EMAIL} label="CONTACT EMAIL" />.</p>
+        <p><TransText k="legal.makeARequest" en="To make a request, contact {email}."
+          values={{ email: <Blank value={CONTACT_EMAIL} label="CONTACT EMAIL" /> }} /></p>
       </Section>
 
       <Section heading="Retention">
@@ -334,7 +340,8 @@ export function TermsOfService() {
       </Section>
 
       <Section heading="Contact">
-        <p>Questions about these terms: <Blank value={CONTACT_EMAIL} label="CONTACT EMAIL" />.</p>
+        <p><TransText k="legal.termsQuestions" en="Questions about these terms: {email}."
+          values={{ email: <Blank value={CONTACT_EMAIL} label="CONTACT EMAIL" /> }} /></p>
       </Section>
     </Shell>
   );

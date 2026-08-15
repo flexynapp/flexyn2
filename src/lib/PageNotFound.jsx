@@ -2,6 +2,7 @@ import { useLocation } from 'react-router-dom';
 import { db } from '@/api/db';
 import { useQuery } from '@tanstack/react-query';
 import { useLanguage } from '@/lib/LanguageContext';
+import TransText from '@/components/TransText';
 
 
 export default function PageNotFound({}) {
@@ -37,7 +38,8 @@ export default function PageNotFound({}) {
                             {tFallback("pageNotFound.pageNotFound", "Page Not Found")}
                         </h2>
                         <p className="text-muted-foreground leading-relaxed">
-                            The page <span className="font-medium text-foreground">"{pageName}"</span> could not be found in this application.
+                            <TransText k="pageNotFound.body" en="The page {name} could not be found in this application."
+                                values={{ name: <span className="font-medium text-foreground">"{pageName}"</span> }} />
                         </p>
                     </div>
 

@@ -14,6 +14,7 @@ import * as inventory from '@/lib/data/inventory';
 import { isVerified } from '@/lib/verifiedUsers';
 import { toast } from '@/lib/toast';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import TransText from '@/components/TransText';
 
 // Rarity colour tokens
 const RARITY_COLORS = {
@@ -101,7 +102,8 @@ export default function ThemeSelector({ open, onClose }) {
                 <div className="flex items-center gap-1.5 mt-1">
                   <div className="w-2 h-2 rounded-full bg-primary" />
                   <p className="text-sm text-muted-foreground">
-                    Your level: <span className="font-semibold text-foreground">{level}</span>
+                    <TransText k="themeSelector.yourLevel" en="Your level: {level}"
+                      values={{ level: <span className="font-semibold text-foreground">{level}</span> }} />
                   </p>
                 </div>
               </div>
@@ -341,7 +343,11 @@ export default function ThemeSelector({ open, onClose }) {
               <div className="flex items-center justify-center gap-2 mb-2 py-3 px-4 rounded-2xl bg-secondary/40 border border-border/50">
                 <Package className="w-3.5 h-3.5 text-primary shrink-0" />
                 <p className="text-xs text-muted-foreground text-center leading-tight">
-                  Animated themes drop from <span className="font-semibold text-foreground">{tFallback("themeSelector.lootCapsules", "Loot Capsules")}</span> — higher tier capsules have better odds
+                  <TransText
+                    k="themeSelector.animatedThemesDropFrom"
+                    en="Animated themes drop from {capsules} — higher tier capsules have better odds"
+                    values={{ capsules: <span className="font-semibold text-foreground">{tFallback("themeSelector.lootCapsules", "Loot Capsules")}</span> }}
+                  />
                 </p>
               </div>
             </div>

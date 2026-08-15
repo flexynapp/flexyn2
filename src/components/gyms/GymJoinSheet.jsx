@@ -43,6 +43,7 @@ import { leaveGym } from '@/lib/data/gymBusinesses';
 import { useDistanceUnit } from '@/lib/DistanceUnitContext';
 import { reportError } from '@/lib/reportError';
 import { useLanguage } from '@/lib/LanguageContext';
+import TransText from '@/components/TransText';
 
 const KM_PER_MILE = 1.609344;
 
@@ -250,8 +251,11 @@ export default function GymJoinSheet({ pick, open, onCancel, onJoined, onContinu
             </p>
             {/* The colour rule, said once, where it is first true. */}
             <p className="text-xs text-muted-foreground">
-              On the map it’s <span className="font-semibold text-primary">orange</span> because
-              you’ve joined it. Gyms other people have joined show blue.
+              <TransText
+                k="gymJoinSheet.mapColourRule"
+                en="On the map it’s {orange} because you’ve joined it. Gyms other people have joined show blue."
+                values={{ orange: <span className="font-semibold text-primary">{tFallback("gymJoinSheet.orange", "orange")}</span> }}
+              />
             </p>
             <StaticMapCard lat={coords.lat} lng={coords.lng} label={pick?.name} />
             <button

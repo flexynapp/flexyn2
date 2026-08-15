@@ -36,6 +36,7 @@ import { useSettings } from '@/lib/SettingsContext';
 import { tileRow } from '@/lib/tileRows';
 import NutrientRing from './NutrientRing';
 import NutrientIcon from './NutrientIcon';
+import TransText from '@/components/TransText';
 
 const MACROS = [
   { key: 'calories',       labelKey: 'nutrition.macros.calories',    unit: 'cal', color: 'from-orange-400 to-orange-600', textColor: 'text-orange-600', bgColor: 'bg-orange-50 dark:bg-orange-950/20' },
@@ -181,7 +182,8 @@ export default function MacroNutrientBox({ entries = [], userProfile = {} }) {
       <div className="mt-3 pt-3 border-t border-border/40">
         <div className="flex items-center justify-between">
           <span className="text-micro font-bold uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
-            Net carbs <span className="font-normal normal-case opacity-70">(carbs − fiber)</span>
+            <TransText k="macroNutrientBox.netCarbs" en="Net carbs {formula}"
+              values={{ formula: <span className="font-normal normal-case opacity-70">{tFallback("macroNutrientBox.netCarbsFormula", "(carbs − fiber)")}</span> }} />
             <button
               type="button"
               onClick={() => setNetCarbsInfo((v) => !v)}

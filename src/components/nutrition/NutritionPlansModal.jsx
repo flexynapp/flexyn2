@@ -8,6 +8,7 @@ import { useNutritionTargets } from '@/hooks/useNutritionTargets';
 import { isNutritionOnboardingComplete } from '@/lib/nutritionOnboardingGate';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { useLanguage } from '@/lib/LanguageContext';
+import TransText from '@/components/TransText';
 
 /* ─── Macro bar ──────────────────────────────────────────────────────────── */
 function MacroBar({ protein, carbs, fat }) {
@@ -417,9 +418,14 @@ export function NutritionPlansPanel({ userProfile, onStartOnboarding, trainingFu
                 </div>
               </div>
               <p className="text-xs text-foreground/80 leading-snug">
-                Add <b className="text-primary dark:text-primary">+{trainingFuel.perRunDayKcal} kcal</b> and{' '}
-                <b className="text-primary dark:text-primary">+{trainingFuel.addCarbsG}g carbs</b> on run days so you
-                fuel the work and recover — protein and fat stay put.
+                <TransText
+                  k="nutritionPlansModal.runDayFuel"
+                  en="Add {kcal} and {carbs} on run days so you fuel the work and recover — protein and fat stay put."
+                  values={{
+                    kcal:  <b className="text-primary dark:text-primary">+{trainingFuel.perRunDayKcal} kcal</b>,
+                    carbs: <b className="text-primary dark:text-primary">+{trainingFuel.addCarbsG}g carbs</b>,
+                  }}
+                />
               </p>
               {onApplyFuel && (
                 <button

@@ -14,6 +14,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Camera, Clock, Infinity as InfinityIcon, Sparkles, Loader2 } from 'lucide-react';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { useLanguage } from '@/lib/LanguageContext';
+import TransText from '@/components/TransText';
 
 export default function PhotoAiLimitModal({ open, used = 3, cap = 3, purchasing = false, onClose, onPurchase }) {
   const { tFallback } = useLanguage();
@@ -70,7 +71,14 @@ export default function PhotoAiLimitModal({ open, used = 3, cap = 3, purchasing 
             <div className="flex items-center gap-2.5 rounded-xl bg-secondary/60 px-3.5 py-3">
               <Clock className="w-4 h-4 text-muted-foreground shrink-0" />
               <p className="text-label text-muted-foreground">
-                Your free scans <span className="font-semibold text-foreground">reset tomorrow</span> — come back for {cap} more.
+                <TransText
+                  k="photoAiLimitModal.scansResetTomorrow"
+                  en="Your free scans {resetTomorrow} — come back for {cap} more."
+                  values={{
+                    resetTomorrow: <span className="font-semibold text-foreground">{tFallback("photoAiLimitModal.resetTomorrow", "reset tomorrow")}</span>,
+                    cap,
+                  }}
+                />
               </p>
             </div>
 

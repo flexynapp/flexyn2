@@ -12,6 +12,7 @@ import { useLanguage } from '@/lib/LanguageContext';
 import {
   RarityBadge, RarityFrame, RarityGlow, CoinAmount,
 } from '@/components/loot/RarityVisuals';
+import TransText from '@/components/TransText';
 
 // The width half of MarketplaceFeed's listings row. Same spec passed to the
 // same helper, so the pair cannot drift — see src/lib/tileRows.js.
@@ -161,7 +162,8 @@ function ListingCard({
           </p>
         ) : (
           <p className="text-blue-600 dark:text-blue-300 text-xs font-medium">
-            Want: <span className="capitalize">{listing.trade_for_rarity ?? 'any'}+</span>
+            <TransText k="listingCard.wantRarity" en="Want: {rarity}"
+              values={{ rarity: <span className="capitalize">{listing.trade_for_rarity ?? 'any'}+</span> }} />
           </p>
         )}
       </div>

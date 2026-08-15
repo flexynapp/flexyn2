@@ -29,6 +29,7 @@ import { useProfanityGuard, hasAnyProfanity } from '@/lib/useProfanityGuard';
 import ProfanityWarningDialog from '@/components/ProfanityWarningDialog';
 import { bestVO2max } from '@/lib/cardioVO2max';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import TransText from '@/components/TransText';
 
 function deriveType(mode, env) {
   return `${mode}_${env}`;
@@ -656,7 +657,8 @@ export default function CardioManualForm({
         <div>
           <label className="text-sm font-medium mb-1.5 flex items-center gap-1.5 block">
             <Heart className="w-3.5 h-3.5 text-rose-500" />
-            Avg Heart Rate <span className="text-xs text-muted-foreground font-normal ms-1">(optional)</span>
+            <TransText k="cardioManualForm.avgHeartRate" en="Avg Heart Rate {optional}"
+              values={{ optional: <span className="text-xs text-muted-foreground font-normal ms-1">{tFallback("common.optionalParen", "(optional)")}</span> }} />
           </label>
           <div className="relative">
             <Input
@@ -705,7 +707,8 @@ export default function CardioManualForm({
           <div>
             <label className="text-sm font-medium mb-1.5 flex items-center gap-1.5 block">
               <Zap className="w-3.5 h-3.5 text-amber-500" />
-              Avg Power <span className="text-xs text-muted-foreground font-normal ms-1">(optional)</span>
+              <TransText k="cardioManualForm.avgPower" en="Avg Power {optional}"
+              values={{ optional: <span className="text-xs text-muted-foreground font-normal ms-1">{tFallback("common.optionalParen", "(optional)")}</span> }} />
             </label>
             <div className="relative">
               <Input
@@ -820,9 +823,14 @@ export default function CardioManualForm({
             <div className="text-4xl mb-3">⚡</div>
             <h2 className="font-heading font-bold text-xl mb-2">{tFallback("cardioManualForm.thatSpeedIsnTRealistic", "That speed isn't realistic")}</h2>
             <p className="text-sm text-muted-foreground mb-5 leading-relaxed">
-              Your entry works out to <strong>{speedWarning.speedKmh} km/h</strong>, which exceeds the
-              realistic maximum for this activity type ({speedWarning.maxKmh} km/h). Please check your
-              distance and time.
+              <TransText
+                k="cardioManualForm.speedTooHigh"
+                en="Your entry works out to {speed}, which exceeds the realistic maximum for this activity type ({max} km/h). Please check your distance and time."
+                values={{
+                  speed: <strong>{speedWarning.speedKmh} km/h</strong>,
+                  max: speedWarning.maxKmh,
+                }}
+              />
             </p>
             <button
               className="w-full h-11 rounded-xl bg-primary text-primary-foreground font-semibold"

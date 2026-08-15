@@ -31,6 +31,7 @@ import { distanceKm, bboxAround } from '@/lib/osmGyms';
 import { fetchOsmGymsNearCached } from '@/lib/data/osmGymCache';
 import { useDistanceUnit } from '@/lib/DistanceUnitContext';
 import { useLanguage } from '@/lib/LanguageContext';
+import TransText from '@/components/TransText';
 
 const KM_PER_MILE = 1.609344;
 
@@ -341,7 +342,8 @@ export default function NearbyGymPicker({
                 thing before and after a fix, neither we nor the user can
                 tell which build a phone is running. */}
             <p className="text-xs text-muted-foreground mb-1">
-              Nothing is mapped within <span className="font-semibold">{fmtRadius(radiusKm)}</span> of you.
+              <TransText k="nearbyGymPicker.nothingMappedWithin" en="Nothing is mapped within {radius} of you."
+                values={{ radius: <span className="font-semibold">{fmtRadius(radiusKm)}</span> }} />
             </p>
             {/* The host's line is ADVICE — "skip for now", "try the map" —
                 which complements the fact rather than replacing it. */}
