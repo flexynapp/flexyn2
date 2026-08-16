@@ -152,10 +152,18 @@ for (const lang of LANGS) {
     return new RegExp(`(?:(?<![\\p{L}\\p{M}])(?:${term})|(?:${term})(?![\\p{L}\\p{M}]))`, 'iu').test(s);
   };
 
+  // Declared exceptions: the English carries the term, but as an ordinary
+  // word rather than the product noun — "activity level", "blocked at the
+  // browser level", and "level pegging", where `level` is the ADJECTIVE
+  // meaning tied. Those must stay translated, so flagging them forever would
+  // train people to mute this section, and a checker people mute is worse
+  // than no checker. Each entry in `doNotTranslate.exempt` names its reason.
+  const exempt = gloss.doNotTranslate.exempt || {};
   const dropped = [];
   for (const [k, v] of strings) {
     const e = en[k];
     if (typeof e !== 'string') continue;
+    if (k in exempt) continue;
     for (const t of gloss.doNotTranslate.terms) {
       const fam = FAMILY[t] || t;
       if (W(fam).test(e) && !keptBy(fam, v)) { dropped.push(`${k}  [${t}]  ${v.slice(0, 60)}`); break; }

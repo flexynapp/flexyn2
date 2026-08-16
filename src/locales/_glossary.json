@@ -18,8 +18,28 @@
       "Cardio",
       "XP",
       "PR",
-      "Capsule"
-    ]
+      "Capsule",
+      "Level",
+      "Lv"
+    ],
+    "$levelNote": "Level and Lv were ADDED 2026-08-16 on kegan's instruction — \"the word Level in the profile or anywhere displaying the users Level or LV\". They had been translated everywhere (es Nivel, fr Niveau, it Livello, pl Poziom) and 28 strings per locale were converted back. SCOPE: the gamified user Level stat only. Ordinary English prose about something else stays translated — \"activity level\" and \"experience level\" in the Coach onboarding, and \"blocked at the browser level\". And \"level\" as an ADJECTIVE meaning tied is a different word entirely: gymRivalCard.levelSoFar, gymRivalMenu.levelWith, gymRivalMenu.lifetimeNote and crewWars.levelPegging all mean neck-and-neck and must stay translated.",
+    "exempt": {
+      "$note": "Keys where a doNotTranslate term appears in the English but is NOT the product noun, so the translation SHOULD render it in the local language. Each entry names which term and why. A do-not-translate list with no exceptions is a list that cries wolf, and a checker people mute is worse than no checker.",
+      "coach.onboarding.activity.explain": "Level — activity level (the TDEE multiplier), not the user Level stat",
+      "coach.onboarding.activity.intro": "Level — activity level",
+      "coach.onboarding.activity.prompt.which": "Level — activity level",
+      "coach.onboarding.assessment.explain": "Level — calibration wording, not the stat",
+      "coach.onboarding.days.introHint": "Level — experience level",
+      "coach.onboarding.macros.explain": "Level — activity level",
+      "onboarding.experience.ctaEmpty": "Level — experience level",
+      "discovery.pushOptIn.toastDenied": "Level — \"blocked at the browser level\", an idiom about scope",
+      "gymRival.findDesc": "Level — prose describing how matching works, not a Level readout",
+      "gymRivalMenu.qualityBasis": "Level — same, a list of the dimensions matching uses",
+      "crewWars.levelPegging": "Level — the ADJECTIVE. \"Level pegging\" means neck-and-neck.",
+      "gymRivalCard.levelSoFar": "Level — the adjective: the two are TIED so far",
+      "gymRivalMenu.levelWith": "Level — the adjective: tied with @{n}",
+      "gymRivalMenu.lifetimeNote": "Level — the adjective: the week starts even"
+    }
   },
   "es": {
     "Workout": "Entrenamiento",
@@ -34,7 +54,6 @@
     "Goals": "Objetivos",
     "Progress": "Progreso",
     "Rest": "Descanso",
-    "Level": "Nivel",
     "League": "Liga",
     "Leaderboard": "Clasificación",
     "Settings": "Ajustes",
@@ -97,7 +116,8 @@
     "Steps": "Pasos",
     "Mood": "Ánimo",
     "Sleep": "Sueño",
-    "$chestNote": "\"Chest\" is TWO different nouns in English and this locale renders them as two different words, which is correct and must stay: the body part (es Pecho / fr Poitrine / de Brust) and the daily reward chest (es Cofre / fr Coffre / de Truhe). A future sweep that unifies them would put a pectoral muscle on the rewards card. The six rows above were added 2026-08-16 with the dashboard batch that first made these strings translatable at all — they had been hardcoded English until then."
+    "$chestNote": "\"Chest\" is TWO different nouns in English and this locale renders them as two different words, which is correct and must stay: the body part (es Pecho / fr Poitrine / de Brust) and the daily reward chest (es Cofre / fr Coffre / de Truhe). A future sweep that unifies them would put a pectoral muscle on the rewards card. The six rows above were added 2026-08-16 with the dashboard batch that first made these strings translatable at all — they had been hardcoded English until then.",
+    "$levelRemoved": "The Level row was removed 2026-08-16: Level is now doNotTranslate. See doNotTranslate.$levelNote."
   },
   "fr": {
     "$streakNote": "RESOLVED 2026-08-15 (kegan asked for it explicitly, having first chosen to leave it open). 'Série' had translated BOTH Streak (60 keys) and Set (68) — one word for two unrelated things across 128 user-facing strings. 'Série' is the standard French term for a training set and could not move, so Streak took a new word: 'Flamme'. Chosen on the app's OWN iconography rather than on taste — src/components/StreakFlame.jsx, 82 Flame references across components/pages, and 8 French strings already carrying 🔥. So the word now matches the icon the user is looking at, and it is feminine like 'Série', which means every article and agreement carried over untouched. Rejected: 'Suite' (ambiguous — 'la suite' is also 'the rest', and it appears in UI as 'voir la suite'), 'Régularité' and 'Assiduité' (abstract, cannot be counted or saved), 'Chaîne' (works for the don't-break-the-chain idiom but fights the flame iconography the app already ships). French idiom was used where a literal swap was worse: the flame is lit ('s'allume'), kept alive ('entretenir la flamme', 'garder votre flamme allumée') and goes out ('s'éteint à minuit'). NOT a native sign-off — see _meta.json $passes.",
@@ -114,7 +134,6 @@
     "Goals": "Objectifs",
     "Progress": "Progrès",
     "Rest": "Repos",
-    "Level": "Niveau",
     "League": "Ligue",
     "Leaderboard": "Classement",
     "Settings": "Paramètres",
@@ -175,7 +194,8 @@
     "Steps": "Pas",
     "Mood": "Humeur",
     "Sleep": "Sommeil",
-    "$chestNote": "\"Chest\" is TWO different nouns in English and this locale renders them as two different words, which is correct and must stay: the body part (es Pecho / fr Poitrine / de Brust) and the daily reward chest (es Cofre / fr Coffre / de Truhe). A future sweep that unifies them would put a pectoral muscle on the rewards card. The six rows above were added 2026-08-16 with the dashboard batch that first made these strings translatable at all — they had been hardcoded English until then."
+    "$chestNote": "\"Chest\" is TWO different nouns in English and this locale renders them as two different words, which is correct and must stay: the body part (es Pecho / fr Poitrine / de Brust) and the daily reward chest (es Cofre / fr Coffre / de Truhe). A future sweep that unifies them would put a pectoral muscle on the rewards card. The six rows above were added 2026-08-16 with the dashboard batch that first made these strings translatable at all — they had been hardcoded English until then.",
+    "$levelRemoved": "The Level row was removed 2026-08-16: Level is now doNotTranslate. See doNotTranslate.$levelNote."
   },
   "pt": {
     "$note": "pt-BR, not pt-PT — measured on the 1,486 strings that already shipped: 99 Brazilian markers (Compartilhar, Salvar, Excluir, Configurações, registrar, -ndo gerunds) against 6 European ones, and zero 'vós'. Register carries NO explicit pronoun: você-form imperatives (Acompanhe, Registre, Abra) with seu/sua possessives, which is standard Brazilian UI voice. Derived 2026-08-16 before the coverage pass, so 2,310 new strings agree with the 1,486 old ones instead of inventing second words.",
@@ -192,7 +212,6 @@
     "Goals": "Metas",
     "Progress": "Progresso",
     "Rest": "Descanso",
-    "Level": "Nível",
     "League": "Liga",
     "Leaderboard": "Classificação",
     "Settings": "Configurações",
@@ -243,7 +262,8 @@
     "Steps": "Passos",
     "Mood": "Humor",
     "Sleep": "Sono",
-    "$chestNote": "\"Chest\" is TWO different nouns in English and this locale renders them as two different words, which is correct and must stay: the body part (es Pecho / fr Poitrine / de Brust) and the daily reward chest (es Cofre / fr Coffre / de Truhe). A future sweep that unifies them would put a pectoral muscle on the rewards card. The six rows above were added 2026-08-16 with the dashboard batch that first made these strings translatable at all — they had been hardcoded English until then."
+    "$chestNote": "\"Chest\" is TWO different nouns in English and this locale renders them as two different words, which is correct and must stay: the body part (es Pecho / fr Poitrine / de Brust) and the daily reward chest (es Cofre / fr Coffre / de Truhe). A future sweep that unifies them would put a pectoral muscle on the rewards card. The six rows above were added 2026-08-16 with the dashboard batch that first made these strings translatable at all — they had been hardcoded English until then.",
+    "$levelRemoved": "The Level row was removed 2026-08-16: Level is now doNotTranslate. See doNotTranslate.$levelNote."
   },
   "de": {
     "$note": "Derived 2026-08-16 from the 1,486 strings that already shipped, before the coverage pass, so 2,310 new strings agree with the old ones. Register is du throughout. German runs about 15% longer than English here (measured over 954 comparable strings) — less than the 30% rule of thumb, but check the pinned-CTA onboarding screens with the pseudolocale before releasing.",
@@ -261,7 +281,6 @@
     "Goals": "Ziele",
     "Progress": "Fortschritt",
     "Rest": "Pause",
-    "Level": "Level",
     "League": "Liga",
     "Leaderboard": "Bestenliste",
     "Settings": "Einstellungen",
@@ -316,7 +335,8 @@
     "Steps": "Schritte",
     "Mood": "Stimmung",
     "Sleep": "Schlaf",
-    "$chestNote": "\"Chest\" is TWO different nouns in English and this locale renders them as two different words, which is correct and must stay: the body part (es Pecho / fr Poitrine / de Brust) and the daily reward chest (es Cofre / fr Coffre / de Truhe). A future sweep that unifies them would put a pectoral muscle on the rewards card. The six rows above were added 2026-08-16 with the dashboard batch that first made these strings translatable at all — they had been hardcoded English until then."
+    "$chestNote": "\"Chest\" is TWO different nouns in English and this locale renders them as two different words, which is correct and must stay: the body part (es Pecho / fr Poitrine / de Brust) and the daily reward chest (es Cofre / fr Coffre / de Truhe). A future sweep that unifies them would put a pectoral muscle on the rewards card. The six rows above were added 2026-08-16 with the dashboard batch that first made these strings translatable at all — they had been hardcoded English until then.",
+    "$levelRemoved": "The Level row was removed 2026-08-16: Level is now doNotTranslate. See doNotTranslate.$levelNote."
   },
   "it": {
     "$note": "Derived 2026-08-16 from the 1,482 strings that already shipped, before the coverage pass, so the new strings agree with the old ones. Register is tu throughout — measured at 128 tu-forms against 2 apparent Lei ones, and both of those were false positives (\"i suoi progressi\" of a goal, \"le sue statistiche\" of a rival), the same ambiguity German has with Sie. 87 tu-imperatives against 0 Lei-imperatives confirms it. Italian runs a little longer than English here; check the pinned-CTA onboarding screens with the pseudolocale before releasing.",
@@ -337,7 +357,6 @@
     "Goals": "Obiettivi",
     "Progress": "Progressi",
     "Rest": "Riposo",
-    "Level": "Livello",
     "League": "Lega",
     "Leaderboard": "Classifica",
     "Settings": "Impostazioni",
@@ -387,7 +406,8 @@
     "Steps": "Passi",
     "Mood": "Umore",
     "Sleep": "Sonno",
-    "$chestNote": "\"Chest\" is TWO different nouns in English and this locale renders them as two different words, which is correct and must stay: the body part (es Pecho / fr Poitrine / de Brust) and the daily reward chest (es Cofre / fr Coffre / de Truhe). A future sweep that unifies them would put a pectoral muscle on the rewards card. The six rows above were added 2026-08-16 with the dashboard batch that first made these strings translatable at all — they had been hardcoded English until then."
+    "$chestNote": "\"Chest\" is TWO different nouns in English and this locale renders them as two different words, which is correct and must stay: the body part (es Pecho / fr Poitrine / de Brust) and the daily reward chest (es Cofre / fr Coffre / de Truhe). A future sweep that unifies them would put a pectoral muscle on the rewards card. The six rows above were added 2026-08-16 with the dashboard batch that first made these strings translatable at all — they had been hardcoded English until then.",
+    "$levelRemoved": "The Level row was removed 2026-08-16: Level is now doNotTranslate. See doNotTranslate.$levelNote."
   },
   "nl": {
     "$note": "Derived 2026-08-16 from the 1,457 strings that already shipped, before the coverage pass. Register is je throughout — measured at 177 je-forms and 45 je-imperatives against 0 u-imperatives. Dutch closes its compounds, so a kept term hides inside a longer word (welkomstcapsule, trainingsschema); i18n-review handles that, do not \"fix\" it.",
@@ -406,7 +426,6 @@
     "Goals": "Doelen",
     "Progress": "Voortgang",
     "Rest": "Rust",
-    "Level": "Niveau",
     "League": "Divisie",
     "Leaderboard": "Ranglijst",
     "Settings": "Instellingen",
@@ -455,7 +474,8 @@
     "Steps": "Stappen",
     "Mood": "Stemming",
     "Sleep": "Slaap",
-    "$chestNote": "\"Chest\" is TWO different nouns in English and this locale renders them as two different words, which is correct and must stay: the body part (es Pecho / fr Poitrine / de Brust) and the daily reward chest (es Cofre / fr Coffre / de Truhe). A future sweep that unifies them would put a pectoral muscle on the rewards card. The six rows above were added 2026-08-16 with the dashboard batch that first made these strings translatable at all — they had been hardcoded English until then."
+    "$chestNote": "\"Chest\" is TWO different nouns in English and this locale renders them as two different words, which is correct and must stay: the body part (es Pecho / fr Poitrine / de Brust) and the daily reward chest (es Cofre / fr Coffre / de Truhe). A future sweep that unifies them would put a pectoral muscle on the rewards card. The six rows above were added 2026-08-16 with the dashboard batch that first made these strings translatable at all — they had been hardcoded English until then.",
+    "$levelRemoved": "The Level row was removed 2026-08-16: Level is now doNotTranslate. See doNotTranslate.$levelNote."
   },
   "pl": {
     "$note": "Derived 2026-08-16 from the 1,457 strings that already shipped, before the coverage pass. Register is ty throughout — 63 ty-forms against 0 Pan/Pani ones, the cleanest register measurement of any locale here. Polish inflects for case, so a kept term appears as seria/serii/serie/serię and a glossary row will not match on the nominative alone; i18n-review handles that, do not \"fix\" it.",
@@ -472,7 +492,6 @@
     "Goals": "Cele",
     "Progress": "Postępy",
     "Rest": "Odpoczynek",
-    "Level": "Poziom",
     "League": "Liga",
     "Leaderboard": "Tabela wyników",
     "Settings": "Ustawienia",
@@ -522,7 +541,8 @@
     "Steps": "Kroki",
     "Mood": "Nastrój",
     "Sleep": "Sen",
-    "$chestNote": "\"Chest\" is TWO different nouns in English and this locale renders them as two different words, which is correct and must stay: the body part (es Pecho / fr Poitrine / de Brust) and the daily reward chest (es Cofre / fr Coffre / de Truhe). A future sweep that unifies them would put a pectoral muscle on the rewards card. The six rows above were added 2026-08-16 with the dashboard batch that first made these strings translatable at all — they had been hardcoded English until then."
+    "$chestNote": "\"Chest\" is TWO different nouns in English and this locale renders them as two different words, which is correct and must stay: the body part (es Pecho / fr Poitrine / de Brust) and the daily reward chest (es Cofre / fr Coffre / de Truhe). A future sweep that unifies them would put a pectoral muscle on the rewards card. The six rows above were added 2026-08-16 with the dashboard batch that first made these strings translatable at all — they had been hardcoded English until then.",
+    "$levelRemoved": "The Level row was removed 2026-08-16: Level is now doNotTranslate. See doNotTranslate.$levelNote."
   },
   "tr": {
     "$note": "Derived 2026-08-16 from the 1,457 strings that already shipped, before the coverage pass. Register is sen. Turkish agglutinates, so a kept term appears as set/setler/setini and a glossary row will not match on the bare form; i18n-review handles that, do not \"fix\" it.",
@@ -540,7 +560,6 @@
     "Goals": "Hedefler",
     "Progress": "İlerleme",
     "Rest": "Dinlenme",
-    "Level": "Seviye",
     "League": "Lig",
     "Leaderboard": "Lider tablosu",
     "Settings": "Ayarlar",
@@ -588,7 +607,8 @@
       "set|sets",
       "coin|coins"
     ],
-    "$coinNote": "Coin and Coins share \"jeton\" for the same reason Set and Sets share \"set\": Turkish agglutinates the plural (jeton / jetonlar / jetonlarını) rather than using a separate word, and the shipped strings already do — \"+{coins} jeton\", \"jetonlarını al\". One term with an agglutinated plural, not the defect class."
+    "$coinNote": "Coin and Coins share \"jeton\" for the same reason Set and Sets share \"set\": Turkish agglutinates the plural (jeton / jetonlar / jetonlarını) rather than using a separate word, and the shipped strings already do — \"+{coins} jeton\", \"jetonlarını al\". One term with an agglutinated plural, not the defect class.",
+    "$levelRemoved": "The Level row was removed 2026-08-16: Level is now doNotTranslate. See doNotTranslate.$levelNote."
   },
   "$growthRule": "STANDING RULE (kegan, 2026-08-16): when the app gains a new product noun, add a row here for EVERY released locale in the same change that ships it — not later. This file is the only thing stopping a term from acquiring a second and third translation, and every collision found so far was a noun that grew into the app without a row: Regimen had THREE German renderings while 'Plan' also meant Plan; Spanish 'Rutina' served Regimen and Routine; French 'Série' served Streak and Set across 128 strings. Unpicking one afterwards is expensive — the French fix needed 15 hand-written strings, because a find-and-replace corrupts the sentences that carry both senses. `npm run i18n:review` lists recurring mid-sentence-capitalised nouns with no row here, so the rule is checked rather than remembered."
 }
