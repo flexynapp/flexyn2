@@ -111,8 +111,9 @@ export default function ProfileContestRail({
           icon={Trophy}
           iconClass="text-primary"
           onClick={onOpenLeague}
-          label={tf('profile.hero.leagueA11y', 'League placement: {r} of {t}')
-            .replace('{r}', String(league.rank)).replace('{t}', String(league.total))}
+          label={tf('profile.hero.leagueA11y', 'League placement: {r} of {t}', {
+            r: String(league.rank), t: String(league.total),
+          })}
         >
           <span className="text-xs font-bold tabular-nums leading-none">#{league.rank}</span>
           {league.tierLabel && (
@@ -129,8 +130,9 @@ export default function ProfileContestRail({
           iconClass="text-primary"
           onClick={onOpenRival}
           ahead={rival.mine > rival.theirs}
-          label={tf('profile.hero.rivalA11y', 'Rival: you {a}, them {b}')
-            .replace('{a}', String(Math.round(rival.mine))).replace('{b}', String(Math.round(rival.theirs)))}
+          label={tf('profile.hero.rivalA11y', 'Rival: you {a}, them {b}', {
+            a: String(Math.round(rival.mine)), b: String(Math.round(rival.theirs)),
+          })}
         >
           <Versus mine={rival.mine} theirs={rival.theirs} language={language} />
         </Pill>
@@ -142,8 +144,9 @@ export default function ProfileContestRail({
           iconClass="text-primary"
           onClick={onOpenWar}
           ahead={war.mine > war.theirs}
-          label={tf('profile.hero.warA11y', 'Crew war: your crew {a}, theirs {b}')
-            .replace('{a}', String(Math.round(war.mine))).replace('{b}', String(Math.round(war.theirs)))}
+          label={tf('profile.hero.warA11y', 'Crew war: your crew {a}, theirs {b}', {
+            a: String(Math.round(war.mine)), b: String(Math.round(war.theirs)),
+          })}
         >
           <Versus mine={war.mine} theirs={war.theirs} language={language} />
         </Pill>

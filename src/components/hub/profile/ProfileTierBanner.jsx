@@ -150,14 +150,16 @@ export default function ProfileTierBanner({
   const xpToNext = Number.isFinite(xpNeeded) && Number.isFinite(xpInLevel)
     ? Math.max(0, Math.round(xpNeeded - xpInLevel))
     : null;
-  const xpToNextLabel = tf('profile.hero.xpToNext', '{n} XP to {lv} {next}')
-    .replace('{n}', xpToNext != null ? xpToNext.toLocaleString() : '')
-    .replace('{lv}', levelWord || '')
-    .replace('{next}', String((level ?? 0) + 1));
+  const xpToNextLabel = tf('profile.hero.xpToNext', '{n} XP to {lv} {next}', {
+    n: xpToNext != null ? xpToNext.toLocaleString() : '',
+    lv: levelWord || '',
+    next: String((level ?? 0) + 1),
+  });
   const streakLabel = tf('profile.hero.days', 'days');
   const trainedCount = week.filter((d) => d.trained).length;
-  const weekLabel = tf('profile.hero.weekSummary', 'Trained {n} of the last 7 days')
-    .replace('{n}', String(trainedCount));
+  const weekLabel = tf('profile.hero.weekSummary', 'Trained {n} of the last 7 days', {
+    n: String(trainedCount),
+  });
   const reduceMotion = useReducedMotion();
   const { scrollY } = useScroll();
 
