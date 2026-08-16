@@ -197,13 +197,13 @@ export default function WorkoutQuickGenerator({ userProfile = {}, onSaveRegimen,
         <Pillset label={tFallback('generator.style', 'Style')} options={CARDIO_STYLES} value={cardioStyle} onChange={setCardioStyle} />
       )}
 
-      <Pillset label={tFallback('generator.duration', 'Duration')} options={DURATION_OPTIONS} value={duration} onChange={setDuration} />
+      <Pillset label={tFallback('generator.duration', 'Duration')} options={DURATION_OPTIONS} value={duration} onChange={setDuration} keyPrefix="generator.duration." />
 
       {!isCardio && (
-        <Pillset label={tFallback('generator.equipment', 'Equipment')} options={EQUIPMENT_OPTIONS} value={equipment} onChange={setEquipment} />
+        <Pillset label={tFallback('generator.equipment', 'Equipment')} options={EQUIPMENT_OPTIONS} value={equipment} onChange={setEquipment} keyPrefix="generator.equipment." />
       )}
 
-      <Pillset label={tFallback('generator.skill', 'Experience')} options={SKILL_OPTIONS} value={skill} onChange={setSkill} />
+      <Pillset label={tFallback('generator.skill', 'Experience')} options={SKILL_OPTIONS} value={skill} onChange={setSkill} keyPrefix="generator.skill." />
 
       {/* Daily check-in. Optional and tappable-off. This is the signal the
           research actually supports — what you report today beats what a

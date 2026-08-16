@@ -458,7 +458,7 @@ export default function GymHub() {
                     : 'border-transparent text-muted-foreground hover:text-foreground active:text-foreground'
                 }`}
               >
-                <Icon className="w-3.5 h-3.5" /> {label}
+                <Icon className="w-3.5 h-3.5" /> {tFallback(`gymHub.tab.${tid}`, label)}
               </button>
             ))}
           </div>
@@ -608,7 +608,7 @@ function EventsTab({ gymId, canCreate, gymOwnerId }) {
                 : 'bg-secondary/60 text-foreground hover:bg-secondary active:bg-secondary'
             }`}
           >
-            {opt.label}
+            {tFallback(`gymHub.eventScope.${opt.id}`, opt.label)}
           </button>
         ))}
       </div>
@@ -705,7 +705,7 @@ function EventsTab({ gymId, canCreate, gymOwnerId }) {
                             : 'border-border text-muted-foreground hover:bg-secondary active:bg-secondary'
                         } ${disabled ? 'opacity-60' : ''}`}
                       >
-                        {opt.label}
+                        {tFallback(`gymHub.rsvp.${opt.id}`, opt.label)}
                       </button>
                     );
                   })}
@@ -756,7 +756,7 @@ function LeaderboardTab({ gymId, meUserId }) {
                 : 'bg-secondary/60 text-foreground hover:bg-secondary active:bg-secondary'
             }`}
           >
-            {m.label}
+            {tFallback(`gymHub.lbMode.${m.id}`, m.label)}
           </button>
         ))}
       </div>
