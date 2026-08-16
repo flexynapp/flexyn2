@@ -1186,7 +1186,7 @@ export default function CapsuleOpener({ capsule, batch, onClaim, onClaimBatch, o
                 animate={{ scale: 1, opacity: 1 }}
                 transition={{ type: 'spring', stiffness: 320, damping: 16 }}
               >
-                {rarityTint(encore.item.rarity).label}
+                {tFallback(`loot.rarity.${encore.item.rarity}`, rarityTint(encore.item.rarity).label)}
               </motion.p>
               <p className="relative z-10 text-muted-foreground text-micro font-medium tracking-widest uppercase -mt-1">
                 One more spin — legendaries only
@@ -1354,7 +1354,7 @@ export default function CapsuleOpener({ capsule, batch, onClaim, onClaimBatch, o
                     className="px-3 py-1 rounded-full text-sm font-bold border"
                     style={{ color: rarityConfig.color, borderColor: rarityConfig.color, background: `${rarityConfig.color}18` }}
                   >
-                    {rarityConfig.label}
+                    {tFallback(`loot.rarity.${wonItem.rarity}`, rarityConfig.label)}
                   </span>
                   {wonItem.variant && !isThemeDrop && (
                     <span

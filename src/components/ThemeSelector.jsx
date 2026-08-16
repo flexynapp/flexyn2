@@ -178,7 +178,7 @@ export default function ThemeSelector({ open, onClose }) {
 
                           {/* Description */}
                           <p className="text-micro text-muted-foreground leading-tight mt-0.5">
-                            {lootTheme.description}
+                            {tFallback(`loot.theme.${lootTheme.id}.desc`, lootTheme.description)}
                           </p>
 
                           {/* Rarity badge */}
@@ -255,7 +255,7 @@ export default function ThemeSelector({ open, onClose }) {
 
                         {/* Description */}
                         <p className="text-micro text-muted-foreground leading-tight mt-1">
-                          {theme.description}
+                          {tFallback(`theme.${theme.id.replace(/-/g, '_')}.desc`, theme.description)}
                         </p>
 
                         {/* Lock row */}

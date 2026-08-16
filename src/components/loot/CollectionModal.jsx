@@ -137,6 +137,7 @@ function RaritySpectrum({ breakdown }) {
 
 // ─── One collection slot ──────────────────────────────────────────────────────
 function Slot({ item, onSelect, index }) {
+  const { tFallback } = useLanguage();
   const tint = rarityTint(item.rarity);
   const locked = !item.owned;
   const premium = PREMIUM.has(item.rarity) && !locked;
@@ -215,7 +216,7 @@ function Slot({ item, onSelect, index }) {
               key={v}
               className="w-1.5 h-1.5 rounded-full ring-1 ring-black/20"
               style={{ backgroundColor: VARIANTS[v]?.color ?? '#fff' }}
-              title={VARIANTS[v]?.label ?? v}
+              title={tFallback(`loot.variant.${v}`, VARIANTS[v]?.label ?? v)}
             />
           ))}
         </div>

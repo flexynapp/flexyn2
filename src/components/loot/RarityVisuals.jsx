@@ -22,6 +22,7 @@
 // light/dark mode apply.
 
 import { RARITY } from '@/lib/lootCatalog';
+import { useLanguage } from '@/lib/LanguageContext';
 import { useNumberFormatter } from '@/lib/intl';
 import FlexCoinIcon from '@/components/FlexCoinIcon';
 
@@ -68,13 +69,14 @@ const BADGE_SIZE = {
 };
 
 export function RarityBadge({ rarity, size = 'md', className = '' }) {
+  const { tFallback } = useLanguage();
   const t = rarityTint(rarity);
   return (
     <span
       className={`inline-block font-bold rounded-full border whitespace-nowrap ${BADGE_SIZE[size] ?? BADGE_SIZE.md} ${className}`}
       style={{ color: t.color, borderColor: t.color, background: t.surface }}
     >
-      {t.label}
+      {tFallback(`loot.rarity.${rarity}`, t.label)}
     </span>
   );
 }
