@@ -270,7 +270,13 @@ describe('the two classes coverage cannot see', () => {
     ).toBeLessThanOrEqual(baseline.untranslatable);
   });
 
-  it('does not gain hardcoded strings', () => {
+  // 60s, not the 15s default. This test SHELLS OUT to the scanner, which walks
+  // every file under src/ twice — ~5s of CPU, and on a machine running several
+  // dev servers and suites at once it has measured 20s of wall clock. At the
+  // default it fails as a TIMEOUT, which reads in CI exactly like the ratchet
+  // catching a regression and sends the next person hunting a string that does
+  // not exist. Same reason `npm run test` is slow here, documented in CLAUDE.md.
+  it('does not gain hardcoded strings', { timeout: 60_000 }, () => {
     // Strings that never reached a catalog at all — including copy held as
     // object-literal properties (`{ label: 'Log last night's sleep' }`),
     // which no JSX- or call-shaped detector could see. That blind spot is
