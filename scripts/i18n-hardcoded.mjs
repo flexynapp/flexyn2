@@ -35,7 +35,20 @@ const SKIP_PATHS = [
 // A literal is user-visible chrome only if it reads like prose: starts with a
 // capital or digit, has a space or is a real word, and is not an identifier,
 // path, className, key, URL, or unit.
-const LOOKS_LIKE_CODE = /^(?:[a-z0-9_$-]+|[A-Z_]+|.*[/\\.]{1}.*|#[0-9a-f]{3,8}|\d+(?:px|rem|em|%|ms|s)?)$/;
+// The third alternative used to be `.*[/\\.]{1}.*`, meant to skip paths and
+// dotted identifiers. It matched any string CONTAINING a dot — which is the
+// shape of every real sentence, so the scanner was structurally blind to
+// prose. Measured before this change: across the toast/placeholder/aria
+// detectors it reported 9 strings app-wide and skipped 274. "Could not delete
+// note" was reported; "Could not delete note." was not.
+//
+// A path or dotted identifier is now recognised by shape rather than by
+// containing a dot: whole-string, no whitespace, and every separator sits
+// BETWEEN word characters. `user.name`, `src/lib/foo.js` and `v1.2.3` still
+// match; `Deleted.`, `Story's up.` and `Are you sure? This cannot be undone.`
+// no longer do, because a trailing dot has no word character after it and
+// prose has spaces.
+const LOOKS_LIKE_CODE = /^(?:[a-z0-9_$-]+|[A-Z_]+|[\w$-]+(?:[./\\][\w$-]+)+|#[0-9a-f]{3,8}|\d+(?:px|rem|em|%|ms|s)?)$/;
 const HAS_LETTERS = /[A-Za-z]{2,}/;
 
 function isProse(s) {
@@ -58,7 +71,15 @@ const DETECTORS = [
   ['aria',        /\baria-label=(["'])((?:\\.|(?!\1).)*)\1/g, 2, 'aria-label'],
   ['title',       /\btitle=(["'])((?:\\.|(?!\1).)*)\1/g, 2, 'title attribute'],
   ['alt',         /\balt=(["'])((?:\\.|(?!\1).)*)\1/g, 2, 'image alt text'],
-  ['jsxText',     />\s*([A-Z][A-Za-z0-9'’,!?.:%-]*(?:\s+[A-Za-z0-9'’,!?.:%-]+){0,14})\s*</g, 1, 'JSX text node'],
+  // HTML entities are admitted as whole tokens (`&amp;`, `&nbsp;`, `&#8212;`)
+  // rather than by adding `&` to the character class. The distinction is
+  // load-bearing: a bare `&` would make `{A && B}` and `x => X && Y < Z` match
+  // as copy, which is how a widened scanner earns itself a mute. Before this,
+  // `<p>Trade gear &amp; regimens</p>` (src/pages/Hub.jsx) was invisible — the
+  // class had no `&`, so the match died at the entity and the node was skipped
+  // entirely. Being un-keyed it was invisible to the orphan scanner too, so it
+  // survived a sweep that took orphans to zero.
+  ['jsxText',     />\s*([A-Z](?:[A-Za-z0-9'’,!?.:%-]|&[a-zA-Z]+;|&#\d+;)*(?:\s+(?:[A-Za-z0-9'’,!?.:%-]|&[a-zA-Z]+;|&#\d+;)+){0,14})\s*</g, 1, 'JSX text node'],
   // Copy held in a DATA structure rather than written in markup:
   //   { id: 'log_sleep', label: "Log last night's sleep", … }
   //   SLIDES.push({ title: 'Personal Record', sub: `${xp} XP earned overall` })
@@ -89,7 +110,13 @@ const DETECTORS = [
 function stripNonCode(src) {
   const blank = (m) => m.replace(/[^\n]/g, ' ');
   return src
-    .replace(/\/\*[\s\S]*?\*\//g, blank)
+    // The lookbehind is not cosmetic. `accept="image/*"` contains `/*`, so a
+    // bare pattern opened a block comment inside a string literal and blanked
+    // everything up to the next `*/` — real code, and every literal in it.
+    // Twelve files carry that attribute, including HubComposer, StoriesRow and
+    // CrewChat, which are exactly the files with the most un-keyed copy. A real
+    // comment opener is never preceded by a word character or a quote.
+    .replace(/(?<![A-Za-z0-9_"'])\/\*[\s\S]*?\*\//g, blank)
     .replace(/^[ \t]*\/\/.*$/gm, blank);
 }
 
