@@ -26,19 +26,19 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { useLanguage } from '@/lib/LanguageContext';
-import { getTrophy, TROPHY_TIERS } from '@/lib/trophyDefinitions';
+import { getTrophy, TROPHY_TIERS, trophyName } from '@/lib/trophyDefinitions';
 import { listEarned } from '@/lib/data/trophies';
 import { requestOpenAchievements } from '@/lib/achievementsFlow';
 
 const MAX_BADGES = 6;
 
-function Badge({ row, onTap, tappable }) {
+function Badge({ row, onTap, tappable, tFallback }) {
   // getTrophy resolves catalog rungs, generated ladder tails
   // (`sessions_x2`) and league season trophies alike, so the rail shows
   // whatever the user actually holds.
   const trophy = getTrophy(row.trophy_id);
   const icon = trophy?.emoji || '🏆';
-  const name = trophy?.name || row.trophy_id;
+  const name = trophy ? trophyName(trophy, tFallback) : row.trophy_id;
   const tierMeta = trophy ? (TROPHY_TIERS[trophy.tier] || TROPHY_TIERS.bronze) : null;
 
   return (
@@ -49,7 +49,7 @@ function Badge({ row, onTap, tappable }) {
         'shrink-0 flex flex-col items-center gap-1.5 w-16',
         tappable ? 'cursor-pointer' : 'cursor-default',
       ].join(' ')}
-      aria-label={`Achievement: ${name}`}
+      aria-label={tFallback('profileBadges.badgeAria', 'Achievement: {name}', { name })}
     >
       {/* Plain fill, no border, no gradient — matching the trophy grid in
           ProfileTrophies so badges and trophies read as one collection
@@ -133,6 +133,7 @@ export default function ProfileBadgeShowcase({ userEmail, userId, isOwn }) {
             row={row}
             tappable={!!isOwn}
             onTap={requestOpenAchievements}
+            tFallback={tFallback}
           />
         ))}
       </div>

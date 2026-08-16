@@ -79,7 +79,7 @@ export const LADDERS = {
   cardio:    { name: 'Distance PB',     category: 'cardio',     signal: 'maxDistanceM',    unit: 'm',        tailBase: null },
   distance:  { name: 'Lifetime miles',  category: 'cardio',     signal: 'totalDistanceM',  unit: 'm',        tailBase: 1000000, tailStep: 1000000, tailName: 'Four Digits' },
   // DEAD END BY DESIGN — there is a finite number of activity types.
-  cross:     { name: 'Cross-training',  category: 'cardio',     signal: 'activityTypes',   unit: 'types',    tailBase: null },
+  cross:     { name: 'Cross training',   category: 'cardio',     signal: 'activityTypes',   unit: 'types',    tailBase: null },
 
   // DEAD END BY DESIGN — level 100 is the cap; prestige is the tail.
   level:     { name: 'Level',           category: 'level',      signal: 'level',           unit: '',         tailBase: null },
@@ -96,7 +96,7 @@ export const LADDERS = {
   crewwar:   { name: 'Crew wars',       category: 'crew',       signal: 'crewWars',        unit: 'wars',     tailBase: 50,      tailStep: 50,      tailName: 'Warlord' },
 
   social:    { name: 'Hub',             category: 'social',     signal: 'posts',           unit: 'posts',    tailBase: 200,     tailStep: 200,     tailName: 'Hub Legend' },
-  gym:       { name: 'Check-ins',       category: 'social',     signal: 'checkins',        unit: 'visits',   tailBase: 365,     tailStep: 365,     tailName: 'Institution' },
+  gym:       { name: 'Gym visits',      category: 'social',     signal: 'checkins',        unit: 'visits',   tailBase: 365,     tailStep: 365,     tailName: 'Institution' },
 
   capsule:   { name: 'Capsules',        category: 'collection', signal: 'capsulesOpened',  unit: 'capsules', tailBase: 100,     tailStep: 100,     tailName: 'Vault Keeper' },
   relic:     { name: 'Legendaries',     category: 'collection', signal: 'legendaries',     unit: 'items',    tailBase: 25,      tailStep: 25,      tailName: 'Mythic Vault' },
@@ -111,7 +111,7 @@ export const LADDERS = {
 
   sleep:     { name: 'Sleep',           category: 'recovery',   signal: 'sleepLogs',       unit: 'nights',   tailBase: 100,     tailStep: 100,     tailName: 'Recovery Focused' },
   journal:   { name: 'Journal',         category: 'recovery',   signal: 'journalEntries',  unit: 'entries',  tailBase: 50,      tailStep: 50,      tailName: 'Chronicler' },
-  debrief:   { name: 'Weekly debriefs', category: 'recovery',   signal: 'debriefs',        unit: 'weeks',    tailBase: 52,      tailStep: 52,      tailName: 'Year Reviewed' },
+  debrief:   { name: 'Weekly reviews',  category: 'recovery',   signal: 'debriefs',        unit: 'weeks',    tailBase: 52,      tailStep: 52,      tailName: 'Year Reviewed' },
 
   regimen:   { name: 'Programming',     category: 'workout',    signal: 'regimens',        unit: 'regimens', tailBase: 25,      tailStep: 25,      tailName: 'Program Director' },
   duelplay:  { name: 'Duels fought',    category: 'duel',       signal: 'duelsPlayed',     unit: 'duels',    tailBase: 100,     tailStep: 100,     tailName: 'Veteran of the Pit' },
@@ -166,10 +166,10 @@ export const TROPHIES = [
   { id: 'variety_100',     category: 'workout', ladder: 'variety',   threshold: 100,     tier: 'platinum',  emoji: '🧭', name: 'Completionist',     description: 'Logged 100 different exercises.' },
 
   // ── Consistency · streak ────────────────────────────────────────
-  { id: 'streak_spark',    category: 'streak',  ladder: 'streak',    threshold: 7,       tier: 'bronze',    emoji: '🔥', name: 'Spark',             description: '7-day workout streak.' },
-  { id: 'streak_blaze',    category: 'streak',  ladder: 'streak',    threshold: 30,      tier: 'silver',    emoji: '🔥', name: 'Blaze',             description: '30-day workout streak.' },
-  { id: 'streak_inferno',  category: 'streak',  ladder: 'streak',    threshold: 100,     tier: 'gold',      emoji: '🔥', name: 'Inferno',           description: '100-day workout streak.' },
-  { id: 'streak_eternal',  category: 'streak',  ladder: 'streak',    threshold: 365,     tier: 'legendary', emoji: '🔥', name: 'Eternal Flame',     description: '365-day workout streak.' },
+  { id: 'streak_spark',    category: 'streak',  ladder: 'streak',    threshold: 7,       tier: 'bronze',    emoji: '🔥', name: 'Spark',             description: 'Workout streak of 7 days.' },
+  { id: 'streak_blaze',    category: 'streak',  ladder: 'streak',    threshold: 30,      tier: 'silver',    emoji: '🔥', name: 'Blaze',             description: 'Workout streak of 30 days.' },
+  { id: 'streak_inferno',  category: 'streak',  ladder: 'streak',    threshold: 100,     tier: 'gold',      emoji: '🔥', name: 'Inferno',           description: 'Workout streak of 100 days.' },
+  { id: 'streak_eternal',  category: 'streak',  ladder: 'streak',    threshold: 365,     tier: 'legendary', emoji: '🔥', name: 'Eternal Flame',     description: 'Workout streak of 365 days.' },
 
   // ── Consistency · longevity ─────────────────────────────────────
   // Months in which you logged at least one workout. Deliberately the
@@ -259,9 +259,9 @@ export const TROPHIES = [
 
   // ── Community · gym check-ins ───────────────────────────────────
   { id: 'checkin_1',       category: 'social',  ladder: 'gym',       threshold: 1,       tier: 'bronze',    emoji: '📍', name: 'Showed Up',         description: 'Checked in at a gym.' },
-  { id: 'checkin_25',      category: 'social',  ladder: 'gym',       threshold: 25,      tier: 'silver',    emoji: '🏋️‍♀️', name: 'Local',             description: '25 gym check-ins.' },
-  { id: 'checkin_100',     category: 'social',  ladder: 'gym',       threshold: 100,     tier: 'gold',      emoji: '🏛️', name: 'Regular Fixture',   description: '100 gym check-ins.' },
-  { id: 'checkin_365',     category: 'social',  ladder: 'gym',       threshold: 365,     tier: 'platinum',  emoji: '🗿', name: 'Institution',       description: '365 gym check-ins.' },
+  { id: 'checkin_25',      category: 'social',  ladder: 'gym',       threshold: 25,      tier: 'silver',    emoji: '🏋️‍♀️', name: 'Local',             description: '25 gym visits.' },
+  { id: 'checkin_100',     category: 'social',  ladder: 'gym',       threshold: 100,     tier: 'gold',      emoji: '🏛️', name: 'Regular Fixture',   description: '100 gym visits.' },
+  { id: 'checkin_365',     category: 'social',  ladder: 'gym',       threshold: 365,     tier: 'platinum',  emoji: '🗿', name: 'Institution',       description: '365 gym visits.' },
 
   // ── Collection ──────────────────────────────────────────────────
   { id: 'capsule_1',       category: 'collection', ladder: 'capsule', threshold: 1,      tier: 'bronze',    emoji: '🎁', name: 'First Drop',        description: 'Opened your first capsule.' },
@@ -273,9 +273,9 @@ export const TROPHIES = [
   { id: 'relic_25',        category: 'collection', ladder: 'relic',   threshold: 25,     tier: 'legendary', emoji: '🔮', name: 'Mythic Vault',      description: 'Owned 25 legendary items.' },
 
   // ── Collection · coins & marketplace ────────────────────────────
-  { id: 'coin_1k',         category: 'collection', ladder: 'coins',   threshold: 1000,   tier: 'bronze',    emoji: '🪙', name: 'Pocket Change',     description: 'Earned 1,000 Flex coins.' },
-  { id: 'coin_10k',        category: 'collection', ladder: 'coins',   threshold: 10000,  tier: 'silver',    emoji: '💰', name: 'Saver',             description: 'Earned 10,000 Flex coins.' },
-  { id: 'coin_100k',       category: 'collection', ladder: 'coins',   threshold: 100000, tier: 'gold',      emoji: '🏦', name: 'Tycoon',            description: 'Earned 100,000 Flex coins.' },
+  { id: 'coin_1k',         category: 'collection', ladder: 'coins',   threshold: 1000,   tier: 'bronze',    emoji: '🪙', name: 'Pocket Change',     description: 'Earned 1,000 Flex Coins.' },
+  { id: 'coin_10k',        category: 'collection', ladder: 'coins',   threshold: 10000,  tier: 'silver',    emoji: '💰', name: 'Saver',             description: 'Earned 10,000 Flex Coins.' },
+  { id: 'coin_100k',       category: 'collection', ladder: 'coins',   threshold: 100000, tier: 'gold',      emoji: '🏦', name: 'Tycoon',            description: 'Earned 100,000 Flex Coins.' },
 
   { id: 'market_1',        category: 'collection', ladder: 'market',  threshold: 1,      tier: 'bronze',    emoji: '🏷️', name: 'First Sale',        description: 'Sold an item on the marketplace.' },
   { id: 'market_10',       category: 'collection', ladder: 'market',  threshold: 10,     tier: 'silver',    emoji: '🤝', name: 'Trader',            description: 'Sold 10 items.' },
@@ -302,9 +302,9 @@ export const TROPHIES = [
   { id: 'journal_10',      category: 'recovery',   ladder: 'journal', threshold: 10,     tier: 'silver',    emoji: '✍️', name: 'Reflective',        description: 'Wrote 10 journal entries.' },
   { id: 'journal_50',      category: 'recovery',   ladder: 'journal', threshold: 50,     tier: 'gold',      emoji: '📚', name: 'Chronicler',        description: 'Wrote 50 journal entries.' },
 
-  { id: 'debrief_1',       category: 'recovery',   ladder: 'debrief', threshold: 1,      tier: 'bronze',    emoji: '📈', name: 'Week in Review',    description: 'Received your first weekly debrief.' },
-  { id: 'debrief_10',      category: 'recovery',   ladder: 'debrief', threshold: 10,     tier: 'silver',    emoji: '📉', name: 'Ten Weeks',         description: 'Received 10 weekly debriefs.' },
-  { id: 'debrief_52',      category: 'recovery',   ladder: 'debrief', threshold: 52,     tier: 'gold',      emoji: '🗂️', name: 'Year Reviewed',     description: 'Received 52 weekly debriefs.' },
+  { id: 'debrief_1',       category: 'recovery',   ladder: 'debrief', threshold: 1,      tier: 'bronze',    emoji: '📈', name: 'Week in Review',    description: 'Received your first weekly review.' },
+  { id: 'debrief_10',      category: 'recovery',   ladder: 'debrief', threshold: 10,     tier: 'silver',    emoji: '📉', name: 'Ten Weeks',         description: 'Received 10 weekly reviews.' },
+  { id: 'debrief_52',      category: 'recovery',   ladder: 'debrief', threshold: 52,     tier: 'gold',      emoji: '🗂️', name: 'Year Reviewed',     description: 'Received 52 weekly reviews.' },
 
   // ── Iron · programming ──────────────────────────────────────────
   // Names carried over from the retired achievements catalog so the
@@ -402,6 +402,11 @@ const SEASON_EMOJI = {
   platinum: '💠', diamond: '💎', legend: '👑', champion: '👑',
 };
 
+/** "diamond" → "Diamond". The English label for a season's tier band. */
+function seasonKindLabel(kind) {
+  return String(kind || '').charAt(0).toUpperCase() + String(kind || '').slice(1);
+}
+
 /** Parsed season trophy, or null if `id` isn't one. */
 export function parseSeasonTrophy(id) {
   const m = SEASON_TROPHY_RE.exec(id || '');
@@ -409,7 +414,7 @@ export function parseSeasonTrophy(id) {
   const season = Number(m[1]);
   const kind = m[2];
   const isChampion = kind === 'champion';
-  const label = kind.charAt(0).toUpperCase() + kind.slice(1);
+  const label = seasonKindLabel(kind);
   return {
     id,
     season,
@@ -420,7 +425,7 @@ export function parseSeasonTrophy(id) {
     emoji: SEASON_EMOJI[kind] || '🎖️',
     name: isChampion ? `Champion, S${season}` : `Season ${season} ${label}`,
     description: isChampion
-      ? `Won season ${season} outright. Minted once — nobody else can earn this one.`
+      ? `Won season ${season} outright. Minted once, and nobody else can earn it.`
       : `Reached ${label} in season ${season}.`,
   };
 }
@@ -666,4 +671,107 @@ export function rungProgress(trophy, value = 0) {
   const done = target > 0 && value >= target;
   const pct = target > 0 ? Math.min(100, Math.max(0, (value / target) * 100)) : 0;
   return { value, target, pct, done };
+}
+
+// ── Translation ───────────────────────────────────────────────────
+//
+// This module is pure data with no React context, so the translator
+// comes IN as an argument — the same shape `implementTypeLabel(slug, tf)`
+// uses in equipmentCatalog.js. Every English string stays where it is
+// and is passed as the fallback, so a locale with no catalog entry
+// renders exactly what it rendered before.
+//
+// TROPHY NAMES ARE DELIBERATELY NOT ROUTED THROUGH THIS. "Centurion",
+// "Eternal Flame" and "Ironlung" are product names, the same class as
+// capsule cosmetics and the crew trophies — `_glossary.json` records the
+// decision. What a badge is CALLED stays English; what it took to earn
+// it is ordinary copy and translates.
+//
+// Season and tail rungs are generated, so their English is a template
+// literal. That shape cannot go in a catalog as-is — it would ship a
+// key with no fixed string behind it — so they take the interpolated
+// form, `tf(key, 'Reached {tier} in season {n}.', { tier, n })`.
+
+/** Default translator: hand back the English fallback untouched. */
+const asIs = (_key, english) => english;
+
+/** "Bronze" / "Silver" / … for a tier ramp id. */
+export function tierLabel(tier, tf = asIs) {
+  const id = TROPHY_TIERS[tier] ? tier : 'bronze';
+  return tf(`trophy.tier.${id}`, TROPHY_TIERS[id].label);
+}
+
+/** The ladder's display name — the row heading on the trophy board. */
+export function ladderName(ladderId, tf = asIs) {
+  const ladder = LADDERS[ladderId];
+  return ladder ? tf(`trophy.ladder.${ladderId}`, ladder.name) : '';
+}
+
+/**
+ * The unit suffix on a ladder's "47 / 100 workouts" readout. Keyed by the
+ * UNIT rather than by the ladder, because eight ladders count days and a
+ * translator should be asked for that word once. Empty for the ladders
+ * that count nothing nameable (level, prestige, gauntlet, crew).
+ */
+export function ladderUnit(ladderId, tf = asIs) {
+  const unit = LADDERS[ladderId]?.unit;
+  if (!unit) return '';
+  return tf(`trophy.unit.${unit}`, unit);
+}
+
+/** A category heading — "Iron", "Consistency", "Endurance". */
+export function trophyCategoryName(category, tf = asIs) {
+  const cat = typeof category === 'string'
+    ? TROPHY_CATEGORIES.find((c) => c.id === category)
+    : category;
+  return cat ? tf(`trophy.category.${cat.id}`, cat.name) : '';
+}
+
+/**
+ * The criteria line under a trophy. Handles all four kinds `getTrophy`
+ * can return: catalog rungs key off their id, season and tail rungs off
+ * their shape.
+ */
+export function trophyDescription(trophy, tf = asIs) {
+  if (!trophy) return '';
+
+  if (trophy.season != null && trophy.kind) {
+    return trophy.isChampion
+      ? tf(
+        'trophy.season.champion.desc',
+        'Won season {n} outright. Minted once, and nobody else can earn it.',
+        { n: trophy.season },
+      )
+      : tf('trophy.season.tier.desc', 'Reached {tier} in season {n}.', {
+        tier: tf(`trophy.seasonTier.${trophy.kind}`, seasonKindLabel(trophy.kind)),
+        n: trophy.season,
+      });
+  }
+
+  if (trophy.isTail) {
+    // The English is "200,000 lb" — a formatted number and a unit, which
+    // is the whole string. Word order moves between languages, so it is
+    // one message with two placeholders rather than a concatenation.
+    const threshold = Number(trophy.threshold) || 0;
+    return tf('trophy.tail.desc', '{n} {unit}', {
+      n: threshold.toLocaleString(),
+      unit: ladderUnit(trophy.ladder, tf),
+    }).trim();
+  }
+
+  return tf(`trophy.${trophy.id}.desc`, trophy.description || '');
+}
+
+/** The display name for a trophy. Only the generated season rungs move. */
+export function trophyName(trophy, tf = asIs) {
+  if (!trophy) return '';
+  if (trophy.season != null && trophy.kind) {
+    return trophy.isChampion
+      ? tf('trophy.season.champion.name', 'Champion, S{n}', { n: trophy.season })
+      : tf('trophy.season.tier.name', 'Season {n} {tier}', {
+        n: trophy.season,
+        tier: tf(`trophy.seasonTier.${trophy.kind}`, seasonKindLabel(trophy.kind)),
+      });
+  }
+  return trophy.name || '';
 }

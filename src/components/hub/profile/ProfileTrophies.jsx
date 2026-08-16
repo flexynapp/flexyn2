@@ -16,7 +16,14 @@
 //     "8/24" alone doesn't.
 import { motion } from 'framer-motion';
 import { Plus, Pin } from 'lucide-react';
-import { TROPHIES, TROPHY_TIERS, getTrophy } from '@/lib/trophyDefinitions';
+import {
+  TROPHIES,
+  TROPHY_TIERS,
+  getTrophy,
+  tierLabel,
+  trophyName,
+  trophyDescription,
+} from '@/lib/trophyDefinitions';
 
 function SectionLabel({ children, aside }) {
   return (
@@ -154,11 +161,11 @@ export default function ProfileTrophies({
               return (
                 <div
                   key={row.trophy_id}
-                  title={`${trophy.name} — ${trophy.description}`}
+                  title={`${trophyName(trophy, tFallback)}. ${trophyDescription(trophy, tFallback)}`}
                   className="relative aspect-square rounded-xl bg-secondary/40 flex items-center justify-center overflow-hidden"
                 >
                   <span className="text-2xl leading-none" aria-hidden="true">{trophy.emoji}</span>
-                  <span className="sr-only">{`${trophy.name} (${tierMeta.label})`}</span>
+                  <span className="sr-only">{`${trophyName(trophy, tFallback)} (${tierLabel(trophy.tier, tFallback)})`}</span>
                   {/* Tier as a stripe, not a 7px caption. */}
                   <span
                     aria-hidden="true"

@@ -12,7 +12,7 @@ import { supabase } from '@/api/supabaseClient';
 import { safeSelect } from '@/api/safeSelect';
 
 import { toast } from '@/lib/toast';
-import { getTrophy } from '@/lib/trophyDefinitions';
+import { getTrophy, trophyName, trophyDescription } from '@/lib/trophyDefinitions';
 import { requestOpenAchievements } from '@/lib/achievementsFlow';
 
 export async function listEarned(userIdOrEmail, byEmail = false) {
@@ -76,7 +76,7 @@ export async function getProgress() {
  * Nothing threw — the section simply never rendered, which is
  * indistinguishable from "this user has earned nothing".
  */
-export async function listEarnedForShare(userId) {
+export async function listEarnedForShare(userId, tf) {
   const rows = await listEarned(userId);
   return rows
     .map((row) => {
@@ -85,8 +85,8 @@ export async function listEarnedForShare(userId) {
       return {
         id:             row.trophy_id,
         achievement_id: row.trophy_id,
-        name:           trophy.name,
-        description:    trophy.description,
+        name:           trophyName(trophy, tf),
+        description:    trophyDescription(trophy, tf),
         icon:           trophy.emoji,
         unlocked_date:  row.earned_at || null,
       };
@@ -125,7 +125,11 @@ export async function grantEligible() {
 // vault to see the rest.
 const TIER_RANK = { bronze: 1, silver: 2, gold: 3, platinum: 4, legendary: 5 };
 
-export async function checkAndCelebrate() {
+export async function checkAndCelebrate(tf) {
+  // No React context here, so the translator arrives as an argument and
+  // every string keeps its English as the fallback. Called without one,
+  // this behaves exactly as it did before.
+  const tr = tf || ((_k, english) => english);
   const res = await grantEligible();
   if (!res.ok || !res.newlyGranted.length) return res;
 
@@ -134,23 +138,38 @@ export async function checkAndCelebrate() {
 
   if (trophies.length <= 2) {
     for (const trophy of trophies) {
-      toast.success(`${trophy.emoji} Trophy earned: ${trophy.name}`, {
-        description: trophy.description,
-        duration: 5000,
-      });
+      toast.success(
+        tr('trophies.toast.earned', '{emoji} Trophy earned: {name}', {
+          emoji: trophy.emoji,
+          name: trophyName(trophy, tr),
+        }),
+        {
+          description: trophyDescription(trophy, tr),
+          duration: 5000,
+        },
+      );
     }
     return res;
   }
 
   const best = trophies.reduce((a, b) =>
     (TIER_RANK[b.tier] || 0) > (TIER_RANK[a.tier] || 0) ? b : a);
-  toast.success(`${best.emoji} ${trophies.length} trophies earned`, {
-    description: `${best.name} and ${trophies.length - 1} more.`,
-    duration: 6000,
-    action: {
-      label: 'View',
-      onClick: () => { try { requestOpenAchievements(); } catch { /* no-op */ } },
+  toast.success(
+    tr('trophies.toast.earnedMany', '{emoji} {count} trophies earned', {
+      emoji: best.emoji,
+      count: trophies.length,
+    }),
+    {
+      description: tr('trophies.toast.earnedManyDetail', '{name} and {count} more.', {
+        name: trophyName(best, tr),
+        count: trophies.length - 1,
+      }),
+      duration: 6000,
+      action: {
+        label: tr('trophies.toast.view', 'View'),
+        onClick: () => { try { requestOpenAchievements(); } catch { /* no-op */ } },
+      },
     },
-  });
+  );
   return res;
 }

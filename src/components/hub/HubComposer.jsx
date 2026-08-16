@@ -211,7 +211,7 @@ const ICONS = {
 };
 
 export default function HubComposer({ onClose }) {
-  const { t, tFallback } = useLanguage();
+  const { t, tFallback, language } = useLanguage();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const fmt = useNumberFormatter();
@@ -460,8 +460,11 @@ export default function HubComposer({ onClose }) {
     // Keyed on user.id, not email: user_trophies is keyed by uid and the
     // old email key would have gone on serving the retired table's
     // cached empty array.
-    queryKey: ['composer.achievements', user?.id],
-    queryFn: async () => (await listEarnedForShare(user.id)).slice(0, 10),
+    // Language is part of the key: the rows carry translated names and
+    // descriptions, so a cached list from before a language switch would
+    // render the share picker in the old one.
+    queryKey: ['composer.achievements', user?.id, language],
+    queryFn: async () => (await listEarnedForShare(user.id, tFallback)).slice(0, 10),
     enabled: !!user?.id,
   });
   const { data: myRegimens = [] } = useQuery({

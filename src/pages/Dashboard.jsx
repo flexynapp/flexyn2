@@ -779,13 +779,13 @@ export default function Dashboard() {
     let cancelled = false;
     const t = setTimeout(() => {
       if (cancelled) return;
-      checkTrophies().catch(() => {});
+      checkTrophies(tFallback).catch(() => {});
     }, 1500);
     return () => {
       cancelled = true;
       clearTimeout(t);
     };
-  }, [user?.id]);
+  }, [user?.id, tFallback]);
 
   // ── Season-end ceremony ───────────────────────────────────────────────────
   //

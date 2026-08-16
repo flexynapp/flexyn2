@@ -43,6 +43,11 @@ import {
   isUnlocked,
   lockedTrophies,
   requirementsFor,
+  ladderName,
+  ladderUnit,
+  trophyCategoryName,
+  trophyDescription,
+  trophyName,
 } from '@/lib/trophyDefinitions';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useDateFormatter, useListFormatter, useNumberFormatter } from '@/lib/intl';
@@ -94,6 +99,7 @@ function Medallion({ trophy, earned, size = 44 }) {
  */
 function LadderRow({ ladderId, earnedIds, signal, progress, fmtNum, fmtList, tFallback }) {
   const ladder = LADDERS[ladderId];
+  const unit = ladderUnit(ladderId, tFallback);
   const rungs = rungsFor(ladderId);
   const earned = rungs.filter((r) => earnedIds.has(r.id));
   const allEarned = rungs.length > 0 && earned.length >= rungs.length;
@@ -133,7 +139,7 @@ function LadderRow({ ladderId, earnedIds, signal, progress, fmtNum, fmtList, tFa
   return (
     <div className="py-3 border-b border-border last:border-b-0">
       <div className="flex items-baseline justify-between gap-2 mb-2">
-        <span className="text-sm font-semibold">{ladder.name}</span>
+        <span className="text-sm font-semibold">{ladderName(ladderId, tFallback)}</span>
         <span className="text-xs text-muted-foreground tabular-nums">
           {earned.length} / {rungs.length}
         </span>
@@ -150,7 +156,7 @@ function LadderRow({ ladderId, earnedIds, signal, progress, fmtNum, fmtList, tFa
       {finished ? (
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <Check className="w-3.5 h-3.5 text-success" />
-          Ladder complete.
+          {tFallback('progress.ladderComplete', 'Ladder complete.')}
         </div>
       ) : gated ? (
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -172,7 +178,7 @@ function LadderRow({ ladderId, earnedIds, signal, progress, fmtNum, fmtList, tFa
           <div className="flex-1 min-w-0">
             <div className="flex items-baseline justify-between gap-2">
               <span className="text-xs font-medium truncate">
-                {live.name}
+                {trophyName(live, tFallback)}
                 {isTail && (
                   <InfinityIcon className="inline w-3 h-3 ms-1 align-[-1px] text-muted-foreground" />
                 )}
@@ -182,7 +188,7 @@ function LadderRow({ ladderId, earnedIds, signal, progress, fmtNum, fmtList, tFa
               {!live.binary && (
                 <span className="text-xs text-muted-foreground tabular-nums shrink-0">
                   {fmtNum(Math.min(Math.round(liveValue), prog.target))} / {fmtNum(prog.target)}
-                  {ladder.unit ? ` ${ladder.unit}` : ''}
+                  {unit ? ` ${unit}` : ''}
                 </span>
               )}
             </div>
@@ -345,8 +351,8 @@ export default function AchievementsTab({ trophies = [], progress = {}, user = n
               <div key={ladderId} className="flex items-center gap-2 rounded-xl bg-secondary/30 p-2">
                 <Medallion trophy={rung} earned={false} size={36} />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold truncate">{rung.name}</p>
-                  <p className="text-xs text-muted-foreground truncate">{rung.description}</p>
+                  <p className="text-sm font-semibold truncate">{trophyName(rung, tFallback)}</p>
+                  <p className="text-xs text-muted-foreground truncate">{trophyDescription(rung, tFallback)}</p>
                   {/* Same rule as the ladder rows: a yes/no rung has no
                       fraction to draw, and a 0%-wide bar under it reads
                       as progress that has stalled rather than a thing
@@ -404,7 +410,7 @@ export default function AchievementsTab({ trophies = [], progress = {}, user = n
                 <div key={cat.id}>
                   <h3 className="font-heading font-bold text-sm mb-1">
                     <span className="me-1.5" aria-hidden="true">{cat.emoji}</span>
-                    {cat.name}
+                    {trophyCategoryName(cat, tFallback)}
                   </h3>
                   <div className="rounded-xl bg-card px-3">
                     {ladderIds.map((id) => (
@@ -448,12 +454,12 @@ export default function AchievementsTab({ trophies = [], progress = {}, user = n
                           <Medallion trophy={t} earned={false} size={28} />
                           <div className="flex-1 min-w-0">
                             <div className="flex items-baseline justify-between gap-2">
-                              <span className="text-sm font-semibold truncate">{t.name}</span>
+                              <span className="text-sm font-semibold truncate">{trophyName(t, tFallback)}</span>
                               <span className="text-xs text-muted-foreground tabular-nums shrink-0">
                                 {done} / {reqs.length}
                               </span>
                             </div>
-                            <p className="text-xs text-muted-foreground">{t.description}</p>
+                            <p className="text-xs text-muted-foreground">{trophyDescription(t, tFallback)}</p>
                             {/* Naming the outstanding requirements is the
                                 whole point — a locked badge with no stated
                                 route is just a tease. */}
@@ -500,8 +506,8 @@ export default function AchievementsTab({ trophies = [], progress = {}, user = n
                   <div key={row.trophy_id} className="flex items-center gap-3 rounded-xl bg-card p-3">
                     <Medallion trophy={trophy} earned size={44} />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold truncate">{trophy.name}</p>
-                      <p className="text-xs text-muted-foreground truncate">{trophy.description}</p>
+                      <p className="text-sm font-semibold truncate">{trophyName(trophy, tFallback)}</p>
+                      <p className="text-xs text-muted-foreground truncate">{trophyDescription(trophy, tFallback)}</p>
                       {row.earned_at && (
                         <p className="text-xs text-muted-foreground/80 mt-0.5">
                           {t('progress.unlockedOn')} {fmtDate(row.earned_at)}
@@ -513,7 +519,7 @@ export default function AchievementsTab({ trophies = [], progress = {}, user = n
                       onClick={() => handleShare(trophy, row)}
                       disabled={sharingId === row.trophy_id}
                       className="flex items-center gap-1 px-2 py-1 rounded-md text-micro font-bold uppercase tracking-wide text-primary hover:bg-primary/10 active:bg-primary/10 transition-colors disabled:opacity-50 shrink-0"
-                      aria-label={tFallback('achievements.share.aria', 'Share {name} to Hub', { name: trophy.name })}
+                      aria-label={tFallback('achievements.share.aria', 'Share {name} to Hub', { name: trophyName(trophy, tFallback) })}
                     >
                       {sharingId === row.trophy_id
                         ? <Loader2 className="w-3 h-3 animate-spin" />

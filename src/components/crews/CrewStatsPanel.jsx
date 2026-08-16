@@ -14,7 +14,7 @@ import { useNumberFormatter, useDateFormatter } from '@/lib/intl';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { fromLbs } from '@/lib/weightUnit';
 import { useLanguage } from '@/lib/LanguageContext';
-import { getTrophy } from '@/lib/trophyDefinitions';
+import { getTrophy, trophyName } from '@/lib/trophyDefinitions';
 import { displayName } from '@/lib/userDisplay';
 
 function StatCard({ icon, label, value, sub }) {
@@ -150,7 +150,7 @@ export default function CrewStatsPanel({ crewId, onClose }) {
                         <span className="text-xl shrink-0">{def?.emoji || '🏅'}</span>
                         <div className="flex-1 min-w-0">
                           <p className="text-xs font-semibold text-foreground truncate">
-                            {def?.name || row.achievementId}
+                            {def ? trophyName(def, tFallback) : row.achievementId}
                           </p>
                           <p className="text-xs text-muted-foreground truncate">
                             @{name} · {fmtDate(row.unlockedAt)}

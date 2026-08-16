@@ -82,6 +82,18 @@ const ALLOW_IDENTICAL = new Set([
   'settings.weightUnit.lbs',   // "lbs" — unit symbol
   'settings.weightUnit.stone', // "st"  — unit symbol (stone)
   'nutrition.photoAi',         // "Photo-AI" — the feature's name, same shape as nav.hub
+  // ── The trophy catalog, added 2026-08-16 ──────────────────────────
+  // Product nouns from `_glossary.json` doNotTranslate, plus two unit
+  // symbols and one string that is nothing but placeholders.
+  'trophy.category.crew',   // "Crew"      — doNotTranslate
+  'trophy.ladder.crew',     // "Crew"      — doNotTranslate
+  'trophy.ladder.social',   // "Hub"       — doNotTranslate, same as nav.hub
+  'trophy.ladder.level',    // "Level"     — doNotTranslate, the user's Level stat
+  'trophy.ladder.capsule',  // "Capsules"  — doNotTranslate
+  'trophy.ladder.gauntlet', // "Gauntlet"  — the feature's name
+  'trophy.unit.lb',         // "lb"        — unit symbol
+  'trophy.unit.m',          // "m"         — SI symbol
+  'trophy.tail.desc',       // "{n} {unit}" — placeholders and a space
 ]);
 
 /**
@@ -102,6 +114,10 @@ const ALLOW_IDENTICAL = new Set([
  */
 const ALLOW_IDENTICAL_BY_LANG = {
   es: new Set([
+    // Trophy catalog, added 2026-08-16. Every one is a word this
+    // language spells exactly as English does — Arena, Prestige,
+    // Champion, Legend, Tonnage — not a string left untranslated.
+    'trophy.category.duel',
     // Added 2026-08-16 with the settings/workout/nutrition batch. Each is a
     // loanword or a kept product noun in this language, not a skipped string.
     'generator.tab.chat',
@@ -133,6 +149,22 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'workout.templates.reps',
   ]),
   fr: new Set([
+    // Trophy catalog, added 2026-08-16. Every one is a word this
+    // language spells exactly as English does — Arena, Prestige,
+    // Champion, Legend, Tonnage — not a string left untranslated.
+    'trophy.category.cardio',
+    'trophy.category.collection',
+    'trophy.category.level',
+    'trophy.ladder.duel',
+    'trophy.ladder.journal',
+    'trophy.ladder.prestige',
+    'trophy.ladder.tonnage',
+    'trophy.season.champion.name',
+    'trophy.seasonTier.bronze',
+    'trophy.seasonTier.champion',
+    'trophy.tier.bronze',
+    'trophy.unit.duels',
+    'trophy.unit.types',
     // Added 2026-08-16 with the settings/workout/nutrition batch. Each is a
     // loanword or a kept product noun in this language, not a skipped string.
     'duels.title',
@@ -245,6 +277,22 @@ const ALLOW_IDENTICAL_BY_LANG = {
   // triple and the abbreviations of words this catalog already uses
   // (duels.wins "Siege", duels.losses "Niederlagen").
   de: new Set([
+    // Trophy catalog, added 2026-08-16. Every one is a word this
+    // language spells exactly as English does — Arena, Prestige,
+    // Champion, Legend, Tonnage — not a string left untranslated.
+    'trophy.category.duel',
+    'trophy.category.social',
+    'trophy.ladder.journal',
+    'trophy.ladder.prestige',
+    'trophy.ladder.quests',
+    'trophy.ladder.tonnage',
+    'trophy.season.champion.name',
+    'trophy.seasonTier.bronze',
+    'trophy.seasonTier.champion',
+    'trophy.seasonTier.gold',
+    'trophy.seasonTier.legend',
+    'trophy.tier.bronze',
+    'trophy.tier.gold',
     // Added 2026-08-16 with the settings/workout/nutrition batch. Each is a
     // loanword or a kept product noun in this language, not a skipped string.
     'duels.challenge',
@@ -405,6 +453,13 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'workout.templates.reps',
   ]),
   pt: new Set([
+    // Trophy catalog, added 2026-08-16. Every one is a word this
+    // language spells exactly as English does — Arena, Prestige,
+    // Champion, Legend, Tonnage — not a string left untranslated.
+    'trophy.category.duel',
+    'trophy.ladder.market',
+    'trophy.seasonTier.bronze',
+    'trophy.tier.bronze',
     // Added 2026-08-16 with the settings/workout/nutrition batch. Each is a
     // loanword or a kept product noun in this language, not a skipped string.
     'generator.tab.chat',
@@ -447,6 +502,16 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'workout.templates.reps',
   ]),
   it: new Set([
+    // Trophy catalog, added 2026-08-16. Every one is a word this
+    // language spells exactly as English does — Arena, Prestige,
+    // Champion, Legend, Tonnage — not a string left untranslated.
+    'trophy.category.duel',
+    'trophy.category.social',
+    'trophy.ladder.prestige',
+    'trophy.season.champion.name',
+    'trophy.seasonTier.champion',
+    'trophy.seasonTier.legend',
+    'trophy.unit.wars',
     // Added 2026-08-16 with the settings/workout/nutrition batch. Each is a
     // loanword or a kept product noun in this language, not a skipped string.
     'duels.challenge',
@@ -498,6 +563,14 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'workout.setSingular',
   ]),
   pl: new Set([
+    // Trophy catalog, added 2026-08-16. Every one is a word this
+    // language spells exactly as English does — Arena, Prestige,
+    // Champion, Legend, Tonnage — not a string left untranslated.
+    'trophy.category.duel',
+    'trophy.ladder.prestige',
+    'trophy.season.champion.name',
+    'trophy.seasonTier.champion',
+    'trophy.seasonTier.legend',
     // Added 2026-08-16 with the settings/workout/nutrition batch. Each is a
     // loanword or a kept product noun in this language, not a skipped string.
     'profile.corporate',
@@ -552,6 +625,21 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'workout.templates.reps',
   ]),
   nl: new Set([
+    // Trophy catalog, added 2026-08-16. Every one is a word this
+    // language spells exactly as English does — Arena, Prestige,
+    // Champion, Legend, Tonnage — not a string left untranslated.
+    'trophy.category.duel',
+    'trophy.category.social',
+    'trophy.ladder.duel',
+    'trophy.ladder.prestige',
+    'trophy.ladder.tonnage',
+    'trophy.season.champion.name',
+    'trophy.seasonTier.champion',
+    'trophy.seasonTier.legend',
+    'trophy.unit.duels',
+    'trophy.unit.items',
+    'trophy.unit.posts',
+    'trophy.unit.wars',
     // Added 2026-08-16 with the settings/workout/nutrition batch. Each is a
     // loanword or a kept product noun in this language, not a skipped string.
     'duels.challenge',
