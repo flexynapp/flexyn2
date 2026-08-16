@@ -225,6 +225,8 @@ const ALLOW_IDENTICAL_BY_LANG = {
   // triple and the abbreviations of words this catalog already uses
   // (duels.wins "Siege", duels.losses "Niederlagen").
   de: new Set([
+    // German spells it 'Option' exactly as English does.
+    'hub.poll.option',
     'aboutSection.twemoji',
     'analyticsSheet.hours',
     'analyticsSheet.hoursMinutes',
@@ -407,6 +409,12 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'workout.templates.reps',
   ]),
   it: new Set([
+    // Italian uses all three as English loanwords — 'follower' is already
+    // the glossary rendering of Followers, and post/slot are the ordinary
+    // Italian words for these things.
+    'hub.profile.follower',
+    'hub.profile.post',
+    'hub.profile.slot',
     'cardio',
     'cardio.field.hours',
     'cardio.field.minutes',
@@ -445,6 +453,8 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'workout.setSingular',
   ]),
   pl: new Set([
+    // Polish borrows 'post' for a social post.
+    'hub.profile.post',
     'aboutSection.twemoji',
     'analyticsSheet.minutes',
     'analyticsSheet.timesX',
@@ -492,6 +502,8 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'workout.templates.reps',
   ]),
   nl: new Set([
+    // Dutch says Inbox.
+    'hub.messages.view.inbox',
     'biceps',
     'cardio',
     'cardio.field.minutes',
