@@ -268,6 +268,7 @@ function buildAchievementSlides({ logs, cardioLogs, goals, profile }) {
           id: `pr:${name}:${recentPR.when}`,
           icon: Trophy, iconBg: 'bg-primary/20',
           kicker: 'Personal Record',
+          kickerKey: 'hero.pr.kicker',
           // The title is now JUST the exercise name. The big number
           // (weight) renders separately so it can animate.
           title: name,
@@ -300,8 +301,13 @@ function buildAchievementSlides({ logs, cardioLogs, goals, profile }) {
         id: `goal:${g.id}`,
         icon: CheckCircle2, iconBg: 'bg-success/20',
         kicker: 'Goal Completed',
+        kickerKey: 'hero.goal.kicker',
+        // The goal's own title and description are USER DATA and stay as
+        // they are — only the two fallbacks below are app copy.
         title: g.title || 'Goal hit',
+        titleKey: g.title ? null : 'hero.goal.titleFallback',
         sub: g.description?.slice(0, 60) || 'Set the next one.',
+        subKey: g.description ? null : 'hero.goal.subFallback',
         when,
       };
       if (Number.isFinite(tv) && tv > 0) {
@@ -322,7 +328,9 @@ function buildAchievementSlides({ logs, cardioLogs, goals, profile }) {
         id: `level:${profile.current_level}:${when}`,
         icon: Award, iconBg: 'bg-primary/20',
         kicker: 'Level Up',
+        kickerKey: 'hero.level.kicker',
         title: 'You leveled up',
+        titleKey: 'hero.level.title',
         // Animated level number — ticks from the PREVIOUS level to
         // the new one (e.g. 4 → 5) so the user sees the delta, not
         // "Level 0 → 1 → 2 → 3 → 4 → 5" from zero which feels off.
@@ -331,7 +339,10 @@ function buildAchievementSlides({ logs, cardioLogs, goals, profile }) {
         metricFrom: Math.max(0, profile.current_level - 1),
         metricUnit: '',
         metricPrefix: 'Level ',
-        sub: `${(profile.total_xp ?? 0).toLocaleString()} XP earned overall`,
+        metricPrefixKey: 'hero.metricPrefix.level',
+        sub: '{xp} XP earned overall',
+        subKey: 'hero.level.sub',
+        subVars: { xp: (profile.total_xp ?? 0).toLocaleString() },
         when,
       });
     }
@@ -344,10 +355,14 @@ function buildAchievementSlides({ logs, cardioLogs, goals, profile }) {
       id: `streak:${streak}`,
       icon: Flame, iconBg: 'bg-primary/20',
       kicker: 'Streak Milestone',
+      kickerKey: 'hero.streak.kicker',
       title: "You're on fire",
+      titleKey: 'hero.streak.title',
       metricValue: streak,
       metricUnit: ' day streak',
+      metricUnitKey: 'hero.unit.dayStreak',
       sub: streak >= 30 ? 'Habit locked in.' : 'Keep the momentum.',
+      subKey: streak >= 30 ? 'hero.streak.sub.locked' : 'hero.streak.sub.momentum',
       when: now,
     });
   }
@@ -359,9 +374,9 @@ function buildAchievementSlides({ logs, cardioLogs, goals, profile }) {
   // they ran more than 5K when they ran 10).
   if (Array.isArray(cardioLogs) && cardioLogs.length) {
     const FIRSTS = [
-      { meters: 21097, label: 'Half Marathon' },
-      { meters: 10000, label: 'First 10K' },
-      { meters: 5000,  label: 'First 5K' },
+      { meters: 21097, label: 'Half Marathon', labelKey: 'hero.cardio.halfMarathon' },
+      { meters: 10000, label: 'First 10K', labelKey: 'hero.cardio.first10k' },
+      { meters: 5000,  label: 'First 5K', labelKey: 'hero.cardio.first5k' },
     ];
     for (const f of FIRSTS) {
       const hit = cardioLogs.find(l => Number(l.distance_meters) >= f.meters);
@@ -375,7 +390,9 @@ function buildAchievementSlides({ logs, cardioLogs, goals, profile }) {
         id: `cardio:${f.meters}:${when}`,
         icon: Footprints, iconBg: 'bg-info/20',
         kicker: 'Distance Milestone',
+        kickerKey: 'hero.cardio.kicker',
         title: f.label,
+        titleKey: f.labelKey,
         metricValue: km,
         metricUnit: ' km',
         metricDecimals: 1,
@@ -385,9 +402,13 @@ function buildAchievementSlides({ logs, cardioLogs, goals, profile }) {
         // can't compute a finite pace.
         sub: sec > 0
           ? (avgKmh != null && Number.isFinite(avgKmh)
-              ? `${Math.round(sec / 60)} min · avg ${avgKmh.toFixed(1)} km/h`
-              : `${Math.round(sec / 60)} min`)
+              ? '{min} min · avg {kmh} km/h'
+              : '{min} min')
           : 'Distance logged',
+        subKey: sec > 0
+          ? (avgKmh != null && Number.isFinite(avgKmh) ? 'hero.cardio.sub.pace' : 'hero.cardio.sub.time')
+          : 'hero.cardio.sub.logged',
+        subVars: { min: Math.round(sec / 60), kmh: avgKmh != null && Number.isFinite(avgKmh) ? avgKmh.toFixed(1) : '' },
         when,
       });
       break; // only the top-tier milestone per session
@@ -443,12 +464,16 @@ function buildPathSlides({ profile, user, logs }) {
     id: 'path:1',
     icon: Dumbbell, iconBg: 'bg-primary/20',
     kicker: 'Step 1',
+    kickerKey: 'hero.path.step1.kicker',
     title: 'Log your first workout',
+    titleKey: 'hero.path.step1.title',
     metricValue: totalLogs,
     metricUnit: ' logged',
+    metricUnitKey: 'hero.unit.logged',
     metricDecimals: 0,
     sub: 'Open the Workout tab and tap Start. Anything counts — even a 10-minute session.',
-    cta: { label: 'Start workout', to: '/workout?freestyle=1' },
+    subKey: 'hero.path.step1.sub',
+    cta: { label: 'Start workout', labelKey: 'hero.cta.startWorkout', to: '/workout?freestyle=1' },
   }];
 
   // Step 2 — weekly cadence based on training_days, with LIVE
@@ -458,7 +483,9 @@ function buildPathSlides({ profile, user, logs }) {
     id: 'path:2',
     icon: Calendar, iconBg: 'bg-info/20',
     kicker: 'Step 2',
+    kickerKey: 'hero.path.step2.kicker',
     title: 'This week',
+    titleKey: 'hero.kicker.thisWeek',
     metricValue: workoutsThisWeek,
     metricUnit: ` / ${weekTarget}`,
     progressPct: Math.min(100, (workoutsThisWeek / weekTarget) * 100),
@@ -473,7 +500,8 @@ function buildPathSlides({ profile, user, logs }) {
     progressTargetLabelKey: 'hero.progress.target',
     progressTargetLabelVars: { n: weekTarget },
     sub: 'Three a week is the floor where strength builds. Six is the ceiling before recovery suffers.',
-    cta: { label: 'Plan the week', action: 'planWeek' },
+    subKey: 'hero.path.step2.sub',
+    cta: { label: 'Plan the week', labelKey: 'hero.cta.planWeek', action: 'planWeek' },
   });
 
   // Step 3 — first PR (timing depends on level)
@@ -482,12 +510,16 @@ function buildPathSlides({ profile, user, logs }) {
     id: 'path:3',
     icon: Trophy, iconBg: 'bg-primary/20',
     kicker: 'Step 3',
+    kickerKey: 'hero.path.step3.kicker',
     title: 'First PR target',
+    titleKey: 'hero.path.step3.title',
     metricValue: prWeeks,
     metricUnit: ' weeks',
+    metricUnitKey: 'hero.unit.weeks',
     sub: level === 'beginner'
       ? 'Newbie gains are real. Beat any single previous lift = PR.'
       : 'Pick one lift to chase. We\'ll surface +5 lb progress automatically.',
+    subKey: level === 'beginner' ? 'hero.path.step3.sub.beginner' : 'hero.path.step3.sub.other',
   });
 
   // Step 4 — goal-specific anchor. Loaded with REAL numbers when
@@ -511,7 +543,9 @@ function buildPathSlides({ profile, user, logs }) {
         id: 'path:4-loss',
         icon: TrendingUp, iconBg: 'bg-success/20',
         kicker: 'Your goal',
+        kickerKey: 'hero.path.goal.kicker',
         title: 'Target weight',
+        titleKey: 'hero.path.loss.title',
         metricValue: targetLbs,
         metricUnit: ' lb',
         metricDelta: -delta,
@@ -519,17 +553,22 @@ function buildPathSlides({ profile, user, logs }) {
         metricDeltaUnitKey: 'hero.unit.lbWithSpace',
         metricDeltaSuffix: ' to lose',
         metricDeltaSuffixKey: 'hero.deltaSuffix.toLose',
-        sub: `${startLbs} lb today → ${targetLbs} lb by week ${weeks} · ~1 lb/week (sustainable).`,
-        cta: { label: 'Log a meal', to: '/nutrition' },
+        sub: '{start} lb today → {target} lb by week {weeks} · ~1 lb/week (sustainable).',
+        subKey: 'hero.path.loss.sub',
+        subVars: { start: startLbs, target: targetLbs, weeks },
+        cta: { label: 'Log a meal', labelKey: 'hero.cta.logMeal', to: '/nutrition' },
       });
     } else {
       slides.push({
         id: 'path:4-loss-generic',
         icon: TrendingUp, iconBg: 'bg-success/20',
         kicker: 'Your goal',
+        kickerKey: 'hero.path.goal.kicker',
         title: 'Track your meals',
+        titleKey: 'hero.path.lossGeneric.title',
         sub: 'Calorie awareness is the single highest-leverage move for fat loss.',
-        cta: { label: 'Open Nutrition', to: '/nutrition' },
+        subKey: 'hero.path.lossGeneric.sub',
+        cta: { label: 'Open Nutrition', labelKey: 'hero.cta.openNutrition', to: '/nutrition' },
       });
     }
   } else if (/muscle|gain|bulk|strength|build/i.test(primaryGoal)) {
@@ -537,37 +576,47 @@ function buildPathSlides({ profile, user, logs }) {
       id: 'path:4-muscle',
       icon: Zap, iconBg: 'bg-primary/20',
       kicker: 'Your goal',
+      kickerKey: 'hero.path.goal.kicker',
       title: 'Add to a main lift',
+      titleKey: 'hero.path.muscle.title',
       metricValue: 10,
       metricUnit: ' lb',
+      metricUnitKey: 'hero.unit.lbWithSpace',
       metricPrefix: '+',
       sub: 'Bench, squat, or deadlift — pick one and chase the next +5 every week.',
-      cta: { label: 'Start tracking', to: '/workout?freestyle=1' },
+      subKey: 'hero.path.muscle.sub',
+      cta: { label: 'Start tracking', labelKey: 'hero.cta.startTracking', to: '/workout?freestyle=1' },
     });
   } else if (/endurance|cardio|run/i.test(primaryGoal)) {
     slides.push({
       id: 'path:4-endurance',
       icon: Footprints, iconBg: 'bg-info/20',
       kicker: 'Your goal',
+      kickerKey: 'hero.path.goal.kicker',
       title: 'Build to a',
+      titleKey: 'hero.path.endurance.title',
       metricValue: 5,
       metricUnit: 'K',
       sub: 'Run/walk intervals for 3 weeks → continuous 30-min jog by week 6.',
+      subKey: 'hero.path.endurance.sub',
       // /cardio is not a real route — cardio is a section inside the
       // Workout page. Use the existing ?openCardio=1 deep-link handler
       // (src/pages/Workout.jsx) which opens the cardio panel and
       // strips the param so a reload doesn't re-fire.
-      cta: { label: 'Log cardio', to: '/workout?openCardio=1' },
+      cta: { label: 'Log cardio', labelKey: 'hero.cta.logCardio', to: '/workout?openCardio=1' },
     });
   } else {
     slides.push({
       id: 'path:4-generic',
       icon: Sparkles, iconBg: 'bg-primary/20',
       kicker: 'Your goal',
+      kickerKey: 'hero.path.goal.kicker',
       title: 'Day commit',
+      titleKey: 'hero.path.generic.title',
       metricValue: 30,
       metricUnit: '',
       sub: 'Show up 3× a week for a month. That\'s where every lasting habit starts.',
+      subKey: 'hero.path.generic.sub',
     });
   }
 
@@ -626,37 +675,47 @@ function buildTelemetrySlides({ logs, cardioLogs, profile }) {
   const slides = [
     {
       id: 'tele:week', kind: 'telemetry',
-      icon: Calendar, iconBg: 'bg-info/20', kicker: 'This week',
-      title: 'Workouts',
+      icon: Calendar, iconBg: 'bg-info/20', kicker: 'This week', kickerKey: 'hero.kicker.thisWeek',
+      title: 'Workouts', titleKey: 'hero.tele.week.title',
       metricValue: workoutsThisWeek, metricUnit: ` / ${weekTarget}`,
       progressPct: Math.min(100, (workoutsThisWeek / weekTarget) * 100),
-      progressStartLabel: 'Mon', progressEndLabel: 'Sun',
-      progressCurrentLabel: `${workoutsThisWeek} done`,
-      progressTargetLabel: `${weekTarget} target`,
+      progressStartLabel: 'Mon', progressStartLabelKey: 'hero.dayShort.mon',
+      progressEndLabel: 'Sun', progressEndLabelKey: 'hero.dayShort.sun',
+      progressCurrentLabel: '{n} done',
+      progressCurrentLabelKey: 'hero.progress.done',
+      progressCurrentLabelVars: { n: workoutsThisWeek },
+      progressTargetLabel: '{n} target',
+      progressTargetLabelKey: 'hero.progress.target',
+      progressTargetLabelVars: { n: weekTarget },
       sub: workoutsThisWeek > 0 ? 'Keep the week rolling.' : 'Three a week is where strength builds.',
-      cta: { label: 'Plan the week', action: 'planWeek' },
+      subKey: workoutsThisWeek > 0 ? 'hero.tele.week.sub.rolling' : 'hero.tele.week.sub.floor',
+      cta: { label: 'Plan the week', labelKey: 'hero.cta.planWeek', action: 'planWeek' },
     },
     {
       id: 'tele:volume', kind: 'telemetry',
-      icon: TrendingUp, iconBg: 'bg-success/20', kicker: 'This week',
-      title: 'Volume lifted',
-      metricValue: weeklyVolume, metricUnit: ' lb',
+      icon: TrendingUp, iconBg: 'bg-success/20', kicker: 'This week', kickerKey: 'hero.kicker.thisWeek',
+      title: 'Volume lifted', titleKey: 'hero.tele.volume.title',
+      metricValue: weeklyVolume, metricUnit: ' lb', metricUnitKey: 'hero.unit.lbWithSpace',
       sub: weeklyVolume > 0 ? 'Total weight × reps across every set.' : 'Log sets and this fills in automatically.',
+      subKey: weeklyVolume > 0 ? 'hero.tele.volume.sub.has' : 'hero.tele.volume.sub.none',
     },
     {
       id: 'tele:total', kind: 'telemetry',
-      icon: Dumbbell, iconBg: 'bg-primary/20', kicker: 'All time',
-      title: 'Workouts logged',
+      icon: Dumbbell, iconBg: 'bg-primary/20', kicker: 'All time', kickerKey: 'hero.kicker.allTime',
+      title: 'Workouts logged', titleKey: 'hero.tele.total.title',
       metricValue: totalLogs, metricUnit: '',
       sub: totalLogs > 0 ? 'Consistency compounds — keep stacking sessions.' : 'Log your first to start the count.',
-      cta: totalLogs > 0 ? null : { label: 'Start a workout', to: '/workout?freestyle=1' },
+      subKey: totalLogs > 0 ? 'hero.tele.total.sub.has' : 'hero.tele.total.sub.none',
+      cta: totalLogs > 0 ? null : { label: 'Start a workout', labelKey: 'hero.cta.startAWorkout', to: '/workout?freestyle=1' },
     },
     {
       id: 'tele:level', kind: 'telemetry',
-      icon: Award, iconBg: 'bg-primary/20', kicker: 'Your level',
-      title: 'Standing',
-      metricValue: level, metricPrefix: 'Lv ', metricUnit: '',
-      sub: `${xp.toLocaleString()} XP earned overall`,
+      icon: Award, iconBg: 'bg-primary/20', kicker: 'Your level', kickerKey: 'hero.kicker.yourLevel',
+      title: 'Standing', titleKey: 'hero.tele.level.title',
+      metricValue: level, metricPrefix: 'Lv ', metricPrefixKey: 'levelBar.level', metricUnit: '',
+      sub: '{xp} XP earned overall',
+      subKey: 'hero.level.sub',
+      subVars: { xp: xp.toLocaleString() },
     },
   ];
 
@@ -666,11 +725,12 @@ function buildTelemetrySlides({ logs, cardioLogs, profile }) {
   if (cardioMeters > 0) {
     slides.push({
       id: 'tele:cardio', kind: 'telemetry',
-      icon: Footprints, iconBg: 'bg-info/20', kicker: 'This week',
-      title: 'Distance',
+      icon: Footprints, iconBg: 'bg-info/20', kicker: 'This week', kickerKey: 'hero.kicker.thisWeek',
+      title: 'Distance', titleKey: 'hero.tele.distance.title',
       metricValue: cardioMeters / 1000, metricUnit: ' km', metricDecimals: 1,
       sub: 'Cardio logged this week.',
-      cta: { label: 'Log cardio', to: '/workout?openCardio=1' },
+      subKey: 'hero.tele.distance.sub',
+      cta: { label: 'Log cardio', labelKey: 'hero.cta.logCardio', to: '/workout?openCardio=1' },
     });
   }
 
@@ -692,52 +752,58 @@ function buildSuggestionSlides({ logs, followsCount, push }) {
   if (!hasWorkouts) {
     s.push({
       id: 'sug:first_workout', kind: 'suggestion',
-      icon: Dumbbell, iconBg: 'bg-success/20', kicker: 'Get started',
-      title: 'Log your first workout',
+      icon: Dumbbell, iconBg: 'bg-success/20', kicker: 'Get started', kickerKey: 'hero.sug.firstWorkout.kicker',
+      title: 'Log your first workout', titleKey: 'hero.path.step1.title',
       sub: 'Two minutes. Just one set. The streak starts today.',
-      cta: { label: 'Start', to: '/workout?freestyle=1' },
+      subKey: 'hero.sug.firstWorkout.sub',
+      cta: { label: 'Start', labelKey: 'hero.cta.start', to: '/workout?freestyle=1' },
     });
   }
   if (push && push.isSupported && !push.isSubscribed && push.permission !== 'denied') {
     s.push({
       id: 'sug:push', kind: 'suggestion',
-      icon: Bell, iconBg: 'bg-primary/20', kicker: 'Stay in it',
-      title: 'Turn on notifications',
+      icon: Bell, iconBg: 'bg-primary/20', kicker: 'Stay in it', kickerKey: 'hero.sug.push.kicker',
+      title: 'Turn on notifications', titleKey: 'hero.sug.push.title',
       sub: 'Gym Rival moves, crew wars, at-risk streaks — the moment they happen.',
-      cta: { label: 'Enable', action: 'enablePush' },
+      subKey: 'hero.sug.push.sub',
+      cta: { label: 'Enable', labelKey: 'hero.cta.enable', action: 'enablePush' },
     });
   }
   if (followsCount === 0) {
     s.push({
       id: 'sug:follow', kind: 'suggestion',
-      icon: UserPlus, iconBg: 'bg-info/20', kicker: 'Find your people',
-      title: 'Follow your first friend',
+      icon: UserPlus, iconBg: 'bg-info/20', kicker: 'Find your people', kickerKey: 'hero.sug.follow.kicker',
+      title: 'Follow your first friend', titleKey: 'hero.sug.follow.title',
       sub: 'Their workouts show up in your feed. Yours show up in theirs.',
-      cta: { label: 'Find people', to: '/hub?search=open' },
+      subKey: 'hero.sug.follow.sub',
+      cta: { label: 'Find people', labelKey: 'hero.cta.findPeople', to: '/hub?search=open' },
     });
   }
   s.push({
     id: 'sug:regimen', kind: 'suggestion',
-    icon: ClipboardList, iconBg: 'bg-primary/20', kicker: 'Train smarter',
-    title: 'Try a regimen',
+    icon: ClipboardList, iconBg: 'bg-primary/20', kicker: 'Train smarter', kickerKey: 'hero.sug.regimen.kicker',
+    title: 'Try a regimen', titleKey: 'hero.sug.regimen.title',
     sub: 'Pre-built routines for legs, push, pull. No more guessing what to lift.',
-    cta: { label: 'Browse', to: '/workout' },
+    subKey: 'hero.sug.regimen.sub',
+    cta: { label: 'Browse', labelKey: 'hero.cta.browse', to: '/workout' },
   });
   if (hasWorkouts) {
     s.push({
       id: 'sug:share', kind: 'suggestion',
-      icon: Share2, iconBg: 'bg-destructive/20', kicker: 'Show it off',
-      title: 'Share your week',
+      icon: Share2, iconBg: 'bg-destructive/20', kicker: 'Show it off', kickerKey: 'hero.sug.share.kicker',
+      title: 'Share your week', titleKey: 'hero.sug.share.title',
       sub: 'A polished card of your stats. Post to Stories — it counts.',
-      cta: { label: 'See it', action: 'shareWeek' },
+      subKey: 'hero.sug.share.sub',
+      cta: { label: 'See it', labelKey: 'hero.cta.seeIt', action: 'shareWeek' },
     });
   }
   s.push({
     id: 'sug:invite', kind: 'suggestion',
-    icon: Gift, iconBg: 'bg-primary/20', kicker: 'Bring a friend',
-    title: 'Invite a friend',
+    icon: Gift, iconBg: 'bg-primary/20', kicker: 'Bring a friend', kickerKey: 'hero.sug.invite.kicker',
+    title: 'Invite a friend', titleKey: 'hero.sug.invite.title',
     sub: 'You both get 200 coins + an Elite capsule. Use your code.',
-    cta: { label: 'Open', to: '/profile' },
+    subKey: 'hero.sug.invite.sub',
+    cta: { label: 'Open', labelKey: 'hero.cta.open', to: '/profile' },
   });
 
   return s;
@@ -768,6 +834,11 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
   t,
 }, ref) {
   const { tFallback } = useLanguage();
+  // Slide copy is built by module-scope functions with no React context, so
+  // each slide carries <field>Key beside its English — the same shape this
+  // file already used for metricUnitKey and the progress labels. A field with
+  // NO key is user data (a goal title, an exercise name) and renders as-is.
+  const tr = (key, val, vars) => (key ? tFallback(key, val, vars) : val);
 
   // Push + follows drive two of the suggestion slides. Follows is a
   // cheap head-count; both are shared React Query caches.
@@ -847,9 +918,12 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
       color: 'var(--primary)',
       icon: Swords,
       kicker: 'Feature of the Day',
+      kickerKey: 'hero.feature.dayKicker',
       title: 'Duels',
+      titleKey: 'duels.title',
       sub: 'Challenge a friend to a head-to-head workout. First to finish wins XP + bragging rights.',
-      cta: { label: 'Open a duel', to: '/duels' },
+      subKey: 'hero.feature.duels.sub',
+      cta: { label: 'Open a duel', labelKey: 'hero.cta.openDuel', to: '/duels' },
     },
     {
       id: 'feature:stories',
@@ -858,9 +932,12 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
       color: 'var(--info)',
       icon: Camera,
       kicker: 'Feature of the Week',
+      kickerKey: 'hero.feature.weekKicker',
       title: 'Stories',
+      titleKey: 'stories.title',
       sub: 'Post a 24-hr workout selfie or PR moment. Friends react with fire emojis on the Hub.',
-      cta: { label: 'Post a story', to: '/hub' },
+      subKey: 'hero.feature.stories.sub',
+      cta: { label: 'Post a story', labelKey: 'hero.cta.postStory', to: '/hub' },
     },
   ];
 
@@ -1030,7 +1107,7 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
             <FeatureIcon className="w-4 h-4 text-primary" />
           </div>
           <span className="text-micro font-semibold tracking-[0.04em] text-primary">
-            {slide.kicker}
+            {tr(slide.kickerKey, slide.kicker)}
           </span>
         </div>
         {/* No AnimatePresence — the track is the transition. See the note
@@ -1042,10 +1119,10 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
               className="font-heading font-bold leading-[1.05] tracking-tight text-foreground break-words pe-20"
               style={{ fontSize: 'clamp(1.6rem, 5vw, 2.5rem)' }}
             >
-              {slide.title}
+              {tr(slide.titleKey, slide.title, slide.titleVars)}
             </h2>
             <p className="text-sm text-foreground/75 max-w-[36ch] leading-relaxed mt-2">
-              {slide.sub}
+              {tr(slide.subKey, slide.sub, slide.subVars)}
             </p>
             {slide.cta && (
               <button
@@ -1053,7 +1130,7 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
                 onClick={() => handleCta(slide.cta)}
                 className="inline-flex items-center gap-1 mt-3 px-3 py-1.5 rounded-full bg-primary/30 hover:bg-primary/40 active:bg-primary/40 backdrop-blur-sm text-caption font-semibold text-foreground transition-colors"
               >
-                {slide.cta.label}
+                {tr(slide.cta.labelKey, slide.cta.label)}
                 <ChevronRight className="w-3.5 h-3.5" />
               </button>
             )}
@@ -1085,7 +1162,7 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
           <SlideIcon className="w-4 h-4 text-foreground" />
         </div>
         <span className="text-micro font-semibold tracking-[0.04em] text-foreground/70">
-          {slide.kicker}
+          {tr(slide.kickerKey, slide.kicker)}
           {subKicker && <span className="text-foreground/70 normal-case tracking-normal font-normal ms-2">· {subKicker}</span>}
         </span>
       </div>
@@ -1115,7 +1192,7 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
                 : { fontSize: 'clamp(1.75rem, 5.5vw, 3rem)' }
             }
           >
-            {slide.title}
+            {tr(slide.titleKey, slide.title, slide.titleVars)}
           </h2>
 
           {/* Animated metric — count-up tween. The headline value
@@ -1127,14 +1204,14 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
                 className="font-heading font-bold leading-none tracking-tight tabular-nums text-foreground"
                 style={{ fontSize: 'clamp(3rem, 10vw, 5.25rem)' }}
               >
-                {slide.metricPrefix}
+                {tr(slide.metricPrefixKey, slide.metricPrefix)}
                 <AnimatedNumber
                   from={slide.metricFrom ?? 0}
                   value={slide.metricValue}
                   duration={HERO_COUNT_MS}
                   format={(n) => n.toFixed(slide.metricDecimals ?? 0)}
                 />
-                {slide.metricUnit}
+                {tr(slide.metricUnitKey, slide.metricUnit)}
               </span>
             </div>
           )}
@@ -1196,7 +1273,7 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
 
           {/* Sub copy — context line. Always present. */}
           <p className="text-sm text-foreground/60 max-w-[36ch] leading-relaxed mt-3">
-            {slide.sub}
+            {tr(slide.subKey, slide.sub, slide.subVars)}
           </p>
 
           {slide.cta && (
@@ -1205,7 +1282,7 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
               onClick={() => handleCta(slide.cta)}
               className="inline-flex items-center gap-1 mt-3 px-3 py-1.5 rounded-full bg-primary/10 hover:bg-primary/20 active:bg-primary/20 backdrop-blur-sm text-caption font-semibold text-foreground transition-colors"
             >
-              {slide.cta.label}
+              {tr(slide.cta.labelKey, slide.cta.label)}
               <ChevronRight className="w-3.5 h-3.5" />
             </button>
           )}

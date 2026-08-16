@@ -95,6 +95,10 @@ function scanUntranslatable() {
         .replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
       // tF / tf aliases included — see the note in scripts/i18n-audit.mjs.
       for (const m of src.matchAll(/\b(?:tFallback|tF|tf)\(\s*['"`]([\w.]+)['"`]\s*,/g)) fallback.add(m[1]);
+      // Keys held as <name>Key data properties — see the note in
+      // scripts/i18n-audit.mjs. The call site passes a variable, so a
+      // scan anchored on the call cannot see these at all.
+      for (const m of src.matchAll(/\w*Key:\s*'([\w.]+)'/g)) if (m[1].includes('.')) fallback.add(m[1]);
       for (const m of src.matchAll(/\bt\(\s*['"`]([\w.]+)['"`]\s*\)(?!\s*(?:\|\||\?\?))/g)) bare.add(m[1]);
     }
   })('src');

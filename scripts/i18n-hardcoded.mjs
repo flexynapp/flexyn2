@@ -147,6 +147,19 @@ const findings = [];
         if (kind === 'objectProp') {
           const allowed = PROPER_NOUNS[p];
           if (allowed && allowed[enclosingDecl(src, m.index)]) continue;
+          // A sibling `<prop>Key` means this literal is the FALLBACK for a
+          // catalog lookup, not untranslated copy:
+          //
+          //   title: 'Workouts', titleKey: 'hero.tele.week.title',
+          //
+          // That is the house pattern for slide/plan objects built by
+          // module-scope functions with no React context — they cannot call
+          // t() themselves, so the key travels with the data and the render
+          // site resolves it. Counting these would report the fix as debt.
+          const prop = m[1];
+          const from = src.lastIndexOf('{', m.index);
+          const window = src.slice(from < 0 ? m.index : from, m.index + 400);
+          if (new RegExp(`\\b${prop}Key\\s*:`).test(window)) continue;
         }
         // Report the line of the TEXT, not of the match start. A JSX text node
         // matches from the `>` that opens it, which for a wrapped element sits

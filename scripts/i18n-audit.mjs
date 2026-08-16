@@ -119,6 +119,23 @@ const usedFallback = new Map();
       if (!usedBare.has(m[1])) usedBare.set(m[1], new Set());
       usedBare.get(m[1]).add(rel);
     }
+    // A key held as a DATA PROPERTY, resolved later through a variable:
+    //
+    //   slides.push({ metricUnit: ' lb', metricUnitKey: 'hero.unit.lb' })
+    //   ...
+    //   {slide.metricUnitKey ? tFallback(slide.metricUnitKey, slide.metricUnit) : …}
+    //
+    // The call site passes a VARIABLE, so neither scan above can see the key
+    // at all. HeroSlideshow had carried eight of these since before this
+    // audit existed — `hero.unit.lb`, `hero.progress.done`, `hero.dayShort.*`
+    // — every one absent from en.json and therefore permanently English, and
+    // A2 reported zero. The `<name>Key` convention is what makes them
+    // findable; treat it as a call site.
+    for (const m of src.matchAll(/\w*Key:\s*'([\w.]+)'/g)) {
+      if (!m[1].includes('.')) continue;
+      if (!usedFallback.has(m[1])) usedFallback.set(m[1], new Set());
+      usedFallback.get(m[1]).add(rel);
+    }
   }
 })('src');
 
