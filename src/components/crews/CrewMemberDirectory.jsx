@@ -278,7 +278,7 @@ export default function CrewMemberDirectory({ crewId, members, profilesByUserId,
       {/* Pending approvals sit above the roster: "who wants in" is the
           only thing on this screen that's waiting on the leader. Self-hides
           for non-leaders and when the queue is empty. */}
-      <CrewJoinRequests crewId={crewId} isLeader={myRank === RANK.LEADER} />
+      <CrewJoinRequests crewId={crewId} canReview={myRank >= RANK.MODERATOR} />
 
       {/* Treasury sits between "who wants in" and "who's in": both are crew
           management, and the seat count the perks buy is the number the

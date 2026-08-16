@@ -40,7 +40,10 @@ function Avatar({ row }) {
   );
 }
 
-export default function CrewJoinRequests({ crewId, isLeader }) {
+// `canReview` is moderator-or-leader. It was `isLeader` — rank 3 only — which
+// matched the old server gate on the legacy is_admin boolean. Migration 368
+// moved both to crew_rank() >= 2; this is the UI half of that change.
+export default function CrewJoinRequests({ crewId, canReview }) {
   const { tFallback } = useLanguage();
   const qc = useQueryClient();
   const [busyId, setBusyId] = useState(null);
@@ -48,7 +51,7 @@ export default function CrewJoinRequests({ crewId, isLeader }) {
   const { data: requests = [] } = useQuery({
     queryKey: ['crewJoinRequests', crewId],
     queryFn:  () => listJoinRequests(crewId),
-    enabled:  !!crewId && !!isLeader,
+    enabled:  !!crewId && !!canReview,
     staleTime: 30_000,
   });
 
@@ -80,7 +83,7 @@ export default function CrewJoinRequests({ crewId, isLeader }) {
     onError: () => toast.error(tFallback('crew.decideFailed', 'Could not update that request.')),
   });
 
-  if (!isLeader || requests.length === 0) return null;
+  if (!canReview || requests.length === 0) return null;
 
   return (
     <motion.section
