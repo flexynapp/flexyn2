@@ -97,9 +97,7 @@ export default function CrewCreationFlow({ onCreated, onClose }) {
           await crewsData.updateCrewProfile(crew.id, { is_public: true });
           crew.is_public = true;
         } catch {
-          toast.warning(tFallback(
-            'crewCreationFlow.visibilityFailed',
-            'Crew created, but it is set to invite only. You can change that in crew settings.',
+          toast.warning(tFallback('crewCreationFlow.visibilityFailed', 'Crew created, but people will have to apply to join. You can change that in crew settings.',
           ));
         }
       }

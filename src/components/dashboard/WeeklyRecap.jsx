@@ -87,7 +87,7 @@ export default function WeeklyRecap({ logs = [], cardioLogs = [] }) {
           <button
             onClick={() => setShareOpen(true)}
             className="inline-flex items-center gap-1 text-micro font-bold uppercase tracking-wider text-primary/80 hover:text-primary active:text-primary transition-colors px-1.5 py-0.5 rounded"
-            aria-label={tFallback('recap.share.cta', 'Share recap')}
+            aria-label={tFallback('recap.share.cta', 'Share')}
           >
             <Share2 className="w-3 h-3" />
             <span>{tFallback('recap.share.cta', 'Share')}</span>

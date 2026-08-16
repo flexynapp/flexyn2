@@ -90,14 +90,14 @@ export default function ReadinessCard({ logs = [], compact = false, onClick }) {
           // Compact mode hides the action copy — surface it as a
           // tooltip + aria-label so screen readers + hover users still
           // get the context behind the bare score number.
-          title={`${tFallback('readiness.kicker', 'Readiness')} ${score} — ${action}`}
+          title={`${tFallback('readiness.kicker', 'READINESS')} ${score} — ${action}`}
           {...(onClick ? { role: 'button', tabIndex: 0, onClick, onKeyDown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } } } : {})}
         >
           <ReadinessRing score={score} color={colors.ring} size={SIZE} stroke={STROKE}>
             <span className="font-heading font-black text-xs tabular-nums">{score}</span>
           </ReadinessRing>
           <span className={`text-micro font-bold tracking-[0.04em] ${colors.text} leading-none`}>
-            {tFallback('readiness.kicker', 'Readiness')}
+            {tFallback('readiness.kicker', 'READINESS')}
           </span>
         </Card>
       </motion.div>
@@ -123,7 +123,7 @@ export default function ReadinessCard({ logs = [], compact = false, onClick }) {
             <div className="flex items-center gap-1.5">
               <Activity className={`w-3.5 h-3.5 ${colors.text}`} aria-hidden="true" />
               <span className={`text-micro font-bold tracking-[0.04em] ${colors.text}`}>
-                {tFallback('readiness.kicker', 'Readiness')}
+                {tFallback('readiness.kicker', 'READINESS')}
               </span>
               <span className={`text-sm font-heading font-bold ${colors.text}`}>{safeLabel}</span>
             </div>

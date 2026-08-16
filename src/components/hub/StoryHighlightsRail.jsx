@@ -26,7 +26,7 @@ function NewHighlightModal({ open, onClose, onCreated }) {
     if (submitting) return;
     const trimmed = title.trim();
     if (!trimmed) {
-      toast.error(tFallback('highlight.needTitle', 'Add a title (e.g. "PRs", "Meals", "Trip").'));
+      toast.error(tFallback('highlight.needTitle', 'Add a title.'));
       return;
     }
     setSubmitting(true);
@@ -157,7 +157,7 @@ export default function StoryHighlightsRail({ userEmail, isOwn, onOpenAlbum }) {
           onClose={() => setComposeOpen(false)}
           onCreated={() => {
             qc.invalidateQueries({ queryKey: ['storyHighlights', userEmail] });
-            toast.success(tFallback('highlight.created', 'Album created — long-press a story to add it.'));
+            toast.success(tFallback('highlight.created', 'Album created, story added.'));
           }}
         />
       )}

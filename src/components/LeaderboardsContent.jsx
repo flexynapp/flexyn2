@@ -710,7 +710,7 @@ export default function LeaderboardsContent({ active = true }) {
                       The prior `t().replace('{n}', N)` failed both.
                       Only claim "all shown" when the list isn't windowed —
                       otherwise it contradicts the ellipsis right above it. */}
-                  {tFallback('leaderboards.allShownFooter', 'All {n} athletes shown.', { n: ranked.length })}
+                  {tFallback('leaderboards.allShownFooter', 'Showing all {n} athletes on this board', { n: ranked.length })}
                 </p>
               )}
             </motion.div>

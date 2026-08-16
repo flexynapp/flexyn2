@@ -168,7 +168,7 @@ export default function ResumeWorkoutBanner() {
             : tFallback('workout.resumeDiscardAria', 'Discard paused workout')}
         >
           {confirmDiscardId === session.id ? (
-            <span className="text-micro font-bold">{tFallback('common.confirm', 'Confirm?')}</span>
+            <span className="text-micro font-bold">{tFallback('common.confirm', 'Confirm')}</span>
           ) : (
             <X className="w-4 h-4" />
           )}

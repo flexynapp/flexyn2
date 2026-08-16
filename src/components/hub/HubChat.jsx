@@ -1165,7 +1165,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
       <div className="flex items-center gap-3 pb-3 border-b border-border mb-3 shrink-0">
         <button
           onClick={onBack}
-          aria-label={tFallback('hub.backToHub', 'Back')}
+          aria-label={tFallback('hub.backToHub', 'Back to Hub')}
           className="p-1.5 rounded-md hover:bg-secondary active:bg-secondary transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />

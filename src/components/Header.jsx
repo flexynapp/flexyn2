@@ -48,7 +48,7 @@ export default function Header() {
     // never fired. Users saw "hub.market.title" literally in the
     // header on non-English locales. tFallback correctly detects the
     // key-as-result case and returns the English fallback.
-    '/messages': tFallback('hub.messages.title', 'Messages'),
+    '/messages': tFallback('hub.messages.title', 'Direct messages'),
     '/market':   tFallback('hub.market.title',   'Marketplace'),
     '/coach':    tFallback('hub.coach.title',    'AI Coach'),
   };
@@ -196,7 +196,7 @@ export default function Header() {
           <button
             type="button"
             onClick={() => navigate('/messages')}
-            aria-label={tFallback('hub.messages.title', 'Messages')}
+            aria-label={tFallback('hub.messages.title', 'Direct messages')}
             className={`group relative z-10 h-11 w-11 inline-flex items-center justify-center transition-colors ${
               onMessages ? 'text-primary' : 'text-muted-foreground'
             }`}

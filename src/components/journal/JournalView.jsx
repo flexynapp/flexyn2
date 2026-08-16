@@ -1007,7 +1007,7 @@ export default function JournalView({ userId, userEmail, onClose, initialDate })
                 value={body}
                 onChange={(e) => onBodyChange(e.target.value)}
                 onKeyDown={handleBodyKeyDown}
-                placeholder={tFallback('profile.journal.placeholderToday', 'How was your session today? Use the toolbar for bullets, bold, voice, or attachments…')}
+                placeholder={tFallback('profile.journal.placeholderToday', 'How was your session today? Log your lifts, notes, or how you felt…')}
                 className="w-full min-h-[40vh] bg-transparent text-foreground text-sm leading-relaxed resize-none focus:outline-none placeholder:text-muted-foreground/50"
                 style={{ fontFamily: 'inherit' }}
                 data-no-swipe

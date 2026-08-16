@@ -384,7 +384,7 @@ export default function Layout() {
             <button
               type="button"
               onClick={() => navigate('/messages')}
-              aria-label={tFallback('hub.messages.title', 'Messages')}
+              aria-label={tFallback('hub.messages.title', 'Direct messages')}
               className={`relative p-2 rounded-lg transition-colors ${
                 location.pathname === '/messages'
                   ? 'bg-primary/10 text-primary'

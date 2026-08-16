@@ -2691,7 +2691,7 @@ export default function Workout() {
                 last.date ? (isToday ? tFallback('common.today', 'Today') : format(parseISO(last.date), 'MMM d')) : null,
                 exCount === 1
                   ? `1 ${tFallback('workout.exerciseSingular', 'exercise')}`
-                  : `${exCount} ${(tFallback('workout.exercises', 'exercises')).toLowerCase()}`,
+                  : `${exCount} ${(tFallback('workout.exercises', 'Exercises')).toLowerCase()}`,
                 setCount > 0
                   ? (setCount === 1
                       ? `1 ${tFallback('workout.setSingular', 'set')}`

@@ -174,7 +174,7 @@ export default function Settings() {
                 <Loader2
                   className="w-5 h-5 animate-spin text-muted-foreground"
                   role="status"
-                  aria-label={tFallback('common.loading', 'Loading')}
+                  aria-label={tFallback('common.loading', 'Loading…')}
                 />
               </div>
             }

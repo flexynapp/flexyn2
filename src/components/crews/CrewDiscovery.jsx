@@ -293,16 +293,14 @@ export default function CrewDiscovery({ onBack, onJoined, inline = false }) {
             <p className="font-heading font-bold text-base">
               {query
                 ? tFallback('crew.discover.noMatch', 'No crews match that')
-                : tFallback('crew.discover.emptyTitle', 'No public crews yet')}
+                : tFallback('crew.discover.emptyTitle', 'No crews yet')}
             </p>
             {/* "No results" is a dead end at a moment when it is always true.
                 Say what a crew is and what fixes it. */}
             <p className="text-sm text-muted-foreground leading-relaxed mt-2">
               {query
                 ? tFallback('crew.discover.noMatchBody', 'Try a different name or tag.')
-                : tFallback(
-                    'crew.discover.emptyBody',
-                    'A Crew is up to 16 people who train together and go to war with other crews. Crews only appear here once a leader makes one public. Create one, or make yours public from the Crew page.',
+                : tFallback('crew.discover.emptyBody', 'A Crew is up to 16 people who train together and go to war with other crews. Every crew is listed here. You join the open ones straight away, and apply to the rest. Create one to get started.',
                   )}
             </p>
           </motion.div>

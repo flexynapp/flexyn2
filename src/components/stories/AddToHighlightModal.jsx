@@ -73,7 +73,7 @@ export default function AddToHighlightModal({ open, onClose, storyId }) {
       setNewTitle('');
       onClose?.();
     } else {
-      toast.error(tFallback('highlight.addFailed', 'Created the album but could not add the story.'));
+      toast.error(tFallback('highlight.createdButAddFailed', 'Created the album but could not add the story.'));
     }
   };
 

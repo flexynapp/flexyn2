@@ -373,7 +373,7 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
     } catch (err) {
       reportRequestFailure(err, 'dm.purge', convId);
       toast.error(
-        `${tFallback('hub.messages.request.error', 'Could not delete that request.')} ${describeRpcError(err)}`,
+        `${tFallback('hub.messages.request.deleteError', 'Could not delete that request.')} ${describeRpcError(err)}`,
         { duration: 9000 },
       );
     } finally {
@@ -1110,7 +1110,7 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-destructive text-white text-xs font-bold disabled:opacity-50 transition-opacity"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
-                            {tFallback('common.confirmDelete', 'Confirm delete')}
+                            {tFallback('common.confirmDelete', 'Confirm Delete')}
                           </button>
                           <button
                             onClick={(e) => { e.stopPropagation(); disarmDelete(); }}
@@ -1275,7 +1275,7 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                         )}
                         <span className="truncate">{crew.name}</span>
                         {mutedCrewIds.has(crew.id) && (
-                          <BellOff className="w-3 h-3 text-muted-foreground shrink-0" aria-label={tFallback('hub.messages.muted', 'Muted')} />
+                          <BellOff className="w-3 h-3 text-muted-foreground shrink-0" aria-label={tFallback('hub.messages.muted', 'Chat muted')} />
                         )}
                       </p>
                       <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">

@@ -53,7 +53,7 @@ export default function Bounties() {
           aria-label={tFallback('bounties.post', 'Post your own bounty')}
         >
           <Plus className="w-3.5 h-3.5" />
-          {tFallback('bounties.post', 'Post')}
+          {tFallback('bounties.post', 'Post your own bounty')}
         </button>
       </div>
 

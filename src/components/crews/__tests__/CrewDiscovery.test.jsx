@@ -128,9 +128,15 @@ describe('CrewDiscovery row states', () => {
   });
 
   it('explains what a Crew is when the directory is empty', async () => {
+    // Asserts the CATALOG's wording, not the call-site fallback. This test
+    // mocks tFallback as `(_k, fallback) => fallback`, so it was passing
+    // against "No public crews yet" — a string no user has ever seen, because
+    // `getTranslation` returns en.json whenever the key exists and en.json has
+    // said "No crews yet" since migration 370 made every crew visible. The
+    // test agreed with the source and both disagreed with the screen.
     listPublicCrews.mockResolvedValue([]);
     renderDirectory();
-    expect(await screen.findByText('No public crews yet')).toBeTruthy();
+    expect(await screen.findByText('No crews yet')).toBeTruthy();
     expect(screen.getByText(/go to war with other crews/)).toBeTruthy();
   });
 

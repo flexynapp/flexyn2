@@ -91,7 +91,7 @@ export default function WorkoutSavedList({ onSelectLog, search = '' }) {
         <Dumbbell className="w-8 h-8 text-muted-foreground" />
         <p className="text-sm text-muted-foreground">
           {allLogs.length === 0
-            ? tFallback('workout.noSavedWorkouts', 'No workouts yet')
+            ? tFallback('workout.noSavedWorkouts', 'No recent workouts yet')
             : tFallback('workout.noMatches', 'No workouts match your search')}
         </p>
       </Card>
@@ -168,7 +168,7 @@ export default function WorkoutSavedList({ onSelectLog, search = '' }) {
                     aria-label={tFallback('workout.repeat', 'Repeat this workout')}
                   >
                     <Repeat className="w-3 h-3" />
-                    {tFallback('workout.repeat', 'Repeat')}
+                    {tFallback('workout.repeat', 'Repeat this workout')}
                   </button>
                 )}
                 <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />

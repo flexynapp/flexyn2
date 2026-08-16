@@ -259,12 +259,12 @@ export default function BodySection() {
             {/* Sex — segmented, saves on tap. Calibrates strength, volume
                 and calorie targets. */}
             <div className="py-2">
-              <Row icon={User} label={tFallback('onboarding.demographics.gender', 'Sex')} />
+              <Row icon={User} label={tFallback('onboarding.demographics.gender', 'Gender / Sex')} />
               <SegmentedControl
                 value={(profile?.gender || '').toLowerCase()}
                 onChange={saveGender}
                 disabled={genderSaving}
-                ariaLabel={tFallback('onboarding.demographics.gender', 'Sex')}
+                ariaLabel={tFallback('onboarding.demographics.gender', 'Gender / Sex')}
                 options={[
                   { value: 'male',   label: tFallback('settings.sex.male',   'Male') },
                   { value: 'female', label: tFallback('settings.sex.female', 'Female') },

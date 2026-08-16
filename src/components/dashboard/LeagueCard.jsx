@@ -263,7 +263,7 @@ export default function LeagueCard({ onClick, stretch = false }) {
                 {daysLeft}{tFallback('league.daySuffix', 'd')}
               </p>
               <p className="text-micro text-muted-foreground leading-none mt-0.5">
-                {tFallback('league.daysLeft', 'Left')}
+                {tFallback('league.daysLeft', 'Days left')}
               </p>
             </div>
             {/* The whole card is the tap target; at half width the chevron
@@ -301,7 +301,7 @@ export default function LeagueCard({ onClick, stretch = false }) {
               {gap != null && ahead
                 ? tFallback('league.globalGap', 'globally · {n} XP behind {name}', {
                     n: fmt(gap),
-                    name: ahead.username || ahead.full_name || tFallback('progress.anonymous', 'an athlete'),
+                    name: ahead.username || ahead.full_name || tFallback('progress.anonymous', 'Anonymous'),
                   })
                 : tFallback('league.globalLeading', 'globally · leading the board')}
             </span>

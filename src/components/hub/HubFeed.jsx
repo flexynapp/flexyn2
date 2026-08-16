@@ -573,17 +573,17 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
           illustration={feedTab === 'pump' ? <NoFeedIllustration /> : <NoFriendsIllustration />}
           title={
             feedTab === 'pump'
-              ? (tFallback('hub.empty.pumpTitle', 'No posts yet'))
+              ? (tFallback('hub.empty.pumpTitle', 'The feed is quiet'))
               : isSquadWithFollowing
               ? (tFallback('hub.empty.squadNoPosts', "Your squad hasn't posted yet"))
-              : (tFallback('hub.empty.squadTitle', 'Build your squad'))
+              : (tFallback('hub.empty.squadTitle', 'You\'re not following anyone yet'))
           }
           body={
             feedTab === 'pump'
-              ? (tFallback('hub.empty.pumpDesc', 'Be the first to share — your workouts inspire the rest of the community.'))
+              ? (tFallback('hub.empty.pumpDesc', 'Be the first to post and start the energy.'))
               : isSquadWithFollowing
               ? (tFallback('hub.empty.squadNoPostsDesc', "Your followed athletes haven't shared yet. Share your own session in the meantime!"))
-              : (tFallback('hub.empty.squadDesc', 'Follow other athletes to see their workouts and progress here.'))
+              : (tFallback('hub.empty.squadDesc', 'Follow other athletes to see their activity here.'))
           }
           action={feedTab === 'pump' || isSquadWithFollowing ? ctaShare : ctaDiscover}
           secondaryAction={feedTab === 'pump' ? undefined : (isSquadWithFollowing ? ctaDiscover : ctaShare)}

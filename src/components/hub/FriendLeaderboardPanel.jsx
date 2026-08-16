@@ -98,7 +98,7 @@ export default function FriendLeaderboardPanel() {
         <div className="flex items-center gap-2">
           <Users className="w-3.5 h-3.5 text-primary" aria-hidden="true" />
           <h3 className="font-heading font-bold text-xs tracking-wide">
-            {tFallback('friendLeaderboard.title', 'Friend Leaderboard This Week')}
+            {tFallback('friendLeaderboard.title', 'Friends this week')}
           </h3>
         </div>
         <div className="flex items-center gap-1">

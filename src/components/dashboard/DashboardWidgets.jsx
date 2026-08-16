@@ -211,7 +211,7 @@ export default function DashboardWidgets({ logs, goals, isLoading, userProfile }
               className="gap-1"
             >
               {editing
-                ? (<><Check className="w-3.5 h-3.5" /> {tFallback('dashboard.doneEditing', 'Done')}</>)
+                ? (<><Check className="w-3.5 h-3.5" /> {tFallback('dashboard.doneEditing', 'Done editing')}</>)
                 : (<><Pencil className="w-3.5 h-3.5" /> {tFallback('dashboard.editLayout', 'Edit')}</>)}
             </Button>
           </div>

@@ -1819,9 +1819,9 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
           onOpenFollowing={() => setOpenModal('following')}
           language={language}
           forms={{
-            posts: { one: tFallback('hub.profile.post', 'post'), other: tFallback('hub.profile.posts', 'posts') },
-            followers: { one: tFallback('hub.profile.follower', 'follower'), other: tFallback('hub.profile.followers', 'followers') },
-            following: { other: tFallback('hub.profile.following', 'following') },
+            posts: { one: tFallback('hub.profile.post', 'post'), other: tFallback('hub.profile.posts', 'Posts') },
+            followers: { one: tFallback('hub.profile.follower', 'follower'), other: tFallback('hub.profile.followers', 'Followers') },
+            following: { other: tFallback('hub.profile.following', 'Following') },
           }}
         />
 

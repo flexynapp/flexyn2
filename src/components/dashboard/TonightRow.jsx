@@ -102,7 +102,7 @@ export default function TonightRow({ readiness, onOpen }) {
           onClick={() => onOpen('sleep')}
           ariaLabel={hours != null
             ? tFallback('dashboard.tonight.sleepLogged', 'Sleep logged. Open readiness')
-            : `${tapToLog} — ${tFallback('dashboard.tonight.sleep', 'sleep')}`}
+            : `${tapToLog} — ${tFallback('dashboard.tonight.sleep', 'SLEEP')}`}
         >
           {[1, 2, 3, 4, 5].map((n) => (
             <Star
@@ -126,7 +126,7 @@ export default function TonightRow({ readiness, onOpen }) {
           onClick={() => onOpen('mood')}
           ariaLabel={mood != null
             ? tFallback('dashboard.tonight.moodLogged', 'Mood logged. Open readiness')
-            : `${tapToLog} — ${tFallback('dashboard.tonight.mood', 'mood')}`}
+            : `${tapToLog} — ${tFallback('dashboard.tonight.mood', 'MOOD')}`}
         >
           {[1, 2, 3, 4, 5].map((n) => (
             <span
@@ -150,7 +150,7 @@ export default function TonightRow({ readiness, onOpen }) {
           onClick={() => onOpen('steps')}
           ariaLabel={steps != null
             ? tFallback('dashboard.tonight.stepsLogged', 'Steps logged. Open readiness')
-            : `${tapToLog} — ${tFallback('dashboard.tonight.steps', 'steps')}`}
+            : `${tapToLog} — ${tFallback('dashboard.tonight.steps', 'STEPS')}`}
         >
           <span className="block w-full h-1 rounded-full bg-foreground/10 overflow-hidden">
             <span

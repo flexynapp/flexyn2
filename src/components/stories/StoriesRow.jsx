@@ -346,7 +346,7 @@ function StoryAvatarButton({
       <span
         className="text-micro font-medium w-[68px] text-center truncate leading-tight text-muted-foreground"
       >
-        {group.isOwn ? tFallback('stories.yourStory', 'Your Story') : group.username}
+        {group.isOwn ? tFallback('stories.yourStory', 'Your story') : group.username}
       </span>
     </motion.button>
   );
