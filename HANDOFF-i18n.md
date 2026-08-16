@@ -15,10 +15,10 @@ every "94% real" predates a correct measurement.
 | | then | now |
 |---|---|---|
 | untranslatable keys | 781 | **0** |
-| hardcoded strings | 725 (undercounted) | **586** (honest) |
+| hardcoded strings | 725 (undercounted) | **556** (honest) |
 | en.json | 3,895 | 5,627 |
-| real es/fr coverage | 70.5% | **90.0%** |
-| de / it / nl / pl | — | 86.6% real |
+| real es/fr coverage | 70.5% | **90.5%** |
+| de / it / nl / pl | — | 87.1% real |
 | pt | — | 85.3% real |
 | tr | 2,137 | 2,353 / 5,627 |
 
@@ -39,11 +39,9 @@ untranslated.
 
 ## THE JOB
 
-**Finish the 586 hardcoded strings.** UI copy that never reaches a catalog.
+**Finish the 556 hardcoded strings.** UI copy that never reaches a catalog.
 `npm run i18n:hardcoded -- --list` enumerates them; the largest are:
 
-    16  src/components/market/MarketplaceFeed.jsx
-    14  src/components/hub/HubComposer.jsx
     14  src/pages/GymEdit.jsx
     13  src/pages/Nutrition.jsx
     12  src/pages/RegisterGym.jsx
@@ -51,9 +49,10 @@ untranslated.
     11  src/components/nutrition/RecipesHubModal.jsx
     11  src/lib/aiCoach/workoutGenerator.js   ← SEE "KNOWN FALSE POSITIVE"
     11  src/lib/programTemplates.js
+    11  src/pages/GymHub.jsx
     10  src/components/gyms/GymFeedTab.jsx
 
-then a tail of 1–9 across ~140 files. Nothing above 16 remains.
+then a tail of 1–9 across ~137 files. Nothing above 14 remains.
 
 **The loot catalogs are DONE** (105 keys, 2026-08-16). Cosmetic NAMES stay
 English by standing decision; the flavour text beside them is translated
@@ -78,6 +77,11 @@ list.** Two shapes it structurally cannot see, both found in this batch:
   `REASON_LABEL = { harassment: 'Harassment', spam: 'Spam', … }` in
   `AdminReports.jsx` matched nothing at all — six labels on every row of the
   moderation queue, never counted, English in fourteen languages.
+- **A DISPLAY STRING DERIVED FROM A SLUG.** HubComposer's content-warning
+  button read `` `Content warning: ${cwType.replace('_', ' ')}` `` — English
+  manufactured at the render site, in every language, while the picker two
+  lines below held the real words. Grep for `.replace('_', ' ')` and
+  `.replace(/_/g, ' ')`; each one is a label being invented from an id.
 - **A sentence assembled from fragments cannot be translated even after you
   find it.** Two in this batch: Workout built "Cleared 2 weights and 1 rep
   field" by joining pluralised English pieces with `" and "`, and the
@@ -156,11 +160,22 @@ goal's own title and an exercise name are USER DATA and must render verbatim.
 - **Do not chain `git rebase && git push` in one command.** A conflict leaves
   the rebase half-applied, and the `&&` chain then pushes the PARTIAL HEAD —
   which here shipped one commit of a two-commit change to main.
-- **A key that already exists is a fork, not a win.** Reusing one whose
-  English matches exactly is right (`workout.goBackAndFix`). Reusing one whose
-  English differs puts two strings on one key, which no guard here can see —
-  `workout.dragToReorder` is "Drag to reorder" and nearly absorbed "Drag a
-  card's grip to reorder". Check `en.json` before minting or reusing.
+- **A key that already exists is a fork, not a win, and the test is MEANING.**
+  `workout.goBackAndFix` said exactly what the new button said, so reusing it
+  was right. `hub.composer.videoTooLarge` said the same THING in different
+  words ("That video is too large. The limit is 50 MB." vs "Video must be
+  under 50 MB."), so reuse was right there too — but the call site must then
+  take the CATALOG's English, or the code and the screen disagree.
+  `workout.dragToReorder` means something else entirely and needed a new key.
+  Check `en.json` before minting or reusing.
+- **53 call sites app-wide pass a fallback that does NOT match `en.json`**, and
+  nothing measures it. `getTranslation` returns the catalog value when the key
+  exists, so the fallback only shows when the key is missing — which means the
+  developer reads one string and the user sees another. Two are live bugs:
+  `workout.weightWithUnit` lost its `{unit}` placeholder, so `ChartWidgets`
+  passes a var the catalog cannot use and a kg user reads "lbs"; and
+  `pushOptIn.subtitle` still says "nemesis" where the product says Gym Rival.
+  The other 51 are cosmetic drift. Not fixed — it is its own pass.
 - **The extractor takes the SOURCE BYTES, not the runtime value.** A default
   written `'Drag a card\u2019s grip'` lands in `en.json` as a literal
   backslash-u. Type the character.
