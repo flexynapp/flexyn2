@@ -137,7 +137,7 @@ export default function NotificationsSection() {
       if (res.reason === 'pipeline_missing') {
         toast.error(tFallback('settings.snooze.notConfigured', 'Snooze is not enabled in this environment yet.'));
       } else {
-        toast.error(tFallback('settings.snooze.failed', 'Could not snooze — try again.'));
+        toast.error(tFallback('settings.snooze.failed', 'Could not snooze. Try again.'));
       }
       return;
     }
@@ -184,7 +184,7 @@ export default function NotificationsSection() {
           'Notification preferences are not configured on this deployment.'
         ));
       } else {
-        toast.error(tFallback('settings.prefs.saveFailed', 'Could not save preference — try again.'));
+        toast.error(tFallback('settings.prefs.saveFailed', 'Could not save preference. Try again.'));
       }
       return;
     }
@@ -207,7 +207,7 @@ export default function NotificationsSection() {
     if (res.ok) {
       toast.success(tFallback('settings.push.enabled', 'Push notifications enabled!'));
     } else if (res.reason === 'denied') {
-      toast.error(tFallback('settings.push.denied', 'Permission denied — enable notifications in your browser settings.'));
+      toast.error(tFallback('settings.push.denied', 'Permission denied. Enable notifications in your browser settings.'));
     } else if (res.reason === 'unsupported') {
       toast.error(tFallback('settings.push.unsupported', 'Push notifications not supported on this device.'));
     } else if (res.reason === 'server_error') {
@@ -253,7 +253,7 @@ export default function NotificationsSection() {
             icon={BellRing}
             label={tFallback('settings.pushNotifications', 'Push notifications')}
             hint={push.permission === 'denied'
-              ? tFallback('settings.pushBlocked', 'Blocked — change in browser settings')
+              ? tFallback('settings.pushBlocked', 'Blocked. Change in browser settings')
               : undefined}
             checked={push.isSubscribed}
             onChange={handlePushToggle}
@@ -388,7 +388,7 @@ export default function NotificationsSection() {
                     <p className="text-caption text-amber-500 leading-snug">
                       {tFallback(
                         'settings.quiet.equalWarn',
-                        'Start and end are the same — quiet hours are effectively off. Pick different times.'
+                        'Start and end are the same. Quiet hours are effectively off. Pick different times.'
                       )}
                     </p>
                   )}

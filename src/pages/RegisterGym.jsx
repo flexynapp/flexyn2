@@ -143,7 +143,7 @@ export default function RegisterGym() {
     setSubmitting(false);
     submitRef.current = false;
     if (res.ok) {
-      toast.success('Submitted — Flexyn will review and reach out shortly.');
+      toast.success('Submitted. Flexyn will review and reach out shortly.');
       // Clear EVERY field so a subsequent submission for a different
       // gym starts from a clean slate. Previously only business_name
       // was cleared, so a user adding a second gym carried the first
@@ -157,7 +157,7 @@ export default function RegisterGym() {
       const fresh = await listMyVerifications(user.id);
       setSubmissions(fresh);
     } else if (res.error === 'PIPELINE_MISSING') {
-      toast.error('Gym registration is rolling out — try again shortly.');
+      toast.error('Gym registration is rolling out. Try again shortly.');
     } else {
       toast.error(`Could not submit: ${res.error || 'try again'}`);
     }

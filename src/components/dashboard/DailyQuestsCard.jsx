@@ -208,7 +208,7 @@ export default function DailyQuestsCard({ onNavigated }) {
         extras.push(tFallback('quests.crewBanked', '{n} XP to your crew', { n: bonus.crewXpAwarded }));
       }
       toast.success(
-        tFallback('quests.perfectDayToast', 'Perfect day — {n} day streak', { n: bonus.streak }),
+        tFallback('quests.perfectDayToast', 'Perfect day, {n} day streak', { n: bonus.streak }),
         { icon: '🔥', description: extras.join(' · '), duration: 7000 },
       );
       queryClient.invalidateQueries({ queryKey: ['questStats', user?.id] });

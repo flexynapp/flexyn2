@@ -46,7 +46,7 @@ const DUEL_TYPES = [
     activeBg:    'bg-amber-500 border-amber-500',
     idleBg:      'bg-amber-500/10 border-amber-500/30',
     color:       'text-amber-500',
-    description: 'Single exercise showdown — most reps or highest weight.',
+    description: 'Single exercise showdown. Most reps or highest weight.',
   },
 ];
 

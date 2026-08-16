@@ -47,7 +47,7 @@ export default function AddToHighlightModal({ open, onClose, storyId }) {
       qc.invalidateQueries({ queryKey: ['storyHighlights', user?.email] });
       onClose?.();
     } else {
-      toast.error(tFallback('highlight.addFailed', 'Could not add — try again.'));
+      toast.error(tFallback('highlight.addFailed', 'Could not add. Try again.'));
     }
   };
 
@@ -62,13 +62,13 @@ export default function AddToHighlightModal({ open, onClose, storyId }) {
     const created = await createHighlight({ title: t });
     if (!created.ok) {
       setBusy(null);
-      toast.error(tFallback('highlight.failed', 'Could not create — try again.'));
+      toast.error(tFallback('highlight.failed', 'Could not create. Try again.'));
       return;
     }
     const added = await addStoryToHighlight(created.id, storyId);
     setBusy(null);
     if (added.ok) {
-      toast.success(tFallback('highlight.created', 'Album created — story added.'));
+      toast.success(tFallback('highlight.created', 'Album created, story added.'));
       qc.invalidateQueries({ queryKey: ['storyHighlights', user?.email] });
       setNewTitle('');
       onClose?.();
@@ -88,7 +88,7 @@ export default function AddToHighlightModal({ open, onClose, storyId }) {
           <div className="space-y-1 max-h-64 overflow-y-auto -mx-1 px-1">
             {highlights.length === 0 && (
               <p className="text-xs text-muted-foreground text-center py-4">
-                {tFallback('highlight.noneYet', 'No albums yet — create one below.')}
+                {tFallback('highlight.noneYet', 'No albums yet. Create one below.')}
               </p>
             )}
             {highlights.map((h) => (

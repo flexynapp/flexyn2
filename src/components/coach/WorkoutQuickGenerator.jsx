@@ -251,7 +251,7 @@ export default function WorkoutQuickGenerator({ userProfile = {}, onSaveRegimen,
       </button>
       <p className="text-micro text-muted-foreground mt-3 text-center leading-relaxed">
         {isCardio
-          ? tFallback('generator.cardioNote', 'Saves to your Regimens — run it live from the Cardio tab.')
+          ? tFallback('generator.cardioNote', 'Saves to your Regimens. Run it live from the Cardio tab.')
           : isHiit
             ? tFallback('generator.hiitNote', 'A minimal-rest circuit. Start it live or save it to repeat.')
             : tFallback('generator.disclaimer', 'Personalized using your last 60 days of workout history. Not a substitute for a coach if you have injuries or special needs.')}

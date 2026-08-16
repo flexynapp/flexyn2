@@ -223,8 +223,8 @@ export default function QuestsSheet({ open, onClose, quests: rows = [], onClaim,
             </div>
             <p className="text-micro text-muted-foreground/80 leading-relaxed mt-3">
               {haul.crew > 0
-                ? tFallback('quests.haulCrew', "A quarter of every quest's XP goes to your crew on top of your own — a crew quest sends all of it. Nothing is taken from you to pay it.")
-                : tFallback('quests.haulNoCrew', 'Join a crew and a share of every quest you claim goes to their level too — on top of your own XP, not out of it.')}
+                ? tFallback('quests.haulCrew', "A quarter of every quest's XP goes to your crew on top of your own. A crew quest sends all of it. Nothing is taken from you to pay it.")
+                : tFallback('quests.haulNoCrew', 'Join a crew and a share of every quest you claim goes to their level too. On top of your own XP, not out of it.')}
             </p>
           </div>
 

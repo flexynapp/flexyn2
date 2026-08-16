@@ -186,7 +186,7 @@ export const PLAN_TEMPLATES = [
   {
     id: 'plant_power',
     name: 'Plant Power',
-    tagline: 'Complete nutrition from whole plant foods — no sacrifice needed',
+    tagline: 'Complete nutrition from whole plant foods. No sacrifice needed',
     icon: '🌱',
     color: 'green',
     goalFit: ['lose', 'maintain', 'gain'],
@@ -260,7 +260,7 @@ export const PLAN_TEMPLATES = [
   {
     id: 'keto_performance',
     name: 'Keto Performance',
-    tagline: 'Ultra-low carb, high fat — sharp focus and accelerated fat burn',
+    tagline: 'Ultra-low carb, high fat. Sharp focus and accelerated fat burn',
     icon: '🥑',
     color: 'purple',
     goalFit: ['lose', 'maintain'],
@@ -471,7 +471,7 @@ export const PLAN_TEMPLATES = [
   {
     id: 'veg_strength',
     name: 'Vegetarian Strength',
-    tagline: 'High-protein vegetarian eating — eggs, dairy & plants, no meat',
+    tagline: 'High-protein vegetarian eating. Eggs, dairy & plants, no meat',
     icon: '🥚',
     color: 'green',
     goalFit: ['gain', 'maintain'],

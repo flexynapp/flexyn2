@@ -794,7 +794,7 @@ export default function Progress() {
           )
         : tFallback(
             'progress.slide.volume.tipNone',
-            'Total weight × reps lifted. Track it weekly — small bumps compound into PRs.',
+            'Total weight × reps lifted. Track it weekly. Small bumps compound into PRs.',
           ),
     },
     {

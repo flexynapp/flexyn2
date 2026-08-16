@@ -69,7 +69,7 @@ export default function ReadinessCard({ logs = [], compact = false, onClick }) {
     ? {
         type: 'button',
         onClick,
-        'aria-label': tFallback('readiness.openLabel', 'Readiness — tap for details'),
+        'aria-label': tFallback('readiness.openLabel', 'Readiness. Tap for details'),
       }
     : {};
 

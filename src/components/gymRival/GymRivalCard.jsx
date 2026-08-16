@@ -91,7 +91,7 @@ export default function GymRivalCard({ currentUserId }) {
     mutationFn: (type) => rollGymRival(type),
     onSuccess: async (row) => {
       if (!row) {
-        toast.info('No available rivals right now — check back soon.');
+        toast.info('No available rivals right now. Check back soon.');
         return;
       }
       await qc.invalidateQueries({ queryKey: ['myGymRival'] });
@@ -249,14 +249,14 @@ export default function GymRivalCard({ currentUserId }) {
     : formatWeight(v || 0, weightUnit));
   const gap = metric ? metric.you - metric.them : null;
   const activeSub = isStalled
-    ? tFallback('gymRivalCard.stalledSub', 'Never accepted — tap to clear it')
+    ? tFallback('gymRivalCard.stalledSub', 'Never accepted. Tap to clear it')
     : gap == null
       ? tFallback('gymRivalCard.tapForMatchup', 'Tap to see the matchup')
       : gap > 0
         ? tFallback('gymRivalMenu.youLeadBy', 'You lead by {v}', { v: metricText(Math.abs(gap)) })
         : gap < 0
           ? tFallback('gymRivalMenu.youTrailBy', "You're {v} behind", { v: metricText(Math.abs(gap)) })
-          : tFallback('gymRivalCard.levelSoFar', 'Level so far — tap to see');
+          : tFallback('gymRivalCard.levelSoFar', 'Level so far. Tap to see');
 
   return (
     <>

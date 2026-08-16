@@ -215,7 +215,7 @@ export default function MarketplaceFeed() {
         if (currentlySaved) next.add(listingId); else next.delete(listingId);
         return next;
       });
-      toast.error('Could not update wishlist — try again.');
+      toast.error('Could not update wishlist. Try again.');
     }
   }, [user?.id, qc]);
 
@@ -308,13 +308,13 @@ export default function MarketplaceFeed() {
     try {
       await bundles.cancelBundle(bundle.id);
       await refreshBundleViews();
-      toast.success('Bundle broken up — those listings are on their own again.');
+      toast.success('Bundle broken up. Those listings are on their own again.');
     } catch (err) {
       reportError(err, {
         feature: 'marketplace.cancel-bundle', level: 'warning',
         userEmail: user?.email, bundleId: bundle?.id,
       });
-      toast.error('Could not break up that bundle — try again.');
+      toast.error('Could not break up that bundle. Try again.');
     }
   }, [refreshBundleViews, user?.email]);
 
@@ -518,7 +518,7 @@ export default function MarketplaceFeed() {
       // Names the recovery path: the item is safely back in the bag either
       // way, so "it's still yours, list it again" is the accurate thing to
       // say rather than a bare "something went wrong".
-      toast.error("Couldn't restore that listing — the item's still in your bag.");
+      toast.error("Couldn't restore that listing. The item's still in your bag.");
     }
   }, [qc, user?.email]);
 
@@ -552,7 +552,7 @@ export default function MarketplaceFeed() {
         feature: 'marketplace.cancel-listing', level: 'warning',
         userEmail: user?.email, listingId: listing?.id,
       });
-      toast.error('Could not cancel — try again.');
+      toast.error('Could not cancel. Try again.');
     }
   }, [qc, user?.email, handleUndoCancel]);
 
@@ -595,11 +595,11 @@ export default function MarketplaceFeed() {
       // by retrying, and the other means the item is not theirs any more.
       const msg = err?.message || '';
       if (/completed_sale_cannot_be_deleted/.test(msg)) {
-        toast.error("That one sold — a completed sale stays on the record.");
+        toast.error("That one sold. A completed sale stays on the record.");
       } else if (/not_your_listing/.test(msg)) {
         toast.error("That isn't your listing.");
       } else {
-        toast.error('Could not delete — try again.');
+        toast.error('Could not delete. Try again.');
       }
     }
   }, [qc, user?.email, handleUndoCancel]);

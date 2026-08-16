@@ -103,7 +103,7 @@ export default function CrewDMInviteCard({ payload, userId, isMine }) {
             <p className="text-xs text-muted-foreground italic">You sent this invite.</p>
           ) : state === 'requested' ? (
             <div className="w-full py-2 text-center text-xs font-bold text-muted-foreground">
-              {tFallback('crewDMInviteCard.requestPending', 'Request sent — awaiting review')}
+              {tFallback('crewDMInviteCard.requestPending', 'Request sent, awaiting review')}
             </div>
           ) : state === 'joined' ? (
             <div className="flex items-center gap-1.5 text-sm font-semibold" style={{ color: 'hsl(var(--primary))' }}>

@@ -90,11 +90,11 @@ export default function DailyFlexynDrop() {
       if (error) {
         const msg = error.message || '';
         if (error.code === '42883' || error.code === '42P01' || /unknown_sku|undefined_function/.test(msg)) {
-          toast.error('Daily drop purchases roll out shortly — RPC not deployed yet.');
+          toast.error('Daily drop purchases roll out shortly, RPC not deployed yet.');
         } else if (/insufficient_coins/.test(msg)) {
           toast.error('Not enough Flex Coins.');
         } else {
-          toast.error('Purchase failed — try again.');
+          toast.error('Purchase failed. Try again.');
         }
         return;
       }
@@ -102,7 +102,7 @@ export default function DailyFlexynDrop() {
       toast.success(`🎁 ${item.name} added to your bag!`);
     } catch (err) {
       console.error('[DailyFlexynDrop] purchase error', err);
-      toast.error('Purchase failed — try again.');
+      toast.error('Purchase failed. Try again.');
     } finally {
       setPurchasing(null);
     }

@@ -88,12 +88,12 @@ export default function ProgramTemplatePicker({ onCreated }) {
         .select('id');
       if (error) throw error;
       qc.invalidateQueries({ queryKey: ['regimens', user.email] });
-      toast.success(tFallback('programs.cloned', '{name} added — start training!', { name: template.name }));
+      toast.success(tFallback('programs.cloned', '{name} added. Start training!', { name: template.name }));
       // Navigate to the first created day so the user lands somewhere useful.
       onCreated?.(data?.[0]?.id);
     } catch (err) {
       console.warn('[ProgramTemplatePicker] insert failed:', err);
-      toast.error(tFallback('programs.cloneFailed', 'Could not create program — try again.'));
+      toast.error(tFallback('programs.cloneFailed', 'Could not create program. Try again.'));
     } finally {
       setCreating(null);
     }

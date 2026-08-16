@@ -516,7 +516,7 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
                 {/* A voided match is not a voided workout — say so, or the
                     screen reads as if the session was wasted. */}
                 <p className="text-xs text-muted-foreground mb-6">
-                  {tFallback('gymRivalMenu.voidStillCounts', 'Your sessions still count for XP, quests and your league — only the rival match was cancelled.')}
+                  {tFallback('gymRivalMenu.voidStillCounts', 'Your sessions still count for XP, quests and your league. Only the rival match was cancelled.')}
                 </p>
                 <div className="flex items-center gap-2 px-4 py-3 rounded-xl border border-border">
                   <Clock className="w-4 h-4 text-muted-foreground shrink-0" />
@@ -565,7 +565,7 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
                     <span className="flex-1 text-start text-micro font-black uppercase tracking-wider text-primary truncate">@{rivalName}</span>
                   </div>
                   <StatRow icon={Award} label={tFallback('gymRivalMenu.level', 'Level')} userVal={me?.current_level ?? '—'} rivalVal={rival?.current_level ?? '—'} userWins={cmp(me?.current_level, rival?.current_level)} />
-                  <StatRow icon={Swords} label={tFallback('gymRivalMenu.record', 'W – L')} userVal={`${myRecord?.wins ?? 0}–${myRecord?.losses ?? 0}`} rivalVal={`${rivalRecord?.wins ?? 0}–${rivalRecord?.losses ?? 0}`} userWins={cmp(winRate(myRecord), winRate(rivalRecord))} />
+                  <StatRow icon={Swords} label={tFallback('gymRivalMenu.record', 'W / L')} userVal={`${myRecord?.wins ?? 0}–${myRecord?.losses ?? 0}`} rivalVal={`${rivalRecord?.wins ?? 0}–${rivalRecord?.losses ?? 0}`} userWins={cmp(winRate(myRecord), winRate(rivalRecord))} />
                   {isCardio ? (
                     <StatRow icon={Footprints} label={tFallback('cardio.field.distance', 'Distance')} userVal={dist(me?.total_distance_meters)} rivalVal={dist(rival?.total_distance_meters)} userWins={cmp(me?.total_distance_meters, rival?.total_distance_meters)} />
                   ) : (
@@ -573,7 +573,7 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
                   )}
                 </div>
                 <p className="text-xs text-muted-foreground mb-6">
-                  {tFallback('gymRivalMenu.lifetimeNote', 'Lifetime figures — this week starts level.')}
+                  {tFallback('gymRivalMenu.lifetimeNote', 'Lifetime figures. This week starts level.')}
                 </p>
 
                 {/* Say how close the matchup is rather than asserting it is
@@ -645,7 +645,7 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
                         label={week?.themLogged ? tFallback('gymRivalMenu.theyLogged', 'They logged') : tFallback('gymRivalMenu.theyHaventLogged', "They haven't")} />
                     </div>
                     <p className="text-micro text-muted-foreground font-semibold">
-                      {tFallback('gymRivalMenu.afkRule', 'Both must log within {t} — or the match voids.', { t: fmtDuration(afkMsLeft) })}
+                      {tFallback('gymRivalMenu.afkRule', 'Both must log within {t}, or the match voids.', { t: fmtDuration(afkMsLeft) })}
                     </p>
                   </div>
                 )}

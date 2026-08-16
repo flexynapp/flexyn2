@@ -272,7 +272,7 @@ export default function CardioPlanned() {
     try {
       await scheduleWorkout(payload);
       queryClient.invalidateQueries({ queryKey: ['cardioSchedules', user?.email] });
-      toast.success('Scheduled — we’ll remind you.');
+      toast.success('Scheduled, we’ll remind you.');
       setAdding(false);
     } catch (err) {
       reportError(err, { feature: 'cardio.planned.add' });

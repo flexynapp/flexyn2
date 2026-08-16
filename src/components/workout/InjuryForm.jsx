@@ -49,7 +49,7 @@ const MUSCLE_GROUPS = ['Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps', 'Forea
 const SEVERITY_OPTIONS = [
   { id: 'mild',     label: 'Mild',     desc: 'Sore. That area comes out until you clear it',       color: 'text-foreground border-border bg-secondary' },
   { id: 'moderate', label: 'Moderate', desc: 'Hurts to move. That area comes out',                 color: 'text-primary border-primary/30 bg-primary/10' },
-  { id: 'serious',  label: 'Serious',  desc: 'Sharp pain — that area and what it helps move go',   color: 'text-destructive border-destructive/30 bg-destructive/10' },
+  { id: 'serious',  label: 'Serious',  desc: 'Sharp pain. That area and what it helps move go',   color: 'text-destructive border-destructive/30 bg-destructive/10' },
 ];
 
 /** English label → the muscle-group key `src/locales/*.json` publishes. */
@@ -560,7 +560,7 @@ export default function InjuryForm({ onClose }) {
                 <p className="text-sm text-muted-foreground mt-2">
                   {tFallback(
                     'injuries.changed.synergists',
-                    'A serious {area} injury also takes out what it helps move — that is why more than one group is on this list.',
+                    'A serious {area} injury also takes out what it helps move. That is why more than one group is on this list.',
                     { area: tFallback(muscleKey(changed.muscleGroup), changed.muscleGroup).toLowerCase() },
                   )}
                 </p>

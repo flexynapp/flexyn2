@@ -58,7 +58,7 @@ export default function VoiceInputButton({ onParsed, lang = 'en-US', className =
         sessionRef.current = null;
         if (weight == null && reps == null) {
           toast.error(
-            tFallback('voice.noParse', "Couldn't parse — try \"100 by 5\".", { transcript })
+            tFallback('voice.noParse', "Couldn't parse. Try \"100 by 5\".", { transcript })
           );
           return;
         }
@@ -76,7 +76,7 @@ export default function VoiceInputButton({ onParsed, lang = 'en-US', className =
         sessionRef.current = null;
         if (reason === 'permission') {
           toast.error(
-            tFallback('voice.permission', 'Mic permission denied — enable it in your browser settings.')
+            tFallback('voice.permission', 'Mic permission denied. Enable it in your browser settings.')
           );
         } else if (reason === 'aborted') {
           // User cancelled; no toast.
@@ -86,7 +86,7 @@ export default function VoiceInputButton({ onParsed, lang = 'en-US', className =
           );
         } else {
           toast.error(
-            tFallback('voice.failed', "Couldn't hear that — try again.")
+            tFallback('voice.failed', "Couldn't hear that. Try again.")
           );
         }
       },

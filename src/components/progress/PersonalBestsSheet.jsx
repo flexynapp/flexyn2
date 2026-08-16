@@ -134,10 +134,10 @@ export default function PersonalBestsSheet({ open, onClose, logs = [], onViewHis
             </p>
             <p className="text-sm text-muted-foreground mt-1.5">
               {heroIsReps
-                ? tFallback('pbSheet.heroCaptionReps', '{exercise} — your best set', {
+                ? tFallback('pbSheet.heroCaptionReps', '{exercise}, your best set', {
                     exercise: translateExerciseName(heaviest.name, language),
                   })
-                : tFallback('pbSheet.heroCaption', '{exercise} — your heaviest lift', {
+                : tFallback('pbSheet.heroCaption', '{exercise}, your heaviest lift', {
                     exercise: translateExerciseName(heaviest.name, language),
                   })}
             </p>

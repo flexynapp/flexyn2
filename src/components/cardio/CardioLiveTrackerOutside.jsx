@@ -394,7 +394,7 @@ export default function CardioLiveTrackerOutside({ mode, onCancel, onSaved, user
     // no fix is arriving.
     if (!transientGpsToastRef.current) {
       transientGpsToastRef.current = true;
-      toast.message(tFallback('cardio.live.gpsTransient', 'GPS signal weak — keep moving, it should recover.'));
+      toast.message(tFallback('cardio.live.gpsTransient', 'GPS signal weak. Keep moving, it should recover.'));
       // Allow the toast to fire again after 30s of continued errors.
       setTimeout(() => { transientGpsToastRef.current = false; }, 30000);
     }

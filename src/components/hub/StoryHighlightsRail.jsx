@@ -37,7 +37,7 @@ function NewHighlightModal({ open, onClose, onCreated }) {
       setTitle('');
       onClose?.();
     } else {
-      toast.error(tFallback('highlight.failed', 'Could not create — try again.'));
+      toast.error(tFallback('highlight.failed', 'Could not create. Try again.'));
     }
   };
 
@@ -98,7 +98,7 @@ export default function StoryHighlightsRail({ userEmail, isOwn, onOpenAlbum }) {
     if (res.ok) {
       qc.invalidateQueries({ queryKey: ['storyHighlights', userEmail] });
     } else {
-      toast.error('Could not delete — try again.');
+      toast.error('Could not delete. Try again.');
     }
   };
 

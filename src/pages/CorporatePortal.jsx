@@ -81,7 +81,7 @@ export default function CorporatePortal() {
       setOrgName(''); setCreating(false); setSelectedId(res.org_id);
       refresh();
     } else if (res.error === 'PIPELINE_MISSING') {
-      toast.error('Corporate features are rolling out — try again shortly.');
+      toast.error('Corporate features are rolling out. Try again shortly.');
     } else {
       toast.error('Could not create organization.');
     }
@@ -141,7 +141,7 @@ export default function CorporatePortal() {
     if (!confirm(`Leave ${activeOrg.name}?`)) return;
     const res = await leaveOrganization(activeOrg.id, user.id);
     if (res.ok) { toast.success('Left organization.'); setSelectedId(null); refresh(); }
-    else toast.error("Couldn't leave — try again.");
+    else toast.error("Couldn't leave. Try again.");
   };
 
   return (

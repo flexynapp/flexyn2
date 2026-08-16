@@ -202,7 +202,7 @@ export default function ReadinessSheet({ open, onClose, readiness, focus, onLogW
                       <p className="text-micro text-muted-foreground/70 leading-snug mt-0.5">
                         {r.d?.logged
                           ? `${tFallback('readiness.scored', 'Scored')} ${r.d.score}/100 · ${tFallback('readiness.weighted', 'weighted')} ${r.weight}`
-                          : tFallback('readiness.estimate', 'No data yet — using a neutral estimate. Log it above to sharpen your score.')}
+                          : tFallback('readiness.estimate', 'No data yet. Using a neutral estimate. Log it above to sharpen your score.')}
                       </p>
                       {r.cta && (
                         <button
@@ -219,8 +219,8 @@ export default function ReadinessSheet({ open, onClose, readiness, focus, onLogW
               </ul>
               <p className="text-micro text-muted-foreground/80 leading-relaxed mt-4">
                 {allLogged
-                  ? tFallback('readiness.allLogged3', 'Nothing estimated today — all three signals are logged.')
-                  : tFallback('readiness.footer', 'The more you log, the less we estimate — and the more the number reflects you.')}
+                  ? tFallback('readiness.allLogged3', 'Nothing estimated today. All three signals are logged.')
+                  : tFallback('readiness.footer', 'The more you log, the less we estimate, and the more the number reflects you.')}
               </p>
             </div>
 

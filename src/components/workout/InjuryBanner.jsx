@@ -39,7 +39,7 @@ function ClearancePrompt({ injury, onClear, onSnooze, busy }) {
       className="rounded-lg border border-primary/30 bg-primary/5 px-3 py-3 mb-2"
     >
       <p className="text-sm font-semibold mb-0.5">
-        {tFallback('injuries.checkIn.title', 'Still bothering you? — {area}', { area })}
+        {tFallback('injuries.checkIn.title', 'Still bothering you? {area}', { area })}
       </p>
       <p className="text-xs text-muted-foreground mb-3">
         {hasEta
@@ -205,10 +205,10 @@ export default function InjuryBanner({ onOpenForm }) {
           <ShieldAlert className="w-4 h-4 text-primary shrink-0" />
           <span className="text-sm font-medium text-primary">
             {distinctInjuries.length === 1
-              ? tFallback('injuries.banner.recoveryMode', 'Recovery Mode — {area}', {
+              ? tFallback('injuries.banner.recoveryMode', 'Recovery Mode, {area}', {
                   area: tFallback(muscleKey(distinctInjuries[0].muscle_group), distinctInjuries[0].muscle_group),
                 })
-              : tFallback('injuries.banner.recoveryCount', 'Recovery Mode — {count} active injuries', {
+              : tFallback('injuries.banner.recoveryCount', 'Recovery Mode, {count} active injuries', {
                   count: distinctInjuries.length,
                 })}
           </span>

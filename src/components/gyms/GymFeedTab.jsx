@@ -132,7 +132,7 @@ export default function GymFeedTab({ gymId, gymOwnerId }) {
       setPendingMedia(null);
       qc.invalidateQueries({ queryKey: ['gymFeed', gymId] });
     } else {
-      toast.error("Couldn't post — try again.");
+      toast.error("Couldn't post. Try again.");
     }
   };
 

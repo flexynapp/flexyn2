@@ -44,10 +44,10 @@ export default function CustomQuotesModal({ open, onClose }) {
       qc.invalidateQueries({ queryKey: ['customQuotes', user?.id] });
     },
     onError: (err) => {
-      if (err?.message === 'limit') toast.error(tFallback('quotes.limit', 'You have all the custom quotes you can hold — delete one to add another.'));
+      if (err?.message === 'limit') toast.error(tFallback('quotes.limit', 'You have all the custom quotes you can hold. Delete one to add another.'));
       else if (err?.message === 'empty') toast.error(tFallback('quotes.empty', 'Write something first.'));
-      else if (err?.message === 'profanity') toast.error(tFallback('quotes.profanity', 'That quote contains prohibited content — edit it and try again.'));
-      else toast.error(tFallback('quotes.addFailed', 'Could not save — try again.'));
+      else if (err?.message === 'profanity') toast.error(tFallback('quotes.profanity', 'That quote contains prohibited content. Edit it and try again.'));
+      else toast.error(tFallback('quotes.addFailed', 'Could not save. Try again.'));
     },
     onSettled: () => { addingRef.current = false; },
   });
@@ -61,7 +61,7 @@ export default function CustomQuotesModal({ open, onClose }) {
   const removeMut = useMutation({
     mutationFn: (id) => removeQuote(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['customQuotes', user?.id] }),
-    onError: () => toast.error(tFallback('quotes.removeFailed', 'Could not remove — try again.')),
+    onError: () => toast.error(tFallback('quotes.removeFailed', 'Could not remove. Try again.')),
   });
 
   const canAdd = text.trim().length > 0 && !atLimit && !addMut.isPending;
@@ -140,7 +140,7 @@ export default function CustomQuotesModal({ open, onClose }) {
                 <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
               ) : quotes.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-8">
-                  {tFallback('quotes.emptyState', 'No custom quotes yet — add one above and it’ll join your daily rotation.')}
+                  {tFallback('quotes.emptyState', 'No custom quotes yet. Add one above and it’ll join your daily rotation.')}
                 </p>
               ) : (
                 quotes

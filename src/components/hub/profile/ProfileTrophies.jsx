@@ -133,7 +133,7 @@ export default function ProfileTrophies({
           </div>
           {isSelf && (
             <p className="text-xs text-muted-foreground mt-2">
-              {tFallback('hub.profile.primaryHint', 'Slot 1 is your primary — it shows on your profile banner.')}
+              {tFallback('hub.profile.primaryHint', 'Slot 1 is your primary. It shows on your profile banner.')}
             </p>
           )}
         </section>

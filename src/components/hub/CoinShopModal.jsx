@@ -348,7 +348,7 @@ function ShopRow({ item, balance, busy, onBuy, fmt, t }) {
             />
           </div>
           <p className="text-micro text-muted-foreground mt-1 tabular-nums">
-            {tFallback('shop.shortBy', '{n} coins to go — earn them from daily quests, streaks and level-ups.', {
+            {tFallback('shop.shortBy', '{n} coins to go. Earn them from daily quests, streaks and level-ups.', {
               n: fmt(shortfall),
             })}
           </p>

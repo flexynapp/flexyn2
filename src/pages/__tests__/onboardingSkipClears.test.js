@@ -6,7 +6,7 @@
 // creates a community gym and a membership.
 //
 // The injury step shipped with `onSkip={next}` and was reproduced end to end:
-// log Chest + Legs, tap "Skip — no injuries", and both rows were still handed
+// log Chest + Legs, tap "Skip, no injuries", and both rows were still handed
 // to the injury_logs insert. Audit 18 #4 found the identical bug on the
 // body-baseline step; the fix reached `assessment` and `home_gym` and missed
 // this one, which is exactly the shape a source-level guard catches and a

@@ -741,7 +741,7 @@ function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
       queryClient.invalidateQueries({ queryKey: ['userMutes', user?.id] });
     } catch (err) {
       reportError(err, { feature: 'hub.mute-author', level: 'warning', userEmail: user?.email, target: post.author_email });
-      toast.error(tFallback('hub.post.muteError', 'Could not mute — try again.'));
+      toast.error(tFallback('hub.post.muteError', 'Could not mute. Try again.'));
     }
   };
 
@@ -762,7 +762,7 @@ function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
       queryClient.invalidateQueries({ queryKey: ['myFollowsForDMs', user?.email] });
     } catch (err) {
       reportError(err, { feature: 'hub.block-author', level: 'warning', userEmail: user?.email, target: post.author_email });
-      toast.error(tFallback('hub.post.blockError', 'Could not block — try again.'));
+      toast.error(tFallback('hub.post.blockError', 'Could not block. Try again.'));
     }
   };
 
@@ -834,7 +834,7 @@ function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
     const originalPrivacy = (post.privacy || 'public').toLowerCase();
     if (originalPrivacy !== 'public') {
       toast.error(
-        tFallback('hub.post.repostPrivate', "Can't repost — the original isn't public.")
+        tFallback('hub.post.repostPrivate', "Can't repost. The original isn't public.")
       );
       return;
     }

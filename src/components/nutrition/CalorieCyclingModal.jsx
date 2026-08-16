@@ -128,7 +128,7 @@ export default function CalorieCyclingModal({ open, onClose }) {
       toast.success(tFallback('nutrition.cycling.saved', 'Calorie cycling saved'));
       onClose?.();
     } catch {
-      toast.error(tFallback('nutrition.cycling.saveFailed', 'Could not save — try again.'));
+      toast.error(tFallback('nutrition.cycling.saveFailed', 'Could not save. Try again.'));
     } finally {
       setSaving(false);
     }

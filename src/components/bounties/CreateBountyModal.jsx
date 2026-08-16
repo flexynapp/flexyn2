@@ -81,9 +81,9 @@ export default function CreateBountyModal({ open, onClose, onCreated }) {
       onCreated?.(res.id);
       onClose?.();
     } else if (res.reason === 'rpc_missing') {
-      toast.error(tFallback('createBounty.serverOutdated', 'Server needs an update — try again later.'));
+      toast.error(tFallback('createBounty.serverOutdated', 'Server needs an update. Try again later.'));
     } else {
-      toast.error(tFallback('createBounty.failed', 'Could not post bounty — try again.'));
+      toast.error(tFallback('createBounty.failed', 'Could not post bounty. Try again.'));
     }
   };
 

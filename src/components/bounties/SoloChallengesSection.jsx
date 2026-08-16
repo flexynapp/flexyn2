@@ -72,7 +72,7 @@ export default function SoloChallengesSection() {
       if (!res.ok) {
         toast.error(res.reason === 'rpc_missing'
           ? tFallback('soloChallenges.notDeployed', 'Solo challenges aren’t live yet on this server. Run migration 171.')
-          : tFallback('soloChallenges.claimFailed', 'Could not claim — try again.'),
+          : tFallback('soloChallenges.claimFailed', 'Could not claim. Try again.'),
         );
         return;
       }
@@ -85,7 +85,7 @@ export default function SoloChallengesSection() {
     mutationFn: (claimId) => completeSoloChallenge(claimId),
     onSuccess: (res) => {
       if (!res.ok) {
-        toast.error(tFallback('soloChallenges.completeFailed', 'Could not finish — try again.'));
+        toast.error(tFallback('soloChallenges.completeFailed', 'Could not finish. Try again.'));
         return;
       }
       if (res.already_completed) {
@@ -117,7 +117,7 @@ export default function SoloChallengesSection() {
           {tFallback('soloChallenges.title', 'Solo Challenges')}
         </h2>
         <p className="text-micro text-muted-foreground/70">
-          {tFallback('soloChallenges.subtitle', 'No target — just hit the number')}
+          {tFallback('soloChallenges.subtitle', 'No target, just hit the number')}
         </p>
       </div>
 
@@ -189,7 +189,7 @@ export default function SoloChallengesSection() {
                   </button>
                 ) : status === 'active' ? (
                   <span className="text-micro text-muted-foreground italic">
-                    {tFallback('soloChallenges.inProgress', 'Active — keep logging workouts')}
+                    {tFallback('soloChallenges.inProgress', 'Active. Keep logging workouts')}
                   </span>
                 ) : (
                   <button

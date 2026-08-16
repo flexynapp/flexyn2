@@ -94,7 +94,7 @@ export default function PushOptInBanner({ hasWorkouts = false }) {
     const res = await push.subscribe();
     if (res.ok) {
       toast.success(
-        tFallback('pushOptIn.success', 'Notifications enabled — see you out there.'),
+        tFallback('pushOptIn.success', 'Notifications enabled. See you out there.'),
       );
       // No need to write dismissed — push.isSubscribed flips and the
       // banner stops rendering. We DO leave the dismissed flag unset so
@@ -108,7 +108,7 @@ export default function PushOptInBanner({ hasWorkouts = false }) {
       toast.error(
         tFallback(
           'pushOptIn.denied',
-          'Permission denied — enable notifications in your browser settings to re-try.',
+          'Permission denied. Enable notifications in your browser settings to re-try.',
         ),
       );
     } else if (res.reason === 'unsupported') {

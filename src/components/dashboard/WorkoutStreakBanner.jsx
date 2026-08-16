@@ -96,12 +96,12 @@ export default function WorkoutStreakBanner() {
         toast.error(
           tFallback(
             'streakRescue.alreadyUsed',
-            'Rescue already used this month — try again next month.',
+            'Rescue already used this month. Try again next month.',
           ),
         );
       } else {
         toast.error(
-          tFallback('streakRescue.failed', 'Could not save streak — try again.'),
+          tFallback('streakRescue.failed', 'Could not save streak. Try again.'),
         );
       }
     } finally {

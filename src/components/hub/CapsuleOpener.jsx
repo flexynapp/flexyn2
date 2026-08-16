@@ -865,8 +865,8 @@ export default function CapsuleOpener({ capsule, batch, onClaim, onClaimBatch, o
   const handleCopyBuild = useCallback(async () => {
     const result = await copyDiagnostics();
     if (result === 'ok') toast.success('Copied build info to clipboard.');
-    else if (result === 'unavailable') toast.error('Clipboard unavailable — the build is shown on the button.');
-    else toast.error('Could not copy — your browser blocked clipboard access.');
+    else if (result === 'unavailable') toast.error('Clipboard unavailable. The build is shown on the button.');
+    else toast.error('Could not copy. Your browser blocked clipboard access.');
   }, []);
 
   useEffect(() => {
@@ -897,7 +897,7 @@ export default function CapsuleOpener({ capsule, batch, onClaim, onClaimBatch, o
 
     const targets = isBatch ? batchRows : (capsule ? [capsule] : []);
     if (targets.length === 0 || targets.some(c => !c?.id)) {
-      toast.error('Capsule missing — refresh and try again.');
+      toast.error('Capsule missing. Refresh and try again.');
       openGuardRef.current = false;
       return;
     }

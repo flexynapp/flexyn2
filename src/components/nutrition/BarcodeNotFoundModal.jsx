@@ -148,7 +148,7 @@ export default function BarcodeNotFoundModal({ barcode, onCancel, onSubmit }) {
       });
 
       toast.success(alreadyQueued
-        ? tFallback('nutrition.foodDb.request.alreadyQueued', 'Someone already asked for this one — it’s in the queue. Logged for you now.')
+        ? tFallback('nutrition.foodDb.request.alreadyQueued', 'Someone already asked for this one. It’s in the queue. Logged for you now.')
         : tFallback('nutrition.foodDb.request.sent', 'Sent for review. Logged for you now, and everyone gets it once it’s approved.'));
 
       // Return the product in the same shape as lookupBarcode() so the caller
@@ -223,7 +223,7 @@ export default function BarcodeNotFoundModal({ barcode, onCancel, onSubmit }) {
             <p className="text-sm text-muted-foreground mt-3 leading-relaxed">
               {tFallback(
                 'nutrition.foodDb.request.intro',
-                'No database we check knows this barcode. Enter what the label says and we will send it for review — you can log it for yourself right away.',
+                'No database we check knows this barcode. Enter what the label says and we will send it for review. You can log it for yourself right away.',
               )}
             </p>
           </div>

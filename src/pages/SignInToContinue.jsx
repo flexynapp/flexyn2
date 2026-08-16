@@ -253,7 +253,7 @@ export default function SignInToContinue({
                 <span>
                   <TransText
                     k="signInToContinue.accountExists"
-                    en="{headline} We sent a sign-in link to {email} — tap it and you're back in, with your workouts and streaks intact."
+                    en="{headline} We sent a sign-in link to {email}. Tap it and you're back in, with your workouts and streaks intact."
                     values={{
                       headline: <strong>{tFallback("signInToContinue.accountExistsHeadline", "You already have a Flexyn account.")}</strong>,
                       email: <strong>{email}</strong>,

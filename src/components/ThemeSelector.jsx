@@ -345,7 +345,7 @@ export default function ThemeSelector({ open, onClose }) {
                 <p className="text-xs text-muted-foreground text-center leading-tight">
                   <TransText
                     k="themeSelector.animatedThemesDropFrom"
-                    en="Animated themes drop from {capsules} — higher tier capsules have better odds"
+                    en="Animated themes drop from {capsules}. Higher tier capsules have better odds"
                     values={{ capsules: <span className="font-semibold text-foreground">{tFallback("themeSelector.lootCapsules", "Loot Capsules")}</span> }}
                   />
                 </p>

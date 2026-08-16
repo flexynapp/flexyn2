@@ -131,7 +131,7 @@ export default function LeagueInfoSheet({ open, onClose }) {
             <p className="text-micro text-muted-foreground pt-2">
               {tFallback(
                 'league.info.ladderNote',
-                'Percentages are of the people who qualified that week — not of the whole bracket. Days is how many you need to train to be ranked at all.',
+                'Percentages are of the people who qualified that week. Not of the whole bracket. Days is how many you need to train to be ranked at all.',
               )}
             </p>
           </div>
@@ -142,7 +142,7 @@ export default function LeagueInfoSheet({ open, onClose }) {
               title={tFallback('league.info.qualifyTitle', 'Training is what ranks you')}
               body={tFallback(
                 'league.info.qualifyBody',
-                'XP alone is not enough. Train on the number of separate days your tier asks for — strength or cardio both count — or you finish Unranked, earn nothing, and cannot be promoted no matter how much XP you have.',
+                'XP alone is not enough. Train on the number of separate days your tier asks for, and strength or cardio both count. Miss that and you finish Unranked, earn nothing, and cannot be promoted no matter how much XP you have.',
               )}
             />
             <Rule
@@ -164,7 +164,7 @@ export default function LeagueInfoSheet({ open, onClose }) {
               title={tFallback('league.info.quietTitle', 'A rest week costs you nothing')}
               body={tFallback(
                 'league.info.quietBody',
-                'Miss one week and nothing happens. Miss {grace} and you get a nudge. From the next one you drop a tier per quiet week, down to Bronze — a single workout stops it. A Shield holds one drop, and you can own {cap} in total.',
+                'Miss one week and nothing happens. Miss {grace} and you get a nudge. From the next one you drop a tier per quiet week, down to Bronze. A single workout stops it. A Shield holds one drop, and you can own {cap} in total.',
                 { grace: DECAY_GRACE_WEEKS, cap: SHIELD_LIFETIME_CAP },
               )}
             />

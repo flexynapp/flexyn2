@@ -157,9 +157,9 @@ async function whatToTrain({ user, t, language }) {
 
   if (daysSince === 0) {
     lines.push(T('coach.reply.train.today',
-      'You already trained today — solid. If you have energy left, a short 20-min cardio or core session would be a great cap.'));
+      'You already trained today. Solid. If you have energy left, a short 20-min cardio or core session would be a great cap.'));
   } else if (daysSince === 1) {
-    lines.push(T('coach.reply.train.yesterday', "You trained yesterday — today's a good day to push."));
+    lines.push(T('coach.reply.train.yesterday', "You trained yesterday. Today's a good day to push."));
   } else if (daysSince >= 3) {
     lines.push(T('coach.reply.train.gap',
       "It's been {n} days. Time to get back in. Start with something you enjoy to lower the activation energy.",
@@ -172,11 +172,11 @@ async function whatToTrain({ user, t, language }) {
     // a template. Intl supplies each locale's own conjunction and
     // disjunction — see 07d72977.
     lines.push(T('coach.reply.train.untouched',
-      "**Train these next:** {groups} — you haven't touched them this week.",
+      "**Train these next:** {groups}. You haven't touched them this week.",
       { groups: formatList(least.map(group), language) }));
   } else {
     lines.push(T('coach.reply.train.under',
-      '**Train these next:** {groups} — under-trained vs. {most} this week.',
+      '**Train these next:** {groups}. Under-trained vs. {most} this week.',
       {
         groups: formatList(least.map(group), language, { type: 'disjunction' }),
         most: group(most[0]),
@@ -242,10 +242,10 @@ async function progressCheck({ user, t, language }) {
   lines.push('');
   if (thisWeek.length === 0) {
     lines.push(T('coach.reply.progress.nothing',
-      "You haven't logged anything this week. The hardest part of progress is showing up — start with one set."));
+      "You haven't logged anything this week. The hardest part of progress is showing up. Start with one set."));
   } else if (sessionDelta < 0 && lastWeek.length > 0) {
     lines.push(T('coach.reply.progress.dip',
-      "Slight dip from last week. Either you're deloading on purpose, or life got busy. Both are fine — just don't string two low weeks back-to-back."));
+      "Slight dip from last week. Either you're deloading on purpose, or life got busy. Both are fine. Just don't string two low weeks back-to-back."));
   } else if (delta >= 5) {
     lines.push(T('coach.reply.progress.up',
       "You're trending up. Keep the discipline; volume increase like this compounds."));
@@ -254,7 +254,7 @@ async function progressCheck({ user, t, language }) {
       "Volume dropped meaningfully. If you're not fatigued or deloading, push intensity next session."));
   } else {
     lines.push(T('coach.reply.progress.steady',
-      "Steady. Consistency beats intensity over months — you're doing the right thing."));
+      "Steady. Consistency beats intensity over months. You're doing the right thing."));
   }
   return lines.join('\n');
 }
@@ -307,7 +307,7 @@ async function shouldIncrease({ user, t, language }) {
 
   if (sameWeight && repsHeld && reps[0] >= 8) {
     return [
-      T('coach.reply.overload.yesTitle', '**Yes — bump your {lift} weight.**', { lift: topName }),
+      T('coach.reply.overload.yesTitle', '**Yes, bump your {lift} weight.**', { lift: topName }),
       '',
       T('coach.reply.overload.yesBody',
         "You hit {weight} lb for {reps} reps across the last 3 sessions. That's the textbook signal: same weight, stable reps in the 8+ range.",
@@ -320,7 +320,7 @@ async function shouldIncrease({ user, t, language }) {
   }
   if (sameWeight && repsHeld) {
     return [
-      T('coach.reply.overload.almostTitle', '**Almost — keep grinding {lift} a bit longer.**', { lift: topName }),
+      T('coach.reply.overload.almostTitle', '**Almost. Keep grinding {lift} a bit longer.**', { lift: topName }),
       '',
       T('coach.reply.overload.almostBody',
         "You're at {weight} lb for {reps} reps. Get to 8+ reps consistently before adding weight.",
@@ -331,7 +331,7 @@ async function shouldIncrease({ user, t, language }) {
     T('coach.reply.overload.notYetTitle', '**Not yet on {lift}.**', { lift: topName }),
     '',
     T('coach.reply.overload.notYetBody',
-      'Your top sets recently were {weights} lb at {reps} reps — not stable enough to add weight. Lock in {weight} lb at 8+ reps for 3 sessions, then push.',
+      'Your top sets recently were {weights} lb at {reps} reps. Not stable enough to add weight. Lock in {weight} lb at 8+ reps for 3 sessions, then push.',
       { weights: nums(weights), reps: nums(reps), weight: formatNumber(weights[0], language) }),
   ].join('\n');
 }
@@ -342,7 +342,7 @@ async function soreness({ user, t, language }) {
   const last = recent[0];
   if (!last) {
     return T('coach.reply.sore.noTraining',
-      "Soreness without recent training is unusual — could be sleep, stress, or another activity. Hydrate, walk for 20 min, and check back in tomorrow.");
+      "Soreness without recent training is unusual. Could be sleep, stress, or another activity. Hydrate, walk for 20 min, and check back in tomorrow.");
   }
 
   const lastGroups = new Set();
@@ -356,7 +356,7 @@ async function soreness({ user, t, language }) {
 
   return [
     T('coach.reply.sore.intro',
-      "Soreness in **{part}** is normal 24–48h after a hard session — that's DOMS, not damage.",
+      "Soreness in **{part}** is normal 24–48h after a hard session, that's DOMS, not damage.",
       { part: sorePart }),
     '',
     T('coach.reply.sore.body', [
@@ -385,13 +385,13 @@ async function consistency({ user, t, language }) {
       "You're crushing it. 4+ workouts a week consistently is in the top 5% of any fitness app's user base."));
   } else if (ratio >= 0.3) {
     lines.push(T('coach.reply.consistency.solid',
-      "Solid — roughly 3x/week. That's enough volume to make real progress."));
+      "Solid. Roughly 3x/week. That's enough volume to make real progress."));
   } else if (ratio >= 0.15) {
     lines.push(T('coach.reply.consistency.showing',
-      "You're showing up. Try to add one more session per week. Pick the day before you check this — log it tomorrow."));
+      "You're showing up. Try to add one more session per week. Pick the day before you check this. Log it tomorrow."));
   } else {
     lines.push(T('coach.reply.consistency.low',
-      "Currently inconsistent. Don't aim for perfect — aim for 2 sessions this week. Lock in the habit before optimizing the program."));
+      "Currently inconsistent. Don't aim for perfect. Aim for 2 sessions this week. Lock in the habit before optimizing the program."));
   }
   return lines.join('\n');
 }
@@ -401,7 +401,7 @@ async function prsResponder({ user, t, language }) {
   // Personal records by exercise: max single-set weight × reps
   const all = await _fetchRecentWorkouts(user?.email, 365);
   if (all.length === 0) return T('coach.reply.prs.none',
-      "No workouts logged yet — log a few sessions and I'll surface your PRs.");
+      "No workouts logged yet. Log a few sessions and I'll surface your PRs.");
 
   const prMap = {};
   for (const w of all) {
@@ -421,7 +421,7 @@ async function prsResponder({ user, t, language }) {
     .sort((a, b) => b[1].weight - a[1].weight)
     .slice(0, 5);
   if (top5.length === 0) return T('coach.reply.prs.noWeights',
-      "I see workouts but no weighted lifts — bodyweight progress is real, but I can't surface PRs without weights.");
+      "I see workouts but no weighted lifts. Bodyweight progress is real, but I can't surface PRs without weights.");
 
   const lines = [T('coach.reply.prs.title', '**Your top 5 PRs:**')];
   for (const [name, pr] of top5) {
@@ -477,7 +477,7 @@ async function cardioSuggest({ user, t, language }) {
   const mins = formatNumber(totalMin, language);
   if (totalMin >= 150) {
     return T('coach.reply.cardio.over',
-      "You've logged **{n} min of cardio** in the last 7 days — exceeds the WHO 150 min/week recommendation. Optional: 1 short session as active recovery.",
+      "You've logged **{n} min of cardio** in the last 7 days. Exceeds the WHO 150 min/week recommendation. Optional: 1 short session as active recovery.",
       { n: mins });
   }
   if (totalMin >= 75) {
@@ -545,7 +545,7 @@ async function goalStatus({ user, t, language }) {
     const active = goals.filter(g => g.status !== 'completed');
     if (active.length === 0) {
       return T('coach.reply.goals.none',
-      "No active goals. Open the Goals modal to set a PR target — having a number to chase changes how you train.");
+      "No active goals. Open the Goals modal to set a PR target. Having a number to chase changes how you train.");
     }
     const lines = [T(`coach.reply.goals.title.${active.length === 1 ? 'one' : 'other'}`,
       active.length === 1 ? '**You have {n} active goal:**' : '**You have {n} active goals:**',
@@ -562,7 +562,7 @@ async function goalStatus({ user, t, language }) {
     return lines.join('\n');
   } catch {
     return T('coach.reply.goals.error',
-      "Couldn't load your goals — try opening the Goals modal directly.");
+      "Couldn't load your goals. Try opening the Goals modal directly.");
   }
 }
 
@@ -617,12 +617,12 @@ async function greeting({ user, t, language }) {
   const streak = profile?.workout_streak || 0;
   if (streak >= 7) {
     return T('coach.reply.greeting.hot',
-      "Welcome back! {n} days of workout streak — you're on fire 🔥. What's on your mind today?",
+      "Welcome back! {n} days of workout streak. You're on fire 🔥. What's on your mind today?",
       { n: streak });
   }
   if (streak > 0) {
     return T('coach.reply.greeting.streak',
-      'Good to see you. Day {n} workout streak — keep it alive. What can I help with?',
+      'Good to see you. Day {n} workout streak. Keep it alive. What can I help with?',
       { n: streak });
   }
   return T('coach.reply.greeting.intro', [
@@ -686,7 +686,7 @@ async function recoveryCheck({ user, t, language }) {
   });
 
   const lines = [];
-  lines.push(T('coach.reply.recovery.score', 'Recovery: {score}/100 — {label}',
+  lines.push(T('coach.reply.recovery.score', 'Recovery: {score}/100, {label}',
     { score: formatNumber(score, language), label }));
   if (todays?.hours) {
     lines.push(T('coach.reply.recovery.lastNight', 'Last night: {hours}h{quality}', {
@@ -698,13 +698,13 @@ async function recoveryCheck({ user, t, language }) {
     }));
   } else {
     lines.push(T('coach.reply.recovery.noSleep',
-      'No sleep log yet today — log it to sharpen this score.'));
+      'No sleep log yet today. Log it to sharpen this score.'));
   }
   if (latestWorkout?.date) {
     const days = differenceInCalendarDays(new Date(), parseLogDate(latestWorkout.date));
     lines.push(days === 0
       ? T('coach.reply.recovery.trainedToday',
-          'You trained today — light recovery work is the right move.')
+          'You trained today. Light recovery work is the right move.')
       : T(`coach.reply.recovery.sinceWorkout.${days === 1 ? 'one' : 'other'}`,
           days === 1 ? '{n} day since last workout.' : '{n} days since last workout.',
           { n: formatNumber(days, language) }));
@@ -717,7 +717,7 @@ async function recoveryCheck({ user, t, language }) {
       'Train as planned. Save the heaviest lift for later in the session.'));
   } else if (score >= 50) {
     lines.push(T('coach.reply.recovery.cap',
-      'Train, but cap intensity — leave 1-2 reps in reserve.'));
+      'Train, but cap intensity. Leave 1-2 reps in reserve.'));
   } else {
     lines.push(T('coach.reply.recovery.mobility',
       'Consider a mobility day or a light cardio session.'));
@@ -750,7 +750,7 @@ async function sleepLog({ user, t, language }) {
   } else if (todays.hours >= 6.5) {
     lines.push(T('coach.reply.sleep.decent', 'Decent. Caffeine + protein early helps.'));
   } else {
-    lines.push(T('coach.reply.sleep.short', 'Short night — favor technique over loading today.'));
+    lines.push(T('coach.reply.sleep.short', 'Short night. Favor technique over loading today.'));
   }
   return lines.join('\n');
 }

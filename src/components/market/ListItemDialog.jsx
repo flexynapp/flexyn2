@@ -95,7 +95,7 @@ export default function ListItemDialog({ open, onClose, userItems, user, onSucce
         feature: 'marketplace.list', level: 'warning',
         userEmail: user?.email, itemId: selectedItem?.id,
       });
-      toast.error('Could not list item — try again.');
+      toast.error('Could not list item. Try again.');
     } finally {
       setBusy(false);
     }

@@ -930,16 +930,16 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
       } else {
         // Reached the service, got nothing nameable back. Distinct from a
         // failed lookup, and distinct from "you have no location".
-        toast.info(tFallback('hub.profile.locationNoName', "Couldn't name that spot — type it in instead."));
+        toast.info(tFallback('hub.profile.locationNoName', "Couldn't name that spot. Type it in instead."));
       }
     } catch (err) {
       // PERMISSION_DENIED is a choice, not a fault, so it does not report to
       // Sentry and does not read as an error state.
       if (err?.code === 1) {
-        toast.info(tFallback('hub.profile.locationDenied', 'Location is off for Flexyn — type your city instead.'));
+        toast.info(tFallback('hub.profile.locationDenied', 'Location is off for Flexyn. Type your city instead.'));
       } else {
         reportError(err, { feature: 'profile.use-current-location', level: 'warning' });
-        toast.error(tFallback('hub.profile.locationFailed', "Couldn't get your location — type it in instead."));
+        toast.error(tFallback('hub.profile.locationFailed', "Couldn't get your location. Type it in instead."));
       }
     } finally {
       setLocating(false);
@@ -1052,7 +1052,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
         : tFallback('hub.profile.nowPublic', 'Your account is public again.'));
     } catch (err) {
       reportError(err, { feature: 'profile.toggle-private', level: 'warning' });
-      toast.error(tFallback('hub.profile.privateFailed', "Couldn't change that — try again."));
+      toast.error(tFallback('hub.profile.privateFailed', "Couldn't change that. Try again."));
     }
   };
 
@@ -1132,7 +1132,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
       queryClient.invalidateQueries({ queryKey: ['hubFeed'] });
     } catch (err) {
       reportError(err, { feature: 'hub.profile-mute', level: 'warning', userEmail: user?.email, target: email });
-      toast.error(tFallback('hub.profile.muteError', 'Could not mute — try again.'));
+      toast.error(tFallback('hub.profile.muteError', 'Could not mute. Try again.'));
     }
   };
 
@@ -1145,7 +1145,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
       queryClient.invalidateQueries({ queryKey: ['hubFeed'] });
     } catch (err) {
       reportError(err, { feature: 'hub.profile-unmute', level: 'warning', userEmail: user?.email, target: email });
-      toast.error(tFallback('hub.profile.unmuteError', 'Could not unmute — try again.'));
+      toast.error(tFallback('hub.profile.unmuteError', 'Could not unmute. Try again.'));
     }
   };
 
@@ -1164,7 +1164,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
       queryClient.invalidateQueries({ queryKey: ['hubIsFollowing', user?.email, email] });
     } catch (err) {
       reportError(err, { feature: 'hub.profile-block', level: 'warning', userEmail: user?.email, target: email });
-      toast.error(tFallback('hub.profile.blockError', 'Could not block — try again.'));
+      toast.error(tFallback('hub.profile.blockError', 'Could not block. Try again.'));
     }
   };
 
@@ -2080,7 +2080,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
             <EmptyState
               icon={Bookmark}
               title={tFallback('hub.profile.noLikesTitle', 'Nothing here yet')}
-              body={tFallback('hub.profile.noLikesBody', 'Head to the Hub and start liking posts — they’ll collect here.')}
+              body={tFallback('hub.profile.noLikesBody', 'Head to the Hub and start liking posts, they’ll collect here.')}
             />
           ) : (
             <div className="space-y-3">
@@ -2198,7 +2198,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
               : tFallback('hub.profile.noPostsTitle', 'Nothing posted yet')}
             body={isSelf
               ? tFallback('hub.profile.noPostsSelfBody', 'Share a workout, PR, or progress photo to fill out your profile.')
-              : tFallback('hub.profile.noPostsBody', 'Check back later — new posts will appear here.')}
+              : tFallback('hub.profile.noPostsBody', 'Check back later. New posts will appear here.')}
           />
         ) : (
           <div className="space-y-3">

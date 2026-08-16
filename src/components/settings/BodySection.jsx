@@ -134,7 +134,7 @@ export default function BodySection() {
       // caught that the previous `console.error` left users with no signal
       // the save failed.
       console.error('Stat update failed:', err);
-      toast.error(tFallback('settings.validation.saveFailed', 'Could not save — try again.'));
+      toast.error(tFallback('settings.validation.saveFailed', 'Could not save. Try again.'));
     } finally {
       setStatSaving(false);
     }
@@ -151,7 +151,7 @@ export default function BodySection() {
       invalidateProfile();
     } catch (err) {
       console.error('Gender update failed:', err);
-      toast.error(tFallback('settings.validation.saveFailed', 'Could not save — try again.'));
+      toast.error(tFallback('settings.validation.saveFailed', 'Could not save. Try again.'));
     } finally {
       setGenderSaving(false);
     }

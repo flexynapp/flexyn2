@@ -115,7 +115,7 @@ export default function GymEdit() {
     // (Audit 12 #32.)
     const MAX_BYTES = 5 * 1024 * 1024;
     if (file.size > MAX_BYTES) {
-      toast.error('Image too large — keep it under 5 MB.');
+      toast.error('Image too large. Keep it under 5 MB.');
       return null;
     }
     // Whitelist image extensions. Without this an upload of `evil.html`
@@ -130,7 +130,7 @@ export default function GymEdit() {
     };
     const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
     if (!SAFE_EXTS.includes(ext)) {
-      toast.error('Image type not supported — use JPG, PNG, WebP, or HEIC.');
+      toast.error('Image type not supported. Use JPG, PNG, WebP, or HEIC.');
       return null;
     }
     const path = `${user.id}/gym/${gym.id}/${kind}-${Date.now()}.${ext}`;
@@ -568,7 +568,7 @@ function PhotoGalleryEditor({ gymId, value, onChange, uploading, setUploading, u
     e.target.value = '';
     if (!file) return;
     if ((value || []).length >= MAX_GALLERY_PHOTOS) {
-      toast.error('Your gallery is full — remove a photo to add another.');
+      toast.error('Your gallery is full. Remove a photo to add another.');
       return;
     }
     setUploading(true);

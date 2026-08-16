@@ -799,7 +799,7 @@ export default function StoriesRow({ onViewProfile } = {}) {
 
   const handleNotePost = useCallback(async (text) => {
     const result = await statusNotesData.postStatusNote(user, text);
-    if (!result) { toast.error('Could not post note — try again.'); return; }
+    if (!result) { toast.error('Could not post note. Try again.'); return; }
     queryClient.invalidateQueries({ queryKey: ['storiesFeed'] });
     setNoteEditorOpen(false);
     toast.success("Note's up.");

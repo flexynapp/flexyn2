@@ -1076,10 +1076,10 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
 
       if (uploadFailed && !trimmed) {
         queryClient.setQueryData(queryKey, (rows) => (rows || []).filter(r => r.id !== tempId));
-        toast.error(tFallback("hubChat.imageUploadFailedTryAgain", "Image upload failed — try again"));
+        toast.error(tFallback("hubChat.imageUploadFailedTryAgain", "Image upload failed. Try again"));
         return;
       }
-      if (uploadFailed) toast.error(tFallback("hubChat.imageUploadFailedMessageSent", "Image upload failed — message sent without attachment"));
+      if (uploadFailed) toast.error(tFallback("hubChat.imageUploadFailedMessageSent", "Image upload failed, message sent without attachment"));
 
       const sent = await hubMessages.sendMessage({
         conversationId: conversation.id,

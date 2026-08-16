@@ -352,7 +352,7 @@ function EvidencePanel({ evidence, exercises }) {
         ? ' · ' + plural('coach.plan.evidence.fromHistory', seededFromHistory.length,
             '{n} lift from your history', '{n} lifts from your history')
         : '')
-    : tFallback('coach.plan.evidence.none', 'No logged sessions yet — weights are estimates');
+    : tFallback('coach.plan.evidence.none', 'No logged sessions yet, weights are estimates');
 
   return (
     <div className="mt-2.5 rounded-xl border border-border bg-secondary/30 overflow-hidden">
@@ -399,8 +399,8 @@ function EvidencePanel({ evidence, exercises }) {
           {estimatedCount > 0 && (
             <Fact label={tFallback('coach.plan.evidence.estimated', 'Estimated')}>
               {plural('coach.plan.evidence.estimatedValue', estimatedCount,
-                "{n} lift you haven't logged — sized from your bodyweight ({lbs} lb), experience ({level})",
-                "{n} lifts you haven't logged — sized from your bodyweight ({lbs} lb), experience ({level})",
+                "{n} lift you haven't logged. Sized from your bodyweight ({lbs} lb), experience ({level})",
+                "{n} lifts you haven't logged. Sized from your bodyweight ({lbs} lb), experience ({level})",
                 { lbs: evidence.bodyweightLbs, level: evidence.skillLevel })}
               {evidence.demographics?.age
                 ? tFallback('coach.plan.evidence.andAge', ' and age ({age})',

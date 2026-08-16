@@ -57,7 +57,7 @@ export default function TrainingSection() {
               invalidateProfile();
             } catch {
               queryClient.setQueryData(['userProfile', user?.email], (old) => old ? { ...old, include_bar_in_volume: prev } : old);
-              toast.error(tFallback('settings.includeBarVolume.saveFailed', 'Could not save — try again.'));
+              toast.error(tFallback('settings.includeBarVolume.saveFailed', 'Could not save. Try again.'));
             }
           }}
         />

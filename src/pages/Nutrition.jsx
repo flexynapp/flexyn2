@@ -532,13 +532,13 @@ export default function Nutrition() {
   const handleSetAsDefault = async () => {
     const res = await setLayoutDefault('nutrition', widgetOrder, null);
     if (res.ok) {
-      toast.success('Saved — new users will see this nutrition layout.');
+      toast.success('Saved. New users will see this nutrition layout.');
     } else if (res.error === 'rpc_missing') {
       toast.error('Default-layouts RPC not deployed yet. Apply migration 166.');
     } else if (res.error === 'admin_only') {
       toast.error('Admins only.');
     } else {
-      toast.error('Could not save default layout — try again.');
+      toast.error('Could not save default layout. Try again.');
     }
   };
 
@@ -886,7 +886,7 @@ export default function Nutrition() {
     setPhotoRecognizing(false);
     if (!res?.ok) {
       const err = res?.error;
-      if (err === 'NOT_FOOD') toast.error(tFallback('nutrition.photoAi.notFood', "That doesn't look like food — try another photo."));
+      if (err === 'NOT_FOOD') toast.error(tFallback('nutrition.photoAi.notFood', "That doesn't look like food. Try another photo."));
       // PIPELINE_MISSING = function not deployed; SERVER_MISCONFIGURED = deployed
       // but the Anthropic key isn't set. Both mean "not fully set up" to a user.
       else if (err === 'PIPELINE_MISSING' || err === 'SERVER_MISCONFIGURED') toast.error(tFallback('nutrition.photoAi.notEnabled', "Photo recognition isn't enabled yet."));
@@ -899,15 +899,15 @@ export default function Nutrition() {
       else if (err === 'RATE_LIMIT') {
         const used = await getPhotoAiUsedToday(user?.id);
         if (used >= PHOTO_AI_DAILY_CAP) setPhotoLimit({ used, cap: PHOTO_AI_DAILY_CAP });
-        else toast.error(tFallback('nutrition.photoAi.rateLimit', 'Hit the rate limit — try again in a moment.'));
+        else toast.error(tFallback('nutrition.photoAi.rateLimit', 'Hit the rate limit. Try again in a moment.'));
       }
       // 'TOO_LARGE' was the old client-side code; the server has always
       // sent 'IMAGE_TOO_LARGE'. Accept both so neither path falls
       // through to the generic toast.
-      else if (err === 'IMAGE_TOO_LARGE' || err === 'TOO_LARGE') toast.error(tFallback('nutrition.photoAi.tooLarge', 'Photo is too large even after compression — try a smaller image.'));
-      else if (err === 'UNSUPPORTED_FORMAT') toast.error(tFallback('nutrition.photoAi.unsupportedFormat', "This photo format isn't supported here — try a JPEG or PNG."));
-      else if (err === 'TIMEOUT') toast.error(tFallback('nutrition.photoAi.timeout', 'Recognition timed out — check your connection and try again.'));
-      else if (err === 'NETWORK') toast.error(tFallback('nutrition.photoAi.network', "Couldn't reach the recognizer — check your connection and try again."));
+      else if (err === 'IMAGE_TOO_LARGE' || err === 'TOO_LARGE') toast.error(tFallback('nutrition.photoAi.tooLarge', 'Photo is too large even after compression. Try a smaller image.'));
+      else if (err === 'UNSUPPORTED_FORMAT') toast.error(tFallback('nutrition.photoAi.unsupportedFormat', "This photo format isn't supported here. Try a JPEG or PNG."));
+      else if (err === 'TIMEOUT') toast.error(tFallback('nutrition.photoAi.timeout', 'Recognition timed out. Check your connection and try again.'));
+      else if (err === 'NETWORK') toast.error(tFallback('nutrition.photoAi.network', "Couldn't reach the recognizer. Check your connection and try again."));
       else toast.error(tFallback('nutrition.photoAi.failed', 'Could not recognize meal. Try again.'));
       return;
     }
@@ -957,7 +957,7 @@ export default function Nutrition() {
     // TODO(iap): trigger the store purchase flow, then unlock on success.
     setTimeout(() => {
       setPurchasingUnlimited(false);
-      toast(tFallback('nutrition.photoAi.unlimitedSoon', 'Unlimited Photo-AI is coming soon — hang tight!'));
+      toast(tFallback('nutrition.photoAi.unlimitedSoon', 'Unlimited Photo-AI is coming soon. Hang tight!'));
     }, 500);
   };
 
@@ -1374,7 +1374,7 @@ export default function Nutrition() {
       potassium_mg: '', vitamin_a_iu: '', vitamin_c_mg: '', vitamin_d_iu: '',
       vitamin_b12_mcg: '',
     });
-    toast.success(tFallback('nutrition.search.filled', 'Filled in — check the amount, then log it.'));
+    toast.success(tFallback('nutrition.search.filled', 'Filled in. Check the amount, then log it.'));
   };
 
   // Re-log a previously-logged meal (from the Log Meal form's History tab)
@@ -1441,7 +1441,7 @@ export default function Nutrition() {
     }
     const convertedOz = displayToOz(amount, bottleInputUnit);
     if (convertedOz > MAX_BOTTLE_OZ) {
-      toast.error(tFallback('nutrition.toast.bottleTooBig', 'That bottle is too big — try a smaller size.'));
+      toast.error(tFallback('nutrition.toast.bottleTooBig', 'That bottle is too big. Try a smaller size.'));
       return;
     }
     const nick = bottleNickname.trim();
@@ -1713,7 +1713,7 @@ export default function Nutrition() {
             </div>
             {scannerStatus === 'scanning' && (
               <p className="text-xs text-muted-foreground text-center mb-3">
-                {t('nutrition.pointCamera')} · {tFallback('nutrition.scanRotateHint', 'reads sideways codes too — rotate a shiny can to cut glare')}
+                {t('nutrition.pointCamera')} · {tFallback('nutrition.scanRotateHint', 'reads sideways codes too. Rotate a shiny can to cut glare')}
               </p>
             )}
             {scannerStatus === 'error' && scannerError && (

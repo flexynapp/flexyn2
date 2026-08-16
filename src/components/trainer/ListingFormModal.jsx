@@ -63,7 +63,7 @@ export default function ListingFormModal({ open, onClose, listing, trainerId, us
     } else if (res.error === 'PRICE_TOO_LOW') {
       toast.error('Minimum price is $1.00.');
     } else if (res.error === 'PIPELINE_MISSING') {
-      toast.error('Creator features are rolling out — try again shortly.');
+      toast.error('Creator features are rolling out. Try again shortly.');
     } else {
       toast.error(res.error || "Couldn't save listing.");
     }

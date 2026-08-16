@@ -261,7 +261,7 @@ export default function NotificationPanel({ open, onClose }) {
     const res = await notifications.deleteNotification(id);
     if (!res.ok) {
       queryClient.invalidateQueries({ queryKey: ['notificationsList', uid] });
-      toast.error(tFallback('notifications.deleteFailed', 'Could not delete — try again.'));
+      toast.error(tFallback('notifications.deleteFailed', 'Could not delete. Try again.'));
     }
     setDeletingIds(prev => {
       const next = new Set(prev);
@@ -280,7 +280,7 @@ export default function NotificationPanel({ open, onClose }) {
     const res = await notifications.deleteAllForUser(user);
     if (!res.ok) {
       queryClient.setQueryData(['notificationsList', uid, limit], previous);
-      toast.error(tFallback('notifications.clearAllFailed', 'Could not clear — try again.'));
+      toast.error(tFallback('notifications.clearAllFailed', 'Could not clear. Try again.'));
     } else {
       hasUnreadRef.current = false;
       queryClient.invalidateQueries({ queryKey: ['notificationsUnread', uid] });

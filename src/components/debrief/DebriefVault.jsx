@@ -243,7 +243,7 @@ export default function DebriefVault({ onClose }) {
         });
     },
     onError: (err) => {
-      toast.error('Could not refresh — try again.');
+      toast.error('Could not refresh. Try again.');
       reportError(err, { feature: 'review.refresh', userEmail: user?.email });
     },
   });

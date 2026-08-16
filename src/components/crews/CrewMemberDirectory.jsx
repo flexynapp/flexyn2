@@ -83,7 +83,7 @@ function MemberRow({ member, profile, myRank, isSelf, crewId, onViewProfile }) {
       toast.success(successMsg);
       qc.invalidateQueries({ queryKey: ['crewMembers', crewId] });
     } catch {
-      toast.error('Action failed — try again.');
+      toast.error('Action failed. Try again.');
     } finally {
       setBusy(false);
     }

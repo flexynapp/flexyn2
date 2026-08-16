@@ -187,7 +187,7 @@ describe('the slot cap — a refusal that offers a way through', () => {
   it('a full slot offers no Add — it says which rule was hit', async () => {
     PLANS = fullDinner();
     await mountLoaded();
-    expect(document.body.textContent).toMatch(/Dinner is full — 3 of 3/);
+    expect(document.body.textContent).toMatch(/Dinner is full, 3 of 3/);
   });
 
   it('tapping it opens the sheet, with both ways forward', async () => {

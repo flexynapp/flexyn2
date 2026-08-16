@@ -36,7 +36,7 @@ export default function TradeOfferDialog({ open, listing, userItems, user, onClo
   const handleSend = async () => {
     if (!selectedOffer || !listing) return;
     if (!listing.inventory_id) {
-      toast.error('This listing is missing its item — refresh and try again.');
+      toast.error('This listing is missing its item. Refresh and try again.');
       return;
     }
     // A guest seller's listing carries seller_email = '' (mig 025 stamps it
@@ -49,7 +49,7 @@ export default function TradeOfferDialog({ open, listing, userItems, user, onClo
     // address needs an RPC — public_profiles exposes id and username, no
     // email — so this is a hard stop until that lands.
     if (!listing.seller_email) {
-      toast.error("Can't reach this seller — trade offers aren't available on their listings yet.");
+      toast.error("Can't reach this seller. Trade offers aren't available on their listings yet.");
       return;
     }
     setBusy(true);
@@ -119,7 +119,7 @@ export default function TradeOfferDialog({ open, listing, userItems, user, onClo
         recipientEmail: listing.seller_email,
         body,
       });
-      toast.success('Trade offer sent — your item is held until they answer.');
+      toast.success('Trade offer sent. Your item is held until they answer.');
       onClose();
     } catch (err) {
       reportError(err, {

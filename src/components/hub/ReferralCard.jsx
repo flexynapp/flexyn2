@@ -84,7 +84,7 @@ export default function ReferralCard() {
       toast.success(tFallback('referral.copied', 'Link copied'));
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      toast.error(tFallback('referral.copyFailed', 'Could not copy — try the share button.'));
+      toast.error(tFallback('referral.copyFailed', 'Could not copy. Try the share button.'));
     }
   };
 

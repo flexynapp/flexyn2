@@ -116,7 +116,7 @@ export default function ProfileCompletionMeter({ user, targetProfile }) {
       )}
       {pct === 100 && (
         <p className="mt-2 text-xs text-success font-medium">
-          {tFallback('profile.completion.allSet', 'Looking sharp — all set!')}
+          {tFallback('profile.completion.allSet', 'Looking sharp, all set!')}
         </p>
       )}
     </motion.div>

@@ -137,7 +137,7 @@ function RegimenCard({ regimen, index, isMine, user, onAdopted }) {
       toast.success(`"${regimen.name}" saved to your Regimens!`);
       onAdopted?.();
     },
-    onError: () => toast.error('Could not adopt regimen — try again.'),
+    onError: () => toast.error('Could not adopt regimen. Try again.'),
   });
 
   const copyCount = regimen.copy_count || regimen.clone_count || 0;

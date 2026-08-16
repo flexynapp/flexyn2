@@ -44,8 +44,8 @@ describe('buildTrainingModifiers is inert without a translator', () => {
       goal: 'strength', nutritionGoal: 'lose', weeklyRateLbs: 1, feel: 'rough', age: 62,
     });
     expect(notes).toContain('Built for strength: lower reps, longer rests.');
-    expect(notes).toContain('You are eating in a deficit, so this session trims a set and keeps the weight heavy — intensity is what protects strength while cutting.');
-    expect(notes).toContain('You said you feel rough — lighter, shorter and with more rest. Showing up counts; this still maintains.');
+    expect(notes).toContain('You are eating in a deficit, so this session trims a set and keeps the weight heavy. Intensity is what protects strength while cutting.');
+    expect(notes).toContain('You said you feel rough. Lighter, shorter and with more rest. Showing up counts; this still maintains.');
     expect(notes.some(n => n.startsWith('Rest is 20s longer'))).toBe(true);
   });
 
@@ -100,13 +100,13 @@ describe('the blended-goal list uses the locale, not hand-rolled grammar', () =>
     // English-only rule. Intl supplies each locale's own — and en-US's
     // includes the serial comma, which the hand-rolled version omitted.
     expect(blend).toBe(
-      'Balancing strength, endurance, and mobility — reps and rests land between what each one would ask for on its own.',
+      "Balancing strength, endurance, and mobility. Reps and rests land between what each one would ask for on its own.",
     );
   });
 
   it('handles the two-goal case without a stray separator', () => {
     const [blend] = buildTrainingModifiers({ goal: ['strength', 'muscle'] }).notes;
-    expect(blend).toContain('Balancing strength and muscle —');
+    expect(blend).toContain('Balancing strength and muscle.');
   });
 });
 

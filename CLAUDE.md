@@ -994,6 +994,42 @@ lessons below survived the move and are kept; the mechanics did not.
   interpolates a template (see `dayContext.test.js` / `journalProvenance.test.js`);
   otherwise the bug is invisible until someone switches language.
 
+- **No dashes in display copy** (kegan, standing). Not hyphens, en dashes
+  or em dashes in any string a user reads: a dash-joined clause is a tell
+  of generated copy the same way gradients and glassmorphism are. Three
+  moves allowed — two sentences, a comma, or cut the clause. Swept
+  2026-08-16: 349 catalog strings and 65 hardcoded literals.
+  - **The catalog is not the whole surface.** `npm run i18n:hardcoded`
+    finds ~708 user-visible strings with no key at all, and 65 of them
+    carried a dash. Fixing only `src/locales/*.json` would have left
+    dashes on screen while every measurement read zero.
+  - **A rule per shape, not one regex.** An imperative continuation is two
+    sentences ("Could not save. Try again.", the app's most common toast).
+    A coordinating conjunction is a comma, never a sentence break.
+    `**Term** — definition` in the Coach bullets takes a colon, because a
+    dash there is glossary typography, not the tell.
+  - **A lone `—` is a GLYPH, not copy.** It means "no value" at 20+ render
+    sites. Rewriting it to "None" changed behaviour everywhere — and it
+    got there because the call-site sync substituted a one-character
+    string across the whole tree. Never bulk-substitute a short literal.
+  - **Numeric ranges keep the en dash** (`5–8 reps`); a SPACED one reads as
+    a dash and was reworded (`between 36 and 108 inches`). Intra-word
+    hyphens stay: `warm-up` is orthography, not a clause.
+  - **What the sweep broke, none of it visible in a 349-string diff**: a
+    sentence break landing inside parentheses; two dashes that were one
+    parenthetical aside flattening into a run-on; a colon after a question
+    mark; eight sentences opening with And/Or/Plus. Each was found by a
+    targeted assertion over the before/after PAIRS, which is the only way
+    to review a sweep this size.
+  - **The check that lied.** The first "0 problems" ran against an empty
+    list: the before/after report had been clobbered by an accidental
+    re-import of the sweep module, whose top-level code re-ran and wrote a
+    zero-length file. Rebuild the diff from `git show HEAD:` rather than
+    trusting a file the run itself wrote.
+  - Shelved locales still carry dashes, deliberately. Repunctuating twelve
+    languages nobody is shown, and that I cannot read, is worse than
+    leaving them.
+
 - **Dates are not covered by translation keys.** `date-fns` `format()` binds
   no locale, so "Sunday, August 9" survives every translation pass — the
   journal header, its month rules and its Log rows all read English under a

@@ -99,15 +99,15 @@ export default function DuelInviteLanding() {
     } catch (err) {
       const msg = String(err?.message || '').toLowerCase();
       if (msg.includes('cannot_claim_own_invite')) {
-        toast.error("That's your own invite — share the link with someone else.");
+        toast.error("That's your own invite. Share the link with someone else.");
       } else if (msg.includes('invite_already_claimed')) {
         toast.error('This invite has already been used.');
       } else if (msg.includes('invite_expired')) {
         toast.error('This invite has expired. Ask for a new one.');
       } else if (msg.includes('invite_not_found')) {
-        toast.error("Invite not found — the link may be wrong.");
+        toast.error("Invite not found. The link may be wrong.");
       } else {
-        toast.error('Could not accept — try again.');
+        toast.error('Could not accept. Try again.');
       }
       setAccepting(false);
     }

@@ -230,8 +230,11 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'goals.notes',
     'goals.reps',
     'goals.sessions',
-    'goals.type.cardio_distance',
-    'goals.type.cardio_sessions',
+    // goals.type.cardio_distance / _sessions were allow-listed here while
+    // French read "Cardio — distance", identical to the English. The dash
+    // sweep (2026-08-16) recast them as "Distance cardio" / "Séances
+    // cardio", so they are translations now rather than cognates and these
+    // entries would be stale. The allow-list guard is what caught it.
     'header.nutrition',
     'hub.activity.volume',
     'hub.feed.pump',

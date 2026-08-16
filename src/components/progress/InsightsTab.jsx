@@ -645,22 +645,22 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
             <div>
               {trainingAge.totalDays < 90 && (
                 <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-success/10 text-success">
-                  {tFallback('insights.trainingAge.beginner', '🌱 Beginner — building the habit')}
+                  {tFallback('insights.trainingAge.beginner', '🌱 Beginner, building the habit')}
                 </span>
               )}
               {trainingAge.totalDays >= 90 && trainingAge.totalDays < 365 && (
                 <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-info/10 text-info">
-                  {tFallback('insights.trainingAge.intermediate', '💪 Intermediate — forming real strength')}
+                  {tFallback('insights.trainingAge.intermediate', '💪 Intermediate, forming real strength')}
                 </span>
               )}
               {trainingAge.totalDays >= 365 && trainingAge.totalDays < 730 && (
                 <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-primary/10 text-primary">
-                  {tFallback('insights.trainingAge.advanced', '🔥 Advanced — 1+ year dedicated athlete')}
+                  {tFallback('insights.trainingAge.advanced', '🔥 Advanced, 1+ year dedicated athlete')}
                 </span>
               )}
               {trainingAge.totalDays >= 730 && (
                 <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-primary/10 text-primary">
-                  {tFallback('insights.trainingAge.elite', '⚡ Elite — 2+ years of consistent training')}
+                  {tFallback('insights.trainingAge.elite', '⚡ Elite, 2+ years of consistent training')}
                 </span>
               )}
             </div>
@@ -699,7 +699,7 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
                 <p className="text-xs text-primary">
                   {tFallback(
                     'insights.tdee.earlyEstimate',
-                    'Early estimate — based on {n} days of training. It will sharpen as you log more.',
+                    'Early estimate. Based on {n} days of training. It will sharpen as you log more.',
                     { n: fmtNum(tdee.windowDays) },
                   )}
                 </p>

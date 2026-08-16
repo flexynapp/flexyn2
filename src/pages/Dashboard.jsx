@@ -945,13 +945,13 @@ export default function Dashboard() {
       settingDefaultRef.current = false;
     }
     if (res.ok) {
-      toast.success(tFallback('dashboard.setDefaultSuccess', 'Saved — new users will see this dashboard layout.'));
+      toast.success(tFallback('dashboard.setDefaultSuccess', 'Saved. New users will see this dashboard layout.'));
     } else if (res.error === 'rpc_missing') {
       toast.error(tFallback('dashboard.setDefaultRpcMissing', 'Default-layouts RPC not deployed yet. Apply migration 166.'));
     } else if (res.error === 'admin_only') {
       toast.error(tFallback('dashboard.adminOnly', 'Admins only.'));
     } else {
-      toast.error(tFallback('dashboard.setDefaultFailed', 'Could not save default layout — try again.'));
+      toast.error(tFallback('dashboard.setDefaultFailed', 'Could not save default layout. Try again.'));
     }
   };
 
@@ -1946,7 +1946,7 @@ export default function Dashboard() {
       {editMode && hiddenSections.size > 0 && (
         <div className="mt-4 mb-3 p-3 rounded-lg border border-border bg-secondary/30">
           <p className="font-mono text-micro font-bold tracking-[0.04em] text-muted-foreground mb-2">
-            {tFallback('dashboard.hiddenSections', 'Hidden — tap to restore')}
+            {tFallback('dashboard.hiddenSections', 'Hidden. Tap to restore')}
           </p>
           <div className="flex flex-wrap gap-1.5">
             {Array.from(hiddenSections).map((id) => (
@@ -2169,10 +2169,10 @@ export default function Dashboard() {
           <ul className="space-y-1">
             {[
               { Icon: GripVertical, tone: 'text-primary',     key: 'drag',      en: 'Long-press and drag to reorder a section' },
-              { Icon: Rows3,        tone: 'text-primary',     key: 'hamburger', en: 'Stack full-width — hamburger' },
-              { Icon: Columns2,     tone: 'text-primary',     key: 'hotdog',    en: 'Pair side-by-side — hotdog (travels as one)' },
-              { Icon: ChevronDown,  tone: 'text-muted-foreground', key: 'collapse', en: 'Collapse — replaces the per-card chevron' },
-              { Icon: X,            tone: 'text-destructive', key: 'hide',      en: 'Hide — comes back from the rail at the top' },
+              { Icon: Rows3,        tone: 'text-primary',     key: 'hamburger', en: 'Stack full-width, hamburger' },
+              { Icon: Columns2,     tone: 'text-primary',     key: 'hotdog',    en: 'Pair side-by-side, hotdog (travels as one)' },
+              { Icon: ChevronDown,  tone: 'text-muted-foreground', key: 'collapse', en: 'Collapse, replaces the per-card chevron' },
+              { Icon: X,            tone: 'text-destructive', key: 'hide',      en: 'Hide. Comes back from the rail at the top' },
             ].map(({ Icon, tone, key, en }) => (
               <li key={key} className="flex items-center gap-2">
                 <Icon className={`w-3.5 h-3.5 shrink-0 ${tone}`} aria-hidden="true" />

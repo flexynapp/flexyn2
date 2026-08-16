@@ -73,7 +73,7 @@ export default function PhotoAiLimitModal({ open, used = 3, cap = 3, purchasing 
               <p className="text-label text-muted-foreground">
                 <TransText
                   k="photoAiLimitModal.scansResetTomorrow"
-                  en="Your free scans {resetTomorrow} — come back for {cap} more."
+                  en="Your free scans {resetTomorrow}. Come back for {cap} more."
                   values={{
                     resetTomorrow: <span className="font-semibold text-foreground">{tFallback("photoAiLimitModal.resetTomorrow", "reset tomorrow")}</span>,
                     cap,

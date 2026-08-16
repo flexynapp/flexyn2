@@ -369,11 +369,11 @@ function TitleList({ items, userId }) {
       // their actionable copy.
       reportError(error, { feature: 'userBag.equip-title', level: 'warning', userId: id });
       if (error.code === '42703' || /column.*equipped_title_id/i.test(error.message || '')) {
-        toast.error(tFallback("userBag.databaseNotMigratedRunMigration", "Database not migrated — run migration 019"));
+        toast.error(tFallback("userBag.databaseNotMigratedRunMigration", "Database not migrated. Run migration 019"));
       } else if (error.code === '42501') {
-        toast.error(tFallback("userBag.permissionDeniedSignInAgain", "Permission denied — sign in again"));
+        toast.error(tFallback("userBag.permissionDeniedSignInAgain", "Permission denied. Sign in again"));
       } else {
-        toast.error('Could not save — try again.');
+        toast.error('Could not save. Try again.');
       }
       return;
     }
@@ -489,11 +489,11 @@ function FrameList({ items, userId }) {
       // See TitleList equip for the rationale on generic toast + Sentry routing.
       reportError(error, { feature: 'userBag.equip-frame', level: 'warning', userId: id });
       if (error.code === '42703' || /column.*equipped_frame_id/i.test(error.message || '')) {
-        toast.error(tFallback("userBag.databaseNotMigratedRunMigration", "Database not migrated — run migration 019"));
+        toast.error(tFallback("userBag.databaseNotMigratedRunMigration", "Database not migrated. Run migration 019"));
       } else if (error.code === '42501') {
-        toast.error(tFallback("userBag.permissionDeniedSignInAgain", "Permission denied — sign in again"));
+        toast.error(tFallback("userBag.permissionDeniedSignInAgain", "Permission denied. Sign in again"));
       } else {
-        toast.error('Could not save — try again.');
+        toast.error('Could not save. Try again.');
       }
       return;
     }
@@ -820,7 +820,7 @@ export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBat
               <button
                 onClick={() => setCollectionOpen(true)}
                 aria-label={tFallback("userBag.openCollection", "Open Collection")}
-                title={tFallback("userBag.collectionEverythingInTheGame", "Collection — everything in the game")}
+                title={tFallback("userBag.collectionEverythingInTheGame", "Collection, everything in the game")}
                 className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground active:text-foreground hover:bg-secondary active:bg-secondary transition-colors"
               >
                 <LibraryBig className="w-4.5 h-4.5" aria-hidden="true" />

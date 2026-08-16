@@ -283,7 +283,7 @@ export default function JournalView({ userId, userEmail, onClose, initialDate })
       dirtyRef.current = true;
       if (!failToastShownRef.current) {
         failToastShownRef.current = true;
-        toast.error(tFallback('journal.saveFailed', "Couldn't save — we'll keep retrying. Your writing is held locally."));
+        toast.error(tFallback('journal.saveFailed', "Couldn't save. We'll keep retrying. Your writing is held locally."));
       }
       // Schedule an automatic retry. The autosave debounce effect only
       // re-runs when its deps change; dirtyRef alone doesn't trigger it.
@@ -875,7 +875,7 @@ export default function JournalView({ userId, userEmail, onClose, initialDate })
                   data-no-swipe
                   className="text-micro text-destructive font-semibold underline underline-offset-2 decoration-destructive/40"
                 >
-                  {tFallback('journal.notSaved', 'Not saved — tap to retry')}
+                  {tFallback('journal.notSaved', 'Not saved. Tap to retry')}
                 </button>
               )}
               {saveState === 'saved' && hasContent && (

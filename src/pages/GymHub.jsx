@@ -200,7 +200,7 @@ export default function GymHub() {
       toast.success(`Joined ${gym.name}.`);
       setIsMember(true);
     } else {
-      toast.error("Couldn't join — try again.");
+      toast.error("Couldn't join. Try again.");
     }
   };
 
@@ -400,7 +400,7 @@ export default function GymHub() {
                     toast.success('Left gym.');
                     navigate('/my-gym');
                   } else {
-                    toast.error("Couldn't leave — try again.");
+                    toast.error("Couldn't leave. Try again.");
                   }
                 }}
                 className="gap-1.5 text-muted-foreground hover:text-destructive active:text-destructive"

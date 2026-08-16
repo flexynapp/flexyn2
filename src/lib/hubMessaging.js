@@ -42,7 +42,7 @@ export function useStartConversation() {
 
   return useCallback(async (targetUserObj) => {
     if (!user?.email) {
-      toast.error(tFallback('hub.messages.authNotReady', 'Still signing you in — try again in a moment.'));
+      toast.error(tFallback('hub.messages.authNotReady', 'Still signing you in. Try again in a moment.'));
       return;
     }
     // Accept an id OR an email. Preferring the id removes a whole class of

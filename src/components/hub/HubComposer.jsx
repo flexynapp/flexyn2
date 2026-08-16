@@ -574,7 +574,7 @@ export default function HubComposer({ onClose }) {
         } else if (err?.code === 'FILE_TOO_LARGE') {
           toast.error(tFallback(
             'hub.composer.videoTooLarge',
-            'That video is too large — the limit is 50 MB.'
+            'That video is too large. The limit is 50 MB.'
           ));
         } else {
           toast.error(t('hub.composer.postError'));

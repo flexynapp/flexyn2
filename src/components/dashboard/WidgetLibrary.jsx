@@ -106,7 +106,7 @@ export default function WidgetLibrary({ open, onClose, onSelect, onRemove, activ
                       type="button"
                       onClick={(e) => { e.stopPropagation(); toggle(); }}
                       aria-label={isActive
-                        ? tFallback('widgets.removeFromDashboard', 'On dashboard — tap to remove')
+                        ? tFallback('widgets.removeFromDashboard', 'On dashboard. Tap to remove')
                         : tFallback('widgets.addToDashboard', 'Add to dashboard')}
                       className={`shrink-0 h-11 w-11 rounded-full flex items-center justify-center transition-colors ${
                         isActive

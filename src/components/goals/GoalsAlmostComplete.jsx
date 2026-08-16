@@ -173,7 +173,7 @@ export default function GoalsAlmostComplete({ goals, logs, cardioLogs = [], onOp
       // swallowed before. Surface a toast so the user knows to retry,
       // and ship the underlying error to Sentry with feature context.
       toast.error(
-        tFallback('goals.completeFailed', 'Could not complete goal — try again.')
+        tFallback('goals.completeFailed', 'Could not complete goal. Try again.')
       );
       reportError(err, { feature: 'goals.complete', userEmail: user?.email, goalId: id });
     },

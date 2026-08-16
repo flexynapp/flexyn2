@@ -131,11 +131,11 @@ export default function LogWeightModal({ open, onOpenChange, profile }) {
         return;
       }
       if (err?.message === 'out_of_range') {
-        toast.error(tFallback('bodyMetrics.errors.outOfRange', 'That value looks off — double-check it.'));
+        toast.error(tFallback('bodyMetrics.errors.outOfRange', 'That value looks off, double-check it.'));
         return;
       }
       reportError(err, { feature: 'dashboard.logWeight', userEmail: user?.email, value, date });
-      toast.error(tFallback('bodyMetrics.errors.saveFailed', 'Could not save — try again.'));
+      toast.error(tFallback('bodyMetrics.errors.saveFailed', 'Could not save. Try again.'));
     },
   });
 

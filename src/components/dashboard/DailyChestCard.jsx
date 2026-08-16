@@ -99,7 +99,7 @@ export default function DailyChestCard() {
       // Report so a regression in the claim RPC isn't silent — the user
       // sees a toast, but observability needs the underlying error too.
       reportError(err, { feature: 'dashboard.dailyChest.claim', level: 'warning', userId: user?.id });
-      toast.error(tFallback('marketplace.dailyChest.claimFailed', 'Could not claim — try again in a moment.'));
+      toast.error(tFallback('marketplace.dailyChest.claimFailed', 'Could not claim. Try again in a moment.'));
     } finally {
       setLoading(false);
     }
@@ -133,7 +133,7 @@ export default function DailyChestCard() {
           {tFallback('dashboard.dailyChest.title', 'Your daily chest is ready')}
         </p>
         <p className="text-xs text-muted-foreground">
-          {tFallback('dashboard.dailyChest.subtitle', 'Free capsule + coins — tap to open')}
+          {tFallback('dashboard.dailyChest.subtitle', 'Free capsule + coins. Tap to open')}
         </p>
       </div>
       <span className="shrink-0 px-3 py-1.5 rounded-full bg-primary text-white text-xs font-bold flex items-center justify-center gap-1 cq-full">

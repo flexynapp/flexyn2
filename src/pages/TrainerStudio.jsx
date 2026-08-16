@@ -72,7 +72,7 @@ export default function TrainerStudio() {
       toast.success('Creator mode enabled. Build your first listing.');
       qc.invalidateQueries({ queryKey: ['userProfile', user?.email] });
     } else {
-      toast.error("Couldn't enable creator mode — try again.");
+      toast.error("Couldn't enable creator mode. Try again.");
     }
   };
 
@@ -108,7 +108,7 @@ export default function TrainerStudio() {
     // is ON DELETE SET NULL so the purchase row survives the delete,
     // but the access lookup still breaks — so we still block here.
     if ((listing.sales_count ?? 0) > 0) {
-      toast.error('Has existing buyers — unpublish instead. (Delete would revoke their access.)');
+      toast.error('Has existing buyers. Unpublish instead. (Delete would revoke their access.)');
       return;
     }
     if (deleteInFlight.current.has(listing.id)) return;

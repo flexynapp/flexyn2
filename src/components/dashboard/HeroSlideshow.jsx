@@ -471,7 +471,7 @@ function buildPathSlides({ profile, user, logs }) {
     metricUnit: ' logged',
     metricUnitKey: 'hero.unit.logged',
     metricDecimals: 0,
-    sub: 'Open the Workout tab and tap Start. Anything counts — even a 10-minute session.',
+    sub: 'Open the Workout tab and tap Start. Anything counts, even a 10-minute session.',
     subKey: 'hero.path.step1.sub',
     cta: { label: 'Start workout', labelKey: 'hero.cta.startWorkout', to: '/workout?freestyle=1' },
   }];
@@ -583,7 +583,7 @@ function buildPathSlides({ profile, user, logs }) {
       metricUnit: ' lb',
       metricUnitKey: 'hero.unit.lbWithSpace',
       metricPrefix: '+',
-      sub: 'Bench, squat, or deadlift — pick one and chase the next +5 every week.',
+      sub: 'Bench, squat, or deadlift. Pick one and chase the next +5 every week.',
       subKey: 'hero.path.muscle.sub',
       cta: { label: 'Start tracking', labelKey: 'hero.cta.startTracking', to: '/workout?freestyle=1' },
     });
@@ -704,7 +704,7 @@ function buildTelemetrySlides({ logs, cardioLogs, profile }) {
       icon: Dumbbell, iconBg: 'bg-primary/20', kicker: 'All time', kickerKey: 'hero.kicker.allTime',
       title: 'Workouts logged', titleKey: 'hero.tele.total.title',
       metricValue: totalLogs, metricUnit: '',
-      sub: totalLogs > 0 ? 'Consistency compounds — keep stacking sessions.' : 'Log your first to start the count.',
+      sub: totalLogs > 0 ? 'Consistency compounds. Keep stacking sessions.' : 'Log your first to start the count.',
       subKey: totalLogs > 0 ? 'hero.tele.total.sub.has' : 'hero.tele.total.sub.none',
       cta: totalLogs > 0 ? null : { label: 'Start a workout', labelKey: 'hero.cta.startAWorkout', to: '/workout?freestyle=1' },
     },
@@ -764,7 +764,7 @@ function buildSuggestionSlides({ logs, followsCount, push }) {
       id: 'sug:push', kind: 'suggestion',
       icon: Bell, iconBg: 'bg-primary/20', kicker: 'Stay in it', kickerKey: 'hero.sug.push.kicker',
       title: 'Turn on notifications', titleKey: 'hero.sug.push.title',
-      sub: 'Gym Rival moves, crew wars, at-risk streaks — the moment they happen.',
+      sub: 'Gym Rival moves, crew wars, at-risk streaks. The moment they happen.',
       subKey: 'hero.sug.push.sub',
       cta: { label: 'Enable', labelKey: 'hero.cta.enable', action: 'enablePush' },
     });
@@ -792,7 +792,7 @@ function buildSuggestionSlides({ logs, followsCount, push }) {
       id: 'sug:share', kind: 'suggestion',
       icon: Share2, iconBg: 'bg-destructive/20', kicker: 'Show it off', kickerKey: 'hero.sug.share.kicker',
       title: 'Share your week', titleKey: 'hero.sug.share.title',
-      sub: 'A polished card of your stats. Post to Stories — it counts.',
+      sub: 'A polished card of your stats. Post to Stories, it counts.',
       subKey: 'hero.sug.share.sub',
       cta: { label: 'See it', labelKey: 'hero.cta.seeIt', action: 'shareWeek' },
     });

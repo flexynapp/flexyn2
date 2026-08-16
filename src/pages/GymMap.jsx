@@ -340,7 +340,7 @@ export default function GymMap({ onClose, onContinue }) {
         },
       });
     } else {
-      toast.error("Couldn't set your gym — try again.");
+      toast.error("Couldn't set your gym. Try again.");
     }
   }, [settingHome]);
 

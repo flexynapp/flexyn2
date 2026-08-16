@@ -90,7 +90,7 @@ export default function MyRoutineSheet({ open, onClose }) {
     const res = await createRoutine({ name, days, activate: routines.length === 0 });
     setSaving(false);
     if (res.ok) { invalidate(); openEditor(res.routine); }
-    else toast.error('Could not create routine — try again.');
+    else toast.error('Could not create routine. Try again.');
   };
 
   const saveDraft = async () => {
@@ -99,13 +99,13 @@ export default function MyRoutineSheet({ open, onClose }) {
     const res = await updateRoutine(draft.id, { name: draft.name, days: draft.days });
     setSaving(false);
     if (res.ok) { invalidate(); toast.success(tFallback("myRoutineSheet.routineSaved", "Routine saved")); setView('list'); }
-    else toast.error('Could not save — try again.');
+    else toast.error('Could not save. Try again.');
   };
 
   const activate = useMutation({
     mutationFn: (id) => setActiveRoutine(id),
-    onSuccess: () => { invalidate(); toast.success('Active routine set — it now drives your week.'); },
-    onError: () => toast.error('Could not activate — try again.'),
+    onSuccess: () => { invalidate(); toast.success('Active routine set. It now drives your week.'); },
+    onError: () => toast.error('Could not activate. Try again.'),
   });
 
   const remove = useMutation({
@@ -296,7 +296,7 @@ export default function MyRoutineSheet({ open, onClose }) {
                             <input
                               value={day.label}
                               onChange={e => patchDay(idx, { label: e.target.value })}
-                              placeholder='Name this day — e.g. "Leg Day"'
+                              placeholder='Name this day, e.g. "Leg Day"'
                               maxLength={40}
                               className="w-full h-10 rounded-xl border border-border bg-secondary/50 px-3 text-sm font-semibold focus:outline-none focus:border-primary/50"
                             />

@@ -90,7 +90,7 @@ function PlanCard({ plan, scaled, onSelect, fitsGoal }) {
           <MacroBar protein={macros.protein} carbs={macros.carbs} fat={macros.fat} />
         </div>
         <p className="text-micro text-muted-foreground mt-2">
-          {tFallback('nutritionPlansModal.sameOnEvery', '{n} cal/day — your target, the same on every plan', { n: kcal })}
+          {tFallback('nutritionPlansModal.sameOnEvery', '{n} cal/day. Your target, the same on every plan', { n: kcal })}
         </p>
       </Card>
     </motion.button>
@@ -440,7 +440,7 @@ export function NutritionPlansPanel({ userProfile, onStartOnboarding, trainingFu
               <p className="text-xs text-foreground/80 leading-snug">
                 <TransText
                   k="nutritionPlansModal.runDayFuel"
-                  en="Add {kcal} and {carbs} on run days so you fuel the work and recover — protein and fat stay put."
+                  en="Add {kcal} and {carbs} on run days so you fuel the work and recover. Protein and fat stay put."
                   values={{
                     kcal:  <b className="text-primary dark:text-primary">+{trainingFuel.perRunDayKcal} kcal</b>,
                     carbs: <b className="text-primary dark:text-primary">+{trainingFuel.addCarbsG}g carbs</b>,

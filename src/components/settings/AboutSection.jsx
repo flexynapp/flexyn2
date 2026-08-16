@@ -55,14 +55,14 @@ export default function AboutSection() {
     // toast on insecure-context HTTP and on browsers without the API.
     // (Audit 14 #30.)
     if (!navigator?.clipboard?.writeText) {
-      toast.error('Clipboard not available — copy from the diagnostic dialog below.');
+      toast.error('Clipboard not available. Copy from the diagnostic dialog below.');
       return;
     }
     try {
       await navigator.clipboard.writeText(diagnosticString());
       toast.success('Copied build info to clipboard.');
     } catch {
-      toast.error('Could not copy — your browser blocked clipboard access.');
+      toast.error('Could not copy. Your browser blocked clipboard access.');
     }
   };
 
@@ -83,11 +83,11 @@ export default function AboutSection() {
           hint={seenTips > 0
             ? tFallback(
                 'settings.tips.resetHint',
-                'The hints that appear once and never again — long-press shortcuts, double-tap to react',
+                'The hints that appear once and never again. Long-press shortcuts, double-tap to react',
               )
             : tFallback(
                 'settings.tips.resetNone',
-                'No tips to bring back — none have shown on this device yet',
+                'No tips to bring back. None have shown on this device yet',
               )}
           onClick={resetTips}
           disabled={seenTips === 0}

@@ -133,7 +133,7 @@ export default function SleepLogCard() {
       } else {
         setOptHours(priorHours);
         setOptQuality(priorQuality);
-        toast.error(tFallback('sleep.saveFailed', 'Could not save sleep — try again.'));
+        toast.error(tFallback('sleep.saveFailed', 'Could not save sleep. Try again.'));
       }
     } finally {
       submittingRef.current = false;

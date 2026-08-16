@@ -118,7 +118,7 @@ export default function StickerPanel({ postId, onClose }) {
       // Generic toast — raw Postgres error.message can leak column / RLS
       // hints. Full detail still goes to Sentry via reportError.
       reportError(err, { feature: 'stickerPanel.react', level: 'warning', userEmail: user?.email, postId });
-      toast.error('Could not react — try again.');
+      toast.error('Could not react. Try again.');
     } finally {
       setBusy(false);
     }

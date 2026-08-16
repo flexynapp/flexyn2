@@ -401,8 +401,8 @@ export default function ImplementPicker({ exerciseName, value, onChange, userId 
             && filtered.catalog.length === 0 && (
             <p className="text-sm text-muted-foreground text-center py-6">
               {query
-                ? tFallback('implement.noMatch', 'No match — add it below.')
-                : tFallback('implement.empty', 'No models listed for this yet — add yours below.')}
+                ? tFallback('implement.noMatch', 'No match. Add it below.')
+                : tFallback('implement.empty', 'No models listed for this yet. Add yours below.')}
             </p>
           )}
 

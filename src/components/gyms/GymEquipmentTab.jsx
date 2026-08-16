@@ -147,7 +147,7 @@ export default function GymEquipmentTab({ gymId, gymOwnerId, isMember }) {
           title={tFallback('gymEquip.emptyTitle', 'No equipment listed yet')}
           description={
             canContribute
-              ? tFallback('gymEquip.emptyMine', "Add what's on the floor — it'll show up in everyone's workout picker.")
+              ? tFallback('gymEquip.emptyMine', "Add what's on the floor. It'll show up in everyone's workout picker.")
               : tFallback('gymEquip.emptyOther', 'Nobody has described this gym’s floor yet.')
           }
         />

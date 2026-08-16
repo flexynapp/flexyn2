@@ -114,7 +114,7 @@ export default function TradeHistory() {
     setBusyId(offerId);
     try {
       await tradeOffers.cancel(offerId);
-      toast.success('Offer pulled back — your item is free again.');
+      toast.success('Offer pulled back. Your item is free again.');
       qc.invalidateQueries({ queryKey: ['tradeHistory'] });
       qc.invalidateQueries({ queryKey: ['userInventory', user?.email] });
     } catch (err) {
@@ -252,7 +252,7 @@ function TradeRow({ trade, authorsById, onCancel, busy }) {
               <ShieldCheck className="w-3 h-3" /> escrow
             </span>
           ) : (
-            <span title={tFallback("tradeHistory.sentBeforeAutomaticTradingItems", "Sent before automatic trading — items were hand-delivered")}>manual</span>
+            <span title={tFallback("tradeHistory.sentBeforeAutomaticTradingItems", "Sent before automatic trading, items were hand-delivered")}>manual</span>
           )}
         </div>
       </div>

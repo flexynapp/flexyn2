@@ -56,7 +56,7 @@ export default function DailyChestBlock({ user, onClaimed }) {
       // claimed-on-failure to avoid spam clicks; that defeated the very
       // safety check the RPC was added for.
       reportError(err, { feature: 'marketplace.daily-chest-claim', level: 'warning', userEmail: user?.email });
-      toast.error(tFallback('marketplace.dailyChest.claimFailed', 'Could not claim — try again in a moment.'));
+      toast.error(tFallback('marketplace.dailyChest.claimFailed', 'Could not claim. Try again in a moment.'));
     } finally {
       setLoading(false);
     }

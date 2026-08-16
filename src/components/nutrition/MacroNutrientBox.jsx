@@ -111,7 +111,7 @@ export default function MacroNutrientBox({ entries = [], userProfile = {} }) {
       <h3 className="font-heading font-bold mb-3">{t('nutrition.nutritionalValues')}</h3>
       {visible.length === 0 ? (
         <p className="text-xs text-muted-foreground py-2">
-          {tFallback('nutrition.untracked.macros', 'Nothing logged yet today — log a meal to see your macros.')}
+          {tFallback('nutrition.untracked.macros', 'Nothing logged yet today. Log a meal to see your macros.')}
         </p>
       ) : (
       <motion.div

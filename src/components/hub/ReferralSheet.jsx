@@ -67,7 +67,7 @@ export default function ReferralSheet({
       if (res?.ok) {
         setClaimedOk(true);
         setEntry('');
-        toast.success(tFallback('referral.redeem.success', 'Code applied — you both got 200 coins + an Elite capsule.'));
+        toast.success(tFallback('referral.redeem.success', 'Code applied. You both got 200 coins + an Elite capsule.'));
         // The claim mints coins and a capsule for both sides, so anything
         // reading the wallet or the referral counters is now stale.
         queryClient.invalidateQueries({ queryKey: ['referralStats'] });
@@ -81,7 +81,7 @@ export default function ReferralSheet({
         already_claimed: tFallback('referral.redeem.already', 'You\'ve already used an invite code.'),
         self_referral:   tFallback('referral.redeem.self', 'That\'s your own code.'),
       };
-      toast.error(REASONS[res?.reason] || tFallback('referral.redeem.failed', 'Could not apply that code — try again.'));
+      toast.error(REASONS[res?.reason] || tFallback('referral.redeem.failed', 'Could not apply that code. Try again.'));
       if (res?.reason === 'rpc_error' || res?.reason === 'network') {
         reportError(new Error(`claimReferral: ${res.reason}`), { feature: 'referral.redeem', level: 'warning' });
       }

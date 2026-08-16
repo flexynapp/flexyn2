@@ -98,7 +98,7 @@ export default function PRHistoryModal({ open, onClose, exerciseName, logs }) {
       open={open}
       onClose={onClose}
       title={exerciseName
-        ? tFallback('progress.pb.titleFor', '{name} — PR History', { name: exerciseName })
+        ? tFallback('progress.pb.titleFor', '{name} PR History', { name: exerciseName })
         : tFallback('progress.pb.title', 'PR History')}
     >
         {sessionHistory.length === 0 ? (

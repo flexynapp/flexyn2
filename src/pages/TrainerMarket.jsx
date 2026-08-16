@@ -69,7 +69,7 @@ export default function TrainerMarket() {
     buyingRef.current = false;
     if (res.ok) {
       if (res.mock) {
-        toast.success(tFallback("trainerMarket.unlockedTestModeNoCharge", "Unlocked! (test mode — no charge)"));
+        toast.success(tFallback("trainerMarket.unlockedTestModeNoCharge", "Unlocked! (test mode, no charge)"));
       } else {
         toast.success(tFallback("trainerMarket.unlocked", "Unlocked!"));
       }

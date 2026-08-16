@@ -363,7 +363,7 @@ export default function WidgetRenderer({ widgetId, logs, goals, isLoading }) {
   if (!Component) {
     return (
       <Card className="p-4 text-center text-muted-foreground text-sm">
-        {tFallback('widgets.unknown', 'Unknown widget — try removing and re-adding it.')}
+        {tFallback('widgets.unknown', 'Unknown widget. Try removing and re-adding it.')}
       </Card>
     );
   }

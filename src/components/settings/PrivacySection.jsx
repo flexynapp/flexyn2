@@ -184,7 +184,7 @@ export default function PrivacySection() {
       invalidateProfile();
     } catch {
       setGymRivalOptOutLocal(!next); // revert
-      toast.error(tFallback('settings.gymRival.saveFailed', 'Could not save — try again.'));
+      toast.error(tFallback('settings.gymRival.saveFailed', 'Could not save. Try again.'));
     }
   };
 
@@ -254,7 +254,7 @@ export default function PrivacySection() {
       queryClient.invalidateQueries({ queryKey: ['storiesFeed'] });
       toast.success(tFallback('settings.block.addedPlain', 'Blocked.'));
     } else {
-      toast.error(tFallback('settings.block.addFailed', 'Could not add block — try again.'));
+      toast.error(tFallback('settings.block.addFailed', 'Could not add block. Try again.'));
     }
   };
 
@@ -485,7 +485,7 @@ export default function PrivacySection() {
             title={tFallback('settings.requestBlock.title', 'Declined message requests')}
             description={tFallback(
               'settings.requestBlock.desc',
-              'You deleted a message request from these accounts, so they can’t send you a new one. They are not blocked otherwise — following them or messaging them first clears this too.'
+              'You deleted a message request from these accounts, so they can’t send you a new one. They are not blocked otherwise. Following them or messaging them first clears this too.'
             )}
             rows={myRequestBlocks}
             keyOf={b => b.blocked_email}

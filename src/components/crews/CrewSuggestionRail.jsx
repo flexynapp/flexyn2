@@ -117,7 +117,7 @@ export default function CrewSuggestionRail() {
     setJoiningId(crewId);
     try {
       await crewsData.joinCrew(crewId, user.id);
-      toast.success(tFallback('crewSuggestion.joined', "Joined! You're in — head to the crew chat to say hi."));
+      toast.success(tFallback('crewSuggestion.joined', "Joined! You're in. Head to the crew chat to say hi."));
       // Refresh: the joined crew is now in "my crews" + must be excluded
       // from the suggestion rail.
       qc.invalidateQueries({ queryKey: ['myCrews', user.id] });
@@ -127,7 +127,7 @@ export default function CrewSuggestionRail() {
       // the user was already a member from another tab. Both are
       // transient; refetch to get the latest suggestions.
       console.warn('[crewSuggestion] join failed:', err?.message || err);
-      toast.error(tFallback('crewSuggestion.joinFailed', "Could not join — that crew may now be full."));
+      toast.error(tFallback('crewSuggestion.joinFailed', "Could not join. That crew may now be full."));
       qc.invalidateQueries({ queryKey: ['suggestedCrews', user.id] });
     } finally {
       setJoiningId(null);

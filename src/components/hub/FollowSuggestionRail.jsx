@@ -197,7 +197,7 @@ export default function FollowSuggestionRail() {
       qc.invalidateQueries({ queryKey: ['suggestedFollowees', user.id] });
     } catch (err) {
       console.warn('[followSuggest] follow failed:', err?.message || err);
-      toast.error(tFallback('followSuggest.failed', 'Could not follow — try again.'));
+      toast.error(tFallback('followSuggest.failed', 'Could not follow. Try again.'));
     } finally {
       setFollowingEmail(null);
     }

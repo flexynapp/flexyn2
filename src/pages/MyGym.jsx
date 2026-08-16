@@ -404,7 +404,7 @@ export default function MyGym() {
           <p className="text-xs text-muted-foreground mb-6">
             {tFallback(
               'myGym.pickBody',
-              "Tap it below and you'll get a leaderboard with everyone else who trains there — plus a bubble on the Flexyn map. You can change it any time.",
+              "Tap it below and you'll get a leaderboard with everyone else who trains there, plus a bubble on the Flexyn map. You can change it any time.",
             )}
           </p>
 
@@ -419,7 +419,7 @@ export default function MyGym() {
             busyKey={saving ? pending?.key : null}
             emptyHint={tFallback(
               'myGym.pickEmptyHint',
-              'Try the map instead — you can search anywhere in the country.',
+              'Try the map instead. You can search anywhere in the country.',
             )}
           />
 
@@ -502,7 +502,7 @@ export default function MyGym() {
               <p className="mt-2 inline-flex rounded-full border border-border px-2 py-1 text-micro text-muted-foreground">
                 {tFallback(
                   'myGym.communityNote',
-                  'Community gym — added by Flexyn members, not claimed by the business yet.',
+                  'Community gym. Added by Flexyn members, not claimed by the business yet.',
                 )}
               </p>
             )}
@@ -528,7 +528,7 @@ export default function MyGym() {
             <p className="py-8 text-center text-sm text-muted-foreground">
               {tFallback(
                 'myGym.boardEmpty',
-                "Nobody here has logged a workout this week. Be the first — you'll take the top spot.",
+                "Nobody here has logged a workout this week. Be the first. You'll take the top spot.",
               )}
             </p>
           ) : (

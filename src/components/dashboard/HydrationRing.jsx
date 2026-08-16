@@ -123,7 +123,7 @@ export default function HydrationRing({ goalOz = DEFAULT_GOAL_OZ }) {
             onClick={() => navigate('/nutrition')}
             role="button"
             tabIndex={0}
-            aria-label={tFallback('hydration.openLabel', 'Hydration — tap to open Nutrition')}
+            aria-label={tFallback('hydration.openLabel', 'Hydration. Tap to open Nutrition')}
             // Accept Space in addition to Enter; the role=button ARIA
             // contract activates on both keys. The bare 'if Enter' check
             // would skip Space, which screen-reader + keyboard users

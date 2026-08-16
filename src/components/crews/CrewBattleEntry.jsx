@@ -86,13 +86,13 @@ export default function CrewBattleEntry({ crew, currentUserId, myRank }) {
     onMutate: () => { enteringRef.current = true; },
     onSuccess: (res) => {
       if (res?.status === 'matched') {
-        toast.success(tFallback("crewBattleEntry.rivalFoundTheBattle", "Rival found — the battle is live!"), {
+        toast.success(tFallback("crewBattleEntry.rivalFoundTheBattle", "Rival found. The battle is live!"), {
           description: 'Seven days. Most XP wins.',
         });
       } else if (res?.status === 'already_queued') {
         toast.info('Already in the queue.');
       } else {
-        toast.success('In the queue — we\'ll pair you with the next crew in.');
+        toast.success('In the queue. We\'ll pair you with the next crew in.');
       }
       qc.invalidateQueries({ queryKey: ['activeWar', crew.id] });
       qc.invalidateQueries({ queryKey: ['queuedWar', crew.id] });

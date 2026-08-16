@@ -96,7 +96,7 @@ describe('PersonalBestsSheet', () => {
 
   it('leads with the heaviest lift as the hero', () => {
     render(<PersonalBestsSheet open onClose={() => {}} logs={three} />);
-    expect(screen.getByText('Deadlift — your heaviest lift')).toBeTruthy();
+    expect(screen.getByText('Deadlift, your heaviest lift')).toBeTruthy();
     expect(screen.getByText('3 exercises with a recorded best')).toBeTruthy();
   });
 
@@ -136,7 +136,7 @@ describe('PersonalBestsSheet — bodyweight bests', () => {
     // came from — so this asserts on the HERO element specifically rather
     // than on the string being unique.
     expect(document.querySelector('p.text-display').textContent).toBe('24 reps');
-    expect(screen.getByText('Pull Up — your best set')).toBeTruthy();
+    expect(screen.getByText('Pull Up, your best set')).toBeTruthy();
     expect(screen.queryByText('0 lbs')).toBeNull();
     expect(screen.queryByText(/your heaviest lift/)).toBeNull();
   });
@@ -165,7 +165,7 @@ describe('PersonalBestsSheet — bodyweight bests', () => {
     ];
     render(<PersonalBestsSheet open onClose={() => {}} logs={mixed} />);
     // Hero stays weight-based — a 185 lb bench outranks 24 pull-ups.
-    expect(screen.getByText('Bench Press — your heaviest lift')).toBeTruthy();
+    expect(screen.getByText('Bench Press, your heaviest lift')).toBeTruthy();
     const names = [...document.querySelectorAll('p.text-sm.font-semibold')].map(n => n.textContent);
     expect(names).toEqual(['Bench Press', 'Pull Up', 'Dip']);
     // …and the bodyweight rows still report reps rather than 0 lbs.

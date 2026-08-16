@@ -69,13 +69,13 @@ const CYCLE_RULES = {
     load: 0.95,
     restSec: 15,
     noteKey: 'coach.note.cycle.menstrual',
-    note: 'Period week — starting ~5% lighter. If cramps or fatigue hit, drop a set; if you feel fine, ignore this and train as normal.',
+    note: 'Period week. Starting ~5% lighter. If cramps or fatigue hit, drop a set; if you feel fine, ignore this and train as normal.',
   },
   follicular: {
     load: 1.0,
     restSec: 0,
     noteKey: 'coach.note.cycle.follicular',
-    note: 'Follicular phase. Many people feel strongest here, but the evidence is mixed — go by how the warm-up sets move, not the calendar.',
+    note: 'Follicular phase. Many people feel strongest here, but the evidence is mixed. Go by how the warm-up sets move, not the calendar.',
   },
   ovulation: {
     load: 1.0,
@@ -83,13 +83,13 @@ const CYCLE_RULES = {
     // The one phase note that is NOT hedged: oestrogen peak is associated
     // with greater ligament laxity and elevated ACL injury risk.
     noteKey: 'coach.note.cycle.ovulation',
-    note: 'Around ovulation, oestrogen peaks and ligaments sit a little laxer — take an extra warm-up set and be strict on knee tracking in squats, lunges and any landing.',
+    note: 'Around ovulation, oestrogen peaks and ligaments sit a little laxer. Take an extra warm-up set and be strict on knee tracking in squats, lunges and any landing.',
   },
   luteal: {
     load: 0.95,
     restSec: 15,
     noteKey: 'coach.note.cycle.luteal',
-    note: 'Luteal phase — core temperature runs higher and the same weight can feel heavier. Longer rests are built in; judge the session on effort, not the number.',
+    note: 'Luteal phase. Core temperature runs higher and the same weight can feel heavier. Longer rests are built in; judge the session on effort, not the number.',
   },
 };
 
@@ -100,12 +100,12 @@ const DIET_RULES = {
   lose: {
     sets: -1,
     noteKey: 'coach.note.diet.lose',
-    note: 'You are eating in a deficit, so this session trims a set and keeps the weight heavy — intensity is what protects strength while cutting.',
+    note: 'You are eating in a deficit, so this session trims a set and keeps the weight heavy. Intensity is what protects strength while cutting.',
   },
   gain: {
     sets: +1,
     noteKey: 'coach.note.diet.gain',
-    note: 'You are eating in a surplus — there is room for an extra set.',
+    note: 'You are eating in a surplus. There is room for an extra set.',
   },
   maintain: { sets: 0, note: '' },
 };
@@ -150,7 +150,7 @@ export function fuelNote(restrictions = [], t) {
   // fallback below stay a single separate sentence rather than a template
   // with an awkward hole in it.
   return safe
-    ? T('coach.note.fuel.named', 'Refuel within a couple of hours — {food} works.', {
+    ? T('coach.note.fuel.named', 'Refuel within a couple of hours, {food} works.', {
         food: T(safe.key, safe.text),
       })
     : T('coach.note.fuel.generic',
@@ -158,9 +158,9 @@ export function fuelNote(restrictions = [], t) {
 }
 
 const FEEL_RULES = {
-  good:  { load: 1.05, sets:  0, restSec:   0, noteKey: 'coach.note.feel.good', note: 'You said you feel good — nudged slightly heavier. Stop the set with a rep in reserve.' },
+  good:  { load: 1.05, sets:  0, restSec:   0, noteKey: 'coach.note.feel.good', note: 'You said you feel good. Nudged slightly heavier. Stop the set with a rep in reserve.' },
   ok:    { load: 1.0,  sets:  0, restSec:   0, note: '' },
-  rough: { load: 0.85, sets: -1, restSec:  30, noteKey: 'coach.note.feel.rough', note: 'You said you feel rough — lighter, shorter and with more rest. Showing up counts; this still maintains.' },
+  rough: { load: 0.85, sets: -1, restSec:  30, noteKey: 'coach.note.feel.rough', note: 'You said you feel rough. Lighter, shorter and with more rest. Showing up counts; this still maintains.' },
 };
 
 // Goal shapes the rep/rest character of the session.
@@ -173,7 +173,7 @@ const GOAL_RULES = {
   // lifting session; `mobility` doesn't change loading at all, so it carries a
   // note and no numbers rather than being silently dropped into `general`.
   speed:    { repDelta: +3, restSec: -15, label: 'speed',     labelKey: 'coach.goal.speed.label', noteKey: 'coach.note.goal.speed', note: 'Speed work: keep the bar moving fast and the rests short.' },
-  mobility: { repDelta:  0, restSec:   0, label: 'mobility',  labelKey: 'coach.goal.mobility.label', noteKey: 'coach.note.goal.mobility', note: 'Mobility is one of your goals — give the warm-up its full time and take the end-range positions slowly.' },
+  mobility: { repDelta:  0, restSec:   0, label: 'mobility',  labelKey: 'coach.goal.mobility.label', noteKey: 'coach.note.goal.mobility', note: 'Mobility is one of your goals. Give the warm-up its full time and take the end-range positions slowly.' },
   general:  { repDelta:  0, restSec:   0, label: 'general',   note: '' },
 };
 
@@ -339,7 +339,7 @@ export function buildTrainingModifiers({
     const list = formatList(rules.map(r => T(r.labelKey, r.label)), language);
     notes.push(T(
       'coach.note.goal.blend',
-      'Balancing {goals} — reps and rests land between what each one would ask for on its own.',
+      'Balancing {goals}. Reps and rests land between what each one would ask for on its own.',
       { goals: list },
     ));
     // Mobility changes nothing numerically, so its standalone advice would be
@@ -396,7 +396,7 @@ export function buildTrainingModifiers({
     applied.ageRestSec = ageRest;
     notes.push(T(
       'coach.note.ageRest',
-      'Rest is {sec}s longer than the default — recovery between sets slows with age, and rushing it turns a strength session into a conditioning one.',
+      'Rest is {sec}s longer than the default. Recovery between sets slows with age, and rushing it turns a strength session into a conditioning one.',
       { sec: ageRest },
     ));
   }

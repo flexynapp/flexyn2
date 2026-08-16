@@ -104,7 +104,7 @@ export default function GymSignageCard({ open, onClose, gym }) {
     } catch (err) {
       // Dismissing the share sheet is a decision, not a failure.
       if (err?.name !== 'AbortError') {
-        toast.error("Couldn't share the code — saving it instead.");
+        toast.error("Couldn't share the code, saving it instead.");
         handleSave();
       }
     } finally {

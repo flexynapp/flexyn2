@@ -106,7 +106,7 @@ describe('the dual write', () => {
     fireEvent.change(weightBox(), { target: { value: '182' } });
     save();
 
-    await waitFor(() => expect(errorToast).toHaveBeenCalledWith('Could not save — try again.'));
+    await waitFor(() => expect(errorToast).toHaveBeenCalledWith('Could not save. Try again.'));
     // The point of the ordering: nothing was committed, so a retry cannot
     // produce two rows for one date.
     expect(createMetric).not.toHaveBeenCalled();
@@ -191,7 +191,7 @@ describe('the range guard', () => {
     fireEvent.change(weightBox(), { target: { value: '60' } });
     save();
 
-    await waitFor(() => expect(errorToast).toHaveBeenCalledWith('That value looks off — double-check it.'));
+    await waitFor(() => expect(errorToast).toHaveBeenCalledWith('That value looks off, double-check it.'));
     expect(updateMe).not.toHaveBeenCalled();
     expect(createMetric).not.toHaveBeenCalled();
   });
@@ -226,7 +226,7 @@ describe('the range guard', () => {
     fireEvent.change(weightBox(), { target: { value: '4' } });
     save();
 
-    await waitFor(() => expect(errorToast).toHaveBeenCalledWith('That value looks off — double-check it.'));
+    await waitFor(() => expect(errorToast).toHaveBeenCalledWith('That value looks off, double-check it.'));
     expect(updateMe).not.toHaveBeenCalled();
   });
 

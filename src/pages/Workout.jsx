@@ -1116,7 +1116,7 @@ export default function Workout() {
               // know to retry — the capsule is idempotent so a retry
               // is safe.
               toast.error(
-                tFallback('workout.firstCapsuleFailed', "Your first-workout capsule didn't grant — log another workout to retry.")
+                tFallback('workout.firstCapsuleFailed', "Your first-workout capsule didn't grant. Log another workout to retry.")
               );
               reportError(err, { feature: 'workout.first-workout-capsule', userEmail: user?.email });
             });
@@ -1143,11 +1143,11 @@ export default function Workout() {
                 exercises: sessionSnapshot?.exercises || [],
               });
               if (res?.ok) {
-                toast.success(tFallback('workout.templateSaved', 'Template saved — find it in the regimen list.'));
+                toast.success(tFallback('workout.templateSaved', 'Template saved. Find it in the regimen list.'));
               } else if (res?.reason === 'no_exercises') {
                 toast.error(tFallback('workout.templateNeedExercises', 'Session has no exercises to save.'));
               } else {
-                toast.error(tFallback('workout.templateFailed', 'Could not save template — try again.'));
+                toast.error(tFallback('workout.templateFailed', 'Could not save template. Try again.'));
               }
             },
           },
@@ -1541,7 +1541,7 @@ export default function Workout() {
     if (clampedSomething) {
       toast.success(tFallback('workout.loadedTrimmed', 'Workout loaded. Some sets were trimmed to realistic limits.'));
     } else {
-      toast.success(tFallback("workout.workoutLoadedLogYourSets", "Workout loaded — log your sets!"));
+      toast.success(tFallback("workout.workoutLoadedLogYourSets", "Workout loaded. Log your sets!"));
     }
   };
 
@@ -2422,7 +2422,7 @@ export default function Workout() {
               <p className="text-xs text-muted-foreground mt-0.5 leading-tight">
                 <TransText
                   k="workout.logAsDay"
-                  en="Log as {day} — toggle to roll back"
+                  en="Log as {day}. Toggle to roll back"
                   values={{ day: <span className="font-semibold">{rollingDay ? `yesterday (${yesterdayStr})` : `today (${todayStr})`}</span> }}
                 />
               </p>

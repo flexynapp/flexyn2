@@ -171,7 +171,7 @@ export default function PreferencesSection() {
           label={tFallback('settings.timezone', 'Time zone')}
           hint={tFallback(
             'settings.timezone.hint',
-            'Follows your device automatically — reminders arrive in your local evening.',
+            'Follows your device automatically. Reminders arrive in your local evening.',
           )}
         >
           <span className="text-sm text-muted-foreground tabular-nums">{detectedTimeZone}</span>

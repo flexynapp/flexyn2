@@ -132,7 +132,7 @@ export default function StepsLogCard() {
             .catch(() => {});
         }
       } else {
-        toast.error(tFallback('steps.saveFailed', 'Could not save steps — try again.'));
+        toast.error(tFallback('steps.saveFailed', 'Could not save steps. Try again.'));
       }
     } finally {
       savingRef.current = false;

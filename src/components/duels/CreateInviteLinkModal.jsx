@@ -50,7 +50,7 @@ export default function CreateInviteLinkModal({ open, onOpenChange }) {
     } catch (err) {
       const code = err?.code || err?.status;
       if (code === '42883' || code === '42P01') {
-        toast.error('Invite system pending — apply migration 072.');
+        toast.error('Invite system pending. Apply migration 072.');
       } else {
         toast.error('Could not create invite. Try again.');
       }

@@ -627,10 +627,10 @@ export default function MuscleGroupHeatmap({ logs }) {
         </h1>
         <p style={{ margin: '10px 0 0', fontSize: 12.5, lineHeight: 1.45, color: 'hsl(var(--muted-foreground))', maxWidth: 320 }}>
           {empty
-            ? tFallback('bodyMap.body.empty', 'Log a workout and the muscles you trained light up here — colour shows fatigue so you know what’s ready to hit again.')
+            ? tFallback('bodyMap.body.empty', 'Log a workout and the muscles you trained light up here. Colour shows fatigue so you know what’s ready to hit again.')
             : mode === 'recovery'
-              ? tFallback('bodyMap.body.recovery', 'Colour shows fatigue right now — fresh green muscles are ready, hot ones still need rest before you hit them again.')
-              : tFallback('bodyMap.body.volume', 'Colour shows training volume over the selected window — brighter means more work landed there.')}
+              ? tFallback('bodyMap.body.recovery', 'Colour shows fatigue right now. Fresh green muscles are ready, hot ones still need rest before you hit them again.')
+              : tFallback('bodyMap.body.volume', 'Colour shows training volume over the selected window. Brighter means more work landed there.')}
         </p>
       </div>
 

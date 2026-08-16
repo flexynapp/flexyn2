@@ -86,7 +86,7 @@ export default function RoutineTodayCard({ onStart, onOpenRoutines, onChallenge 
               <button
                 onClick={() => onChallenge(day.focus, day.exercises, day.label)}
                 aria-label={tFallback("routineTodayCard.upForAChallenge", "Up for a challenge")}
-                title={tFallback("routineTodayCard.upForAChallengeAdd", "Up for a challenge — add a bonus finisher")}
+                title={tFallback("routineTodayCard.upForAChallengeAdd", "Up for a challenge. Add a bonus finisher")}
                 className="h-11 px-3 rounded-2xl border border-primary/40 text-primary font-bold text-sm flex items-center gap-1.5"
               >
                 <Sparkles className="w-4 h-4" /> {tFallback("routineTodayCard.challenge", "Challenge")}

@@ -161,7 +161,7 @@ export default function JournalWidget({ userId, userEmail }) {
     ? entry.body.replace(/[#*_>-]/g, '').replace(/\s+/g, ' ').trim().slice(0, 100)
     : '';
   // The same rule the day screen and the Log now follow: a mood with no
-  // words IS the entry. This card said "Nothing yet — tap to write…" over a
+  // words IS the entry. This card said "Nothing yet. Tap to write…" over a
   // mood it was already displaying two inches to the left, which is the
   // bare-date defect in a third place.
   const moodOnly = !hasContent && !!moodScore;
@@ -221,7 +221,7 @@ export default function JournalWidget({ userId, userEmail }) {
               ? (entry?.title ? <><strong>{entry.title}</strong>{snippet ? ` · ${snippet}` : ''}</> : snippet)
               : moodOnly
                 ? <span className="text-foreground">{tFallback('journal.feltLabel', 'You felt')} {tFallback(`mood.label.${moodScore}`, MOOD_LABELS[moodScore - 1])}</span>
-                : <span className="italic opacity-60">{tFallback('journal.empty', 'Nothing yet — tap to write…')}</span>
+                : <span className="italic opacity-60">{tFallback('journal.empty', 'Nothing yet. Tap to write…')}</span>
             }
           </p>
         )}

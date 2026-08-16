@@ -87,7 +87,7 @@ export default function ShareSheetModal({ post, open, onClose }) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      toast.error('Could not copy — try again.');
+      toast.error('Could not copy. Try again.');
     }
   };
 
@@ -119,7 +119,7 @@ export default function ShareSheetModal({ post, open, onClose }) {
       toast.success(tFallback("shareSheetModal.sentInDm", "Sent in DM!"));
       onClose();
     } catch {
-      toast.error('Could not send — try again.');
+      toast.error('Could not send. Try again.');
     } finally {
       setDmSending(null);
     }
@@ -133,7 +133,7 @@ export default function ShareSheetModal({ post, open, onClose }) {
       toast.success(`Sent to ${crew.name}!`);
       onClose();
     } catch {
-      toast.error('Could not send — try again.');
+      toast.error('Could not send. Try again.');
     } finally {
       setCrewSending(null);
     }

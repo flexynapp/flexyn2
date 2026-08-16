@@ -425,7 +425,7 @@ export default function StoryViewer({
     } catch {
       // Revert and surface a toast so the user knows the heart didn't stick.
       setLocalLiked(prev => { const n = new Set(prev); already ? n.add(currentStory.id) : n.delete(currentStory.id); return n; });
-      toast.error('Could not update like — try again.');
+      toast.error('Could not update like. Try again.');
     }
   };
 
@@ -451,7 +451,7 @@ export default function StoryViewer({
     } else if (res?.reason === 'dms_disabled') {
       toast.error("They don't accept story replies.");
     } else {
-      toast.error('Could not send reply — try again.');
+      toast.error('Could not send reply. Try again.');
     }
   };
 

@@ -70,7 +70,7 @@ const GOALS = [
   { id: 'strength',  title: 'Build strength', sub: 'Compound lifts. Heavy. Honest.',         icon: 'dumbbell'      },
   { id: 'muscle',    title: 'Add muscle',     sub: 'Hypertrophy program, smart volume.',     icon: 'flame'         },
   { id: 'lose',      title: 'Lose fat',       sub: 'Recomp without losing the gains.',       icon: 'trending-down' },
-  { id: 'speed',     title: 'Run faster',     sub: 'Sharpen your pace — intervals & tempo.', icon: 'zap'           },
+  { id: 'speed',     title: 'Run faster',     sub: 'Sharpen your pace, intervals & tempo.', icon: 'zap'           },
   { id: 'endurance', title: 'Run further',    sub: 'Build distance without burning out.',    icon: 'activity'      },
   { id: 'mobility',  title: 'Move better',    sub: 'Mobility, flexibility, longevity.',      icon: 'wind'          },
 ];
@@ -838,11 +838,11 @@ function GoalStep({ value, onChange, onNext, onBack, step, total }) {
   };
 
   const helper = selectedIds.length === 0
-    ? tFallback('onboarding.goal.helper.none', 'Pick one or many — we tailor your plan to the combination.')
+    ? tFallback('onboarding.goal.helper.none', 'Pick one or many. We tailor your plan to the combination.')
     : selectedIds.length === 1
     ? tFallback('onboarding.goal.helper.one', "Nice. Add another if you're after a few outcomes.")
     : selectedIds.length <= 3
-    ? tFallback('onboarding.goal.helper.few', "Stacking {count} goals — we'll balance your plan.", { count: selectedIds.length })
+    ? tFallback('onboarding.goal.helper.few', "Stacking {count} goals, we'll balance your plan.", { count: selectedIds.length })
     : tFallback('onboarding.goal.helper.many', 'Heads up: 4+ goals slows visible progress on each.');
 
   return (
@@ -1051,7 +1051,7 @@ function SharpenStep({ goals, value, onChange, onNext, onBack, step, total }) {
           text={tFallback('onboarding.sharpen.heading', "Let's sharpen your plan.")}
           accentWord={tFallback('onboarding.sharpen.accentWord', 'sharpen')} />
         <p className="text-sm text-muted-foreground" style={{ marginBottom: 'var(--fluid-section)' }}>
-          {tFallback('onboarding.sharpen.sub', 'A few quick details make your starter plan spot-on — all optional.')}
+          {tFallback('onboarding.sharpen.sub', 'A few quick details make your starter plan spot-on, all optional.')}
         </p>
 
         {wantsCardio && (
@@ -1117,7 +1117,7 @@ function SharpenStep({ goals, value, onChange, onNext, onBack, step, total }) {
             <div className="text-2xl mb-1">✅</div>
             <p className="font-heading font-bold text-body">{tFallback('onboarding.sharpen.allSet', "You're all set")}</p>
             <p className="text-label text-muted-foreground mt-1">
-              {tFallback('onboarding.sharpen.allSetSub', "We've got what we need — your plan's ready to build.")}
+              {tFallback('onboarding.sharpen.allSetSub', "We've got what we need. Your plan's ready to build.")}
             </p>
           </div>
         )}
@@ -1376,7 +1376,7 @@ function AssessmentStep({ value, onChange, onNext, onBack, onSkip, step, total }
           accentWord={tFallback('onboarding.assessment.accentWord', 'lift')}
         />
         <p className="text-sm text-muted-foreground" style={{ marginBottom: 'var(--fluid-section)' }}>
-          {tFallback('onboarding.assessment.sub', 'Optional — the more honest you are, the better the plan. Your AI Coach uses these to set starting volume.')}
+          {tFallback('onboarding.assessment.sub', 'Optional. The more honest you are, the better the plan. Your AI Coach uses these to set starting volume.')}
         </p>
 
         {/* One row per question. The answer is binary, so it doesn't need a
@@ -1445,7 +1445,7 @@ function AssessmentStep({ value, onChange, onNext, onBack, onSkip, step, total }
             // step a user is most likely to want to skip.
             className="text-xs font-semibold text-muted-foreground hover:text-foreground active:text-foreground transition-colors min-h-11"
           >
-            {tFallback('onboarding.assessment.skip', 'Skip — generate a generic plan')}
+            {tFallback('onboarding.assessment.skip', 'Skip and generate a generic plan')}
           </button>
         )}
       </div>
@@ -1697,7 +1697,7 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
           {usernameError && <p className="text-xs text-destructive mt-1">{usernameError}</p>}
           {!usernameError && stripWarning && (
             <p className="text-xs text-muted-foreground mt-1">
-              {tFallback('onboarding.about.usernameStripped', 'Letters, numbers and underscores only — capitals are auto-lowered.')}
+              {tFallback('onboarding.about.usernameStripped', 'Letters, numbers and underscores only, capitals are auto-lowered.')}
             </p>
           )}
         </motion.div>
@@ -2113,8 +2113,8 @@ function HeightStep({ stats, onChange, onNext, onBack, step, total }) {
             {heightHint && (
               <p className="text-micro text-primary mt-1 leading-snug">
                 {unit === 'cm'
-                  ? tFallback('onboarding.height.hintMetric', "Enter centimetres — e.g. 178. Switch to ft·in above if that's what you meant.")
-                  : tFallback('onboarding.height.hintImperial', "Enter feet and inches — e.g. 5'10 or 511. Switch to cm above if that's what you meant.")}
+                  ? tFallback('onboarding.height.hintMetric', "Enter centimetres. E.g. 178. Switch to ft·in above if that's what you meant.")
+                  : tFallback('onboarding.height.hintImperial', "Enter feet and inches. E.g. 5'10 or 511. Switch to cm above if that's what you meant.")}
               </p>
             )}
           </div>
@@ -2479,7 +2479,7 @@ function DaysStep({ days, preferredTime, onDaysChange, onTimeChange, onNext, onB
           text={tFallback('onboarding.schedule.heading', 'Which days can you train?')}
           accentWord={tFallback('onboarding.schedule.accentWord', 'train')} />
         <p className="text-sm text-muted-foreground mt-2">
-          {tFallback('onboarding.schedule.sub', "Plan around real life — we'll keep recovery in check.")}
+          {tFallback('onboarding.schedule.sub', "Plan around real life. We'll keep recovery in check.")}
         </p>
 
         {/* Count card.
@@ -2799,7 +2799,7 @@ function InjuryHistoryStep({ step, total, value, onChange, onNext, onBack, onSki
           // narrow; this one is neither. (Onboarding polish #5)
           className="w-full py-2 text-sm text-muted-foreground hover:text-foreground active:text-foreground transition-colors"
         >
-          {tFallback('onboarding.injury.skip', 'Skip — no injuries')}
+          {tFallback('onboarding.injury.skip', 'Skip, no injuries')}
         </button>
       </div>
     </div>
@@ -2930,13 +2930,13 @@ function HomeGymStep({ step, total, value, onChange, onNext, onBack, onSkip }) {
               onClick={onSkip}
               className="w-full py-2 text-sm text-muted-foreground hover:text-foreground active:text-foreground transition-colors"
             >
-              {tFallback('onboarding.homeGym.skip', "Skip — I'll pick later")}
+              {tFallback('onboarding.homeGym.skip', "Skip and pick later")}
             </button>
           </>
         ) : (
           <>
             <PrimaryBtn onClick={onSkip}>
-              {tFallback('onboarding.homeGym.skip', "Skip — I'll pick later")} <Icon name="arrow-right" size={18} strokeWidth={2.5} />
+              {tFallback('onboarding.homeGym.skip', "Skip and pick later")} <Icon name="arrow-right" size={18} strokeWidth={2.5} />
             </PrimaryBtn>
             <p className="text-micro text-muted-foreground/70 text-center pt-1">
               {tFallback('onboarding.homeGym.laterHint', 'You can set your gym any time from Profile → My Gym.')}
@@ -3690,7 +3690,7 @@ export default function Onboarding() {
         // username field is visible) so the user can edit it.
         const ageIdx = STEPS.indexOf('age');
         if (ageIdx >= 0) goTo(ageIdx);
-        toast.error(tFallback('onboarding.toast.usernameTaken', 'That username is already taken — try another.'));
+        toast.error(tFallback('onboarding.toast.usernameTaken', 'That username is already taken. Try another.'));
         return;
       }
       // Server-side profanity trigger (migration 050) — surfaces as
@@ -3702,7 +3702,7 @@ export default function Onboarding() {
         setSaving(false);
         const ageIdx = STEPS.indexOf('age');
         if (ageIdx >= 0) goTo(ageIdx);
-        toast.error(tFallback('onboarding.toast.usernameProhibited', 'Username contains prohibited content — pick another.'));
+        toast.error(tFallback('onboarding.toast.usernameProhibited', 'Username contains prohibited content. Pick another.'));
         return;
       }
 
@@ -3738,7 +3738,7 @@ export default function Onboarding() {
           // Loud but non-blocking: let the user know some details
           // didn't save so they're not surprised to see missing data.
           toast.warning(
-            tFallback('onboarding.toast.partialSave', 'Some profile details could not be saved — finish setup from Settings later.'),
+            tFallback('onboarding.toast.partialSave', 'Some profile details could not be saved. Finish setup from Settings later.'),
             { duration: 5000 },
           );
           reportError(tier2Err, { feature: 'onboarding.tier3-recovery', level: 'warning', userEmail: user?.email, note: 'core saved, details deferred' });
@@ -3751,12 +3751,12 @@ export default function Onboarding() {
             setUsernameError(tFallback('onboarding.error.usernameTakenRetry', 'That username is already taken. Try another.'));
             const ageIdx = STEPS.indexOf('age');
             if (ageIdx >= 0) goTo(ageIdx);
-            toast.error(tFallback('onboarding.toast.usernameTaken', 'That username is already taken — try another.'));
+            toast.error(tFallback('onboarding.toast.usernameTaken', 'That username is already taken. Try another.'));
           } else if (isProfaneUsernameError(coreErr)) {
             setUsernameError(tFallback('onboarding.error.usernameProhibited', 'That username contains prohibited content. Pick another.'));
             const ageIdx = STEPS.indexOf('age');
             if (ageIdx >= 0) goTo(ageIdx);
-            toast.error(tFallback('onboarding.toast.usernameProhibited', 'Username contains prohibited content — pick another.'));
+            toast.error(tFallback('onboarding.toast.usernameProhibited', 'Username contains prohibited content. Pick another.'));
           } else {
             const looksOffline =
               !navigator.onLine ||
@@ -3767,7 +3767,7 @@ export default function Onboarding() {
             const detail = coreErr?.message ? `: ${String(coreErr.message).slice(0, 120)}` : '';
             toast.error(
               looksOffline
-                ? tFallback('onboarding.toast.offline', "You're offline — reconnect and tap Save again.")
+                ? tFallback('onboarding.toast.offline', "You're offline. Reconnect and tap Save again.")
                 : tFallback('onboarding.toast.saveFailed', 'Could not save your profile{code}. Tap Save to retry{detail}', { code, detail }),
               { duration: 8000 }
             );
@@ -3875,7 +3875,7 @@ export default function Onboarding() {
               // navigated to, and `warning` is always delivered under the
               // current toast policy. (Audit 18 #8.)
               toast.warning(
-                tFallback('onboarding.toast.injuriesFailed', "We couldn't save your injury history — add it from Profile → My Injuries so your plan works around it."),
+                tFallback('onboarding.toast.injuriesFailed', "We couldn't save your injury history. Add it from Profile → My Injuries so your plan works around it."),
                 { duration: 7000 },
               );
             });
@@ -4063,7 +4063,7 @@ export default function Onboarding() {
                   onNext={next}
                   onBack={back}
                   // The step falls back to `onSkip || onNext`, so with no
-                  // handler passed "Skip — generate a generic plan" was
+                  // handler passed "Skip and generate a generic plan" was
                   // byte-identical to Continue and any partial answers still
                   // fed buildStarterRegimen. Skipping now means what it says.
                   // (Audit 18 #24.)
@@ -4079,7 +4079,7 @@ export default function Onboarding() {
                   onNext={next} onBack={back}
                   // Skip CLEARS, exactly like `assessment` above and
                   // `home_gym` below. Wired to a bare `next` this button read
-                  // "Skip — no injuries" and kept every injury the user had
+                  // "Skip, no injuries" and kept every injury the user had
                   // logged: they still landed in `injury_logs` at submit, and
                   // still reached `ensureStarterRegimen`, so the plan excluded
                   // muscle groups for injuries the user had just said they

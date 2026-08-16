@@ -190,7 +190,7 @@ export default function TodaysPlanCard({ regimens = [], logs = [], hasWorkedOutT
                 again. The badge carries it now. */}
             <p className="text-xs font-heading font-bold leading-tight mt-0.5 truncate">
               {doneToday
-                ? tFallback('todaysPlan.doneFmt', '{label} — done!', { label: translatedLabel })
+                ? tFallback('todaysPlan.doneFmt', '{label}, done!', { label: translatedLabel })
                 : translatedLabel}
             </p>
             <p className="text-micro text-muted-foreground leading-snug mt-0.5 truncate">

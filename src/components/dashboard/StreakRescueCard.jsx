@@ -77,7 +77,7 @@ export default function StreakRescueCard({ streakDays, lastWorkoutDate, lastMeal
             {tFallback('streakRescue.kicker', '{n}-day streak at risk', { n: streakDays })}
           </p>
           <p className="text-sm font-heading font-bold truncate">
-            {tFallback('streakRescue.headline', 'Keep it alive — log 1 set')}
+            {tFallback('streakRescue.headline', 'Keep it alive. Log 1 set')}
           </p>
         </div>
         <button

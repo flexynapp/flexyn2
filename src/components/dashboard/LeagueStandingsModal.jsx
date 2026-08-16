@@ -226,7 +226,7 @@ function Body({ data, season, userId, t, tFallback, fmt, onOpenMember, onOpenInf
               <span className="text-xs">
                 {tFallback(
                   'league.gate.bracketHeld',
-                  '{n} qualified — {need} needed before anyone moves',
+                  '{n} qualified. {need} needed before anyone moves',
                   { n: qualifiedCount, need: MIN_QUALIFIED_TO_MOVE },
                 )}
               </span>
@@ -241,7 +241,7 @@ function Body({ data, season, userId, t, tFallback, fmt, onOpenMember, onOpenInf
           <EmptyState
             icon={Trophy}
             title={tFallback('league.emptyTitle', 'Empty league')}
-            body={tFallback('league.empty', 'No members yet — earn XP to join the standings!')}
+            body={tFallback('league.empty', 'No members yet. Earn XP to join the standings!')}
           />
         ) : (
           <AnimatePresence>

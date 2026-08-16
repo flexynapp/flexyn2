@@ -87,7 +87,7 @@ export function brandToPersist(houseBrand) {
 
 // Commercial brands first — an owner is not kitting out with Bowflex.
 const BRAND_OPTIONS = [
-  { value: NO_BRAND, label: '— No house brand —' },
+  { value: NO_BRAND, label: 'No house brand' },
   ...BRAND_SLUGS
     .filter(s => BRAND_META[s].scope !== 'home' && s !== 'unknown' && s !== 'other')
     .map(s => ({ value: s, label: brandLabel(s) })),

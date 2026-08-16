@@ -363,7 +363,7 @@ export default function PhotoMealResultModal({ open, imageUrl, result, saving, o
                         <Input
                           value={it.amount}
                           onChange={(e) => updateItem(i, 'amount', e.target.value.slice(0, 40))}
-                          placeholder="Amount / unit — e.g. 1 cup, 100 g"
+                          placeholder="Amount / unit. E.g. 1 cup, 100 g"
                           className="h-8 w-full text-sm"
                         />
                         <div className="grid grid-cols-4 gap-1.5">

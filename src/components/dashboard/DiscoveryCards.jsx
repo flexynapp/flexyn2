@@ -377,7 +377,7 @@ export default function DiscoveryCards({ logs = [], regimens = [], isLoading = f
           kicker={tFallback('discovery.formCoach.kicker', 'BETA')}
           title={tFallback('discovery.formCoach.title', 'Try Form Coach')}
           body={
-            tFallback('discovery.formCoach.body', 'On-device AI checks your lift form from a quick photo. No video, no upload — runs right on your phone.')
+            tFallback('discovery.formCoach.body', 'On-device AI checks your lift form from a quick photo. No video, no upload. Runs right on your phone.')
           }
           ctaLabel={tFallback('discovery.formCoach.cta', 'Try Form Coach')}
           dismissAriaLabel={tFallback('discovery.dismiss', 'Dismiss')}
@@ -404,7 +404,7 @@ export default function DiscoveryCards({ logs = [], regimens = [], isLoading = f
           kicker={tFallback('discovery.coach.kicker', 'YOUR COACH')}
           title={tFallback('discovery.coach.title', 'Meet your AI Coach')}
           body={
-            tFallback('discovery.coach.body', 'Personal advice tuned to your actual workouts, weight, and goals. Ask anything — programming, plateaus, recovery.')
+            tFallback('discovery.coach.body', 'Personal advice tuned to your actual workouts, weight, and goals. Ask anything, programming, plateaus, recovery.')
           }
           ctaLabel={tFallback('discovery.coach.cta', 'Open Coach')}
           dismissAriaLabel={tFallback('discovery.dismiss', 'Dismiss')}
@@ -425,7 +425,7 @@ export default function DiscoveryCards({ logs = [], regimens = [], isLoading = f
           title={tFallback('discovery.pushOptIn.title', 'Want a daily nudge?')}
           body={tFallback(
             'discovery.pushOptIn.body',
-            "Quiet, optional reminders to keep your streak alive. Manage them anytime in Settings — we'll never spam you.",
+            "Quiet, optional reminders to keep your streak alive. Manage them anytime in Settings, we'll never spam you.",
           )}
           ctaLabel={tFallback('discovery.pushOptIn.cta', 'Enable reminders')}
           dismissAriaLabel={tFallback('discovery.pushOptIn.dismissLabel', 'Not now')}
@@ -445,7 +445,7 @@ export default function DiscoveryCards({ logs = [], regimens = [], isLoading = f
               if (res.ok) {
                 handleDismiss(DISCOVERY_CARDS.PUSH_OPTIN);
                 toast.success(
-                  tFallback('discovery.pushOptIn.toastEnabled', 'Reminders enabled — change anytime in Settings.')
+                  tFallback('discovery.pushOptIn.toastEnabled', 'Reminders enabled. Change anytime in Settings.')
                 );
               } else if (res.reason === 'denied') {
                 handleDismiss(DISCOVERY_CARDS.PUSH_OPTIN);

@@ -176,7 +176,7 @@ function SlotFullSheet({ open, label, items, recipesById, isToday, onReplace, on
           <p className="text-xs text-muted-foreground leading-snug">
             {tFallback(
               'weeklyMealPlannerModal.slotFullLead',
-              '{n} meals is the most one slot holds. Past that a day stops being a plan and starts being a diary — and you already have one.',
+              '{n} meals is the most one slot holds. Past that a day stops being a plan and starts being a diary, and you already have one.',
               { n: mealPlans.SLOT_CAPACITY },
             )}
           </p>
@@ -223,7 +223,7 @@ function SlotFullSheet({ open, label, items, recipesById, isToday, onReplace, on
                   {tFallback('weeklyMealPlannerModal.logToDiary', "Log it to today's diary instead")}
                 </span>
                 <span className="block text-micro text-muted-foreground mt-0.5">
-                  {tFallback('weeklyMealPlannerModal.diaryNoCap', 'The diary has no cap — planner meals already mirror into it.')}
+                  {tFallback('weeklyMealPlannerModal.diaryNoCap', 'The diary has no cap. Planner meals already mirror into it.')}
                 </span>
               </span>
               <ChevRight className="w-4 h-4 text-muted-foreground shrink-0 rtl:scale-x-[-1]" />
@@ -604,8 +604,8 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
     setPhotoBusy(false);
     if (!res?.ok) {
       const err = res?.error;
-      if (err === 'NOT_FOOD') toast.error("That doesn't look like food — try another photo.");
-      else if (err === 'RATE_LIMIT') toast.error('Hit the rate limit — try again in a moment.');
+      if (err === 'NOT_FOOD') toast.error("That doesn't look like food. Try another photo.");
+      else if (err === 'RATE_LIMIT') toast.error('Hit the rate limit. Try again in a moment.');
       else if (err === 'PIPELINE_MISSING') toast.error("Photo recognition isn't enabled yet.");
       else toast.error('Could not recognize meal. Try again.');
       return;
@@ -930,7 +930,7 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
                               onClick={() => setFullSlot({ label: slotLabel(slot), mealType: slot.key, items })}
                               className="w-full min-h-[40px] flex items-center justify-center rounded-lg text-micro font-semibold text-muted-foreground hover:bg-secondary/60 active:bg-secondary/60 transition-colors"
                             >
-                              {tFallback('weeklyMealPlannerModal.slotFull', '{label} is full — {n} of {max}', { label: slotLabel(slot), n: items.length, max: mealPlans.SLOT_CAPACITY })}
+                              {tFallback('weeklyMealPlannerModal.slotFull', '{label} is full, {n} of {max}', { label: slotLabel(slot), n: items.length, max: mealPlans.SLOT_CAPACITY })}
                             </button>
                           )}
                         </div>

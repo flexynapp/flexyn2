@@ -370,7 +370,7 @@ export default function GoalForm({ initial, onSubmit, onCancel, userProfile = {}
           onChange={(e) => setDeadline(e.target.value)}
         />
         <p className="text-xs text-muted-foreground mt-1.5">
-          {tFallback('goals.deadline.hint', 'A date to aim for. Nothing expires — an overdue goal is flagged, never deleted.')}
+          {tFallback('goals.deadline.hint', 'A date to aim for. Nothing expires. An overdue goal is flagged, never deleted.')}
         </p>
       </div>
 

@@ -171,7 +171,7 @@ export default function CoachChat({ mode, onSaveRegimen, onStartWorkout }) {
             "Voice dictation isn't supported in this browser."
           ));
         } else if (reason && reason !== 'aborted') {
-          toast.error(tFallback('coach.voice.failed', 'Voice input failed — try again.'));
+          toast.error(tFallback('coach.voice.failed', 'Voice input failed. Try again.'));
         }
       },
     });
@@ -258,7 +258,7 @@ export default function CoachChat({ mode, onSaveRegimen, onStartWorkout }) {
       if (result.capped) {
         toast.info(tFallback(
           'coach.capped',
-          "You've hit today's limit for detailed answers — back to the basics until tomorrow.",
+          "You've hit today's limit for detailed answers. Back to the basics until tomorrow.",
         ));
       }
       const reply = {
@@ -275,7 +275,7 @@ export default function CoachChat({ mode, onSaveRegimen, onStartWorkout }) {
       console.error('[CoachChat] askCoach threw:', err);
       setMessages(prev => [...prev, {
         role: 'coach',
-        text: tFallback('coach.error', "Something went wrong on my side — try asking again in a moment."),
+        text: tFallback('coach.error', "Something went wrong on my side. Try asking again in a moment."),
         ts: Date.now(),
         source: 'error',
       }]);
@@ -591,7 +591,7 @@ function CoachWelcome({ onPick, tFallback, generateMode }) {
     ? tFallback('coach.generate.title', 'What are you training for?')
     : tFallback('coach.welcome.title', 'Your personal coach');
   const desc = generateMode
-    ? tFallback('coach.generate.desc', 'Tell me your goal and I’ll build a workout or a full plan you can save — try "train for a faster 5K" or "help me PR my bench."')
+    ? tFallback('coach.generate.desc', 'Tell me your goal and I’ll build a workout or a full plan you can save. Try "train for a faster 5K" or "help me PR my bench."')
     : tFallback('coach.welcome.desc', "Ask me anything about your training. I read your actual workout data to give you specific advice.");
   return (
     <div className="flex flex-col items-center justify-center text-center pt-8 pb-4 px-2">

@@ -98,7 +98,7 @@ export default function LiveSessionBroadcaster({ onClose }) {
       setPhase('live');
       toast.success('🔴 You\'re live! Your followers can see your workout.');
     } catch (err) {
-      toast.error('Could not start live session — try again.');
+      toast.error('Could not start live session. Try again.');
       setPhase('setup');
     }
   };
@@ -165,7 +165,7 @@ export default function LiveSessionBroadcaster({ onClose }) {
     if (savedToHistory) {
       toast.success(`Saved ${history.length} set${history.length === 1 ? '' : 's'} to your workout history. 💪`);
     } else if (history.length === 0) {
-      toast.message('Session ended. No sets logged — nothing saved to history.', {
+      toast.message('Session ended. No sets logged. Nothing saved to history.', {
         description: 'Tap "Log set" between each set during your next live session.',
       });
     } else {

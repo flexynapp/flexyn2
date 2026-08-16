@@ -264,7 +264,7 @@ export default function NutritionOnboardingModal({ open, userProfile, onComplete
       console.error('Nutrition onboarding save failed:', err);
       // Still close — don't trap the user if the DB column is missing or the
       // network is flaky. They can revisit settings later.
-      toast.error('Could not save your plan — you can set it up later in Settings.');
+      toast.error('Could not save your plan. You can set it up later in Settings.');
     } finally {
       setSaving(false);
       onComplete?.();

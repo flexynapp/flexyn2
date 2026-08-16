@@ -275,7 +275,7 @@ export default function JournalHistoryModal({ userId, activeDate, onClose, onPic
             <div className="text-center py-12 px-6">
               <RefreshCw className="w-9 h-9 text-muted-foreground/40 mx-auto mb-2" />
               <p className="font-heading font-bold text-sm">{tFallback('journal.historyFailedTitle', "Couldn't load your log")}</p>
-              <p className="text-xs text-muted-foreground mt-1">{tFallback('journal.historyFailedBody', 'Your entries are safe — this is us, not you.')}</p>
+              <p className="text-xs text-muted-foreground mt-1">{tFallback('journal.historyFailedBody', 'Your entries are safe. This is us, not you.')}</p>
               <button
                 onClick={() => load()}
                 className="mt-4 px-4 py-2 rounded-lg bg-secondary text-sm font-semibold hover:opacity-80 active:opacity-80 transition-opacity"
