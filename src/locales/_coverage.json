@@ -4,23 +4,23 @@
   "locales": {
     "es": {
       "translated": 3796,
-      "englishEcho": 111
+      "englishEcho": 88
     },
     "fr": {
       "translated": 3796,
-      "englishEcho": 179
+      "englishEcho": 111
     },
     "de": {
       "translated": 3873,
-      "englishEcho": 149
+      "englishEcho": 20
     },
     "pt": {
       "translated": 3796,
-      "englishEcho": 142
+      "englishEcho": 111
     },
     "it": {
-      "translated": 1482,
-      "englishEcho": 43
+      "translated": 2082,
+      "englishEcho": 38
     },
     "ja": {
       "translated": 1486,
@@ -48,15 +48,15 @@
     },
     "tr": {
       "translated": 1457,
-      "englishEcho": 31
+      "englishEcho": 23
     },
     "pl": {
       "translated": 1457,
-      "englishEcho": 36
+      "englishEcho": 19
     },
     "nl": {
       "translated": 1457,
-      "englishEcho": 70
+      "englishEcho": 19
     }
   }
 }

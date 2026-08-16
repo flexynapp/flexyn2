@@ -193,42 +193,166 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'workout.repsLabel',
     'workout.templates.public',
   ]),
+  // German. Populated 2026-08-16 while the locale went 67% -> 90%: a
+  // translation push SURFACES cognates rather than removing them, so the
+  // English-echo count rose as coverage improved. Every entry below was
+  // checked to be a unit symbol, a pure token string, a proper noun, or a
+  // loanword standard in German (Cardio, Level, Pause, Tempo, Snack).
+  //
+  // DELIBERATELY NOT HERE, because German has an ordinary native word and
+  // these are real gaps a native pass should close:
+  //   bountyBoard.board  "Board"
+  //   duels.resultLoss  "L"
+  //   duels.resultTie  "TIE"
+  //   duels.resultWin  "W"
+  //   friendLeaderboard.mode.weekly_sessions  "Sessions"
+  //   gymRivalMenu.capsules  "Capsules"
+  //   gymRivalMenu.rival  "Rival"
+  //   hub.profile.themes  "Themes"
+  //   hub.themes.title  "Themes"
+  //   league.ceremony.capsule  "Capsule"
+  //   progress.review.sessions  "Sessions"
+  //   shop.eliteCapsule.name  "Elite Capsule"
+  //   shop.premiumCapsule.name  "Premium Capsule"
+  //   shop.standardCapsule.name  "Standard Capsule"
+  //   workout.repsLabel  "Reps"
+  //   workout.templates.reps  "Reps"
+  //   routineTodayCard.challenge  "Challenge"
+  //   themeSelector.lootCapsules  "Loot Capsules"
+  //   todayRail.capsules  "Capsules"
+  //   trends.metric.reps  "Reps"
+  //   (Themen / Unentschieden / Wdh. / Kapsel / Rivale / Einheiten /
+  //    Herausforderung)
   de: new Set([
+    'aboutSection.twemoji',
+    'analyticsSheet.hours',
+    'analyticsSheet.hoursMinutes',
+    'analyticsSheet.timesX',
+    'app.corporateWellness',
+    'app.creatorStudio',
+    'app.name',
+    'bodyMap.a11y.muscleVolume',
+    'bodyMap.data.live',
     'bodyMetrics.leftArm',
     'bodyMetrics.rightArm',
+    'buyConfirmDialog.flexCoins',
     'cardio',
     'cardio.live.pause',
+    'cardio.pr.badge',
+    'cardio.start.cta.empty',
+    'cardio.start.cta.live',
+    'cardio.start.kickerShort',
     'cardio.title',
+    'cardioDetailModal.route',
+    'coach.feel.ok.label',
+    'coach.reply.goals.row',
+    'coach.reply.goals.targetWeight',
+    'coach.reply.prs.row',
+    'coach.reply.weak.row',
     'coach.title',
     'common.optional',
+    'common.optionalParen',
+    'copy.noun.pr',
+    'crewMessageItem.admin',
+    'crewMessageItem.xpFuel',
+    'crewWarPanel.crewWar',
     'dashboard.title',
     'discovery.formCoach.kicker',
+    'exerciseLogger.tempo',
     'formcoach.beta',
+    'friendLeaderboard.mode.weekly_xp',
+    'gauntletStatsModal.flexynGauntlet',
+    'gifPicker.gifs',
+    'goals.lbs',
+    'gymEdit.logo',
+    'gymEdit.website',
+    'gymHub.detailsOptional',
+    'gymJoinSheet.orange',
+    'gymRivalMenu.levelN',
+    'gymSignageCard.flexynGym',
+    'heavyBirdModal.gainzBird',
     'hub.feed.pump',
     'hub.messages.tab.crews',
     'hub.share.cardio',
     'hub.share.status',
+    'hub.themes.lockedAt',
+    'hubCommentsInline.admin',
+    'hubPostCard.admin',
+    'hubProfile.admin',
+    'leaderboardPodium.top3',
     'leaderboards.level',
     'leaderboards.scope.global',
     'leaderboards.scope.regional',
+    'leaderboards.short.level',
     'leaderboards.top100',
+    'league.ceremony.capsuleQty',
+    'league.ceremony.champion',
+    'legal.anthropic',
+    'legal.netlify',
+    'legal.openstreetmap',
+    'legal.sentry',
+    'legal.supabase',
+    'levelBar.level',
     'levelBar.tier.amethyst',
     'levelBar.tier.bronze',
     'levelBar.tier.gold',
     'levelUp.fromTo',
+    'mood.label.3',
     'muscleGroups.cardio',
+    'myGym.abcd2345',
     'nav.dashboard',
+    'nav.hub',
     'notifications.row.capsule.label.elite',
     'notifications.row.capsule.label.premium',
     'notifications.row.capsule.label.standard',
+    'nutrition.foodDb.request.barcode',
     'nutrition.form.snack',
+    'nutrition.macros.grams',
     'nutrition.minerals.magnesium',
     'nutrition.vitamins.a',
     'nutrition.vitamins.b12',
     'nutrition.vitamins.c',
     'nutrition.vitamins.d',
+    'nutrition.water.ml',
+    'nutrition.water.oz',
+    'onboarding.feature.log.eyebrow',
+    'onboarding.height.unitImperial',
+    'onboarding.height.unitMetric',
+    'onboarding.schedule.intensity.hardcore',
+    'onboarding.sharpen.event.marathon',
+    'photoMealResultModal.photoAi',
     'progress.filter',
+    'progress.frame.cardio',
+    'progress.frame.deltaPctDown',
+    'progress.frame.deltaPctUp',
+    'progress.frameShort.month',
+    'progress.review.pr',
+    'progress.slide.level.kicker',
+    'progress.stat.level',
+    'progress.stat.levelValue',
+    'progress.tab.trends',
+    'referralSheet.abc123',
+    'regimenForm.superset',
+    'regions.pull',
+    'regions.push',
+    'routeMap.maptiler',
+    'setRow.110Optional',
+    'settings.group.feedback',
+    'settings.group.stories',
+    'settings.section.training',
+    'shareSheetModal.whatsapp',
+    'snakeGameModal.ironSnake',
+    'storyPreviewSheet.emoji',
+    'sweatJetpackModal.splat',
+    'sweatJetpackModal.sweatJetpack',
+    'templatesModal.community',
+    'trainerStudio.live',
+    'trends.summary',
+    'weeklyDebriefCard.balance',
+    'weeklyDebriefCard.progression',
     'widgetDefs.cat.motivation',
+    'workout.crewWars',
+    'workout.gauntlet',
   ]),
   pt: new Set([
     // 'Macros' is the Portuguese word too.

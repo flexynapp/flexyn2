@@ -142,10 +142,39 @@ describe('coverage does not go backwards', () => {
   const dict = (l) => JSON.parse(fs.readFileSync(path.join(DIR, `${l}.json`), 'utf8'));
   const enDict = dict('en');
   const hasLetters = (v) => /\p{L}/u.test(String(v));
+
+  // A COGNATE IS NOT A PLACEHOLDER, and this used to count them as one.
+  // `echoCount` read the locale JSON flat and never consulted
+  // ALLOW_IDENTICAL_BY_LANG — so "Cardio", "Level", "ml" and "{n}×" all
+  // scored against German exactly as a pasted English sentence would.
+  // The failure message even said "real cognates belong in
+  // ALLOW_IDENTICAL_BY_LANG", which was advice that could not work:
+  // adding them there changed nothing this test measured.
+  //
+  // The practical effect was backwards. Translating MORE of a locale
+  // surfaces MORE cognates, so a push that took German 67% -> 90% made
+  // this number rise and read as a regression — penalising the work it
+  // exists to protect, which is the same trap the AWAITING_TRANSLATION
+  // list fell into and that the block above was written to escape.
+  //
+  // Parsed from source rather than imported: i18n-check.js pulls in
+  // ./i18n, which dynamic-imports every locale aggregate. The two tests
+  // at the foot of this file already parse it the same way, and they are
+  // what keeps the list honest (no non-Latin scripts, no stale entries).
+  const checkSrc = fs.readFileSync(path.join('src/lib', 'i18n-check.js'), 'utf8');
+  const cognates = (l) => {
+    const m = checkSrc.match(
+      new RegExp(`^ {2}${l}: new Set\\(\\[([\\s\\S]*?)\\]\\),`, 'm'),
+    );
+    return new Set(m ? [...m[1].matchAll(/'([\w.]+)'/g)].map((x) => x[1]) : []);
+  };
+
   const echoCount = (l) => {
     const d = dict(l);
+    const ok = cognates(l);
     return Object.keys(d).filter(
-      (k) => enDict[k] != null && d[k] === enDict[k] && hasLetters(enDict[k]),
+      (k) => enDict[k] != null && d[k] === enDict[k] && hasLetters(enDict[k])
+             && !ok.has(k),
     ).length;
   };
 
@@ -172,8 +201,9 @@ describe('coverage does not go backwards', () => {
       now,
       `${lang} went from ${was} to ${now} keys holding the English string verbatim. ` +
       'That is a key which exists and a translation which does not — invisible to ' +
-      'any coverage count, and English on screen. Real cognates belong in ' +
-      'ALLOW_IDENTICAL_BY_LANG in i18n-check.js.',
+      'any coverage count, and English on screen. Cognates are already excluded ' +
+      'via ALLOW_IDENTICAL_BY_LANG in i18n-check.js, so add one there ONLY if the ' +
+      'value is genuinely the same word in that language — otherwise translate it.',
     ).toBeLessThanOrEqual(was);
   });
 });
