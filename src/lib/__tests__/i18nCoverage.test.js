@@ -434,3 +434,79 @@ describe('the i18n-check allow-lists stay honest', () => {
     expect(stale, `remove these from ALLOW_IDENTICAL_BY_LANG: ${stale.join(', ')}`).toEqual([]);
   });
 });
+
+describe('a call site and the catalog agree about the English', () => {
+  // `tFallback(key, 'English')` carries the English TWICE — once at the call
+  // site and once in en.json — and nothing has ever compared the two.
+  //
+  // WHY IT MATTERS IS THE PART THAT IS EASY TO GET BACKWARDS. `getTranslation`
+  // ends with `return enVal ?? key`, so whenever the key EXISTS the catalog
+  // value wins and the fallback is never rendered. A mismatch is therefore
+  // invisible in the product: the developer reads one sentence in the source
+  // and the user sees a different one on screen, forever, with every other
+  // guard green. It only surfaces the day somebody deletes the key.
+  //
+  // 45 keys were mismatched when this was first measured (2026-08-16) and two
+  // were live defects rather than drift:
+  //
+  //   • `workout.weightWithUnit` had lost its `{unit}` placeholder in all
+  //     fifteen catalogs and read "Weight (lbs)". One call site passed
+  //     `{ unit: weightUnit }` against a string with nowhere to put it, so a
+  //     kilogram user read "lbs" on the Progress chart; two others did
+  //     `.replace('lbs', weightUnit)` on the TRANSLATED string, which works
+  //     only while every locale leaves the unit in English.
+  //   • `pushOptIn.subtitle` and `onboarding.enable_push.body` were the last
+  //     two strings calling the feature "nemesis" against six saying Gym
+  //     Rival; five locales had faithfully translated the stale word.
+  //
+  // The rest were drift in both directions — a heading shortened in the
+  // catalog, a description rewritten at the call site — and the catalog won
+  // by default, because the catalog is what ships.
+  const enDict = JSON.parse(fs.readFileSync(path.join(DIR, 'en.json'), 'utf8'));
+  const CALL = /\b(?:tFallback|tF|tf)\(\s*'([\w.]+)'\s*,\s*'((?:\\.|[^'])*)'/g;
+
+  const sources = [];
+  (function walk(dir) {
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      const p = path.join(dir, e.name);
+      if (e.isDirectory()) {
+        if (!/__tests__|node_modules|locales/.test(e.name)) walk(p);
+        continue;
+      }
+      if (!/\.jsx?$/.test(e.name) || /^i18n-/.test(e.name)) continue;
+      sources.push(p);
+    }
+  })('src');
+
+  it('every literal tFallback fallback matches en.json exactly', () => {
+    const bad = [];
+    for (const p of sources) {
+      // Same comment strip as the scans above — see the note in
+      // scripts/i18n-audit.mjs about `/*` inside a string.
+      const src = fs.readFileSync(p, 'utf8')
+        .replace(/(?<![A-Za-z0-9_"'])\/\*[\s\S]*?\*\//g, '')
+        .replace(/^[ \t]*\/\/.*$/gm, '');
+      for (const m of src.matchAll(CALL)) {
+        const [, key, raw] = m;
+        if (!(key in enDict)) continue; // absent keys are the untranslatable guard's job
+        let fallback;
+        // Unescape the JS literal properly. A hand-rolled pass that handles
+        // only \' and \\ reports every string containing \n as a mismatch,
+        // which is how a checker earns the right to be ignored.
+        try {
+          fallback = JSON.parse(`"${raw.replace(/\\'/g, "'").replace(/"/g, '\\"')}"`);
+        } catch { continue; }
+        if (fallback !== enDict[key]) {
+          bad.push(`${key}\n    site: ${JSON.stringify(fallback)}\n    en:   ${JSON.stringify(enDict[key])}\n    ${p}`);
+        }
+      }
+    }
+    expect(
+      bad,
+      `${bad.length} call site(s) pass a fallback that differs from en.json. The ` +
+      'catalog is what renders whenever the key exists, so the source is lying ' +
+      'about what the user sees. Change the fallback to match en.json — or, if ' +
+      'the CATALOG is the stale one, change en.json and every locale:\n' + bad.join('\n'),
+    ).toEqual([]);
+  });
+});
