@@ -23,7 +23,7 @@ import React, { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Shield } from 'lucide-react';
+import { ArrowLeft, Shield, Settings } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useNumberFormatter } from '@/lib/intl';
@@ -39,6 +39,7 @@ import CrewChallengeCard from './CrewChallengeCard';
 import CrewLeaguePanel from './CrewLeaguePanel';
 import CrewMemberDirectory from './CrewMemberDirectory';
 import CrewTrophiesPanel from './CrewTrophiesPanel';
+import CrewSettingsSheet from './CrewSettingsSheet';
 
 // Five tabs still fit 390px at `gap-5 px-4` — measured, not assumed.
 const TABS = [
@@ -64,6 +65,7 @@ export default function CrewPage({ crew, onBack, onViewProfile }) {
   const { tFallback } = useLanguage();
   const fmt = useNumberFormatter();
   const [tab, setTab] = useState('home');
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const qc = useQueryClient();
 
   const crewId = crew?.id;
@@ -120,6 +122,12 @@ export default function CrewPage({ crew, onBack, onViewProfile }) {
   const myMember   = members.find(m => m.user_id === user?.id);
   const myRole     = myMember?.role ?? (crew.is_admin ? 'leader' : 'member');
   const isLeader   = myRole === 'leader' || !!crew.is_admin;
+  // Editing the crew profile gates on is_admin, NOT on the 'leader' string,
+  // because that is the column `is_crew_admin` reads and therefore the one
+  // the crews_update policy enforces. They agree on every row in production
+  // (5 leader/true, 1 member/false), but showing a control the server would
+  // refuse is a silent no-op rather than a refusal the user can act on.
+  const canEditCrew = !!(myMember?.is_admin ?? crew.is_admin);
   // The numeric form of the same thing. Ordering is what "may I act on
   // them" needs, and comparing 'moderator' to 'member' as strings sorts
   // alphabetically. See src/lib/crewPermissions.js.
@@ -166,6 +174,15 @@ export default function CrewPage({ crew, onBack, onViewProfile }) {
           >
             <ArrowLeft className="w-4 h-4" />
           </button>
+          {canEditCrew && (
+            <button
+              onClick={() => setSettingsOpen(true)}
+              className="absolute top-3 end-3 w-8 h-8 rounded-full bg-background/70 backdrop-blur flex items-center justify-center"
+              aria-label={tFallback('crew.settings', 'Crew settings')}
+            >
+              <Settings className="w-4 h-4" />
+            </button>
+          )}
         </div>
 
         {/* Crest punched over the seam. The ring is the page background,
@@ -205,13 +222,26 @@ export default function CrewPage({ crew, onBack, onViewProfile }) {
         </div>
 
         <div className="px-4 pt-2">
-          <h2 className="font-heading font-bold text-xl leading-tight truncate">{crew.name}</h2>
+          <h2 className="font-heading font-bold text-xl leading-tight truncate">
+            {crew.name}
+            {crew.tag && (
+              <span className="text-muted-foreground tracking-widest ms-2">{crew.tag}</span>
+            )}
+          </h2>
           <p className="text-sm text-muted-foreground mt-0.5">
             {leaderName
               ? <>{tFallback('crew.ledBy', 'Led by')} {leaderName} · </>
               : null}
             {fmt(members.length)} {tFallback('crew.of', 'of')} {fmt(capacity)}
           </p>
+
+          {/* Rendered only when there is one. An empty description must not
+              leave a reserved blank line — see CLAUDE.md on sections with no
+              data. Until the settings sheet shipped nothing could write this
+              column, so every crew in production takes the null branch. */}
+          {crew.description && (
+            <p className="text-sm mt-2 whitespace-pre-line">{crew.description}</p>
+          )}
 
           {/* One metric row. Text, not tiles. */}
           <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 text-sm text-muted-foreground">
@@ -247,6 +277,12 @@ export default function CrewPage({ crew, onBack, onViewProfile }) {
             </div>
           )}
         </div>
+
+        <CrewSettingsSheet
+          open={settingsOpen}
+          onClose={() => setSettingsOpen(false)}
+          crew={crew}
+        />
 
         {/* ── Tabs ─────────────────────────────────────────────────── */}
         <div className="flex gap-5 px-4 pt-4 border-b border-border">

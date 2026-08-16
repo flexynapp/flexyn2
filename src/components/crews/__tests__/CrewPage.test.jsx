@@ -227,3 +227,51 @@ describe('CrewPage — degrades on a pre-248 crew', () => {
     expect(container.textContent).toBe('');
   });
 });
+
+describe('the crew settings entry', () => {
+  // The gate must be is_admin and NOT the 'leader' string, because
+  // `is_crew_admin` — which the crews_update policy uses for both USING and
+  // WITH CHECK — reads `crew_members.is_admin`. The two agree on every row in
+  // production today (5 leader/true, 1 member/false), so a test on the role
+  // string would pass while the control was shown to someone the server would
+  // refuse, and a refused UPDATE returns 0 rows rather than an error — a
+  // silent dead button. Verified against production by execution.
+  it('is offered to a member whose is_admin is true', async () => {
+    renderPage();
+    expect(await screen.findByLabelText('Crew settings')).toBeTruthy();
+  });
+
+  it('is withheld from a plain member', async () => {
+    getCrewMembers.mockResolvedValue([
+      { id: 'm1', user_id: 'u-someone-else', is_admin: true,  role: 'leader', username: 'marcus_lifts' },
+      { id: 'm2', user_id: 'u-leader',       is_admin: false, role: 'member', username: 'dana' },
+    ]);
+    renderPage({ ...CREW, is_admin: false });
+
+    expect(await screen.findByText('Iron Union')).toBeTruthy();
+    expect(screen.queryByLabelText('Crew settings')).toBeNull();
+  });
+});
+
+describe('the crew description and tag', () => {
+  // Nothing could write either column until the settings sheet shipped, so
+  // every crew in production takes the null branch. A reserved blank line for
+  // a description nobody has written is the "a section with no data must not
+  // render as zeros" rule in CLAUDE.md.
+  it('renders the description when the crew has one', async () => {
+    renderPage({ ...CREW, description: 'Early risers, heavy compounds.' });
+    expect(await screen.findByText('Early risers, heavy compounds.')).toBeTruthy();
+  });
+
+  it('renders the tag beside the name when set', async () => {
+    renderPage({ ...CREW, tag: 'IRON' });
+    expect(await screen.findByText('IRON')).toBeTruthy();
+  });
+
+  it('draws no empty paragraph when there is no description', async () => {
+    const { container } = renderPage({ ...CREW, description: null });
+    await screen.findByText('Iron Union');
+    const empties = [...container.querySelectorAll('p')].filter(p => !p.textContent.trim());
+    expect(empties).toHaveLength(0);
+  });
+});

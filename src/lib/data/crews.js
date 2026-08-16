@@ -729,52 +729,32 @@ export async function uploadCrewMedia(file) {
 }
 
 // ── Crew Discovery ────────────────────────────────────────────────────────────
-
-/**
- * Search for public crews by name or tag. Returns up to 20 results.
- * Does NOT return crews the user already belongs to.
- */
-export async function searchPublicCrews(query, userId) {
-  // Strip PostgREST .or() control characters from the query before
-  // interpolation. PostgREST parses commas as filter separators and
-  // `(`/`)` as grouping — a user typing `foo,name.eq.<uuid>` would
-  // inject extra ilike filters or produce a 400 from PostgREST.
-  // Also strip `%` since we wrap with our own wildcards; literal `%`
-  // in the input would turn into `%%foo%%` matching everything.
-  // RLS still protects the data (is_public=true gate is preserved
-  // server-side), so this isn't a privacy leak — but it's noisy and
-  // a future schema change could promote it to one. Wave 57 (Crews
-  // audit) flagged this as a low-severity nit; defense-in-depth fix.
-  const rawQ = (query || '').trim().toLowerCase();
-  const q = rawQ.replace(/[,()%*]/g, '').slice(0, 60);
-  let builder = supabase
-    .from('crews')
-    .select('id, name, description, tag, max_capacity, created_at')
-    .eq('is_public', true)
-    .limit(20);
-
-  if (q) {
-    builder = builder.or(`name.ilike.%${q}%,tag.ilike.%${q}%,description.ilike.%${q}%`);
-  } else {
-    builder = builder.order('created_at', { ascending: false });
-  }
-
-  const { data, error } = await builder;
-  if (error || !data) return [];
-
-  // Filter out crews the user already belongs to
-  if (!userId || !data.length) return data ?? [];
-  const { data: mine } = await supabase
-    .from('crew_members')
-    .select('crew_id')
-    .eq('user_id', userId);
-  const myIds = new Set((mine ?? []).map(r => r.crew_id));
-  return data.filter(c => !myIds.has(c.id));
-}
+//
+// `searchPublicCrews` lived here and was deleted 2026-08-16. It had no callers
+// anywhere in the app: discovery goes through the `get_public_crews` RPC,
+// because migration 308 had to move the whole read server-side — a member
+// count for a crew you are NOT in is unreachable from the browser under
+// crew_members' RLS, so the client-side version could never fill its own rows.
+// It also still carried `.eq('is_public', true)`, the exact filter migration
+// 370 had to drop because nothing in the product could set that column. So the
+// one thing it would have done if anyone had wired it up is return zero rows.
 
 /**
  * Update a crew's public profile (name, description, is_public, tag).
- * Only crew leaders can call this.
+ *
+ * Leader-only, and that is the SERVER's rule, not this function's: the
+ * `crews_update` policy is `is_crew_admin(id)` for both USING and WITH CHECK,
+ * and `is_crew_admin` keys on `crew_members.is_admin`. Verified by execution
+ * against production 2026-08-16 in rolled-back transactions — leader writes,
+ * plain member 0 rows, non-member 0 rows.
+ *
+ * The allow-list below is not defensive politeness. `authenticated` holds
+ * UPDATE on every column of `crews`, including crew_xp, crew_level, trophies
+ * and treasury_coins; what stops a leader forging them is the
+ * `crews_guard_write` BEFORE trigger, which silently reassigns each back to
+ * OLD rather than raising. So a write outside this list SUCCEEDS and does
+ * nothing, which is the worst shape of failure to debug. Keep the list equal
+ * to the columns the trigger actually lets through.
  */
 export async function updateCrewProfile(crewId, updates) {
   const allowed = {};

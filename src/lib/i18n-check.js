@@ -148,6 +148,16 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'workout.minutes',
     'workout.repsLabel',
     'workout.templates.reps',
+    // Crew settings, added 2026-08-16 with the visibility control. "Tag" is
+    // the word the Spanish catalog already uses for this concept — see
+    // crew.discover.search ("Busca por nombre o #tag…") and
+    // crew.discover.noMatchBody — so translating it here would disagree with
+    // the two strings beside it. tagHint is the example value shown in an
+    // empty field, not prose. applicantLevel keeps Level because the glossary
+    // marks it do-not-translate (added 2026-08-16 on kegan's instruction).
+    'crewSettings.tag',
+    'crewSettings.tagHint',
+    'crew.applicantLevel',
   ]),
   fr: new Set([
     // "Standard" is spelled exactly this way in this language.
@@ -256,6 +266,15 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'workout.notes',
     'workout.repsLabel',
     'workout.templates.public',
+    // Crew settings, added 2026-08-16 with the visibility control. French
+    // spells Description and Tag exactly as English does, and the catalog
+    // already keeps "tag" in crew.discover.search / noMatchBody. tagHint is
+    // the example value in an empty field, not prose. applicantLevel keeps
+    // Level because the glossary marks it do-not-translate.
+    'crewSettings.description',
+    'crewSettings.tag',
+    'crewSettings.tagHint',
+    'crew.applicantLevel',
   ]),
   // German. Populated 2026-08-16 while the locale went 67% -> 99.4%: a
   // translation push SURFACES cognates rather than removing them, so the

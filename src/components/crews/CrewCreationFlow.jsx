@@ -5,7 +5,7 @@
 
 import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ArrowLeft, ArrowRight, Shield, Check, Loader2, Search } from 'lucide-react';
+import { X, ArrowLeft, ArrowRight, Shield, Check, Loader2, Search, Globe2, Lock } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/lib/AuthContext';
@@ -26,6 +26,10 @@ export default function CrewCreationFlow({ onCreated, onClose }) {
   const [step, setStep]         = useState(1);
   const [selected, setSelected] = useState([]); // array of profile objects
   const [crewName, setCrewName] = useState('');
+  // Defaults to application-gated, which is what create_crew_atomic stores
+  // anyway (crews.is_public defaults to false). Choosing the open option is
+  // therefore the only branch that has to do extra work.
+  const [isPublic, setIsPublic] = useState(false);
   const [query, setQuery]       = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -55,7 +59,14 @@ export default function CrewCreationFlow({ onCreated, onClose }) {
     setSelected(prev => {
       const has = prev.some(p => p.id === profile.id);
       if (has) return prev.filter(p => p.id !== profile.id);
-      if (prev.length >= 15) { toast('Max 15 people per crew.'); return prev; }
+      // toast.warning, not toast(): src/lib/toast.js drops a plain toast that
+      // carries no action, so this refusal has never reached anyone — the
+      // 16th tap just did nothing. Same defect class as the 2026-08-04/05
+      // sweeps documented in CLAUDE.md's toast policy.
+      if (prev.length >= 15) {
+        toast.warning(tFallback('crewCreationFlow.maxMembers', 'Max 15 people per crew.'));
+        return prev;
+      }
       return [...prev, profile];
     });
   };
@@ -73,6 +84,25 @@ export default function CrewCreationFlow({ onCreated, onClose }) {
     setSubmitting(true);
     try {
       const crew = await crewsData.createCrew(user, crewName.trim());
+
+      // create_crew_atomic takes only (p_name text) — checked against the
+      // installed signature, not the migration — so visibility is a second
+      // statement rather than an argument. Deliberately not fatal and
+      // deliberately second: the crew already exists and the founder is its
+      // leader, so a failure here leaves it application-gated, which is the
+      // safe direction and is fixable from the crew settings sheet. Failing
+      // the whole creation over it would be worse.
+      if (isPublic) {
+        try {
+          await crewsData.updateCrewProfile(crew.id, { is_public: true });
+          crew.is_public = true;
+        } catch {
+          toast.warning(tFallback(
+            'crewCreationFlow.visibilityFailed',
+            'Crew created, but it is set to invite only. You can change that in crew settings.',
+          ));
+        }
+      }
 
       // Send DM invite to each selected friend
       const { data: myProfile } = await supabase
@@ -242,7 +272,11 @@ export default function CrewCreationFlow({ onCreated, onClose }) {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: 20 }}
             transition={{ duration: 0.18 }}
-            className="flex-1 flex flex-col px-4 pt-6 min-h-0"
+            // overflow-y-auto because the visibility picker added ~180px to a
+            // step that previously fit any viewport by construction. Without
+            // it the Create button is pushed below the fold on a 390x640
+            // device and the wizard has no way forward.
+            className="flex-1 flex flex-col px-4 pt-6 min-h-0 overflow-y-auto"
           >
             {/* Icon */}
             <div
@@ -288,6 +322,61 @@ export default function CrewCreationFlow({ onCreated, onClose }) {
             <p className="text-end text-xs text-muted-foreground mt-1 pe-1">
               {crewName.length}/40
             </p>
+
+            {/* Who can join. Same two options and the same wording as the
+                crew settings sheet, because they set the same column and a
+                leader who learns the words here should recognise them there.
+                Copy is written from what join_crew_atomic does: is_public
+                inserts the member row, otherwise it files a join request. */}
+            <div className="mt-6">
+              <p className="text-sm font-bold mb-2">
+                {tFallback('crewSettings.visibility', 'Who can join')}
+              </p>
+              <div role="radiogroup" className="flex flex-col gap-2">
+                {[
+                  {
+                    open: true,
+                    icon: <Globe2 className="w-4 h-4" aria-hidden="true" />,
+                    title: tFallback('crewSettings.public', 'Open'),
+                    body: tFallback('crewSettings.publicBody', 'Anyone can join straight away.'),
+                  },
+                  {
+                    open: false,
+                    icon: <Lock className="w-4 h-4" aria-hidden="true" />,
+                    title: tFallback('crewSettings.private', 'By application'),
+                    body: tFallback('crewSettings.privateBody', 'People ask to join and you decide.'),
+                  },
+                ].map(opt => (
+                  <button
+                    key={String(opt.open)}
+                    type="button"
+                    role="radio"
+                    aria-checked={isPublic === opt.open}
+                    onClick={() => setIsPublic(opt.open)}
+                    className={`w-full text-start flex items-start gap-2 p-3 rounded-2xl border transition-colors ${
+                      isPublic === opt.open ? 'border-primary bg-primary/10' : 'border-border'
+                    }`}
+                  >
+                    <span className={`shrink-0 mt-0.5 ${isPublic === opt.open ? 'text-primary' : 'text-muted-foreground'}`}>
+                      {opt.icon}
+                    </span>
+                    <span className="flex-1 min-w-0">
+                      <span className="flex items-center gap-1">
+                        <span className="text-sm font-bold">{opt.title}</span>
+                        {isPublic === opt.open && <Check className="w-3.5 h-3.5 text-primary" aria-hidden="true" />}
+                      </span>
+                      <span className="block text-xs text-muted-foreground">{opt.body}</span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                {tFallback(
+                  'crewSettings.listedEither',
+                  'Your crew is listed in the directory either way.',
+                )}
+              </p>
+            </div>
 
             <div className="flex-1" />
 
