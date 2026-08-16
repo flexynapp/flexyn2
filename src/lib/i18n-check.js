@@ -95,6 +95,7 @@ const ALLOW_IDENTICAL = new Set([
   'trophy.unit.m',          // "m"         — SI symbol
   'trophy.tail.desc',       // "{n} {unit}" — placeholders and a space
   'workout.comebackBonusXp', // "+{n} XP" — a sign, a placeholder and a symbol
+  'collectionModal.tileAria', // "{name}. {state}, {rarity}" — placeholders only
 ]);
 
 /**
@@ -115,6 +116,8 @@ const ALLOW_IDENTICAL = new Set([
  */
 const ALLOW_IDENTICAL_BY_LANG = {
   es: new Set([
+    // Sticker is the word Spanish uses for these.
+    'collectionModal.tab.stickers',
     // Trophy catalog, added 2026-08-16. Every one is a word this
     // language spells exactly as English does — Arena, Prestige,
     // Champion, Legend, Tonnage — not a string left untranslated.
@@ -160,6 +163,10 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'crew.applicantLevel',
   ]),
   fr: new Set([
+    // Sticker is the word French uses for these.
+    'collectionModal.tab.stickers',
+    // "Podium." is the same word in French.
+    'loot.item.flx_med3.desc',
     // "Standard" is spelled exactly this way in this language.
     'crewChat.imageMode.normal',
     // Trophy catalog, added 2026-08-16. Every one is a word this
@@ -299,6 +306,10 @@ const ALLOW_IDENTICAL_BY_LANG = {
   // triple and the abbreviations of words this catalog already uses
   // (duels.wins "Siege", duels.losses "Niederlagen").
   de: new Set([
+    // Themes — the shipped copy already says "Level-Themes".
+    'collectionModal.tab.themes',
+    // "Podium." is the same word in German.
+    'loot.item.flx_med3.desc',
     // "Standard" is spelled exactly this way in this language.
     'crewChat.imageMode.normal',
     // Trophy catalog, added 2026-08-16. Every one is a word this
@@ -477,6 +488,8 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'workout.templates.reps',
   ]),
   pt: new Set([
+    // Sticker is the word Brazilian Portuguese uses for these.
+    'collectionModal.tab.stickers',
     // Trophy catalog, added 2026-08-16. Every one is a word this
     // language spells exactly as English does — Arena, Prestige,
     // Champion, Legend, Tonnage — not a string left untranslated.
@@ -589,6 +602,8 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'workout.setSingular',
   ]),
   pl: new Set([
+    // "Podium." is the same word in Polish.
+    'loot.item.flx_med3.desc',
     // Trophy catalog, added 2026-08-16. Every one is a word this
     // language spells exactly as English does — Arena, Prestige,
     // Champion, Legend, Tonnage — not a string left untranslated.
@@ -651,6 +666,12 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'workout.templates.reps',
   ]),
   nl: new Set([
+    // Sticker is the word Dutch uses for these.
+    'collectionModal.tab.stickers',
+    // "Podium." is the same word in Dutch.
+    'loot.item.flx_med3.desc',
+    // "Warm amber." is written identically in Dutch.
+    'loot.item.f_amber.desc',
     // Trophy catalog, added 2026-08-16. Every one is a word this
     // language spells exactly as English does — Arena, Prestige,
     // Champion, Legend, Tonnage — not a string left untranslated.

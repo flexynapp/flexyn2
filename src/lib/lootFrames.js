@@ -33,7 +33,7 @@ export const LOOT_FRAMES = [
   {
     id: 'f_sunset', name: 'Sunset Glow',   rarity: 'uncommon',
     emoji: '🌅', animated: false,
-    description: 'Pink-to-orange gradient.',
+    description: 'Gradient from pink to orange.',
     css: {
       border: '2px solid transparent',
       backgroundImage: 'linear-gradient(white, white), linear-gradient(135deg, #fb923c, #ec4899)',
@@ -44,7 +44,7 @@ export const LOOT_FRAMES = [
   {
     id: 'f_ocean',  name: 'Ocean Tide',    rarity: 'uncommon',
     emoji: '🌊', animated: false,
-    description: 'Blue-to-cyan gradient.',
+    description: 'Gradient from blue to cyan.',
     css: {
       border: '2px solid transparent',
       backgroundImage: 'linear-gradient(white, white), linear-gradient(135deg, #3b82f6, #06b6d4)',
@@ -55,7 +55,7 @@ export const LOOT_FRAMES = [
   {
     id: 'f_forest', name: 'Forest Path',   rarity: 'uncommon',
     emoji: '🌲', animated: false,
-    description: 'Lime-to-green gradient.',
+    description: 'Gradient from lime to green.',
     css: {
       border: '2px solid transparent',
       backgroundImage: 'linear-gradient(white, white), linear-gradient(135deg, #84cc16, #15803d)',
@@ -165,3 +165,11 @@ export function rollLootFrame(capsuleType = 'standard') {
 export function getLootFrameById(id) {
   return LOOT_FRAMES.find(f => f.id === id) ?? null;
 }
+
+// The flavour line under a frame resolves through lootCatalog's shared
+// `lootDescription` — the 89 ids across all four catalogs are unique, so one
+// `loot.item.<id>.desc` namespace serves them all and a render site holding a
+// generic inventory row needs one lookup rather than a type switch. Re-exported
+// here so a consumer that only knows about frames can resolve one, and so the
+// key pattern sits on this module's import edge where the audit can follow it.
+export { lootDescription } from './lootCatalog';

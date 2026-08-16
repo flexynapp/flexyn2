@@ -38,7 +38,7 @@ import { useQuery } from '@tanstack/react-query';
 import { X, LibraryBig, Lock, Percent, Search, Sparkles, ChevronLeft } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import * as inventory from '@/lib/data/inventory';
-import { CAPSULE_ODDS, VARIANTS } from '@/lib/lootCatalog';
+import { CAPSULE_ODDS, VARIANTS, lootDescription } from '@/lib/lootCatalog';
 import {
   COLLECTION_TABS, buildCollection, ownershipFrom, overallCompletion, rarityBreakdown,
 } from '@/lib/collection';
@@ -112,7 +112,11 @@ function RaritySpectrum({ breakdown }) {
         <div
           key={b.rarity}
           className="flex-1 min-w-0 flex flex-col items-stretch gap-1"
-          title={`${b.label} — ${b.owned}/${b.total}`}
+          title={tFallback('collectionModal.rarityProgress', '{rarity}: {owned} of {total}', {
+            rarity: tFallback(`loot.rarity.${b.rarity}`, b.label),
+            owned: b.owned,
+            total: b.total,
+          })}
         >
           <div className="h-4 rounded-[3px] overflow-hidden" style={{ background: `${b.color}22` }}>
             <motion.div
@@ -152,7 +156,13 @@ function Slot({ item, onSelect, index }) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.25, delay: Math.min(index, 18) * 0.012 }}
       whileTap={{ scale: 0.94 }}
-      aria-label={`${item.name} — ${locked ? 'not collected' : 'collected'}, ${tint.label}`}
+      aria-label={tFallback('collectionModal.tileAria', '{name}. {state}, {rarity}', {
+        name: item.name,
+        state: locked
+          ? tFallback('collectionModal.stateLocked', 'not collected')
+          : tFallback('collectionModal.stateOwned', 'collected'),
+        rarity: tFallback(`loot.rarity.${item.rarity}`, tint.label),
+      })}
       className={`group relative overflow-hidden rounded-xl p-2 flex flex-col items-center justify-center text-center gap-1.5 min-h-[92px] transition-shadow ${TILE.item} ${
         premium ? 'coll-sheen' : ''
       }`}
@@ -288,7 +298,7 @@ function DetailSheet({ item, onBack }) {
         <RarityBadge rarity={item.rarity} />
         {item.description && (
           <p className="text-xs text-muted-foreground max-w-[34ch] leading-relaxed mt-0.5">
-            {item.description}
+            {lootDescription(item, tFallback)}
           </p>
         )}
       </div>
@@ -307,12 +317,17 @@ function DetailSheet({ item, onBack }) {
             : <Sparkles className="w-4 h-4 shrink-0" style={{ color: tint.color }} />}
           <div className="min-w-0 flex-1 text-start">
             <p className="text-xs font-bold leading-tight">
-              {locked ? 'Not collected yet' : 'In your collection'}
+              {locked
+                ? tFallback('collectionModal.notCollectedYet', 'Not collected yet')
+                : tFallback('collectionModal.inYourCollection', 'In your collection')}
             </p>
             {!locked && item.ownedVariants?.length > 0 && (
               <p className="text-micro text-muted-foreground leading-tight mt-0.5">
-                {item.ownedVariants.map(v => VARIANTS[v]?.label ?? v).join(' · ')} variant
-                {item.ownedVariants.length > 1 ? 's' : ''} owned
+                {tFallback('collectionModal.variantsOwned', 'Variants owned: {list}', {
+                  list: item.ownedVariants
+                    .map(v => tFallback(`loot.variant.${v}`, VARIANTS[v]?.label ?? v))
+                    .join(' · '),
+                })}
               </p>
             )}
           </div>
@@ -534,11 +549,13 @@ export default function CollectionModal({ open, onClose, initialTab = 'stickers'
                             : 'bg-secondary/60 text-muted-foreground hover:text-foreground active:text-foreground'
                         }`}
                       >
-                        {t.label}
+                        {tFallback(`collectionModal.tab.${t.id}`, t.label)}
                         <span className={`ms-1.5 tabular-nums ${active ? 'opacity-80' : 'opacity-60'}`}>
                           {c.owned}/{c.total}
                         </span>
-                        {done && <span className="ms-1" aria-label="complete">✓</span>}
+                        {done && (
+                          <span className="ms-1" aria-label={tFallback('collectionModal.complete', 'complete')}>✓</span>
+                        )}
                       </button>
                     );
                   })}
@@ -559,7 +576,7 @@ export default function CollectionModal({ open, onClose, initialTab = 'stickers'
                             : 'text-muted-foreground hover:text-foreground active:text-foreground'
                         }`}
                       >
-                        {f.label}
+                        {tFallback(`collectionModal.filter.${f.id}`, f.label)}
                       </button>
                     ))}
                   </div>
@@ -628,7 +645,7 @@ export default function CollectionModal({ open, onClose, initialTab = 'stickers'
                             className="text-micro font-black uppercase tracking-[0.18em] shrink-0"
                             style={{ color: group.color }}
                           >
-                            {group.label}
+                            {tFallback(`loot.rarity.${group.rarity}`, group.label)}
                           </span>
                           <div
                             className="flex-1 h-px"

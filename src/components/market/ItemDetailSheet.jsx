@@ -20,7 +20,7 @@ import { useQuery } from '@tanstack/react-query';
 import { X, Zap, Lock, Heart, TrendingUp, Store } from 'lucide-react';
 import FlexCoinIcon from '@/components/FlexCoinIcon';
 import * as marketplace from '@/lib/data/marketplace';
-import { findCatalogItem } from '@/lib/lootCatalog';
+import { findCatalogItem, lootDescription } from '@/lib/lootCatalog';
 import { displayName } from '@/lib/userDisplay';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import {
@@ -143,7 +143,7 @@ export default function ItemDetailSheet({
               <RarityBadge rarity={listing.item_rarity} />
               {catalogItem?.description && (
                 <p className="text-muted-foreground text-xs max-w-xs mt-0.5">
-                  {catalogItem.description}
+                  {lootDescription(catalogItem, tFallback)}
                 </p>
               )}
             </div>

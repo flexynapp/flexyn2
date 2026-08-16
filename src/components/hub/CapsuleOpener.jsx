@@ -5,7 +5,7 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } fro
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Sparkles, BookOpen } from 'lucide-react';
 import { toast } from '@/lib/toast';
-import { ITEMS, BRANDED_ITEMS, getItemsByRarity, VARIANTS } from '@/lib/lootCatalog';
+import { ITEMS, BRANDED_ITEMS, getItemsByRarity, VARIANTS, lootDescription } from '@/lib/lootCatalog';
 import { rarityTint } from '@/components/loot/RarityVisuals';
 import CapsuleIcon from '@/components/loot/CapsuleIcon';
 import { pickItemForRoll, buildCandidateMenu, hydrateItemById } from '@/lib/lootRoll';
@@ -1368,7 +1368,7 @@ export default function CapsuleOpener({ capsule, batch, onClaim, onClaimBatch, o
                       {VARIANTS[wonItem.variant]?.badge ?? wonItem.variant}
                     </span>
                   )}
-                  <p className="text-muted-foreground text-sm text-center max-w-xs">{wonItem.description}</p>
+                  <p className="text-muted-foreground text-sm text-center max-w-xs">{lootDescription(wonItem, tFallback)}</p>
                 </motion.div>
 
                 <motion.button

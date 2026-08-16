@@ -87,3 +87,11 @@ export function rollLootTitle(capsuleType = 'standard') {
 export function getLootTitleById(id) {
   return LOOT_TITLES.find(t => t.id === id) ?? null;
 }
+
+// The flavour line under a title resolves through lootCatalog's shared
+// `lootDescription` — the 89 ids across all four catalogs are unique, so one
+// `loot.item.<id>.desc` namespace serves them all and a render site holding a
+// generic inventory row needs one lookup rather than a type switch. Re-exported
+// here so a consumer that only knows about titles can resolve one, and so the
+// key pattern sits on this module's import edge where the audit can follow it.
+export { lootDescription } from './lootCatalog';

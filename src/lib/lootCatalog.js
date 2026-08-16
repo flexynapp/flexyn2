@@ -14,7 +14,7 @@ export const BRANDED_ITEMS = [
   { id: 'flx_dumbbell', type: 'sticker', rarity: 'common',    name: 'Iron Dumbbell',   description: 'The Flexyn classic.',           emoji: '🏋️',  baseCoins: 25,  branded: true },
   { id: 'flx_band',     type: 'sticker', rarity: 'common',    name: 'Wristband',       description: 'Tighten up.',                   emoji: '⚪',  baseCoins: 25,  branded: true },
   { id: 'flx_chalk',    type: 'sticker', rarity: 'common',    name: 'Chalk Bag',       description: 'Grip game on lock.',            emoji: '⬜',  baseCoins: 25,  branded: true },
-  { id: 'flx_shoes',    type: 'sticker', rarity: 'common',    name: 'Lifters',         description: 'Heel-elevated. Knees out.',     emoji: '👟',  baseCoins: 25,  branded: true },
+  { id: 'flx_shoes',    type: 'sticker', rarity: 'common',    name: 'Lifters',         description: 'Heels up. Knees out.',     emoji: '👟',  baseCoins: 25,  branded: true },
   { id: 'flx_water',    type: 'sticker', rarity: 'common',    name: 'Hydrate',         description: 'Drink up.',                     emoji: '💧',  baseCoins: 25,  branded: true },
   { id: 'flx_apple',    type: 'sticker', rarity: 'common',    name: 'Clean Eats',      description: 'Macros first.',                 emoji: '🍎',  baseCoins: 25,  branded: true },
   { id: 'flx_egg',      type: 'sticker', rarity: 'common',    name: 'Protein',         description: 'The eternal staple.',           emoji: '🥚',  baseCoins: 25,  branded: true },
@@ -35,7 +35,7 @@ export const BRANDED_ITEMS = [
   { id: 'flx_med3',     type: 'sticker', rarity: 'uncommon',  name: 'Third Place',     description: 'Podium.',                       emoji: '🥉',  baseCoins: 50,  branded: true },
 
   // ── Rare (100 coins) — gear / lifestyle ──
-  { id: 'flx_og',       type: 'title',   rarity: 'rare',      name: 'OG',              description: 'Day-one Flexyn member title.',  emoji: '🏷️',  baseCoins: 120, branded: true },
+  { id: 'flx_og',       type: 'title',   rarity: 'rare',      name: 'OG',              description: 'For Flexyn members from day one.',  emoji: '🏷️',  baseCoins: 120, branded: true },
   { id: 'flx_anvil',    type: 'sticker', rarity: 'rare',      name: 'Flex Anvil',      description: 'Forge yourself.',               emoji: '⚒️',  baseCoins: 80,  branded: true },
   { id: 'flx_belt',     type: 'sticker', rarity: 'rare',      name: 'Lifting Belt',    description: 'Stay tight, stay safe.',        emoji: '🥋',  baseCoins: 100, branded: true },
   { id: 'flx_swords',   type: 'sticker', rarity: 'rare',      name: 'Battle Mode',     description: 'Duel\'s on.',                   emoji: '⚔️',  baseCoins: 100, branded: true },
@@ -45,7 +45,7 @@ export const BRANDED_ITEMS = [
   { id: 'flx_runner',   type: 'sticker', rarity: 'rare',      name: 'Sprinter',        description: 'Cardio merch.',                 emoji: '🏃',  baseCoins: 100, branded: true },
 
   // ── Epic (200 coins) — flex on em ──
-  { id: 'flx_streak',   type: 'sticker', rarity: 'epic',      name: 'Streak Flame',    description: '100-day glow.',                 emoji: '🔥',  baseCoins: 200, branded: true },
+  { id: 'flx_streak',   type: 'sticker', rarity: 'epic',      name: 'Streak Flame',    description: 'The glow of 100 days.',                 emoji: '🔥',  baseCoins: 200, branded: true },
   { id: 'flx_dragon',   type: 'sticker', rarity: 'epic',      name: 'Beast Mode',      description: 'Unleash it.',                   emoji: '🐉',  baseCoins: 200, branded: true },
   { id: 'flx_eagle',    type: 'sticker', rarity: 'epic',      name: 'Apex Predator',   description: 'Above the rest.',               emoji: '🦅',  baseCoins: 200, branded: true },
   { id: 'flx_galaxy',   type: 'sticker', rarity: 'epic',      name: 'Cosmic Pump',     description: 'No ceiling.',                   emoji: '🌌',  baseCoins: 200, branded: true },
@@ -55,7 +55,7 @@ export const BRANDED_ITEMS = [
   { id: 'flx_crown',    type: 'frame',   rarity: 'legendary', name: 'Champion Frame',  description: 'Gold border for your profile.', emoji: '👑',  baseCoins: 400, branded: true },
   { id: 'flx_trophy',   type: 'sticker', rarity: 'legendary', name: 'Hall of Fame',    description: 'Your name lives forever.',      emoji: '🏆',  baseCoins: 400, branded: true },
   { id: 'flx_radiance', type: 'sticker', rarity: 'legendary', name: 'Radiance',        description: 'You light up the room.',        emoji: '🌟',  baseCoins: 400, branded: true },
-  { id: 'flx_comet',    type: 'sticker', rarity: 'legendary', name: 'Streak Comet',    description: 'Once-in-a-lifetime drop.',      emoji: '☄️',  baseCoins: 400, branded: true },
+  { id: 'flx_comet',    type: 'sticker', rarity: 'legendary', name: 'Streak Comet',    description: 'A drop you get once.',      emoji: '☄️',  baseCoins: 400, branded: true },
 
   // ── Animated (1000 coins) — top of the wall ──
   { id: 'flx_sparkles', type: 'sticker', rarity: 'animated',  name: 'Sparkles',        description: 'The drop everyone wants.',      emoji: '✨',  baseCoins: 1000, branded: true },
@@ -201,10 +201,10 @@ export const ITEMS = [
 
   // ── Legendary stickers (2) ──
   { id: 'stk_glow',     type: 'sticker', rarity: 'legendary', name: 'Radiance',       description: 'You light up the gym.', emoji: '🌟', baseCoins: 250 },
-  { id: 'stk_comet',    type: 'sticker', rarity: 'legendary', name: 'Comet',          description: 'A once-in-a-lifetime drop.', emoji: '💫', baseCoins: 250 },
+  { id: 'stk_comet',    type: 'sticker', rarity: 'legendary', name: 'Comet',          description: 'The drop you get once.', emoji: '💫', baseCoins: 250 },
 
   // ── Animated sticker (1) ──
-  { id: 'stk_sparkle',  type: 'sticker', rarity: 'animated',  name: 'Sparkle',        description: 'Rarest of the rare — it moves!', emoji: '✨', baseCoins: 500 },
+  { id: 'stk_sparkle',  type: 'sticker', rarity: 'animated',  name: 'Sparkle',        description: 'Rarest of the rare. It moves!', emoji: '✨', baseCoins: 500 },
 
   // ── Capsule items (3) ──
   { id: 'cap_standard', type: 'capsule', rarity: 'common',    name: 'Standard Capsule', description: 'A mystery awaits inside.', emoji: CAPSULE_GLYPH.standard, baseCoins: 0 },
@@ -334,4 +334,35 @@ export function rollVariant(capsuleType = 'standard') {
     if (roll < cum) return variant;
   }
   return null;
+}
+
+// ── Translation ───────────────────────────────────────────────────────
+//
+// Cosmetic NAMES stay English — "Coral Rush", "Iron King", "Gold Shimmer"
+// are product names, the same class as the crew trophies and the brands in
+// equipmentCatalog. The FLAVOUR TEXT beside them is ordinary copy and
+// translates, which is the line `_glossary.json` already draws.
+//
+// One namespace covers all four catalogs — BRANDED_ITEMS, ITEMS, LOOT_TITLES
+// and LOOT_FRAMES — because their 89 ids are globally unique (`flx_`, `stk_`,
+// `cap_`, `t_`, `f_`). That is what lets a render site resolve a row without
+// knowing which module it came from, which matters because these travel as
+// generic inventory rows: `rollLootTitle` copies name and description into an
+// item shape, so by the time the opener draws it the module is long gone.
+// Themes keep their own `loot.theme.<id>.desc`, already shipped.
+//
+// This module is pure data, so the translator arrives as an argument.
+
+/** Default translator: hand back the English fallback untouched. */
+const asIs = (_key, english) => english;
+
+/**
+ * The flavour line under a sticker, title, frame or capsule. Falls back to
+ * the catalog English, so a row from an older build with no matching key
+ * renders exactly what it renders today.
+ */
+export function lootDescription(item, tf = asIs) {
+  const english = item?.description || '';
+  if (!item?.id || !english) return english;
+  return tf(`loot.item.${item.id}.desc`, english);
 }

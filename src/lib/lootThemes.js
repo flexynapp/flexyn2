@@ -556,7 +556,7 @@ export const LOOT_THEMES = [
   {
     id: 'loot_dragon',
     name: "Dragon's Lair",
-    description: 'Gold hoard, blinking dragon eyes, fire-breath washes — the accent breathes gold↔ember',
+    description: 'Gold hoard, blinking dragon eyes, fire breath washes. The accent breathes gold and ember.',
     rarity: 'mythic',
     emoji: '🐉',
     animated: true,
