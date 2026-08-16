@@ -258,7 +258,11 @@
     "Session": "Session",
     "Elite": "Elite",
     "Rival": "Rival",
-    "$addedNote": "Session, Elite and Rival were added 2026-08-16 after `npm run i18n:review` flagged them as recurring product nouns with no row — the growth rule working as intended rather than a collision found the hard way."
+    "$addedNote": "Session, Elite and Rival were added 2026-08-16 after `npm run i18n:review` flagged them as recurring product nouns with no row — the growth rule working as intended rather than a collision found the hard way.",
+    "Win badge": "S",
+    "Loss badge": "N",
+    "Tie badge": "U",
+    "$duelBadgeNote": "The one-letter duel result badges. S/U/N is the standard German table triple and it agrees with this catalog: duels.wins is Siege, duels.losses Niederlagen, so the badges are those words abbreviated. They were W/L/TIE until 2026-08-16 — TIE in particular is not a German word. Full words stay Siege/Niederlagen/Unentschieden; only the badge is abbreviated."
   },
   "it": {
     "$note": "Derived 2026-08-16 from the 1,482 strings that already shipped, before the coverage pass, so the new strings agree with the old ones. Register is tu throughout — measured at 128 tu-forms against 2 apparent Lei ones, and both of those were false positives (\"i suoi progressi\" of a goal, \"le sue statistiche\" of a rival), the same ambiguity German has with Sie. 87 tu-imperatives against 0 Lei-imperatives confirms it. Italian runs a little longer than English here; check the pinned-CTA onboarding screens with the pseudolocale before releasing.",

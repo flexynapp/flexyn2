@@ -123,9 +123,8 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'workout.templates.reps',
   ]),
   fr: new Set([
-    // Plans surface: 'Macros' and 'Plans' are the French words too.
-    'weeklyMealPlannerModal.macros',
-    'weeklyMealPlannerModal.title',
+    'Macros',
+    'Plans',
     'achievementDefs.cat.nutrition',
     'biceps',
     'bodyMetrics.dateRequired',
@@ -183,6 +182,8 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'regimens.notes',
     'settings.distanceUnit.mi',
     'triceps',
+    'weeklyMealPlannerModal.macros',
+    'weeklyMealPlannerModal.title',
     'widgetDefs.cat.motivation',
     'workout.date',
     'workout.exerciseShort',
@@ -193,36 +194,28 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'workout.repsLabel',
     'workout.templates.public',
   ]),
-  // German. Populated 2026-08-16 while the locale went 67% -> 90%: a
+  // German. Populated 2026-08-16 while the locale went 67% -> 99.4%: a
   // translation push SURFACES cognates rather than removing them, so the
-  // English-echo count rose as coverage improved. Every entry below was
-  // checked to be a unit symbol, a pure token string, a proper noun, or a
-  // loanword standard in German (Cardio, Level, Pause, Tempo, Snack).
+  // English-echo count rose as coverage improved.
   //
-  // DELIBERATELY NOT HERE, because German has an ordinary native word and
-  // these are real gaps a native pass should close:
-  //   bountyBoard.board  "Board"
-  //   duels.resultLoss  "L"
-  //   duels.resultTie  "TIE"
-  //   duels.resultWin  "W"
-  //   friendLeaderboard.mode.weekly_sessions  "Sessions"
-  //   gymRivalMenu.capsules  "Capsules"
-  //   gymRivalMenu.rival  "Rival"
-  //   hub.profile.themes  "Themes"
-  //   hub.themes.title  "Themes"
-  //   league.ceremony.capsule  "Capsule"
-  //   progress.review.sessions  "Sessions"
-  //   shop.eliteCapsule.name  "Elite Capsule"
-  //   shop.premiumCapsule.name  "Premium Capsule"
-  //   shop.standardCapsule.name  "Standard Capsule"
-  //   workout.repsLabel  "Reps"
-  //   workout.templates.reps  "Reps"
-  //   routineTodayCard.challenge  "Challenge"
-  //   themeSelector.lootCapsules  "Loot Capsules"
-  //   todayRail.capsules  "Capsules"
-  //   trends.metric.reps  "Reps"
-  //   (Themen / Unentschieden / Wdh. / Kapsel / Rivale / Einheiten /
-  //    Herausforderung)
+  // A FIRST PASS WITHHELD 20 OF THESE on the reasoning that German has an
+  // ordinary native word for each. THAT WAS WRONG, and it would have undone
+  // work landed the same day. Two things the repo had already decided:
+  //
+  //   * _glossary.json doNotTranslate keeps Reps and Capsule in English in
+  //     EVERY locale, and the 2026-08-16 term pass had just reverted German
+  //     renderings of exactly those (Reps -> Wiederholungen, Capsule ->
+  //     Kapsel). Ten keys below are that policy, not a gap.
+  //   * _glossary.json de keeps Session and Rival in English, and the
+  //     catalog already says "Themes" (Theme-Drop, Level-Themes) and
+  //     "Challenge" (Challenge loeschen, Team-Challenge) throughout.
+  //
+  // Check the glossary AND how the catalog already renders a word before
+  // calling an English value a gap. Only three of the twenty were real, and
+  // they are absent here because they are now translated: duels.resultWin /
+  // Loss / Tie were W / L / TIE and are S / N / U, the standard German table
+  // triple and the abbreviations of words this catalog already uses
+  // (duels.wins "Siege", duels.losses "Niederlagen").
   de: new Set([
     'aboutSection.twemoji',
     'analyticsSheet.hours',
@@ -235,6 +228,7 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'bodyMap.data.live',
     'bodyMetrics.leftArm',
     'bodyMetrics.rightArm',
+    'bountyBoard.board',
     'buyConfirmDialog.flexCoins',
     'cardio',
     'cardio.live.pause',
@@ -260,6 +254,7 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'discovery.formCoach.kicker',
     'exerciseLogger.tempo',
     'formcoach.beta',
+    'friendLeaderboard.mode.weekly_sessions',
     'friendLeaderboard.mode.weekly_xp',
     'gauntletStatsModal.flexynGauntlet',
     'gifPicker.gifs',
@@ -268,14 +263,18 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'gymEdit.website',
     'gymHub.detailsOptional',
     'gymJoinSheet.orange',
+    'gymRivalMenu.capsules',
     'gymRivalMenu.levelN',
+    'gymRivalMenu.rival',
     'gymSignageCard.flexynGym',
     'heavyBirdModal.gainzBird',
     'hub.feed.pump',
     'hub.messages.tab.crews',
+    'hub.profile.themes',
     'hub.share.cardio',
     'hub.share.status',
     'hub.themes.lockedAt',
+    'hub.themes.title',
     'hubCommentsInline.admin',
     'hubPostCard.admin',
     'hubProfile.admin',
@@ -285,6 +284,7 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'leaderboards.scope.regional',
     'leaderboards.short.level',
     'leaderboards.top100',
+    'league.ceremony.capsule',
     'league.ceremony.capsuleQty',
     'league.ceremony.champion',
     'legal.anthropic',
@@ -327,6 +327,7 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'progress.frame.deltaPctUp',
     'progress.frameShort.month',
     'progress.review.pr',
+    'progress.review.sessions',
     'progress.slide.level.kicker',
     'progress.stat.level',
     'progress.stat.levelValue',
@@ -336,27 +337,35 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'regions.pull',
     'regions.push',
     'routeMap.maptiler',
+    'routineTodayCard.challenge',
     'setRow.110Optional',
     'settings.group.feedback',
     'settings.group.stories',
     'settings.section.training',
     'shareSheetModal.whatsapp',
+    'shop.eliteCapsule.name',
+    'shop.premiumCapsule.name',
+    'shop.standardCapsule.name',
     'snakeGameModal.ironSnake',
     'storyPreviewSheet.emoji',
     'sweatJetpackModal.splat',
     'sweatJetpackModal.sweatJetpack',
     'templatesModal.community',
+    'themeSelector.lootCapsules',
+    'todayRail.capsules',
     'trainerStudio.live',
+    'trends.metric.reps',
     'trends.summary',
     'weeklyDebriefCard.balance',
     'weeklyDebriefCard.progression',
     'widgetDefs.cat.motivation',
     'workout.crewWars',
     'workout.gauntlet',
+    'workout.repsLabel',
+    'workout.templates.reps',
   ]),
   pt: new Set([
-    // 'Macros' is the Portuguese word too.
-    'weeklyMealPlannerModal.macros',
+    'Macros',
     'cardio',
     'cardio.field.hours',
     'cardio.field.minutes',
@@ -381,6 +390,7 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'muscleGroups.core',
     'notifications.row.capsule.label.elite',
     'notifications.row.capsule.label.premium',
+    'weeklyMealPlannerModal.macros',
     'workout.exerciseShort',
     'workout.exercisesShort',
     'workout.min',
@@ -389,8 +399,6 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'workout.templates.reps',
   ]),
   it: new Set([
-    // "{n} cal in {label}" is valid Italian unchanged — 'in' is the same word.
-    'weeklyMealPlannerModal.calInSlot',
     'cardio',
     'cardio.field.hours',
     'cardio.field.minutes',
@@ -406,6 +414,7 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'generator.focus',
     'hub.activity.volume',
     'hub.share.cardio',
+    'in',
     'leaderboards.top100',
     'muscleGroups.cardio',
     'muscleGroups.core',
@@ -413,6 +422,7 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'notifications.row.capsule.label.elite',
     'notifications.row.capsule.label.premium',
     'notifications.row.capsule.label.standard',
+    'weeklyMealPlannerModal.calInSlot',
     'workout.min',
     'workout.minutes',
   ]),
@@ -427,27 +437,53 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'workout.setSingular',
   ]),
   pl: new Set([
+    'aboutSection.twemoji',
+    'analyticsSheet.minutes',
+    'analyticsSheet.timesX',
+    'app.corporateWellness',
+    'app.creatorStudio',
+    'app.name',
     'biceps',
+    'bodyMap.a11y.muscleVolume',
+    'bodyMap.rangeShort.30d',
+    'bodyMap.rangeShort.7d',
+    'bodyMap.rangeShort.90d',
+    'buyConfirmDialog.flexCoins',
+    'capsuleOpener.themeDrop',
     'cardio',
     'cardio.field.minutes',
     'cardio.live.start',
     'cardio.title',
+    'coach.feel.ok.label',
+    'coach.title',
+    'common.reps',
     'formcoach.beta',
+    'goals.lbs',
+    'goals.reps',
     'hub.share.cardio',
     'hub.share.status',
+    'journal.ctx.minutes',
     'leaderboards.top100',
     'muscleGroups.biceps',
     'muscleGroups.cardio',
     'muscleGroups.triceps',
+    'nav.hub',
     'notifications.row.capsule.label.premium',
     'nutrition.macros.cholesterol',
+    'nutrition.macros.dv',
+    'nutrition.macros.grams',
+    'nutrition.water.ml',
+    'nutrition.water.oz',
+    'shop.eliteCapsule.name',
+    'shop.premiumCapsule.name',
+    'shop.standardCapsule.name',
     'triceps',
     'workout.min',
     'workout.minutes',
+    'workout.repsLabel',
+    'workout.templates.reps',
   ]),
   nl: new Set([
-    // "{n} cal in {label}" is valid Dutch unchanged — 'in' is the same word.
-    'weeklyMealPlannerModal.calInSlot',
     'biceps',
     'cardio',
     'cardio.field.minutes',
@@ -460,8 +496,6 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'core',
     'dashboard.claim',
     'dashboard.stats.volume',
-    'dashboard.stats.workoutPlural',
-    'dashboard.stats.workoutSingular',
     'dashboard.title',
     'discovery.openCapsule.dismissLabel',
     'formcoach.tips',
@@ -472,6 +506,7 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'hub.messages.tab.crews',
     'hub.share.cardio',
     'hub.share.status',
+    'in',
     'leaderboards.top100',
     'levelUp.fromTo',
     'levelUp.title',
@@ -492,6 +527,7 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'shop.premiumCapsule.name',
     'shop.streakFreeze.name',
     'triceps',
+    'weeklyMealPlannerModal.calInSlot',
     'workout.min',
     'workout.minutes',
     'workout.seconds',
