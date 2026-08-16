@@ -21,6 +21,7 @@ import { useEffect, useState } from 'react';
 import { motion, useScroll, useTransform, useReducedMotion } from 'framer-motion';
 import { Check, Flame } from 'lucide-react';
 import { HeroPill } from './ProfileContestRail';
+import { enT } from '@/lib/translatorArg';
 
 // Ambient dots. Particles.jsx hardcodes `rounded-3xl` on its root, which
 // would clip a rectangular banner's corners — so the dots are inlined here
@@ -144,7 +145,7 @@ export default function ProfileTierBanner({
 }) {
   // Fall back to English when the caller doesn't pass a translator — the
   // component is rendered in tests and previews without LanguageContext.
-  const tf = tFallback || ((_k, fb) => fb);
+  const tf = tFallback || enT;
 
   const xpToNext = Number.isFinite(xpNeeded) && Number.isFinite(xpInLevel)
     ? Math.max(0, Math.round(xpNeeded - xpInLevel))

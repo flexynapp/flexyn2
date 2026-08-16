@@ -38,37 +38,13 @@
 // every other domain, English-only for now per the no-machine-translation
 // rule. This module only supplies the plumbing and the English fallback.
 
-/**
- * Interpolate `{name}` placeholders, exactly as `tFallback` does for its
- * fallback string. Kept identical on purpose: if the two ever diverge, a
- * missing key renders differently from a present one and the bug is
- * invisible in English.
- */
-export function interpolate(str, vars) {
-  if (!vars || typeof str !== 'string') return str;
-  let out = str;
-  for (const [k, v] of Object.entries(vars)) {
-    out = out.replace(new RegExp(`\\{${k}\\}`, 'g'), String(v));
-  }
-  return out;
-}
+// ── The plumbing itself now lives one level up ───────────────────────────
+//
+// `interpolate` / `enT` / `asT` were written here first and then copied,
+// wrongly, into four other modules — see src/lib/translatorArg.js for the
+// list and for what the wrong copy costs. They are general to any module
+// that takes a translator as an argument, not specific to the coach, so
+// they live there now and are re-exported here so every `from './coachI18n'`
+// import in this subsystem keeps working unchanged.
 
-/**
- * The default translator: ignore the key, return the interpolated English.
- *
- * This is what makes an un-threaded caller inert. It is also the honest
- * behaviour for a language with no coach translations yet — `getTranslation`
- * resolves `language → en → key`, so a real `tFallback` lands on the same
- * English string anyway.
- */
-export const enT = (key, english, vars) => interpolate(english, vars);
-
-/**
- * Normalize whatever a caller passed into something callable.
- * Guards the case where a caller threads `ctx.t` through several layers and
- * one of them drops it — a `t` of `undefined` should degrade to English, not
- * throw halfway through building a reply.
- */
-export function asT(t) {
-  return typeof t === 'function' ? t : enT;
-}
+export { interpolate, enT, asT } from '@/lib/translatorArg';

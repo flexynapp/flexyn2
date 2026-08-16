@@ -9,6 +9,8 @@
 // giving the cheap ones a "starter merch" feel and the legendary ones
 // a "you flex hard" feel.
 // Server-side prices live in migration 165.
+import { enT } from '@/lib/translatorArg';
+
 export const BRANDED_ITEMS = [
   // ── Common (25 coins) — gym essentials ──
   { id: 'flx_dumbbell', type: 'sticker', rarity: 'common',    name: 'Iron Dumbbell',   description: 'The Flexyn classic.',           emoji: '🏋️',  baseCoins: 25,  branded: true },
@@ -353,15 +355,13 @@ export function rollVariant(capsuleType = 'standard') {
 //
 // This module is pure data, so the translator arrives as an argument.
 
-/** Default translator: hand back the English fallback untouched. */
-const asIs = (_key, english) => english;
 
 /**
  * The flavour line under a sticker, title, frame or capsule. Falls back to
  * the catalog English, so a row from an older build with no matching key
  * renders exactly what it renders today.
  */
-export function lootDescription(item, tf = asIs) {
+export function lootDescription(item, tf = enT) {
   const english = item?.description || '';
   if (!item?.id || !english) return english;
   return tf(`loot.item.${item.id}.desc`, english);

@@ -14,6 +14,7 @@
 // server action with a price attached, not a client-side decrement.
 
 import { supabase } from '@/api/supabaseClient';
+import { enT } from '@/lib/translatorArg';
 
 function notDeployed(error) {
   return error?.code === '42883' || error?.code === '42P01';
@@ -102,7 +103,7 @@ export async function purchasePerk(crewId, perkKey) {
  * and has to be translatable.
  */
 export function describeLedgerReason(reason, tFallback) {
-  const t = tFallback || ((_k, fallback) => fallback);
+  const t = tFallback || enT;
   if (typeof reason !== 'string') return t('treasury.unknown', 'Adjustment');
 
   if (reason.startsWith('perk:')) {

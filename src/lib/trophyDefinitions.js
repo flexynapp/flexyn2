@@ -39,6 +39,8 @@
 // on the profile, and a denominator that grows forever would make
 // every collection look permanently unfinished.
 
+import { enT as asIs } from '@/lib/translatorArg';
+
 export const TROPHY_TIERS = {
   bronze:    { label: 'Bronze',    color: '#cd7f32', order: 1 },
   silver:    { label: 'Silver',    color: '#c0c0c0', order: 2 },
@@ -692,28 +694,12 @@ export function rungProgress(trophy, value = 0) {
 // key with no fixed string behind it — so they take the interpolated
 // form, `tf(key, 'Reached {tier} in season {n}.', { tier, n })`.
 
-/**
- * Default translator, for the call sites that have no React context.
- *
- * It hands back the English fallback — but it MUST still substitute the
- * variables, because several of the strings here are templates and an
- * un-substituted one renders the braces to the user. This used to be
- * `(_key, english) => english`, which returned `Champion, S{n}` verbatim
- * for every season champion and `{emoji} Trophy earned: {name}` for every
- * trophy toast raised without a translator.
- *
- * The substitution deliberately mirrors `tFallback` in LanguageContext, so
- * "no translator" and "translator with no catalog entry" produce the same
- * string rather than two different bugs.
- */
-export const asIs = (_key, english, vars) => {
-  if (!vars || typeof english !== 'string') return english;
-  let str = english;
-  for (const [k, val] of Object.entries(vars)) {
-    str = str.replace(new RegExp(`\\{${k}\\}`, 'g'), String(val));
-  }
-  return str;
-};
+// The default translator lives in src/lib/translatorArg.js. It used to be a
+// local `(_key, english) => english`, which dropped the interpolation vars
+// and rendered `Champion, S{n}` for every season champion once the trophy
+// catalog was extracted. `asIs` is kept as a named alias because
+// data/trophies.js imports it.
+export { asIs };
 
 /** "Bronze" / "Silver" / … for a tier ramp id. */
 export function tierLabel(tier, tf = asIs) {

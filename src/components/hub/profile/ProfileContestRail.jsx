@@ -21,6 +21,7 @@
 
 import { Trophy, Swords, Shield } from 'lucide-react';
 import { formatNumber } from '@/lib/intl';
+import { enT } from '@/lib/translatorArg';
 
 const GLASS = {
   background: 'rgba(0,0,0,0.26)',
@@ -88,7 +89,7 @@ export default function ProfileContestRail({
   language,
   tFallback,
 }) {
-  const tf = tFallback || ((_k, fb) => fb);
+  const tf = tFallback || enT;
   if (!league && !rival && !war) return null;
 
   return (

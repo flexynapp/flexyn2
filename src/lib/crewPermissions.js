@@ -25,6 +25,8 @@
 // permission. `src/lib/__tests__/crewPermissions.test.js` pins the matrix
 // so a silent widening fails the suite.
 
+import { enT } from '@/lib/translatorArg';
+
 export const RANK = {
   MEMBER:    1,
   MODERATOR: 2,
@@ -55,7 +57,7 @@ export function rankOf(member) {
 }
 
 export function rankLabel(rank, tFallback) {
-  const t = tFallback || ((_k, f) => f);
+  const t = tFallback || enT;
   if (rank === RANK.LEADER)    return t('crew.rank.leader',    'Leader');
   if (rank === RANK.MODERATOR) return t('crew.rank.moderator', 'Moderator');
   return t('crew.rank.member', 'Member');
