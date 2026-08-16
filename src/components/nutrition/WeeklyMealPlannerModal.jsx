@@ -76,6 +76,7 @@ const MANUAL_MICRO_FIELDS = [
   { key: 'vitamin_b12_mcg', label: 'Vitamin B12', unit: 'mcg', color: 'text-primary' },
 ];
 const MANUAL_ALL_FIELDS = [...MANUAL_MACRO_FIELDS, ...MANUAL_MICRO_FIELDS];
+const slotLabelKey = (slot) => `mealPlanner.slot.${slot.key ?? slot.mealType}`;
 const emptyNutrients = () => MANUAL_ALL_FIELDS.reduce((acc, f) => { acc[f.key] = ''; return acc; }, {});
 
 function weekStart(date) {
@@ -239,6 +240,7 @@ function SlotFullSheet({ open, label, items, recipesById, isToday, onReplace, on
 // (snap the plate), Recipe (their saved recipes), or Manual (type the
 // macros). Mirrors the entry points on the Nutrition page's log form.
 function AddMethodSheet({ open, mealLabel, onPhoto, onRecipe, onManual, onClose }) {
+  const { tFallback } = useLanguage();
   if (!open) return null;
   const options = [
     { key: 'photo',  label: 'Photo-AI', desc: 'Snap a photo of your plate', Icon: Camera,  onClick: onPhoto,  tint: 'text-primary bg-primary/10' },
@@ -273,8 +275,8 @@ function AddMethodSheet({ open, mealLabel, onPhoto, onRecipe, onManual, onClose 
                 <Icon className="w-4 h-4" />
               </span>
               <span className="flex-1 min-w-0">
-                <span className="block font-bold text-sm">{label}</span>
-                <span className="block text-micro text-muted-foreground">{desc}</span>
+                <span className="block font-bold text-sm">{tFallback(`mealPlanner.add.${key}.label`, label)}</span>
+                <span className="block text-micro text-muted-foreground">{tFallback(`mealPlanner.add.${key}.desc`, desc)}</span>
               </span>
               <ChevRight className="w-4 h-4 text-muted-foreground shrink-0" />
             </button>
@@ -308,7 +310,7 @@ function ManualMealModal({ open, mealLabel, onSave, onClose }) {
   // remounted each keystroke — that would drop focus mid-typing.
   const renderInput = (f) => (
     <div key={f.key}>
-      <label className={`text-micro font-bold uppercase tracking-wide ${f.color}`}>{f.label}</label>
+      <label className={`text-micro font-bold uppercase tracking-wide ${f.color}`}>{tFallback(`nutrient.${f.key.replace(/_(g|mg|mcg|iu)$/, '')}`, f.label)}</label>
       <div className="mt-1 flex items-center rounded-lg border border-border bg-background focus-within:ring-2 focus-within:ring-primary/40">
         <input
           type="number"
@@ -401,6 +403,13 @@ function ManualMealModal({ open, mealLabel, onSave, onClose }) {
 // ── Main planner modal ────────────────────────────────────────────────
 export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onStartOnboarding }) {
   const { tFallback } = useLanguage();
+
+  // The four meal slots are a module-scope const, so their labels cannot be
+  // translated where they are declared. Resolved here instead, at the point
+  // they are READ — which means every downstream hand-off (the add sheet, the
+  // remove confirm, the full-slot sheet) already carries the translated
+  // string rather than each needing its own lookup.
+  const slotLabel = (slot) => tFallback(slotLabelKey(slot), slot.label);
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const fmtDate = useDateFormatter();
@@ -839,7 +848,7 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
                 <div className="mt-6 space-y-2">
                   {selectedPlans.map(({ slot, items }) => {
                     const slotTotal = mealPlans.dayTotals(items);
-                    const openAdd = () => setAddSlot({ date: selectedDate, mealType: slot.key, label: slot.label });
+                    const openAdd = () => setAddSlot({ date: selectedDate, mealType: slot.key, label: slotLabel(slot) });
                     if (items.length === 0) {
                       return (
                         <button
@@ -848,7 +857,7 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
                           className="w-full min-h-[48px] flex items-center gap-2 px-3 rounded-lg border border-dashed border-border text-start hover:bg-secondary/60 active:bg-secondary/60 transition-colors"
                         >
                           <span aria-hidden="true">{slot.emoji}</span>
-                          <span className="text-sm font-medium text-muted-foreground">{slot.label}</span>
+                          <span className="text-sm font-medium text-muted-foreground">{slotLabel(slot)}</span>
                           <span className="ms-auto inline-flex items-center gap-1 text-xs font-bold text-primary">
                             <Plus className="w-3.5 h-3.5" />
                             {tFallback('weeklyMealPlannerModal.add', 'Add')}
@@ -860,7 +869,7 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
                       <div key={slot.key}>
                         <div className="flex items-baseline gap-2 px-1 pb-1">
                           <span aria-hidden="true" className="text-micro">{slot.emoji}</span>
-                          <span className="text-micro font-bold uppercase tracking-wide text-muted-foreground">{slot.label}</span>
+                          <span className="text-micro font-bold uppercase tracking-wide text-muted-foreground">{slotLabel(slot)}</span>
                           {items.length > 1 && (
                             <span className="ms-auto text-micro font-bold text-primary tabular-nums">
                               {items.length} · {fmtNum(Math.round(slotTotal.calories))} cal
@@ -879,7 +888,7 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
                                   if (snap) {
                                     setDetailPlan({ plan, date: selectedDate, mealType: slot.key });
                                   } else {
-                                    setRemovePlan({ plan, date: selectedDate, mealType: slot.key, label: slot.label });
+                                    setRemovePlan({ plan, date: selectedDate, mealType: slot.key, label: slotLabel(slot) });
                                   }
                                 }}
                                 className="w-full text-start px-3 py-2.5 rounded-lg bg-card border border-border hover:bg-secondary/40 active:bg-secondary/40 transition-colors"
@@ -918,10 +927,10 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
                             // offers a way through. Tapping this opens the
                             // sheet rather than doing nothing.
                             <button
-                              onClick={() => setFullSlot({ label: slot.label, mealType: slot.key, items })}
+                              onClick={() => setFullSlot({ label: slotLabel(slot), mealType: slot.key, items })}
                               className="w-full min-h-[40px] flex items-center justify-center rounded-lg text-micro font-semibold text-muted-foreground hover:bg-secondary/60 active:bg-secondary/60 transition-colors"
                             >
-                              {tFallback('weeklyMealPlannerModal.slotFull', '{label} is full — {n} of {max}', { label: slot.label, n: items.length, max: mealPlans.SLOT_CAPACITY })}
+                              {tFallback('weeklyMealPlannerModal.slotFull', '{label} is full — {n} of {max}', { label: slotLabel(slot), n: items.length, max: mealPlans.SLOT_CAPACITY })}
                             </button>
                           )}
                         </div>
@@ -1026,7 +1035,7 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
                 .then(invalidateDiary)
                 .catch(() => {});
             }
-            setAddSlot({ date: selectedDate, mealType: slot.mealType, label: slot.label });
+            setAddSlot({ date: selectedDate, mealType: slot.mealType, label: slotLabel(slot) });
           }}
           onLogToDiary={() => { setFullSlot(null); onClose(); }}
           onClose={() => setFullSlot(null)}

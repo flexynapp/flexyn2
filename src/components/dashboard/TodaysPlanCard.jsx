@@ -144,10 +144,16 @@ export default function TodaysPlanCard({ regimens = [], logs = [], hasWorkedOutT
 
   const { regimen, doneToday, info } = todaysPlan;
   // Translate the inferred day label via a slug derived from the
-  // English fallback ("Push Day" → "push-day"). Translators fill the
-  // `todaysPlan.label.*` keys in i18n part files; English-only users
-  // get the inline fallback so the surface never shows a key code.
-  const labelSlug = (info.label || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+  // English fallback ("Push Day" → "push_day"). The fallback branch of
+  // inferDayLabel returns the REGIMEN'S OWN NAME, which is user data — its
+  // slug matches no key, tFallback returns it untouched, and that is right.
+  //
+  // UNDERSCORE, not hyphen. Every key scan in this repo matches [\w.]+, so
+  // `todaysPlan.label.push-day` would be invisible to the audit — which is
+  // exactly how these thirteen keys went missing: the lookup shipped, the
+  // keys never did, and nothing could see it because a computed key cannot
+  // be checked statically either.
+  const labelSlug = (info.label || '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/(^_|_$)/g, '');
   const translatedLabel = tFallback(`todaysPlan.label.${labelSlug}`, info.label);
   const exercises = Array.isArray(regimen.exercises) ? regimen.exercises : [];
   const exerciseCount = exercises.length;
