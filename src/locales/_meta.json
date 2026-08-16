@@ -92,7 +92,12 @@
       "vocabularyDecisions2026-08-15": {
         "es.Regimen": "Régimen/Rutina → Programa (47 keys). 'Rutina' also meant Routine; 'Régimen' reads dietary.",
         "fr.Streak": "Série → Flamme (60 keys). 'Série' also meant Set, and cannot move — it is the standard term for a training set."
-      }
+      },
+      "fixed2026-08-16": [
+        "pt taken 1,486 → 3,796 keys (38.9% → 99.4%), matching es and fr exactly. 2,310 strings across 13 batches, every one through the placeholder/newline/markdown validator, which refuses a whole batch rather than writing a partial one.",
+        "All 11 onboarding accentWord keys asserted to be a single token hitting exactly one word of their pt heading — the bug that shipped in Spanish as 'en serio' and was caught only by a screenshot.",
+        "Gym was split 2 academia / 3 ginásio; ginásio is a sports hall in Brazil, so those three were corrected with the gender change they force (ao ginásio → à academia)."
+      ]
     },
     "spanish": {
       "$comment": "The whole Spanish catalog is a machine draft produced 2026-08-14, consistent with _glossary.json (tú register, 49 fixed terms) and verified for placeholder, newline and markdown parity. A second machine consistency pass ran 2026-08-15 (see $passes). It has still NOT had a native pass. A reviewer should read _glossary.json first, then work namespace by namespace — coach.* and onboarding.* carry the long-form coaching prose and are where a wrong register or a mistranslated cue costs the most.",
@@ -119,7 +124,13 @@
       "tr",
       "pl",
       "nl"
-    ]
+    ],
+    "portuguese": {
+      "$comment": "The whole Portuguese catalog is a machine draft completed 2026-08-16, taken from 38.9% to 99.4% — the same coverage es and fr sit at. It is pt-BR: measured, not assumed, on the 1,486 strings that already shipped (99 Brazilian markers against 6 European). Register is Brazilian UI voice — no explicit pronoun, você-form imperatives, seu/sua possessives. Consistent with _glossary.json's pt block (49 terms, derived from those same shipped strings) and verified for placeholder, newline and markdown parity on every key. It has NOT had a native pass. A reviewer should read _glossary.json first, then work namespace by namespace — coach.* is 314 keys of long-form coaching prose and onboarding.* another 219, and those are where a wrong register or a mistranslated cue costs the most.",
+      "status": "machine-drafted, awaiting native review",
+      "coverage": "99.4%",
+      "$driftFound": "37 Plans strings had arrived in EUROPEAN Portuguese and in the tu register — 'à tua alimentação', 'Configura', 'Substitui', 'Registá-la', and 'para alimentares o esforço e recuperares' (the personal infinitive, which pt-BR does not use that way) — against 3,759 Brazilian ones. Corrected, and i18n-review.mjs now carries pt register rules so the class is caught rather than found by eye."
+    }
   },
   "machineTranslated": {
     "$comment": "Keys drafted by machine, pending native review.",

@@ -52,6 +52,18 @@ const REGISTER = {
     // usted imperatives whose tú form differs; candidates only
     imperatives: 'Toque|Abra|Cierre|Busque|Cree|Modifique|Cambie|Espere|Utilice|Haga|Vaya|Ponga|Mire|Vea|Encuentre|Intente|Pruebe|Vuelva|Empiece|Termine|Registre|Guarde|Marque|Presione|Verifique|Compruebe|Comparta|Elija|Seleccione|Escriba|Añada',
   },
+  pt: {
+    // pt-BR. Both halves matter and the catalog had drifted on both: 37 Plans
+    // strings arrived in EUROPEAN Portuguese AND the tu register — "à tua
+    // alimentação", "Configura", "Registá-la", "para alimentares o esforço" —
+    // while the other 3,759 were Brazilian with seu/sua. Same defect French
+    // had, in a second dimension.
+    want: 'seu/sua (pt-BR)',
+    wrong: [W('tu|teu|tua|teus|tuas|contigo'),
+            W('registar|ecrã|equipa|ginásio|guardar|definições|partilhar|autocarro')],
+    // pt-PT imperatives; the pt-BR você form differs (Configure, Substitua)
+    imperatives: 'Configura|Substitui|Regista|Guarda|Partilha|Elimina|Adiciona|Escolhe|Verifica|Consulta',
+  },
   fr: {
     want: 'vous',
     wrong: [W('tu'), W("ton|ta|tes|toi|t'|t’")],
