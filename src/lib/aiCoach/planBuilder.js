@@ -553,7 +553,7 @@ function competeReply({ workout }) {
     `• Gym rival: ~${formatNum(volPoints)} pts. Rival week is tonnage only — sessions and days don't count there.`,
     '',
     `**The bigger lever**`,
-    `In a crew war, each distinct day you train is worth ${perDayActive} pts — you'd need ${formatNum(perDayActive * volumePerPoint)} lb of extra lifting to match one more day on the calendar. Repeat this session across all ${caps.daysActive} days of the war before you chase heavier numbers. Per-member scoring caps at ${formatNum(caps.volumeLbs)} lb, ${caps.sessions} sessions and ${caps.daysActive} days.`,
+    `In a crew war, each distinct day you train is worth ${perDayActive} pts — you'd need ${formatNum(perDayActive * volumePerPoint)} lb of extra lifting to match one more day on the calendar. Repeat this session across all ${caps.daysActive} days of the war before you chase heavier numbers. Sessions cap at ${caps.sessions} and days at ${caps.daysActive}; the tonnage cap is personal — it is what you could plausibly lift in a week, so it is not a number worth training toward.`,
     '',
     `Sized to stay under your realistic set ceiling, so the log will save clean — the anti-cheat gate rejects sessions past it. Chasing a **cardio** rival instead? That one scores kilometres, not tonnage — ask me for a distance session.`,
   ];

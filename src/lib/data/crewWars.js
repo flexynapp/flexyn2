@@ -67,6 +67,14 @@ export const CREW_WAR_WEIGHTS = {
   volumePerPoint: 100,   // every 100 lb lifted is worth 1 point
   perSession:     50,
   perDayActive:   100,
+  // volumeLbs is the ABSOLUTE ceiling, not the cap that usually binds.
+  // Migration 359 caps each member at their OWN modelled weekly volume
+  // (crew_member_volume_ceiling: bodyweight × age × sex × 7, clamped to
+  // this number), so for anyone whose profile carries a weight the real
+  // cap is lower — 107,100 for a 120 lb 55-year-old. The client cannot
+  // compute it: user_daily_volume_ceiling is REVOKEd from authenticated.
+  // Do not print this figure at a user as "your cap" — the AI Coach did
+  // exactly that until 2026-08-16.
   caps: { volumeLbs: 200000, sessions: 28, daysActive: 7 },
 };
 
