@@ -37,6 +37,7 @@
 
 import fs from 'fs';
 import path from 'path';
+import { execFileSync } from 'child_process';
 
 const LANGS = ['en','es','fr','de','pt','it','ja','ko','zh','ar','hi','ru','tr','pl','nl'];
 const OTHERS = LANGS.filter(l => l !== 'en');
@@ -44,6 +45,7 @@ const DIR = 'src/locales';
 
 const args = process.argv.slice(2);
 const wantPartial = args.includes('--partial');
+const wantUntranslatable = args.includes('--untranslatable');
 const langArg = args.includes('--lang') ? args[args.indexOf('--lang') + 1] : null;
 
 function loadEntries(lang) {
@@ -62,11 +64,32 @@ function loadKeys(lang) {
 const keys = Object.fromEntries(LANGS.map(l => [l, loadKeys(l)]));
 const en = keys.en;
 
-// ── A. keys used in code that resolve to nothing at all ──────────────
-// A bare t('x') where 'x' isn't in `en` renders the literal string 'x' to
-// the user. tFallback('x', 'English') is always safe, so it's excluded.
+// ── A. keys used in code that `en` does not define ───────────────────
+//
+// Two different failures, and this script used to see only the first.
+//
+//   A1 UNRESOLVABLE   bare t('x'), 'x' absent from `en`. getTranslation
+//                     bottoms out at `return enVal ?? key`, so the user
+//                     reads the literal key path. Loud, rare, fatal.
+//
+//   A2 UNTRANSLATABLE tFallback('x', 'English'), 'x' absent from `en`.
+//                     This was previously counted as SAFE and excluded
+//                     outright — the comment said "tFallback is always
+//                     safe". Safe against a raw key path, yes. But the
+//                     fallback is the ONLY value that can ever resolve:
+//                     no catalog defines the key, `en` included, so
+//                     every locale falls through to the English literal
+//                     at the call site. It renders English in all 15
+//                     languages, permanently, and no translator can
+//                     reach it — the string is not in a file they get.
+//
+// A2 is invisible to coverage BY CONSTRUCTION. Coverage counts a locale's
+// keys against `en.json`; these keys are not in `en.json`, so they are
+// absent from the numerator and the denominator alike. That is how the
+// Spanish dashboard could read 99.4% while rendering "Your daily chest is
+// ready" — dashboard.dailyChest.title has never existed as a key.
 const usedBare = new Map();
-const safeFallback = new Set();
+const usedFallback = new Map();
 (function walk(dir) {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
     const p = path.join(dir, e.name);
@@ -78,16 +101,38 @@ const safeFallback = new Set();
     const src = fs.readFileSync(p, 'utf8')
       // strip comments so documentation examples aren't read as call sites
       .replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
-    for (const m of src.matchAll(/\btFallback\(\s*['"]([\w.]+)['"]\s*,/g)) safeFallback.add(m[1]);
-    for (const m of src.matchAll(/\bt\(\s*['"]([\w.]+)['"]\s*\)(?!\s*(?:\|\||\?\?))/g)) {
+    const rel = p.replace(/^src\//, '');
+    // Backticks included: a template literal with no ${} is a constant key,
+    // and several call sites write one. A key WITH ${} is computed and
+    // cannot be checked statically — `[\w.]+` excludes those by not
+    // matching `$`, `{` or `}`.
+    // `tF` and `tf` are real aliases here, not hypothetical: Dashboard.jsx
+    // builds its section headings as `(tF) => tF('dashboard.section.friends',
+    // 'Friends this week')`. Matching only the full name missed 21 call
+    // sites — including every one of the dashboard's section titles, which
+    // is the "most titles are all english still" Kegan reported.
+    for (const m of src.matchAll(/\b(?:tFallback|tF|tf)\(\s*['"`]([\w.]+)['"`]\s*,/g)) {
+      if (!usedFallback.has(m[1])) usedFallback.set(m[1], new Set());
+      usedFallback.get(m[1]).add(rel);
+    }
+    for (const m of src.matchAll(/\bt\(\s*['"`]([\w.]+)['"`]\s*\)(?!\s*(?:\|\||\?\?))/g)) {
       if (!usedBare.has(m[1])) usedBare.set(m[1], new Set());
-      usedBare.get(m[1]).add(p.replace(/^src\//, ''));
+      usedBare.get(m[1]).add(rel);
     }
   }
 })('src');
 
 const unresolvable = [...usedBare.keys()]
-  .filter(k => !en.has(k) && !safeFallback.has(k)).sort();
+  .filter(k => !en.has(k) && !usedFallback.has(k)).sort();
+
+// Referenced with an English default, absent from `en`. Union of both call
+// forms: a key can be tFallback'd in one file and bare-t'd in another, and
+// it is untranslatable either way once `en` lacks it.
+const untranslatable = [...new Set([...usedFallback.keys(), ...usedBare.keys()])]
+  .filter(k => !en.has(k) && usedFallback.has(k)).sort();
+
+const untranslatableBy = (k) =>
+  [...new Set([...(usedFallback.get(k) || []), ...(usedBare.get(k) || [])])];
 
 // ── B. per-key gaps ──────────────────────────────────────────────────
 const gaps = new Map();
@@ -104,6 +149,26 @@ if (langArg) {
   const missing = [...en].filter(k => !keys[langArg].has(k)).sort();
   console.log(`${langArg}: ${keys[langArg].size}/${en.size} keys, ${missing.length} missing\n`);
   for (const k of missing) console.log(`  ${k}`);
+  process.exit(0);
+}
+
+if (wantUntranslatable) {
+  const byFile = new Map();
+  for (const k of untranslatable) {
+    for (const f of untranslatableBy(k)) {
+      if (!byFile.has(f)) byFile.set(f, []);
+      byFile.get(f).push(k);
+    }
+  }
+  console.log(`UNTRANSLATABLE — ${untranslatable.length} keys referenced in source but absent from en.json.`);
+  console.log('Each renders its English call-site default in every one of the 15');
+  console.log('languages, permanently. Adding the key to en.json is what makes it');
+  console.log('translatable; until then no locale file can carry it.\n');
+  for (const [f, ks] of [...byFile].sort((a, b) => b[1].length - a[1].length)) {
+    console.log(`${f} — ${ks.length}`);
+    for (const k of ks.sort()) console.log(`    ${k}`);
+    console.log();
+  }
   process.exit(0);
 }
 
@@ -124,9 +189,27 @@ if (wantPartial) {
   process.exit(0);
 }
 
-console.log('=== A. unresolvable keys (would render a raw key path to a user) ===');
+console.log('=== A1. unresolvable keys (would render a raw key path to a user) ===');
 console.log(`    ${unresolvable.length}`);
 for (const k of unresolvable) console.log(`      ${k}  <- ${[...usedBare.get(k)].join(', ')}`);
+
+console.log('\n=== A2. UNTRANSLATABLE keys (English in every language, forever) ===');
+console.log('    Referenced in source with an English default, absent from en.json.');
+console.log('    No locale can translate these — the key is in no catalog, so a');
+console.log('    translator never receives the string. Coverage below CANNOT see');
+console.log('    them: they are outside both its numerator and its denominator.');
+console.log(`    ${untranslatable.length}`);
+if (untranslatable.length) {
+  const byFile = new Map();
+  for (const k of untranslatable) {
+    for (const f of untranslatableBy(k)) byFile.set(f, (byFile.get(f) || 0) + 1);
+  }
+  console.log('\n    worst files:');
+  for (const [f, n] of [...byFile].sort((a, b) => b[1] - a[1]).slice(0, 12)) {
+    console.log(`      ${String(n).padStart(4)}  ${f}`);
+  }
+  console.log('\n    --untranslatable to list every one with its call sites.');
+}
 
 console.log('\n=== B. coverage ===');
 console.log(`    en: ${en.size} keys (baseline)`);
@@ -135,6 +218,8 @@ for (const l of OTHERS) {
   const pct = ((1 - miss / en.size) * 100).toFixed(1);
   console.log(`    ${l}: ${String(keys[l].size).padStart(5)}   missing ${String(miss).padStart(4)}   ${pct}%`);
 }
+console.log('\n    ^ CATALOG coverage — what share of en.json a locale defines.');
+console.log('      It is not what a user sees. See section E.');
 
 // A key can be PRESENT and still untranslated — holding the English
 // string verbatim. Key-presence coverage misses this entirely, which is
@@ -166,5 +251,45 @@ console.log('\n=== D. gap shape ===');
 console.log(`    ${gaps.size} keys have a gap somewhere`);
 console.log(`      ${englishOnly.length} missing in ALL 14  — English-only features, usually deliberate`);
 console.log(`      ${partial.length} partial            — run with --partial; these are the real bugs`);
+
+// ── E. what a user actually sees ─────────────────────────────────────
+//
+// Section B's denominator is en.json, which silently defines away the two
+// biggest sources of English on a translated screen. The honest denominator
+// is every user-visible string in the app:
+//
+//     en.json keys                     translatable, and measured by B
+//   + untranslatable keys (A2)         referenced, never in a catalog
+//   + hardcoded strings                never reached a catalog at all
+//
+// The last term comes from i18n-hardcoded.mjs rather than being recomputed
+// here, so the two scripts cannot drift into disagreeing about the number.
+let hardcoded = null;
+try {
+  const out = execFileSync('node', ['scripts/i18n-hardcoded.mjs', '--json'], {
+    encoding: 'utf8', maxBuffer: 32 * 1024 * 1024,
+  });
+  hardcoded = new Set(JSON.parse(out).map((f) => `${f.file}:${f.line}:${f.text}`)).size;
+} catch {
+  hardcoded = null;
+}
+
+const realDenominator = en.size + untranslatable.length + (hardcoded ?? 0);
+console.log('\n=== E. real coverage (what a user sees) ===');
+console.log(`    denominator ${realDenominator} = ${en.size} en.json`
+  + ` + ${untranslatable.length} untranslatable`
+  + ` + ${hardcoded == null ? '?' : hardcoded} hardcoded`);
+if (hardcoded == null) console.log('    (hardcoded scan failed to run — the figure below is optimistic)');
+console.log('    A locale can only ever reach the en.json term. The other two are');
+console.log('    English on every screen in every language.\n');
+for (const l of OTHERS) {
+  const have = [...en].filter(k => keys[l].has(k)).length;
+  const catalogPct = ((have / en.size) * 100).toFixed(1);
+  const realPct = ((have / realDenominator) * 100).toFixed(1);
+  console.log(`    ${l}:  catalog ${String(catalogPct).padStart(5)}%   real ${String(realPct).padStart(5)}%`);
+}
+console.log('\n    Do not quote the catalog number as coverage. It was reading 99.4%');
+console.log('    for Spanish while the dashboard rendered half of its cards in');
+console.log('    English, which is what this section exists to stop.');
 
 process.exitCode = unresolvable.length > 0 ? 1 : 0;

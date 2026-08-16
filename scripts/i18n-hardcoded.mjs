@@ -59,6 +59,22 @@ const DETECTORS = [
   ['title',       /\btitle=(["'])((?:\\.|(?!\1).)*)\1/g, 2, 'title attribute'],
   ['alt',         /\balt=(["'])((?:\\.|(?!\1).)*)\1/g, 2, 'image alt text'],
   ['jsxText',     />\s*([A-Z][A-Za-z0-9'’,!?.:%-]*(?:\s+[A-Za-z0-9'’,!?.:%-]+){0,14})\s*</g, 1, 'JSX text node'],
+  // Copy held in a DATA structure rather than written in markup:
+  //   { id: 'log_sleep', label: "Log last night's sleep", … }
+  //   SLIDES.push({ title: 'Personal Record', sub: `${xp} XP earned overall` })
+  //
+  // Every other detector above keys off a JSX position or a call, so this
+  // whole class was invisible: the string is a plain object property, it
+  // never touches t(), and the component that renders it just reads
+  // `def.label`. The scanner reported 1 TOTAL while questCatalog.js alone
+  // held 71 of these and HeroSlideshow.jsx — the dashboard carousel — 43.
+  //
+  // Restricted to property names that are unambiguously display copy. `name`,
+  // `value`, `key` and `type` are deliberately absent: they are overwhelmingly
+  // identifiers in this codebase, and a detector that cries wolf gets muted.
+  ['objectProp',
+    /(?:^|[,{(\s])(title|label|sub|subtitle|subLabel|desc|description|heading|headline|caption|hint|tagline|blurb|cta|body|summary|tooltip|emptyText|helpText)\s*:\s*(['"])((?:\\.|(?!\2).)*)\2/g,
+    3, 'object-literal copy'],
 ];
 
 // Blank out comments while preserving BYTE OFFSETS AND NEWLINES, so reported
@@ -75,6 +91,35 @@ function stripNonCode(src) {
   return src
     .replace(/\/\*[\s\S]*?\*\//g, blank)
     .replace(/^[ \t]*\/\/.*$/gm, blank);
+}
+
+// Proper nouns are not untranslated copy, and a scanner that reports them
+// teaches people to ignore it. These are declaration-scoped rather than
+// file-scoped on purpose: equipmentCatalog.js holds BRAND_META ("Cybex",
+// "Rogue" — nominative use of a trademark, which ATTRIBUTIONS.md requires
+// stay verbatim) two hundred lines above IMPLEMENT_TYPE_META ("Leg press",
+// "Hack squat" — ordinary UI copy that SHOULD be translated). Skipping the
+// file would hide the second along with the first.
+//
+// Each entry needs a reason. "It is noisy" is not one.
+const PROPER_NOUNS = {
+  'src/lib/equipmentCatalog.js': {
+    BRAND_META: 'equipment manufacturers — trademarks, nominative use, never translated',
+    SEED_MODELS: 'specific product names — same rule as BRAND_META',
+  },
+  'src/lib/i18n.js': {
+    ALL_LANGUAGES: 'language names; nativeLabel is by definition in its own language',
+    SUPPORTED_LANGUAGES: 'language names — see ALL_LANGUAGES',
+  },
+};
+
+// Nearest `const NAME =` / `export const NAME =` at or above `index`. Used
+// only to resolve the allow-list above, so a miss costs a false positive
+// rather than a wrong exclusion.
+function enclosingDecl(src, index) {
+  const head = src.slice(0, index);
+  const m = [...head.matchAll(/^(?:export\s+)?const\s+([A-Za-z_$][\w$]*)\s*=/gm)].pop();
+  return m ? m[1] : null;
 }
 
 const findings = [];
@@ -98,6 +143,11 @@ const findings = [];
         // Already localized? The match sits inside a t(...) / tFallback(...) call.
         const before = src.slice(Math.max(0, m.index - 120), m.index);
         if (/\bt(?:Fallback)?\(\s*$|\bt(?:Fallback)?\([^)]*$/.test(before)) continue;
+        // Declared proper nouns — see PROPER_NOUNS above.
+        if (kind === 'objectProp') {
+          const allowed = PROPER_NOUNS[p];
+          if (allowed && allowed[enclosingDecl(src, m.index)]) continue;
+        }
         // Report the line of the TEXT, not of the match start. A JSX text node
         // matches from the `>` that opens it, which for a wrapped element sits
         // on the previous line — citing that line sends the reader to markup
