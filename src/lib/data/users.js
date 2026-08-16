@@ -39,6 +39,24 @@ function _isMissingViewError(error) {
   // 42P01: Postgres "relation does not exist".
   // PGRST205: PostgREST "table/view not found in schema cache".
   if (code === '42P01' || code === 'PGRST205') return true;
+  // Any OTHER coded error is a real failure, not a missing view — surface it.
+  //
+  // This line is the fix for a silent, whole-session data outage. PostgREST
+  // reports a missing COLUMN as 42703 with the message
+  //   `column public_profiles.display_name does not exist`
+  // which contains both the view name and "does not exist", so the substring
+  // probe below classified it as a missing VIEW. selectProfiles() then cached
+  // `_viewVerdict = false` at module scope and re-ran every cross-user read
+  // against user_profiles — whose only SELECT policy is `auth.uid() = id`.
+  // That returns 200 with just the caller's own row, so nothing throws and
+  // nothing logs: for the rest of the session the feed simply stops resolving
+  // anyone else's flair, search returns nobody, and crew rosters empty out.
+  //
+  // The substring probe is kept for the case it was written for — a genuinely
+  // absent view during a deploy window, where PostgREST may answer before the
+  // schema cache has a code to give — but it is now reachable only when the
+  // error carries no code at all.
+  if (code) return false;
   const haystack = `${error.message || ''} ${error.details || ''} ${error.hint || ''}`;
   return haystack.includes(PROFILES_VIEW)
     && /(does not exist|not exist|not found|could not find)/i.test(haystack);

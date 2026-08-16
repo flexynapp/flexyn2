@@ -109,17 +109,39 @@ describe('selectProfiles', () => {
     expect(fromCalls).toEqual(['public_profiles', 'public_profiles']);
   });
 
-  it('does not strip a 42703 missing-column error — that belongs to safeSelect', async () => {
+  it('surfaces a 42703 missing-column error WITHOUT falling back', async () => {
+    // This test used to accept the fallback, on the reasoning that "the same
+    // column is missing on both relations, so it is harmless". Production
+    // falsified that premise: `display_name` exists on user_profiles and was
+    // missing from the deployed public_profiles view, so the fallback was not
+    // harmless at all — it silently re-ran every cross-user read against a
+    // table whose only SELECT policy is `auth.uid() = id`, which answers 200
+    // with the caller's own row and nothing else.
+    //
+    // A missing COLUMN must surface. Only a missing RELATION may fall back.
     const colError = { code: '42703', message: 'column public_profiles.bogus does not exist' };
     resultForTable = () => ({ data: null, error: colError });
     const { error } = await selectProfiles((from) => from.select('bogus'));
-    // Message mentions the view but the failure-kind regex shouldn't
-    // treat a missing COLUMN as a missing VIEW... 42703 isn't in the
-    // code set, but "does not exist" + "public_profiles" in the message
-    // is ambiguous — accepting the fallback here is harmless (the same
-    // column is missing on both relations), so we only assert the error
-    // surfaces when both sources fail.
-    expect(error).toBeTruthy();
+    expect(error).toBe(colError);
+    expect(fromCalls).toEqual(['public_profiles']);
+
+    // …and the verdict must not be poisoned: the next call still probes the view.
+    resultForTable = () => ({ data: ROWS, error: null });
+    await selectProfiles((from) => from.select('*'));
+    expect(fromCalls).toEqual(['public_profiles', 'public_profiles']);
+  });
+
+  it('still falls back on a code-less error that names the missing view', async () => {
+    // The deploy-window case the substring probe was written for: PostgREST
+    // can answer before its schema cache has a code to give.
+    resultForTable = (table) =>
+      table === 'public_profiles'
+        ? { data: null, error: { message: 'relation public_profiles does not exist' } }
+        : { data: ROWS, error: null };
+    const { data, error } = await selectProfiles((from) => from.select('*'));
+    expect(error).toBeNull();
+    expect(data).toEqual(ROWS);
+    expect(fromCalls).toEqual(['public_profiles', 'user_profiles']);
   });
 });
 
