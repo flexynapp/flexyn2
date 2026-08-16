@@ -899,15 +899,40 @@ callers pass no action isn't being filtered, it's being switched off.
 
 ## i18n discipline
 
-- 15 supported languages: `en es fr de pt it ja ko zh ar hi ru tr pl nl`.
-- Per-domain translation files: `src/lib/i18n-*.js` (e.g. `i18n-coach.js`,
-  `i18n-goals.js`, `i18n-discovery.js`). Each exports a `{ <lang>:
-  { 'key': 'value' } }` object.
-- At build time `scripts/split-i18n.mjs` merges every part file into
-  per-language aggregates under `src/lib/i18n-langs/`.
-- New keys: add to a part file with English at minimum. At the call site
-  use **`tFallback(key, 'English')`** so a missing translation surfaces a
-  sensible string, never a key code.
+**ARCHITECTURE CORRECTION (2026-08-16):** this section described
+`src/lib/i18n-*.js` part files and a `scripts/split-i18n.mjs` build step.
+Both were **deleted** when the flat catalogs shipped (2026-08-13). The
+lessons below survived the move and are kept; the mechanics did not.
+
+- 15 catalogs: `en es fr de pt it ja ko zh ar hi ru tr pl nl`. Only
+  **en/es/fr are RELEASED** (`SUPPORTED_LANGUAGES`); the rest are shelved
+  but maintained. `ALL_LANGUAGES` is what tooling reads.
+- One flat JSON per language, `src/locales/<lang>.json`, sorted, committed
+  as the source of truth. No build step. Policy that cannot live in a flat
+  catalog (English-only keys, machine-drafted domains) sits in
+  `src/locales/_meta.json`; the term base is `src/locales/_glossary.json`.
+- New keys: add to `en.json` **and to every released locale in the same
+  change**. At the call site use **`tFallback(key, 'English')`** so a
+  missing translation surfaces a sensible string, never a key code.
+- **A `tFallback` key that is not in `en.json` is an ORPHAN, and it is the
+  one i18n defect every other guard here is blind to.** It renders
+  perfectly — tFallback falls through to its second argument, so English
+  is always right — while being invisible to `i18n:audit` (which compares
+  locales *against* en.json), to `_coverage.json` (an orphan is not a key,
+  so it moves neither counter), to `i18n-hardcoded.mjs` (it is already
+  wrapped), and to the DEV missing-translation warning (which needs
+  English to have the key). No translator and no TMS can discover it
+  exists. **Measured 2026-08-16: 764 of them against a 3,895-key
+  catalog** — about one in six of the strings that *look* translated were
+  never on the table. `src/components/crews` was cleared outright; the
+  rest are baselined in `src/locales/_orphans.json` and ratcheted by
+  `i18nOrphanKeys.test.js` (`npm run i18n:orphans`). The ratchet is
+  two-directional on purpose: a fixed key left on the list also fails, or
+  the baseline rots into a lie.
+- **Adding a key to `en.json` is never free.** `releasedLocales.test.js`
+  needs 95% coverage to offer a locale, and coverage is `keys present in
+  the locale / keys in en`. Adding N English keys without translating them
+  pushes every released locale DOWN. That is why en/es/fr move together.
 - **NEVER `t(key) || 'English'`. It does not work**, and this file used to
   recommend it. `getTranslation` ends with `return enVal ?? key`, so a
   total miss returns the *key string* — which is non-empty, therefore
@@ -920,7 +945,9 @@ callers pass no action isn't being filtered, it's being switched off.
   title. A missing key looks broken; that one looked fine and said the
   wrong thing. `src/lib/__tests__/i18nRawKeys.test.js` now fails the suite
   on the pattern itself, so it can't come back.
-- **A language may appear at most once per part file.** JavaScript resolves
+- *(Historical — part files are gone, but the failure mode generalises to
+  any hand-merged catalog.)* **A language may appear at most once per part
+  file.** JavaScript resolves
   a duplicate literal key by keeping the last block and discarding the
   earlier one silently — no error, no warning. Three of 41 files had this;
   it cost `onboarding.welcome.languageHint` in pt/it/ja/ko, the one string
@@ -929,8 +956,6 @@ callers pass no action isn't being filtered, it's being switched off.
   `scripts/split-i18n.mjs` now fails the build on it. The guard is
   brace-depth aware because `i18n-warn.js` legitimately holds two separate
   object literals that each declare all 15 languages.
-- Adding a new part file: name it `i18n-<domain>.js` and the splitter
-  picks it up automatically. Export shape must match existing files.
 - **Don't ship machine-translated copy** on prominent surfaces. If you
   can't get native-quality translations for all 15 languages, ship
   English-only for the missing ones with a `TODO(i18n)` comment in the
@@ -1879,6 +1904,65 @@ place now and does not navigate at all.
 - Design: Penpot pages **Crew Wars** (boards A–D states, E the gate,
   F the spec) and **Crew Manage** (roster by rank, member actions, the
   permission matrix).
+- **The whole `src/components/crews` directory is now translated**
+  (2026-08-16) — 145 keys across en/es/fr, and it is the one directory
+  the orphan-key ratchet asserts stays clear. Vocabulary was DERIVED from
+  strings that had already shipped, not invented: `crewWarPanel.crewWar`
+  was already *Guerra de Crews* / *Guerre des Crews*. Two terms were
+  chosen rather than inherited and both are in `_glossary.json` with the
+  reason — **Roster is es "Plantel", never "Plantilla"** (Plantilla is
+  already Template, and the Rutina=Regimen+Routine collision is exactly
+  what one word for two objects costs), and **Lifter is Atleta/Athlète**
+  because "levantador" is not how a gym speaks and the shipped copy had
+  dodged the noun by recasting. One genuine mistranslation was avoided by
+  reading the UI rather than the word: `crewWars.record` is a W–L
+  **record**, so es is *BALANCE* — "Récord" would have meant a personal
+  best on a cell showing 3–1.
+- **`CrewLeaguePanel` shipped four pre-interpolated fallbacks**
+  (``tFallback('league.division', `Division ${division}`)``) and they were
+  harmless only while the keys did not exist. The moment a catalog entry
+  lands, `t()` wins and renders the literal `{n}` — the JournalView
+  defect, armed and waiting. **Adding a key is what detonates it**, so
+  grep for template-literal fallbacks before any extraction pass.
+
+## Crew challenges are a catalog now (migration 367, Aug 2026)
+
+Kegan, 2026-08-16: pre-built **generational** goals a crew chases, the
+leader picking from what its **crew level** unlocks, each paying a
+**unique trophy** the crew keeps. The leader-composed challenge from 098
+stays alongside it (his call) — `template_key IS NULL` is the old kind.
+
+- **Measured before building: `crew_challenges` held ZERO rows in
+  production**, and `crew_challenge_contributions` zero. The composed
+  feature had never been used once since 098 shipped. That is what made
+  "replace vs keep both" a free choice rather than a migration problem.
+- **The client cannot create a templated challenge, by construction.**
+  The INSERT policy is `is_crew_moderator`, so a rank-2 member posting a
+  row with `template_key` set and `target_value = 1` would mint the
+  crew's trophy in one request. The guard trigger forces `template_key`
+  to NULL on every client INSERT and pins it on UPDATE; the leader-only
+  definer RPC is the only door. Probed: a smuggled key comes back NULL.
+- **`ends_at` is nullable now and NULL means no deadline.** A far-future
+  sentinel would render as "ends in 36,500 days" — a lie the user can
+  read. Every reader is guarded instead; `CrewChallengeCard` was the one
+  that would have printed "ends 56 years ago", because `new Date(null)`
+  is the epoch.
+- **The window floor is the LATER of the challenge start and
+  `joined_at`.** A chase is forward-looking, and the `joined_at` half is
+  what stops a crew stuck at 80% recruiting a veteran whose back
+  catalogue lands on the bar. One member is capped at **60% of target**:
+  a goal cannot be soloed, but a crew of two can still finish one.
+- **`sync_my_crew_challenge_progress` had no plausibility filter and pays
+  XP, coins and `award_crew_progress`.** 361/362 swept the
+  competitive-or-credited readers and missed it — the list in the
+  plausibility section names fifteen of twenty-four, and this was one of
+  the nine never classified. **If you are auditing that sweep, the other
+  eight are still unclassified.**
+- The probe is the reason any of this works. Three rolled-back
+  transactions, 33 assertions. The one that mattered: the first run
+  credited **1** where 6 was correct, because the seeded history sat
+  outside the window — the code was right and the header comment was
+  wrong, and only running it told them apart.
 
 ## Plausibility — a flag, not a refusal (migrations 360–362, Aug 2026)
 

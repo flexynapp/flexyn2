@@ -126,6 +126,61 @@ export async function syncMyCrewChallengeProgress() {
 }
 
 /**
+ * The pre-built generational catalog for one crew, with a state per row
+ * (available / active / earned / locked) — migration 367.
+ *
+ * Returns the LOCKED rows too, on purpose: a ladder whose next rung is
+ * invisible gives a crew no reason to level up. The caller renders them
+ * dimmed rather than filtering them out.
+ *
+ * Server-gated on crew membership, so this throws for a non-member
+ * rather than leaking which rungs somebody else's crew has cleared.
+ */
+export async function getCrewChallengeCatalog(crewId) {
+  if (!crewId) return [];
+  const { data, error } = await supabase.rpc('get_crew_challenge_catalog', {
+    p_crew_id: crewId,
+  });
+  if (error) {
+    console.warn('[crewChallenges] catalog failed:', error);
+    return [];
+  }
+  return Array.isArray(data) ? data : [];
+}
+
+/**
+ * Start a generational challenge. LEADER ONLY, enforced server-side by
+ * migration 367 — `crewPermissions.js` mirrors that for the UI but is
+ * explicitly not the enforcement.
+ *
+ * There is deliberately no client-side insert path for these. The INSERT
+ * policy on crew_challenges is is_crew_moderator, and a rank-2 member who
+ * could set template_key from the browser would post target_value=1
+ * against a template and mint the crew's trophy in one request. The guard
+ * trigger nulls template_key on every client insert, so this RPC is the
+ * only door.
+ */
+export async function startGenerationalChallenge(crewId, templateKey) {
+  if (!crewId || !templateKey) return { ok: false, reason: 'missing_fields' };
+  const { data, error } = await supabase.rpc('start_crew_generational_challenge', {
+    p_crew_id:      crewId,
+    p_template_key: templateKey,
+  });
+  if (error) {
+    console.warn('[crewChallenges] start failed:', error);
+    // 42501 covers both "not a leader" and "crew level too low"; the
+    // message distinguishes them and the UI already knows the level.
+    const reason =
+      error.code === '23505' ? 'already_chasing'
+      : error.code === '42501' ? 'not_allowed'
+      : error.code === '22023' ? 'no_such_challenge'
+      : 'db_error';
+    return { ok: false, reason };
+  }
+  return { ok: true, id: data };
+}
+
+/**
  * Per-member contribution breakdown for one challenge, richest first.
  *
  * Server-gated on the caller's own crew membership, and returns display

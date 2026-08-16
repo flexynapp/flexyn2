@@ -77,7 +77,20 @@
     "Session": "Sesión",
     "Elite": "Elite",
     "Rival": "Rival",
-    "$addedNote": "Session, Elite and Rival were added 2026-08-16 after `npm run i18n:review` flagged them as recurring product nouns with no row — the growth rule working as intended rather than a collision found the hard way."
+    "$addedNote": "Session, Elite and Rival were added 2026-08-16 after `npm run i18n:review` flagged them as recurring product nouns with no row — the growth rule working as intended rather than a collision found the hard way.",
+    "Crew War": "Guerra de Crews",
+    "Crew Wars": "Guerras de Crews",
+    "Challenge": "Reto",
+    "Treasury": "Tesorería",
+    "Division": "División",
+    "Leader": "Líder",
+    "Moderator": "Moderador",
+    "Member": "Miembro",
+    "Roster": "Plantel",
+    "Lifter": "Atleta",
+    "Season": "Temporada",
+    "Trophy": "Trofeo",
+    "$crewWarsNote": "Crew Wars vocabulary added 2026-08-16 with the Crew Wars i18n pass. Every term was DERIVED from strings that had already shipped rather than invented: crewWarPanel.crewWar was already 'Guerra de Crews' / 'Guerre des Crews', crewBattleEntry already used batalla/bataille for a battle, corporatePortal and the duel surfaces already used reto/défi for a challenge, and league.promoteZone already used ascenso/promotion. Two chosen rather than inherited, with the reason: ROSTER is 'Plantel' in Spanish, NOT 'Plantilla' — Plantilla is already Template in this glossary, and a squad and a template must not share a word (the Rutina=Regimen+Routine collision, avoided in advance this time). LIFTER is Atleta/Athlète because the literal 'levantador' is not how a Spanish or French gym speaks, and onboarding.reveal.summary had already dodged the noun by recasting, so there was no shipped precedent to inherit."
   },
   "fr": {
     "$streakNote": "RESOLVED 2026-08-15 (kegan asked for it explicitly, having first chosen to leave it open). 'Série' had translated BOTH Streak (60 keys) and Set (68) — one word for two unrelated things across 128 user-facing strings. 'Série' is the standard French term for a training set and could not move, so Streak took a new word: 'Flamme'. Chosen on the app's OWN iconography rather than on taste — src/components/StreakFlame.jsx, 82 Flame references across components/pages, and 8 French strings already carrying 🔥. So the word now matches the icon the user is looking at, and it is feminine like 'Série', which means every article and agreement carried over untouched. Rejected: 'Suite' (ambiguous — 'la suite' is also 'the rest', and it appears in UI as 'voir la suite'), 'Régularité' and 'Assiduité' (abstract, cannot be counted or saved), 'Chaîne' (works for the don't-break-the-chain idiom but fights the flame iconography the app already ships). French idiom was used where a literal swap was worse: the flame is lit ('s'allume'), kept alive ('entretenir la flamme', 'garder votre flamme allumée') and goes out ('s'éteint à minuit'). NOT a native sign-off — see _meta.json $passes.",
@@ -135,7 +148,20 @@
     "Session": "Séance",
     "Elite": "Elite",
     "Rival": "Rival",
-    "$addedNote": "Session, Elite and Rival were added 2026-08-16 after `npm run i18n:review` flagged them as recurring product nouns with no row — the growth rule working as intended rather than a collision found the hard way."
+    "$addedNote": "Session, Elite and Rival were added 2026-08-16 after `npm run i18n:review` flagged them as recurring product nouns with no row — the growth rule working as intended rather than a collision found the hard way.",
+    "Crew War": "Guerre des Crews",
+    "Crew Wars": "Guerres des Crews",
+    "Challenge": "Défi",
+    "Treasury": "Trésorerie",
+    "Division": "Division",
+    "Leader": "Leader",
+    "Moderator": "Modérateur",
+    "Member": "Membre",
+    "Roster": "Effectif",
+    "Lifter": "Athlète",
+    "Season": "Saison",
+    "Trophy": "Trophée",
+    "$crewWarsNote": "Crew Wars vocabulary added 2026-08-16 with the Crew Wars i18n pass. Every term was DERIVED from strings that had already shipped rather than invented: crewWarPanel.crewWar was already 'Guerra de Crews' / 'Guerre des Crews', crewBattleEntry already used batalla/bataille for a battle, corporatePortal and the duel surfaces already used reto/défi for a challenge, and league.promoteZone already used ascenso/promotion. Two chosen rather than inherited, with the reason: ROSTER is 'Plantel' in Spanish, NOT 'Plantilla' — Plantilla is already Template in this glossary, and a squad and a template must not share a word (the Rutina=Regimen+Routine collision, avoided in advance this time). LIFTER is Atleta/Athlète because the literal 'levantador' is not how a Spanish or French gym speaks, and onboarding.reveal.summary had already dodged the noun by recasting, so there was no shipped precedent to inherit."
   },
   "pt": {
     "$note": "pt-BR, not pt-PT — measured on the 1,486 strings that already shipped: 99 Brazilian markers (Compartilhar, Salvar, Excluir, Configurações, registrar, -ndo gerunds) against 6 European ones, and zero 'vós'. Register carries NO explicit pronoun: você-form imperatives (Acompanhe, Registre, Abra) with seu/sua possessives, which is standard Brazilian UI voice. Derived 2026-08-16 before the coverage pass, so 2,310 new strings agree with the 1,486 old ones instead of inventing second words.",

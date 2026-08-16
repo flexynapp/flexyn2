@@ -49,9 +49,13 @@ function ZoneLabel({ kind, division, tFallback }) {
       className="text-xs font-semibold pt-3 pb-1.5"
       style={{ color: promotion ? 'hsl(142 62% 40%)' : 'hsl(4 68% 52%)' }}
     >
+      {/* The number goes through vars, not through the template literal.
+          A pre-interpolated fallback is invisible until the key exists in
+          the catalog — from that moment `t()` wins and renders the raw
+          "{n}". Same defect JournalView shipped in Spanish. */}
       {promotion
-        ? tFallback('league.promotion', `Promotion to Division ${Math.max(1, division - 1)}`)
-        : tFallback('league.relegation', `Relegation to Division ${division + 1}`)}
+        ? tFallback('league.promotion', 'Promotion to Division {n}', { n: Math.max(1, division - 1) })
+        : tFallback('league.relegation', 'Relegation to Division {n}', { n: division + 1 })}
     </p>
   );
 }
@@ -116,7 +120,7 @@ export default function CrewLeaguePanel({ crewId, crewName }) {
       {/* Identity block — one region, no internal borders. */}
       <div className="flex items-baseline justify-between gap-3">
         <h3 className="font-heading font-bold text-base">
-          {tFallback('league.division', `Division ${division}`)}
+          {tFallback('league.division', 'Division {n}', { n: division })}
         </h3>
         {placing && (
           <span className="text-base font-bold text-primary tabular-nums">
@@ -159,7 +163,8 @@ export default function CrewLeaguePanel({ crewId, crewName }) {
         <p className="text-sm text-muted-foreground mt-3 leading-relaxed">
           {tFallback(
             'league.lonely',
-            `${crewName || 'Your crew'} is the only crew in this division so far. Win a war to start banking points.`,
+            '{crew} is the only crew in this division so far. Win a war to start banking points.',
+            { crew: crewName || 'Your crew' },
           )}
         </p>
       )}

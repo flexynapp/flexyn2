@@ -282,14 +282,22 @@ export default function CrewChallengeCard({ crewId, isAdmin }) {
           <div className="space-y-2">
             {challenges.map(c => {
               const pct = Math.max(0, Math.min(1, (c.current_value || 0) / Math.max(c.target_value, 1)));
-              const remaining = formatDistanceToNow(new Date(c.ends_at), { addSuffix: true });
+              // A generational challenge (migration 367) has no deadline,
+              // and ends_at is NULL. `new Date(null)` is the epoch, so an
+              // unguarded call renders "ends 56 years ago" on a goal that
+              // has barely started.
+              const remaining = c.ends_at
+                ? formatDistanceToNow(new Date(c.ends_at), { addSuffix: true })
+                : null;
               const open = expandedId === c.id;
               return (
                 <div key={c.id} className="rounded-lg bg-card px-3 py-2">
                   <div className="flex items-center justify-between gap-2 mb-1">
                     <p className="text-xs font-semibold truncate">{c.title}</p>
                     <span className="text-xs text-muted-foreground shrink-0 tabular-nums">
-                      ends {remaining}
+                      {remaining
+                        ? tFallback('challenge.endsIn', 'ends {when}', { when: remaining })
+                        : tFallback('challenge.noDeadline', 'no deadline')}
                     </span>
                   </div>
                   <div className="h-1.5 rounded-full bg-secondary overflow-hidden mb-1">
