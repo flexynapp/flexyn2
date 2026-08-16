@@ -98,6 +98,20 @@ for (const lang of LANGS) {
   }
 
   // 2. TERMS THE GLOSSARY KEEPS IN ENGLISH
+  //
+  // Only checkable for a locale written in Latin script. Japanese keeps these
+  // terms by TRANSLITERATING them — カーディオ is "Cardio", ストリーク is
+  // "streak" — so a Latin-script matcher calls every one of them a violation.
+  // Run against the shelved locales this produced 89 findings for ja and 78
+  // for ar, nearly all of them wrong, against 40 real ones for de. Reporting a
+  // number that is mostly false is worse than reporting nothing, so a
+  // non-Latin locale gets the rows as CANDIDATES and never as failures.
+  // Telling a transliteration from a real translation needs the expected
+  // katakana/hangul/Cyrillic form per term, which belongs in _glossary.json if
+  // one of these locales is ever released.
+  const latin = strings.filter(([, v]) => /\p{Script=Latin}/u.test(v)).length / (strings.length || 1);
+  const latinScript = latin >= 0.5;
+
   const dropped = [];
   for (const [k, v] of strings) {
     const e = en[k];
@@ -107,7 +121,10 @@ for (const lang of LANGS) {
       if (re.test(e) && !re.test(v)) { dropped.push(`${k}  [${t}]  ${v.slice(0, 60)}`); break; }
     }
   }
-  section('do-not-translate terms kept', dropped);
+  if (latinScript) section('do-not-translate terms kept', dropped);
+  else section(
+    `do-not-translate terms (NOT CHECKABLE — ${lang} is not Latin script, so a kept term is transliterated and looks identical to a translated one)`,
+    dropped, { candidate: true });
 
   // 3. ONE TRANSLATED WORD SERVING TWO ENGLISH TERMS
   // The Regimen/Routine and Streak/Set collisions were both this shape, and
