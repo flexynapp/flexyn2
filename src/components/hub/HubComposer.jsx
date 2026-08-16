@@ -371,7 +371,7 @@ export default function HubComposer({ onClose }) {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 50 * 1024 * 1024) {
-      toast.error('Video must be under 50 MB.');
+      toast.error(tFallback('hub.composer.videoTooLarge', 'That video is too large. The limit is 50 MB.'));
       return;
     }
     setVideoFile(file);
@@ -533,7 +533,7 @@ export default function HubComposer({ onClose }) {
   // attached. Extracted rather than duplicated so both paths get the same
   // error mapping for UNSUPPORTED_FILE_TYPE / FILE_TOO_LARGE.
   const submitVideoPost = async () => {
-      if (!videoFile) { toast.error('Please pick a video to share.'); return; }
+      if (!videoFile) { toast.error(tFallback('hub.composer.pickVideo', 'Please pick a video to share.')); return; }
       if (body && containsProfanity(body)) {
         toast.error(t('hub.composer.profanityError'));
         return;
@@ -604,7 +604,7 @@ export default function HubComposer({ onClose }) {
     let effectiveSelected = selected;
     if (selected.kind === 'meal' && !selected.item) {
       if (!customMeal.food_name.trim()) {
-        toast.error('Please enter a meal name.');
+        toast.error(tFallback('hub.composer.enterMealName', 'Please enter a meal name.'));
         return;
       }
       if (containsProfanity(customMeal.food_name)) {
@@ -627,8 +627,11 @@ export default function HubComposer({ onClose }) {
     if (selected.kind === 'poll') {
       const q = pollQuestion.trim();
       const opts = pollOptions.map(o => o.trim()).filter(Boolean);
-      if (!q) { toast.error('Please enter a poll question.'); return; }
-      if (opts.length < 2) { toast.error('Please add at least 2 options.'); return; }
+      if (!q) { toast.error(tFallback('hub.composer.enterPollQuestion', 'Please enter a poll question.')); return; }
+      if (opts.length < 2) {
+        toast.error(tFallback('hub.composer.needTwoOptions', 'Please add at least {n} options.', { n: 2 }));
+        return;
+      }
       if (containsProfanity(q) || opts.some(o => containsProfanity(o))) {
         toast.error(t('hub.composer.profanityError'));
         return;
@@ -650,7 +653,7 @@ export default function HubComposer({ onClose }) {
           ...(scheduleEnabled && scheduledAt ? { publish_at: new Date(scheduledAt).toISOString() } : {}),
         });
         queryClient.invalidateQueries({ queryKey: ['hubFeed'] });
-        toast.success("Poll's live.");
+        toast.success(tFallback('hub.composer.pollLive', 'Your poll is live.'));
         draft.clear();
         onClose();
       } catch {
@@ -1054,11 +1057,11 @@ export default function HubComposer({ onClose }) {
       </div>
 
       {/* Meal name */}
-      <label className="text-xs font-semibold text-muted-foreground mb-1 block">Meal name *</label>
+      <label className="text-xs font-semibold text-muted-foreground mb-1 block">{tFallback('hub.composer.mealNameLabel', 'Meal name *')}</label>
       <input
         value={customMeal.food_name}
         onChange={e => setCustomMeal(p => ({ ...p, food_name: e.target.value }))}
-        placeholder="e.g. Grilled Chicken & Rice Bowl"
+        placeholder={tFallback('hub.composer.mealNamePlaceholder', 'e.g. Grilled Chicken & Rice Bowl')}
         maxLength={80}
         className="w-full px-3 py-2 rounded-lg border border-border bg-secondary/40 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-primary/40"
       />
@@ -1205,12 +1208,12 @@ export default function HubComposer({ onClose }) {
     <div className="flex-1 flex flex-col px-4 pt-4 pb-4 gap-3">
       <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
         <BarChart3 className="w-3.5 h-3.5" />
-        <span>Create a poll — your followers can vote</span>
+        <span>{tFallback('hub.composer.pollIntro', 'Create a poll. Your followers can vote.')}</span>
       </div>
       <input
         value={pollQuestion}
         onChange={(e) => setPollQuestion(e.target.value)}
-        placeholder="Ask a question…"
+        placeholder={tFallback('hub.composer.pollQuestionPlaceholder', 'Ask a question…')}
         maxLength={200}
         autoFocus
         className="w-full p-3 bg-secondary/40 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
@@ -1491,7 +1494,7 @@ export default function HubComposer({ onClose }) {
               <option key={c.id} value={c.id}>{c.name}</option>
             ))}
           </select>
-          <p className="text-micro text-muted-foreground mt-1">Only crew members will see this post.</p>
+          <p className="text-micro text-muted-foreground mt-1">{tFallback('hub.composer.crewOnlyNote', 'Only crew members will see this post.')}</p>
         </div>
       )}
 
@@ -1507,8 +1510,12 @@ export default function HubComposer({ onClose }) {
           }`}
         >
           {cwType ? '⚠️' : '＋'} {cwType
-            ? `Content warning: ${cwType === 'other' ? (cwLabel || 'Custom') : cwType.replace('_', ' ')}`
-            : 'Add content warning'}
+            ? tFallback('hub.composer.cwSet', 'Content warning: {label}', {
+              label: cwType === 'other'
+                ? (cwLabel || tFallback('hub.composer.cw.custom', 'Custom'))
+                : tFallback(`hub.composer.cw.${cwType}`, cwType.replace('_', ' ')),
+            })
+            : tFallback('hub.composer.cwAdd', 'Add content warning')}
         </button>
         {cwPickerOpen && (
           <div className="mt-2 p-3 rounded-lg border border-border bg-secondary/40 space-y-2">
@@ -1527,7 +1534,7 @@ export default function HubComposer({ onClose }) {
                   onChange={() => setCwType(opt.id)}
                   className="accent-primary"
                 />
-                {opt.label}
+                {tFallback(`hub.composer.cw.${opt.id ?? 'none'}`, opt.label)}
               </label>
             ))}
             {cwType === 'other' && (

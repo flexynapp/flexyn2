@@ -215,7 +215,7 @@ export default function MarketplaceFeed() {
         if (currentlySaved) next.add(listingId); else next.delete(listingId);
         return next;
       });
-      toast.error('Could not update wishlist. Try again.');
+      toast.error(tFallback('marketplaceFeed.wishlistFailed', 'Could not update wishlist. Try again.'));
     }
   }, [user?.id, qc]);
 
@@ -308,13 +308,13 @@ export default function MarketplaceFeed() {
     try {
       await bundles.cancelBundle(bundle.id);
       await refreshBundleViews();
-      toast.success('Bundle broken up. Those listings are on their own again.');
+      toast.success(tFallback('marketplaceFeed.bundleBrokenUp', 'Bundle broken up. Those listings are on their own again.'));
     } catch (err) {
       reportError(err, {
         feature: 'marketplace.cancel-bundle', level: 'warning',
         userEmail: user?.email, bundleId: bundle?.id,
       });
-      toast.error('Could not break up that bundle. Try again.');
+      toast.error(tFallback('marketplaceFeed.bundleBreakFailed', 'Could not break up that bundle. Try again.'));
     }
   }, [refreshBundleViews, user?.email]);
 
@@ -518,7 +518,10 @@ export default function MarketplaceFeed() {
       // Names the recovery path: the item is safely back in the bag either
       // way, so "it's still yours, list it again" is the accurate thing to
       // say rather than a bare "something went wrong".
-      toast.error("Couldn't restore that listing. The item's still in your bag.");
+      toast.error(tFallback(
+        'marketplaceFeed.restoreFailed',
+        'Could not restore that listing. The item is still in your bag.',
+      ));
     }
   }, [qc, user?.email]);
 
@@ -541,9 +544,9 @@ export default function MarketplaceFeed() {
       // the bare toast.success that used to be here showed nothing. It also
       // happens to be the right affordance — cancelling is one tap with no
       // confirm step, so a mis-tap needs a way back.
-      toast.success('Pulled it back.', {
+      toast.success(tFallback('marketplaceFeed.pulledBack', 'Pulled it back.'), {
         action: {
-          label: 'Undo',
+          label: tFallback('common.undo', 'Undo'),
           onClick: () => { void handleUndoCancel(listing); },
         },
       });
@@ -552,7 +555,7 @@ export default function MarketplaceFeed() {
         feature: 'marketplace.cancel-listing', level: 'warning',
         userEmail: user?.email, listingId: listing?.id,
       });
-      toast.error('Could not cancel. Try again.');
+      toast.error(tFallback('marketplaceFeed.cancelFailed', 'Could not cancel. Try again.'));
     }
   }, [qc, user?.email, handleUndoCancel]);
 
@@ -579,9 +582,9 @@ export default function MarketplaceFeed() {
       cancelledIdsRef.current.add(listing.id);
       await qc.invalidateQueries({ queryKey: ['marketplaceListings'] });
       await qc.invalidateQueries({ queryKey: ['userInventory', user?.email] });
-      toast.success('Listing deleted.', {
+      toast.success(tFallback('marketplaceFeed.listingDeleted', 'Listing deleted.'), {
         action: {
-          label: 'Undo',
+          label: tFallback('common.undo', 'Undo'),
           onClick: () => { void handleUndoCancel(listing); },
         },
       });
@@ -595,11 +598,11 @@ export default function MarketplaceFeed() {
       // by retrying, and the other means the item is not theirs any more.
       const msg = err?.message || '';
       if (/completed_sale_cannot_be_deleted/.test(msg)) {
-        toast.error("That one sold. A completed sale stays on the record.");
+        toast.error(tFallback('marketplaceFeed.deleteSold', 'That one sold. A completed sale stays on the record.'));
       } else if (/not_your_listing/.test(msg)) {
-        toast.error("That isn't your listing.");
+        toast.error(tFallback('marketplaceFeed.deleteNotYours', 'That is not your listing.'));
       } else {
-        toast.error('Could not delete. Try again.');
+        toast.error(tFallback('marketplaceFeed.deleteFailed', 'Could not delete. Try again.'));
       }
     }
   }, [qc, user?.email, handleUndoCancel]);
@@ -627,23 +630,26 @@ export default function MarketplaceFeed() {
       await qc.invalidateQueries({ queryKey: ['userInventory', user.email] });
       await qc.invalidateQueries({ queryKey: ['userProfile', user.email] });
       await qc.invalidateQueries({ queryKey: ['flexCoins', user.id] });
-      toast.success(`You bought ${buyTarget.item_emoji} ${buyTarget.item_name}!`);
+      toast.success(tFallback('marketplaceFeed.bought', 'You bought {emoji} {name}!', {
+        emoji: buyTarget.item_emoji,
+        name: buyTarget.item_name,
+      }));
       setBuyTarget(null);
     } catch (err) {
       reportError(err, { feature: 'marketplace.purchase', level: 'warning', userEmail: user?.email });
       const msg = err?.message || '';
       if (/insufficient_coins/.test(msg)) {
-        toast.error('Not enough Flex Coins for this purchase.');
+        toast.error(tFallback('marketplaceFeed.insufficientCoins', 'Not enough Flex Coins for this purchase.'));
       } else if (/item no longer available/.test(msg)) {
-        toast.error('That item was already sold or is no longer available.');
+        toast.error(tFallback('marketplaceFeed.itemGone', 'That item was already sold or is no longer available.'));
         qc.invalidateQueries({ queryKey: ['marketplaceListings'] });
       } else if (/listing is /.test(msg)) {
-        toast.error('That listing is no longer active.');
+        toast.error(tFallback('marketplaceFeed.listingInactive', 'That listing is no longer active.'));
         qc.invalidateQueries({ queryKey: ['marketplaceListings'] });
       } else if (/cannot purchase your own listing/.test(msg)) {
-        toast.error("You can't buy your own listing.");
+        toast.error(tFallback('marketplaceFeed.cannotBuyOwn', 'You cannot buy your own listing.'));
       } else {
-        toast.error(tFallback("marketplaceFeed.purchaseFailed", "Purchase failed: {reason}", { reason: msg || 'unknown error' }));
+        toast.error(tFallback("marketplaceFeed.purchaseFailed", "Purchase failed: {reason}", { reason: msg || tFallback('marketplaceFeed.unknownError', 'unknown error') }));
       }
     } finally {
       setBuyBusy(false);

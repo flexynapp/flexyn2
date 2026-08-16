@@ -98,6 +98,7 @@ const ALLOW_IDENTICAL = new Set([
   'collectionModal.tileAria', // "{name}. {state}, {rarity}" — placeholders only
   'adminReports.reason.spam',           // "Spam" — the loanword every locale uses
   'corporatePortal.orgNamePlaceholder', // "Acme Inc. Wellness" — an invented company name
+  'hub.composer.cw.spoiler',            // "Spoiler" — the loanword all seven use
 ]);
 
 /**
