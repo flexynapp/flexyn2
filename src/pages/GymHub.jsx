@@ -347,7 +347,7 @@ export default function GymHub() {
                 className="gap-1.5 h-7"
               >
                 <QrCode className="w-3 h-3" />
-                QR code &amp; signage
+                {tFallback("gymHub.qrAndSignage", "QR code & signage")}
               </Button>
             </div>
           )}
