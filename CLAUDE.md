@@ -54,7 +54,7 @@ or rate-limited** rather than failing loudly.
 | `042` | `increment_user_xp` credits `auth.uid()` only — the client-supplied `p_user_id` is IGNORED. Single grant capped at 100k. |
 | `142` / `173` | Privileged `user_profiles` columns are immutable to direct PostgREST writes. The RPC is the ONLY path. |
 | `176` | `increment_flex_coins` mint guard: 2,500/call, 25,000/day, against `flex_coin_grant_ledger`. |
-| `180` | Crew-war XP clamp. |
+| `180` | Crew-war XP clamp. **Superseded in substance by 356–362** — war scoring is derived server-side from `workout_logs` (no client number at all), capped per lifter, and implausible sessions are excluded. See the Crew Wars and Plausibility sections. |
 | `188` | Rolling 24h per-user XP cap inside the RPC, plus an append-only audit ledger that both drives the cap and is the tamper-proof log. |
 | `189` | XP-milestone achievements granted by `grant_xp_milestone_achievements()`. The client used to INSERT achievement rows directly, which let any signed-in user forge a badge. |
 | `192` | `grant_level_up_rewards` clamps `p_new_level` to the server's `current_level`. It previously trusted the client, so any authenticated user — including an anonymous guest — could pass 99 and mint the entire capsule ladder plus ~6,800 coins in one call. |
@@ -120,6 +120,33 @@ the SQL editor run as `postgres` and bypass RLS entirely, so a query that
   members** — because the roster is visible to members, so at smaller
   sizes an individual's attendance is derivable by subtraction. The
   threshold is what protects people; omitting names is not.
+- **`crew_members` has NO client INSERT, and that is the fix, not an
+  oversight** (mig 357). It carried exactly one INSERT policy —
+  `WITH CHECK (user_id = auth.uid())` — which constrains which USER the
+  row is for and says nothing about which CREW or which RANK. Meanwhile
+  `crew_members_sync_role` does `NEW.role := COALESCE(NEW.role, …)` on
+  insert, so a client-supplied role was KEPT and `is_admin` derived from
+  it. Executed against production as a real authenticated guest with no
+  invite, against a crew with `is_public = FALSE`:
+  `INSERT INTO public.crew_members (crew_id, user_id, is_admin, role)
+  VALUES ('<a private crew>', '<me>', TRUE, 'leader')` was **accepted**,
+  and `is_crew_admin` then returned TRUE — which gates editing the crew,
+  assigning regimens, creating challenges, kicking members, changing
+  ranks and starting wars. Any signed-in user had full control of any
+  crew whose id they had seen. `join_crew_atomic` and
+  `create_crew_atomic` are SECURITY DEFINER and are now the only two
+  doors; a guard trigger pins rank on any write that reaches the table.
+  **Do not "restore" a client INSERT policy here.**
+  Two things this cost that generalise: a rank vocabulary with no
+  ORDERING (`role` text plus a legacy `is_admin` boolean) collapses every
+  gate to admin-or-not, so `crew_rank()` returns 1/2/3 and every policy
+  compares numbers; and **a helper revoked from `authenticated` cannot
+  appear in an RLS policy or a SECURITY INVOKER trigger** — `crew_rank`
+  RAISES 42501 rather than returning false, and a throwing permissive
+  policy takes the whole statement with it. A first cut of 357 used it in
+  both and would have refused a member LEAVING THEIR OWN CREW. Anything a
+  client role evaluates gets a purpose-built helper that derives the
+  actor from `auth.uid()` — `my_crew_rank`, `can_remove_crew_member`.
 - **`public_profiles` is a SECURITY DEFINER view ON PURPOSE, and
   `get_advisors` will report that as ERROR forever.** Do NOT "fix" it by
   setting `security_invoker=true`. `user_profiles` has RLS restricting you
@@ -281,8 +308,9 @@ See: `~/.claude/projects/C--Flexyn/memory/feedback_parallel_sync.md`.
   chainable-mock shape that asserts on the **sequence** of statements,
   which is usually the part that's actually unproven.
 - `npm run test` — full suite. `npm run test:watch` — watch mode.
-  `npm run test:coverage` — V8 coverage. As of 2026-08-06: **2769 tests
-  passing across 198 files**.
+  `npm run test:coverage` — V8 coverage. As of 2026-08-16: **5119 tests
+  passing across 369 files** (was 2769 across 198 on 2026-08-06 — this
+  number goes stale fast, re-run before quoting it).
 
 **`npx vitest` is NOT `npm run test`, and in a fresh worktree the
 difference is silent.** `npm run test` is `node scripts/split-i18n.mjs &&
@@ -1773,6 +1801,157 @@ the ONE that is theirs.
   gates on `is_gym_member_or_owner` because it reports how many people
   train at a named physical address and when. Verified against
   production that a non-member gets `42501`.
+
+## Crew Wars (migrations 356–359, Aug 2026)
+
+Crew vs crew over seven days. The feature existed on paper long before it
+worked: the Workout card navigated to `/hub` with
+`state: { openCrewWars: true }` and **nothing in Hub.jsx has ever read
+`openCrewWars`**, so every tap landed on the Hub feed. It opens a sheet in
+place now and does not navigate at all.
+
+- **The card is gated on membership.** A user in no crew cannot be in a
+  crew war, so the hero slide is not rendered for them and the carousel
+  dots count two. `HeroPager` wraps modulo `slides.length`, so the list is
+  built per render — a fixed three with a hidden page leaves a blank slide
+  in the rotation.
+- **Cross-page hand-offs use ROUTER STATE, not `flexyn:open-crew`.** That
+  event works only for a dispatcher already inside Hub (HubProfile) or
+  firing while Hub is mounted. Workout is neither, so an event dispatched
+  beside `navigate()` lands before the listener exists — the same failure
+  as the `openCrewWars` bug. Hub consumes `location.state.openCrewId` and
+  clears it, or a back-navigation re-opens the crew page you just left.
+- **Matchmaking is on the ROSTER, not the division.** 356 snapshots five
+  numbers onto the queue row when a crew enters — size, mean age, mean
+  bodyweight-relative e1RM over 90 days, mean sessions per member over 28
+  days, season division — and `crew_match_gap` ranks candidates on a
+  weighted distance. Snapshotted rather than recomputed because it is what
+  the crew WAS when it queued, and because the alternative is four
+  aggregates over every member of every waiting crew on every join.
+  Tolerance opens 0.15 per 12 hours waited, so nobody is stranded by a
+  small pool.
+- **Coverage is the whole design of that distance function.** Measured
+  before writing it: `age` is set on 26 of 60 profiles, `gender` on 13,
+  `activity_level` on **0 of 60**. A distance that reads a missing value
+  as zero ranks crews on ABSENCE, silently. So a dimension is compared
+  only where BOTH crews have it and the divisor is the weight actually
+  used. **Gender is not a dimension at all** — 13 of 60 is too thin, and
+  sorting crews by gender mix is not something this app should do.
+- **`::numeric` on the roster term is load-bearing.** Both counts are
+  integers, so `ABS(2-12) / GREATEST(2,12,1)` is integer division and
+  measured **exactly 0.000000** — roster size, the dimension the feature
+  exists for, contributed nothing. Every other term already divides by a
+  numeric literal, which is why it was the only one affected. Caught by
+  printing the gap across a sweep, not by a test.
+- **Both sides field the same number of lifters.** `recompute_crew_war`
+  set each score to `SUM(xp_contributed)`, so a twelve-person crew beat a
+  four-person crew whatever either lifted. Each side now scores its top N
+  where N is the smaller roster. A per-member MEAN was the other candidate
+  and is worse: it rewards a crew for dropping whoever trained least, so
+  the fair-looking metric makes kicking people the winning move. Measured
+  on seeded rows: old sum 1500–1400 to the bigger crew, top-N 500–1400 to
+  the crew that actually trained.
+- **Three ranks, and the number is the point.** 3 leader / 2 moderator /
+  1 member. `src/lib/crewPermissions.js` mirrors the matrix for the UI and
+  says in its own header that it is NOT the enforcement — 357 is. Add a
+  capability in both or it is not a permission;
+  `crewPermissions.test.js` pins the matrix and asserts monotonicity.
+- **Starting a war is LEADER-only** (mig 358, kegan's call). It sat at
+  rank 2 for one commit on the reasoning that entering matchmaking is
+  operational rather than structural; committing every member to a
+  seven-day competition is a fair reading of structural. 358 is a NEW FILE
+  rather than an edit to 357 because 357 was already applied — see the
+  first habit at the top of this file.
+- **Transfer Leadership is its own action, never a row in the rank
+  picker** (mig 359). It promotes the target and steps the caller down in
+  ONE transaction, and it promotes FIRST: 357's guard refuses a demotion
+  that would leave zero leaders, so the order is forced, and a crash
+  between the two statements leaves two leaders rather than none. Only one
+  of those is recoverable by the users themselves.
+- **A crew always keeps a leader** (23514), and equal ranks cannot act on
+  each other — `canActOn` is strictly greater, so two moderators cannot
+  race to eject one another.
+- **The war board shows BOTH rosters** (mig 360). It was own-crew only,
+  which was my call and was overridden. The line moved to DETAIL rather
+  than identity: every member of both crews returns with a name and a
+  score, and `volume_lbs` / `sessions` / `days_active` stay own-crew —
+  a rival's score is the contest, their training calendar is not.
+- Design: Penpot pages **Crew Wars** (boards A–D states, E the gate,
+  F the spec) and **Crew Manage** (roster by rank, member actions, the
+  permission matrix).
+
+## Plausibility — a flag, not a refusal (migrations 360–362, Aug 2026)
+
+`detectImplausibleWorkout` in `src/lib/workoutFatigue.js` models a day's
+realistic volume from bodyweight, age and sex. **It is not a recovery
+score** — that is `recoveryScore.js`, a different thing — it is the app's
+second anti-cheat layer, and until 360 it ran ONLY on the client
+(`Workout.jsx` and `EditWorkoutModal`). `public.workout_logs` had **zero
+triggers**, measured. A crafted request wrote whatever it liked.
+
+**The gate FLAGS, it does not reject, and the reasoning is the whole
+design.** Three reasons in order of weight:
+
+1. A reject destroys the session. `weight_lbs` is set on 27 of 60
+   profiles, so the model falls back to a 160 lb default and a genuinely
+   strong lifter with a blank profile trips it honestly.
+2. The real client already blocks. A server reject adds nothing for an
+   honest user and can only fire where the two models disagree — the
+   false-positive case.
+3. **A reject teaches the threshold.** Refuse at 28,800 and the next
+   attempt is 28,700, forever. A flag accumulates the pattern instead,
+   which is what a ban decision needs.
+
+`workout_logs.implausible` + `implausible_ratio` are assigned by the
+trigger on EVERY write, so a client cannot self-declare itself clean —
+verified by sending exactly that. Same-day accumulation is covered: the
+check sums the user's other logs on that date, or the answer to any
+ceiling is "post it in ten pieces" (a day split across four rows was
+caught in testing).
+
+**THE LINE: competitive-or-credited filters, personal history does not.**
+24 functions read `workout_logs` and they are not one kind of read.
+
+- **Filters** (361, 362) — `reconcile_my_workout_volume`, the four gym
+  boards, `league_active_days`, `get_friend_leaderboard`,
+  `get_period_leaderboard`, `recompute_crew_war`. A forged row here takes
+  something from somebody else.
+- **Guards with a RAISE** (362) — `complete_bounty_claim`,
+  `complete_gauntlet_challenge`, `submit_duel_result_atomic`. Each takes a
+  specific `p_workout_log_id`, so the question is whether one row may be
+  SPENT, not which rows to sum. Raising is right here and wrong in 360:
+  refusing to save destroys the session, refusing to spend it costs only
+  the award and the log stays in their history. The guard raises BEFORE
+  any state change, so a refused claim stays `active` rather than burnt.
+- **Does NOT filter, deliberately** — `generate_weekly_review_for`,
+  `dispatch_memory_reengagement`, `get_crew_inactive_members`,
+  `get_org_analytics`, `get_trophy_progress`. Hiding a session from
+  someone's own weekly review makes the app lie to them about their own
+  week, and a false positive would delete real history from the one place
+  they would notice.
+
+Four things to carry forward:
+
+- **`NOT COALESCE(implausible, FALSE)`, never `implausible = FALSE`.** A
+  row that escaped the backfill is NULL and must read as "fine". Dropping
+  unknown rows from a leaderboard is a worse bug than keeping one bad one.
+- **`reconcile_my_workout_volume` needs the SAME predicate on its SELECT
+  and its UPDATE.** Filtering only the sum stamps a flagged row
+  `volume_credited_at` while crediting nothing — spent silently.
+- **`get_period_leaderboard` needed PARENTHESES.** Its window is
+  `WHERE v_since IS NULL OR date >= v_since`; AND binds tighter than OR,
+  so appending the predicate would have left the ALL-TIME board unfiltered
+  while reading as correct.
+- **The ceiling only ever TIGHTENS and is a no-op on an unknown profile.**
+  200,000 stays the absolute cap, and a blank profile models to 201,600
+  for the week, which clamps straight back. Nobody is punished for an
+  empty form. Verified 200000 / 107100 (120 lb, 55, female) / 200000
+  (300 lb, 25, male).
+
+Not done, and a deliberate scope line: nothing gates the log at write
+time beyond the flag, and XP granted through `increment_user_xp` is a
+client-supplied (clamped) amount rather than something derived from
+`workout_logs`, so it is untouched by any of this.
 
 ## The food catalogue — a moderation queue nothing enforced (2026-08-12)
 
