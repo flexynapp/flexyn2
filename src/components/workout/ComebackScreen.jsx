@@ -1,6 +1,6 @@
 // src/components/workout/ComebackScreen.jsx
 //
-// Full-screen overlay shown to returning users after 7+ days away.
+// Full-screen overlay shown to returning users after more than 48 hours away.
 // Tone: matter-of-fact, forward-looking, zero judgment. No streak guilt.
 //
 // Props:
@@ -12,11 +12,13 @@
 
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { format, subDays } from 'date-fns';
+import { subDays } from 'date-fns';
 import { Dumbbell, ArrowRight, Sparkles, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/lib/toast';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { useLanguage } from '@/lib/LanguageContext';
+import { useDateFormatter } from '@/lib/intl';
 
 // ── Comeback session generator ────────────────────────────────────────────────
 // Pulls exercises the user has done before from the 30 days prior to absence.
@@ -105,9 +107,13 @@ function buildComebackSession(workoutLogs, daysSince, userProfile = {}) {
 export default function ComebackScreen({ daysSince, workoutLogs = [], userProfile = {}, onStartSession, onSkip }) {
   // Pin the page behind this overlay — see @/lib/scrollLock.
   useBodyScrollLock();
+  const { tFallback } = useLanguage();
+  // date-fns format() binds no locale, so "Week of Aug 16" survived every
+  // translation pass and rendered English under a fully-translated screen.
+  const fmtDate = useDateFormatter();
   const [loading, setLoading] = useState(false);
 
-  const weekLabel = format(new Date(), "'Week of' MMM d");
+  const weekLabel = fmtDate(new Date(), { month: 'short', day: 'numeric' });
   const hasPriorHistory = workoutLogs.length >= 3;
 
   const handleLetGo = async () => {
@@ -121,15 +127,18 @@ export default function ComebackScreen({ daysSince, workoutLogs = [], userProfil
     try {
       const exercises = buildComebackSession(workoutLogs, daysSince, userProfile);
       if (!exercises || exercises.length === 0) {
-        toast.info('Not enough history to build a comeback session. Loading your normal workout.');
+        toast.info(tFallback('comeback.noHistory',
+          'Not enough history to build a comeback session. Loading your normal workout.'));
         onSkip();
         return;
       }
-      const title = `Comeback Session — ${weekLabel}`;
+      const title = tFallback('comeback.sessionTitle',
+        `Comeback Session (Week of ${weekLabel})`, { week: weekLabel });
       onStartSession(exercises, title);
     } catch (e) {
       console.error('[comeback]', e);
-      toast.error('Could not build comeback session. Loading normal workout.');
+      toast.error(tFallback('comeback.buildFailed',
+        'Could not build comeback session. Loading your normal workout.'));
       onSkip();
     } finally {
       setLoading(false);
@@ -162,17 +171,21 @@ export default function ComebackScreen({ daysSince, workoutLogs = [], userProfil
         className="text-center mb-10 max-w-xs"
       >
         <h1 className="font-heading font-black text-3xl text-foreground mb-3 leading-tight">
-          Welcome back.
+          {tFallback('comeback.title', 'Welcome back.')}
         </h1>
         <p className="text-muted-foreground text-base leading-relaxed">
-          {`It's been ${daysSince} day${daysSince !== 1 ? 's' : ''}.`}
+          {daysSince === 1
+            ? tFallback('comeback.dayAway', "It's been 1 day.")
+            : tFallback('comeback.daysAway', `It's been ${daysSince} days.`, { days: daysSince })}
+          {' '}
           {hasPriorHistory
-            ? " Here's a session to ease back in."
-            : ' Ready to get started?'}
+            ? tFallback('comeback.eased', "Here's a session to ease back in.")
+            : tFallback('comeback.ready', 'Ready to get started?')}
         </p>
         {hasPriorHistory && (
           <p className="text-xs text-muted-foreground/60 mt-2">
-            Scaled to 65% of your typical volume — same exercises, lighter load.
+            {tFallback('comeback.scaled',
+              'Scaled to 65% of your typical volume, same exercises at a lighter load.')}
           </p>
         )}
       </motion.div>
@@ -190,8 +203,10 @@ export default function ComebackScreen({ daysSince, workoutLogs = [], userProfil
           className="w-full h-12 text-base font-semibold gap-2"
         >
           {loading
-            ? <><Loader2 className="w-4 h-4 animate-spin" /> Building your session…</>
-            : <><Sparkles className="w-4 h-4" /> {hasPriorHistory ? "Let's go" : 'Start workout'}</>
+            ? <><Loader2 className="w-4 h-4 animate-spin" /> {tFallback('comeback.building', 'Building your session…')}</>
+            : <><Sparkles className="w-4 h-4" /> {hasPriorHistory
+                ? tFallback('comeback.start', "Let's go")
+                : tFallback('comeback.startPlain', 'Start workout')}</>
           }
         </Button>
 
@@ -199,7 +214,7 @@ export default function ComebackScreen({ daysSince, workoutLogs = [], userProfil
           onClick={onSkip}
           className="w-full text-sm text-muted-foreground hover:text-foreground active:text-foreground transition-colors py-2"
         >
-          Skip — take me to my normal workout
+          {tFallback('comeback.skip', 'Skip to my normal workout')}
           <ArrowRight className="inline w-3.5 h-3.5 ms-1" />
         </button>
       </motion.div>

@@ -723,10 +723,11 @@ export default function Workout() {
     staleTime: 60_000,
   });
 
-  // Comeback protocol — triggers when the user hasn't worked out in 7+ days
+  // Comeback protocol — triggers when the user hasn't worked out in over 48h
   const comebackProtocol = useComebackProtocol({
     workoutLogs: logs,
     hasActiveSession: sessions.length > 0,
+    userId: user?.id,
   });
 
   const saveMutation = useMutation({
@@ -3069,7 +3070,7 @@ export default function Workout() {
           )}
         </AnimatePresence>
 
-        {/* Comeback Screen overlay — shown when user returns after 7+ days */}
+        {/* Comeback Screen overlay — shown when user returns after 48h+ away */}
         <AnimatePresence>
           {comebackProtocol.triggered && (
             <ComebackScreen
