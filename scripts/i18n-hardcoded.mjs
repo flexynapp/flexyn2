@@ -244,9 +244,34 @@ function ownKeys(lines, line, text) {
     const m = /\b(?:id|key):\s*['"]([\w-]+)['"]/.exec(lines[i]);
     if (m) { out.push(m[1]); break; }
   }
+  // THE UPWARD SCAN MUST STOP AT AN OBJECT THAT ALREADY CLOSED, and without
+  // that check this rule is generous in exactly the way the other three
+  // versions of it were. `lootCatalog.js` declares RARITY with an `animated: {`
+  // member, closes it, and then declares ITEMS twenty lines further down. A
+  // bare scan walked out of RARITY, claimed `animated` as the enclosing key of
+  // every ITEMS row, and `loot.rarity.animated` IS in en.json — so 25 sticker
+  // descriptions were reported as reachable through a derived key that has
+  // nothing to do with them. Everything ABOVE the first `x: {` in a file was
+  // reported correctly, which is what made the hole look like a quirk of one
+  // catalog rather than a rule that fails after any nested object literal.
+  //
+  // A candidate only encloses the finding if the brace depth between them
+  // never returns to zero.
   for (let i = line - 1; i >= 0; i--) {
     const m = /^\s*['"]?([A-Za-z0-9_-]+)['"]?\s*:\s*\{/.exec(lines[i]);
-    if (m) { out.push(m[1]); break; }
+    if (!m) continue;
+    let depth = 0;
+    let encloses = true;
+    for (let j = i; j < line - 1; j++) {
+      const from = j === i ? lines[j].indexOf('{') : 0;
+      for (let c = from; c < lines[j].length; c++) {
+        if (lines[j][c] === '{') depth++;
+        else if (lines[j][c] === '}') depth--;
+      }
+      if (depth <= 0) { encloses = false; break; }
+    }
+    if (encloses) out.push(m[1]);
+    break;
   }
   if (text) out.push(text.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/(^_|_$)/g, ''));
   return out;
