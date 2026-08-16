@@ -12,7 +12,7 @@ import { supabase } from '@/api/supabaseClient';
 import { safeSelect } from '@/api/safeSelect';
 
 import { toast } from '@/lib/toast';
-import { getTrophy, trophyName, trophyDescription } from '@/lib/trophyDefinitions';
+import { getTrophy, trophyName, trophyDescription, asIs } from '@/lib/trophyDefinitions';
 import { requestOpenAchievements } from '@/lib/achievementsFlow';
 
 export async function listEarned(userIdOrEmail, byEmail = false) {
@@ -129,7 +129,7 @@ export async function checkAndCelebrate(tf) {
   // No React context here, so the translator arrives as an argument and
   // every string keeps its English as the fallback. Called without one,
   // this behaves exactly as it did before.
-  const tr = tf || ((_k, english) => english);
+  const tr = tf || asIs;
   const res = await grantEligible();
   if (!res.ok || !res.newlyGranted.length) return res;
 

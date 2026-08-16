@@ -692,8 +692,28 @@ export function rungProgress(trophy, value = 0) {
 // key with no fixed string behind it — so they take the interpolated
 // form, `tf(key, 'Reached {tier} in season {n}.', { tier, n })`.
 
-/** Default translator: hand back the English fallback untouched. */
-const asIs = (_key, english) => english;
+/**
+ * Default translator, for the call sites that have no React context.
+ *
+ * It hands back the English fallback — but it MUST still substitute the
+ * variables, because several of the strings here are templates and an
+ * un-substituted one renders the braces to the user. This used to be
+ * `(_key, english) => english`, which returned `Champion, S{n}` verbatim
+ * for every season champion and `{emoji} Trophy earned: {name}` for every
+ * trophy toast raised without a translator.
+ *
+ * The substitution deliberately mirrors `tFallback` in LanguageContext, so
+ * "no translator" and "translator with no catalog entry" produce the same
+ * string rather than two different bugs.
+ */
+export const asIs = (_key, english, vars) => {
+  if (!vars || typeof english !== 'string') return english;
+  let str = english;
+  for (const [k, val] of Object.entries(vars)) {
+    str = str.replace(new RegExp(`\\{${k}\\}`, 'g'), String(val));
+  }
+  return str;
+};
 
 /** "Bronze" / "Silver" / … for a tier ramp id. */
 export function tierLabel(tier, tf = asIs) {
