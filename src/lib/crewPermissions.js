@@ -100,6 +100,13 @@ export const CAPABILITY = {
 
   // Rank 3 — leaders decide who runs it, and commit it to a fight
   START_WAR:           RANK.LEADER,
+  // Same reading as START_WAR, and for the same reason: a generational
+  // challenge commits every member to a months-long chase, which is
+  // structural rather than operational. Migration 367 is the server half.
+  // Note this sits ABOVE CREATE_CHALLENGE (rank 2) on purpose — a
+  // moderator may still post a short free-form challenge, because that
+  // one expires and pays no trophy.
+  START_CREW_CHALLENGE: RANK.LEADER,
   CANCEL_WAR_QUEUE:    RANK.LEADER,
   PROMOTE_MEMBER:      RANK.LEADER,
   TRANSFER_LEADERSHIP: RANK.LEADER,

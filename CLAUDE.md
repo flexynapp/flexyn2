@@ -1977,8 +1977,29 @@ stays alongside it (his call) — `template_key IS NULL` is the old kind.
   initials, which is the same mark the crew avatar already uses, so the
   shelf needed no new iconography invented for it.
 - **The tab strip becomes five wide** (Home / Roster / Chat / League /
-  Trophies) and still fits 390px at `gap-5 px-4`. Key
-  `crew.tab.trophies`, already in the catalog in en/es/fr.
+  Trophies) and still fits 390px at `gap-5 px-4` — **measured in a render
+  harness, not derived**: content ends at 320px (en), 306px (es), 343px
+  (fr), so the tightest released locale keeps 47px of slack.
+- **Two design corrections the CODE made to the Penpot board**, both
+  worth keeping if the boards are ever redrawn:
+  1. **The gold is wrong.** The boards draw trophies in `#FFD700`
+     (`TROPHY_TIERS.gold`), and `index.css` is explicit that the app gets
+     FOUR hues, that amber and gold route into `--primary`, and that
+     "nothing outside this block gets to introduce a hue". A trophy takes
+     **`--success`** (which means "earned / complete", exactly what a
+     trophy in hand is) and an unstarted challenge takes `--primary`.
+  2. **A trophy row's subtitle must be conditional.**
+     `get_crew_challenge_catalog` filters on `is_active`, so a template
+     retired after somebody won it is absent — an unguarded `<p>` then
+     renders an empty line that still takes its height.
+- **Rendering it in French found a gap English could not show**: the
+  challenge titles come from `crew_challenge_templates`, so they were
+  English in every locale with no key for a translator to find — the
+  orphan-key defect in a second shape. `challengeName()` now routes them
+  through `crewChallenge.<template_key>` with the server's title as the
+  fallback. **Numbers stay server-side, words move client-side.** Trophy
+  NAMES stay English deliberately (product names, same class as Crew and
+  Capsule) and `_glossary.json` records why.
 
 ## Plausibility — a flag, not a refusal (migrations 360–362, Aug 2026)
 

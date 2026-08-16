@@ -38,12 +38,15 @@ import { rankOf } from '@/lib/crewPermissions';
 import CrewChallengeCard from './CrewChallengeCard';
 import CrewLeaguePanel from './CrewLeaguePanel';
 import CrewMemberDirectory from './CrewMemberDirectory';
+import CrewTrophiesPanel from './CrewTrophiesPanel';
 
+// Five tabs still fit 390px at `gap-5 px-4` — measured, not assumed.
 const TABS = [
-  { key: 'home',   label: 'Home' },
-  { key: 'roster', label: 'Roster' },
-  { key: 'chat',   label: 'Chat' },
-  { key: 'league', label: 'League' },
+  { key: 'home',     label: 'Home' },
+  { key: 'roster',   label: 'Roster' },
+  { key: 'chat',     label: 'Chat' },
+  { key: 'league',   label: 'League' },
+  { key: 'trophies', label: 'Trophies' },
 ];
 
 const ORDINAL = { one: 'st', two: 'nd', few: 'rd', other: 'th' };
@@ -362,6 +365,19 @@ export default function CrewPage({ crew, onBack, onViewProfile }) {
               className="h-full overflow-y-auto px-4 py-4"
             >
               <CrewLeaguePanel crewId={crewId} crewName={crew.name} />
+            </motion.div>
+          )}
+
+          {tab === 'trophies' && (
+            <motion.div
+              key="trophies"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.12 }}
+              className="h-full overflow-y-auto px-4 py-4"
+            >
+              <CrewTrophiesPanel crewId={crewId} myRank={myRank} />
             </motion.div>
           )}
         </AnimatePresence>
