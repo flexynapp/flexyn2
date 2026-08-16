@@ -144,14 +144,31 @@ const EN_KEYS = (() => {
   catch { return null; }
 })();
 
-const DERIVED = [];
+// PER FILE, and that is the whole precision of it. A pattern found anywhere
+// in the app is not evidence that THIS data gets looked up: MacroRingWidget
+// renders `{m.label}` with no lookup whatsoever, and an app-wide pool
+// "covered" it because some other component happens to build
+// `nutrition.macro.${key}`. A finding is only reachable if the lookup lives
+// in its own file, or in a file that IMPORTS it — which is the real shape for
+// a data module (DailyQuestsCard imports questCatalog and builds the key).
+const DERIVED_BY_FILE = new Map();
+const IMPORTERS = new Map();   // module path -> files that import it
 if (EN_KEYS) {
   (function walk(dir) {
     for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
       const p = path.join(dir, e.name);
       if (e.isDirectory()) { if (!SKIP_DIR.test(e.name)) walk(p); continue; }
       if (!/\.jsx?$/.test(e.name)) continue;
-      for (const m of fs.readFileSync(p, 'utf8').matchAll(/`([^`\n]*\$\{[^`\n]*)`/g)) {
+      const body = fs.readFileSync(p, 'utf8');
+      // `@/lib/questCatalog` -> src/lib/questCatalog
+      for (const im of body.matchAll(/from\s+['"]@\/([\w/.-]+)['"]/g)) {
+        const target = 'src/' + im[1].replace(/\.jsx?$/, '');
+        if (!IMPORTERS.has(target)) IMPORTERS.set(target, new Set());
+        IMPORTERS.get(target).add(p);
+      }
+      const DERIVED = DERIVED_BY_FILE.get(p) || [];
+      DERIVED_BY_FILE.set(p, DERIVED);
+      for (const m of body.matchAll(/`([^`\n]*\$\{[^`\n]*)`/g)) {
         const tpl = m[1];
         if (!/^[\w.]*\$\{[^}]*\}[\w.${}]*$/.test(tpl) || !tpl.includes('.')) continue;
         const holed = tpl.replace(/\$\{[^}]*\}/g, ' ');
@@ -162,17 +179,29 @@ if (EN_KEYS) {
   })(SRC);
 }
 
-/** The object key a finding sits under: `slug: {` above, or a nearby `id:`. */
-function ownKey(lines, line) {
+/**
+ * Candidate slugs a derived key might be built from. Three shapes, all live:
+ *
+ *   { id: 'log_sleep', label: '…' }        -> id
+ *   { key: 'breakfast', label: '…' }       -> key
+ *   leg_press: { label: '…' }              -> the object key above
+ *
+ * plus the slugified LABEL ITSELF, because TodaysPlanCard has no id at all —
+ * it returns `{ label: 'Push Day' }` and the render site slugifies the
+ * English to reach `todaysPlan.label.push_day`.
+ */
+function ownKeys(lines, line, text) {
+  const out = [];
   for (let i = line - 1; i >= Math.max(0, line - 6); i--) {
-    const m = /\bid:\s*['"]([\w-]+)['"]/.exec(lines[i]);
-    if (m) return m[1];
+    const m = /\b(?:id|key):\s*['"]([\w-]+)['"]/.exec(lines[i]);
+    if (m) { out.push(m[1]); break; }
   }
   for (let i = line - 1; i >= 0; i--) {
     const m = /^\s*['"]?([A-Za-z0-9_-]+)['"]?\s*:\s*\{/.exec(lines[i]);
-    if (m) return m[1];
+    if (m) { out.push(m[1]); break; }
   }
-  return null;
+  if (text) out.push(text.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/(^_|_$)/g, ''));
+  return out;
 }
 
 const findings = [];
@@ -216,8 +245,13 @@ const findings = [];
           // Reachable through a derived key — see DERIVED above.
           if (EN_KEYS) {
             const lines = src.split('\n');
-            const slug = ownKey(lines, lineOf(m.index));
-            if (slug && DERIVED.some(([pre, suf]) => (pre + slug + suf) in EN_KEYS)) continue;
+            const slugs = ownKeys(lines, lineOf(m.index), text);
+            // This file's own lookups, plus those of every file that imports
+            // it — the data-module case. Nothing wider.
+            const pats = [...(DERIVED_BY_FILE.get(p) || [])];
+            for (const importer of IMPORTERS.get(p.replace(/\.jsx?$/, '')) || [])
+              pats.push(...(DERIVED_BY_FILE.get(importer) || []));
+            if (slugs.some((slug) => pats.some(([pre, suf]) => (pre + slug + suf) in EN_KEYS))) continue;
           }
         }
         // Report the line of the TEXT, not of the match start. A JSX text node
