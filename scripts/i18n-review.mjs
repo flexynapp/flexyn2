@@ -112,13 +112,32 @@ for (const lang of LANGS) {
   const latin = strings.filter(([, v]) => /\p{Script=Latin}/u.test(v)).length / (strings.length || 1);
   const latinScript = latin >= 0.5;
 
+  // German and Dutch form CLOSED COMPOUNDS, so a kept term is welded into a
+  // longer word: Cardiotraining, Cardioreeks, welkomstcapsule, Vormcoach. A
+  // word-boundary match calls every one of those a translation and would have
+  // had me "fixing" correct Dutch. So a term also counts as kept when it sits
+  // at the edge of a word — bounded on at least ONE side.
+  //
+  // The same allowance covers INFLECTING languages, which attach case endings
+  // to a kept term rather than compounding: Polish "Opublikuj na Hubie" is the
+  // locative of Hub and is correct, and Turkish suffixes the same way.
+  //
+  // Length-gated at 3 on purpose. "PR" and "XP" as loose substrings match half
+  // the Romance vocabulary ("primo", "progresso"), which would report every
+  // real violation as kept and hide the thing this check exists to find.
+  const keptBy = (term, s) => {
+    if (W(term).test(s)) return true;
+    if (term.replace(/\|.*/, '').length < 3) return false;
+    return new RegExp(`(?:(?<![\\p{L}\\p{M}])(?:${term})|(?:${term})(?![\\p{L}\\p{M}]))`, 'iu').test(s);
+  };
+
   const dropped = [];
   for (const [k, v] of strings) {
     const e = en[k];
     if (typeof e !== 'string') continue;
     for (const t of gloss.doNotTranslate.terms) {
-      const re = W(FAMILY[t] || t);
-      if (re.test(e) && !re.test(v)) { dropped.push(`${k}  [${t}]  ${v.slice(0, 60)}`); break; }
+      const fam = FAMILY[t] || t;
+      if (W(fam).test(e) && !keptBy(fam, v)) { dropped.push(`${k}  [${t}]  ${v.slice(0, 60)}`); break; }
     }
   }
   if (latinScript) section('do-not-translate terms kept', dropped);

@@ -185,7 +185,9 @@
         "tr",
         "pl",
         "nl"
-      ]
+      ],
+      "termPass2026-08-16": "The six LATIN-SCRIPT shelved locales had the same do-not-translate defect es and fr did, and it is now fixed: de 40, pt 29, it 33, pl 47, nl 19, tr 74 keys where a term the glossary keeps in English had been translated (Reps→Wiederholungen/powtórzeń/tekrar, Capsule→Kapsel/kapsuła/Kapsül, PR→Rekord/rekor, Coach→Trener/Koç, Cardio→Kardiyo). All six now check clean. This is term CONSISTENCY only — it says nothing about whether the prose is good, and these locales remain shelved at ~38% coverage. Inflection was handled per language: Polish declines the loanword (Zapytaj Coacha) and Turkish suffixes it with the apostrophe foreign nouns take, harmonised to the loanword's own vowels (Cardio'yu, Coach'a, Capsule'ü, PR'ı) — that suffixation is the part most worth a native check if any of these is ever released.",
+      "notCheckedAndWhy": "The six NON-LATIN shelved locales — ja ko zh ar hi ru — were NOT touched. They keep these terms by TRANSLITERATING them (カーディオ is Cardio, ストリーク is streak), which a Latin-script matcher cannot tell from a translation; it reported 485 findings across them that were nearly all wrong. `npm run i18n:review` now marks those rows as candidates rather than failures. Deciding them needs the expected katakana/hangul/Cyrillic form per term recorded in _glossary.json, which is only worth doing if one of those locales is released."
     }
   }
 }
