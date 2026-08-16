@@ -71,6 +71,22 @@ const plan = (date, mealType, snap) => ({
   recipe_id: null, is_completed: false, food_snapshot: snap,
 });
 
+// A day key, built the way the COMPONENT builds it.
+//
+// This file used to say `new Date().toISOString().slice(0, 10)`, and that is a
+// different day from the one the component is showing for the last hours of
+// every day. `toISOString()` is UTC; the component keys days with date-fns
+// `format(d, 'yyyy-MM-dd')`, which is LOCAL. Anywhere west of Greenwich the two
+// disagree once local time passes midnight-minus-the-offset — 20:00 EDT, 19:00
+// EST — so every plan these tests placed on "today" landed on TOMORROW, the
+// open day rendered empty, and five tests failed.
+//
+// It presents as flakiness and is not: it failed every evening and passed every
+// morning, on identical code. Anything comparing against what this component
+// renders has to use local time, because that is what the component uses.
+const isoDay = (d) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
 function mount() {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
@@ -95,7 +111,7 @@ beforeEach(() => { PLANS = []; LANGUAGE = 'en'; });
 // with one ingredient across 63 profiles. What replaced them is the open day,
 // which is what the surface now actually puts on screen.
 describe('the open day — what the 89.7pt cell could never show', () => {
-  const TODAY = new Date().toISOString().slice(0, 10);
+  const TODAY = isoDay(new Date());
 
   it("sums the day's calories rather than dropping them", async () => {
     PLANS = [
@@ -161,7 +177,7 @@ describe('dates move with the language', () => {
 });
 
 describe('the slot cap — a refusal that offers a way through', () => {
-  const TODAY = new Date().toISOString().slice(0, 10);
+  const TODAY = isoDay(new Date());
   const fullDinner = () => ([
     { ...plan(TODAY, 'dinner', photoSnapshot('Mac and cheese with peas')),  id: 'd1' },
     { ...plan(TODAY, 'dinner', photoSnapshot('Grilled panini sandwich')),   id: 'd2' },
@@ -198,8 +214,8 @@ describe('the slot cap — a refusal that offers a way through', () => {
     const now = new Date();
     const monday = new Date(now);
     monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
-    if (monday.toISOString().slice(0, 10) === TODAY) monday.setDate(monday.getDate() + 1);
-    const future = monday.toISOString().slice(0, 10);
+    if (isoDay(monday) === TODAY) monday.setDate(monday.getDate() + 1);
+    const future = isoDay(monday);
     PLANS = fullDinner().map((p, i) => ({ ...p, plan_date: future, id: `f${i}` }));
     await mountLoaded();
     // Open that day first, then the sheet.
