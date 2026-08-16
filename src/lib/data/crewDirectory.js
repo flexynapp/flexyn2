@@ -30,11 +30,16 @@ export const CREW_SORTS   = ['volume', 'members', 'level', 'new'];
 export const CREW_METRICS = ['volume', 'trophies', 'points'];
 
 /**
- * One page of public crews.
+ * One page of crews — PUBLIC AND PRIVATE (migration 370).
+ *
+ * It listed only public crews until 2026-08-16, and all four crews in
+ * production are private, so the directory rendered empty for every user.
+ * Privacy is enforced at the JOIN instead: a private crew shows its identity
+ * and `join_crew_atomic` files an application rather than adding you.
  *
  * Each row: { id, name, tag, description, avatar_url, member_count,
  * max_capacity, total_volume_lbs, crew_level, trophies, wars_won, wars_lost,
- * is_member }.
+ * is_member, is_public, request_status }.
  *
  * The caller's own crew is NOT excluded — it comes back flagged with
  * `is_member` so the row can be styled and its action swapped. Seeing your
@@ -98,10 +103,17 @@ export async function getTopCrews({ metric = 'volume', limit = 25 } = {}) {
  */
 export function joinStateFor(crew, { inACrew = false, requested = false } = {}) {
   if (crew?.is_member) return 'member';
-  if (requested)       return 'requested';
+  // `request_status` comes from the server (migration 370) so a pending
+  // application survives a reload; `requested` is the optimistic local flag for
+  // the tap that just happened. Either one means the same thing to the row.
+  if (requested || crew?.request_status === 'pending') return 'requested';
   const count = Number(crew?.member_count ?? 0);
   const cap   = Number(crew?.max_capacity ?? 16);
   if (Number.isFinite(count) && Number.isFinite(cap) && count >= cap) return 'full';
   if (inACrew) return 'blocked';
+  // A private crew cannot be joined by tapping — join_crew_atomic refuses it
+  // and files an application instead. The button has to say so BEFORE the tap,
+  // or it promises something the server will not do.
+  if (crew && crew.is_public === false) return 'apply';
   return 'join';
 }

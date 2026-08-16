@@ -92,7 +92,12 @@ export default function CrewJoinRequests({ crewId, canReview }) {
       className="px-4 pt-3"
       aria-label={tFallback('crew.requestsAria', 'Pending join requests')}
     >
-      <p className="text-sm font-bold mb-1">
+      {/* Section label above the count, per Penpot board C — the queue is a
+          named part of the roster screen, not an unlabelled list. */}
+      <p className="text-micro font-black uppercase tracking-wider text-primary">
+        {tFallback('crew.requestsLabel', 'Requests to join')}
+      </p>
+      <p className="font-heading font-black text-base mb-1">
         {requests.length === 1
           ? tFallback('crew.oneRequest', '1 person wants to join')
           : `${requests.length} ${tFallback('crew.manyRequests', 'people want to join')}`}
@@ -118,11 +123,21 @@ export default function CrewJoinRequests({ crewId, canReview }) {
               <Avatar row={row} />
 
               <div className="flex-1 min-w-0">
-                <p className="text-sm truncate">
-                  {row.username || row.full_name || tFallback('crew.someone', 'Someone')}
+                <p className="font-heading font-bold text-sm truncate">
+                  {row.username ? `@${row.username}` : (row.full_name || tFallback('crew.someone', 'Someone'))}
                 </p>
-                {asked && (
-                  <p className="text-xs text-muted-foreground">{asked}</p>
+                {/* Level and when they asked, on one line. A reviewer deciding
+                    between strangers has nothing else to go on, and an
+                    application with no context is a coin flip. */}
+                <p className="text-micro text-muted-foreground truncate">
+                  {Number.isFinite(Number(row.current_level))
+                    ? tFallback('crew.applicantLevel', 'Level {lv}', { lv: String(row.current_level) })
+                    : null}
+                  {Number.isFinite(Number(row.current_level)) && asked ? '  ·  ' : null}
+                  {asked}
+                </p>
+                {row.message && (
+                  <p className="text-micro text-muted-foreground truncate italic">{row.message}</p>
                 )}
               </div>
 
@@ -130,15 +145,18 @@ export default function CrewJoinRequests({ crewId, canReview }) {
                 <Loader2 className="w-4 h-4 animate-spin text-muted-foreground shrink-0" />
               ) : (
                 <div className="flex items-center gap-2 shrink-0">
+                  {/* Decline is a hairline, not a red button: on a routine
+                      triage action a destructive-looking control reads as
+                      punishment. Board C. */}
                   <button
                     onClick={() => decide.mutate({ userId: row.user_id, approve: false })}
-                    className="text-sm text-muted-foreground px-2 py-1"
+                    className="text-micro font-bold text-muted-foreground px-3 py-2 rounded-lg border border-border"
                   >
                     {tFallback('crew.decline', 'Decline')}
                   </button>
                   <button
                     onClick={() => decide.mutate({ userId: row.user_id, approve: true })}
-                    className="text-sm font-bold px-3 py-1.5 rounded-lg text-white"
+                    className="text-micro font-bold px-3 py-2 rounded-lg text-white"
                     style={{ background: 'hsl(var(--primary))' }}
                   >
                     {tFallback('crew.approve', 'Approve')}

@@ -191,3 +191,48 @@ describe('crewDirectory has no client write path', () => {
     expect(fromSpy).not.toHaveBeenCalled();
   });
 });
+
+// joinStateFor — the row action, after migration 370 made discovery list
+// private crews too.
+//
+// The state matters more than it looks: join_crew_atomic decides from the
+// crew's own privacy whether a tap JOINS you or files an APPLICATION, and it
+// returns success either way. A button reading "Join" on a private crew
+// therefore promises something the server will quietly turn into a request —
+// which is the exact defect the DM invite card shipped with.
+describe('joinStateFor — public vs private', () => {
+  const base = { member_count: 4, max_capacity: 16 };
+
+  it('says Apply for a private crew', () => {
+    expect(joinStateFor({ ...base, is_public: false })).toBe('apply');
+  });
+
+  it('says Join for a public one', () => {
+    expect(joinStateFor({ ...base, is_public: true })).toBe('join');
+  });
+
+  it('falls back to join when the server did not send is_public', () => {
+    // A pre-370 payload must not silently render every crew as Apply.
+    expect(joinStateFor({ ...base })).toBe('join');
+  });
+
+  it('reads a pending application from the server, not just local state', () => {
+    expect(joinStateFor({ ...base, is_public: false, request_status: 'pending' })).toBe('requested');
+  });
+
+  it('does not treat a rejected request as still pending', () => {
+    expect(joinStateFor({ ...base, is_public: false, request_status: 'rejected' })).toBe('apply');
+  });
+
+  it('still lets the optimistic local flag win', () => {
+    expect(joinStateFor({ ...base, is_public: true }, { requested: true })).toBe('requested');
+  });
+
+  // Order matters: a full private crew must read Full, not Apply — an
+  // application that can never be approved is worse than no button.
+  it('ranks membership, request, capacity and privacy in that order', () => {
+    expect(joinStateFor({ ...base, is_member: true, is_public: false })).toBe('member');
+    expect(joinStateFor({ member_count: 16, max_capacity: 16, is_public: false })).toBe('full');
+    expect(joinStateFor({ ...base, is_public: false }, { inACrew: true })).toBe('blocked');
+  });
+});

@@ -45,10 +45,15 @@ function CrewResult({ crew, onJoin, joining, inACrew, requested, tFallback, fmt 
 
   const LABEL = {
     join:      ['crew.discover.join',      'Join'],
-    requested: ['crew.discover.requested', 'Requested'],
+    apply:     ['crew.discover.apply',     'Apply'],
+    requested: ['crew.discover.awaiting',  'Awaiting review'],
     full:      ['crew.discover.full',      'Full'],
     member:    ['crew.discover.yours',     'Your crew'],
   };
+  // Join and Apply are the same tap — join_crew_atomic decides which it is
+  // from the crew's own privacy. The label differs so the button never
+  // promises a join the server will turn into a request.
+  const actionable = state === 'join' || state === 'apply';
 
   return (
     <motion.div
@@ -114,19 +119,19 @@ function CrewResult({ crew, onJoin, joining, inACrew, requested, tFallback, fmt 
           greyed buttons only repeats it once per crew. */}
       {state !== 'blocked' && (
         <motion.button
-          whileTap={state === 'join' ? { scale: 0.94 } : undefined}
-          onClick={() => state === 'join' && onJoin(crew.id)}
+          whileTap={actionable ? { scale: 0.94 } : undefined}
+          onClick={() => actionable && onJoin(crew.id)}
           disabled={state !== 'join'}
           className={`shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-opacity ${
-            state === 'join'
+            actionable
               ? 'text-white'
               : 'text-muted-foreground bg-secondary'
           }`}
-          style={state === 'join' ? { background: 'hsl(var(--primary))' } : undefined}
+          style={actionable ? { background: 'hsl(var(--primary))' } : undefined}
         >
           {joining
             ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            : state === 'join' ? <Plus className="w-3.5 h-3.5" /> : null}
+            : actionable ? <Plus className="w-3.5 h-3.5" /> : null}
           {tFallback(...LABEL[state])}
         </motion.button>
       )}
