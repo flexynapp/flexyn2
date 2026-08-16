@@ -40,7 +40,7 @@ import { toast } from '@/lib/toast';
 import {
   getRivalProfile, msUntilNextWeekStart, isThisWeek, computeRivalReward,
   confirmGymRival, voidStaleGymRival, getGymRivalRecord,
-  getGymRivalWeekState, rivalMetric,
+  getGymRivalWeekState, rivalMetric, matchQuality,
 } from '@/lib/data/gymRival';
 import { useDistanceUnit } from '@/lib/DistanceUnitContext';
 import { formatDistance } from '@/lib/distanceUnit';
@@ -293,6 +293,10 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
     ? tFallback('gymRivalMenu.metricDistance', 'Total distance this week')
     : tFallback('gymRivalMenu.metricVolume', 'Total volume this week');
   const absentText = tFallback('gymRivalMenu.scoredAtSettlement', 'scored at settlement');
+  const quality = matchQuality(assignment?.match_gap);
+  const metricNoun = isCardio
+    ? tFallback('cardio.field.distance', 'Distance').toLowerCase()
+    : tFallback('bodyMap.mode.volume', 'Volume').toLowerCase();
 
   return createPortal(
     <AnimatePresence>
@@ -542,6 +546,25 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
                 <p className="text-xs text-muted-foreground mb-6">
                   {tFallback('gymRivalMenu.lifetimeNote', 'Lifetime figures — this week starts level.')}
                 </p>
+
+                {/* Say how close the matchup is rather than asserting it is
+                    fair. Absent on rows rolled before migration 364. */}
+                {quality && (
+                  <div className="mb-6">
+                    <p className="text-micro font-black uppercase tracking-wider text-muted-foreground">
+                      {tFallback('gymRivalMenu.matchQuality', 'Match quality')}
+                    </p>
+                    <p className="text-sm font-bold mt-1">
+                      {quality === 'very-close' ? tFallback('gymRivalMenu.qualityVeryClose', 'Very close match')
+                        : quality === 'close' ? tFallback('gymRivalMenu.qualityClose', 'Close match')
+                        : quality === 'fair' ? tFallback('gymRivalMenu.qualityFair', 'Fair match')
+                        : tFallback('gymRivalMenu.qualityWidest', 'Closest available right now')}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {tFallback('gymRivalMenu.qualityBasis', 'Matched on recent weekly {m}, training days, level, strength and age.', { m: metricNoun })}
+                    </p>
+                  </div>
+                )}
 
                 <p className="text-micro font-black uppercase tracking-wider text-primary">
                   {tFallback('gymRivalMenu.howItStarts', 'How it starts')}

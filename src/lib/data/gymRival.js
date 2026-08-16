@@ -359,6 +359,24 @@ export function rivalMetric(state, type = 'gym') {
     : { you: state.youVolume,   them: state.themVolume,   kind: 'volume' };
 }
 
+/**
+ * How close a matchup is, from the `match_gap` the roll stored (migration
+ * 364). 0 = identical on every dimension that could be compared, 1 =
+ * maximally far apart.
+ *
+ * Returns null when there is no gap on the row — rows rolled before 364 have
+ * none, and the pending screen must say nothing rather than assert a quality
+ * it cannot know.
+ */
+export function matchQuality(gap) {
+  if (gap == null || Number.isNaN(Number(gap))) return null;
+  const g = Number(gap);
+  if (g < 0.15) return 'very-close';
+  if (g < 0.30) return 'close';
+  if (g < 0.50) return 'fair';
+  return 'widest';
+}
+
 /** Ms until the current ISO week (Mon-start) ends. */
 export function msUntilWeekEnd(now = new Date()) {
   const day = now.getDay(); // 0=Sun..6=Sat

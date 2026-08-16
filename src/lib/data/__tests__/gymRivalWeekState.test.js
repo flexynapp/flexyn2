@@ -28,7 +28,7 @@ vi.mock('@/api/supabaseClient', () => ({
 // exercised here, but leaving it unmocked drags in the real db client.
 vi.mock('@/lib/data/users', () => ({ selectProfiles: vi.fn() }));
 
-const { getGymRivalWeekState, rivalMetric } = await import('@/lib/data/gymRival');
+const { getGymRivalWeekState, rivalMetric, matchQuality } = await import('@/lib/data/gymRival');
 
 const ROW = {
   week_since:    '2026-08-10T00:00:00+00:00',
@@ -112,5 +112,34 @@ describe('rivalMetric', () => {
   // whole change exists to remove.
   it('returns null for a null state instead of a zeroed pair', () => {
     expect(rivalMetric(null, 'gym')).toBeNull();
+  });
+});
+
+// matchQuality bands the `match_gap` migration 364 stores on the assignment.
+// The null case is the one that matters: rows rolled before 364 carry no gap,
+// and the pending screen must stay silent rather than claim a quality it
+// cannot know — a default of "fair" would be an assertion about a matchup
+// nothing measured.
+describe('matchQuality', () => {
+  it('returns null when the row carries no gap (pre-364 assignments)', () => {
+    expect(matchQuality(null)).toBeNull();
+    expect(matchQuality(undefined)).toBeNull();
+    expect(matchQuality('not a number')).toBeNull();
+  });
+
+  it('bands a gap into the four labels', () => {
+    expect(matchQuality(0)).toBe('very-close');
+    expect(matchQuality(0.0434)).toBe('very-close');   // the seeded "twin" case
+    expect(matchQuality(0.2)).toBe('close');
+    expect(matchQuality(0.45)).toBe('fair');
+    expect(matchQuality(0.9)).toBe('widest');
+  });
+
+  it('treats a numeric string from postgres as a number', () => {
+    expect(matchQuality('0.0767')).toBe('very-close');
+  });
+
+  it('does not treat 0 as absent', () => {
+    expect(matchQuality(0)).not.toBeNull();
   });
 });
