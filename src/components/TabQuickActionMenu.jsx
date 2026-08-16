@@ -15,11 +15,13 @@
 // it regardless of which tab fired the gesture.
 
 import { useEffect, useRef } from 'react';
+import { useLanguage } from '@/lib/LanguageContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createPortal } from 'react-dom';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 export default function TabQuickActionMenu({ open, anchorRect, actions, onClose }) {
+  const { tFallback } = useLanguage();
   // Pin the page behind this overlay — see @/lib/scrollLock.
   useBodyScrollLock(open);
   const menuRef = useRef(null);
@@ -94,7 +96,7 @@ export default function TabQuickActionMenu({ open, anchorRect, actions, onClose 
                 className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-foreground hover:bg-secondary active:bg-secondary transition-colors border-b border-border last:border-b-0"
               >
                 {action.icon && <action.icon className="w-4 h-4 text-primary shrink-0" />}
-                <span className="text-start flex-1">{action.label}</span>
+                <span className="text-start flex-1">{tFallback(`layout.quick.${action.id}`, action.label)}</span>
               </button>
             ))}
             {/* Small downward-pointing tab connector so the menu looks

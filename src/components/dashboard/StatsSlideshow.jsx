@@ -172,14 +172,17 @@ function buildStatSlides(logs, goals, weightUnit, language) {
 
   slides.push({
     id: 'week', icon: Flame, iconColor: 'text-primary', iconBg: 'bg-primary/10',
-    value: thisWeekLogs.length, label: 'Workouts This Week',
-    sub: thisWeekLogs.length > 0 ? `${thisWeekLogs.length} session${thisWeekLogs.length > 1 ? 's' : ''} logged 🔥` : 'Get one in today!',
+    value: thisWeekLogs.length, label: 'Workouts This Week', labelKey: 'statsSlide.week.label',
+    sub: thisWeekLogs.length > 0 ? '{n} sessions logged 🔥' : 'Get one in today!',
+    subKey: thisWeekLogs.length > 0 ? 'statsSlide.week.sub.some' : 'statsSlide.week.sub.none',
+    subVars: { n: thisWeekLogs.length },
   });
 
   slides.push({
     id: 'total', icon: Dumbbell, iconColor: 'text-primary', iconBg: 'bg-primary/10',
-    value: logs.length, label: 'Total Workouts',
+    value: logs.length, label: 'Total Workouts', labelKey: 'statsSlide.total.label',
     sub: logs.length > 0 ? 'All-time sessions logged' : 'Log your first workout',
+    subKey: logs.length > 0 ? 'statsSlide.total.sub.some' : 'statsSlide.total.sub.none',
   });
 
   const weeklyVolume = thisWeekLogs.reduce((sum, log) =>
@@ -189,7 +192,8 @@ function buildStatSlides(logs, goals, weightUnit, language) {
     slides.push({
       id: 'volume', icon: BarChart2, iconColor: 'text-info', iconBg: 'bg-info/10',
       value: formatWeight(weeklyVolume, weightUnit),
-      label: 'Lifted This Week', sub: 'Total volume this week',
+      label: 'Lifted This Week', labelKey: 'statsSlide.volume.label',
+      sub: 'Total volume this week', subKey: 'statsSlide.volume.sub',
     });
   }
 
@@ -210,15 +214,16 @@ function buildStatSlides(logs, goals, weightUnit, language) {
       id: 'pb', icon: Trophy, iconColor: 'text-primary', iconBg: 'bg-primary/10',
       value: formatWeight(pb.weight, weightUnit),
       label: (() => { const d = translateExerciseName(exName, language); return `PB · ${d.length > 16 ? d.slice(0, 16) + '…' : d}`; })(),
-      sub: 'Personal best',
+      sub: 'Personal best', subKey: 'statsSlide.pb.sub',
     });
   }
 
   const completedGoals = goals.filter(g => g.status === 'completed');
   slides.push({
     id: 'goals', icon: Target, iconColor: 'text-accent', iconBg: 'bg-accent/10',
-    value: completedGoals.length, label: 'Goals Achieved',
+    value: completedGoals.length, label: 'Goals Achieved', labelKey: 'statsSlide.goals.label',
     sub: completedGoals.length > 0 ? 'Crushed it' : 'Set your first goal',
+    subKey: completedGoals.length > 0 ? 'statsSlide.goals.sub.some' : 'statsSlide.goals.sub.none',
   });
 
   const streak = (() => {
@@ -236,8 +241,9 @@ function buildStatSlides(logs, goals, weightUnit, language) {
   })();
   slides.push({
     id: 'streak', icon: Zap, iconColor: 'text-primary', iconBg: 'bg-primary/10',
-    value: streak, label: 'Day Streak',
+    value: streak, label: 'Day Streak', labelKey: 'statsSlide.streak.label',
     sub: streak > 0 ? "You're on fire" : 'Start your streak today',
+    subKey: streak > 0 ? 'statsSlide.streak.sub.some' : 'statsSlide.streak.sub.none',
   });
 
   const exCount = {};
@@ -248,7 +254,8 @@ function buildStatSlides(logs, goals, weightUnit, language) {
     slides.push({
       id: 'trending', icon: TrendingUp, iconColor: 'text-success', iconBg: 'bg-success/10',
       value: topExDisplay.length > 14 ? topExDisplay.slice(0, 14) + '…' : topExDisplay,
-      label: 'Trending This Week', sub: `Logged ${topEx[1]}x this week`, small: true,
+      label: 'Trending This Week', labelKey: 'statsSlide.trending.label',
+      sub: 'Logged {n}x this week', subKey: 'statsSlide.trending.sub', subVars: { n: topEx[1] }, small: true,
     });
   }
 
@@ -258,7 +265,7 @@ function buildStatSlides(logs, goals, weightUnit, language) {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function StatsSlideshow({ logs = [], goals = [], isLoading }) {
-  const { t, language } = useLanguage();
+  const { t, tFallback, language } = useLanguage();
   const { weightUnit } = useWeightUnit();
   const hasData = (logs?.length ?? 0) >= 3;
 
@@ -359,8 +366,8 @@ export default function StatsSlideshow({ logs = [], goals = [], isLoading }) {
                   >
                     {slide.value}
                   </motion.p>
-                  <p className="text-xs text-muted-foreground mt-0.5 font-medium">{slide.label}</p>
-                  <p className="text-xs text-muted-foreground mt-1">{slide.sub}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5 font-medium">{slide.labelKey ? tFallback(slide.labelKey, slide.label) : slide.label}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{slide.subKey ? tFallback(slide.subKey, slide.sub, slide.subVars) : slide.sub}</p>
                 </div>
               </>
             )}

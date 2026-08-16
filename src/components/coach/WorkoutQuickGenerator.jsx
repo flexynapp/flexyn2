@@ -191,7 +191,7 @@ export default function WorkoutQuickGenerator({ userProfile = {}, onSaveRegimen,
 
       {/* Contextual options */}
       {type === 'strength' && (
-        <Pillset label={tFallback('generator.focus', 'Focus')} options={FOCUS_OPTIONS} value={focus} onChange={setFocus} />
+        <Pillset label={tFallback('generator.focus', 'Focus')} options={FOCUS_OPTIONS} value={focus} onChange={setFocus} keyPrefix="routines.focus." />
       )}
       {isCardio && (
         <Pillset label={tFallback('generator.style', 'Style')} options={CARDIO_STYLES} value={cardioStyle} onChange={setCardioStyle} />
@@ -260,7 +260,8 @@ export default function WorkoutQuickGenerator({ userProfile = {}, onSaveRegimen,
   );
 }
 
-function Pillset({ label, options, value, onChange }) {
+function Pillset({ label, options, value, onChange, keyPrefix }) {
+  const { tFallback } = useLanguage();
   return (
     <div className="mb-4">
       <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">{label}</p>
@@ -276,7 +277,7 @@ function Pillset({ label, options, value, onChange }) {
                 : 'bg-background border-border text-foreground hover:border-primary/50 hover:bg-secondary active:bg-secondary'
             }`}
           >
-            {opt.label}
+            {keyPrefix ? tFallback(`${keyPrefix}${opt.id}`, opt.label) : opt.label}
           </button>
         ))}
       </div>

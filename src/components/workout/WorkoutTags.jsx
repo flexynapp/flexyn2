@@ -3,6 +3,8 @@
 // Colored muscle-group / session tags for workouts. A curated set (legs, back,
 // chest, tris, …) each with its own hue, plus a display pill and a picker.
 // Tags are stored as a string[] on the workout log (workout_logs.tags).
+import { useLanguage } from '@/lib/LanguageContext';
+
 
 export const WORKOUT_TAGS = [
   { id: 'chest',     label: 'Chest',     hue: '0 84% 60%' },
@@ -23,6 +25,7 @@ export const getTag = (id) => BY_ID[id] || null;
 
 /** Small colored pill for displaying a tag on a card. */
 export function TagPill({ id, label, hue, className = '' }) {
+  const { tFallback } = useLanguage();
   const def = id ? getTag(id) : { label, hue };
   if (!def) return null;
   const h = hue || def.hue;
@@ -31,7 +34,7 @@ export function TagPill({ id, label, hue, className = '' }) {
       className={`inline-flex items-center rounded-full px-2 py-0.5 text-micro font-bold leading-none ${className}`}
       style={{ background: `hsl(${h} / 0.14)`, color: `hsl(${h})` }}
     >
-      {def.label || label}
+      {def.id ? tFallback(`workoutTag.${def.id}`, def.label) : (def.label || label)}
     </span>
   );
 }

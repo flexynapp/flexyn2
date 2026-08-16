@@ -305,7 +305,7 @@ export default function MyRoutineSheet({ open, onClose }) {
                               {FOCUS_OPTIONS.map(f => (
                                 <button key={f.id} onClick={() => patchDay(idx, { focus: day.focus === f.id ? null : f.id })}
                                   className={`px-2.5 py-1 rounded-full text-xs font-semibold border transition-colors ${day.focus === f.id ? 'bg-primary/15 border-primary text-primary' : 'border-border text-muted-foreground'}`}>
-                                  {f.label}
+                                  {tFallback(`routines.focus.${f.id}`, f.label)}
                                 </button>
                               ))}
                             </div>
