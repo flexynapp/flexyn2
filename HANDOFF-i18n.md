@@ -15,12 +15,12 @@ every "94% real" predates a correct measurement.
 | | then | now |
 |---|---|---|
 | untranslatable keys | 781 | **0** |
-| hardcoded strings | 725 (undercounted) | **634** (honest) |
-| en.json | 3,895 | 5,563 |
-| real es/fr coverage | 70.5% | **89.2%** |
-| de / it / nl / pl | — | 85.8% real |
-| pt | — | 84.5% real |
-| tr | 2,137 | 2,353 / 5,563 |
+| hardcoded strings | 725 (undercounted) | **586** (honest) |
+| en.json | 3,895 | 5,627 |
+| real es/fr coverage | 70.5% | **90.0%** |
+| de / it / nl / pl | — | 86.6% real |
+| pt | — | 85.3% real |
+| tr | 2,137 | 2,353 / 5,627 |
 
 `npm run i18n:audit` section E is the honest number. Section B is CATALOG
 coverage and is not what a user sees — do not quote it.
@@ -39,11 +39,9 @@ untranslated.
 
 ## THE JOB
 
-**Finish the 634 hardcoded strings.** UI copy that never reaches a catalog.
+**Finish the 586 hardcoded strings.** UI copy that never reaches a catalog.
 `npm run i18n:hardcoded -- --list` enumerates them; the largest are:
 
-    26  src/pages/AdminReports.jsx        (admin-only, low user value)
-    22  src/pages/CorporatePortal.jsx
     16  src/components/market/MarketplaceFeed.jsx
     14  src/components/hub/HubComposer.jsx
     14  src/pages/GymEdit.jsx
@@ -53,9 +51,9 @@ untranslated.
     11  src/components/nutrition/RecipesHubModal.jsx
     11  src/lib/aiCoach/workoutGenerator.js   ← SEE "KNOWN FALSE POSITIVE"
     11  src/lib/programTemplates.js
+    10  src/components/gyms/GymFeedTab.jsx
 
-then a tail of 1–10 across ~140 files. Nothing above 26 remains, and
-`AdminReports` is admin-only — so from here it is genuinely file-by-file.
+then a tail of 1–9 across ~140 files. Nothing above 16 remains.
 
 **The loot catalogs are DONE** (105 keys, 2026-08-16). Cosmetic NAMES stay
 English by standing decision; the flavour text beside them is translated
@@ -75,6 +73,17 @@ list.** Two shapes it structurally cannot see, both found in this batch:
   overwhelmingly an identifier here). `trophyDefinitions.js` reported 123 and
   had 166 — the 43 extra were `LADDERS[].name` and `TROPHY_CATEGORIES[].name`,
   rendering as page headings.
+- **A slug→label map whose PROPS ARE THE SLUGS is invisible entirely.** The
+  detector matches on the property NAME being `label`/`title`/`desc`, so
+  `REASON_LABEL = { harassment: 'Harassment', spam: 'Spam', … }` in
+  `AdminReports.jsx` matched nothing at all — six labels on every row of the
+  moderation queue, never counted, English in fourteen languages.
+- **A sentence assembled from fragments cannot be translated even after you
+  find it.** Two in this batch: Workout built "Cleared 2 weights and 1 rep
+  field" by joining pluralised English pieces with `" and "`, and the
+  corporate cohort gate joined a dash clause, an inline plural and a
+  parenthetical. Rewrite as whole messages, one per case — never key the
+  fragments.
 
 **Also outstanding:**
 - **tr is at 2,353/5,424.** Glossary and the register fix are done. Only
@@ -134,6 +143,12 @@ goal's own title and an exercise name are USER DATA and must render verbatim.
   conflicts resolve as a UNION — never take one side.
 - **The feature branch goes stale after every rebase.** Push `HEAD:main`
   first, then `--force-with-lease` the branch to match. Never force-push main.
+- **`migrationCatalog.test.js` goes red on YOUR branch for someone else's
+  migration.** It requires a `docs/migrations-runbook.md` row per file in
+  `supabase/migrations/`, and two landed without one on 2026-08-16 (372, 373).
+  The message names a doc you were not editing. Write the row from the
+  migration's own header comment and move on; it is a minute, and diagnosing
+  a red suite on a clean checkout is not.
 - **NEVER `git checkout <locale>.json` mid-batch.** The keys you just landed
   are uncommitted, so it silently reverts the whole batch and the file still
   looks plausible. Cost one German batch here. Re-run `add-keys.mjs` to
