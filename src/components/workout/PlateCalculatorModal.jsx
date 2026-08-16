@@ -112,7 +112,7 @@ export default function PlateCalculatorModal({ open, onClose, initialWeightLbs =
                         active ? 'bg-primary text-primary-foreground' : 'bg-secondary/60 text-muted-foreground hover:bg-secondary active:bg-secondary',
                       ].join(' ')}
                     >
-                      {bar.label} · {formatWeightNumber(bar.lbs, weightUnit)}{weightUnit}
+                      {tFallback(`bar.preset.${bar.id}`, bar.label)} · {formatWeightNumber(bar.lbs, weightUnit)}{weightUnit}
                     </button>
                   );
                 })}

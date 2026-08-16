@@ -60,7 +60,7 @@ function Card({ label, meta, children }) {
 }
 
 export default function NutritionTrendsChart({ entries = [], userProfile = {} }) {
-  const { language } = useLanguage();
+  const { language, tFallback } = useLanguage();
   const locale = getDateLocale(language);
   const fmt = useNumberFormatter();
   const [days, setDays] = useState(30);
@@ -215,7 +215,7 @@ export default function NutritionTrendsChart({ entries = [], userProfile = {} })
             const goal = macroGoals[m.key];
             return (
               <div key={m.key} className="flex items-center gap-2.5">
-                <span className="text-micro font-semibold w-12 shrink-0 text-muted-foreground">{m.label}</span>
+                <span className="text-micro font-semibold w-12 shrink-0 text-muted-foreground">{tFallback(`nutrient.${m.key}`, m.label)}</span>
                 <div className="flex-1 h-2 rounded-full bg-secondary overflow-hidden">
                   <motion.div
                     className="h-full rounded-full"

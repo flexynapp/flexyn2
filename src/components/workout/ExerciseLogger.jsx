@@ -331,7 +331,7 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
                 className="text-xs bg-secondary/60 border border-border rounded-md px-1.5 py-0.5 focus:outline-none focus:border-primary/50"
               >
                 {BAR_PRESETS.map(b => (
-                  <option key={b.id} value={b.lbs}>{b.label}</option>
+                  <option key={b.id} value={b.lbs}>{tFallback(`bar.preset.${b.id}`, b.label)}</option>
                 ))}
               </select>
             </div>
