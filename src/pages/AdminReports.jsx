@@ -518,7 +518,7 @@ function FoodRequestRow({ request, isPending, busy, onApprove, onReject }) {
             disabled={busy}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-500 active:bg-emerald-500 transition-colors disabled:opacity-50"
           >
-            <Check className="w-3.5 h-3.5" /> Approve &amp; publish
+            <Check className="w-3.5 h-3.5" /> {tFallback("adminReports.approveAndPublish", "Approve & publish")}
           </button>
           <button
             onClick={() => onReject()}

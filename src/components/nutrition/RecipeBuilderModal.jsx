@@ -421,7 +421,7 @@ export default function RecipeBuilderModal({ open, onClose, editingRecipe = null
               aria-expanded={finishOpen}
               className="mt-6 w-full flex items-center justify-between py-2 border-t border-border text-label font-semibold text-muted-foreground"
             >
-              <span>Directions, nutrients &amp; totals</span>
+              <span>{tFallback("recipeBuilderModal.directionsNutrientsTotals", "Directions, nutrients & totals")}</span>
               <ChevronDown className={`w-4 h-4 transition-transform ${finishOpen ? 'rotate-180' : ''}`} />
             </button>
 

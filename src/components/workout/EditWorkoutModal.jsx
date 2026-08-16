@@ -419,7 +419,7 @@ export default function EditWorkoutModal({ log, userProfile = {}, logs = [], car
               })));
               setCheatWarningData(null);
             }}>
-              Go Back &amp; Fix
+              {tFallback("workout.goBackAndFix", "Go back and fix")}
             </Button>
           </DialogContent>
         </Dialog>

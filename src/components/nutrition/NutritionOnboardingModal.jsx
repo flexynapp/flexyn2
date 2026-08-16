@@ -474,7 +474,7 @@ export default function NutritionOnboardingModal({ open, userProfile, onComplete
               >
                 <h2 className="font-heading font-bold text-xl mb-1 flex items-center gap-2">
                   <ShieldCheck className="w-5 h-5" />
-                  Diet &amp; Lifestyle
+                  {tFallback("nutritionOnboardingModal.dietAndLifestyle", "Diet & Lifestyle")}
                 </h2>
                 <p className="text-sm text-muted-foreground mb-1">Follow a particular way of eating? Select all that apply.</p>
                 <p className="text-xs text-muted-foreground mb-4">Food allergies come next — we'll adapt every plan to fit both.</p>
@@ -515,7 +515,7 @@ export default function NutritionOnboardingModal({ open, userProfile, onComplete
               >
                 <h2 className="font-heading font-bold text-xl mb-1 flex items-center gap-2">
                   <AlertTriangle className="w-5 h-5 text-destructive" />
-                  Allergies &amp; Intolerances
+                  {tFallback("nutritionOnboardingModal.allergiesAndIntolerances", "Allergies & Intolerances")}
                 </h2>
                 <p className="text-sm text-muted-foreground mb-1">
                   Select any that apply — we'll make sure these <span className="font-semibold text-foreground">never</span> appear in a plan.

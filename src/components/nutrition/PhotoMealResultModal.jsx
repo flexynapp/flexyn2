@@ -296,7 +296,7 @@ export default function PhotoMealResultModal({ open, imageUrl, result, saving, o
                 </div>
                 {editing && hasItems && (
                   <p className="mt-2 text-micro text-muted-foreground text-center">
-                    Calories, protein, carbs &amp; fat total up from your ingredients below.
+                    {tFallback("photoMealResultModal.macrosTotalFromIngredients", "Calories, protein, carbs & fat total up from your ingredients below.")}
                   </p>
                 )}
               </div>
