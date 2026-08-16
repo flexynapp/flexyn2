@@ -96,6 +96,8 @@ const ALLOW_IDENTICAL = new Set([
   'trophy.tail.desc',       // "{n} {unit}" — placeholders and a space
   'workout.comebackBonusXp', // "+{n} XP" — a sign, a placeholder and a symbol
   'collectionModal.tileAria', // "{name}. {state}, {rarity}" — placeholders only
+  'adminReports.reason.spam',           // "Spam" — the loanword every locale uses
+  'corporatePortal.orgNamePlaceholder', // "Acme Inc. Wellness" — an invented company name
 ]);
 
 /**
@@ -163,6 +165,8 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'crew.applicantLevel',
   ]),
   fr: new Set([
+    // "Participation" is the same word in French.
+    'corporatePortal.stat.participation',
     // Sticker is the word French uses for these.
     'collectionModal.tab.stickers',
     // "Podium." is the same word in French.
@@ -669,6 +673,8 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'workout.templates.reps',
   ]),
   nl: new Set([
+    // Content is the loanword Dutch uses, and nl.json already does elsewhere.
+    'adminReports.kind.content',
     // Sticker is the word Dutch uses for these.
     'collectionModal.tab.stickers',
     // "Podium." is the same word in Dutch.

@@ -114,13 +114,13 @@ export default function AdminReports() {
       // two admins on the queue at once, or a double tap. That is not a
       // failure worth a retry button; the row is already handled.
       if (err?.code === '22023') {
-        toast.message('Already handled by someone else.');
+        toast.message(tFallback('adminReports.alreadyHandled', 'Already handled by someone else.'));
         queryClient.invalidateQueries({ queryKey: ['adminReports'] });
         return;
       }
       reportError(err, { feature: 'admin.foodRequests.approve', userEmail: user?.email });
       errorToast({
-        title: 'Could not approve this food',
+        title: tFallback('adminReports.approveFailed', 'Could not approve this food'),
         description: err?.message,
         retry: () => foodApproveMut.mutate(vars),
       });
@@ -130,13 +130,13 @@ export default function AdminReports() {
   const foodRejectMut = useMutation({
     mutationFn: ({ id }) => rejectFoodItemRequest(id),
     onSuccess: () => {
-      toast.success('Request rejected. Nothing was published.');
+      toast.success(tFallback('adminReports.requestRejected', 'Request rejected. Nothing was published.'));
       queryClient.invalidateQueries({ queryKey: ['adminReports'] });
     },
     onError: (err, vars) => {
       reportError(err, { feature: 'admin.foodRequests.reject', userEmail: user?.email });
       errorToast({
-        title: 'Could not reject this request',
+        title: tFallback('adminReports.rejectFailed', 'Could not reject this request'),
         description: err?.message,
         retry: () => foodRejectMut.mutate(vars),
       });
@@ -152,7 +152,7 @@ export default function AdminReports() {
     onError: (err, vars) => {
       reportError(err, { feature: 'admin.bugReports.resolve', userEmail: user?.email });
       errorToast({
-        title: 'Could not update bug report',
+        title: tFallback('adminReports.bugUpdateFailed', 'Could not update bug report'),
         description: err?.message,
         retry: () => bugResolveMut.mutate(vars),
       });
@@ -162,13 +162,18 @@ export default function AdminReports() {
   const resolveMut = useMutation({
     mutationFn: ({ id, action }) => resolveReport(id, action),
     onSuccess: (_d, { action }) => {
-      toast.success(`Report ${action}.`);
+      // Was `Report ${action}.` — an English sentence assembled from a status
+      // slug, so no catalog could carry it and no translator could see it.
+      // One whole message per outcome instead; there are only two.
+      toast.success(action === 'dismissed'
+        ? tFallback('adminReports.reportDismissed', 'Report dismissed.')
+        : tFallback('adminReports.reportReviewed', 'Report reviewed.'));
       queryClient.invalidateQueries({ queryKey: ['adminReports'] });
     },
     onError: (err, vars) => {
       reportError(err, { feature: 'admin.reports.resolve', userEmail: user?.email });
       errorToast({
-        title: 'Could not update report',
+        title: tFallback('adminReports.updateFailed', 'Could not update report'),
         description: err?.message,
         retry: () => resolveMut.mutate(vars),
       });
@@ -178,13 +183,13 @@ export default function AdminReports() {
   const deleteMut = useMutation({
     mutationFn: ({ id }) => deleteReportedContent(id),
     onSuccess: () => {
-      toast.success('Content removed and report actioned.');
+      toast.success(tFallback('adminReports.contentRemoved', 'Content removed and report actioned.'));
       queryClient.invalidateQueries({ queryKey: ['adminReports'] });
     },
     onError: (err, vars) => {
       reportError(err, { feature: 'admin.reports.delete', userEmail: user?.email });
       errorToast({
-        title: 'Could not delete content',
+        title: tFallback('adminReports.deleteFailed', 'Could not delete content'),
         description: err?.message,
         retry: () => deleteMut.mutate(vars),
       });
@@ -199,7 +204,7 @@ export default function AdminReports() {
         <AlertTriangle className="w-10 h-10 text-amber-500 mx-auto mb-3" />
         <h1 className="font-heading font-bold text-lg">{tFallback("adminReports.adminOnly", "Admin only")}</h1>
         <p className="text-sm text-muted-foreground mt-2">
-          This page is restricted to app moderators.
+          {tFallback('adminReports.restricted', 'This page is restricted to app moderators.')}
         </p>
         <button
           onClick={() => navigate('/dashboard')}
@@ -238,6 +243,7 @@ export default function AdminReports() {
           { id: 'content', label: 'Content', Icon: ShieldAlert },
           { id: 'bug',     label: 'Bug reports', Icon: Bug },
           { id: 'food',    label: 'Food requests', Icon: Apple },
+          // Labels resolve through `adminReports.kind.<id>` below.
         ].map(({ id, label, Icon }) => (
           <button
             key={id}
@@ -246,7 +252,7 @@ export default function AdminReports() {
               reportKind === id ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground active:text-foreground'
             }`}
           >
-            <Icon className="w-3.5 h-3.5" /> {label}
+            <Icon className="w-3.5 h-3.5" /> {tFallback(`adminReports.kind.${id}`, label)}
           </button>
         ))}
       </div>
@@ -263,7 +269,7 @@ export default function AdminReports() {
                 : 'text-muted-foreground hover:text-foreground active:text-foreground'
             }`}
           >
-            {tab.label}
+            {tFallback(`adminReports.status.${tab.id}`, tab.label)}
             {activeTab === tab.id && (
               <motion.span
                 layoutId="admin-tab-underline"
@@ -326,7 +332,7 @@ export default function AdminReports() {
       )}
 
       <div className="text-xs text-muted-foreground mt-6">
-        Showing up to 50 reports. <button onClick={() => refetch()} className="underline">{tFallback("adminReports.refresh", "Refresh")}</button>
+        {tFallback('adminReports.showingUpTo', 'Showing up to {n} reports.', { n: 50 })} <button onClick={() => refetch()} className="underline">{tFallback("adminReports.refresh", "Refresh")}</button>
       </div>
     </motion.div>
   );
@@ -352,7 +358,9 @@ function ReportRow({ report, isPending, busy, onResolve, onDelete }) {
               {report.reported_type}
             </span>
             <span className="text-micro font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-500">
-              {REASON_LABEL[report.reason] || report.reason}
+              {report.reason
+                ? tFallback(`adminReports.reason.${report.reason}`, REASON_LABEL[report.reason] || report.reason)
+                : report.reason}
             </span>
             <span className="text-xs text-muted-foreground">
               by {report.reporter_email}
@@ -387,7 +395,10 @@ function ReportRow({ report, isPending, busy, onResolve, onDelete }) {
               // Confirm before flipping the status — once moved out of
               // pending there's no UI path back to re-open. A misclick
               // shouldn't bury a report. (Audit 12 #6.)
-              if (confirm('Mark this report as reviewed? It will leave the pending queue.')) onResolve('reviewed');
+              if (confirm(tFallback(
+                'adminReports.confirmReviewed',
+                'Mark this report as reviewed? It will leave the pending queue.',
+              ))) onResolve('reviewed');
             }}
             disabled={busy}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-xs font-semibold hover:bg-secondary active:bg-secondary transition-colors disabled:opacity-50"
@@ -396,7 +407,10 @@ function ReportRow({ report, isPending, busy, onResolve, onDelete }) {
           </button>
           <button
             onClick={() => {
-              if (confirm('Delete this content? This cannot be undone.')) onDelete();
+              if (confirm(tFallback(
+                'adminReports.confirmDelete',
+                'Delete this content? This cannot be undone.',
+              ))) onDelete();
             }}
             disabled={busy}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-destructive text-destructive-foreground text-xs font-bold hover:opacity-90 transition-opacity disabled:opacity-50"
@@ -405,7 +419,10 @@ function ReportRow({ report, isPending, busy, onResolve, onDelete }) {
           </button>
           <button
             onClick={() => {
-              if (confirm('Dismiss this report without action? It will leave the pending queue.')) onResolve('dismissed');
+              if (confirm(tFallback(
+                'adminReports.confirmDismiss',
+                'Dismiss this report without action? It will leave the pending queue.',
+              ))) onResolve('dismissed');
             }}
             disabled={busy}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-muted-foreground text-xs font-medium hover:text-foreground active:text-foreground transition-colors disabled:opacity-50"

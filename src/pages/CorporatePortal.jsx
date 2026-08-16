@@ -77,13 +77,15 @@ export default function CorporatePortal() {
     setBusy(false);
     createRef.current = false;
     if (res.ok) {
-      toast.success(`Created — share code ${res.join_code} with your team.`);
+      toast.success(tFallback('corporatePortal.created', 'Organization created. Share code {code} with your team.', {
+        code: res.join_code,
+      }));
       setOrgName(''); setCreating(false); setSelectedId(res.org_id);
       refresh();
     } else if (res.error === 'PIPELINE_MISSING') {
-      toast.error('Corporate features are rolling out. Try again shortly.');
+      toast.error(tFallback('corporatePortal.pipelineMissing', 'Corporate features are rolling out. Try again shortly.'));
     } else {
-      toast.error('Could not create organization.');
+      toast.error(tFallback('corporatePortal.createFailed', 'Could not create organization.'));
     }
   };
 
@@ -101,12 +103,15 @@ export default function CorporatePortal() {
     setBusy(false);
     joinRef.current = false;
     if (res.ok) {
-      toast.success('Joined your organization.');
+      toast.success(tFallback('corporatePortal.joined', 'Joined your organization.'));
       setJoinCode(''); setSelectedId(res.org_id);
       refresh();
     } else {
-      const map = { CODE_NOT_FOUND: 'No organization matches that code.', SEATS_FULL: 'This organization is at its seat limit.' };
-      toast.error(map[res.error] || "Couldn't join — try again.");
+      const map = {
+        CODE_NOT_FOUND: tFallback('corporatePortal.codeNotFound', 'No organization matches that code.'),
+        SEATS_FULL: tFallback('corporatePortal.seatsFull', 'This organization is at its seat limit.'),
+      };
+      toast.error(map[res.error] || tFallback('corporatePortal.joinFailed', 'Could not join. Try again.'));
     }
   };
 
@@ -127,9 +132,10 @@ export default function CorporatePortal() {
           .eq('role', 'admin');
         const adminCount = error ? null : (data || []).length;
         if (adminCount === 1) {
-          toast.error(
-            'You are the only admin. Promote another member first, or delete the organization in Settings.'
-          );
+          toast.error(tFallback(
+            'corporatePortal.onlyAdmin',
+            'You are the only admin. Promote another member first, or delete the organization in Settings.',
+          ));
           return;
         }
       } catch {
@@ -138,10 +144,10 @@ export default function CorporatePortal() {
         // if our guard couldn't confirm.
       }
     }
-    if (!confirm(`Leave ${activeOrg.name}?`)) return;
+    if (!confirm(tFallback('corporatePortal.confirmLeave', 'Leave {name}?', { name: activeOrg.name }))) return;
     const res = await leaveOrganization(activeOrg.id, user.id);
-    if (res.ok) { toast.success('Left organization.'); setSelectedId(null); refresh(); }
-    else toast.error("Couldn't leave. Try again.");
+    if (res.ok) { toast.success(tFallback('corporatePortal.left', 'Left organization.')); setSelectedId(null); refresh(); }
+    else toast.error(tFallback('corporatePortal.leaveFailed', 'Could not leave. Try again.'));
   };
 
   return (
@@ -164,23 +170,23 @@ export default function CorporatePortal() {
         <div className="space-y-3">
           <div className="rounded-2xl border border-border bg-card p-4">
             <p className="text-sm font-semibold mb-1">{tFallback("corporatePortal.joinYourCompany", "Join your company")}</p>
-            <p className="text-xs text-muted-foreground mb-3">Enter the code your wellness admin shared.</p>
+            <p className="text-xs text-muted-foreground mb-3">{tFallback('corporatePortal.enterCode', 'Enter the code your wellness admin shared.')}</p>
             <div className="flex gap-2">
               <Input value={joinCode} onChange={(e) => setJoinCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8))}
                 placeholder={tFallback("corporatePortal.orgCode", "ORG CODE")} className="font-mono tracking-[0.2em] text-center uppercase" maxLength={8} />
               <Button onClick={handleJoin} disabled={busy || joinCode.trim().length !== 8}>
-                {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Join'}
+                {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : tFallback('corporatePortal.join', 'Join')}
               </Button>
             </div>
           </div>
           {creating ? (
             <div className="rounded-2xl border border-border bg-card p-4">
               <p className="text-sm font-semibold mb-2">{tFallback("corporatePortal.newOrganization", "New organization")}</p>
-              <Input value={orgName} onChange={(e) => setOrgName(e.target.value.slice(0, 80))} placeholder="Acme Inc. Wellness" className="mb-2" />
+              <Input value={orgName} onChange={(e) => setOrgName(e.target.value.slice(0, 80))} placeholder={tFallback('corporatePortal.orgNamePlaceholder', 'Acme Inc. Wellness')} className="mb-2" />
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => setCreating(false)} className="flex-1">{tFallback("coach.plan.cancel", "Cancel")}</Button>
                 <Button onClick={handleCreate} disabled={busy || !orgName.trim()} className="flex-1">
-                  {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Create'}
+                  {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : tFallback('corporatePortal.create', 'Create')}
                 </Button>
               </div>
             </div>
@@ -188,8 +194,14 @@ export default function CorporatePortal() {
             <EmptyState
               icon={Building2}
               title={tFallback("corporatePortal.runWellnessForYourTeam", "Run wellness for your team")}
-              body="Create an organization, share the join code with employees, launch private challenges, and track aggregate engagement — without seeing any individual's data."
-              action={{ label: 'Create organization', onClick: () => setCreating(true) }}
+              body={tFallback(
+                'corporatePortal.pitch',
+                'Create an organization, share the join code with employees, launch private challenges, and track aggregate engagement. You never see any individual’s data.',
+              )}
+              action={{
+                label: tFallback('corporatePortal.createOrganization', 'Create organization'),
+                onClick: () => setCreating(true),
+              }}
             />
           )}
         </div>
@@ -264,7 +276,7 @@ function OrgHub({ org, isAdmin, onLeave, onNewChallenge }) {
     }
     try {
       await navigator.clipboard.writeText(org.join_code);
-      toast.success('Join code copied.');
+      toast.success(tFallback('corporatePortal.codeCopied', 'Join code copied.'));
     } catch {
       setShowCodeOpen(true);
     }
@@ -274,7 +286,7 @@ function OrgHub({ org, isAdmin, onLeave, onNewChallenge }) {
     if (!confirm(tFallback("corporatePortal.deleteThisChallenge", "Delete this challenge?"))) return;
     const res = await deleteChallenge(id);
     if (res.ok) qc.invalidateQueries({ queryKey: ['orgChallenges', org.id] });
-    else toast.error("Couldn't delete.");
+    else toast.error(tFallback('corporatePortal.deleteFailed', 'Could not delete.'));
   };
 
   return (
@@ -314,7 +326,7 @@ function OrgHub({ org, isAdmin, onLeave, onNewChallenge }) {
               <DialogTitle>{tFallback("corporatePortal.teamJoinCode", "Team join code")}</DialogTitle>
             </DialogHeader>
             <p className="text-xs text-muted-foreground">
-              Clipboard access isn't available here. Press and hold to copy the code:
+              {tFallback('corporatePortal.clipboardUnavailable', 'Clipboard access is not available here. Press and hold to copy the code:')}
             </p>
             <input
               readOnly
@@ -340,20 +352,25 @@ function OrgHub({ org, isAdmin, onLeave, onNewChallenge }) {
             <div className="flex justify-center py-4"><Loader2 className="w-4 h-4 animate-spin text-muted-foreground" /></div>
           ) : analytics.cohort_too_small ? (
             <p className="text-xs text-muted-foreground py-2">
-              Need at least {analytics.min_cohort} members before engagement stats unlock — this protects individual privacy in small teams. ({analytics.members} member{analytics.members === 1 ? '' : 's'} so far.)
+              {tFallback(
+                'corporatePortal.cohortTooSmall',
+                'Need at least {n} members before engagement stats unlock. This protects individual privacy in small teams.',
+                { n: analytics.min_cohort },
+              )}{' '}
+              {tFallback('corporatePortal.cohortSoFar', 'Members so far: {n}.', { n: analytics.members })}
             </p>
           ) : (
             <div className="grid grid-cols-2 gap-3">
               {[
-                { label: 'Participation', value: `${analytics.participation_pct}%`, Icon: Activity, color: 'text-primary' },
-                { label: 'Active (7d)', value: `${analytics.active_7d}/${analytics.members}`, Icon: Users, color: 'text-emerald-500' },
-                { label: 'Workouts (7d)', value: analytics.workouts_7d, Icon: Trophy, color: 'text-amber-500' },
-                { label: 'Avg streak', value: `${analytics.avg_workout_streak}d`, Icon: Flame, color: 'text-orange-500' },
-              ].map(({ label, value, Icon, color }) => (
-                <div key={label} className="rounded-xl bg-secondary/40 p-3 text-center">
+                { id: 'participation', label: 'Participation', value: `${analytics.participation_pct}%`, Icon: Activity, color: 'text-primary' },
+                { id: 'active7d', label: 'Active (7d)', value: `${analytics.active_7d}/${analytics.members}`, Icon: Users, color: 'text-emerald-500' },
+                { id: 'workouts7d', label: 'Workouts (7d)', value: analytics.workouts_7d, Icon: Trophy, color: 'text-amber-500' },
+                { id: 'avgStreak', label: 'Avg streak', value: `${analytics.avg_workout_streak}d`, Icon: Flame, color: 'text-orange-500' },
+              ].map(({ id, label, value, Icon, color }) => (
+                <div key={id} className="rounded-xl bg-secondary/40 p-3 text-center">
                   <Icon className={`w-4 h-4 mx-auto mb-1 ${color}`} />
                   <p className={`font-heading font-bold text-lg tabular-nums ${color}`}>{value}</p>
-                  <p className="text-micro text-muted-foreground uppercase tracking-wide">{label}</p>
+                  <p className="text-micro text-muted-foreground uppercase tracking-wide">{tFallback(`corporatePortal.stat.${id}`, label)}</p>
                 </div>
               ))}
             </div>
@@ -377,7 +394,9 @@ function OrgHub({ org, isAdmin, onLeave, onNewChallenge }) {
         {isLoading ? (
           <div className="flex justify-center py-6"><Loader2 className="w-4 h-4 animate-spin text-muted-foreground" /></div>
         ) : challenges.length === 0 ? (
-          <EmptyState icon={Trophy} title={tFallback("corporatePortal.noChallengesYet", "No challenges yet")} body={isAdmin ? 'Launch a step, workout, or streak challenge for your team.' : 'Your admin hasn’t started a challenge yet.'} />
+          <EmptyState icon={Trophy} title={tFallback("corporatePortal.noChallengesYet", "No challenges yet")} body={isAdmin
+            ? tFallback('corporatePortal.noChallengesAdmin', 'Launch a step, workout, or streak challenge for your team.')
+            : tFallback('corporatePortal.noChallengesMember', 'Your admin has not started a challenge yet.')} />
         ) : (
           <div className="space-y-2">
             {challenges.map(c => {
@@ -405,7 +424,11 @@ function OrgHub({ org, isAdmin, onLeave, onNewChallenge }) {
                     <div className="min-w-0">
                       <p className="font-heading font-bold text-sm">{c.title}</p>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        {metric?.label || c.metric}{c.target_value > 0 ? ` · target ${c.target_value}` : ''}{ended ? ' · ended' : ''}
+                        {metric ? tFallback(`corporatePortal.metric.${metric.id}`, metric.label) : c.metric}
+                        {c.target_value > 0
+                          ? ` · ${tFallback('corporatePortal.target', 'target {n}', { n: c.target_value })}`
+                          : ''}
+                        {ended ? ` · ${tFallback('corporatePortal.ended', 'ended')}` : ''}
                       </p>
                     </div>
                     {isAdmin && (
@@ -448,8 +471,10 @@ function ChallengeFormModal({ orgId, onClose, onSaved }) {
     });
     setSaving(false);
     saveRef.current = false;
-    if (res.ok) { toast.success('Challenge launched.'); onSaved(); }
-    else toast.error(res.error === 'PIPELINE_MISSING' ? 'Corporate features are rolling out — try again shortly.' : "Couldn't create challenge.");
+    if (res.ok) { toast.success(tFallback('corporatePortal.challengeLaunched', 'Challenge launched.')); onSaved(); }
+    else toast.error(res.error === 'PIPELINE_MISSING'
+      ? tFallback('corporatePortal.pipelineMissing', 'Corporate features are rolling out. Try again shortly.')
+      : tFallback('corporatePortal.challengeFailed', 'Could not create challenge.'));
   };
 
   return (
@@ -462,7 +487,9 @@ function ChallengeFormModal({ orgId, onClose, onSaved }) {
           <div>
             <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{tFallback("corporatePortal.metric", "Metric")}</label>
             <select value={metric} onChange={(e) => setMetric(e.target.value)} className="w-full mt-1 h-10 rounded-md border border-border bg-background px-2 text-sm">
-              {METRICS.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
+              {METRICS.map(m => (
+              <option key={m.id} value={m.id}>{tFallback(`corporatePortal.metric.${m.id}`, m.label)}</option>
+            ))}
             </select>
           </div>
           <div className="grid grid-cols-2 gap-2">
