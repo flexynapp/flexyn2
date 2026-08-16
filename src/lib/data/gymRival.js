@@ -309,6 +309,56 @@ export async function getWeeklyRivalStats(userId, rivalId) {
   return { user, rival };
 }
 
+/**
+ * The match week as the SERVER sees it (migration 363).
+ *
+ * This replaces getWeeklyRivalStats for the live comparison. That function
+ * reads the rival's workout_logs / cardio_logs from the client, and both
+ * tables are owner-only RLS with no rival exception — so the rival's totals
+ * came back empty and the screen rendered a confident "0" beside their name.
+ * It was not an empty week; the number could never be anything else.
+ *
+ * Returns raw units (lbs, metres) so the caller formats with the user's own
+ * weight / distance preference, plus the window the settler actually scores,
+ * the 48h AFK deadline, who has logged since accepting, and whether the match
+ * is stalled (active but never accepted, so it can never settle).
+ */
+export async function getGymRivalWeekState(assignmentId) {
+  if (!assignmentId) return null;
+  const { data, error } = await supabase.rpc('gym_rival_week_state', { p_assignment_id: assignmentId });
+  // 42883 = not deployed yet. Return null rather than throwing so the menu
+  // falls back to the "we can't show their total" state instead of erroring.
+  if (error) return null;
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row) return null;
+  return {
+    since:        row.week_since ? new Date(row.week_since) : null,
+    endsAt:       row.week_ends ? new Date(row.week_ends) : null,
+    youVolume:    Number(row.you_volume) || 0,
+    themVolume:   Number(row.them_volume) || 0,
+    youDistance:  Number(row.you_distance) || 0,
+    themDistance: Number(row.them_distance) || 0,
+    youLogged:    !!row.you_logged,
+    themLogged:   !!row.them_logged,
+    afkDeadline:  row.afk_deadline ? new Date(row.afk_deadline) : null,
+    isStalled:    !!row.is_stalled,
+  };
+}
+
+/**
+ * The metric a match is decided on, in its own units.
+ *
+ * Net rating is volume / 100 (or km × 20), so drawing BOTH a net rating and a
+ * volume row — as the old menu did — is one number rendered twice. The screen
+ * now shows the raw metric and keeps computeNetRating for the settler's score.
+ */
+export function rivalMetric(state, type = 'gym') {
+  if (!state) return null;
+  return type === 'cardio'
+    ? { you: state.youDistance, them: state.themDistance, kind: 'distance' }
+    : { you: state.youVolume,   them: state.themVolume,   kind: 'volume' };
+}
+
 /** Ms until the current ISO week (Mon-start) ends. */
 export function msUntilWeekEnd(now = new Date()) {
   const day = now.getDay(); // 0=Sun..6=Sat

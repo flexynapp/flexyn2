@@ -9,16 +9,22 @@ import { AnimatePresence } from 'framer-motion';
 import { Target, Loader2, ChevronRight, Clock, AlertTriangle, Trophy, Swords, Dumbbell, Footprints } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/lib/toast';
-import { getMyGymRival, getRivalProfile, rollGymRival, declineGymRival, isThisWeek, msUntilNextWeekStart } from '@/lib/data/gymRival';
+import { getMyGymRival, getRivalProfile, rollGymRival, declineGymRival, isThisWeek, msUntilNextWeekStart, getGymRivalWeekState, rivalMetric } from '@/lib/data/gymRival';
 import { reportError } from '@/lib/reportError';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
+import { useWeightUnit } from '@/lib/WeightUnitContext';
+import { formatWeight } from '@/lib/weightUnit';
+import { useDistanceUnit } from '@/lib/DistanceUnitContext';
+import { formatDistance } from '@/lib/distanceUnit';
 import CreateDuelModal from '@/components/duels/CreateDuelModal';
 import GymRivalMenu from '@/components/gymRival/GymRivalMenu';
 
 export default function GymRivalCard({ currentUserId }) {
   const { user } = useAuth();
   const { tFallback } = useLanguage();
+  const { weightUnit } = useWeightUnit();
+  const { distanceUnit } = useDistanceUnit();
   const qc = useQueryClient();
   const [menuOpen, setMenuOpen] = useState(false);
   const [showDuel, setShowDuel] = useState(false);
@@ -59,6 +65,19 @@ export default function GymRivalCard({ currentUserId }) {
     staleTime: 5 * 60_000,
   });
 
+  // The gap is what makes this card worth tapping — "Level 1" is not news.
+  // Same query key as the menu, so opening it costs nothing extra.
+  const { data: week } = useQuery({
+    queryKey:  ['gymRivalWeek', assignment?.id],
+    queryFn:   () => getGymRivalWeekState(assignment.id),
+    enabled:   !!assignment?.id && status === 'active',
+    staleTime: 60_000,
+  });
+  // An active row never accepted by both sides can never settle — see the
+  // stalled branch in GymRivalMenu and migration 363.
+  const isStalled = status === 'active'
+    && (week ? week.isStalled : (!assignment?.accepted_at && !isThisWeek(assignment?.assigned_at)));
+
   const rollMut = useMutation({
     mutationFn: (type) => rollGymRival(type),
     onSuccess: async (row) => {
@@ -88,7 +107,6 @@ export default function GymRivalCard({ currentUserId }) {
   });
 
   const name  = profile?.username;
-  const level = profile?.current_level;
 
   if (isLoading) {
     return (
@@ -203,12 +221,32 @@ export default function GymRivalCard({ currentUserId }) {
   }
 
   // ── Pending / active → matchup chip ─────────────────────────────────────
-  const typeLabel = assignment?.rival_type === 'cardio' ? 'Cardio Rival' : 'Gym Rival';
+  const isCardio = assignment?.rival_type === 'cardio';
+  const typeLabel = isCardio
+    ? tFallback('gymRivalCard.cardioRival', 'Cardio Rival')
+    : tFallback('gymRivalCard.gymRival', 'Gym Rival');
   const needsMyConfirm = status === 'pending' && !iConfirmed;
   const waiting = status === 'pending' && iConfirmed;
-  const label = needsMyConfirm ? `Confirm your ${typeLabel}`
-    : waiting ? 'Waiting for them to accept'
-    : `This week's ${typeLabel}`;
+  const label = isStalled ? tFallback('gymRivalCard.stalledKicker', "This match can't finish")
+    : needsMyConfirm ? tFallback('gymRivalCard.confirmYour', 'Confirm your {t}', { t: typeLabel })
+    : waiting ? tFallback('gymRivalCard.waitingKicker', 'Waiting for them to accept')
+    : typeLabel;
+
+  // The subtitle carries the state of play, in the metric's own units.
+  const metric = rivalMetric(week, assignment?.rival_type || 'gym');
+  const metricText = (v) => (isCardio
+    ? formatDistance(v || 0, distanceUnit, v >= 1000 ? 1 : 2)
+    : formatWeight(v || 0, weightUnit));
+  const gap = metric ? metric.you - metric.them : null;
+  const activeSub = isStalled
+    ? tFallback('gymRivalCard.stalledSub', 'Never accepted — tap to clear it')
+    : gap == null
+      ? tFallback('gymRivalCard.tapForMatchup', 'Tap to see the matchup')
+      : gap > 0
+        ? tFallback('gymRivalMenu.youLeadBy', 'You lead by {v}', { v: metricText(Math.abs(gap)) })
+        : gap < 0
+          ? tFallback('gymRivalMenu.youTrailBy', "You're {v} behind", { v: metricText(Math.abs(gap)) })
+          : tFallback('gymRivalCard.levelSoFar', 'Level so far — tap to see');
 
   return (
     <>
@@ -227,8 +265,10 @@ export default function GymRivalCard({ currentUserId }) {
             <span className="text-micro font-black uppercase tracking-wider text-primary">{label}</span>
           </div>
           <p className="text-base font-black truncate mt-0.5">@{name || '—'}</p>
-          <p className="text-xs text-muted-foreground">
-            {needsMyConfirm ? 'Tap to accept the challenge' : waiting ? 'They haven\'t accepted yet' : `Level ${level ?? '—'} · Tap to see the matchup`}
+          <p className="text-xs text-muted-foreground truncate">
+            {needsMyConfirm ? tFallback('gymRivalCard.tapToAccept', 'Tap to accept the challenge')
+              : waiting ? tFallback('gymRivalCard.theyHaventAccepted', "They haven't accepted yet")
+              : activeSub}
           </p>
         </div>
         <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" />
