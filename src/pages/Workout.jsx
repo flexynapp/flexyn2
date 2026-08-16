@@ -723,7 +723,7 @@ export default function Workout() {
     staleTime: 60_000,
   });
 
-  // Comeback protocol — triggers when the user hasn't worked out in over 48h
+  // Comeback protocol — triggers when the user hasn't worked out in over 72h
   const comebackProtocol = useComebackProtocol({
     workoutLogs: logs,
     hasActiveSession: sessions.length > 0,
@@ -3070,7 +3070,7 @@ export default function Workout() {
           )}
         </AnimatePresence>
 
-        {/* Comeback Screen overlay — shown when user returns after 48h+ away */}
+        {/* Comeback Screen overlay — shown when user returns after 72h+ away */}
         <AnimatePresence>
           {comebackProtocol.triggered && (
             <ComebackScreen

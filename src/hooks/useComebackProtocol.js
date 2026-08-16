@@ -4,7 +4,7 @@
 // Workout page to show the Comeback Screen.
 //
 // Rules:
-//   • Triggers only after MORE THAN 48 HOURS away (kegan, 2026-08-16)
+//   • Triggers only after MORE THAN 72 HOURS away (kegan, 2026-08-16)
 //   • Only triggers once per return window (stored in sessionStorage)
 //   • Never triggers if the user has a paused/active session
 //   • Requires at least 1 workout log to confirm the user isn't brand new
@@ -13,7 +13,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { differenceInCalendarDays, endOfDay, isSameDay } from 'date-fns';
 
-const INACTIVITY_THRESHOLD_HOURS = 48;
+const INACTIVITY_THRESHOLD_HOURS = 72;
 
 // Per-device dismissal, namespaced per the `flexyn.<feature>.<userId>`
 // convention. It used to be one global `fn_comeback_dismissed` key, which

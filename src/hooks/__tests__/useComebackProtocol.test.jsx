@@ -38,18 +38,18 @@ beforeEach(() => {
   sessionStorage.clear();
 });
 
-describe('useComebackProtocol — the 48-hour threshold', () => {
-  it('triggers when the last workout was more than 48h ago', () => {
+describe('useComebackProtocol — the 72-hour threshold', () => {
+  it('triggers when the last workout was more than 72h ago', () => {
     const { result } = renderHook(() => useComebackProtocol({
-      workoutLogs: [logHoursAgo(49)],
+      workoutLogs: [logHoursAgo(73)],
       hasActiveSession: false,
     }));
     expect(result.current.triggered).toBe(true);
   });
 
-  it('does NOT trigger at 47 hours', () => {
+  it('does NOT trigger at 71 hours', () => {
     const { result } = renderHook(() => useComebackProtocol({
-      workoutLogs: [logHoursAgo(47)],
+      workoutLogs: [logHoursAgo(71)],
       hasActiveSession: false,
     }));
     expect(result.current.triggered).toBe(false);
@@ -58,6 +58,17 @@ describe('useComebackProtocol — the 48-hour threshold', () => {
   it('does NOT trigger for a rest day (24h)', () => {
     const { result } = renderHook(() => useComebackProtocol({
       workoutLogs: [logHoursAgo(24)],
+      hasActiveSession: false,
+    }));
+    expect(result.current.triggered).toBe(false);
+  });
+
+  // A full weekend off is not a comeback. This is the case the threshold
+  // moved from 48h to 72h to protect: someone who trains Friday and comes
+  // back Monday morning must not be greeted as a returning lapsed user.
+  it('does NOT trigger across a weekend off (60h)', () => {
+    const { result } = renderHook(() => useComebackProtocol({
+      workoutLogs: [logHoursAgo(60)],
       hasActiveSession: false,
     }));
     expect(result.current.triggered).toBe(false);
@@ -75,29 +86,30 @@ describe('useComebackProtocol — the 48-hour threshold', () => {
   // The threshold is posed in HOURS but `date` is a DATE column, so a
   // date-only row is ambiguous by 24 hours. The hook assumes end-of-day,
   // the latest the session could have been, so it can never claim an
-  // absence that hasn't actually elapsed. Two calendar days back is at
-  // most 48h under that assumption, so it must stay silent.
-  it('a date-only log two calendar days back does not trigger early', () => {
+  // absence that hasn't actually elapsed. THREE calendar days back is at
+  // most 72h under that assumption, so it must stay silent — a row with no
+  // usable timestamp needs a fourth calendar day to clear the bar.
+  it('a date-only log three calendar days back does not trigger early', () => {
     const { result } = renderHook(() => useComebackProtocol({
-      workoutLogs: [{ date: daysAgoISO(2) }],
+      workoutLogs: [{ date: daysAgoISO(3) }],
       hasActiveSession: false,
     }));
     expect(result.current.triggered).toBe(false);
   });
 
-  it('a date-only log three calendar days back triggers', () => {
+  it('a date-only log four calendar days back triggers', () => {
     const { result } = renderHook(() => useComebackProtocol({
-      workoutLogs: [{ date: daysAgoISO(3) }],
+      workoutLogs: [{ date: daysAgoISO(4) }],
       hasActiveSession: false,
     }));
     expect(result.current.triggered).toBe(true);
   });
 
-  // A backfilled log: recorded today, but for a session three days ago.
+  // A backfilled log: recorded today, but for a session four days ago.
   // created_at must be ignored, or the absence collapses to zero.
   it('ignores created_at when it is a later calendar day than date', () => {
     const { result } = renderHook(() => useComebackProtocol({
-      workoutLogs: [{ date: daysAgoISO(3), created_at: new Date().toISOString() }],
+      workoutLogs: [{ date: daysAgoISO(4), created_at: new Date().toISOString() }],
       hasActiveSession: false,
     }));
     expect(result.current.triggered).toBe(true);

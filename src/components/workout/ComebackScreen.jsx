@@ -1,6 +1,6 @@
 // src/components/workout/ComebackScreen.jsx
 //
-// Full-screen overlay shown to returning users after more than 48 hours away.
+// Full-screen overlay shown to returning users after more than 72 hours away.
 // Tone: matter-of-fact, forward-looking, zero judgment. No streak guilt.
 //
 // Props:
