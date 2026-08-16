@@ -139,6 +139,18 @@ function enclosingDecl(src, index) {
 // pair; a finding is covered when `prefix + itsOwnKey + suffix` is real in
 // en.json. The namespace has to match, which is what makes this precise
 // rather than a suffix coincidence.
+// KNOWN LIMIT, and it over-reports rather than under-reports, which is the
+// right direction to be wrong in. A prefix passed as a PROP is invisible:
+//
+//   <Pillset options={EQUIPMENT_OPTIONS} keyPrefix="generator.equipment." />
+//   function Pillset({ keyPrefix }) { … tFallback(`${keyPrefix}${opt.id}`, …) }
+//
+// The only template literal here is `${keyPrefix}${opt.id}`, whose static
+// prefix is the empty string, so no usable pattern is recorded and the eleven
+// option labels in workoutGenerator.js stay on the list even though they are
+// translated and resolving. Do not "fix" this by matching empty prefixes —
+// that would match everything. If the count matters more than the
+// indirection, give the options explicit keys instead of a shared prefix.
 const EN_KEYS = (() => {
   try { return JSON.parse(fs.readFileSync('src/locales/en.json', 'utf8')); }
   catch { return null; }
