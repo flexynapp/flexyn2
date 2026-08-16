@@ -74,13 +74,27 @@
       "pl",
       "nl"
     ],
+    "$passes": {
+      "$comment": "A CONSISTENCY pass ran 2026-08-15. It is a second machine pass, not a native one, and the status fields below deliberately still say 'awaiting native review'. What it could check mechanically, it fixed: register conformance, glossary term conformance, placeholder/newline/markdown parity, and the keys a locale was missing. What it could NOT check is whether the prose is any good, which is the whole reason a native pass is still owed. See 'openQuestions' — the two vocabulary collisions are what a reviewer should settle first.",
+      "fixed2026-08-15": [
+        "fr: 88 strings were in the tu register in a vous catalog — 64 with tu pronouns/possessives and 24 tu-imperatives ('Choisis un fichier image'). Now 0.",
+        "es: register verified clean, 0 usted forms.",
+        "es 25 + fr 16 keys had translated a do-not-translate term (PR→récord, Reps→repeticiones, Capsule→cápsula, Coach→entrenador). The catalog majority kept the English term in every case, so the minority was the defect.",
+        "The Plans/meal-planner keys were translated concurrently by the session that built the feature (2e11b6b9); that work is theirs and was kept as-is on rebase. It passes every check in this pass."
+      ],
+      "openQuestions": [
+        "es: 'Rutina' translates BOTH Regimen (29 keys) and Routine (8 keys), while 'Régimen' covers Regimen 18 times — so the two concepts are indistinguishable in Spanish and Regimen is rendered two ways. French already solved this exact tension with Programme/Routine; 'Programa' would mirror it and avoids the dietary connotation 'Régimen' carries. NOT applied — this is product vocabulary.",
+        "fr: 'Série' translates BOTH Streak (60 keys) and Set (68 keys). 'Série' is the standard French term for a training set and cannot move, so Streak is what needs a different word. Spanish keeps these apart (Racha/Serie). NOT applied — a native speaker should choose the word."
+      ],
+      "echoNote": "Enforcing doNotTranslate RAISES englishEcho, which _coverage.json's ratchet reads as a regression. Six keys moved that way on purpose (es shop.*Capsule.name ×3; fr common.reps, workout.templates.reps, weeklyMealPlannerModal.title). The two guards genuinely disagree here; the glossary wins and the baseline is regenerated."
+    },
     "spanish": {
-      "$comment": "The whole Spanish catalog is a machine draft produced 2026-08-14, consistent with _glossary.json (tú register, 49 fixed terms) and verified for placeholder, newline and markdown parity. It has NOT had a native pass. A reviewer should read _glossary.json first, then work namespace by namespace — coach.* and onboarding.* carry the long-form coaching prose and are where a wrong register or a mistranslated cue costs the most.",
+      "$comment": "The whole Spanish catalog is a machine draft produced 2026-08-14, consistent with _glossary.json (tú register, 49 fixed terms) and verified for placeholder, newline and markdown parity. A second machine consistency pass ran 2026-08-15 (see $passes). It has still NOT had a native pass. A reviewer should read _glossary.json first, then work namespace by namespace — coach.* and onboarding.* carry the long-form coaching prose and are where a wrong register or a mistranslated cue costs the most.",
       "status": "machine-drafted, awaiting native review",
       "coverage": "99.6%"
     },
     "french": {
-      "$comment": "The whole French catalog is a machine draft produced 2026-08-14, consistent with _glossary.json — register VOUS, which is the opposite of Spanish — and verified for placeholder, newline and markdown parity. NOT natively reviewed. Read _glossary.json first; it also records that the pre-existing translation uses 'Série' for both Streak and Set, which a native pass should settle.",
+      "$comment": "The whole French catalog is a machine draft produced 2026-08-14, consistent with _glossary.json — register VOUS, which is the opposite of Spanish — and verified for placeholder, newline and markdown parity. A second machine consistency pass ran 2026-08-15 (see $passes) and moved 88 strings out of the tu register. Still NOT natively reviewed. Read _glossary.json first; it also records that the translation uses 'Série' for both Streak and Set, which a native pass should settle.",
       "status": "machine-drafted, awaiting native review",
       "coverage": "99.6%"
     },

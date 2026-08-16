@@ -10,6 +10,7 @@
     "i18n:baseline": "node scripts/i18n-baseline.mjs",
     "i18n:audit": "node scripts/i18n-audit.mjs",
     "i18n:hardcoded": "node scripts/i18n-hardcoded.mjs",
+    "i18n:review": "node scripts/i18n-review.mjs",
     "lint": "eslint . --quiet",
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc -p ./jsconfig.json",

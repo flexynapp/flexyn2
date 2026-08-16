@@ -69,10 +69,11 @@
     "Bounty": "Recompensa",
     "Template": "Plantilla",
     "Routine": "Rutina",
-    "Regimen": "Régimen"
+    "Regimen": "Programa",
+    "$regimenNote": "Changed from 'Régimen' to 'Programa' on 2026-08-15 (kegan's call). Two reasons. 'Rutina' was translating BOTH Regimen (29 keys) and Routine (8), so the app's two distinct objects were the same word in Spanish; and 'Régimen' reads dietary or clinical to a Spanish speaker — régimen alimenticio — which is wrong for a training program. 'Programa' mirrors what French already does (Programme/Routine) and leaves 'Rutina' to mean Routine only. 47 keys converted, with gender agreement: el programa, este programa, ¡Programa creado!, Nombre del programa."
   },
   "fr": {
-    "$note": "COLLISION worth a reviewer's attention: the shipped translation uses 'Série' for BOTH Streak and Set ('Séries' for Sets). Kept as-is because it is what already ships and consistency beats a unilateral change, but a native pass should decide — 'Série' for a training set and something like 'Série en cours' or 'Suite' for a streak would remove the ambiguity.",
+    "$note": "THE OPEN COLLISION, and the first thing a native reviewer should settle. 'Série' translates BOTH Streak (60 keys) and Set (68 keys) — measured 2026-08-15, so 128 user-facing strings use one word for two unrelated things. 'Série' is the standard French term for a training set and cannot move, so STREAK is the side that needs a different word. Spanish keeps them apart (Racha / Serie) and has no such problem. Deliberately NOT changed by the 2026-08-15 consistency pass: choosing the word for a streak is a feel judgment across badge names, coach prose and notifications, and a machine pass is not what should make it. Candidates a reviewer might weigh: 'Flamme' (the convention French users know from Duolingo and Snapchat — legible but a borrowed metaphor), 'Suite' (neutral and literal, but flat), 'Régularité' (describes what a streak measures, but does not work as a count noun).",
     "Workout": "Entraînement",
     "Set": "Série",
     "Sets": "Séries",
@@ -120,6 +121,9 @@
     "Bounty": "Prime",
     "Template": "Modèle",
     "Routine": "Routine",
-    "Regimen": "Programme"
+    "Regimen": "Programme",
+    "$acceptedCollisions": [
+      "Set|Streak"
+    ]
   }
 }
