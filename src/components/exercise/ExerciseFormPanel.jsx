@@ -80,7 +80,7 @@ export default function ExerciseFormPanel({ exerciseName, className = '' }) {
         // Named, not just "How to": on the Workout page every exercise card
         // carries one of these, so an unnamed control gives a screen-reader
         // user a column of identical buttons.
-        aria-label={tFallback('exerciseForm.showFor', `How to do ${exerciseName}`)}
+        aria-label={tFallback('exerciseForm.showFor', 'How to do {name}', { name: exerciseName })}
         className="w-full flex items-center gap-2 px-3 py-2 text-start"
       >
         <Shapes className="w-3.5 h-3.5 text-muted-foreground shrink-0" />

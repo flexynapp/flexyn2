@@ -88,7 +88,7 @@ export default function ProgramTemplatePicker({ onCreated }) {
         .select('id');
       if (error) throw error;
       qc.invalidateQueries({ queryKey: ['regimens', user.email] });
-      toast.success(tFallback('programs.cloned', `${template.name} added — start training!`));
+      toast.success(tFallback('programs.cloned', '{name} added — start training!', { name: template.name }));
       // Navigate to the first created day so the user lands somewhere useful.
       onCreated?.(data?.[0]?.id);
     } catch (err) {

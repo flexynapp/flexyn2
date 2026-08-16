@@ -1226,7 +1226,7 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
       rotateMs={ROTATE_MS}
       renderSlide={renderBody}
       onIndexChange={handleIndexChange}
-      dotLabel={(i) => tFallback('dashboard.hero.slide', `Slide ${i + 1}`)}
+      dotLabel={(i) => tFallback('dashboard.hero.slide', 'Slide {n}', { n: i + 1 })}
     />
   );
 });

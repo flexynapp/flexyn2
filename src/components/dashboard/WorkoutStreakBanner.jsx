@@ -246,7 +246,7 @@ export default function WorkoutStreakBanner() {
       {!atRisk && (
         <Trophy
           className="w-3.5 h-3.5 text-success"
-          title={tFallback('dashboard.longestStreak', `Longest: ${longest}`).replace('{n}', String(longest))}
+          title={tFallback('dashboard.longestStreak', 'Longest: {n}', { n: longest })}
         />
       )}
     </motion.div>

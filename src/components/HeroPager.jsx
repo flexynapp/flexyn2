@@ -424,7 +424,7 @@ const HeroPager = forwardRef(function HeroPager({
               onClick={() => goTo(i)}
               aria-label={dotLabel
                 ? dotLabel(i)
-                : tFallback('dashboard.hero.slide', `Slide ${i + 1}`)}
+                : tFallback('dashboard.hero.slide', 'Slide {n}', { n: i + 1 })}
               // 6x6px is an indicator, not a control. `before:` grows the
               // TAP target vertically without changing the rendered dot or
               // the row's height — vertical is where the room is, because

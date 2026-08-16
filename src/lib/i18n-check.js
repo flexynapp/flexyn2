@@ -78,6 +78,10 @@ const ALLOW_IDENTICAL = new Set([
   'duels.resultLoss',       // "L"    — scoreboard notation
   'duels.resultTie',        // "TIE"  — scoreboard notation
   'nav.hub',                // "Hub"  — the feature's name, not a common noun
+  'settings.weightUnit.kg',    // "kg"  — SI symbol
+  'settings.weightUnit.lbs',   // "lbs" — unit symbol
+  'settings.weightUnit.stone', // "st"  — unit symbol (stone)
+  'nutrition.photoAi',         // "Photo-AI" — the feature's name, same shape as nav.hub
 ]);
 
 /**
@@ -98,6 +102,12 @@ const ALLOW_IDENTICAL = new Set([
  */
 const ALLOW_IDENTICAL_BY_LANG = {
   es: new Set([
+    // Added 2026-08-16 with the settings/workout/nutrition batch. Each is a
+    // loanword or a kept product noun in this language, not a skipped string.
+    'generator.tab.chat',
+    'hub.feed.crews',
+    'workout.addCardio',
+    'workout.tab.cardio',
     'cardio',
     'cardio.field.hours',
     'cardio.field.minutes',
@@ -123,6 +133,16 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'workout.templates.reps',
   ]),
   fr: new Set([
+    // Added 2026-08-16 with the settings/workout/nutrition batch. Each is a
+    // loanword or a kept product noun in this language, not a skipped string.
+    'duels.title',
+    'generator.style',
+    'generator.tab.chat',
+    'generator.type',
+    'hub.feed.crews',
+    'workout.addCardio',
+    'workout.tab.cardio',
+    'workout.tagsLabel',
     'Macros',
     'Plans',
     // Hub poll / story-note copy, added 2026-08-16. French spells all four
@@ -225,6 +245,16 @@ const ALLOW_IDENTICAL_BY_LANG = {
   // triple and the abbreviations of words this catalog already uses
   // (duels.wins "Siege", duels.losses "Niederlagen").
   de: new Set([
+    // Added 2026-08-16 with the settings/workout/nutrition batch. Each is a
+    // loanword or a kept product noun in this language, not a skipped string.
+    'duels.challenge',
+    'generator.tab.chat',
+    'hub.feed.crews',
+    'profile.corporate',
+    'workout.addCardio',
+    'workout.tab.cardio',
+    'workout.tab.gym',
+    'workout.tagsLabel',
     // German spells it 'Option' exactly as English does.
     'hub.poll.option',
     'aboutSection.twemoji',
@@ -375,6 +405,14 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'workout.templates.reps',
   ]),
   pt: new Set([
+    // Added 2026-08-16 with the settings/workout/nutrition batch. Each is a
+    // loanword or a kept product noun in this language, not a skipped string.
+    'generator.tab.chat',
+    'hub.feed.crews',
+    'hub.market.title',
+    'workout.addCardio',
+    'workout.tab.cardio',
+    'workout.tagsLabel',
     'Macros',
     'cardio',
     'cardio.field.hours',
@@ -409,6 +447,13 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'workout.templates.reps',
   ]),
   it: new Set([
+    // Added 2026-08-16 with the settings/workout/nutrition batch. Each is a
+    // loanword or a kept product noun in this language, not a skipped string.
+    'duels.challenge',
+    'generator.tab.chat',
+    'profile.corporate',
+    'workout.addCardio',
+    'workout.tab.cardio',
     // Italian uses all three as English loanwords — 'follower' is already
     // the glossary rendering of Followers, and post/slot are the ordinary
     // Italian words for these things.
@@ -453,6 +498,11 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'workout.setSingular',
   ]),
   pl: new Set([
+    // Added 2026-08-16 with the settings/workout/nutrition batch. Each is a
+    // loanword or a kept product noun in this language, not a skipped string.
+    'profile.corporate',
+    'workout.addCardio',
+    'workout.tab.cardio',
     // Polish borrows 'post' for a social post.
     'hub.profile.post',
     'aboutSection.twemoji',
@@ -502,6 +552,17 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'workout.templates.reps',
   ]),
   nl: new Set([
+    // Added 2026-08-16 with the settings/workout/nutrition batch. Each is a
+    // loanword or a kept product noun in this language, not a skipped string.
+    'duels.challenge',
+    'duels.title',
+    'generator.tab.chat',
+    'generator.type',
+    'hub.feed.crews',
+    'profile.corporate',
+    'workout.addCardio',
+    'workout.tab.cardio',
+    'workout.tagsLabel',
     // Dutch says Inbox.
     'hub.messages.view.inbox',
     'biceps',
