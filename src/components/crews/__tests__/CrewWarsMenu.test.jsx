@@ -215,20 +215,48 @@ describe('CrewWarsMenu — live war', () => {
     expect(screen.getByText(/same number of lifters/)).toBeTruthy();
   });
 
-  it('leaves members on zero off the contributor list', async () => {
+  it('ranks BOTH crews on one head-to-head board', async () => {
     getActiveWarForCrew.mockResolvedValue(WAR);
     getWarBreakdown.mockResolvedValue({
-      warId: 'w1', myCrewId: 'c1', totals: [],
+      warId: 'w1', myCrewId: 'c1', crewAId: 'c1', crewBId: 'c2', totals: [],
       members: [
-        { user_id: 'u1', username: 'Kegan',  score: 2140, volume_lbs: 48200, sessions: 5, days_active: 4 },
-        { user_id: 'u2', username: 'Marcus', score: 1890, volume_lbs: 30000, sessions: 4, days_active: 3 },
-        { user_id: 'u3', username: 'Idle',   score: 0,    volume_lbs: 0,     sessions: 0, days_active: 0 },
+        { user_id: 'u1', username: 'Kegan',  crew_id: 'c1', is_mine: true,  score: 2140, volume_lbs: 48200, sessions: 5, days_active: 4 },
+        { user_id: 'r1', username: 'Dana',   crew_id: 'c2', is_mine: false, score: 2600, volume_lbs: null, sessions: null, days_active: null },
+        { user_id: 'u2', username: 'Marcus', crew_id: 'c1', is_mine: true,  score: 1890, volume_lbs: 30000, sessions: 4, days_active: 3 },
       ],
     });
     show();
-    expect(await screen.findByText('2,140')).toBeTruthy();
+    // The rival outscoring us has to be on the board, and first.
+    expect(await screen.findByText('Dana')).toBeTruthy();
+    expect(screen.getByText('2,600')).toBeTruthy();
     expect(screen.getByText('Marcus')).toBeTruthy();
-    expect(screen.queryByText('Idle')).toBeNull();
+  });
+
+  it('keeps a member on zero — an absent lifter is information on a versus board', async () => {
+    getActiveWarForCrew.mockResolvedValue(WAR);
+    getWarBreakdown.mockResolvedValue({
+      warId: 'w1', myCrewId: 'c1', crewAId: 'c1', crewBId: 'c2', totals: [],
+      members: [
+        { user_id: 'u1', username: 'Kegan', crew_id: 'c1', is_mine: true, score: 2140, volume_lbs: 48200, sessions: 5, days_active: 4 },
+        { user_id: 'u3', username: 'Idle',  crew_id: 'c1', is_mine: true, score: 0,    volume_lbs: 0, sessions: 0, days_active: 0 },
+      ],
+    });
+    show();
+    expect(await screen.findByText('Idle')).toBeTruthy();
+  });
+
+  it('does not render a rival day-count — it comes back null by design', async () => {
+    getActiveWarForCrew.mockResolvedValue(WAR);
+    getWarBreakdown.mockResolvedValue({
+      warId: 'w1', myCrewId: 'c1', crewAId: 'c1', crewBId: 'c2', totals: [],
+      members: [
+        { user_id: 'r1', username: 'Dana', crew_id: 'c2', is_mine: false, score: 2600, volume_lbs: null, sessions: null, days_active: null },
+      ],
+    });
+    show();
+    await screen.findByText('Dana');
+    expect(screen.queryByText(/null/)).toBeNull();
+    expect(screen.queryByText(/· \d+d/)).toBeNull();
   });
 
   it('renders the viewer own contribution from the breakdown', async () => {

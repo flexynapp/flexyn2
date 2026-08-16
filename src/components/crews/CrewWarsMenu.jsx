@@ -222,7 +222,17 @@ function LiveWar({ crew, war, currentUserId, tFallback }) {
 
   const members = breakdown?.members ?? [];
   const me      = members.find(m => m.user_id === currentUserId);
-  const top     = members.filter(m => (m.score || 0) > 0).slice(0, 3);
+
+  // Migration 360 returns BOTH rosters. One ranked list rather than two
+  // columns: at 390px a pair of columns gives each name about 14
+  // characters, and the question a head-to-head board answers is "who is
+  // actually carrying this war", which is a single ordering. The crew a
+  // row belongs to is carried by tint and by the tag, not by position.
+  //
+  // Members on zero are kept HERE, unlike the old own-crew-only list —
+  // on a versus board an absent rival is information, and dropping them
+  // would make a five-person crew look like a three-person one.
+  const board = [...members].sort((a, b) => (b.score || 0) - (a.score || 0));
 
   const diff = Math.abs(mine - theirs);
 
@@ -301,25 +311,48 @@ function LiveWar({ crew, war, currentUserId, tFallback }) {
         </>
       )}
 
-      {/* Top contributors. Members on zero are omitted rather than listed
-          at 0 — a war panel is not the place to publish who hasn't trained. */}
-      {top.length > 0 && (
+      {/* Head to head — every lifter on both sides, ranked. */}
+      {board.length > 0 && (
         <>
-          <p className="text-micro font-bold text-muted-foreground tracking-wide mt-6">
-            {tFallback('crewWars.topContributors', 'TOP CONTRIBUTORS')}
-          </p>
+          <div className="flex items-baseline justify-between mt-6">
+            <p className="text-micro font-bold text-muted-foreground tracking-wide">
+              {tFallback('crewWars.headToHead', 'HEAD TO HEAD')}
+            </p>
+            <p className="text-micro text-muted-foreground">
+              {tFallback('crewWars.everyLifter', 'every lifter, both crews')}
+            </p>
+          </div>
           <div className="mt-2">
-            {top.map((m) => {
-              const isMe = m.user_id === currentUserId;
-              const name = isMe
+            {board.map((m, i) => {
+              const isMe   = m.user_id === currentUserId;
+              const isOurs = !!m.is_mine;
+              const name   = isMe
                 ? tFallback('crewWars.you', 'You')
                 : (m.username || m.full_name || tFallback('crewWars.member', 'Member'));
               return (
-                <div key={m.user_id} className="flex items-center gap-2 py-1.5">
+                <div
+                  key={m.user_id}
+                  className={`flex items-center gap-2 py-1.5 ${isMe ? 'bg-primary/[0.07] -mx-2 px-2 rounded-lg' : ''}`}
+                >
+                  <span className="text-micro tabular-nums text-muted-foreground w-4 shrink-0">
+                    {i + 1}
+                  </span>
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full shrink-0 ${isOurs ? 'bg-primary' : 'bg-muted-foreground/40'}`}
+                    aria-hidden="true"
+                  />
                   <span className={`flex-1 min-w-0 truncate text-label ${isMe ? 'font-bold' : ''}`}>
                     {name}
+                    {/* Own crew only — `days_active` is null for a rival
+                        by design, so this renders nothing for them
+                        rather than "null d". */}
+                    {isOurs && m.days_active > 0 && (
+                      <span className="text-muted-foreground font-normal">
+                        {' · '}{m.days_active}d
+                      </span>
+                    )}
                   </span>
-                  <span className="font-heading font-bold text-label tabular-nums shrink-0">
+                  <span className={`font-heading font-bold text-label tabular-nums shrink-0 ${(m.score || 0) === 0 ? 'text-muted-foreground' : ''}`}>
                     {fmt(m.score || 0)}
                   </span>
                 </div>

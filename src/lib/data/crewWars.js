@@ -116,11 +116,15 @@ export async function syncMyCrewWarProgress() {
 }
 
 /**
- * Per-metric totals for both sides plus my crew's ranked member list.
+ * Per-metric totals for both sides plus the ranked member list for BOTH
+ * crews — the head-to-head board.
  *
- * Server-gated on the caller belonging to one of the two crews: the
- * scoreboard is public, but which of your rivals trained on which day is
- * not. Returns null when there's nothing to show.
+ * Still server-gated on the caller belonging to one of the two crews:
+ * showing both rosters to the people fighting is not showing them to
+ * spectators. Within that, migration 360 draws the line at detail rather
+ * than at identity — every member of both sides comes back with a name
+ * and a score, and only your own crew's per-day figures come with them.
+ * Returns null when there's nothing to show.
  */
 export async function getWarBreakdown(warId) {
   if (!warId) return null;
@@ -137,6 +141,12 @@ export async function getWarBreakdown(warId) {
   return {
     warId:    data.war_id ?? warId,
     myCrewId: data.my_crew_id ?? null,
+    crewAId:  data.crew_a_id ?? null,
+    crewBId:  data.crew_b_id ?? null,
+    // Migration 360: BOTH crews' members, each with a name and a score.
+    // Rival rows carry `volume_lbs` / `sessions` / `days_active` as null
+    // on purpose — a rival's score is the contest, their training
+    // calendar is not. Read `is_mine` before rendering any of those.
     totals:   Array.isArray(data.totals)  ? data.totals  : [],
     members:  Array.isArray(data.members) ? data.members : [],
   };
