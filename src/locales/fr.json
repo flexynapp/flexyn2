@@ -1819,6 +1819,7 @@
   "gymRivalMenu.accepted": "Accepté",
   "gymRivalMenu.afkRule": "Vous devez tous les deux enregistrer une séance en {t} — sinon le duel est annulé.",
   "gymRivalMenu.assigned": "Attribué",
+  "gymRivalMenu.bodyweightMissing": "Vos séries au poids du corps ne comptent pas encore. Ajoutez votre poids dans les Paramètres et la callisthénie comptera dans ce total.",
   "gymRivalMenu.bothPlayersMustAccept": "Les deux joueurs doivent accepter pour commencer",
   "gymRivalMenu.capsules": "Capsules",
   "gymRivalMenu.challengeToDuel": "Défier @{n} en duel",

@@ -1838,6 +1838,7 @@
   "gymRivalMenu.accepted": "Accepted",
   "gymRivalMenu.afkRule": "Both must log within {t} — or the match voids.",
   "gymRivalMenu.assigned": "Assigned",
+  "gymRivalMenu.bodyweightMissing": "Your bodyweight sets are not counted yet. Add your weight in Settings and calisthenics counts toward this total.",
   "gymRivalMenu.bothPlayersMustAccept": "Both players must accept to start",
   "gymRivalMenu.capsules": "Capsules",
   "gymRivalMenu.challengeToDuel": "Challenge @{n} to a duel",

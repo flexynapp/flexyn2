@@ -342,6 +342,13 @@ export async function getGymRivalWeekState(assignmentId) {
     themLogged:   !!row.them_logged,
     afkDeadline:  row.afk_deadline ? new Date(row.afk_deadline) : null,
     isStalled:    !!row.is_stalled,
+    // Migration 373. TRUE only when this side logged bodyweight work this week
+    // AND has no weight_lbs on file, so the total they are being shown is
+    // missing the part they earned. Undefined — therefore false — in the
+    // window between the Netlify deploy and the SQL landing, which is the
+    // correct quiet default: no prompt is better than a wrong one.
+    youBwMissing:  !!row.you_bw_missing,
+    themBwMissing: !!row.them_bw_missing,
   };
 }
 

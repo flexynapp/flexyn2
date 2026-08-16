@@ -678,6 +678,21 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
                   </p>
                 )}
 
+                {/* Shown only when it costs this athlete something: they
+                    logged calisthenics this week and have no bodyweight on
+                    file, so migration 373 scored those sets at zero. Without
+                    this line the screen shows a total they cannot explain and
+                    gives them no way to fix it. A barbell lifter, and anyone
+                    who has entered a weight, never sees it. */}
+                {week?.youBwMissing && (
+                  <p className="text-xs text-muted-foreground -mt-4 mb-6">
+                    {tFallback(
+                      'gymRivalMenu.bodyweightMissing',
+                      'Your bodyweight sets are not counted yet. Add your weight in Settings and calisthenics counts toward this total.',
+                    )}
+                  </p>
+                )}
+
                 {/* The clock is the settler's window. With no server answer
                     there is no honest countdown, so none is drawn. */}
                 {week?.endsAt && (

@@ -94,6 +94,28 @@ describe('getGymRivalWeekState', () => {
     rpc.mockResolvedValue({ data: [{ ...ROW, is_stalled: true }], error: null });
     expect((await getGymRivalWeekState('a')).isStalled).toBe(true);
   });
+
+  // Migration 373. A bodyweight set scored 0 against a `you_logged` that said
+  // TRUE, so a calisthenics athlete saw a zero beside a rival's real number
+  // and had no exit — gym_rival_void_stale releases people who did NOT log,
+  // and they had. Bodyweight now counts at bodyweight x factor, which needs a
+  // weight_lbs on file; 27 of 56 profiles have one.
+  it('carries the bodyweight-missing flag so the screen can ask for a weight', async () => {
+    rpc.mockResolvedValue({ data: [{ ...ROW, you_bw_missing: true, them_bw_missing: false }], error: null });
+    const s = await getGymRivalWeekState('a');
+    expect(s.youBwMissing).toBe(true);
+    expect(s.themBwMissing).toBe(false);
+  });
+
+  it('reads the flag as false on a server that has not run 373 yet', async () => {
+    // The deploy window: Netlify ships this client before the SQL is pasted,
+    // so both columns are simply absent. A prompt driven by `undefined` has to
+    // stay quiet rather than telling every user to go and enter their weight.
+    rpc.mockResolvedValue({ data: [ROW], error: null });
+    const s = await getGymRivalWeekState('a');
+    expect(s.youBwMissing).toBe(false);
+    expect(s.themBwMissing).toBe(false);
+  });
 });
 
 describe('rivalMetric', () => {

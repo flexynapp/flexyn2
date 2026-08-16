@@ -1819,6 +1819,7 @@
   "gymRivalMenu.accepted": "Aceptado",
   "gymRivalMenu.afkRule": "Los dos tenéis que registrar algo en {t} — o el duelo se anula.",
   "gymRivalMenu.assigned": "Asignado",
+  "gymRivalMenu.bodyweightMissing": "Tus series con peso corporal aún no cuentan. Añade tu peso en Ajustes y la calistenia contará para este total.",
   "gymRivalMenu.bothPlayersMustAccept": "Ambos jugadores deben aceptar para empezar",
   "gymRivalMenu.capsules": "Capsules",
   "gymRivalMenu.challengeToDuel": "Retar a @{n} a un duelo",
