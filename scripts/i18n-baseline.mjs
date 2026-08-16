@@ -55,11 +55,16 @@ const hasLetters = (v) => /\p{L}/u.test(String(v));
 // Parsed from source, not imported: i18n-check.js pulls in ./i18n, which
 // dynamic-imports every locale aggregate. Same parse the guard uses.
 const CHECK_SRC = fs.readFileSync(path.join('src/lib', 'i18n-check.js'), 'utf8');
+const GLOBAL_IDENTICAL = (() => {
+  const m = CHECK_SRC.match(/const ALLOW_IDENTICAL = new Set\(\[([\s\S]*?)\]\);/);
+  return new Set(m ? [...m[1].matchAll(/'([\w.]+)'/g)].map((x) => x[1]) : []);
+})();
 const cognates = (l) => {
   const m = CHECK_SRC.match(
     new RegExp(`^ {2}${l}: new Set\\(\\[([\\s\\S]*?)\\]\\),`, 'm'),
   );
-  return new Set(m ? [...m[1].matchAll(/'([\w.]+)'/g)].map((x) => x[1]) : []);
+  const own = m ? [...m[1].matchAll(/'([\w.]+)'/g)].map((x) => x[1]) : [];
+  return new Set([...GLOBAL_IDENTICAL, ...own]);
 };
 
 const locales = {};

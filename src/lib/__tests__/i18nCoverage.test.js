@@ -172,11 +172,23 @@ describe('coverage does not go backwards', () => {
   // at the foot of this file already parse it the same way, and they are
   // what keeps the list honest (no non-Latin scripts, no stale entries).
   const checkSrc = fs.readFileSync(path.join('src/lib', 'i18n-check.js'), 'utf8');
+  //
+  // BOTH lists, and reading only the per-language one was a half-done fix.
+  // `nav.hub`, `nutrition.water.ml` and `settings.weightUnit.kg` live in the
+  // GLOBAL `ALLOW_IDENTICAL` — the file's own comment names "ml" as an example
+  // of what should not score — and every one of them was still counted against
+  // all fourteen locales. A key the repo has already declared identical on
+  // purpose must not read as a missing translation, wherever it is declared.
+  const globalIdentical = (() => {
+    const m = checkSrc.match(/const ALLOW_IDENTICAL = new Set\(\[([\s\S]*?)\]\);/);
+    return new Set(m ? [...m[1].matchAll(/'([\w.]+)'/g)].map((x) => x[1]) : []);
+  })();
   const cognates = (l) => {
     const m = checkSrc.match(
       new RegExp(`^ {2}${l}: new Set\\(\\[([\\s\\S]*?)\\]\\),`, 'm'),
     );
-    return new Set(m ? [...m[1].matchAll(/'([\w.]+)'/g)].map((x) => x[1]) : []);
+    const own = m ? [...m[1].matchAll(/'([\w.]+)'/g)].map((x) => x[1]) : [];
+    return new Set([...globalIdentical, ...own]);
   };
 
   const echoCount = (l) => {
