@@ -45,9 +45,13 @@ function collectCallSites() {
         continue;
       }
       if (!/\.jsx?$/.test(e.name) || /^i18n-/.test(e.name)) continue;
+      // Comment strip: see the note in scripts/i18n-audit.mjs. A bare
+      // block-comment pattern treats the `/*` in `src/locales/*.json` and in
+      // `accept="image/*"` as a comment opener and blanks every call site up
+      // to the next `*/`, which makes this guard read clean over hidden keys.
       const src = fs.readFileSync(p, 'utf8')
-        .replace(/\/\*[\s\S]*?\*\//g, '')
-        .replace(/^\s*\/\/.*$/gm, '');
+        .replace(/(?<![A-Za-z0-9_"'])\/\*[\s\S]*?\*\//g, '')
+        .replace(/^[ \t]*\/\/.*$/gm, '');
       // Backticks included: a template literal with no ${} is a constant
       // key and several call sites write one. Must stay identical to the
       // scan in scripts/i18n-baseline.mjs, or the guard below compares a

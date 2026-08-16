@@ -94,6 +94,7 @@ const ALLOW_IDENTICAL = new Set([
   'trophy.unit.lb',         // "lb"        — unit symbol
   'trophy.unit.m',          // "m"         — SI symbol
   'trophy.tail.desc',       // "{n} {unit}" — placeholders and a space
+  'workout.comebackBonusXp', // "+{n} XP" — a sign, a placeholder and a symbol
 ]);
 
 /**
@@ -149,6 +150,8 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'workout.templates.reps',
   ]),
   fr: new Set([
+    // "Standard" is spelled exactly this way in this language.
+    'crewChat.imageMode.normal',
     // Trophy catalog, added 2026-08-16. Every one is a word this
     // language spells exactly as English does — Arena, Prestige,
     // Champion, Legend, Tonnage — not a string left untranslated.
@@ -277,6 +280,8 @@ const ALLOW_IDENTICAL_BY_LANG = {
   // triple and the abbreviations of words this catalog already uses
   // (duels.wins "Siege", duels.losses "Niederlagen").
   de: new Set([
+    // "Standard" is spelled exactly this way in this language.
+    'crewChat.imageMode.normal',
     // Trophy catalog, added 2026-08-16. Every one is a word this
     // language spells exactly as English does — Arena, Prestige,
     // Champion, Legend, Tonnage — not a string left untranslated.
@@ -502,6 +507,8 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'workout.templates.reps',
   ]),
   it: new Set([
+    // "Standard" is spelled exactly this way in this language.
+    'crewChat.imageMode.normal',
     // Trophy catalog, added 2026-08-16. Every one is a word this
     // language spells exactly as English does — Arena, Prestige,
     // Champion, Legend, Tonnage — not a string left untranslated.

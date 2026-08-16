@@ -158,7 +158,7 @@ function RegimenPicker({ userEmail, onShare, onAssign, canAssign, onCancel }) {
         <button onClick={onCancel} className="text-muted-foreground"><X className="w-4 h-4" /></button>
       </div>
       {regimenList.length === 0 ? (
-        <p className="text-sm text-muted-foreground text-center py-6">No saved regimens yet.</p>
+        <p className="text-sm text-muted-foreground text-center py-6">{tFallback('crewChat.noSavedRegimens', 'No saved regimens yet.')}</p>
       ) : (
         <div className="px-3 py-2 space-y-0.5">
           {regimenList.map(r => (
@@ -224,8 +224,8 @@ function AssignedRegimenBanner({ crewId, isAdmin, onEquip }) {
               try {
                 await crewsData.removeAssignedRegimen(top.id);
                 qc.invalidateQueries({ queryKey: ['crewAssignedRegimens', crewId] });
-                toast.success('Plan removed.');
-              } catch { toast.error('Could not remove plan.'); }
+                toast.success(tFallback('crewChat.planRemoved', 'Plan removed.'));
+              } catch { toast.error(tFallback('crewChat.couldNotRemovePlan', 'Could not remove plan.')); }
             }}
             className="p-1 text-muted-foreground hover:text-destructive active:text-destructive transition-colors"
             title={tFallback("crewChat.removePlan", "Remove plan")}
@@ -342,7 +342,7 @@ export default function CrewChat({ crew, onBack, onViewProfile, embedded }) {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
-    if (file.size > 50 * 1024 * 1024) { toast.error('Image must be under 50 MB.'); return; }
+    if (file.size > 50 * 1024 * 1024) { toast.error(tFallback('crewChat.imageTooLarge', 'Image must be under 50 MB.')); return; }
     if (storyRef.current) return;
     storyRef.current = true;
     try {
@@ -351,7 +351,7 @@ export default function CrewChat({ crew, onBack, onViewProfile, embedded }) {
       refetchStories();
       toast.success(tFallback("crewChat.storyPostedToTheCrew", "Story posted to the Crew!"));
     } catch {
-      toast.error('Could not post story — try again.');
+      toast.error(tFallback('crewChat.couldNotPostStory', 'Could not post story. Try again.'));
     } finally {
       storyRef.current = false;
     }
@@ -394,7 +394,7 @@ export default function CrewChat({ crew, onBack, onViewProfile, embedded }) {
       qc.invalidateQueries({ queryKey: ['crewMembers', crew.id] });
       toast.success(tFallback("crewChat.crewPhotoUpdated", "Crew photo updated!"));
     } catch {
-      toast.error('Could not update crew photo — try again.');
+      toast.error(tFallback('crewChat.couldNotUpdatePhoto', 'Could not update crew photo. Try again.'));
     } finally {
       setAvatarUploading(false);
     }
@@ -420,7 +420,7 @@ export default function CrewChat({ crew, onBack, onViewProfile, embedded }) {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
-    if (file.size > 50 * 1024 * 1024) { toast.error('Image must be under 50 MB.'); return; }
+    if (file.size > 50 * 1024 * 1024) { toast.error(tFallback('crewChat.imageTooLarge', 'Image must be under 50 MB.')); return; }
     setAttachment({ file, preview: URL.createObjectURL(file) });
   };
 
@@ -522,9 +522,9 @@ export default function CrewChat({ crew, onBack, onViewProfile, embedded }) {
       // Surface specific errors from mig 159 (crew_message_profanity).
       const msg = `${err?.message || ''} ${err?.hint || ''}`;
       if (/crew_message_profanity/i.test(msg) || err?.code === '23514') {
-        toast.error('Crew message contains prohibited content. Edit it and try again.');
+        toast.error(tFallback('crewChat.messageProhibited', 'Crew message contains prohibited content. Edit it and try again.'));
       } else {
-        toast.error('Could not send message — try again.');
+        toast.error(tFallback('crewChat.couldNotSend', 'Could not send message. Try again.'));
       }
     } finally {
       setSending(false);
@@ -541,7 +541,7 @@ export default function CrewChat({ crew, onBack, onViewProfile, embedded }) {
       await crewsData.notifyCrewRollCall(crew.id, question, user.username || 'Someone');
       qc.invalidateQueries({ queryKey: ['crewMessages', crew.id] });
       toast.success(tFallback("crewChat.rollCallSent", "Roll Call sent!"));
-    } catch { toast.error('Could not send Roll Call.'); }
+    } catch { toast.error(tFallback('crewChat.couldNotSendRollCall', 'Could not send Roll Call.')); }
     finally { rollCallRef.current = false; }
   };
 
@@ -556,28 +556,38 @@ export default function CrewChat({ crew, onBack, onViewProfile, embedded }) {
     // would post a banner nobody on earth can claim. Say so instead of
     // spending the send.
     if (members.length < 2) {
-      toast.info('Fuel is for your crew to claim — and you can\'t claim your own. Invite someone first.');
+      toast.info(tFallback(
+        'crewChat.fuelNeedsCrew',
+        'Fuel is for your crew to claim, and you cannot claim your own. Invite someone first.',
+      ));
       return;
     }
     fuelRef.current = true;
     try {
       const left = await crewsData.xpFuelSendsLeftToday(crew.id, user.id);
       if (left <= 0) {
-        toast.info('You\'ve dropped all your fuel for today — back tomorrow.');
+        toast.info(tFallback('crewChat.fuelSpentToday', 'You have dropped all your fuel for today. Back tomorrow.'));
         return;
       }
       await crewsData.fireXpFuel(crew.id, user.id, user.username || 'Someone');
       qc.invalidateQueries({ queryKey: ['crewMessages', crew.id] });
-      toast.success(`Fuel dropped — ${crewsData.CREW_XP_FUEL_AMOUNT} XP for the crew to claim.`, {
-        description: left > 1 ? `${left - 1} more today.` : 'That was your last one today.',
-      });
+      toast.success(
+        tFallback('crewChat.fuelDropped', 'Fuel dropped. {n} XP for the crew to claim.', {
+          n: crewsData.CREW_XP_FUEL_AMOUNT,
+        }),
+        {
+          description: left > 1
+            ? tFallback('crewChat.fuelMoreToday', '{n} more today.', { n: left - 1 })
+            : tFallback('crewChat.fuelLastToday', 'That was your last one today.'),
+        },
+      );
       // Quest progress — non-blocking. This is the action the crew_fuel_2
       // quest keys on, and it only exists because this button does.
       quests.recordAction(user, ACTION_TYPES.CREW_FUEL_SENT, 1)
         .then(() => qc.invalidateQueries({ queryKey: ['dailyQuests'] }))
         .catch(() => {});
     } catch {
-      toast.error('Could not drop fuel — try again.');
+      toast.error(tFallback('crewChat.couldNotDropFuel', 'Could not drop fuel. Try again.'));
     } finally {
       fuelRef.current = false;
     }
@@ -596,8 +606,8 @@ export default function CrewChat({ crew, onBack, onViewProfile, embedded }) {
     try {
       await crewsData.sendCrewMessage(crew.id, user.id, 'regimen', meta, { regimen_id: regimen.id });
       qc.invalidateQueries({ queryKey: ['crewMessages', crew.id] });
-      toast.success(`"${regimen.name}" shared with the Crew!`);
-    } catch { toast.error('Could not share regimen.'); }
+      toast.success(tFallback('crewChat.regimenShared', '"{name}" shared with the Crew!', { name: regimen.name }));
+    } catch { toast.error(tFallback('crewChat.couldNotShareRegimen', 'Could not share regimen.')); }
     finally { shareRef.current = false; }
   };
 
@@ -608,8 +618,8 @@ export default function CrewChat({ crew, onBack, onViewProfile, embedded }) {
     try {
       await crewsData.assignRegimenToCrew(crew.id, regimen.id, user.id, null);
       qc.invalidateQueries({ queryKey: ['crewAssignedRegimens', crew.id] });
-      toast.success(`"${regimen.name}" assigned as the Crew Plan!`);
-    } catch { toast.error('Could not assign regimen.'); }
+      toast.success(tFallback('crewChat.regimenAssigned', '"{name}" assigned as the Crew Plan!', { name: regimen.name }));
+    } catch { toast.error(tFallback('crewChat.couldNotAssignRegimen', 'Could not assign regimen.')); }
     finally { assignRef.current = false; }
   };
 
@@ -624,8 +634,10 @@ export default function CrewChat({ crew, onBack, onViewProfile, embedded }) {
       await crewsData.pinMessage(msgId, pinned);
       qc.invalidateQueries({ queryKey: ['crewMessages', crew.id] });
       qc.invalidateQueries({ queryKey: ['crewPinnedMessage', crew.id] });
-      toast.success(pinned ? '📌 Message pinned as announcement.' : 'Unpinned.');
-    } catch { toast.error('Could not pin message.'); }
+      toast.success(pinned
+        ? tFallback('crewChat.messagePinned', '📌 Message pinned as announcement.')
+        : tFallback('crewChat.messageUnpinned', 'Unpinned.'));
+    } catch { toast.error(tFallback('crewChat.couldNotPin', 'Could not pin message.')); }
     finally { pinRef.current = false; }
   };
 
@@ -636,9 +648,9 @@ export default function CrewChat({ crew, onBack, onViewProfile, embedded }) {
     equipRef.current = true;
     try {
       await crewsData.equipRegimen(regimen.id, user);
-      toast.success(`"${regimen.name}" added to your regimens!`);
+      toast.success(tFallback('crewChat.regimenAdded', '"{name}" added to your regimens!', { name: regimen.name }));
     } catch (err) {
-      toast.error('Could not add regimen.', { description: err.message });
+      toast.error(tFallback('crewChat.couldNotAddRegimen', 'Could not add regimen.'), { description: err.message });
     } finally {
       equipRef.current = false;
     }
@@ -849,9 +861,9 @@ export default function CrewChat({ crew, onBack, onViewProfile, embedded }) {
             <div className="flex flex-col gap-1.5 pt-1">
               <p className="text-xs text-muted-foreground font-medium mb-0.5">{tFallback("crewChat.viewSettings", "View settings:")}</p>
               {[
-                { id: 'normal',   label: 'Standard',    icon: <Camera className="w-3 h-3" /> },
-                { id: 'one_time', label: 'One-time',     icon: <Eye    className="w-3 h-3" /> },
-                { id: 'one_hour', label: '1-hour expiry',icon: <Clock  className="w-3 h-3" /> },
+                { id: 'normal',   label: tFallback('crewChat.imageMode.normal', 'Standard'),           icon: <Camera className="w-3 h-3" /> },
+                { id: 'one_time', label: tFallback('crewChat.imageMode.oneTime', 'View once'),          icon: <Eye    className="w-3 h-3" /> },
+                { id: 'one_hour', label: tFallback('crewChat.imageMode.oneHour', 'Expires in 1 hour'),  icon: <Clock  className="w-3 h-3" /> },
               ].map(opt => (
                 <button
                   key={opt.id}
@@ -890,7 +902,7 @@ export default function CrewChat({ crew, onBack, onViewProfile, embedded }) {
         <button
           onClick={() => { setRegimenOpen(true); setRollCallOpen(false); }}
           className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground active:text-foreground transition-colors shrink-0"
-          title="Share / assign regimen"
+          title={tFallback('crewChat.shareAssignRegimen', 'Share or assign regimen')}
         >
           <Dumbbell className="w-4 h-4" />
         </button>

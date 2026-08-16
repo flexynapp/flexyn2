@@ -1025,19 +1025,19 @@ export default function Workout() {
       // RLS / permission denied surfaces a clearer hint than a generic message.
       if (code === '42501' || /policy|permission/i.test(err?.message || '')) {
         errorToast({
-          title: 'Could not save',
-          description: 'Permission denied. Try signing in again.',
+          title: tFallback('workout.couldNotSave', 'Could not save'),
+          description: tFallback('workout.saveDeniedDesc', 'Permission denied. Try signing in again.'),
         });
       } else if (/network|fetch|failed to fetch/i.test(err?.message || '')) {
         errorToast({
-          title: 'Could not save',
-          description: 'Check your connection and try again.',
+          title: tFallback('workout.couldNotSave', 'Could not save'),
+          description: tFallback('workout.saveOfflineDesc', 'Check your connection and try again.'),
           retry: () => saveMutation.mutate(_data),
         });
       } else {
         errorToast({
-          title: 'Could not save workout',
-          description: err?.message || 'Try again.',
+          title: tFallback('workout.couldNotSaveWorkout', 'Could not save workout'),
+          description: err?.message || tFallback('workout.tryAgain', 'Try again.'),
           retry: () => saveMutation.mutate(_data),
         });
       }
@@ -1235,7 +1235,10 @@ export default function Workout() {
           action_data: {},
         })
           .then(() => {
-            toast.success('Comeback bonus earned. Good to have you back.', { description: '+200 XP' });
+            toast.success(
+              tFallback('workout.comebackBonus', 'Comeback bonus earned. Good to have you back.'),
+              { description: tFallback('workout.comebackBonusXp', '+{n} XP', { n: 200 }) },
+            );
             queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
           })
           .catch(() => {});
@@ -1296,7 +1299,7 @@ export default function Workout() {
             queryClient.invalidateQueries({ queryKey: ['activeWar'] });
             queryClient.invalidateQueries({ queryKey: ['warBreakdown'] });
             toast.success(tFallback("workout.yourSessionCountedToward", "Your session counted toward the Crew War"), {
-              description: 'Volume, sessions and days trained all score.',
+              description: tFallback('workout.crewWarScoresDesc', 'Volume, sessions and days trained all score.'),
               duration: 4000,
             });
           })
@@ -1536,7 +1539,7 @@ export default function Workout() {
     setStarted(true);
     setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 100);
     if (clampedSomething) {
-      toast.success('Workout loaded — some sets were trimmed to realistic limits.');
+      toast.success(tFallback('workout.loadedTrimmed', 'Workout loaded. Some sets were trimmed to realistic limits.'));
     } else {
       toast.success(tFallback("workout.workoutLoadedLogYourSets", "Workout loaded — log your sets!"));
     }
@@ -1685,7 +1688,7 @@ export default function Workout() {
     // only successful entries through validation lock further taps.
     const exerciseStrings = (exercises || []).flatMap(ex => [ex.name, ex.displayName]);
     if (hasAnyProfanity(notes, exerciseStrings)) {
-      toast.error('Please remove inappropriate language before saving.');
+      toast.error(tFallback('workout.removeProfanity', 'Please remove inappropriate language before saving.'));
       return;
     }
     // Detect empty / missing-data sets unless the user has confirmed.
@@ -2387,7 +2390,7 @@ export default function Workout() {
               <button
                 type="button"
                 onClick={() => setGridEditing(v => !v)}
-                title="Customize card order"
+                title={tFallback('workout.customizeCardOrder', 'Customize card order')}
                 className={`flex items-center justify-center w-6 h-6 rounded-full border transition-colors ${
                   gridEditing
                     ? 'bg-primary/15 border-primary/35 text-primary'
@@ -2640,7 +2643,7 @@ export default function Workout() {
                           <div className="min-w-0">
                             <span className="block text-micro font-bold tracking-[0.25em] uppercase text-success/80 mb-2">{tFallback("workout.crewBattles", "CREW BATTLES")}</span>
                             <span className="font-heading font-black text-3xl md:text-4xl leading-none block tracking-tight min-h-[2em]">{tFallback("workout.crewWars", "Crew Wars")}</span>
-                            <span className="text-label text-white/50 mt-2.5 block max-w-[36ch] leading-relaxed min-h-[3.25em]">Rally your crew. Crush rivals. Dominate the leaderboard.</span>
+                            <span className="text-label text-white/50 mt-2.5 block max-w-[36ch] leading-relaxed min-h-[3.25em]">{tFallback('workout.crewWarsBlurb', 'Rally your crew. Crush rivals. Dominate the leaderboard.')}</span>
                             <span className="inline-flex items-center gap-1 mt-3 px-2.5 py-1 rounded-full bg-success/15 border border-success/20 text-micro font-semibold text-success/80 tracking-wide uppercase">
                               <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />{tFallback("workout.joinTheFight", "Join the fight")}
                             </span>
@@ -2747,18 +2750,18 @@ export default function Workout() {
             <div className="mb-2">
               {gridEditing && (
                 <div className="flex items-center justify-between mb-3 px-1">
-                  <p className="text-micro text-muted-foreground/60 font-medium">Drag a card&rsquo;s grip to reorder</p>
+                  <p className="text-micro text-muted-foreground/60 font-medium">{tFallback('workout.dragGripToReorder', 'Drag a card’s grip to reorder')}</p>
                   <div className="flex items-center gap-1.5">
-                    <button onClick={() => { localStorage.setItem(cardOrderKey, JSON.stringify(cardOrder)); setGridEditing(false); toast.success('Layout saved.'); resetGridDrag(); }}
+                    <button onClick={() => { localStorage.setItem(cardOrderKey, JSON.stringify(cardOrder)); setGridEditing(false); toast.success(tFallback('workout.layoutSaved', 'Layout saved.')); resetGridDrag(); }}
                       className="px-2.5 py-1 rounded-lg bg-primary text-primary-foreground text-micro font-bold hover:bg-primary/90 active:bg-primary/90 transition-colors">{tFallback("common.save", "Save")}</button>
                     {isAppAdmin(user) && (
                       <button
                         onClick={async () => {
                           const res = await setLayoutDefault('workout', cardOrder, null);
-                          if (res.ok) toast.success('Saved — new users will see this card layout.');
-                          else if (res.error === 'rpc_missing') toast.error('Apply migration 166.');
-                          else if (res.error === 'admin_only')  toast.error('Admins only.');
-                          else toast.error('Could not save default layout.');
+                          if (res.ok) toast.success(tFallback('workout.layoutDefaultSaved', 'Saved. New users will see this card layout.'));
+                          else if (res.error === 'rpc_missing') toast.error(tFallback('workout.layoutMigrationMissing', 'Apply migration 166.'));
+                          else if (res.error === 'admin_only')  toast.error(tFallback('workout.adminsOnly', 'Admins only.'));
+                          else toast.error(tFallback('workout.layoutDefaultFailed', 'Could not save default layout.'));
                         }}
                         title={tFallback("workout.saveThisLayoutAsDefault", "Save this layout as default for all new users")}
                         className="px-2.5 py-1 rounded-lg bg-primary/15 border border-primary/40 text-primary dark:text-primary text-micro font-bold hover:bg-primary/25 active:bg-primary/25 transition-colors"
@@ -3348,7 +3351,7 @@ export default function Workout() {
                           return e;
                         });
                         setExercises(next);
-                        toast.success('Paired as superset with the previous exercise.');
+                        toast.success(tFallback('workout.pairedAsSuperset', 'Paired as superset with the previous exercise.'));
                       }}
                       className="p-1.5 rounded-md text-muted-foreground hover:text-primary active:text-primary hover:bg-primary/10 active:bg-primary/10 transition-colors"
                       aria-label={tFallback("workout.pairWithPreviousExercise", "Pair with previous exercise as superset")}
@@ -3372,19 +3375,25 @@ export default function Workout() {
                       // and can break group integrity. (Audit 09 #M-3 / #L-11.)
                       const undoMarker = { name: removed?.name, group_id: removed?.group_id, ref: removed };
                       setExercises(exercises.filter((_, idx) => idx !== i));
-                      toast.success(`Skipped ${removed?.displayName || removed?.name || 'exercise'}.`, {
-                        action: {
-                          label: 'Undo',
-                          onClick: () => setExercises(prev => {
-                            // Best-effort reinsert near the original neighbor.
-                            // Append to end as a safe default — the user can
-                            // always reorder. Better to be at the bottom than
-                            // wedged between unrelated supersetted rows.
-                            if (prev.some(ex => ex === undoMarker.ref)) return prev;
-                            return [...prev, undoMarker.ref];
-                          }),
+                      toast.success(
+                        tFallback('workout.skippedExercise', 'Skipped {name}.', {
+                          name: removed?.displayName || removed?.name
+                            || tFallback('workout.anExercise', 'exercise'),
+                        }),
+                        {
+                          action: {
+                            label: tFallback('common.undo', 'Undo'),
+                            onClick: () => setExercises(prev => {
+                              // Best-effort reinsert near the original neighbor.
+                              // Append to end as a safe default — the user can
+                              // always reorder. Better to be at the bottom than
+                              // wedged between unrelated supersetted rows.
+                              if (prev.some(ex => ex === undoMarker.ref)) return prev;
+                              return [...prev, undoMarker.ref];
+                            }),
+                          },
                         },
-                      });
+                      );
                     }}
                     className="p-1.5 rounded-md text-muted-foreground hover:text-destructive active:text-destructive hover:bg-destructive/10 active:bg-destructive/10 transition-colors"
                     aria-label={tFallback("workout.skipThisExercise", "Skip this exercise")}
@@ -3525,18 +3534,30 @@ export default function Workout() {
               })));
               setCheatWarningData(null);
               // Single follow-up toast naming exactly what was cleared.
-              const parts = [];
-              if (weightsCleared) parts.push(`${weightsCleared} weight${weightsCleared === 1 ? '' : 's'}`);
-              if (repsCleared) parts.push(`${repsCleared} rep ${repsCleared === 1 ? 'field' : 'fields'}`);
-              const cleared = parts.join(' and ');
+              // Built by concatenating English fragments and pluralising them
+              // inline, which no catalog can carry — a translator receives
+              // "weight" and "s" and cannot reach the sentence. Three whole
+              // messages instead, one per case.
+              let cleared = null;
+              if (weightsCleared && repsCleared) {
+                cleared = tFallback(
+                  'workout.clearedBoth',
+                  'Cleared {w} of the weight fields and {r} of the rep fields',
+                  { w: weightsCleared, r: repsCleared },
+                );
+              } else if (weightsCleared) {
+                cleared = tFallback('workout.clearedWeights', 'Cleared {w} of the weight fields', { w: weightsCleared });
+              } else if (repsCleared) {
+                cleared = tFallback('workout.clearedReps', 'Cleared {r} of the rep fields', { r: repsCleared });
+              }
               if (cleared) {
-                toast.message(`Cleared ${cleared}`, {
-                  description: 'Re-enter realistic values and Save again.',
+                toast.message(cleared, {
+                  description: tFallback('workout.clearedDesc', 'Re-enter realistic values and Save again.'),
                   duration: 5000,
                 });
               }
             }}>
-              Go Back &amp; Fix
+              {tFallback('workout.goBackAndFix', 'Go back and fix')}
             </Button>
           </div>
         </DialogContent>
