@@ -2351,5 +2351,5 @@
   "workout.warn.totalSetsExceeded": "Bu antrenman {totalSets} set içeriyor; bu, istatistiklerinize sahip birinin bir seansta gerçekçi olarak tamamlayabileceği miktarı (maks. ~{maxSets} set) aşıyor.",
   "workout.warn.workout_hours": "Bugün {hours}s ağırlık antrenmanı kaydettin. Gerçekçi günlük maksimum {maxHours}s'tır.",
   "workout.weightLbs": "Ağırlık (lbs)",
-  "workout.weightWithUnit": "Ağırlık (lbs)"
+  "workout.weightWithUnit": "Ağırlık ({unit})"
 }

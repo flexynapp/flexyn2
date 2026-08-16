@@ -1469,5 +1469,5 @@
   "workout.warn.totalSetsExceeded": "يحتوي هذا التمرين على {totalSets} مجموعة، مما يتجاوز ما يمكن لشخص بإحصاءاتك إكماله بشكل واقعي في جلسة واحدة (حد أقصى ~{maxSets} مجموعة).",
   "workout.warn.workout_hours": "لقد سجّلت {hours}س من تمارين القوة اليوم. الحد الأقصى الواقعي اليومي هو {maxHours}س.",
   "workout.weightLbs": "الوزن (رطل)",
-  "workout.weightWithUnit": "الوزن (lbs)"
+  "workout.weightWithUnit": "الوزن ({unit})"
 }

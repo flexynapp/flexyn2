@@ -1469,5 +1469,5 @@
   "workout.warn.totalSetsExceeded": "此训练包含{totalSets}组，超过了根据您的数据在一次训练中能现实完成的最大组数（约{maxSets}组）。",
   "workout.warn.workout_hours": "您今天已记录{hours}小时的力量训练。现实的每日最大值为{maxHours}小时。",
   "workout.weightLbs": "重量 (lbs)",
-  "workout.weightWithUnit": "重量 (lbs)"
+  "workout.weightWithUnit": "重量 ({unit})"
 }

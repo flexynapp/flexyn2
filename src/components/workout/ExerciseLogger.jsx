@@ -412,7 +412,7 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
         {sets.length > 0 && (
           <div className="flex items-center gap-2 text-xs text-muted-foreground px-1">
             <span className="w-6 text-center">{t('workout.set')}</span>
-            <span className="flex-1 text-center">{t('workout.weightWithUnit').replace('lbs', weightUnit)}</span>
+            <span className="flex-1 text-center">{t('workout.weightWithUnit', { unit: weightUnit })}</span>
             <span className="w-4"></span>
             <span className="flex-1 text-center">{t('workout.repsLabel')}</span>
             <span className="w-8"></span>

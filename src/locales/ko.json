@@ -1474,5 +1474,5 @@
   "workout.warn.totalSetsExceeded": "이 운동에는 {totalSets}세트가 포함되어 있으며, 내 통계를 가진 사람이 한 세션에서 현실적으로 완료할 수 있는 수(최대 ~{maxSets}세트)를 초과합니다.",
   "workout.warn.workout_hours": "오늘 {hours}시간의 웨이트 트레이닝을 기록했습니다. 현실적인 일일 최대값은 {maxHours}시간입니다.",
   "workout.weightLbs": "중량 (lbs)",
-  "workout.weightWithUnit": "무게 (lbs)"
+  "workout.weightWithUnit": "무게 ({unit})"
 }

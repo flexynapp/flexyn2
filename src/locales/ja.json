@@ -1500,5 +1500,5 @@
   "workout.warn.totalSetsExceeded": "このワークアウトは{totalSets}セットを含んでいます。あなたのスタッツでは1セッションで現実的に完了できる最大セット数（~{maxSets}セット）を超えています。",
   "workout.warn.workout_hours": "今日は{hours}時間のウェイトトレーニングを記録しました。現実的な1日の最大値は{maxHours}時間です。",
   "workout.weightLbs": "重量 (lbs)",
-  "workout.weightWithUnit": "重量 (lbs)"
+  "workout.weightWithUnit": "重量 ({unit})"
 }

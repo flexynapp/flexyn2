@@ -1468,5 +1468,5 @@
   "workout.warn.totalSetsExceeded": "Эта тренировка содержит {totalSets} подходов, что превышает то, что человек с вашими показателями мог бы реалистично завершить за одну сессию (макс. ~{maxSets} подходов).",
   "workout.warn.workout_hours": "Сегодня вы записали {hours}ч силовых тренировок. Реалистичный дневной максимум составляет {maxHours}ч.",
   "workout.weightLbs": "Вес (фунты)",
-  "workout.weightWithUnit": "Вес (lbs)"
+  "workout.weightWithUnit": "Вес ({unit})"
 }

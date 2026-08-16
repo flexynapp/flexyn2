@@ -1469,5 +1469,5 @@
   "workout.warn.totalSetsExceeded": "इस वर्कआउट में {totalSets} सेट हैं, जो आपके आँकड़ों वाले व्यक्ति के लिए एक सत्र में यथार्थवादी रूप से पूरे किए जा सकने वाले सेट (अधिकतम ~{maxSets} सेट) से अधिक है।",
   "workout.warn.workout_hours": "आपने आज {hours}घंटे की ताकत प्रशिक्षण लॉग की है। यथार्थवादी दैनिक अधिकतम {maxHours}घंटे है।",
   "workout.weightLbs": "वजन (lbs)",
-  "workout.weightWithUnit": "वजन (lbs)"
+  "workout.weightWithUnit": "वजन ({unit})"
 }

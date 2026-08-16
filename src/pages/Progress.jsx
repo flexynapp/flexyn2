@@ -259,7 +259,7 @@ function AnalyticsTab({ logs }) {
               <XAxis dataKey="date" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
               <YAxis tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" domain={[0, 'auto']} allowDataOverflow={false} />
               <Tooltip {...CHART_STYLE} />
-              <Line type="monotone" dataKey="weightDisplay" name={t('workout.weightWithUnit').replace('lbs', weightUnit)} stroke="hsl(var(--primary))" strokeWidth={2} dot={{ fill: 'hsl(var(--primary))', strokeWidth: 0, r: 3 }} activeDot={{ r: 5, strokeWidth: 0 }} />
+              <Line type="monotone" dataKey="weightDisplay" name={t('workout.weightWithUnit', { unit: weightUnit })} stroke="hsl(var(--primary))" strokeWidth={2} dot={{ fill: 'hsl(var(--primary))', strokeWidth: 0, r: 3 }} activeDot={{ r: 5, strokeWidth: 0 }} />
             </LineChart>
           </ResponsiveContainer>
         )}
