@@ -99,8 +99,17 @@ const usedFallback = new Map();
     }
     if (!/\.jsx?$/.test(e.name) || /^i18n-/.test(e.name)) continue;
     const src = fs.readFileSync(p, 'utf8')
-      // strip comments so documentation examples aren't read as call sites
-      .replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+      // Strip comments so documentation examples aren't read as call sites.
+      //
+      // The lookbehind is not cosmetic, and this scanner carried the bug
+      // `scripts/i18n-hardcoded.mjs` was fixed for on 2026-08-16. A `/*` inside
+      // a string or a path opens a block comment that runs to the next `*/`,
+      // blanking real code and every call site in it. Workout.jsx writes
+      // `src/locales/*.json` in a comment, which swallowed 62 lines including a
+      // live tFallback — so a genuinely untranslatable key read as fine, in the
+      // section whose whole job is finding those. A real comment opener is
+      // never preceded by a word character or a quote.
+      .replace(/(?<![A-Za-z0-9_"'])\/\*[\s\S]*?\*\//g, '').replace(/^[ \t]*\/\/.*$/gm, '');
     const rel = p.replace(/^src\//, '');
     // Backticks included: a template literal with no ${} is a constant key,
     // and several call sites write one. A key WITH ${} is computed and

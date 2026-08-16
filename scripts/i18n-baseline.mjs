@@ -96,8 +96,11 @@ function scanUntranslatable() {
         continue;
       }
       if (!/\.jsx?$/.test(e.name) || /^i18n-/.test(e.name)) continue;
+      // Comment strip: see the note in scripts/i18n-audit.mjs. The bare
+      // pattern lets `src/locales/*.json` open a block comment and hide the
+      // call sites after it, which is the one thing this scan must not do.
       const src = fs.readFileSync(p, 'utf8')
-        .replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+        .replace(/(?<![A-Za-z0-9_"'])\/\*[\s\S]*?\*\//g, '').replace(/^[ \t]*\/\/.*$/gm, '');
       // tF / tf aliases included — see the note in scripts/i18n-audit.mjs.
       for (const m of src.matchAll(/\b(?:tFallback|tF|tf)\(\s*['"`]([\w.]+)['"`]\s*,/g)) fallback.add(m[1]);
       // Keys held as <name>Key data properties — see the note in

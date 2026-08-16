@@ -70,8 +70,12 @@ const rel = (f) => f.slice(f.indexOf('/src/') + 1);
 // Scanning raw source flags that as a live offender, which would make the
 // only fix "stop explaining the bug in a comment". Strip them first.
 function stripComments(src) {
+  // Same lookbehind as scripts/i18n-audit.mjs: `accept="image/*"` and
+  // `src/locales/*.json` are not comment openers, and treating them as such
+  // blanks the code after them — including any offender this test exists to
+  // catch.
   return src
-    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/(?<![A-Za-z0-9_"'])\/\*[\s\S]*?\*\//g, '')
     .replace(/(^|[^:\\])\/\/[^\n]*/g, '$1');
 }
 
