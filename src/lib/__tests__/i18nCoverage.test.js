@@ -273,6 +273,36 @@ describe('the two classes coverage cannot see', () => {
   });
 });
 
+describe('the brand name is never translated', () => {
+  // kegan, 2026-08-16: "Keep Flexyn name and usernames Hardcoded."
+  //
+  // Usernames need no guard — they only ever travel as a {handle} / {name}
+  // placeholder, and the batch validator already pins placeholder parity, so
+  // a locale cannot drop or rename one. The brand is the part that can drift:
+  // it sits INSIDE prose, where a translator (or a machine pass) can quietly
+  // localise it while every other check stays green. "Flexyn" is in
+  // _glossary.json's doNotTranslate.terms and app.name is in ALLOW_IDENTICAL,
+  // but neither of those asserts it survives a sentence.
+  const enDict = JSON.parse(fs.readFileSync(path.join(DIR, 'en.json'), 'utf8'));
+  const branded = Object.keys(enDict).filter((k) => /Flexyn/.test(String(enDict[k])));
+
+  it('has strings to check', () => {
+    expect(branded.length).toBeGreaterThan(10);
+  });
+
+  it.each(OTHERS)('%s keeps Flexyn in every string that carries it', (lang) => {
+    const d = JSON.parse(fs.readFileSync(path.join(DIR, `${lang}.json`), 'utf8'));
+    const dropped = branded
+      .filter((k) => d[k] != null && !/Flexyn/.test(String(d[k])))
+      .map((k) => `${k}: ${d[k]}`);
+    expect(
+      dropped,
+      `${lang} translated the brand name away. Flexyn stays verbatim in every ` +
+      'language — it is a name, not a word.',
+    ).toEqual([]);
+  });
+});
+
 describe('a Latin-script locale stays in Latin script', () => {
   // A single Cyrillic character inside a Portuguese sentence is invisible to
   // every other guard here: the shape validator checks placeholders, newlines

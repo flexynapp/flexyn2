@@ -58,11 +58,14 @@ const GROUPS = [
   { id: 'cardio',     label: 'Cardio' },
 ];
 
-const TYPES_BY_GROUP = GROUPS.map(g => ({
+// Takes the translator: the sort has to run on the string the user reads,
+// or a Spanish picker comes back in English alphabetical order. Called from
+// a useMemo in the component so it re-sorts when the language changes.
+const typesByGroup = (tf) => GROUPS.map(g => ({
   ...g,
   types: IMPLEMENT_TYPE_SLUGS
     .filter(s => IMPLEMENT_TYPE_META[s].kind === g.id)
-    .sort((a, b) => implementTypeLabel(a).localeCompare(implementTypeLabel(b))),
+    .sort((a, b) => implementTypeLabel(a, tf).localeCompare(implementTypeLabel(b, tf))),
 })).filter(g => g.types.length > 0);
 
 // Radix Select reserves the empty string for "cleared", and throws if an
@@ -92,6 +95,7 @@ const BRAND_OPTIONS = [
 
 export default function GymEquipmentEditor({ gymId, ownerId }) {
   const { tFallback } = useLanguage();
+  const TYPES_BY_GROUP = useMemo(() => typesByGroup(tFallback), [tFallback]);
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pending, setPending] = useState(0);
@@ -261,7 +265,7 @@ export default function GymEquipmentEditor({ gymId, ownerId }) {
                       {isBusy
                         ? <Loader2 className="w-3 h-3 animate-spin" aria-hidden="true" />
                         : isOn && <Check className="w-3 h-3" aria-hidden="true" />}
-                      {implementTypeLabel(type)}
+                      {implementTypeLabel(type, tFallback)}
                     </button>
                   );
                 })}

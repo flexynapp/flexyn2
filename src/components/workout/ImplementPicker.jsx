@@ -140,7 +140,7 @@ export default function ImplementPicker({ exerciseName, value, onChange, userId 
             line: r.label_override || null,
             model: null,
             implementType: r.implement_type,
-            label: r.label_override || implementTypeLabel(r.implement_type),
+            label: r.label_override || implementTypeLabel(r.implement_type, tFallback),
             photoUrl: r.photo_url || null,
             verified: r.verified_by_owner || r.fromOwnerSpace,
           }))
@@ -251,7 +251,7 @@ export default function ImplementPicker({ exerciseName, value, onChange, userId 
     }
   };
 
-  const typeLabel = implementTypeLabel(implementType);
+  const typeLabel = implementTypeLabel(implementType, tFallback);
   const showSearch = (recent.length + catalog.length) > 8;
 
   return (

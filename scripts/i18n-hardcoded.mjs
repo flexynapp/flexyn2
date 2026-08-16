@@ -122,6 +122,59 @@ function enclosingDecl(src, index) {
   return m ? m[1] : null;
 }
 
+// ── Reachable through a DERIVED key ──────────────────────────────────
+//
+// A slug -> { label } map in a data module is not automatically debt. The
+// house pattern is a key built at the render site from the entry's own key:
+//
+//   const k = `quest.${def.id}.label`;  const v = t(k);
+//   implementTypeLabel(slug, tf)  ->  tf(`equipment.implement.${slug}`, en)
+//
+// so once the catalog carries that key, the English in the data module is a
+// fallback nobody sees. Counting it would report the fix as debt — and this
+// is not a small correction: it covers questCatalog's 36, Onboarding's 33 and
+// equipmentCatalog's 53.
+//
+// Every template literal shaped like a key path becomes a (prefix, suffix)
+// pair; a finding is covered when `prefix + itsOwnKey + suffix` is real in
+// en.json. The namespace has to match, which is what makes this precise
+// rather than a suffix coincidence.
+const EN_KEYS = (() => {
+  try { return JSON.parse(fs.readFileSync('src/locales/en.json', 'utf8')); }
+  catch { return null; }
+})();
+
+const DERIVED = [];
+if (EN_KEYS) {
+  (function walk(dir) {
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      const p = path.join(dir, e.name);
+      if (e.isDirectory()) { if (!SKIP_DIR.test(e.name)) walk(p); continue; }
+      if (!/\.jsx?$/.test(e.name)) continue;
+      for (const m of fs.readFileSync(p, 'utf8').matchAll(/`([^`\n]*\$\{[^`\n]*)`/g)) {
+        const tpl = m[1];
+        if (!/^[\w.]*\$\{[^}]*\}[\w.${}]*$/.test(tpl) || !tpl.includes('.')) continue;
+        const holed = tpl.replace(/\$\{[^}]*\}/g, ' ');
+        const i = holed.indexOf(' ');
+        DERIVED.push([holed.slice(0, i), holed.slice(i + 1).replace(/ /g, '')]);
+      }
+    }
+  })(SRC);
+}
+
+/** The object key a finding sits under: `slug: {` above, or a nearby `id:`. */
+function ownKey(lines, line) {
+  for (let i = line - 1; i >= Math.max(0, line - 6); i--) {
+    const m = /\bid:\s*['"]([\w-]+)['"]/.exec(lines[i]);
+    if (m) return m[1];
+  }
+  for (let i = line - 1; i >= 0; i--) {
+    const m = /^\s*['"]?([A-Za-z0-9_-]+)['"]?\s*:\s*\{/.exec(lines[i]);
+    if (m) return m[1];
+  }
+  return null;
+}
+
 const findings = [];
 (function walk(dir) {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -160,6 +213,12 @@ const findings = [];
           const from = src.lastIndexOf('{', m.index);
           const window = src.slice(from < 0 ? m.index : from, m.index + 400);
           if (new RegExp(`\\b${prop}Key\\s*:`).test(window)) continue;
+          // Reachable through a derived key — see DERIVED above.
+          if (EN_KEYS) {
+            const lines = src.split('\n');
+            const slug = ownKey(lines, lineOf(m.index));
+            if (slug && DERIVED.some(([pre, suf]) => (pre + slug + suf) in EN_KEYS)) continue;
+          }
         }
         // Report the line of the TEXT, not of the match start. A JSX text node
         // matches from the `>` that opens it, which for a wrapped element sits

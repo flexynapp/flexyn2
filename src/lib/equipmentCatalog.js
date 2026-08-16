@@ -159,8 +159,22 @@ export const IMPLEMENT_TYPE_META = {
 export const IMPLEMENT_TYPE_SLUGS = Object.keys(IMPLEMENT_TYPE_META);
 
 /** Label for an implement-type slug; unknown slugs degrade to the slug. */
-export function implementTypeLabel(slug) {
-  return IMPLEMENT_TYPE_META[slug]?.label || String(slug || '').replace(/_/g, ' ');
+/**
+ * Display name for an implement type.
+ *
+ * `tf` is an optional `tFallback` from the caller's `useLanguage()`. This
+ * module is plain data with no React context, so it cannot look anything up
+ * itself — passing the translator in keeps the catalog pure while letting the
+ * label resolve through `equipment.implement.<slug>`. A caller that omits it
+ * gets the English, which is what every non-UI consumer wants.
+ *
+ * Pass it from every RENDER and every SORT. Sorting on the English while
+ * displaying the translation puts a Spanish list in English alphabetical
+ * order, which reads as a bug with no visible cause.
+ */
+export function implementTypeLabel(slug, tf) {
+  const en = IMPLEMENT_TYPE_META[slug]?.label || String(slug || '').replace(/_/g, ' ');
+  return tf ? tf(`equipment.implement.${slug}`, en) : en;
 }
 
 // ── Seed models ──────────────────────────────────────────────────────

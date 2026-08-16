@@ -47,13 +47,10 @@ const BRAND_OPTIONS = [
   'other', 'unknown',
 ].map(slug => ({ value: slug, label: brandLabel(slug) }));
 
-const TYPE_OPTIONS = IMPLEMENT_TYPE_SLUGS
-  .map(slug => ({ value: slug, label: implementTypeLabel(slug) }))
-  .sort((a, b) => a.label.localeCompare(b.label));
-
 export default function GymEquipmentTab({ gymId, gymOwnerId, isMember }) {
   const { user } = useAuth();
   const { tFallback } = useLanguage();
+
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
@@ -81,9 +78,9 @@ export default function GymEquipmentTab({ gymId, gymOwnerId, isMember }) {
       map.get(key).push(r);
     }
     return [...map.entries()].sort((a, b) =>
-      implementTypeLabel(a[0]).localeCompare(implementTypeLabel(b[0]))
+      implementTypeLabel(a[0], tFallback).localeCompare(implementTypeLabel(b[0], tFallback))
     );
-  }, [rows]);
+  }, [rows, tFallback]);
 
   const handleAdd = async (implement) => {
     setAdding(false);
@@ -159,7 +156,7 @@ export default function GymEquipmentTab({ gymId, gymOwnerId, isMember }) {
       {grouped.map(([type, items]) => (
         <div key={type}>
           <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground px-1 mb-1.5">
-            {implementTypeLabel(type)}
+            {implementTypeLabel(type, tFallback)}
           </p>
           <div className="space-y-1.5">
             {items.map(row => (
@@ -182,7 +179,7 @@ export default function GymEquipmentTab({ gymId, gymOwnerId, isMember }) {
 }
 
 function EquipmentRow({ row, isOwner, canRemove, busy, onVerify, onRemove, tFallback }) {
-  const label = row.label_override || implementTypeLabel(row.implement_type);
+  const label = row.label_override || implementTypeLabel(row.implement_type, tFallback);
   return (
     <div className="flex items-center gap-3 p-2.5 rounded-xl bg-card border border-border">
       <EquipmentThumb
@@ -241,6 +238,15 @@ function EquipmentRow({ row, isOwner, canRemove, busy, onVerify, onRemove, tFall
 
 function AddEquipmentForm({ onSubmit, onCancel }) {
   const { tFallback } = useLanguage();
+
+  // Same list as the tab above, rebuilt here because this sub-component has
+  // its own tFallback — see the note there on sorting the translated string.
+  const TYPE_OPTIONS = useMemo(
+    () => IMPLEMENT_TYPE_SLUGS
+      .map(slug => ({ value: slug, label: implementTypeLabel(slug, tFallback) }))
+      .sort((a, b) => a.label.localeCompare(b.label)),
+    [tFallback],
+  );
   const [implementType, setImplementType] = useState('');
   const [brand, setBrand] = useState('unknown');
   const [line, setLine] = useState('');
