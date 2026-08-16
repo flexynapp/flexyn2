@@ -6,53 +6,87 @@ will be after a day.
 
 ## WHERE THINGS STAND
 
-The measurement was the whole problem when this started, and it is fixed.
-`_coverage.json` read **99.4% for Spanish while the dashboard rendered half
-its cards in English**, because every count was taken against `en.json` and
-the two biggest sources of on-screen English live outside it.
+Two measurement crises are resolved and a third was found and closed here.
+`untranslatable` is 0 and `_coverage.json` reads honestly. **Do not quote the
+old numbers from any earlier handoff** — the hardcoded scanner was blind to
+roughly two thirds of its subject until 2026-08-16, so every "271 left" and
+every "94% real" predates a correct measurement.
 
 | | then | now |
 |---|---|---|
 | untranslatable keys | 781 | **0** |
-| hardcoded strings | 725 | **271** |
-| en.json | 3,895 | 5,151 |
-| real es/fr coverage | 70.5% | **~94%** |
-| de / it / nl / pl | — | ~96% catalog |
-| pt | — | ~95% catalog |
-| tr | 2,137 | 2,337 / 5,151 |
+| hardcoded strings | 725 (undercounted) | **713** (honest) |
+| en.json | 3,895 | 5,424 |
+| real es/fr coverage | 70.5% | **87.7%** |
+| de / it / nl / pl | — | 84.8% real |
+| pt | — | 83.6% real |
+| tr | 2,137 | 2,353 / 5,424 |
 
 `npm run i18n:audit` section E is the honest number. Section B is CATALOG
 coverage and is not what a user sees — do not quote it.
 
+**Three scanner defects were fixed on 2026-08-16 and they are the reason the
+numbers moved.** `844e24b9` (parallel session): every sentence containing a
+period was invisible, JSX with `&` never matched, and `accept="image/*"`
+opened a phantom block comment. `a667354f`: the SAME comment bug was live in
+four more scanners — `i18n-audit.mjs` (A2), `i18n-baseline.mjs`,
+`i18nCoverage.test.js`, `i18nRawKeys.test.js` — where it hides `tFallback`
+CALL SITES rather than literals, and a prose comment saying
+`src/locales/*.json` swallowed 62 lines of `Workout.jsx`. `9d9c8975`: the
+`englishEcho` counter parsed only `ALLOW_IDENTICAL_BY_LANG` and never the
+global `ALLOW_IDENTICAL`, so 14 declared-identical keys per locale counted as
+untranslated.
+
 ## THE JOB
 
-**Finish the 271 hardcoded strings.** These are UI copy held as object-literal
-properties that never reach a catalog. `npm run i18n:hardcoded -- --list`
-enumerates them; the largest are:
+**Finish the 713 hardcoded strings.** UI copy that never reaches a catalog.
+`npm run i18n:hardcoded -- --list` enumerates them; the largest are:
 
-    18  src/pages/AdminReports.jsx        (admin-only, low user value)
+    37  src/lib/lootCatalog.js            ← cosmetic flavour text, see below
+    27  src/pages/AdminReports.jsx        (admin-only, low user value)
+    22  src/pages/CorporatePortal.jsx
+    19  src/lib/lootTitles.js             ← same class as lootCatalog
+    16  src/components/market/MarketplaceFeed.jsx
+    14  src/components/hub/HubComposer.jsx
+    14  src/pages/GymEdit.jsx
+    13  src/pages/Nutrition.jsx
+    12  src/pages/RegisterGym.jsx
     11  src/lib/aiCoach/workoutGenerator.js   ← SEE "KNOWN FALSE POSITIVE"
-    10  src/pages/CorporatePortal.jsx
-     9  src/pages/TradeHistory.jsx
-     8  src/pages/Nutrition.jsx
-     7  src/components/settings/NotificationsSection.jsx
-     7  src/components/gyms/GymEquipmentEditor.jsx
-     7  src/components/duels/CreateInviteLinkModal.jsx
-     6  src/lib/macroColors.js
-     6  src/lib/leagueTiers.js
-     5  src/components/hub/HubComposer.jsx   (content warnings)
+    11  src/lib/programTemplates.js
+    11  src/components/cardio/CardioPlanned.jsx
 
-then a tail of 1–4 across ~70 files. Nothing large is left; it is steady
-file-by-file work.
+then a tail of 1–10 across ~145 files.
+
+**The loot catalogs are deferred on purpose.** `lootCatalog` 37 + `lootTitles`
+19 + `lootFrames` 10 are cosmetic ITEM NAMES (English by standing decision)
+beside FLAVOUR TEXT (translatable): "Grip game on lock.", "5 AM strikes
+back.", "Heel-elevated. Knees out." That is idiomatic gym slang, which is
+where a machine draft reads worst. Kegan was offered it and asked for Workout
+and CrewChat first; raise it again rather than machine-translating it quietly.
+
+**THE SCANNER UNDERCOUNTS EVERY FILE YOU OPEN, so read the file, not the
+list.** Two shapes it structurally cannot see, both found in this batch:
+
+- **A template-literal toast.** Every detector keys off a quoted string, so
+  ``toast.success(`"${r.name}" shared with the Crew!`)`` is invisible. CrewChat
+  had five and Workout one. They take the catalog form with `{name}`.
+- **`name:` is excluded from the objectProp detector by design** (it is
+  overwhelmingly an identifier here). `trophyDefinitions.js` reported 123 and
+  had 166 — the 43 extra were `LADDERS[].name` and `TROPHY_CATEGORIES[].name`,
+  rendering as page headings.
 
 **Also outstanding:**
-- **tr is at 2,337/5,110.** Glossary and the register fix are done. Only
+- **tr is at 2,353/5,424.** Glossary and the register fix are done. Only
   batching remains — `next-batch.mjs tr 200` → translate → `add-keys.mjs`.
-- **pt/de/it/nl/pl trail es/fr by ~180–260 keys** — mostly keys the parallel
-  session added to en/es/fr only. `node scripts/i18n-audit.mjs --lang pt`.
+- **pt/de/it/nl/pl trail es/fr by ~200–300 keys.**
+  `node scripts/i18n-audit.mjs --lang pt`.
 - **A native prose pass is still owed on every locale.** `_meta.json` says
   "awaiting native review" and that must stay true. All of this is MACHINE
   draft. `coach.*` first, then `onboarding.*`, then notification bodies.
+- **Dashes in already-shipped copy.** The no-dash rule is applied to strings
+  as they are touched, so the catalogs still carry em dashes in older keys
+  (`workout.workoutLoadedLogYourSets` is "Workout loaded — log your sets!").
+  Cleaning them means re-translating, so it is its own pass, not a drive-by.
 
 ## HOW TO DO IT — the pattern that works
 
@@ -99,6 +133,21 @@ goal's own title and an exercise name are USER DATA and must render verbatim.
   conflicts resolve as a UNION — never take one side.
 - **The feature branch goes stale after every rebase.** Push `HEAD:main`
   first, then `--force-with-lease` the branch to match. Never force-push main.
+- **NEVER `git checkout <locale>.json` mid-batch.** The keys you just landed
+  are uncommitted, so it silently reverts the whole batch and the file still
+  looks plausible. Cost one German batch here. Re-run `add-keys.mjs` to
+  restore; the scratchpad batch file is the backup.
+- **Do not chain `git rebase && git push` in one command.** A conflict leaves
+  the rebase half-applied, and the `&&` chain then pushes the PARTIAL HEAD —
+  which here shipped one commit of a two-commit change to main.
+- **A key that already exists is a fork, not a win.** Reusing one whose
+  English matches exactly is right (`workout.goBackAndFix`). Reusing one whose
+  English differs puts two strings on one key, which no guard here can see —
+  `workout.dragToReorder` is "Drag to reorder" and nearly absorbed "Drag a
+  card's grip to reorder". Check `en.json` before minting or reusing.
+- **The extractor takes the SOURCE BYTES, not the runtime value.** A default
+  written `'Drag a card\u2019s grip'` lands in `en.json` as a literal
+  backslash-u. Type the character.
 
 ## KNOWN FALSE POSITIVE — do not chase it
 
