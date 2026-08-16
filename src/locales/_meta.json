@@ -75,18 +75,24 @@
       "nl"
     ],
     "$passes": {
-      "$comment": "A CONSISTENCY pass ran 2026-08-15. It is a second machine pass, not a native one, and the status fields below deliberately still say 'awaiting native review'. What it could check mechanically, it fixed: register conformance, glossary term conformance, placeholder/newline/markdown parity, and the keys a locale was missing. What it could NOT check is whether the prose is any good, which is the whole reason a native pass is still owed. See 'openQuestions' — the two vocabulary collisions are what a reviewer should settle first.",
+      "$comment": "A CONSISTENCY pass ran 2026-08-15, then a VOCABULARY pass the same day. Both are machine passes, not native ones, and the status fields below deliberately still say 'awaiting native review'. What could be checked mechanically was fixed: register conformance, glossary term conformance, placeholder/newline/markdown parity, and the keys a locale was missing. What could NOT be checked is whether the prose is any good, which is why a native pass is still owed. `npm run i18n:review` re-runs the mechanical half.",
       "fixed2026-08-15": [
         "fr: 88 strings were in the tu register in a vous catalog — 64 with tu pronouns/possessives and 24 tu-imperatives ('Choisis un fichier image'). Now 0.",
         "es: register verified clean, 0 usted forms.",
         "es 25 + fr 16 keys had translated a do-not-translate term (PR→récord, Reps→repeticiones, Capsule→cápsula, Coach→entrenador). The catalog majority kept the English term in every case, so the minority was the defect.",
-        "The Plans/meal-planner keys were translated concurrently by the session that built the feature (2e11b6b9); that work is theirs and was kept as-is on rebase. It passes every check in this pass."
+        "The Plans/meal-planner keys were translated concurrently by the session that built the feature (2e11b6b9); that work is theirs and was kept as-is on rebase. It passes every check in this pass.",
+        "fr: BOTH vocabulary collisions are now resolved. Streak was 'Série', the same word as Set, across 128 strings; it is now 'Flamme' (kegan asked for this explicitly after first choosing to leave it open). Chosen on the app's own iconography — StreakFlame.jsx, 82 Flame references, 8 French strings already using the flame emoji — not on taste. See _glossary.json $streakNote and $setNote."
       ],
       "openQuestions": [
-        "es: 'Rutina' translates BOTH Regimen (29 keys) and Routine (8 keys), while 'Régimen' covers Regimen 18 times — so the two concepts are indistinguishable in Spanish and Regimen is rendered two ways. French already solved this exact tension with Programme/Routine; 'Programa' would mirror it and avoids the dietary connotation 'Régimen' carries. NOT applied — this is product vocabulary.",
-        "fr: 'Série' translates BOTH Streak (60 keys) and Set (68 keys). 'Série' is the standard French term for a training set and cannot move, so Streak is what needs a different word. Spanish keeps these apart (Racha/Serie). NOT applied — a native speaker should choose the word."
+        "NOTHING vocabulary-level is open. Both collisions found on 2026-08-15 were settled: es Regimen → 'Programa', fr Streak → 'Flamme'. `npm run i18n:review` now passes clean, and it goes red on a NEW collision rather than re-reporting a documented one.",
+        "What remains for a native reviewer is the PROSE, which no tool here can judge. Highest value first: coach.* (the longest copy in the app, and where a mistranslated training cue costs the most), then onboarding.*, then the notification bodies. Read _glossary.json before the catalog.",
+        "Still deliberately untranslated in every locale: the 19 englishOnly keys (a guard test fails if a non-English block defines one) and cardio.type.swimming_* / cardio.modes.swimming, which cardioTypeLabel holds for a native pass specifically."
       ],
-      "echoNote": "Enforcing doNotTranslate RAISES englishEcho, which _coverage.json's ratchet reads as a regression. Six keys moved that way on purpose (es shop.*Capsule.name ×3; fr common.reps, workout.templates.reps, weeklyMealPlannerModal.title). The two guards genuinely disagree here; the glossary wins and the baseline is regenerated."
+      "echoNote": "Enforcing doNotTranslate RAISES englishEcho, which _coverage.json's ratchet reads as a regression. Six keys moved that way on purpose (es shop.*Capsule.name ×3; fr common.reps, workout.templates.reps, weeklyMealPlannerModal.title). The two guards genuinely disagree here; the glossary wins and the baseline is regenerated.",
+      "vocabularyDecisions2026-08-15": {
+        "es.Regimen": "Régimen/Rutina → Programa (47 keys). 'Rutina' also meant Routine; 'Régimen' reads dietary.",
+        "fr.Streak": "Série → Flamme (60 keys). 'Série' also meant Set, and cannot move — it is the standard term for a training set."
+      }
     },
     "spanish": {
       "$comment": "The whole Spanish catalog is a machine draft produced 2026-08-14, consistent with _glossary.json (tú register, 49 fixed terms) and verified for placeholder, newline and markdown parity. A second machine consistency pass ran 2026-08-15 (see $passes). It has still NOT had a native pass. A reviewer should read _glossary.json first, then work namespace by namespace — coach.* and onboarding.* carry the long-form coaching prose and are where a wrong register or a mistranslated cue costs the most.",

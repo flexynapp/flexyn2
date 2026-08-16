@@ -73,7 +73,8 @@
     "$regimenNote": "Changed from 'Régimen' to 'Programa' on 2026-08-15 (kegan's call). Two reasons. 'Rutina' was translating BOTH Regimen (29 keys) and Routine (8), so the app's two distinct objects were the same word in Spanish; and 'Régimen' reads dietary or clinical to a Spanish speaker — régimen alimenticio — which is wrong for a training program. 'Programa' mirrors what French already does (Programme/Routine) and leaves 'Rutina' to mean Routine only. 47 keys converted, with gender agreement: el programa, este programa, ¡Programa creado!, Nombre del programa."
   },
   "fr": {
-    "$note": "THE OPEN COLLISION, and the first thing a native reviewer should settle. 'Série' translates BOTH Streak (60 keys) and Set (68 keys) — measured 2026-08-15, so 128 user-facing strings use one word for two unrelated things. 'Série' is the standard French term for a training set and cannot move, so STREAK is the side that needs a different word. Spanish keeps them apart (Racha / Serie) and has no such problem. Deliberately NOT changed by the 2026-08-15 consistency pass: choosing the word for a streak is a feel judgment across badge names, coach prose and notifications, and a machine pass is not what should make it. Candidates a reviewer might weigh: 'Flamme' (the convention French users know from Duolingo and Snapchat — legible but a borrowed metaphor), 'Suite' (neutral and literal, but flat), 'Régularité' (describes what a streak measures, but does not work as a count noun).",
+    "$streakNote": "RESOLVED 2026-08-15 (kegan asked for it explicitly, having first chosen to leave it open). 'Série' had translated BOTH Streak (60 keys) and Set (68) — one word for two unrelated things across 128 user-facing strings. 'Série' is the standard French term for a training set and could not move, so Streak took a new word: 'Flamme'. Chosen on the app's OWN iconography rather than on taste — src/components/StreakFlame.jsx, 82 Flame references across components/pages, and 8 French strings already carrying 🔥. So the word now matches the icon the user is looking at, and it is feminine like 'Série', which means every article and agreement carried over untouched. Rejected: 'Suite' (ambiguous — 'la suite' is also 'the rest', and it appears in UI as 'voir la suite'), 'Régularité' and 'Assiduité' (abstract, cannot be counted or saved), 'Chaîne' (works for the don't-break-the-chain idiom but fights the flame iconography the app already ships). French idiom was used where a literal swap was worse: the flame is lit ('s'allume'), kept alive ('entretenir la flamme', 'garder votre flamme allumée') and goes out ('s'éteint à minuit'). NOT a native sign-off — see _meta.json $passes.",
+    "$setNote": "TWO STRINGS DELIBERATELY STILL SAY 'série' FOR A SET, and they are the ones that made the collision visible: onboarding.first_workout.body ('Deux minutes. Une seule série. La flamme s'allume aujourd'hui.') and progress.slide.streak.tipNone ('Une seule série compte … et la flamme démarre à 1.'). Each used ONE word for BOTH senses in adjacent sentences. A find-and-replace over this term corrupts them — check these two by hand before any future sweep.",
     "Workout": "Entraînement",
     "Set": "Série",
     "Sets": "Séries",
@@ -81,7 +82,7 @@
     "Reps": "Reps",
     "Exercise": "Exercice",
     "Exercises": "Exercices",
-    "Streak": "Série",
+    "Streak": "Flamme",
     "Goal": "Objectif",
     "Goals": "Objectifs",
     "Progress": "Progrès",
@@ -121,9 +122,6 @@
     "Bounty": "Prime",
     "Template": "Modèle",
     "Routine": "Routine",
-    "Regimen": "Programme",
-    "$acceptedCollisions": [
-      "Set|Streak"
-    ]
+    "Regimen": "Programme"
   }
 }
