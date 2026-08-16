@@ -1,6 +1,6 @@
 {
-  "$comment": "Baselined ORPHAN KEYS: tFallback() call sites whose key is not in en.json, so the string renders in English forever and no translator can ever see it. This list may SHRINK, never grow — see scripts/i18n-orphans.mjs and src/lib/__tests__/i18nOrphanKeys.test.js. Fix one by adding the key to en.json (and to every released locale) and deleting it from here.",
-  "$measured": "2026-08-16, after the Crew Wars pass cleared src/components/crews",
+  "$comment": "ORPHAN KEYS: tFallback() call sites whose key is not in en.json, so the string renders in English forever and no translator can ever see it. THIS LIST MUST READ ZERO. It was 764 when the class was first measured (2026-08-16); the Crew Wars pass cleared src/components/crews and the parallel i18n sweep cleared the rest the same day. Kept rather than deleted so the mechanism survives — see scripts/i18n-orphans.mjs and src/lib/__tests__/i18nOrphanKeys.test.js. Re-populating this file to silence a failure reopens the class.",
+  "$measured": "2026-08-16 — 764 found, 0 remaining",
   "$byPrefix": {},
   "keys": []
 }

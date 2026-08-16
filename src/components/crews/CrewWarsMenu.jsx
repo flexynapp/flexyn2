@@ -140,7 +140,7 @@ function NoWar({ crew, memberCount, tFallback }) {
       <p className="text-label text-muted-foreground mt-2 leading-relaxed max-w-[300px] mx-auto">
         {tFallback(
           'crewWars.noWarBody',
-          "Your crew isn't in a war right now. Open your crew page to enter matchmaking — you'll be paired against a crew of similar size, age and strength.",
+          "Your crew isn't in a war right now. Open your crew page to enter matchmaking, and you'll be paired against a crew of similar size, age and strength.",
         )}
       </p>
       <Standing crew={crew} memberCount={memberCount} tFallback={tFallback} />

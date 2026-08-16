@@ -94,7 +94,7 @@ export default function CrewPage({ crew, onBack, onViewProfile }) {
     onSuccess: (res) => {
       if (!res?.ok) {
         const msg = res.reason === 'promote_first'
-          ? tFallback('crew.promoteFirst', 'Promote another member to leader first — a crew needs one.')
+          ? tFallback('crew.promoteFirst', 'Promote another member to leader first. A crew needs one.')
           : res.reason === 'active_war'
             ? tFallback('crew.leaveWar', 'Your crew is in a war. You can leave once it resolves.')
             : res.reason === 'not_deployed'

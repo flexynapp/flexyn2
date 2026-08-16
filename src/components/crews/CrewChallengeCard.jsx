@@ -72,7 +72,7 @@ function NewChallengeModal({ open, onClose, crewId, onCreated }) {
     } else if (res.reason === 'not_admin') {
       toast.error(tFallback('challenge.notAdmin', "Only crew admins can post challenges."));
     } else {
-      toast.error(tFallback('challenge.failed', 'Could not post — try again.'));
+      toast.error(tFallback('challenge.failed', 'Could not post. Try again.'));
     }
   };
 

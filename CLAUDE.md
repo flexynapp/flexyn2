@@ -1963,6 +1963,22 @@ stays alongside it (his call) — `template_key IS NULL` is the old kind.
   credited **1** where 6 was correct, because the seeded history sat
   outside the window — the code was right and the header comment was
   wrong, and only running it told them apart.
+- Design: Penpot page **Crew Trophies** — boards A (empty shelf), B (a
+  chase in progress, with contributions), C (shelf with trophies earned),
+  D (the leader's picker as a bottom sheet), E (the same list for a
+  member, with the gate stated instead of a button), F (the spec).
+  **Every colour on it is a real token read out of `index.css`** —
+  `#13171B` background, `#191F24` card, `#F5F2F0` foreground, `#89949F`
+  muted, `#F37616` primary, `#45C489` success, `#2A333C` border — plus
+  `#FFD700`, which is `TROPHY_TIERS.gold` from `trophyDefinitions.js`
+  rather than a new colour. Archivo for headings and numerals, Figtree
+  for everything else, matched to the Crew Manage page. **A trophy is a
+  monogram chip, not an icon**: 44×44 at radius 14 with the title's two
+  initials, which is the same mark the crew avatar already uses, so the
+  shelf needed no new iconography invented for it.
+- **The tab strip becomes five wide** (Home / Roster / Chat / League /
+  Trophies) and still fits 390px at `gap-5 px-4`. Key
+  `crew.tab.trophies`, already in the catalog in en/es/fr.
 
 ## Plausibility — a flag, not a refusal (migrations 360–362, Aug 2026)
 

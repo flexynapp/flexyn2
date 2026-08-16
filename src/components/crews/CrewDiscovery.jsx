@@ -276,7 +276,7 @@ export default function CrewDiscovery({ onBack, onJoined, inline = false }) {
           {'. '}
           {tFallback(
             'crew.discover.leaveFirst',
-            'Leave it from the Crew page to join another — one crew at a time keeps a war score honest.',
+            'Leave it from the Crew page to join another. One crew at a time keeps a war score honest.',
           )}
         </p>
       )}
@@ -302,7 +302,7 @@ export default function CrewDiscovery({ onBack, onJoined, inline = false }) {
                 ? tFallback('crew.discover.noMatchBody', 'Try a different name or tag.')
                 : tFallback(
                     'crew.discover.emptyBody',
-                    'A Crew is up to 16 people who train together and go to war with other crews. Crews only appear here once a leader makes one public — create one, or make yours public from the Crew page.',
+                    'A Crew is up to 16 people who train together and go to war with other crews. Crews only appear here once a leader makes one public. Create one, or make yours public from the Crew page.',
                   )}
             </p>
           </motion.div>

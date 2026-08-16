@@ -65,7 +65,7 @@ export default function CrewJoinRequests({ crewId, canReview }) {
         // request landing and the leader tapping approve, and the server
         // re-checks capacity under a lock rather than trusting this screen.
         const msg = res?.reason === 'crew_full'
-          ? tFallback('crew.fullNow', 'Your crew filled up — free a seat first.')
+          ? tFallback('crew.fullNow', 'Your crew filled up. Free a seat first.')
           : res?.reason === 'not_leader'
             ? tFallback('crew.notLeader', 'Only a crew leader can do that.')
             : tFallback('crew.decideFailed', 'Could not update that request.');
@@ -73,7 +73,7 @@ export default function CrewJoinRequests({ crewId, canReview }) {
         return;
       }
       toast.success(approve
-        ? tFallback('crew.approved', 'Approved — they\'re in.')
+        ? tFallback('crew.approved', 'Approved. They\'re in.')
         : tFallback('crew.declined', 'Request declined.'));
       qc.invalidateQueries({ queryKey: ['crewJoinRequests', crewId] });
       if (approve) {

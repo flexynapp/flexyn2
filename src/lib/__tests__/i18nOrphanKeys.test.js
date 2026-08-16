@@ -21,15 +21,23 @@
 // 3,895-key catalog — roughly one in six of the strings that LOOK
 // translated were never on the table at all.
 //
-// The pass cleared src/components/crews outright. The remainder are
-// listed in src/locales/_orphans.json, and this file is the ratchet: the
-// list may shrink and may not grow. Both directions are enforced, because
-// a baseline nobody prunes becomes a lie — a key that has since been
-// added to en.json must be deleted from the list, or the count stops
-// meaning anything.
+// The Crew Wars pass cleared src/components/crews and baselined the other
+// 626 so the class could not grow while it was worked off. It did not
+// need to be worked off slowly: the parallel i18n sweep cleared the rest
+// within the day, and en.json went 4,040 -> 4,920 keys.
 //
-//   npm run i18n:orphans            what is outstanding
-//   npm run i18n:orphans -- --write re-baseline after fixing some
+// **The baseline is now empty, and that is the point.** This is no longer
+// a ratchet over a backlog, it is a zero-tolerance check: any tFallback
+// key without an en.json entry fails. src/locales/_orphans.json is kept
+// rather than deleted so the mechanism (and the fact that the list is
+// meant to read zero) survives the next person who adds one.
+//
+// The stale-entry direction is still enforced. A baseline nobody prunes
+// becomes a lie, and re-populating this file to silence a failure would
+// quietly reopen the whole class.
+//
+//   npm run i18n:orphans            what is outstanding (should be 0)
+//   npm run i18n:orphans -- --write re-baseline, deliberately
 import { describe, it, expect } from 'vitest';
 import { findOrphans, readBaseline } from '../../../scripts/i18n-orphans.mjs';
 
