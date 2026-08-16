@@ -20,8 +20,9 @@ vi.mock('@/lib/LanguageContext', () => ({
 }));
 vi.mock('@/lib/toast', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock('@/lib/data/crews', () => ({
-  setMemberRole: vi.fn(),
-  removeMember:  vi.fn(),
+  setMemberRole:      vi.fn(),
+  removeMember:       vi.fn(),
+  transferLeadership: vi.fn(),
 }));
 vi.mock('@/lib/data/crewMembership', () => ({ banMember: vi.fn() }));
 vi.mock('../CrewJoinRequests',  () => ({ default: () => null }));
@@ -82,6 +83,23 @@ describe('as a MODERATOR (rank 2)', () => {
   it('cannot ban', () => {
     show('u-mod', false);
     expect(count('Ban from crew')).toBe(0);
+  });
+});
+
+describe('transfer leadership', () => {
+  it('is offered by a leader against everyone below them', () => {
+    show('u-leader', true);
+    expect(count('Transfer leadership')).toBe(3);
+  });
+
+  it('is not offered to a moderator', () => {
+    show('u-mod', false);
+    expect(count('Transfer leadership')).toBe(0);
+  });
+
+  it('is not offered to a member', () => {
+    show('u-member', false);
+    expect(count('Transfer leadership')).toBe(0);
   });
 });
 

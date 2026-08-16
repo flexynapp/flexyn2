@@ -14,7 +14,7 @@
 
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { X, ShieldCheck, Shield, Trash2, Ban, Loader2 } from 'lucide-react';
+import { X, ShieldCheck, Shield, Trash2, Ban, Loader2, Crown } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import * as crewsData from '@/lib/data/crews';
 import { banMember } from '@/lib/data/crewMembership';
@@ -67,7 +67,13 @@ function MemberRow({ member, profile, myRank, isSelf, crewId, onViewProfile }) {
   const assignable = isSelf ? [] : assignableRanks(myRank, targetRank);
   const mayRemove  = !isSelf && can(myRank, 'KICK_MEMBER') && canActOn(myRank, targetRank);
   const mayBan     = !isSelf && myRank === RANK.LEADER && canActOn(myRank, targetRank);
-  const canManage  = assignable.length > 0 || mayRemove || mayBan;
+  // Handing over the crew is not a rank change and is not in the picker —
+  // it is its own confirmed action, because the leader loses their own
+  // powers the moment it lands and cannot undo it themselves.
+  const mayHandOver = !isSelf
+    && can(myRank, 'TRANSFER_LEADERSHIP')
+    && canActOn(myRank, targetRank);
+  const canManage  = assignable.length > 0 || mayRemove || mayBan || mayHandOver;
 
   const doAction = async (fn, successMsg) => {
     setBusy(true);
@@ -165,6 +171,23 @@ function MemberRow({ member, profile, myRank, isSelf, crewId, onViewProfile }) {
                   "remove" was reversible by the person being removed, which
                   made moderating a public crew impossible. Confirmed first
                   because unbanning is a different screen. */}
+              {mayHandOver && <button
+                onClick={() => {
+                  if (!window.confirm(
+                    `Make ${username} the leader of this crew?\n\n`
+                    + `You become a Member. Only they will be able to hand it back.`
+                  )) return;
+                  doAction(
+                    () => crewsData.transferLeadership(crewId, member.user_id),
+                    `${username} now leads the crew.`,
+                  );
+                }}
+                className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center text-primary/70 hover:text-primary active:text-primary transition-colors"
+                title={tFallback("crewMemberDirectory.transferLeadership", "Transfer leadership")}
+              >
+                <Crown className="w-3.5 h-3.5" />
+              </button>}
+
               {mayBan && <button
                 onClick={() => {
                   if (!window.confirm(`Ban ${username}? They'll be removed and can't rejoin.`)) return;

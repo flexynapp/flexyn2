@@ -72,7 +72,7 @@ describe('what a MEMBER may do', () => {
     for (const capability of [
       'PIN_MESSAGE', 'DELETE_ANY_MESSAGE', 'ASSIGN_REGIMEN', 'CREATE_CHALLENGE',
       'KICK_MEMBER', 'PROMOTE_MEMBER', 'DEMOTE_MEMBER', 'EDIT_CREW_PROFILE',
-      'MANAGE_TREASURY', 'DISBAND_CREW',
+      'MANAGE_TREASURY', 'DISBAND_CREW', 'TRANSFER_LEADERSHIP',
     ]) {
       expect([capability, memberCan(member, capability)]).toEqual([capability, false]);
     }
@@ -101,7 +101,7 @@ describe('what a MODERATOR may do', () => {
   it('does not decide who runs it', () => {
     for (const capability of [
       'PROMOTE_MEMBER', 'DEMOTE_MEMBER', 'EDIT_CREW_PROFILE',
-      'MANAGE_TREASURY', 'DISBAND_CREW',
+      'MANAGE_TREASURY', 'DISBAND_CREW', 'TRANSFER_LEADERSHIP',
     ]) {
       expect([capability, memberCan(mod, capability)]).toEqual([capability, false]);
     }
@@ -162,7 +162,7 @@ describe('assignableRanks', () => {
     expect(assignableRanks(RANK.LEADER, RANK.MODERATOR)).toEqual([RANK.MEMBER]);
   });
 
-  it('never offers LEADER — handing over the crew is not a row in a list', () => {
+  it('never offers LEADER — that is TRANSFER_LEADERSHIP, its own action', () => {
     expect(assignableRanks(RANK.LEADER, RANK.MEMBER)).not.toContain(RANK.LEADER);
     expect(assignableRanks(RANK.LEADER, RANK.MODERATOR)).not.toContain(RANK.LEADER);
   });

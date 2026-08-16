@@ -849,6 +849,28 @@ export async function removeAssignedRegimen(id) {
   if (error) throw error;
 }
 
+/**
+ * Hand the crew to another member.
+ *
+ * Not a role change, which is why it is not in setMemberRole's vocabulary:
+ * it promotes the target and steps the caller down in one transaction, so
+ * the crew is never briefly leaderless and never briefly has two leaders
+ * that nobody meant. Migration 359 does both writes server-side; 357's
+ * guard trigger would refuse the demotion on its own, which is exactly why
+ * this cannot be two client calls.
+ *
+ * Throws with a `code` the caller can branch on: 42501 not the leader,
+ * 22023 target is not in the crew (or is you).
+ */
+export async function transferLeadership(crewId, toUserId) {
+  const { data, error } = await supabase.rpc('transfer_crew_leadership', {
+    p_crew_id: crewId,
+    p_to_user: toUserId,
+  });
+  if (error) throw error;
+  return { ok: true, newLeader: data?.new_leader ?? toUserId };
+}
+
 // ── Crew Roles ────────────────────────────────────────────────────────────────
 
 /**

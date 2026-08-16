@@ -102,6 +102,7 @@ export const CAPABILITY = {
   START_WAR:           RANK.LEADER,
   CANCEL_WAR_QUEUE:    RANK.LEADER,
   PROMOTE_MEMBER:      RANK.LEADER,
+  TRANSFER_LEADERSHIP: RANK.LEADER,
   DEMOTE_MEMBER:       RANK.LEADER,
   EDIT_CREW_PROFILE:   RANK.LEADER,
   MANAGE_TREASURY:     RANK.LEADER,
@@ -138,8 +139,9 @@ export function canActOn(actorRank, targetRank) {
  *
  * A leader may appoint and unappoint moderators. Promoting someone to
  * LEADER is deliberately absent: it is not a role change but a transfer
- * of the crew, and it belongs behind its own confirmed action rather than
- * a row in a list. Nothing below leader may assign anything.
+ * of the crew, and it belongs behind its own confirmed action — see
+ * TRANSFER_LEADERSHIP and transferLeadership() — rather than a row in a
+ * list. Nothing below leader may assign anything.
  */
 export function assignableRanks(actorRank, targetRank) {
   if (actorRank < RANK.LEADER) return [];
