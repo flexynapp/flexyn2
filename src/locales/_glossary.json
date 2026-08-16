@@ -90,7 +90,14 @@
     "Lifter": "Atleta",
     "Season": "Temporada",
     "Trophy": "Trofeo",
-    "$crewWarsNote": "Crew Wars vocabulary added 2026-08-16 with the Crew Wars i18n pass. Every term was DERIVED from strings that had already shipped rather than invented: crewWarPanel.crewWar was already 'Guerra de Crews' / 'Guerre des Crews', crewBattleEntry already used batalla/bataille for a battle, corporatePortal and the duel surfaces already used reto/défi for a challenge, and league.promoteZone already used ascenso/promotion. Two chosen rather than inherited, with the reason: ROSTER is 'Plantel' in Spanish, NOT 'Plantilla' — Plantilla is already Template in this glossary, and a squad and a template must not share a word (the Rutina=Regimen+Routine collision, avoided in advance this time). LIFTER is Atleta/Athlète because the literal 'levantador' is not how a Spanish or French gym speaks, and onboarding.reveal.summary had already dodged the noun by recasting, so there was no shipped precedent to inherit."
+    "$crewWarsNote": "Crew Wars vocabulary added 2026-08-16 with the Crew Wars i18n pass. Every term was DERIVED from strings that had already shipped rather than invented: crewWarPanel.crewWar was already 'Guerra de Crews' / 'Guerre des Crews', crewBattleEntry already used batalla/bataille for a battle, corporatePortal and the duel surfaces already used reto/défi for a challenge, and league.promoteZone already used ascenso/promotion. Two chosen rather than inherited, with the reason: ROSTER is 'Plantel' in Spanish, NOT 'Plantilla' — Plantilla is already Template in this glossary, and a squad and a template must not share a word (the Rutina=Regimen+Routine collision, avoided in advance this time). LIFTER is Atleta/Athlète because the literal 'levantador' is not how a Spanish or French gym speaks, and onboarding.reveal.summary had already dodged the noun by recasting, so there was no shipped precedent to inherit.",
+    "Hydration": "Hidratación",
+    "Widget": "widget",
+    "Daily chest": "Cofre diario",
+    "Steps": "Pasos",
+    "Mood": "Ánimo",
+    "Sleep": "Sueño",
+    "$chestNote": "\"Chest\" is TWO different nouns in English and this locale renders them as two different words, which is correct and must stay: the body part (es Pecho / fr Poitrine / de Brust) and the daily reward chest (es Cofre / fr Coffre / de Truhe). A future sweep that unifies them would put a pectoral muscle on the rewards card. The six rows above were added 2026-08-16 with the dashboard batch that first made these strings translatable at all — they had been hardcoded English until then."
   },
   "fr": {
     "$streakNote": "RESOLVED 2026-08-15 (kegan asked for it explicitly, having first chosen to leave it open). 'Série' had translated BOTH Streak (60 keys) and Set (68) — one word for two unrelated things across 128 user-facing strings. 'Série' is the standard French term for a training set and could not move, so Streak took a new word: 'Flamme'. Chosen on the app's OWN iconography rather than on taste — src/components/StreakFlame.jsx, 82 Flame references across components/pages, and 8 French strings already carrying 🔥. So the word now matches the icon the user is looking at, and it is feminine like 'Série', which means every article and agreement carried over untouched. Rejected: 'Suite' (ambiguous — 'la suite' is also 'the rest', and it appears in UI as 'voir la suite'), 'Régularité' and 'Assiduité' (abstract, cannot be counted or saved), 'Chaîne' (works for the don't-break-the-chain idiom but fights the flame iconography the app already ships). French idiom was used where a literal swap was worse: the flame is lit ('s'allume'), kept alive ('entretenir la flamme', 'garder votre flamme allumée') and goes out ('s'éteint à minuit'). NOT a native sign-off — see _meta.json $passes.",
@@ -161,7 +168,14 @@
     "Lifter": "Athlète",
     "Season": "Saison",
     "Trophy": "Trophée",
-    "$crewWarsNote": "Crew Wars vocabulary added 2026-08-16 with the Crew Wars i18n pass. Every term was DERIVED from strings that had already shipped rather than invented: crewWarPanel.crewWar was already 'Guerra de Crews' / 'Guerre des Crews', crewBattleEntry already used batalla/bataille for a battle, corporatePortal and the duel surfaces already used reto/défi for a challenge, and league.promoteZone already used ascenso/promotion. Two chosen rather than inherited, with the reason: ROSTER is 'Plantel' in Spanish, NOT 'Plantilla' — Plantilla is already Template in this glossary, and a squad and a template must not share a word (the Rutina=Regimen+Routine collision, avoided in advance this time). LIFTER is Atleta/Athlète because the literal 'levantador' is not how a Spanish or French gym speaks, and onboarding.reveal.summary had already dodged the noun by recasting, so there was no shipped precedent to inherit."
+    "$crewWarsNote": "Crew Wars vocabulary added 2026-08-16 with the Crew Wars i18n pass. Every term was DERIVED from strings that had already shipped rather than invented: crewWarPanel.crewWar was already 'Guerra de Crews' / 'Guerre des Crews', crewBattleEntry already used batalla/bataille for a battle, corporatePortal and the duel surfaces already used reto/défi for a challenge, and league.promoteZone already used ascenso/promotion. Two chosen rather than inherited, with the reason: ROSTER is 'Plantel' in Spanish, NOT 'Plantilla' — Plantilla is already Template in this glossary, and a squad and a template must not share a word (the Rutina=Regimen+Routine collision, avoided in advance this time). LIFTER is Atleta/Athlète because the literal 'levantador' is not how a Spanish or French gym speaks, and onboarding.reveal.summary had already dodged the noun by recasting, so there was no shipped precedent to inherit.",
+    "Hydration": "Hydratation",
+    "Widget": "widget",
+    "Daily chest": "Coffre du jour",
+    "Steps": "Pas",
+    "Mood": "Humeur",
+    "Sleep": "Sommeil",
+    "$chestNote": "\"Chest\" is TWO different nouns in English and this locale renders them as two different words, which is correct and must stay: the body part (es Pecho / fr Poitrine / de Brust) and the daily reward chest (es Cofre / fr Coffre / de Truhe). A future sweep that unifies them would put a pectoral muscle on the rewards card. The six rows above were added 2026-08-16 with the dashboard batch that first made these strings translatable at all — they had been hardcoded English until then."
   },
   "pt": {
     "$note": "pt-BR, not pt-PT — measured on the 1,486 strings that already shipped: 99 Brazilian markers (Compartilhar, Salvar, Excluir, Configurações, registrar, -ndo gerunds) against 6 European ones, and zero 'vós'. Register carries NO explicit pronoun: você-form imperatives (Acompanhe, Registre, Abra) with seu/sua possessives, which is standard Brazilian UI voice. Derived 2026-08-16 before the coverage pass, so 2,310 new strings agree with the 1,486 old ones instead of inventing second words.",
@@ -222,7 +236,14 @@
     "Session": "Sessão",
     "Elite": "Elite",
     "Rival": "Rival",
-    "$addedNote": "Session, Elite and Rival were added 2026-08-16 after `npm run i18n:review` flagged them as recurring product nouns with no row — the growth rule working as intended rather than a collision found the hard way."
+    "$addedNote": "Session, Elite and Rival were added 2026-08-16 after `npm run i18n:review` flagged them as recurring product nouns with no row — the growth rule working as intended rather than a collision found the hard way.",
+    "Hydration": "Hidratação",
+    "Widget": "widget",
+    "Daily chest": "Baú diário",
+    "Steps": "Passos",
+    "Mood": "Humor",
+    "Sleep": "Sono",
+    "$chestNote": "\"Chest\" is TWO different nouns in English and this locale renders them as two different words, which is correct and must stay: the body part (es Pecho / fr Poitrine / de Brust) and the daily reward chest (es Cofre / fr Coffre / de Truhe). A future sweep that unifies them would put a pectoral muscle on the rewards card. The six rows above were added 2026-08-16 with the dashboard batch that first made these strings translatable at all — they had been hardcoded English until then."
   },
   "de": {
     "$note": "Derived 2026-08-16 from the 1,486 strings that already shipped, before the coverage pass, so 2,310 new strings agree with the old ones. Register is du throughout. German runs about 15% longer than English here (measured over 954 comparable strings) — less than the 30% rule of thumb, but check the pinned-CTA onboarding screens with the pseudolocale before releasing.",
@@ -288,7 +309,14 @@
     "Win badge": "S",
     "Loss badge": "N",
     "Tie badge": "U",
-    "$duelBadgeNote": "The one-letter duel result badges. S/U/N is the standard German table triple and it agrees with this catalog: duels.wins is Siege, duels.losses Niederlagen, so the badges are those words abbreviated. They were W/L/TIE until 2026-08-16 — TIE in particular is not a German word. Full words stay Siege/Niederlagen/Unentschieden; only the badge is abbreviated."
+    "$duelBadgeNote": "The one-letter duel result badges. S/U/N is the standard German table triple and it agrees with this catalog: duels.wins is Siege, duels.losses Niederlagen, so the badges are those words abbreviated. They were W/L/TIE until 2026-08-16 — TIE in particular is not a German word. Full words stay Siege/Niederlagen/Unentschieden; only the badge is abbreviated.",
+    "Hydration": "Flüssigkeit",
+    "Widget": "Widget",
+    "Daily chest": "Tagestruhe",
+    "Steps": "Schritte",
+    "Mood": "Stimmung",
+    "Sleep": "Schlaf",
+    "$chestNote": "\"Chest\" is TWO different nouns in English and this locale renders them as two different words, which is correct and must stay: the body part (es Pecho / fr Poitrine / de Brust) and the daily reward chest (es Cofre / fr Coffre / de Truhe). A future sweep that unifies them would put a pectoral muscle on the rewards card. The six rows above were added 2026-08-16 with the dashboard batch that first made these strings translatable at all — they had been hardcoded English until then."
   },
   "it": {
     "$note": "Derived 2026-08-16 from the 1,482 strings that already shipped, before the coverage pass, so the new strings agree with the old ones. Register is tu throughout — measured at 128 tu-forms against 2 apparent Lei ones, and both of those were false positives (\"i suoi progressi\" of a goal, \"le sue statistiche\" of a rival), the same ambiguity German has with Sie. 87 tu-imperatives against 0 Lei-imperatives confirms it. Italian runs a little longer than English here; check the pinned-CTA onboarding screens with the pseudolocale before releasing.",
@@ -352,7 +380,14 @@
     "Elite": "Elite",
     "Rival": "Rivale",
     "$rivalNote": "The two shipped Rival strings rendered it \"Nemesi\", but English uses \"nemesis\" as a SEPARATE word in onboarding.enable_push.body and pushOptIn.subtitle — every other locale translates that one on its own (némesis / némésis). Leaving Nemesi on Rival would have handed Italian one word for two English terms across the whole Gym Rival feature, so the two were converted to Rivale while it cost two strings instead of ten.",
-    "$capsuleNote": "Capsule is doNotTranslate and the corpus already agreed 10 to 3; the three lowercase \"capsula/capsule\" strings were converted to the majority, the same outlier German had with its single \"Kapsel\"."
+    "$capsuleNote": "Capsule is doNotTranslate and the corpus already agreed 10 to 3; the three lowercase \"capsula/capsule\" strings were converted to the majority, the same outlier German had with its single \"Kapsel\".",
+    "Hydration": "Idratazione",
+    "Widget": "widget",
+    "Daily chest": "Forziere giornaliero",
+    "Steps": "Passi",
+    "Mood": "Umore",
+    "Sleep": "Sonno",
+    "$chestNote": "\"Chest\" is TWO different nouns in English and this locale renders them as two different words, which is correct and must stay: the body part (es Pecho / fr Poitrine / de Brust) and the daily reward chest (es Cofre / fr Coffre / de Truhe). A future sweep that unifies them would put a pectoral muscle on the rewards card. The six rows above were added 2026-08-16 with the dashboard batch that first made these strings translatable at all — they had been hardcoded English until then."
   },
   "nl": {
     "$note": "Derived 2026-08-16 from the 1,457 strings that already shipped, before the coverage pass. Register is je throughout — measured at 177 je-forms and 45 je-imperatives against 0 u-imperatives. Dutch closes its compounds, so a kept term hides inside a longer word (welkomstcapsule, trainingsschema); i18n-review handles that, do not \"fix\" it.",
@@ -413,7 +448,14 @@
     "$regimenNote": "Dutch is the ONE locale here that does not use the Programa/Programme/Programma/Programm family, and it diverges on measured evidence rather than by accident. The shipped strings were split Schema 22 / Programma 10, so the majority won. The reason German needed Programm does not transfer: German \"Plan\" was already translating the English word Plan, whereas Dutch renders Plan as plan/plannen everywhere (trainingsplan, maaltijdplannen) and never as Schema — so Schema was free, and it is also the ordinary Dutch word for a training programme. The 10 Programma strings were converted. One string had Schema doing two jobs at once — regimens.templateStoreDesc rendered \"workout templates\" as trainingsschema's — and it is now trainingssjablonen, which agrees with regimens.toast.copied.",
     "Session": "Sessie",
     "Elite": "Elite",
-    "Rival": "Rivaal"
+    "Rival": "Rivaal",
+    "Hydration": "Hydratatie",
+    "Widget": "widget",
+    "Daily chest": "Dagelijkse kist",
+    "Steps": "Stappen",
+    "Mood": "Stemming",
+    "Sleep": "Slaap",
+    "$chestNote": "\"Chest\" is TWO different nouns in English and this locale renders them as two different words, which is correct and must stay: the body part (es Pecho / fr Poitrine / de Brust) and the daily reward chest (es Cofre / fr Coffre / de Truhe). A future sweep that unifies them would put a pectoral muscle on the rewards card. The six rows above were added 2026-08-16 with the dashboard batch that first made these strings translatable at all — they had been hardcoded English until then."
   },
   "pl": {
     "$note": "Derived 2026-08-16 from the 1,457 strings that already shipped, before the coverage pass. Register is ty throughout — 63 ty-forms against 0 Pan/Pani ones, the cleanest register measurement of any locale here. Polish inflects for case, so a kept term appears as seria/serii/serie/serię and a glossary row will not match on the nominative alone; i18n-review handles that, do not \"fix\" it.",
@@ -473,7 +515,14 @@
     "$regimenNote": "The German defect, second locale, and settled the same way. \"Plan\" carried both Regimen (26 strings) AND the English word Plan (11) — one Polish word for two different objects, which is precisely what forced German off Plan and onto Programm. Program was already the rendering in 7 shipped strings, so the minority was promoted rather than a new word invented, and it converges with es Programa, fr Programme, pt Programa and de Programm. The 26 were rewritten by hand because Polish declines: plan → program, planu → programu, planów → programów, Architekt Planów → Architekt Programów. Dutch is the one locale that stays off this family, and for a reason that does not apply here — Dutch Plan was never ambiguous.",
     "Session": "Sesja",
     "Elite": "Elitarna",
-    "Rival": "Rywal"
+    "Rival": "Rywal",
+    "Hydration": "Nawodnienie",
+    "Widget": "widżet",
+    "Daily chest": "Dzienna skrzynia",
+    "Steps": "Kroki",
+    "Mood": "Nastrój",
+    "Sleep": "Sen",
+    "$chestNote": "\"Chest\" is TWO different nouns in English and this locale renders them as two different words, which is correct and must stay: the body part (es Pecho / fr Poitrine / de Brust) and the daily reward chest (es Cofre / fr Coffre / de Truhe). A future sweep that unifies them would put a pectoral muscle on the rewards card. The six rows above were added 2026-08-16 with the dashboard batch that first made these strings translatable at all — they had been hardcoded English until then."
   },
   "tr": {
     "$note": "Derived 2026-08-16 from the 1,457 strings that already shipped, before the coverage pass. Register is sen. Turkish agglutinates, so a kept term appears as set/setler/setini and a glossary row will not match on the bare form; i18n-review handles that, do not \"fix\" it.",
