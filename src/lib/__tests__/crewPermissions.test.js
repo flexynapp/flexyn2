@@ -84,11 +84,18 @@ describe('what a MODERATOR may do', () => {
 
   it('runs the crew day to day', () => {
     for (const capability of [
-      'START_WAR', 'CANCEL_WAR_QUEUE', 'PIN_MESSAGE', 'DELETE_ANY_MESSAGE',
+      'PIN_MESSAGE', 'DELETE_ANY_MESSAGE',
       'ASSIGN_REGIMEN', 'CREATE_CHALLENGE', 'START_ROLL_CALL', 'KICK_MEMBER',
     ]) {
       expect([capability, memberCan(mod, capability)]).toEqual([capability, true]);
     }
+  });
+
+  it('does not start wars — leader-only by product decision, 2026-08-15', () => {
+    // Sat at rank 2 for one commit. Committing every member of the crew
+    // to a seven-day competition is the leader's call.
+    expect(memberCan(mod, 'START_WAR')).toBe(false);
+    expect(memberCan(mod, 'CANCEL_WAR_QUEUE')).toBe(false);
   });
 
   it('does not decide who runs it', () => {

@@ -69,11 +69,17 @@ export function rankLabel(rank, tFallback) {
 // chat, the war board and the league table are not privileges.
 //
 // The split follows the brief: a member trains and talks, a moderator
-// runs the crew, a leader decides who runs it. Starting a war sits with
-// moderators because it is an operational act with a seven-day clock, not
-// a structural one — the same place Clash of Clans puts it. Everything
-// that changes the crew's IDENTITY or its ROSTER STRUCTURE is leader-only,
-// because those are the acts a member cannot undo by leaving.
+// runs the crew, a leader decides who runs it. Everything that changes the
+// crew's IDENTITY or its ROSTER STRUCTURE is leader-only, because those
+// are the acts a member cannot undo by leaving.
+//
+// STARTING A WAR IS LEADER-ONLY (kegan, 2026-08-15). It sat at rank 2 for
+// one commit on the reasoning that entering matchmaking is operational
+// rather than structural. That was a judgement call filling a gap in the
+// brief, which named only what a MEMBER may not do — and the decision is
+// the product owner's. It commits every member of the crew to a seven-day
+// competition, which is a fair reading of "structural". Migration 358 is
+// the server half; do not move one without the other.
 export const CAPABILITY = {
   // Rank 1 — every member
   SEND_MESSAGE:        RANK.MEMBER,
@@ -85,8 +91,6 @@ export const CAPABILITY = {
   LEAVE_CREW:          RANK.MEMBER,
 
   // Rank 2 — moderators run the crew
-  START_WAR:           RANK.MODERATOR,
-  CANCEL_WAR_QUEUE:    RANK.MODERATOR,
   PIN_MESSAGE:         RANK.MODERATOR,
   DELETE_ANY_MESSAGE:  RANK.MODERATOR,
   ASSIGN_REGIMEN:      RANK.MODERATOR,
@@ -94,7 +98,9 @@ export const CAPABILITY = {
   START_ROLL_CALL:     RANK.MODERATOR,
   KICK_MEMBER:         RANK.MODERATOR,   // rank 1 targets only — see canActOn
 
-  // Rank 3 — leaders decide who runs it
+  // Rank 3 — leaders decide who runs it, and commit it to a fight
+  START_WAR:           RANK.LEADER,
+  CANCEL_WAR_QUEUE:    RANK.LEADER,
   PROMOTE_MEMBER:      RANK.LEADER,
   DEMOTE_MEMBER:       RANK.LEADER,
   EDIT_CREW_PROFILE:   RANK.LEADER,

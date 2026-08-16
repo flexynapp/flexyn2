@@ -40,8 +40,8 @@ export default function CrewBattleEntry({ crew, currentUserId, myRank }) {
   const qc = useQueryClient();
   const fmt = useNumberFormatter();
 
-  // Starting or cancelling a war is rank 2+, enforced server-side in
-  // join_crew_war_queue / leave_crew_war_queue (migration 357). Falls back
+  // Starting or cancelling a war is LEADER-ONLY, enforced server-side in
+  // join_crew_war_queue / leave_crew_war_queue (migration 358). Falls back
   // to the crew's is_admin flag when no rank was passed, so an older caller
   // keeps the leader-only behaviour rather than silently opening it up.
   const rank = myRank ?? (crew?.is_admin ? RANK.LEADER : RANK.MEMBER);
@@ -199,7 +199,7 @@ export default function CrewBattleEntry({ crew, currentUserId, myRank }) {
                 <p className="text-xs text-muted-foreground">
                   {tFallback(
                     'crewBattleEntry.leaderStarts',
-                    'A leader or moderator starts the war. You fight in it either way.',
+                    'Your crew leader starts the war. You fight in it either way.',
                   )}
                 </p>
               )}
