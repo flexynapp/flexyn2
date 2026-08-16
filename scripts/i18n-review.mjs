@@ -52,6 +52,15 @@ const REGISTER = {
     // usted imperatives whose tú form differs; candidates only
     imperatives: 'Toque|Abra|Cierre|Busque|Cree|Modifique|Cambie|Espere|Utilice|Haga|Vaya|Ponga|Mire|Vea|Encuentre|Intente|Pruebe|Vuelva|Empiece|Termine|Registre|Guarde|Marque|Presione|Verifique|Compruebe|Comparta|Elija|Seleccione|Escriba|Añada',
   },
+  de: {
+    // du throughout. Capitalised Sie/Ihr is AMBIGUOUS in German — formal you,
+    // but also she/they/her — so these are candidates for a human, never an
+    // auto-fix, and they live in the imperatives slot rather than `wrong`.
+    // Seven genuine Sie strings were found and corrected on 2026-08-16.
+    want: 'du',
+    wrong: [],
+    imperatives: 'Legen Sie|Absolvieren Sie|Laufen Sie|Tippen Sie|Wählen Sie|Geben Sie|Öffnen Sie|Speichern Sie|Klicken Sie|Melden Sie|Stellen Sie|Prüfen Sie|Halten Sie|Nutzen Sie|Beachten Sie|Bitte geben Sie',
+  },
   pt: {
     // pt-BR. Both halves matter and the catalog had drifted on both: 37 Plans
     // strings arrived in EUROPEAN Portuguese AND the tu register — "à tua
