@@ -269,6 +269,40 @@ describe('the two classes coverage cannot see', () => {
   });
 });
 
+describe('a Latin-script locale stays in Latin script', () => {
+  // A single Cyrillic character inside a Portuguese sentence is invisible to
+  // every other guard here: the shape validator checks placeholders, newlines
+  // and markdown; i18n-review checks vocabulary and register; the mojibake
+  // scan looks for the Ã-shaped wreckage of UTF-8-through-latin-1. None of
+  // them look at the SCRIPT of the letters.
+  //
+  // This was written after typing "Не foi possível" into pt.json — Cyrillic
+  // Н-е instead of "Nã", from a keyboard slip. It renders as a real word to
+  // nobody, and it survived a clean shape validation and a clean review.
+  //
+  // Scoped to the locales whose script is Latin, obviously. The six
+  // non-Latin catalogs are excluded, and `en` is here because an English
+  // string with a stray Cyrillic letter is the same bug.
+  const LATIN = ['en', 'es', 'fr', 'de', 'pt', 'it', 'tr', 'pl', 'nl'];
+  // Cyrillic and Greek blocks. Not an exhaustive "non-Latin" test — these are
+  // the two that carry look-alike letters (а е о р с х, ο ρ) and so are the
+  // two that produce a defect a reader's eye slides straight over.
+  const CONFUSABLE = /[Ͱ-ϿЀ-ӿ]/;
+
+  it.each(LATIN)('%s has no Cyrillic or Greek characters', (lang) => {
+    const d = JSON.parse(fs.readFileSync(path.join(DIR, `${lang}.json`), 'utf8'));
+    const bad = Object.entries(d)
+      .filter(([, v]) => CONFUSABLE.test(String(v)))
+      .map(([k, v]) => `${k}: ${v}`);
+    expect(
+      bad,
+      `${lang} contains Cyrillic or Greek letters inside Latin-script copy. ` +
+      'This is almost always a keyboard slip that no other guard can see — ' +
+      'the shape validator, i18n-review and the mojibake scan all pass it.',
+    ).toEqual([]);
+  });
+});
+
 describe('no language may be aliased to the English object', () => {
   // THE bug of this whole cleanup, found eight times across nine files.
   // A part file that does `it: enKeys, ko: enKeys, …` reports 100% key

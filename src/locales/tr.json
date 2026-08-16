@@ -1742,7 +1742,7 @@
   "notifications.row.friend_follow.title": "{name} seni takip etti",
   "notifications.row.friend_post.title": "{name} paylaştı",
   "notifications.row.league_demoted.body": "Haftaya geri tırman!",
-  "notifications.row.league_demoted.title": "⬇️ {tier} liginе düştün",
+  "notifications.row.league_demoted.title": "⬇️ {tier} ligine düştün",
   "notifications.row.league_held.body_coins": "+{coins} jeton",
   "notifications.row.league_held.body_default": "Haftaya yükselmek için bastır.",
   "notifications.row.league_held.title": "{tier} liginde kaldın",

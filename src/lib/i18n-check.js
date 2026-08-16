@@ -125,6 +125,14 @@ const ALLOW_IDENTICAL_BY_LANG = {
   fr: new Set([
     'Macros',
     'Plans',
+    // Hub poll / story-note copy, added 2026-08-16. French spells all four
+    // exactly as English does — option, vote, votes, note — so the catalog
+    // value is identical on purpose, not a string somebody skipped.
+    'hub.poll.option',
+    'hub.poll.voteSingular',
+    'hub.poll.votePlural',
+    'hub.profile.addNote',
+    'stories.note',
     'achievementDefs.cat.nutrition',
     'biceps',
     'bodyMetrics.dateRequired',
