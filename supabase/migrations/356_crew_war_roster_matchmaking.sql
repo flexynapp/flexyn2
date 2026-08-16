@@ -197,6 +197,12 @@ CREATE OR REPLACE FUNCTION public.crew_match_gap(
 RETURNS numeric
 LANGUAGE sql
 IMMUTABLE
+-- Pinned even though this function touches no table and is not SECURITY
+-- DEFINER, so a mutable search_path here is inert. It is pinned because
+-- get_advisors flags it, and a project that carries five copies of a lint
+-- stops reading the lint. pg_catalog alone is enough: LEAST, GREATEST,
+-- ABS and COALESCE all live there.
+SET search_path TO 'pg_catalog'
 AS $crew_match_gap$
   SELECT (
       3.0 * LEAST(1.0, ABS(COALESCE(p_div_a, 1) - COALESCE(p_div_b, 1)) / 3.0)
