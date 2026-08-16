@@ -200,6 +200,51 @@ for (const lang of LANGS) {
     else if (md(v) !== md(e)) shape.push(`${k}: ${md(v)} ** vs en ${md(e)}`);
   }
   section('placeholder / newline / markdown parity', shape);
+
+  // 5. NOUNS THE APP GREW WITHOUT A GLOSSARY ROW
+  //
+  // Standing rule (kegan, 2026-08-16): a new product noun gets a glossary row
+  // in the change that ships it. This is what stops the rule decaying — a term
+  // that recurs across many English strings and has no row is exactly how
+  // Regimen ended up with THREE German renderings and how "Rutina" ended up
+  // meaning both Regimen and Routine.
+  //
+  // Candidates only. A recurring capitalised word is often a heading, a UI verb
+  // or a proper noun that needs no row, so this is a list to read, never a
+  // failure. Anything already in the glossary, in doNotTranslate, or on the
+  // stop-list below is filtered out.
+  const glossed = new Set([
+    ...Object.keys(gloss[lang] || {}), ...gloss.doNotTranslate.terms,
+  ].filter((k) => !k.startsWith('$')).flatMap((k) => {
+    // A glossed term covers its plural too, or "Workouts" reports as missing
+    // while "Workout" sits in the glossary one line above.
+    const l = k.toLowerCase();
+    return [l, `${l}s`, l.endsWith('s') ? l.slice(0, -1) : `${l}es`];
+  }));
+  const STOP = new Set(['the','your','you','and','for','with','this','that','from','when','what',
+    'all','new','open','close','add','edit','save','back','next','done','more','less','not','yet',
+    'day','days','week','weeks','time','none','off','one','two','see','get','set','sets','log',
+    'app','flexyn','ok','tap','use','out','top','now','here','it','a','an','is','are','to','of',
+    'in','on','at','by','or','if','no','be','we','my','me','can','has','have','was','will']);
+  // MID-SENTENCE capitalisation only. A capital at the start of a string, or
+  // after a full stop, is just a sentence — "Complete a workout", "Send
+  // report". A capital in the MIDDLE is what a product noun looks like ("open
+  // your Capsule", "your Crew"), and that is the thing that needs a row.
+  const freq = new Map();
+  for (const [, v] of Object.entries(en)) {
+    if (typeof v !== 'string') continue;
+    for (const m of v.matchAll(/(?<![\p{L}\p{M}])[A-Z][a-z]{3,}(?![\p{L}\p{M}])/gu)) {
+      const before = v.slice(0, m.index).replace(/\s+$/, '');
+      if (before === '' || /[.!?:•\n]$/.test(before)) continue; // sentence-initial
+      const lw = m[0].toLowerCase();
+      if (glossed.has(lw) || STOP.has(lw)) continue;
+      freq.set(m[0], (freq.get(m[0]) || 0) + 1);
+    }
+  }
+  const candidates = [...freq.entries()].filter(([, n]) => n >= 6)
+    .sort((a, b) => b[1] - a[1])
+    .map(([w, n]) => `${w} — ${n} English strings, no glossary row`);
+  section('recurring nouns with no glossary row (CANDIDATES — add a row or ignore)', candidates, { candidate: true });
 }
 
 console.log(`\n${problems === 0 ? '✓ no consistency problems' : `✗ ${problems} problem(s)`} across ${LANGS.join(', ')}`);
