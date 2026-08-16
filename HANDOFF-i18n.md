@@ -15,12 +15,12 @@ every "94% real" predates a correct measurement.
 | | then | now |
 |---|---|---|
 | untranslatable keys | 781 | **0** |
-| hardcoded strings | 725 (undercounted) | **713** (honest) |
-| en.json | 3,895 | 5,424 |
-| real es/fr coverage | 70.5% | **87.7%** |
-| de / it / nl / pl | — | 84.8% real |
-| pt | — | 83.6% real |
-| tr | 2,137 | 2,353 / 5,424 |
+| hardcoded strings | 725 (undercounted) | **634** (honest) |
+| en.json | 3,895 | 5,563 |
+| real es/fr coverage | 70.5% | **89.2%** |
+| de / it / nl / pl | — | 85.8% real |
+| pt | — | 84.5% real |
+| tr | 2,137 | 2,353 / 5,563 |
 
 `npm run i18n:audit` section E is the honest number. Section B is CATALOG
 coverage and is not what a user sees — do not quote it.
@@ -39,30 +39,31 @@ untranslated.
 
 ## THE JOB
 
-**Finish the 713 hardcoded strings.** UI copy that never reaches a catalog.
+**Finish the 634 hardcoded strings.** UI copy that never reaches a catalog.
 `npm run i18n:hardcoded -- --list` enumerates them; the largest are:
 
-    37  src/lib/lootCatalog.js            ← cosmetic flavour text, see below
-    27  src/pages/AdminReports.jsx        (admin-only, low user value)
+    26  src/pages/AdminReports.jsx        (admin-only, low user value)
     22  src/pages/CorporatePortal.jsx
-    19  src/lib/lootTitles.js             ← same class as lootCatalog
     16  src/components/market/MarketplaceFeed.jsx
     14  src/components/hub/HubComposer.jsx
     14  src/pages/GymEdit.jsx
     13  src/pages/Nutrition.jsx
     12  src/pages/RegisterGym.jsx
+    11  src/components/cardio/CardioPlanned.jsx
+    11  src/components/nutrition/RecipesHubModal.jsx
     11  src/lib/aiCoach/workoutGenerator.js   ← SEE "KNOWN FALSE POSITIVE"
     11  src/lib/programTemplates.js
-    11  src/components/cardio/CardioPlanned.jsx
 
-then a tail of 1–10 across ~145 files.
+then a tail of 1–10 across ~140 files. Nothing above 26 remains, and
+`AdminReports` is admin-only — so from here it is genuinely file-by-file.
 
-**The loot catalogs are deferred on purpose.** `lootCatalog` 37 + `lootTitles`
-19 + `lootFrames` 10 are cosmetic ITEM NAMES (English by standing decision)
-beside FLAVOUR TEXT (translatable): "Grip game on lock.", "5 AM strikes
-back.", "Heel-elevated. Knees out." That is idiomatic gym slang, which is
-where a machine draft reads worst. Kegan was offered it and asked for Workout
-and CrewChat first; raise it again rather than machine-translating it quietly.
+**The loot catalogs are DONE** (105 keys, 2026-08-16). Cosmetic NAMES stay
+English by standing decision; the flavour text beside them is translated
+through `loot.item.<id>.desc`, one namespace for all four catalogs because
+the 89 ids are globally unique. The pattern to copy if another catalog turns
+up: a generic inventory row has lost the module it came from, so the resolver
+must key off the id alone, and the module that owns the data should re-export
+the resolver so the audit can follow the import edge.
 
 **THE SCANNER UNDERCOUNTS EVERY FILE YOU OPEN, so read the file, not the
 list.** Two shapes it structurally cannot see, both found in this batch:
