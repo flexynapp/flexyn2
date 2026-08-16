@@ -500,7 +500,7 @@ export default function Hub() {
               <Store className="w-5 h-5 shrink-0" />
               <div className="flex-1 text-start min-w-0">
                 <p className="text-sm font-bold leading-tight">{tFallback("layout.marketplace", "Marketplace")}</p>
-                <p className="text-micro opacity-80 leading-tight truncate">Trade gear &amp; regimens</p>
+                <p className="text-micro opacity-80 leading-tight truncate">{t('layout.marketplaceSub')}</p>
               </div>
             </motion.button>
           </div>
