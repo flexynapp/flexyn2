@@ -150,7 +150,7 @@ export default function GymAboutCard({ gym }) {
                     className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-micro font-medium bg-secondary/60 border border-border"
                   >
                     <span aria-hidden="true">{meta.emoji}</span>
-                    {meta.label}
+                    {tFallback(`gym.amenity.${slug}`, meta.label)}
                   </span>
                 );
               })}

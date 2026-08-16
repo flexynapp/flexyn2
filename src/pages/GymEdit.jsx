@@ -549,7 +549,7 @@ function AmenitiesEditor({ value, onChange }) {
               }`}
             >
               <span aria-hidden="true">{meta.emoji}</span>
-              {meta.label}
+              {tFallback(`gym.amenity.${slug}`, meta.label)}
             </button>
           );
         })}

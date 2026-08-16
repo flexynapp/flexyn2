@@ -47,8 +47,8 @@ function PlanCard({ plan, scaled, onSelect, fitsGoal }) {
         <div className="flex items-start gap-2">
           <span className="text-xl leading-none shrink-0">{plan.icon}</span>
           <div className="min-w-0 flex-1">
-            <h3 className="font-heading font-bold text-base leading-tight truncate">{plan.name}</h3>
-            <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{plan.tagline}</p>
+            <h3 className="font-heading font-bold text-base leading-tight truncate">{tFallback(`nutrition.plan.${plan.id}.name`, plan.name)}</h3>
+            <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{tFallback(`nutrition.plan.${plan.id}.tagline`, plan.tagline)}</p>
           </div>
           <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5 rtl:scale-x-[-1]" />
         </div>
@@ -235,8 +235,8 @@ function PlanDetail({ plan, scaled, onBack, onApply }) {
         <div className="flex items-start gap-3">
           <span className="text-3xl leading-none">{plan.icon}</span>
           <div>
-            <h2 className="font-heading font-bold text-xl">{plan.name}</h2>
-            <p className="text-sm text-muted-foreground mt-0.5">{plan.tagline}</p>
+            <h2 className="font-heading font-bold text-xl">{tFallback(`nutrition.plan.${plan.id}.name`, plan.name)}</h2>
+            <p className="text-sm text-muted-foreground mt-0.5">{tFallback(`nutrition.plan.${plan.id}.tagline`, plan.tagline)}</p>
             <div className="flex gap-1.5 mt-2 flex-wrap">
               {plan.goalFit.map(g => (
                 <span key={g} className="text-micro font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-secondary text-muted-foreground">
