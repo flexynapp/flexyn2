@@ -164,7 +164,8 @@ const EN_KEYS = (() => {
 // in its own file, or in a file that IMPORTS it — which is the real shape for
 // a data module (DailyQuestsCard imports questCatalog and builds the key).
 const DERIVED_BY_FILE = new Map();
-const IMPORTERS = new Map();   // module path -> files that import it
+const IMPORTERS = new Map();        // module path -> files that import it
+const IMPORTED_BY_FILE = new Map(); // file -> module paths it imports
 if (EN_KEYS) {
   (function walk(dir) {
     for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -173,10 +174,18 @@ if (EN_KEYS) {
       if (!/\.jsx?$/.test(e.name)) continue;
       const body = fs.readFileSync(p, 'utf8');
       // `@/lib/questCatalog` -> src/lib/questCatalog
-      for (const im of body.matchAll(/from\s+['"]@\/([\w/.-]+)['"]/g)) {
-        const target = 'src/' + im[1].replace(/\.jsx?$/, '');
+      // Both import forms. Layout imports './TabQuickActionMenu' relatively,
+      // and an @/-only regex missed it — so the ten quick-action labels stayed
+      // on the list after the lookup was wired.
+      for (const im of body.matchAll(/from\s+['"](@\/[\w/.-]+|\.{1,2}\/[\w/.-]+)['"]/g)) {
+        const spec = im[1];
+        const target = (spec.startsWith('@/')
+          ? 'src/' + spec.slice(2)
+          : path.join(path.dirname(p), spec)).replace(/\.jsx?$/, '');
         if (!IMPORTERS.has(target)) IMPORTERS.set(target, new Set());
         IMPORTERS.get(target).add(p);
+        if (!IMPORTED_BY_FILE.has(p)) IMPORTED_BY_FILE.set(p, new Set());
+        IMPORTED_BY_FILE.get(p).add(target);
       }
       const DERIVED = DERIVED_BY_FILE.get(p) || [];
       DERIVED_BY_FILE.set(p, DERIVED);
@@ -260,9 +269,16 @@ const findings = [];
             const slugs = ownKeys(lines, lineOf(m.index), text);
             // This file's own lookups, plus those of every file that imports
             // it — the data-module case. Nothing wider.
+            // Own file, plus its IMPORTERS (a parent that reads the data) and
+            // its IMPORTS (a child the data is handed down to — Layout owns
+            // TAB_ACTIONS and TabQuickActionMenu does the lookup). Both
+            // directions of one edge; still the import graph, not the app.
             const pats = [...(DERIVED_BY_FILE.get(p) || [])];
             for (const importer of IMPORTERS.get(p.replace(/\.jsx?$/, '')) || [])
               pats.push(...(DERIVED_BY_FILE.get(importer) || []));
+            for (const imported of IMPORTED_BY_FILE.get(p) || [])
+              for (const cand of [imported + '.js', imported + '.jsx', imported])
+                pats.push(...(DERIVED_BY_FILE.get(cand) || []));
             if (slugs.some((slug) => pats.some(([pre, suf]) => (pre + slug + suf) in EN_KEYS))) continue;
           }
         }
