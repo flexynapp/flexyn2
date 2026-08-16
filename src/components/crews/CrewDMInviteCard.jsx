@@ -27,7 +27,7 @@ export function buildCrewInviteBody(crewId, crewName, inviterName, inviterAvatar
 
 export default function CrewDMInviteCard({ payload, userId, isMine }) {
   const { tFallback } = useLanguage();
-  const [state, setState] = useState('idle'); // idle | joining | joined | full
+  const [state, setState] = useState('idle'); // idle | joining | joined | requested | full
   // Synchronous double-tap guard. The state-only `if (state !== 'idle')`
   // gate is async — fast double-tap fires joinCrew twice. The RPC is
   // idempotent (returns already_member) so it's not destructive, but
@@ -43,7 +43,24 @@ export default function CrewDMInviteCard({ payload, userId, isMine }) {
     joiningRef.current = true;
     setState('joining');
     try {
-      await crews.joinCrew(crewId, userId);
+      const res = await crews.joinCrew(crewId, userId);
+
+      // join_crew_atomic does NOT always join you. A crew that is not public
+      // and has no live crew_invites row files a REQUEST instead and returns
+      // status 'requested' (or 'pending' if one was already open) with no
+      // error — and since crew_invites has never held a row and all four
+      // production crews are private, that is the branch every DM invite
+      // actually takes. Claiming "you joined" and then showing an empty Crews
+      // tab is the worst of both.
+      if (res?.status === 'requested' || res?.status === 'pending') {
+        setState('requested');
+        toast.success(tFallback('crewDMInviteCard.requestSent', 'Request sent'), {
+          description: tFallback('crewDMInviteCard.requestBody',
+            'A crew leader or moderator will review it.'),
+        });
+        return;
+      }
+
       setState('joined');
       toast.success(`You joined ${crewName}!`);
       // Navigate to Crews tab
@@ -84,6 +101,10 @@ export default function CrewDMInviteCard({ payload, userId, isMine }) {
           {/* Action */}
           {isMine ? (
             <p className="text-xs text-muted-foreground italic">You sent this invite.</p>
+          ) : state === 'requested' ? (
+            <div className="w-full py-2 text-center text-xs font-bold text-muted-foreground">
+              {tFallback('crewDMInviteCard.requestPending', 'Request sent — awaiting review')}
+            </div>
           ) : state === 'joined' ? (
             <div className="flex items-center gap-1.5 text-sm font-semibold" style={{ color: 'hsl(var(--primary))' }}>
               <Check className="w-4 h-4" />

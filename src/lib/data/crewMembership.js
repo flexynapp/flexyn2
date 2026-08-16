@@ -65,6 +65,13 @@ export async function decideJoinRequest(crewId, userId, approve) {
     return { ok: false, reason: 'db_error' };
   }
 
+  // The RPC has exactly one non-raising failure — {ok:false, reason:'already_in_crew'}
+  // — and hardcoding ok:true swallowed it, so the reviewer saw "Approved, they're
+  // in" while the request stayed pending and no member row was written. Every
+  // other failure raises and is caught by the `error` branch above.
+  if (data && data.ok === false) {
+    return { ok: false, reason: data.reason ?? 'db_error', status: data.status ?? null, changed: false };
+  }
   return { ok: true, status: data?.status ?? null, changed: data?.changed ?? false };
 }
 

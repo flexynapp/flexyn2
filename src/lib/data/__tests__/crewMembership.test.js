@@ -95,6 +95,32 @@ describe('decideJoinRequest', () => {
     expect(await decideJoinRequest('c1', 'u1', true)).toEqual({ ok: false, reason: 'crew_full' });
   });
 
+  // The RPC's ONE non-raising failure. It returns {ok:false,
+  // reason:'already_in_crew'} with error null, so the `if (error)` branch
+  // above never fires — and the wrapper used to hardcode ok:true, which made
+  // the reviewer's screen say "Approved — they're in" while the request
+  // stayed pending and no crew_members row was written. Reproduced against
+  // production before fixing: two private crews, one crewless applicant,
+  // second approval returned exactly this.
+  it('surfaces ok:false rather than reporting a phantom success', async () => {
+    rpcSpy.mockResolvedValue({ data: { ok: false, reason: 'already_in_crew' }, error: null });
+    const res = await decideJoinRequest('c1', 'u1', true);
+    expect(res.ok).toBe(false);
+    expect(res.reason).toBe('already_in_crew');
+    expect(res.changed).toBe(false);
+  });
+
+  it('still reports success when the RPC actually approved', async () => {
+    rpcSpy.mockResolvedValue({ data: { ok: true, status: 'approved', changed: true }, error: null });
+    expect(await decideJoinRequest('c1', 'u1', true))
+      .toEqual({ ok: true, status: 'approved', changed: true });
+  });
+
+  it('defaults a missing reason rather than returning undefined', async () => {
+    rpcSpy.mockResolvedValue({ data: { ok: false }, error: null });
+    expect((await decideJoinRequest('c1', 'u1', true)).reason).toBe('db_error');
+  });
+
   it('maps 42501 to not_leader', async () => {
     rpcSpy.mockResolvedValue({ data: null, error: { code: '42501', message: 'nope' } });
     expect(await decideJoinRequest('c1', 'u1', true)).toEqual({ ok: false, reason: 'not_leader' });
