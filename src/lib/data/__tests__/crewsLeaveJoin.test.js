@@ -76,25 +76,67 @@ describe('createCrew — one crew per user', () => {
     });
   }
 
-  it('deletes the crew it just made when the membership is refused', async () => {
+  // Migration 357 made create_crew_atomic the founder's door and revoked
+  // the client INSERT on crew_members that the two-statement path needed.
+  // The RPC is the path that runs in production.
+  it('creates the crew through the atomic RPC, touching no table directly', async () => {
+    wire({ memberError: null });
+    rpcSpy.mockResolvedValue({ data: { id: 'new-crew', name: 'Iron Union' }, error: null });
+
+    const crew = await createCrew({ id: 'u1' }, 'Iron Union');
+
+    expect(crew.id).toBe('new-crew');
+    expect(rpcSpy).toHaveBeenCalledWith('create_crew_atomic', { p_name: 'Iron Union' });
+    // No client INSERT: 357 revoked it, and a direct write here would be
+    // the escalation path that migration closed.
+    expect(insertSpy).not.toHaveBeenCalled();
+    expect(deleteSpy).not.toHaveBeenCalled();
+  });
+
+  it('surfaces the one-crew rule from the RPC', async () => {
+    wire({ memberError: null });
+    rpcSpy.mockResolvedValue({ data: null, error: { code: '23505', message: 'already_in_crew' } });
+
+    await expect(createCrew({ id: 'u1' }, 'Iron Union'))
+      .rejects.toMatchObject({ code: 'ALREADY_IN_CREW' });
+  });
+
+  it('does not fall back on a real RPC failure', async () => {
+    // Only "not deployed here" earns the legacy path. Anything else is a
+    // genuine refusal and must not be retried against the raw tables.
+    wire({ memberError: null });
+    rpcSpy.mockResolvedValue({ data: null, error: { code: '42501', message: 'unauthenticated' } });
+
+    await expect(createCrew({ id: 'u1' }, 'Iron Union')).rejects.toMatchObject({ code: '42501' });
+    expect(insertSpy).not.toHaveBeenCalled();
+  });
+
+  // The legacy two-statement path. It exists only for the window between
+  // this shipping to Netlify and migration 357 being applied, and it stops
+  // working the moment it is — which is correct.
+  it('falls back to the two-statement path when the RPC is not deployed', async () => {
+    wire({ memberError: null });
+    rpcSpy.mockResolvedValue({ data: null, error: { code: '42883', message: 'no function' } });
+
+    const crew = await createCrew({ id: 'u1' }, 'Iron Union');
+    expect(crew.id).toBe('new-crew');
+    expect(insertSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ crew_id: 'new-crew', user_id: 'u1', is_admin: true }),
+    );
+    expect(deleteSpy).not.toHaveBeenCalled();
+  });
+
+  it('on the fallback path, deletes the crew it just made when the membership is refused', async () => {
     wire({ memberError: { code: '23505', message: 'already_in_crew' } });
+    rpcSpy.mockResolvedValue({ data: null, error: { code: '42883', message: 'no function' } });
 
     await expect(createCrew({ id: 'u1' }, 'Iron Union'))
       .rejects.toMatchObject({ code: 'ALREADY_IN_CREW' });
 
     // Without this the trigger would leave a crew row with zero members —
     // invisible to My Crews, but live in discovery and impossible to lead.
+    // The RPC path has no such window: it is one transaction.
     expect(deleteSpy).toHaveBeenCalledWith('id', 'new-crew');
-  });
-
-  it('leaves the crew in place on success', async () => {
-    wire({ memberError: null });
-    const crew = await createCrew({ id: 'u1' }, 'Iron Union');
-    expect(crew.id).toBe('new-crew');
-    expect(deleteSpy).not.toHaveBeenCalled();
-    expect(insertSpy).toHaveBeenCalledWith(
-      expect.objectContaining({ crew_id: 'new-crew', user_id: 'u1', is_admin: true }),
-    );
   });
 });
 

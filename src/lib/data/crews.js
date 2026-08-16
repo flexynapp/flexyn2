@@ -25,6 +25,32 @@ export async function createCrew(user, name) {
     throw Object.assign(new Error('Profanity detected in crew name'),
       { code: 'PROFANITY', field: 'name' });
   }
+  // One RPC, one transaction (migration 357). The old path inserted the
+  // crews row and the founder's membership as two client statements with a
+  // compensating DELETE if the second failed — and a compensating delete
+  // can fail too, leaving a crew with no members, which is unreachable and
+  // unremovable. It also required a client INSERT policy on crew_members,
+  // and that policy checked only `user_id = auth.uid()`: any signed-in user
+  // could insert themselves into any crew by id, as 'leader'. 357 revokes
+  // the INSERT, so this RPC is the only founder door.
+  const { data: viaRpc, error: rpcErr } = await supabase.rpc('create_crew_atomic', {
+    p_name: name,
+  });
+
+  if (!rpcErr) return viaRpc;
+
+  if (/already_in_crew/i.test(rpcErr.message || '') || rpcErr.code === '23505') {
+    throw Object.assign(
+      new Error('You\'re already in a Crew. Leave it first to start another.'),
+      { code: 'ALREADY_IN_CREW' },
+    );
+  }
+  // Anything but "RPC not deployed here yet" is a real failure. The
+  // fallback below exists only for the window between this deploying to
+  // Netlify and the SQL being run, and it stops working — correctly — the
+  // moment 357 lands.
+  if (rpcErr.code !== '42883' && rpcErr.code !== '42P01') throw rpcErr;
+
   const { data: crew, error } = await supabase
     .from('crews')
     .insert({ name, created_by: user.id })
@@ -32,11 +58,6 @@ export async function createCrew(user, name) {
     .single();
   if (error || !crew) throw error || new Error('Failed to create crew');
 
-  // Migration 252 puts a BEFORE INSERT trigger on crew_members enforcing
-  // one crew per user, and this path inserts the membership directly rather
-  // than through an RPC — so it is the create flow, not just joining, that
-  // the rule has to catch. If the membership is refused the crew row would
-  // be left orphaned with no members, so it's removed again.
   const { error: memberErr } = await supabase.from('crew_members').insert({
     crew_id: crew.id,
     user_id: user.id,

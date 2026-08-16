@@ -155,7 +155,7 @@ function Queued({ tFallback }) {
         <Radar className="w-7 h-7 text-primary" />
       </div>
       <h3 className="font-heading font-bold text-title mt-6">
-        {tFallback('crewWars.findingRival', 'Finding a rival')}
+        {tFallback('crewWars.findingRival', 'Find A Rival Crew')}
       </h3>
       <p className="text-label text-muted-foreground mt-2 leading-relaxed max-w-[310px] mx-auto">
         {tFallback(

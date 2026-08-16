@@ -32,12 +32,20 @@ import {
   getQueuedWarForCrew,
 } from '@/lib/data/crewWars';
 import CrewWarPanel from './CrewWarPanel';
+import { can, RANK } from '@/lib/crewPermissions';
 import { useLanguage } from '@/lib/LanguageContext';
 
-export default function CrewBattleEntry({ crew, currentUserId }) {
+export default function CrewBattleEntry({ crew, currentUserId, myRank }) {
   const { tFallback } = useLanguage();
   const qc = useQueryClient();
   const fmt = useNumberFormatter();
+
+  // Starting or cancelling a war is rank 2+, enforced server-side in
+  // join_crew_war_queue / leave_crew_war_queue (migration 357). Falls back
+  // to the crew's is_admin flag when no rank was passed, so an older caller
+  // keeps the leader-only behaviour rather than silently opening it up.
+  const rank = myRank ?? (crew?.is_admin ? RANK.LEADER : RANK.MEMBER);
+  const canStartWar = can(rank, 'START_WAR');
 
   const { data: war, isLoading: warLoading } = useQuery({
     queryKey:  ['activeWar', crew.id],
@@ -150,7 +158,7 @@ export default function CrewBattleEntry({ crew, currentUserId }) {
                 You're in the queue. The next crew to enter gets matched against you,
                 and the battle starts the moment they do.
               </p>
-              <button
+              {canStartWar && <button
                 onClick={() => leaveMut.mutate()}
                 disabled={leaveMut.isPending}
                 className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-border text-sm font-bold hover:bg-secondary active:bg-secondary disabled:opacity-50 transition-colors"
@@ -160,7 +168,7 @@ export default function CrewBattleEntry({ crew, currentUserId }) {
                   : <Swords className="w-4 h-4" />
                 }
                 Leave queue
-              </button>
+              </button>}
             </>
           ) : (
             <>
@@ -169,17 +177,32 @@ export default function CrewBattleEntry({ crew, currentUserId }) {
                 Enter matchmaking to get paired with a rival crew in your division. Wars run
                 for 7 days, scored on volume lifted, sessions logged and days trained.
               </p>
-              <button
-                onClick={handleEnter}
-                disabled={enterMut.isPending}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-rose-500 text-white text-sm font-bold hover:bg-rose-600 active:bg-rose-600 disabled:opacity-50 transition-colors"
-              >
-                {enterMut.isPending
-                  ? <Loader2 className="w-4 h-4 animate-spin" />
-                  : <Swords className="w-4 h-4" />
-                }
-                {enterMut.isPending ? 'Finding rival…' : 'Enter Battle'}
-              </button>
+              {/* Starting a war is a rank-2 act, enforced in
+                  join_crew_war_queue (migration 357). A member who taps this
+                  gets 42501 and a toast, which reads as the app being
+                  broken — so the control is replaced by the reason rather
+                  than greyed out. A disabled button is a dead end; a
+                  sentence is information. */}
+              {canStartWar ? (
+                <button
+                  onClick={handleEnter}
+                  disabled={enterMut.isPending}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-rose-500 text-white text-sm font-bold hover:bg-rose-600 active:bg-rose-600 disabled:opacity-50 transition-colors"
+                >
+                  {enterMut.isPending
+                    ? <Loader2 className="w-4 h-4 animate-spin" />
+                    : <Swords className="w-4 h-4" />
+                  }
+                  {enterMut.isPending ? 'Finding rival…' : 'Enter Battle'}
+                </button>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  {tFallback(
+                    'crewBattleEntry.leaderStarts',
+                    'A leader or moderator starts the war. You fight in it either way.',
+                  )}
+                </p>
+              )}
             </>
           )}
         </div>

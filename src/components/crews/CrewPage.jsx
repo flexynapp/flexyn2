@@ -34,6 +34,7 @@ import { toast } from '@/lib/toast';
 import ChatViewportFrame from '@/components/ChatViewportFrame';
 import CrewChat from './CrewChat';
 import CrewBattleEntry from './CrewBattleEntry';
+import { rankOf } from '@/lib/crewPermissions';
 import CrewChallengeCard from './CrewChallengeCard';
 import CrewLeaguePanel from './CrewLeaguePanel';
 import CrewMemberDirectory from './CrewMemberDirectory';
@@ -116,6 +117,10 @@ export default function CrewPage({ crew, onBack, onViewProfile }) {
   const myMember   = members.find(m => m.user_id === user?.id);
   const myRole     = myMember?.role ?? (crew.is_admin ? 'leader' : 'member');
   const isLeader   = myRole === 'leader' || !!crew.is_admin;
+  // The numeric form of the same thing. Ordering is what "may I act on
+  // them" needs, and comparing 'moderator' to 'member' as strings sorts
+  // alphabetically. See src/lib/crewPermissions.js.
+  const myRank     = rankOf(myMember ?? { role: myRole, is_admin: crew.is_admin });
   const leader     = members.find(m => (m.role ?? (m.is_admin ? 'leader' : 'member')) === 'leader');
   const leaderName = leader?.username || leader?.profile?.username || null;
   const placing    = placingFor(standings, crewId);
@@ -276,7 +281,7 @@ export default function CrewPage({ crew, onBack, onViewProfile }) {
             >
               {/* War first: all three states with the action inline. A crew
                   at war shouldn't have to go looking for its war. */}
-              <CrewBattleEntry crew={crew} currentUserId={user?.id} />
+              <CrewBattleEntry crew={crew} currentUserId={user?.id} myRank={myRank} />
               <CrewChallengeCard crewId={crewId} isAdmin={isLeader} />
             </motion.div>
           )}

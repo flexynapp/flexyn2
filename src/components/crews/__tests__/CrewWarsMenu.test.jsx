@@ -167,7 +167,7 @@ describe('CrewWarsMenu — queued', () => {
   it('names what the pairing is matched on', async () => {
     getQueuedWarForCrew.mockResolvedValue({ id: 'q1', crew_a_id: 'c1', status: 'matchmaking' });
     show();
-    expect(await screen.findByText('Finding a rival')).toBeTruthy();
+    expect(await screen.findByText('Find A Rival Crew')).toBeTruthy();
     expect(screen.getByText('Roster size')).toBeTruthy();
     expect(screen.getByText('Strength')).toBeTruthy();
   });
