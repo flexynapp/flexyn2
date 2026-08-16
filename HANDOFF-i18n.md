@@ -14,19 +14,19 @@ the two biggest sources of on-screen English live outside it.
 | | then | now |
 |---|---|---|
 | untranslatable keys | 781 | **0** |
-| hardcoded strings | 725 | **284** |
-| en.json | 3,895 | 5,110 |
+| hardcoded strings | 725 | **271** |
+| en.json | 3,895 | 5,151 |
 | real es/fr coverage | 70.5% | **~94%** |
 | de / it / nl / pl | — | ~96% catalog |
 | pt | — | ~95% catalog |
-| tr | 2,137 | 2,337 / 5,110 |
+| tr | 2,137 | 2,337 / 5,151 |
 
 `npm run i18n:audit` section E is the honest number. Section B is CATALOG
 coverage and is not what a user sees — do not quote it.
 
 ## THE JOB
 
-**Finish the 284 hardcoded strings.** These are UI copy held as object-literal
+**Finish the 271 hardcoded strings.** These are UI copy held as object-literal
 properties that never reach a catalog. `npm run i18n:hardcoded -- --list`
 enumerates them; the largest are:
 
@@ -35,7 +35,6 @@ enumerates them; the largest are:
     10  src/pages/CorporatePortal.jsx
      9  src/pages/TradeHistory.jsx
      8  src/pages/Nutrition.jsx
-     7  src/lib/barInventory.js
      7  src/components/settings/NotificationsSection.jsx
      7  src/components/gyms/GymEquipmentEditor.jsx
      7  src/components/duels/CreateInviteLinkModal.jsx
