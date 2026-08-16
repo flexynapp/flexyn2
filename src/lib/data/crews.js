@@ -1065,3 +1065,37 @@ export async function getCrewFirstAchievers(crewId) {
   return Object.values(earliest)
     .sort((a, b) => (b.unlockedAt > a.unlockedAt ? 1 : -1));
 }
+
+/**
+ * Crew identity for a set of lifters — name, tag and avatar — keyed by user id.
+ *
+ * Goes through the `public_crew_badges` RPC (migration 367) rather than
+ * reading `crew_members` directly, because that table's only SELECT policy is
+ * `is_crew_member(crew_id)`: a client can read membership ONLY for a crew it
+ * already belongs to. A direct query for someone else's crew returns an empty
+ * set rather than an error, so the badge would silently render blank for every
+ * rival you don't already train with.
+ *
+ * Returns a plain object { [userId]: { crewId, name, tag, avatarUrl } }, and
+ * {} when the RPC isn't deployed — the caller renders no badge rather than
+ * breaking the screen.
+ */
+export async function getCrewBadges(userIds) {
+  const ids = (userIds ?? []).filter(Boolean);
+  if (!ids.length) return {};
+  const { data, error } = await supabase.rpc('public_crew_badges', { p_user_ids: ids });
+  if (error) return {};
+  const out = {};
+  for (const row of data ?? []) {
+    if (!row?.member_id) continue;
+    out[row.member_id] = {
+      crewId:    row.badge_crew_id,
+      name:      row.crew_name,
+      // Measured 2026-08-16: `tag` is NULL on all 4 production crews, so the
+      // caller must treat it as optional and never render an empty bracket.
+      tag:       row.crew_tag || null,
+      avatarUrl: row.crew_avatar_url || null,
+    };
+  }
+  return out;
+}

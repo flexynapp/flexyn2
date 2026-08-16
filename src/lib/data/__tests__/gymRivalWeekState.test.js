@@ -27,8 +27,14 @@ vi.mock('@/api/supabaseClient', () => ({
 // selectProfiles is imported at module scope by gymRival.js; it is not
 // exercised here, but leaving it unmocked drags in the real db client.
 vi.mock('@/lib/data/users', () => ({ selectProfiles: vi.fn() }));
+vi.mock('@/api/profileCache', () => ({ patchProfile: vi.fn() }));
+// crews.js imports @/api/db, which registers a supabase.auth.onAuthStateChange
+// listener at module scope — CLAUDE.md flags this exact import as what broke
+// gymRivalOverthrow.test.js. Stub it so importing the crew helper is safe.
+vi.mock('@/api/db', () => ({ db: { auth: {}, entities: {} }, default: {} }));
 
 const { getGymRivalWeekState, rivalMetric, matchQuality } = await import('@/lib/data/gymRival');
+const { getCrewBadges } = await import('@/lib/data/crews');
 
 const ROW = {
   week_since:    '2026-08-10T00:00:00+00:00',
@@ -141,5 +147,57 @@ describe('matchQuality', () => {
 
   it('does not treat 0 as absent', () => {
     expect(matchQuality(0)).not.toBeNull();
+  });
+});
+
+// getCrewBadges — the crew shown under a username on the Gym Rival screens.
+//
+// The reason this is an RPC rather than a select is the whole point of the
+// test: crew_members' only SELECT policy is is_crew_member(crew_id), so a
+// direct client read of someone else's crew returns an empty set — not an
+// error — and the badge would render blank for every rival you don't already
+// train with. Asserting on WHICH call is made is the only way that stays
+// fixed; a mock of the old shape would pass forever.
+describe('getCrewBadges', () => {
+  it('calls the RPC, never a crew_members select', async () => {
+    rpc.mockResolvedValue({ data: [], error: null });
+    await getCrewBadges(['u1', 'u2']);
+    expect(rpc).toHaveBeenCalledWith('public_crew_badges', { p_user_ids: ['u1', 'u2'] });
+  });
+
+  it('keys the result by user id', async () => {
+    rpc.mockResolvedValue({ data: [
+      { member_id: 'u1', badge_crew_id: 'c1', crew_name: 'Iron Legion', crew_tag: 'IRL', crew_avatar_url: null },
+    ], error: null });
+    const out = await getCrewBadges(['u1']);
+    expect(out.u1).toEqual({ crewId: 'c1', name: 'Iron Legion', tag: 'IRL', avatarUrl: null });
+  });
+
+  // crews.tag is NULL on all 4 production crews, so this is the DEFAULT case.
+  // A '' tag must come back as null or the UI renders "Iron Legion · []".
+  it('normalises a missing tag to null rather than an empty string', async () => {
+    rpc.mockResolvedValue({ data: [
+      { member_id: 'u1', badge_crew_id: 'c1', crew_name: 'Jimbos', crew_tag: '', crew_avatar_url: '' },
+    ], error: null });
+    const out = await getCrewBadges(['u1']);
+    expect(out.u1.tag).toBeNull();
+    expect(out.u1.avatarUrl).toBeNull();
+  });
+
+  it('returns {} without calling the RPC when there is nobody to look up', async () => {
+    expect(await getCrewBadges([])).toEqual({});
+    expect(await getCrewBadges([null, undefined])).toEqual({});
+    expect(await getCrewBadges(undefined)).toEqual({});
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it('returns {} — never throws — when the RPC is not deployed', async () => {
+    rpc.mockResolvedValue({ data: null, error: { code: '42883' } });
+    expect(await getCrewBadges(['u1'])).toEqual({});
+  });
+
+  it('skips a row with no member_id instead of keying on undefined', async () => {
+    rpc.mockResolvedValue({ data: [{ crew_name: 'Ghost' }], error: null });
+    expect(await getCrewBadges(['u1'])).toEqual({});
   });
 });

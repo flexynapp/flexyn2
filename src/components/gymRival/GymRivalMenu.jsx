@@ -49,6 +49,7 @@ import { formatWeight } from '@/lib/weightUnit';
 import { useNumberFormatter, useDateFormatter } from '@/lib/intl';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { getCrewBadges } from '@/lib/data/crews';
 
 // Higher of two numbers: true = user wins, false = rival, null = tie.
 const cmp = (a, b) => { const x = Number(a) || 0, y = Number(b) || 0; return x === y ? null : x > y; };
@@ -129,6 +130,21 @@ function HeadToHead({ label, youLabel, you, them, youText, themText, rivalName, 
   );
 }
 
+/**
+ * The crew under a username. Renders nothing when the lifter is in no crew,
+ * and drops the bracket when the crew has no tag — `crews.tag` is NULL on
+ * every production crew, so "Iron Legion []" is the default case, not an edge
+ * one.
+ */
+function CrewLine({ crew, className = '' }) {
+  if (!crew?.name) return null;
+  return (
+    <span className={`block text-micro text-muted-foreground truncate ${className}`}>
+      {crew.tag ? `${crew.name} · [${crew.tag}]` : crew.name}
+    </span>
+  );
+}
+
 /** A hairline key/value row — the size-up table and the why-ledger. */
 function Row({ label, children, valueClass = '' }) {
   return (
@@ -196,6 +212,14 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
     enabled:  open && !!assignment?.id && (status === 'active' || status === 'completed'),
     staleTime: 60_000,
   });
+  // Crew identity for both lifters, in one round trip.
+  const { data: crews } = useQuery({
+    queryKey: ['crewBadges', currentUserId, otherId],
+    queryFn:  () => getCrewBadges([currentUserId, otherId]),
+    enabled:  open && !!currentUserId && !!otherId,
+    staleTime: 5 * 60_000,
+  });
+
   const { data: myRecord } = useQuery({
     queryKey: ['gymRivalRecord', currentUserId],
     queryFn:  () => getGymRivalRecord(currentUserId),
@@ -273,6 +297,8 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
     ? tFallback('gymRivalCard.cardioRival', 'Cardio Rival')
     : tFallback('gymRivalCard.gymRival', 'Gym Rival');
   const rivalName = rival?.username || '—';
+  const myCrew    = crews?.[currentUserId] || null;
+  const rivalCrew = otherId ? (crews?.[otherId] || null) : null;
   const reward = computeRivalReward();
   const dist = (m) => formatDistance(m || 0, distanceUnit, m >= 1000 ? 1 : 2);
   const metric = rivalMetric(week, rivalType);
@@ -347,6 +373,7 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
                       {tFallback('gymRivalMenu.yourRivalThisWeek', 'Your rival this week')}
                     </p>
                     <p className="font-heading font-black text-2xl">@{rivalName}</p>
+                    <CrewLine crew={rivalCrew} className="mt-0.5" />
                     <p className="text-xs text-muted-foreground mt-1">
                       {tFallback('gymRivalMenu.levelAndRecord', 'Level {lv} · {w}–{l} record', {
                         lv: String(rival?.current_level ?? '—'),
@@ -508,6 +535,7 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
                   <div className="flex-1 flex flex-col items-center text-center">
                     <Avatar profile={me} ring="ring-success/40" />
                     <p className="mt-2 text-sm font-black">{tFallback('friendLeaderboard.you', 'You')}</p>
+                    <CrewLine crew={myCrew} className="max-w-full" />
                     <p className={`text-micro font-bold ${iConfirmed ? 'text-success' : 'text-muted-foreground'}`}>
                       {iConfirmed ? tFallback('gymRivalMenu.ready', 'Ready') : tFallback('gymRivalMenu.notYet', 'Not yet')}
                     </p>
@@ -519,6 +547,7 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
                   <div className="flex-1 flex flex-col items-center text-center">
                     <Avatar profile={rival} />
                     <p className="mt-2 text-sm font-black truncate max-w-full">@{rivalName}</p>
+                    <CrewLine crew={rivalCrew} className="max-w-full" />
                     <p className={`text-micro font-bold ${otherConfirmed ? 'text-success' : 'text-muted-foreground'}`}>
                       {otherConfirmed ? tFallback('gymRivalMenu.ready', 'Ready') : tFallback('gymRivalMenu.notYet', 'Not yet')}
                     </p>
@@ -626,6 +655,7 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
                   <Avatar profile={rival} size="w-9 h-9" />
                   <span className="min-w-0">
                     <span className="block text-sm font-black truncate">@{rivalName}</span>
+                    <CrewLine crew={rivalCrew} />
                     <span className="block text-micro text-muted-foreground">
                       {tFallback('gymRivalMenu.levelN', 'Level {lv}', { lv: String(rival?.current_level ?? '—') })}
                     </span>

@@ -10,6 +10,7 @@ import { Target, Loader2, ChevronRight, Clock, AlertTriangle, Trophy, Swords, Du
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/lib/toast';
 import { getMyGymRival, getRivalProfile, rollGymRival, declineGymRival, isThisWeek, msUntilNextWeekStart, getGymRivalWeekState, rivalMetric } from '@/lib/data/gymRival';
+import { getCrewBadges } from '@/lib/data/crews';
 import { reportError } from '@/lib/reportError';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -62,6 +63,14 @@ export default function GymRivalCard({ currentUserId }) {
     queryKey:  ['gymRivalProfile', otherId],
     queryFn:   () => getRivalProfile(otherId),
     enabled:   !!otherId && status !== 'void',
+    staleTime: 5 * 60_000,
+  });
+
+  // Crew identity for the rival — see getCrewBadges on why this is an RPC.
+  const { data: crews } = useQuery({
+    queryKey:  ['crewBadges', currentUserId, otherId],
+    queryFn:   () => getCrewBadges([currentUserId, otherId]),
+    enabled:   !!currentUserId && !!otherId,
     staleTime: 5 * 60_000,
   });
 
@@ -221,6 +230,7 @@ export default function GymRivalCard({ currentUserId }) {
   }
 
   // ── Pending / active → matchup chip ─────────────────────────────────────
+  const rivalCrew = otherId ? (crews?.[otherId] || null) : null;
   const isCardio = assignment?.rival_type === 'cardio';
   const typeLabel = isCardio
     ? tFallback('gymRivalCard.cardioRival', 'Cardio Rival')
@@ -265,6 +275,11 @@ export default function GymRivalCard({ currentUserId }) {
             <span className="text-micro font-black uppercase tracking-wider text-primary">{label}</span>
           </div>
           <p className="text-base font-black truncate mt-0.5">@{name || '—'}</p>
+          {rivalCrew?.name && (
+            <p className="text-micro text-muted-foreground truncate">
+              {rivalCrew.tag ? `${rivalCrew.name} · [${rivalCrew.tag}]` : rivalCrew.name}
+            </p>
+          )}
           <p className="text-xs text-muted-foreground truncate">
             {needsMyConfirm ? tFallback('gymRivalCard.tapToAccept', 'Tap to accept the challenge')
               : waiting ? tFallback('gymRivalCard.theyHaventAccepted', "They haven't accepted yet")
