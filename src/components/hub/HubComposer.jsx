@@ -1070,7 +1070,7 @@ export default function HubComposer({ onClose }) {
           { key: 'fat_g',     label: 'Fat',      unit: 'g',    color: 'text-primary' },
         ].map(f => (
           <div key={f.key} className="flex flex-col">
-            <span className={`text-micro font-medium mb-1 ${f.color}`}>{f.label}</span>
+            <span className={`text-micro font-medium mb-1 ${f.color}`}>{tFallback(`nutrient.${f.key.replace(/_(g|mg)$/, '')}`, f.label)}</span>
             <input
               type="number" inputMode="decimal"
               min="0"

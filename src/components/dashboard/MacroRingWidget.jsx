@@ -180,7 +180,7 @@ export default function MacroRingWidget({ userProfile = {} }) {
               return (
                 <div key={m.key} className="flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full shrink-0" style={{ background: m.color }} />
-                  <span className="text-micro text-muted-foreground w-8">{m.label}</span>
+                  <span className="text-micro text-muted-foreground w-8">{tFallback(`macroRing.${m.key}`, m.label)}</span>
                   <div className="flex-1 h-1 rounded-full bg-secondary overflow-hidden">
                     <div
                       className="h-full rounded-full transition-all duration-500"

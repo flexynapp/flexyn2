@@ -37,6 +37,11 @@ const EMOJI_PALETTE = [
   '✅','❌','➕','➖','📈','📉','⏱️','⌛',
 ];
 
+// FILTERS and FONTS are label-only — no id to key a catalog entry off, so
+// the key is the slugified English. Underscores, not hyphens: every key scan
+// in this repo matches [\w.]+ and a hyphen would hide the key from the audit.
+const slugify = (x) => x.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/(^_|_$)/g, '');
+
 const FILTERS = [
   { label: 'Normal', css: 'none' },
   { label: 'B&W',    css: 'grayscale(1) contrast(1.1)' },
@@ -573,7 +578,7 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
               <motion.div key={filterIdx} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                 className="absolute top-1/2 start-1/2 pointer-events-none" style={{ transform: 'translate(-50%, -50%)' }}>
                 <div className="px-4 py-2 rounded-full bg-black/55 backdrop-blur-sm border border-white/20">
-                  <span className="text-white text-sm font-semibold">{FILTERS[filterIdx].label}</span>
+                  <span className="text-white text-sm font-semibold">{tFallback(`story.filter.${slugify(FILTERS[filterIdx].label)}`, FILTERS[filterIdx].label)}</span>
                 </div>
               </motion.div>
             )}
@@ -770,7 +775,7 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
                         padding: showBoxed ? '3px 8px' : '4px 0',
                         cursor: 'pointer', lineHeight: 1.1,
                       }}>
-                      {f.label}
+                      {tFallback(`story.font.${slugify(f.label)}`, f.label)}
                     </button>
                   );
                 })}

@@ -110,10 +110,10 @@ export default function CreateBountyModal({ open, onClose, onCreated }) {
                 className="w-full px-3 py-2 rounded-lg bg-secondary border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
               >
                 {METRIC_OPTIONS.map(m => (
-                  <option key={m.id} value={m.id}>{m.label}</option>
+                  <option key={m.id} value={m.id}>{tFallback(`bounty.metric.${m.id}.label`, m.label)}</option>
                 ))}
               </select>
-              <p className="text-micro text-muted-foreground mt-1">{meta.hint}</p>
+              <p className="text-micro text-muted-foreground mt-1">{tFallback(`bounty.metric.${meta.id}.hint`, meta.hint)}</p>
             </div>
 
             {/* Exercise (conditional) */}
@@ -173,7 +173,7 @@ export default function CreateBountyModal({ open, onClose, onCreated }) {
                         : 'border-border bg-secondary/40 hover:bg-secondary active:bg-secondary',
                     ].join(' ')}
                   >
-                    <p className="text-xs font-bold">{d.label}</p>
+                    <p className="text-xs font-bold">{tFallback(`bounty.difficulty.${d.id}`, d.label)}</p>
                     <p className="text-micro text-amber-500 mt-0.5">{d.reward}</p>
                     <p className="text-micro text-muted-foreground">cost {d.cost}</p>
                   </button>
