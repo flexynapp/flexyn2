@@ -676,6 +676,9 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'workout.templates.reps',
   ]),
   nl: new Set([
+    // "Beginner" is the word Dutch uses; workout.starter.level.newbie
+    // has said so since that key shipped.
+    'programs.level.beginner',
     // Content is the loanword Dutch uses, and nl.json already does elsewhere.
     'adminReports.kind.content',
     // Sticker is the word Dutch uses for these.

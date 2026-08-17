@@ -42,6 +42,7 @@ function cloneSessionExercises(session) {
 }
 
 function LevelBadge({ level }) {
+  const { tFallback } = useLanguage();
   const palette = {
     beginner:     { bg: 'bg-success/15', text: 'text-success' },
     intermediate: { bg: 'bg-primary/15',   text: 'text-primary'   },
@@ -49,7 +50,7 @@ function LevelBadge({ level }) {
   }[level] || { bg: 'bg-secondary', text: 'text-muted-foreground' };
   return (
     <span className={`inline-block text-micro font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${palette.bg} ${palette.text}`}>
-      {level}
+      {tFallback(`programs.level.${level}`, level)}
     </span>
   );
 }
@@ -77,7 +78,7 @@ export default function ProgramTemplatePicker({ onCreated }) {
         name:        sessions.length > 1 && session.name
           ? `${template.name} — ${session.name}`
           : template.name,
-        description: template.summary,
+        description: tFallback(`programs.${template.id}.summary`, template.summary),
         exercises:   cloneSessionExercises(session),
         is_template: true,
         template_id: template.id,
@@ -124,10 +125,16 @@ export default function ProgramTemplatePicker({ onCreated }) {
                 <h4 className="font-heading font-bold text-sm">{t.name}</h4>
                 <LevelBadge level={t.level} />
               </div>
-              <p className="text-micro text-muted-foreground leading-snug mb-2">{t.tagline}</p>
+              <p className="text-micro text-muted-foreground leading-snug mb-2">
+                {tFallback(`programs.${t.id}.tagline`, t.tagline)}
+              </p>
               <div className="flex items-center justify-between">
                 <span className="text-micro text-muted-foreground tabular-nums">
-                  {t.days} {t.days === 1 ? 'day/wk' : 'days/wk'} · {t.sessions.length} sessions
+                  {t.days === 1
+                    ? tFallback('programs.daysPerWeekOne', '{n} day/wk', { n: t.days })
+                    : tFallback('programs.daysPerWeek', '{n} days/wk', { n: t.days })}
+                  {' · '}
+                  {tFallback('programs.sessionCount', '{n} sessions', { n: t.sessions.length })}
                 </span>
                 <span className="text-micro font-bold text-primary inline-flex items-center gap-1">
                   {isBusy ? (

@@ -111,7 +111,7 @@ export default function GymFeedTab({ gymId, gymOwnerId }) {
   const handlePost = async () => {
     if (posting) return;
     if (!body.trim() && !pendingMedia) {
-      toast.error('Add some text or an image.');
+      toast.error(tFallback('gymFeedTab.needTextOrImage', 'Add some text or an image.'));
       return;
     }
     setPosting(true);
@@ -120,7 +120,7 @@ export default function GymFeedTab({ gymId, gymOwnerId }) {
       mediaUrl = await uploadFeedImage(gymId, pendingMedia.file);
       if (!mediaUrl) {
         setPosting(false);
-        toast.error('Image upload failed.');
+        toast.error(tFallback('gymFeedTab.imageUploadFailed', 'Image upload failed.'));
         return;
       }
     }
@@ -132,7 +132,7 @@ export default function GymFeedTab({ gymId, gymOwnerId }) {
       setPendingMedia(null);
       qc.invalidateQueries({ queryKey: ['gymFeed', gymId] });
     } else {
-      toast.error("Couldn't post. Try again.");
+      toast.error(tFallback('gymFeedTab.postFailed', 'Could not post. Try again.'));
     }
   };
 
@@ -142,7 +142,7 @@ export default function GymFeedTab({ gymId, gymOwnerId }) {
     if (res.ok) {
       qc.invalidateQueries({ queryKey: ['gymFeed', gymId] });
     } else {
-      toast.error("Couldn't delete.");
+      toast.error(tFallback('gymFeedTab.deletePostFailed', 'Could not delete the post.'));
     }
   };
 
@@ -196,8 +196,8 @@ export default function GymFeedTab({ gymId, gymOwnerId }) {
               type="button"
               onClick={() => fileInputRef.current?.click()}
               className="w-8 h-8 rounded-full bg-secondary text-muted-foreground hover:text-foreground active:text-foreground flex items-center justify-center"
-              title="Add image"
-              aria-label="Add image"
+              title={tFallback('gymFeedTab.addImage', 'Add image')}
+              aria-label={tFallback('gymFeedTab.addImage', 'Add image')}
             >
               <ImageIcon className="w-4 h-4" />
             </button>
@@ -246,7 +246,7 @@ export default function GymFeedTab({ gymId, gymOwnerId }) {
             <Sparkles className="w-3.5 h-3.5 text-primary" />
             <h3 className="text-xs font-extrabold uppercase tracking-[0.18em] text-primary">{tFallback("gymFeedTab.fromTheFlexynCommunity", "From the Flexyn community")}</h3>
           </div>
-          <p className="text-micro text-muted-foreground mb-3 px-1">Trending posts while your gym gets going.</p>
+          <p className="text-micro text-muted-foreground mb-3 px-1">{tFallback('gymFeedTab.communitySubtitle', 'Trending posts while your gym gets going.')}</p>
           <div className="space-y-2">
             {communityFiltered.map(p => {
               const handle = (p.author_name || '').replace(/^@/, '') || 'athlete';
@@ -484,7 +484,7 @@ function FeedComments({ postId, meId, isPostAuthorOrGymOwner, onChange }) {
       refresh();
       onChange?.();
     } else {
-      toast.error("Couldn't comment.");
+      toast.error(tFallback('gymFeedTab.commentFailed', 'Could not comment.'));
     }
   };
 
@@ -495,7 +495,7 @@ function FeedComments({ postId, meId, isPostAuthorOrGymOwner, onChange }) {
       refresh();
       onChange?.();
     } else {
-      toast.error("Couldn't delete.");
+      toast.error(tFallback('gymFeedTab.deleteCommentFailed', 'Could not delete the comment.'));
     }
   };
 
@@ -504,7 +504,7 @@ function FeedComments({ postId, meId, isPostAuthorOrGymOwner, onChange }) {
       {loading ? (
         <div className="flex justify-center py-2"><Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" /></div>
       ) : comments.length === 0 ? (
-        <p className="text-xs text-muted-foreground py-1">No comments yet. Say something.</p>
+        <p className="text-xs text-muted-foreground py-1">{tFallback('gymFeedTab.noComments', 'No comments yet. Say something.')}</p>
       ) : (
         <ul className="space-y-1.5">
           {comments.map(c => {

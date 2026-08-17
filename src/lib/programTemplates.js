@@ -26,7 +26,7 @@ export const PROGRAM_TEMPLATES = [
     name: 'Starting Strength',
     level: 'beginner',
     days: 3,
-    summary: 'Mark Rippetoe\'s 3-day linear progression for true beginners.',
+    summary: 'Mark Rippetoe\'s linear progression over 3 days a week, for true beginners.',
     tagline: 'Squat, press, deadlift. Add 5lb per session.',
     sessions: [
       {
@@ -54,7 +54,7 @@ export const PROGRAM_TEMPLATES = [
     name: '5/3/1 (Wendler)',
     level: 'intermediate',
     days: 4,
-    summary: '4-week wave loading on the big 4 lifts.',
+    summary: 'Wave loading over 4 weeks on the big 4 lifts.',
     tagline: 'Slow, steady, undefeated. Built for the long game.',
     sessions: [
       { name: 'OHP Day',      exercises: [
@@ -86,7 +86,7 @@ export const PROGRAM_TEMPLATES = [
     name: 'Push / Pull / Legs',
     level: 'intermediate',
     days: 6,
-    summary: 'Classic 6-day hypertrophy split.',
+    summary: 'The classic hypertrophy split, over 6 days.',
     tagline: 'High volume, perfectly balanced. The hypertrophy workhorse.',
     sessions: [
       { name: 'Push', exercises: [
@@ -119,7 +119,7 @@ export const PROGRAM_TEMPLATES = [
     name: 'GZCLP',
     level: 'intermediate',
     days: 4,
-    summary: 'Cody Lefever\'s GZCL-Linear-Progression for hardgainers.',
+    summary: 'Cody Lefever\'s GZCL Linear Progression, for hardgainers.',
     tagline: 'Heavy T1, volume T2, accessory T3. Built for grinders.',
     sessions: [
       { name: 'Squat / Bench', exercises: [
@@ -151,7 +151,7 @@ export const PROGRAM_TEMPLATES = [
     name: 'nSuns 5/3/1 LP',
     level: 'advanced',
     days: 5,
-    summary: 'High-frequency, high-volume modification of 5/3/1.',
+    summary: 'A high frequency, high volume take on 5/3/1.',
     tagline: '9 sets of the main lift per day. Brutal, but it works.',
     sessions: [
       { name: 'Bench / OHP',     exercises: [
@@ -183,7 +183,7 @@ export const PROGRAM_TEMPLATES = [
     name: 'Upper / Lower',
     level: 'beginner',
     days: 4,
-    summary: 'Classic 4-day split, beginner-friendly volume.',
+    summary: 'The classic split over 4 days, with volume that suits a beginner.',
     tagline: 'Two upper days, two lower days. Easy to schedule.',
     sessions: [
       { name: 'Upper A', exercises: [
