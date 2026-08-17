@@ -16,14 +16,21 @@ every "94% real" predates a correct measurement.
 |---|---|---|
 | untranslatable keys | 781 | **0** |
 | hardcoded strings | 725 (undercounted) | **507** (honest) |
-| en.json | 3,895 | 5,627 |
+| en.json | 3,895 | 5,738 |
 | real es/fr coverage | 70.5% | **91.3%** |
-| de / it / nl / pl | — | 87.5% real |
-| pt | — | 85.3% real |
-| tr | 2,137 | 2,353 / 5,627 |
+| de / it / nl / pl | — | 87.9% real |
+| pt | — | 86.7% real |
+| tr | 2,137 | 2,353 / 5,738 |
 
 `npm run i18n:audit` section E is the honest number. Section B is CATALOG
 coverage and is not what a user sees — do not quote it.
+
+**Everything up to `f05ab6ea` is verified: 5,220 tests across 374 files, lint
+clean.** That commit's own message says the full suite did not run. That was
+true when it was written — the machine was at load average 640 with another
+session's 31 vitest workers on it, and my run was starving rather than
+progressing — and it is no longer true. Not amended, because it is already on
+`main` and `main` is never force-pushed here.
 
 **Three scanner defects were fixed on 2026-08-16 and they are the reason the
 numbers moved.** `844e24b9` (parallel session): every sentence containing a
