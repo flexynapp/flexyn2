@@ -27,7 +27,7 @@
 
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 vi.mock('@/lib/LanguageContext', () => ({
@@ -136,7 +136,12 @@ describe('the leader gate', () => {
   });
 });
 
-describe('the picker while a chase is running', () => {
+// A read-only mid-chase picker was built and then removed (kegan,
+// 2026-08-16): the tab already lists every remaining challenge inline
+// under STILL OUT THERE, so a second route to the same rows was a tap
+// that bought nothing. These pin the absence, because "let the leader
+// peek at what's next" is exactly the kind of thing that gets re-added.
+describe('while a chase is running', () => {
   const active = row({
     template_key: 'first_million', title: 'The First Million', trophy_title: 'Millionaires',
     state: 'active', current_value: 340120, target_value: 1000000, challenge_id: 'ch1',
@@ -146,36 +151,26 @@ describe('the picker while a chase is running', () => {
     getCrewChallengeCatalog.mockResolvedValue([active, ...CATALOG.slice(1)]);
   });
 
-  it('still lets a leader open it, so the ladder is visible mid-chase', async () => {
+  it('offers a leader no way into the picker', async () => {
     mount(RANK.LEADER);
-    // The control changes voice rather than disappearing: browsing is not
-    // the same act as choosing.
-    await userEvent.click(await screen.findByText("See what's next"));
-    // Scoped to the sheet: the same row is legitimately on the tab behind
-    // it, under STILL OUT THERE, so an unscoped query is ambiguous.
-    const sheet = await screen.findByRole('dialog');
-    expect(within(sheet).getByText('The Century')).toBeTruthy();
+    await screen.findByText('The First Million');
+    expect(screen.queryByText('Choose a challenge')).toBeNull();
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 
-  it('suppresses every Start, because 367 refuses a second concurrent chase', async () => {
+  it('still shows the leader what is left, inline, which is why the button went', async () => {
     mount(RANK.LEADER);
-    await userEvent.click(await screen.findByText("See what's next"));
-    const sheet = await screen.findByRole('dialog');
-    within(sheet).getByText('The Century');
-    // A button the server would refuse is worse than no button.
-    expect(within(sheet).queryByText('Start')).toBeNull();
+    await screen.findByText('The First Million');
+    // The shelf is empty in this fixture, so the heading is the
+    // no-trophies variant. It becomes STILL OUT THERE once one is won.
+    expect(screen.getByText("WHAT'S OUT THERE")).toBeTruthy();
+    expect(screen.getByText('The Century')).toBeTruthy();
+    expect(screen.getByText('The Foundry')).toBeTruthy();
   });
 
-  it('names the chase that has to finish first', async () => {
-    mount(RANK.LEADER);
-    await userEvent.click(await screen.findByText("See what's next"));
-    expect(await screen.findByText(/Finish The First Million first/)).toBeTruthy();
-  });
-
-  it('gives a member no control either way', async () => {
+  it('gives a member no control either', async () => {
     mount(RANK.MEMBER);
     await screen.findByText('The First Million');
-    expect(screen.queryByText("See what's next")).toBeNull();
     expect(screen.queryByText('Choose a challenge')).toBeNull();
   });
 });
