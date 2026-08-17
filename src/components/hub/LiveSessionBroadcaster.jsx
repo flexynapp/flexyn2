@@ -42,6 +42,12 @@ export default function LiveSessionBroadcaster({ onClose }) {
   // Tracks mount state so an async startSession that resolves after the
   // modal closed doesn't leave an orphaned live session + leaked channel.
   const mountedRef              = useRef(true);
+  // The session that still needs ending. Held in a ref, not read off `phase` /
+  // `sessionId`, because the unmount cleanup below has an empty dep array and
+  // would otherwise close over the values from first render — i.e. null, which
+  // is exactly how a session survives the modal closing. Cleared by endLive so
+  // the explicit path never ends the same session twice.
+  const liveSessionRef          = useRef(null);
 
   // Broadcast current state over Realtime channel (throttled to 2s)
   const broadcast = useCallback((sessionId, ex, s, r) => {
@@ -95,6 +101,7 @@ export default function LiveSessionBroadcaster({ onClose }) {
         });
       channelRef.current = channel;
 
+      liveSessionRef.current = sid;
       setPhase('live');
       toast.success('🔴 You\'re live! Your followers can see your workout.');
     } catch (err) {
@@ -120,6 +127,7 @@ export default function LiveSessionBroadcaster({ onClose }) {
     setPhase('ending');
     if (broadcastTimerRef.current) clearInterval(broadcastTimerRef.current);
     if (channelRef.current) { supabase.removeChannel(channelRef.current); channelRef.current = null; }
+    liveSessionRef.current = null;
     if (sessionId) {
       await hubLiveSessions.endSession(sessionId).catch(() => {});
     }
@@ -187,10 +195,27 @@ export default function LiveSessionBroadcaster({ onClose }) {
   // Cleanup on unmount
   useEffect(() => {
     mountedRef.current = true;
+
+    // Closing the modal, navigating away, or backgrounding the PWA all used to
+    // leave `is_active = true` with nobody to clear it, and the feed hides your
+    // own session from you, so the host could not even tell. `pagehide` is the
+    // one teardown event iOS Safari reliably fires; `unload` does not run in a
+    // PWA. Neither is guaranteed if the app is force-quit, which is why
+    // listActiveSessions also refuses to return a stale row.
+    const endIfLive = () => {
+      const sid = liveSessionRef.current;
+      if (!sid) return;
+      liveSessionRef.current = null;
+      hubLiveSessions.endSession(sid).catch(() => {});
+    };
+    window.addEventListener('pagehide', endIfLive);
+
     return () => {
       mountedRef.current = false;
+      window.removeEventListener('pagehide', endIfLive);
       if (broadcastTimerRef.current) clearInterval(broadcastTimerRef.current);
       if (channelRef.current) { supabase.removeChannel(channelRef.current); channelRef.current = null; }
+      endIfLive();
     };
   }, []);
 
