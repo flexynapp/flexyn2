@@ -2001,8 +2001,14 @@ stays alongside it (his call) — `template_key IS NULL` is the old kind.
   wrong, and only running it told them apart.
 - Design: Penpot page **Crew Trophies** — boards A (empty shelf), B (a
   chase in progress, with contributions), C (shelf with trophies earned),
-  D (the leader's picker as a bottom sheet), E (the same list for a
-  member, with the gate stated instead of a button), F (the spec).
+  D (the leader's picker as a bottom sheet), F (the spec).
+  **Board E was deleted, not built** (kegan, 2026-08-16): it drew the same
+  list as a read-only sheet for a member, and the tab already lists every
+  challenge inline with the gate stated above it, so it was a tap that
+  bought nothing. The same argument later removed a mid-chase picker
+  button. **A board describing a screen that should not exist is worse
+  than no board** — when a design is dropped, delete it rather than
+  leaving it to be implemented by whoever reads the page next.
   **Every colour on it is a real token read out of `index.css`** —
   `#13171B` background, `#191F24` card, `#F5F2F0` foreground, `#89949F`
   muted, `#F37616` primary, `#45C489` success, `#2A333C` border — plus
