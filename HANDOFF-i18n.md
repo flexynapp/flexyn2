@@ -15,17 +15,17 @@ every "94% real" predates a correct measurement.
 | | then | now |
 |---|---|---|
 | untranslatable keys | 781 | **0** |
-| hardcoded strings | 725 (undercounted) | **485** (honest) |
-| en.json | 3,895 | 5,779 |
-| real es/fr coverage | 70.5% | **91.7%** |
-| de / it / nl / pl | — | 88.1% real |
-| pt | — | 86.8% real |
-| tr | 2,137 | 2,353 / 5,779 |
+| hardcoded strings | 725 (undercounted) | **464** (honest) |
+| en.json | 3,895 | 5,806 |
+| real es/fr coverage | 70.5% | **92.0%** |
+| de / it / nl / pl | — | 88.4% real |
+| pt | — | 87.2% real |
+| tr | 2,137 | 2,353 / 5,806 |
 
 `npm run i18n:audit` section E is the honest number. Section B is CATALOG
 coverage and is not what a user sees — do not quote it.
 
-**Everything up to `5e2281e8` is verified: 5,231 tests across 375 files, lint
+**Everything up to `74fa8683` is verified: 5,232 tests across 376 files, lint
 clean.**
 
 
@@ -43,19 +43,19 @@ untranslated.
 
 ## THE JOB
 
-**Finish the 485 hardcoded strings.** UI copy that never reaches a catalog.
+**Finish the 464 hardcoded strings.** UI copy that never reaches a catalog.
 `npm run i18n:hardcoded -- --list` enumerates them; the largest are:
 
     11  src/lib/aiCoach/workoutGenerator.js   ← SEE "KNOWN FALSE POSITIVE"
-    11  src/lib/programTemplates.js
-    10  src/components/gyms/GymFeedTab.jsx
     10  src/pages/TradeHistory.jsx
     10  src/pages/TrainerStudio.jsx
      9  src/components/duels/CreateDuelModal.jsx
      9  src/components/duels/CreateInviteLinkModal.jsx
+     9  src/components/hub/HubChat.jsx
+     9  src/components/stories/StoryViewer.jsx
 
-then a tail of 1–8 across ~134 files. Nothing above 11 remains, and
-`workoutGenerator` is the documented false positive, so the real top is 11.
+then a tail of 1–8 across ~132 files. `workoutGenerator` is the documented
+false positive, so the real top is 10 and it is flat from there down.
 
 **The loot catalogs are DONE** (105 keys, 2026-08-16). Cosmetic NAMES stay
 English by standing decision; the flavour text beside them is translated
@@ -239,7 +239,14 @@ caught a shipped Turkish defect on its first run); the brand survives; plus
 the parallel session's `i18nOrphanKeys.test.js`, which measures the same
 untranslatable class independently and also reads zero.
 
-Scratchpad scripts (recreate if gone — the handoff before this one had to):
+**THE SCRATCHPAD GETS WIPED WITHOUT WARNING** — it happened mid-batch on
+2026-08-16, twice over (this session's directory and the previous session's).
+Nothing committed is at risk, but the batch tooling goes with it. Recreating
+`lib.mjs`, `add-en.mjs`, `add-keys.mjs` and `extract-defaults.mjs` takes about
+five minutes; the shapes are in this file and in the commit history. Do not
+keep a batch half-landed across a break.
+
+Scratchpad scripts (recreate if gone — two handoffs running have had to):
 `lib.mjs`, `next-batch.mjs`, `add-keys.mjs`, `add-en.mjs`, `apply-fixes.mjs`,
 `extract-defaults.mjs`, `triage2.mjs`, `stage.mjs`, `mojibake.mjs`,
 `check-accents.mjs`. `add-keys` refuses the WHOLE batch on any placeholder,
