@@ -23,7 +23,7 @@ import React, { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Shield, Settings } from 'lucide-react';
+import { ArrowLeft, Shield, Settings, UserPlus } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useNumberFormatter } from '@/lib/intl';
@@ -34,12 +34,13 @@ import { toast } from '@/lib/toast';
 import ChatViewportFrame from '@/components/ChatViewportFrame';
 import CrewChat from './CrewChat';
 import CrewBattleEntry from './CrewBattleEntry';
-import { rankOf } from '@/lib/crewPermissions';
+import { rankOf, can } from '@/lib/crewPermissions';
 import CrewChallengeCard from './CrewChallengeCard';
 import CrewLeaguePanel from './CrewLeaguePanel';
 import CrewMemberDirectory from './CrewMemberDirectory';
 import CrewTrophiesPanel from './CrewTrophiesPanel';
 import CrewSettingsSheet from './CrewSettingsSheet';
+import CrewInviteSheet from './CrewInviteSheet';
 
 // Five tabs still fit 390px at `gap-5 px-4` — measured, not assumed.
 const TABS = [
@@ -66,6 +67,7 @@ export default function CrewPage({ crew, onBack, onViewProfile }) {
   const fmt = useNumberFormatter();
   const [tab, setTab] = useState('home');
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false);
   const qc = useQueryClient();
 
   const crewId = crew?.id;
@@ -284,6 +286,15 @@ export default function CrewPage({ crew, onBack, onViewProfile }) {
           crew={crew}
         />
 
+        <CrewInviteSheet
+          open={inviteOpen}
+          onClose={() => setInviteOpen(false)}
+          crewId={crewId}
+          crewName={crew.name}
+          members={members}
+          maxCapacity={capacity}
+        />
+
         {/* ── Tabs ─────────────────────────────────────────────────── */}
         <div className="flex gap-5 px-4 pt-4 border-b border-border">
           {TABS.map(t => (
@@ -335,6 +346,22 @@ export default function CrewPage({ crew, onBack, onViewProfile }) {
               className="h-full min-h-0"
             >
               <div className="h-full min-h-0 flex flex-col">
+                {/* Gated on the CAPABILITY, not on is_admin — invite_to_crew
+                    accepts `is_admin OR role IN ('leader','moderator')`, so a
+                    moderator qualifies here where they do not for crew
+                    settings. Offering a control the server refuses returns
+                    42501 into a toast, which reads as a broken button. */}
+                {can(myRank, 'INVITE_MEMBER') && (
+                  <div className="shrink-0 px-4 pt-3">
+                    <button
+                      onClick={() => setInviteOpen(true)}
+                      className="w-full h-10 rounded-xl bg-secondary text-foreground font-heading font-bold text-sm flex items-center justify-center gap-2"
+                    >
+                      <UserPlus className="w-4 h-4" aria-hidden="true" />
+                      {tFallback('crewInvite.cta', 'Invite friends')}
+                    </button>
+                  </div>
+                )}
                 <div className="flex-1 min-h-0">
                   <CrewMemberDirectory
                     crewId={crewId}

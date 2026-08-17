@@ -17,7 +17,7 @@ import * as users from '@/lib/data/users';
 import { containsProfanity } from '@/lib/profanityFilter';
 import { titleCase } from '@/lib/textCase';
 import * as hubMessages from '@/lib/data/hubMessages';
-import { buildCrewInviteBody } from './CrewDMInviteCard';
+import { buildCrewInviteBody } from '@/lib/crewInviteBody';
 import { displayName, handle } from '@/lib/userDisplay';
 import { useLanguage } from '@/lib/LanguageContext';
 

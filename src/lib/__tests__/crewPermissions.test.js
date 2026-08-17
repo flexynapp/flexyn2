@@ -86,9 +86,22 @@ describe('what a MODERATOR may do', () => {
     for (const capability of [
       'PIN_MESSAGE', 'DELETE_ANY_MESSAGE',
       'ASSIGN_REGIMEN', 'CREATE_CHALLENGE', 'START_ROLL_CALL', 'KICK_MEMBER',
+      'INVITE_MEMBER',
     ]) {
       expect([capability, memberCan(mod, capability)]).toEqual([capability, true]);
     }
+  });
+
+  it('may invite, because invite_to_crew accepts a moderator', () => {
+    // Not a judgement call — the RPC gates on
+    //   is_admin = TRUE OR role IN ('leader','moderator')
+    // so rank 2 here MATCHES the database. Verified against production that a
+    // plain member calling it is refused 42501, which is the other half.
+    expect(memberCan(mod, 'INVITE_MEMBER')).toBe(true);
+    expect(memberCan({ role: 'member' }, 'INVITE_MEMBER')).toBe(false);
+    // A moderator invites but does not edit the crew's identity: that gates on
+    // is_crew_admin, which reads is_admin, which a moderator does not have.
+    expect(memberCan(mod, 'EDIT_CREW_PROFILE')).toBe(false);
   });
 
   it('does not start wars — leader-only by product decision, 2026-08-15', () => {

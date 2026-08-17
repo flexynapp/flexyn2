@@ -99,6 +99,16 @@ export const CAPABILITY = {
   CREATE_CHALLENGE:    RANK.MODERATOR,
   START_ROLL_CALL:     RANK.MODERATOR,
   KICK_MEMBER:         RANK.MODERATOR,   // rank 1 targets only — see canActOn
+  // The server half is `invite_to_crew` (migration 250), which gates on
+  // `is_admin = TRUE OR role IN ('leader','moderator')` — so rank 2 MATCHES
+  // the database rather than being a fresh judgement call. Verified against
+  // production that a plain member calling that RPC is refused 42501.
+  //
+  // Deliberately a rank below EDIT_CREW_PROFILE even though both change the
+  // crew: an invite adds one person, who can leave again and whose invite
+  // expires in 14 days. The profile is the crew's identity, which is the
+  // "cannot undo by leaving" test this matrix splits on.
+  INVITE_MEMBER:       RANK.MODERATOR,
 
   // Rank 3 — leaders decide who runs it, and commit it to a fight
   START_WAR:           RANK.LEADER,

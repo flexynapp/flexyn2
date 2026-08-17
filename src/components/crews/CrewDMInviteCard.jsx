@@ -10,20 +10,12 @@ import { toast } from '@/lib/toast';
 import * as crews from '@/lib/data/crews';
 import { useLanguage } from '@/lib/LanguageContext';
 
-export const CREW_INVITE_PREFIX = '[CREW_INVITE_V1]';
-
-export function parseCrewInvite(body) {
-  if (!body?.startsWith(CREW_INVITE_PREFIX)) return null;
-  try {
-    return JSON.parse(body.slice(CREW_INVITE_PREFIX.length));
-  } catch {
-    return null;
-  }
-}
-
-export function buildCrewInviteBody(crewId, crewName, inviterName, inviterAvatar) {
-  return CREW_INVITE_PREFIX + JSON.stringify({ crewId, crewName, inviterName, inviterAvatar });
-}
+// The wire format moved to src/lib/crewInviteBody.js. Re-exported here so
+// HubChat — which needs this component AND the parser — keeps one import,
+// while the two SENDERS import the pure module instead and no longer drag
+// framer-motion, this card and `@/lib/data/crews` (hence `@/api/db` and its
+// module-scope auth listener) into a call that builds a string.
+export { CREW_INVITE_PREFIX, parseCrewInvite, buildCrewInviteBody } from '@/lib/crewInviteBody';
 
 export default function CrewDMInviteCard({ payload, userId, isMine }) {
   const { tFallback } = useLanguage();
