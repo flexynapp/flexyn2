@@ -282,9 +282,50 @@ describe('the two classes coverage cannot see', () => {
     // which no JSX- or call-shaped detector could see. That blind spot is
     // why this scanner reported 1 TOTAL while questCatalog.js held 36 and
     // HeroSlideshow.jsx — the dashboard carousel Kegan was looking at — 43.
-    const out = execFileSync('node', ['scripts/i18n-hardcoded.mjs', '--json'], {
+    // SPAWNING is the fragile part of this test, not scanning.
+    //
+    // This looked flaky on 2026-08-16 — one failure inside a multi-file run,
+    // green in isolation and green on every re-run since. It was none of the
+    // things it appeared to be, and each was ruled out by measurement rather
+    // than by re-running until it went green:
+    //
+    //   * the scanner is deterministic — 483 on eight consecutive runs
+    //   * it was not the ratchet — reconstructing the exact tree that failed
+    //     gives 632 against a baseline of 632, so the assertion PASSES there
+    //   * it was not the 60s timeout — 17.4s with 31 vitest workers resident
+    //
+    // What is left is the execFileSync. This test asks a worker to fork a
+    // whole second node process at the moment ~30 of them are already
+    // resident, and on this machine that fork demonstrably fails under
+    // pressure (EAGAIN / ENOMEM / ENOBUFS, surfacing as `spawnSync node …`).
+    // vitest then reports THIS test as failed, and whoever reads it has
+    // already been told "hardcoded strings rose", because that is what this
+    // test exists to say.
+    //
+    // So: retry once, and if it still cannot run, fail with a message that
+    // says the scan never happened rather than one that implicates the code.
+    // The retry is honest precisely BECAUSE the scanner is deterministic — it
+    // cannot paper over a real regression, only over a failed fork.
+    const scan = () => execFileSync('node', ['scripts/i18n-hardcoded.mjs', '--json'], {
       encoding: 'utf8', maxBuffer: 32 * 1024 * 1024,
     });
+    let out;
+    try {
+      out = scan();
+    } catch (first) {
+      try {
+        out = scan();
+      } catch (second) {
+        throw new Error(
+          'The hardcoded-string SCANNER could not be run, twice. This is NOT a ' +
+          'regression in the code under test — no strings were counted at all. ' +
+          'It is almost always a failed fork on a saturated machine while ' +
+          'several suites run at once. Re-run this file on its own before ' +
+          `investigating anything else.\n  first:  ${first.code || first.message}` +
+          `\n  second: ${second.code || second.message}`,
+        );
+      }
+    }
     const now = new Set(JSON.parse(out).map((f) => `${f.file}:${f.line}:${f.text}`)).size;
     expect(
       now,
