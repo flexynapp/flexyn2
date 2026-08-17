@@ -15,17 +15,17 @@ every "94% real" predates a correct measurement.
 | | then | now |
 |---|---|---|
 | untranslatable keys | 781 | **0** |
-| hardcoded strings | 725 (undercounted) | **444** (honest) |
-| en.json | 3,895 | 5,833 |
-| real es/fr coverage | 70.5% | **92.4%** |
-| de / it / nl / pl | — | 88.7% real |
-| pt | — | 87.5% real |
-| tr | 2,137 | 2,353 / 5,833 |
+| hardcoded strings | 725 (undercounted) | **421** (honest) |
+| en.json | 3,895 | 5,859 |
+| real es/fr coverage | 70.5% | **92.7%** |
+| de / it / nl / pl | — | 89.1% real |
+| pt | — | 87.8% real |
+| tr | 2,137 | 2,353 / 5,859 |
 
 `npm run i18n:audit` section E is the honest number. Section B is CATALOG
 coverage and is not what a user sees — do not quote it.
 
-**Everything up to `b9b92bb9` is verified: 5,240 tests across 378 files, lint
+**Everything up to `0f5bedbe` is verified: 5,248 tests across 379 files, lint
 clean.**
 
 
@@ -43,21 +43,26 @@ untranslated.
 
 ## THE JOB
 
-**Finish the 444 hardcoded strings.** UI copy that never reaches a catalog.
+**Finish the 421 hardcoded strings.** UI copy that never reaches a catalog.
 `npm run i18n:hardcoded -- --list` enumerates them; the largest are:
 
     11  src/lib/aiCoach/workoutGenerator.js   ← SEE "KNOWN FALSE POSITIVE"
-     9  src/components/duels/CreateDuelModal.jsx
-     9  src/components/duels/CreateInviteLinkModal.jsx
      9  src/components/hub/HubChat.jsx
      9  src/components/stories/StoryViewer.jsx
      8  src/components/cardio/CardioWearableStub.jsx
-     8  src/components/duels/DuelInviteCard.jsx
+     8  src/components/hub/HubProfile.jsx
+     8  src/components/hub/LiveSessionBroadcaster.jsx
 
-then a tail of 1–7 across ~130 files. `workoutGenerator` is the documented
-false positive, so the real top is 9 and it is flat from there down. The
-duel surfaces (CreateDuelModal, CreateInviteLinkModal, DuelInviteCard) are
-26 between them and share a vocabulary, so they are worth doing together.
+then a tail of 1–7 across ~128 files. `workoutGenerator` is the documented
+false positive, so the real top is 9 and it is flat from there down.
+
+**GROUP FILES THAT SHARE A VOCABULARY, and grep for the concept before you
+start.** The three duel surfaces each declared their own English for the same
+three duel types, and two of the three short descriptions disagreed — "Complete
+the same session" against "Same workout, best completion", on screens a user
+reaches within a tap of each other. Keying them one file at a time would have
+translated the drift into seven languages instead of removing it. The same
+question is worth asking of the Hub files below.
 
 **The loot catalogs are DONE** (105 keys, 2026-08-16). Cosmetic NAMES stay
 English by standing decision; the flavour text beside them is translated
