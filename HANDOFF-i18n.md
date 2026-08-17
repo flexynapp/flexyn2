@@ -15,9 +15,9 @@ every "94% real" predates a correct measurement.
 | | then | now |
 |---|---|---|
 | untranslatable keys | 781 | **0** |
-| hardcoded strings | 725 (undercounted) | **530** (honest) |
+| hardcoded strings | 725 (undercounted) | **507** (honest) |
 | en.json | 3,895 | 5,627 |
-| real es/fr coverage | 70.5% | **90.9%** |
+| real es/fr coverage | 70.5% | **91.3%** |
 | de / it / nl / pl | — | 87.5% real |
 | pt | — | 85.3% real |
 | tr | 2,137 | 2,353 / 5,627 |
@@ -39,19 +39,17 @@ untranslated.
 
 ## THE JOB
 
-**Finish the 530 hardcoded strings.** UI copy that never reaches a catalog.
+**Finish the 507 hardcoded strings.** UI copy that never reaches a catalog.
 `npm run i18n:hardcoded -- --list` enumerates them; the largest are:
 
-    12  src/pages/RegisterGym.jsx
     11  src/components/cardio/CardioPlanned.jsx
     11  src/components/nutrition/RecipesHubModal.jsx
     11  src/lib/aiCoach/workoutGenerator.js   ← SEE "KNOWN FALSE POSITIVE"
     11  src/lib/programTemplates.js
-    11  src/pages/GymHub.jsx
     10  src/components/gyms/GymFeedTab.jsx
     10  src/pages/TradeHistory.jsx
 
-then a tail of 1–9 across ~137 files. Nothing above 12 remains.
+then a tail of 1–9 across ~135 files. Nothing above 11 remains.
 
 **The loot catalogs are DONE** (105 keys, 2026-08-16). Cosmetic NAMES stay
 English by standing decision; the flavour text beside them is translated
@@ -234,6 +232,21 @@ Scratchpad scripts (recreate if gone — the handoff before this one had to):
 `extract-defaults.mjs`, `triage2.mjs`, `stage.mjs`, `mojibake.mjs`,
 `check-accents.mjs`. `add-keys` refuses the WHOLE batch on any placeholder,
 newline or `**` mismatch, on an `englishOnly` key, or on a bad accentWord.
+
+## AN IDENTICAL ENGLISH IS NOT EVIDENCE THE TRANSLATION TRANSFERS
+
+Reusing a shipped translation is the house habit and it is right most of the
+time — a duplicate ROW with the same words costs nothing and makes the two keys
+agree by construction. But check what the sentence is DOING, not just what it
+says. `adminReports.status.approved` and `registerGym.status.approved` are both
+"Approved" in English; the first titles a tab holding a queue of requests and is
+PLURAL in every Romance locale (Aprobadas, Approuvées, Rifiutate), the second
+labels ONE submission and must be singular. Same English, different agreement,
+and nothing in the tooling can see it.
+
+Safe to inherit: context-free validation lines ("Latitude must be a number
+between {min} and {max}."). Not safe: anything carrying number, gender or a
+participle agreeing with a noun the other site does not have.
 
 ## A COGNATE GOES IN THE ALLOW-LIST, NOT THE BASELINE
 
