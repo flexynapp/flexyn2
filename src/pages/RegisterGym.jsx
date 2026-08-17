@@ -63,7 +63,7 @@ export default function RegisterGym() {
 
   const captureLocation = () => {
     if (!navigator.geolocation) {
-      toast.error("Your browser doesn't support geolocation.");
+      toast.error(tFallback('registerGym.geoUnsupported', 'Your browser does not support geolocation.'));
       return;
     }
     setGeoLoading(true);
@@ -75,7 +75,7 @@ export default function RegisterGym() {
           longitude: pos.coords.longitude.toFixed(6),
         }));
         setGeoLoading(false);
-        toast.success('Location captured.');
+        toast.success(tFallback('registerGym.locationCaptured', 'Location captured.'));
       },
       (err) => {
         setGeoLoading(false);
@@ -97,7 +97,7 @@ export default function RegisterGym() {
     if (submitting || submitRef.current) return;
     const name = form.business_name.trim();
     if (!name) {
-      toast.error('Business name required.');
+      toast.error(tFallback('registerGym.nameRequired', 'Business name required.'));
       return;
     }
 
@@ -123,7 +123,7 @@ export default function RegisterGym() {
     if (form.latitude?.toString().trim() !== '') {
       const v = Number(form.latitude);
       if (!Number.isFinite(v) || v < -90 || v > 90) {
-        toast.error('Latitude must be a number between -90 and 90.');
+        toast.error(tFallback('registerGym.latitudeRange', 'Latitude must be a number between {min} and {max}.', { min: -90, max: 90 }));
         return;
       }
       lat = v;
@@ -131,7 +131,7 @@ export default function RegisterGym() {
     if (form.longitude?.toString().trim() !== '') {
       const v = Number(form.longitude);
       if (!Number.isFinite(v) || v < -180 || v > 180) {
-        toast.error('Longitude must be a number between -180 and 180.');
+        toast.error(tFallback('registerGym.longitudeRange', 'Longitude must be a number between {min} and {max}.', { min: -180, max: 180 }));
         return;
       }
       lng = v;
@@ -143,7 +143,7 @@ export default function RegisterGym() {
     setSubmitting(false);
     submitRef.current = false;
     if (res.ok) {
-      toast.success('Submitted. Flexyn will review and reach out shortly.');
+      toast.success(tFallback('registerGym.submitted', 'Submitted. Flexyn will review and reach out shortly.'));
       // Clear EVERY field so a subsequent submission for a different
       // gym starts from a clean slate. Previously only business_name
       // was cleared, so a user adding a second gym carried the first
@@ -157,9 +157,11 @@ export default function RegisterGym() {
       const fresh = await listMyVerifications(user.id);
       setSubmissions(fresh);
     } else if (res.error === 'PIPELINE_MISSING') {
-      toast.error('Gym registration is rolling out. Try again shortly.');
+      toast.error(tFallback('registerGym.pipelineMissing', 'Gym registration is rolling out. Try again shortly.'));
     } else {
-      toast.error(`Could not submit: ${res.error || 'try again'}`);
+      toast.error(tFallback('registerGym.submitFailed', 'Could not submit: {reason}', {
+        reason: res.error || tFallback('registerGym.tryAgain', 'try again'),
+      }));
     }
   };
 
@@ -184,7 +186,7 @@ export default function RegisterGym() {
         <div>
           <h1 className="font-heading text-2xl font-bold tracking-tight">{tFallback("registerGym.registerYourGym", "Register your gym")}</h1>
           <p className="text-sm text-muted-foreground">
-            Get your physical location on Flexyn. We review every submission.
+            {tFallback('registerGym.subtitle', 'Get your physical location on Flexyn. We review every submission.')}
           </p>
         </div>
       </div>
@@ -204,7 +206,7 @@ export default function RegisterGym() {
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-sm truncate">{s.business_name}</p>
                   <p className="text-xs text-muted-foreground">
-                    {s.city && `${s.city}, `}{s.state_code} · <span className={meta.color}>{meta.label}</span>
+                    {s.city && `${s.city}, `}{s.state_code} · <span className={meta.color}>{tFallback(`registerGym.status.${s.status in STATUS_META ? s.status : 'pending'}`, meta.label)}</span>
                   </p>
                   {s.status === 'rejected' && s.rejection_reason && (
                     <p className="text-xs text-destructive mt-1">{s.rejection_reason}</p>
@@ -219,12 +221,12 @@ export default function RegisterGym() {
       <form onSubmit={handleSubmit} className="space-y-4 rounded-2xl border border-border bg-card p-4">
         <div>
           <label className="block text-micro font-bold uppercase tracking-wider text-muted-foreground mb-1">
-            Business name *
+            {tFallback('registerGym.businessNameLabel', 'Business name *')}
           </label>
           <Input
             value={form.business_name}
             onChange={(e) => setForm(f => ({ ...f, business_name: e.target.value.slice(0, 80) }))}
-            placeholder="e.g. Iron Forge Athletics"
+            placeholder={tFallback('registerGym.businessNamePlaceholder', 'e.g. Iron Forge Athletics')}
             required
           />
         </div>

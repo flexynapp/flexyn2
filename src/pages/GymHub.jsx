@@ -197,10 +197,10 @@ export default function GymHub() {
     const res = await joinByCode(gym.flexyn_code);
     setJoining(false);
     if (res.ok) {
-      toast.success(`Joined ${gym.name}.`);
+      toast.success(tFallback('gymHub.joined', 'Joined {name}.', { name: gym.name }));
       setIsMember(true);
     } else {
-      toast.error("Couldn't join. Try again.");
+      toast.error(tFallback('gymHub.joinFailed', 'Could not join. Try again.'));
     }
   };
 
@@ -370,9 +370,9 @@ export default function GymHub() {
                 }
                 try {
                   await navigator.clipboard.writeText(`${text}\n${shareUrl}`);
-                  toast.success('Copied to clipboard.');
+                  toast.success(tFallback('gymHub.copiedToClipboard', 'Copied to clipboard.'));
                 } catch {
-                  toast.error("Couldn't share or copy.");
+                  toast.error(tFallback('gymHub.shareFailed', 'Could not share or copy.'));
                 }
               }}
               className="gap-1.5"
@@ -394,13 +394,13 @@ export default function GymHub() {
                 variant="outline"
                 size="sm"
                 onClick={async () => {
-                  if (!confirm(`Leave ${gym.name}?`)) return;
+                  if (!confirm(tFallback('gymHub.confirmLeave', 'Leave {name}?', { name: gym.name }))) return;
                   const res = await leaveGym(gym.id);
                   if (res.ok) {
-                    toast.success('Left gym.');
+                    toast.success(tFallback('gymHub.left', 'Left gym.'));
                     navigate('/my-gym');
                   } else {
-                    toast.error("Couldn't leave. Try again.");
+                    toast.error(tFallback('gymHub.leaveFailed', 'Could not leave. Try again.'));
                   }
                 }}
                 className="gap-1.5 text-muted-foreground hover:text-destructive active:text-destructive"
@@ -435,11 +435,13 @@ export default function GymHub() {
               before telling them whether anyone trains there. */}
           <GymActivityPreview preview={preview} />
           <p className="text-sm text-muted-foreground mb-3">
-            Join to access the local feed, events, and member leaderboard.
+            {tFallback('gymHub.joinPitch', 'Join to access the local feed, events, and member leaderboard.')}
           </p>
           <Button onClick={handleJoinHere} disabled={joining} className="gap-2 px-6">
             {joining ? <Loader2 className="w-4 h-4 animate-spin" /> : <Building2 className="w-4 h-4" />}
-            {joining ? 'Joining…' : 'Join this gym'}
+            {joining
+              ? tFallback('gymHub.joining', 'Joining…')
+              : tFallback('gymHub.joinThisGym', 'Join this gym')}
           </Button>
         </div>
       )}
@@ -556,7 +558,7 @@ function EventsTab({ gymId, canCreate, gymOwnerId }) {
     const res = await setEventRsvp(eventId, targetStatus);
     setRsvpBusy(null);
     if (!res.ok) {
-      toast.error("Couldn't RSVP.");
+      toast.error(tFallback('gymHub.rsvpFailed', 'Could not RSVP.'));
       refresh();
     }
   };
@@ -566,7 +568,7 @@ function EventsTab({ gymId, canCreate, gymOwnerId }) {
     const { deleteEvent } = await import('@/lib/data/gymBusinesses');
     const res = await deleteEvent(eventId);
     if (res.ok) refresh();
-    else toast.error("Couldn't delete event.");
+    else toast.error(tFallback('gymHub.deleteEventFailed', 'Could not delete event.'));
   };
 
   const handleCreate = async () => {
@@ -575,7 +577,7 @@ function EventsTab({ gymId, canCreate, gymOwnerId }) {
     // the silent return surprises. Surface a toast so the tap always
     // produces feedback. (Audit 12 #8.)
     if (!form.title.trim() || !form.starts_at) {
-      toast.error('Add a title and start time before creating the event.');
+      toast.error(tFallback('gymHub.needTitleAndStart', 'Add a title and start time before creating the event.'));
       return;
     }
     const res = await createEvent(gymId, form);
@@ -584,9 +586,9 @@ function EventsTab({ gymId, canCreate, gymOwnerId }) {
       setComposing(false);
       refresh();
     } else if (res.error === 'INVALID_START') {
-      toast.error('Pick a valid date and time.');
+      toast.error(tFallback('gymHub.invalidStart', 'Pick a valid date and time.'));
     } else {
-      toast.error(res.error || "Couldn't create event.");
+      toast.error(res.error || tFallback('gymHub.createEventFailed', 'Could not create event.'));
     }
   };
 
@@ -630,7 +632,7 @@ function EventsTab({ gymId, canCreate, gymOwnerId }) {
             onChange={(e) => setForm(f => ({ ...f, starts_at: e.target.value }))}
           />
           <Input
-            placeholder="Location note (e.g. Squat rack 3)"
+            placeholder={tFallback('gymHub.locationNotePlaceholder', 'Location note (e.g. Squat rack 3)')}
             value={form.location_note}
             onChange={(e) => setForm(f => ({ ...f, location_note: e.target.value.slice(0, 80) }))}
           />
