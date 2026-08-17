@@ -17,8 +17,8 @@ import { useLanguage } from '@/lib/LanguageContext';
 
 const TYPE_OPTIONS = [
   { id: 'open',     label: 'Open',     desc: 'Most total volume wins' },
-  { id: 'mirror',   label: 'Mirror',   desc: 'Same workout, best completion' },
-  { id: 'exercise', label: 'Exercise', desc: 'One-lift head-to-head' },
+  { id: 'mirror',   label: 'Mirror',   desc: 'Complete the same session' },
+  { id: 'exercise', label: 'Exercise', desc: 'Single exercise showdown' },
 ];
 
 export default function CreateInviteLinkModal({ open, onOpenChange }) {
@@ -50,9 +50,9 @@ export default function CreateInviteLinkModal({ open, onOpenChange }) {
     } catch (err) {
       const code = err?.code || err?.status;
       if (code === '42883' || code === '42P01') {
-        toast.error('Invite system pending. Apply migration 072.');
+        toast.error(tFallback('createInviteLinkModal.migrationMissing', 'Invite system pending. Apply migration 072.'));
       } else {
-        toast.error('Could not create invite. Try again.');
+        toast.error(tFallback('createInviteLinkModal.createFailed', 'Could not create invite. Try again.'));
       }
       console.error('[CreateInviteLinkModal] create failed:', err);
     } finally {
@@ -79,8 +79,8 @@ export default function CreateInviteLinkModal({ open, onOpenChange }) {
     if (typeof navigator.share !== 'function') return handleCopy();
     try {
       await navigator.share({
-        title: 'Flexyn duel',
-        text: "I'm challenging you to a duel on Flexyn:",
+        title: tFallback('createInviteLinkModal.shareTitle', 'Flexyn duel'),
+        text: tFallback('createInviteLinkModal.shareText', 'I am challenging you to a duel on Flexyn:'),
         url,
       });
     } catch { /* user cancelled */ }
@@ -127,10 +127,10 @@ export default function CreateInviteLinkModal({ open, onOpenChange }) {
                         }`}
                       >
                         <div className="flex items-center justify-between gap-2">
-                          <span className="font-bold text-sm">{opt.label}</span>
+                          <span className="font-bold text-sm">{tFallback(`duel.type.${opt.id}.chip`, opt.label)}</span>
                           {active && <Check className="w-4 h-4 text-rose-500" />}
                         </div>
-                        <p className="text-xs text-muted-foreground mt-0.5">{opt.desc}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">{tFallback(`duel.type.${opt.id}.rulesShort`, opt.desc)}</p>
                       </button>
                     );
                   })}

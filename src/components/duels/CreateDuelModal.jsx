@@ -225,7 +225,15 @@ export default function CreateDuelModal({
         windowHours: 24,
       });
       sendDuelDM(duel.id, profile.id, 'open', 24);
-      toast.success(`Open Duel sent to @${profile.username}!`, { description: '24h window · Most volume wins' });
+      toast.success(
+        tFallback('createDuelModal.openDuelSent', '{type} sent to @{handle}!', {
+          type: tFallback('duel.type.open.name', 'Open Duel'),
+          handle: profile.username,
+        }),
+        {
+          description: `${tFallback('createDuelModal.windowHours', '{n}h window', { n: 24 })} · ${tFallback('duel.type.open.rulesShort', 'Most total volume wins')}`,
+        },
+      );
       onCreated?.(duel);
       onClose();
     } catch (err) {
@@ -237,7 +245,7 @@ export default function CreateDuelModal({
   };
 
   const handleCreate = async () => {
-    if (!opponent?.id) { toast.error('Select an opponent first.'); return; }
+    if (!opponent?.id) { toast.error(tFallback('createDuelModal.selectOpponent', 'Select an opponent first.')); return; }
     if (createRef.current) return;
     createRef.current = true;
     setLoading(true);
@@ -412,8 +420,12 @@ export default function CreateDuelModal({
                     >
                       <Icon className={`w-4 h-4 mt-0.5 shrink-0 ${active ? 'text-white' : color}`} />
                       <div>
-                        <p className={`text-sm font-semibold ${active ? 'text-white' : ''}`}>{label}</p>
-                        <p className={`text-xs mt-0.5 ${active ? 'text-white/80' : 'text-muted-foreground'}`}>{description}</p>
+                        <p className={`text-sm font-semibold ${active ? 'text-white' : ''}`}>
+                          {tFallback(`duel.type.${id}.name`, label)}
+                        </p>
+                        <p className={`text-xs mt-0.5 ${active ? 'text-white/80' : 'text-muted-foreground'}`}>
+                          {tFallback(`duel.type.${id}.rules`, description)}
+                        </p>
                       </div>
                     </button>
                   );
@@ -425,9 +437,13 @@ export default function CreateDuelModal({
                 <div className="rounded-xl bg-secondary/50 border border-border p-3">
                   <p className="text-xs font-semibold text-muted-foreground mb-1">{tFallback("createDuelModal.sessionTemplate", "Session Template")}</p>
                   {recentSession ? (
-                    <p className="text-sm font-medium">{recentSession.regimen_name || 'Your last workout'}</p>
+                    <p className="text-sm font-medium">
+                      {recentSession.regimen_name || tFallback('createDuelModal.yourLastWorkout', 'Your last workout')}
+                    </p>
                   ) : (
-                    <p className="text-xs text-muted-foreground italic">No recent session found.</p>
+                    <p className="text-xs text-muted-foreground italic">
+                      {tFallback('createDuelModal.noRecentSession', 'No recent session found.')}
+                    </p>
                   )}
                 </div>
               )}

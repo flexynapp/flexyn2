@@ -70,7 +70,7 @@ export default function DuelInviteCard({ payload, isMine }) {
     try {
       await acceptDuel(duelId);
       setState('accepted');
-      toast.success('Duel accepted! Game on. 🔥');
+      toast.success(tFallback('duelInviteCard.accepted', 'Duel accepted! Game on. 🔥'));
       qc.invalidateQueries({ queryKey: ['activeDuel'] });
       qc.invalidateQueries({ queryKey: ['myDuels'] });
     } catch (err) {
@@ -85,7 +85,7 @@ export default function DuelInviteCard({ payload, isMine }) {
     try {
       await declineDuel(duelId);
       setState('declined');
-      toast.info('Duel declined.');
+      toast.info(tFallback('duelInviteCard.declined', 'Duel declined.'));
       qc.invalidateQueries({ queryKey: ['activeDuel'] });
       qc.invalidateQueries({ queryKey: ['myDuels'] });
     } catch (err) {
@@ -126,8 +126,12 @@ export default function DuelInviteCard({ payload, isMine }) {
           <div className={`flex items-center gap-2 px-3 py-2 rounded-xl ${meta.bg}`}>
             <Icon className={`w-4 h-4 shrink-0 ${meta.color}`} />
             <div>
-              <p className={`text-xs font-bold ${meta.color}`}>{meta.label}</p>
-              <p className="text-micro text-muted-foreground">{meta.description}</p>
+              <p className={`text-xs font-bold ${meta.color}`}>
+                {tFallback(`duel.type.${type in TYPE_META ? type : 'open'}.name`, meta.label)}
+              </p>
+              <p className="text-micro text-muted-foreground">
+                {tFallback(`duel.type.${type in TYPE_META ? type : 'open'}.rulesShort`, meta.description)}
+              </p>
             </div>
           </div>
 
