@@ -15,22 +15,19 @@ every "94% real" predates a correct measurement.
 | | then | now |
 |---|---|---|
 | untranslatable keys | 781 | **0** |
-| hardcoded strings | 725 (undercounted) | **507** (honest) |
-| en.json | 3,895 | 5,738 |
-| real es/fr coverage | 70.5% | **91.3%** |
-| de / it / nl / pl | — | 87.9% real |
-| pt | — | 86.7% real |
-| tr | 2,137 | 2,353 / 5,738 |
+| hardcoded strings | 725 (undercounted) | **485** (honest) |
+| en.json | 3,895 | 5,779 |
+| real es/fr coverage | 70.5% | **91.7%** |
+| de / it / nl / pl | — | 88.1% real |
+| pt | — | 86.8% real |
+| tr | 2,137 | 2,353 / 5,779 |
 
 `npm run i18n:audit` section E is the honest number. Section B is CATALOG
 coverage and is not what a user sees — do not quote it.
 
-**Everything up to `f05ab6ea` is verified: 5,220 tests across 374 files, lint
-clean.** That commit's own message says the full suite did not run. That was
-true when it was written — the machine was at load average 640 with another
-session's 31 vitest workers on it, and my run was starving rather than
-progressing — and it is no longer true. Not amended, because it is already on
-`main` and `main` is never force-pushed here.
+**Everything up to `5e2281e8` is verified: 5,231 tests across 375 files, lint
+clean.**
+
 
 **Three scanner defects were fixed on 2026-08-16 and they are the reason the
 numbers moved.** `844e24b9` (parallel session): every sentence containing a
@@ -46,17 +43,19 @@ untranslated.
 
 ## THE JOB
 
-**Finish the 507 hardcoded strings.** UI copy that never reaches a catalog.
+**Finish the 485 hardcoded strings.** UI copy that never reaches a catalog.
 `npm run i18n:hardcoded -- --list` enumerates them; the largest are:
 
-    11  src/components/cardio/CardioPlanned.jsx
-    11  src/components/nutrition/RecipesHubModal.jsx
     11  src/lib/aiCoach/workoutGenerator.js   ← SEE "KNOWN FALSE POSITIVE"
     11  src/lib/programTemplates.js
     10  src/components/gyms/GymFeedTab.jsx
     10  src/pages/TradeHistory.jsx
+    10  src/pages/TrainerStudio.jsx
+     9  src/components/duels/CreateDuelModal.jsx
+     9  src/components/duels/CreateInviteLinkModal.jsx
 
-then a tail of 1–9 across ~135 files. Nothing above 11 remains.
+then a tail of 1–8 across ~134 files. Nothing above 11 remains, and
+`workoutGenerator` is the documented false positive, so the real top is 11.
 
 **The loot catalogs are DONE** (105 keys, 2026-08-16). Cosmetic NAMES stay
 English by standing decision; the flavour text beside them is translated
@@ -82,6 +81,12 @@ list.** Two shapes it structurally cannot see, both found in this batch:
   overwhelmingly an identifier here). `trophyDefinitions.js` reported 123 and
   had 166 — the 43 extra were `LADDERS[].name` and `TROPHY_CATEGORIES[].name`,
   rendering as page headings.
+- **A DUPLICATE CATALOG is the best find, because the fix is a deletion.**
+  `CardioPlanned` carried its own English for six cardio types while
+  `cardio.type.<slug>` already held the same six translated 7/7 with a
+  resolver in `src/lib/cardioTypeLabel.js` — and the data's `value` fields
+  were the key slugs. Before keying a `slug -> { label }` map, grep en.json
+  for the slug: somebody may have done it already.
 - **A slug→label map whose PROPS ARE THE SLUGS is invisible entirely.** The
   detector matches on the property NAME being `label`/`title`/`desc`, so
   `REASON_LABEL = { harassment: 'Harassment', spam: 'Spam', … }` in
