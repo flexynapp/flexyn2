@@ -149,15 +149,22 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
   // useHubUnreadDot. When the user follows/unfollows anyone, those code
   // paths invalidate this same key, so the Squad feed automatically
   // refetches with the new follow set.
-  const { data: following = [] } = useQuery({
+  const { data: following = [], error: followingError } = useQuery({
     queryKey: ['hubFollowing', user?.email],
     queryFn:  () => hubFollows.listFollowing(user.email),
     enabled:  !!user?.email,
     staleTime: 60_000,
-    onError:  (err) => reportError(err, {
-      feature: 'hub.feed.list-following', level: 'warning', userEmail: user?.email,
-    }),
   });
+
+  // Report from the error the hook returns. This was an `onError` option on the
+  // query, which react-query removed in v5 — so the reporting it was added for
+  // had silently stopped happening.
+  useEffect(() => {
+    if (!followingError) return;
+    reportError(followingError, {
+      feature: 'hub.feed.list-following', level: 'warning', userEmail: user?.email,
+    });
+  }, [followingError, user?.email]);
 
   const { data: windowPosts = [], isLoading, isFetching, refetch } = useQuery({
     queryKey: ['hubFeed', feedTab, user?.email, following.length],

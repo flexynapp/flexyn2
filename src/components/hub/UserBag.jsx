@@ -617,32 +617,32 @@ export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBat
   }, [lootThemeId, setLootThemeId]);
 
   // Capsules live in user_capsules (separate from inventory)
-  const { data: capsuleRows = [], isLoading: capsLoading } = useQuery({
+  const { data: capsuleRows = [], isLoading: capsLoading, error: capsError } = useQuery({
     queryKey: ['userCapsules', user?.email],
     queryFn:  () => capsules.listUnopenedCapsules(user.email),
     enabled:  !!user?.email && open,
     staleTime: 15_000,
-    // Surface fetch failures via reportError so a regression doesn't
-    // silently leave the bag stuck on an empty skeleton.
-    onError: (err) => {
-      import('@/lib/reportError').then(({ reportError }) => {
-        reportError(err, { feature: 'userBag.capsules', level: 'warning', userEmail: user?.email });
-      }).catch(() => {});
-    },
   });
 
   // Stickers and themes live in user_inventory
-  const { data: inventoryItems = [], isLoading: invLoading } = useQuery({
+  const { data: inventoryItems = [], isLoading: invLoading, error: invError } = useQuery({
     queryKey: ['userInventory', user?.email],
     queryFn:  () => inventory.listItems(user.email),
     enabled:  !!user?.email && open,
     staleTime: 30_000,
-    onError: (err) => {
-      import('@/lib/reportError').then(({ reportError }) => {
-        reportError(err, { feature: 'userBag.inventory', level: 'warning', userEmail: user?.email });
-      }).catch(() => {});
-    },
   });
+
+  // Surface fetch failures so a regression doesn't silently leave the bag stuck
+  // on an empty skeleton — which is what the comment on these queries always
+  // claimed, while the `onError` options carrying it had been inert since the
+  // react-query v5 upgrade removed them. `reportError` is imported at the top
+  // of this file, so the dynamic import these used is gone with them.
+  useEffect(() => {
+    if (capsError) reportError(capsError, { feature: 'userBag.capsules', level: 'warning', userEmail: user?.email });
+  }, [capsError, user?.email]);
+  useEffect(() => {
+    if (invError) reportError(invError, { feature: 'userBag.inventory', level: 'warning', userEmail: user?.email });
+  }, [invError, user?.email]);
 
   // Group stickers by item_id so duplicates are visible. Skip rows
   // with no item_id rather than collapsing them all under an

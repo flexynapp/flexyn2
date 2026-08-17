@@ -148,13 +148,25 @@ export default function CrewsSection({ initialCrewId, onViewProfile }) {
     queryFn:  () => crewsData.getMyCrews(user.id),
     enabled:  !!user?.id,
     staleTime: 15_000,
-    onSuccess: (crews) => {
-      if (initialCrewId && !activeCrew) {
-        const target = crews.find(c => c.id === initialCrewId);
-        if (target) setActiveCrew(target);
-      }
-    },
   });
+
+  // Open the crew a deep link asked for, once the crews have loaded.
+  //
+  // This was `onSuccess` on the query above. react-query REMOVED the per-query
+  // callbacks in v5 (5.90.21 is installed), so it never ran — silently, because
+  // an unknown option is not an error — and every deep link landed on the My
+  // Crews list instead of the crew. Callers: CrewDMInviteCard accepting an
+  // invite, CrewWarsMenu, and the crew-war pill on HubProfile.
+  //
+  // It cannot be folded into the flexyn:open-crew listener below. That event is
+  // what makes Hub set `pendingCrewId` and switch to this tab in the first
+  // place, so by the time this component mounts the event has already fired and
+  // there is nothing left to hear. The prop is the only carrier.
+  React.useEffect(() => {
+    if (!initialCrewId || activeCrew) return;
+    const target = myCrews.find(c => c.id === initialCrewId);
+    if (target) setActiveCrew(target);
+  }, [initialCrewId, myCrews, activeCrew]);
 
   const handleCreated = (crew) => {
     setCreating(false);
