@@ -299,7 +299,8 @@ describe('listChallengesForCrew', () => {
     const eqStatus = vi.fn().mockResolvedValue({ data: [{ id: 'a' }], error: null });
     const limit    = vi.fn().mockReturnValue({ eq: eqStatus });
     const order    = vi.fn().mockReturnValue({ limit });
-    const eqCrew   = vi.fn().mockReturnValue({ order });
+    const isTpl    = vi.fn().mockReturnValue({ order });
+    const eqCrew   = vi.fn().mockReturnValue({ is: isTpl });
     const select   = vi.fn().mockReturnValue({ eq: eqCrew });
     fromSpy.mockReturnValue({ select });
 
@@ -309,14 +310,35 @@ describe('listChallengesForCrew', () => {
     expect(eqStatus).toHaveBeenCalledWith('status', 'active');
   });
 
+  // Migration 367 put GENERATIONAL challenges in this same table. Without
+  // this filter the crew's chase renders twice: properly on the Trophies
+  // tab, and again on the Home tab as a generic row with no trophy and a
+  // bare progress bar. Proved against production before the fix: the Home
+  // tab listed 1 and the Trophies tab listed the same 1.
+  it('excludes generational challenges, which have their own surface', async () => {
+    const eqStatus = vi.fn().mockResolvedValue({ data: [], error: null });
+    const limit    = vi.fn().mockReturnValue({ eq: eqStatus });
+    const order    = vi.fn().mockReturnValue({ limit });
+    const isTpl    = vi.fn().mockReturnValue({ order });
+    const eqCrew   = vi.fn().mockReturnValue({ is: isTpl });
+    const select   = vi.fn().mockReturnValue({ eq: eqCrew });
+    fromSpy.mockReturnValue({ select });
+
+    await listChallengesForCrew('c1');
+    expect(isTpl).toHaveBeenCalledWith('template_key', null);
+  });
+
   it('does NOT apply the status filter when includeExpired=true', async () => {
     const limit  = vi.fn().mockResolvedValue({ data: [{ id: 'a' }, { id: 'b' }], error: null });
     const order  = vi.fn().mockReturnValue({ limit });
-    const eqCrew = vi.fn().mockReturnValue({ order });
+    const isTpl  = vi.fn().mockReturnValue({ order });
+    const eqCrew = vi.fn().mockReturnValue({ is: isTpl });
     const select = vi.fn().mockReturnValue({ eq: eqCrew });
     fromSpy.mockReturnValue({ select });
 
     const rows = await listChallengesForCrew('c1', true);
     expect(rows).toHaveLength(2);
+    // still excluded, whatever the status filter does
+    expect(isTpl).toHaveBeenCalledWith('template_key', null);
   });
 });

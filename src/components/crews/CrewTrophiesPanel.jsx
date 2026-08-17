@@ -358,15 +358,27 @@ export default function CrewTrophiesPanel({ crewId, myRank }) {
         </div>
       )}
 
-      {/* One primary control, and only the leader gets it. A member never
-          sees a disabled button they then have to decode. */}
-      {isLeader && !active && remaining.length > 0 && (
+      {/* One control, and only the leader gets it. A member never sees a
+          disabled button they then have to decode.
+
+          It stays reachable DURING a chase, read-only: a leader who cannot
+          see what is coming next has no reason to care that the ladder
+          continues. Migration 367 refuses a second concurrent challenge on
+          the server anyway, so the sheet suppresses Start rather than
+          offering a button that would be refused. */}
+      {isLeader && remaining.length > 0 && (
         <button
           type="button"
           onClick={() => setPickerOpen(true)}
-          className="w-full h-12 mt-6 rounded-2xl bg-primary text-primary-foreground font-heading font-bold text-body"
+          className={`w-full h-12 mt-6 rounded-2xl font-heading font-bold text-body ${
+            active
+              ? 'bg-secondary text-foreground'
+              : 'bg-primary text-primary-foreground'
+          }`}
         >
-          {tFallback('crewTrophies.choose', 'Choose a challenge')}
+          {active
+            ? tFallback('crewTrophies.browse', "See what's next")
+            : tFallback('crewTrophies.choose', 'Choose a challenge')}
         </button>
       )}
 
@@ -457,17 +469,25 @@ export default function CrewTrophiesPanel({ crewId, myRank }) {
         </>
       )}
 
-      {/* ── The picker (board D) ───────────────────────────────────── */}
+      {/* ── The picker (board D), in its two states ────────────────── */}
       <BottomSheet
         open={pickerOpen}
         onClose={() => setPickerOpen(false)}
-        title={tFallback('crewTrophies.pickerTitle', "Choose the crew's next challenge")}
+        title={active
+          ? tFallback('crewTrophies.pickerTitleNext', 'What the crew can chase next')
+          : tFallback('crewTrophies.pickerTitle', "Choose the crew's next challenge")}
       >
         <p className="text-caption text-muted-foreground leading-relaxed -mt-1">
-          {tFallback(
-            'crewTrophies.pickerSub',
-            'One at a time. Each pays a trophy the crew keeps forever, and a challenge can only be won once.',
-          )}
+          {active
+            ? tFallback(
+                'crewTrophies.pickerSubActive',
+                'Finish {name} first. A crew chases one at a time, and each pays a trophy it keeps forever.',
+                { name: challengeName(active, tFallback) },
+              )
+            : tFallback(
+                'crewTrophies.pickerSub',
+                'One at a time. Each pays a trophy the crew keeps forever, and a challenge can only be won once.',
+              )}
         </p>
         <div className="h-px bg-border -mx-4 mt-4" />
         <div className="mt-2">
@@ -477,7 +497,9 @@ export default function CrewTrophiesPanel({ crewId, myRank }) {
               row={row}
               fmt={fmt}
               tFallback={tFallback}
-              onStart={row.state === 'available' ? start : undefined}
+              // Read-only while a chase runs. The server refuses a second
+              // concurrent challenge, so a Start here could only ever fail.
+              onStart={!active && row.state === 'available' ? start : undefined}
               starting={starting}
               last={i === arr.length - 1}
             />

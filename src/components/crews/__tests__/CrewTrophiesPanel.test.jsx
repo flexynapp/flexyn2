@@ -27,7 +27,7 @@
 
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 vi.mock('@/lib/LanguageContext', () => ({
@@ -133,6 +133,50 @@ describe('the leader gate', () => {
     expect(starts).toHaveLength(2);
     await userEvent.click(starts[0]);
     await waitFor(() => expect(startGenerationalChallenge).toHaveBeenCalledWith('c1', 'first_million'));
+  });
+});
+
+describe('the picker while a chase is running', () => {
+  const active = row({
+    template_key: 'first_million', title: 'The First Million', trophy_title: 'Millionaires',
+    state: 'active', current_value: 340120, target_value: 1000000, challenge_id: 'ch1',
+  });
+
+  beforeEach(() => {
+    getCrewChallengeCatalog.mockResolvedValue([active, ...CATALOG.slice(1)]);
+  });
+
+  it('still lets a leader open it, so the ladder is visible mid-chase', async () => {
+    mount(RANK.LEADER);
+    // The control changes voice rather than disappearing: browsing is not
+    // the same act as choosing.
+    await userEvent.click(await screen.findByText("See what's next"));
+    // Scoped to the sheet: the same row is legitimately on the tab behind
+    // it, under STILL OUT THERE, so an unscoped query is ambiguous.
+    const sheet = await screen.findByRole('dialog');
+    expect(within(sheet).getByText('The Century')).toBeTruthy();
+  });
+
+  it('suppresses every Start, because 367 refuses a second concurrent chase', async () => {
+    mount(RANK.LEADER);
+    await userEvent.click(await screen.findByText("See what's next"));
+    const sheet = await screen.findByRole('dialog');
+    within(sheet).getByText('The Century');
+    // A button the server would refuse is worse than no button.
+    expect(within(sheet).queryByText('Start')).toBeNull();
+  });
+
+  it('names the chase that has to finish first', async () => {
+    mount(RANK.LEADER);
+    await userEvent.click(await screen.findByText("See what's next"));
+    expect(await screen.findByText(/Finish The First Million first/)).toBeTruthy();
+  });
+
+  it('gives a member no control either way', async () => {
+    mount(RANK.MEMBER);
+    await screen.findByText('The First Million');
+    expect(screen.queryByText("See what's next")).toBeNull();
+    expect(screen.queryByText('Choose a challenge')).toBeNull();
   });
 });
 

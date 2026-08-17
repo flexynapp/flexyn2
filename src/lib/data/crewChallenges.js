@@ -10,13 +10,23 @@ import { containsProfanity } from '@/lib/profanityFilter';
 
 export const VALID_METRICS = ['total_volume', 'total_sessions', 'total_xp', 'days_active'];
 
-/** List active challenges for a crew, newest first. */
+/**
+ * The FREE-FORM challenges a leader composed, newest first.
+ *
+ * `template_key IS NULL` is load-bearing, not tidying. Migration 367 put
+ * generational challenges in this same table, so without it the crew's
+ * chase renders TWICE: once properly on the Trophies tab, and again here
+ * on the Home tab as a generic row with no trophy, no monogram and a bare
+ * progress bar. Two views of one object, and the worse one is the one a
+ * member lands on first.
+ */
 export async function listChallengesForCrew(crewId, includeExpired = false) {
   if (!crewId) return [];
   const q = supabase
     .from('crew_challenges')
     .select('id, title, metric, target_value, current_value, starts_at, ends_at, status, created_by, created_at')
     .eq('crew_id', crewId)
+    .is('template_key', null)
     .order('ends_at', { ascending: false })
     .limit(20);
   const { data, error } = includeExpired
