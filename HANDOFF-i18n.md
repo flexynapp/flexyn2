@@ -15,17 +15,17 @@ every "94% real" predates a correct measurement.
 | | then | now |
 |---|---|---|
 | untranslatable keys | 781 | **0** |
-| hardcoded strings | 725 (undercounted) | **464** (honest) |
-| en.json | 3,895 | 5,806 |
-| real es/fr coverage | 70.5% | **92.0%** |
-| de / it / nl / pl | — | 88.4% real |
-| pt | — | 87.2% real |
-| tr | 2,137 | 2,353 / 5,806 |
+| hardcoded strings | 725 (undercounted) | **444** (honest) |
+| en.json | 3,895 | 5,833 |
+| real es/fr coverage | 70.5% | **92.4%** |
+| de / it / nl / pl | — | 88.7% real |
+| pt | — | 87.5% real |
+| tr | 2,137 | 2,353 / 5,833 |
 
 `npm run i18n:audit` section E is the honest number. Section B is CATALOG
 coverage and is not what a user sees — do not quote it.
 
-**Everything up to `74fa8683` is verified: 5,232 tests across 376 files, lint
+**Everything up to `b9b92bb9` is verified: 5,240 tests across 378 files, lint
 clean.**
 
 
@@ -43,19 +43,21 @@ untranslated.
 
 ## THE JOB
 
-**Finish the 464 hardcoded strings.** UI copy that never reaches a catalog.
+**Finish the 444 hardcoded strings.** UI copy that never reaches a catalog.
 `npm run i18n:hardcoded -- --list` enumerates them; the largest are:
 
     11  src/lib/aiCoach/workoutGenerator.js   ← SEE "KNOWN FALSE POSITIVE"
-    10  src/pages/TradeHistory.jsx
-    10  src/pages/TrainerStudio.jsx
      9  src/components/duels/CreateDuelModal.jsx
      9  src/components/duels/CreateInviteLinkModal.jsx
      9  src/components/hub/HubChat.jsx
      9  src/components/stories/StoryViewer.jsx
+     8  src/components/cardio/CardioWearableStub.jsx
+     8  src/components/duels/DuelInviteCard.jsx
 
-then a tail of 1–8 across ~132 files. `workoutGenerator` is the documented
-false positive, so the real top is 10 and it is flat from there down.
+then a tail of 1–7 across ~130 files. `workoutGenerator` is the documented
+false positive, so the real top is 9 and it is flat from there down. The
+duel surfaces (CreateDuelModal, CreateInviteLinkModal, DuelInviteCard) are
+26 between them and share a vocabulary, so they are worth doing together.
 
 **The loot catalogs are DONE** (105 keys, 2026-08-16). Cosmetic NAMES stay
 English by standing decision; the flavour text beside them is translated
@@ -262,6 +264,14 @@ says. `adminReports.status.approved` and `registerGym.status.approved` are both
 PLURAL in every Romance locale (Aprobadas, Approuvées, Rifiutate), the second
 labels ONE submission and must be singular. Same English, different agreement,
 and nothing in the tooling can see it.
+
+**The mirror of this is a collision the ENGLISH cannot have.** "Turn your best
+regimens into paid programs" is two nouns in English and ONE in five locales,
+because `_glossary.json` maps Regimen to Programa / Programme / Programma /
+Programm — so it collapses to "programas en programas". Dutch was fine, Regimen
+being Schema there. When a sentence names two product nouns, check the glossary
+for both before writing it: the fix is to rename the OTHER one (the thing being
+sold is a product), not to accept the repetition.
 
 Safe to inherit: context-free validation lines ("Latitude must be a number
 between {min} and {max}."). Not safe: anything carrying number, gender or a
