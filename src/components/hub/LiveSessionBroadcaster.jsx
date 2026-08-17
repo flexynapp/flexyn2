@@ -103,9 +103,9 @@ export default function LiveSessionBroadcaster({ onClose }) {
 
       liveSessionRef.current = sid;
       setPhase('live');
-      toast.success('🔴 You\'re live! Your followers can see your workout.');
+      toast.success(tFallback('live.youAreLive', '🔴 You are live! Your followers can see your workout.'));
     } catch (err) {
-      toast.error('Could not start live session. Try again.');
+      toast.error(tFallback('live.startFailed', 'Could not start live session. Try again.'));
       setPhase('setup');
     }
   };
@@ -114,7 +114,7 @@ export default function LiveSessionBroadcaster({ onClose }) {
   // each set so the workout is preserved when the session ends.
   const logCurrentSet = () => {
     if (!exercise.trim() || !reps) {
-      toast.error('Enter an exercise and reps first.');
+      toast.error(tFallback('live.needExerciseAndReps', 'Enter an exercise and reps first.'));
       return;
     }
     setHistory(h => [...h, { exercise: exercise.trim(), set, reps }]);
@@ -171,13 +171,21 @@ export default function LiveSessionBroadcaster({ onClose }) {
       }
     }
     if (savedToHistory) {
-      toast.success(`Saved ${history.length} set${history.length === 1 ? '' : 's'} to your workout history. 💪`);
+      toast.success(history.length === 1
+        ? tFallback('live.savedOneSet', 'Saved {n} set to your workout history. 💪', { n: history.length })
+        : tFallback('live.savedSets', 'Saved {n} sets to your workout history. 💪', { n: history.length }));
     } else if (history.length === 0) {
-      toast.message('Session ended. No sets logged. Nothing saved to history.', {
-        description: 'Tap "Log set" between each set during your next live session.',
-      });
+      toast.message(
+        tFallback('live.endedNoSets', 'Session ended. No sets logged. Nothing saved to history.'),
+        {
+          description: tFallback(
+            'live.endedNoSetsHint',
+            'Tap "Log set" between each set during your next live session.',
+          ),
+        },
+      );
     } else {
-      toast.success('Session ended. Great workout! 💪');
+      toast.success(tFallback('live.endedGreat', 'Session ended. Great workout! 💪'));
     }
     onClose();
   };
@@ -272,7 +280,7 @@ export default function LiveSessionBroadcaster({ onClose }) {
                 <input
                   value={title}
                   onChange={(e) => setTitle(e.target.value.slice(0, 60))}
-                  placeholder="e.g. Morning Push Day 🔥"
+                  placeholder={tFallback('live.titlePlaceholder', 'e.g. Morning Push Day 🔥')}
                   className="w-full px-3 py-2 rounded-lg border border-border bg-secondary/30 text-sm focus:outline-none focus:border-primary/50"
                 />
               </div>
@@ -306,7 +314,7 @@ export default function LiveSessionBroadcaster({ onClose }) {
                 <input
                   value={exercise}
                   onChange={(e) => setExercise(e.target.value.slice(0, 60))}
-                  placeholder="e.g. Bench Press"
+                  placeholder={tFallback('live.exercisePlaceholder', 'e.g. Bench Press')}
                   className="w-full px-3 py-2.5 rounded-lg border border-border bg-secondary/30 text-sm focus:outline-none focus:border-primary/50"
                 />
               </div>

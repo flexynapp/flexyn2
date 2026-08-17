@@ -949,7 +949,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   // ── Profile edit save ────────────────────────────────────────────────────────
   const handleSaveProfile = async () => {
     if (hasAnyProfanity(bioDraft, cityDraft)) {
-      toast.error('Please remove inappropriate language before saving.');
+      toast.error(tFallback('hub.profile.removeProfanity', 'Please remove inappropriate language before saving.'));
       return;
     }
     setSavingProfile(true);
@@ -975,9 +975,9 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
       await checkUserAuth?.();
       queryClient.invalidateQueries({ queryKey: ['hubProfileLookup', email] });
       setEditProfileOpen(false);
-      toast.success('Saved. Looking sharp.');
+      toast.success(tFallback('hub.profile.saved', 'Saved. Looking sharp.'));
     } catch (err) {
-      toast.error(err?.message || 'Could not save');
+      toast.error(err?.message || tFallback('hub.profile.saveFailed', 'Could not save'));
     } finally {
       setSavingProfile(false);
     }
@@ -1540,12 +1540,12 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
                     e.target.value = '';
                     const result = await storiesData.createStory(user, file);
                     if (result?.limitReached) {
-                      toast.error('Story limit reached (10 max)');
+                      toast.error(tFallback('hub.profile.storyLimit', 'Story limit reached, {n} max', { n: 10 }));
                     } else if (!result?.ok) {
-                      toast.error('Could not upload story');
+                      toast.error(tFallback('hub.profile.storyUploadFailed', 'Could not upload story'));
                     } else {
                       queryClient.invalidateQueries({ queryKey: ['profileStories', email] });
-                      toast.success("Story's up.");
+                      toast.success(tFallback('hub.profile.storyPosted', 'Your story is up.'));
                     }
                   }}
                 />
@@ -1559,7 +1559,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
                     background: 'hsl(var(--primary))',
                     boxShadow: '0 0 0 2.5px hsl(var(--background))',
                   }}
-                  aria-label="Add to story"
+                  aria-label={tFallback('hub.profile.addToStory', 'Add to story')}
                 >
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>
@@ -1944,7 +1944,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
                   type="text"
                   value={cityDraft}
                   onChange={e => setCityDraft(e.target.value.slice(0, 40))}
-                  placeholder="Your city (e.g. Miami, FL)"
+                  placeholder={tFallback('hub.profile.cityPlaceholder', 'Your city (e.g. Miami, FL)')}
                   className="flex-1 bg-transparent text-sm focus:outline-none placeholder:text-muted-foreground/50"
                 />
               </div>
@@ -1997,7 +1997,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
                       );
                     })}
                   </div>
-                  <p className="text-xs text-muted-foreground/60 mt-1">Tap the active one to remove it.</p>
+                  <p className="text-xs text-muted-foreground/60 mt-1">{tFallback('hub.profile.tapActiveToRemove', 'Tap the active one to remove it.')}</p>
                 </div>
               )}
               <div className="flex gap-2 pt-1">

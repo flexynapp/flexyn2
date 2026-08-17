@@ -171,10 +171,10 @@ function InsightsPanel({ storyId, onClose }) {
             )}
             <div>
               <p className="text-xs font-semibold text-muted-foreground mb-3 flex items-center gap-1.5">
-                <Eye className="w-3.5 h-3.5" />Views · {viewers.length}
+                <Eye className="w-3.5 h-3.5" />{tFallback('storyViewer.viewsCount', 'Views · {n}', { n: viewers.length })}
               </p>
               {viewers.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No views yet.</p>
+                <p className="text-sm text-muted-foreground">{tFallback('storyViewer.noViews', 'No views yet.')}</p>
               ) : (
                 <div className="space-y-3">
                   {viewers.map(v => (
@@ -206,7 +206,7 @@ function DeletePrompt({ onConfirm, onCancel }) {
     <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/60" aria-hidden="true" onClick={onCancel}>
       <div className="bg-card rounded-2xl p-6 mx-6 text-center" onClick={e => e.stopPropagation()}>
         <p className="font-heading font-bold text-base mb-1">{tFallback("storyViewer.removeThisStory", "Remove this story?")}</p>
-        <p className="text-sm text-muted-foreground mb-5">This can't be undone.</p>
+        <p className="text-sm text-muted-foreground mb-5">{tFallback('storyViewer.cannotBeUndone', 'This cannot be undone.')}</p>
         <div className="flex gap-3">
           <button onClick={onCancel} className="flex-1 py-2.5 rounded-xl border border-border text-sm font-semibold">{tFallback("coach.plan.cancel", "Cancel")}</button>
           <button onClick={onConfirm} className="flex-1 py-2.5 rounded-xl bg-destructive text-destructive-foreground text-sm font-bold">{tFallback("gymEquip.remove", "Remove")}</button>
@@ -382,7 +382,7 @@ export default function StoryViewer({
   const handleDelete = async () => {
     if (!currentStory) return;
     const { ok } = await storiesData.deleteStory(currentStory.id);
-    if (!ok) { toast.error('Could not delete story.'); return; }
+    if (!ok) { toast.error(tFallback('storyViewer.deleteFailed', 'Could not delete story.')); return; }
     onStoriesChange();
     if (currentGroup.stories.length > 1) { setStoryIdx(storyIdx > 0 ? storyIdx - 1 : 0); setTick(t => t + 1); }
     else onClose();
@@ -394,8 +394,8 @@ export default function StoryViewer({
   const handleRemoveFromHighlight = async () => {
     if (!currentStory || !onRemoveFromHighlight) return;
     const res = await onRemoveFromHighlight(currentStory.id);
-    if (res && res.ok === false) { toast.error('Could not remove from album.'); return; }
-    toast.success('Removed from album.');
+    if (res && res.ok === false) { toast.error(tFallback('storyViewer.removeFromAlbumFailed', 'Could not remove from album.')); return; }
+    toast.success(tFallback('storyViewer.removedFromAlbum', 'Removed from album.'));
     if (currentGroup.stories.length > 1) { setStoryIdx(storyIdx > 0 ? storyIdx - 1 : 0); setTick(t => t + 1); }
     else onClose();
   };
@@ -425,7 +425,7 @@ export default function StoryViewer({
     } catch {
       // Revert and surface a toast so the user knows the heart didn't stick.
       setLocalLiked(prev => { const n = new Set(prev); already ? n.add(currentStory.id) : n.delete(currentStory.id); return n; });
-      toast.error('Could not update like. Try again.');
+      toast.error(tFallback('storyViewer.likeFailed', 'Could not update like. Try again.'));
     }
   };
 
@@ -441,7 +441,7 @@ export default function StoryViewer({
       // conversation already exists server-side; this just navigates.
       toast.success(tFallback("storyViewer.replySent", "Reply sent!"), res.conversationId ? {
         action: {
-          label: 'Open',
+          label: tFallback('storyViewer.openThread', 'Open'),
           onClick: () => {
             onClose?.();
             navigate(`/messages?conv=${encodeURIComponent(res.conversationId)}`);
@@ -449,9 +449,9 @@ export default function StoryViewer({
         },
       } : undefined);
     } else if (res?.reason === 'dms_disabled') {
-      toast.error("They don't accept story replies.");
+      toast.error(tFallback('storyViewer.repliesDisabled', 'They do not accept story replies.'));
     } else {
-      toast.error('Could not send reply. Try again.');
+      toast.error(tFallback('storyViewer.replyFailed', 'Could not send reply. Try again.'));
     }
   };
 

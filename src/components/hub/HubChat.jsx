@@ -892,10 +892,10 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
 
   const handleSchedule = useCallback(async () => {
     if (!draft.trim()) return;
-    if (!scheduleAt) { toast.error('Pick a date and time.'); return; }
+    if (!scheduleAt) { toast.error(tFallback('hub.chat.pickDateTime', 'Pick a date and time.')); return; }
     const sendAt = new Date(scheduleAt);
     if (Number.isNaN(sendAt.getTime()) || sendAt <= new Date()) {
-      toast.error('Pick a future date.');
+      toast.error(tFallback('hub.chat.pickFutureDate', 'Pick a future date.'));
       return;
     }
     try {
@@ -919,9 +919,11 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
     try {
       await cancelMyScheduledMessage(id);
       queryClient.invalidateQueries({ queryKey: ['hubChatScheduled', conversation?.id, user?.id] });
-      toast.success('Scheduled message cancelled.');
+      toast.success(tFallback('hub.chat.scheduledCancelled', 'Scheduled message cancelled.'));
     } catch (err) {
-      toast.error(`Could not cancel: ${err?.message || 'try again'}`);
+      toast.error(tFallback('hub.chat.cancelFailed', 'Could not cancel: {reason}', {
+        reason: err?.message || tFallback('hub.chat.tryAgain', 'try again'),
+      }));
     }
   }, [conversation?.id, queryClient, user?.id]);
 
@@ -938,7 +940,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
     );
     try {
       await deleteMyMessage(msg.id);
-      toast.success('Message deleted.');
+      toast.success(tFallback('hub.chat.messageDeleted', 'Message deleted.'));
     } catch (err) {
       queryClient.setQueryData(['hubChat', conversation?.id], (rows) =>
         (rows || []).map(r => r.id === msg.id ? { ...r, deleted_at: prev || null } : r)
@@ -1123,7 +1125,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
       // (Messages audit) caught this.
       const msg = `${err?.message || ''} ${err?.hint || ''}`;
       if (/message_profanity/i.test(msg) || err?.code === '23514') {
-        toast.error('Message contains prohibited content. Edit it and try again.');
+        toast.error(tFallback('hub.chat.messageProhibited', 'Message contains prohibited content. Edit it and try again.'));
       } else if (
         err?.code === '42501'
         // Passing 1 asks "is this thread still a pending request for me?"
@@ -1137,7 +1139,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
           'Message request sent. You can send more once they accept.'
         ));
       } else if (/dm_blocked/i.test(msg) || err?.code === '42501') {
-        toast.error("You can't send messages to this user.");
+        toast.error(tFallback('hub.chat.blocked', 'You cannot send messages to this user.'));
       } else {
         toast.error(t('hub.messages.sendError'));
       }
@@ -1224,7 +1226,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
           <div className="mb-2 shrink-0 flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/10 border border-primary/30">
             <div className="flex-1 min-w-0">
               <p className="text-xs font-bold text-primary uppercase tracking-wide">{tFallback("hubChat.messageRequest", "Message request")}</p>
-              <p className="text-micro text-muted-foreground">Accept to move this conversation to your inbox.</p>
+              <p className="text-micro text-muted-foreground">{tFallback('hub.chat.acceptToMove', 'Accept to move this conversation to your inbox.')}</p>
             </div>
             <button
               onClick={async () => {
@@ -1271,7 +1273,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
               <span className="ms-auto text-xs text-muted-foreground">{pinned.length}</span>
             </div>
             {pinned.length === 0 ? (
-              <p className="text-xs text-muted-foreground px-3 py-2">No pinned messages yet.</p>
+              <p className="text-xs text-muted-foreground px-3 py-2">{tFallback('hub.chat.noPinned', 'No pinned messages yet.')}</p>
             ) : (
               <div className="max-h-40 overflow-y-auto">
                 {pinned.map(m => (
@@ -1851,7 +1853,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
         <button
           onClick={() => fileInputRef.current?.click()}
           disabled={pendingSendBlocked}
-          aria-label="Attach image"
+          aria-label={tFallback('hub.chat.attachImage', 'Attach photo')}
           className="p-2 rounded-lg text-muted-foreground hover:text-foreground active:text-foreground hover:bg-secondary active:bg-secondary transition-colors shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <Paperclip className="w-4 h-4" />
