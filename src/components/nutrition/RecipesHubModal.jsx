@@ -191,9 +191,11 @@ export default function RecipesHubModal({
       invalidateMine();
       setOverflowRecipe(null);
       setDetail(null);
-      toast.success('Recipe removed.');
+      toast.success(tFallback('recipesHubModal.removed', 'Recipe removed.'));
     } catch (err) {
-      toast.error(`Couldn't remove: ${err?.message || 'try again'}`);
+      toast.error(tFallback('recipesHubModal.removeFailed', 'Could not remove: {reason}', {
+        reason: err?.message || tFallback('recipesHubModal.tryAgain', 'try again'),
+      }));
     } finally {
       setBusyId(null);
     }
@@ -230,7 +232,7 @@ export default function RecipesHubModal({
       (r) => (r.name || '').trim().toLowerCase() === (recipe.name || '').trim().toLowerCase(),
     );
     if (already) {
-      toast.info('You already have a recipe with that name.');
+      toast.info(tFallback('recipesHubModal.duplicateName', 'You already have a recipe with that name.'));
       setTab('mine');
       setDetail(null);
       return;
@@ -240,10 +242,12 @@ export default function RecipesHubModal({
       await recipes.saveCopy({ user, recipe });
       invalidateMine();
       setDetail(null);
-      toast.success('Saved to My Recipes.');
+      toast.success(tFallback('recipesHubModal.savedToMine', 'Saved to My Recipes.'));
       setTab('mine'); // jump to My Recipes so the user sees the clone land
     } catch (err) {
-      toast.error(`Couldn't save: ${err?.message || 'try again'}`);
+      toast.error(tFallback('recipesHubModal.saveFailed', 'Could not save: {reason}', {
+        reason: err?.message || tFallback('recipesHubModal.tryAgain', 'try again'),
+      }));
     } finally {
       setBusyId(null);
     }
@@ -252,12 +256,20 @@ export default function RecipesHubModal({
   const handleDuplicate = async (recipe) => {
     setBusyId(recipe.id);
     try {
-      await recipes.saveCopy({ user, recipe: { ...recipe, name: `${recipe.name} (copy)` } });
+      await recipes.saveCopy({
+        user,
+        recipe: {
+          ...recipe,
+          name: tFallback('recipesHubModal.copyName', '{name} (copy)', { name: recipe.name }),
+        },
+      });
       invalidateMine();
       setOverflowRecipe(null);
-      toast.success('Duplicated.');
+      toast.success(tFallback('recipesHubModal.duplicated', 'Duplicated.'));
     } catch (err) {
-      toast.error(`Couldn't duplicate: ${err?.message || 'try again'}`);
+      toast.error(tFallback('recipesHubModal.duplicateFailed', 'Could not duplicate: {reason}', {
+        reason: err?.message || tFallback('recipesHubModal.tryAgain', 'try again'),
+      }));
     } finally {
       setBusyId(null);
     }
@@ -312,7 +324,7 @@ export default function RecipesHubModal({
                       tab === t.id ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground'
                     }`}
                   >
-                    {t.label}
+                    {tFallback(`recipesHubModal.tab.${t.id}`, t.label)}
                   </button>
                 ))}
               </div>
@@ -498,7 +510,7 @@ export default function RecipesHubModal({
                             : 'border-border text-muted-foreground'
                         }`}
                       >
-                        {f.label}
+                        {tFallback(`recipesHubModal.filter.${f.id}`, f.label)}
                       </button>
                     ))}
                   </div>
@@ -512,13 +524,13 @@ export default function RecipesHubModal({
                         <>
                           <p className="text-sm font-semibold">{tFallback("recipesHubModal.noCommunityRecipesYet", "No community recipes yet")}</p>
                           <p className="text-xs mt-1">
-                            Share one of yours from its detail screen and it lands here.
+                            {tFallback('recipesHubModal.discoverEmptyBody', 'Share one of yours from its detail screen and it lands here.')}
                           </p>
                         </>
                       ) : (
                         <>
                           <p className="text-sm font-semibold">{tFallback("recipesHubModal.nothingMatches", "Nothing matches that")}</p>
-                          <p className="text-xs mt-1">Try a different search or filter.</p>
+                          <p className="text-xs mt-1">{tFallback('recipesHubModal.noMatchBody', 'Try a different search or filter.')}</p>
                         </>
                       )}
                     </div>

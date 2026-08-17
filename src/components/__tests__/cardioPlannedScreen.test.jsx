@@ -26,7 +26,17 @@ vi.mock('@/lib/LanguageContext', () => ({
 vi.mock('@/lib/AuthContext', () => ({ useAuth: () => ({ user: { email: 'k@x.com' } }) }));
 vi.mock('@/lib/DistanceUnitContext', () => ({ useDistanceUnit: () => ({ distanceUnit: 'mi' }) }));
 vi.mock('@/lib/reportError', () => ({ reportError: vi.fn() }));
-vi.mock('@/lib/intlFormat', () => ({ formatDate: () => '7 AM' }));
+// Honours its options, because ONE stub now serves two different renders.
+// `formatHour` calls formatDate with `{ hour }`, and the date beside it calls
+// it with `{ weekday, month, day }` — that second caller replaced a date-fns
+// `format(d, 'EEE, MMM d')`, which bound no locale and printed English month
+// names under a fully translated screen. A stub returning '7 AM' for
+// everything made both spans identical and `getByText('7 AM')` ambiguous,
+// which reads as a component bug and is a mock that stopped describing the
+// function it stands in for.
+vi.mock('@/lib/intlFormat', () => ({
+  formatDate: (_d, _lang, opts) => (opts?.hour ? '7 AM' : 'Mon, Jan 5'),
+}));
 vi.mock('@/api/supabaseClient', () => {
   const chain = () => {
     const c = {

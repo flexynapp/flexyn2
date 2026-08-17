@@ -37,24 +37,26 @@ import {
   Footprints, PersonStanding, Bike, Waves, Activity,
   Plus, Trash2, CheckCircle2, CalendarDays, Clock
 } from 'lucide-react';
-import { format, parseISO, isPast, isToday } from 'date-fns';
+import { parseISO, isPast, isToday } from 'date-fns';
 import { toast } from '@/lib/toast';
 import { useAuth } from '@/lib/AuthContext';
 import { useDistanceUnit } from '@/lib/DistanceUnitContext';
 import { formatDistance, toMeters } from '@/lib/distanceUnit';
 import { reportError } from '@/lib/reportError';
+import { cardioTypeLabel } from '@/lib/cardioTypeLabel';
+import { useDateFormatter } from '@/lib/intl';
 import {
   scheduleWorkout, listCardioSchedules, cancelScheduledWorkout,
   buildCardioPayload, HOUR_SLOTS, formatHour, slotIsPast, localDateKey,
 } from '@/lib/data/scheduledWorkouts';
 
 const TYPE_OPTIONS = [
-  { value: 'running_outside',  label: 'Run (outdoor)', Icon: Footprints,      color: 'text-orange-500' },
-  { value: 'running_treadmill',label: 'Run (treadmill)', Icon: Footprints,    color: 'text-orange-500' },
-  { value: 'walking_outside',  label: 'Walk',            Icon: PersonStanding, color: 'text-green-500' },
-  { value: 'biking_outside',   label: 'Bike (outdoor)',  Icon: Bike,           color: 'text-blue-500' },
-  { value: 'biking_stationary',label: 'Bike (stationary)',Icon: Bike,          color: 'text-blue-500' },
-  { value: 'swimming_pool',    label: 'Swim',            Icon: Waves,          color: 'text-cyan-500' },
+  { value: 'running_outside',   Icon: Footprints,     color: 'text-orange-500' },
+  { value: 'running_treadmill', Icon: Footprints,     color: 'text-orange-500' },
+  { value: 'walking_outside',   Icon: PersonStanding, color: 'text-green-500' },
+  { value: 'biking_outside',    Icon: Bike,           color: 'text-blue-500' },
+  { value: 'biking_stationary', Icon: Bike,           color: 'text-blue-500' },
+  { value: 'swimming_pool',     Icon: Waves,          color: 'text-cyan-500' },
 ];
 
 // A schedule's `<mode>_<env>` string, reassembled from the payload. Kept as
@@ -77,13 +79,10 @@ const STATUS_LABEL = {
   notified:  'Reminded',
   pending:   'Scheduled',
 };
+// Resolved at the render site through `cardioPlanned.status.<slug>`.
 
 function typeInfo(type) {
-  return TYPE_OPTIONS.find(o => o.value === type) || {
-    label: type?.replace(/_/g, ' ') || 'Workout',
-    Icon: Activity,
-    color: 'text-primary',
-  };
+  return TYPE_OPTIONS.find(o => o.value === type) || { Icon: Activity, color: 'text-primary' };
 }
 
 function PlanForm({ onSave, onCancel, distanceUnit }) {
@@ -108,14 +107,14 @@ function PlanForm({ onSave, onCancel, distanceUnit }) {
     // past-dated plan silently lands in the upcoming list as already-
     // expired, confusing the user. Wave 57 (Cardio audit) caught this.
     if (date && date < today) {
-      toast.error("That date is in the past. Pick today or later.");
+      toast.error(tFallback('cardioPlanned.dateInPast', 'That date is in the past. Pick today or later.'));
       return;
     }
     // A slot that has already gone by today is not a plan — the cron would
     // either fire it immediately or sweep it straight to 'missed'. This
     // check did not exist while a plan carried no time at all.
     if (slotIsPast(date, hour)) {
-      toast.error('That time has already passed today. Pick a later one.');
+      toast.error(tFallback('cardioPlanned.timeInPast', 'That time has already passed today. Pick a later one.'));
       return;
     }
     // Defensive parse — a non-numeric string (e.g. paste from clipboard,
@@ -150,7 +149,7 @@ function PlanForm({ onSave, onCancel, distanceUnit }) {
         <div>
           <label className="text-xs font-medium text-muted-foreground mb-1 block">{tFallback("cardioPlanned.title", "Title")}</label>
           <Input
-            placeholder="e.g. Morning 5k, Long ride…"
+            placeholder={tFallback('cardioPlanned.titlePlaceholder', 'e.g. Morning 5k, Long ride…')}
             value={title}
             onChange={e => setTitle(e.target.value)}
             maxLength={80}
@@ -166,7 +165,7 @@ function PlanForm({ onSave, onCancel, distanceUnit }) {
             onChange={e => setType(e.target.value)}
           >
             {TYPE_OPTIONS.map(o => (
-              <option key={o.value} value={o.value}>{o.label}</option>
+              <option key={o.value} value={o.value}>{cardioTypeLabel(o.value, tFallback)}</option>
             ))}
           </select>
         </div>
@@ -252,6 +251,9 @@ function PlanForm({ onSave, onCancel, distanceUnit }) {
 
 export default function CardioPlanned() {
   const { language, tFallback } = useLanguage();
+  // date-fns binds no locale, so `format(d, 'MMM d')` renders English month
+  // names under a fully translated screen. Intl is already language-bound.
+  const fmtDate = useDateFormatter();
   const { user } = useAuth();
   const { distanceUnit } = useDistanceUnit();
   const queryClient = useQueryClient();
@@ -272,7 +274,7 @@ export default function CardioPlanned() {
     try {
       await scheduleWorkout(payload);
       queryClient.invalidateQueries({ queryKey: ['cardioSchedules', user?.email] });
-      toast.success('Scheduled, we’ll remind you.');
+      toast.success(tFallback('cardioPlanned.scheduled', 'Scheduled, we’ll remind you.'));
       setAdding(false);
     } catch (err) {
       reportError(err, { feature: 'cardio.planned.add' });
@@ -362,7 +364,7 @@ export default function CardioPlanned() {
                     </div>
                     <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground">
                       <CalendarDays className="w-3 h-3" />
-                      <span>{format(planDate, 'EEE, MMM d')}</span>
+                      <span>{fmtDate(planDate, { weekday: 'short', month: 'short', day: 'numeric' })}</span>
                       <span>·</span>
                       {/* The time is the whole reason this can remind you,
                           so it sits beside the date rather than hidden. */}
@@ -411,9 +413,11 @@ export default function CardioPlanned() {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{plan.title}</p>
                     <p className="text-xs text-muted-foreground">
-                      {format(parseISO(plan.scheduled_date), 'MMM d')}
+                      {fmtDate(parseISO(plan.scheduled_date), { month: 'short', day: 'numeric' })}
                       {' · '}
-                      {STATUS_LABEL[plan.status] || plan.status}
+                      {plan.status
+                        ? tFallback(`cardioPlanned.status.${plan.status}`, STATUS_LABEL[plan.status] || plan.status)
+                        : plan.status}
                     </p>
                   </div>
                   <button
@@ -435,7 +439,7 @@ export default function CardioPlanned() {
           <Clock className="w-8 h-8 text-muted-foreground/40" />
           <p className="text-sm font-semibold text-muted-foreground">{tFallback("cardioPlanned.noPlannedSessions", "No planned sessions")}</p>
           <p className="text-xs text-muted-foreground/70 max-w-[200px]">
-            Schedule your upcoming workouts to stay on track with your goals.
+            {tFallback('cardioPlanned.emptyBody', 'Schedule your upcoming workouts to stay on track with your goals.')}
           </p>
         </Card>
       )}
