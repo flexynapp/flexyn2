@@ -11,6 +11,7 @@ import { getTier } from '@/lib/xpTier';
 import { Skeleton } from '@/components/ui/skeleton';
 import * as hubFollows from '@/lib/data/hubFollows';
 import * as hubPosts from '@/lib/data/hubPosts';
+import { filterSearchable } from '@/lib/privacy';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 // Per-user key (recent searches store other users' email/username/avatar —
@@ -94,7 +95,13 @@ export default function HubSearchOverlay({ open, onClose, onSelectUser, onSelect
       try {
         const allUsers = await db.entities.User.list();
         const q = searchQuery.toLowerCase();
-        const filtered = allUsers
+        // Settings → Privacy → "Hide from search" is honoured HERE, because
+        // this surface does all its own filtering client-side. The toggle has
+        // written `hide_from_search` since migration 117 and nothing read it —
+        // `filterSearchable` was written for exactly this and had zero call
+        // sites. Applied before the text match so a hidden account cannot be
+        // confirmed to exist by searching its exact username.
+        const filtered = filterSearchable(allUsers, currentUser)
           .filter(u => {
             if (!u.id) return false;
             if (u.id === currentUser?.id) return false; // never return self

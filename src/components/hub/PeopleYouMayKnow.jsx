@@ -64,9 +64,14 @@ export default function PeopleYouMayKnow({ onSelectUser }) {
       if (!ids.length) return [];
       const mutualMap = Object.fromEntries(rpcData.map(r => [r.user_id, r.mutual_count]));
 
+      // "Hide from search" is enforced inside get_people_you_may_know as of
+      // migration 377, so a hidden id should never reach this fetch. Filtered
+      // here too: this is the half that ships with the frontend, and until the
+      // migration is applied it is the only half that exists.
       const { data: profiles, error: profErr } = await supabase
         .from('public_profiles')
         .select('id, username, full_name, avatar_url, total_xp, current_level')
+        .not('hide_from_search', 'is', true)
         .in('id', ids);
       if (profErr || !profiles?.length) return [];
 

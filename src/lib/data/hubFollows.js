@@ -291,6 +291,12 @@ export const getRecommendations = async (userId, followingIds = [], limit = 6, {
           .select(cols)
           .neq('id', userId)
           .not('username', 'is', null)
+          // Settings → Privacy → "Hide from search". Filtered in the QUERY
+          // rather than after the fetch so a hidden profile never crosses the
+          // wire. `is not true` rather than `eq false` so a NULL — which the
+          // column cannot hold today, but could after an ALTER — reads as
+          // visible rather than silently hiding everyone.
+          .not('hide_from_search', 'is', true)
           .order('created_at', { ascending: false })
           .limit(recentSlots * 4)), // overfetch so we have room after filtering
       });
@@ -344,6 +350,7 @@ export const getRecommendations = async (userId, followingIds = [], limit = 6, {
       columns: ['id', 'username', 'avatar_url'],
       build: (cols) => users.selectProfiles((from) => from
         .select(cols)
+        .not('hide_from_search', 'is', true)
         .in('id', fofSelected)),
     });
     for (const p of (fofData ?? [])) {
