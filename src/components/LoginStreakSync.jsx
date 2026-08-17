@@ -55,9 +55,7 @@ export default function LoginStreakSync() {
       const tplKey = result.freezeUsed
         ? 'dashboard.streakSavedToast'
         : 'dashboard.streakDayToast';
-      const msg = t(tplKey)
-        .replace('{day}',   result.streak)
-        .replace('{coins}', result.coinsAwarded);
+      const msg = t(tplKey, { day: result.streak, coins: result.coinsAwarded });
       toast.success(msg, { icon: '🔥', duration: 4500 });
 
       // Full confetti burst on milestone streak days (7, 14, 30, 60, 100…)
@@ -80,7 +78,7 @@ export default function LoginStreakSync() {
       if (result.eliteCapsuleAwarded) {
         setTimeout(() => {
           toast.success(
-            t('dashboard.eliteCapsuleToast').replace('{day}', result.streak),
+            t('dashboard.eliteCapsuleToast', { day: result.streak }),
             { icon: '💎', duration: 5000 }
           );
         }, 600);

@@ -1129,8 +1129,8 @@ export default function Workout() {
         const sessionSnapshot = clampedData;
         toast.success(t('workout.saved'), {
           description: checkInBonus
-            ? `${t('workout.savedXp').replace('{xp}', xpGained)} · ⚡ ${GYM_CHECKIN_XP_MULTIPLIER}x gym check-in`
-            : t('workout.savedXp').replace('{xp}', xpGained),
+            ? `${t('workout.savedXp', { xp: xpGained })} · ⚡ ${GYM_CHECKIN_XP_MULTIPLIER}x gym check-in`
+            : t('workout.savedXp', { xp: xpGained }),
           duration: 6000,
           action: {
             label: tFallback('workout.saveTemplate', 'Save as template'),
@@ -1326,7 +1326,7 @@ export default function Workout() {
           if (res?.isNewDay && res.coinsAwarded > 0) {
             toast.success(t('dashboard.workoutStreakMilestone') === 'dashboard.workoutStreakMilestone'
               ? `🔥 ${res.streak}-day workout streak! +${res.coinsAwarded} coins`
-              : t('dashboard.workoutStreakMilestone').replace('{day}', res.streak).replace('{coins}', res.coinsAwarded));
+              : t('dashboard.workoutStreakMilestone', { day: res.streak, coins: res.coinsAwarded }));
             // Confetti burst for every workout streak milestone (3, 5, 7, 14, 21, 30…)
             import('canvas-confetti').then(({ default: confetti }) => {
               const fire = (opts) => confetti({
@@ -1857,10 +1857,11 @@ export default function Workout() {
     for (const ex of pendingPayload.exercises) {
       if ((ex.sets?.length || 0) > maxSetsPerEx) {
         setImplausibleWarning(
-          t('workout.warn.perExSetLimit')
-            .replace('{exercise}', ex.name)
-            .replace('{setCount}', ex.sets.length)
-            .replace('{maxSets}', maxSetsPerEx)
+          t('workout.warn.perExSetLimit', {
+            exercise: ex.name,
+            setCount: ex.sets.length,
+            maxSets: maxSetsPerEx,
+          })
         );
         return;
       }

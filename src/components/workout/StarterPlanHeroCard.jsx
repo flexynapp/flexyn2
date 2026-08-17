@@ -118,7 +118,7 @@ export default function StarterPlanHeroCard({
             )}
             {daysCount ? (
               <span className="px-2 py-0.5 rounded-full text-micro font-bold uppercase tracking-wider bg-secondary/60 text-foreground border border-border tabular-nums">
-                {tFallback('workout.starter.daysPerWeek', '{n}×/week').replace('{n}', daysCount)}
+                {tFallback('workout.starter.daysPerWeek', '{n}×/week', { n: daysCount })}
               </span>
             ) : null}
           </div>
@@ -137,7 +137,7 @@ export default function StarterPlanHeroCard({
             ))}
             {overflow > 0 && (
               <li className="text-xs text-muted-foreground italic">
-                {tFallback('workout.starter.moreCount', '+{n} more').replace('{n}', overflow)}
+                {tFallback('workout.starter.moreCount', '+{n} more', { n: overflow })}
               </li>
             )}
           </ul>

@@ -1330,13 +1330,13 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
       <ProfileTierBanner
         tier={tier}
         level={level}
-        levelLabel={t('levelBar.level').replace('{n}', level)}
+        levelLabel={t('levelBar.level', { n: level })}
         // The bare word, taken from the same translated template rather than
         // stripping digits out of the formatted string — locales that write
         // the number first would lose the wrong part otherwise. Trim only:
         // several locales abbreviate WITH a period ("Ур. {n}", "Poz. {n}")
         // and that period is part of the word, not trailing punctuation.
-        levelWord={t('levelBar.level').replace('{n}', '').trim()}
+        levelWord={t('levelBar.level', { n: '' }).trim()}
         xpInLevel={xpInLevel}
         xpNeeded={xpNeeded}
         progressPercent={progressPercent}
@@ -1802,7 +1802,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
                 <span className="inline-flex items-center gap-1">
                   {(city || countryFlag) && <span aria-hidden="true" className="opacity-40">·</span>}
                   {isAnniversaryWeek && <span aria-hidden="true">🎂</span>}
-                  {tFallback('hub.profile.trainingSince', 'Training together since {month}').replace('{month}', monthYear)}
+                  {tFallback('hub.profile.trainingSince', 'Training together since {month}', { month: monthYear })}
                 </span>
               );
             })()}
@@ -2508,7 +2508,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
             >
               <h3 className="font-heading font-bold text-lg mb-2">{t('hub.profile.unfollowConfirmTitle')}</h3>
               <p className="text-sm text-muted-foreground mb-6">
-                {t('hub.profile.unfollowConfirmDesc').replace('{handle}', ownerUsername ? `@${ownerUsername}` : t('hub.profile.anonymousAthlete'))}
+                {t('hub.profile.unfollowConfirmDesc', { handle: ownerUsername ? `@${ownerUsername}` : t('hub.profile.anonymousAthlete') })}
               </p>
               <div className="flex gap-3">
                 <button

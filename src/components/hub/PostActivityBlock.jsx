@@ -440,7 +440,7 @@ function RegimenBlock({ snap, post }) {
       });
       setJustCopied(true);
       queryClient.invalidateQueries({ queryKey: ['regimens', user?.email] });
-      toast.success(t('hub.activity.copyRegimenSuccess').replace('{name}', snap.name || t('hub.share.regimen')));
+      toast.success(t('hub.activity.copyRegimenSuccess', { name: snap.name || t('hub.share.regimen') }));
     } catch (err) {
       toast.error(t('hub.activity.copyRegimenError'));
     } finally {

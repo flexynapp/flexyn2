@@ -224,7 +224,7 @@ export default function LevelUpOverlay({ event, onDismiss }) {
               animate={{ opacity: 1 }}
               transition={{ delay: 0.5, duration: 0.3 }}
             >
-              {t('levelUp.tierUnlocked').replace('{tier}', tier.name)}
+              {t('levelUp.tierUnlocked', { tier: tier.name })}
             </motion.p>
 
             {/* Progress bar */}

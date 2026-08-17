@@ -119,11 +119,11 @@ function SetEditor({ sets, onChange, exerciseName = '', userProfile = {} }) {
         className="w-full mt-1"
         onClick={addSet}
         disabled={atSetLimit}
-        title={atSetLimit ? t('workout.maxSetsTitle').replace('{count}', maxSetsPerExercise) : undefined}
+        title={atSetLimit ? t('workout.maxSetsTitle', { count: maxSetsPerExercise }) : undefined}
       >
         <Plus className="w-3 h-3 me-1" />
         {atSetLimit
-          ? t('workout.maxSetsReachedLabel').replace('{count}', maxSetsPerExercise)
+          ? t('workout.maxSetsReachedLabel', { count: maxSetsPerExercise })
           : t('workout.addSet')}
       </Button>
     </div>
@@ -227,10 +227,11 @@ export default function EditWorkoutModal({ log, userProfile = {}, logs = [], car
       for (const ex of normalizedExercises) {
         if ((ex.sets?.length || 0) > maxSetsPerEx) {
           setImplausibleWarning(
-            t('workout.warn.perExSetLimit')
-              .replace('{exercise}', ex.name)
-              .replace('{setCount}', ex.sets.length)
-              .replace('{maxSets}', maxSetsPerEx)
+            t('workout.warn.perExSetLimit', {
+              exercise: ex.name,
+              setCount: ex.sets.length,
+              maxSets: maxSetsPerEx,
+            })
           );
           return;
         }

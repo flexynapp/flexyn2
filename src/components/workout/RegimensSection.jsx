@@ -331,7 +331,7 @@ export default function RegimensSection({ onStartRegimen }) {
                   </div>
                   {r.original_author_username && (
                     <p className="text-xs text-muted-foreground mt-1 break-words">
-                      {t('regimens.copiedFrom').replace('{author}', r.original_author_username.startsWith('@') ? r.original_author_username : `@${r.original_author_username}`)}
+                      {t('regimens.copiedFrom', { author: r.original_author_username.startsWith('@') ? r.original_author_username : `@${r.original_author_username}` })}
                     </p>
                   )}
                   {r.description && <p className="text-sm text-muted-foreground mt-1 line-clamp-2 break-words">{r.description}</p>}

@@ -172,7 +172,7 @@ export default function QuestsSheet({ open, onClose, quests: rows = [], onClaim,
               the card has no room to explain one. */}
           <div className="mt-6 pt-4 border-t border-border">
             <p className="text-micro font-semibold tracking-[0.04em] text-muted-foreground mb-3">
-              {tFallback('quests.bonusHeading', 'FINISH ALL {n}').replace('{n}', total)}
+              {tFallback('quests.bonusHeading', 'FINISH ALL {n}', { n: total })}
             </p>
             <div className={`flex items-center gap-3 rounded-lg px-3 py-2.5 ${
               stats?.bonusClaimedToday ? 'bg-success/10' : 'bg-secondary/40'

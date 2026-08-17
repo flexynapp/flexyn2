@@ -88,9 +88,10 @@ export default function FirstWorkoutTutorial({ userId, onClose }) {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-0.5">
                       <span className="text-micro font-bold uppercase tracking-[0.18em] text-primary">
-                        {tFallback('workout.tutorial.step', 'Tip {n} / {total}')
-                          .replace('{n}', step + 1)
-                          .replace('{total}', STEP_KEYS.length)}
+                        {tFallback('workout.tutorial.step', 'Tip {n} / {total}', {
+                          n: step + 1,
+                          total: STEP_KEYS.length,
+                        })}
                       </span>
                     </div>
                     <h3 className="font-heading font-bold text-sm leading-tight">

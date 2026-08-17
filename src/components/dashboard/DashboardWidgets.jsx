@@ -250,8 +250,9 @@ export default function DashboardWidgets({ logs, goals, isLoading, userProfile }
               actually holds 10 — a number that drifts the moment anyone adds
               a widget, so it has to be derived or it will be wrong again. */}
           <p className="mt-2 text-micro text-muted-foreground/60 tracking-wide">
-            {tFallback('dashboard.widgetsAvailable', '{n} widgets available')
-              .replace('{n}', String(WIDGET_DEFINITIONS.length))}
+            {tFallback('dashboard.widgetsAvailable', '{n} widgets available', {
+              n: String(WIDGET_DEFINITIONS.length),
+            })}
             {' · '}
             {tFallback('dashboard.dragToReorder', 'drag any section to reorder')}
           </p>

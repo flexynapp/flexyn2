@@ -286,8 +286,7 @@ export default function GymEquipmentEditor({ gymId, ownerId }) {
                      hover:underline"
         >
           <ExternalLink className="w-3 h-3" aria-hidden="true" />
-          {tFallback('gymEquipEditor.pending', '{n} member submission(s) to confirm')
-            .replace('{n}', pending)}
+          {tFallback('gymEquipEditor.pending', '{n} member submission(s) to confirm', { n: pending })}
         </Link>
       )}
     </div>

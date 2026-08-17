@@ -220,7 +220,7 @@ export default function StatsHubModal({ open, onClose }) {
                   means one thing across the app. */}
               <button
                 onClick={() => setShopOpen(true)}
-                aria-label={tFallback('statsHub.balanceShop', '{n} Flex Coins. Open shop.').replace('{n}', fmtNum(coins))}
+                aria-label={tFallback('statsHub.balanceShop', '{n} Flex Coins. Open shop.', { n: fmtNum(coins) })}
                 className="group relative shrink-0 h-11 inline-flex items-center"
               >
                 {/* 44px tap box, smaller visible pill inside — the same shape

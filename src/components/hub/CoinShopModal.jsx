@@ -114,7 +114,7 @@ export default function CoinShopModal({ open, onClose }) {
         const itemNameKey = camel ? `shop.${camel}.name` : null;
         const translatedName = itemNameKey ? t(itemNameKey) : null;
         const displayName = translatedName && translatedName !== itemNameKey ? translatedName : item.name;
-        toast.success(t('shop.purchasedToast').replace('{item}', displayName), { icon: item.icon });
+        toast.success(t('shop.purchasedToast', { item: displayName }), { icon: item.icon });
         queryClient.invalidateQueries({ queryKey: ['coinShopProfile'] });
         queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
         // The Marketplace opens this modal over itself (TodayRail → Open

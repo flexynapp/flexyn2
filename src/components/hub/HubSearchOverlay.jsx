@@ -380,7 +380,7 @@ export default function HubSearchOverlay({ open, onClose, onSelectUser, onSelect
                   </div>
                   <h2 className="font-heading font-bold text-lg mb-1">{t('hub.search.noResultsTitle')}</h2>
                   <p className="text-sm text-muted-foreground max-w-sm">
-                    {t('hub.search.noResultsSubtitle').replace('{query}', searchQuery)}
+                    {t('hub.search.noResultsSubtitle', { query: searchQuery })}
                   </p>
                 </div>
               )}

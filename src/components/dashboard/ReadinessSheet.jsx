@@ -163,7 +163,7 @@ export default function ReadinessSheet({ open, onClose, readiness, focus, onLogW
                   the number the user is looking at, which is the question
                   this section exists to answer. */}
               <p className="text-micro font-semibold tracking-[0.04em] text-muted-foreground mb-3">
-                {tFallback('readiness.breakdownHeading', 'WHAT MADE YOUR {n}').replace('{n}', score)}
+                {tFallback('readiness.breakdownHeading', 'WHAT MADE YOUR {n}', { n: score })}
               </p>
               <ul className="space-y-2.5">
                 {rows.map((r) => (

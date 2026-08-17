@@ -176,7 +176,7 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
 
   const addSet = () => {
     if (atSetLimit) {
-      toast.info(t('workout.maxSetsToast').replace('{count}', maxSetsPerExercise));
+      toast.info(t('workout.maxSetsToast', { count: maxSetsPerExercise }));
       return;
     }
     // Inherit from the last NON-warmup set so a warmup→working transition
@@ -446,9 +446,9 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
           className="w-full"
           onClick={addSet}
           disabled={atSetLimit}
-          title={atSetLimit ? t('workout.maxSetsTitle').replace('{count}', maxSetsPerExercise) : undefined}
+          title={atSetLimit ? t('workout.maxSetsTitle', { count: maxSetsPerExercise }) : undefined}
         >
-          <Plus className="w-3.5 h-3.5 me-1" /> {atSetLimit ? t('workout.maxSetsReachedLabel').replace('{count}', maxSetsPerExercise) : t('workout.addSet')}
+          <Plus className="w-3.5 h-3.5 me-1" /> {atSetLimit ? t('workout.maxSetsReachedLabel', { count: maxSetsPerExercise }) : t('workout.addSet')}
         </Button>
       </motion.div>
 

@@ -19,8 +19,15 @@ vi.mock('@/lib/toast', () => ({
   toast: { error: (...a) => toastError(...a), success: (...a) => toastSuccess(...a) },
 }));
 vi.mock('@/lib/reportError', () => ({ reportError: vi.fn() }));
+// The third argument is not optional decoration — `tFallback(key, english, vars)`
+// interpolates, and a mock that drops `vars` renders the raw `{code}` while the
+// real app renders the code. Same shape as the mocks in leaderboardsContent and
+// notificationPanel.
 vi.mock('@/lib/LanguageContext', () => ({
-  useLanguage: () => ({ tFallback: (_k, fb) => fb }),
+  useLanguage: () => ({
+    tFallback: (_k, fb, vars) =>
+      vars ? Object.entries(vars).reduce((s, [n, v]) => s.replace(`{${n}}`, v), fb) : fb,
+  }),
 }));
 vi.mock('@/lib/intl', () => ({ useNumberFormatter: () => (n) => String(n) }));
 

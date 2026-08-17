@@ -60,7 +60,7 @@ export default function LevelBar({ totalXp = 0, compact = false }) {
             animate={tier.particles !== 'none' ? { boxShadow: ['0 0 0px rgba(255,255,255,0)', '0 0 8px rgba(255,255,255,0.4)', '0 0 0px rgba(255,255,255,0)'], scale: [1, 1.15, 1] } : { scale: [1, 1.15, 1] }}
             transition={tier.particles !== 'none' ? { duration: 2, repeat: Infinity, ease: 'easeInOut', scale: { duration: 0.6, ease: 'easeOut' } } : { duration: 0.6, ease: 'easeOut' }}
           >
-            <span className="font-heading font-bold text-xs text-white drop-shadow">{t('levelBar.level').replace('{n}', level)}</span>
+            <span className="font-heading font-bold text-xs text-white drop-shadow">{t('levelBar.level', { n: level })}</span>
           </motion.div>
 
           {/* Global rank — omitted entirely when unknown (still loading, no
@@ -91,7 +91,7 @@ export default function LevelBar({ totalXp = 0, compact = false }) {
 
       {/* Level Badge */}
       <div className={`relative flex-shrink-0 w-11 h-11 rounded-xl bg-gradient-to-br ${tier.badge} flex items-center justify-center shadow`}>
-        <span className="font-heading font-bold text-sm text-white drop-shadow">{t('levelBar.level').replace('{n}', level)}</span>
+        <span className="font-heading font-bold text-sm text-white drop-shadow">{t('levelBar.level', { n: level })}</span>
       </div>
 
       {/* XP Progress */}

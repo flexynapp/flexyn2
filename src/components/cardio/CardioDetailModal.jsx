@@ -164,7 +164,7 @@ export default function CardioDetailModal({ log: summary, open, onOpenChange, on
               prsForThisLog.map(pr => (
                 <span key={pr.distance}
                       className="px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 text-xs font-medium">
-                  🏆 {t('cardio.pr.badge').replace('{label}', PR_LABELS[pr.distance])}
+                  🏆 {t('cardio.pr.badge', { label: PR_LABELS[pr.distance] })}
                 </span>
               ))
             )}

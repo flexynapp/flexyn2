@@ -362,7 +362,7 @@ export default function RegionalLeaderboardsModal({ open, onClose }) {
                   </p>
                 ) : ranked.length > 5 && (
                   <p className="text-xs text-center text-muted-foreground mt-4">
-                    {t('leaderboards.allShownFooter').replace('{n}', ranked.length)}
+                    {t('leaderboards.allShownFooter', { n: ranked.length })}
                   </p>
                 )}
               </motion.div>

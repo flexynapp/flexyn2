@@ -291,7 +291,7 @@ export default function CardioLiveTrackerIndoor({ mode, env, onCancel, onSaved, 
       const prs = detectNewPRs(createdLog, priorOnly);
       for (const pr of prs) {
         const label = PR_LABELS[pr.distance];
-        toast.success(t('cardio.pr.title').replace('{label}', label), {
+        toast.success(t('cardio.pr.title', { label }), {
           duration: 6000,
         });
         try { navigator.vibrate?.([100, 60, 100]); } catch {}

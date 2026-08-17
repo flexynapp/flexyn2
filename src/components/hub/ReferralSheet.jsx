@@ -187,7 +187,7 @@ export default function ReferralSheet({
                     <TicketCheck className="w-4 h-4 shrink-0 text-success" aria-hidden="true" />
                     <span>
                       {claimedCode
-                        ? tFallback('referral.redeem.usedWith', 'You joined with code {code}.').replace('{code}', claimedCode)
+                        ? tFallback('referral.redeem.usedWith', 'You joined with code {code}.', { code: claimedCode })
                         : tFallback('referral.redeem.already', 'You\'ve already used an invite code.')}
                     </span>
                   </div>

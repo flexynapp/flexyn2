@@ -383,7 +383,7 @@ export default function CardioManualForm({
         prCount = prs.length;
         for (const pr of prs) {
           const label = PR_LABELS[pr.distance];
-          toast.success(t('cardio.pr.title').replace('{label}', label), { duration: 6000 });
+          toast.success(t('cardio.pr.title', { label }), { duration: 6000 });
           try { navigator.vibrate?.([100, 60, 100]); } catch {}
         }
       }

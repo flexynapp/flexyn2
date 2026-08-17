@@ -372,7 +372,7 @@ export default function ImplementPicker({ exerciseName, value, onChange, userId 
               breaks in most of the other 14 locales. */}
           <Section
             title={gymName
-              ? tFallback('implement.atGymNamed', 'At {gym}').replace('{gym}', gymName)
+              ? tFallback('implement.atGymNamed', 'At {gym}', { gym: gymName })
               : tFallback('implement.atYourGym', 'At your gym')}
             items={filtered.gym}
           >

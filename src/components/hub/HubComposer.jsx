@@ -783,7 +783,7 @@ export default function HubComposer({ onClose }) {
         const summary = effectiveSelected.summary || '';
         const autoBody = isTranslationMissing || !summary
           ? '' // Don't post the literal key string or "Just shared my undefined"
-          : translated.replace('{summary}', summary);
+          : t(translationKey, { summary });
         finalBody = body.trim() || autoBody;
         // Guard: never post an activity-tied post with empty body. Fall back to
         // a minimal language-agnostic label if everything above failed.

@@ -46,7 +46,7 @@ function metricHint(challenge, t) {
   const { metric, target_value: tv } = challenge;
   if (!metric) return null;
   const fmtLbs = (v) => v >= 1000 ? `${Math.round(v / 1000)}K` : String(v);
-  const fill = (key, fallback, value) => (t?.(key) || fallback).replace('{n}', String(value));
+  const fill = (key, fallback, value) => t?.(key, { n: String(value) }) || fallback.replace('{n}', String(value));
   if (metric === 'session_volume')         return fill('gauntlet.hint.sessionVolume',      '{n} lbs in one session',                  fmtLbs(tv));
   if (metric === 'weekly_lbs')             return fill('gauntlet.hint.weeklyLbs',          '{n} lbs in one week',                     fmtLbs(tv));
   if (metric === 'sessions_in_7_days')     return fill('gauntlet.hint.sessionsIn7Days',    '{n} sessions within any 7-day window',    tv);

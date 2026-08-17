@@ -124,8 +124,9 @@ export default function MemberDirectoryModal({ open, onClose, gymId, gymOwnerId 
                               </span>
                             )}
                             <span>
-                              {tFallback('gymMembers.joined', 'Joined {date}')
-                                .replace('{date}', fmtDate(m.joined_at, { dateStyle: 'medium' }))}
+                              {tFallback('gymMembers.joined', 'Joined {date}', {
+                                date: fmtDate(m.joined_at, { dateStyle: 'medium' }),
+                              })}
                             </span>
                           </div>
                         </div>

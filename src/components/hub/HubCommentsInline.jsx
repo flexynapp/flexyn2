@@ -379,7 +379,7 @@ export default function HubCommentsInline({ post, open, onClose }) {
                         ? t('hub.comments.hideReplies')
                         : replies.length === 1
                           ? t('hub.comments.viewReply')
-                          : t('hub.comments.viewReplies').replace('{count}', replies.length)}
+                          : t('hub.comments.viewReplies', { count: replies.length })}
                     </button>
                     <AnimatePresence initial={false}>
                       {isExpanded && (

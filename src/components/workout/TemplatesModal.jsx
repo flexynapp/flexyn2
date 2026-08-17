@@ -278,7 +278,7 @@ function MyTemplateCard({ template, user, onUse, onDelete, onTogglePublic }) {
               : <Badge variant="outline" className="text-xs gap-1"><Lock className="w-3 h-3" /> {tFallback("hub.messages.privateNote.short", "Private")}</Badge>}
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">
-            {t('workout.templates.exerciseCount').replace('{n}', template.exercises?.length || 0)}
+            {t('workout.templates.exerciseCount', { n: template.exercises?.length || 0 })}
             {template.exercises?.length > 0 && (
               <> · <span className="truncate">
                 {template.exercises.slice(0, 3).map(e => e.displayName || e.name).join(', ')}
@@ -329,7 +329,7 @@ function MyTemplateCard({ template, user, onUse, onDelete, onTogglePublic }) {
               <AlertDialogHeader>
                 <AlertDialogTitle>{t('workout.templates.deleteTitle')}</AlertDialogTitle>
                 <AlertDialogDescription>
-                  {t('workout.templates.deleteDesc').replace('{name}', template.name)}
+                  {t('workout.templates.deleteDesc', { name: template.name })}
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>

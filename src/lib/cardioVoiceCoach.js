@@ -46,10 +46,11 @@ export function stopSpeaking() {
 //     paceLabel: "8:42 per mile" }
 // and a t() that resolves cardio.voice.* keys.
 export function buildMilestoneText(t, { distanceLabel, timeLabel, paceLabel }) {
-  return t('cardio.voice.milestone')
-    .replace('{distance}', distanceLabel)
-    .replace('{time}', timeLabel)
-    .replace('{pace}', paceLabel);
+  return t('cardio.voice.milestone', {
+    distance: distanceLabel,
+    time: timeLabel,
+    pace: paceLabel,
+  });
 }
 
 export function buildStartText(t) {
@@ -62,9 +63,10 @@ export function buildResumeText(t) {
   return t('cardio.voice.workoutResumed');
 }
 export function buildFinishText(t, { distanceLabel, timeLabel }) {
-  return t('cardio.voice.workoutFinished')
-    .replace('{distance}', distanceLabel)
-    .replace('{time}', timeLabel);
+  return t('cardio.voice.workoutFinished', {
+    distance: distanceLabel,
+    time: timeLabel,
+  });
 }
 
 // Convert a duration in seconds to a SPOKEN form ("8 minutes 34 seconds").

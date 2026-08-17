@@ -177,7 +177,7 @@ export default function GoalsList({ goals, logs, cardioLogs = [], onEdit, onDele
                     <Button
                       variant="ghost"
                       size="icon"
-                      aria-label={tFallback('goals.rowMenu', 'Options for {name}').replace('{name}', title)}
+                      aria-label={tFallback('goals.rowMenu', 'Options for {name}', { name: title })}
                     >
                       <MoreVertical className="w-4 h-4" />
                     </Button>

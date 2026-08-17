@@ -60,9 +60,10 @@ export default function GiftCoinsModal({ open, onClose, recipient }) {
     setSending(false);
     if (res.ok) {
       toast.success(
-        tFallback('gift.successToast', 'Sent {amount} coins to {recipient}.')
-          .replace('{amount}', cleanAmount.toLocaleString())
-          .replace('{recipient}', recipName),
+        tFallback('gift.successToast', 'Sent {amount} coins to {recipient}.', {
+          amount: cleanAmount.toLocaleString(),
+          recipient: recipName,
+        }),
       );
       try { await refreshUser?.(); } catch { /* non-blocking */ }
       onClose?.();
@@ -143,7 +144,7 @@ export default function GiftCoinsModal({ open, onClose, recipient }) {
               className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm tabular-nums"
             />
             <p className="text-micro text-muted-foreground mt-1 tabular-nums">
-              {tFallback('gift.balance', 'Balance: {n} coins · max 10,000 per gift').replace('{n}', fmt(balance))}
+              {tFallback('gift.balance', 'Balance: {n} coins · max 10,000 per gift', { n: fmt(balance) })}
             </p>
             {overBudget && (
               <p className="text-micro text-destructive mt-1">{tFallback('gift.notEnough', "You don't have enough coins.")}</p>
@@ -178,7 +179,7 @@ export default function GiftCoinsModal({ open, onClose, recipient }) {
             {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
             {sending
               ? tFallback('gift.sending', 'Sending…')
-              : tFallback('gift.send', 'Send {n} coins').replace('{n}', cleanAmount.toLocaleString())}
+              : tFallback('gift.send', 'Send {n} coins', { n: cleanAmount.toLocaleString() })}
           </button>
         </div>
       </motion.div>
