@@ -91,7 +91,7 @@
   },
   "overrides": {
     "dompurify": "3.4.12",
-    "fast-uri": "4.1.1",
+    "fast-uri": "4.1.2",
     "postcss": "^8.5.23"
   }
 }
