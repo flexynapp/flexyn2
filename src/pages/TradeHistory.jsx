@@ -19,7 +19,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, ArrowRightLeft, Clock, Check, X as XIcon, ShieldCheck, Ban } from 'lucide-react';
-import { formatDistanceToNowStrict } from 'date-fns';
+import { formatRelativeTime } from '@/lib/intlFormat';
 import { toast } from '@/lib/toast';
 import { useAuth } from '@/lib/AuthContext';
 import { useAuthorsById, resolveAuthor } from '@/lib/data/useAuthors';
@@ -73,7 +73,7 @@ function fromLegacy(t) {
 }
 
 export default function TradeHistory() {
-  const { tFallback } = useLanguage();
+  const { tFallback, language } = useLanguage();
   const { user } = useAuth();
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -114,7 +114,7 @@ export default function TradeHistory() {
     setBusyId(offerId);
     try {
       await tradeOffers.cancel(offerId);
-      toast.success('Offer pulled back. Your item is free again.');
+      toast.success(tFallback('tradeHistory.offerPulled', 'Offer pulled back. Your item is free again.'));
       qc.invalidateQueries({ queryKey: ['tradeHistory'] });
       qc.invalidateQueries({ queryKey: ['userInventory', user?.email] });
     } catch (err) {
@@ -149,7 +149,7 @@ export default function TradeHistory() {
               filter === f.id ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-secondary active:bg-secondary'
             }`}
           >
-            {f.label}
+            {tFallback(`tradeHistory.filter.${f.id}`, f.label)}
             {f.id !== 'all' && (
               <span className="opacity-70 ms-1">
                 ({trades.filter(t => t.status === f.id).length})
@@ -191,7 +191,7 @@ export default function TradeHistory() {
 }
 
 function TradeRow({ trade, authorsById, onCancel, busy }) {
-  const { tFallback } = useLanguage();
+  const { tFallback, language } = useLanguage();
   // Real trades resolve a live @username from the user id.
   //
   // Legacy trades came from DMs, which carry an email and no user_id. Those
@@ -204,7 +204,7 @@ function TradeRow({ trade, authorsById, onCancel, busy }) {
   // unattributed instead.
   const counterparty = trade.real
     ? resolveAuthor(authorsById, trade.counterpartyId).handle
-    : 'a trader';
+    : tFallback('tradeHistory.aTrader', 'a trader');
 
   const youGive = trade.iAmSender ? trade.myItem    : trade.theirItem;
   const youGet  = trade.iAmSender ? trade.theirItem : trade.myItem;
@@ -215,6 +215,9 @@ function TradeRow({ trade, authorsById, onCancel, busy }) {
     declined:  { Icon: XIcon, color: 'text-red-500',            bg: 'bg-red-500/15',     label: 'Declined' },
     cancelled: { Icon: Ban,   color: 'text-muted-foreground',   bg: 'bg-secondary',      label: 'Cancelled' },
   }[trade.status] || { Icon: Clock, color: 'text-muted-foreground', bg: 'bg-secondary', label: trade.status };
+  const statusLabel = trade.status
+    ? tFallback(`tradeHistory.status.${trade.status}`, statusMeta.label)
+    : statusMeta.label;
 
   const canCancel = trade.real && trade.iAmSender && trade.status === 'pending';
 
@@ -228,21 +231,21 @@ function TradeRow({ trade, authorsById, onCancel, busy }) {
           <p className="text-xs text-muted-foreground truncate">{counterparty}</p>
         </div>
         <span className={`flex items-center gap-1 text-micro font-bold uppercase tracking-wide px-2 py-0.5 rounded-full shrink-0 ${statusMeta.bg} ${statusMeta.color}`}>
-          <statusMeta.Icon className="w-3 h-3" /> {statusMeta.label}
+          <statusMeta.Icon className="w-3 h-3" /> {statusLabel}
         </span>
       </div>
 
       <div className="flex items-center gap-2 my-2">
-        <ItemChip item={youGive} label="You give" />
+        <ItemChip item={youGive} label={tFallback('tradeHistory.youGive', 'You give')} />
         <ArrowRightLeft className="w-4 h-4 text-muted-foreground shrink-0" />
-        <ItemChip item={youGet} label="You get" />
+        <ItemChip item={youGet} label={tFallback('tradeHistory.youGet', 'You get')} />
       </div>
 
       <div className="flex items-center justify-between text-micro text-muted-foreground gap-2">
-        <span>{relTime(trade.sentAt)}</span>
+        <span>{relTime(trade.sentAt, language)}</span>
         <div className="flex items-center gap-2">
           {trade.respondedAt && (
-            <span>{statusMeta.label} {relTime(trade.respondedAt)}</span>
+            <span>{statusLabel} {relTime(trade.respondedAt, language)}</span>
           )}
           {trade.real ? (
             <span
@@ -284,8 +287,6 @@ function ItemChip({ item, label }) {
   );
 }
 
-function relTime(iso) {
-  if (!iso) return '';
-  try { return formatDistanceToNowStrict(new Date(iso), { addSuffix: true }); }
-  catch { return ''; }
+function relTime(iso, language) {
+  return formatRelativeTime(iso, language);
 }

@@ -69,10 +69,10 @@ export default function TrainerStudio() {
   const handleBecomeTrainer = async () => {
     const res = await becomeTrainer();
     if (res.ok) {
-      toast.success('Creator mode enabled. Build your first listing.');
+      toast.success(tFallback('trainerStudio.creatorEnabled', 'Creator mode enabled. Build your first listing.'));
       qc.invalidateQueries({ queryKey: ['userProfile', user?.email] });
     } else {
-      toast.error("Couldn't enable creator mode. Try again.");
+      toast.error(tFallback('trainerStudio.creatorEnableFailed', 'Could not enable creator mode. Try again.'));
     }
   };
 
@@ -108,16 +108,23 @@ export default function TrainerStudio() {
     // is ON DELETE SET NULL so the purchase row survives the delete,
     // but the access lookup still breaks — so we still block here.
     if ((listing.sales_count ?? 0) > 0) {
-      toast.error('Has existing buyers. Unpublish instead. (Delete would revoke their access.)');
+      toast.error(tFallback(
+        'trainerStudio.hasBuyers',
+        'This program has buyers. Unpublish it instead, because deleting would revoke their access.',
+      ));
       return;
     }
     if (deleteInFlight.current.has(listing.id)) return;
-    if (!confirm(`Delete "${listing.title}"? This program has no buyers, so removal is safe.`)) return;
+    if (!confirm(tFallback(
+      'trainerStudio.confirmDelete',
+      'Delete "{title}"? This program has no buyers, so removing it is safe.',
+      { title: listing.title },
+    ))) return;
     deleteInFlight.current.add(listing.id);
     const res = await deleteListing(listing.id);
     deleteInFlight.current.delete(listing.id);
-    if (res.ok) { toast.success('Listing deleted.'); refresh(); }
-    else toast.error(res.error || "Couldn't delete.");
+    if (res.ok) { toast.success(tFallback('trainerStudio.listingDeleted', 'Listing deleted.')); refresh(); }
+    else toast.error(res.error || tFallback('trainerStudio.deleteFailed', 'Could not delete.'));
   };
 
   return (
@@ -138,7 +145,7 @@ export default function TrainerStudio() {
         <h1 className="font-heading text-2xl font-bold tracking-tight flex items-center gap-2">
           <Sparkles className="w-5 h-5 text-primary" /> {tFallback("app.creatorStudio", "Creator Studio")}
         </h1>
-        <p className="text-sm text-muted-foreground">Package your regimens into premium programs.</p>
+        <p className="text-sm text-muted-foreground">{tFallback('trainerStudio.subtitle', 'Package your regimens into premium programs.')}</p>
       </div>
 
       {!isTrainer ? (
@@ -146,14 +153,26 @@ export default function TrainerStudio() {
           <div className="mb-3 flex items-start gap-2 px-3 py-2 rounded-xl border border-amber-500/30 bg-amber-500/10">
             <Sparkles className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" aria-hidden="true" />
             <p className="text-xs text-foreground/80">
-              <span className="font-bold text-amber-600">{tFallback("formcoach.beta", "Beta")}</span> · creator mode is rolling out — the storefront, payouts and review tools come online over the next few weeks.
+              <span className="font-bold text-amber-600">{tFallback("formcoach.beta", "Beta")}</span>
+              {' · '}
+              {tFallback(
+                'trainerStudio.betaNote',
+                'Creator mode is rolling out. The storefront, payouts and review tools come online over the next few weeks.',
+              )}
             </p>
           </div>
           <EmptyState
             icon={Sparkles}
             title={tFallback("trainerStudio.becomeACreator", "Become a creator")}
-            body="Turn your best regimens into paid programs. Flexyn handles checkout and takes a 15% platform fee; you keep 85%."
-            action={{ label: 'Enable creator mode', onClick: handleBecomeTrainer }}
+            body={tFallback(
+              'trainerStudio.becomeBody',
+              'Turn your best regimens into paid programs. Flexyn handles checkout and takes a {fee}% platform fee, so you keep {keep}%.',
+              { fee: 15, keep: 85 },
+            )}
+            action={{
+              label: tFallback('trainerStudio.enableCreatorMode', 'Enable creator mode'),
+              onClick: handleBecomeTrainer,
+            }}
           />
         </>
       ) : (
@@ -161,14 +180,14 @@ export default function TrainerStudio() {
           {/* Revenue summary */}
           <div className="grid grid-cols-3 gap-3 mb-4">
             {[
-              { label: 'Your payout', value: formatCents(revenue.payout_cents), color: 'text-emerald-500', Icon: TrendingUp },
-              { label: 'Gross sales', value: formatCents(revenue.gross_cents), color: 'text-foreground', Icon: DollarSign },
-              { label: 'Sales',       value: String(revenue.sales),            color: 'text-primary',   Icon: CheckCircle2 },
-            ].map(({ label, value, color, Icon }) => (
-              <div key={label} className="rounded-2xl border border-border bg-card p-3 text-center">
+              { id: 'payout', label: 'Your payout', value: formatCents(revenue.payout_cents), color: 'text-emerald-500', Icon: TrendingUp },
+              { id: 'gross',  label: 'Gross sales', value: formatCents(revenue.gross_cents), color: 'text-foreground', Icon: DollarSign },
+              { id: 'sales',  label: 'Sales',       value: String(revenue.sales),            color: 'text-primary',   Icon: CheckCircle2 },
+            ].map(({ id, label, value, color, Icon }) => (
+              <div key={id} className="rounded-2xl border border-border bg-card p-3 text-center">
                 <Icon className={`w-4 h-4 mx-auto mb-1 ${color}`} />
                 <p className={`font-heading font-bold text-lg tabular-nums ${color}`}>{value}</p>
-                <p className="text-micro text-muted-foreground uppercase tracking-wide">{label}</p>
+                <p className="text-micro text-muted-foreground uppercase tracking-wide">{tFallback(`trainerStudio.stat.${id}`, label)}</p>
               </div>
             ))}
           </div>
@@ -208,8 +227,14 @@ export default function TrainerStudio() {
             <EmptyState
               icon={DollarSign}
               title={tFallback("trainerStudio.noListingsYet", "No listings yet")}
-              body="Create your first premium program — pick a regimen, set a price, and publish."
-              action={{ label: 'New listing', onClick: () => { setEditingListing(null); setFormOpen(true); } }}
+              body={tFallback(
+                'trainerStudio.noListingsBody',
+                'Create your first premium program. Pick a regimen, set a price, and publish.',
+              )}
+              action={{
+                label: tFallback('trainerStudio.newListing', 'New listing'),
+                onClick: () => { setEditingListing(null); setFormOpen(true); },
+              }}
             />
           ) : (
             <div className="space-y-2">
