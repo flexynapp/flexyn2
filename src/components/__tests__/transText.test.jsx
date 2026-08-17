@@ -8,8 +8,14 @@ import { render, screen } from '@testing-library/react';
 import TransText from '../TransText';
 
 const mockT = vi.fn();
+// Forwards whatever arity it is called with, rather than declaring two
+// parameters and quietly dropping the rest. That matters here more than
+// anywhere: the last test in this file asserts every call has exactly two
+// arguments, and a mock that fixes its own arity makes that assertion
+// unfalsifiable — with `(k, en) => mockT(k, en)` you can change TransText to
+// call `tFallback(k, en, values)` and the whole file still passes.
 vi.mock('@/lib/LanguageContext', () => ({
-  useLanguage: () => ({ tFallback: (k, en) => mockT(k, en) }),
+  useLanguage: () => ({ tFallback: (...args) => mockT(...args) }),
 }));
 
 describe('TransText', () => {
