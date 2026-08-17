@@ -2105,6 +2105,41 @@ Four things to carry forward:
   empty form. Verified 200000 / 107100 (120 lb, 55, female) / 200000
   (300 lb, 25, male).
 
+**THE SWEEP IS NOW COMPLETE (migration 375, 2026-08-16), and the count
+above was wrong.** There are **31** functions reading `workout_logs`, not
+24 — the Gym Rival work (363–365, 373, 374) added several after this
+section was written, which is the general hazard: a classification is
+only true for the functions that existed when it was made.
+
+- **A forged workout was winning Gym Rival weeks and being paid for it.**
+  `gym_rival_settle_week` → `gym_rival_net_rating` → `gym_rival_volume_lbs`,
+  which read `workout_logs` unfiltered, → picks the winner → XP, flex
+  coins, loot capsules and a push. Competitive AND credited, and open.
+  Probed: **1,350 vs 1,351,350**.
+- **`mark_workout_volume_credited` was a second door to the stamp.** 361
+  gave `reconcile_my_workout_volume` the same predicate on its SELECT and
+  UPDATE for exactly this reason; nobody checked the function next to it,
+  which stamps `volume_credited_at` from the client with no predicate at
+  all. Spent silently, and permanently uncreditable if the flag is ever
+  cleared.
+- Also filtered by 375: `update_solo_challenge_progress` (twice — the
+  session count is the CLAMP on a client-supplied `p_prs_hit`),
+  `gym_rival_user_stats`, `crew_match_cadence`, `crew_match_strength`.
+- **Three deliberate abstentions, with reasons, so they are not
+  rediscovered as bugs**: `gym_rival_void_stale`/`_all` ask a PRESENCE
+  question for the 48h AFK void, and filtering there voids the match of
+  someone whose honest heavy session tripped the model;
+  `sweep_stale_guest_accounts` asks whether an account has ANY data
+  before DELETING it; `get_crew_weekly_stats` / `_crew_member_week_stats`
+  is the crew's own panel, pays nothing and ranks only inside a group you
+  already belong to.
+- **`gym_rival_user_stats` is the case for reading the installed body.**
+  Written from memory it came out with a different `RETURNS TABLE` column
+  order AND different names — `level, strength, age_years` against the
+  real `strength, lifter_age, lifter_level` — which `CREATE OR REPLACE`
+  would have pushed onto every caller. Read it with `pg_get_functiondef`;
+  never retype one.
+
 Not done, and a deliberate scope line: nothing gates the log at write
 time beyond the flag, and XP granted through `increment_user_xp` is a
 client-supplied (clamped) amount rather than something derived from
