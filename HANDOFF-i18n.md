@@ -15,10 +15,10 @@ every "94% real" predates a correct measurement.
 | | then | now |
 |---|---|---|
 | untranslatable keys | 781 | **0** |
-| hardcoded strings | 725 (undercounted) | **556** (honest) |
+| hardcoded strings | 725 (undercounted) | **530** (honest) |
 | en.json | 3,895 | 5,627 |
-| real es/fr coverage | 70.5% | **90.5%** |
-| de / it / nl / pl | — | 87.1% real |
+| real es/fr coverage | 70.5% | **90.9%** |
+| de / it / nl / pl | — | 87.5% real |
 | pt | — | 85.3% real |
 | tr | 2,137 | 2,353 / 5,627 |
 
@@ -39,11 +39,9 @@ untranslated.
 
 ## THE JOB
 
-**Finish the 556 hardcoded strings.** UI copy that never reaches a catalog.
+**Finish the 530 hardcoded strings.** UI copy that never reaches a catalog.
 `npm run i18n:hardcoded -- --list` enumerates them; the largest are:
 
-    14  src/pages/GymEdit.jsx
-    13  src/pages/Nutrition.jsx
     12  src/pages/RegisterGym.jsx
     11  src/components/cardio/CardioPlanned.jsx
     11  src/components/nutrition/RecipesHubModal.jsx
@@ -51,8 +49,9 @@ untranslated.
     11  src/lib/programTemplates.js
     11  src/pages/GymHub.jsx
     10  src/components/gyms/GymFeedTab.jsx
+    10  src/pages/TradeHistory.jsx
 
-then a tail of 1–9 across ~137 files. Nothing above 14 remains.
+then a tail of 1–9 across ~137 files. Nothing above 12 remains.
 
 **The loot catalogs are DONE** (105 keys, 2026-08-16). Cosmetic NAMES stay
 English by standing decision; the flavour text beside them is translated
@@ -68,6 +67,12 @@ list.** Two shapes it structurally cannot see, both found in this batch:
 - **A template-literal toast.** Every detector keys off a quoted string, so
   ``toast.success(`"${r.name}" shared with the Crew!`)`` is invisible. CrewChat
   had five and Workout one. They take the catalog form with `{name}`.
+- **THE DETECTOR MATCHES A FIXED LIST OF PROPERTY NAMES, and a data shape
+  that uses different nouns is invisible.** Nutrition's hero slides are
+  `{ id, kicker, title, tip, ctaLabel }` — `title` is on the list, `kicker`,
+  `tip` and `ctaLabel` are not, so the headline of every slide was counted and
+  the eyebrow, body and button under it were not. Five reported against twenty
+  real. Read the object, not the count.
 - **`name:` is excluded from the objectProp detector by design** (it is
   overwhelmingly an identifier here). `trophyDefinitions.js` reported 123 and
   had 166 — the 43 extra were `LADDERS[].name` and `TROPHY_CATEGORIES[].name`,
@@ -115,6 +120,12 @@ key** at the render site and leave the data module pure.
 5. `npm run i18n:review -- <lang>` after every batch — it catches vocabulary
    the shape validator cannot
 6. `npm run i18n:baseline`, `npm run lint`, run the i18n tests, commit, push
+
+**A render HELPER is not a component and cannot hold a hook.** `HeroPager`
+calls `renderSlide(slide, opts)`, so a `useLanguage()` inside
+`renderShortcutSlide` is a rules-of-hooks violation no test catches. Pass the
+translator in as an argument, defaulting to `enT` from `src/lib/translatorArg.js`
+— never a local `(_k, english) => english`, which drops the vars.
 
 **A data module with no React context takes the translator as an argument** —
 `implementTypeLabel(slug, tf)`. Pass it from every render AND every sort:
