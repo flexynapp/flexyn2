@@ -3,12 +3,41 @@
  *
  * 1. Extends expect() with @testing-library/jest-dom matchers
  *    (toBeInTheDocument, toHaveTextContent, toBeDisabled, etc.)
- * 2. Stubs browser APIs that jsdom doesn't implement
- * 3. Silences known-noisy console output during tests
+ * 2. Raises Testing Library's own async timeout — see below, it is NOT the
+ *    same knob as vitest's testTimeout
+ * 3. Stubs browser APIs that jsdom doesn't implement
+ * 4. Silences known-noisy console output during tests
  */
 
 import '@testing-library/jest-dom';
+import { configure } from '@testing-library/react';
 import { vi } from 'vitest';
+
+// ── Testing Library's async timeout ────────────────────────────────────────
+// `findBy*` and `waitFor` have their OWN timeout, and vitest's `testTimeout`
+// does not govern it. vitest.config.js raised testTimeout to 15s precisely
+// because a loaded machine turns fast tests into false reds — but that could
+// never help here, because RTL gives up at its own 1000ms default first and
+// throws a TestingLibraryElementError long before the test times out.
+//
+// That is what made CrewTopBoard look flaky on 2026-08-16: "Unable to find an
+// element with the text: Alpha" inside a multi-file run, passing in isolation
+// and passing on a re-run. Nothing was wrong with the component or the
+// assertion — the react-query resolve plus render simply landed past one
+// second while twenty vitest workers competed for the CPU. Confirmed by
+// setting this to 1, which reproduces that exact message deterministically.
+//
+// The failure is misleading in both directions: it reads as a missing element,
+// which is a real bug, and it vanishes when you re-run the file alone, which
+// reads as pure noise. It is neither.
+//
+// 5s absorbs a saturated machine while staying well under the 15s
+// testTimeout, so a query that genuinely never resolves still fails as an RTL
+// error — naming the element, with a DOM dump — rather than as a bare vitest
+// timeout with nothing to read. This is NOT licence for a slow test: if
+// something needs seconds of real work, understand it rather than
+// accommodate it.
+configure({ asyncUtilTimeout: 5000 });
 
 // ── Supabase env stubs ─────────────────────────────────────────────────────
 // The Supabase client throws at import time if VITE_SUPABASE_URL or
