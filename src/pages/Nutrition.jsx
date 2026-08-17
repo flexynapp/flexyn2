@@ -62,6 +62,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 // the barcode scanner — so we dynamic-import it inside the scan
 // handler instead of pulling it into the entry chunk.
 import { useLanguage } from '@/lib/LanguageContext';
+import { enT } from '@/lib/translatorArg';
 import { useSettings } from '@/lib/SettingsContext';
 import { useNumberFormatter } from '@/lib/intl';
 import { useLocation } from 'react-router-dom';
@@ -86,6 +87,7 @@ import { makeDuplicateFilter } from '@/lib/submitDedupe';
  * ────────────────────────────────────────────────────────────────── */
 
 function NutritionShortcutsCarousel({ onScan, onRecipes, onHistory, onPlans, onPlanner }) {
+  const { tFallback } = useLanguage();
   const slides = [
     {
       id: 'scan',
@@ -125,7 +127,7 @@ function NutritionShortcutsCarousel({ onScan, onRecipes, onHistory, onPlans, onP
       color: 'var(--info)',
       kicker: 'Meal History',
       title: 'Meal History',
-      tip: 'Every meal you\'ve logged. Search, filter, and re-log past meals in two taps.',
+      tip: 'Every meal you\'ve logged. Search it, filter it, and log a past meal again in two taps.',
       ctaLabel: 'Browse history',
       onCta: onHistory,
     },
@@ -136,7 +138,7 @@ function NutritionShortcutsCarousel({ onScan, onRecipes, onHistory, onPlans, onP
       color: 'var(--destructive)',
       kicker: 'Nutrition Plans',
       title: 'Nutrition Plans',
-      tip: 'Pre-built macro splits — cut, bulk, recomp, keto, maintenance. Apply one and its meals land on your day.',
+      tip: 'Macro splits for cut, bulk, recomp, keto and maintenance. Apply one and its meals land on your day.',
       ctaLabel: 'See plans',
       onCta: onPlans,
     },
@@ -194,7 +196,7 @@ function NutritionShortcutsCarousel({ onScan, onRecipes, onHistory, onPlans, onP
           <HeroPager
             ref={pagerRef}
             slides={slides}
-            renderSlide={renderShortcutSlide}
+            renderSlide={(slide, opts) => renderShortcutSlide(slide, opts, tFallback)}
             onIndexChange={handleIndexChange}
             dotsClassName="mt-4"
             dotLabel={(i) => `Slide ${i + 1}`}
@@ -209,7 +211,7 @@ function NutritionShortcutsCarousel({ onScan, onRecipes, onHistory, onPlans, onP
    chip + kicker, title, the line of context, then the CTA pill. The pill
    sits inside the pager's track and that is safe — Framer only claims a
    gesture past its drag threshold, so a tap still reaches the button. */
-function renderShortcutSlide(slide, { count = 1 } = {}) {
+function renderShortcutSlide(slide, { count = 1 } = {}, tFallback = enT) {
   const Icon = slide.icon;
   return (
     <div className={`relative flex flex-col justify-between gap-5 min-w-0 ${count > 1 ? HERO_SLIDE_GUTTER : ''}`}>
@@ -222,7 +224,7 @@ function renderShortcutSlide(slide, { count = 1 } = {}) {
           <Icon className="w-4 h-4 text-foreground" />
         </div>
         <span className="text-micro font-semibold tracking-[0.04em] text-foreground/70">
-          {slide.kicker}
+          {tFallback(`nutrition.hero.${slide.id}.kicker`, slide.kicker)}
         </span>
       </div>
       {/* No AnimatePresence — the track is the transition. See the note in
@@ -232,10 +234,10 @@ function renderShortcutSlide(slide, { count = 1 } = {}) {
           className="font-heading font-bold leading-[1.05] tracking-tight text-foreground break-words pe-20"
           style={{ fontSize: 'clamp(1.6rem, 5.5vw, 2.25rem)' }}
         >
-          {slide.title}
+          {tFallback(`nutrition.hero.${slide.id}.title`, slide.title)}
         </h3>
         <p className="text-sm text-foreground/60 max-w-[36ch] leading-relaxed mt-3">
-          {slide.tip}
+          {tFallback(`nutrition.hero.${slide.id}.tip`, slide.tip)}
         </p>
         {/* The pill takes the SLIDE's accent, not `bg-primary/10` like the
             Dashboard's. The dashboard hero can hold primary because its
@@ -250,7 +252,7 @@ function renderShortcutSlide(slide, { count = 1 } = {}) {
           style={{ background: `hsl(${heroSlideAccent(slide)} / 0.18)` }}
           className="inline-flex items-center gap-1 mt-3 px-3 py-1.5 rounded-full backdrop-blur-sm text-caption font-semibold text-foreground transition-opacity hover:opacity-80 active:opacity-80"
         >
-          {slide.ctaLabel}
+          {tFallback(`nutrition.hero.${slide.id}.cta`, slide.ctaLabel)}
           <ChevronRight className="w-3.5 h-3.5 rtl:scale-x-[-1]" />
         </button>
       </div>
@@ -532,13 +534,13 @@ export default function Nutrition() {
   const handleSetAsDefault = async () => {
     const res = await setLayoutDefault('nutrition', widgetOrder, null);
     if (res.ok) {
-      toast.success('Saved. New users will see this nutrition layout.');
+      toast.success(tFallback('nutrition.layoutDefaultSaved', 'Saved. New users will see this nutrition layout.'));
     } else if (res.error === 'rpc_missing') {
-      toast.error('Default-layouts RPC not deployed yet. Apply migration 166.');
+      toast.error(tFallback('nutrition.layoutMigrationMissing', 'Default-layouts RPC not deployed yet. Apply migration 166.'));
     } else if (res.error === 'admin_only') {
-      toast.error('Admins only.');
+      toast.error(tFallback('workout.adminsOnly', 'Admins only.'));
     } else {
-      toast.error('Could not save default layout. Try again.');
+      toast.error(tFallback('nutrition.layoutDefaultFailed', 'Could not save default layout. Try again.'));
     }
   };
 
@@ -1784,14 +1786,14 @@ export default function Nutrition() {
 
         {/* Neutral shortcuts */}
         {[
-          { label: 'Recipes', icon: ChefHat,  action: () => setShowRecipes(true) },
-          { label: 'History', icon: History,   action: () => setShowMealHistory(true) },
-          { label: 'Plans', icon: Calendar, action: () => setShowWeeklyPlanner(true) },
-        ].map(({ label, icon: Icon, action }) => (
-          <button key={label} type="button" onClick={action}
+          { id: 'recipes', label: 'Recipes', icon: ChefHat,  action: () => setShowRecipes(true) },
+          { id: 'history', label: 'History', icon: History,   action: () => setShowMealHistory(true) },
+          { id: 'plans',   label: 'Plans',   icon: Calendar, action: () => setShowWeeklyPlanner(true) },
+        ].map(({ id, label, icon: Icon, action }) => (
+          <button key={id} type="button" onClick={action}
             className="flex-1 flex flex-col items-center gap-1 py-2.5 rounded-xl bg-secondary/60 border border-border/40 text-muted-foreground hover:text-foreground active:text-foreground hover:bg-secondary active:bg-secondary transition-colors">
             <Icon className="w-4 h-4" />
-            <span className="text-micro font-semibold">{label}</span>
+            <span className="text-micro font-semibold">{tFallback(`nutrition.shortcut.${id}`, label)}</span>
           </button>
         ))}
 
@@ -2116,7 +2118,7 @@ export default function Nutrition() {
               <Input
                 id="bottle-nickname"
                 type="text"
-                placeholder="e.g. My Nalgene, Office Bottle"
+                placeholder={tFallback('nutrition.bottleNicknamePlaceholder', 'e.g. My Nalgene, Office Bottle')}
                 value={bottleNickname}
                 onChange={e => setBottleNickname(e.target.value)}
                 maxLength={30}

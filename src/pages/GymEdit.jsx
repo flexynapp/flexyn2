@@ -115,7 +115,7 @@ export default function GymEdit() {
     // (Audit 12 #32.)
     const MAX_BYTES = 5 * 1024 * 1024;
     if (file.size > MAX_BYTES) {
-      toast.error('Image too large. Keep it under 5 MB.');
+      toast.error(tFallback('gymEdit.imageTooLarge', 'Image too large. Keep it under {n} MB.', { n: 5 }));
       return null;
     }
     // Whitelist image extensions. Without this an upload of `evil.html`
@@ -130,7 +130,7 @@ export default function GymEdit() {
     };
     const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
     if (!SAFE_EXTS.includes(ext)) {
-      toast.error('Image type not supported. Use JPG, PNG, WebP, or HEIC.');
+      toast.error(tFallback('gymEdit.imageTypeUnsupported', 'Image type not supported. Use JPG, PNG, WebP, or HEIC.'));
       return null;
     }
     const path = `${user.id}/gym/${gym.id}/${kind}-${Date.now()}.${ext}`;
@@ -171,7 +171,7 @@ export default function GymEdit() {
   };
 
   const captureLocation = () => {
-    if (!navigator.geolocation) { toast.error('Geolocation not supported.'); return; }
+    if (!navigator.geolocation) { toast.error(tFallback('gymEdit.geoUnsupported', 'Geolocation not supported.')); return; }
     setGeoLoading(true);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
@@ -181,7 +181,7 @@ export default function GymEdit() {
           longitude: pos.coords.longitude.toFixed(6),
         }));
         setGeoLoading(false);
-        toast.success('Location captured.');
+        toast.success(tFallback('gymEdit.locationCaptured', 'Location captured.'));
       },
       (err) => { setGeoLoading(false); toast.error(err.message); },
       { enableHighAccuracy: true, timeout: 10_000 },
@@ -197,10 +197,10 @@ export default function GymEdit() {
     // the new logo URL is orphaned in storage and never persisted.
     // Wave 56 (GymEdit audit) caught this.
     if (uploadingPhoto || uploadingLogo || uploadingCover) {
-      toast.error('Wait for the image upload to finish.');
+      toast.error(tFallback('gymEdit.waitForUpload', 'Wait for the image upload to finish.'));
       return;
     }
-    if (!form.name.trim()) { toast.error('Name required.'); return; }
+    if (!form.name.trim()) { toast.error(tFallback('gymEdit.nameRequired', 'Name required.')); return; }
     // Lat/lng are OPTIONAL. After mig 150 these columns are nullable
     // on gym_businesses, so gyms without coords can still save changes
     // (hours, description, photos). Previously the form blocked ALL
@@ -214,7 +214,7 @@ export default function GymEdit() {
     if (form.latitude?.toString().trim() !== '') {
       const v = Number(form.latitude);
       if (!Number.isFinite(v) || v < -90 || v > 90) {
-        toast.error('Latitude must be a number between -90 and 90.');
+        toast.error(tFallback('gymEdit.latitudeRange', 'Latitude must be a number between {min} and {max}.', { min: -90, max: 90 }));
         return;
       }
       lat = v;
@@ -222,7 +222,7 @@ export default function GymEdit() {
     if (form.longitude?.toString().trim() !== '') {
       const v = Number(form.longitude);
       if (!Number.isFinite(v) || v < -180 || v > 180) {
-        toast.error('Longitude must be a number between -180 and 180.');
+        toast.error(tFallback('gymEdit.longitudeRange', 'Longitude must be a number between {min} and {max}.', { min: -180, max: 180 }));
         return;
       }
       lng = v;
@@ -263,10 +263,10 @@ export default function GymEdit() {
       .eq('id', gym.id);
     setSaving(false);
     if (error) {
-      toast.error(`Save failed: ${error.message}`);
+      toast.error(tFallback('gymEdit.saveFailed', 'Save failed: {reason}', { reason: error.message }));
       return;
     }
-    toast.success('Saved.');
+    toast.success(tFallback('gymEdit.saved', 'Saved.'));
     navigate(`/gym/${gym.id}`);
   };
 
@@ -290,7 +290,7 @@ export default function GymEdit() {
         </div>
         <div>
           <h1 className="font-heading text-2xl font-bold tracking-tight">{tFallback("gymEdit.editGym", "Edit gym")}</h1>
-          <p className="text-sm text-muted-foreground">Customize how your gym appears to members.</p>
+          <p className="text-sm text-muted-foreground">{tFallback('gymEdit.subtitle', 'Customize how your gym appears to members.')}</p>
         </div>
       </div>
 
@@ -464,7 +464,7 @@ function HoursEditor({ value, onChange }) {
   const setAllSame = () => {
     const refDay = value?.mon;
     if (!refDay?.open || !refDay?.close) {
-      toast.error('Set Monday first, then tap "Copy to all days".');
+      toast.error(tFallback('gymEdit.setMondayFirst', 'Set Monday’s hours first, then copy them to the other days.'));
       return;
     }
     const next = {};
@@ -485,7 +485,7 @@ function HoursEditor({ value, onChange }) {
           onClick={setAllSame}
           className="text-micro font-bold uppercase tracking-wide text-primary hover:bg-primary/10 active:bg-primary/10 px-2 py-1 rounded"
         >
-          Copy Mon → all days
+          {tFallback('gymEdit.copyMondayToAll', 'Copy Monday to all days')}
         </button>
       </div>
       <div className="space-y-1">
@@ -512,7 +512,7 @@ function HoursEditor({ value, onChange }) {
         })}
       </div>
       <p className="text-micro text-muted-foreground mt-2">
-        Leave both fields blank to mark a day as closed.
+        {tFallback('gymEdit.blankIsClosed', 'Leave both fields blank to mark a day as closed.')}
       </p>
     </div>
   );
@@ -568,7 +568,7 @@ function PhotoGalleryEditor({ gymId, value, onChange, uploading, setUploading, u
     e.target.value = '';
     if (!file) return;
     if ((value || []).length >= MAX_GALLERY_PHOTOS) {
-      toast.error('Your gallery is full. Remove a photo to add another.');
+      toast.error(tFallback('gymEdit.galleryFull', 'Your gallery is full. Remove a photo to add another.'));
       return;
     }
     setUploading(true);
@@ -595,7 +595,7 @@ function PhotoGalleryEditor({ gymId, value, onChange, uploading, setUploading, u
       </div>
       {(value || []).length === 0 ? (
         <p className="text-micro text-muted-foreground">
-          Members see them as a swipeable rail on your hub page.
+          {tFallback('gymEdit.gallerySwipeHint', 'Members see them as a swipeable rail on your gym page.')}
         </p>
       ) : (
         <div className="grid grid-cols-3 gap-2">

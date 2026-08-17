@@ -166,6 +166,8 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'crew.applicantLevel',
   ]),
   fr: new Set([
+    // "Plans" is spelled and used exactly this way in French.
+    'nutrition.shortcut.plans',
     // "Participation" is the same word in French.
     'corporatePortal.stat.participation',
     // Sticker is the word French uses for these.
