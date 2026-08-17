@@ -168,14 +168,16 @@ goal's own title and an exercise name are USER DATA and must render verbatim.
   take the CATALOG's English, or the code and the screen disagree.
   `workout.dragToReorder` means something else entirely and needed a new key.
   Check `en.json` before minting or reusing.
-- **53 call sites app-wide pass a fallback that does NOT match `en.json`**, and
-  nothing measures it. `getTranslation` returns the catalog value when the key
-  exists, so the fallback only shows when the key is missing — which means the
-  developer reads one string and the user sees another. Two are live bugs:
-  `workout.weightWithUnit` lost its `{unit}` placeholder, so `ChartWidgets`
-  passes a var the catalog cannot use and a kg user reads "lbs"; and
-  `pushOptIn.subtitle` still says "nemesis" where the product says Gym Rival.
-  The other 51 are cosmetic drift. Not fixed — it is its own pass.
+- **A call site's fallback must equal `en.json`, and a guard now enforces it**
+  (`i18nCoverage.test.js`, added 2026-08-16). `getTranslation` returns the
+  catalog value whenever the key exists, so the fallback renders only when the
+  key is MISSING — a mismatch means the source says one thing and the screen
+  says another, invisibly. 45 keys were mismatched on the first measurement and
+  two were live defects: `workout.weightWithUnit` had lost its `{unit}`
+  placeholder in all fifteen catalogs (a kg user read "lbs"), and two strings
+  still called the feature "nemesis". **When the guard fires, decide which side
+  is stale.** Aligning the call site is free; changing `en.json` is a copy edit
+  in eight locales.
 - **The extractor takes the SOURCE BYTES, not the runtime value.** A default
   written `'Drag a card\u2019s grip'` lands in `en.json` as a literal
   backslash-u. Type the character.
