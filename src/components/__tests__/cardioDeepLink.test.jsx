@@ -19,7 +19,11 @@ import { render, screen, cleanup, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 vi.mock('@/lib/LanguageContext', () => ({
-  useLanguage: () => ({ t: (k) => k, tFallback: (_k, e) => e, language: 'en' }),
+  useLanguage: () => ({
+    t: (k) => k,
+    tFallback: (_k, e, vars) =>
+      vars ? Object.entries(vars).reduce((s, [n, v]) => s.replace(`{${n}}`, v), e) : e,
+    language: 'en' }),
 }));
 vi.mock('@/lib/AuthContext', () => ({ useAuth: () => ({ user: null }) }));
 vi.mock('@/lib/DistanceUnitContext', () => ({ useDistanceUnit: () => ({ distanceUnit: 'mi' }) }));

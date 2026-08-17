@@ -19,7 +19,9 @@ import { MemoryRouter } from 'react-router-dom';
 vi.mock('@/lib/AuthContext', () => ({ useAuth: () => ({ user: { id: 'me', email: 'me@x.com' } }) }));
 vi.mock('@/lib/LanguageContext', () => ({
   useLanguage: () => ({
-    language: 'en', t: (k) => k, tFallback: (_k, fb) => fb, setLanguage: vi.fn(),
+    language: 'en', t: (k) => k, tFallback: (_k, fb, vars) =>
+      vars ? Object.entries(vars).reduce((s, [n, v]) => s.replace(`{${n}}`, v), fb) : fb,
+    setLanguage: vi.fn(),
     currentLanguage: { code: 'en', flag: '🇺🇸', label: 'English', nativeLabel: 'English' },
     SUPPORTED_LANGUAGES: [{ code: 'en', flag: '🇺🇸', label: 'English', nativeLabel: 'English' }],
   }),

@@ -32,7 +32,11 @@ vi.mock('@/lib/intl', () => ({
   useNumberFormatter: () => (n) => String(n),
 }));
 vi.mock('@/lib/LanguageContext', () => ({
-  useLanguage: () => ({ t: (k) => k, tFallback: (_k, fb) => fb, language: 'es' }),
+  useLanguage: () => ({
+    t: (k) => k,
+    tFallback: (_k, fb, vars) =>
+      vars ? Object.entries(vars).reduce((s, [n, v]) => s.replace(`{${n}}`, v), fb) : fb,
+    language: 'es' }),
 }));
 vi.mock('@/lib/AuthContext', () => ({ useAuth: () => ({ user: null }) }));
 vi.mock('@/lib/DistanceUnitContext', () => ({ useDistanceUnit: () => 'mi' }));

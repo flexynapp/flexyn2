@@ -26,7 +26,11 @@ import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 vi.mock('@/lib/LanguageContext', () => ({
-  useLanguage: () => ({ t: (k) => k, tFallback: (_k, english) => english }),
+  useLanguage: () => ({
+    t: (k) => k,
+    tFallback: (_k, english, vars) =>
+      vars ? Object.entries(vars).reduce((s, [n, v]) => s.replace(`{${n}}`, v), english) : english,
+  }),
 }));
 vi.mock('@/lib/AuthContext', () => ({
   useAuth: () => ({ user: { id: 'u-1', email: 'mine@flexyn.test' } }),

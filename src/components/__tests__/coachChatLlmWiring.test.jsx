@@ -38,7 +38,10 @@ vi.mock('@/lib/AuthContext', () => ({
   useAuth: () => ({ user: { id: 'u1', email: 'a@b.c' } }),
 }));
 vi.mock('@/lib/LanguageContext', () => ({
-  useLanguage: () => ({ tFallback: (_k, fb) => fb, language: 'es' }),
+  useLanguage: () => ({
+    tFallback: (_k, fb, vars) =>
+      vars ? Object.entries(vars).reduce((s, [n, v]) => s.replace(`{${n}}`, v), fb) : fb,
+    language: 'es' }),
 }));
 vi.mock('@/api/db', () => ({
   db: { auth: { me: vi.fn(async () => ({ level: 'consistent', weight_unit: 'lb' })) } },

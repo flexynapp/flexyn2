@@ -26,7 +26,10 @@ vi.mock('@/lib/AuthContext', () => ({
 }));
 
 vi.mock('@/lib/LanguageContext', () => ({
-  useLanguage: () => ({ tFallback: (_k, fallback) => fallback, language: 'en' }),
+  useLanguage: () => ({
+    tFallback: (_k, fallback, vars) =>
+      vars ? Object.entries(vars).reduce((s, [n, v]) => s.replace(`{${n}}`, v), fallback) : fallback,
+    language: 'en' }),
 }));
 
 vi.mock('@/lib/intl', () => ({

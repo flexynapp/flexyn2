@@ -58,7 +58,11 @@ vi.mock('@/lib/reportError', () => ({ reportError: vi.fn() }));
 // The house stub: the fallback IS the English string. Nothing asserted
 // here carries a placeholder, so this shape is correct.
 vi.mock('@/lib/LanguageContext', () => ({
-  useLanguage: () => ({ t: (k) => k, tFallback: (_k, en) => en }),
+  useLanguage: () => ({
+    t: (k) => k,
+    tFallback: (_k, en, vars) =>
+      vars ? Object.entries(vars).reduce((s, [n, v]) => s.replace(`{${n}}`, v), en) : en,
+  }),
 }));
 
 vi.mock('@/lib/AuthContext', () => ({

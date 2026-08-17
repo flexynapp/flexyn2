@@ -16,7 +16,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 
 vi.mock('@/lib/LanguageContext', () => ({
-  useLanguage: () => ({ tFallback: (_k, fallback) => fallback }),
+  useLanguage: () => ({
+    tFallback: (_k, fallback, vars) =>
+      vars ? Object.entries(vars).reduce((s, [n, v]) => s.replace(`{${n}}`, v), fallback) : fallback,
+  }),
 }));
 vi.mock('@/lib/toast', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock('@/lib/data/crews', () => ({

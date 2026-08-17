@@ -12,7 +12,10 @@ import { render, screen, fireEvent } from '@testing-library/react';
 
 const lockCalls = [];
 vi.mock('@/lib/LanguageContext', () => ({
-  useLanguage: () => ({ tFallback: (_k, english) => english }),
+  useLanguage: () => ({
+    tFallback: (_k, english, vars) =>
+      vars ? Object.entries(vars).reduce((s, [n, v]) => s.replace(`{${n}}`, v), english) : english,
+  }),
 }));
 vi.mock('@/hooks/useBodyScrollLock', () => ({
   useBodyScrollLock: (open) => { lockCalls.push(open); },

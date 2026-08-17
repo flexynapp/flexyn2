@@ -53,7 +53,11 @@ vi.mock('@/lib/AuthContext', () => ({ useAuth: () => ({ user: { email: 'a@b.c', 
 // The house stub: the fallback IS the English string. None of the copy
 // asserted here carries a placeholder, so this is the right shape.
 vi.mock('@/lib/LanguageContext', () => ({
-  useLanguage: () => ({ t: (k) => k, tFallback: (_k, en) => en }),
+  useLanguage: () => ({
+    t: (k) => k,
+    tFallback: (_k, en, vars) =>
+      vars ? Object.entries(vars).reduce((s, [n, v]) => s.replace(`{${n}}`, v), en) : en,
+  }),
 }));
 
 let unit = 'lbs';

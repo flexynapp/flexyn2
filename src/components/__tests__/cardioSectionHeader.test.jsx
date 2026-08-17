@@ -32,7 +32,10 @@ const SWIM = 'cardio.modes.swimming';
 vi.mock('@/lib/LanguageContext', () => ({
   useLanguage: () => ({
     t: (key) => key,
-    tFallback: (key, english) => (key === 'cardio.modes.swimming' ? 'XX-swim' : english),
+    tFallback: (key, english, vars) => {
+      if (key === 'cardio.modes.swimming') return 'XX-swim';
+      return vars ? Object.entries(vars).reduce((s, [n, v]) => s.replace(`{${n}}`, v), english) : english;
+    },
     language: 'en',
   }),
 }));

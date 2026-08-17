@@ -20,7 +20,8 @@ vi.mock('canvas-confetti', () => ({ default: (...args) => confettiSpy(...args) }
 vi.mock('@/lib/LanguageContext', () => ({
   useLanguage: () => ({
     t: (k) => k,
-    tFallback: (k, fallback) => fallback,
+    tFallback: (k, fallback, vars) =>
+      vars ? Object.entries(vars).reduce((s, [n, v]) => s.replace(`{${n}}`, v), fallback) : fallback,
   }),
 }));
 

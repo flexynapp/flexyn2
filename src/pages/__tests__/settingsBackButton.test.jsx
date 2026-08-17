@@ -19,7 +19,11 @@ import React from 'react';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 
 vi.mock('@/lib/LanguageContext', () => ({
-  useLanguage: () => ({ t: (k) => k, tFallback: (_k, fb) => fb }),
+  useLanguage: () => ({
+    t: (k) => k,
+    tFallback: (_k, fb, vars) =>
+      vars ? Object.entries(vars).reduce((s, [n, v]) => s.replace(`{${n}}`, v), fb) : fb,
+  }),
 }));
 vi.mock('@/components/ErrorBoundary', () => ({
   default: ({ children }) => children,

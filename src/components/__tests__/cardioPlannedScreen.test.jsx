@@ -17,7 +17,11 @@ const rpc = vi.fn(() => Promise.resolve({ data: 'new-id', error: null }));
 let ROWS = [];
 
 vi.mock('@/lib/LanguageContext', () => ({
-  useLanguage: () => ({ t: (k) => k, tFallback: (_k, e) => e, language: 'en' }),
+  useLanguage: () => ({
+    t: (k) => k,
+    tFallback: (_k, e, vars) =>
+      vars ? Object.entries(vars).reduce((s, [n, v]) => s.replace(`{${n}}`, v), e) : e,
+    language: 'en' }),
 }));
 vi.mock('@/lib/AuthContext', () => ({ useAuth: () => ({ user: { email: 'k@x.com' } }) }));
 vi.mock('@/lib/DistanceUnitContext', () => ({ useDistanceUnit: () => ({ distanceUnit: 'mi' }) }));
