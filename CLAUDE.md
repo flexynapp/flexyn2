@@ -2145,6 +2145,34 @@ time beyond the flag, and XP granted through `increment_user_xp` is a
 client-supplied (clamped) amount rather than something derived from
 `workout_logs`, so it is untouched by any of this.
 
+## A guest's email: NULL is not the only wrong value (migration 376)
+
+`auth.users.email` is NULL for every `signInAnonymously()` account — 27 of
+56 measured — while `user_profiles.email` is populated for all 56
+(`guest_<uuid>@flexyn.guest`). Migration 366 fixed that for
+`notifications` with one BEFORE INSERT trigger. 376 does the same for
+`user_trophies`, `user_capsules` and `user_inventory`.
+
+- **`COALESCE(auth.email(), '')` is not a fix, it is a quieter bug.** It
+  satisfies a NOT NULL column with an empty string. `user_trophies` is
+  read BY EMAIL on two live paths (`leaderboardStats.js`,
+  `ProfileBadgeShowcase.jsx`, both falling back to the address when no
+  user id is to hand), so a guest's trophies were **unfindable** rather
+  than missing. 12 rows across 9 users.
+- **A NULL-only guard would have been a silent no-op**, and the probe
+  proves it: `WHERE user_email IS NULL` matched **0** of the 12. 366's
+  trigger tests `IS NULL`; 376's tests NULL *or* `''`. If you copy that
+  pattern to a fourth table, copy the newer one.
+- **Fix the writers or fix the table, not both.** 376 leaves
+  `grant_eligible_trophies` and `award_league_season_internal` writing
+  `''` on purpose — the trigger corrects them and immunises whatever is
+  written next, which is 366's reasoning applied consistently.
+- **And the reason this was found late**: I reported it as a 23502 crash
+  after reading migration 167, which shipped a bare `auth.email()`. It
+  was a crash, until migration **293** wrapped it when guest mode landed.
+  Read the INSTALLED body before reporting a bug, not just before
+  editing one.
+
 ## The food catalogue — a moderation queue nothing enforced (2026-08-12)
 
 `public.food_items` is the shared food database a barcode scan resolves
