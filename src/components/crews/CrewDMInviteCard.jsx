@@ -48,10 +48,18 @@ export default function CrewDMInviteCard({ payload, userId, isMine }) {
       // join_crew_atomic does NOT always join you. A crew that is not public
       // and has no live crew_invites row files a REQUEST instead and returns
       // status 'requested' (or 'pending' if one was already open) with no
-      // error — and since crew_invites has never held a row and all four
-      // production crews are private, that is the branch every DM invite
-      // actually takes. Claiming "you joined" and then showing an empty Crews
-      // tab is the worst of both.
+      // error. Claiming "you joined" and then showing an empty Crews tab is
+      // the worst of both, so both branches are handled.
+      //
+      // This USED TO BE the branch every DM invite took, because nothing
+      // called invite_to_crew and crew_invites had never held a row.
+      // CrewCreationFlow now writes the invite before sending this card, so
+      // an invited friend takes the 'joined' branch. The request branch is
+      // still reachable and still correct: the invite expires after 14 days,
+      // the founder's invite call can fail while the DM still arrives, and
+      // this card can be forwarded to somebody who was never invited — which
+      // is the case migration 250 made the ROW, not the message body, the
+      // thing that grants entry.
       if (res?.status === 'requested' || res?.status === 'pending') {
         setState('requested');
         toast.success(tFallback('crewDMInviteCard.requestSent', 'Request sent'), {

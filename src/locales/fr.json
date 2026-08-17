@@ -1124,6 +1124,7 @@
   "crewChat.unpin": "Détacher",
   "crewChat.viewSettings": "Voir les paramètres :",
   "crewCreationFlow.createCrew": "Créer un Crew",
+  "crewCreationFlow.inviteFailed": "{n} de vos invitations n'ont pas pu être envoyées. Ces amis devront candidater à la place.",
   "crewCreationFlow.maxMembers": "15 personnes maximum par Crew.",
   "crewCreationFlow.nameYourCrew": "Nommez votre Crew",
   "crewCreationFlow.searchFriends": "Rechercher des amis…",

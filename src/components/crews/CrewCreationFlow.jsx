@@ -11,6 +11,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/lib/AuthContext';
 import { supabase } from '@/api/supabaseClient';
 import * as crewsData from '@/lib/data/crews';
+import * as crewMembership from '@/lib/data/crewMembership';
 import * as hubFollows from '@/lib/data/hubFollows';
 import * as users from '@/lib/data/users';
 import { containsProfanity } from '@/lib/profanityFilter';
@@ -112,8 +113,29 @@ export default function CrewCreationFlow({ onCreated, onClose }) {
       const inviterAvatar = myProfile?.avatar_url || null;
       const inviteBody    = buildCrewInviteBody(crew.id, crew.name, inviterName, inviterAvatar);
 
+      // Bind each invite to the PERSON before the DM that announces it.
+      //
+      // Until this call existed, `crew_invites` had never held a single row,
+      // so a DM invite was not an invite: join_crew_atomic takes the
+      // invite-bypass branch only for a live unexpired row, and every crew in
+      // production is application-gated, so an invited friend landed in the
+      // review queue behind the strangers. Verified against production —
+      // private crew, no invite: status 'requested'; same crew with an invite
+      // row: status 'joined', and the row is stamped accepted_at.
+      //
+      // Ordering is load-bearing and free: the row must exist before the
+      // message arrives, or a friend who taps Accept immediately still files
+      // a request. The invite is also independent of the DM — if the message
+      // fails the person can still join, and if the invite fails the DM still
+      // goes and degrades to the application it used to be.
+      const inviteFailures = [];
       await Promise.allSettled(
         selected.map(async (friend) => {
+          try {
+            const inv = await crewMembership.inviteToCrew(crew.id, friend.id);
+            if (!inv?.ok) inviteFailures.push(inv?.reason || 'db_error');
+          } catch { inviteFailures.push('db_error'); }
+
           try {
             const conv = await hubMessages.findOrCreateConversation(user.email, friend.id);
             if (conv) {
@@ -129,6 +151,17 @@ export default function CrewCreationFlow({ onCreated, onClose }) {
       );
 
       toast.success(`${crew.name} created!`);
+
+      // Said once, after the success, and only when it is true. Those friends
+      // are not lost — their DM still arrives and the card files a request —
+      // but they will be waiting on a review the founder thinks they skipped.
+      if (inviteFailures.length) {
+        toast.warning(tFallback(
+          'crewCreationFlow.inviteFailed',
+          '{n} of your invites could not be sent. Those friends will have to apply instead.',
+          { n: inviteFailures.length },
+        ));
+      }
       onCreated?.(crew);
     } catch (err) {
       toast.error(err?.message || 'Could not create crew — try again.');
