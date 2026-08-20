@@ -15,18 +15,19 @@ every "94% real" predates a correct measurement.
 | | then | now |
 |---|---|---|
 | untranslatable keys | 781 | **0** |
-| hardcoded strings | 725 (undercounted) | **312** (honest) |
-| en.json | 3,895 | 5,970 |
-| real es/fr coverage | 70.5% | **94.5%** |
-| de / it / nl / pl | — | 90.8% real |
-| pt | — | 89.6% real |
-| tr | 2,137 | 2,353 / 5,970 |
+| hardcoded strings | 725 (undercounted) | **247** (honest) |
+| en.json | 3,895 | 6,052 |
+| es / fr | 70.5% | **99.4%** (6,013) |
+| de / it / nl / pl | — | 95.7% (5,789) |
+| pt | — | 94.4% (5,712) |
+| tr | 2,137 | 2,354 / 6,052 |
 
 `npm run i18n:audit` section E is the honest number. Section B is CATALOG
 coverage and is not what a user sees — do not quote it.
 
-**Everything up to `3161b546` is verified: 5,252 tests across 379 files, lint
-clean.**
+**Everything up to `41f30023` is verified: 5,252 tests across 379 files, lint
+clean, `npm run build` clean.** Run all three. The suite alone is not the
+gate — see the DiscoveryCards entry under TRAPS.
 
 
 **Three scanner defects were fixed on 2026-08-16 and they are the reason the
@@ -43,19 +44,36 @@ untranslated.
 
 ## THE JOB
 
-**Finish the 312 hardcoded strings.** UI copy that never reaches a catalog.
+**Finish the 247 hardcoded strings.** UI copy that never reaches a catalog.
 `npm run i18n:hardcoded -- --list` enumerates them; the largest are:
 
     11  src/lib/aiCoach/workoutGenerator.js   ← SEE "KNOWN FALSE POSITIVE"
-     7  src/pages/DuelInviteLanding.jsx
-     6  src/components/hub/CapsuleOpener.jsx
-     6  src/components/market/MarketFilterBar.jsx
-     6  src/components/stories/StoriesRow.jsx
-     6  src/lib/cardioVO2max.js
-     6  src/lib/leagueTiers.js
+     6  src/pages/Legal.jsx                   ← HELD, see below
+     5  src/lib/hrZones.js
+     5  src/lib/recoveryScore.js
+     4  src/components/TwoFactorSection.jsx
+     4  src/components/crews/CrewBattleEntry.jsx
+     4  src/components/crews/CrewDiscovery.jsx
+     4  src/components/dashboard/WeeklyRecapShareCard.jsx
+     4  src/components/gymRival/GymRivalCard.jsx
+     4  src/components/gyms/GymEquipmentEditor.jsx
 
-then a tail of 1–5 across ~114 files. `workoutGenerator` is the documented
-false positive, so the real top is 9 and it is flat from there down.
+then a tail of 1–4 across ~110 files. `workoutGenerator` is the documented
+false positive, so the real top is 6 and it is flat from there down.
+`hrZones` and `recoveryScore` pair naturally (both are lib data modules that
+want the translator-argument pattern).
+
+**`src/pages/Legal.jsx` is HELD pending kegan's call, and the count of 6 is a
+lie.** The scanner only sees the six `<strong>` section labels; the file is a
+privacy policy, and its BODY prose is multi-line JSX text that the scanner
+does not match at all. Translating a legal document is not the same act as
+translating UI copy — a machine-drafted privacy policy is a liability, and
+the standing rule already says do not machine-translate prose. Doing the six
+labels alone would produce a policy with translated headings over English
+body text, which is worse than leaving it. Ask before touching it. Note also
+that the file carries `ENTITY`, `CONTACT_EMAIL` and `JURISDICTION` set to
+`null` with a visible placeholder that says it must be filled in before store
+submission, so the document is unfinished in English first.
 
 **GROUP FILES THAT SHARE A VOCABULARY, and grep for the concept before you
 start.** The three duel surfaces each declared their own English for the same
@@ -157,6 +175,38 @@ goal's own title and an exercise name are USER DATA and must render verbatim.
 
 ## TRAPS THAT COST TIME HERE
 
+- **The suite is not the build.** `08afd95b` put a JSX comment inside an
+  attribute list in `DiscoveryCards.jsx` — `{/* … */}` between two props,
+  which is a syntax error rather than a comment — and it sat on `origin/main`
+  through a green 379-file run, because no test imports that file. Netlify
+  deploys from `main`, so that was a broken production build on the branch
+  everyone pushes to. **Run `npm run lint` AND `npm run build` AND
+  `npm run test` before every push.** Lint caught it in a second; the suite
+  never would have.
+- **A key under a GUARDED domain prefix needs all fourteen locales, not the
+  seven complete ones.** `_meta.json` `domains` lists them: `journal.`,
+  `mood.`, `readiness.`, `gymEquip`, `implement.`, `notifications.`,
+  `cardio.`, `bodyMap.`, `weeklyMealPlannerModal.`, `nutritionPlansModal.`.
+  The domain tests assert each locale carries EXACTLY the label set, so one
+  new `weeklyMealPlannerModal.*` key turned seven files red. Nothing static
+  reports this — every counter that only reads the released locales says the
+  key is complete. Check the prefix list before you name a key.
+- **The extractor misses two whole classes.** `extract-defaults.mjs` matches
+  same-quote pairs only, so `tFallback('key', "double-quoted English")` is
+  invisible, and it cannot see a template key at all. Nine of one batch's 51
+  keys had to be added by hand. After running it, diff its output against the
+  `tFallback(` call sites you actually wrote.
+- **Reusing a key a locale does not carry is not a reuse, it is a
+  regression.** `crewWars.timeLeft`, `crew.coins` and `crewTrophies.levelN`
+  existed in es/fr only; pointing five more surfaces at them would have
+  rendered the English fallback in pt/de/it/nl/pl where a minted key would at
+  least have been translated. Check coverage across all seven before taking a
+  reuse, and backfill in the same change.
+- **Filling a gap can RAISE the English-echo ratchet, legitimately.**
+  `crewTrophies.levelN` is "Level {n}" in every language because Level is a
+  doNotTranslate term, so backfilling five locales added five echoes. That
+  belongs in `ALLOW_IDENTICAL` with the reason, never in a regenerated
+  baseline.
 - **Generated key paths use UNDERSCORES, never hyphens.** Every key scan
   matches `[\w.]+`, so `todaysPlan.label.push-day` is invisible to the audit.
   Hit three times.
