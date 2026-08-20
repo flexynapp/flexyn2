@@ -15,17 +15,17 @@ every "94% real" predates a correct measurement.
 | | then | now |
 |---|---|---|
 | untranslatable keys | 781 | **0** |
-| hardcoded strings | 725 (undercounted) | **387** (honest) |
-| en.json | 3,895 | 5,895 |
-| real es/fr coverage | 70.5% | **93.3%** |
-| de / it / nl / pl | — | 89.6% real |
-| pt | — | 88.4% real |
-| tr | 2,137 | 2,353 / 5,895 |
+| hardcoded strings | 725 (undercounted) | **371** (honest) |
+| en.json | 3,895 | 5,905 |
+| real es/fr coverage | 70.5% | **93.5%** |
+| de / it / nl / pl | — | 89.9% real |
+| pt | — | 88.7% real |
+| tr | 2,137 | 2,353 / 5,905 |
 
 `npm run i18n:audit` section E is the honest number. Section B is CATALOG
 coverage and is not what a user sees — do not quote it.
 
-**Everything up to `2ebc6313` is verified: 5,253 tests across 379 files, lint
+**Everything up to `e281069c` is verified: 5,252 tests across 379 files, lint
 clean.**
 
 
@@ -43,17 +43,17 @@ untranslated.
 
 ## THE JOB
 
-**Finish the 387 hardcoded strings.** UI copy that never reaches a catalog.
+**Finish the 371 hardcoded strings.** UI copy that never reaches a catalog.
 `npm run i18n:hardcoded -- --list` enumerates them; the largest are:
 
     11  src/lib/aiCoach/workoutGenerator.js   ← SEE "KNOWN FALSE POSITIVE"
      8  src/components/cardio/CardioWearableStub.jsx
-     8  src/components/hub/ShareSheetModal.jsx
-     8  src/components/hub/UserBag.jsx
      8  src/components/routines/MyRoutineSheet.jsx
      8  src/pages/MyGym.jsx
+     7  src/components/debrief/DebriefVault.jsx
+     7  src/components/nutrition/RecipeBuilderModal.jsx
 
-then a tail of 1–7 across ~126 files. `workoutGenerator` is the documented
+then a tail of 1–7 across ~124 files. `workoutGenerator` is the documented
 false positive, so the real top is 9 and it is flat from there down.
 
 **GROUP FILES THAT SHARE A VOCABULARY, and grep for the concept before you
@@ -196,6 +196,14 @@ goal's own title and an exercise name are USER DATA and must render verbatim.
   take the CATALOG's English, or the code and the screen disagree.
   `workout.dragToReorder` means something else entirely and needed a new key.
   Check `en.json` before minting or reusing.
+- **A RENAME THAT STRANDS KEYS FIGHTS THE RATCHET, so prefer the imperfect
+  namespace.** `collectionModal.tab.*` names four objects the Bag shows too, so
+  UserBag reuses them rather than minting twins — but moving them to a
+  surface-neutral namespace would drop four translated keys per locale, and
+  `_coverage.json` fails when `translated` FALLS. Renaming means regenerating a
+  no-regression guard to absorb your own tidying, which is the move that guard
+  exists to prevent. One vocabulary from one source is the property that
+  matters; where the key happens to live is not.
 - **A KEY CAN BE ORPHANED IN THE OTHER DIRECTION** — present in all fifteen
   catalogs, translated, and referenced by nothing. `hub.chat.attachImage` had
   said "Attach photo" in seven languages with no call site at all. Nothing
