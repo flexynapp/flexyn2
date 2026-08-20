@@ -533,10 +533,16 @@ SELECT 'push_subscriptions table exists', count(*), '1'
   FROM information_schema.tables
  WHERE table_schema = 'public' AND table_name = 'push_subscriptions'
 UNION ALL
+-- The fan-out is a STATEMENT-level trigger over a transition table, and the
+-- name carries the `_batch` suffix. This check read `trg_notifications_push_fanout`
+-- until 2026-08-20 and so reported 0 against a healthy database — which, given
+-- push once sent nothing for months, is the most alarming possible false
+-- alarm. Verified installed: AFTER INSERT ... REFERENCING NEW TABLE AS
+-- new_rows FOR EACH STATEMENT EXECUTE FUNCTION notify_push_fanout_batch().
 SELECT 'push fanout trigger', count(*), '1'
   FROM information_schema.triggers
  WHERE event_object_table = 'notifications'
-   AND trigger_name = 'trg_notifications_push_fanout'
+   AND trigger_name = 'trg_notifications_push_fanout_batch'
 UNION ALL
 SELECT 'cron jobs (streak + welcome + quest)', count(*), '3'
   FROM cron.job
@@ -598,7 +604,12 @@ SELECT 'profile extension columns (049)', count(*), '4'
  WHERE table_schema = 'public' AND table_name = 'user_profiles'
    AND column_name IN ('city','country_flag','trophy_case','trophy_case_visible')
 UNION ALL
-SELECT 'username profanity trigger (050)', count(*), '1'
+-- Expected 2, not 1. `information_schema.triggers` emits ONE ROW PER EVENT,
+-- and this is `BEFORE INSERT OR UPDATE OF username`, so a single correctly
+-- installed trigger appears twice. Confirmed 2026-08-20 against pg_trigger,
+-- which holds exactly one row for it. Every other check in this file counting
+-- an INSERT-only or UPDATE-only trigger stays at 1 for the same reason.
+SELECT 'username profanity trigger (050)', count(*), '2'
   FROM information_schema.triggers
  WHERE event_object_table = 'user_profiles'
    AND trigger_name = 'trg_username_profanity'
