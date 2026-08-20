@@ -15,17 +15,17 @@ every "94% real" predates a correct measurement.
 | | then | now |
 |---|---|---|
 | untranslatable keys | 781 | **0** |
-| hardcoded strings | 725 (undercounted) | **347** (honest) |
-| en.json | 3,895 | 5,933 |
-| real es/fr coverage | 70.5% | **93.9%** |
-| de / it / nl / pl | — | 90.3% real |
-| pt | — | 89.1% real |
-| tr | 2,137 | 2,353 / 5,933 |
+| hardcoded strings | 725 (undercounted) | **312** (honest) |
+| en.json | 3,895 | 5,970 |
+| real es/fr coverage | 70.5% | **94.5%** |
+| de / it / nl / pl | — | 90.8% real |
+| pt | — | 89.6% real |
+| tr | 2,137 | 2,353 / 5,970 |
 
 `npm run i18n:audit` section E is the honest number. Section B is CATALOG
 coverage and is not what a user sees — do not quote it.
 
-**Everything up to `e24c3057` is verified: 5,252 tests across 379 files, lint
+**Everything up to `3161b546` is verified: 5,252 tests across 379 files, lint
 clean.**
 
 
@@ -43,17 +43,18 @@ untranslated.
 
 ## THE JOB
 
-**Finish the 347 hardcoded strings.** UI copy that never reaches a catalog.
+**Finish the 312 hardcoded strings.** UI copy that never reaches a catalog.
 `npm run i18n:hardcoded -- --list` enumerates them; the largest are:
 
     11  src/lib/aiCoach/workoutGenerator.js   ← SEE "KNOWN FALSE POSITIVE"
-     7  src/components/debrief/DebriefVault.jsx
-     7  src/components/nutrition/RecipeBuilderModal.jsx
-     7  src/components/regimens/RegimenForm.jsx
-     7  src/components/settings/NotificationsSection.jsx
-     7  src/components/wellness/CycleTrackerCard.jsx
+     7  src/pages/DuelInviteLanding.jsx
+     6  src/components/hub/CapsuleOpener.jsx
+     6  src/components/market/MarketFilterBar.jsx
+     6  src/components/stories/StoriesRow.jsx
+     6  src/lib/cardioVO2max.js
+     6  src/lib/leagueTiers.js
 
-then a tail of 1–6 across ~121 files. `workoutGenerator` is the documented
+then a tail of 1–5 across ~114 files. `workoutGenerator` is the documented
 false positive, so the real top is 9 and it is flat from there down.
 
 **GROUP FILES THAT SHARE A VOCABULARY, and grep for the concept before you
@@ -164,6 +165,13 @@ goal's own title and an exercise name are USER DATA and must render verbatim.
   shipped the lookup and never the catalog entries — English in all fifteen
   languages while the code looked internationalised. A computed key cannot be
   checked statically, so nothing reports it. Check before assuming.
+  **Paid out again on 2026-08-16:** `NotificationsSection` already read
+  ``tFallback(`settings.push.${key}`, label)`` and not one of its seven
+  `settings.push.*` keys existed, so every push-category row was English in
+  fourteen languages. The fix was seven catalog rows and zero lines of JSX —
+  which is the tell that a file needing "no code change" may be the worst case,
+  not the best. When the scanner flags a `slug -> { label }` map, check whether
+  the render site ALREADY resolves it before touching the component.
 - **Suspect any coverage heuristic that only ever SHRINKS the number.** The
   derived-key rule has been wrong three times, always by being generous. Verify
   in both directions: what you fixed reads zero AND something untouched is
