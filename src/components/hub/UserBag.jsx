@@ -373,7 +373,7 @@ function TitleList({ items, userId }) {
       } else if (error.code === '42501') {
         toast.error(tFallback("userBag.permissionDeniedSignInAgain", "Permission denied. Sign in again"));
       } else {
-        toast.error('Could not save. Try again.');
+        toast.error(tFallback('userBag.saveFailed', 'Could not save. Try again.'));
       }
       return;
     }
@@ -493,7 +493,7 @@ function FrameList({ items, userId }) {
       } else if (error.code === '42501') {
         toast.error(tFallback("userBag.permissionDeniedSignInAgain", "Permission denied. Sign in again"));
       } else {
-        toast.error('Could not save. Try again.');
+        toast.error(tFallback('userBag.saveFailed', 'Could not save. Try again.'));
       }
       return;
     }
@@ -691,7 +691,7 @@ export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBat
       toast.success(`🪙 +${price} Flex Coins! Sold ${inventoryRow.item_emoji} ${inventoryRow.item_name}.`);
     } catch (err) {
       console.error('[UserBag] sell failed:', err);
-      toast.error('Could not sell item. Try again.');
+      toast.error(tFallback('userBag.sellFailed', 'Could not sell item. Try again.'));
     } finally {
       setSelling(false);
     }
@@ -757,6 +757,11 @@ export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBat
     (acc[t] ||= []).push(row);
     return acc;
   }, {});
+
+  // Capsules is the only one of the five with no Collection counterpart, so it
+  // is the only new key. The other four resolve to what that screen already
+  // says, which is the point.
+  const tabLabel = (tab) => tFallback(`collectionModal.tab.${tab.id}`, tab.label);
 
   const TABS = [
     { id: 'capsules', label: 'Capsules', icon: Package,  count: capsuleRows.length },
@@ -855,8 +860,8 @@ export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBat
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  title={tab.label}
-                  aria-label={tab.label}
+                  title={tabLabel(tab)}
+                  aria-label={tabLabel(tab)}
                   aria-pressed={isActive}
                   className={[
                     'relative flex flex-col items-center justify-center gap-0.5 py-2 px-1 border-b-2 transition-colors min-w-0 overflow-hidden',
@@ -870,7 +875,7 @@ export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBat
                         icon is the first thing to go: it's decorative here,
                         the word is not. Restored once there's room. */}
                     <Icon className="w-3.5 h-3.5 shrink-0 hidden min-[420px]:block" />
-                    <span className="text-micro font-semibold truncate">{tab.label}</span>
+                    <span className="text-micro font-semibold truncate">{tabLabel(tab)}</span>
                   </div>
                   <span className={`text-micro px-1.5 leading-tight rounded-full shrink-0 ${isActive ? 'bg-primary/20 text-primary' : 'bg-secondary text-muted-foreground'}`}>
                     {tab.count}

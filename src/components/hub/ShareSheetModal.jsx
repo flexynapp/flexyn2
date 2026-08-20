@@ -87,7 +87,7 @@ export default function ShareSheetModal({ post, open, onClose }) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      toast.error('Could not copy. Try again.');
+      toast.error(tFallback('shareSheet.copyFailed', 'Could not copy. Try again.'));
     }
   };
 
@@ -119,7 +119,7 @@ export default function ShareSheetModal({ post, open, onClose }) {
       toast.success(tFallback("shareSheetModal.sentInDm", "Sent in DM!"));
       onClose();
     } catch {
-      toast.error('Could not send. Try again.');
+      toast.error(tFallback('shareSheet.sendFailed', 'Could not send. Try again.'));
     } finally {
       setDmSending(null);
     }
@@ -133,7 +133,7 @@ export default function ShareSheetModal({ post, open, onClose }) {
       toast.success(`Sent to ${crew.name}!`);
       onClose();
     } catch {
-      toast.error('Could not send. Try again.');
+      toast.error(tFallback('shareSheet.sendFailed', 'Could not send. Try again.'));
     } finally {
       setCrewSending(null);
     }
@@ -170,9 +170,9 @@ export default function ShareSheetModal({ post, open, onClose }) {
             {/* Tab switcher */}
             <div className="flex gap-1 mx-4 mb-3 p-1 rounded-lg bg-secondary/50">
               {[
-                { id: 'dm', label: '💬 DM' },
-                { id: 'crew', label: '🛡️ Crew' },
-                { id: 'external', label: '🌐 Other' },
+                { id: 'dm',       emoji: '💬', label: 'DM' },
+                { id: 'crew',     emoji: '🛡️', label: 'Crew' },
+                { id: 'external', emoji: '🌐', label: 'Other' },
               ].map(t => (
                 <button
                   key={t.id}
@@ -181,7 +181,7 @@ export default function ShareSheetModal({ post, open, onClose }) {
                     tab === t.id ? 'bg-card shadow text-foreground' : 'text-muted-foreground'
                   }`}
                 >
-                  {t.label}
+                  {t.emoji} {tFallback(`shareSheet.tab.${t.id}`, t.label)}
                 </button>
               ))}
             </div>
@@ -191,7 +191,7 @@ export default function ShareSheetModal({ post, open, onClose }) {
               <div className="px-4 max-h-64 overflow-y-auto space-y-1">
                 {conversations.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-6">
-                    No conversations yet. Start a DM first.
+                    {tFallback('shareSheet.noConversations', 'No conversations yet. Start a DM first.')}
                   </p>
                 ) : (
                   conversations.slice(0, 20).map(conv => {
@@ -224,7 +224,7 @@ export default function ShareSheetModal({ post, open, onClose }) {
               <div className="px-4 max-h-64 overflow-y-auto space-y-1">
                 {crews.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-6">
-                    You're not in any crews yet.
+                    {tFallback('shareSheet.noCrews', 'You are not in any crews yet.')}
                   </p>
                 ) : (
                   crews.map(crew => (
