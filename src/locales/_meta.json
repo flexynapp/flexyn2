@@ -10,6 +10,7 @@
       "journal.historyFailedBody",
       "journal.locked",
       "journal.migrated",
+      "journal.migratedOne",
       "journal.moodOnly",
       "journal.saveFailed",
       "nutritionPlansModal.differInSplit",

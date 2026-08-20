@@ -394,7 +394,12 @@ export default function JournalView({ userId, userEmail, onClose, initialDate })
       if (userId && userEmail) {
         const n = await migrateLocalEntries(userId, userEmail).catch(() => 0);
         if (!cancelled && n > 0) {
-          toast.success(tFallback('journal.migrated', `Imported ${n} past ${n === 1 ? 'entry' : 'entries'}.`));
+          // Vars, not a pre-interpolated template. The catalog string
+          // carries {n}, and t() wins the moment the key exists — so
+          // without these the toast read "Imported {n} past entries."
+          toast.success(n === 1
+            ? tFallback('journal.migratedOne', 'Imported 1 past entry.')
+            : tFallback('journal.migrated', 'Imported {n} past entries.', { n }));
         }
       }
       if (!cancelled) loadDay(activeDate);

@@ -1,9 +1,9 @@
 {
   "$comment": "Committed per-locale baseline for the i18n no-regression guard. `translated` must never decrease; `englishEcho` must never increase. `untranslatable` and `hardcoded` are app-wide and must never increase. Regenerate deliberately with `npm run i18n:baseline` and say why in the commit.",
-  "sourceKeys": 5970,
+  "sourceKeys": 5971,
   "untranslatable": 0,
   "hardcoded": 310,
-  "userVisibleStrings": 6280,
+  "userVisibleStrings": 6281,
   "locales": {
     "es": {
       "translated": 5932,

@@ -2872,7 +2872,7 @@ function HomeGymStep({ step, total, value, onChange, onNext, onBack, onSkip }) {
         <NearbyGymPicker
           value={value}
           onChange={setCandidate}
-          emptyHint={tFallback('onboarding.homeGym.emptyHint', "Add it yourself below, or skip for now — you can pick your gym from the map later.")}
+          emptyHint={tFallback('onboarding.homeGym.emptyHint', "Try Browse map above, or skip for now. You can pick your gym any time from Profile \u2192 My Gym.")}
         />
       </div>
 
