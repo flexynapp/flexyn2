@@ -189,7 +189,7 @@ export default function RecipeBuilderModal({ open, onClose, editingRecipe = null
   );
 
   const handleSave = async () => {
-    if (!name.trim()) { toast.error('Give the recipe a name.'); return; }
+    if (!name.trim()) { toast.error(tFallback('recipeBuilder.nameRequired', 'Give the recipe a name.')); return; }
     const cleanIngredients = ingredients
       .filter(i => i.name?.trim())
       .map(i => ({
@@ -204,7 +204,7 @@ export default function RecipeBuilderModal({ open, onClose, editingRecipe = null
         fiber_g:     Number(i.fiber_g)     || 0,
       }));
     if (cleanIngredients.length === 0) {
-      toast.error('Add at least one ingredient.');
+      toast.error(tFallback('recipeBuilder.needIngredient', 'Add at least one ingredient.'));
       return;
     }
     setSaving(true);
@@ -319,12 +319,12 @@ export default function RecipeBuilderModal({ open, onClose, editingRecipe = null
             />
             {imageUrl ? (
               <div className="relative mb-3 rounded-lg overflow-hidden border border-border">
-                <img src={imageUrl} alt="Recipe" className="w-full h-40 object-cover" />
+                <img src={imageUrl} alt={tFallback('recipeBuilder.photoAlt', 'Recipe')} className="w-full h-40 object-cover" />
                 <div className="absolute top-2 end-2 flex gap-1.5">
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    aria-label="Change photo"
+                    aria-label={tFallback('recipeBuilder.changePhoto', 'Change photo')}
                     className="w-8 h-8 rounded-full bg-black/55 text-white flex items-center justify-center"
                   >
                     <Camera className="w-4 h-4" />
@@ -332,7 +332,7 @@ export default function RecipeBuilderModal({ open, onClose, editingRecipe = null
                   <button
                     type="button"
                     onClick={() => setImageUrl('')}
-                    aria-label="Remove photo"
+                    aria-label={tFallback('recipeBuilder.removePhoto', 'Remove photo')}
                     className="w-8 h-8 rounded-full bg-black/55 text-white flex items-center justify-center"
                   >
                     <X className="w-4 h-4" />
@@ -347,12 +347,12 @@ export default function RecipeBuilderModal({ open, onClose, editingRecipe = null
                 className="w-full flex items-center justify-center gap-2 h-16 mb-3 rounded-lg border border-dashed border-border text-sm font-semibold text-muted-foreground hover:bg-secondary/40 active:bg-secondary/40"
               >
                 {uploadingImage
-                  ? <><Loader2 className="w-4 h-4 animate-spin" /> Uploading…</>
-                  : <><ImagePlus className="w-4 h-4" /> Add food photo</>}
+                  ? <><Loader2 className="w-4 h-4 animate-spin" /> {tFallback('recipeBuilder.uploading', 'Uploading…')}</>
+                  : <><ImagePlus className="w-4 h-4" /> {tFallback('recipeBuilder.addPhoto', 'Add food photo')}</>}
               </button>
             )}
 
-            <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground mb-2">Ingredients</p>
+            <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground mb-2">{tFallback('recipeBuilder.ingredients', 'Ingredients')}</p>
             <div className="space-y-2">
               {ingredients.map((ing, i) => (
                 <div key={i} className="rounded-lg border border-border/70 p-2 space-y-1.5">

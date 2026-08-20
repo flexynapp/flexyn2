@@ -125,10 +125,10 @@ function ExpandedReview({ debrief, onClose, onRefresh, isRefreshing }) {
       } else {
         const a = document.createElement('a');
         a.href = dataUrl; a.download = name; a.click();
-        toast.success('Review saved to downloads.');
+        toast.success(tFallback('debriefVault.savedToDownloads', 'Review saved to downloads.'));
       }
     } catch (e) {
-      if (e?.name !== 'AbortError') toast.error('Could not export. Try again.');
+      if (e?.name !== 'AbortError') toast.error(tFallback('debriefVault.exportFailed', 'Could not export. Try again.'));
     } finally {
       setSharing(false);
     }
@@ -226,7 +226,7 @@ export default function DebriefVault({ onClose }) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['weeklyDebriefs', user?.id] });
       const before = expanded ? JSON.stringify(expanded.data || {}) : null;
-      if (!expanded) { toast.success('Review refreshed.'); return; }
+      if (!expanded) { toast.success(tFallback('debriefVault.refreshed', 'Review refreshed.')); return; }
       qc.fetchQuery({ queryKey: ['weeklyDebriefs', user?.id], queryFn: listDebriefs })
         .then(data => {
           const fresh = data.find(x =>
@@ -234,16 +234,19 @@ export default function DebriefVault({ onClose }) {
           if (fresh) setExpanded(fresh);
           const after = fresh ? JSON.stringify(fresh.data || {}) : null;
           toast.success(before !== null && after !== null && before === after
-            ? "You're all caught up — this review already reflects your latest data."
-            : 'Review refreshed.');
+            ? tFallback(
+              'debriefVault.alreadyCurrent',
+              'You are all caught up. This review already reflects your latest data.',
+            )
+            : tFallback('debriefVault.refreshed', 'Review refreshed.'));
         })
         .catch(err => {
           reportError(err, { feature: 'review.refresh-fetch', level: 'warning', userEmail: user?.email });
-          toast.success('Review refreshed.');
+          toast.success(tFallback('debriefVault.refreshed', 'Review refreshed.'));
         });
     },
     onError: (err) => {
-      toast.error('Could not refresh. Try again.');
+      toast.error(tFallback('debriefVault.refreshFailed', 'Could not refresh. Try again.'));
       reportError(err, { feature: 'review.refresh', userEmail: user?.email });
     },
   });
@@ -306,7 +309,7 @@ export default function DebriefVault({ onClose }) {
                   : 'text-muted-foreground border-border active:text-foreground'
               }`}
             >
-              {opt.label}
+              {tFallback(`debriefVault.sort.${opt.id}`, opt.label)}
             </button>
           ))}
         </div>

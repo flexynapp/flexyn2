@@ -125,9 +125,9 @@ export default function CycleTrackerCard({ profile }) {
       // screen until a full reload and the X read as broken.
       db.auth.patchCache(res.patch);
       queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
-      toast.success('Cycle tracking removed. Re-enable it in Settings.');
+      toast.success(tFallback('cycleTracker.removed', 'Cycle tracking removed. Re-enable it in Settings.'));
     } else {
-      toast.error('Could not update. Try again.');
+      toast.error(tFallback('cycleTracker.updateFailed', 'Could not update. Try again.'));
     }
   };
 
@@ -146,7 +146,7 @@ export default function CycleTrackerCard({ profile }) {
     if (res.ok) {
       queryClient.invalidateQueries({ queryKey: ['cycleLogs', user?.id] });
     } else {
-      toast.error('Could not remove that entry. Try again.');
+      toast.error(tFallback('cycleTracker.removeEntryFailed', 'Could not remove that entry. Try again.'));
     }
   };
 
@@ -157,11 +157,11 @@ export default function CycleTrackerCard({ profile }) {
     if (res.ok) {
       queryClient.invalidateQueries({ queryKey: ['cycleLogs', user?.id] });
       setLogOpen(false);
-      toast.success('Period logged.');
+      toast.success(tFallback('cycleTracker.logged', 'Period logged.'));
     } else if (res.error === 'DUPLICATE') {
-      toast.error('Already logged for that date.');
+      toast.error(tFallback('cycleTracker.duplicate', 'Already logged for that date.'));
     } else {
-      toast.error('Could not save. Try again.');
+      toast.error(tFallback('cycleTracker.saveFailed', 'Could not save. Try again.'));
     }
   };
 
@@ -188,10 +188,12 @@ export default function CycleTrackerCard({ profile }) {
                   <TransText k="cycleTrackerCard.dayOfCycle" en="Day {value}"
                     values={{ value: <span className="font-bold tabular-nums">{state.dayOfCycle}</span> }} />
                   {' · '}
-                  {state.daysUntilNext} day{state.daysUntilNext === 1 ? '' : 's'} until next
+                  {state.daysUntilNext === 1
+                    ? tFallback('cycleTracker.daysUntilOne', '{n} day until next', { n: state.daysUntilNext })
+                    : tFallback('cycleTracker.daysUntil', '{n} days until next', { n: state.daysUntilNext })}
                 </p>
               ) : (
-                <p className="text-micro text-muted-foreground">Log your first period start to begin.</p>
+                <p className="text-micro text-muted-foreground">{tFallback('cycleTracker.emptyHint', 'Log your first period start to begin.')}</p>
               )}
             </div>
           </div>

@@ -98,7 +98,7 @@ export default function RegimenForm({ initial, onSubmit, onCancel, userProfile =
 
   const createGroup = (type) => {
     if (selectedIndices.size < 2) {
-      toast.error('Select at least 2 exercises to group.');
+      toast.error(tFallback('regimenForm.selectTwo', 'Select at least {n} exercises to group.', { n: 2 }));
       return;
     }
     const groupId = `grp-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
@@ -189,17 +189,17 @@ export default function RegimenForm({ initial, onSubmit, onCancel, userProfile =
 
     const exerciseStrings = (exercises || []).flatMap(ex => [ex.name, ex.displayName, ex.notes]);
     if (hasAnyProfanity(name, description, exerciseStrings)) {
-      toast.error('Please remove inappropriate language before saving.');
+      toast.error(tFallback('workout.removeProfanity', 'Please remove inappropriate language before saving.'));
       return;
     }
 
     if (!name?.trim()) {
-      toast.error('Please give the regimen a name before saving.');
+      toast.error(tFallback('regimenForm.nameRequired', 'Please give the regimen a name before saving.'));
       return;
     }
 
     if (!exercises || exercises.length === 0) {
-      toast.error('Add at least one exercise before saving.');
+      toast.error(tFallback('regimenForm.needExercise', 'Add at least one exercise before saving.'));
       return;
     }
 
@@ -333,14 +333,14 @@ export default function RegimenForm({ initial, onSubmit, onCancel, userProfile =
               exit={{ opacity: 0, y: -6 }}
               className="mb-3 px-3 py-2 rounded-lg bg-primary/10 border border-primary/20 text-xs text-primary font-medium"
             >
-              Tap exercises to select them, then choose Superset or Circuit below.
+              {tFallback('regimenForm.groupHint', 'Tap exercises to select them, then choose Superset or Circuit below.')}
             </motion.div>
           )}
         </AnimatePresence>
 
         {exercises.length === 0 && (
           <Card className="p-6 text-center border-dashed">
-            <p className="text-sm text-muted-foreground">No exercises added yet.</p>
+            <p className="text-sm text-muted-foreground">{tFallback('regimenForm.noExercises', 'No exercises added yet.')}</p>
           </Card>
         )}
 
@@ -461,7 +461,7 @@ export default function RegimenForm({ initial, onSubmit, onCancel, userProfile =
                             removeExercise={removeExercise}
                             maxSetsPerExercise={maxSetsPerExercise}
                             userProfile={userProfile}
-                            t={t}
+                            t={t} tFallback={tFallback}
                           />
                         </div>
                       ))}
@@ -513,7 +513,7 @@ export default function RegimenForm({ initial, onSubmit, onCancel, userProfile =
                       removeExercise={removeExercise}
                       maxSetsPerExercise={maxSetsPerExercise}
                       userProfile={userProfile}
-                      t={t}
+                      t={t} tFallback={tFallback}
                     />
                       </div>
                     </div>
@@ -599,7 +599,7 @@ function ExerciseCard({
   ex, i, selecting, selectedIndices, toggleSelect,
   guard, updateExercise, handleExerciseSelect,
   addMuscleGroup, removeMuscleGroup, removeExercise,
-  maxSetsPerExercise, userProfile, t,
+  maxSetsPerExercise, userProfile, t, tFallback,
 }) {
   return (
     <div className="flex items-start gap-3">
@@ -634,7 +634,7 @@ function ExerciseCard({
           value={ex.displayName || ex.name}
           onChange={(val) => guard.handleChange(val, (v) => updateExercise(i, 'displayName', v))}
           onSelect={(exercise) => handleExerciseSelect(i, exercise)}
-          placeholder="Search exercise (e.g. Deadlift)..."
+          placeholder={tFallback('regimenForm.searchPlaceholder', 'Search exercise (e.g. Deadlift)...')}
         />
 
         {/* Muscle group selector */}

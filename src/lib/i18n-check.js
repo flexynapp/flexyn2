@@ -679,6 +679,8 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'workout.templates.reps',
   ]),
   nl: new Set([
+    // "Recent" is the Dutch word too.
+    'debriefVault.sort.recent',
     // "Open" and "Open Duel" are written exactly this way in Dutch —
     // `duel` is the Dutch word too, so the whole label survives.
     'duel.type.open.name',
