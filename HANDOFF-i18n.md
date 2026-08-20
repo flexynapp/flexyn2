@@ -15,17 +15,17 @@ every "94% real" predates a correct measurement.
 | | then | now |
 |---|---|---|
 | untranslatable keys | 781 | **0** |
-| hardcoded strings | 725 (undercounted) | **371** (honest) |
-| en.json | 3,895 | 5,905 |
-| real es/fr coverage | 70.5% | **93.5%** |
-| de / it / nl / pl | — | 89.9% real |
-| pt | — | 88.7% real |
-| tr | 2,137 | 2,353 / 5,905 |
+| hardcoded strings | 725 (undercounted) | **347** (honest) |
+| en.json | 3,895 | 5,933 |
+| real es/fr coverage | 70.5% | **93.9%** |
+| de / it / nl / pl | — | 90.3% real |
+| pt | — | 89.1% real |
+| tr | 2,137 | 2,353 / 5,933 |
 
 `npm run i18n:audit` section E is the honest number. Section B is CATALOG
 coverage and is not what a user sees — do not quote it.
 
-**Everything up to `e281069c` is verified: 5,252 tests across 379 files, lint
+**Everything up to `e24c3057` is verified: 5,252 tests across 379 files, lint
 clean.**
 
 
@@ -43,17 +43,17 @@ untranslated.
 
 ## THE JOB
 
-**Finish the 371 hardcoded strings.** UI copy that never reaches a catalog.
+**Finish the 347 hardcoded strings.** UI copy that never reaches a catalog.
 `npm run i18n:hardcoded -- --list` enumerates them; the largest are:
 
     11  src/lib/aiCoach/workoutGenerator.js   ← SEE "KNOWN FALSE POSITIVE"
-     8  src/components/cardio/CardioWearableStub.jsx
-     8  src/components/routines/MyRoutineSheet.jsx
-     8  src/pages/MyGym.jsx
      7  src/components/debrief/DebriefVault.jsx
      7  src/components/nutrition/RecipeBuilderModal.jsx
+     7  src/components/regimens/RegimenForm.jsx
+     7  src/components/settings/NotificationsSection.jsx
+     7  src/components/wellness/CycleTrackerCard.jsx
 
-then a tail of 1–7 across ~124 files. `workoutGenerator` is the documented
+then a tail of 1–6 across ~121 files. `workoutGenerator` is the documented
 false positive, so the real top is 9 and it is flat from there down.
 
 **GROUP FILES THAT SHARE A VOCABULARY, and grep for the concept before you
@@ -204,6 +204,15 @@ goal's own title and an exercise name are USER DATA and must render verbatim.
   no-regression guard to absorb your own tidying, which is the move that guard
   exists to prevent. One vocabulary from one source is the property that
   matters; where the key happens to live is not.
+- **EVERY `TransText` KEY IS OUTSIDE THE UNTRANSLATABLE AUDIT.**
+  `i18n:audit --untranslatable` scans for `tFallback(` CALLS; TransText takes
+  its key as a JSX prop (`k="…"`), so none of its 27 call sites are checked.
+  `myRoutineSheet.emptyHint` was missing from en.json and the audit read clean.
+  Check them by hand after touching one:
+  `grep -rn "<TransText" src --include="*.jsx" -A3 | grep -oE 'k="[^"]+"'`
+  and diff against en.json. Reach for TransText only when a sentence genuinely
+  wraps an element mid-string — otherwise a plain `tFallback` stays visible to
+  the tooling.
 - **A KEY CAN BE ORPHANED IN THE OTHER DIRECTION** — present in all fifteen
   catalogs, translated, and referenced by nothing. `hub.chat.attachImage` had
   said "Attach photo" in seven languages with no call site at all. Nothing
