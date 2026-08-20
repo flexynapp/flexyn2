@@ -673,7 +673,7 @@ export default function StoriesRow({ onViewProfile } = {}) {
       storiesData.createStory(user, file, overlayStyle, feedData?.ownPrivacyDefault ?? 'friends', overlays),
     onSuccess: (result) => {
       if (result?.limitReached) {
-        toast.error("Hey, you can only have 10 posts at a time! Delete an active story or wait until tomorrow to post more.");
+        toast.error(tFallback('storiesRow.limitReached', 'You can only have {n} stories at a time. Delete an active one, or wait until tomorrow to post more.', { n: 10 }));
         cleanupPreview();
         return;
       }
@@ -693,7 +693,7 @@ export default function StoriesRow({ onViewProfile } = {}) {
       }
       queryClient.invalidateQueries({ queryKey: ['storiesFeed'] });
       cleanupPreview();
-      toast.success("Story's up.");
+      toast.success(tFallback('hub.profile.storyPosted', 'Your story is up.'));
     },
     onError: (err) => {
       // Revoke the preview's object URL before clearing — previously this
@@ -799,20 +799,20 @@ export default function StoriesRow({ onViewProfile } = {}) {
 
   const handleNotePost = useCallback(async (text) => {
     const result = await statusNotesData.postStatusNote(user, text);
-    if (!result) { toast.error('Could not post note. Try again.'); return; }
+    if (!result) { toast.error(tFallback('storiesRow.notePostFailed', 'Could not post note. Try again.')); return; }
     queryClient.invalidateQueries({ queryKey: ['storiesFeed'] });
     setNoteEditorOpen(false);
-    toast.success("Note's up.");
+    toast.success(tFallback('storiesRow.notePosted', 'Your note is up.'));
   }, [user, queryClient]);
 
   const handleNoteDelete = useCallback(async () => {
     const note = ownGroup?.note;
     if (!note) return;
     const ok = await statusNotesData.deleteStatusNote(note.id);
-    if (!ok) { toast.error('Could not delete note.'); return; }
+    if (!ok) { toast.error(tFallback('storiesRow.noteDeleteFailed', 'Could not delete note.')); return; }
     queryClient.invalidateQueries({ queryKey: ['storiesFeed'] });
     setNoteEditorOpen(false);
-    toast.success('Note pulled.');
+    toast.success(tFallback('storiesRow.notePulled', 'Note pulled.'));
   }, [ownGroup, queryClient]);
 
   const handleQuickAdd = useCallback(async (id) => {

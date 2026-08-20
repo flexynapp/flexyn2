@@ -171,7 +171,7 @@ export default function MarketFilterBar({
                   : 'bg-secondary text-muted-foreground hover:text-foreground active:text-foreground'
               }`}
             >
-              {t.label}
+              {tFallback(`marketFilter.type.${t.id}`, t.label)}
             </button>
           ))}
         </div>
@@ -218,7 +218,14 @@ export default function MarketFilterBar({
           aria-label={tFallback("marketFilterBar.sortListings", "Sort listings")}
           className="shrink-0 bg-secondary border border-border rounded-full px-2 py-1 text-micro font-bold outline-none max-w-[104px]"
         >
-          {SORTS.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
+          {SORTS.map(s => (
+            // The sort ids carry a hyphen ('price-asc') and a hyphen in a key
+            // path is invisible to every scan here — they all match [\w.]+.
+            // Slugified to underscores, which is the house rule.
+            <option key={s.id} value={s.id}>
+              {tFallback(`marketFilter.sort.${s.id.replace(/-/g, '_')}`, s.label)}
+            </option>
+          ))}
         </select>
       </div>
 
@@ -252,7 +259,7 @@ export default function MarketFilterBar({
                 background: on ? tint.surface : 'transparent',
               }}
             >
-              {tint.label}
+              {tFallback(`loot.rarity.${r}`, tint.label)}
             </button>
           );
         })}

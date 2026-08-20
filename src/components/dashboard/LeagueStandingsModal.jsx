@@ -130,7 +130,7 @@ function Body({ data, season, userId, t, tFallback, fmt, onOpenMember, onOpenInf
         <DialogHeader>
           <DialogTitle className="font-heading text-xl flex items-center gap-2 text-white drop-shadow pe-8">
             <span className="text-2xl">{tier.icon}</span>
-            {tier.label} {tFallback('league.title', 'League')}
+            {tFallback(`trophy.seasonTier.${tier.id}`, tier.label)} {tFallback('league.title', 'League')}
           </DialogTitle>
         </DialogHeader>
         {/* The header states the rules of THIS week ("0 qualified — 5 needed")

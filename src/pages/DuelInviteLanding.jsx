@@ -93,21 +93,21 @@ export default function DuelInviteLanding() {
       const result = await claimInvite(token);
       clearPendingToken();
       if (result?.duel_id) {
-        toast.success('Duel accepted! Time to lift.');
+        toast.success(tFallback('duelInviteLanding.accepted', 'Duel accepted! Time to lift.'));
         navigate('/duels', { replace: true });
       }
     } catch (err) {
       const msg = String(err?.message || '').toLowerCase();
       if (msg.includes('cannot_claim_own_invite')) {
-        toast.error("That's your own invite. Share the link with someone else.");
+        toast.error(tFallback('duelInviteLanding.ownInvite', 'That is your own invite. Share the link with someone else.'));
       } else if (msg.includes('invite_already_claimed')) {
-        toast.error('This invite has already been used.');
+        toast.error(tFallback('duelInviteLanding.alreadyUsed', 'This invite has already been used.'));
       } else if (msg.includes('invite_expired')) {
-        toast.error('This invite has expired. Ask for a new one.');
+        toast.error(tFallback('duelInviteLanding.expired', 'This invite has expired. Ask for a new one.'));
       } else if (msg.includes('invite_not_found')) {
-        toast.error("Invite not found. The link may be wrong.");
+        toast.error(tFallback('duelInviteLanding.notFound', 'Invite not found. The link may be wrong.'));
       } else {
-        toast.error('Could not accept. Try again.');
+        toast.error(tFallback('duelInviteLanding.acceptFailed', 'Could not accept. Try again.'));
       }
       setAccepting(false);
     }
@@ -126,8 +126,8 @@ export default function DuelInviteLanding() {
     if (typeof navigator.share !== 'function') return handleCopy();
     try {
       await navigator.share({
-        title: 'Flexyn duel',
-        text: 'Accept my duel on Flexyn:',
+        title: tFallback('createInviteLinkModal.shareTitle', 'Flexyn duel'),
+        text: tFallback('duelInviteLanding.shareText', 'Accept my duel on Flexyn:'),
         url: buildInviteUrl(token),
       });
     } catch { /* user cancelled */ }

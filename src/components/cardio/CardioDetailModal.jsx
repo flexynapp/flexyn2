@@ -318,7 +318,11 @@ export default function CardioDetailModal({ log: summary, open, onOpenChange, on
                 value={
                   <span className="flex items-center gap-1.5 justify-end">
                     <span>{log.vo2max_estimate} mL/kg/min</span>
-                    {tier && <span className={`text-micro font-bold ${tier.color}`}>{tier.label}</span>}
+                    {tier && (
+                      <span className={`text-micro font-bold ${tier.color}`}>
+                        {tFallback(`cardio.vo2max.tier.${tier.id}`, tier.label)}
+                      </span>
+                    )}
                   </span>
                 }
               />

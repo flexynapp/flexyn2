@@ -111,10 +111,13 @@ export function bestVO2max({ mode, distanceMeters, durationSeconds, avgHr, restH
  */
 export function vo2maxTier(vo2max) {
   if (vo2max === null || vo2max === undefined) return null;
-  if (vo2max >= 60) return { label: 'Elite', color: 'text-purple-500' };
-  if (vo2max >= 52) return { label: 'Excellent', color: 'text-blue-500' };
-  if (vo2max >= 44) return { label: 'Good', color: 'text-green-500' };
-  if (vo2max >= 36) return { label: 'Average', color: 'text-amber-500' };
-  if (vo2max >= 28) return { label: 'Below Average', color: 'text-orange-500' };
-  return { label: 'Poor', color: 'text-red-500' };
+  // `id` is what a render site resolves `cardio.vo2max.tier.<id>` from. The
+  // English stays here as the fallback so this module renders identically
+  // when called from a context with no translator.
+  if (vo2max >= 60) return { id: 'elite', label: 'Elite', color: 'text-purple-500' };
+  if (vo2max >= 52) return { id: 'excellent', label: 'Excellent', color: 'text-blue-500' };
+  if (vo2max >= 44) return { id: 'good', label: 'Good', color: 'text-green-500' };
+  if (vo2max >= 36) return { id: 'average', label: 'Average', color: 'text-amber-500' };
+  if (vo2max >= 28) return { id: 'belowAverage', label: 'Below Average', color: 'text-orange-500' };
+  return { id: 'poor', label: 'Poor', color: 'text-red-500' };
 }

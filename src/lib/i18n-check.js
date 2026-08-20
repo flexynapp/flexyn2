@@ -102,6 +102,7 @@ const ALLOW_IDENTICAL = new Set([
   'collectionModal.tab.capsules',       // "Capsules" — doNotTranslate
   'shareSheet.tab.crew',                // "Crew"     — doNotTranslate
   'shareSheet.tab.dm',                  // "DM"       — the abbreviation, everywhere
+  'cardio.vo2max.tier.elite',           // "Elite"    — a _glossary.json term
 ]);
 
 /**
@@ -169,6 +170,8 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'crew.applicantLevel',
   ]),
   fr: new Set([
+    // "Excellent" is spelled the same in French.
+    'cardio.vo2max.tier.excellent',
     // "Plans" is spelled and used exactly this way in French.
     'nutrition.shortcut.plans',
     // "Participation" is the same word in French.

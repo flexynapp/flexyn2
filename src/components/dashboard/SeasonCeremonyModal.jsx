@@ -118,10 +118,12 @@ export default function SeasonCeremonyModal({ open, onClose, result, onOpenTroph
 
   const tierMeta = getTier(tier);
   const tierColor = tierMeta.color;
-  const tierLabel = tierMeta.label;
+  const tierLabel = tFallback(`trophy.seasonTier.${tier}`, tierMeta.label);
+  // The same two strings the trophy catalog already carries — a season trophy
+  // IS this ceremony's outcome, so they must not be worded twice.
   const titleName = isChampion
-    ? `Champion, S${seasonNumber}`
-    : `Season ${seasonNumber} ${tierLabel}`;
+    ? tFallback('trophy.season.champion.name', 'Champion, S{n}', { n: seasonNumber })
+    : tFallback('trophy.season.tier.name', 'Season {n} {tier}', { n: seasonNumber, tier: tierLabel });
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>

@@ -864,9 +864,9 @@ export default function CapsuleOpener({ capsule, batch, onClaim, onClaimBatch, o
   // "unavailable" case can point at the label that IS on screen.
   const handleCopyBuild = useCallback(async () => {
     const result = await copyDiagnostics();
-    if (result === 'ok') toast.success('Copied build info to clipboard.');
-    else if (result === 'unavailable') toast.error('Clipboard unavailable. The build is shown on the button.');
-    else toast.error('Could not copy. Your browser blocked clipboard access.');
+    if (result === 'ok') toast.success(tFallback('capsuleOpener.buildCopied', 'Copied build info to clipboard.'));
+    else if (result === 'unavailable') toast.error(tFallback('capsuleOpener.clipboardUnavailable', 'Clipboard unavailable. The build is shown on the button.'));
+    else toast.error(tFallback('capsuleOpener.copyBlocked', 'Could not copy. Your browser blocked clipboard access.'));
   }, []);
 
   useEffect(() => {
@@ -897,7 +897,7 @@ export default function CapsuleOpener({ capsule, batch, onClaim, onClaimBatch, o
 
     const targets = isBatch ? batchRows : (capsule ? [capsule] : []);
     if (targets.length === 0 || targets.some(c => !c?.id)) {
-      toast.error('Capsule missing. Refresh and try again.');
+      toast.error(tFallback('capsuleOpener.missing', 'Capsule missing. Refresh and try again.'));
       openGuardRef.current = false;
       return;
     }
@@ -913,10 +913,10 @@ export default function CapsuleOpener({ capsule, batch, onClaim, onClaimBatch, o
     } catch (err) {
       if (err?.missingRpc) {
         console.warn('[CapsuleOpener] claim_capsule_loot missing — apply migration 028');
-        toast.error('Capsule system update pending. Try again later.');
+        toast.error(tFallback('capsuleOpener.updatePending', 'Capsule system update pending. Try again later.'));
       } else {
         console.error('[CapsuleOpener] roll failed:', err);
-        toast.error('Could not open capsule. Try again.');
+        toast.error(tFallback('capsuleOpener.openFailed', 'Could not open capsule. Try again.'));
       }
       openGuardRef.current = false;
       return;

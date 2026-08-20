@@ -40,7 +40,9 @@ function LadderRow({ tier, isLast }) {
         style={{ backgroundColor: tier.color }}
         aria-hidden="true"
       />
-      <span className="text-caption font-bold flex-1 min-w-0 truncate">{tier.label}</span>
+      <span className="text-caption font-bold flex-1 min-w-0 truncate">
+        {tFallback(`trophy.seasonTier.${tier.id}`, tier.label)}
+      </span>
 
       <span className="flex items-center gap-1 w-16 justify-end tabular-nums">
         {tier.promotePct > 0 ? (
