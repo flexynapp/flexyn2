@@ -25,6 +25,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Swords, Loader2, ChevronRight, Radar } from 'lucide-react';
 import BottomSheet from '@/components/ui/BottomSheet';
 import { useLanguage } from '@/lib/LanguageContext';
+import { timeLeft } from '@/lib/timeLeft';
 import { useNumberFormatter } from '@/lib/intl';
 import {
   getActiveWarForCrew,
@@ -35,19 +36,6 @@ import {
   getOpponentCrewId,
 } from '@/lib/data/crewWars';
 import { getCrewMemberCount, getCrew } from '@/lib/data/crews';
-
-// "3d 4h left" without pulling a formatter in. date-fns'
-// formatDistanceToNow rounds to a single unit ("4 days"), which on the
-// last day of a war reads as if there is a day left when there are two
-// hours — the one point in the week where the number changes behaviour.
-function timeLeft(endsAt) {
-  if (!endsAt) return null;
-  const ms = new Date(endsAt).getTime() - Date.now();
-  if (!Number.isFinite(ms) || ms <= 0) return null;
-  const hours = Math.floor(ms / 3_600_000);
-  const days  = Math.floor(hours / 24);
-  return days > 0 ? `${days}d ${hours % 24}h` : `${hours}h`;
-}
 
 function Chrome({ children, crew, onGoToCrew, tFallback }) {
   return (

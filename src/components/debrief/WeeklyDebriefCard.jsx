@@ -354,9 +354,9 @@ export default function WeeklyDebriefCard({ debrief, forExport = false, exportRe
                     lifting session — so it drops out rather than sitting
                     there as a permanent em dash. */}
                 <StatRow items={[
-                  { value: n0(sets), label: 'sets' },
-                  { value: n0(reps), label: 'reps' },
-                  { value: hm(duration), label: 'under load' },
+                  { value: n0(sets), label: tFallback('common.sets', 'sets') },
+                  { value: n0(reps), label: tFallback('common.reps', 'reps') },
+                  { value: hm(duration), label: tFallback('weeklyDebriefCard.underLoad', 'under load') },
                 ]} />
               </div>
             )}
@@ -367,7 +367,7 @@ export default function WeeklyDebriefCard({ debrief, forExport = false, exportRe
             hypertrophy and the one a lifter can act on. The old card showed
             eight binary chips, which said trained/not and nothing else. */}
         {muscleRows.length > 0 && (
-          <Section title={tFallback("weeklyDebriefCard.balance", "Balance")} meta="sets per muscle group">
+          <Section title={tFallback("weeklyDebriefCard.balance", "Balance")} meta={tFallback('weeklyDebriefCard.meta.balance', 'sets per muscle group')}>
             <div className="space-y-2">
               {muscleRows.map(([group, count]) => {
                 const light = count <= Math.max(2, maxSets * 0.3);
@@ -387,7 +387,7 @@ export default function WeeklyDebriefCard({ debrief, forExport = false, exportRe
 
         {/* PROGRESSION */}
         {topLift?.name && (
-          <Section title={tFallback("weeklyDebriefCard.progression", "Progression")} meta="heaviest set · records">
+          <Section title={tFallback("weeklyDebriefCard.progression", "Progression")} meta={tFallback('weeklyDebriefCard.meta.progression', 'heaviest set · records')}>
             <div className="flex items-center justify-between gap-2 rounded-xl bg-secondary/40 border border-border px-3 py-2.5">
               <div className="min-w-0">
                 <p className="font-heading font-bold text-[15px] text-foreground truncate">{topLift.name}</p>
@@ -414,12 +414,12 @@ export default function WeeklyDebriefCard({ debrief, forExport = false, exportRe
 
         {/* CONDITIONING */}
         {hasCond && (
-          <Section title={tFallback("weeklyDebriefCard.conditioning", "Conditioning")} meta="cardio · steps" seam>
+          <Section title={tFallback("weeklyDebriefCard.conditioning", "Conditioning")} meta={tFallback('weeklyDebriefCard.meta.conditioning', 'cardio · steps')} seam>
             {cardioN > 0 && (
               <StatRow items={[
-                { value: n0(cardioN), label: `session${cardioN === 1 ? '' : 's'}` },
-                { value: num(co.distance_m) > 0 ? `${n1(toDistance(co.distance_m, distanceUnit))} ${distanceUnit}` : null, label: 'distance' },
-                { value: hm(co.duration_min), label: 'moving' },
+                { value: n0(cardioN), label: tFallback(`weeklyDebriefCard.sessions.${cardioN === 1 ? 'one' : 'other'}`, cardioN === 1 ? 'session' : 'sessions') },
+                { value: num(co.distance_m) > 0 ? `${n1(toDistance(co.distance_m, distanceUnit))} ${distanceUnit}` : null, label: tFallback('weeklyDebriefCard.distance', 'distance') },
+                { value: hm(co.duration_min), label: tFallback('weeklyDebriefCard.moving', 'moving') },
               ]} />
             )}
             {steps > 0 && (
@@ -478,7 +478,7 @@ export default function WeeklyDebriefCard({ debrief, forExport = false, exportRe
         {/* FUEL — averaged per DAY LOGGED, not per seven. Dividing a 3-day
             week by 7 makes honest logging look like undereating. */}
         {hasFuel && (
-          <Section title={tFallback("weeklyDebriefCard.fuel", "Fuel")} meta={`per day logged · ${n0(fuelDays)} of 7`} seam={!hasCond}>
+          <Section title={tFallback("weeklyDebriefCard.fuel", "Fuel")} meta={tFallback('weeklyDebriefCard.meta.fuel', 'per day logged · {n} of 7', { n: n0(fuelDays) })} seam={!hasCond}>
             {num(fu.avg_calories) > 0 ? (
               <>
                 <div className="flex items-end gap-2">
@@ -526,7 +526,7 @@ export default function WeeklyDebriefCard({ debrief, forExport = false, exportRe
                   </>
                 ) : (
                   <p className="text-micro text-muted-foreground mt-2">
-                    Calories logged without macros this week.
+                    {tFallback('weeklyDebriefCard.caloriesNoMacros', 'Calories logged without macros this week.')}
                   </p>
                 )}
               </>
@@ -539,15 +539,15 @@ export default function WeeklyDebriefCard({ debrief, forExport = false, exportRe
 
         {/* RECOVERY */}
         {hasRecovery && (
-          <Section title={tFallback("bodyMap.mode.recovery", "Recovery")} meta="sleep · mood · body" seam={!hasCond && !hasFuel}>
+          <Section title={tFallback("bodyMap.mode.recovery", "Recovery")} meta={tFallback('weeklyDebriefCard.meta.recovery', 'sleep · mood · body')} seam={!hasCond && !hasFuel}>
             {/* quality is set on 1 of 7 production rows and soreness on 0 of
                 7 — both are optional fields on the sleep form, so they drop
                 out individually rather than dashing out the whole row. */}
             {sleepNights > 0 && (
               <StatRow items={[
-                { value: re.sleep_hours != null ? `${n1(re.sleep_hours)}h` : null, label: 'avg sleep' },
-                { value: re.sleep_quality != null ? n1(re.sleep_quality) : null, label: 'sleep quality' },
-                { value: re.soreness != null ? n1(re.soreness) : null, label: 'soreness' },
+                { value: re.sleep_hours != null ? `${n1(re.sleep_hours)}h` : null, label: tFallback('weeklyDebriefCard.avgSleep', 'avg sleep') },
+                { value: re.sleep_quality != null ? n1(re.sleep_quality) : null, label: tFallback('weeklyDebriefCard.sleepQuality', 'sleep quality') },
+                { value: re.soreness != null ? n1(re.soreness) : null, label: tFallback('weeklyDebriefCard.soreness', 'soreness') },
               ]} />
             )}
             <div className={sleepNights > 0 ? 'mt-2 pt-2 border-t border-border' : undefined}>
@@ -572,7 +572,7 @@ export default function WeeklyDebriefCard({ debrief, forExport = false, exportRe
 
         {/* THE GAME — XP comes from xp_grant_log, the authoritative ledger.
             The old card printed a number the client invented. */}
-        <Section title={tFallback("weeklyDebriefCard.theGame", "The game")} meta="earned this week" seam={!hasCond && !hasFuel && !hasRecovery}>
+        <Section title={tFallback("weeklyDebriefCard.theGame", "The game")} meta={tFallback('weeklyDebriefCard.meta.theGame', 'earned this week')} seam={!hasCond && !hasFuel && !hasRecovery}>
           <div className="flex items-end gap-2">
             <span className="font-heading font-black text-3xl leading-none tabular-nums text-foreground">
               {n0(xp)}
@@ -585,15 +585,16 @@ export default function WeeklyDebriefCard({ debrief, forExport = false, exportRe
             )}
           </div>
           {levelEnd != null && !levelUp && (
-            <p className="text-micro text-muted-foreground mt-1">Level {levelEnd}</p>
+            <p className="text-micro text-muted-foreground mt-1">{tFallback('crewTrophies.levelN', 'Level {n}', { n: levelEnd })}</p>
           )}
           {(num(ga.quests_done) > 0 || num(ga.coins) > 0 || num(ga.trophy_count) > 0) && (
             <div className="mt-2 pt-2 border-t border-border">
               <StatRow items={[
-                { value: num(ga.quests_done)  > 0 ? n0(ga.quests_done)  : null, label: 'quests done' },
-                { value: num(ga.coins)        > 0 ? n0(ga.coins)        : null, label: 'coins' },
+                { value: num(ga.quests_done)  > 0 ? n0(ga.quests_done)  : null, label: tFallback('weeklyDebriefCard.questsDone', 'quests done') },
+                { value: num(ga.coins)        > 0 ? n0(ga.coins)        : null, label: tFallback('crew.coins', 'coins') },
                 { value: num(ga.trophy_count) > 0 ? n0(ga.trophy_count) : null,
-                  label: `troph${num(ga.trophy_count) === 1 ? 'y' : 'ies'}` },
+                  label: tFallback(`weeklyDebriefCard.trophies.${num(ga.trophy_count) === 1 ? 'one' : 'other'}`,
+                    num(ga.trophy_count) === 1 ? 'trophy' : 'trophies') },
               ]} />
             </div>
           )}
@@ -601,7 +602,7 @@ export default function WeeklyDebriefCard({ debrief, forExport = false, exportRe
 
         {/* YOUR PEOPLE */}
         {hasPeople && (
-          <Section title={tFallback("weeklyDebriefCard.yourPeople", "Your people")} meta="crew · duels · league">
+          <Section title={tFallback("weeklyDebriefCard.yourPeople", "Your people")} meta={tFallback('weeklyDebriefCard.meta.yourPeople', 'crew · duels · league')}>
             <div>
               {pe.crew_name && (
                 <FactRow icon={Users} label={pe.crew_name}

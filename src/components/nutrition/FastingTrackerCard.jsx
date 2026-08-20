@@ -25,11 +25,15 @@ import {
   formatCountdown,
 } from '@/lib/fastingWindow';
 import { useLanguage } from '@/lib/LanguageContext';
+import { formatDate } from '@/lib/intl';
 
+// `id` is the key slug as well as the React key. 'OMAD' rather than '20:4'
+// because a colon in a key path reads as a namespace separator to half the
+// tooling here, the same way a hyphen does.
 const PRESETS = [
-  { id: '16:8',  hours: 16, label: '16:8',  desc: 'Most popular' },
-  { id: '18:6',  hours: 18, label: '18:6',  desc: 'Tight window' },
-  { id: 'OMAD',  hours: 20, label: '20:4',  desc: 'One meal a day' },
+  { id: '16_8', hours: 16, label: '16:8', desc: 'Most popular' },
+  { id: '18_6', hours: 18, label: '18:6', desc: 'Tight window' },
+  { id: 'omad', hours: 20, label: '20:4', desc: 'One meal a day' },
 ];
 
 /**
@@ -67,7 +71,7 @@ function FastWindowDial({ eatingHours, className = 'w-5 h-5' }) {
 }
 
 export default function FastingTrackerCard() {
-  const { tFallback } = useLanguage();
+  const { language, tFallback } = useLanguage();
   const { user } = useAuth();
   const [state, setState] = useState(() => readState(user?.email));
   const [, tick] = useState(0);
@@ -85,12 +89,12 @@ export default function FastingTrackerCard() {
   const handleStart = (hours) => {
     const next = startFast(user?.email, hours);
     setState(next);
-    toast.success(`Fasting clock started · ${hours}h target.`);
+    toast.success(tFallback('fastingTrackerCard.started', 'Fasting clock started · {h}h target.', { h: hours }));
   };
   const handleStartCustom = () => {
     const n = Number(customHours);
     if (!Number.isFinite(n) || n <= 0 || n > 48) {
-      toast.error('Enter a fasting duration between 1 and 48 hours.');
+      toast.error(tFallback('fastingTrackerCard.durationRange', 'Enter a fasting duration between 1 and 48 hours.'));
       return;
     }
     handleStart(n);
@@ -99,7 +103,7 @@ export default function FastingTrackerCard() {
   const handleEnd = () => {
     endFast(user?.email);
     setState(null);
-    toast.success('Fast ended.');
+    toast.success(tFallback('fastingTrackerCard.fastEnded', 'Fast ended.'));
   };
 
   if (!state) {
@@ -110,7 +114,10 @@ export default function FastingTrackerCard() {
           <h3 className="font-heading font-bold text-sm">{tFallback("fastingTrackerCard.intermittentFasting", "Intermittent fasting")}</h3>
         </div>
         <p className="text-xs text-muted-foreground mb-3">
-          Pick a preset or set your own duration — tracks your eating window without nagging.
+          {tFallback(
+            'fastingTrackerCard.intro',
+            'Pick a preset or set your own duration. It tracks your eating window without nagging.',
+          )}
         </p>
         <div className="grid grid-cols-3 gap-2 mb-3">
           {PRESETS.map(p => (
@@ -122,7 +129,7 @@ export default function FastingTrackerCard() {
             >
               <FastWindowDial eatingHours={24 - p.hours} className="w-5 h-5 mb-1 text-primary" />
               <p className="font-heading font-bold text-sm">{p.label}</p>
-              <p className="text-micro text-muted-foreground">{p.desc}</p>
+              <p className="text-micro text-muted-foreground">{tFallback(`fastingTrackerCard.preset.${p.id}`, p.desc)}</p>
             </button>
           ))}
         </div>
@@ -137,7 +144,7 @@ export default function FastingTrackerCard() {
             inputMode="numeric"
             min="1"
             max="48"
-            placeholder="hours"
+            placeholder={tFallback('cardio.voice.hours', 'hours')}
             value={customHours}
             onChange={e => setCustomHours(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') handleStartCustom(); }}
@@ -171,11 +178,13 @@ export default function FastingTrackerCard() {
             ? <MealPlateIcon className="w-4 h-4 shrink-0 text-emerald-500" />
             : <Hourglass className="w-4 h-4 shrink-0 text-primary" />}
           <h3 className="font-heading font-bold text-sm">
-            {done ? 'Eating window open' : 'Fasting'}
+            {done
+              ? tFallback('fastingTrackerCard.windowOpen', 'Eating window open')
+              : tFallback('fastingTrackerCard.fasting', 'Fasting')}
           </h3>
         </div>
         <span className="text-micro uppercase tracking-wide text-muted-foreground">
-          {state.targetHours}h target
+          {tFallback('fastingTrackerCard.hourTarget', '{h}h target', { h: state.targetHours })}
         </span>
       </div>
       <div className="flex items-center gap-4">
@@ -201,10 +210,12 @@ export default function FastingTrackerCard() {
         </div>
         <div className="flex-1 min-w-0">
           <p className="font-heading text-xl font-bold tabular-nums leading-none">
-            {done ? 'OPEN' : formatCountdown(remainingMs)}
+            {done ? tFallback('fastingTrackerCard.open', 'OPEN') : formatCountdown(remainingMs)}
           </p>
           <p className="text-xs text-muted-foreground mt-1">
-            Started {new Date(state.startedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+            {tFallback('fastingTrackerCard.startedAt', 'Started {t}', {
+              t: formatDate(state.startedAt, language, { hour: 'numeric', minute: '2-digit' }),
+            })}
           </p>
           <Button
             size="sm"

@@ -321,9 +321,9 @@ export default function DiscoveryCards({ logs = [], regimens = [], isLoading = f
           icon={Package}
           accent="purple"
           kicker={tFallback('discovery.openCapsule.kicker', 'GIFT WAITING')}
-          {/* No count here on purpose. The catalog string wins over any
-              fallback, so the ternary that used to compute one never
-              rendered — it only made the code look like it did. */}
+          // No count here on purpose. The catalog string wins over any
+          // fallback, so the ternary that used to compute one never
+          // rendered; it only made the code look like it did.
           title={tFallback('discovery.openCapsule.title', 'You have a capsule to open')}
           body={tFallback(
             'discovery.openCapsule.body',

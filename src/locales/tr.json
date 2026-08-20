@@ -2211,6 +2211,7 @@
   "weeklyMealPlannerModal.addAnother": "Bir tane daha ekle",
   "weeklyMealPlannerModal.calInSlot": "{label} içinde {n} kcal",
   "weeklyMealPlannerModal.couldNotApply": "Bu plan eklenemedi.",
+  "weeklyMealPlannerModal.couldNotRemove": "Plan kaldırılamadı.",
   "weeklyMealPlannerModal.couldNotSave": "Plan kaydedilemedi.",
   "weeklyMealPlannerModal.keep": "Kalsın",
   "weeklyMealPlannerModal.leftOver": "{n} kaldı",

@@ -1354,6 +1354,7 @@
   "weeklyMealPlannerModal.addAnother": "さらに追加",
   "weeklyMealPlannerModal.calInSlot": "{label} に {n} kcal",
   "weeklyMealPlannerModal.couldNotApply": "そのプランを追加できませんでした。",
+  "weeklyMealPlannerModal.couldNotRemove": "プランを削除できませんでした。",
   "weeklyMealPlannerModal.couldNotSave": "プランを保存できませんでした。",
   "weeklyMealPlannerModal.keep": "残す",
   "weeklyMealPlannerModal.leftOver": "残り {n}",

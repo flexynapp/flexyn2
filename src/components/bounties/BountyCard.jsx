@@ -4,12 +4,12 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Zap, Clock, Loader2, Lock } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
 import { claimBounty, DIFFICULTY_CONFIG, bountyDescription } from '@/lib/data/bounties';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/lib/toast';
 import { triggerHaptic } from '@/lib/haptic';
 import { useLanguage } from '@/lib/LanguageContext';
+import { timeLeft as timeUntil } from '@/lib/timeLeft';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 
 export default function BountyCard({ bounty, hasActiveClaim = false, compact = false }) {
@@ -26,9 +26,10 @@ export default function BountyCard({ bounty, hasActiveClaim = false, compact = f
   const isExpired = new Date(bounty.expires_at) < new Date();
   const canClaim = !isTaken && !isExpired && !hasActiveClaim && !claimed;
 
-  const timeLeft = !isExpired
-    ? formatDistanceToNow(new Date(bounty.expires_at), { addSuffix: false })
-    : 'Expired';
+  // Days-and-hours rather than date-fns' single rounded unit: a bounty runs
+  // 48 to 72 hours, so "2 days" on something with three hours left is the
+  // only reading that matters and the wrong one.
+  const remaining = timeUntil(bounty.expires_at);
 
   // Pass weightUnit so weight-based bounties render their target in
   // the user's preferred unit. The helper signature gained the param
@@ -43,17 +44,21 @@ export default function BountyCard({ bounty, hasActiveClaim = false, compact = f
     try {
       await claimBounty(bounty.id);
       setClaimed(true);
-      toast.success(`Bounty claimed! You have ${cfg.hours}h. Entry fee: ${cfg.entry_fee} 🪙`);
+      toast.success(tFallback(
+        'bountyCard.claimedToast',
+        'Bounty claimed! You have {h}h. Entry fee: {n} 🪙',
+        { h: cfg.hours, n: cfg.entry_fee },
+      ));
       qc.invalidateQueries({ queryKey: ['activeBounties'] });
       qc.invalidateQueries({ queryKey: ['myActiveBountyClaim'] });
       qc.invalidateQueries({ queryKey: ['userProfile'] });
     } catch (err) {
       const msg = err?.message || '';
-      if (/insufficient_coins/.test(msg))       toast.error('Not enough Flex Coins.');
-      else if (/already_have_active_claim/.test(msg)) toast.error('Complete your current bounty first.');
-      else if (/bounty_already_claimed/.test(msg))    toast.error('Someone else already claimed this bounty.');
-      else if (/bounty_expired/.test(msg))            toast.error('This bounty has expired.');
-      else if (/cannot_claim_own_bounty/.test(msg))   toast.error("You can't claim a bounty on yourself.");
+      if (/insufficient_coins/.test(msg))       toast.error(tFallback('bountyCard.err.insufficientCoins', 'Not enough Flex Coins.'));
+      else if (/already_have_active_claim/.test(msg)) toast.error(tFallback('bountyCard.err.activeClaim', 'Complete your current bounty first.'));
+      else if (/bounty_already_claimed/.test(msg))    toast.error(tFallback('bountyCard.err.alreadyClaimed', 'Someone else already claimed this bounty.'));
+      else if (/bounty_expired/.test(msg))            toast.error(tFallback('bountyCard.err.expired', 'This bounty has expired.'));
+      else if (/cannot_claim_own_bounty/.test(msg))   toast.error(tFallback('bountyCard.err.ownBounty', "You can't claim a bounty on yourself."));
       else toast.error(tFallback("bountyCard.couldNotClaimBounty", "Could not claim bounty"), { description: msg });
     } finally {
       setBusy(false);
@@ -90,7 +95,7 @@ export default function BountyCard({ bounty, hasActiveClaim = false, compact = f
             <p className="text-sm font-bold truncate">@{bounty.target_username}</p>
           </div>
           <span className={`text-micro font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${cfg.bg} ${cfg.color}`}>
-            {cfg.label}
+            {tFallback(`bounty.difficulty.${bounty.difficulty}`, cfg.label)}
           </span>
         </div>
 
@@ -119,7 +124,11 @@ export default function BountyCard({ bounty, hasActiveClaim = false, compact = f
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-1 text-micro text-muted-foreground">
             <Clock className="w-3 h-3" />
-            <span>{isExpired ? 'Expired' : `${timeLeft} left`}</span>
+            <span>
+              {isExpired || !remaining
+                ? tFallback('duels.status.expired', 'Expired')
+                : tFallback('crewWars.timeLeft', '{t} left', { t: remaining })}
+            </span>
           </div>
 
           {(isTaken || claimed) ? (
@@ -145,7 +154,7 @@ export default function BountyCard({ bounty, hasActiveClaim = false, compact = f
                 ? <Loader2 className="w-3 h-3 animate-spin" />
                 : <Zap className="w-3 h-3" />
               }
-              Claim · {cfg.entry_fee} 🪙
+              {tFallback('bountyCard.claimForCoins', 'Claim · {n} 🪙', { n: cfg.entry_fee })}
             </button>
           )}
         </div>

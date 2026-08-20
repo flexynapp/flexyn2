@@ -530,7 +530,7 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
   const removeMutation = useMutation({
     mutationFn: (id) => mealPlans.remove(id),
     onSuccess:  () => queryClient.invalidateQueries({ queryKey: ['mealPlans', user?.id, startStr, endStr] }),
-    onError:    () => toast.error('Could not remove plan.'),
+    onError:    () => toast.error(tFallback('weeklyMealPlannerModal.couldNotRemove', 'Could not remove plan.')),
   });
 
   // Applying a plan template. A template IS one day's meals — breakfast,
@@ -604,10 +604,13 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
     setPhotoBusy(false);
     if (!res?.ok) {
       const err = res?.error;
-      if (err === 'NOT_FOOD') toast.error("That doesn't look like food. Try another photo.");
-      else if (err === 'RATE_LIMIT') toast.error('Hit the rate limit. Try again in a moment.');
-      else if (err === 'PIPELINE_MISSING') toast.error("Photo recognition isn't enabled yet.");
-      else toast.error('Could not recognize meal. Try again.');
+      // The same five errors the Log Meal flow reports, on the same keys.
+      // SERVER_MISCONFIGURED joins PIPELINE_MISSING here because Nutrition.jsx
+      // already pairs them and they mean one thing to a user: not set up yet.
+      if (err === 'NOT_FOOD') toast.error(tFallback('nutrition.photoAi.notFood', "That doesn't look like food. Try another photo."));
+      else if (err === 'RATE_LIMIT') toast.error(tFallback('nutrition.photoAi.rateLimit', 'Hit the rate limit. Try again in a moment.'));
+      else if (err === 'PIPELINE_MISSING' || err === 'SERVER_MISCONFIGURED') toast.error(tFallback('nutrition.photoAi.notEnabled', "Photo recognition isn't enabled yet."));
+      else toast.error(tFallback('nutrition.photoAi.failed', 'Could not recognize meal. Try again.'));
       return;
     }
     const r = res.result || {};

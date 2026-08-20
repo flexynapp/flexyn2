@@ -1329,6 +1329,7 @@
   "weeklyMealPlannerModal.addAnother": "再添加一个",
   "weeklyMealPlannerModal.calInSlot": "{label} 中 {n} 千卡",
   "weeklyMealPlannerModal.couldNotApply": "无法添加该方案。",
+  "weeklyMealPlannerModal.couldNotRemove": "无法移除方案。",
   "weeklyMealPlannerModal.couldNotSave": "无法保存方案。",
   "weeklyMealPlannerModal.keep": "保留",
   "weeklyMealPlannerModal.leftOver": "还剩 {n}",

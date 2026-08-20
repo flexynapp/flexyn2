@@ -1328,6 +1328,7 @@
   "weeklyMealPlannerModal.addAnother": "Добавить ещё",
   "weeklyMealPlannerModal.calInSlot": "{n} ккал в «{label}»",
   "weeklyMealPlannerModal.couldNotApply": "Не удалось добавить этот план.",
+  "weeklyMealPlannerModal.couldNotRemove": "Не удалось удалить план.",
   "weeklyMealPlannerModal.couldNotSave": "Не удалось сохранить план.",
   "weeklyMealPlannerModal.keep": "Оставить",
   "weeklyMealPlannerModal.leftOver": "осталось {n}",

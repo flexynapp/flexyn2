@@ -48,8 +48,8 @@ export default function ListingFormModal({ open, onClose, listing, trainerId, us
 
   const handleSave = async () => {
     if (saving || savingRef.current) return;
-    if (!title.trim()) { toast.error('Add a title.'); return; }
-    if (!priceValid) { toast.error('Minimum price is $1.00.'); return; }
+    if (!title.trim()) { toast.error(tFallback('listingForm.addTitle', 'Add a title.')); return; }
+    if (!priceValid) { toast.error(tFallback('listingForm.minPrice', 'Minimum price is $1.00.')); return; }
     savingRef.current = true;
     setSaving(true);
     const res = editing
@@ -58,14 +58,16 @@ export default function ListingFormModal({ open, onClose, listing, trainerId, us
     setSaving(false);
     savingRef.current = false;
     if (res.ok) {
-      toast.success(editing ? 'Listing updated.' : 'Listing created — publish it when ready.');
+      toast.success(editing
+        ? tFallback('listingForm.updated', 'Listing updated.')
+        : tFallback('listingForm.created', 'Listing created. Publish it when you are ready.'));
       onSaved?.();
     } else if (res.error === 'PRICE_TOO_LOW') {
-      toast.error('Minimum price is $1.00.');
+      toast.error(tFallback('listingForm.minPrice', 'Minimum price is $1.00.'));
     } else if (res.error === 'PIPELINE_MISSING') {
-      toast.error('Creator features are rolling out. Try again shortly.');
+      toast.error(tFallback('listingForm.pipelineMissing', 'Creator features are rolling out. Try again shortly.'));
     } else {
-      toast.error(res.error || "Couldn't save listing.");
+      toast.error(res.error || tFallback('listingForm.saveFailed', "Couldn't save listing."));
     }
   };
 
@@ -93,14 +95,14 @@ export default function ListingFormModal({ open, onClose, listing, trainerId, us
               onChange={(e) => setRegimenId(e.target.value)}
               className="w-full mt-1 h-10 rounded-md border border-border bg-background px-2 text-sm"
             >
-              <option value="">— Select a regimen to sell —</option>
+              <option value="">{tFallback('listingForm.selectRegimen', 'Select a regimen to sell')}</option>
               {regimens.map(r => (
-                <option key={r.id} value={r.id}>{r.name || 'Untitled regimen'}</option>
+                <option key={r.id} value={r.id}>{r.name || tFallback('listingForm.untitledRegimen', 'Untitled regimen')}</option>
               ))}
             </select>
             {!regimenId && (
               <p className="text-micro text-amber-600 mt-1">
-                Buyers unlock the linked regimen on purchase. Without one, the listing sells nothing.
+                {tFallback('listingForm.noRegimenWarning', 'Buyers unlock the linked regimen on purchase. Without one, the listing sells nothing.')}
               </p>
             )}
           </div>
@@ -159,7 +161,9 @@ export default function ListingFormModal({ open, onClose, listing, trainerId, us
 
           <Button onClick={handleSave} disabled={saving || !title.trim() || !priceValid} className="w-full gap-2">
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-            {editing ? 'Save changes' : 'Create listing'}
+            {editing
+              ? tFallback('workout.saveChanges', 'Save changes')
+              : tFallback('listingForm.createListing', 'Create listing')}
           </Button>
         </div>
       </motion.div>

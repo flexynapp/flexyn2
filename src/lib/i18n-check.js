@@ -103,6 +103,13 @@ const ALLOW_IDENTICAL = new Set([
   'shareSheet.tab.crew',                // "Crew"     — doNotTranslate
   'shareSheet.tab.dm',                  // "DM"       — the abbreviation, everywhere
   'cardio.vo2max.tier.elite',           // "Elite"    — a _glossary.json term
+  // "Level {n}" — Level is on the doNotTranslate list (kegan, 2026-08-16),
+  // so every locale renders it in English on purpose. Without this the key
+  // counts as an English echo in each locale that carries it, and filling
+  // the five locales that were missing it RAISES a ratchet that only moves
+  // down. An echo counter that punishes a deliberate term is a counter
+  // people learn to regenerate.
+  'crewTrophies.levelN',
 ]);
 
 /**
@@ -170,6 +177,8 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'crew.applicantLevel',
   ]),
   fr: new Set([
+    // "distance" is the same word in French.
+    'weeklyDebriefCard.distance',
     // "Excellent" is spelled the same in French.
     'cardio.vo2max.tier.excellent',
     // "Plans" is spelled and used exactly this way in French.
@@ -682,6 +691,8 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'workout.templates.reps',
   ]),
   nl: new Set([
+    // "open" is the same word in Dutch.
+    'fastingTrackerCard.open',
     // "Recent" is the Dutch word too.
     'debriefVault.sort.recent',
     // "Open" and "Open Duel" are written exactly this way in Dutch —

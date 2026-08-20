@@ -16,24 +16,28 @@ import {
 } from '@/lib/data/bounties';
 import BountyCard from './BountyCard';
 import { toast } from '@/lib/toast';
-import { formatDistanceToNow } from 'date-fns';
+import { formatRelativeTime } from '@/lib/intl';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 
 // ── Claim history row ─────────────────────────────────────────────────────────
 
 function ClaimRow({ claim }) {
-  const { language } = useLanguage();
+  const { language, tFallback } = useLanguage();
   const { weightUnit } = useWeightUnit();
   const bounty = claim.bounties;
   if (!bounty) return null;
   const cfg = DIFFICULTY_CONFIG[bounty.difficulty] || DIFFICULTY_CONFIG.medium;
 
+  // Four single-word statuses, and all four already exist translated under
+  // four different namespaces. Taking them from where they are beats minting
+  // bountyBoard.status.* synonyms that start life untranslated in every
+  // locale — a translator gains nothing by rendering "Expired" twice.
   const statusConfig = {
-    completed: { icon: CheckCircle, color: 'text-emerald-500', label: 'Completed',  bg: 'bg-emerald-500/10' },
-    failed:    { icon: XCircle,     color: 'text-rose-500',    label: 'Failed',     bg: 'bg-rose-500/10'    },
-    expired:   { icon: Clock,       color: 'text-muted-foreground', label: 'Expired', bg: 'bg-secondary'    },
-    active:    { icon: Zap,         color: 'text-amber-500',   label: 'Active',     bg: 'bg-amber-500/10'   },
+    completed: { icon: CheckCircle, color: 'text-emerald-500', label: tFallback('hub.activity.completed', 'Completed'), bg: 'bg-emerald-500/10' },
+    failed:    { icon: XCircle,     color: 'text-rose-500',    label: tFallback('weeklyGauntletCard.failed', 'Failed'),  bg: 'bg-rose-500/10'    },
+    expired:   { icon: Clock,       color: 'text-muted-foreground', label: tFallback('duels.status.expired', 'Expired'), bg: 'bg-secondary'    },
+    active:    { icon: Zap,         color: 'text-amber-500',   label: tFallback('duels.status.active', 'Active'),        bg: 'bg-amber-500/10'   },
   };
   const sc = statusConfig[claim.status] || statusConfig.active;
   const Icon = sc.icon;
@@ -54,10 +58,10 @@ function ClaimRow({ claim }) {
           {bountyDescription(bounty, language, weightUnit)}
         </p>
         <p className="text-micro text-muted-foreground mt-0.5">
-          @{bounty.target_username} · {cfg.label}
+          @{bounty.target_username} · {tFallback(`bounty.difficulty.${bounty.difficulty}`, cfg.label)}
         </p>
         <p className="text-micro text-muted-foreground">
-          {formatDistanceToNow(new Date(claim.claimed_at), { addSuffix: true })}
+          {formatRelativeTime(claim.claimed_at, language)}
         </p>
       </div>
       {coins && (
@@ -123,7 +127,9 @@ export default function BountyBoard() {
           <div className="flex-1 min-w-0">
             <p className="text-xs font-bold text-amber-600">{tFallback("bountyBoard.activeBounty", "Active Bounty")}</p>
             <p className="text-xs text-muted-foreground truncate">
-              {bountyDescription(activeClaim.bounties, language, weightUnit)} · Reward: {DIFFICULTY_CONFIG[activeClaim.bounties?.difficulty]?.reward} 🪙
+              {bountyDescription(activeClaim.bounties, language, weightUnit)}
+              {' · '}
+              {tFallback('bountyBoard.rewardCoins', 'Reward: {n} 🪙', { n: DIFFICULTY_CONFIG[activeClaim.bounties?.difficulty]?.reward })}
             </p>
           </div>
         </motion.div>
@@ -237,7 +243,7 @@ export default function BountyBoard() {
               <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
                 <History className="w-10 h-10 text-muted-foreground/40 mb-4" />
                 <p className="text-sm font-semibold text-muted-foreground">{tFallback("bountyBoard.noClaimsYet", "No claims yet")}</p>
-                <p className="text-xs text-muted-foreground mt-1">Claim a bounty from the board to get started.</p>
+                <p className="text-xs text-muted-foreground mt-1">{tFallback("bountyBoard.claimToGetStarted", "Claim a bounty from the board to get started.")}</p>
               </div>
             ) : (
               myHistory.map(claim => (

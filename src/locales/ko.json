@@ -1328,6 +1328,7 @@
   "weeklyMealPlannerModal.addAnother": "하나 더 추가",
   "weeklyMealPlannerModal.calInSlot": "{label}에 {n} kcal",
   "weeklyMealPlannerModal.couldNotApply": "해당 플랜을 추가하지 못했습니다.",
+  "weeklyMealPlannerModal.couldNotRemove": "플랜을 삭제하지 못했습니다.",
   "weeklyMealPlannerModal.couldNotSave": "플랜을 저장하지 못했습니다.",
   "weeklyMealPlannerModal.keep": "유지",
   "weeklyMealPlannerModal.leftOver": "{n} 남음",

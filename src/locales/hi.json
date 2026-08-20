@@ -1329,6 +1329,7 @@
   "weeklyMealPlannerModal.addAnother": "एक और जोड़ें",
   "weeklyMealPlannerModal.calInSlot": "{label} में {n} कैलोरी",
   "weeklyMealPlannerModal.couldNotApply": "वह प्लान जोड़ा नहीं जा सका।",
+  "weeklyMealPlannerModal.couldNotRemove": "प्लान हटाया नहीं जा सका।",
   "weeklyMealPlannerModal.couldNotSave": "प्लान सहेजा नहीं जा सका।",
   "weeklyMealPlannerModal.keep": "रखें",
   "weeklyMealPlannerModal.leftOver": "{n} शेष",

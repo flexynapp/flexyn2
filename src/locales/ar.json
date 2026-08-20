@@ -1329,6 +1329,7 @@
   "weeklyMealPlannerModal.addAnother": "إضافة وجبة أخرى",
   "weeklyMealPlannerModal.calInSlot": "{n} سعرة في {label}",
   "weeklyMealPlannerModal.couldNotApply": "تعذّرت إضافة هذه الخطة.",
+  "weeklyMealPlannerModal.couldNotRemove": "تعذّر إزالة الخطة.",
   "weeklyMealPlannerModal.couldNotSave": "تعذّر حفظ الخطة.",
   "weeklyMealPlannerModal.keep": "إبقاء",
   "weeklyMealPlannerModal.leftOver": "يتبقّى {n}",
