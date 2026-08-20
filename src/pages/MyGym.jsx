@@ -110,22 +110,23 @@ function CommunityProgress({ progress, tFallback }) {
           tileRow() is for collections whose count comes from data. */}
       <div className="mt-6 grid grid-cols-3 divide-x divide-border">
         {[
-          { icon: Dumbbell, value: workoutCount, label: 'sessions' },
-          { icon: CalendarCheck, value: activeDays, label: 'gym days' },
+          { id: 'sessions', icon: Dumbbell, value: workoutCount, label: 'sessions' },
+          { id: 'gymDays', icon: CalendarCheck, value: activeDays, label: 'gym days' },
           {
+            id: 'volume',
             icon: Trophy,
             value: totalVolume >= 1000
               ? `${Math.round(totalVolume / 1000)}k`
               : Math.round(totalVolume),
             label: 'lbs moved',
           },
-        ].map(({ icon: Icon, value, label }, i) => (
-          <div key={label} className={i === 0 ? 'pe-2' : 'px-2 last:pe-0'}>
+        ].map(({ id, icon: Icon, value, label }, i) => (
+          <div key={id} className={i === 0 ? 'pe-2' : 'px-2 last:pe-0'}>
             <p className="font-heading font-bold text-sm tabular-nums leading-none flex items-center gap-2">
               <Icon className="w-3.5 h-3.5 text-muted-foreground" />
               {value}
             </p>
-            <p className="text-micro text-muted-foreground mt-2">{label}</p>
+            <p className="text-micro text-muted-foreground mt-2">{tFallback(`myGym.stat.${id}`, label)}</p>
           </div>
         ))}
       </div>
@@ -293,9 +294,9 @@ export default function MyGym() {
     // renders NOTHING, which is exactly how a working save came to look
     // identical to a broken one. Undo is genuinely useful anyway now
     // that a single tap commits.
-    toast.success(`${choice.name} is now your gym.`, {
+    toast.success(tFallback('myGym.nowYourGym', '{name} is now your gym.', { name: choice.name }), {
       action: {
-        label: 'Undo',
+        label: tFallback('common.undo', 'Undo'),
         onClick: async () => {
           await setHomeGym(null);
           setPending(null);
@@ -322,8 +323,8 @@ export default function MyGym() {
     const res = await joinByCode(code);
     setJoining(false);
     if (res.ok) {
-      if (res.alreadyMember) toast.info("You're already a member of this gym.");
-      else toast.success('Joined! Welcome to the local community.');
+      if (res.alreadyMember) toast.info(tFallback('myGym.alreadyMember', 'You are already a member of this gym.'));
+      else toast.success(tFallback('myGym.joined', 'Joined! Welcome to the local community.'));
       setCodeInput('');
       setScannerOpen(false);
       // Navigate first so we don't fire a refresh on a soon-to-unmount
@@ -580,7 +581,7 @@ export default function MyGym() {
           // to fix it are the next two things on the screen, so an
           // illustration and a CTA would just repeat them.
           <p className="text-sm text-muted-foreground">
-            Nothing yet. Join with a code below, or find one on the map.
+            {tFallback('myGym.noneYet', 'Nothing yet. Join with a code below, or find one on the map.')}
           </p>
         ) : (
           <div className="divide-y divide-border">
@@ -619,7 +620,7 @@ export default function MyGym() {
           <p className="text-sm font-semibold">{tFallback("myGym.joinAnotherGym", "Join another gym")}</p>
         </div>
         <p className="text-xs text-muted-foreground mb-6">
-          Scan the QR code or type the 8-character Flexyn Code printed inside the gym.
+          {tFallback('myGym.joinHint', 'Scan the QR code or type the {n} character Flexyn Code printed inside the gym.', { n: 8 })}
         </p>
         <div className="flex gap-2">
           <Button
@@ -703,7 +704,7 @@ export default function MyGym() {
           <div className="flex-1 min-w-0 ms-2">
             <p className="font-heading font-bold text-sm">{tFallback("myGym.ownAGym", "Own a gym?")}</p>
             <p className="text-xs text-muted-foreground">
-              Register your location so members can join and you show up on the national map.
+              {tFallback('myGym.ownAGymBody', 'Register your location so members can join and you show up on the national map.')}
             </p>
           </div>
           <ArrowRight className="w-4 h-4 text-muted-foreground shrink-0" />

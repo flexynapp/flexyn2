@@ -25,6 +25,7 @@ const WEARABLES = [
     logo: '⌚',
     color: 'bg-zinc-900 text-white',
     available: typeof window !== 'undefined' && /iPhone|iPad/.test(navigator.userAgent),
+    requires: 'ios',
     unavailableReason: 'Requires iOS app',
   },
   {
@@ -63,6 +64,7 @@ const HEALTH_PLATFORMS = [
     subtitle: 'Steps, active calories, resting HR',
     logo: '❤️',
     available: typeof window !== 'undefined' && /iPhone|iPad/.test(navigator.userAgent),
+    requires: 'ios',
     unavailableReason: 'Requires iOS app',
   },
   {
@@ -71,6 +73,7 @@ const HEALTH_PLATFORMS = [
     subtitle: 'Steps, workouts & heart points',
     logo: '💚',
     available: typeof window !== 'undefined' && /Android/.test(navigator.userAgent),
+    requires: 'android',
     unavailableReason: 'Requires Android app',
   },
 ];
@@ -88,9 +91,13 @@ function IntegrationCard({ item, connected, onConnect, onDisconnect, connecting 
         </div>
         <div className="flex-1 min-w-0">
           <p className="font-semibold text-sm">{item.name}</p>
-          <p className="text-xs text-muted-foreground truncate">{item.subtitle}</p>
+          <p className="text-xs text-muted-foreground truncate">
+            {tFallback(`wearable.${item.id}.subtitle`, item.subtitle)}
+          </p>
           {unavailable && item.unavailableReason && (
-            <p className="text-micro text-amber-500 mt-0.5">{item.unavailableReason}</p>
+            <p className="text-micro text-amber-500 mt-0.5">
+              {tFallback(`wearable.requires.${item.requires}`, item.unavailableReason)}
+            </p>
           )}
           {connected && (
             <p className="text-micro text-green-500 mt-0.5 font-medium">✓ Connected</p>
@@ -142,11 +149,16 @@ export default function CardioWearableStub() {
     setConnecting(null);
     // In production: redirect to OAuth, receive token, store in user_profile or secrets
     toast.info(
-      `${WEARABLES.concat(HEALTH_PLATFORMS).find(w => w.id === id)?.name} integration coming soon`,
+      tFallback('wearable.comingSoon', '{name} integration coming soon', {
+        name: WEARABLES.concat(HEALTH_PLATFORMS).find(w => w.id === id)?.name,
+      }),
       {
-        description: 'Native app sync support is on our roadmap. Stay tuned!',
+        description: tFallback(
+          'wearable.comingSoonDesc',
+          'Native app sync support is on our roadmap. Stay tuned!',
+        ),
         duration: 5000,
-      }
+      },
     );
   };
 
@@ -204,7 +216,10 @@ export default function CardioWearableStub() {
       </div>
 
       <p className="text-xs text-center text-muted-foreground/60 pt-2">
-        Full wearable sync requires the Flexyn mobile app. Web support coming Q3 2026.
+        {tFallback(
+          'wearable.webNotice',
+          'Full wearable sync requires the Flexyn mobile app. Web support coming Q3 2026.',
+        )}
       </p>
     </div>
   );

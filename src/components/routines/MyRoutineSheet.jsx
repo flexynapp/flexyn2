@@ -23,6 +23,7 @@ import {
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { ReorderableRow, DragHandle } from '@/components/dashboard/ReorderableRow';
 import { useLanguage } from '@/lib/LanguageContext';
+import TransText from '@/components/TransText';
 
 /**
  * React keys for a list whose items carry no id.
@@ -83,14 +84,14 @@ export default function MyRoutineSheet({ open, onClose }) {
 
   const createNew = async (name, days) => {
     if (routines.length >= MAX_ROUTINES) {
-      toast.error("You've hit the routine limit. Delete one to add another.");
+      toast.error(tFallback('myRoutineSheet.limitReached', 'You have hit the routine limit. Delete one to add another.'));
       return;
     }
     setSaving(true);
     const res = await createRoutine({ name, days, activate: routines.length === 0 });
     setSaving(false);
     if (res.ok) { invalidate(); openEditor(res.routine); }
-    else toast.error('Could not create routine. Try again.');
+    else toast.error(tFallback('myRoutineSheet.createFailed', 'Could not create routine. Try again.'));
   };
 
   const saveDraft = async () => {
@@ -99,13 +100,16 @@ export default function MyRoutineSheet({ open, onClose }) {
     const res = await updateRoutine(draft.id, { name: draft.name, days: draft.days });
     setSaving(false);
     if (res.ok) { invalidate(); toast.success(tFallback("myRoutineSheet.routineSaved", "Routine saved")); setView('list'); }
-    else toast.error('Could not save. Try again.');
+    else toast.error(tFallback('myRoutineSheet.saveFailed', 'Could not save. Try again.'));
   };
 
   const activate = useMutation({
     mutationFn: (id) => setActiveRoutine(id),
-    onSuccess: () => { invalidate(); toast.success('Active routine set. It now drives your week.'); },
-    onError: () => toast.error('Could not activate. Try again.'),
+    onSuccess: () => {
+      invalidate();
+      toast.success(tFallback('myRoutineSheet.activated', 'Active routine set. It now drives your week.'));
+    },
+    onError: () => toast.error(tFallback('myRoutineSheet.activateFailed', 'Could not activate. Try again.')),
   });
 
   const remove = useMutation({
@@ -191,9 +195,15 @@ export default function MyRoutineSheet({ open, onClose }) {
                   </button>
                 </div>
                 {isLoading ? (
-                  <p className="text-sm text-muted-foreground py-6 text-center">Loading…</p>
+                  <p className="text-sm text-muted-foreground py-6 text-center">{tFallback('common.loading', 'Loading…')}</p>
                 ) : routines.length === 0 ? (
-                  <p className="text-sm text-muted-foreground py-4">No routines yet. Start from a template below, or tap <b>{tFallback("coach.onboarding.levelLabel.newbie", "New")}</b>.</p>
+                  <p className="text-sm text-muted-foreground py-4">
+                    <TransText
+                      k="myRoutineSheet.emptyHint"
+                      en="No routines yet. Start from a template below, or tap {new}."
+                      values={{ new: <b>{tFallback('coach.onboarding.levelLabel.newbie', 'New')}</b> }}
+                    />
+                  </p>
                 ) : (
                   <div className="space-y-2">
                     {routines.map(r => {
@@ -252,7 +262,7 @@ export default function MyRoutineSheet({ open, onClose }) {
                 maxLength={60}
                 className="w-full h-11 rounded-xl border border-border bg-secondary/50 px-3 font-heading font-bold text-foreground focus:outline-none focus:border-primary/50"
               />
-              <p className="text-micro text-muted-foreground px-1">Tap a day to name it and add your lifts.</p>
+              <p className="text-micro text-muted-foreground px-1">{tFallback('myRoutineSheet.tapADay', 'Tap a day to name it and add your lifts.')}</p>
 
               {/* Week */}
               {(draft?.days || []).map((day, idx) => {
@@ -296,7 +306,7 @@ export default function MyRoutineSheet({ open, onClose }) {
                             <input
                               value={day.label}
                               onChange={e => patchDay(idx, { label: e.target.value })}
-                              placeholder='Name this day, e.g. "Leg Day"'
+                              placeholder={tFallback('myRoutineSheet.dayNamePlaceholder', 'Name this day, e.g. "Leg Day"')}
                               maxLength={40}
                               className="w-full h-10 rounded-xl border border-border bg-secondary/50 px-3 text-sm font-semibold focus:outline-none focus:border-primary/50"
                             />
