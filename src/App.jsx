@@ -515,6 +515,11 @@ function App() {
     <RestTimerProvider>
       <QueryClientProvider client={queryClientInstance}>
         <LaunchSplash />
+        {/* No `future` prop, deliberately. The v6 migration guide has you
+            pass v7_startTransition and v7_relativeSplatPath here; on v7 both
+            are the default and the keys are dead. They were switched on
+            against 6.30.4 first and the suite proved green before the bump,
+            so the behaviour change never rode along with the upgrade. */}
         <Router>
           <AuthenticatedApp />
         </Router>
