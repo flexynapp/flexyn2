@@ -64,6 +64,20 @@
 --
 -- Idempotent: DROP POLICY IF EXISTS before every CREATE.
 
+-- TYPE CAST, learned by running it: the first attempt raised
+--   42883 operator does not exist: text = uuid
+-- `hub_post_views.post_id` is TEXT (migration 111 defines the whole table with
+-- TEXT ids, `gen_random_uuid()::text`), while `hub_posts` predates the
+-- migrations entirely — it is a base44-era table with no CREATE TABLE in this
+-- repo — and its `id` is UUID. Comparing the two without a cast is a planning
+-- error, so the policy never installed and the leak stayed open.
+--
+-- Both sides are cast to text rather than casting post_id to uuid: uuid->text
+-- always succeeds, while text->uuid raises 22P02 on any row whose post_id is
+-- not a valid uuid, which would turn a policy into a runtime error on read.
+-- `user_id` is cast for the same reason — the same repo offers no definition
+-- for its type either, and the cast is free if it was already uuid.
+--
 -- ── hub_post_views ────────────────────────────────────────────────────────
 
 REVOKE SELECT ON public.hub_post_views FROM anon;
@@ -76,9 +90,9 @@ CREATE POLICY "hub_post_views: author or self read" ON public.hub_post_views
   USING (
     viewer_email = (SELECT NULLIF(public.current_user_email(), ''))
     OR post_id IN (
-      SELECT id FROM public.hub_posts
+      SELECT id::text FROM public.hub_posts
       WHERE author_email = (SELECT NULLIF(public.current_user_email(), ''))
-         OR user_id = (SELECT auth.uid())
+         OR user_id::text = (SELECT auth.uid())::text
     )
   );
 
@@ -118,8 +132,18 @@ ORDER BY tablename, policyname;
 
 -- 2. Neither email column may be readable by `authenticated`.
 --    Expected: both `readable` values false.
-SELECT 'hub_post_views.viewer_email' AS column_checked,
-       has_column_privilege('authenticated', 'public.hub_post_views', 'viewer_email', 'SELECT') AS readable
+-- Only hub_post_views has its email column revoked, so only it is checked that
+-- way. story_reactions keeps the column grant on purpose: its row policy limits
+-- you to your OWN reaction, so the only user_email you can reach is your own.
+-- Asserting has_column_privilege there would read `true` forever and prove
+-- nothing — a check that cannot fail is worse than no check, because it reads
+-- like coverage.
+SELECT 'hub_post_views.viewer_email readable by authenticated' AS check_name,
+       has_column_privilege('authenticated', 'public.hub_post_views', 'viewer_email', 'SELECT') AS value,
+       'must be false' AS expected
 UNION ALL
-SELECT 'story_reactions.user_email',
-       has_column_privilege('authenticated', 'public.story_reactions', 'user_email', 'SELECT');
+SELECT 'story_reactions rows visible beyond your own',
+       EXISTS (SELECT 1 FROM pg_policies
+                WHERE schemaname = 'public' AND tablename = 'story_reactions'
+                  AND cmd = 'SELECT' AND qual = 'true'),
+       'must be false';
