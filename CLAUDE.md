@@ -60,6 +60,7 @@ or rate-limited** rather than failing loudly.
 | `192` | `grant_level_up_rewards` clamps `p_new_level` to the server's `current_level`. It previously trusted the client, so any authenticated user — including an anonymous guest — could pass 99 and mint the entire capsule ladder plus ~6,800 coins in one call. |
 | `262` | Cardio XP caps. |
 | `264` | Flex-coin ledger + mint ceiling, applied as a TRIGGER rather than by restating 22 SECURITY DEFINER functions — see that migration's head for why. |
+| `374` | `award_xp_internal(p_user_id, p_xp)` — the ONLY way to credit a third party. Same 24h cap and same `xp_grant_log` write as 042, keyed on the parameter instead of `auth.uid()`. INTERNAL: revoked from PUBLIC, anon and authenticated. |
 
 Consequences a contributor must know:
 
@@ -73,6 +74,15 @@ Consequences a contributor must know:
   from `auth.uid()` — never from a parameter. Then `REVOKE` it from PUBLIC and
   run `get_advisors` (see the Scheduled workouts section for how a missing
   REVOKE exposed a cron-only function to `anon`).
+- **A cron job cannot call `increment_user_xp`, and the failure is total.** It
+  opens `v_uid := auth.uid()` and raises `42501` when that is NULL, which
+  aborts the whole calling statement — `p_user_id` is accepted and never
+  referenced. `gym_rival_settle_week` did exactly this and had rolled back
+  silently every Monday since it was scheduled, paying nobody; 0 of 44
+  assignments had ever settled. Server-side awards to a third party go through
+  **`award_xp_internal`** (374). Do not "fix" a cron award by writing
+  `total_xp` directly — 188's ledger is what drives the rolling cap AND is the
+  tamper-proof log, so a bare UPDATE is an unlogged, uncapped mint.
 - **The anti-cheat systems are not advertised in the product.** Onboarding used
   to name them and the signals they watch on its second screen; that copy is
   gone and `src/pages/__tests__/goalStepCopy.test.js` fails if it returns. A
@@ -308,8 +318,8 @@ See: `~/.claude/projects/C--Flexyn/memory/feedback_parallel_sync.md`.
   chainable-mock shape that asserts on the **sequence** of statements,
   which is usually the part that's actually unproven.
 - `npm run test` — full suite. `npm run test:watch` — watch mode.
-  `npm run test:coverage` — V8 coverage. As of 2026-08-16: **5119 tests
-  passing across 369 files** (was 2769 across 198 on 2026-08-06 — this
+  `npm run test:coverage` — V8 coverage. As of 2026-08-20: **5252 tests
+  passing across 379 files** (was 2769 across 198 on 2026-08-06 — this
   number goes stale fast, re-run before quoting it).
 
 **`npx vitest` is NOT `npm run test`, and in a fresh worktree the
@@ -359,6 +369,42 @@ builds and suites on this machine at once. A run measured 369s against
 in `signInExistingAccount` and two in `GymEquipmentEditor` — unrelated
 files, all 3.7–5.3s. Check the suite duration before chasing it as a code
 bug.
+
+**There are TWO clocks, and `testTimeout` is not the one that usually
+fires.** `findBy*` and `waitFor` have their own `asyncUtilTimeout`, which
+vitest's `testTimeout` does not govern. It defaulted to **1000ms** while
+testTimeout sat at 15s, so the setting raised to stop load producing false
+reds could never help: RTL gave up first and threw a
+`TestingLibraryElementError`. `src/test/setup.js` now
+`configure({ asyncUtilTimeout: 5000 })`, and
+`src/test/__tests__/asyncUtilTimeout.test.jsx` guards it by rendering
+something that appears at 1600ms — asserting the CONSTANT would pass even if
+`configure` wrote to a different module instance than the tests resolve.
+
+Tell them apart by the message: *"Unable to find an element with the text: X"*
+is RTL; *"Test timed out in Ns"* is vitest. Different messages, different
+knobs. This class is nasty because it reads as a missing element (a real bug)
+and vanishes on a solo re-run (pure noise), and nothing in the text says which.
+
+**A test that shells out can fail because the FORK failed, not the
+assertion.** `execFileSync`/`spawnSync` from a worker while ~30 others are
+resident can genuinely fail — EAGAIN, ENOMEM, ENOBUFS — and the runner blames
+the test, so the reader is told whatever that test exists to say.
+`i18nCoverage > does not gain hardcoded strings` reported "hardcoded strings
+rose" about a scan that never ran. It now retries once and, on a second
+failure, says the scan did not happen. A retry is only honest when the tool is
+deterministic — then it cannot mask a regression, only a failed fork.
+
+**Ruling these out is cheap, and re-running until green is not ruling out.**
+Run the tool alone N times (deterministic → not the tool); rebuild the exact
+failing tree with `git archive <sha> | tar -x` and run the check there (passes
+→ not the assertion); time it under real load against its own budget. All
+three were needed to land on the fork.
+
+**Never pipe a failing run through `grep`.** `npm test … | grep -E "FAIL|Tests "`
+keeps the FAIL line and discards the assertion message. That destroyed the
+only evidence twice in one session. Redirect the whole run to a file and grep
+the file.
 
 ## Build guards (don't disable)
 
@@ -492,6 +538,30 @@ The two shapes that came up:
   are excluded from the `vendor-misc` chunk so their dynamic imports
   get their own lazy chunks. Don't break that — see the `manualChunks`
   function in vite.config.
+
+### Dependencies and Dependabot (2026-08-20)
+
+`npm audit` is at **0 vulnerabilities**; keep it there. Two things learned
+clearing 20 alerts:
+
+- **An `overrides` entry that fixes a CVE becomes a CEILING that holds you at
+  the next one.** `fast-uri` was pinned to `4.1.1` to escape one advisory and
+  was itself the flagged version in the next. Re-read the whole `overrides`
+  block whenever these are triaged, not just the package being reported.
+- **Prefer `npm audit fix` to a global override for a transitive with several
+  major lines in the tree.** `brace-expansion` was deliberately left unfixed
+  once because forcing 5.0.8 globally breaks eslint's minimatch, which needs
+  the 1.x/2.x API — true of an `overrides` key, which pins every copy to one
+  version. `npm audit fix` patched each line separately (1.1.18, 2.1.4, 5.0.9
+  coexisting) and lint stayed green.
+
+**react-router is on v7** (7.18.2, migrated 2026-08-20 — the v6 line had no
+patch for its last 3 advisories). Imports still come from `react-router-dom`,
+which v7 keeps as a re-export, so the 83 call sites were untouched. Do NOT add
+a `future={{ v7_* }}` prop to `<Router>`: `v7_startTransition` and
+`v7_relativeSplatPath` are the default now and those keys are dead. The app
+uses only the stable surface — no `createBrowserRouter`, loaders, actions or
+`useFetcher` — which is why the migration was a version bump and a comment.
 
 ## Verifying against production — three layers
 
@@ -746,6 +816,21 @@ writes — an anonymous user still increments quota tables.
   `CREATE TRIGGER`). Other idempotent constructs (`CREATE TABLE IF NOT
   EXISTS`, `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`, `CREATE OR REPLACE
   FUNCTION`, `INSERT ... ON CONFLICT DO UPDATE`) already self-guard.
+- **A trigger's COLUMN LIST is the gate, and replacing the function alone
+  changes nothing.** `BEFORE INSERT OR UPDATE **OF name**` fires only when a
+  listed column is in the UPDATE's SET clause, so widening what the function
+  checks is invisible until the TRIGGER is recreated with the wider list —
+  and a column list cannot be altered in place, so it is DROP + CREATE inside
+  one transaction. Migration 372 walked into this: the new body was verifiably
+  live on the trigger (`pg_get_functiondef(tgfoid)` contained the new clause)
+  and `UPDATE crews SET description = …` still went straight through.
+- **End a migration in a SELECT that ATTEMPTS the thing, not one that
+  inspects the catalog.** 372's first draft passed every existence check while
+  blocking nothing. Attempt the write inside a rolled-back savepoint and assert
+  BOTH directions — the bad write is refused AND ordinary input still saves; a
+  guard that rejects everything passes all the "is it blocked?" checks. And
+  never write a literal `TRUE AS function_installed`: it proves nothing and
+  reads as evidence.
 - **Numbering with parallel engineers**: pick the next free `NNN` when
   you start. If two branches independently pick the same number, the
   branch that lands second renames its file to `NNN+1_*.sql` before
@@ -2042,6 +2127,41 @@ stays alongside it (his call) — `template_key IS NULL` is the old kind.
   fallback. **Numbers stay server-side, words move client-side.** Trophy
   NAMES stay English deliberately (product names, same class as Crew and
   Capsule) and `_glossary.json` records why.
+
+## Crew visibility and invites (migration 372, Aug 2026)
+
+`crews.is_public` was readable and **unwritable** for months: `updateCrewProfile`
+had accepted it since 248 and the only caller in the app was CrewChat's avatar
+upload. Measured before the fix: 4 crews, 0 public, 0 with a description, 0
+with a tag. Migration 370 had to drop discovery's `is_public` filter because it
+returned zero rows for all 56 users — a filter nothing could satisfy.
+
+- **`CrewSettingsSheet` is the writer**, leader-only. `crews_update` is
+  `is_crew_admin(id)` for USING and WITH CHECK, and `is_crew_admin` reads
+  `is_admin`, NOT `role` — gate UI on the same column or you offer a control
+  the server refuses with 0 rows and no error.
+- **`authenticated` holds UPDATE on EVERY column of `crews`.** What stops a
+  leader forging `crew_xp` is the `crews_guard_write` BEFORE trigger, which
+  silently reassigns privileged columns back to OLD. A widened payload
+  SUCCEEDS and does nothing — keep `updateCrewProfile`'s allow-list equal to
+  what the trigger lets through (name, description, is_public, tag,
+  avatar_url).
+- **"Private" does not mean hidden.** Since 370 every crew is listed;
+  `is_public` decides only whether `join_crew_atomic` inserts a member row or
+  files a `crew_join_requests` row. The copy says so — do not reword it into
+  a promise of concealment.
+- **Invites are real now.** `invite_to_crew` (250) had zero callers and
+  `crew_invites` had never held a row, so a DM invite degraded into an
+  ordinary application. Both senders — crew creation and `CrewInviteSheet` on
+  the roster — write the invite **before** the DM, or a friend tapping Accept
+  immediately files a request instead. Its gate is `is_admin OR role IN
+  ('leader','moderator')`, so `INVITE_MEMBER` sits at RANK.MODERATOR to match
+  the database; that is a rank BELOW `EDIT_CREW_PROFILE` on purpose.
+- `is_text_clean` is a **slur** filter, not a swear filter — 14 terms, word
+  boundaries, leetspeak fold. It returns clean for ordinary vulgarity, which
+  is why production holds a crew called 'Butt Crackers' with the name guard
+  working correctly the whole time. 372 extends it to description and tag; it
+  does not move that line.
 
 ## Plausibility — a flag, not a refusal (migrations 360–362, Aug 2026)
 
