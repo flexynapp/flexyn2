@@ -110,6 +110,7 @@ const ALLOW_IDENTICAL = new Set([
   // down. An echo counter that punishes a deliberate term is a counter
   // people learn to regenerate.
   'crewTrophies.levelN',
+  'legal.googleApple',                  // "Google / Apple" — two brand names
 ]);
 
 /**
@@ -130,6 +131,8 @@ const ALLOW_IDENTICAL = new Set([
  */
 const ALLOW_IDENTICAL_BY_LANG = {
   es: new Set([
+    // "Social." is the same word in Spanish.
+    'legal.dataSocialLabel',
     // Sticker is the word Spanish uses for these.
     'collectionModal.tab.stickers',
     // Trophy catalog, added 2026-08-16. Every one is a word this
@@ -177,6 +180,10 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'crew.applicantLevel',
   ]),
   fr: new Set([
+    // "Social." is the same word in French.
+    'legal.dataSocialLabel',
+    // "Contact" is the same word in French.
+    'legal.h.contact',
     // "distance" is the same word in French.
     'weeklyDebriefCard.distance',
     // "Excellent" is spelled the same in French.
@@ -331,6 +338,8 @@ const ALLOW_IDENTICAL_BY_LANG = {
   // triple and the abbreviations of words this catalog already uses
   // (duels.wins "Siege", duels.losses "Niederlagen").
   de: new Set([
+    // "Gyms." — the loanword German actually uses, and the app's own term.
+    'legal.dataGymsLabel',
     // Themes — the shipped copy already says "Level-Themes".
     'collectionModal.tab.themes',
     // "Podium." is the same word in German.
@@ -513,6 +522,8 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'workout.templates.reps',
   ]),
   pt: new Set([
+    // "Social." is the same word in Portuguese.
+    'legal.dataSocialLabel',
     // Sticker is the word Brazilian Portuguese uses for these.
     'collectionModal.tab.stickers',
     // Trophy catalog, added 2026-08-16. Every one is a word this
@@ -564,6 +575,10 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'workout.templates.reps',
   ]),
   it: new Set([
+    // "Account." is the loanword Italian uses.
+    'legal.dataAccountLabel',
+    // "Social." is the same word in Italian.
+    'legal.dataSocialLabel',
     // "Standard" is spelled exactly this way in this language.
     'crewChat.imageMode.normal',
     // Trophy catalog, added 2026-08-16. Every one is a word this
@@ -691,6 +706,10 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'workout.templates.reps',
   ]),
   nl: new Set([
+    // "Account." is the loanword Dutch uses.
+    'legal.dataAccountLabel',
+    // "Contact" is the same word in Dutch.
+    'legal.h.contact',
     // "open" is the same word in Dutch.
     'fastingTrackerCard.open',
     // "Recent" is the Dutch word too.
