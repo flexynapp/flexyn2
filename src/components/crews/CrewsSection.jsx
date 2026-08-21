@@ -19,6 +19,7 @@ import { useLanguage } from '@/lib/LanguageContext';
 import * as crewsData from '@/lib/data/crews';
 import { useNumberFormatter } from '@/lib/intl';
 import { crewLevelProgress } from '@/lib/data/crewSeasons';
+import { getCrewTrophyCounts } from '@/lib/data/crewTrophies';
 import CrewPage from './CrewPage';
 import CrewCreationFlow from './CrewCreationFlow';
 import CrewMemberDots from './CrewMemberDots';
@@ -31,8 +32,9 @@ const CrewTopBoard = React.lazy(() => import('./CrewTopBoard'));
 
 // ── Crew list card ────────────────────────────────────────────────────────────
 
-function CrewCard({ crew, onClick, currentUserId }) {
+function CrewCard({ crew, onClick, currentUserId, trophyCount }) {
   const fmt = useNumberFormatter();
+  const { tFallback } = useLanguage();
   const { data: members = [] } = useQuery({
     queryKey: ['crewMembers', crew.id],
     queryFn:  () => crewsData.getCrewMembers(crew.id),
@@ -95,8 +97,12 @@ function CrewCard({ crew, onClick, currentUserId }) {
         {Number.isFinite(Number(crew.crew_level)) && (
           <p className="text-xs text-muted-foreground mt-1">
             <span className="font-bold text-foreground">Lvl {crew.crew_level}</span>
-            {Number.isFinite(Number(crew.trophies)) && (
-              <> · <span className="font-bold text-foreground tabular-nums">{fmt(crew.trophies)}</span> trophies</>
+            {/* The SHELF, not `crews.trophies`. That column is war renown,
+                raised 30 per win, so it read "30 trophies" for a crew whose
+                shelf was empty. */}
+            {Number(trophyCount ?? 0) > 0 && (
+              <> · <span className="font-bold text-foreground tabular-nums">{fmt(trophyCount)}</span>
+                {' '}{tFallback('crew.discover.trophies', 'trophies')}</>
             )}
             {Number.isFinite(Number(crew.wars_won)) && (
               <> · <span className="font-bold text-foreground tabular-nums">{crew.wars_won}</span>–<span className="font-bold text-foreground tabular-nums">{crew.wars_lost ?? 0}</span></>
@@ -148,6 +154,15 @@ export default function CrewsSection({ initialCrewId, onViewProfile }) {
     queryFn:  () => crewsData.getMyCrews(user.id),
     enabled:  !!user?.id,
     staleTime: 15_000,
+  });
+
+  // Same one-round-trip shape as the discovery list.
+  const myCrewIds = myCrews.map(c => c.id);
+  const { data: trophyCounts = {} } = useQuery({
+    queryKey: ['crewTrophyCounts', myCrewIds],
+    queryFn:  () => getCrewTrophyCounts(myCrewIds),
+    enabled:  myCrewIds.length > 0,
+    staleTime: 5 * 60_000,
   });
 
   // Open the crew a deep link asked for, once the crews have loaded.
@@ -332,7 +347,7 @@ export default function CrewsSection({ initialCrewId, onViewProfile }) {
                 </div>
                 <div className="space-y-2">
                   {myCrews.map(crew => (
-                    <CrewCard key={crew.id} crew={crew} onClick={() => setActiveCrew(crew)} currentUserId={user?.id} />
+                    <CrewCard key={crew.id} crew={crew} onClick={() => setActiveCrew(crew)} currentUserId={user?.id} trophyCount={trophyCounts[crew.id] ?? 0} />
                   ))}
                 </div>
               </>

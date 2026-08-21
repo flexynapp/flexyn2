@@ -26,3 +26,33 @@ export async function getCrewTrophies(crewId) {
   }
   return Array.isArray(data) ? data : [];
 }
+
+/**
+ * How many trophies each crew has actually WON, keyed by crew id.
+ *
+ * `crews.trophies` is a different number and always was: it is war renown,
+ * raised 30 per win by `award_crew_progress`, which is why a crew could read
+ * "30 trophies" with an empty shelf. This counts rows in `crew_trophies`,
+ * which is the shelf the Trophies tab renders.
+ *
+ * One round trip for a whole page rather than one per card. The table holds
+ * at most a handful of rows per crew (a trophy is unique and earned once),
+ * so counting client-side costs nothing and needs no new RPC.
+ */
+export async function getCrewTrophyCounts(crewIds) {
+  const ids = [...new Set((crewIds || []).filter(Boolean))];
+  if (ids.length === 0) return {};
+  const { data, error } = await supabase
+    .from('crew_trophies')
+    .select('crew_id')
+    .in('crew_id', ids);
+  if (error) {
+    // 42P01 = migration 367 not applied on this host. An absent shelf is
+    // zero trophies, not an error the card should render.
+    if (error.code !== '42P01') console.warn('[crewTrophies] counts failed:', error);
+    return {};
+  }
+  const out = {};
+  for (const row of data || []) out[row.crew_id] = (out[row.crew_id] || 0) + 1;
+  return out;
+}

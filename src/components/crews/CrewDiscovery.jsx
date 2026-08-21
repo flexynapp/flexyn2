@@ -23,6 +23,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import * as crewsData from '@/lib/data/crews';
 import { listPublicCrews, joinStateFor } from '@/lib/data/crewDirectory';
+import { getCrewTrophyCounts } from '@/lib/data/crewTrophies';
 import { toast } from '@/lib/toast';
 import { useNumberFormatter } from '@/lib/intl';
 
@@ -36,12 +37,14 @@ const SORTS = [
 // Matches the crew list card and the Crew page header: crest, name, then one
 // text line for identity and one for standing. No icon beside a count — see
 // docs/profile-ui-premium-research.md.
-function CrewResult({ crew, onJoin, joining, inACrew, requested, tFallback, fmt }) {
+function CrewResult({ crew, onJoin, joining, inACrew, requested, tFallback, fmt, trophyCount }) {
   const state    = joinStateFor(crew, { inACrew, requested });
   const count    = Number(crew.member_count ?? 0);
   const cap      = Number(crew.max_capacity ?? 16);
   const volume   = Number(crew.total_volume_lbs ?? 0);
-  const trophies = Number(crew.trophies ?? 0);
+  // The SHELF, not `crews.trophies`. That column is war renown and climbs 30
+  // per win, so a crew that had never won a trophy still read "30 trophies".
+  const trophies = Number(trophyCount ?? 0);
 
   const LABEL = {
     join:      ['crew.discover.join',      'Join'],
@@ -183,6 +186,17 @@ export default function CrewDiscovery({ onBack, onJoined, inline = false }) {
     placeholderData: keepPreviousData,
   });
 
+  // One round trip for the whole page rather than one per card. Keyed on the
+  // ids actually on screen, so paging or searching refetches only what
+  // changed, and an unapplied migration 367 simply yields {}.
+  const shownIds = results.map(c => c.id);
+  const { data: trophyCounts = {} } = useQuery({
+    queryKey: ['crewTrophyCounts', shownIds],
+    queryFn:  () => getCrewTrophyCounts(shownIds),
+    enabled:  shownIds.length > 0,
+    staleTime: 5 * 60_000,
+  });
+
   const joinMut = useMutation({
     mutationFn: (crewId) => crewsData.joinCrew(crewId, user.id),
     onMutate:   (crewId) => setJoiningId(crewId),
@@ -316,6 +330,7 @@ export default function CrewDiscovery({ onBack, onJoined, inline = false }) {
               requested={requestedIds.has(crew.id)}
               tFallback={tFallback}
               fmt={fmt}
+              trophyCount={trophyCounts[crew.id] ?? 0}
             />
           ))}
         </AnimatePresence>
