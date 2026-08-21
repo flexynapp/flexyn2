@@ -166,7 +166,21 @@ export default function Hub() {
   // ?profile= deep-link that lands while Hub is already open.
   // ?bag=open is no longer handled here; callers use OPEN_BAG_EVENT
   // (see StatsHubModal "Bag & Capsules" tile).
-  const consumedInitialProfileRef = useRef(false);
+  // Seeded from whether a ?profile= was present AT MOUNT, not `false`.
+  //
+  // The ref means "the initial deep link has been accounted for". When Hub
+  // mounts on a bare /hub there is no initial deep link, so it is already
+  // accounted for and the next ?profile= to arrive is a genuine navigation
+  // that must be applied. Starting at `false` made the effect treat that
+  // first arrival as the mount-time one the useState initializer had
+  // supposedly handled — but the initializer ran before the param existed, so
+  // nobody applied it. The param was stripped, the URL flickered and snapped
+  // back, and the profile never opened. Only the SECOND tap worked.
+  //
+  // Reached from LiveActivityRail, HubFeed's author links and
+  // HubCommentsInline; the route element is keyed on pathname alone
+  // (AnimatedRoutes), so Hub never remounts to reset this.
+  const consumedInitialProfileRef = useRef(!initialProfileEmail);
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     let changed = false;
