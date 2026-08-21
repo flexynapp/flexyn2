@@ -15,17 +15,17 @@ every "94% real" predates a correct measurement.
 | | then | now |
 |---|---|---|
 | untranslatable keys | 781 | **0** |
-| hardcoded strings | 725 (undercounted) | **247** (honest) |
-| en.json | 3,895 | 6,052 |
-| es / fr | 70.5% | **99.4%** (6,013) |
-| de / it / nl / pl | — | 95.7% (5,789) |
-| pt | — | 94.4% (5,712) |
-| tr | 2,137 | 2,354 / 6,052 |
+| hardcoded strings | 725 (undercounted) | **241** (honest) |
+| en.json | 3,895 | 6,075 |
+| es / fr | 70.5% | **99.4%** (6,036) |
+| de / it / nl / pl | — | 95.7% (5,812) |
+| pt | — | 94.4% (5,735) |
+| tr | 2,137 | 2,354 / 6,075 |
 
 `npm run i18n:audit` section E is the honest number. Section B is CATALOG
 coverage and is not what a user sees — do not quote it.
 
-**Everything up to `41f30023` is verified: 5,252 tests across 379 files, lint
+**Everything up to `cf004d47` is verified: 5,252 tests across 379 files, lint
 clean, `npm run build` clean.** Run all three. The suite alone is not the
 gate — see the DiscoveryCards entry under TRAPS.
 
@@ -48,7 +48,6 @@ untranslated.
 `npm run i18n:hardcoded -- --list` enumerates them; the largest are:
 
     11  src/lib/aiCoach/workoutGenerator.js   ← SEE "KNOWN FALSE POSITIVE"
-     6  src/pages/Legal.jsx                   ← HELD, see below
      5  src/lib/hrZones.js
      5  src/lib/recoveryScore.js
      4  src/components/TwoFactorSection.jsx
@@ -58,22 +57,35 @@ untranslated.
      4  src/components/gymRival/GymRivalCard.jsx
      4  src/components/gyms/GymEquipmentEditor.jsx
 
-then a tail of 1–4 across ~110 files. `workoutGenerator` is the documented
-false positive, so the real top is 6 and it is flat from there down.
+then a tail of 1–4 across ~108 files. `workoutGenerator` is the documented
+false positive, so the real top is 5 and it is flat from there down.
 `hrZones` and `recoveryScore` pair naturally (both are lib data modules that
 want the translator-argument pattern).
 
-**`src/pages/Legal.jsx` is HELD pending kegan's call, and the count of 6 is a
-lie.** The scanner only sees the six `<strong>` section labels; the file is a
-privacy policy, and its BODY prose is multi-line JSX text that the scanner
-does not match at all. Translating a legal document is not the same act as
-translating UI copy — a machine-drafted privacy policy is a liability, and
-the standing rule already says do not machine-translate prose. Doing the six
-labels alone would produce a policy with translated headings over English
-body text, which is worse than leaving it. Ask before touching it. Note also
-that the file carries `ENTITY`, `CONTACT_EMAIL` and `JURISDICTION` set to
-`null` with a visible placeholder that says it must be filled in before store
-submission, so the document is unfinished in English first.
+**`src/pages/Legal.jsx` LABELS ARE DONE; the BODY stays English by
+decision.** Kegan chose that on 2026-08-21 after the trade was put to him.
+Keyed: the sixteen section headings, the five run-in data-category labels,
+the Google / Apple sub-processor row, the placeholder tooltip. Not keyed: a
+word of the disclosures. So a Spanish reader navigates the policy in Spanish
+and reads it in English. **Do not "finish" this without asking** — a
+machine-drafted privacy policy is a different kind of object from a
+machine-drafted button.
+
+Two things about that file a future pass needs:
+
+- **Its hardcoded count was 6 and the real number is far higher.** The
+  scanner matches single-line literals, so the five `<strong>` labels
+  registered, sixteen `heading="…"` props did not, and the multi-line JSX
+  prose that IS the policy did not either. A hardcoded count is a floor, not
+  a measurement, on any file whose copy is JSX text.
+- **The prose line had already been crossed before this.** An earlier pass
+  keyed `legal.privacyIntro`, `legal.draftNotice` and one full data-category
+  sentence (`legal.dataNutrition`) in all seven locales — so the Nutrition row
+  reads fully translated beside four rows that do not. If that is ever
+  resolved, resolve it in one direction for the whole list.
+- The file still carries `ENTITY`, `CONTACT_EMAIL` and `JURISDICTION` as
+  `null` behind a visible "must be filled in before store submission"
+  placeholder, so the document is unfinished in English first.
 
 **GROUP FILES THAT SHARE A VOCABULARY, and grep for the concept before you
 start.** The three duel surfaces each declared their own English for the same
@@ -175,6 +187,11 @@ goal's own title and an exercise name are USER DATA and must render verbatim.
 
 ## TRAPS THAT COST TIME HERE
 
+- **The scratchpad is not durable and it was wiped again mid-session.**
+  `add-en.mjs`, `add-keys.mjs`, `fb.mjs` and `mojibake.mjs` all had to be
+  rewritten from scratch in the middle of a batch. They are small; the cost
+  is losing your place. Rebuild them at the START of a batch, not when a
+  command fails halfway through one.
 - **The suite is not the build.** `08afd95b` put a JSX comment inside an
   attribute list in `DiscoveryCards.jsx` — `{/* … */}` between two props,
   which is a syntax error rather than a comment — and it sat on `origin/main`
