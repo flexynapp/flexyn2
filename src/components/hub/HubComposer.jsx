@@ -301,6 +301,20 @@ export default function HubComposer({ onClose }) {
   // shown when cwType is 'other'.
   const [cwType, setCwType] = useState(null);
   const [cwLabel, setCwLabel] = useState('');
+  // Every compose step mounts renderPrivacyButtons(), so the CW picker is
+  // offered on polls and videos exactly as it is on a status. It only ever
+  // reached the row from the generic create() below: the video and poll
+  // paths forwarded crew_id and publish_at and dropped these two. Because a
+  // Status carrying a clip routes through submitVideoPost, that meant EVERY
+  // video post lost its warning and rendered unblurred behind the gate in
+  // HubPostCard. One object, spread by all three callers, so a fourth path
+  // cannot drift the same way.
+  const cwFields = cwType
+    ? {
+        content_warning: cwType,
+        content_warning_label: cwType === 'other' ? (cwLabel.trim() || null) : null,
+      }
+    : {};
   const [cwPickerOpen, setCwPickerOpen] = useState(false);
 
   // ── Post scheduling ──────────────────────────────────────────────────────────
@@ -556,6 +570,7 @@ export default function HubComposer({ onClose }) {
           collaborator_ids: collaboratorIds.length > 0 ? collaboratorIds : [],
           ...(privacy === 'crew' && selectedCrewId ? { crew_id: selectedCrewId } : {}),
           ...(scheduleEnabled && scheduledAt ? { publish_at: new Date(scheduledAt).toISOString() } : {}),
+          ...cwFields,
         });
         queryClient.invalidateQueries({ queryKey: ['hubFeed'] });
         toast.success(tFallback("hubComposer.videoPosted", "Video posted!"));
@@ -651,6 +666,7 @@ export default function HubComposer({ onClose }) {
           comment_count: 0,
           ...(privacy === 'crew' && selectedCrewId ? { crew_id: selectedCrewId } : {}),
           ...(scheduleEnabled && scheduledAt ? { publish_at: new Date(scheduledAt).toISOString() } : {}),
+          ...cwFields,
         });
         queryClient.invalidateQueries({ queryKey: ['hubFeed'] });
         toast.success(tFallback('hub.composer.pollLive', 'Your poll is live.'));
@@ -816,7 +832,7 @@ export default function HubComposer({ onClose }) {
         linked_entity_snapshot: snapshot,
         collaborator_ids:       collaboratorIds.length > 0 ? collaboratorIds : [],
         ...(privacy === 'crew' && selectedCrewId ? { crew_id: selectedCrewId } : {}),
-        ...(cwType ? { content_warning: cwType, content_warning_label: cwType === 'other' ? (cwLabel.trim() || null) : null } : {}),
+        ...cwFields,
         ...(scheduleEnabled && scheduledAt ? { publish_at: new Date(scheduledAt).toISOString() } : {}),
       });
 
