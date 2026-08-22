@@ -139,26 +139,43 @@ const SPECS = {
       ? { key: 'notifications.row.streak_milestone.body_with_capsule', en: '+{coins} coins + Elite Capsule', vars: { coins: 'coinsAwarded' } }
       : { key: 'notifications.row.streak_milestone.body',             en: '+{coins} coins',                 vars: { coins: 'coinsAwarded' } }),
   },
-};
 
-/**
- * Types that FIRE in production and still cannot be rebuilt, because the row
- * does not carry what the sentence needs. Recorded so the next pass does not
- * re-derive it — and so the gap is a known quantity rather than a silence.
- *
- *   crew_war_started   title names the opponent CREW; metadata has only
- *                      `opponent_crew_id`.
- *   crew_war_resolved  same, plus an outcome won|lost branch.
- *   nemesis_assigned   title names the rival (`@sefseg`); metadata has only
- *                      `assignment_id` and a result branch.
- *
- * Each needs its writer to store the NAME alongside the id — a migration, not
- * a client change. Until then they fall back, which is correct.
- */
-export const CANNOT_LOCALIZE = {
-  crew_war_started:  'opponent crew name absent — metadata carries only opponent_crew_id',
-  crew_war_resolved: 'opponent crew name absent — metadata carries only opponent_crew_id',
-  nemesis_assigned:  'rival name absent — metadata carries only assignment_id',
+  // ── Unblocked by migration 379 ────────────────────────────────────────
+  // These three name somebody the row used to identify only by id. 379 adds
+  // a BEFORE INSERT trigger that resolves the name into metadata, and
+  // backfills the rows already written. A row from before that migration —
+  // or one whose subject has since been deleted, which is the case for all
+  // four live nemesis_assigned rows — has no name to resolve and falls back.
+
+  crew_war_started: {
+    title: { key: 'notifications.row.crew_war_started.title', en: '⚔️ Crew war vs {name}', vars: { name: 'opponent_crew_name' } },
+    body:  { key: 'notifications.row.crew_war_started.body',  en: "Every session this week counts. Let's go." },
+  },
+  crew_war_resolved: {
+    pickTitle: (m) => {
+      if (m.outcome === 'won')  return { key: 'notifications.row.crew_war_resolved.title_won',  en: '🏆 You crushed {name}!',     vars: { name: 'opponent_crew_name' } };
+      if (m.outcome === 'lost') return { key: 'notifications.row.crew_war_resolved.title_lost', en: '💪 {name} won this round',   vars: { name: 'opponent_crew_name' } };
+      return { key: 'notifications.row.crew_war_resolved.title_tied', en: '🤝 Tied with {name}', vars: { name: 'opponent_crew_name' } };
+    },
+    // The server writes NULL for this body and the card shows the scores.
+  },
+  nemesis_assigned: {
+    pickTitle: (m) => {
+      if (m.result === 'declined') {
+        return { key: 'notifications.row.nemesis_assigned.title_declined', en: '@{name} declined the challenge', vars: { name: 'rival_display_name' } };
+      }
+      // `rival_type` is gym|cardio and picks which rival this is. Two keys
+      // rather than one with a {label} slot: "Gym Rival" and "Cardio Rival"
+      // are feature names, and a slot would ask a translator to decline a
+      // noun they cannot see.
+      return m.rival_type === 'cardio'
+        ? { key: 'notifications.row.nemesis_assigned.title_cardio', en: '🎯 @{name} wants to be your Cardio Rival', vars: { name: 'rival_display_name' } }
+        : { key: 'notifications.row.nemesis_assigned.title_gym',    en: '🎯 @{name} wants to be your Gym Rival',    vars: { name: 'rival_display_name' } };
+    },
+    pick: (m) => (m.result === 'declined'
+      ? { key: 'notifications.row.nemesis_assigned.body_declined', en: "They backed out before the match started. Roll a new rival when you're ready." }
+      : { key: 'notifications.row.nemesis_assigned.body_invite',   en: "Confirm to start this week's challenge. Whoever goes AFK first forfeits." }),
+  },
 };
 
 /** Fill a part's vars from metadata, or return null if any is absent. */
@@ -203,6 +220,14 @@ export function notificationText(row, t) {
   // language, where null would be a blank line.
   return { title, body: bodyPart ? (body ?? stored.body) : null, localized: true };
 }
+
+/**
+ * Was three live types that could not be rebuilt at all. Migration 379 closed
+ * every one of them, so this is empty — kept, not deleted, because an empty
+ * list is the statement "we checked" and a missing one is silence. Add a type
+ * here if a row ever names something it does not store.
+ */
+export const CANNOT_LOCALIZE = {};
 
 /** The types this module can rebuild. Exported for the guard test. */
 export const LOCALIZED_TYPES = Object.keys(SPECS);

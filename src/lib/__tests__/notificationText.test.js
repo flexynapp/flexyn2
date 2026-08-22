@@ -128,13 +128,47 @@ describe('the live-row specs match what production actually stores', () => {
     expect(out.body).toBe('Rainy poop');
   });
 
-  it('the three blocked types stay on stored text', () => {
-    // They fire in production and cannot be rebuilt: the row carries an id
-    // where the sentence needs a name. Listed so this stays a known gap.
+  it('anything still listed as blocked really does stay on stored text', () => {
+    // Empty since migration 379. Kept so that adding an entry without also
+    // making it fall back fails here.
     for (const type of Object.keys(CANNOT_LOCALIZE)) {
-      const out = notificationText({ type, title: 'STORED', body: 'B', metadata: { war_id: 'x' } }, t);
+      const out = notificationText({ type, title: 'STORED', body: 'B', metadata: {} }, t);
       expect(out.localized, `${type} claims to localize but its name is not on the row`).toBe(false);
     }
+  });
+
+  // ── migration 379 ──────────────────────────────────────────────────────
+  // These three named somebody the row identified only by id. 379 resolves
+  // the name into metadata on insert and backfills what was already written.
+
+  it('crew wars localize once the opponent NAME is on the row', () => {
+    const started = notificationText({ type: 'crew_war_started', title: 'S', metadata: { opponent_crew_name: 'Admin Grind', opponent_crew_id: 'x' } }, t);
+    expect(started.localized).toBe(true);
+    expect(started.title).toContain('name=Admin Grind');
+
+    for (const [outcome, key] of [['won', 'title_won'], ['lost', 'title_lost'], ['tied', 'title_tied']]) {
+      const out = notificationText({ type: 'crew_war_resolved', title: 'S', metadata: { outcome, opponent_crew_name: 'Admin Grind' } }, t);
+      expect(out.title, `outcome ${outcome}`).toContain(`crew_war_resolved.${key}`);
+    }
+  });
+
+  it('a pre-379 crew war row, or one whose crew was deleted, still falls back', () => {
+    // The trigger cannot name a crew that no longer exists, and it did not
+    // run at all before 379. Both land here, and both must keep their text.
+    const out = notificationText({ type: 'crew_war_started', title: 'STORED', metadata: { opponent_crew_id: 'x' } }, t);
+    expect(out.localized).toBe(false);
+    expect(out.title).toBe('STORED');
+  });
+
+  it('nemesis_assigned picks invite, cardio and declined apart', () => {
+    const name = { rival_display_name: 'sefseg' };
+    expect(notificationText({ type: 'nemesis_assigned', metadata: { ...name } }, t).title)
+      .toContain('nemesis_assigned.title_gym');
+    expect(notificationText({ type: 'nemesis_assigned', metadata: { ...name, rival_type: 'cardio' } }, t).title)
+      .toContain('nemesis_assigned.title_cardio');
+    const declined = notificationText({ type: 'nemesis_assigned', metadata: { ...name, result: 'declined' } }, t);
+    expect(declined.title).toContain('nemesis_assigned.title_declined');
+    expect(declined.body).toContain('body_declined');
   });
 });
 
