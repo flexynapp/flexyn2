@@ -15,17 +15,17 @@ every "94% real" predates a correct measurement.
 | | then | now |
 |---|---|---|
 | untranslatable keys | 781 | **0** |
-| hardcoded strings | 725 (undercounted) | **160** (honest) |
-| en.json | 3,895 | 6,198 |
-| es / fr | 70.5% | **99.4%** (6,159) |
-| de / it / nl / pl | — | 95.8% (5,935) |
-| pt | — | 94.5% (5,858) |
-| tr | 2,137 | 2,376 / 6,198 |
+| hardcoded strings | 725 (undercounted) | **141** counted, ~120 real |
+| en.json | 3,895 | 6,214 |
+| es / fr | 70.5% | **99.4%** (6,175) |
+| de / it / nl / pl | — | 95.8% (5,951) |
+| pt | — | 94.5% (5,874) |
+| tr | 2,137 | 2,376 / 6,214 |
 
 `npm run i18n:audit` section E is the honest number. Section B is CATALOG
 coverage and is not what a user sees — do not quote it.
 
-**Everything up to `6d2d1dbb` is verified: 5,266 tests across 385 files, lint
+**Everything up to `7c6d69ea` is verified: 5,266 tests across 385 files, lint
 clean, `npm run build` clean.** Run all three. The suite alone is not the
 gate — see the DiscoveryCards entry under TRAPS.
 
@@ -51,22 +51,23 @@ untranslated.
      4  src/components/nutrition/CalorieCyclingModal.jsx  ← keyed; label is the fallback
      4  src/lib/aiCoach/planBuilder.js                    ← keyed; label is the fallback
      4  src/lib/data/coinShop.js                          ← keyed; see FALSE POSITIVES
-     4  src/pages/GymMap.jsx
-     4  src/pages/SignInToContinue.jsx
-     3  src/components/ConnectedAppsSection.jsx
-     3  src/components/RestTimerOverlay.jsx
-     3  src/components/cardio/CardioManualForm.jsx
-     3  src/components/crews/CrewCreationFlow.jsx
+     3  src/components/RestTimerOverlay.jsx               ← protocol names, NOT keyed
+     3  src/components/crews/CrewMemberDirectory.jsx
+     3  src/components/crews/CrewTopBoard.jsx
+     3  src/components/crews/CrewWarPanel.jsx
+     3  src/components/duels/CreateDuelModal.jsx
+     3  src/components/hub/NewGroupDMModal.jsx
 
-**Four of the top six are already done.** Once a slug→label map is resolved at
+**Five of the top six are already settled** (four keyed, one deliberately
+English). Once a slug→label map is resolved at
 its render site the module's English label IS the fallback, and the scanner
 counts it forever — its map heuristic keys on a sibling `id` property, so any
 map naming its slug `key`, `sku` or `value` stays on the list. Read the render
 site before assuming a file is outstanding. The real top is 4 and the honest
 remaining count is nearer 140 than 160.
 
-Then a tail of 1–3 across ~90 files. `GymMap` and `SignInToContinue` are the
-next genuinely untouched pair.
+**82 files remain**, and the three crews files plus CrewWarPanel share a
+vocabulary — take them together. Everything is now 3 or fewer per file.
 
 **CalorieCyclingModal is DONE and still reads 4.** Its `FIELDS` labels are now
 the English FALLBACKS passed to `tFallback(nutrient, label)`; the scanner
@@ -200,6 +201,13 @@ goal's own title and an exercise name are USER DATA and must render verbatim.
 
 ## TRAPS THAT COST TIME HERE
 
+- **Before minting a near-duplicate, grep the catalog for the SENTENCE.** The
+  profanity warning now exists SIX times — `hub.composer.profanityError`,
+  `hub.profile.removeProfanity`, `nutrition.profanityWarning`,
+  `templatesModal.profanity`, `workout.removeProfanity` and
+  `cardioManualForm.profanityNotes`. Five are the same sentence differing only
+  in which field they name. That wants one parameterised key and a sweep of
+  six call sites; it is a change of its own, and it is on the list.
 - **A guarded domain can have its OWN identical-value allow-list.**
   `gymEquip.*` is checked by `i18nEquipment.test.js`, which carries a
   `LEGITIMATE_MATCHES` set of its own — completely separate from
@@ -406,6 +414,12 @@ goal's own title and an exercise name are USER DATA and must render verbatim.
   backslash-u. Type the character.
 
 ## KNOWN FALSE POSITIVES — do not chase these
+
+**`src/components/RestTimerOverlay.jsx` (3).** Tabata 20s, Tabata 10s and
+EMOM 1:00, plus 30 / 30, 40 / 20 and 20 / 40. Tabata and EMOM are protocol
+names lifters use untranslated in every language and the rest is arithmetic,
+so six keys there would be six copies of the same numerals. The reasoning is
+a comment at the site.
 
 **`src/lib/hrZones.js` — DELETED 2026-08-22, kegan's call.** Kept here as the
 worked example. It ranked #2 on the hardcoded list at five strings and had
