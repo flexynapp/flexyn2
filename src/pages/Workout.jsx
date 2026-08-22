@@ -3211,7 +3211,7 @@ export default function Workout() {
                     className="flex flex-col items-center gap-1 py-2.5 rounded-lg hover:bg-secondary active:bg-secondary transition-colors"
                   >
                     <span className="text-2xl leading-none">{activityEmoji(a.id, userProfile?.gender)}</span>
-                    <span className="text-xs font-semibold">{a.label}</span>
+                    <span className="text-xs font-semibold">{tFallback(`cardio.activity.${a.id}`, a.label)}</span>
                   </button>
                 ))}
               </motion.div>

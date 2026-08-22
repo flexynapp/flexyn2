@@ -12,8 +12,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Download, Share2, Loader2 } from 'lucide-react';
-import { format } from 'date-fns';
 import { useLanguage } from '@/lib/LanguageContext';
+import { formatDate } from '@/lib/intl';
+import { asT } from '@/lib/translatorArg';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { fromLbs } from '@/lib/weightUnit';
 import { formatNumber } from '@/lib/intl';
@@ -58,7 +59,11 @@ function computeStats(workout, opts = {}) {
 }
 
 /** Draw the share card on the given canvas. */
-function drawCard(ctx, { username, dateStr, stats, language }) {
+// `t` is the caller's tFallback: a canvas painter cannot call useLanguage().
+// FLEXYN and "LOG. PROGRESS. LEVEL UP." stay English — brand and marketing
+// copy, which CLAUDE.md says not to machine-translate. Labels are keyed.
+function drawCard(ctx, { username, dateStr, stats, language, t }) {
+  const tf = asT(t);
   const W = CANVAS_W;
   const H = CANVAS_H;
 
@@ -98,7 +103,7 @@ function drawCard(ctx, { username, dateStr, stats, language }) {
   ctx.fillStyle = 'rgba(255,255,255,0.6)';
   ctx.font = 'bold 28px ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif';
   ctx.textAlign = 'left';
-  ctx.fillText('FLEXYN · WORKOUT COMPLETE', 80, 110);
+  ctx.fillText(tf('shareCard.workoutComplete', 'FLEXYN · WORKOUT COMPLETE'), 80, 110);
 
   // Date
   ctx.fillStyle = 'rgba(255,255,255,0.45)';
@@ -119,7 +124,7 @@ function drawCard(ctx, { username, dateStr, stats, language }) {
 
   ctx.fillStyle = 'rgba(255,255,255,0.55)';
   ctx.font = 'bold 30px ui-sans-serif, system-ui, sans-serif';
-  ctx.fillText('TOTAL VOLUME', 80, 320);
+  ctx.fillText(tf('shareCard.totalVolume', 'TOTAL VOLUME'), 80, 320);
 
   ctx.fillStyle = '#ffffff';
   ctx.font = 'bold 200px ui-sans-serif, system-ui, sans-serif';
@@ -175,7 +180,7 @@ function drawCard(ctx, { username, dateStr, stats, language }) {
     ctx.textAlign = 'left';
     ctx.fillStyle = 'rgba(255,255,255,0.55)';
     ctx.font = 'bold 28px ui-sans-serif, system-ui, sans-serif';
-    ctx.fillText('TOP LIFT', 80, 850);
+    ctx.fillText(tf('shareCard.topLift', 'TOP LIFT'), 80, 850);
 
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 56px ui-sans-serif, system-ui, sans-serif';
@@ -233,21 +238,25 @@ export default function WorkoutShareCard({ open, onClose, workout, username, inc
       } : null,
       unit: weightUnit, // shown as the suffix in drawCard
     };
+    // date-fns binds no locale, so this printed an English month onto a
+    // fully translated card. Intl is already language-bound.
     const dateStr = (() => {
-      try { return format(new Date(workout.date || Date.now()), 'MMM d, yyyy'); }
-      catch { return format(new Date(), 'MMM d, yyyy'); }
+      const opts = { month: 'short', day: 'numeric', year: 'numeric' };
+      try { return formatDate(workout.date || Date.now(), language, opts); }
+      catch { return formatDate(new Date(), language, opts); }
     })();
     drawCard(ctx, {
-      username: username || 'Athlete',
+      username: username || tFallback('shareCard.athlete', 'Athlete'),
       dateStr,
       stats,
       language,
+      t: tFallback,
     });
     // Convert to a stable preview URL
     canvas.toBlob((blob) => {
       if (blob) setImgUrl(URL.createObjectURL(blob));
     }, 'image/png');
-  }, [open, workout, username, language, includeBarWeight, weightUnit]);
+  }, [open, workout, username, language, includeBarWeight, weightUnit, tFallback]);
 
   // Clean up object URL
   useEffect(() => {
@@ -287,8 +296,8 @@ export default function WorkoutShareCard({ open, onClose, workout, username, inc
         try {
           await navigator.share({
             files: [file],
-            title: 'My Flexyn workout',
-            text: 'Just crushed a workout in Flexyn',
+            title: tFallback('shareCard.workoutTitle', 'My Flexyn workout'),
+            text: tFallback('shareCard.workoutText', 'Just crushed a workout in Flexyn'),
           });
           return;
         } catch (err) {

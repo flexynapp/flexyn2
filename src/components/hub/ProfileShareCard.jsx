@@ -18,6 +18,7 @@ import { Download, Share2, Loader2 } from 'lucide-react';
 import { loadTwemoji } from '@/lib/twemoji';
 import { format } from 'date-fns';
 import { useLanguage } from '@/lib/LanguageContext';
+import { asT } from '@/lib/translatorArg';
 
 const CANVAS_W = 1080;
 const CANVAS_H = 1080;
@@ -32,7 +33,11 @@ function roundRect(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
-function drawCard(ctx, { username, topLifts, tonnage, streak, recentWorkouts, unit }, fireIcon = null) {
+// `t` is the caller's tFallback: a canvas painter cannot call useLanguage().
+// FLEXYN and "LOG. PROGRESS. LEVEL UP." stay English — brand and marketing
+// copy, which CLAUDE.md says not to machine-translate. Labels are keyed.
+function drawCard(ctx, { username, topLifts, tonnage, streak, recentWorkouts, unit, t }, fireIcon = null) {
+  const tf = asT(t);
   const W = CANVAS_W;
   const H = CANVAS_H;
 
@@ -61,7 +66,7 @@ function drawCard(ctx, { username, topLifts, tonnage, streak, recentWorkouts, un
   // ── Header ─────────────────────────────────────────────────────────
   ctx.fillStyle = 'rgba(255,255,255,0.6)';
   ctx.font = 'bold 24px sans-serif';
-  ctx.fillText('FLEXYN · ATHLETE CARD', 80, 90);
+  ctx.fillText(tf('shareCard.athleteCard', 'FLEXYN · ATHLETE CARD'), 80, 90);
 
   ctx.fillStyle = '#ffffff';
   ctx.font = 'bold 72px sans-serif';
@@ -70,7 +75,7 @@ function drawCard(ctx, { username, topLifts, tonnage, streak, recentWorkouts, un
   // ── Hero stat — tonnage ────────────────────────────────────────────
   ctx.fillStyle = 'rgba(16, 185, 129, 0.85)';
   ctx.font = 'bold 28px sans-serif';
-  ctx.fillText('TOTAL TONNAGE', 80, 270);
+  ctx.fillText(tf('shareCard.totalTonnage', 'TOTAL TONNAGE'), 80, 270);
 
   ctx.fillStyle = '#10b981';
   ctx.font = 'bold 128px sans-serif';
@@ -88,8 +93,15 @@ function drawCard(ctx, { username, topLifts, tonnage, streak, recentWorkouts, un
   if (streak > 0) {
     const chipX = 80;
     const chipY = 430;
-    const chipW = 280;
     const chipH = 56;
+    ctx.font = 'bold 28px sans-serif';
+    // The chip was a fixed 280px, sized to "7-day streak" in English. Five of
+    // the seven released locales overflow that — Portuguese needs 278px for
+    // the TEXT alone — and so does English at a 3-digit streak. Measure and
+    // fit: 58px lead when the flame is drawn, 26px otherwise, 26px trailing.
+    const streakText = tf('shareCard.dayStreak', '{n}-day streak', { n: streak });
+    const textLead = fireIcon ? 58 : 26;
+    const chipW = Math.max(280, textLead + ctx.measureText(streakText).width + 26);
     ctx.fillStyle = 'rgba(249, 115, 22, 0.18)';
     roundRect(ctx, chipX, chipY, chipW, chipH, 28);
     ctx.fill();
@@ -102,16 +114,16 @@ function drawCard(ctx, { username, topLifts, tonnage, streak, recentWorkouts, un
     // we never fall back to the OS glyph.
     if (fireIcon) {
       ctx.drawImage(fireIcon, chipX + 22, chipY + 14, 28, 28);
-      ctx.fillText(`${streak}-day streak`, chipX + 58, chipY + 38);
+      ctx.fillText(streakText, chipX + 58, chipY + 38);
     } else {
-      ctx.fillText(`${streak}-day streak`, chipX + 26, chipY + 38);
+      ctx.fillText(streakText, chipX + 26, chipY + 38);
     }
   }
 
   // ── Top lifts ──────────────────────────────────────────────────────
   ctx.fillStyle = 'rgba(255,255,255,0.6)';
   ctx.font = 'bold 24px sans-serif';
-  ctx.fillText('TOP LIFTS · ESTIMATED 1RM', 80, 560);
+  ctx.fillText(tf('shareCard.topLifts1rm', 'TOP LIFTS · ESTIMATED 1RM'), 80, 560);
 
   (topLifts || []).slice(0, 3).forEach((lift, i) => {
     const y = 600 + i * 76;
@@ -142,7 +154,7 @@ function drawCard(ctx, { username, topLifts, tonnage, streak, recentWorkouts, un
   if (recentWorkouts && recentWorkouts.length > 0) {
     ctx.fillStyle = 'rgba(255,255,255,0.6)';
     ctx.font = 'bold 24px sans-serif';
-    ctx.fillText('RECENT WORKOUTS', 80, 870);
+    ctx.fillText(tf('shareCard.recentWorkouts', 'RECENT WORKOUTS'), 80, 870);
 
     recentWorkouts.slice(0, 3).forEach((w, i) => {
       const y = 910 + i * 44;
@@ -187,7 +199,7 @@ export default function ProfileShareCard({ open, onClose, profile }) {
     // renders the streak text without an icon.
     loadTwemoji('fire').then((fireIcon) => {
       if (cancelled) return;
-      drawCard(ctx, profile, fireIcon);
+      drawCard(ctx, { ...profile, t: tFallback }, fireIcon);
       canvas.toBlob((blob) => {
         if (!blob || cancelled) return;
         const url = URL.createObjectURL(blob);
@@ -198,7 +210,7 @@ export default function ProfileShareCard({ open, onClose, profile }) {
       }, 'image/png', 0.95);
     });
     return () => { cancelled = true; };
-  }, [open, profile]);
+  }, [open, profile, tFallback]);
 
   useEffect(() => () => {
     if (imgUrl) URL.revokeObjectURL(imgUrl);
@@ -238,7 +250,7 @@ export default function ProfileShareCard({ open, onClose, profile }) {
         try {
           await navigator.share({
             files: [file],
-            title: 'My Flexyn stats',
+            title: tFallback('shareCard.statsTitle', 'My Flexyn stats'),
             text: `@${profile?.username || 'athlete'} on Flexyn`,
           });
           return;

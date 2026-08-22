@@ -33,7 +33,7 @@ import * as hubPosts from '@/lib/data/hubPosts';
 // ── Create form ───────────────────────────────────────────────────────────────
 
 function NewTemplateForm({ onSave, onCancel }) {
-  const { t } = useLanguage();
+  const { t, tFallback } = useLanguage();
   const [name, setName] = useState('');
   const nameGuard = useProfanityGuard(setName);
   const [exercises, setExercises] = useState([]);
@@ -64,15 +64,15 @@ function NewTemplateForm({ onSave, onCancel }) {
 
   const handleSave = () => {
     if (hasAnyProfanity(name)) {
-      toast.error('Please remove inappropriate language before saving.');
+      toast.error(tFallback('templatesModal.profanity', 'Please remove inappropriate language before saving.'));
       return;
     }
     if (!name.trim()) {
-      toast.error('Give your template a name first.');
+      toast.error(tFallback('templatesModal.needName', 'Give your template a name first.'));
       return;
     }
     if (exercises.length === 0) {
-      toast.error('Add at least one exercise.');
+      toast.error(tFallback('templatesModal.needExercise', 'Add at least one exercise.'));
       return;
     }
     onSave({ name: name.trim(), exercises, is_public: isPublic, copy_count: 0 });
@@ -114,7 +114,7 @@ function NewTemplateForm({ onSave, onCancel }) {
             setExCanonical(ex.name);
             setExGroup(ex.muscles[0] || '');
           }}
-          placeholder="Search exercise..."
+          placeholder={tFallback('workout.searchExercise', 'Search exercise...')}
         />
         <div className="flex gap-2">
           <div className="flex-1">

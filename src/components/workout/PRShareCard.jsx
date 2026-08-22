@@ -17,6 +17,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Download, Share2, Loader2 } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
+import { asT } from '@/lib/translatorArg';
 import { formatNumber } from '@/lib/intl';
 
 const CANVAS_W = 1080;
@@ -33,7 +34,11 @@ function roundRect(ctx, x, y, w, h, r) {
 }
 
 /** Draw the PR card. */
-function drawCard(ctx, { username, exerciseName, newPR, oldPR, delta, unit, language }) {
+// `t` is the caller's tFallback: a canvas painter cannot call useLanguage().
+// FLEXYN and "LOG. PROGRESS. LEVEL UP." stay English — brand and marketing
+// copy, which CLAUDE.md says not to machine-translate. Labels are keyed.
+function drawCard(ctx, { username, exerciseName, newPR, oldPR, delta, unit, language, t }) {
+  const tf = asT(t);
   const W = CANVAS_W;
   const H = CANVAS_H;
 
@@ -75,7 +80,7 @@ function drawCard(ctx, { username, exerciseName, newPR, oldPR, delta, unit, lang
   ctx.fillStyle = 'rgba(255,255,255,0.65)';
   ctx.font = 'bold 28px ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif';
   ctx.textAlign = 'left';
-  ctx.fillText('FLEXYN · NEW PR', 80, 110);
+  ctx.fillText(tf('shareCard.newPr', 'FLEXYN · NEW PR'), 80, 110);
 
   // Username.
   ctx.fillStyle = '#ffffff';
@@ -86,7 +91,7 @@ function drawCard(ctx, { username, exerciseName, newPR, oldPR, delta, unit, lang
   // Exercise label.
   ctx.fillStyle = 'rgba(255,255,255,0.55)';
   ctx.font = 'bold 30px ui-sans-serif, system-ui, sans-serif';
-  ctx.fillText('EXERCISE', 80, 320);
+  ctx.fillText(tf('shareCard.exercise', 'EXERCISE'), 80, 320);
 
   ctx.fillStyle = '#ffffff';
   ctx.font = 'bold 48px ui-sans-serif, system-ui, sans-serif';
@@ -103,7 +108,7 @@ function drawCard(ctx, { username, exerciseName, newPR, oldPR, delta, unit, lang
 
   ctx.fillStyle = 'rgba(255,255,255,0.55)';
   ctx.font = 'bold 30px ui-sans-serif, system-ui, sans-serif';
-  ctx.fillText('NEW RECORD', 80, 480);
+  ctx.fillText(tf('shareCard.newRecord', 'NEW RECORD'), 80, 480);
 
   ctx.fillStyle = '#ffffff';
   ctx.font = 'bold 220px ui-sans-serif, system-ui, sans-serif';
@@ -130,7 +135,7 @@ function drawCard(ctx, { username, exerciseName, newPR, oldPR, delta, unit, lang
     ctx.fillStyle = 'rgba(251, 191, 36, 0.85)';
     ctx.font = 'bold 30px ui-sans-serif, system-ui, sans-serif';
     ctx.textAlign = 'left';
-    ctx.fillText('GAIN', 120, 800);
+    ctx.fillText(tf('shareCard.gain', 'GAIN'), 120, 800);
 
     ctx.fillStyle = '#fbbf24';
     ctx.font = 'bold 64px ui-sans-serif, system-ui, sans-serif';
@@ -159,7 +164,8 @@ export default function PRShareCard({ open, onClose, pr, unit = 'lb', username }
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     drawCard(ctx, {
-      username:     username || 'Athlete',
+      t:            tFallback,
+      username:     username || tFallback('shareCard.athlete', 'Athlete'),
       exerciseName: pr.displayName,
       newPR:        pr.newPR,
       oldPR:        pr.oldPR,
@@ -177,7 +183,7 @@ export default function PRShareCard({ open, onClose, pr, unit = 'lb', username }
         return nextUrl;
       });
     }, 'image/png');
-  }, [open, pr, unit, username, language]);
+  }, [open, pr, unit, username, language, tFallback]);
 
   useEffect(() => {
     return () => { if (imgUrl) URL.revokeObjectURL(imgUrl); };
@@ -219,7 +225,7 @@ export default function PRShareCard({ open, onClose, pr, unit = 'lb', username }
           const newPRNum = Math.round(pr?.newPR ?? 0);
           await navigator.share({
             files: [file],
-            title: 'New PR',
+            title: tFallback('shareCard.prTitle', 'New PR'),
             text: `New PR — ${exName}: ${newPRNum} ${unit}`,
           });
           return;

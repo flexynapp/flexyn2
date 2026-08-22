@@ -181,6 +181,8 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'crew.applicantLevel',
   ]),
   fr: new Set([
+    // "GAIN" is the same word in French.
+    'shareCard.gain',
     // "Volume" is the same word in French.
     'crew.discover.sort.volume',
     // "calories" is the same word in French, so the whole template matches.
@@ -527,6 +529,8 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'workout.templates.reps',
   ]),
   pt: new Set([
+    // "Bike" is the loanword Brazilian Portuguese uses for the activity.
+    'cardio.activity.cycling',
     // "Volume" is the same word in Portuguese.
     'crew.discover.sort.volume',
     // "Social." is the same word in Portuguese.

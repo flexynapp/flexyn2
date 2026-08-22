@@ -20,6 +20,9 @@ import { triggerHaptic } from '@/lib/haptic';
 import { useLanguage } from '@/lib/LanguageContext';
 import TransText from '@/components/TransText';
 
+// `label` is the English fallback for `cardio.activity.<id>`, resolved at
+// BOTH render sites (here and Workout.jsx's add-cardio menu). `name` is the
+// exercise name written to the log and must stay English — it is data.
 export const CARDIO_ACTIVITIES = [
   { id: 'walking',  label: 'Walk', emoji: '🚶', name: 'Walking' },
   { id: 'running',  label: 'Run',  emoji: '🏃', name: 'Running' },
@@ -122,7 +125,7 @@ export default function CardioLogger({ exercise, onChange, gender }) {
                 a.id === activity.id ? 'bg-primary text-primary-foreground' : 'bg-secondary/60 text-muted-foreground hover:text-foreground active:text-foreground',
               ].join(' ')}
             >
-              {a.label}
+              {tFallback(`cardio.activity.${a.id}`, a.label)}
             </button>
           ))}
         </div>

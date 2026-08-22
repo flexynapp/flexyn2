@@ -22,6 +22,7 @@ import { Button } from '@/components/ui/button';
 import { Download, Share2, Loader2 } from 'lucide-react';
 import { format, subDays } from 'date-fns';
 import { useLanguage } from '@/lib/LanguageContext';
+import { asT } from '@/lib/translatorArg';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { fromLbs } from '@/lib/weightUnit';
 import { formatNumber } from '@/lib/intl';
@@ -47,7 +48,11 @@ function roundRect(ctx, x, y, w, h, r) {
 }
 
 /** Draw the weekly recap share card. */
-function drawCard(ctx, { username, weekRangeStr, recap, weightUnit, language }) {
+// `t` is the caller's tFallback: a canvas painter cannot call useLanguage().
+// FLEXYN and "LOG. PROGRESS. LEVEL UP." stay English — brand and marketing
+// copy, which CLAUDE.md says not to machine-translate. Labels are keyed.
+function drawCard(ctx, { username, weekRangeStr, recap, weightUnit, language, t }) {
+  const tf = asT(t);
   const W = CANVAS_W;
   const H = CANVAS_H;
 
@@ -91,7 +96,7 @@ function drawCard(ctx, { username, weekRangeStr, recap, weightUnit, language }) 
   ctx.fillStyle = 'rgba(255,255,255,0.6)';
   ctx.font = 'bold 28px ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif';
   ctx.textAlign = 'left';
-  ctx.fillText('FLEXYN · WEEK IN REVIEW', 80, 110);
+  ctx.fillText(tf('shareCard.weekInReview', 'FLEXYN · WEEK IN REVIEW'), 80, 110);
 
   // Week range, right-aligned.
   ctx.fillStyle = 'rgba(255,255,255,0.45)';
@@ -103,12 +108,12 @@ function drawCard(ctx, { username, weekRangeStr, recap, weightUnit, language }) 
   ctx.fillStyle = '#ffffff';
   ctx.textAlign = 'left';
   ctx.font = 'bold 64px ui-sans-serif, system-ui, sans-serif';
-  ctx.fillText(username || 'Athlete', 80, 220);
+  ctx.fillText(username || tf('shareCard.athlete', 'Athlete'), 80, 220);
 
   // ── Hero stat: workouts this week ─────────────────────────────────────
   ctx.fillStyle = 'rgba(255,255,255,0.55)';
   ctx.font = 'bold 30px ui-sans-serif, system-ui, sans-serif';
-  ctx.fillText('WORKOUTS THIS WEEK', 80, 320);
+  ctx.fillText(tf('shareCard.workoutsThisWeek', 'WORKOUTS THIS WEEK'), 80, 320);
 
   const workoutsStr = String(recap?.workouts ?? 0);
   ctx.fillStyle = '#ffffff';
@@ -127,7 +132,7 @@ function drawCard(ctx, { username, weekRangeStr, recap, weightUnit, language }) 
       return ctx.measureText(workoutsStr).width;
     })();
     ctx.font = 'bold 48px ui-sans-serif, system-ui, sans-serif';
-    ctx.fillText(`${deltaStr} vs last`, 80 + wStrW + 24, 510);
+    ctx.fillText(tf('shareCard.vsLast', '{d} vs last', { d: deltaStr }), 80 + wStrW + 24, 510);
   }
 
   // ── Stat row: three secondary boxes ───────────────────────────────────
@@ -135,17 +140,17 @@ function drawCard(ctx, { username, weekRangeStr, recap, weightUnit, language }) 
   const volumeUnit = weightUnit === 'kg' ? 'kg' : weightUnit === 'stone' ? 'st' : 'lb';
   const statBoxes = [
     {
-      label: 'TOTAL VOLUME',
+      label: tf('shareCard.totalVolume', 'TOTAL VOLUME'),
       value: compactVolume(volume, language),
       suffix: volumeUnit,
     },
     {
-      label: 'DAYS ACTIVE',
+      label: tf('shareCard.daysActive', 'DAYS ACTIVE'),
       value: String(recap?.daysActive ?? 0),
       suffix: '/ 7',
     },
     {
-      label: 'NEW PRS',
+      label: tf('shareCard.newPrs', 'NEW PRS'),
       value: String(recap?.prs?.length ?? 0),
       suffix: null,
     },
@@ -187,7 +192,7 @@ function drawCard(ctx, { username, weekRangeStr, recap, weightUnit, language }) 
     ctx.textAlign = 'left';
     ctx.fillStyle = 'rgba(255,255,255,0.55)';
     ctx.font = 'bold 28px ui-sans-serif, system-ui, sans-serif';
-    ctx.fillText('HEAVIEST LIFT', 80, 870);
+    ctx.fillText(tf('shareCard.heaviestLift', 'HEAVIEST LIFT'), 80, 870);
 
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 48px ui-sans-serif, system-ui, sans-serif';
@@ -242,11 +247,15 @@ export default function WeeklyRecapShareCard({ open, onClose, recap, username })
     try {
       const ctx = canvas.getContext('2d');
       drawCard(ctx, {
-        username: username || 'Athlete',
+        // Raw, not `username || 'Athlete'`: the fallback belongs inside
+        // drawCard, where it can be translated. Defaulting here made the
+        // keyed one unreachable.
+        username,
         weekRangeStr,
         recap,
         weightUnit,
         language,
+        t: tFallback,
       });
       setImgUrl(canvas.toDataURL('image/png'));
       setDrawFailed(false);
@@ -257,7 +266,7 @@ export default function WeeklyRecapShareCard({ open, onClose, recap, username })
         .then(({ reportError }) => reportError(err, { feature: 'recap.share.draw' }))
         .catch(() => {});
     }
-  }, [open, recap, username, weekRangeStr, weightUnit, language]);
+  }, [open, recap, username, weekRangeStr, weightUnit, language, tFallback]);
 
   const blobFromCanvas = () => new Promise((resolve) => {
     canvasRef.current?.toBlob((b) => resolve(b), 'image/png');
@@ -297,8 +306,8 @@ export default function WeeklyRecapShareCard({ open, onClose, recap, username })
         try {
           await navigator.share({
             files: [file],
-            title: 'My Flexyn week',
-            text: 'My week in Flexyn',
+            title: tFallback('shareCard.weekTitle', 'My Flexyn week'),
+            text: tFallback('shareCard.weekText', 'My week in Flexyn'),
           });
           return;
         } catch (err) {
