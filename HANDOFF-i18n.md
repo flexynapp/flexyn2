@@ -15,17 +15,17 @@ every "94% real" predates a correct measurement.
 | | then | now |
 |---|---|---|
 | untranslatable keys | 781 | **0** |
-| hardcoded strings | 725 (undercounted) | **174** (honest) |
-| en.json | 3,895 | 6,165 |
-| es / fr | 70.5% | **99.4%** (6,126) |
-| de / it / nl / pl | — | 95.7% (5,902) |
-| pt | — | 94.5% (5,825) |
-| tr | 2,137 | 2,368 / 6,165 |
+| hardcoded strings | 725 (undercounted) | **160** (honest) |
+| en.json | 3,895 | 6,198 |
+| es / fr | 70.5% | **99.4%** (6,159) |
+| de / it / nl / pl | — | 95.8% (5,935) |
+| pt | — | 94.5% (5,858) |
+| tr | 2,137 | 2,376 / 6,198 |
 
 `npm run i18n:audit` section E is the honest number. Section B is CATALOG
 coverage and is not what a user sees — do not quote it.
 
-**Everything up to `bbb3d862` is verified: 5,266 tests across 385 files, lint
+**Everything up to `6d2d1dbb` is verified: 5,266 tests across 385 files, lint
 clean, `npm run build` clean.** Run all three. The suite alone is not the
 gate — see the DiscoveryCards entry under TRAPS.
 
@@ -47,20 +47,26 @@ untranslated.
 **Finish the 247 hardcoded strings.** UI copy that never reaches a catalog.
 `npm run i18n:hardcoded -- --list` enumerates them; the largest are:
 
-    11  src/lib/aiCoach/workoutGenerator.js   ← SEE "KNOWN FALSE POSITIVES"
-     4  src/components/gyms/GymEquipmentEditor.jsx
-     4  src/components/nutrition/CalorieCyclingModal.jsx  ← already keyed, see below
-     4  src/components/settings/AboutSection.jsx
-     4  src/lib/aiCoach/planBuilder.js
-     4  src/lib/cyclePhase.js
-     4  src/lib/data/coinShop.js
-     4  src/lib/exerciseEquipment.js
+    11  src/lib/aiCoach/workoutGenerator.js   ← FALSE POSITIVE
+     4  src/components/nutrition/CalorieCyclingModal.jsx  ← keyed; label is the fallback
+     4  src/lib/aiCoach/planBuilder.js                    ← keyed; label is the fallback
+     4  src/lib/data/coinShop.js                          ← keyed; see FALSE POSITIVES
      4  src/pages/GymMap.jsx
      4  src/pages/SignInToContinue.jsx
+     3  src/components/ConnectedAppsSection.jsx
+     3  src/components/RestTimerOverlay.jsx
+     3  src/components/cardio/CardioManualForm.jsx
+     3  src/components/crews/CrewCreationFlow.jsx
 
-then a tail of 1–4 across ~95 files, flat from 4 down. `cyclePhase`,
-`planBuilder`, `coinShop` and `exerciseEquipment` are lib data modules wanting
-the translator-argument pattern and are the natural next group.
+**Four of the top six are already done.** Once a slug→label map is resolved at
+its render site the module's English label IS the fallback, and the scanner
+counts it forever — its map heuristic keys on a sibling `id` property, so any
+map naming its slug `key`, `sku` or `value` stays on the list. Read the render
+site before assuming a file is outstanding. The real top is 4 and the honest
+remaining count is nearer 140 than 160.
+
+Then a tail of 1–3 across ~90 files. `GymMap` and `SignInToContinue` are the
+next genuinely untouched pair.
 
 **CalorieCyclingModal is DONE and still reads 4.** Its `FIELDS` labels are now
 the English FALLBACKS passed to `tFallback(nutrient, label)`; the scanner
@@ -194,6 +200,24 @@ goal's own title and an exercise name are USER DATA and must render verbatim.
 
 ## TRAPS THAT COST TIME HERE
 
+- **A guarded domain can have its OWN identical-value allow-list.**
+  `gymEquip.*` is checked by `i18nEquipment.test.js`, which carries a
+  `LEGITIMATE_MATCHES` set of its own — completely separate from
+  `ALLOW_IDENTICAL` in `i18n-check.js`. Eight new keys turned fourteen tests
+  red on Cardio, Kettlebell and Machine. Adding to the global list would not
+  have helped. **When a domain test goes red on a cognate, look for the
+  allow-list inside that test file first.**
+- **A module-scope options array freezes whichever language loaded first.**
+  `GymEquipmentEditor`'s `BRAND_OPTIONS` was built at import time, so a keyed
+  label in it would never change when the user switched language. It is a
+  `useMemo(tFallback)` now, like the type groups beside it. Check for
+  `const X_OPTIONS = [...]` at module scope before keying anything inside it.
+- **Gendered agreement has now appeared in four languages** (de, es, pl, fr).
+  It is not a German quirk. Anywhere the copy describes the reader, prefer a
+  form that carries no agreement: a noun the feature owns (PREPARACIÓN,
+  GOTOWOŚĆ), an invariable adjective (es "fuerte", "al mejor"), or a verb.
+  The cycle tracker is the sharpest case — it is opt-in, and assuming its
+  users' gender in the copy is exactly the assumption not to make.
 - **Canvas text has no truncation, no wrap, and ships as a PNG the user
   posts.** The four share cards paint their labels at fixed coordinates. There
   is no ellipsis and no way for anyone to notice afterwards, so a canvas
