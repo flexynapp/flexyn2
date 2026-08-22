@@ -25,7 +25,17 @@ export async function listItemsForHighlight(highlightId) {
   if (!highlightId) return [];
   const { data, error } = await supabase
     .from('story_highlight_items')
-    .select('id, story_id, added_at, stories(id, image_url, video_url, created_at)')
+    // `stories` has no `video_url` — video lives in `image_url` with
+    // `media_type = 'video'` (mig 045). Selecting a column that does not
+    // exist makes PostgREST answer 400 for the whole embed, and the
+    // `if (error) return []` below turned that into "This album is empty."
+    // on every highlight ever opened. The overlay columns are here because
+    // StoryViewer renders them; without them a highlight replayed a story
+    // stripped of its text and stickers.
+    .select(
+      'id, story_id, added_at, ' +
+      'stories(id, image_url, media_type, overlay_text, overlay_style, overlays, created_at)'
+    )
     .eq('highlight_id', highlightId)
     .order('added_at', { ascending: false });
   if (error) return [];
