@@ -228,12 +228,15 @@ export default function CycleTrackerCard({ profile }) {
             >
               <div className="flex items-center gap-2 mb-1">
                 <span className="text-xl leading-none" aria-hidden="true">{state.phaseMeta.emoji}</span>
+                {/* One key, not "{label} phase" assembled here — Spanish puts
+                    the noun first ("Fase folicular") and a concatenation
+                    cannot move it. */}
                 <p className="font-heading font-bold text-sm" style={{ color: state.phaseMeta.color }}>
-                  {state.phaseMeta.label} phase
+                  {tFallback(`cycle.phaseLine.${state.phase}`, `${state.phaseMeta.label} phase`)}
                 </p>
               </div>
               <p className="text-micro text-foreground/85 leading-snug">
-                {state.hint}
+                {tFallback(`cycle.hint.${state.phase}`, state.hint)}
               </p>
             </div>
           </div>

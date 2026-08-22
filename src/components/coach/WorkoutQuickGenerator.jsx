@@ -184,7 +184,7 @@ export default function WorkoutQuickGenerator({ userProfile = {}, onSaveRegimen,
             }`}
           >
             <Icon className="w-4 h-4" />
-            {label}
+            {tFallback(`generator.type.${id}`, label)}
           </button>
         ))}
       </div>
@@ -194,7 +194,7 @@ export default function WorkoutQuickGenerator({ userProfile = {}, onSaveRegimen,
         <Pillset label={tFallback('generator.focus', 'Focus')} options={FOCUS_OPTIONS} value={focus} onChange={setFocus} keyPrefix="routines.focus." />
       )}
       {isCardio && (
-        <Pillset label={tFallback('generator.style', 'Style')} options={CARDIO_STYLES} value={cardioStyle} onChange={setCardioStyle} />
+        <Pillset label={tFallback('generator.style', 'Style')} options={CARDIO_STYLES} value={cardioStyle} onChange={setCardioStyle} keyPrefix="coach.cardioStyle." />
       )}
 
       <Pillset label={tFallback('generator.duration', 'Duration')} options={DURATION_OPTIONS} value={duration} onChange={setDuration} keyPrefix="generator.duration." />

@@ -55,14 +55,14 @@ export default function AboutSection() {
     // toast on insecure-context HTTP and on browsers without the API.
     // (Audit 14 #30.)
     if (!navigator?.clipboard?.writeText) {
-      toast.error('Clipboard not available. Copy from the diagnostic dialog below.');
+      toast.error(tFallback('aboutSection.clipboardUnavailable', 'Clipboard not available. Copy from the diagnostic dialog below.'));
       return;
     }
     try {
       await navigator.clipboard.writeText(diagnosticString());
-      toast.success('Copied build info to clipboard.');
+      toast.success(tFallback('capsuleOpener.buildCopied', 'Copied build info to clipboard.'));
     } catch {
-      toast.error('Could not copy. Your browser blocked clipboard access.');
+      toast.error(tFallback('capsuleOpener.copyBlocked', 'Could not copy. Your browser blocked clipboard access.'));
     }
   };
 
@@ -125,7 +125,7 @@ export default function AboutSection() {
         >
           {tFallback("aboutSection.twemoji", "Twemoji")}
         </a>
-        {' '}© Twitter, Inc and other contributors, licensed under{' '}
+        {' '}{tFallback('settings.credits.twemojiLicence', '© Twitter, Inc and other contributors, licensed under')}{' '}
         <a
           href="https://creativecommons.org/licenses/by/4.0/"
           target="_blank"

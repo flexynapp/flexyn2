@@ -65,6 +65,22 @@ describe('nothing silently left in English', () => {
   // that genuinely are the same word in that language.
   const LEGITIMATE_MATCHES = new Set([
     'nl:gymEquip.pickBrand',   // "Merk" differs, but guard the pattern
+    // Cardio is on _glossary.json's doNotTranslate list, so the group
+    // heading is English in every language ON PURPOSE. Listed per language
+    // rather than as a wildcard: a wildcard here would also swallow the next
+    // key that happens to start with the same prefix.
+    ...['es', 'fr', 'de', 'pt', 'it', 'ja', 'ko', 'zh', 'ar', 'hi', 'ru', 'tr', 'pl', 'nl']
+      .map(l => `${l}:gymEquip.group.cardio`),
+    // "Kettlebells" is the loanword these five actually use. Polish inflects
+    // it (Kettlebelle) and so is genuinely translated.
+    'es:gymEquip.group.kettlebell',
+    'fr:gymEquip.group.kettlebell',
+    'de:gymEquip.group.kettlebell',
+    'pt:gymEquip.group.kettlebell',
+    'nl:gymEquip.group.kettlebell',
+    // "Machines" is spelled the same in French and Dutch.
+    'fr:gymEquip.group.machine',
+    'nl:gymEquip.group.machine',
   ]);
 
   it.each(LANGS.filter(l => l !== 'en'))('%s translates every string', (lang) => {

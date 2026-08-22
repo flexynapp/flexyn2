@@ -48,6 +48,9 @@ import {
 
 // The 57 implement types are unusable as one flat wall of pills. Grouped
 // by the `kind` already on each type, in the order an owner walks a gym.
+// `label` is the English fallback for `gymEquip.group.<id>`, resolved at the
+// heading below. The GROUPS order is the order an owner walks a gym and must
+// not move with the language.
 const GROUPS = [
   { id: 'machine',    label: 'Machines' },
   { id: 'cable',      label: 'Cables' },
@@ -86,8 +89,12 @@ export function brandToPersist(houseBrand) {
 }
 
 // Commercial brands first — an owner is not kitting out with Bowflex.
-const BRAND_OPTIONS = [
-  { value: NO_BRAND, label: 'No house brand' },
+// `label` on the sentinel row is the English fallback for
+// `gymEquip.noHouseBrand`; the real brands come from brandLabel(), which is
+// already keyed. Resolved where the Select is built, not here — this list is
+// module scope and would freeze whatever language loaded first.
+const brandOptions = (tf) => [
+  { value: NO_BRAND, label: tf('gymEquip.noHouseBrand', 'No house brand') },
   ...BRAND_SLUGS
     .filter(s => BRAND_META[s].scope !== 'home' && s !== 'unknown' && s !== 'other')
     .map(s => ({ value: s, label: brandLabel(s) })),
@@ -96,6 +103,7 @@ const BRAND_OPTIONS = [
 export default function GymEquipmentEditor({ gymId, ownerId }) {
   const { tFallback } = useLanguage();
   const TYPES_BY_GROUP = useMemo(() => typesByGroup(tFallback), [tFallback]);
+  const BRAND_ITEMS = useMemo(() => brandOptions(tFallback), [tFallback]);
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pending, setPending] = useState(0);
@@ -223,7 +231,7 @@ export default function GymEquipmentEditor({ gymId, ownerId }) {
           value={houseBrand}
           onValueChange={setHouseBrand}
           placeholder={tFallback('gymEquipEditor.houseBrand', 'House brand (optional)')}
-          items={BRAND_OPTIONS}
+          items={BRAND_ITEMS}
         />
         {houseBrand !== NO_BRAND && (
           <p className="text-micro text-muted-foreground mt-1">
@@ -241,7 +249,7 @@ export default function GymEquipmentEditor({ gymId, ownerId }) {
           {TYPES_BY_GROUP.map(group => (
             <div key={group.id}>
               <p className="text-micro font-semibold text-muted-foreground/80 mb-1.5">
-                {group.label}
+                {tFallback(`gymEquip.group.${group.id}`, group.label)}
               </p>
               <div className="flex flex-wrap gap-1.5">
                 {group.types.map(type => {

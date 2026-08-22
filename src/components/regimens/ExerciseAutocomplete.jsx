@@ -473,7 +473,7 @@ const EXERCISE_LIBRARY = [
 export { EXERCISE_LIBRARY };
 
 export default function ExerciseAutocomplete({ value, onChange, onSelect, placeholder, userEmail }) {
-  const { t, language } = useLanguage();
+  const { t, tFallback, language } = useLanguage();
   const [query, setQuery] = useState(value || '');
   const [open, setOpen] = useState(false);
   const [equipmentFilter, setEquipmentFilter] = useState('all');
@@ -591,7 +591,7 @@ export default function ExerciseAutocomplete({ value, onChange, onSelect, placeh
                   : 'border-border/60 text-muted-foreground hover:border-primary/40 bg-card'
               }`}
             >
-              {f.label}
+              {tFallback(`exerciseEquip.filter.${f.id}`, f.label)}
             </button>
           ))}
         </div>

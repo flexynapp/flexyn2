@@ -41,7 +41,8 @@ export function classifyEquipment(name) {
   return 'other';
 }
 
-// Display metadata for the filter pill row.
+// Display metadata for the filter pill row. `label` is the English fallback
+// for `exerciseEquip.filter.<id>`, resolved where the pills render.
 export const EQUIPMENT_FILTERS = [
   { id: 'all',        label: 'All' },
   { id: 'barbell',    label: 'Barbell' },

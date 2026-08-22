@@ -295,6 +295,9 @@ function sessionToView(workout) {
 
 // ── Cardio (Quick-pick "Cardio" type) ────────────────────────────────────────
 
+// `label` is the English fallback for `coach.cardioStyle.<id>` AND the name
+// that lands in the saved plan payload, which is data. Keep it English here
+// and resolve at the pill row.
 export const CARDIO_STYLES = [
   { id: 'easy',      label: 'Easy Run' },
   { id: 'intervals', label: 'Intervals' },

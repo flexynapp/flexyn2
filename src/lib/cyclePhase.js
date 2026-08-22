@@ -23,6 +23,10 @@
 
 const DEFAULT_LEN = 28;
 
+// `label` is the English fallback for `cycle.phase.<id>`, resolved at the
+// render site. The module stays pure: `color` and `emoji` are what a caller
+// needs from here, and a translated label would break nothing today but
+// would make this the second place a phase name lives.
 export const PHASE = {
   menstrual:  { id: 'menstrual',  label: 'Menstrual',  color: '#dc2626', emoji: '🌸' },
   follicular: { id: 'follicular', label: 'Follicular', color: '#10b981', emoji: '🌱' },
@@ -43,9 +47,12 @@ export const PHASE = {
 // The ovulation note is the least hedged of the four because connective-
 // tissue laxity around the oestrogen peak has real mechanistic support and a
 // documented association with ACL injury risk.
+// Keyed as `cycle.hint.<id>` at the render site. These are hedged on purpose
+// (see above) and a translation has to keep the hedging — "many people feel
+// strong here" is not "you will feel strong here".
 const TRAINING_HINT = {
   menstrual:  'Train as normal if you feel good. If cramps or fatigue hit, lighter cardio and mobility still count.',
-  follicular: 'Many people feel strong here — a good week to chase a heavy set, if the warm-up says so.',
+  follicular: 'Many people feel strong here. A good week to chase a heavy set, if the warm-up says so.',
   ovulation:  'Ligaments sit a little laxer around now. Warm up thoroughly and stay strict on knee tracking.',
   luteal:     'Effort can run higher for the same weight. Judge sessions by effort, and take the longer rest.',
 };

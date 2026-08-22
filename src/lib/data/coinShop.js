@@ -43,7 +43,7 @@ export const SHOP_CATALOG = {
     // Google Play's real-money-gambling policy both require published,
     // accurate odds for loot boxes. See getCapsuleOdds() below — the shop
     // now renders the true numbers rather than a claim.
-    description: 'The best odds we offer. Real shot at legendary.',
+    description: 'Our best odds. Real shot at legendary.',
     icon: CAPSULE_GLYPH.elite,
     price: 1000,
     rarity: 'epic',

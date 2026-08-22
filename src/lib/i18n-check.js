@@ -112,6 +112,11 @@ const ALLOW_IDENTICAL = new Set([
   'crewTrophies.levelN',
   'legal.googleApple',                  // "Google / Apple" — two brand names
   'crew.discover.sort.level',           // "Level"    — a doNotTranslate term
+  'generator.type.cardio',              // "Cardio"   — a doNotTranslate term
+  'gymEquip.group.cardio',              // "Cardio"   — same
+  'generator.type.hiit',                // "HIIT"     — the acronym, everywhere
+  'exerciseEquip.filter.kettlebell',    // "Kettlebell" — the loanword all 7 use
+  'gymEquip.group.kettlebell',          // "Kettlebells" — same, except pl
 ]);
 
 /**
@@ -181,6 +186,10 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'crew.applicantLevel',
   ]),
   fr: new Set([
+    // "Machine" is the same word in French.
+    'exerciseEquip.filter.machine',
+    // "Machines" is the same word in French.
+    'gymEquip.group.machine',
     // "GAIN" is the same word in French.
     'shareCard.gain',
     // "Volume" is the same word in French.
@@ -345,6 +354,8 @@ const ALLOW_IDENTICAL_BY_LANG = {
   // triple and the abbreviations of words this catalog already uses
   // (duels.wins "Siege", duels.losses "Niederlagen").
   de: new Set([
+    // "Band" is the same word in German.
+    'exerciseEquip.filter.band',
     // "Gyms." — the loanword German actually uses, and the app's own term.
     'legal.dataGymsLabel',
     // Themes — the shipped copy already says "Level-Themes".
@@ -719,6 +730,16 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'workout.templates.reps',
   ]),
   nl: new Set([
+    // "Band" is the same word in Dutch.
+    'exerciseEquip.filter.band',
+    // "Barbell" is the loanword Dutch lifters use.
+    'exerciseEquip.filter.barbell',
+    // "Dumbbell" is the loanword Dutch lifters use.
+    'exerciseEquip.filter.dumbbell',
+    // "Machine" is the same word in Dutch.
+    'exerciseEquip.filter.machine',
+    // "Machines" is the same word in Dutch.
+    'gymEquip.group.machine',
     // "Volume" is the same word in Dutch.
     'crew.discover.sort.volume',
     // "Account." is the loanword Dutch uses.
