@@ -15,17 +15,17 @@ every "94% real" predates a correct measurement.
 | | then | now |
 |---|---|---|
 | untranslatable keys | 781 | **0** |
-| hardcoded strings | 725 (undercounted) | **211** (honest) |
-| en.json | 3,895 | 6,111 |
-| es / fr | 70.5% | **99.4%** (6,072) |
-| de / it / nl / pl | — | 95.7% (5,848) |
-| pt | — | 94.4% (5,771) |
-| tr | 2,137 | 2,364 / 6,111 |
+| hardcoded strings | 725 (undercounted) | **191** (honest) |
+| en.json | 3,895 | 6,133 |
+| es / fr | 70.5% | **99.4%** (6,094) |
+| de / it / nl / pl | — | 95.7% (5,870) |
+| pt | — | 94.5% (5,793) |
+| tr | 2,137 | 2,364 / 6,133 |
 
 `npm run i18n:audit` section E is the honest number. Section B is CATALOG
 coverage and is not what a user sees — do not quote it.
 
-**Everything up to `eb212467` is verified: 5,261 tests across 381 files, lint
+**Everything up to `6738a09f` is verified: 5,252 tests across 381 files, lint
 clean, `npm run build` clean.** Run all three. The suite alone is not the
 gate — see the DiscoveryCards entry under TRAPS.
 
@@ -48,19 +48,28 @@ untranslated.
 `npm run i18n:hardcoded -- --list` enumerates them; the largest are:
 
     11  src/lib/aiCoach/workoutGenerator.js   ← SEE "KNOWN FALSE POSITIVES"
-     4  src/components/crews/CrewBattleEntry.jsx
-     4  src/components/crews/CrewDiscovery.jsx
      4  src/components/dashboard/WeeklyRecapShareCard.jsx
      4  src/components/gyms/GymEquipmentEditor.jsx
-     4  src/components/nutrition/CalorieCyclingModal.jsx
-     4  src/components/nutrition/LogRecipeSheet.jsx
-     4  src/components/nutrition/MealTypePicker.jsx
-     4  src/components/nutrition/NutritionOnboardingModal.jsx
+     4  src/components/nutrition/CalorieCyclingModal.jsx  ← already keyed, see below
+     4  src/components/settings/AboutSection.jsx
+     4  src/components/workout/CardioLogger.jsx
+     4  src/components/workout/TemplatesModal.jsx
+     4  src/lib/aiCoach/planBuilder.js
+     4  src/lib/cyclePhase.js
+     4  src/lib/data/coinShop.js
 
-then a tail of 1–4 across ~105 files. `workoutGenerator` is the one remaining
-false positive, so the real top is 4 and it is flat from there down. The crews
-pair and the four nutrition files each share a vocabulary; take them
-together.
+then a tail of 1–4 across ~100 files, flat from 4 down.
+`WeeklyRecapShareCard` draws its text into a CANVAS, so the translator has to
+reach a drawing function rather than JSX — a shape nothing here has done yet.
+`cyclePhase` and `planBuilder` are lib data modules wanting the
+translator-argument pattern.
+
+**CalorieCyclingModal is DONE and still reads 4.** Its `FIELDS` labels are now
+the English FALLBACKS passed to `tFallback(nutrient, label)`; the scanner
+counts them because the heuristic that recognises a slug→label map keys on a
+sibling `id` property and this map's slug field is called `key`. Covered, not
+outstanding. Expect the same wherever a map names its slug something other
+than `id`.
 
 **`src/pages/Legal.jsx` LABELS ARE DONE; the BODY stays English by
 decision.** Kegan chose that on 2026-08-21 after the trade was put to him.
@@ -187,6 +196,27 @@ goal's own title and an exercise name are USER DATA and must render verbatim.
 
 ## TRAPS THAT COST TIME HERE
 
+- **A computed key is a CLAIM, not a fact, and it keeps being false.** Four
+  families found in two days, all rendering English in fifteen languages while
+  the call site read as finished: `readiness.action.*` (ReadinessCard),
+  `nutrition.macro.*` (CalorieCyclingModal), `crew.discover.sort.*`
+  (CrewDiscovery), and the eight `hero.unit.*` before them. **Every time you
+  see a backtick inside `tFallback(`, grep en.json for the prefix before
+  moving on.** It is one command and it has paid four times.
+- **Grep a template key by its PREFIX, never by a whole key.**
+  `mealPlanner.slot.breakfast` returns nothing in `src/` and the family is
+  very much alive — the weekly planner reads it through
+  `slotLabelKey(slot)`. Deleting it as dead would have blanked every slot
+  header in the planner.
+- **`.toLowerCase()` on a translated word is an English-only operation.**
+  LogRecipeSheet lower-cased a meal name for its CTA; German capitalises its
+  nouns, so the moment the word is translated the transform is wrong. Same
+  class as a hardcoded plural `s`.
+- **When a bolded node sits inside a sentence, the bold is its own key and it
+  must land on the emphasised WORD.** French and Italian need a verb phrase
+  where English needs one adverb, and Polish needs "nigdy" inside its double
+  negation. A first draft put the Polish bold on "to" (this), which
+  emphasises the wrong word while reading fine to anyone skimming.
 - **A scanner reading zero is a statement about what it can SEE.**
   `npm run i18n:orphans` read `0 (baseline 0)` while five real orphans sat in
   `ReadinessCard.jsx` — because the map holds the key and the call site is
