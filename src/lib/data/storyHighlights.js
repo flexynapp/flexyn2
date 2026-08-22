@@ -6,6 +6,7 @@
 
 import { supabase } from '@/api/supabaseClient';
 import { containsProfanity } from '@/lib/profanityFilter';
+import { accountEmail } from '@/lib/guestIdentity';
 
 /** List a user's highlight albums, sorted by sort_order then newest. */
 export async function listHighlightsForUser(userEmail) {
@@ -51,13 +52,18 @@ export async function createHighlight({ title, coverUrl } = {}) {
   // viewing the profile. Mirrors the username + crew-name policy.
   if (containsProfanity(t)) return { ok: false, reason: 'profanity' };
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user?.id || !user?.email) return { ok: false, reason: 'unauthenticated' };
+  // Gated on `!user?.email` until 2026-08-22. A guest is fully authenticated
+  // and has no AUTH email, so this returned 'unauthenticated' before the
+  // insert was ever attempted and the rail said "Could not create — try
+  // again" every single time, describing neither the cause nor a way out.
+  // The id is all the RLS policy needs (`user_id = auth.uid()`, mig 099).
+  if (!user?.id) return { ok: false, reason: 'unauthenticated' };
 
   const { data, error } = await supabase
     .from('story_highlights')
     .insert({
       user_id:    user.id,
-      user_email: user.email,
+      user_email: accountEmail(user),
       title:      t,
       cover_url:  coverUrl || null,
     })

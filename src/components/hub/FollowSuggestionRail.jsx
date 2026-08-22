@@ -158,18 +158,26 @@ export default function FollowSuggestionRail() {
   // in the rail with a "Follow" button that tap-toggles to no visible
   // change — the underlying `follow()` is idempotent but `justFollowed`
   // is session-only. (Audit 10 #61.)
-  const { data: followingEmails = [] } = useQuery({
-    queryKey: ['hubFollowing', user?.email],
-    queryFn: () => hubFollows.listFollowing(user.email),
-    enabled: !!user?.email,
+  // Keyed on user_id, not on the address. The RPC still returns an `email`
+  // column and this rail was the only reason it had to: the dedupe key, the
+  // follow call and the button state all read it, so eight real addresses
+  // crossed the wire on every Hub load for identification the id already
+  // does. Migrations 218/220 closed exactly this for the sibling rail, whose
+  // own comment states the rule — a suggestion card cannot leak an address.
+  // Moving first means the column can then be dropped server-side without a
+  // flag day; this code works either way.
+  const { data: followingIds = [] } = useQuery({
+    queryKey: ['hubFollowingIds', user?.id],
+    queryFn: () => hubFollows.listFollowingIds(user.id),
+    enabled: !!user?.id,
     staleTime: 5 * 60_000,
   });
   const followingSet = React.useMemo(
-    () => new Set((followingEmails || []).map(e => String(e).toLowerCase())),
-    [followingEmails]
+    () => new Set((followingIds || []).map(String)),
+    [followingIds]
   );
   const suggestions = React.useMemo(
-    () => (rawSuggestions || []).filter(s => !followingSet.has(String(s.email || '').toLowerCase())),
+    () => (rawSuggestions || []).filter(s => s.user_id && !followingSet.has(String(s.user_id))),
     [rawSuggestions, followingSet]
   );
 
@@ -180,14 +188,16 @@ export default function FollowSuggestionRail() {
     qc.invalidateQueries({ queryKey: ['suggestedFollowees', user?.id] });
   };
 
-  const handleFollow = async (followeeEmail) => {
-    if (!user?.email || followingEmail) return;
-    setFollowingEmail(followeeEmail);
+  const handleFollow = async (followeeId) => {
+    if (!user?.id || followingEmail) return;
+    setFollowingEmail(followeeId);
     try {
-      await hubFollows.follow(user.email, followeeEmail);
+      // follow() takes either shape — followMatch routes a uuid to
+      // follower_id/followee_id and anything else to the email columns.
+      await hubFollows.follow(user.id, followeeId);
       setJustFollowed(prev => {
         const next = new Set(prev);
-        next.add(followeeEmail);
+        next.add(followeeId);
         return next;
       });
       // Update the feed-relevant queries so the new follow shows up
@@ -195,6 +205,7 @@ export default function FollowSuggestionRail() {
       qc.invalidateQueries({ queryKey: ['hubFeed'] });
       qc.invalidateQueries({ queryKey: ['onboardingFollowsCount', user.email] });
       qc.invalidateQueries({ queryKey: ['suggestedFollowees', user.id] });
+      qc.invalidateQueries({ queryKey: ['hubFollowingIds', user.id] });
     } catch (err) {
       console.warn('[followSuggest] follow failed:', err?.message || err);
       toast.error(tFallback('followSuggest.failed', 'Could not follow. Try again.'));
@@ -249,9 +260,9 @@ export default function FollowSuggestionRail() {
               <SuggestedFolloweeCard
                 key={u.user_id}
                 user={u}
-                following={followingEmail === u.email}
-                followed={justFollowed.has(u.email)}
-                onFollow={() => handleFollow(u.email)}
+                following={followingEmail === u.user_id}
+                followed={justFollowed.has(u.user_id)}
+                onFollow={() => handleFollow(u.user_id)}
               />
             ))}
           </div>

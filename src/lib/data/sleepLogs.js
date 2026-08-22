@@ -12,6 +12,7 @@ import { supabase } from '@/api/supabaseClient';
 import { safeSelect } from '@/api/safeSelect';
 
 import { format, subDays } from 'date-fns';
+import { accountEmail } from '@/lib/guestIdentity';
 
 const todayDateString = () => format(new Date(), 'yyyy-MM-dd');
 
@@ -39,7 +40,7 @@ export async function upsertSleepLog({ hours, quality, soreness, notes }) {
   // substituting a neutral estimate for signals the user had just entered.
   // Synthesize the same placeholder makeEntity() in api/db.js already uses,
   // so the identity layer stays consistent.
-  const userEmail = user.email || `guest_${user.id}@flexyn.guest`;
+  const userEmail = accountEmail(user);
 
   const payload = {
     user_id:    user.id,

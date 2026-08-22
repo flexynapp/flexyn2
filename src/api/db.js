@@ -11,6 +11,7 @@ import { supabase } from './supabaseClient';
 import { getProfile, setProfile, patchProfile, clearProfile } from './profileCache';
 import { unsubscribePushOnLogout } from '@/lib/pushCleanup';
 import { selectProfiles } from '@/lib/data/users';
+import { accountEmail } from '@/lib/guestIdentity';
 
 /* ── Entity name → Postgres table name ─────────────────────────────────── */
 const TABLE = {
@@ -150,8 +151,7 @@ function makeEntity(entityName) {
       // handle_new_user trigger writes to user_profiles.email
       // (migration 172) so the value is consistent across the
       // identity layer.
-      const effectiveEmail = authUser?.email
-        || (authUser?.id ? `guest_${authUser.id}@flexyn.guest` : null);
+      const effectiveEmail = accountEmail(authUser);
       const enriched = {
         ...data, // caller values for non-identity fields
         ...(effectiveEmail   ? { created_by: effectiveEmail } : {}),
@@ -337,8 +337,7 @@ const auth = {
     // uses so the value is unique per guest AND matches created_by on their
     // rows (so their workout/history reads resolve). Real users keep their
     // own email (unchanged behavior).
-    const effectiveEmail = user.email
-      || (user.id ? `guest_${user.id}@flexyn.guest` : null);
+    const effectiveEmail = accountEmail(user);
     let payload = { id: user.id, email: effectiveEmail, ...data, updated_at: new Date().toISOString() };
 
     // Columns that are always safe — never strip these even in nuclear mode.

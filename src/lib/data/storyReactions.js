@@ -6,6 +6,7 @@
 // story granularity.
 
 import { supabase } from '@/api/supabaseClient';
+import { accountEmail } from '@/lib/guestIdentity';
 
 const ALLOWED_EMOJIS = ['😍', '🔥', '💪', '😂', '🎉', '👏'];
 
@@ -45,7 +46,12 @@ export async function reactToStory(storyId, emoji) {
     .upsert({
       story_id:   storyId,
       user_id:    user.id,
-      user_email: user.email,
+      // `user.email` here is the AUTH user's, which is NULL for every guest,
+      // and this column is NOT NULL — so a guest's reaction 23502'd, the
+      // optimistic emoji reverted, and no retry could ever work. The upsert's
+      // DO UPDATE branch would have written NULL too, so there was no path
+      // that succeeded. Same class migration 366 fixed for notifications.
+      user_email: accountEmail(user),
       user_name:  user.user_metadata?.username || null,
       emoji,
     }, { onConflict: 'story_id,user_id' });
