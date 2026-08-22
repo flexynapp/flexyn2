@@ -1295,6 +1295,8 @@ function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
           active={displayedReaction === 'like'}
           activeColor="text-primary"
           onClick={() => handleReact('like')}
+          label={tFallback('hub.post.like', 'Like')}
+          pressed={displayedReaction === 'like'}
         />
         <ActionButton
           icon={MessageCircle}
@@ -1302,6 +1304,8 @@ function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
           active={commentsOpen}
           activeColor="text-primary"
           onClick={() => setCommentsOpen(o => !o)}
+          label={tFallback('hub.post.comments', 'Comments')}
+          expanded={commentsOpen}
         />
         {/* Save meal (meal-specific: also saves to meal library) */}
         {isMealPost && (
@@ -1560,19 +1564,43 @@ function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
   );
 }
 
-function ActionButton({ icon: Icon, count, active, activeColor, onClick }) {
+// `label` is required. This rendered a bare lucide icon — an <svg> with no
+// title — plus an optional number, and neither call site passed a name, so a
+// screen reader announced "button" and "button", or "12, button" and "3,
+// button". WCAG 4.1.2 Name, Role, Value, Level A. The two most-used controls
+// on the surface were the only two in this action row without a name; save
+// meal, analytics, repost, sticker and share all had one.
+//
+// The name is sr-only TEXT rather than an aria-label on purpose. An aria-label
+// replaces the element's content as the accessible name, which would have
+// taken the count away from exactly the users this is for — "Like" instead of
+// "Like 12". As content it concatenates, so the count survives. Same pattern
+// as the dialog close button.
+//
+// State goes on the element, not in the label: `aria-pressed` for the like
+// toggle and `aria-expanded` for the comment disclosure, so the name stays
+// stable while the state changes under it.
+function ActionButton({ icon: Icon, count, active, activeColor, onClick, label, pressed, expanded }) {
   return (
     <motion.button
       whileTap={{ scale: 0.92 }}
       onClick={onClick}
+      aria-pressed={pressed}
+      aria-expanded={expanded}
       className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
         active ? `${activeColor} bg-secondary` : 'text-muted-foreground hover:bg-secondary active:bg-secondary'
       }`}
     >
       <Icon className={`w-4 h-4 ${active ? 'fill-current' : ''}`} />
+      <span className="sr-only">{label}</span>
       {count > 0 && <span>{count}</span>}
     </motion.button>
   );
 }
+
+// Exported for the test: ActionButton is the defect surface, and rendering it
+// directly is what lets the accessible NAME be asserted rather than the markup
+// that is supposed to produce one.
+export const __test__ = { ActionButton };
 
 export default memo(HubPostCard);
