@@ -4493,6 +4493,7 @@
   "progress.workoutFrequencyDesc": "Giorni allenati negli ultimi 30 giorni",
   "progress.yesterday": "Ieri",
   "progress.you": "Tu",
+  "publicGym.loadFailed": "Impossibile caricare questa palestra",
   "publicGym.maybeNotOnFlexyn": "Questa palestra forse non è ancora su Flexyn.",
   "publicGymLanding.amenities": "Servizi",
   "publicGymLanding.discoverFlexyn": "Scopri Flexyn",

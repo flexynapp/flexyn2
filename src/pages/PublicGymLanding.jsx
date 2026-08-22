@@ -100,7 +100,7 @@ export default function PublicGymLanding() {
           <WifiOff className="w-8 h-8 text-muted-foreground" aria-hidden="true" />
         </div>
         <div>
-          <p className="font-heading font-bold text-lg">Couldn&rsquo;t load this gym</p>
+          <p className="font-heading font-bold text-lg">{tFallback('publicGym.loadFailed', "Couldn't load this gym")}</p>
           <p className="text-sm text-muted-foreground mt-1">
             {tFallback('notifications.error.desc', 'Check your connection and try again.')}
           </p>

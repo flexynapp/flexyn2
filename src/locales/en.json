@@ -4733,6 +4733,7 @@
   "progress.workoutFrequencyDesc": "Days you trained in the last 30 days",
   "progress.yesterday": "Yesterday",
   "progress.you": "You",
+  "publicGym.loadFailed": "Couldn't load this gym",
   "publicGym.maybeNotOnFlexyn": "This gym may not be on Flexyn yet.",
   "publicGymLanding.amenities": "Amenities",
   "publicGymLanding.discoverFlexyn": "Discover Flexyn",

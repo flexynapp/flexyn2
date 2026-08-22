@@ -4493,6 +4493,7 @@
   "progress.workoutFrequencyDesc": "Dagen getraind in de afgelopen 30 dagen",
   "progress.yesterday": "Gisteren",
   "progress.you": "Jij",
+  "publicGym.loadFailed": "Kon deze sportschool niet laden",
   "publicGym.maybeNotOnFlexyn": "Deze sportschool staat misschien nog niet op Flexyn.",
   "publicGymLanding.amenities": "Voorzieningen",
   "publicGymLanding.discoverFlexyn": "Ontdek Flexyn",
