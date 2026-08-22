@@ -15,7 +15,7 @@ every "94% real" predates a correct measurement.
 | | then | now |
 |---|---|---|
 | untranslatable keys | 781 | **0** |
-| hardcoded strings | 725 (undercounted) | **216** (honest) |
+| hardcoded strings | 725 (undercounted) | **211** (honest) |
 | en.json | 3,895 | 6,111 |
 | es / fr | 70.5% | **99.4%** (6,072) |
 | de / it / nl / pl | — | 95.7% (5,848) |
@@ -48,7 +48,6 @@ untranslated.
 `npm run i18n:hardcoded -- --list` enumerates them; the largest are:
 
     11  src/lib/aiCoach/workoutGenerator.js   ← SEE "KNOWN FALSE POSITIVES"
-     5  src/lib/hrZones.js                    ← DEAD CODE, see below
      4  src/components/crews/CrewBattleEntry.jsx
      4  src/components/crews/CrewDiscovery.jsx
      4  src/components/dashboard/WeeklyRecapShareCard.jsx
@@ -58,8 +57,8 @@ untranslated.
      4  src/components/nutrition/MealTypePicker.jsx
      4  src/components/nutrition/NutritionOnboardingModal.jsx
 
-then a tail of 1–4 across ~105 files. Two of the top three are false
-positives, so the real top is 4 and it is flat from there down. The crews
+then a tail of 1–4 across ~105 files. `workoutGenerator` is the one remaining
+false positive, so the real top is 4 and it is flat from there down. The crews
 pair and the four nutrition files each share a vocabulary; take them
 together.
 
@@ -341,12 +340,18 @@ goal's own title and an exercise name are USER DATA and must render verbatim.
 
 ## KNOWN FALSE POSITIVES — do not chase these
 
-**`src/lib/hrZones.js` (5).** Dead code. `ZONE_DEFINITIONS` and all four
-helpers are imported by `src/lib/__tests__/hrZones.test.js` and by nothing
-else, and no file reads `hr_zone1_min`…`hr_zone5_min`. The five zone labels
-never render. Its header says the cardio UI uses it; that has not been true
-for as long as the current tree goes back. It wants a delete decision from
-kegan, not a translation pass.
+**`src/lib/hrZones.js` — DELETED 2026-08-22, kegan's call.** Kept here as the
+worked example. It ranked #2 on the hardcoded list at five strings and had
+never been imported by anything, in the whole of git history: it shipped in
+`df929992` alongside migration 094 and the UI that was meant to consume it was
+never built. Its own header said the cardio log entry UI used it. **Grep the
+EXPORTS, not the module name, and check the history for an import before you
+translate a data module.**
+
+Still on the database and NOT deleted, because schema is kegan's:
+`cardio_logs.hr_zone1_min`…`hr_zone5_min`, `cardio_logs.avg_hr_bpm` /
+`max_hr_bpm`, and `user_profiles.max_hr_bpm` (migration 094). Nothing in
+`src/` reads or writes any of them.
 
 `workoutGenerator.js`'s 11 option labels ARE translated and resolving. A
 `keyPrefix` passed as a PROP leaves the only template literal as
