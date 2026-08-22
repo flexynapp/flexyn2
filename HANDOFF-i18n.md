@@ -15,17 +15,17 @@ every "94% real" predates a correct measurement.
 | | then | now |
 |---|---|---|
 | untranslatable keys | 781 | **0** |
-| hardcoded strings | 725 (undercounted) | **191** (honest) |
-| en.json | 3,895 | 6,133 |
-| es / fr | 70.5% | **99.4%** (6,094) |
-| de / it / nl / pl | — | 95.7% (5,870) |
-| pt | — | 94.5% (5,793) |
-| tr | 2,137 | 2,364 / 6,133 |
+| hardcoded strings | 725 (undercounted) | **174** (honest) |
+| en.json | 3,895 | 6,165 |
+| es / fr | 70.5% | **99.4%** (6,126) |
+| de / it / nl / pl | — | 95.7% (5,902) |
+| pt | — | 94.5% (5,825) |
+| tr | 2,137 | 2,368 / 6,165 |
 
 `npm run i18n:audit` section E is the honest number. Section B is CATALOG
 coverage and is not what a user sees — do not quote it.
 
-**Everything up to `6738a09f` is verified: 5,252 tests across 381 files, lint
+**Everything up to `bbb3d862` is verified: 5,266 tests across 385 files, lint
 clean, `npm run build` clean.** Run all three. The suite alone is not the
 gate — see the DiscoveryCards entry under TRAPS.
 
@@ -48,21 +48,19 @@ untranslated.
 `npm run i18n:hardcoded -- --list` enumerates them; the largest are:
 
     11  src/lib/aiCoach/workoutGenerator.js   ← SEE "KNOWN FALSE POSITIVES"
-     4  src/components/dashboard/WeeklyRecapShareCard.jsx
      4  src/components/gyms/GymEquipmentEditor.jsx
      4  src/components/nutrition/CalorieCyclingModal.jsx  ← already keyed, see below
      4  src/components/settings/AboutSection.jsx
-     4  src/components/workout/CardioLogger.jsx
-     4  src/components/workout/TemplatesModal.jsx
      4  src/lib/aiCoach/planBuilder.js
      4  src/lib/cyclePhase.js
      4  src/lib/data/coinShop.js
+     4  src/lib/exerciseEquipment.js
+     4  src/pages/GymMap.jsx
+     4  src/pages/SignInToContinue.jsx
 
-then a tail of 1–4 across ~100 files, flat from 4 down.
-`WeeklyRecapShareCard` draws its text into a CANVAS, so the translator has to
-reach a drawing function rather than JSX — a shape nothing here has done yet.
-`cyclePhase` and `planBuilder` are lib data modules wanting the
-translator-argument pattern.
+then a tail of 1–4 across ~95 files, flat from 4 down. `cyclePhase`,
+`planBuilder`, `coinShop` and `exerciseEquipment` are lib data modules wanting
+the translator-argument pattern and are the natural next group.
 
 **CalorieCyclingModal is DONE and still reads 4.** Its `FIELDS` labels are now
 the English FALLBACKS passed to `tFallback(nutrient, label)`; the scanner
@@ -196,6 +194,21 @@ goal's own title and an exercise name are USER DATA and must render verbatim.
 
 ## TRAPS THAT COST TIME HERE
 
+- **Canvas text has no truncation, no wrap, and ships as a PNG the user
+  posts.** The four share cards paint their labels at fixed coordinates. There
+  is no ellipsis and no way for anyone to notice afterwards, so a canvas
+  string must be MEASURED, not estimated: serve a page that runs
+  `ctx.measureText` at the real font and diff every locale against the real
+  budget. Twelve of thirteen fit; the profile card's streak chip was a fixed
+  280px against text needing up to 278px for the text alone (pt). The chip
+  measures and fits now. **It was already broken in English** at a 3-digit
+  streak — the translation did not introduce the bug, it made it reachable,
+  which is the usual shape.
+- **A python edit script that asserts before it writes leaves the file
+  UNTOUCHED, and the lint that follows is then meaningless.** One
+  WeeklyRecapShareCard pass failed its last assertion, wrote nothing, and the
+  `npx eslint` after it reported clean — on the unmodified file. If an edit
+  script raises, re-check the file before believing anything downstream of it.
 - **A computed key is a CLAIM, not a fact, and it keeps being false.** Four
   families found in two days, all rendering English in fifteen languages while
   the call site read as finished: `readiness.action.*` (ReadinessCard),
