@@ -99,8 +99,10 @@ Three things, none of them hardcoded strings:
    `crew_war_started`, `crew_war_resolved` and `nemesis_assigned` named
    somebody and stored only an id. A BEFORE INSERT trigger now resolves the
    name into metadata and backfills what was already written, so
-   `CANNOT_LOCALIZE` is empty. **379 is UNRUN until kegan pastes it** — a
-   migration in the tree is a draft.
+   `CANNOT_LOCALIZE` is empty. **379 is APPLIED (2026-08-22) and verified on
+   production**: every insert shape resolves live, the other BEFORE INSERT
+   trigger still fires alongside it, and all 18 backfilled names match the
+   name frozen into that row's old title.
 
    The remaining 18 have never fired, have no catalog rows, and cost nothing
    while they fall back. Do one when it starts firing, and check a live row.
