@@ -44,9 +44,13 @@ import { asT } from '@/lib/translatorArg';
  * `vars` maps a placeholder name to the metadata field that fills it. `pick`
  * chooses between key variants when a type has more than one shape.
  *
- * A `null` from `pick` means "no body", which is not the same as a missing
- * body: `capsule_earned` genuinely has one and `friend_post` genuinely
- * does not.
+ * Three body states, and conflating the last two is a bug I shipped and a
+ * test caught:
+ *
+ *   a body part   → rebuild it
+ *   nothing       → the type HAS no body (friend_post, post_like)
+ *   keepBody      → the stored body is USER CONTENT and must survive
+ *                   (comment_reply's body is the comment someone wrote)
  */
 const SPECS = {
   friend_follow: {
@@ -86,6 +90,75 @@ const SPECS = {
     title: { key: 'notifications.row.welcome_back.title', en: '👋 We miss you' },
     body:  { key: 'notifications.row.welcome_back.body',  en: 'Your progress is waiting. Quick session today?' },
   },
+
+  // ── Below: mapped from LIVE ROWS, not from migration source ───────────
+  // Every field name here was read out of production `metadata` and every
+  // English template was matched against a real stored title, including its
+  // variants. That is a stronger footing than the block above, which was
+  // read from migrations — and reading the live rows is what caught that
+  // three OTHER types cannot be done at all (see CANNOT_LOCALIZE).
+
+  bounty_claim: {
+    title: { key: 'notifications.row.bounty_claim.title', en: '{name} is coming for your record', vars: { name: 'claimant_name' } },
+    body:  { key: 'notifications.row.bounty_claim.body',  en: 'A bounty has been claimed against you.' },
+  },
+  coin_gift: {
+    title: { key: 'notifications.row.coin_gift.title', en: 'You received a coin gift!' },
+    body:  { key: 'notifications.row.coin_gift.body',  en: '@{name} sent you {n} coins', vars: { name: 'senderUsername', n: 'amount' } },
+  },
+  comment_reply: {
+    // The stored body is the comment text. Keep it.
+    keepBody: true,
+    // `is_reply` picks the sentence — the same branch migration 086 takes.
+    pickTitle: (m) => (m.is_reply
+      ? { key: 'notifications.row.comment_reply.title_reply',   en: '{name} replied to your comment', vars: { name: 'commenter_name' } }
+      : { key: 'notifications.row.comment_reply.title_comment', en: '{name} commented on your post',  vars: { name: 'commenter_name' } }),
+  },
+  duel_invite: {
+    title: { key: 'notifications.row.duel_invite.title', en: '{name} challenged you to a duel', vars: { name: 'challenger_name' } },
+    body:  { key: 'notifications.row.duel_invite.body',  en: 'Tap to accept or decline.' },
+  },
+  post_like: {
+    title: { key: 'notifications.row.post_like.title', en: '{name} liked your post', vars: { name: 'actor_name' } },
+  },
+  post_reaction: {
+    title: { key: 'notifications.row.post_reaction.title', en: '{name} reacted with {emoji}', vars: { name: 'actor_name', emoji: 'item_emoji' } },
+  },
+  quest_claimed: {
+    title: { key: 'notifications.row.quest_claimed.title', en: '🪙 +{coins} coins · {quest}', vars: { coins: 'coinsAwarded', quest: 'questLabel' } },
+    body:  { key: 'notifications.row.quest_claimed.body',  en: 'Quest reward claimed.' },
+  },
+  streak_milestone: {
+    // `kind` is login|workout, which is exactly the split the catalog already
+    // had as login.title / workout.title. Whoever wrote those keys read the
+    // real writer; they had just never been called.
+    pickTitle: (m) => (m.kind === 'workout'
+      ? { key: 'notifications.row.streak_milestone.workout.title', en: '🔥 Workout streak: Day {day}!', vars: { day: 'day' } }
+      : { key: 'notifications.row.streak_milestone.login.title',   en: '🔥 Login streak: Day {day}!',   vars: { day: 'day' } }),
+    pick: (m) => (m.eliteCapsuleAwarded
+      ? { key: 'notifications.row.streak_milestone.body_with_capsule', en: '+{coins} coins + Elite Capsule', vars: { coins: 'coinsAwarded' } }
+      : { key: 'notifications.row.streak_milestone.body',             en: '+{coins} coins',                 vars: { coins: 'coinsAwarded' } }),
+  },
+};
+
+/**
+ * Types that FIRE in production and still cannot be rebuilt, because the row
+ * does not carry what the sentence needs. Recorded so the next pass does not
+ * re-derive it — and so the gap is a known quantity rather than a silence.
+ *
+ *   crew_war_started   title names the opponent CREW; metadata has only
+ *                      `opponent_crew_id`.
+ *   crew_war_resolved  same, plus an outcome won|lost branch.
+ *   nemesis_assigned   title names the rival (`@sefseg`); metadata has only
+ *                      `assignment_id` and a result branch.
+ *
+ * Each needs its writer to store the NAME alongside the id — a migration, not
+ * a client change. Until then they fall back, which is correct.
+ */
+export const CANNOT_LOCALIZE = {
+  crew_war_started:  'opponent crew name absent — metadata carries only opponent_crew_id',
+  crew_war_resolved: 'opponent crew name absent — metadata carries only opponent_crew_id',
+  nemesis_assigned:  'rival name absent — metadata carries only assignment_id',
 };
 
 /** Fill a part's vars from metadata, or return null if any is absent. */
@@ -115,16 +188,19 @@ export function notificationText(row, t) {
   if (!spec) return stored;
 
   const meta = row?.metadata || {};
-  const title = resolve(spec.title, meta, tf);
+  const title = resolve(spec.pickTitle ? spec.pickTitle(meta) : spec.title, meta, tf);
   // A title we cannot rebuild means the row does not carry what this spec
   // assumes, so the whole row falls back rather than pairing a fresh title
   // with a stale body.
   if (!title) return stored;
 
+  // User content is never rebuilt — see the SPECS comment.
+  if (spec.keepBody) return { title, body: stored.body, localized: true };
+
   const bodyPart = spec.pick ? spec.pick(meta) : spec.body;
   const body = resolve(bodyPart, meta, tf);
-  // A spec with a body part that will not resolve keeps the stored body: it
-  // is at worst the old language, where null would be a blank line.
+  // A body part that will not resolve keeps the stored body: at worst the old
+  // language, where null would be a blank line.
   return { title, body: bodyPart ? (body ?? stored.body) : null, localized: true };
 }
 

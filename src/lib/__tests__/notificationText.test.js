@@ -10,7 +10,7 @@
 // of these go red, which is the point.
 
 import { describe, it, expect } from 'vitest';
-import { notificationText, LOCALIZED_TYPES } from '../notificationText';
+import { notificationText, LOCALIZED_TYPES, CANNOT_LOCALIZE } from '../notificationText';
 
 // A translator that IGNORES the fallback and interpolates a marked template,
 // so a test cannot pass just because the English fallback happened to be
@@ -87,6 +87,54 @@ describe('rebuilds in the reader language', () => {
       .toBe('[notifications.row.league_promoted.body] coins=50');
     expect(notificationText({ type: 'league_promoted', metadata: { ...meta, capsuleAwarded: 'Elite' } }, t).body)
       .toBe('[notifications.row.league_promoted.body_with_capsule] coins=50 capsule=Elite');
+  });
+});
+
+describe('the live-row specs match what production actually stores', () => {
+  // Every field name below was read out of a real production row, and every
+  // English template was matched against a real stored title. These pin the
+  // mapping so a later edit cannot quietly rename a metadata field and fall
+  // back forever — which would look exactly like nothing being wrong.
+  const CASES = [
+    ['bounty_claim',  { claimant_name: 'seantest' }, 'name=seantest'],
+    ['coin_gift',     { senderUsername: 'sean', amount: 10000 }, null],
+    ['duel_invite',   { challenger_name: 'kegan', duel_type: 'exercise' }, 'name=kegan'],
+    ['post_like',     { actor_name: 'kegan' }, 'name=kegan'],
+    ['post_reaction', { actor_name: 'kegan', item_emoji: '🌟' }, 'name=kegan emoji=🌟'],
+    ['quest_claimed', { coinsAwarded: 40, questLabel: 'Take a progress photo' }, 'coins=40 quest=Take a progress photo'],
+  ];
+  it.each(CASES)('%s localizes from its real metadata', (type, metadata, expectInTitle) => {
+    const out = notificationText({ type, title: 'STORED', body: 'STORED', metadata }, t);
+    expect(out.localized, `${type} fell back — its spec does not match the row`).toBe(true);
+    if (expectInTitle) expect(out.title).toContain(expectInTitle);
+  });
+
+  it('streak_milestone picks login vs workout from `kind`', () => {
+    const base = { day: 7, coinsAwarded: 5, eliteCapsuleAwarded: false };
+    expect(notificationText({ type: 'streak_milestone', metadata: { ...base, kind: 'login' } }, t).title)
+      .toContain('streak_milestone.login.title');
+    expect(notificationText({ type: 'streak_milestone', metadata: { ...base, kind: 'workout' } }, t).title)
+      .toContain('streak_milestone.workout.title');
+  });
+
+  it('comment_reply keeps the stored body, because it is the COMMENT', () => {
+    // The body is what somebody wrote. Templating it would replace their
+    // words with a translation of nothing.
+    const out = notificationText({
+      type: 'comment_reply', title: 'STORED', body: 'Rainy poop',
+      metadata: { commenter_name: 'kegan', is_reply: true },
+    }, t);
+    expect(out.localized).toBe(true);
+    expect(out.body).toBe('Rainy poop');
+  });
+
+  it('the three blocked types stay on stored text', () => {
+    // They fire in production and cannot be rebuilt: the row carries an id
+    // where the sentence needs a name. Listed so this stays a known gap.
+    for (const type of Object.keys(CANNOT_LOCALIZE)) {
+      const out = notificationText({ type, title: 'STORED', body: 'B', metadata: { war_id: 'x' } }, t);
+      expect(out.localized, `${type} claims to localize but its name is not on the row`).toBe(false);
+    }
   });
 });
 

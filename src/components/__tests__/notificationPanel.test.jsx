@@ -53,10 +53,15 @@ vi.mock('framer-motion', () => ({
 
 const { default: NotificationPanel } = await import('../NotificationPanel');
 
+// `metadata` is passed through deliberately. The helper used to drop it, and
+// a dropped field in a fixture is invisible: every row arrived without the
+// data NotificationPanel re-renders its text from, so every row silently
+// took the fallback path and no test could see the other one.
 const row = (o) => ({
   id: o.id, type: o.type, title: o.title, body: o.body ?? null,
   icon: o.icon ?? '🔔', link_url: o.link_url ?? null,
   is_read: o.is_read ?? false,
+  metadata: o.metadata ?? null,
   created_at: o.created_at ?? new Date().toISOString(),
 });
 
@@ -74,7 +79,12 @@ beforeEach(() => {
   vi.clearAllMocks();
   listRows = [
     row({ id: 'n1', type: 'friend_follow', title: 'Dani followed you', is_read: false }),
-    row({ id: 'n2', type: 'coin_gift',     title: 'Alex sent you coins', is_read: false }),
+    // Real shape, not an invented one: production coin_gift rows carry this
+    // title and this metadata, and NotificationPanel now re-renders the text
+    // from `type` + `metadata` (src/lib/notificationText.js). A fixture with
+    // a made-up title tested the fallback path by accident.
+    row({ id: 'n2', type: 'coin_gift', title: 'You received a coin gift!', is_read: false,
+          metadata: { senderUsername: 'Alex', amount: 10 } }),
     row({ id: 'n3', type: 'pr_set',        title: 'New Bench PR',        is_read: true }),
     row({ id: 'n4', type: 'welcome_back',  title: 'We miss you',         is_read: true }),
   ];
@@ -161,9 +171,9 @@ describe('filters come from the shared catalog', () => {
 
   it('files coin_gift under Friends, not a catch-all', async () => {
     renderPanel();
-    await screen.findByText('Alex sent you coins');
+    await screen.findByText('You received a coin gift!');
     fireEvent.click(screen.getByRole('button', { name: /^Friends/ }));
-    expect(screen.getByText('Alex sent you coins')).toBeInTheDocument();
+    expect(screen.getByText('You received a coin gift!')).toBeInTheDocument();
     expect(screen.queryByText('New Bench PR')).not.toBeInTheDocument();
   });
 
