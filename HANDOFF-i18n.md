@@ -25,7 +25,7 @@ every "94% real" predates a correct measurement.
 `npm run i18n:audit` section E is the honest number. Section B is CATALOG
 coverage and is not what a user sees — do not quote it.
 
-**Everything up to `ababe2f3` is verified: 5,306 tests across 390 files, lint
+**Everything up to `4c3c32e8` is verified: 5,315 tests across 390 files, lint
 clean, `npm run build` clean.** Run all three. The suite alone is not the
 gate — see the DiscoveryCards entry under TRAPS.
 
@@ -80,21 +80,37 @@ Three things, none of them hardcoded strings:
    quietly dropped.
 2. **tr at 2,376 / 6,297**, and pt/de/it/nl/pl at 94–96% against es/fr's
    99.4%. Batching only.
-3. **Notification rows: 8 of 37 types now render in the reader's language.**
+3. **Notification rows: 16 of 37 types render in the reader's language.**
    `src/lib/notificationText.js` rebuilds a row from `type` + `metadata`;
-   `NotificationPanel` calls it. Everything else keeps the stored text, which
-   is frozen in whatever language wrote it.
+   `NotificationPanel` calls it. Everything else keeps the stored text, frozen
+   in whatever language wrote it.
 
-   **Extending it is a four-step job per type, and step four is the one that
-   matters**: read the writer, add `notifications.row.<type>.*` rows, add a
-   spec, and **check a LIVE row carries the metadata**. The eight shipped
-   specs were mapped from migration source only — I could not query
-   production — so their field names are an unverified claim held safe by the
-   fallback. The other 29 types have no catalog rows at all.
+   **Only 16 types have EVER fired in production** — 21 have never produced a
+   row. So "29 types left" was never the real number; the live table is the
+   only place that answer exists. **Query it before planning this work:**
 
-   The fallback rule is load-bearing: a spec applies only when every
+       cd <scratch> && supabase link --project-ref ebvqxuwfiptcmlkhflfj --yes
+       supabase db query --linked "select type, count(*) from public.notifications group by type"
+
+   That is the documented no-MCP route and it corrected three separate things
+   a migration read had got wrong.
+
+   **Three live types CANNOT be done from the client.** `crew_war_started`
+   and `crew_war_resolved` name the opponent CREW in the title and store only
+   `opponent_crew_id`; `nemesis_assigned` names the rival and stores only
+   `assignment_id`. A name that is not on the row cannot be rebuilt. Each
+   needs its writer to store it — **a migration, and the only remaining DB
+   work in this area.** `CANNOT_LOCALIZE` in that module names all three.
+
+   The remaining 18 have never fired, have no catalog rows, and cost nothing
+   while they fall back. Do one when it starts firing, and check a live row.
+
+   **The fallback rule is load-bearing.** A spec applies only when every
    placeholder resolves, so a wrong mapping degrades to today's behaviour
-   rather than rendering a hole. Do not relax it to "best effort".
+   rather than rendering a hole. Do not relax it to "best effort". And note
+   the third body state: `keepBody` means the stored body is USER CONTENT
+   (comment_reply's body is the comment) — returning null there deletes what
+   somebody wrote.
 
 ## HOW TO DO IT — the pattern that works
 
