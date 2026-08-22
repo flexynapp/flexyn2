@@ -87,13 +87,17 @@ Three things, none of them hardcoded strings:
 
    **Only 16 types have EVER fired in production** — 21 have never produced a
    row. So "29 types left" was never the real number; the live table is the
-   only place that answer exists. **Query it before planning this work:**
+   only place that answer exists. **ASK KEGAN to run this before planning the
+   work — do not open a connection yourself.** Standing instruction from
+   2026-08-22: he runs all SQL against production, and this handoff used to
+   tell you to run it, which is now the wrong advice.
 
-       cd <scratch> && supabase link --project-ref ebvqxuwfiptcmlkhflfj --yes
-       supabase db query --linked "select type, count(*) from public.notifications group by type"
+       select type, count(*), jsonb_object_keys(metadata)
+         from public.notifications group by 1, 3 order by 1;
 
-   That is the documented no-MCP route and it corrected three separate things
-   a migration read had got wrong.
+   Worth asking for: that one query corrected three separate things a
+   migration read had got wrong, including that 21 of the 37 types have
+   never produced a row at all.
 
    **The three that could not be done are done — migration 379.**
    `crew_war_started`, `crew_war_resolved` and `nemesis_assigned` named
