@@ -15,17 +15,17 @@ every "94% real" predates a correct measurement.
 | | then | now |
 |---|---|---|
 | untranslatable keys | 781 | **0** |
-| hardcoded strings | 725 (undercounted) | **241** (honest) |
-| en.json | 3,895 | 6,075 |
-| es / fr | 70.5% | **99.4%** (6,036) |
-| de / it / nl / pl | — | 95.7% (5,812) |
-| pt | — | 94.4% (5,735) |
-| tr | 2,137 | 2,354 / 6,075 |
+| hardcoded strings | 725 (undercounted) | **216** (honest) |
+| en.json | 3,895 | 6,111 |
+| es / fr | 70.5% | **99.4%** (6,072) |
+| de / it / nl / pl | — | 95.7% (5,848) |
+| pt | — | 94.4% (5,771) |
+| tr | 2,137 | 2,364 / 6,111 |
 
 `npm run i18n:audit` section E is the honest number. Section B is CATALOG
 coverage and is not what a user sees — do not quote it.
 
-**Everything up to `cf004d47` is verified: 5,252 tests across 379 files, lint
+**Everything up to `eb212467` is verified: 5,261 tests across 381 files, lint
 clean, `npm run build` clean.** Run all three. The suite alone is not the
 gate — see the DiscoveryCards entry under TRAPS.
 
@@ -47,20 +47,21 @@ untranslated.
 **Finish the 247 hardcoded strings.** UI copy that never reaches a catalog.
 `npm run i18n:hardcoded -- --list` enumerates them; the largest are:
 
-    11  src/lib/aiCoach/workoutGenerator.js   ← SEE "KNOWN FALSE POSITIVE"
-     5  src/lib/hrZones.js
-     5  src/lib/recoveryScore.js
-     4  src/components/TwoFactorSection.jsx
+    11  src/lib/aiCoach/workoutGenerator.js   ← SEE "KNOWN FALSE POSITIVES"
+     5  src/lib/hrZones.js                    ← DEAD CODE, see below
      4  src/components/crews/CrewBattleEntry.jsx
      4  src/components/crews/CrewDiscovery.jsx
      4  src/components/dashboard/WeeklyRecapShareCard.jsx
-     4  src/components/gymRival/GymRivalCard.jsx
      4  src/components/gyms/GymEquipmentEditor.jsx
+     4  src/components/nutrition/CalorieCyclingModal.jsx
+     4  src/components/nutrition/LogRecipeSheet.jsx
+     4  src/components/nutrition/MealTypePicker.jsx
+     4  src/components/nutrition/NutritionOnboardingModal.jsx
 
-then a tail of 1–4 across ~108 files. `workoutGenerator` is the documented
-false positive, so the real top is 5 and it is flat from there down.
-`hrZones` and `recoveryScore` pair naturally (both are lib data modules that
-want the translator-argument pattern).
+then a tail of 1–4 across ~105 files. Two of the top three are false
+positives, so the real top is 4 and it is flat from there down. The crews
+pair and the four nutrition files each share a vocabulary; take them
+together.
 
 **`src/pages/Legal.jsx` LABELS ARE DONE; the BODY stays English by
 decision.** Kegan chose that on 2026-08-21 after the trade was put to him.
@@ -187,6 +188,34 @@ goal's own title and an exercise name are USER DATA and must render verbatim.
 
 ## TRAPS THAT COST TIME HERE
 
+- **A scanner reading zero is a statement about what it can SEE.**
+  `npm run i18n:orphans` read `0 (baseline 0)` while five real orphans sat in
+  `ReadinessCard.jsx` — because the map holds the key and the call site is
+  `tFallback(ACTION_BY_LABEL[label].key, …)`, a VARIABLE, and the scanner
+  matches literal keys only. The readiness card's advice line had rendered
+  English in all fifteen languages since it shipped. **Before keying a file,
+  grep it for `.key` and `.fallback` object properties**, not just for bare
+  literals. Two more of the same shape are likely still out there.
+- **A file at the top of the hardcoded list may have no users at all.**
+  `src/lib/hrZones.js` was #2 with five strings and is imported by nothing
+  but its own test; no file in `src/` reads an `hr_zone*` column. Check for a
+  consumer before you translate a data module. Its module comment claims the
+  cardio UI uses it, which is how it stayed on the list — **the comment is
+  wrong and greping for the exports is what settles it.**
+- **Gendered adjectives are the same trap in every inflected language.**
+  German drifted feminine three times earlier in this work; Spanish and
+  Polish did it here, on a readiness label rendered as an adjective. The fix
+  is to agree with the FEATURE's noun (PREPARACIÓN, GOTOWOŚĆ) rather than
+  with the user. German and Dutch predicative adjectives are uninflected and
+  need no such care, which is exactly why the trap moves rather than
+  repeating.
+- **A message SENT to another user must not be translated into the sender's
+  language.** `TradeOfferDialog` composes a DM body; the reader is the
+  recipient. It stays English on purpose, with the reason at the call site.
+  The general rule: client-composed cross-user text needs the RECIPIENT's
+  language, which the sending client does not have. Push notifications solve
+  it server-side; anything else has to stay English or move to a payload the
+  reader's client renders.
 - **The scratchpad is not durable and it was wiped again mid-session.**
   `add-en.mjs`, `add-keys.mjs`, `fb.mjs` and `mojibake.mjs` all had to be
   rewritten from scratch in the middle of a batch. They are small; the cost
@@ -310,7 +339,14 @@ goal's own title and an exercise name are USER DATA and must render verbatim.
   written `'Drag a card\u2019s grip'` lands in `en.json` as a literal
   backslash-u. Type the character.
 
-## KNOWN FALSE POSITIVE — do not chase it
+## KNOWN FALSE POSITIVES — do not chase these
+
+**`src/lib/hrZones.js` (5).** Dead code. `ZONE_DEFINITIONS` and all four
+helpers are imported by `src/lib/__tests__/hrZones.test.js` and by nothing
+else, and no file reads `hr_zone1_min`…`hr_zone5_min`. The five zone labels
+never render. Its header says the cardio UI uses it; that has not been true
+for as long as the current tree goes back. It wants a delete decision from
+kegan, not a translation pass.
 
 `workoutGenerator.js`'s 11 option labels ARE translated and resolving. A
 `keyPrefix` passed as a PROP leaves the only template literal as
