@@ -119,6 +119,7 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
     followingLc: new Set(),
     mutedLc: new Set(),
     blockedLc: new Set(),
+    crewIds: new Set(),
   });
 
   useEffect(() => {
@@ -133,9 +134,15 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
       const f = realtimeFilterRef.current;
       if (f.blockedLc.has(authorLc)) return;
       if (f.mutedLc.has(authorLc))   return;
-      if (row.privacy && row.privacy !== 'public' && row.privacy !== 'followers') return;
+      // A crew post counts when it is addressed to one of MY crews. Before
+      // mig 379 there was no crew_id to test, so every crew row was dropped
+      // here and the "N new posts" pill never counted one.
+      const isMyCrewPost = row.privacy === 'crew' && !!row.crew_id && f.crewIds.has(row.crew_id);
+      if (row.privacy && row.privacy !== 'public' && row.privacy !== 'followers' && !isMyCrewPost) return;
       if (row.publish_at && new Date(row.publish_at).getTime() > Date.now()) return;
-      if (f.feedTab === 'squad' && !f.followingLc.has(authorLc)) return;
+      // Squad is a follow feed, EXCEPT for your crews — a crew mate you do not
+      // follow is exactly who this is for.
+      if (f.feedTab === 'squad' && !f.followingLc.has(authorLc) && !isMyCrewPost) return;
       setPendingNewCount(c => c + 1);
     });
   }, [user?.email]);
@@ -302,6 +309,23 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
     staleTime: 60_000,
   });
 
+  // Crew posts addressed to MY crews, whoever wrote them.
+  //
+  // The Squad window is keyed on author_email, so before this a crew post only
+  // reached crew mates who also followed the author — and most of a crew does
+  // not follow most of the crew. The composer promises "Only crew members will
+  // see this post", which is a restriction, but it is read as delivery too.
+  // Squad only: these are not global-feed content, and Pump asks the DB for
+  // privacy = 'public' anyway.
+  const { data: crewPosts = [] } = useQuery({
+    queryKey: ['hubCrewFeed', myCrewIds.slice().sort().join(',')],
+    queryFn: () => hubPosts.fetchCrewWindow(myCrewIds),
+    enabled: feedTab === 'squad' && myCrewIds.length > 0,
+    staleTime: 30_000,
+    // Same reasoning as the main feed window: a feed is a reading position.
+    refetchOnWindowFocus: false,
+  });
+
   // Mute/block lists — applied viewer-side in filteredPosts below.
   // Both queries are cheap (RLS limits rows to the caller's own).
   const { data: mutedEmails = [] } = useQuery({
@@ -324,18 +348,31 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
       followingLc: new Set((following || []).map(e => e?.toLowerCase()).filter(Boolean)),
       mutedLc:     new Set(mutedEmails),
       blockedLc:   new Set(blockedEmails),
+      crewIds:     new Set(myCrewIds),
     };
-  }, [feedTab, following, mutedEmails, blockedEmails]);
+  }, [feedTab, following, mutedEmails, blockedEmails, myCrewIds]);
 
   // Filter out crew-private posts the current user doesn't belong to,
   // posts from muted/blocked users, scheduled posts not yet published,
   // and apply hashtag filter when active.
+  // Merged before filtering, newest first, deduped by id — a crew post whose
+  // author you DO follow arrives down both paths.
+  const withCrewPosts = useMemo(() => {
+    if (!crewPosts.length) return allPosts;
+    const seen = new Set(allPosts.map(p => p.id));
+    const extra = crewPosts.filter(p => !seen.has(p.id));
+    if (!extra.length) return allPosts;
+    return [...allPosts, ...extra].sort(
+      (a, b) => new Date(b.created_date || b.created_at) - new Date(a.created_date || a.created_at),
+    );
+  }, [allPosts, crewPosts]);
+
   const filteredPosts = useMemo(() => {
-    if (!allPosts.length) return allPosts;
+    if (!withCrewPosts.length) return withCrewPosts;
     const crewSet  = new Set(myCrewIds);
     const muteSet  = new Set(mutedEmails);
     const blockSet = new Set(blockedEmails);
-    let result = allPosts.filter(p => {
+    let result = withCrewPosts.filter(p => {
       const authorLc = p.author_email?.toLowerCase();
       if (authorLc && blockSet.has(authorLc)) return false;
       if (authorLc && muteSet.has(authorLc))  return false;
@@ -368,7 +405,7 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
       result = [...result].sort((a, b) => (b.like_count || 0) - (a.like_count || 0));
     }
     return result;
-  }, [allPosts, myCrewIds, mutedEmails, blockedEmails, activeHashtag, sort, timeFilter]);
+  }, [withCrewPosts, myCrewIds, mutedEmails, blockedEmails, activeHashtag, sort, timeFilter]);
 
   // Trending hashtags derived from current feed window
   const trendingTags = useMemo(() => computeTrending(allPosts), [allPosts]);

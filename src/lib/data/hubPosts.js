@@ -205,6 +205,34 @@ export const fetchFollowingWindow = async (followingEmails = [], selfEmail = nul
 };
 
 /**
+ * Fetch the crew-only posts addressed to any of `crewIds`.
+ *
+ * The Following window is keyed on `author_email`, so a crew post only
+ * reached crew mates who ALSO follow the author — which is not what "Only
+ * crew members will see this post" promises. This is the other half: the
+ * posts addressed to your crews, whoever wrote them.
+ *
+ * No privacy reasoning happens here and none is needed. RLS admits a
+ * `privacy = 'crew'` row only when `is_crew_member(crew_id)` holds for the
+ * caller (mig 379), so a crew id you are not in returns nothing even if it is
+ * passed in. The `.eq('privacy', 'crew')` is a narrowing for the index, not a
+ * guard.
+ */
+export const fetchCrewWindow = async (crewIds = []) => {
+  const ids = (crewIds || []).filter(Boolean);
+  if (ids.length === 0) return [];
+  const { data, error } = await supabase
+    .from('hub_posts')
+    .select('*')
+    .eq('privacy', 'crew')
+    .in('crew_id', ids)
+    .order('created_date', { ascending: false })
+    .limit(FETCH_WINDOW);
+  if (error) return [];
+  return data || [];
+};
+
+/**
  * Older-than-cursor fetch for "load more" pagination (audit B-9 —
  * the FETCH_WINDOW cap previously made posts past the 100th
  * permanently unreachable).
