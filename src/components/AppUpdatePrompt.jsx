@@ -103,7 +103,7 @@ export default function AppUpdatePrompt() {
         </div>
         <div className="flex-1 min-w-0">
           <p className="font-bold text-sm">{tFallback("appUpdatePrompt.aNewVersionIsAvailable", "A new version is available")}</p>
-          <p className="text-xs text-muted-foreground">Reload to get the latest features.</p>
+          <p className="text-xs text-muted-foreground">{tFallback('appUpdate.body', 'Reload to get the latest features.')}</p>
         </div>
         <button
           onClick={() => { try { updateFn(); } catch { /* ignore */ } }}

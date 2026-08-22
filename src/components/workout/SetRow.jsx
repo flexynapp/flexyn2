@@ -82,7 +82,7 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
     if (lbs > maxWeight + 0.5) {
       const capDisplay = formatWeightNumber(maxWeight, weightUnit);
       toast.message(`Capped at ${capDisplay} ${weightUnit}`, {
-        description: 'Anti-cheat: weight exceeds realistic limit for your profile.',
+        description: tFallback('setRow.antiCheatWeight', 'Anti-cheat: weight exceeds realistic limit for your profile.'),
         duration: 2200,
       });
     }
@@ -298,7 +298,7 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
               // Audit B-1 — surface the rep clamp the same way as weight.
               if (clean > maxReps) {
                 toast.message(`Capped at ${maxReps} reps`, {
-                  description: 'Anti-cheat: rep count exceeds realistic limit at that weight.',
+                  description: tFallback('setRow.antiCheatReps', 'Anti-cheat: rep count exceeds realistic limit at that weight.'),
                   duration: 2200,
                 });
               }

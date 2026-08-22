@@ -53,7 +53,7 @@ function NavTab({ item, isActive, isHubItem, hubBlue, hubPurple, hubHasNewFollow
     >
       {showLongPressHint && hasQuickActions && (
         <OneShotTooltip id={TOOLTIP.LONG_PRESS_TABS} anchorRef={ref} placement="top">
-          Hold any tab for shortcuts.
+          {tFallback('layout.holdTabHint', 'Hold any tab for shortcuts.')}
         </OneShotTooltip>
       )}
       <Link

@@ -102,7 +102,7 @@ export default function GifPicker({ open, onPick, onClose }) {
       ) : error ? (
         <div className="px-4 pb-6 text-center">
           <p className="text-sm font-bold">{tFallback("gifPicker.couldnTLoadGifs", "Couldn't load GIFs")}</p>
-          <p className="text-xs text-muted-foreground mt-1">Try again in a moment.</p>
+          <p className="text-xs text-muted-foreground mt-1">{tFallback('gifPicker.retrySoon', 'Try again in a moment.')}</p>
         </div>
       ) : (
         <div className="grid grid-cols-3 gap-2 px-4 pb-4 max-h-64 overflow-y-auto">

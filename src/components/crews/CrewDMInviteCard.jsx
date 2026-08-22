@@ -100,7 +100,7 @@ export default function CrewDMInviteCard({ payload, userId, isMine }) {
 
           {/* Action */}
           {isMine ? (
-            <p className="text-xs text-muted-foreground italic">You sent this invite.</p>
+            <p className="text-xs text-muted-foreground italic">{tFallback('crewInvite.youSent', 'You sent this invite.')}</p>
           ) : state === 'requested' ? (
             <div className="w-full py-2 text-center text-xs font-bold text-muted-foreground">
               {tFallback('crewDMInviteCard.requestPending', 'Request sent, awaiting review')}
@@ -111,7 +111,7 @@ export default function CrewDMInviteCard({ payload, userId, isMine }) {
               {tFallback("crewDMInviteCard.joined", "Joined!")}
             </div>
           ) : state === 'full' ? (
-            <p className="text-xs text-destructive font-medium">This Crew is full.</p>
+            <p className="text-xs text-destructive font-medium">{tFallback('crewInvite.crewFull', 'This Crew is full.')}</p>
           ) : (
             <motion.button
               whileTap={{ scale: 0.95 }}

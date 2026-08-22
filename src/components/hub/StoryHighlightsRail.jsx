@@ -98,7 +98,7 @@ export default function StoryHighlightsRail({ userEmail, isOwn, onOpenAlbum }) {
     if (res.ok) {
       qc.invalidateQueries({ queryKey: ['storyHighlights', userEmail] });
     } else {
-      toast.error('Could not delete. Try again.');
+      toast.error(tFallback('notifications.deleteFailed', 'Could not delete. Try again.'));
     }
   };
 

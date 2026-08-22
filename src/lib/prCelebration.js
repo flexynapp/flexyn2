@@ -32,6 +32,7 @@
 
 import { toast } from '@/lib/toast';
 import * as Sentry from '@sentry/react';
+import { asT } from '@/lib/translatorArg';
 
 /**
  * Window event fired when the user taps "Share" on the PR celebration
@@ -66,7 +67,8 @@ const CONFETTI_COLORS = ['#fbbf24', '#f59e0b', '#dc2626', '#b45309', '#fde68a', 
  * @param {string}  [opts.unit='lb'] — weight unit for the toast copy
  * @param {string}  [opts.userEmail] — Sentry tag
  */
-export function firePRCelebration({ prs = [], unit = 'lb', userEmail } = {}) {
+export function firePRCelebration({ prs = [], unit = 'lb', userEmail, t } = {}) {
+  const tf = asT(t);
   // 0, not undefined: nothing was shown, so the queue should fall through to
   // its confetti/haptic floor rather than holding a full toast duration for a
   // celebration that never rendered.
@@ -96,7 +98,7 @@ export function firePRCelebration({ prs = [], unit = 'lb', userEmail } = {}) {
       : 'You just topped your previous best.',
     duration: TOAST_MS,
     action: {
-      label: 'Share',
+      label: tf('common.share', 'Share'),
       onClick: () => {
         // Dispatch the open-share event with the top PR. Workout.jsx
         // listens for this and opens PRShareCard. Don't couple this

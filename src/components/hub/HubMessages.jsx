@@ -900,7 +900,7 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                   )
                 : null}
               action={dmView === 'inbox' ? {
-                label: 'Start a group',
+                label: tFallback('hubMessages.startGroup', 'Start a group'),
                 onClick: () => setNewGroupOpen(true),
               } : null}
             />

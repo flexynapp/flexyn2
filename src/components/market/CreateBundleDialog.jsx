@@ -75,7 +75,7 @@ export default function CreateBundleDialog({ open, onClose, listings, user, onSu
 
   const handleSubmit = async () => {
     if (!title.trim()) {
-      toast.error('Give the bundle a name.');
+      toast.error(tFallback('createBundle.needName', 'Give the bundle a name.'));
       return;
     }
     // The title is the one piece of free text a seller can put in front of
@@ -83,7 +83,7 @@ export default function CreateBundleDialog({ open, onClose, listings, user, onSu
     // item names from the catalog — so this is the marketplace's only UGC
     // surface and it gets the same check usernames and bios get.
     if (containsProfanity(title)) {
-      toast.error("Let's keep the bundle name clean.");
+      toast.error(tFallback('createBundle.profanity', "Let's keep the bundle name clean."));
       return;
     }
     setBusy(true);

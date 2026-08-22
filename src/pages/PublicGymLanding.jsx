@@ -102,7 +102,7 @@ export default function PublicGymLanding() {
         <div>
           <p className="font-heading font-bold text-lg">Couldn&rsquo;t load this gym</p>
           <p className="text-sm text-muted-foreground mt-1">
-            Check your connection and try again.
+            {tFallback('notifications.error.desc', 'Check your connection and try again.')}
           </p>
         </div>
         <div className="flex gap-2">

@@ -185,7 +185,7 @@ export default function CardioLiveTrackerIndoor({ mode, env, onCancel, onSaved, 
     // are not a thing — refusing here prevents accidental empty-credit saves.
     if (elapsedSeconds < 30) {
       savingGuardRef.current = false;
-      toast.error('Session too short to save (under 30 seconds).');
+      toast.error(tFallback('cardioIndoor.tooShort', 'Session too short to save (under 30 seconds).'));
       return;
     }
     // Refuse 0-distance saves so a user who forgets to enter the
@@ -194,7 +194,7 @@ export default function CardioLiveTrackerIndoor({ mode, env, onCancel, onSaved, 
     // already enforces this — bringing indoor in line. (Audit 16 F5.)
     if (!distanceMeters || distanceMeters <= 0) {
       savingGuardRef.current = false;
-      toast.error('Enter the distance from your treadmill display before saving.');
+      toast.error(tFallback('cardioIndoor.needDistance', 'Enter the distance from your treadmill display before saving.'));
       return;
     }
 

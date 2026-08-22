@@ -98,7 +98,7 @@ export default function RoutineTodayCard({ onStart, onOpenRoutines, onChallenge 
             <Dumbbell className="w-5 h-5 text-muted-foreground" />
             <div className="flex-1">
               <p className="font-heading font-bold">{day?.label || `${dayName} — not set up`}</p>
-              <p className="text-xs text-muted-foreground">Tap to add today's lifts to your routine.</p>
+              <p className="text-xs text-muted-foreground">{tFallback('routineToday.addHint', "Tap to add today's lifts to your routine.")}</p>
             </div>
             <ChevronRight className="w-5 h-5 text-muted-foreground" />
           </button>

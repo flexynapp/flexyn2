@@ -209,7 +209,7 @@ export default function QrCodeScanner({ open, onClose, onDetect }) {
         {/* Hint */}
         <div className="bg-black/70 px-4 py-3 text-center">
           <p className="text-white/80 text-xs">
-            Point at the Flexyn Code printed inside the gym.
+            {tFallback('qrScanner.aimHint', 'Point at the Flexyn Code printed inside the gym.')}
           </p>
         </div>
       </motion.div>

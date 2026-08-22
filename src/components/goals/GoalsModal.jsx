@@ -94,6 +94,7 @@ export default function GoalsModal({ open, onClose, goals = [], logs = [], userP
       const isFirstGoal = activePrev.length === 0;
       if (isFirstGoal) {
         fireFirstGoalCelebration({
+          t: tFallback,
           targetSummary: summarizeGoalTarget(created || submittedData, weightUnit),
           userEmail: user?.email,
         });
@@ -131,6 +132,7 @@ export default function GoalsModal({ open, onClose, goals = [], logs = [], userP
     deleteFn: (id) => goalsData.remove(id),
     label: tFallback('goals.toast.deleted', 'Goal deleted'),
     feature: 'goals.delete',
+    t: tFallback,
   });
 
   // Archive / unarchive. A plain status write — no XP, no quest credit, no

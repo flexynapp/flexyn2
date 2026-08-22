@@ -167,7 +167,7 @@ export default function BodySection() {
       invalidateProfile();
       toast.success(next ? 'Cycle tracking enabled.' : 'Cycle tracking removed.');
     } catch {
-      toast.error('Could not update. Try again.');
+      toast.error(tFallback('cycleTracker.updateFailed', 'Could not update. Try again.'));
     }
   };
 

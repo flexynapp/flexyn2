@@ -58,6 +58,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { toast } from '@/lib/toast';
+import { asT } from '@/lib/translatorArg';
 
 function safeRead(key) {
   try {
@@ -93,7 +94,12 @@ export function useFormDraft({
   debounceMs = DEFAULT_DEBOUNCE_MS,
   staleMs = DEFAULT_STALE_MS,
   toastLabel = 'Draft restored',
+  // The caller's tFallback. This is a hook, but its tests render it with a
+  // bare renderHook and no LanguageProvider, so reading the context here
+  // would turn them red. asT keeps an un-threaded caller on English.
+  t,
 } = {}) {
+  const tf = asT(t);
   // Track whether we've already attempted a restore on this mount so
   // we don't toast twice if the parent re-renders before the draft
   // value lands.
@@ -139,7 +145,7 @@ export function useFormDraft({
     toast(toastLabel, {
       duration: 5000,
       action: {
-        label: 'Discard',
+        label: tf('workout.discard', 'Discard'),
         onClick: () => safeClear(key),
       },
     });

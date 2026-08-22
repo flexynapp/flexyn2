@@ -122,7 +122,7 @@ export default function PlateCalculatorModal({ open, onClose, initialWeightLbs =
             {/* Result */}
             <div className="rounded-xl bg-secondary/40 border border-border p-4 min-h-[120px] flex flex-col items-center justify-center text-center">
               {!hasInput ? (
-                <p className="text-sm text-muted-foreground">Enter a weight to see what to load.</p>
+                <p className="text-sm text-muted-foreground">{tFallback('plateCalc.enterWeight', 'Enter a weight to see what to load.')}</p>
               ) : targetLbs < barLbs ? (
                 <p className="text-sm text-muted-foreground">That's below the bar weight — just the empty bar.</p>
               ) : !perSide || perSide.length === 0 ? (

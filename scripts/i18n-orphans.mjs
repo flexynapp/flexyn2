@@ -59,11 +59,18 @@ export function findOrphans(root = SRC, enPath = EN) {
   const en = JSON.parse(fs.readFileSync(enPath, 'utf8'));
   const found = [];
 
+  // `tFallback(` AND the `tf(`/`tF(` aliases. Modules that take the
+  // translator as an argument name it `tf` by convention (see
+  // src/lib/translatorArg.js), and scanning only the long name missed two
+  // real orphans in the celebration helpers while reporting a clean zero.
+  // The alias needs a left boundary or it matches inside `setF(`, `getf(`
+  // and every other identifier ending in those two letters.
+  const CALLS = /(?<![A-Za-z0-9_$.])(tFallback|tF|tf)\(/g;
   for (const file of sourceFiles(root)) {
     const src = fs.readFileSync(file, 'utf8');
-    let i = 0;
-    while ((i = src.indexOf('tFallback(', i)) !== -1) {
-      let j = i + 'tFallback('.length;
+    for (const call of [...src.matchAll(CALLS)]) {
+      const i = call.index;
+      let j = i + call[0].length;
       let depth = 1, quote = null, arg = '';
       while (j < src.length && depth > 0) {
         const c = src[j];
@@ -78,8 +85,6 @@ export function findOrphans(root = SRC, enPath = EN) {
         if (c === ',' && depth === 1) break;
         arg += c; j++;
       }
-      i = j + 1;
-
       const raw = arg.trim();
       if (!/^['"]/.test(raw)) continue;          // computed key — skip
       const key = raw.slice(1, -1);

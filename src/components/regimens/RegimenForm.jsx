@@ -72,6 +72,7 @@ export default function RegimenForm({ initial, onSubmit, onCancel, userProfile =
   const draftEnabled = !initial && !!user?.email;
   const draftValue = { name, description, exercises, isPublic };
   const draft = useFormDraft({
+    t: tFallback,
     key: draftEnabled ? `flexyn.draft.regimenCreate.${user.email}` : null,
     value: draftValue,
     enabled: draftEnabled,

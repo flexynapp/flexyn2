@@ -12,6 +12,7 @@
 
 import { toast } from '@/lib/toast';
 import * as Sentry from '@sentry/react';
+import { asT } from '@/lib/translatorArg';
 
 // Warm fruit/vegetable palette — visually nutrition-coded so the
 // moment reads as "you logged FOOD" even before the user looks at
@@ -27,7 +28,8 @@ const CONFETTI_COLORS = ['#ef4444', '#f59e0b', '#84cc16', '#16a34a', '#f97316', 
  * @param {number} [opts.calories]  - If provided, shown in the toast.
  * @param {string} [opts.userEmail] - For Sentry user tag.
  */
-export function fireFirstMealCelebration({ mealName, calories, userEmail } = {}) {
+export function fireFirstMealCelebration({ mealName, calories, userEmail, t } = {}) {
+  const tf = asT(t);
   // Short three-tap haptic — different rhythm from the other first-X
   // helpers so the haptic alone IDs which milestone fired.
   try { navigator.vibrate?.([12, 30, 12, 30, 12]); } catch { /* ignore */ }
@@ -35,7 +37,7 @@ export function fireFirstMealCelebration({ mealName, calories, userEmail } = {})
   const calLine = (typeof calories === 'number' && calories > 0) ? ` · ${Math.round(calories)} cal` : '';
   const name = mealName ? `: ${mealName}` : '';
   toast.success(`🥗 First meal logged${name}${calLine}`, {
-    description: "Nutrition tracking unlocks macro insights as you build up history.",
+    description: tf('celebration.firstMeal.body', "Nutrition tracking unlocks macro insights as you build up history."),
     duration: 6000,
   });
 

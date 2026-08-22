@@ -816,6 +816,7 @@ export default function Dashboard() {
       leagueSeasons.markSeasonResultSeen(user.id, res.seasonNumber);
       enqueueReveal(() =>
         fireSeasonEndCelebration({
+          t: tFallback,
           seasonNumber: res.seasonNumber,
           tier: res.tier,
           isChampion: res.isChampion,

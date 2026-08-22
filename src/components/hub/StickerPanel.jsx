@@ -118,7 +118,7 @@ export default function StickerPanel({ postId, onClose }) {
       // Generic toast — raw Postgres error.message can leak column / RLS
       // hints. Full detail still goes to Sentry via reportError.
       reportError(err, { feature: 'stickerPanel.react', level: 'warning', userEmail: user?.email, postId });
-      toast.error('Could not react. Try again.');
+      toast.error(tFallback('stickerPanel.reactFailed', 'Could not react. Try again.'));
     } finally {
       setBusy(false);
     }
@@ -175,7 +175,7 @@ export default function StickerPanel({ postId, onClose }) {
             {reactions.length === 0 ? (
               <div className="flex flex-col items-center py-4 gap-2 text-center">
                 <Sparkles className="w-6 h-6 text-muted-foreground/40" />
-                <p className="text-muted-foreground text-xs">No sticker reactions yet.</p>
+                <p className="text-muted-foreground text-xs">{tFallback('stickerPanel.empty', 'No sticker reactions yet.')}</p>
                 <button
                   onClick={() => setTab('pick')}
                   className="text-xs text-primary hover:underline"

@@ -32,7 +32,7 @@ export default function AccountSection() {
       const mod = await import('@/lib/data/dataExport');
       const data = await mod.buildExport(user);
       await mod.downloadExport(data);
-      toast.success('Data export downloaded.');
+      toast.success(tFallback('account.exportDownloaded', 'Data export downloaded.'));
     } catch (err) {
       toast.error(`Export failed: ${err?.message || 'try again'}`);
     } finally {

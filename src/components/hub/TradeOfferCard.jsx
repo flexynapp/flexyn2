@@ -308,7 +308,7 @@ export default function TradeOfferCard({ payload, isMine, user, conversationId, 
               <p className="flex items-start gap-1 mt-2 text-micro text-success dark:text-success leading-snug">
                 <ShieldCheck className="w-2.5 h-2.5 mt-0.5 shrink-0" />
                 <span>
-                  Their item is already held. Accept and the two items swap instantly.
+                  {tFallback('tradeOfferCard.heldHint', 'Their item is already held. Accept and the two items swap instantly.')}
                 </span>
               </p>
             ) : (

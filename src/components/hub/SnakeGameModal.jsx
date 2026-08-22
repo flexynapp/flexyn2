@@ -548,7 +548,7 @@ export default function SnakeGameModal({ open, onClose, userId }) {
               {/* Overlays */}
               {gameState === 'ready' && (
                 <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-3 bg-black/45 backdrop-blur-[2px]">
-                  <p className="text-xs text-slate-300 px-6 text-center">Collect coins. Don't hit the walls or your own tail.</p>
+                  <p className="text-xs text-slate-300 px-6 text-center">{tFallback('snakeGame.howTo', "Collect coins. Don't hit the walls or your own tail.")}</p>
                   <button type="button" onClick={() => startGame('right')} className="snake-pixel text-micro px-5 py-3 rounded-xl bg-primary text-primary-foreground hover:opacity-90 transition-opacity leading-none">START</button>
                   <p className="text-micro text-slate-400">Arrows / WASD / D-pad</p>
                 </div>

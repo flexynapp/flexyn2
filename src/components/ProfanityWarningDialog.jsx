@@ -32,7 +32,7 @@ export default function ProfanityWarningDialog({ open, onContinue }) {
               Watch your language :)
             </h2>
             <p className="text-sm text-muted-foreground mb-5 leading-relaxed">
-              That word isn't allowed here. Tap Continue and we'll clear it for you.
+              {tFallback('profanityDialog.body', "That word isn't allowed here. Tap Continue and we'll clear it for you.")}
             </p>
             <Button className="w-full" onClick={onContinue}>
               {tFallback("levelUp.continue", "Continue")}

@@ -516,7 +516,7 @@ export default function CardioSection({ onBack, deepLink = null, onDeepLinkConsu
             {t('cardio.back')}
           </Button>
           <p className="text-sm text-muted-foreground mb-4">
-            Tap a template to start a session with its defaults pre-filled.
+            {tFallback('cardioSection.templateHint', 'Tap a template to start a session with its defaults pre-filled.')}
           </p>
           <CardioTemplates onApply={handleApplyTemplate} />
         </ViewWrapper>

@@ -75,7 +75,7 @@ export default function DMStickerPicker({ open, userId, userEmail, onPick, onClo
       {groups.length === 0 ? (
         <div className="px-4 pb-6 text-center">
           <p className="text-sm font-bold">{tFallback("dMStickerPicker.noStickersYet", "No stickers yet")}</p>
-          <p className="text-xs text-muted-foreground mt-1">Open capsules in the Market to collect stickers.</p>
+          <p className="text-xs text-muted-foreground mt-1">{tFallback('dmStickerPicker.emptyHint', 'Open capsules in the Market to collect stickers.')}</p>
         </div>
       ) : (
         <div className="grid grid-cols-5 gap-2 px-4 pb-4 max-h-56 overflow-y-auto">

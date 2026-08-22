@@ -12,6 +12,8 @@
 // paint it as a zero-height bar, and `summarise` divides by logged days and
 // hands back the denominator so the UI can state it.
 
+// `label` is the English fallback for `adherence.<key>`, resolved in
+// HistoryCalendarSheet's legend.
 export const ADHERENCE = {
   over:  { key: 'over',  label: 'Over',      css: 'hsl(var(--primary))', text: 'text-primary' },
   on:    { key: 'on',    label: 'On target', css: 'hsl(var(--success))', text: 'text-success' },

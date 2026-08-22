@@ -15,6 +15,7 @@
 
 import { toast } from '@/lib/toast';
 import * as Sentry from '@sentry/react';
+import { asT } from '@/lib/translatorArg';
 
 const CONFETTI_COLORS = ['#f97316', '#fb923c', '#fbbf24', '#22c55e', '#3b82f6', '#a855f7'];
 
@@ -33,14 +34,15 @@ const CONFETTI_COLORS = ['#f97316', '#fb923c', '#fbbf24', '#22c55e', '#3b82f6', 
 // to overlapping them.
 export const TOAST_MS = 6000;
 
-export function fireFirstWorkoutCelebration({ xpGained = 0, userEmail } = {}) {
+export function fireFirstWorkoutCelebration({ xpGained = 0, userEmail, t } = {}) {
+  const tf = asT(t);
   // Triple buzz then a longer pulse — distinct from goal-completion
   // (15/50/15) so a returning user can tell which milestone fired.
   try { navigator.vibrate?.([20, 60, 20, 60, 80]); } catch { /* ignore */ }
 
   const xpLine = xpGained > 0 ? ` · +${xpGained} XP` : '';
   toast.success(`🎉 First workout logged${xpLine}`, {
-    description: "You're officially training with Flexyn. Keep the momentum going.",
+    description: tf('celebration.firstWorkout.body', "You're officially training with Flexyn. Keep the momentum going."),
     duration: TOAST_MS,
   });
 

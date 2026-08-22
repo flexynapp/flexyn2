@@ -1093,7 +1093,7 @@ export default function Workout() {
         // celebration can't collide with the day-1 capsule grant
         // notification fired by LevelUpManager below — they get
         // serialized with ~700ms spacing instead of stacking.
-        enqueueReveal(() => fireFirstWorkoutCelebration({ xpGained, userEmail: user?.email }));
+        enqueueReveal(() => fireFirstWorkoutCelebration({ xpGained, userEmail: user?.email, t: tFallback }));
         // Day-1 loot drop — reinforces the loot economy that the
         // day-0 welcome capsule introduced. Premium tier signals a
         // step up from the welcome standard so the reward FEELS
@@ -1185,6 +1185,7 @@ export default function Workout() {
             // and three colliding confetti bursts. With the queue,
             // each gets ~700ms to land before the next fires.
             enqueueReveal(() => firePRCelebration({
+              t: tFallback,
               prs,
               unit: unitLabel,
               userEmail: user?.email,
