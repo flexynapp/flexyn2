@@ -69,6 +69,12 @@ export async function getStoriesFeedData(user, followingIds = []) {
 
   const stories        = storiesRes.data  ?? [];
   const profiles       = profilesRes.data ?? [];
+  // Declared HERE, above the discovery block that reads it. It used to sit
+  // ~45 lines below, after the try — so every call threw a TDZ ReferenceError
+  // on the first line that touched it, and the bare `catch` swallowed it.
+  // Public story discovery therefore returned nothing from the day it shipped.
+  // `blocksRes` is already resolved above; only the binding moved.
+  const blockedByIds   = new Set((blocksRes.data ?? []).map(r => r.blocker_id));
 
   // ── Public discovery ───────────────────────────────────────────────────
   // Stories from accounts you DON'T follow, shown only when both are true:
@@ -104,16 +110,19 @@ export async function getStoriesFeedData(user, followingIds = []) {
       const visible       = new Set(discovered.ids);
       discovered.stories  = (pubStories ?? []).filter(s => visible.has(s.user_id));
     }
-  } catch {
+  } catch (err) {
     // Discovery is additive — a failure here must never break the own/following
-    // feed, so fall through with an empty discovery set.
+    // feed, so fall through with an empty discovery set. But it must not be
+    // SILENT: this catch hid a ReferenceError for the entire life of the
+    // feature. An empty discovery set and a broken discovery set look identical
+    // from the outside, and only one of them should be quiet.
+    console.warn('[stories] public discovery failed:', err);
   }
   stories.push(...discovered.stories);
   profiles.push(...discovered.profiles);
   const viewedIds      = new Set((viewsRes.data  ?? []).map(r => r.story_id));
   const likedIds       = new Set((likesRes.data  ?? []).map(r => r.story_id));
   const notes          = notesRes.data    ?? [];
-  const blockedByIds   = new Set((blocksRes.data ?? []).map(r => r.blocker_id));
 
   // Fetch liked note IDs and note like counts in a second parallel pass
   const noteIds = notes.map(n => n.id);
