@@ -10,8 +10,7 @@
 //
 // Each banner shows:
 //   • Avatar + display name
-//   • A short summary of what they did (goal completion / workout /
-//     plain post) read from the post's linked_entity_snapshot
+//   • A short summary of what they did, keyed on the row's `post_type`
 //   • Tap → scroll the feed to that post + dismiss
 //
 // The user can dismiss a banner manually (X button) or it auto-fades
@@ -30,35 +29,52 @@ import { useLanguage } from '@/lib/LanguageContext';
 const MAX_VISIBLE = 3;
 const AUTO_DISMISS_MS = 10_000;
 
-// Map the post snapshot to a "what happened" summary + icon. Falls
-// back to a generic "just posted" when we can't classify the kind.
+// What happened, keyed on `post_type` — the column the row actually has.
+//
+// This read `snap?.kind || post?.kind` and neither exists. `hub_posts` has no
+// `kind` column, and no writer has ever put a `kind` key in
+// `linked_entity_snapshot` (0 of 28 rows in production). `kind` is the
+// COMPOSER's in-memory vocabulary; what gets persisted is `post_type`, and
+// the two do not even agree — the composer maps its `goal` to `goal_completed`
+// on the way in. So `kind` was always undefined, which fell through to the
+// `!kind` branch, and every banner ever shown read "just posted".
+//
+// `post_type` is set on every row by every writer. `linked_entity_type` is a
+// second, narrower source (null on status, repost and poll), so it is only a
+// fallback here rather than the key.
+const SUMMARY_BY_TYPE = {
+  workout:        { key: 'hub.activityBanner.workout',       en: 'logged a workout',        icon: Dumbbell },
+  cardio:         { key: 'hub.activityBanner.cardio',        en: 'finished cardio',         icon: Dumbbell },
+  regimen:        { key: 'hub.activityBanner.regimen',       en: 'shared a program',        icon: Dumbbell },
+  meal:           { key: 'hub.activityBanner.meal',          en: 'logged a meal',           icon: Sparkles },
+  goal_completed: { key: 'hub.activityBanner.goalCompleted', en: 'completed a goal',        icon: Trophy },
+  achievement:    { key: 'hub.activityBanner.achievement',   en: 'unlocked an achievement', icon: Trophy },
+  stats:          { key: 'hub.activityBanner.stats',         en: 'shared their stats',      icon: Sparkles },
+  progress_photo: { key: 'hub.activityBanner.progressPhoto', en: 'posted a progress photo', icon: Sparkles },
+  video:          { key: 'hub.activityBanner.video',         en: 'posted a video',          icon: MessageCircle },
+  poll:           { key: 'hub.activityBanner.poll',          en: 'started a poll',          icon: MessageCircle },
+  repost:         { key: 'hub.activityBanner.repost',        en: 'reposted a post',         icon: MessageCircle },
+  status:         { key: 'hub.activityBanner.status',        en: 'posted',                  icon: MessageCircle },
+};
+const SUMMARY_FALLBACK = SUMMARY_BY_TYPE.status;
+
 function summarize(post) {
-  const snap = post?.linked_entity_snapshot;
-  // Per-kind summaries. Conservative — if we can't extract clear
-  // detail, default to a generic phrase rather than risk wrong copy.
-  const kind = snap?.kind || post?.kind;
-  if (kind === 'goal') {
-    const label = snap?.summary || snap?.goal_name || 'a goal';
-    return { text: `crushed ${label}`, icon: Trophy };
-  }
-  if (kind === 'workout') {
-    return { text: 'just logged a workout', icon: Dumbbell };
-  }
-  if (kind === 'cardio') {
-    return { text: 'just finished cardio', icon: Dumbbell };
-  }
-  if (kind === 'status' || !kind) {
-    return { text: 'just posted', icon: MessageCircle };
-  }
-  if (kind === 'meal') {
-    return { text: 'logged a meal', icon: Sparkles };
-  }
-  return { text: 'just shared', icon: Sparkles };
+  const type = post?.post_type || post?.linked_entity_type;
+  return SUMMARY_BY_TYPE[type] || SUMMARY_FALLBACK;
 }
 
-function displayName(post) {
-  return post?.author_username || 'Someone';
+// `author_name` — `author_username` is not a column on hub_posts, so this
+// returned the fallback for every post that has ever existed. Kept as a
+// fallback rather than removed: author_name is NOT NULL today, but a name
+// is display data and an empty string should not render as a blank banner.
+function displayName(post, anonymous) {
+  return post?.author_name || anonymous;
 }
+
+// Exported for the test: the two helpers ARE the defect surface here, and
+// driving them directly is what pins the column names. The component itself
+// only renders once a realtime INSERT arrives from someone you follow.
+export const __test__ = { summarize, displayName, SUMMARY_BY_TYPE };
 
 export default function FollowerActivityBanner() {
   const { user } = useAuth();
@@ -126,8 +142,9 @@ export default function FollowerActivityBanner() {
 
 function BannerCard({ post, onDismiss }) {
   const { tFallback } = useLanguage();
-  const { text, icon: Icon } = summarize(post);
-  const name = displayName(post);
+  const { key, en, icon: Icon } = summarize(post);
+  const text = tFallback(key, en);
+  const name = displayName(post, tFallback('hub.activityBanner.someone', 'Someone'));
 
   useEffect(() => {
     const t = setTimeout(onDismiss, AUTO_DISMISS_MS);
