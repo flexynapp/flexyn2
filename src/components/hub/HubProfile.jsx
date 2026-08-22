@@ -1230,6 +1230,13 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   // Same query key and same fetcher as ProfileLiftStats, so this is a cache
   // hit rather than a second round-trip — the Stats tab and the banner share
   // one read of the log list.
+  //
+  // SELF ONLY. `workout_logs` carries a single owner policy — `created_by =
+  // current_user_email() OR user_id = auth.uid()` — so filtering it by
+  // somebody else's email returns [] rather than an error. There is no
+  // server surface that exposes another athlete's training days, and adding
+  // one is a privacy decision rather than a UI one (the same reasoning as
+  // useHeroContests below).
   const { data: heroLogs = [] } = useQuery({
     queryKey: ['profileLifts', email],
     queryFn: async () => {
@@ -1238,7 +1245,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
         return await db.entities.WorkoutLog.filter({ created_by: email }, '-date', 500);
       } catch { return []; }
     },
-    enabled: !!email,
+    enabled: isSelf && !!email,
     staleTime: 5 * 60_000,
   });
   // Both derived from the same logs on purpose — a server-side streak counter
@@ -1341,8 +1348,16 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
         xpNeeded={xpNeeded}
         progressPercent={progressPercent}
         isAdminProfile={isAdminProfile}
-        week={trainingWeek}
-        streak={trainingStreak}
+        // `[]` and not `trainingWeek` on someone else's profile. An empty
+        // log list is indistinguishable from a rest week here, and
+        // buildTrainingWeek returns seven days either way — so the banner's
+        // `week.length > 0` guard never fired and every other athlete's
+        // profile painted seven blank squares labelled "Trained 0 of the
+        // last 7 days" about somebody who may well have trained all seven.
+        // Absent beats wrong: the strip is absolutely positioned, so
+        // dropping it moves nothing else.
+        week={isSelf ? trainingWeek : []}
+        streak={isSelf ? trainingStreak : 0}
         tFallback={tFallback}
         // Slot 1 IS the primary — the trophy case is already an ordered
         // array, so "most prized" needs no new column, just the convention

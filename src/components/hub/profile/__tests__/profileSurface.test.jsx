@@ -184,6 +184,30 @@ describe('ProfileTierBanner', () => {
     expect(container.textContent).toContain('👑');
   });
 
+  it('draws no week strip at all when it has no week, rather than seven blanks', () => {
+    // `workout_logs` is owner-only, so a viewer looking at somebody else's
+    // profile gets [] — and `buildTrainingWeek` turns [] into seven days with
+    // `trained: false`, not into nothing. HubProfile therefore has to pass []
+    // itself; this is the half of the contract the banner owns. Seven grey
+    // squares captioned "Trained 0 of the last 7 days" is a claim about a
+    // person the viewer has no data on, and it is usually false.
+    const base = {
+      tier: TIER, level: 54, levelLabel: 'Lv 54', levelWord: 'Lv',
+      xpInLevel: 1240, xpNeeded: 2000, progressPercent: 62,
+    };
+    const { rerender } = render(<ProfileTierBanner {...base} week={[]} />);
+    expect(screen.queryByRole('img', { name: /Trained/ })).toBeNull();
+
+    // And it does render once there is a week to render — otherwise the
+    // assertion above would pass on a banner that had lost the strip.
+    const week = [0, 1, 2, 3, 4, 5, 6].map((i) => ({
+      key: `2026-08-0${i + 1}`, label: 'M', trained: i < 3, isToday: i === 3, isFuture: i > 3,
+    }));
+    rerender(<ProfileTierBanner {...base} week={week} />);
+    const strip = screen.getByRole('img', { name: /Trained/ });
+    expect(strip.getAttribute('aria-label')).toContain('3');
+  });
+
   it('labels the level so the numeral is not left to be guessed at', () => {
     // It rendered "Ruby 54" — a bare numeral beside a tier name reads just
     // as easily as a rank, a position, or a badge count.
