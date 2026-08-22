@@ -85,7 +85,8 @@ export function useMultiProfanityGuard() {
  *
  * Usage:
  *   if (hasAnyProfanity([name, description, notes])) {
- *     toast.error('Please remove inappropriate language before saving.');
+ *     toast.error(tFallback('common.profanity.beforeSaving',
+ *       'Please remove inappropriate language before saving.'));
  *     return;
  *   }
  */

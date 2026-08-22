@@ -64,7 +64,7 @@ function NewTemplateForm({ onSave, onCancel }) {
 
   const handleSave = () => {
     if (hasAnyProfanity(name)) {
-      toast.error(tFallback('templatesModal.profanity', 'Please remove inappropriate language before saving.'));
+      toast.error(tFallback('common.profanity.beforeSaving', 'Please remove inappropriate language before saving.'));
       return;
     }
     if (!name.trim()) {

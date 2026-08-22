@@ -1688,7 +1688,7 @@ export default function Workout() {
     // only successful entries through validation lock further taps.
     const exerciseStrings = (exercises || []).flatMap(ex => [ex.name, ex.displayName]);
     if (hasAnyProfanity(notes, exerciseStrings)) {
-      toast.error(tFallback('workout.removeProfanity', 'Please remove inappropriate language before saving.'));
+      toast.error(tFallback('common.profanity.beforeSaving', 'Please remove inappropriate language before saving.'));
       return;
     }
     // Detect empty / missing-data sets unless the user has confirmed.

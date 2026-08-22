@@ -209,7 +209,7 @@ export default function CardioManualForm({
 
   const handleSave = async () => {
     if (hasAnyProfanity(notes)) {
-      toast.error(tFallback('cardioManualForm.profanityNotes', 'Please remove inappropriate language from notes before saving.'));
+      toast.error(tFallback('common.profanity.notes', 'Please remove inappropriate language from notes before saving.'));
       return;
     }
     setSaving(true);

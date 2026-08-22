@@ -99,7 +99,7 @@ export default function GoalForm({ initial, onSubmit, onCancel, userProfile = {}
     e.preventDefault();
 
     if (hasAnyProfanity(exercise, exerciseCanonical, notes)) {
-      toast.error('Please remove inappropriate language before saving.');
+      toast.error(tFallback('common.profanity.beforeSaving', 'Please remove inappropriate language before saving.'));
       return;
     }
 

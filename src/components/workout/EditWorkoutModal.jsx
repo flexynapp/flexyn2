@@ -172,7 +172,7 @@ export default function EditWorkoutModal({ log, userProfile = {}, logs = [], car
 
   const handleSave = async (forceSkipChecks = false) => {
     if (hasAnyProfanity(notes)) {
-      toast.error('Please remove inappropriate language from notes before saving.');
+      toast.error(tFallback('common.profanity.notes', 'Please remove inappropriate language from notes before saving.'));
       return;
     }
 

@@ -949,7 +949,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   // ── Profile edit save ────────────────────────────────────────────────────────
   const handleSaveProfile = async () => {
     if (hasAnyProfanity(bioDraft, cityDraft)) {
-      toast.error(tFallback('hub.profile.removeProfanity', 'Please remove inappropriate language before saving.'));
+      toast.error(tFallback('common.profanity.beforeSaving', 'Please remove inappropriate language before saving.'));
       return;
     }
     setSavingProfile(true);

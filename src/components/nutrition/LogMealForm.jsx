@@ -194,7 +194,7 @@ export default function LogMealForm({ newEntry, setNewEntry, onPhotoAI, onSearch
   const handleLog = () => {
     if (submittingRef.current || isLogging) return;
     if (hasAnyProfanity(newEntry.food_name)) {
-      toast.error(tFallback('nutrition.profanityWarning', 'Please remove inappropriate language from food name before saving.'));
+      toast.error(tFallback('common.profanity.foodName', 'Please remove inappropriate language from food name before saving.'));
       return;
     }
     submittingRef.current = true;

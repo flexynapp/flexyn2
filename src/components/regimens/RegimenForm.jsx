@@ -189,7 +189,7 @@ export default function RegimenForm({ initial, onSubmit, onCancel, userProfile =
 
     const exerciseStrings = (exercises || []).flatMap(ex => [ex.name, ex.displayName, ex.notes]);
     if (hasAnyProfanity(name, description, exerciseStrings)) {
-      toast.error(tFallback('workout.removeProfanity', 'Please remove inappropriate language before saving.'));
+      toast.error(tFallback('common.profanity.beforeSaving', 'Please remove inappropriate language before saving.'));
       return;
     }
 
