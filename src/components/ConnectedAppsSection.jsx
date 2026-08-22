@@ -13,6 +13,8 @@ import React from 'react';
 import { Plug, Activity, Apple, Watch } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
 
+// `blurb` is the English fallback for `connectedApps.blurb.<id>`, resolved at
+// the render site. `name` is the product name and stays English.
 const APPS = [
   {
     id:    'apple_health',
@@ -59,7 +61,7 @@ export default function ConnectedAppsSection() {
                 </div>
                 <div className="min-w-0">
                   <p className="text-xs font-semibold text-foreground truncate">{app.name}</p>
-                  <p className="text-micro text-muted-foreground truncate">{app.blurb}</p>
+                  <p className="text-micro text-muted-foreground truncate">{tFallback(`connectedApps.blurb.${app.id}`, app.blurb)}</p>
                 </div>
               </div>
               <span className="text-micro font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-secondary text-muted-foreground shrink-0">

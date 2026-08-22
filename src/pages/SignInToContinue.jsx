@@ -60,9 +60,9 @@ export default function SignInToContinue({
       const res = await db.auth.signInAsGuest();
       if (!res.ok) {
         if (res.reason === 'anonymous_disabled') {
-          toast.error('Guest sign-in isn\'t enabled on this server yet.');
+          toast.error(tFallback('signIn.guestDisabled', "Guest sign-in isn't enabled on this server yet."));
         } else {
-          toast.error(`Could not start a guest session: ${res.reason}`);
+          toast.error(tFallback('signIn.guestFailedReason', 'Could not start a guest session: {reason}', { reason: res.reason }));
         }
         return;
       }
@@ -70,7 +70,7 @@ export default function SignInToContinue({
       // SIGNED_IN event and routes the user into the app. No
       // navigation needed here.
     } catch (err) {
-      toast.error('Could not start a guest session. Try again.');
+      toast.error(tFallback('signIn.guestFailed', 'Could not start a guest session. Try again.'));
     } finally {
       setGuestLoading(false);
     }
@@ -96,7 +96,7 @@ export default function SignInToContinue({
     // grant" message. Catches typos like "youexample.com" or "you@"
     // without trying to validate every RFC quirk.
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
-      toast.error("That doesn't look like a valid email address.");
+      toast.error(tFallback('signIn.invalidEmail', "That doesn't look like a valid email address."));
       return;
     }
     setSendingMagicLink(true);
@@ -281,7 +281,7 @@ export default function SignInToContinue({
               type="email"
               inputMode="email"
               autoComplete="email"
-              placeholder="you@example.com"
+              placeholder={tFallback('signIn.emailPlaceholder', 'you@example.com')}
               value={email}
               onChange={e => setEmail(e.target.value)}
               className="h-12"

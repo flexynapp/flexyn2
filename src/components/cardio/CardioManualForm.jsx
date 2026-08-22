@@ -179,7 +179,7 @@ export default function CardioManualForm({
     }
     const tplName = routeName ||
       `${deriveType(mode, env).replace(/_/g, ' ')} ${distance ? distance + distanceUnit : ''}`.trim();
-    if (!tplName) { toast.info('Give the template a name via Route/Label field'); return; }
+    if (!tplName) { toast.info(tFallback('cardioManualForm.templateNeedsName', 'Give the template a name via Route/Label field')); return; }
     setSavingTemplate(true);
     try {
       await supabase.from('cardio_templates').insert({
@@ -209,7 +209,7 @@ export default function CardioManualForm({
 
   const handleSave = async () => {
     if (hasAnyProfanity(notes)) {
-      toast.error('Please remove inappropriate language from notes before saving.');
+      toast.error(tFallback('cardioManualForm.profanityNotes', 'Please remove inappropriate language from notes before saving.'));
       return;
     }
     setSaving(true);
@@ -737,7 +737,7 @@ export default function CardioManualForm({
               type="text"
               value={routeName}
               onChange={e => setRouteName(e.target.value)}
-              placeholder="e.g. Morning Loop, Park Run…"
+              placeholder={tFallback('cardioManualForm.routePlaceholder', 'e.g. Morning Loop, Park Run…')}
               maxLength={80}
             />
           </div>

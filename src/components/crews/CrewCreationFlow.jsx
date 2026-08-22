@@ -205,7 +205,7 @@ export default function CrewCreationFlow({ onCreated, onClose }) {
             {/* Search */}
             <div className="px-4 pt-3 pb-2 shrink-0">
               <p className="text-sm text-muted-foreground mb-3">
-                Invite up to 15 friends. You can add more later.
+                {tFallback('crewCreationFlow.inviteHint', 'Invite up to 15 friends. You can add more later.')}
               </p>
               <div className="relative">
                 <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
@@ -327,7 +327,7 @@ export default function CrewCreationFlow({ onCreated, onClose }) {
             <input
               type="text"
               autoFocus
-              placeholder="e.g. Morning Grind, Leg Day Legends…"
+              placeholder={tFallback('crewCreationFlow.namePlaceholder', 'e.g. Morning Grind, Leg Day Legends…')}
               value={crewName}
               onChange={e => setCrewName(e.target.value)}
               onBlur={() => {
@@ -347,7 +347,7 @@ export default function CrewCreationFlow({ onCreated, onClose }) {
                 Create button below is also disabled in this state. */}
             {crewName && containsProfanity(crewName) && (
               <p className="text-xs text-destructive mt-1.5 px-1 text-center">
-                Please choose a different name.
+                {tFallback('crewCreationFlow.chooseAnotherName', 'Please choose a different name.')}
               </p>
             )}
             <p className="text-end text-xs text-muted-foreground mt-1 pe-1">

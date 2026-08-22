@@ -214,6 +214,9 @@ function ExpandedPanel({ onCollapse, defaultDuration, setDefaultDuration, soundE
         <span className="block text-micro font-semibold tracking-[0.18em] uppercase text-muted-foreground mb-2">
           {tFallback("restTimerOverlay.hiitPresets", "HIIT presets")}
         </span>
+        {/* NOT keyed, deliberately. Tabata and EMOM are protocol names lifters
+            use untranslated in every language, and the rest is arithmetic.
+            Six keys here would be six copies of the same numerals. */}
         <div className="grid grid-cols-2 gap-1.5">
           {[
             { label: 'Tabata 20s', dur: 20 },

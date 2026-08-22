@@ -329,9 +329,9 @@ export default function GymMap({ onClose, onContinue }) {
       // non-error toast that doesn't carry one, so a plain toast.success
       // here renders nothing at all and a successful save looks
       // identical to a no-op.
-      toast.success(`${gym.name} is now your gym.`, {
+      toast.success(tFallback('gymMap.nowYourGym', '{name} is now your gym.', { name: gym.name }), {
         action: {
-          label: 'Undo',
+          label: tFallback('common.undo', 'Undo'),
           onClick: async () => {
             await setHomeGym(null);
             setHomeGymId(null);
@@ -340,7 +340,7 @@ export default function GymMap({ onClose, onContinue }) {
         },
       });
     } else {
-      toast.error("Couldn't set your gym. Try again.");
+      toast.error(tFallback('gymMap.setGymFailed', "Couldn't set your gym. Try again."));
     }
   }, [settingHome]);
 
@@ -354,9 +354,9 @@ export default function GymMap({ onClose, onContinue }) {
       setSelectedOsm(null);
       setHomeGymName(osm.name);
       // See adoptGym — a success toast without an action is silenced.
-      toast.success(`${osm.name} is now your gym.`, {
+      toast.success(tFallback('gymMap.nowYourGym', '{name} is now your gym.', { name: osm.name }), {
         action: {
-          label: 'Undo',
+          label: tFallback('common.undo', 'Undo'),
           onClick: async () => {
             await setHomeGym(null);
             setHomeGymId(null);
@@ -953,7 +953,7 @@ export default function GymMap({ onClose, onContinue }) {
             <div>
               <p className="font-heading font-bold text-base mb-1">{tFallback("gymMap.mapCouldnTLoad", "Map couldn't load")}</p>
               <p className="text-xs text-muted-foreground mb-1">{mapError}</p>
-              <p className="text-xs text-muted-foreground">Check your connection and try again.</p>
+              <p className="text-xs text-muted-foreground">{tFallback('notifications.error.desc', 'Check your connection and try again.')}</p>
             </div>
             <Button onClick={() => { setMapError(null); window.location.reload(); }}>
               {tFallback("gymMap.retry", "Retry")}
