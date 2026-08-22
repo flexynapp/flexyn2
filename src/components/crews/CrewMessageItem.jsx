@@ -125,8 +125,11 @@ const saveFire = (id, val, userId) => {
 function Avatar({ profile, onViewProfile }) {
   const initials = (profile?.username || '?').slice(0, 2).toUpperCase();
   const verified = isVerified(profile?.username);
+  // `id`, not `email` — see CrewMemberDirectory for the same fix and the same
+  // reason. CrewChat builds `profilesByUserId` keyed on `u.id` and skips rows
+  // without one, so `profile.id` is present whenever `profile` is.
   const open = onViewProfile && profile
-    ? () => onViewProfile({ email: profile.email, username: profile.username, avatar_url: profile.avatar_url })
+    ? () => onViewProfile({ id: profile.id, username: profile.username, avatar_url: profile.avatar_url })
     : null;
   const Tag = open ? 'button' : 'div';
   return (

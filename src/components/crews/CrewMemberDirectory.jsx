@@ -99,7 +99,12 @@ function MemberRow({ member, profile, myRank, isSelf, crewId, onViewProfile }) {
     <div className="flex items-center gap-3 py-2.5 relative">
       {/* Avatar */}
       <button
-        onClick={() => onViewProfile?.({ email: profile?.email, username: profile?.username, avatar_url: profile?.avatar_url })}
+        // `id`, not `email`. public_profiles has had no email column since
+        // mig 220, so `profile.email` was always undefined and HubProfile —
+        // which is id-first — disabled every one of its queries and rendered
+        // the placeholder header. `member.user_id` is the crew row's own key
+        // and is NOT NULL, so it is right even when the profile join missed.
+        onClick={() => onViewProfile?.({ id: member.user_id, username: profile?.username, avatar_url: profile?.avatar_url })}
         className="shrink-0"
       >
         {profile?.avatar_url ? (

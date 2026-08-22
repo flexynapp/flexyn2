@@ -616,9 +616,20 @@ export default function Hub() {
           setSection('profile');
         }}
         onSelectPost={(post) => {
-          // Navigate to the post author's profile so user can see the post in context
-          if (post?.author_email) {
-            setProfileTarget({ email: post.author_email, username: post.author_name?.replace('@', '') });
+          // Navigate to the post author's profile so user can see the post in context.
+          //
+          // Keyed on `user_id`, not `author_email`. HubProfile is id-first: an
+          // `{email}` target leaves `targetId` null, which disables the profile
+          // lookup AND both follow queries, so a real athlete rendered as
+          // Bronze / Lv 1 / 0 followers / no bio with no duel-gift menu. The
+          // email is still on the row, so nothing threw and the page looked
+          // like a user with an empty profile rather than a broken read.
+          if (post?.user_id) {
+            setProfileTarget({
+              id: post.user_id,
+              username: post.author_name?.replace('@', ''),
+              avatar_url: post.author_avatar_url || null,
+            });
             setSection('profile');
           }
         }}

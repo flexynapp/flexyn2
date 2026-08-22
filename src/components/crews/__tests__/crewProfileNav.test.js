@@ -105,3 +105,51 @@ describe('the chat avatar is a real control', () => {
     expect(mountOf(CHAT, 'CrewMessageItem')).toMatch(/onViewProfile=\{onViewProfile\}/);
   });
 });
+
+/**
+ * The prop chain above was wired correctly and the feature was STILL broken,
+ * which is why this second block exists.
+ *
+ * Both call sites handed over `{ email, username, avatar_url }`. Migration 220
+ * dropped `email` from `public_profiles`, so that field was `undefined` on
+ * every crew profile ever opened — and HubProfile is id-first: with no `id`,
+ * `targetId` is null, which disables the profile lookup and both follow
+ * queries. The result was a fully-rendered placeholder profile rather than an
+ * error, including on your own row. The tap worked; the payload did not.
+ *
+ * Asserting the PROP (above) went green throughout. Asserting the PAYLOAD is
+ * the check that could have caught it, which is the whole lesson: a handler
+ * being called says nothing about what it was called with.
+ */
+describe('the payload identifies the person, not a dropped column', () => {
+  it('the roster passes the crew row\'s own user_id', () => {
+    const call = DIRECTORY.match(/onViewProfile\?\.\(\{[^}]*\}\)/);
+    expect(call, 'the roster must still call onViewProfile').toBeTruthy();
+    expect(call[0], 'HubProfile is id-first; without id every query disables').toContain('id: member.user_id');
+  });
+
+  it('the chat avatar passes the profile id', () => {
+    const call = MESSAGE.match(/onViewProfile\(\{[^}]*\}\)/);
+    expect(call, 'the chat avatar must still call onViewProfile').toBeTruthy();
+    expect(call[0]).toContain('id: profile.id');
+  });
+
+  it('neither sends an email column that no longer exists', () => {
+    // Narrow on purpose: `email:` as an object key in the nav payload. The
+    // files legitimately mention email elsewhere.
+    for (const [name, src] of [['CrewMemberDirectory', DIRECTORY], ['CrewMessageItem', MESSAGE]]) {
+      const calls = src.match(/onViewProfile\??\.?\(\{[^}]*\}\)/g) || [];
+      expect(calls.length, `${name} should still navigate`).toBeGreaterThan(0);
+      for (const c of calls) {
+        expect(c, `${name}: public_profiles has had no email since mig 220`).not.toMatch(/\bemail:/);
+      }
+    }
+  });
+
+  it('CrewChat only indexes profiles that have an id, so profile.id is safe', () => {
+    // Keeps the second assertion honest. `profilesByUserId` is built with an
+    // `if (u.id)` guard — if that guard is ever dropped, `profile.id` can be
+    // undefined and the payload silently regresses to the same failure.
+    expect(CHAT).toMatch(/if \(u\.id\) profilesByUserId\[u\.id\] = u;/);
+  });
+});
