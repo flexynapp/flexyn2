@@ -468,10 +468,18 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
     enabled: !isSelf && !!targetKey,
     // Only seed from the prop when it actually carries display data (email
     // links pass {email, username, avatar}). An id-only target ({id}) has no
-    // username, and with the 60s default staleTime a seeded-but-sparse
-    // initialData would suppress the refetch and strand the header on the
-    // "Athlete" placeholder — so leave it unset and let the query fetch.
+    // username, and a seeded-but-sparse initialData would render the header
+    // from a payload that has no username in it at all.
     initialData: isSelf ? null : (targetUser?.username ? targetUser : undefined),
+    // …and every seed IS sparse. A nav payload carries username and avatar;
+    // it never carries total_xp, current_level, bio, city or the trophy case.
+    // react-query stamps initialData with the current time unless told
+    // otherwise, so the default 60s staleTime counted the seed as fresh and
+    // suppressed the fetch — leaving a real athlete reading Level 1 / 0 XP /
+    // no bio for a full minute, which is indistinguishable from a new account.
+    // `0` means "this seed is already stale": it still paints immediately, so
+    // there is no placeholder flash, and the real row is fetched at once.
+    initialDataUpdatedAt: 0,
   });
 
   // For an id-only target we still need the target's email for the parts of
