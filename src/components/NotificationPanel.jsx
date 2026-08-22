@@ -32,6 +32,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from '@/lib/toast';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
+import { notificationText } from '@/lib/notificationText';
 import { reportError } from '@/lib/reportError';
 import * as notifications from '@/lib/data/notifications';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
@@ -676,6 +677,11 @@ function EmptyBlock({ Icon, title, desc, action, tone }) {
 // The row's own delete button is gone. It was a 26px target pinned
 // bottom-end, inside the region a thumb uses to tap the row itself.
 function NotificationRow({ n, rtl, language, onClick, onDelete, deleting, deleteLabel }) {
+  const { tFallback } = useLanguage();
+  // Rebuilt from `type` + `metadata` in the READER's language where we can,
+  // falling back to the stored text otherwise. See src/lib/notificationText.js
+  // — a row is otherwise frozen in whatever language wrote it.
+  const text = notificationText(n, tFallback);
   const time = formatNotificationTime(n.created_at, language);
   const dragControls = useDragControls();
 
@@ -735,9 +741,9 @@ function NotificationRow({ n, rtl, language, onClick, onDelete, deleting, delete
             <span aria-hidden="true">{n.icon || '🔔'}</span>
           </div>
           <div className="flex-1 min-w-0 ms-2">
-            <p className={`text-body leading-tight ${n.is_read ? '' : 'font-semibold'}`}>{n.title}</p>
-            {n.body && (
-              <p className="text-label text-muted-foreground leading-snug mt-1 line-clamp-2">{n.body}</p>
+            <p className={`text-body leading-tight ${n.is_read ? '' : 'font-semibold'}`}>{text.title}</p>
+            {text.body && (
+              <p className="text-label text-muted-foreground leading-snug mt-1 line-clamp-2">{text.body}</p>
             )}
           </div>
           <time
