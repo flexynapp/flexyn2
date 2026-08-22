@@ -191,7 +191,7 @@ export default function HistoryCalendarSheet({
             {[ADHERENCE.on, ADHERENCE.under, ADHERENCE.over].map(t => (
               <span key={t.key} className="flex items-center gap-1.5 text-micro font-semibold text-muted-foreground">
                 <span className="w-[7px] h-[7px] rounded-full" style={{ background: t.css }} />
-                {t.label}
+                {tFallback(`adherence.${t.key}`, t.label)}
               </span>
             ))}
             <span className="flex items-center gap-1.5 text-micro font-semibold text-muted-foreground">

@@ -32,6 +32,7 @@
 
 import { toast } from '@/lib/toast';
 import * as Sentry from '@sentry/react';
+import { asT } from '@/lib/translatorArg';
 
 /**
  * Window event fired when the user taps "View" on the season toast.
@@ -71,7 +72,9 @@ export function fireSeasonEndCelebration({
   tier = 'bronze',
   isChampion = false,
   trophyId = null,
+  t,
 } = {}) {
+  const tf = asT(t);
   const tierColor = TIER_COLORS[tier] || TIER_COLORS.bronze;
   const emoji = isChampion ? '👑' : '🎖️';
   const label = tier.charAt(0).toUpperCase() + tier.slice(1);
@@ -135,7 +138,7 @@ export function fireSeasonEndCelebration({
     description,
     duration: TOAST_MS,
     action: {
-      label: 'View',
+      label: tf('trophies.toast.view', 'View'),
       onClick: () => {
         try {
           window.dispatchEvent(

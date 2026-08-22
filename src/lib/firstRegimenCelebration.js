@@ -11,6 +11,7 @@
 
 import { toast } from '@/lib/toast';
 import * as Sentry from '@sentry/react';
+import { asT } from '@/lib/translatorArg';
 
 // Slightly different palette from first-workout so the haptic + color
 // language helps distinguish the two milestones for power users who
@@ -26,7 +27,8 @@ const CONFETTI_COLORS = ['#a855f7', '#ec4899', '#fb923c', '#f97316', '#22c55e'];
  * @param {number} [opts.xpGained]    - XP awarded by the save flow.
  * @param {string} [opts.userEmail]   - For Sentry user tag.
  */
-export function fireFirstRegimenCelebration({ regimenName, xpGained = 0, userEmail } = {}) {
+export function fireFirstRegimenCelebration({ regimenName, xpGained = 0, userEmail, t } = {}) {
+  const tf = asT(t);
   // Two-pulse haptic — gentler than first-workout (three pulses) since
   // saving a regimen is a quieter milestone than completing a workout.
   try { navigator.vibrate?.([15, 45, 15, 45]); } catch { /* ignore */ }
@@ -34,7 +36,7 @@ export function fireFirstRegimenCelebration({ regimenName, xpGained = 0, userEma
   const xpLine = xpGained > 0 ? ` · +${xpGained} XP` : '';
   const name = regimenName ? `"${regimenName}"` : 'your first regimen';
   toast.success(`💪 First plan saved — ${name}${xpLine}`, {
-    description: 'Tap Start on the card to begin your first session.',
+    description: tf('celebration.firstRegimen.body', 'Tap Start on the card to begin your first session.'),
     duration: 6000,
   });
 

@@ -12,6 +12,7 @@
 
 import { toast } from '@/lib/toast';
 import * as Sentry from '@sentry/react';
+import { asT } from '@/lib/translatorArg';
 
 // Blue/teal palette — distinct from other first-X celebrations
 // (first-workout = orange/green, first-regimen = purple/pink,
@@ -27,14 +28,15 @@ const CONFETTI_COLORS = ['#0ea5e9', '#06b6d4', '#14b8a6', '#22d3ee', '#3b82f6'];
  *   (e.g. "Bench Press 225 lb"). Falls back to a generic phrase if missing.
  * @param {string} [opts.userEmail]     - For Sentry user tag.
  */
-export function fireFirstGoalCelebration({ targetSummary, userEmail } = {}) {
+export function fireFirstGoalCelebration({ targetSummary, userEmail, t } = {}) {
+  const tf = asT(t);
   // Single sharp pulse + a longer one — distinct from the multi-pulse
   // patterns used by the other first-X celebrations.
   try { navigator.vibrate?.([10, 30, 80]); } catch { /* ignore */ }
 
   const label = targetSummary ? `: ${targetSummary}` : '';
   toast.success(`🎯 First goal set${label}`, {
-    description: 'Log workouts that match the target and we’ll track your progress automatically.',
+    description: tf('celebration.firstGoal.body', 'Log workouts that match the target and we’ll track your progress automatically.'),
     duration: 6000,
   });
 

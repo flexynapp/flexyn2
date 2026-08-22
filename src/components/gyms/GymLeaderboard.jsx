@@ -165,7 +165,7 @@ export default function GymLeaderboard({ isAuthed = false, onGymPress }) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center gap-3 py-16 px-6 text-center">
         <TrendingUp className="w-8 h-8 text-muted-foreground" />
-        <p className="text-sm text-muted-foreground">Leaderboard unavailable right now.</p>
+        <p className="text-sm text-muted-foreground">{tFallback('gymLeaderboard.unavailable', 'Leaderboard unavailable right now.')}</p>
       </div>
     );
   }

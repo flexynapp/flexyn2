@@ -117,6 +117,7 @@ const ALLOW_IDENTICAL = new Set([
   'generator.type.hiit',                // "HIIT"     — the acronym, everywhere
   'exerciseEquip.filter.kettlebell',    // "Kettlebell" — the loanword all 7 use
   'gymEquip.group.kettlebell',          // "Kettlebells" — same, except pl
+  'crew.top.metric.volume',             // "Volume"   — same word in fr/pt/it/nl
 ]);
 
 /**
@@ -186,6 +187,8 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'crew.applicantLevel',
   ]),
   fr: new Set([
+    // "Points" is the same word in French.
+    'crew.top.metric.points',
     // "Machine" is the same word in French.
     'exerciseEquip.filter.machine',
     // "Machines" is the same word in French.

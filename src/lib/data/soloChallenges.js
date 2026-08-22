@@ -135,6 +135,9 @@ export async function recordWorkoutProgress({
 
 /** Difficulty → presentation tokens. Kept here so callers don't
  *  duplicate the mapping (mirrors bounties.DIFFICULTY_CONFIG shape). */
+// `label` is the English fallback for `bounty.difficulty.<id>` — the SAME
+// three words the bounty board already ships translated. Resolved at the
+// render site in SoloChallengesSection.
 export const SOLO_DIFFICULTY = {
   easy:   { label: 'Easy',   color: 'text-emerald-500', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30' },
   medium: { label: 'Medium', color: 'text-amber-500',   bg: 'bg-amber-500/10',   border: 'border-amber-500/30'   },

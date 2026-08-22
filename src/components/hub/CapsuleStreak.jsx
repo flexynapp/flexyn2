@@ -100,7 +100,7 @@ export default function CapsuleStreak() {
 
       {pity.since_legendary >= (pity.soft_pity_from ?? Infinity) && (
         <p className="text-micro font-semibold" style={{ color: legTint.color }}>
-          Legendary odds are climbing with every open from here.
+          {tFallback('capsuleStreak.oddsClimbing', 'Legendary odds are climbing with every open from here.')}
         </p>
       )}
 

@@ -91,9 +91,9 @@ function MetricBreakdown({ totals, myCrewId }) {
   if (vol === 0 && sess === 0 && days === 0) return null;
 
   const lines = [
-    { label: 'Volume lifted',   detail: `${fmt(vol)} lb`, points: Math.floor(vol / 100) },
-    { label: 'Sessions logged', detail: fmt(sess),        points: sess * 50 },
-    { label: 'Days active',     detail: fmt(days),        points: days * 100 },
+    { label: tFallback('hero.tele.volume.title', 'Volume lifted'), detail: `${fmt(vol)} lb`, points: Math.floor(vol / 100) },
+    { label: tFallback('crewWar.line.sessions', 'Sessions logged'), detail: fmt(sess), points: sess * 50 },
+    { label: tFallback('crewWar.line.days', 'Days active'), detail: fmt(days), points: days * 100 },
   ];
 
   return (

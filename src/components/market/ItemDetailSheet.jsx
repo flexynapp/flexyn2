@@ -228,7 +228,7 @@ export default function ItemDetailSheet({
             // trades too) — that mismatch is what put "1 sold all-time"
             // directly above "no sale history yet" on device.
             <p className="text-micro text-muted-foreground">
-              No priced sales recorded for this item yet.
+              {tFallback('itemDetail.noSales', 'No priced sales recorded for this item yet.')}
             </p>
           )}
 

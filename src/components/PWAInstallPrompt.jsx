@@ -98,7 +98,7 @@ export default function PWAInstallPrompt() {
           <div className="flex-1 min-w-0">
             <p className="font-heading font-bold text-sm leading-tight">{tFallback("iosInstall.title", "Install Flexyn")}</p>
             <p className="text-xs text-muted-foreground leading-snug truncate">
-              Add to your home screen for faster access.
+              {tFallback('pwaInstall.body', 'Add to your home screen for faster access.')}
             </p>
           </div>
           <button

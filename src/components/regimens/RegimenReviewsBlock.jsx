@@ -71,7 +71,7 @@ export default function RegimenReviewsBlock({ regimenId, user }) {
     } else if (res.code === 'needs_adoption') {
       setAdoptionError(true);
     } else {
-      toast.error('Could not submit review. Try again.');
+      toast.error(tFallback('regimenReviews.submitFailed', 'Could not submit review. Try again.'));
     }
   };
 

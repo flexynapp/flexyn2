@@ -296,7 +296,7 @@ export default function GymJoinSheet({ pick, open, onCancel, onJoined, onContinu
               ))}
               {board.length === 0 && (
                 <p className="text-xs text-muted-foreground">
-                  Nobody here has trained in the last 7 days. Be the one who does.
+                  {tFallback('gymJoin.nobodyTrained', 'Nobody here has trained in the last 7 days. Be the one who does.')}
                 </p>
               )}
             </div>

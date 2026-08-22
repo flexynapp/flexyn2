@@ -30,6 +30,8 @@ import { rankFoodMatches, recentFoods, FOOD_SOURCE } from '@/lib/foodSearch';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { useKeyboardInset } from '@/hooks/useKeyboardInset';
 
+// `label` is the English fallback for `foodSearch.source.<key>`, resolved
+// where the row renders.
 const SOURCE_META = {
   [FOOD_SOURCE.SCAN]:   { Icon: ScanBarcode, label: 'Scanned', cls: 'text-primary' },
   [FOOD_SOURCE.RECIPE]: { Icon: BookOpen,    label: 'Recipe',  cls: 'text-blue-500' },
@@ -189,7 +191,7 @@ export default function FoodSearchSheet({ open, onClose, onPick }) {
                         <div className="flex-1 min-w-0">
                           <p className="font-heading font-semibold text-sm leading-tight truncate">{r.name}</p>
                           <p className="text-micro text-muted-foreground truncate">
-                            {[r.brand, r.servingLabel, meta.label].filter(Boolean).join(' · ')}
+                            {[r.brand, r.servingLabel, tFallback(`foodSearch.source.${r.source}`, meta.label)].filter(Boolean).join(' · ')}
                           </p>
                         </div>
                         {/* A zero gets no figure. `safeEntry` in Nutrition.jsx

@@ -219,7 +219,7 @@ export default function PrivacySection() {
       queryClient.invalidateQueries({ queryKey: ['hubSearch'] });
     } catch {
       setLocal(prev);
-      toast.error('Could not update privacy. Try again.');
+      toast.error(tFallback('privacy.updateFailed', 'Could not update privacy. Try again.'));
     }
   };
 

@@ -769,6 +769,7 @@ export default function Nutrition() {
           });
           if (!error && count === 1) {
             fireFirstMealCelebration({
+              t: tFallback,
               mealName: variables?.food_name,
               calories: typeof variables?.calories === 'number' ? variables.calories : null,
               userEmail: user?.email,

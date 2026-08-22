@@ -438,7 +438,7 @@ export default function JournalView({ userId, userEmail, onClose, initialDate })
       const earlier = [...entryDates].filter(s => s < dateStr).sort();
       if (earlier.length === 0) {
         // Already at or before the oldest entry — don't navigate into the void.
-        toast.message('No earlier journal entries.');
+        toast.message(tFallback('journalView.noEarlier', 'No earlier journal entries.'));
         return;
       }
       goToDay(new Date(earlier[earlier.length - 1] + 'T00:00:00'));

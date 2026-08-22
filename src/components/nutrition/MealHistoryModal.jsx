@@ -485,7 +485,8 @@ export default function MealHistoryModal({ open, onClose, userProfile, onLogPhot
                 canGoBack={canGoBack}
               />
               <div className="flex p-1 rounded-xl bg-secondary/60">
-                {[{ id: 'meals', label: 'Meals' }, { id: 'trends', label: 'Trends' }].map(t => (
+                {[{ id: 'meals', label: tFallback('mealHistory.tab.meals', 'Meals') },
+                  { id: 'trends', label: tFallback('progress.tab.trends', 'Trends') }].map(t => (
                   <button
                     key={t.id}
                     type="button"

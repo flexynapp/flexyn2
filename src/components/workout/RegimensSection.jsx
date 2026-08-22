@@ -107,6 +107,7 @@ export default function RegimensSection({ onStartRegimen }) {
       const isFirstRegimen = realPrev.length === 0;
       if (isFirstRegimen) {
         fireFirstRegimenCelebration({
+          t: tFallback,
           regimenName: result?.name,
           // Read the constant, do not restate it. This was a literal 100
           // with a comment claiming it "matches the XP grant above" — it

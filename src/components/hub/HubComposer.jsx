@@ -235,6 +235,7 @@ export default function HubComposer({ onClose }) {
   // (NOT linked workouts/meals etc) because those snapshots can go stale.
   const draftValue = { body, kind: selected?.kind ?? null };
   const draft = useFormDraft({
+    t: tFallback,
     key: user?.email ? `flexyn.draft.hubComposer.${user.email}` : null,
     value: draftValue,
     enabled: !!user?.email,

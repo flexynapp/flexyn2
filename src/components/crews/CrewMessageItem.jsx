@@ -484,7 +484,7 @@ function XpFuelMessage({ msg, currentUserId, crewId }) {
       }
       setClaimed(true);
     } catch {
-      toast.error('Could not claim XP. Try again.');
+      toast.error(tFallback('crewChat.claimXpFailed', 'Could not claim XP. Try again.'));
     } finally {
       setClaiming(false);
     }
@@ -667,7 +667,7 @@ function RegimenMessage({ msg, user, senderProfile }) {
       setState('equipped');
       toast.success(`"${meta.name || 'Regimen'}" added to your routines!`);
     } catch {
-      toast.error('Could not equip regimen. Try again.');
+      toast.error(tFallback('crewChat.equipRegimenFailed', 'Could not equip regimen. Try again.'));
       setState('idle');
     }
   };

@@ -146,7 +146,7 @@ export default function SoloChallengesSection() {
                   <div className="flex items-start justify-between gap-2 mb-0.5">
                     <p className="font-heading font-bold text-sm leading-tight">{ch.title}</p>
                     <span className={`text-micro font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${diff.bg} ${diff.color}`}>
-                      {diff.label}
+                      {tFallback(`bounty.difficulty.${ch.difficulty}`, diff.label)}
                     </span>
                   </div>
                   {ch.description && (

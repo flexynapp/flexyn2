@@ -164,7 +164,7 @@ export default function Duels() {
       setSelectedDuel(null);
       toast.success('Challenge cancelled.');
     } catch {
-      toast.error('Could not cancel. Try again.');
+      toast.error(tFallback('marketplaceFeed.cancelFailed', 'Could not cancel. Try again.'));
     }
   };
 

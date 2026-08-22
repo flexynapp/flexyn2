@@ -133,7 +133,7 @@ export default function PrestigePrompt({ currentPrestige = 0, onDismiss }) {
           >
             <div className="flex items-start gap-2 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20">
               <AlertTriangle className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
-              <p className="text-xs font-semibold text-rose-500">This action is irreversible.</p>
+              <p className="text-xs font-semibold text-rose-500">{tFallback('prestige.irreversible', 'This action is irreversible.')}</p>
             </div>
 
             <div className="grid grid-cols-2 gap-3">

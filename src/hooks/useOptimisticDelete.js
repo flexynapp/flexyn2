@@ -63,6 +63,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/lib/toast';
 import { triggerHaptic } from '@/lib/haptic';
 import { reportError } from '@/lib/reportError';
+import { asT } from '@/lib/translatorArg';
 
 // Module-level pending-deletes registry. Survives component unmount
 // so an unrelated render doesn't lose state. Map<id, { timer, item, queryKey, deleteFn }>.
@@ -119,7 +120,9 @@ export function useOptimisticDelete({
   label = 'Deleted',
   commitMs = 6000,
   feature,
+  t,   // the caller's tFallback; see useFormDraft for why it is a param
 } = {}) {
+  const tf = asT(t);
   const queryClient = useQueryClient();
   const queryKeyRef = useRef(queryKey);
   queryKeyRef.current = queryKey;
@@ -176,7 +179,7 @@ export function useOptimisticDelete({
     toast(label, {
       duration: commitMs,
       action: {
-        label: 'Undo',
+        label: tf('common.undo', 'Undo'),
         onClick: () => undoPending(id),
       },
     });
