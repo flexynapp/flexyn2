@@ -25,7 +25,7 @@ every "94% real" predates a correct measurement.
 `npm run i18n:audit` section E is the honest number. Section B is CATALOG
 coverage and is not what a user sees — do not quote it.
 
-**Everything up to `9f9fae24` is verified: 5,279 tests across 387 files, lint
+**Everything up to `ababe2f3` is verified: 5,306 tests across 390 files, lint
 clean, `npm run build` clean.** Run all three. The suite alone is not the
 gate — see the DiscoveryCards entry under TRAPS.
 
@@ -80,13 +80,21 @@ Three things, none of them hardcoded strings:
    quietly dropped.
 2. **tr at 2,376 / 6,297**, and pt/de/it/nl/pl at 94–96% against es/fr's
    99.4%. Batching only.
-3. **`notifications.row.*` is a localisation path nothing reads.** Thirteen
-   notification types have title/body keys in all fifteen catalogs, and
-   `NotificationPanel.jsx:738` renders `n.title` straight off the database
-   row. Every notification is frozen in whatever language wrote it, and
-   switching language does not move it. Fixing it means rendering from type
-   plus metadata rather than stored text — a feature, not a sweep. **This is
-   the biggest remaining i18n defect in the app.**
+3. **Notification rows: 8 of 37 types now render in the reader's language.**
+   `src/lib/notificationText.js` rebuilds a row from `type` + `metadata`;
+   `NotificationPanel` calls it. Everything else keeps the stored text, which
+   is frozen in whatever language wrote it.
+
+   **Extending it is a four-step job per type, and step four is the one that
+   matters**: read the writer, add `notifications.row.<type>.*` rows, add a
+   spec, and **check a LIVE row carries the metadata**. The eight shipped
+   specs were mapped from migration source only — I could not query
+   production — so their field names are an unverified claim held safe by the
+   fallback. The other 29 types have no catalog rows at all.
+
+   The fallback rule is load-bearing: a spec applies only when every
+   placeholder resolves, so a wrong mapping degrades to today's behaviour
+   rather than rendering a hole. Do not relax it to "best effort".
 
 ## HOW TO DO IT — the pattern that works
 
