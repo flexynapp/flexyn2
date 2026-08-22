@@ -132,8 +132,14 @@ export default function ActivityFeed() {
           .from('notifications')
           .update({ is_read: true })
           .in('id', unreadIds);
-        queryClient.invalidateQueries({ queryKey: ['unreadNotificationCount', user?.email] });
-        queryClient.invalidateQueries({ queryKey: ['unreadNotificationCount', user?.id] });
+        // `unreadNotificationCount` was registered by no query anywhere — the two
+        // calls that used it were the only mention of the string in the repo, so
+        // both were no-ops and the comment above described a bug that was still
+        // live. The bell reads ['notificationsUnread', user.id]; the panel reads
+        // ['notificationsList', user.id], invalidated too so an open panel agrees
+        // with the badge instead of disagreeing with it.
+        queryClient.invalidateQueries({ queryKey: ['notificationsUnread', user?.id] });
+        queryClient.invalidateQueries({ queryKey: ['notificationsList', user?.id] });
       } catch { /* non-fatal — the bell will refetch eventually */ }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps

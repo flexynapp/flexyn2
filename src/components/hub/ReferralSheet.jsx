@@ -70,9 +70,15 @@ export default function ReferralSheet({
         toast.success(tFallback('referral.redeem.success', 'Code applied. You both got 200 coins + an Elite capsule.'));
         // The claim mints coins and a capsule for both sides, so anything
         // reading the wallet or the referral counters is now stale.
+        // First element only, so prefix matching catches the id/email-scoped
+        // entries — which is why `referralStats` worked while the other two did
+        // not: `wallet` and `inventory` are not the names of anything. The coin
+        // balance is ['flexCoins', user.id] and the capsule lands in
+        // ['userInventory', user.email], so a redeemed code minted 200 coins
+        // and an Elite capsule and then showed you neither.
         queryClient.invalidateQueries({ queryKey: ['referralStats'] });
-        queryClient.invalidateQueries({ queryKey: ['wallet'] });
-        queryClient.invalidateQueries({ queryKey: ['inventory'] });
+        queryClient.invalidateQueries({ queryKey: ['flexCoins'] });
+        queryClient.invalidateQueries({ queryKey: ['userInventory'] });
         return;
       }
       const REASONS = {

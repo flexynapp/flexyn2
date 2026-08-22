@@ -173,8 +173,17 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
     });
   }, [followingError, user?.email]);
 
+  // The follow SET, not its size. Keying on `following.length` means unfollow
+  // one person and follow another — a very ordinary pair of taps — produces an
+  // identical cache key, so react-query serves the stale rows and the queryFn,
+  // which closes over the NEW array, never runs. Neither follow mutation
+  // invalidates ['hubFeed'], so it corrects only once staleTime lapses and
+  // something remounts. useHubUnreadDot hit this exact bug and fixed it this
+  // exact way, with a comment saying so; this file was never updated.
+  const followingKey = useMemo(() => [...following].sort().join('|'), [following]);
+
   const { data: windowPosts = [], isLoading, isFetching, refetch } = useQuery({
-    queryKey: ['hubFeed', feedTab, user?.email, following.length],
+    queryKey: ['hubFeed', feedTab, user?.email, followingKey],
     queryFn: async () => {
       if (feedTab === 'pump') {
         return hubPosts.fetchGlobalWindow();
@@ -223,7 +232,7 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
     const sibling = feedTab === 'pump' ? 'squad' : 'pump';
     const id = setTimeout(() => {
       queryClient.prefetchQuery({
-        queryKey: ['hubFeed', sibling, user.email, following.length],
+        queryKey: ['hubFeed', sibling, user.email, followingKey],
         queryFn: () => (sibling === 'pump'
           ? hubPosts.fetchGlobalWindow()
           : hubPosts.fetchFollowingWindow(following, user.email)),
@@ -246,7 +255,7 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
   useEffect(() => {
     setOlderPosts([]);
     setOlderExhausted(false);
-  }, [feedTab, user?.email, following.length]);
+  }, [feedTab, user?.email, followingKey]);
 
   const allPosts = useMemo(
     () => (olderPosts.length ? [...windowPosts, ...olderPosts] : windowPosts),

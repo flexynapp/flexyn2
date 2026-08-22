@@ -831,6 +831,13 @@ export default function StoriesRow({ onViewProfile } = {}) {
       setQaList(prev => prev.filter(p => p.id !== id));
     }, 900);
     queryClient.invalidateQueries({ queryKey: ['hubFollowing'] });
+    // This row's OWN follow list is ['hubFollowingIds', user.id], and
+    // 'hubFollowing' does not prefix-match 'hubFollowingIds' — react-query
+    // compares elements, not string prefixes. Without this the rail kept the
+    // old id list, and ['storiesFeed', …] embeds that same list in its key, so
+    // the refetch below re-fetched the OLD graph and the person you just
+    // followed never joined the row.
+    queryClient.invalidateQueries({ queryKey: ['hubFollowingIds', user?.id] });
     queryClient.invalidateQueries({ queryKey: ['storiesFeed'] });
   }, [user, queryClient]);
 

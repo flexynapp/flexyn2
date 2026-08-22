@@ -320,7 +320,11 @@ export default function StoryViewer({
       .then(() => {
         // Refresh the parent's viewedIds query so the local dedupe
         // converges with server state once the row lands.
-        queryClient.invalidateQueries({ queryKey: ['storyViewedIds', user.id] });
+        // `storyViewedIds` is registered by no query in the repo. Seen-state
+        // comes from getStoriesFeedData and reaches the tray through
+        // ['storiesFeed', …], so that is what has to be invalidated or the
+        // unseen ring stays orange on a story you just watched.
+        queryClient.invalidateQueries({ queryKey: ['storiesFeed'] });
       })
       .catch(() => {
         // Drop from local set so a retry can fire on next mount.

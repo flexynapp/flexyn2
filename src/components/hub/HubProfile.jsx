@@ -730,6 +730,14 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
       queryClient.invalidateQueries({ queryKey: ['hubIsFollowing', user?.email, email] });
       queryClient.invalidateQueries({ queryKey: ['hubFollowers', targetId] });
       queryClient.invalidateQueries({ queryKey: ['hubFollowing', user?.email] });
+      // BOTH shapes, because two different things are registered under this
+      // name. The email-keyed entries belong to HubFeed, FollowSuggestionRail
+      // and useHubUnreadDot; THIS component's own lists are keyed by id
+      // (`['hubFollowing', targetId]` above). TanStack matches key arrays
+      // element-wise, so an email in slot 1 never matches a uuid, and the
+      // viewer's own list was left untouched — open your profile within the
+      // 60s staleTime after following someone and the count had not moved.
+      queryClient.invalidateQueries({ queryKey: ['hubFollowing', user?.id] });
     },
   });
 
@@ -759,6 +767,14 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
       queryClient.invalidateQueries({ queryKey: ['hubIsFollowing', user?.email, email] });
       queryClient.invalidateQueries({ queryKey: ['hubFollowers', targetId] });
       queryClient.invalidateQueries({ queryKey: ['hubFollowing', user?.email] });
+      // BOTH shapes, because two different things are registered under this
+      // name. The email-keyed entries belong to HubFeed, FollowSuggestionRail
+      // and useHubUnreadDot; THIS component's own lists are keyed by id
+      // (`['hubFollowing', targetId]` above). TanStack matches key arrays
+      // element-wise, so an email in slot 1 never matches a uuid, and the
+      // viewer's own list was left untouched — open your profile within the
+      // 60s staleTime after following someone and the count had not moved.
+      queryClient.invalidateQueries({ queryKey: ['hubFollowing', user?.id] });
     },
   });
 
@@ -1168,6 +1184,11 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
       queryClient.invalidateQueries({ queryKey: ['hubFeed'] });
       queryClient.invalidateQueries({ queryKey: ['hubFollowing', user?.email] });
       queryClient.invalidateQueries({ queryKey: ['hubFollowers', user?.email] });
+      // Same email-vs-id split as the follow mutations, and it matters more
+      // here: block_user_full has just severed the follow rows in BOTH
+      // directions, so both of the viewer's own lists are stale.
+      queryClient.invalidateQueries({ queryKey: ['hubFollowing', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['hubFollowers', user?.id] });
       queryClient.invalidateQueries({ queryKey: ['myFollowsForDMs', user?.email] });
       queryClient.invalidateQueries({ queryKey: ['hubIsFollowing', user?.email, email] });
     } catch (err) {
