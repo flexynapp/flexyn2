@@ -5,7 +5,7 @@
 // the global ProfileMenu respectively.
 import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useDragControls } from 'framer-motion';
 import { Flame, Users as UsersIcon, User as UserIcon, Plus, ArrowLeft, Search, Shield, Store, Activity } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useAuth } from '@/lib/AuthContext';
@@ -106,6 +106,28 @@ export default function Hub() {
   // ── Swipe + directional transition between the feed tabs ─────────────────
   const [tabDirection, setTabDirection] = useState(0);
   const swipeEnabled = section === 'feed' && SWIPE_TABS.includes(feedTab);
+
+  // The swipe is started by hand rather than by framer's own listener, and
+  // that is load-bearing rather than a style choice.
+  //
+  // With `drag="x"`, framer writes `touch-action: pan-y` onto the element
+  // (render/html/use-props.mjs — it is set AFTER the caller's `style` prop is
+  // merged, so it cannot be overridden from here). touch-action is resolved by
+  // intersecting the value down the whole ancestor chain, so `pan-y` on this
+  // panel disallowed horizontal panning for everything inside it — and the
+  // Hub feed is full of horizontally-scrolling rails: People You May Know,
+  // Live Activity, Follow Suggestions, Recently Viewed, Story Highlights and
+  // the badge showcase. None of them could be scrolled by touch. On a
+  // mobile-only app that is the entire interaction those rails have.
+  //
+  // `dragListener={false}` skips that whole block (framer guards it on
+  // `props.dragListener !== false`), and framer never calls preventDefault
+  // anywhere in its gesture code — touch-action is its ONLY mechanism for
+  // suppressing native scroll. So starting the drag ourselves gives the
+  // browser its scrolling back and keeps the swipe: pan a rail and the
+  // browser scrolls it, which cancels the pointer stream and aborts the
+  // drag; pan anywhere with nothing to scroll and the drag runs as before.
+  const dragControls = useDragControls();
 
   const goToTab = useCallback((next) => {
     setFeedTab((prev) => {
@@ -549,11 +571,16 @@ export default function Hub() {
           animate={{ opacity: 1, x: 0 }}
           exit={(dir) => ({ opacity: 0, x: dir === 0 ? 0 : dir * -24, pointerEvents: 'none' })}
           transition={{ duration: 0.18, ease: 'easeOut' }}
-          // Swipe between the three feed tabs. dragListener stays on the
-          // content, and elastic 0 with a tiny constraint means the panel
-          // barely moves — this is a gesture detector, not a carousel; a
-          // rubber-banding feed fights the vertical scroll it lives inside.
+          // Swipe between the three feed tabs. The gesture is started from
+          // onPointerDown rather than by framer's own listener — see
+          // `dragControls` above for why that is required and not cosmetic.
+          // Elastic 0.06 with a tiny constraint means the panel barely moves:
+          // this is a gesture detector, not a carousel; a rubber-banding feed
+          // fights the vertical scroll it lives inside.
           drag={swipeEnabled ? 'x' : false}
+          dragListener={false}
+          dragControls={dragControls}
+          onPointerDown={(e) => { if (swipeEnabled) dragControls.start(e); }}
           dragDirectionLock
           dragConstraints={{ left: 0, right: 0 }}
           dragElastic={0.06}
