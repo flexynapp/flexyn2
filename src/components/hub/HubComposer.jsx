@@ -1067,7 +1067,7 @@ export default function HubComposer({ onClose }) {
 
   // ── Rendering: custom meal compose step ──
   const renderMealCompose = () => (
-    <div className="flex-1 flex flex-col px-4 pt-4 pb-4">
+    <div className="flex-1 min-h-0 overflow-y-auto flex flex-col px-4 pt-4 pb-4">
       <div className="mb-3 flex items-center gap-2 text-xs text-muted-foreground">
         <Apple className="w-3.5 h-3.5 text-success" />
         {tFallback("hubComposer.shareAMeal2", "Share a meal with your community")}
@@ -1138,7 +1138,7 @@ export default function HubComposer({ onClose }) {
 
   // ── Rendering: status compose step ──
   const renderStatusCompose = () => (
-    <div className="flex-1 flex flex-col px-4 pt-4 pb-4">
+    <div className="flex-1 min-h-0 overflow-y-auto flex flex-col px-4 pt-4 pb-4">
       <div className="mb-3 flex items-center gap-2 text-xs text-muted-foreground">
         <MessageSquare className="w-3.5 h-3.5" />
         {t('hub.share.statusDesc')}
@@ -1222,7 +1222,7 @@ export default function HubComposer({ onClose }) {
 
   // ── Rendering: poll compose step (Feature 24) ──
   const renderPollCompose = () => (
-    <div className="flex-1 flex flex-col px-4 pt-4 pb-4 gap-3">
+    <div className="flex-1 min-h-0 overflow-y-auto flex flex-col px-4 pt-4 pb-4 gap-3">
       <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
         <BarChart3 className="w-3.5 h-3.5" />
         <span>{tFallback('hub.composer.pollIntro', 'Create a poll. Your followers can vote.')}</span>
@@ -1274,7 +1274,7 @@ export default function HubComposer({ onClose }) {
 
   // ── Rendering: activity-tied compose step ──
   const renderCompose = () => (
-    <div className="flex-1 flex flex-col px-4 pt-4 pb-4">
+    <div className="flex-1 min-h-0 overflow-y-auto flex flex-col px-4 pt-4 pb-4">
       <div className="mb-3 p-3 rounded-xl bg-secondary/50 border border-border">
         <div className="flex items-start gap-3">
           {selected.kind === 'progressPhoto' && selected.item?.dataUrl ? (
@@ -1413,7 +1413,7 @@ export default function HubComposer({ onClose }) {
 
   // ── Rendering: video compose step ──
   const renderVideoCompose = () => (
-    <div className="flex-1 flex flex-col px-4 pt-4 pb-4">
+    <div className="flex-1 min-h-0 overflow-y-auto flex flex-col px-4 pt-4 pb-4">
       <div className="mb-3 flex items-center gap-2 text-xs text-muted-foreground">
         <Film className="w-3.5 h-3.5 text-destructive" />
         {tFallback("hubComposer.shareAShortWorkoutClip", "Share a short workout clip")}
@@ -1624,6 +1624,19 @@ export default function HubComposer({ onClose }) {
           exit={{ y: 60, opacity: 0 }}
           transition={{ type: 'spring', stiffness: 340, damping: 30 }}
           onClick={(e) => e.stopPropagation()}
+          // Header, body, footer. The body is the `flex-1` child and EVERY
+          // step that can go in it scrolls itself (`min-h-0 overflow-y-auto`).
+          // That is load-bearing: a column flex item's automatic minimum size
+          // is its content height, so a step taller than 90vh could not
+          // shrink, and with no `overflow-hidden` here the body and the footer
+          // BELOW it rendered outside this box, past the bottom of the screen.
+          // Body scroll is locked while the sheet is open, so nothing brought
+          // them back — on a 667pt phone the video step measured ~706px against
+          // a 600px budget and the Post button sat ~106px off-screen, which
+          // made a video post unsendable from that device.
+          // `overflow-y-auto` is what actually zeroes the automatic minimum
+          // size; `min-h-0` states the same thing so that changing the overflow
+          // later cannot quietly bring the bug back.
           className="w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl flex flex-col bg-card border border-border max-h-[90vh] px-6"
         >
           <div className="flex items-center gap-2 px-4 pt-4 pb-3 shrink-0 border-b border-border">
