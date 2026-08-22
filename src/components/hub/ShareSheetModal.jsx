@@ -18,6 +18,7 @@ import {
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import * as hubMessages from '@/lib/data/hubMessages';
+import * as users from '@/lib/data/users';
 import { getMyCrews, sendCrewMessage } from '@/lib/data/crews';
 import { toast } from '@/lib/toast';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
@@ -70,6 +71,30 @@ export default function ShareSheetModal({ post, open, onClose }) {
     queryKey: ['hubConversations', user?.email],
     queryFn: () => hubMessages.listMyConversations(user.email),
     enabled: !!user?.email && tab === 'dm',
+    staleTime: 60_000,
+  });
+
+  // Who each conversation is WITH. Every row rendered `@User` from a
+  // hardcoded `const handle = 'User'`, so the DM tab was twenty identical
+  // rows and picking the right person was guesswork — on a sheet whose only
+  // action is an immediate send. Same derivation and same query key as
+  // HubMessages, so when both are mounted they share one cache entry.
+  const otherIds = (conversations || [])
+    .map(c => (c.participant_ids || []).find(id => id && id !== user?.id))
+    .filter(Boolean);
+
+  const { data: profilesById = {} } = useQuery({
+    queryKey: ['hubMessageProfiles', otherIds.slice().sort().join(',')],
+    queryFn: async () => {
+      if (otherIds.length === 0) return {};
+      const { data } = await users.selectProfiles((from) => from
+        .select('id, username, avatar_url')
+        .in('id', otherIds));
+      const map = {};
+      for (const u of (data ?? [])) map[u.id] = u;
+      return map;
+    },
+    enabled: otherIds.length > 0,
     staleTime: 60_000,
   });
 
@@ -195,7 +220,10 @@ export default function ShareSheetModal({ post, open, onClose }) {
                   </p>
                 ) : (
                   conversations.slice(0, 20).map(conv => {
-                    const handle = 'User';
+                    const otherId = (conv.participant_ids || []).find(id => id && id !== user?.id);
+                    const username = profilesById[otherId]?.username || null;
+                    const avatarUrl = profilesById[otherId]?.avatar_url || null;
+                    const handle = username || tFallback('hub.profile.anonymousAthlete', 'Athlete');
                     return (
                       <button
                         key={conv.id}
@@ -203,10 +231,17 @@ export default function ShareSheetModal({ post, open, onClose }) {
                         disabled={!!dmSending}
                         className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-secondary active:bg-secondary transition-colors disabled:opacity-60"
                       >
-                        <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center font-bold text-sm text-primary shrink-0">
-                          {handle.slice(0, 2).toUpperCase()}
-                        </div>
-                        <span className="flex-1 text-sm font-medium text-start truncate">@{handle}</span>
+                        {avatarUrl ? (
+                          <img loading="lazy" src={avatarUrl} alt="" draggable={false}
+                            className="w-9 h-9 rounded-full object-cover shrink-0 ring-1 ring-border" />
+                        ) : (
+                          <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center font-bold text-sm text-primary shrink-0">
+                            {handle.slice(0, 2).toUpperCase()}
+                          </div>
+                        )}
+                        <span className="flex-1 text-sm font-medium text-start truncate">
+                          {username ? `@${username}` : handle}
+                        </span>
                         {dmSending === conv.id ? (
                           <span className="text-xs text-muted-foreground">Sending…</span>
                         ) : (
