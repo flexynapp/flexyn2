@@ -15,17 +15,17 @@ every "94% real" predates a correct measurement.
 | | then | now |
 |---|---|---|
 | untranslatable keys | 781 | **0** |
-| hardcoded strings | 725 (undercounted) | **141** counted, ~120 real |
-| en.json | 3,895 | 6,214 |
-| es / fr | 70.5% | **99.4%** (6,175) |
-| de / it / nl / pl | — | 95.8% (5,951) |
-| pt | — | 94.5% (5,874) |
-| tr | 2,137 | 2,376 / 6,214 |
+| hardcoded strings | 725 (undercounted) | **0 real** (43 counted, all settled) |
+| en.json | 3,895 | 6,297 |
+| es / fr | 70.5% | **99.4%** (6,258) |
+| de / it / nl / pl | — | 95.8% (6,034) |
+| pt | — | 94.6% (5,957) |
+| tr | 2,137 | 2,376 / 6,297 |
 
 `npm run i18n:audit` section E is the honest number. Section B is CATALOG
 coverage and is not what a user sees — do not quote it.
 
-**Everything up to `7c6d69ea` is verified: 5,266 tests across 385 files, lint
+**Everything up to `9f9fae24` is verified: 5,279 tests across 387 files, lint
 clean, `npm run build` clean.** Run all three. The suite alone is not the
 gate — see the DiscoveryCards entry under TRAPS.
 
@@ -42,132 +42,51 @@ CALL SITES rather than literals, and a prose comment saying
 global `ALLOW_IDENTICAL`, so 14 declared-identical keys per locale counted as
 untranslated.
 
-## THE JOB
+## THE JOB — the hardcoded sweep is DONE
 
-**Finish the 247 hardcoded strings.** UI copy that never reaches a catalog.
-`npm run i18n:hardcoded -- --list` enumerates them; the largest are:
+**Zero real hardcoded strings remain.** `npm run i18n:hardcoded` reads **43**
+and every one is settled. Do not chase them; the list is exhaustive and each
+entry has been checked at its render site, not assumed:
 
-    11  src/lib/aiCoach/workoutGenerator.js   ← FALSE POSITIVE
-     4  src/components/nutrition/CalorieCyclingModal.jsx  ← keyed; label is the fallback
-     4  src/lib/aiCoach/planBuilder.js                    ← keyed; label is the fallback
-     4  src/lib/data/coinShop.js                          ← keyed; see FALSE POSITIVES
-     3  src/components/RestTimerOverlay.jsx               ← protocol names, NOT keyed
-     3  src/components/crews/CrewMemberDirectory.jsx
-     3  src/components/crews/CrewTopBoard.jsx
-     3  src/components/crews/CrewWarPanel.jsx
-     3  src/components/duels/CreateDuelModal.jsx
-     3  src/components/hub/NewGroupDMModal.jsx
+| n | file | why it still counts |
+|---|---|---|
+| 11 | `aiCoach/workoutGenerator.js` | resolved — `generator.equipment/duration/skill.<id>` |
+| 4 | `aiCoach/planBuilder.js` | resolved — `coach.cardioStyle.<id>` |
+| 4 | `data/coinShop.js` | resolved — `shop.<camel>.name/.desc` |
+| 4 | `CalorieCyclingModal.jsx` | resolved — `nutrient.<slug>` |
+| 3 | `ThemeContext.jsx` | resolved — `theme.<id>.desc` |
+| 3 | `CreateDuelModal.jsx` | resolved — `duel.type.<id>.rules` |
+| 2 | `MarketFilterBar.jsx` | resolved — `marketFilter.sort.<id>` |
+| 2 | `FoodSearchSheet.jsx` | resolved — `foodSearch.source.<key>` |
+| 3 | `RestTimerOverlay.jsx` | deliberate — Tabata / EMOM are protocol names |
+| 3 | `Onboarding.jsx` | deliberate — sample data inside a picture of the app |
+| 1 | `LanguagePicker.jsx` | deliberate — must be legible in every language |
+| 1 | `SplashScreen.jsx` | the brand wordmark, in an SVG |
+| 1 | `ReadinessCard.jsx` | a map KEY fallback, never rendered |
+| 1 | `AboutSection.jsx` | CC-BY 4.0 is a licence identifier |
 
-**Five of the top six are already settled** (four keyed, one deliberately
-English). Once a slug→label map is resolved at
-its render site the module's English label IS the fallback, and the scanner
-counts it forever — its map heuristic keys on a sibling `id` property, so any
-map naming its slug `key`, `sku` or `value` stays on the list. Read the render
-site before assuming a file is outstanding. The real top is 4 and the honest
-remaining count is nearer 140 than 160.
+**Why a resolved file still counts forever.** Once a slug→label map is routed
+through a key, the module's English label IS the `tFallback` fallback — and it
+has to be. The scanner's map heuristic keys on a sibling `id` property, so any
+map whose slug field is called `key`, `sku` or `value` stays on the list.
+**Read the render site before believing the number.**
 
-**82 files remain**, and the three crews files plus CrewWarPanel share a
-vocabulary — take them together. Everything is now 3 or fewer per file.
+## WHAT IS ACTUALLY LEFT
 
-**CalorieCyclingModal is DONE and still reads 4.** Its `FIELDS` labels are now
-the English FALLBACKS passed to `tFallback(nutrient, label)`; the scanner
-counts them because the heuristic that recognises a slug→label map keys on a
-sibling `id` property and this map's slug field is called `key`. Covered, not
-outstanding. Expect the same wherever a map names its slug something other
-than `id`.
+Three things, none of them hardcoded strings:
 
-**`src/pages/Legal.jsx` LABELS ARE DONE; the BODY stays English by
-decision.** Kegan chose that on 2026-08-21 after the trade was put to him.
-Keyed: the sixteen section headings, the five run-in data-category labels,
-the Google / Apple sub-processor row, the placeholder tooltip. Not keyed: a
-word of the disclosures. So a Spanish reader navigates the policy in Spanish
-and reads it in English. **Do not "finish" this without asking** — a
-machine-drafted privacy policy is a different kind of object from a
-machine-drafted button.
-
-Two things about that file a future pass needs:
-
-- **Its hardcoded count was 6 and the real number is far higher.** The
-  scanner matches single-line literals, so the five `<strong>` labels
-  registered, sixteen `heading="…"` props did not, and the multi-line JSX
-  prose that IS the policy did not either. A hardcoded count is a floor, not
-  a measurement, on any file whose copy is JSX text.
-- **The prose line had already been crossed before this.** An earlier pass
-  keyed `legal.privacyIntro`, `legal.draftNotice` and one full data-category
-  sentence (`legal.dataNutrition`) in all seven locales — so the Nutrition row
-  reads fully translated beside four rows that do not. If that is ever
-  resolved, resolve it in one direction for the whole list.
-- The file still carries `ENTITY`, `CONTACT_EMAIL` and `JURISDICTION` as
-  `null` behind a visible "must be filled in before store submission"
-  placeholder, so the document is unfinished in English first.
-
-**GROUP FILES THAT SHARE A VOCABULARY, and grep for the concept before you
-start.** The three duel surfaces each declared their own English for the same
-three duel types, and two of the three short descriptions disagreed — "Complete
-the same session" against "Same workout, best completion", on screens a user
-reaches within a tap of each other. Keying them one file at a time would have
-translated the drift into seven languages instead of removing it. The same
-question is worth asking of the Hub files below.
-
-**The loot catalogs are DONE** (105 keys, 2026-08-16). Cosmetic NAMES stay
-English by standing decision; the flavour text beside them is translated
-through `loot.item.<id>.desc`, one namespace for all four catalogs because
-the 89 ids are globally unique. The pattern to copy if another catalog turns
-up: a generic inventory row has lost the module it came from, so the resolver
-must key off the id alone, and the module that owns the data should re-export
-the resolver so the audit can follow the import edge.
-
-**THE SCANNER UNDERCOUNTS EVERY FILE YOU OPEN, so read the file, not the
-list.** Two shapes it structurally cannot see, both found in this batch:
-
-- **A template-literal toast.** Every detector keys off a quoted string, so
-  ``toast.success(`"${r.name}" shared with the Crew!`)`` is invisible. CrewChat
-  had five and Workout one. They take the catalog form with `{name}`.
-- **THE DETECTOR MATCHES A FIXED LIST OF PROPERTY NAMES, and a data shape
-  that uses different nouns is invisible.** Nutrition's hero slides are
-  `{ id, kicker, title, tip, ctaLabel }` — `title` is on the list, `kicker`,
-  `tip` and `ctaLabel` are not, so the headline of every slide was counted and
-  the eyebrow, body and button under it were not. Five reported against twenty
-  real. Read the object, not the count.
-- **`name:` is excluded from the objectProp detector by design** (it is
-  overwhelmingly an identifier here). `trophyDefinitions.js` reported 123 and
-  had 166 — the 43 extra were `LADDERS[].name` and `TROPHY_CATEGORIES[].name`,
-  rendering as page headings.
-- **A DUPLICATE CATALOG is the best find, because the fix is a deletion.**
-  `CardioPlanned` carried its own English for six cardio types while
-  `cardio.type.<slug>` already held the same six translated 7/7 with a
-  resolver in `src/lib/cardioTypeLabel.js` — and the data's `value` fields
-  were the key slugs. Before keying a `slug -> { label }` map, grep en.json
-  for the slug: somebody may have done it already.
-- **A slug→label map whose PROPS ARE THE SLUGS is invisible entirely.** The
-  detector matches on the property NAME being `label`/`title`/`desc`, so
-  `REASON_LABEL = { harassment: 'Harassment', spam: 'Spam', … }` in
-  `AdminReports.jsx` matched nothing at all — six labels on every row of the
-  moderation queue, never counted, English in fourteen languages.
-- **A DISPLAY STRING DERIVED FROM A SLUG.** HubComposer's content-warning
-  button read `` `Content warning: ${cwType.replace('_', ' ')}` `` — English
-  manufactured at the render site, in every language, while the picker two
-  lines below held the real words. Grep for `.replace('_', ' ')` and
-  `.replace(/_/g, ' ')`; each one is a label being invented from an id.
-- **A sentence assembled from fragments cannot be translated even after you
-  find it.** Two in this batch: Workout built "Cleared 2 weights and 1 rep
-  field" by joining pluralised English pieces with `" and "`, and the
-  corporate cohort gate joined a dash clause, an inline plural and a
-  parenthetical. Rewrite as whole messages, one per case — never key the
-  fragments.
-
-**Also outstanding:**
-- **tr is at 2,353/5,424.** Glossary and the register fix are done. Only
-  batching remains — `next-batch.mjs tr 200` → translate → `add-keys.mjs`.
-- **pt/de/it/nl/pl trail es/fr by ~200–300 keys.**
-  `node scripts/i18n-audit.mjs --lang pt`.
-- **A native prose pass is still owed on every locale.** `_meta.json` says
-  "awaiting native review" and that must stay true. All of this is MACHINE
-  draft. `coach.*` first, then `onboarding.*`, then notification bodies.
-- **Dashes in already-shipped copy.** The no-dash rule is applied to strings
-  as they are touched, so the catalogs still carry em dashes in older keys
-  (`workout.workoutLoadedLogYourSets` is "Workout loaded — log your sets!").
-  Cleaning them means re-translating, so it is its own pass, not a drive-by.
+1. **A native prose pass on every locale.** Everything shipped is MACHINE
+   DRAFT and `_meta.json` says so. That has not changed and must not be
+   quietly dropped.
+2. **tr at 2,376 / 6,297**, and pt/de/it/nl/pl at 94–96% against es/fr's
+   99.4%. Batching only.
+3. **`notifications.row.*` is a localisation path nothing reads.** Thirteen
+   notification types have title/body keys in all fifteen catalogs, and
+   `NotificationPanel.jsx:738` renders `n.title` straight off the database
+   row. Every notification is frozen in whatever language wrote it, and
+   switching language does not move it. Fixing it means rendering from type
+   plus metadata rather than stored text — a feature, not a sweep. **This is
+   the biggest remaining i18n defect in the app.**
 
 ## HOW TO DO IT — the pattern that works
 
