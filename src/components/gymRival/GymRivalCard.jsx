@@ -91,7 +91,7 @@ export default function GymRivalCard({ currentUserId }) {
     mutationFn: (type) => rollGymRival(type),
     onSuccess: async (row) => {
       if (!row) {
-        toast.info('No available rivals right now. Check back soon.');
+        toast.info(tFallback('gymRivalCard.noRivals', 'No available rivals right now. Check back soon.'));
         return;
       }
       await qc.invalidateQueries({ queryKey: ['myGymRival'] });
@@ -101,7 +101,7 @@ export default function GymRivalCard({ currentUserId }) {
     },
     onError: (err) => {
       reportError(err, { feature: 'gymRival.roll', level: 'warning', userEmail: user?.email });
-      toast.error('Could not find a Gym Rival. Try again.');
+      toast.error(tFallback('gymRivalCard.findFailed', 'Could not find a Gym Rival. Try again.'));
     },
   });
 
@@ -110,9 +110,9 @@ export default function GymRivalCard({ currentUserId }) {
     onSuccess: () => {
       setMenuOpen(false);
       qc.invalidateQueries({ queryKey: ['myGymRival'] });
-      toast.success('Challenge declined.');
+      toast.success(tFallback('gymRivalCard.declined', 'Challenge declined.'));
     },
-    onError: () => toast.error('Could not decline. Try again.'),
+    onError: () => toast.error(tFallback('gymRivalCard.declineFailed', 'Could not decline. Try again.')),
   });
 
   const name  = profile?.username;

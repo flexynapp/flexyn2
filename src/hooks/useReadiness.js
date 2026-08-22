@@ -53,12 +53,12 @@ export function useReadiness(logs = []) {
     ? Math.max(1, Math.min(5, sleep.soreness))
     : (mood?.mood != null ? Math.max(1, Math.min(5, 6 - mood.mood)) : undefined);
 
-  const { score: rawScore, label, breakdown } = computeRecoveryScore({
+  const { score: rawScore, labelId, label, breakdown } = computeRecoveryScore({
     sleepHours:   sleep?.hours,
     soreness:     sorenessProxy,
     lastWorkoutAt,
   });
   const score = Number.isFinite(rawScore) ? Math.max(0, Math.min(100, rawScore)) : 0;
 
-  return { score, label, breakdown, sleep, mood, sorenessProxy, lastWorkoutAt };
+  return { score, labelId, label, breakdown, sleep, mood, sorenessProxy, lastWorkoutAt };
 }

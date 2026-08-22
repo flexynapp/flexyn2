@@ -56,7 +56,7 @@ export default function ListItemDialog({ open, onClose, userItems, user, onSucce
   const handleSubmit = async () => {
     if (!selectedItem) return;
     if (listingType === 'sale' && (!price || isNaN(parseInt(price, 10)) || parseInt(price, 10) < 1)) {
-      toast.error('Enter a valid price (at least 1 coin).');
+      toast.error(tFallback('listItemDialog.invalidPrice', 'Enter a valid price (at least 1 coin).'));
       return;
     }
     setBusy(true);
@@ -85,7 +85,7 @@ export default function ListItemDialog({ open, onClose, userItems, user, onSucce
       // was already listed.
       await qc.invalidateQueries({ queryKey: ['marketplaceListings'] });
       await qc.invalidateQueries({ queryKey: ['userInventory', user.email] });
-      toast.success('Listed. Good luck.');
+      toast.success(tFallback('listItemDialog.listed', 'Listed. Good luck.'));
       handleClose();
       onSuccess?.();
     } catch (err) {
@@ -95,7 +95,7 @@ export default function ListItemDialog({ open, onClose, userItems, user, onSucce
         feature: 'marketplace.list', level: 'warning',
         userEmail: user?.email, itemId: selectedItem?.id,
       });
-      toast.error('Could not list item. Try again.');
+      toast.error(tFallback('listItemDialog.listFailed', 'Could not list item. Try again.'));
     } finally {
       setBusy(false);
     }
@@ -147,7 +147,7 @@ export default function ListItemDialog({ open, onClose, userItems, user, onSucce
             <div>
               {unlistedItems.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground text-sm">
-                  No stickers available to list. Open capsules to get more!
+                  {tFallback('listItemDialog.noStickers', 'No stickers available to list. Open capsules to get more!')}
                 </div>
               ) : (
                 <div className={`${PICKER.row} max-h-64 overflow-y-auto`}>
@@ -241,7 +241,7 @@ export default function ListItemDialog({ open, onClose, userItems, user, onSucce
                     </div>
                   ) : (
                     <p className="mt-2 text-micro text-muted-foreground">
-                      No sale history yet — you set the going rate.
+                      {tFallback('listItemDialog.noSaleHistory', 'No sale history yet. You set the going rate.')}
                     </p>
                   )}
                 </div>

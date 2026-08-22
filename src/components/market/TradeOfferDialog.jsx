@@ -36,7 +36,7 @@ export default function TradeOfferDialog({ open, listing, userItems, user, onClo
   const handleSend = async () => {
     if (!selectedOffer || !listing) return;
     if (!listing.inventory_id) {
-      toast.error('This listing is missing its item. Refresh and try again.');
+      toast.error(tFallback('tradeOfferDialog.missingItem', 'This listing is missing its item. Refresh and try again.'));
       return;
     }
     // A guest seller's listing carries seller_email = '' (mig 025 stamps it
@@ -49,7 +49,7 @@ export default function TradeOfferDialog({ open, listing, userItems, user, onClo
     // address needs an RPC — public_profiles exposes id and username, no
     // email — so this is a hard stop until that lands.
     if (!listing.seller_email) {
-      toast.error("Can't reach this seller. Trade offers aren't available on their listings yet.");
+      toast.error(tFallback('tradeOfferDialog.guestSeller', "Can't reach this seller. Trade offers aren't available on their listings yet."));
       return;
     }
     setBusy(true);
@@ -105,6 +105,14 @@ export default function TradeOfferDialog({ open, listing, userItems, user, onClo
         },
         createdAt: new Date().toISOString(),
       };
+      // This body is composed in the SENDER's language and read by the
+      // RECIPIENT, so translating it here would render a Spanish sender's
+      // offer in Spanish to a German seller. It stays English deliberately:
+      // TradeOfferCard renders the payload above as a card in the reader's
+      // own language, and HubMessages' inbox preview substitutes its own
+      // summary, so these lines are a fallback almost nobody reads. Moving
+      // them would need the RECIPIENT's language, which the client sending
+      // the message does not have.
       const body = [
         '[TRADE_OFFER_V1]' + JSON.stringify(tradePayload),
         '',
@@ -119,7 +127,7 @@ export default function TradeOfferDialog({ open, listing, userItems, user, onClo
         recipientEmail: listing.seller_email,
         body,
       });
-      toast.success('Trade offer sent. Your item is held until they answer.');
+      toast.success(tFallback('tradeOfferDialog.offerSent', 'Trade offer sent. Your item is held until they answer.'));
       onClose();
     } catch (err) {
       reportError(err, {
@@ -169,13 +177,12 @@ export default function TradeOfferDialog({ open, listing, userItems, user, onClo
           </div>
 
           <p className="text-xs text-muted-foreground">
-            Choose a sticker from your bag to offer. It&apos;s held while they decide,
-            and swaps automatically if they accept.
+            {tFallback('tradeOfferDialog.pickHint', "Choose a sticker from your bag to offer. It's held while they decide, and swaps automatically if they accept.")}
           </p>
 
           {eligibleItems.length === 0 ? (
             <p className="text-center text-muted-foreground text-sm py-4">
-              No eligible stickers to offer.
+              {tFallback('tradeOfferDialog.noEligible', 'No eligible stickers to offer.')}
             </p>
           ) : (
             <div className={`${PICKER.row} max-h-52 overflow-y-auto`}>

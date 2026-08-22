@@ -93,7 +93,7 @@ export function computeRecoveryScore({
     recencyScore   * 0.15;
 
   const score = Math.round(weighted);
-  const { label, color } = labelForScore(score);
+  const { id: labelId, label, color } = labelForScore(score);
 
   // Per-signal breakdown so the UI can show the user EXACTLY which
   // inputs produced this number — value they logged (or that we
@@ -136,13 +136,18 @@ export function computeRecoveryScore({
     };
   });
 
-  return { score, label, color, breakdown };
+  return { score, labelId, label, color, breakdown };
 }
 
+// `label` is the English word AND the map key that ReadinessRing's palette
+// and ReadinessCard's action map are both keyed by, so it must not move with
+// the user's language. `id` is the slug the render sites resolve against
+// `readiness.label.<id>`. Two fields rather than a translated label, because
+// translating in here would silently unmap both of those lookups.
 function labelForScore(score) {
-  if (score >= 80) return { label: 'Primed',    color: 'emerald' };
-  if (score >= 65) return { label: 'Ready',     color: 'green'   };
-  if (score >= 50) return { label: 'Moderate',  color: 'amber'   };
-  if (score >= 35) return { label: 'Tired',     color: 'orange'  };
-  return            { label: 'Depleted',        color: 'rose'    };
+  if (score >= 80) return { id: 'primed',   label: 'Primed',   color: 'emerald' };
+  if (score >= 65) return { id: 'ready',    label: 'Ready',    color: 'green'   };
+  if (score >= 50) return { id: 'moderate', label: 'Moderate', color: 'amber'   };
+  if (score >= 35) return { id: 'tired',    label: 'Tired',    color: 'orange'  };
+  return            { id: 'depleted', label: 'Depleted', color: 'rose'    };
 }

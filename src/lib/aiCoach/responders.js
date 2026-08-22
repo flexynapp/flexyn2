@@ -679,7 +679,7 @@ async function recoveryCheck({ user, t, language }) {
   ]);
 
   const todays = recent[recent.length - 1] || null;
-  const { score, label } = computeRecoveryScore({
+  const { score, labelId, label } = computeRecoveryScore({
     sleepHours:    todays?.hours,
     soreness:      todays?.soreness,
     lastWorkoutAt: latestWorkout?.date,
@@ -687,7 +687,7 @@ async function recoveryCheck({ user, t, language }) {
 
   const lines = [];
   lines.push(T('coach.reply.recovery.score', 'Recovery: {score}/100, {label}',
-    { score: formatNumber(score, language), label }));
+    { score: formatNumber(score, language), label: T(`readiness.label.${labelId}`, label) }));
   if (todays?.hours) {
     lines.push(T('coach.reply.recovery.lastNight', 'Last night: {hours}h{quality}', {
       hours: formatNumber(todays.hours, language),

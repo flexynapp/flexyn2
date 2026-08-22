@@ -90,19 +90,19 @@ export default function DailyFlexynDrop() {
       if (error) {
         const msg = error.message || '';
         if (error.code === '42883' || error.code === '42P01' || /unknown_sku|undefined_function/.test(msg)) {
-          toast.error('Daily drop purchases roll out shortly, RPC not deployed yet.');
+          toast.error(tFallback('dailyFlexynDrop.rpcMissing', 'Daily drop purchases roll out shortly, RPC not deployed yet.'));
         } else if (/insufficient_coins/.test(msg)) {
-          toast.error('Not enough Flex Coins.');
+          toast.error(tFallback('bountyCard.err.insufficientCoins', 'Not enough Flex Coins.'));
         } else {
-          toast.error('Purchase failed. Try again.');
+          toast.error(tFallback('dailyFlexynDrop.purchaseFailed', 'Purchase failed. Try again.'));
         }
         return;
       }
       markPurchased(item.id);
-      toast.success(`🎁 ${item.name} added to your bag!`);
+      toast.success(tFallback('dailyFlexynDrop.addedToBag', '🎁 {name} added to your bag!', { name: item.name }));
     } catch (err) {
       console.error('[DailyFlexynDrop] purchase error', err);
-      toast.error('Purchase failed. Try again.');
+      toast.error(tFallback('dailyFlexynDrop.purchaseFailed', 'Purchase failed. Try again.'));
     } finally {
       setPurchasing(null);
     }

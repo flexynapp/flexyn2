@@ -88,7 +88,7 @@ export default function TwoFactorSection() {
       setTimeout(() => { codeInputRef.current?.focus(); }, 20);
       return;
     }
-    toast.success('Two-factor authentication enabled.');
+    toast.success(tFallback('twoFactorSection.enabled', 'Two-factor authentication enabled.'));
     setModalOpen(false);
     setEnrollment(null);
     setCode('');
@@ -111,10 +111,12 @@ export default function TwoFactorSection() {
     if (!factorId) return;
     const res = await unenroll(factorId);
     if (!res.ok) {
-      toast.error(`Couldn't disable: ${res.message || 'try again'}`);
+      toast.error(tFallback('twoFactorSection.disableFailed', "Couldn't disable: {reason}", {
+        reason: res.message || tFallback('twoFactorSection.tryAgain', 'try again'),
+      }));
       return;
     }
-    toast.success('Two-factor disabled.');
+    toast.success(tFallback('twoFactorSection.disabled', 'Two-factor disabled.'));
     refresh();
   };
 
@@ -198,9 +200,9 @@ export default function TwoFactorSection() {
                 </button>
               </div>
               <ol className="text-xs text-muted-foreground space-y-1 mb-3 list-decimal ps-4">
-                <li>Open an authenticator app (Google Authenticator, Authy, 1Password).</li>
-                <li>Scan the QR code below — or enter the secret manually.</li>
-                <li>Type the 6-digit code the app shows.</li>
+                <li>{tFallback('twoFactorSection.step1', 'Open an authenticator app (Google Authenticator, Authy, 1Password).')}</li>
+                <li>{tFallback('twoFactorSection.step2', 'Scan the QR code below, or enter the secret manually.')}</li>
+                <li>{tFallback('twoFactorSection.step3', 'Type the 6-digit code the app shows.')}</li>
               </ol>
               {enrollment.qr && (
                 <div className="flex justify-center mb-3">
@@ -229,7 +231,7 @@ export default function TwoFactorSection() {
                 className="w-full py-2 rounded-lg bg-primary text-primary-foreground text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 {verifying ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                Verify & enable
+                {tFallback('twoFactorSection.verifyEnable', 'Verify & enable')}
               </button>
             </motion.div>
           </motion.div>,
@@ -245,7 +247,7 @@ export default function TwoFactorSection() {
           <AlertDialogHeader>
             <AlertDialogTitle>{tFallback("twoFactorSection.turnOffTwoFactorAuthentication", "Turn off two-factor authentication?")}</AlertDialogTitle>
             <AlertDialogDescription>
-              Your account will be less protected. You can re-enable 2FA at any time.
+              {tFallback('twoFactorSection.disableWarning', 'Your account will be less protected. You can re-enable 2FA at any time.')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

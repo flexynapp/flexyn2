@@ -123,7 +123,14 @@ export default function ReadinessSheet({ open, onClose, readiness, focus, onLogW
                 <span className="font-heading font-black text-title tabular-nums">{score}</span>
               </ReadinessRing>
               <div className="min-w-0">
-                <p className="font-heading font-bold text-title leading-tight">{readiness?.label}</p>
+                {/* readinessColors and ReadinessCard's action map are both
+                    keyed by the ENGLISH label, so the score engine keeps
+                    returning it; `labelId` is the slug for display. */}
+                <p className="font-heading font-bold text-title leading-tight">
+                  {readiness?.labelId
+                    ? tFallback(`readiness.label.${readiness.labelId}`, readiness.label)
+                    : readiness?.label}
+                </p>
                 <p className="text-caption text-muted-foreground leading-snug mt-1">
                   {tFallback('readiness.blend3', 'Blended from three signals. The more you log, the less we estimate.')}
                 </p>
