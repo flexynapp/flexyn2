@@ -25,7 +25,7 @@ every "94% real" predates a correct measurement.
 `npm run i18n:audit` section E is the honest number. Section B is CATALOG
 coverage and is not what a user sees — do not quote it.
 
-**Everything up to `4c3c32e8` is verified: 5,315 tests across 390 files, lint
+**Everything up to `ab2bcf18` is verified: 5,329 tests across 392 files, lint
 clean, `npm run build` clean.** Run all three. The suite alone is not the
 gate — see the DiscoveryCards entry under TRAPS.
 
@@ -80,7 +80,7 @@ Three things, none of them hardcoded strings:
    quietly dropped.
 2. **tr at 2,376 / 6,297**, and pt/de/it/nl/pl at 94–96% against es/fr's
    99.4%. Batching only.
-3. **Notification rows: 16 of 37 types render in the reader's language.**
+3. **Notification rows: 19 of 37 types render in the reader's language.**
    `src/lib/notificationText.js` rebuilds a row from `type` + `metadata`;
    `NotificationPanel` calls it. Everything else keeps the stored text, frozen
    in whatever language wrote it.
@@ -95,12 +95,12 @@ Three things, none of them hardcoded strings:
    That is the documented no-MCP route and it corrected three separate things
    a migration read had got wrong.
 
-   **Three live types CANNOT be done from the client.** `crew_war_started`
-   and `crew_war_resolved` name the opponent CREW in the title and store only
-   `opponent_crew_id`; `nemesis_assigned` names the rival and stores only
-   `assignment_id`. A name that is not on the row cannot be rebuilt. Each
-   needs its writer to store it — **a migration, and the only remaining DB
-   work in this area.** `CANNOT_LOCALIZE` in that module names all three.
+   **The three that could not be done are done — migration 379.**
+   `crew_war_started`, `crew_war_resolved` and `nemesis_assigned` named
+   somebody and stored only an id. A BEFORE INSERT trigger now resolves the
+   name into metadata and backfills what was already written, so
+   `CANNOT_LOCALIZE` is empty. **379 is UNRUN until kegan pastes it** — a
+   migration in the tree is a draft.
 
    The remaining 18 have never fired, have no catalog rows, and cost nothing
    while they fall back. Do one when it starts firing, and check a live row.
