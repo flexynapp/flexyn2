@@ -27,6 +27,9 @@ import { getCrewTrophyCounts } from '@/lib/data/crewTrophies';
 import { toast } from '@/lib/toast';
 import { useNumberFormatter } from '@/lib/intl';
 
+// The four sort pills. `key` is what listPublicCrews takes AND the catalog
+// slug; the label is the English fallback the render site passes. Level stays
+// English in every locale — it is a _glossary.json doNotTranslate term.
 const SORTS = [
   { key: 'volume',  label: 'Volume' },
   { key: 'members', label: 'Members' },

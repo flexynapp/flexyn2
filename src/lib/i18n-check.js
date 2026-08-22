@@ -111,6 +111,7 @@ const ALLOW_IDENTICAL = new Set([
   // people learn to regenerate.
   'crewTrophies.levelN',
   'legal.googleApple',                  // "Google / Apple" — two brand names
+  'crew.discover.sort.level',           // "Level"    — a doNotTranslate term
 ]);
 
 /**
@@ -180,6 +181,10 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'crew.applicantLevel',
   ]),
   fr: new Set([
+    // "Volume" is the same word in French.
+    'crew.discover.sort.volume',
+    // "calories" is the same word in French, so the whole template matches.
+    'logRecipeSheet.servingsCalories',
     // "Social." is the same word in French.
     'legal.dataSocialLabel',
     // "Contact" is the same word in French.
@@ -522,6 +527,8 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'workout.templates.reps',
   ]),
   pt: new Set([
+    // "Volume" is the same word in Portuguese.
+    'crew.discover.sort.volume',
     // "Social." is the same word in Portuguese.
     'legal.dataSocialLabel',
     // Sticker is the word Brazilian Portuguese uses for these.
@@ -575,6 +582,8 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'workout.templates.reps',
   ]),
   it: new Set([
+    // "Volume" is the same word in Italian.
+    'crew.discover.sort.volume',
     // "Account." is the loanword Italian uses.
     'legal.dataAccountLabel',
     // "Social." is the same word in Italian.
@@ -706,6 +715,8 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'workout.templates.reps',
   ]),
   nl: new Set([
+    // "Volume" is the same word in Dutch.
+    'crew.discover.sort.volume',
     // "Account." is the loanword Dutch uses.
     'legal.dataAccountLabel',
     // "Contact" is the same word in Dutch.

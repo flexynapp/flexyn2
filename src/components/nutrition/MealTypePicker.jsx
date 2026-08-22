@@ -3,6 +3,10 @@ import React from 'react';
 import { Coffee, Sun, Moon, Cookie } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
 
+// `label` stays English: MealHistoryModal builds a lookup keyed by it, and
+// `nutrition.form.<id>` is what every render site resolves. Four meals, one
+// key family — LogRecipeSheet declared its own copy of this list and the
+// weekly planner a third, all four words, three times.
 export const MEAL_TYPES = [
   { id: 'breakfast', label: 'Breakfast', icon: Coffee },
   { id: 'lunch',     label: 'Lunch',     icon: Sun    },
@@ -35,7 +39,7 @@ export default function MealTypePicker({ value, onChange, size = 'sm', className
             }`}
           >
             <Icon className="w-3 h-3" />
-            {label}
+            {tFallback(`nutrition.form.${id}`, label)}
           </button>
         );
       })}

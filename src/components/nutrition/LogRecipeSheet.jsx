@@ -24,13 +24,7 @@ import { recipeLogPayload, servingsOf } from '@/lib/data/nutritionRecipes';
 import { servingsLabel } from '@/lib/recipeFormat';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { useLanguage } from '@/lib/LanguageContext';
-
-const MEALS = [
-  { id: 'breakfast', label: 'Breakfast' },
-  { id: 'lunch',     label: 'Lunch' },
-  { id: 'dinner',    label: 'Dinner' },
-  { id: 'snack',     label: 'Snack' },
-];
+import { MEAL_TYPES } from '@/components/nutrition/MealTypePicker';
 
 // Half-serving granularity, floored at a half and capped well above any real
 // meal. The cap exists for the same reason the builder clamps its inputs: a
@@ -63,8 +57,18 @@ export default function LogRecipeSheet({
   // re-introduces the UTC shift the key format exists to avoid. Per the
   // i18n rules this format() stays unlocalised: it is a key, not text.
   const isToday = !date || date === format(new Date(), 'yyyy-MM-dd');
-  const mealLabel = MEALS.find((m) => m.id === mealType)?.label?.toLowerCase() || 'diary';
-  const servingsText = servings === 1 ? '1 serving' : `${servings} servings`;
+  // Not .toLowerCase(): German capitalises its nouns, so lower-casing a
+  // translated meal name is only correct in English. The list itself is
+  // MealTypePicker's — this file declared a second copy of the same four.
+  const mealEn = MEAL_TYPES.find((m) => m.id === mealType)?.label;
+  const mealLabel = mealEn
+    ? tFallback(`nutrition.form.${mealType}`, mealEn)
+    : tFallback('logRecipeSheet.diary', 'diary');
+  const servingsText = tFallback(
+    `logRecipeSheet.servings.${servings === 1 ? 'one' : 'other'}`,
+    servings === 1 ? '{n} serving' : '{n} servings',
+    { n: servings },
+  );
 
   const bump = (delta) => setServings((s) => {
     const next = Math.round((s + delta) * 2) / 2;
@@ -109,7 +113,7 @@ export default function LogRecipeSheet({
           <div className="px-4 pt-4">
             <p className="text-micro font-bold uppercase tracking-wide text-muted-foreground mb-2">{tFallback("hub.share.meal", "Meal")}</p>
             <div className="grid grid-cols-4 gap-2">
-              {MEALS.map((m) => (
+              {MEAL_TYPES.map((m) => (
                 <button
                   key={m.id}
                   type="button"
@@ -121,7 +125,7 @@ export default function LogRecipeSheet({
                       : 'border-border bg-secondary/40 text-muted-foreground'
                   }`}
                 >
-                  {m.label}
+                  {tFallback(`nutrition.form.${m.id}`, m.label)}
                 </button>
               ))}
             </div>
@@ -175,7 +179,7 @@ export default function LogRecipeSheet({
               className="w-full h-12 rounded-lg bg-primary text-primary-foreground text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-60"
             >
               {busy && <Loader2 className="w-4 h-4 animate-spin" />}
-              Log to {mealLabel}
+              {tFallback('logRecipeSheet.logTo', 'Log to {meal}', { meal: mealLabel })}
             </button>
 
             {/* Meal-prepped the whole tray? One tap for the lot, rather than
@@ -195,10 +199,14 @@ export default function LogRecipeSheet({
             {/* The Nutrition page has a date picker, so this sheet can be
                 logging to a past day. Say which. */}
             <p className="mt-3 text-micro text-muted-foreground text-center">
-              Lands in {isToday ? 'today’s' : 'that day’s'} Nutrition log — editable there like any meal.
+              {isToday
+                ? tFallback('logRecipeSheet.landsToday', 'Lands in today’s Nutrition log. Editable there like any meal.')
+                : tFallback('logRecipeSheet.landsThatDay', 'Lands in that day’s Nutrition log. Editable there like any meal.')}
             </p>
             <p className="sr-only" aria-live="polite">
-              {servingsText}, {payload.calories} calories
+              {tFallback('logRecipeSheet.servingsCalories', '{servings}, {n} calories', {
+                servings: servingsText, n: payload.calories,
+              })}
             </p>
           </div>
         </motion.div>

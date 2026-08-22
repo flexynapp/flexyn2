@@ -87,12 +87,12 @@ export default function CrewBattleEntry({ crew, currentUserId, myRank }) {
     onSuccess: (res) => {
       if (res?.status === 'matched') {
         toast.success(tFallback("crewBattleEntry.rivalFoundTheBattle", "Rival found. The battle is live!"), {
-          description: 'Seven days. Most XP wins.',
+          description: tFallback('crewBattleEntry.sevenDays', 'Seven days. Most XP wins.'),
         });
       } else if (res?.status === 'already_queued') {
-        toast.info('Already in the queue.');
+        toast.info(tFallback('crewBattleEntry.alreadyQueued', 'Already in the queue.'));
       } else {
-        toast.success('In the queue. We\'ll pair you with the next crew in.');
+        toast.success(tFallback('crewBattleEntry.queued', "In the queue. We'll pair you with the next crew in."));
       }
       qc.invalidateQueries({ queryKey: ['activeWar', crew.id] });
       qc.invalidateQueries({ queryKey: ['queuedWar', crew.id] });
@@ -108,7 +108,7 @@ export default function CrewBattleEntry({ crew, currentUserId, myRank }) {
   const leaveMut = useMutation({
     mutationFn: () => leaveWarMatchmaking(crew.id),
     onSuccess: () => {
-      toast.success('Left the queue.');
+      toast.success(tFallback('crewBattleEntry.leftQueue', 'Left the queue.'));
       qc.invalidateQueries({ queryKey: ['queuedWar', crew.id] });
     },
     onError: (err) => toast.error(tFallback("crewBattleEntry.couldNotLeaveTheQueue", "Could not leave the queue"), { description: err.message }),

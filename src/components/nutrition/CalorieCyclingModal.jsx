@@ -22,11 +22,16 @@ import { getMine, saveMine } from '@/lib/data/calorieCycling';
 
 // The four target fields, in display order. Keys match the shape
 // calculateDailyValues reads (calories, protein_g, carbs_g, fat_g).
+// `key` is the storage column and carries the _g suffix; `nutrient` is the
+// catalog key, which does not. Stated rather than derived because the render
+// site used to build `nutrition.macro.${key}` and NOT ONE of those four keys
+// existed — a template key with nothing behind it renders English in every
+// language while the code reads as internationalised.
 const FIELDS = [
-  { key: 'calories', label: 'Calories', suffix: 'cal', step: 10 },
-  { key: 'protein_g', label: 'Protein', suffix: 'g', step: 5 },
-  { key: 'carbs_g', label: 'Carbs', suffix: 'g', step: 5 },
-  { key: 'fat_g', label: 'Fat', suffix: 'g', step: 1 },
+  { key: 'calories', nutrient: 'nutrient.calories', label: 'Calories', suffix: 'cal', step: 10 },
+  { key: 'protein_g', nutrient: 'nutrient.protein', label: 'Protein', suffix: 'g', step: 5 },
+  { key: 'carbs_g', nutrient: 'nutrient.carbs', label: 'Carbs', suffix: 'g', step: 5 },
+  { key: 'fat_g', nutrient: 'nutrient.fat', label: 'Fat', suffix: 'g', step: 1 },
 ];
 
 const EMPTY_BRANCH = { calories: '', protein_g: '', carbs_g: '', fat_g: '' };
@@ -65,9 +70,9 @@ function DayColumn({ icon: Icon, title, subtitle, form, setForm, accent }) {
           <p className="text-micro text-muted-foreground leading-tight">{subtitle}</p>
         </div>
       </div>
-      {FIELDS.map(({ key, label, suffix, step }) => (
+      {FIELDS.map(({ key, nutrient, label, suffix, step }) => (
         <label key={key} className="flex items-center justify-between gap-2 text-xs">
-          <span className="text-muted-foreground">{tFallback(`nutrition.macro.${key}`, label)}</span>
+          <span className="text-muted-foreground">{tFallback(nutrient, label)}</span>
           <span className="relative">
             <Input
               type="number"

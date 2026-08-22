@@ -12,6 +12,7 @@ import { db } from '@/api/db';
 import { toast } from '@/lib/toast';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
+import TransText from '@/components/TransText';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { DIETARY_RESTRICTIONS, ALLERGENS, ALLERGEN_IDS, parseCustomTerms, persistRestrictions } from '@/lib/nutritionPlans';
 import { nutritionOnboardedKey } from '@/lib/nutritionOnboardingGate';
@@ -264,7 +265,7 @@ export default function NutritionOnboardingModal({ open, userProfile, onComplete
       console.error('Nutrition onboarding save failed:', err);
       // Still close — don't trap the user if the DB column is missing or the
       // network is flaky. They can revisit settings later.
-      toast.error('Could not save your plan. You can set it up later in Settings.');
+      toast.error(tFallback('nutritionOnboardingModal.saveFailed', 'Could not save your plan. You can set it up later in Settings.'));
     } finally {
       setSaving(false);
       onComplete?.();
@@ -476,8 +477,8 @@ export default function NutritionOnboardingModal({ open, userProfile, onComplete
                   <ShieldCheck className="w-5 h-5" />
                   {tFallback("nutritionOnboardingModal.dietAndLifestyle", "Diet & Lifestyle")}
                 </h2>
-                <p className="text-sm text-muted-foreground mb-1">Follow a particular way of eating? Select all that apply.</p>
-                <p className="text-xs text-muted-foreground mb-4">Food allergies come next — we'll adapt every plan to fit both.</p>
+                <p className="text-sm text-muted-foreground mb-1">{tFallback('nutritionOnboardingModal.dietPrompt', 'Follow a particular way of eating? Select all that apply.')}</p>
+                <p className="text-xs text-muted-foreground mb-4">{tFallback('nutritionOnboardingModal.dietNext', "Food allergies come next. We'll adapt every plan to fit both.")}</p>
                 <div className="grid grid-cols-2 gap-2">
                   {DIETARY_RESTRICTIONS.map(r => {
                     const selected = dietaryRestrictions.includes(r.id);
@@ -518,9 +519,16 @@ export default function NutritionOnboardingModal({ open, userProfile, onComplete
                   {tFallback("nutritionOnboardingModal.allergiesAndIntolerances", "Allergies & Intolerances")}
                 </h2>
                 <p className="text-sm text-muted-foreground mb-1">
-                  Select any that apply — we'll make sure these <span className="font-semibold text-foreground">never</span> appear in a plan.
+                  {/* A sentence with a node in the middle, so TransText rather
+                      than tFallback — a translator needs to move `never`
+                      wherever their word order puts it. */}
+                  <TransText
+                    k="nutritionOnboardingModal.allergenPrompt"
+                    en="Select any that apply. We'll make sure these {never} appear in a plan."
+                    values={{ never: <span className="font-semibold text-foreground">{tFallback('nutritionOnboardingModal.never', 'never')}</span> }}
+                  />
                 </p>
-                <p className="text-xs text-muted-foreground mb-4">The complete set of major food allergens.</p>
+                <p className="text-xs text-muted-foreground mb-4">{tFallback('nutritionOnboardingModal.allergenSetNote', 'The complete set of major food allergens.')}</p>
                 <div className="grid grid-cols-2 gap-2">
                   {ALLERGENS.map(a => {
                     const selected = allergens.includes(a.id);
@@ -556,7 +564,7 @@ export default function NutritionOnboardingModal({ open, userProfile, onComplete
                       value={customInput}
                       onChange={(e) => setCustomInput(e.target.value)}
                       onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCustom(); } }}
-                      placeholder="e.g. shrimp, cilantro, mushrooms"
+                      placeholder={tFallback('nutritionOnboardingModal.avoidPlaceholder', 'e.g. shrimp, cilantro, mushrooms')}
                       className="flex-1 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-destructive/40"
                     />
                     <button
