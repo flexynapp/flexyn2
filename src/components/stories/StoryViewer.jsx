@@ -638,7 +638,7 @@ export default function StoryViewer({
 
                 {/* Story context thumbnail — always shown above reply bar */}
                 {currentStory?.image_url && !currentGroup.storyDmsDisabled && (
-                  <div className="flex items-center gap-2 mb-2.5 ms-1" onClick={e => e.stopPropagation()}>
+                  <div className="relative z-10 flex items-center gap-2 mb-2.5 ms-1" onClick={e => e.stopPropagation()}>
                     <div
                       className="rounded-xl overflow-hidden shrink-0"
                       style={{ width: 52, height: 52, opacity: 0.75, boxShadow: '0 0 0 1.5px rgba(255,255,255,0.25)' }}
@@ -658,8 +658,20 @@ export default function StoryViewer({
                 )}
 
                 {/* Emoji reactions (migration 097). Picker row above
-                    the like + reply row — taps fire reactToStory(). */}
-                <div className="mb-2">
+                    the like + reply row — taps fire reactToStory().
+
+                    `relative z-10`, and the same on the thumbnail and the
+                    two action rows below. The tap zones at the bottom of
+                    this file are LATER SIBLINGS of this bar with no z-index
+                    of their own, so they painted on top of everything here
+                    that reached above their 90px floor — which is most of
+                    this picker. Every reaction tap went to "next story"
+                    instead, so the feature had never once fired.
+                    Raised per-row rather than on the bar, because the bar
+                    is full-width and mostly empty: a z-index on the
+                    container would also stop tap-to-advance working in the
+                    ~100px of blank space either side of these controls. */}
+                <div className="relative z-10 mb-2">
                   <StoryReactionPicker storyId={currentStory?.id} />
                 </div>
 
@@ -667,7 +679,7 @@ export default function StoryViewer({
                     appears once the user taps comment, so the default view
                     stays clean. */}
                 {!commentOpen && (
-                  <div className="flex items-center justify-center gap-10">
+                  <div className="relative z-10 flex items-center justify-center gap-10">
                     <motion.button whileTap={{ scale: 0.82 }} onClick={handleLike}
                       className="w-12 h-12 rounded-full bg-black/40 flex items-center justify-center shrink-0" aria-label={isLiked ? 'Unlike' : 'Like'}>
                       <Heart className={`w-6 h-6 transition-colors ${isLiked ? 'fill-red-500 text-red-500' : 'text-white'}`} />
@@ -682,7 +694,7 @@ export default function StoryViewer({
                   </div>
                 )}
 
-                <div className={commentOpen ? 'flex items-center gap-2' : 'hidden'}>
+                <div className={commentOpen ? 'relative z-10 flex items-center gap-2' : 'hidden'}>
                   {!currentGroup.storyDmsDisabled && (
                     <div className="flex-1 flex items-center gap-2 bg-black/40 rounded-full px-4 py-2.5 border border-white/25 min-w-0"
                       onClick={e => e.stopPropagation()}>
