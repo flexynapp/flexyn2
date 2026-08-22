@@ -167,6 +167,9 @@ function FeatVisualCoach({ accent }) {
   );
 }
 
+// Sample rows inside a PICTURE of the log screen, not the log screen. The
+// exercise name is data in a mock-up; keying it would put a translator's word
+// inside an illustration whose numbers stay English either way.
 function FeatVisualLog({ accent }) {
   const rows = [{ label: 'Bench', val: '185 × 5' }, { label: 'Bench', val: '195 × 5' }, { label: 'Bench', val: '205 × 5' }];
   return (

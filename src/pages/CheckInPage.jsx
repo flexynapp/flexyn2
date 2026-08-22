@@ -144,7 +144,7 @@ export default function CheckInPage() {
               <AlertTriangle className="w-9 h-9 text-rose-500" />
             </div>
             <p className="font-heading font-bold text-lg">{tFallback("checkInPage.couldnTCheck", "Couldn't check in")}</p>
-            <p className="text-sm text-muted-foreground">That code didn't match an active gym. Double-check the signage code.</p>
+            <p className="text-sm text-muted-foreground">{tFallback('checkIn.codeNotFound', "That code didn't match an active gym. Double-check the signage code.")}</p>
             <button type="button" onClick={() => navigate('/dashboard')} className="mt-2 w-full py-3 rounded-xl bg-secondary font-semibold hover:bg-secondary/70 active:bg-secondary/70 transition-colors">
               {tFallback("header.goToDashboard", "Go to dashboard")}
             </button>

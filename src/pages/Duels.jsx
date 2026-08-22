@@ -162,7 +162,7 @@ export default function Duels() {
       await cancelDuel(id);
       qc.invalidateQueries({ queryKey: ['myDuels'] });
       setSelectedDuel(null);
-      toast.success('Challenge cancelled.');
+      toast.success(tFallback('duels.challengeCancelled', 'Challenge cancelled.'));
     } catch {
       toast.error(tFallback('marketplaceFeed.cancelFailed', 'Could not cancel. Try again.'));
     }

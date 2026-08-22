@@ -17,13 +17,15 @@ import { supabase } from '@/api/supabaseClient';
 import { safeSelect } from '@/api/safeSelect';
 import { useAuth } from '@/lib/AuthContext';
 import * as capsules from '@/lib/data/capsules';
+import { asT } from '@/lib/translatorArg';
 
 // Custom event name used by external callers (e.g. StatsHubModal "Bag &
 // Capsules" tile) to ask whatever currently owns the bag flow to open
 // it. Modeled on the existing `flexyn-title` cardio-header convention.
 export const OPEN_BAG_EVENT = 'flexyn-open-bag';
 
-export function useBagFlow() {
+export function useBagFlow(t) {
+  const tf = asT(t);
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [bagOpen, setBagOpen] = useState(false);
@@ -147,7 +149,7 @@ export function useBagFlow() {
       toast.success(`${grantedEmoji} ${grantedName} added to your bag!`);
     } catch (err) {
       console.error('[inventoryFlow] legacy capsule claim failed:', err);
-      toast.error('Could not save item. Try again.');
+      toast.error(tf('inventoryFlow.saveFailed', 'Could not save item. Try again.'));
     }
   }, [openingCapsule, user, queryClient]);
 

@@ -30,6 +30,9 @@ export const DEFAULT_UNIT = 'g';
 // the common macro-adjacent values plus the headline vitamins & minerals.
 // `unit` is the default unit; users can still change it, and add a fully
 // custom nutrient with any name/unit of their own.
+// `label` is the English fallback for `nutrient.<key minus its unit suffix>`,
+// resolved in RecipeBuilderModal. The key keeps the unit because it is the
+// storage column name.
 export const MICRO_PRESETS = [
   { key: 'fiber_g',        label: 'Fiber',       unit: 'g'   },
   { key: 'sugar_g',        label: 'Sugar',       unit: 'g'   },

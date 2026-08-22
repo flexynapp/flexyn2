@@ -489,7 +489,7 @@ export default function RecipeBuilderModal({ open, onClose, editingRecipe = null
                         onClick={() => addPresetMicro(p)}
                         className="px-2 py-1 rounded-full border border-border text-micro font-semibold text-muted-foreground hover:bg-secondary/50 active:bg-secondary/50"
                       >
-                        + {p.label}
+                        + {tFallback(`nutrient.${p.key.replace(/_(g|mg|mcg)$/, '')}`, p.label)}
                       </button>
                     ))}
                   </div>

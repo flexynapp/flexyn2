@@ -30,6 +30,7 @@ import {
 // in CLAUDE.md. --info carries "this person holds a position" without
 // inventing a colour, and matches the rank pills on the Penpot
 // "Crew Manage" page.
+// `label` is the English fallback for `crewRank.<role>`, resolved below.
 const ROLE_LABELS = {
   leader:    { label: 'Leader', color: 'hsl(var(--primary))', bg: 'hsl(var(--primary) / 0.12)' },
   moderator: { label: 'Mod',    color: 'hsl(var(--info))',    bg: 'hsl(var(--info) / 0.12)' },
@@ -37,6 +38,7 @@ const ROLE_LABELS = {
 };
 
 function RoleBadge({ role }) {
+  const { tFallback } = useLanguage();
   const cfg = ROLE_LABELS[role];
   if (!cfg?.label) return null;
   return (
@@ -45,7 +47,7 @@ function RoleBadge({ role }) {
       style={{ color: cfg.color, background: cfg.bg }}
     >
       <ShieldCheck className="w-2.5 h-2.5" />
-      {cfg.label}
+      {tFallback(`crewRank.${role}`, cfg.label)}
     </span>
   );
 }

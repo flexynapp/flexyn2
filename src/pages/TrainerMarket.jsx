@@ -98,7 +98,7 @@ export default function TrainerMarket() {
     if (listing.regimen_id) {
       navigate('/workout', { state: { openRegimens: true } });
     } else {
-      toast.message('This program has no linked regimen yet.');
+      toast.message(tFallback('trainerMarket.noRegimen', 'This program has no linked regimen yet.'));
     }
   };
 
@@ -121,7 +121,7 @@ export default function TrainerMarket() {
           <h1 className="font-heading text-2xl font-bold tracking-tight flex items-center gap-2">
             <ShoppingBag className="w-5 h-5 text-primary" /> {tFallback("market.trainerPrograms", "Trainer Programs")}
           </h1>
-          <p className="text-sm text-muted-foreground">Premium regimens built by creators.</p>
+          <p className="text-sm text-muted-foreground">{tFallback('trainerMarket.subtitle', 'Premium regimens built by creators.')}</p>
         </div>
         <Button variant="outline" size="sm" onClick={() => navigate('/trainer/studio')} className="gap-1.5 shrink-0">
           <Sparkles className="w-3.5 h-3.5" /> {tFallback("trainerMarket.sell", "Sell")}
@@ -135,7 +135,7 @@ export default function TrainerMarket() {
           icon={ShoppingBag}
           title={tFallback("trainerMarket.noProgramsYet", "No programs yet")}
           body="When creators publish premium regimens, they'll show up here. Want to be first? Tap Sell to open your studio."
-          action={{ label: 'Open creator studio', onClick: () => navigate('/trainer/studio') }}
+          action={{ label: tFallback('trainerMarket.openStudio', 'Open creator studio'), onClick: () => navigate('/trainer/studio') }}
         />
       ) : (
         <ErrorBoundary label="TrainerMarket.grid">

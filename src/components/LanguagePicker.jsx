@@ -103,6 +103,9 @@ export default function LanguagePicker({ variant = 'inline', onSelect, iconOnly 
           ref={triggerRef}
           onClick={handleOpen}
           className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border hover:bg-secondary active:bg-secondary text-xs font-medium transition-colors"
+          // NOT keyed, deliberately. This has to be legible to someone who
+          // cannot read the language the app is currently in — that is the
+          // one string a language switcher must not translate.
           title="Change language / 언어 변경 / Idioma"
         >
           <span>🗣️</span>

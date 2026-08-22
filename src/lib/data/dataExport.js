@@ -17,6 +17,7 @@
 //   PARTIAL data instead of nothing.
 
 import { supabase } from '@/api/supabaseClient';
+import { asT } from '@/lib/translatorArg';
 
 // (table, owner-filter-column) pairs we know how to export.
 // Belt + suspenders: RLS already restricts these reads, but the
@@ -118,7 +119,8 @@ export async function buildExport(user) {
  * @param {object} exportData  the result of buildExport()
  * @param {string} [filename]  override the default filename
  */
-export async function downloadExport(exportData, filename) {
+export async function downloadExport(exportData, filename, t) {
+  const tf = asT(t);
   const json = JSON.stringify(exportData, null, 2);
   const blob = new Blob([json], { type: 'application/json' });
   const stamp = (exportData?.exported_at || new Date().toISOString()).replace(/[:.]/g, '-').slice(0, 19);
@@ -134,7 +136,7 @@ export async function downloadExport(exportData, filename) {
     try {
       const file = new File([blob], name, { type: 'application/json' });
       if (navigator.canShare({ files: [file] })) {
-        await navigator.share({ files: [file], title: 'Flexyn data export' });
+        await navigator.share({ files: [file], title: tf('dataExport.shareTitle', 'Flexyn data export') });
         return;
       }
     } catch {

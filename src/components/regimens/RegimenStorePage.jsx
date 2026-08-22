@@ -137,7 +137,7 @@ function RegimenCard({ regimen, index, isMine, user, onAdopted }) {
       toast.success(`"${regimen.name}" saved to your Regimens!`);
       onAdopted?.();
     },
-    onError: () => toast.error('Could not adopt regimen. Try again.'),
+    onError: () => toast.error(tFallback('regimenStore.adoptFailed', 'Could not adopt regimen. Try again.')),
   });
 
   const copyCount = regimen.copy_count || regimen.clone_count || 0;
@@ -334,7 +334,7 @@ function RegimenCard({ regimen, index, isMine, user, onAdopted }) {
                   </div>
                 ))}
                 {(regimen.exercises || []).length === 0 && (
-                  <p className="text-xs text-muted-foreground">No exercises listed.</p>
+                  <p className="text-xs text-muted-foreground">{tFallback('regimenStore.noExercises', 'No exercises listed.')}</p>
                 )}
               </div>
 
@@ -592,7 +592,7 @@ export default function RegimenStorePage({ onBack, onPublish }) {
           </div>
           <p className="font-heading font-bold text-base">{tFallback("regimenStorePage.noPublicRegimensYet", "No public regimens yet")}</p>
           <p className="text-sm text-muted-foreground mt-1 mb-6 max-w-xs mx-auto">
-            Build a program you actually run, then share it. Yours would be the first.
+            {tFallback('regimenStore.emptyHint', 'Build a program you actually run, then share it. Yours would be the first.')}
           </p>
           <motion.button
             whileTap={{ scale: 0.97 }}

@@ -149,7 +149,7 @@ function ChallengeDetail({ challenge, status, completedAt, onClose, onStartWorko
 
         {isLocked && (
           <p className="text-sm text-muted-foreground/40 italic mb-4">
-            Complete the challenges before this one to unlock.
+            {tFallback('gauntlet.lockedHint', 'Complete the challenges before this one to unlock.')}
           </p>
         )}
 
@@ -255,7 +255,7 @@ export default function Gauntlet() {
     },
     onError: (err) => {
       reportError(err, { feature: 'gauntlet.weekly-start', level: 'warning' });
-      toast.error('Could not start the gauntlet. Try again.');
+      toast.error(tFallback('gauntlet.startFailed', 'Could not start the gauntlet. Try again.'));
     },
   });
 
@@ -308,7 +308,7 @@ export default function Gauntlet() {
     },
     onError: (err) => {
       reportError(err, { feature: 'gauntlet.weekly-submit', level: 'warning' });
-      toast.error('Could not submit your score. Try again.');
+      toast.error(tFallback('gauntlet.submitFailed', 'Could not submit your score. Try again.'));
     },
   });
 

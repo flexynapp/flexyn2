@@ -90,7 +90,7 @@ export default function NewGroupDMModal({ open, onClose, onCreated }) {
     setSelected(curr => {
       if (curr.includes(email)) return curr.filter(e => e !== email);
       if (curr.length >= MAX_OTHERS) {
-        toast.error('That\'s the most people a group DM can hold. Create a Crew for larger groups.');
+        toast.error(tFallback('groupDM.maxPeople', "That's the most people a group DM can hold. Create a Crew for larger groups."));
         return curr;
       }
       return [...curr, email];
@@ -99,7 +99,7 @@ export default function NewGroupDMModal({ open, onClose, onCreated }) {
 
   const handleCreate = async () => {
     if (selected.length < 2) {
-      toast.error('Pick at least 2 other people.');
+      toast.error(tFallback('groupDM.pickTwo', 'Pick at least 2 other people.'));
       return;
     }
     setCreating(true);
@@ -109,7 +109,7 @@ export default function NewGroupDMModal({ open, onClose, onCreated }) {
       onClose?.();
     } catch (err) {
       const code = err?.code || '';
-      if (code === '22023') toast.error('Group must have 3–10 people total.');
+      if (code === '22023') toast.error(tFallback('groupDM.sizeRange', 'Group must have 3–10 people total.'));
       else toast.error(`Could not create: ${err?.message || 'try again'}`);
     } finally {
       setCreating(false);

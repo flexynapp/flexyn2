@@ -118,6 +118,7 @@ const ALLOW_IDENTICAL = new Set([
   'exerciseEquip.filter.kettlebell',    // "Kettlebell" — the loanword all 7 use
   'gymEquip.group.kettlebell',          // "Kettlebells" — same, except pl
   'crew.top.metric.volume',             // "Volume"   — same word in fr/pt/it/nl
+  'crewRank.moderator',                 // "Mod"      — the abbreviation, everywhere
 ]);
 
 /**
@@ -138,6 +139,8 @@ const ALLOW_IDENTICAL = new Set([
  */
 const ALLOW_IDENTICAL_BY_LANG = {
   es: new Set([
+    // "Zinc" is the same word in Spanish.
+    'nutrient.zinc',
     // "Social." is the same word in Spanish.
     'legal.dataSocialLabel',
     // Sticker is the word Spanish uses for these.
@@ -187,6 +190,8 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'crew.applicantLevel',
   ]),
   fr: new Set([
+    // "Zinc" is the same word in French.
+    'nutrient.zinc',
     // "Points" is the same word in French.
     'crew.top.metric.points',
     // "Machine" is the same word in French.
@@ -357,6 +362,8 @@ const ALLOW_IDENTICAL_BY_LANG = {
   // triple and the abbreviations of words this catalog already uses
   // (duels.wins "Siege", duels.losses "Niederlagen").
   de: new Set([
+    // "Leader" is the loanword German uses for the role.
+    'crewRank.leader',
     // "Band" is the same word in German.
     'exerciseEquip.filter.band',
     // "Gyms." — the loanword German actually uses, and the app's own term.
@@ -600,6 +607,8 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'workout.templates.reps',
   ]),
   it: new Set([
+    // "Leader" is the loanword Italian uses for the role.
+    'crewRank.leader',
     // "Volume" is the same word in Italian.
     'crew.discover.sort.volume',
     // "Account." is the loanword Italian uses.

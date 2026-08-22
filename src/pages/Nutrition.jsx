@@ -104,7 +104,7 @@ function NutritionShortcutsCarousel({ onScan, onRecipes, onHistory, onPlans, onP
       // success, info, destructive, then back to primary for the fifth.
       color: 'var(--primary)',
       kicker: 'Scan a barcode',
-      title: 'Scan Food',
+      title: tFallback('nutrition.hero.scan.title', 'Scan Food'),
       tip: 'Snap any package and we autofill macros, calories, and serving size. Fastest way to log.',
       ctaLabel: 'Open scanner',
       onCta: onScan,

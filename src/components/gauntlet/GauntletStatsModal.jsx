@@ -57,7 +57,7 @@ export default function GauntletStatsModal({
       const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
       const file = new File([blob], 'gauntlet-complete.png', { type: 'image/png' });
       if (navigator.canShare?.({ files: [file] })) {
-        await navigator.share({ files: [file], title: 'Flexyn Gauntlet', text: `I just cleared "${challengeTitle}" on Flexyn! 🏆` });
+        await navigator.share({ files: [file], title: tFallback('gauntletStatsModal.flexynGauntlet', 'Flexyn Gauntlet'), text: `I just cleared "${challengeTitle}" on Flexyn! 🏆` });
       } else {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');

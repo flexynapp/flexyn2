@@ -134,7 +134,7 @@ export default function PublicGymLanding() {
         <div>
           <p className="font-heading font-bold text-lg">{tFallback("gymEdit.gymNotFound", "Gym not found")}</p>
           <p className="text-sm text-muted-foreground mt-1">
-            This gym may not be on Flexyn yet.
+            {tFallback('publicGym.maybeNotOnFlexyn', 'This gym may not be on Flexyn yet.')}
           </p>
         </div>
         <Button onClick={() => window.location.href = '/'} variant="outline">

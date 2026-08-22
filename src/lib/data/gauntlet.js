@@ -3,6 +3,7 @@
 import { supabase } from '@/api/supabaseClient';
 import { format, differenceInCalendarDays, startOfWeek } from 'date-fns';
 import { detectPRsInWorkout } from '@/lib/data/personalRecords';
+import { asT } from '@/lib/translatorArg';
 
 // ── Challenge catalogue ───────────────────────────────────────────────────────
 
@@ -53,7 +54,8 @@ export async function getMyCompletions() {
  * Returns { challenge_id, challenge_title, next_sequence, xp_awarded,
  *           coins_awarded, path_completed }
  */
-export async function completeGauntletChallenge(sequenceNumber, workoutLogId = null, score = null) {
+export async function completeGauntletChallenge(sequenceNumber, workoutLogId = null, score = null, t) {
+  const tf = asT(t);
   const { data, error } = await supabase.rpc('complete_gauntlet_challenge', {
     p_sequence_number: sequenceNumber,
     p_workout_log_id:  workoutLogId,
@@ -73,8 +75,8 @@ export async function completeGauntletChallenge(sequenceNumber, workoutLogId = n
           user_id:    user.id,
           user_email: user.email,
           type:       'gauntlet_path_completed',
-          title:      '🏆 Gauntlet complete!',
-          body:       'You finished the 10-challenge path. New season begins next week.',
+          title:      tf('notify.gauntletComplete.title', '🏆 Gauntlet complete!'),
+          body:       tf('notify.gauntletComplete.body', 'You finished the 10-challenge path. New season begins next week.'),
           icon:       '🏆',
           link_url:   '/gauntlet',
           metadata:   { final_challenge_id: data.challenge_id, xp_awarded: data.xp_awarded },

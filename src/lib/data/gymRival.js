@@ -11,6 +11,7 @@
 
 import { supabase } from '@/api/supabaseClient';
 import { selectProfiles } from '@/lib/data/users';
+import { asT } from '@/lib/translatorArg';
 
 // ── Queries ───────────────────────────────────────────────────────────────────
 
@@ -98,7 +99,8 @@ export async function getGymRivalRecord(userId) {
  * Assign (or re-assign) a gym rival for the current user.
  * Queries for someone 10–20% higher XP, not opted out, not the user.
  */
-export async function assignGymRival({ sendNotification = false } = {}) {
+export async function assignGymRival({ sendNotification = false } = {}, t) {
+  const tf = asT(t);
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
 
@@ -185,7 +187,7 @@ export async function assignGymRival({ sendNotification = false } = {}) {
           user_email: user.email,
           type:       'nemesis_assigned',
           title:      `🎯 Meet your Gym Rival: ${chosen.username || 'a rival'}`,
-          body:       'They\'re around your level. Out-train them this week to win.',
+          body:       tf('notify.nemesisAssigned.body', "They're around your level. Out-train them this week to win."),
           icon:       '🎯',
           link_url:   '/dashboard',
           metadata:   { rival_id: chosen.id, rival_name: chosen.username },

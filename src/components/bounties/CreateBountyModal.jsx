@@ -131,7 +131,7 @@ export default function CreateBountyModal({ open, onClose, onCreated }) {
                     type="text"
                     value={exerciseName}
                     onChange={(e) => setExerciseName(e.target.value)}
-                    placeholder="e.g. Squat"
+                    placeholder={tFallback('createBounty.exercisePlaceholder', 'e.g. Squat')}
                     maxLength={60}
                     className="w-full px-3 py-2 rounded-lg bg-secondary border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
                   />

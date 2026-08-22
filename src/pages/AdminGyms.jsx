@@ -109,11 +109,11 @@ export default function AdminGyms() {
     setActingId(null);
     rejectBusyRef.current = false;
     if (res.ok) {
-      toast.success('Rejected.');
+      toast.success(tFallback('adminGyms.rejected', 'Rejected.'));
       setRejectingId(null);
       refresh();
     } else {
-      toast.error('Reject failed.');
+      toast.error(tFallback('adminGyms.rejectFailed', 'Reject failed.'));
     }
   };
 

@@ -190,7 +190,7 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
   }, []);
 
   const addText = useCallback(() => {
-    if (textCount >= MAX_TEXT) { toast.error('That\'s as many text boxes as one story can hold.'); return; }
+    if (textCount >= MAX_TEXT) { toast.error(tFallback('storyPreview.maxTextBoxes', "That's as many text boxes as one story can hold.")); return; }
     const id = uid();
     setOverlays(curr => [...curr, {
       id, kind: 'text', text: '', color: textColor, fontIdx: 0, boxed: false,
