@@ -2,9 +2,15 @@
  "$comment": "Term base. The vocabulary a translation must not reinvent — derived from the 1,449 Spanish strings that already shipped, so a new pass agrees with the old one instead of introducing a second word for the same thing. Add a row when a term first appears; a reviewer reads this before the catalog.",
  "register": {
   "es": "tú",
-  "$note": "Informal throughout — measured on the existing translations, 166 tú-forms against 27 usted. A fitness app addresses the person training, not a customer. French is the opposite: vous throughout, measured at 118 vous-forms against 62 tu. Do not assume one register carries across languages. German is du as well — measured at 122 du-forms against 7 genuine Sie ones, which were corrected. Note that capitalised Sie/Ihr is ambiguous in German (formal you, but also she/they/her), so those seven were read by hand rather than counted.",
+  "$note": "Informal throughout — measured on the existing translations, 166 tú-forms against 27 usted. A fitness app addresses the person training, not a customer. French is the opposite: vous throughout, measured at 118 vous-forms against 62 tu. Do not assume one register carries across languages. German is du as well — measured at 122 du-forms against 7 genuine Sie ones, which were corrected. Note that capitalised Sie/Ihr is ambiguous in German (formal you, but also she/they/her), so those seven were read by hand rather than counted. PEER-TO-PEER COPY IS THE ONE EXCEPTION, and it is tu in French too (kegan, 2026-08-30). The register rule governs how the APP addresses the user. A share sheet is what one USER sends another, and \"Je vous défie en duel\" between friends reads wrong. The exempt keys are listed in register.exempt; there are three and they are all shareText.",
   "fr": "vous",
-  "de": "du"
+  "de": "du",
+  "exempt": {
+   "$note": "Keys the register rule does NOT govern, because the string is not the app talking to the user. Each entry names why. Same reasoning as doNotTranslate.exempt: a rule with no exceptions cries wolf, and a checker people mute is worse than no checker.",
+   "createInviteLinkModal.shareText": "tu — a duel challenge the user sends a friend, not app copy",
+   "duelInviteLanding.shareText": "tu — the reply half of the same duel challenge",
+   "referral.shareText": "tu — a referral message the user sends a friend"
+  }
  },
  "doNotTranslate": {
   "$note": "Product and brand nouns. Kept in English by the existing translations, so keep them.",

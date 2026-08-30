@@ -75,7 +75,13 @@ const REGISTER = {
   },
   fr: {
     want: 'vous',
-    wrong: [W('tu'), W("ton|ta|tes|toi|t'|t’")],
+    // `te` was absent until 2026-08-30, and it is the marker that matters:
+    // unlike ta/ton (which need the possessor, not the address, to disambiguate)
+    // a standalone `te` is only ever the tu object pronoun — vous has no such
+    // form. Its absence is why "Je te défie en duel" sat in the catalog reading
+    // clean while the imperative scan, which has no `défie`, could not see it
+    // either. Neither axis covered it.
+    wrong: [W('tu'), W("ton|ta|tes|toi|te|t'|t’")],
     imperatives: 'Choisis|Ajoute|Regarde|Ouvre|Lance|Partage|Vérifie|Réessaie|Enregistre|Sélectionne|Touche|Appuie|Saisis|Écris|Commence|Termine|Essaie|Reviens|Découvre|Trouve|Prends|Mets|Complète|Active|Désactive|Modifie|Change|Supprime|Retire|Garde|Continue|Attends|Consulte|Utilise|Clique|Scanne|Ferme|Annule|Valide|Envoie|Gagne|Atteins|Dépasse|Collectionne|Nourris|Crée|Fixe|Récupère|Réactive|Donne|Pose|Suis',
   },
 };
@@ -108,13 +114,21 @@ for (const lang of LANGS) {
   // 1. REGISTER
   const cfg = REGISTER[lang];
   if (cfg) {
-    const wrong = strings
+    // The register rule governs how the APP addresses the user. A share sheet
+    // is what one USER sends another, so it follows the register friends
+    // actually use — tu in French, even though the app says vous. Declared in
+    // register.exempt so the decision survives the next audit instead of being
+    // rediscovered and "fixed". See doNotTranslate.exempt for the same shape.
+    const rExempt = (gloss.register && gloss.register.exempt) || {};
+    const governed = strings.filter(([k]) => !(k in rExempt));
+
+    const wrong = governed
       .filter(([, v]) => cfg.wrong.some((p) => p.test(v)))
       .map(([k, v]) => `${k}  ⇢  ${v.slice(0, 80)}`);
     section(`register is ${cfg.want} throughout`, wrong);
 
     const impRe = new RegExp(`(?:^|[.!?¡¿…—\\n]\\s*)(?:${cfg.imperatives})(?=\\s|\\.|,|!|\\?|$)`, 'u');
-    const imps = strings.filter(([, v]) => impRe.test(v)).map(([k, v]) => `${k}  ⇢  ${v.slice(0, 80)}`);
+    const imps = governed.filter(([, v]) => impRe.test(v)).map(([k, v]) => `${k}  ⇢  ${v.slice(0, 80)}`);
     section(`wrong-register imperatives (CANDIDATES — read them, a noun looks identical)`, imps, { candidate: true });
   }
 
