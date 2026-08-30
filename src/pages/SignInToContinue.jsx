@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowRight, ArrowLeft, Mail, Loader2, Check, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { toast } from '@/lib/toast';
 import { db } from '@/api/db';
 import { useLanguage } from '@/lib/LanguageContext';
+import { cachedProviders, fetchEnabledProviders } from '@/lib/authProviders';
 import TransText from '@/components/TransText';
 
 // Inline SVG glyphs for the OAuth buttons — keeps us off of brand-asset
@@ -45,6 +46,19 @@ export default function SignInToContinue({
   const [sendingMagicLink, setSendingMagicLink] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [appleLoading, setAppleLoading] = useState(false);
+
+  // Only offer a provider the project actually has. Seeded from the last
+  // confirmed answer so returning users do not watch the buttons pop in, then
+  // revalidated. On failure we keep what we had — [] when nothing is cached —
+  // because widening this list is how a button starts dead-ending again.
+  const [providers, setProviders] = useState(() => cachedProviders() ?? []);
+  useEffect(() => {
+    let alive = true;
+    fetchEnabledProviders()
+      .then((list) => { if (alive) setProviders(list); })
+      .catch(() => { /* keep the cached list; magic link and guest still work */ });
+    return () => { alive = false; };
+  }, []);
   const [guestLoading, setGuestLoading] = useState(false);
 
   // Guest / anonymous sign-in — for beta testers hitting OAuth or
@@ -203,7 +217,9 @@ export default function SignInToContinue({
         transition={{ duration: 0.5, delay: 0.2, ease: 'easeOut' }}
         className="relative z-10 w-full max-w-sm space-y-3"
       >
-        {/* OAuth providers — Google + Apple */}
+        {/* OAuth providers, rendered from /auth/v1/settings rather than
+            hardcoded — see src/lib/authProviders.js for what that cost. */}
+        {providers.includes('google') && (
         <Button
           variant="outline"
           className="w-full h-12 font-medium text-sm gap-2 bg-white text-gray-900 hover:bg-gray-50 active:bg-gray-50 hover:text-gray-900 active:text-gray-900 border-gray-300"
@@ -215,11 +231,13 @@ export default function SignInToContinue({
             : <GoogleGlyph className="w-4 h-4" />}
           Continue with Google
         </Button>
+        )}
 
         {/* Per Apple's "Sign in with Apple" button guidelines the control
             must invert in dark mode (black-on-light → white-on-dark) so it
             keeps contrast against the background. Leaving it bg-black in
             dark mode both fails contrast and is technically off-guideline. */}
+        {providers.includes('apple') && (
         <Button
           className="w-full h-12 font-medium text-sm gap-2 bg-black text-white hover:bg-zinc-900 dark:bg-white dark:text-black dark:hover:bg-zinc-200 dark:active:bg-zinc-200"
           onClick={() => handleProvider('apple', setAppleLoading)}
@@ -230,13 +248,18 @@ export default function SignInToContinue({
             : <AppleGlyph className="w-4 h-4 text-white dark:text-black" />}
           Continue with Apple
         </Button>
+        )}
 
-        {/* Divider */}
+        {/* Divider — only when there is something above it to divide from.
+            With every provider off, an "or" heading the screen reads as a
+            missing control rather than a choice. */}
+        {providers.length > 0 && (
         <div className="flex items-center gap-3 py-1">
           <div className="flex-1 h-px bg-border" />
           <span className="text-micro font-bold uppercase tracking-wider text-muted-foreground">or</span>
           <div className="flex-1 h-px bg-border" />
         </div>
+        )}
 
         {/* Magic link */}
         {emailSent ? (
