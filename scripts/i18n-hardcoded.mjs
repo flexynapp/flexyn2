@@ -65,7 +65,14 @@ function isProse(s) {
 
 // Each detector: [kind, regex with the literal in group 1, description]
 const DETECTORS = [
-  ['toast',       /\btoast\.(?:success|error|info|warning|message)\(\s*(['"])((?:\\.|(?!\1).)*)\1/g, 2, 'toast text'],
+  // The variant is OPTIONAL, and that is the whole point. This pattern used to
+  // require `toast.<variant>(`, so a bare `toast('Name your crew first!')` was
+  // invisible to the scanner — at the same time as being invisible to the USER,
+  // because src/lib/toast.js still action-gates the bare form. Two independent
+  // guards with the identical blind spot, so eight strings were both undisplayed
+  // and uncounted, and "0 hardcoded left" was measured by something that could
+  // not see them. Found 2026-08-30.
+  ['toast',       /(?<![.\w])toast(?:\.(?:success|error|info|warning|message))?\s*\(\s*(['"])((?:\\.|(?!\1).)*)\1/g, 2, 'toast text'],
   ['alert',       /\b(?:alert|confirm)\(\s*(['"])((?:\\.|(?!\1).)*)\1/g, 2, 'alert/confirm text'],
   ['placeholder', /\bplaceholder=(["'])((?:\\.|(?!\1).)*)\1/g, 2, 'input placeholder'],
   ['aria',        /\baria-label=(["'])((?:\\.|(?!\1).)*)\1/g, 2, 'aria-label'],

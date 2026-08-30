@@ -55,15 +55,23 @@ export default function ThemeSelector({ open, onClose }) {
 
   const handleSelectBase = useCallback((theme) => {
     if (level < theme.unlockLevel) {
-      toast(`🔒 ${theme.name} unlocks at Level ${theme.unlockLevel}`, {
-        description: `You're Level ${level}. Keep training to unlock this theme!`,
-        duration: 3000,
-      });
+      toast.info(
+        tFallback('themeSelector.locked', '🔒 {name} unlocks at Level {level}',
+                  { name: theme.name, level: theme.unlockLevel }),
+        {
+          description: tFallback(
+            'themeSelector.lockedDesc',
+            "You're Level {level}. Keep training to unlock this theme!",
+            { level },
+          ),
+          duration: 3000,
+        },
+      );
       return;
     }
     setThemeId(theme.id);
     onClose();
-  }, [level, setThemeId, onClose]);
+  }, [level, setThemeId, onClose, tFallback]);
 
   const handleSelectLoot = useCallback((lootTheme) => {
     if (lootThemeId === lootTheme.id) {

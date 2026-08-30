@@ -476,11 +476,12 @@ function XpFuelMessage({ msg, currentUserId, crewId }) {
           ? `+${granted} XP added to your account!`
           : "Claimed — you've hit today's XP fuel cap.");
       } else if (reason === 'own_fuel') {
-        toast('You can\'t claim your own fuel — it\'s for the crew.');
+        toast.info(tFallback('crewChat.fuelOwn',
+          "You can't claim your own fuel. It's for the crew."));
       } else if (reason === 'already_claimed') {
-        toast('You already claimed this fuel.');
+        toast.info(tFallback('crewChat.fuelAlreadyClaimed', 'You already claimed this fuel.'));
       } else {
-        toast('This fuel is no longer available.');
+        toast.info(tFallback('crewChat.fuelUnavailable', 'This fuel is no longer available.'));
       }
       setClaimed(true);
     } catch {

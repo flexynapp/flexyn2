@@ -98,7 +98,7 @@ export default function StickerPanel({ postId, onClose }) {
 
       if (alreadySame) {
         await stickerReactions.removeReaction(postId, user.id);
-        toast('Sticker reaction removed');
+        toast.success(tFallback('stickerPanel.reactionRemoved', 'Sticker reaction removed'));
       } else {
         await stickerReactions.reactWithSticker(postId, user, {
           item_id:    sticker.item_id,
@@ -110,7 +110,8 @@ export default function StickerPanel({ postId, onClose }) {
         // Sound + haptic: sticker reactions are a premium feel moment
         playSound(SOUND.capsuleOpen); // bright, celebratory chime
         triggerHaptic('primary');
-        toast(`${sticker.item_emoji} Sticker reaction added!`);
+        toast.success(tFallback('stickerPanel.reactionAdded', '{emoji} Sticker reaction added!',
+                                { emoji: sticker.item_emoji }));
       }
       qc.invalidateQueries({ queryKey: ['stickerReactions', postId] });
       setTab('reactions');

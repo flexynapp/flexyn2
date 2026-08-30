@@ -960,7 +960,7 @@ export default function Nutrition() {
     // TODO(iap): trigger the store purchase flow, then unlock on success.
     setTimeout(() => {
       setPurchasingUnlimited(false);
-      toast(tFallback('nutrition.photoAi.unlimitedSoon', 'Unlimited Photo-AI is coming soon. Hang tight!'));
+      toast.info(tFallback('nutrition.photoAi.unlimitedSoon', 'Unlimited Photo-AI is coming soon. Hang tight!'));
     }, 500);
   };
 

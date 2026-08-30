@@ -79,7 +79,10 @@ export default function CrewCreationFlow({ onCreated, onClose }) {
   const createRef = useRef(false);
 
   const handleCreate = async () => {
-    if (!crewName.trim()) { toast('Name your crew first!'); return; }
+    if (!crewName.trim()) {
+      toast.warning(tFallback('crewCreationFlow.nameRequired', 'Name your crew first!'));
+      return;
+    }
     if (submitting || createRef.current) return;
     createRef.current = true;
     setSubmitting(true);

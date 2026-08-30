@@ -1199,7 +1199,7 @@ export default function Workout() {
           try {
             const deload = detectDeloadOpportunity([clampedData, ...realPrev]);
             if (deload?.suggest) {
-              toast(
+              toast.info(
                 tFallback(
                   'deload.suggest',
                   '3 weeks of high volume in a row. Consider a deload next week.'

@@ -303,7 +303,7 @@ export default function Gauntlet() {
       if (attempt?.status === 'completed') {
         toast.success(tFallback("gauntlet.youClearedThisWeekS", "🏆 You cleared this week's gauntlet!"));
       } else {
-        toast('Score submitted. Keep pushing to clear it.');
+        toast.success(tFallback('gauntlet.scoreSubmitted', 'Score submitted. Keep pushing to clear it.'));
       }
     },
     onError: (err) => {

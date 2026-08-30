@@ -152,4 +152,102 @@ describe('toast call-site audit', () => {
     expect(total).toBeGreaterThan(10);
     expect(withoutAction / total).toBeGreaterThan(0.5);
   });
+
+  // ── The hole this audit itself had ──────────────────────────────────────
+  //
+  // Everything above scans `toast.<variant>(`. Plain `toast(` is the ONE form
+  // still behind the gate, and it was the one form nothing measured — so the
+  // check written to stop this recurring could not see the only place it still
+  // could recur. On 2026-08-30 that hid eight call sites rendering nothing:
+  // tapping a locked theme, "Name your crew first!" on Create Crew, three
+  // crew-fuel refusals, both sticker-reaction confirmations, a gauntlet score
+  // that submitted without clearing, and the Photo-AI purchase button, which
+  // spun for 500ms and then said nothing at all.
+  //
+  // scripts/i18n-hardcoded.mjs had the identical hole in the identical place,
+  // so those strings were undisplayed AND uncounted, and "0 hardcoded strings
+  // left" was measured by a scanner that could not see them. Both are widened
+  // now; this is the half that catches template literals too.
+  // Comments have to go first. This file, CrewCreationFlow and rewardQueue all
+  // discuss `toast()` in prose, and "longest celebration toast (PR, crew win)"
+  // matches the call shape exactly. Quote-aware so a `//` inside a string or a
+  // URL is not mistaken for the start of a comment.
+  function stripComments(src) {
+    let out = '';
+    let quote = null;
+    for (let i = 0; i < src.length; i++) {
+      const c = src[i];
+      if (quote) {
+        out += c;
+        if (c === '\\') { out += src[++i] ?? ''; continue; }
+        if (c === quote) quote = null;
+        continue;
+      }
+      if (c === "'" || c === '"' || c === '`') { quote = c; out += c; continue; }
+      if (c === '/' && src[i + 1] === '/') {
+        while (i < src.length && src[i] !== '\n') i++;
+        out += '\n';
+        continue;
+      }
+      if (c === '/' && src[i + 1] === '*') {
+        i += 2;
+        while (i < src.length && !(src[i] === '*' && src[i + 1] === '/')) {
+          if (src[i] === '\n') out += '\n';
+          i++;
+        }
+        i++;
+        continue;
+      }
+      out += c;
+    }
+    return out;
+  }
+
+  function plainCalls(rawSrc) {
+    const src = stripComments(rawSrc);
+    const out = [];
+    // `-` is excluded alongside `.` and word chars so the prose "sub-toast ("
+    // cannot match either.
+    const re = /(?<![-.\w])toast\s*\(/g;
+    let m;
+    while ((m = re.exec(src))) {
+      let i = m.index + m[0].length - 1;
+      const start = i;
+      let depth = 0;
+      let quote = null;
+      for (; i < src.length; i++) {
+        const c = src[i];
+        if (quote) {
+          if (c === '\\') { i++; continue; }
+          if (c === quote) quote = null;
+          continue;
+        }
+        if (c === "'" || c === '"' || c === '`') { quote = c; continue; }
+        if (c === '(') depth++;
+        else if (c === ')') { depth--; if (depth === 0) break; }
+      }
+      out.push(src.slice(start, i + 1));
+    }
+    return out;
+  }
+
+  it('every plain toast() carries an action — the gate silently drops the rest', () => {
+    const files = walk(SRC).filter((f) => !f.endsWith(`lib${'/'}toast.js`));
+    const offenders = [];
+    for (const f of files) {
+      const src = readFileSync(f, 'utf8');
+      for (const call of plainCalls(src)) {
+        if (!/\baction\s*:/.test(call)) {
+          offenders.push(`${f.slice(SRC.length + 1)} :: ${call.slice(0, 60).replace(/\s+/g, ' ')}`);
+        }
+      }
+    }
+    expect(
+      offenders,
+      'These plain toast() calls carry no `action`, so src/lib/toast.js drops them\n' +
+      'and the user sees nothing — indistinguishable from a dead button.\n' +
+      'Use toast.info / .success / .warning (all passthroughs), or attach an action.\n  ' +
+      offenders.join('\n  '),
+    ).toEqual([]);
+  });
 });
