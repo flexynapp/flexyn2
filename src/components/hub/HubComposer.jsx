@@ -846,17 +846,24 @@ export default function HubComposer({ onClose }) {
         .catch(() => {});
 
       // Notify followers — non-blocking, capped at 100 followers per post to
-      // avoid hammering the DB on viral posts. Look up each follower's user_id
-      // for the recipient_id field on the notification row.
+      // avoid hammering the DB on viral posts.
+      //
+      // Addressed by user_id, not email. This read `listFollowers` (emails)
+      // and matched them against a `users.list()` map keyed on `u.email` —
+      // but users.list() reads the `public_profiles` view, and migration 220
+      // dropped email from it. Every key in that map was `undefined`, so
+      // every lookup missed and NO follower has ever been notified of a post.
+      // `select('*')` on a view returns 200 with the columns it does have, so
+      // nothing threw, nothing logged, and no server error was ever recorded.
+      // listFollowersIds is the id-keyed twin that mig 208 backfilled for
+      // exactly this, and it drops a whole-table profile fetch besides.
       (async () => {
         try {
-          const followerEmails = await hubFollows.listFollowers(user.email);
-          if (!followerEmails || followerEmails.length === 0) return;
-          const allUsers = await users.list().catch(() => []);
-          const lcMap = new Map(allUsers.map(u => [u.email?.toLowerCase(), u]));
+          const followerIds = await hubFollows.listFollowersIds(user.id);
+          if (!followerIds || followerIds.length === 0) return;
           const posterName = user.username ? `@${user.username}` : 'A friend';
           const preview = (finalBody || '').slice(0, 100);
-          const capped = followerEmails.slice(0, 100);
+          const capped = followerIds.slice(0, 100);
           // No post id means nothing to attribute the notification to —
           // skip rather than fall back to sending caller-supplied text.
           if (!createdPost?.id) return;
@@ -865,11 +872,10 @@ export default function HubComposer({ onClose }) {
           // so the title renders in their language, not the poster's.
           // Falls back to the legacy client-rendered notifyFriendPost
           // helper if the RPC is unavailable (pre-migration hosts).
-          await Promise.all(capped.map(async (email) => {
-            const recipient = lcMap.get(email?.toLowerCase());
-            if (!recipient?.id) return null;
+          await Promise.all(capped.map(async (recipientId) => {
+            if (!recipientId) return null;
             const { error } = await supabase.rpc('notify_friend_post_for', {
-              p_user_id: recipient.id,
+              p_user_id: recipientId,
               p_post_id: createdPost.id,
             });
             // PGRST202 = PostgREST can't find a function with these argument
@@ -878,8 +884,12 @@ export default function HubComposer({ onClose }) {
             // window is expected — take the legacy path rather than dropping
             // the notification.
             if (error && (error.code === '42883' || error.code === '42P01' || error.code === 'PGRST202')) {
+              // No email passed on purpose. notifyFriendPost sets
+              // crossUser: true, and that branch of _create sends only
+              // p_user_id to create_notification_for — `recipient.email`
+              // was never read on this path.
               return notifications.notifyFriendPost({
-                recipient: { id: recipient.id, email: recipient.email },
+                recipient: { id: recipientId },
                 posterName,
                 postPreview: preview,
                 t,

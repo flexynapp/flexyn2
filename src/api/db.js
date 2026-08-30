@@ -588,18 +588,38 @@ const functions = {
 async function _invokeXp({ xp_gained = 0, action_type } = {}) {
   try {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user || !xp_gained) return null;
+    if (!user) return null;
 
     // 1. Grant XP through grant_action_xp (migration 198): it enforces a
     //    per-action daily cap (anti-farm for the fixed grants) and then
     //    delegates to the global-capped increment_user_xp. Passing
     //    action_type is what makes the per-action cap possible — the raw
     //    increment_user_xp RPC is no longer client-callable.
-    const { error } = await supabase.rpc('grant_action_xp', {
-      p_action_type: action_type || 'other',
-      p_xp: Math.round(xp_gained),
-    });
-    if (error) console.warn('[XP] rpc failed:', error.message);
+    //
+    //    The zero check moved INTO this step. The guard above used to read
+    //    `if (!user || !xp_gained) return null`, which abandoned the whole
+    //    function — including step 2. All three cardio surfaces call this
+    //    with xp_gained 0 for the sole purpose of running the milestone
+    //    check below (their own comments say so), so finishing a run has
+    //    never granted an achievement. It failed silently because returning
+    //    early is not an error: the reportError wrappers on those three call
+    //    sites had nothing to catch.
+    if (xp_gained) {
+      //    grant_action_xp awards 0 for an action_type it does not
+      //    recognise, so a missing one is a silent no-grant, not a failure.
+      //    This used to send 'other', which is not an accepted value — any
+      //    caller that forgot action_type quietly banked nothing while the
+      //    RPC reported success. Refuse loudly rather than pay zero.
+      if (!action_type) {
+        console.error(`[XP] grant skipped: ${xp_gained} XP with no action_type`);
+      } else {
+        const { error } = await supabase.rpc('grant_action_xp', {
+          p_action_type: action_type,
+          p_xp: Math.round(xp_gained),
+        });
+        if (error) console.warn('[XP] rpc failed:', error.message);
+      }
+    }
 
     // 2. Grant any crossed XP-milestone achievements SERVER-SIDE. The
     //    grant_xp_milestone_achievements RPC (migration 189) reads the
