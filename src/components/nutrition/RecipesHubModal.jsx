@@ -217,7 +217,9 @@ export default function RecipesHubModal({
       const next = { ...recipe, is_public: publishing };
       setDetail((d) => (d && d.recipe?.id === recipe.id ? { ...d, recipe: next } : d));
       setOverflowRecipe((o) => (o?.id === recipe.id ? next : o));
-      toast.success(publishing ? 'Shared to Discover.' : 'Removed from Discover.');
+      toast.success(publishing
+        ? tFallback('recipesHub.sharedToDiscover', 'Shared to Discover.')
+        : tFallback('recipesHub.removedFromDiscover', 'Removed from Discover.'));
     } catch (err) {
       toast.error(`Couldn't update: ${err?.message || 'try again'}`);
     } finally {

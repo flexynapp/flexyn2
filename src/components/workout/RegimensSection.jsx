@@ -208,7 +208,9 @@ export default function RegimensSection({ onStartRegimen }) {
     updateMutation.mutate(
       { id: r.id, data: { is_active: next } },
       {
-        onSuccess: () => toast.success(next ? '✅ Set as active plan' : 'Regimen deactivated'),
+        onSuccess: () => toast.success(next
+          ? tFallback('regimens.setActive', '✅ Set as active plan')
+          : tFallback('regimens.deactivated', 'Regimen deactivated')),
         onError: () => queryClient.invalidateQueries({ queryKey: ['regimens', user?.email] }),
       }
     );

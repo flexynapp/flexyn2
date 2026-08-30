@@ -167,7 +167,7 @@ export default function CrewCreationFlow({ onCreated, onClose }) {
       }
       onCreated?.(crew);
     } catch (err) {
-      toast.error(err?.message || 'Could not create crew — try again.');
+      toast.error(err?.message || tFallback('crewCreationFlow.createFailed', 'Could not create crew. Try again.'));
     } finally {
       createRef.current = false;
       setSubmitting(false);

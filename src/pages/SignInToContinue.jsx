@@ -105,7 +105,7 @@ export default function SignInToContinue({
       setHasExistingAccount(!isNewAccount);
       setEmailSent(true);
     } catch (err) {
-      toast.error(err?.message || 'Could not send magic link. Try again.');
+      toast.error(err?.message || tFallback('signIn.magicLinkFailed', 'Could not send magic link. Try again.'));
     } finally {
       setSendingMagicLink(false);
     }

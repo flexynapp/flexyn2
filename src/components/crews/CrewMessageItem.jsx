@@ -474,7 +474,7 @@ function XpFuelMessage({ msg, currentUserId, crewId }) {
         // feel broken.
         toast.success(granted > 0
           ? `+${granted} XP added to your account!`
-          : "Claimed — you've hit today's XP fuel cap.");
+          : tFallback('crewChat.fuelCapReached', "Claimed. You've hit today's XP fuel cap."));
       } else if (reason === 'own_fuel') {
         toast.info(tFallback('crewChat.fuelOwn',
           "You can't claim your own fuel. It's for the crew."));

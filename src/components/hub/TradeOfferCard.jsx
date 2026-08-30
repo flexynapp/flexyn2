@@ -174,7 +174,9 @@ export default function TradeOfferCard({ payload, isMine, user, conversationId, 
         qc.invalidateQueries({ queryKey: ['tradeHistory'] });
         qc.invalidateQueries({ queryKey: ['userInventory', user?.email] });
         qc.invalidateQueries({ queryKey: ['marketplaceListings'] });
-        toast.success(accept ? 'Traded! Check your bag.' : 'Offer declined.');
+        toast.success(accept
+          ? tFallback('trade.accepted', 'Traded! Check your bag.')
+          : tFallback('trade.declined', 'Offer declined.'));
       } catch (err) {
         toast.error(tradeOffers.tradeErrorMessage(err));
         // Re-read: the failure usually means the offer is no longer
@@ -203,7 +205,9 @@ export default function TradeOfferCard({ payload, isMine, user, conversationId, 
       const next = accept ? 'accepted' : 'declined';
       setResponded(next);
       try { localStorage.setItem(responseKey(conversationId, offerId), next); } catch { /* ignore */ }
-      toast.success(accept ? 'Reply sent — yes' : 'Reply sent — no thanks');
+      toast.success(accept
+        ? tFallback('trade.replyYes', 'Reply sent: yes')
+        : tFallback('trade.replyNo', 'Reply sent: no thanks'));
     } catch (err) {
       console.warn('[TradeOfferCard] reply failed:', err);
       toast.error(tFallback("tradeOfferCard.couldNotSendReply", "Could not send reply"));

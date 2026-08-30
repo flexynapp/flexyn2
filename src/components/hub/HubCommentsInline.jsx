@@ -282,17 +282,17 @@ export default function HubCommentsInline({ post, open, onClose }) {
       if (code === 'PROFANITY') {
         toast.error(t('hub.composer.profanityError'));
       } else if (code === '42501' || /policy|permission|rls/i.test(msg)) {
-        toast.error(t('hub.comments.postError') + ' (permission denied)');
+        toast.error(t('hub.comments.postError') + ' ' + tFallback('hubComments.err.permission', '(permission denied)'));
       } else if (code === '23502' || /not[- ]null/i.test(msg)) {
-        toast.error(t('hub.comments.postError') + ' (missing required field)');
+        toast.error(t('hub.comments.postError') + ' ' + tFallback('hubComments.err.missingField', '(missing required field)'));
       } else if (code === '23503' || /foreign key|fkey/i.test(msg)) {
-        toast.error(t('hub.comments.postError') + ' (post no longer exists)');
+        toast.error(t('hub.comments.postError') + ' ' + tFallback('hubComments.err.postGone', '(post no longer exists)'));
       } else if (code === '23514' || /check constraint|too long/i.test(msg)) {
-        toast.error(t('hub.comments.postError') + ' (too long)');
+        toast.error(t('hub.comments.postError') + ' ' + tFallback('hubComments.err.tooLong', '(too long)'));
       } else if (code === 'PGRST204' || code === '42703') {
-        toast.error(t('hub.comments.postError') + ' (schema mismatch — pending migration)');
+        toast.error(t('hub.comments.postError') + ' ' + tFallback('hubComments.err.schema', '(schema mismatch, pending migration)'));
       } else if (/network|fetch|timeout/i.test(msg)) {
-        toast.error(t('hub.comments.postError') + ' (network — try again)');
+        toast.error(t('hub.comments.postError') + ' ' + tFallback('hubComments.err.network', '(network, try again)'));
       } else {
         // Last-resort: include the code in the toast so the user can
         // tell us what they hit. Truncated so a verbose message

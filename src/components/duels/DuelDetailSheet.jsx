@@ -100,7 +100,7 @@ export default function DuelDetailSheet({ duel, currentUserId, opponentProfile, 
       toast.success(tFallback("duelDetailSheet.resultSubmitted", "Result submitted!"));
       onClose?.();
     } catch (err) {
-      toast.error(err?.message || 'Could not submit result — try again.');
+      toast.error(err?.message || tFallback('duel.submitResultFailed', 'Could not submit result. Try again.'));
     } finally {
       setSubmitting(false);
     }

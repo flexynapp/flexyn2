@@ -107,10 +107,10 @@ export default function CreateBundleDialog({ open, onClose, listings, user, onSu
       // raw Postgres message here leaks column and policy names.
       const raw = err?.message || '';
       toast.error(
-          raw.includes('not_your_listing')  ? "One of those listings isn't yours any more — reopen and try again."
-        : raw.includes('listing is')        ? 'One of those listings just sold or was pulled. Reopen and try again.'
+          raw.includes('not_your_listing')  ? tFallback('bundle.notYourListing', "One of those listings isn't yours any more. Reopen and try again.")
+        : raw.includes('listing is')        ? tFallback('bundle.listingGone', 'One of those listings just sold or was pulled. Reopen and try again.')
         : raw.includes('bundle_needs_two')  ? `Pick at least ${BUNDLE_MIN_LISTINGS} listings.`
-        : 'Could not create the bundle — try again.'
+        : tFallback('bundle.createFailed', 'Could not create the bundle. Try again.')
       );
     } finally {
       setBusy(false);

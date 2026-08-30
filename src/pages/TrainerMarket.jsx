@@ -85,7 +85,7 @@ export default function TrainerMarket() {
         PAYMENTS_NOT_CONFIGURED:   'Payments are not enabled in this environment.',
         SERVER_MISCONFIGURED:      'Checkout temporarily unavailable.',
       };
-      toast.error(map[res.error] || "Couldn't complete checkout — try again.");
+      toast.error(map[res.error] || tFallback('trainerMarket.checkoutFailed', "Couldn't complete checkout. Try again."));
       if (res.error === 'ALREADY_OWNED') {
         qc.invalidateQueries({ queryKey: ['myTrainerPurchases', user?.id] });
       }

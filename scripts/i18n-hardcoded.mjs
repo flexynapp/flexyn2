@@ -63,16 +63,85 @@ function isProse(s) {
   return true;
 }
 
+/**
+ * Every quoted literal inside a balanced toast(...) call.
+ *
+ * Yields match-SHAPED arrays so the scan loop can treat regex and function
+ * detectors identically: [literalWithQuotes, undefined, literalText] with an
+ * `index` pointing at the literal, which is what the loop's existing
+ * tFallback look-behind needs to keep skipping already-localised copy.
+ *
+ * Quote-aware, so a paren inside a message does not end the call early.
+ */
+function* toastLiterals(src) {
+  const open = /(?<![-.\w])toast(?:\.(?:success|error|info|warning|message))?\s*\(/g;
+  let m;
+  while ((m = open.exec(src))) {
+    const start = m.index + m[0].length - 1;   // sits on the '('
+    let i = start, depth = 0, quote = null;
+    for (; i < src.length; i++) {
+      const c = src[i];
+      if (quote) {
+        if (c === '\\') { i++; continue; }
+        if (c === quote) quote = null;
+        continue;
+      }
+      if (c === "'" || c === '"' || c === '`') { quote = c; continue; }
+      if (c === '(') depth++;
+      else if (c === ')') { depth--; if (depth === 0) break; }
+    }
+    // Mask template literals before looking for quoted ones. A backtick
+    // string carries apostrophes ("Couldn't start 2FA: ${...}") and code
+    // inside ${}, and scanning it for '...' slices garbage fragments out of
+    // the middle of a sentence. Masking with spaces rather than deleting
+    // keeps every offset, so `index` still points at the real literal.
+    // Template literals themselves stay undetected, exactly as before —
+    // this detector is quote-anchored by design.
+    let call = src.slice(start, i + 1);
+    let masked = '';
+    for (let j = 0, tq = false; j < call.length; j++) {
+      const ch = call[j];
+      if (ch === '\\') { masked += tq ? '  ' : call.slice(j, j + 2); j++; continue; }
+      if (ch === '`') { tq = !tq; masked += ' '; continue; }
+      masked += tq ? ' ' : ch;
+    }
+    call = masked;
+    const lit = /(['"])((?:\\.|(?!\1).)*)\1/g;
+    // A literal inside the call is not necessarily COPY. The bundle dialog
+    // picks its message with `raw.includes('listing is')`, matching a Postgres
+    // error — a predicate, never rendered. Skip literals that are being
+    // compared rather than shown, or the scanner asks for a translation of a
+    // database string and whoever obliges breaks the branch.
+    const PREDICATE = /(?:\.(?:includes|startsWith|endsWith|indexOf|match|test|split|replace|replaceAll)\(|[=!]==?\s*|\bcase\s+)$/;
+    let L;
+    while ((L = lit.exec(call))) {
+      if (PREDICATE.test(call.slice(Math.max(0, L.index - 40), L.index))) continue;
+      const shaped = [L[0], undefined, L[2]];
+      shaped.index = start + L.index;
+      yield shaped;
+    }
+    open.lastIndex = i + 1;
+  }
+}
+
+/** Adapter so a plain regex detector iterates the same way. */
+function* regexMatches(re, src) {
+  re.lastIndex = 0;
+  let m;
+  while ((m = re.exec(src))) yield m;
+}
+
 // Each detector: [kind, regex with the literal in group 1, description]
 const DETECTORS = [
-  // The variant is OPTIONAL, and that is the whole point. This pattern used to
-  // require `toast.<variant>(`, so a bare `toast('Name your crew first!')` was
-  // invisible to the scanner — at the same time as being invisible to the USER,
-  // because src/lib/toast.js still action-gates the bare form. Two independent
-  // guards with the identical blind spot, so eight strings were both undisplayed
-  // and uncounted, and "0 hardcoded left" was measured by something that could
-  // not see them. Found 2026-08-30.
-  ['toast',       /(?<![.\w])toast(?:\.(?:success|error|info|warning|message))?\s*\(\s*(['"])((?:\\.|(?!\1).)*)\1/g, 2, 'toast text'],
+  // NOT a regex — see toastLiterals(). A pattern anchored on a quote after the
+  // paren cannot see either of the two shapes this detector kept missing:
+  // a bare `toast('Name your crew first!')` (the variant used to be required)
+  // and a literal behind a ternary, `toast.success(next ? 'On.' : 'Off.')`.
+  // Both were invisible here AND, for the bare form, invisible to the user,
+  // because src/lib/toast.js action-gates it. Eleven ternary strings were
+  // rendering untranslated English while this reported them as absent.
+  // Found 2026-08-30.
+  ['toast',       toastLiterals, 2, 'toast text'],
   ['alert',       /\b(?:alert|confirm)\(\s*(['"])((?:\\.|(?!\1).)*)\1/g, 2, 'alert/confirm text'],
   ['placeholder', /\bplaceholder=(["'])((?:\\.|(?!\1).)*)\1/g, 2, 'input placeholder'],
   ['aria',        /\baria-label=(["'])((?:\\.|(?!\1).)*)\1/g, 2, 'aria-label'],
@@ -297,14 +366,21 @@ const findings = [];
     const lineOf = (i) => src.slice(0, i).split('\n').length;
 
     for (const [kind, re, group, desc] of DETECTORS) {
-      re.lastIndex = 0;
-      let m;
-      while ((m = re.exec(src))) {
+      const iter = typeof re === 'function' ? re(src) : regexMatches(re, src);
+      for (const m of iter) {
         const text = m[group];
         if (!isProse(text)) continue;
-        // Already localized? The match sits inside a t(...) / tFallback(...) call.
+        // Already localized? The match sits inside a translation call.
+        //
+        // This knew only `t(` and `tFallback(`, and the codebase calls the
+        // same thing six other ways — measured 2026-08-30: tFallback 3911,
+        // T 198, t 60, tf 44, tF 15, tr 12, tCount 8, plural 5. Every alias
+        // but two was reported as untranslated copy the moment a detector
+        // could see it, which is how widening the toast reader turned up
+        // `tr('trophies.toast.view', 'View')` as a finding.
         const before = src.slice(Math.max(0, m.index - 120), m.index);
-        if (/\bt(?:Fallback)?\(\s*$|\bt(?:Fallback)?\([^)]*$/.test(before)) continue;
+        const TFN = '(?:tFallback|tCount|plural|tf|tF|tr|t|T)';
+        if (new RegExp(`\\b${TFN}\\(\\s*$|\\b${TFN}\\([^)]*$`).test(before)) continue;
         // Declared proper nouns — see PROPER_NOUNS above.
         if (kind === 'objectProp') {
           const allowed = PROPER_NOUNS[p];

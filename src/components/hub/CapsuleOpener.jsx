@@ -926,7 +926,9 @@ export default function CapsuleOpener({ capsule, batch, onClaim, onClaimBatch, o
     if (ok.length === 0) {
       // Every target came back null — already opened elsewhere, or the
       // catalog has nothing for the rolled tier.
-      toast.error(targets.length > 1 ? 'Those capsules were already opened.' : 'Capsule already opened.');
+      toast.error(targets.length > 1
+        ? tFallback('capsuleOpener.alreadyOpenedMany', 'Those capsules were already opened.')
+        : tFallback('capsuleOpener.alreadyOpened', 'Capsule already opened.'));
       openGuardRef.current = false;
       return;
     }

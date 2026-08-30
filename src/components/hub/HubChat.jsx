@@ -1906,7 +1906,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
         {!draft.trim() && !attachmentFile && !pendingSendBlocked && (
           <VoiceMemoRecorder
             onComplete={handleSendVoice}
-            onError={(msg) => toast.error(msg || 'Recording failed.')}
+            onError={(msg) => toast.error(msg || tFallback('hubChat.recordingFailed', 'Recording failed.'))}
           />
         )}
         {/* Schedule send — opens an inline picker. Only shown when the

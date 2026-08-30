@@ -66,7 +66,7 @@ export default function TwoFactorSection() {
       // The raw string is "Anonymous user not allowed to perform these
       // actions", which names a concept the product never uses.
       toast.error(res.reason === 'anonymous'
-        ? 'Two-factor auth needs an account you can sign back in to. Guest sessions can\'t use it.'
+        ? tFallback('twoFactor.guestNotAllowed', "Two-factor auth needs an account you can sign back in to. Guest sessions can't use it.")
         : `Couldn't start 2FA: ${res.message || 'try again'}`);
       return;
     }

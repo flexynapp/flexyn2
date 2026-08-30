@@ -67,7 +67,7 @@ export default function CrewDMInviteCard({ payload, userId, isMine }) {
       window.dispatchEvent(new CustomEvent('flexyn:open-crew', { detail: { crewId } }));
     } catch (err) {
       setState(err?.message?.includes('full') ? 'full' : 'idle');
-      toast.error(err?.message || 'Could not join crew — try again.');
+      toast.error(err?.message || tFallback('crewInvite.joinFailed', 'Could not join crew. Try again.'));
     } finally {
       joiningRef.current = false;
     }

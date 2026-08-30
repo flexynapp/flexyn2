@@ -149,10 +149,12 @@ export default function GymFeedTab({ gymId, gymOwnerId }) {
   const handleTogglePin = async (postId) => {
     const res = await togglePinPost(postId);
     if (res.ok) {
-      toast.success(res.pinned ? 'Pinned to the top.' : 'Unpinned.');
+      toast.success(res.pinned
+        ? tFallback('gymFeed.pinned', 'Pinned to the top.')
+        : tFallback('gymFeed.unpinned', 'Unpinned.'));
       qc.invalidateQueries({ queryKey: ['gymFeed', gymId] });
     } else {
-      toast.error(res.error || "Couldn't pin.");
+      toast.error(res.error || tFallback('gymFeed.pinFailed', "Couldn't pin."));
     }
   };
 

@@ -64,7 +64,9 @@ export default function RegimenReviewsBlock({ regimenId, user }) {
     });
     setSubmitting(false);
     if (res.ok) {
-      toast.success(mine ? 'Review updated.' : 'Thanks for the review!');
+      toast.success(mine
+        ? tFallback('regimenReviews.updated', 'Review updated.')
+        : tFallback('regimenReviews.thanks', 'Thanks for the review!'));
       queryClient.invalidateQueries({ queryKey: ['regimenReviews', regimenId] });
       queryClient.invalidateQueries({ queryKey: ['regimenReviewAgg', regimenId] });
       queryClient.invalidateQueries({ queryKey: ['regimenMyReview', regimenId, user.id] });

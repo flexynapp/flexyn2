@@ -510,8 +510,8 @@ export default function CardioLiveTrackerOutside({ mode, onCancel, onSaved, user
       savingGuardRef.current = false;
       toast.error(
         distanceMetersRef.current <= 0
-          ? 'No distance tracked yet — start moving before saving.'
-          : 'Session too short to save (under 30 seconds).'
+          ? tFallback('cardio.noDistanceYet', 'No distance tracked yet. Start moving before saving.')
+          : tFallback('cardio.sessionTooShort', 'Session too short to save (under 30 seconds).')
       );
       return;
     }

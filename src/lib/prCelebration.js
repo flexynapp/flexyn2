@@ -95,7 +95,7 @@ export function firePRCelebration({ prs = [], unit = 'lb', userEmail, t } = {}) 
   toast.success(title, {
     description: deltaRounded > 0
       ? `Up +${deltaRounded} ${unit} from your previous best.`
-      : 'You just topped your previous best.',
+      : tf('pr.toppedPrevious', 'You just topped your previous best.'),
     duration: TOAST_MS,
     action: {
       label: tf('common.share', 'Share'),

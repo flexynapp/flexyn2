@@ -373,7 +373,7 @@ export default function GymMap({ onClose, onContinue }) {
         NAME_REJECTED: "That gym's name can't be added automatically.",
         CREATE_LIMIT: "You've added a lot of gyms already — pick an existing one.",
       }[res.error];
-      toast.error(msg || "Couldn't set your gym — try again.");
+      toast.error(msg || tFallback('gym.setGymFailed', "Couldn't set your gym. Try again."));
     }
   }, [settingHome]);
 

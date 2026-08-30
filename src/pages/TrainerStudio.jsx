@@ -91,10 +91,12 @@ export default function TrainerStudio() {
     const res = await setPublished(listing.id, !listing.is_published);
     publishInFlight.current.delete(listing.id);
     if (res.ok) {
-      toast.success(listing.is_published ? 'Unpublished.' : 'Published to market.');
+      toast.success(listing.is_published
+        ? tFallback('trainerStudio.unpublished', 'Unpublished.')
+        : tFallback('trainerStudio.published', 'Published to market.'));
       refresh();
     } else {
-      toast.error(res.error || "Couldn't update.");
+      toast.error(res.error || tFallback('trainerStudio.updateFailed', "Couldn't update."));
     }
   };
 

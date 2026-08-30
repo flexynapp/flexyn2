@@ -165,7 +165,9 @@ export default function BodySection() {
     try {
       await db.auth.updateMe({ cycle_tracking_enabled: next });
       invalidateProfile();
-      toast.success(next ? 'Cycle tracking enabled.' : 'Cycle tracking removed.');
+      toast.success(next
+        ? tFallback('cycleTracker.enabled', 'Cycle tracking enabled.')
+        : tFallback('cycleTracker.removed', 'Cycle tracking removed. Re-enable it in Settings.'));
     } catch {
       toast.error(tFallback('cycleTracker.updateFailed', 'Could not update. Try again.'));
     }

@@ -284,7 +284,7 @@ export default function MyGym() {
         GYM_INACTIVE: 'That gym is no longer active on Flexyn.',
         GYM_NOT_FOUND: "We couldn't find that gym any more.",
       }[res.error];
-      toast.error(msg || "Couldn't set your gym — try again.");
+      toast.error(msg || tFallback('gym.setGymFailed', "Couldn't set your gym. Try again."));
       setPending(null);
       return;
     }

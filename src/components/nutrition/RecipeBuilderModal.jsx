@@ -154,7 +154,7 @@ export default function RecipeBuilderModal({ open, onClose, editingRecipe = null
       const { file_url } = await db.integrations.Core.UploadFile({ file, bucket: 'uploads' });
       setImageUrl(file_url);
     } catch (err) {
-      toast.error(err?.message || "Couldn't upload that image.");
+      toast.error(err?.message || tFallback('recipeBuilder.imageUploadFailed', "Couldn't upload that image."));
     } finally {
       setUploadingImage(false);
     }
@@ -220,7 +220,9 @@ export default function RecipeBuilderModal({ open, onClose, editingRecipe = null
         imageUrl,
       });
       queryClient.invalidateQueries({ queryKey: ['nutritionRecipes', user?.id] });
-      toast.success(editingRecipe ? 'Recipe updated.' : 'Recipe saved.');
+      toast.success(editingRecipe
+        ? tFallback('recipeBuilder.updated', 'Recipe updated.')
+        : tFallback('recipeBuilder.saved', 'Recipe saved.'));
       // Achievement signal — only fire on first-time creation, not edits.
       // The server-side guard re-checks the unlock state idempotently,
       // so an extra invocation is safe but wasteful.
