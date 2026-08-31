@@ -140,7 +140,7 @@ function RegimenCard({ regimen, index, isMine, user, onAdopted }) {
     onError: () => toast.error(tFallback('regimenStore.adoptFailed', 'Could not adopt regimen. Try again.')),
   });
 
-  const copyCount = regimen.copy_count || regimen.clone_count || 0;
+  const copyCount = regimen.copy_count || 0;
 
   // Live aggregate rating for this card. Single-row lookup with
   // generous staleTime — store cards re-render often and this is
@@ -429,14 +429,14 @@ export default function RegimenStorePage({ onBack, onPublish }) {
       })
       // Re-sort by download count descending after filter
       .sort((a, b) => {
-        const ca = (a.copy_count || a.clone_count || 0);
-        const cb = (b.copy_count || b.clone_count || 0);
+        const ca = (a.copy_count || 0);
+        const cb = (b.copy_count || 0);
         return cb - ca;
       });
   }, [templates, search, muscleFilter]);
 
   const totalDownloads = useMemo(
-    () => templates.reduce((s, t) => s + (t.copy_count || t.clone_count || 0), 0),
+    () => templates.reduce((s, t) => s + (t.copy_count || 0), 0),
     [templates]
   );
 

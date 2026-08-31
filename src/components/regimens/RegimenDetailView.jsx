@@ -8,7 +8,11 @@ import ExerciseFormPanel from '@/components/exercise/ExerciseFormPanel';
 export default function RegimenDetailView({ regimen }) {
   const { t, language } = useLanguage();
   const exercises = regimen.exercises || [];
-  const cloneCount = regimen.clone_count ?? 0;
+  // `copy_count` (mig 005), maintained by the increment_copy_count RPC.
+  // This read `clone_count` — a column no migration ever created, residue of
+  // the 2026-05-25 drift that crews.js documents, and 0 on every row — so
+  // this block has never rendered. Dropped by mig 382.
+  const copyCount = regimen.copy_count ?? 0;
 
   if (exercises.length === 0) {
     return (
@@ -18,9 +22,9 @@ export default function RegimenDetailView({ regimen }) {
 
   return (
     <div className="mt-3 space-y-2">
-      {cloneCount > 0 && (
+      {copyCount > 0 && (
         <p className="text-xs font-semibold text-primary mb-1">
-          Cloned {cloneCount} {cloneCount === 1 ? 'time' : 'times'}
+          Cloned {copyCount} {copyCount === 1 ? 'time' : 'times'}
         </p>
       )}
       {exercises.map((ex, i) => {
