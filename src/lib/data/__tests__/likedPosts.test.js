@@ -58,10 +58,18 @@ describe('listMyLikedPostIds — privacy', () => {
     await listMyLikedPostIds('me@test.com');
     expect(supabaseMock.from).toHaveBeenCalledWith('hub_reactions');
     // Both filters are load-bearing: without created_by you would read
-    // everyone's reactions; without reaction you would list dislikes and
+    // everyone's reactions; without reaction_type you would list dislikes and
     // emoji rows as "liked posts".
+    //
+    // This asserted ['reaction', 'like'] until 2026-08-30, and hub_reactions
+    // has no `reaction` column — the real one is `reaction_type`. Because the
+    // supabase chain is mocked here, the filter shape was all this could see,
+    // so the test PINNED the broken query instead of catching it. A mocked
+    // chain cannot tell you a column exists; only the schema can.
     expect(calls.eq).toContainEqual(['created_by', 'me@test.com']);
-    expect(calls.eq).toContainEqual(['reaction', 'like']);
+    expect(calls.eq).toContainEqual(['reaction_type', 'like']);
+    // And never the column that does not exist.
+    expect(calls.eq.map(([col]) => col)).not.toContain('reaction');
   });
 
   it('returns nothing without an email rather than querying unscoped', async () => {

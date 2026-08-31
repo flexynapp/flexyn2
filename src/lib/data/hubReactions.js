@@ -186,7 +186,13 @@ export const listMyLikedPostIds = async (email, limit = 200) => {
     .from('hub_reactions')
     .select('post_id, created_date')
     .eq('created_by', email)
-    .eq('reaction', 'like')
+    // `reaction_type`, not `reaction`. There is no `reaction` column on
+    // hub_reactions — the header of this file names the real ones — so this
+    // filter 42703'd, the `if (error) return []` below swallowed it, and the
+    // Likes view on your own profile has always rendered empty. Measured
+    // against production the day it was found: 47 like rows across 7 users,
+    // none of them visible to the person who made them.
+    .eq('reaction_type', 'like')
     .order('created_date', { ascending: false })
     .limit(limit);
   if (error) return [];
