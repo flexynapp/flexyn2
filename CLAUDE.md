@@ -982,6 +982,39 @@ did sonner actually get called — and carries the call-site audit as a standing
 check. Re-run it before re-filtering any variant: a variant where 100% of
 callers pass no action isn't being filtered, it's being switched off.
 
+## Schema drift — `npm run schema:columns`
+
+A column the client names but the database lacks fails two ways, and only one
+is visible. Named in a `select()` or a FILTER, PostgREST 400s the whole request
+(`public_profiles.email`, `nutrition_logs.protein_g`). Read off a `select('*')`
+row, it is `undefined` with a 200 — nothing throws, nothing logs. That second
+shape hid `HubComposer` keying a Map on a dropped `u.email`, so no follower was
+ever notified of a post, and `hub_reactions.reaction` (the column is
+`reaction_type`), which left the Likes view on your own profile empty from the
+day it shipped: 47 rows, 7 users, none of them able to see their own likes.
+
+`npm run schema:columns` extracts every `(table, column)` pair the client sends
+— explicit select lists plus every `.eq/.in/.order/...` filter — and prints a
+read-only query to paste into the Supabase SQL editor. Anything it returns is a
+live defect.
+
+**It prints SQL rather than checking itself, on purpose.** The only honest
+source of truth is production. Migrations here are pasted by hand, so a
+migration-derived map is a SUPERSET of reality — mig 006 declares
+`nutrition_logs.protein_g` and has never been applied, which is the column that
+broke. A committed snapshot would answer confidently and be wrong.
+
+**No unit test can catch this class.** `likedPosts.test.js` asserted
+`['reaction', 'like']` and passed for as long as the bug existed, because a
+mocked supabase chain sees the filter's shape and never whether the column is
+real.
+
+The extractor's precision is the whole point: the first ad-hoc version reported
+16 findings and 15 were its own fault. Both causes are pinned in
+`src/lib/__tests__/schemaColumns.test.js` — a storage bucket is not a table,
+and a chain must stop at its own statement rather than N characters later, or
+it steals the next query's columns.
+
 ## i18n discipline
 
 **ARCHITECTURE CORRECTION (2026-08-16):** this section described
