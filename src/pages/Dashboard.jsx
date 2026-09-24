@@ -7,8 +7,11 @@ import { useAuth } from '@/lib/AuthContext';
 import {
   packLayout, unpackLayout, writeLayoutToLocal, clearLayoutLocal,
   queueLayoutSync, flushLayoutSync, mergeWidgetOrder, applyLayoutMigrations,
-  readLocalDefaultsVersion, ORDER_KEY, LAYOUTS_KEY, HIDDEN_KEY,
+  readLocalDefaultsVersion, ORDER_KEY, LAYOUTS_KEY, HIDDEN_KEY, TODAY_RETIRED_SECTIONS,
 } from '@/lib/dashboardLayout';
+import TodayFuelCard from '@/components/dashboard/TodayFuelCard';
+import { findDueRegimen } from '@/lib/todaysPlan';
+import CrewWarGlance from '@/components/dashboard/CrewWarGlance';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { subDays, isAfter, differenceInDays, startOfDay, format } from 'date-fns';
 import { Dumbbell, TrendingUp, Play, ArrowRight, Zap, Activity, Target, Apple, Camera, Scale, TrendingDown, Minus, CheckCircle2, LayoutGrid, GripVertical, CalendarDays, ChevronRight, ChevronDown, Rows3, Columns2, RotateCcw, Plus, X } from 'lucide-react';
@@ -98,7 +101,7 @@ function HeroCard({
   streak, hasWorkedOutToday, daysSinceLast,
   logs, cardioLogs, goals, userProfile, user,
   onPrimary, onReadinessInfo, onPlanWeek, navigate,
-  t, tFallback,
+  t, tFallback, plan = null,
 }) {
   // Pick the right CTA copy based on the user's recent activity.
   // HeroSlideshow handles the LEFT-column content (achievement
@@ -108,8 +111,13 @@ function HeroCard({
   const isOnStreak = streak > 0;
   const isLapsed = !isOnStreak && !isFresh && daysSinceLast >= 2;
 
+  // `plan` is the regimen due today, when the user trains to a rotation.
+  // It is the most specific next action the app knows, so it wins the one
+  // button over the generic streak wording (navigation redesign, phase 3).
   let cta;
-  if (hasWorkedOutToday) {
+  if (plan && !hasWorkedOutToday) {
+    cta = tFallback('dashboard.hero.cta.startPlan', 'Start {name}', { name: plan.name });
+  } else if (hasWorkedOutToday) {
     cta = t('dashboard.hero.cta.logAnother');
   } else if (isOnStreak) {
     cta = t('dashboard.hero.cta.continueStreak');
@@ -377,7 +385,9 @@ function HeroCard({
               <span className="block text-micro font-semibold tracking-[0.04em] mb-1 text-primary-foreground/80">
                 {hasWorkedOutToday
                   ? t('dashboard.hero.label.again')
-                  : t('dashboard.hero.label.today')}
+                  : plan
+                    ? tFallback('dashboard.hero.label.upNext', 'Up next')
+                    : t('dashboard.hero.label.today')}
               </span>
               <span className="block font-heading font-bold text-lg md:text-xl leading-tight break-anywhere">
                 {cta}
@@ -500,6 +510,8 @@ const SECTION_LABELS = {
   // Was 'Nutrition & Recovery' — the macro / calorie / hydration widgets
   // moved off the dashboard (Nutrition owns them) and what's left is the
   // three signals you log at the end of the day.
+  fuel:         (tF) => tF('today.fuel.title',               'Food and water'),
+  crewwar:      (tF) => tF('crewWars.title',                 'Crew Wars'),
   recovery:     (tF) => tF('dashboard.section.tonight',      'Tonight'),
   stats:        (tF) => tF('dashboard.section.stats',        'This week'),
   streak:       (tF) => tF('dashboard.section.streak',       'Login streak'),
@@ -592,21 +604,31 @@ export default function Dashboard() {
   // 'progress', below goals and the recap, so the page's most-glanced
   // numbers sat a screen and a half down. They are their own row now,
   // directly under the hero.
+  // The Today screen (navigation redesign, phase 3). Above these rows the
+  // hero carries the one next action. Then the glances: food and water, the
+  // Tonight row (sleep, mood, steps), streak and quests, and the crew war
+  // when one is running. rescue and onboarding render only when they have
+  // something to say.
+  //
+  // Everything after 'onboarding' is hidden by default (see
+  // TODAY_RETIRED_SECTIONS) and can be restored from edit mode. They stay in
+  // the order so a restored section lands where it used to sit, and so
+  // mergeWidgetOrder keeps recognising the ids in saved layouts.
   const defaultWidgetOrder = [
-    'stats',                 // this week / volume / muscles — one card, 3 cols
-    'actions',               // 4 × 2 tile grid
+    'fuel',                  // calories and water, taps through to Nutrition
     'recovery',              // "Tonight" — sleep · mood · steps
-    // Pairing only happens between ADJACENT halves, so the two ids that
-    // should share a row have to sit next to each other here.
-    'streak', 'challenges',  // both full-width; adjacent because they read
-                             // as one "today" block, not because they pair
+    'streak', 'challenges',  // both full-width; one "today" block
+    'crewwar',               // renders only while a war is running
+    'rescue',                // conditional — "your streak is about to break"
+    'onboarding',
+    // Hidden by default from here on.
+    'stats',
+    'actions',
     'chest', 'league',       // hotdog pair: chest beside weekly rank
     'friends',
-    'rescue',                // conditional — "your streak is about to break"
-    'progress',              // goals, weekly recap, suggestion + memory
+    'progress',
     'journal',
     'discover', 'motivation',
-    'onboarding',
     'customize',
   ];
   const [widgetOrder, setWidgetOrder] = useState(defaultWidgetOrder);
@@ -620,7 +642,9 @@ export default function Dashboard() {
   // make it so they can remove it and then if they wanna add it
   // back, it's in the widgets.")
   const hiddenSectionsKey = `flexyn.dashHiddenSections.${user?.id || 'anon'}`;
-  const [hiddenSections, setHiddenSections] = useState(() => new Set());
+  // Seeded with the Today defaults so a first paint, before the saved layout
+  // loads, never flashes the fifteen-section page.
+  const [hiddenSections, setHiddenSections] = useState(() => new Set(TODAY_RETIRED_SECTIONS));
   useEffect(() => {
     if (!user?.id) return;
     try {
@@ -1294,6 +1318,12 @@ export default function Dashboard() {
   // nothing to navigate to: the only signal you can't log there is
   // training, and ReadinessSheet routes that one to /workout itself.
   const regimens = useMemo(() => filterAfterReset(rawRegimens, userProfile), [rawRegimens, userProfile]);
+  // The regimen due today, if the user trains to a rotation and has not
+  // done it yet. The hero turns this into its one button.
+  const heroPlan = useMemo(() => {
+    const due = findDueRegimen(regimens, logs);
+    return due && !due.doneToday ? due.regimen : null;
+  }, [regimens, logs]);
   const goals = useMemo(() => filterAfterReset(rawGoals, userProfile), [rawGoals, userProfile]);
 
   const isLoading = logsLoading || regimensLoading || goalsLoading;
@@ -1515,6 +1545,20 @@ export default function Dashboard() {
       // Moved out of the hero (see HeroCard) — the pill carries its own
       // "3 days streak" text and expands its calendar inline, so it needs no
       // section label above it.
+      case 'fuel': return (
+        <React.Fragment key="fuel">
+          <ErrorBoundary label="TodayFuelCard">
+            <TodayFuelCard userProfile={userProfile} />
+          </ErrorBoundary>
+        </React.Fragment>
+      );
+      case 'crewwar': return (
+        <React.Fragment key="crewwar">
+          <ErrorBoundary label="CrewWarGlance">
+            <CrewWarGlance />
+          </ErrorBoundary>
+        </React.Fragment>
+      );
       case 'streak': return (
         <React.Fragment key="streak">
           <ErrorBoundary label="LoginStreakBanner">
@@ -1925,7 +1969,12 @@ export default function Dashboard() {
           // the streak" / "Log another") opens a freestyle session directly.
           // ?freestyle=1 is handled in Workout.jsx — landing on that page's
           // picker meant pressing Start twice to start one workout.
-          onPrimary={() => navigate('/workout?freestyle=1')}
+          // With a plan due, the button starts THAT session through the
+          // startRegimen hand-off Workout.jsx consumes (phase 0).
+          plan={heroPlan}
+          onPrimary={() => (heroPlan
+            ? navigate('/workout', { state: { startRegimen: heroPlan } })
+            : navigate('/workout?freestyle=1'))}
           onReadinessInfo={() => openReadiness()}
           onPlanWeek={() => setWeekModalOpen(true)}
           navigate={navigate}

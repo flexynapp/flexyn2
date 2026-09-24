@@ -6,7 +6,7 @@ vi.mock('@/api/db', () => ({ db: { auth: { updateMe: (...a) => updateMe(...a) } 
 const {
   packLayout, unpackLayout, writeLayoutToLocal, clearLayoutLocal,
   queueLayoutSync, flushLayoutSync, mergeWidgetOrder,
-  applyLayoutMigrations, readLocalDefaultsVersion, LAYOUT_DEFAULTS_VERSION,
+  applyLayoutMigrations, readLocalDefaultsVersion, LAYOUT_DEFAULTS_VERSION, TODAY_RETIRED_SECTIONS,
   HIDDEN_KEY, ORDER_KEY, LAYOUTS_KEY, DEFAULTS_VERSION_KEY,
 } = await import('../dashboardLayout');
 
@@ -66,6 +66,10 @@ describe('mergeWidgetOrder', () => {
   });
 });
 
+// v5 (the Today screen) hides sections on every layout it meets, so the
+// pairing tests below look only at the steps they are about.
+const pairingSteps = (applied) => applied.filter(name => name !== 'today-screen');
+
 describe('applyLayoutMigrations', () => {
   // A layout saved before versioning: streak and challenges nowhere near
   // each other and neither one 'half' — i.e. the state every existing user
@@ -100,7 +104,7 @@ describe('applyLayoutMigrations', () => {
       sectionLayouts: { streak: 'half', challenges: 'half', chest: 'half', league: 'half' },
     };
     const { layout, applied } = applyLayoutMigrations(paired, 3);
-    expect(applied).toEqual(['unpair-streak-and-quests']);
+    expect(pairingSteps(applied)).toEqual(['unpair-streak-and-quests']);
     expect(layout.sectionLayouts.streak).toBe('full');
     expect(layout.sectionLayouts.challenges).toBe('full');
     // Someone else's pairing is not this step's business.
@@ -116,7 +120,7 @@ describe('applyLayoutMigrations', () => {
       sectionLayouts: { streak: 'full', challenges: 'full' },
     };
     const { applied } = applyLayoutMigrations(unpaired, 3);
-    expect(applied).toEqual([]);
+    expect(pairingSteps(applied)).toEqual([]);
   });
 
   it('leaves every other section where the user put it', () => {
@@ -141,7 +145,7 @@ describe('applyLayoutMigrations', () => {
   it('declines to pair when either section is hidden', () => {
     const hidden = { ...legacy(), hiddenSections: ['challenges'] };
     const { layout, applied, version } = applyLayoutMigrations(hidden, 0);
-    expect(applied).toEqual([]);
+    expect(pairingSteps(applied)).toEqual([]);
     expect(layout.widgetOrder).toEqual(hidden.widgetOrder);
     expect(layout.sectionLayouts.streak).toBeUndefined();
     // ...but the version still advances, or this retries on every load.
@@ -170,7 +174,7 @@ describe('applyLayoutMigrations', () => {
   it('skips a step whose sections are absent entirely', () => {
     const sparse = { hiddenSections: [], widgetOrder: ['stats', 'journal'], sectionLayouts: {} };
     const { layout, applied } = applyLayoutMigrations(sparse, 0);
-    expect(applied).toEqual([]);
+    expect(pairingSteps(applied)).toEqual([]);
     expect(layout.widgetOrder).toEqual(['stats', 'journal']);
   });
 });
@@ -336,3 +340,39 @@ describe('round trip', () => {
     expect(back.sectionLayouts).toEqual(original.sectionLayouts);
   });
 });
+
+describe('v5: the Today screen', () => {
+  const v4 = () => ({
+    hiddenSections: ['journal'],
+    widgetOrder: ['stats', 'actions', 'recovery', 'streak', 'challenges', 'chest', 'league', 'journal'],
+    sectionLayouts: { chest: 'half', league: 'half' },
+  });
+
+  it('hides every retired section and keeps what was already hidden', () => {
+    const { layout, applied } = applyLayoutMigrations(v4(), 4);
+    expect(applied).toEqual(['today-screen']);
+    for (const id of TODAY_RETIRED_SECTIONS) expect(layout.hiddenSections).toContain(id);
+    expect(layout.hiddenSections.filter(id => id === 'journal')).toHaveLength(1);
+  });
+
+  it('leaves the Today sections visible', () => {
+    const { layout } = applyLayoutMigrations(v4(), 4);
+    for (const id of ['recovery', 'streak', 'challenges']) expect(layout.hiddenSections).not.toContain(id);
+  });
+
+  it('touches neither the order nor the pairings, so a restore lands where it was', () => {
+    const before = v4();
+    const { layout } = applyLayoutMigrations(before, 4);
+    expect(layout.widgetOrder).toEqual(before.widgetOrder);
+    expect(layout.sectionLayouts).toEqual(before.sectionLayouts);
+  });
+
+  it('does not re-hide a section restored after it ran', () => {
+    const migrated = applyLayoutMigrations(v4(), 4).layout;
+    const restored = { ...migrated, hiddenSections: migrated.hiddenSections.filter(id => id !== 'stats') };
+    const again = applyLayoutMigrations(restored, LAYOUT_DEFAULTS_VERSION);
+    expect(again.applied).toEqual([]);
+    expect(again.layout.hiddenSections).not.toContain('stats');
+  });
+});
+
