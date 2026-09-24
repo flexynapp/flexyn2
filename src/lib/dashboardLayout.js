@@ -80,7 +80,19 @@ export function mergeWidgetOrder(saved, defaults) {
    one must not imply the other.
    ══════════════════════════════════════════════════════════════════ */
 
-export const LAYOUT_DEFAULTS_VERSION = 4;
+export const LAYOUT_DEFAULTS_VERSION = 5;
+
+/**
+ * Sections the Today screen (navigation redesign, phase 3) no longer shows
+ * by default. Each still exists and can be restored from edit mode; they
+ * moved out of the default view because each has a home elsewhere: weekly
+ * numbers, goals and recap in You › Progress, quick actions in the + sheet,
+ * league and friends in Social › Compete, the chest in You › Rewards.
+ */
+export const TODAY_RETIRED_SECTIONS = [
+  'stats', 'actions', 'chest', 'league', 'friends', 'progress',
+  'journal', 'discover', 'motivation', 'customize',
+];
 
 /**
  * Move `first` to sit immediately before `second` and mark both 'half', so
@@ -110,6 +122,19 @@ function pairAdjacent(layout, first, second) {
     layout: { ...layout, widgetOrder: order, sectionLayouts: layouts },
     changed: true,
   };
+}
+
+/**
+ * Add the named sections to the hidden set. Idempotent; ids already hidden
+ * are left alone. Hiding never loses a choice: the order and layout are
+ * untouched, so restoring a section puts it back exactly where it was.
+ */
+function hideSections(layout, ids) {
+  const hidden = new Set(layout.hiddenSections || []);
+  const missing = ids.filter(id => !hidden.has(id));
+  if (missing.length === 0) return { layout, changed: false };
+  missing.forEach(id => hidden.add(id));
+  return { layout: { ...layout, hiddenSections: Array.from(hidden) }, changed: true };
 }
 
 /**
@@ -169,6 +194,17 @@ const LAYOUT_MIGRATIONS = [
     to: 4,
     name: 'unpair-streak-and-quests',
     apply: (layout) => unpairSections(layout, 'streak', 'challenges'),
+  },
+  // v5 is the Today screen: one next action and a few glances instead of
+  // fifteen sections. It HIDES rather than removes, so everything stays one
+  // tap away in edit mode, and it runs once, so a section someone restores
+  // afterwards stays restored. It is the one step that hides something the
+  // user may have wanted, which the rules above do not forbid (they forbid
+  // un-hiding); the redesign was approved on 2026-09-24 on exactly this.
+  {
+    to: 5,
+    name: 'today-screen',
+    apply: (layout) => hideSections(layout, TODAY_RETIRED_SECTIONS),
   },
 ];
 

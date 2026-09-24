@@ -17,12 +17,10 @@ import {
   Dumbbell, Grip, Footprints, Mountain, HeartPulse, Target, Zap,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { startOfDay } from 'date-fns';
-import { parseLocalDate } from '@/lib/dateUtils';
 import { useLanguage } from '@/lib/LanguageContext';
 import { translateExerciseName } from '@/lib/exerciseTranslations';
 import ExerciseFormPanel from '@/components/exercise/ExerciseFormPanel';
-import { workoutTitle } from '@/lib/workoutTitle';
+import { findDueRegimen } from '@/lib/todaysPlan';
 
 // Map exercise muscle groups → plan day label
 const MUSCLE_TO_LABEL = {
@@ -95,49 +93,8 @@ export default function TodaysPlanCard({ regimens = [], logs = [], hasWorkedOutT
   const [listOpen, setListOpen] = useState(false);
 
   const todaysPlan = useMemo(() => {
-    if (!regimens.length) return null;
-    // Only useful if there are at least 2 distinct regimens (a rotation)
-    const active = regimens.filter(r => !r.archived);
-    if (active.length < 2) return null;
-
-    const today = startOfDay(new Date()).getTime();
-
-    // parseLocalDate now comes from @/lib/dateUtils (shared helper) —
-    // previously this component re-implemented the function inline,
-    // which would drift from the canonical version over time.
-
-    // Build a map: regimenName → last date used
-    const lastUsed = {};
-    logs.forEach(log => {
-      const name = workoutTitle(log);
-      if (!name) return;
-      const d = parseLocalDate(log.date);
-      if (!d || isNaN(d.getTime())) return;
-      const ts = d.getTime();
-      if (!lastUsed[name] || ts > lastUsed[name]) lastUsed[name] = ts;
-    });
-
-    // Match log regimen names to regimen objects (fuzzy)
-    const scored = active.map(r => ({
-      regimen: r,
-      last: lastUsed[r.name] ?? 0,
-    }));
-
-    // The regimen due next = the one used least recently
-    // (or never used, which means it's definitely due)
-    scored.sort((a, b) => a.last - b.last);
-    // Defensive — early returns above ensure `active.length >= 2`, so
-    // `scored[0]` is always defined under normal flow. Guard anyway
-    // for the corrupt-data case where `active.map(...)` returns rows
-    // without a `regimen` field (e.g. a future schema change). Bailing
-    // here is better than rendering undefined.regimen down the tree.
-    const top = scored[0];
-    if (!top || !top.regimen) return null;
-    const due = top.regimen;
-    const dueLastTs = Number.isFinite(top.last) ? top.last : 0;
-    const doneToday = dueLastTs >= today;
-
-    return { regimen: due, doneToday, info: inferDayLabel(due) };
+    const due = findDueRegimen(regimens, logs);
+    return due ? { ...due, info: inferDayLabel(due.regimen) } : null;
   }, [regimens, logs]);
 
   if (!todaysPlan) return null;

@@ -79,6 +79,7 @@ const ALLOW_IDENTICAL = new Set([
   'duels.resultTie',        // "TIE"  — scoreboard notation
   'nav.hub',                // "Hub"  — the feature's name, not a common noun
   'settings.weightUnit.kg',    // "kg"  — SI symbol
+  'today.fuel.kcal',           // "kcal" — unit symbol
   'settings.weightUnit.lbs',   // "lbs" — unit symbol
   'settings.weightUnit.stone', // "st"  — unit symbol (stone)
   'nutrition.photoAi',         // "Photo-AI" — the feature's name, same shape as nav.hub
@@ -315,6 +316,7 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'notifications.title',
     'nutrition.date',
     'nutrition.macros.calories',
+    'today.fuel.calories',       // same word, same sense as nutrition.macros.calories
     'nutrition.macros.sodium',
     'nutrition.minerals.calcium',
     'nutrition.minerals.potassium',
