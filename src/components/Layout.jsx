@@ -1,4 +1,5 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { rememberTabLocation, tabHref, saveTabScroll, restoreTabScroll } from '@/lib/tabMemory';
 import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import FlexynLogo from './FlexynLogo';
 import { Apple, LayoutDashboard, MessageCircle, Play, Plus, Sparkles, ScanLine, Droplet, TrendingUp, Users, Camera, Scale, ShoppingBag } from 'lucide-react';
@@ -35,7 +36,10 @@ import { TOOLTIP } from '@/lib/tooltipRegistry';
 //   • Long-press detection (consumed via onLongPress with the DOM ref
 //     so the menu popover can anchor above this exact tab)
 //   • Hub-tab special-case styling + the unread dot
-function NavTab({ item, isActive, isHubItem, hubBlue, hubPurple, hubHasNewFollowingPost, hasQuickActions, onLongPress, onTap, showLongPressHint }) {
+// The bottom-bar tabs. Only these remember their last view (tabMemory).
+const NAV_PATHS = ['/dashboard', '/workout', '/hub', '/progress', '/nutrition'];
+
+function NavTab({ item, to, isActive, isHubItem, hubBlue, hubPurple, hubHasNewFollowingPost, hasQuickActions, onLongPress, onTap, showLongPressHint }) {
   const { tFallback } = useLanguage();
   const ref = useRef(null);
   const longPress = useLongPress(() => onLongPress(ref.current), { ms: 400 });
@@ -58,7 +62,7 @@ function NavTab({ item, isActive, isHubItem, hubBlue, hubPurple, hubHasNewFollow
       )}
       <Link
         ref={ref}
-        to={item.path}
+        to={to}
         onClick={(e) => {
           // If a long-press just fired, the consumed click suppresses
           // the navigation (the menu is now open instead).
@@ -292,6 +296,12 @@ export default function Layout() {
     lastScrollY.current = typeof window === 'undefined' ? 0 : window.scrollY;
   }, [location.pathname]);
 
+  // Remember each tab's current view so the tab bar can reopen it there.
+  // See src/lib/tabMemory.js.
+  useEffect(() => {
+    if (NAV_PATHS.includes(location.pathname)) rememberTabLocation(location.pathname, location.search);
+  }, [location.pathname, location.search]);
+
   const navItems = [
     { path: '/dashboard', label: t('nav.dashboard'), icon: LayoutDashboard },
     { path: '/workout',   label: t('nav.workout'),   icon: Play },
@@ -436,10 +446,15 @@ export default function Layout() {
                 whileTap={{ scale: 0.97 }}
               >
                 <Link
-                  to={item.path}
+                  to={isActive ? item.path : tabHref(item.path)}
                   onClick={() => {
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                    if (isActive) resetActiveTab();
+                    if (isActive) {
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                      resetActiveTab();
+                    } else {
+                      if (NAV_PATHS.includes(location.pathname)) saveTabScroll(location.pathname, window.scrollY);
+                      restoreTabScroll(item.path);
+                    }
                   }}
                   className={`flex items-center justify-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors duration-200 select-none-ui
                     ${isActive
@@ -526,6 +541,7 @@ export default function Layout() {
               <NavTab
                 key={item.path}
                 item={item}
+                to={isActive ? item.path : tabHref(item.path)}
                 isActive={isActive}
                 isHubItem={isHubItem}
                 hubBlue={isHubItem && user?.username === 'sean'}
@@ -538,7 +554,14 @@ export default function Layout() {
                   // Light haptic on every tab tap — matches iOS tab bars.
                   // 'light' is a 10ms pulse that's felt but not obtrusive.
                   triggerHaptic('light');
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                  // A different tab reopens where you left it; the tab you
+                  // are on goes back to its top.
+                  if (isActive) {
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  } else {
+                    if (NAV_PATHS.includes(location.pathname)) saveTabScroll(location.pathname, window.scrollY);
+                    restoreTabScroll(item.path);
+                  }
                   // Re-tapping the tab you're already on returns the section
                   // to its root: the <Link to={item.path}> strips any
                   // sub-view query params, and resetActiveTab() remounts the

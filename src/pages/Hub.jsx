@@ -4,6 +4,7 @@
 // Bag/Capsule flow were hoisted out to /market, /messages, /coach, and
 // the global ProfileMenu respectively.
 import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
+import { useUrlState } from '@/hooks/useUrlState';
 import { routerStateWithoutPayload } from '@/lib/goBack';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence, useDragControls } from 'framer-motion';
@@ -102,7 +103,9 @@ export default function Hub() {
   const [section, setSection] = useState(
     (initialProfileEmail || isProfilePath) ? 'profile' : 'feed'
   );
-  const [feedTab, setFeedTab] = useState('pump');
+  // In the URL (?feed=) so a refresh, or coming back to Hub from the tab bar,
+  // keeps the feed you were on. See useUrlState.
+  const [feedTab, setFeedTab] = useUrlState('feed', 'pump', ['pump', 'squad', 'crews', 'activity']);
 
   // ── Swipe + directional transition between the feed tabs ─────────────────
   const [tabDirection, setTabDirection] = useState(0);

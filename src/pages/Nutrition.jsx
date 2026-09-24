@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { routerStateWithoutPayload } from '@/lib/goBack';
+import { useUrlState } from '@/hooks/useUrlState';
 import { filterAfterReset } from '@/lib/accountReset';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { db } from '@/api/db';
@@ -376,7 +377,8 @@ export default function Nutrition() {
 
   // Hard daily cap: 200 oz (~5.9L). Beyond this is water-toxicity territory.
   const WATER_DAILY_CAP_OZ = 200;
-  const [nutritionTab, setNutritionTab] = useState('macros');
+  // In the URL (?nutrients=) so the tab bar and a refresh keep your place.
+  const [nutritionTab, setNutritionTab] = useUrlState('nutrients', 'macros', ['macros', 'vitamins']);
   const [entries, setEntries] = useState([]);
   // waterOz is derived from persisted logs
   const [waterUnit, setWaterUnit] = useState('oz');
