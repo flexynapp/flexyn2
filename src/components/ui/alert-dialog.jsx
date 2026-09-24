@@ -3,8 +3,13 @@ import * as AlertDialogPrimitive from "@radix-ui/react-alert-dialog"
 
 import { cn } from "@/lib/utils"
 import { buttonVariants } from "@/components/ui/button"
+import { useBackClosableRoot } from "@/hooks/useBackClosableRoot"
 
-const AlertDialog = AlertDialogPrimitive.Root
+// Closes on the phone's Back gesture. See useBackClosableRoot.
+function AlertDialog({ open, defaultOpen, onOpenChange, ...props }) {
+  const root = useBackClosableRoot({ open, defaultOpen, onOpenChange });
+  return <AlertDialogPrimitive.Root {...props} open={root.open} onOpenChange={root.onOpenChange} />
+}
 
 const AlertDialogTrigger = AlertDialogPrimitive.Trigger
 

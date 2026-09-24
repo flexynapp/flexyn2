@@ -181,4 +181,21 @@ describe('useOverlayBackButton — nested overlays', () => {
     act(() => { window.dispatchEvent(new PopStateEvent('popstate')); });
     expect(solo).toHaveBeenCalledTimes(1);
   });
+
+  it('does not undo a navigation that happened while the overlay was open', () => {
+    // A row inside a sheet navigates, then the sheet closes. By then the
+    // router has pushed the new page on top of our entry, so history.back()
+    // would take the user straight back off the page they just chose.
+    const { unmount } = renderHook(() => useOverlayBackButton(true, vi.fn()));
+    window.history.pushState({ key: 'next', idx: 5 }, '', window.location.pathname);
+    unmount();
+    expect(backSpy).not.toHaveBeenCalled();
+  });
+
+  it("keeps the router's key and idx on the entry it pushes", () => {
+    window.history.replaceState({ key: 'k1', idx: 3, usr: null }, '');
+    renderHook(() => useOverlayBackButton(true, vi.fn()));
+    expect(window.history.state).toMatchObject({ key: 'k1', idx: 3 });
+    expect(window.history.state.__flexynOverlay).toBeTruthy();
+  });
 });

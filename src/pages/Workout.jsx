@@ -1,5 +1,6 @@
 ﻿import React, { useState, useEffect, useMemo, useRef, lazy, Suspense } from 'react';
 import { workoutLogsKey } from '@/lib/data/workoutKeys';
+import { routerStateWithoutPayload } from '@/lib/goBack';
 import { filterAfterReset } from '@/lib/accountReset';
 import { readPendingWorkout, clearPendingWorkout } from '@/lib/pendingWorkout';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -1434,6 +1435,20 @@ export default function Workout() {
     setStarted(true);
   };
 
+  // Today's Plan on Dashboard hands over the whole regimen. It used to send
+  // only `selectedRegimenId`, which nothing here read, so tapping the plan
+  // opened the idle Workout screen and left the user to find it again.
+  // Declared after startFromRegimen (TDZ) and consumed once: the state is
+  // cleared so Back or a remount cannot start the session a second time.
+  const startRegimenFromNav = location.state?.startRegimen;
+  useEffect(() => {
+    if (!startRegimenFromNav || started) return;
+    startFromRegimen(startRegimenFromNav);
+    navigate(location.pathname, { replace: true, state: null });
+    // startFromRegimen is recreated every render; this should run once per hand-off.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startRegimenFromNav]);
+
   const startFreestyle = () => {
     const id = `freestyle-${Date.now()}`;
     setActiveSessionId(id);
@@ -1590,7 +1605,7 @@ export default function Workout() {
         }
         // Strip the param so a refresh doesn't reload the session over
         // whatever the user has since logged into the form.
-        window.history.replaceState({}, '', '/workout');
+        window.history.replaceState(routerStateWithoutPayload(), '', '/workout');
       } catch { /* a missing or foreign row just leaves the page as-is */ }
     })();
     return () => { cancelled = true; };
@@ -2215,7 +2230,7 @@ export default function Workout() {
       consumed = true;
     }
     if (consumed) {
-      window.history.replaceState({}, document.title);
+      window.history.replaceState(routerStateWithoutPayload(), document.title);
     }
   }, []);
 

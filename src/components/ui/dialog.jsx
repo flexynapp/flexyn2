@@ -6,8 +6,13 @@ import { X } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { useLanguage } from '@/lib/LanguageContext';
+import { useBackClosableRoot } from '@/hooks/useBackClosableRoot';
 
-const Dialog = DialogPrimitive.Root
+// Closes on the phone's Back gesture. See useBackClosableRoot.
+function Dialog({ open, defaultOpen, onOpenChange, ...props }) {
+  const root = useBackClosableRoot({ open, defaultOpen, onOpenChange });
+  return <DialogPrimitive.Root {...props} open={root.open} onOpenChange={root.onOpenChange} />
+}
 
 const DialogTrigger = DialogPrimitive.Trigger
 

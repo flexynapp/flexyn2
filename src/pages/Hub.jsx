@@ -4,6 +4,7 @@
 // Bag/Capsule flow were hoisted out to /market, /messages, /coach, and
 // the global ProfileMenu respectively.
 import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
+import { routerStateWithoutPayload } from '@/lib/goBack';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence, useDragControls } from 'framer-motion';
 import { Flame, Users as UsersIcon, User as UserIcon, Plus, ArrowLeft, Search, Shield, Store, Activity } from 'lucide-react';
@@ -282,7 +283,7 @@ export default function Hub() {
     setSection('feed');
     // Clear it, or a back-navigation into Hub re-opens the crew page the
     // user just backed out of.
-    window.history.replaceState({}, document.title);
+    window.history.replaceState(routerStateWithoutPayload(), document.title);
   }, [location.state]);
 
   // The sub-header below is `fixed`, so it's out of flow and the page

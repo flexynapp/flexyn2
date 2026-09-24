@@ -2233,7 +2233,10 @@ export default function Dashboard() {
             open={seasonCeremonyOpen}
             onClose={() => setSeasonCeremonyOpen(false)}
             result={seasonResult}
-            onOpenTrophyCase={() => navigate('/hub?tab=profile')}
+            // /profile is the own-profile page, which holds the trophy case. The
+            // old /hub?tab=profile was dropped by Hub (tab only accepts feed
+            // sub-tabs), so this button landed on the feed.
+            onOpenTrophyCase={() => navigate('/profile')}
           />
         </Suspense>
       )}

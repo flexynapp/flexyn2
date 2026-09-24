@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { routerStateWithoutPayload } from '@/lib/goBack';
 import EmptyState from '@/components/EmptyState';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
@@ -509,7 +510,7 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
       params.delete('conv');
       const next = params.toString();
       const url = window.location.pathname + (next ? `?${next}` : '');
-      window.history.replaceState({}, '', url);
+      window.history.replaceState(routerStateWithoutPayload(), '', url);
     }
   }, [conversations, activeConv?.id]);
 
