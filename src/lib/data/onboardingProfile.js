@@ -243,6 +243,12 @@ export function buildProfilePayload({ data, nowIso }) {
     // caps and BMR. NULL when unset; consumers treat NULL as their own
     // default. updateMe's strip-and-retry drops it on pre-mig-158 hosts.
     gender: stats.gender || null,
+    // "Where do you train?" / "How long is a session?" from the sharpen step
+    // (mig 384). Same ids as the Coach's quick generator, which reads them
+    // back as its defaults. NULL = not answered. Strip-and-retry drops them
+    // on a host without the columns, so saving never depends on the migration.
+    training_equipment: data?.sharpen?.equipment || null,
+    session_minutes:    Number.isFinite(data?.sharpen?.sessionMinutes) ? data.sharpen.sessionMinutes : null,
   };
 
   return {
