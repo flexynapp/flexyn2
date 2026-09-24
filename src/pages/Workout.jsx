@@ -1,5 +1,6 @@
 ﻿import React, { useState, useEffect, useMemo, useRef, lazy, Suspense } from 'react';
 import { workoutLogsKey } from '@/lib/data/workoutKeys';
+import { useUrlState } from '@/hooks/useUrlState';
 import { routerStateWithoutPayload } from '@/lib/goBack';
 import { filterAfterReset } from '@/lib/accountReset';
 import { readPendingWorkout, clearPendingWorkout } from '@/lib/pendingWorkout';
@@ -303,7 +304,8 @@ export default function Workout() {
   const [formCoachOpen, setFormCoachOpen] = useState(false);
   const [shareCardWorkout, setShareCardWorkout] = useState(null);
   const [savedWorkoutsOpen, setSavedWorkoutsOpen] = useState(false);
-  const [historyTab, setHistoryTab] = useState('gym'); // 'gym' | 'cardio'
+  // In the URL (?history=) so the tab bar and a refresh keep your place.
+  const [historyTab, setHistoryTab] = useUrlState('history', 'gym', ['gym', 'cardio']);
   const [historySearch, setHistorySearch] = useState('');
   const [cardioDetailLog, setCardioDetailLog] = useState(null);
   const [activeInfo, setActiveInfo] = useState(null); // which card's ⓘ tooltip is open

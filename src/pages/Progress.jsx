@@ -1,5 +1,6 @@
 import { workoutLogsKey } from '@/lib/data/workoutKeys';
-import React, { useState, useMemo, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
+import React, { useState, useMemo, useRef, useCallback, lazy, Suspense } from 'react';
+import { useUrlState } from '@/hooks/useUrlState';
 import { filterAfterReset } from '@/lib/accountReset';
 import { LOG_FETCH_LIMIT } from '@/lib/constants';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -468,30 +469,12 @@ export default function Progress() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const initialTab = (() => {
-    const p = new URLSearchParams(location.search);
-    const tab = p.get('tab');
-    if (TAB_META.some(x => x.id === tab)) return tab;
-    return 'trends';
-  })();
-
-  // `initialTab` above covers the first paint; this covers arriving at
-  // ?tab= while already mounted (a deep link tapped from another page).
-  // The param is consumed and stripped with `replace`, deliberately: it
-  // is an instruction, not state, and leaving it in the URL would make
-  // any later back-navigation re-apply a tab choice the user has since
-  // changed. `navigate` is stable from useNavigate, so listing it in the
-  // deps satisfies exhaustive-deps without re-running the effect.
-  const [activeTab, setActiveTab] = useState(initialTab);
-  useEffect(() => {
-    const p = new URLSearchParams(location.search);
-    const tab = p.get('tab');
-    if (tab && TAB_META.some(x => x.id === tab)) {
-      setActiveTab(tab);
-      p.delete('tab');
-      navigate({ pathname: '/progress', search: p.toString() ? '?' + p.toString() : '' }, { replace: true });
-    }
-  }, [location.search, navigate]);
+  // The tab lives in the URL (?tab=), kept in step as it changes. It used to
+  // be read once and stripped as a one-shot instruction, which meant leaving
+  // Progress and coming back always reset to Trends. useUrlState replaces the
+  // entry on every switch, so Back never replays an old tab choice (the
+  // reason the param used to be stripped).
+  const [activeTab, setActiveTab] = useUrlState('tab', 'trends', TAB_META.map(x => x.id));
 
   const [personalBestsModalOpen, setPersonalBestsModalOpen] = useState(false);
   const [advancedAnalyticsOpen, setAdvancedAnalyticsOpen]   = useState(false);
