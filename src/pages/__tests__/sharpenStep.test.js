@@ -88,4 +88,26 @@ describe('sharpen step', () => {
       expect(body, field).toContain(field);
     }
   });
+
+  // The five chips used to be the whole menu, so a lifter whose main lift
+  // was a hip thrust or a front squat had no way to say so. Any library
+  // exercise can now be searched in, and the picks are matched by library
+  // name downstream, so a name that is not in the library is silently
+  // dropped from the plan. Pin both halves.
+  it('lets the user search for a lift beyond the five suggestions', () => {
+    const step = sharpenStep();
+    expect(step).toContain('searchLifts(');
+    expect(step).toContain("onboarding.sharpen.liftSearch");
+    expect(SOURCE).toContain('EXERCISE_LIBRARY');
+  });
+
+  it('only suggests lifts the starter plan can actually use', async () => {
+    const { EXERCISE_LIBRARY } = await import('@/components/regimens/ExerciseAutocomplete');
+    const names = new Set(EXERCISE_LIBRARY.map(e => e.name));
+    const block = SOURCE.slice(SOURCE.indexOf('const FOCUS_LIFTS = ['));
+    const suggested = [...block.slice(0, block.indexOf('];')).matchAll(/'([^']+)'/g)].map(m => m[1]);
+    expect(suggested.length).toBe(5);
+    for (const n of suggested) expect(names, n).toContain(n);
+  });
 });
+
