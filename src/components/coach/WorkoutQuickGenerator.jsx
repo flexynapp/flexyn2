@@ -38,8 +38,14 @@ export default function WorkoutQuickGenerator({ userProfile = {}, onSaveRegimen,
   const [type, setType] = useState('strength');
   const [focus, setFocus] = useState('full_body');
   const [cardioStyle, setCardioStyle] = useState('easy');
-  const [duration, setDuration] = useState(45);
-  const [equipment, setEquipment] = useState('gym');
+  // Start from what the user told onboarding (mig 384) when it is one of
+  // this picker's own options; otherwise the old 45 min / full gym.
+  const [duration, setDuration] = useState(
+    () => DURATION_OPTIONS.some(o => o.id === userProfile?.session_minutes) ? userProfile.session_minutes : 45,
+  );
+  const [equipment, setEquipment] = useState(
+    () => EQUIPMENT_OPTIONS.some(o => o.id === userProfile?.training_equipment) ? userProfile.training_equipment : 'gym',
+  );
   const [skill, setSkill] = useState('intermediate');
   const [generating, setGenerating] = useState(false);
   const [plan, setPlan] = useState(null);

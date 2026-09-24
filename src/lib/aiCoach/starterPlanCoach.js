@@ -35,6 +35,13 @@ const TIMEOUT_MS = 8_000;
 
 const KG_TO_LB = 2.20462;
 
+const STARTER_KIT_PHRASES = {
+  gym:        'a full gym',
+  dumbbells:  'dumbbells only',
+  minimal:    'minimal equipment (a band, a bench and a pull-up bar)',
+  bodyweight: 'bodyweight only, no equipment',
+};
+
 const GOAL_PHRASES = {
   strength:  'build strength',
   muscle:    'add muscle',
@@ -106,9 +113,19 @@ export async function askStarterPlanCoach({ draft = {}, language = 'en' } = {}) 
   // that forbids naming specific exercises, sets and reps — which is exactly
   // the guarantee this screen needs, because the card underneath is the real
   // plan and prose that contradicted it would be worse than no prose.
-  const message = goals.length
+  // Equipment and session length go in the MESSAGE, not the digest: the
+  // Edge Function's formatDigest has no formatter for them and would drop
+  // them silently. Said here, the write-up can't promise a barbell to someone
+  // training at home.
+  const kit = STARTER_KIT_PHRASES[draft.sharpen?.equipment];
+  const mins = Number(draft.sharpen?.sessionMinutes);
+  const constraints = [
+    kit ? ` I train with ${kit}.` : '',
+    mins > 0 ? ` I have about ${mins} minutes per session.` : '',
+  ].join('');
+  const message = (goals.length
     ? `Build me my starter training plan. My goal is to ${goals.join(' and ')}.`
-    : 'Build me my starter training plan.';
+    : 'Build me my starter training plan.') + constraints;
 
   let res;
   try {

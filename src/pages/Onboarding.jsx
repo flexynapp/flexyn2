@@ -19,7 +19,7 @@ import { selectProfiles } from '@/lib/data/users';
 import { markReturningUser } from '@/lib/firstLaunch';
 import { containsProfanity } from '@/lib/profanityFilter';
 import { grantWelcomeCapsule } from '@/lib/data/capsules';
-import { buildStarterRegimen, ensureStarterRegimen } from '@/lib/data/starterRegimen';
+import { buildStarterRegimen, ensureStarterRegimen, TRAINING_EQUIPMENT, SESSION_MINUTES } from '@/lib/data/starterRegimen';
 import { EXERCISE_LIBRARY } from '@/components/regimens/ExerciseAutocomplete';
 import { ensureOnboardingCardioGoal } from '@/lib/data/onboardingCardioGoal';
 import StarterPlanCoachCard from '@/components/onboarding/StarterPlanCoachCard';
@@ -962,6 +962,10 @@ const FOCUS_LIFTS = ['Bench Press', 'Squat', 'Deadlift', 'Overhead Press', 'Pull
 // Capped so the picks lead the plan without crowding out the goal's own pool.
 const MAX_FOCUS_LIFTS = 5;
 
+// English fallbacks for the Coach's own picker keys (generator.equipment.* and
+// generator.duration.*), so onboarding and the Coach say the same thing.
+const EQUIPMENT_LABELS = { gym: 'Full gym', dumbbells: 'Dumbbells only', minimal: 'Minimal (band, bench)', bodyweight: 'Bodyweight only' };
+
 function searchLifts(query, exclude) {
   const q = query.trim().toLowerCase();
   if (!q) return [];
@@ -1072,7 +1076,6 @@ function SharpenStep({ goals, value, onChange, onNext, onBack, step, total }) {
     ? tFallback(`onboarding.sharpen.distance.${timeDistance.id}`, timeDistance.label)
     : null;
 
-  const nothingToAsk = !wantsCardio && !wantsStrength;
 
   return (
     <div className="flex flex-col h-full">
@@ -1085,8 +1088,34 @@ function SharpenStep({ goals, value, onChange, onNext, onBack, step, total }) {
           {tFallback('onboarding.sharpen.sub', 'A few quick details make your starter plan spot-on, all optional.')}
         </p>
 
+        {/* Asked of everyone. Every plan carries strength work, even a
+            runner's, and without these the plan assumed a full gym and an
+            open-ended session for all of them. Tapping the picked chip
+            again clears it, since the whole step is optional. */}
+        <div className="space-y-2">
+          <SectionLabel accent="hsl(var(--primary))" title={tFallback('onboarding.sharpen.equipmentPrompt', 'Where do you train?')} />
+          <div className="flex flex-wrap gap-2">
+            {TRAINING_EQUIPMENT.map(id => (
+              <Chip key={id} active={s.equipment === id} onClick={() => set({ equipment: s.equipment === id ? null : id })}>
+                {tFallback(`generator.equipment.${id}`, EQUIPMENT_LABELS[id])}
+              </Chip>
+            ))}
+          </div>
+        </div>
+
+        <div className="space-y-2" style={{ marginTop: 'var(--fluid-section)' }}>
+          <SectionLabel accent="hsl(var(--primary))" title={tFallback('onboarding.sharpen.minutesPrompt', 'How long is a session?')} />
+          <div className="flex flex-wrap gap-2">
+            {SESSION_MINUTES.map(m => (
+              <Chip key={m} active={s.sessionMinutes === m} onClick={() => set({ sessionMinutes: s.sessionMinutes === m ? null : m })}>
+                {tFallback(`generator.duration.${m}`, `${m} min`)}
+              </Chip>
+            ))}
+          </div>
+        </div>
+
         {wantsCardio && (
-          <div className="space-y-2">
+          <div className="space-y-2" style={{ marginTop: 'var(--fluid-section)' }}>
             <SectionLabel accent="hsl(45 93% 55%)" title={tFallback('onboarding.sharpen.cardioPrompt', 'What are you training for?')} />
             <div className="flex flex-wrap gap-2">
               {CARDIO_EVENTS.map(e => (
@@ -1172,15 +1201,6 @@ function SharpenStep({ goals, value, onChange, onNext, onBack, step, total }) {
           </div>
         )}
 
-        {nothingToAsk && (
-          <div className="rounded-2xl border border-border bg-card p-5 text-center" style={{ marginTop: 'var(--fluid-section)' }}>
-            <div className="text-2xl mb-1">✅</div>
-            <p className="font-heading font-bold text-body">{tFallback('onboarding.sharpen.allSet', "You're all set")}</p>
-            <p className="text-label text-muted-foreground mt-1">
-              {tFallback('onboarding.sharpen.allSetSub', "We've got what we need. Your plan's ready to build.")}
-            </p>
-          </div>
-        )}
       </div>
 
       <div className="shrink-0" style={{ paddingTop: 'var(--fluid-cta-gap)' }}>
@@ -3399,7 +3419,7 @@ export default function Onboarding() {
     // "Sharpen your plan" follow-ups — all optional; drives the starter plan +
     // a real cardio goal. cardioEvent: 5k|10k|half|marathon|general;
     // cardioCurrent: { distance, timeSec }; strengthFocus: [exercise names].
-    sharpen: { cardioEvent: null, cardioCurrent: null, strengthFocus: [] },
+    sharpen: { cardioEvent: null, cardioCurrent: null, strengthFocus: [], equipment: null, sessionMinutes: null },
     // Home gym pick (mig 275). Either { gymId, name } for a gym we
     // already have a row for, or { osm, name } for an OpenStreetMap
     // entry to promote. null = skipped.
@@ -3473,13 +3493,15 @@ export default function Onboarding() {
       assessment: data.assessment || null,
       cardioEvent: data.sharpen?.cardioEvent,
       strengthFocus: data.sharpen?.strengthFocus,
+      equipment: data.sharpen?.equipment,
+      sessionMinutes: data.sharpen?.sessionMinutes,
       injuries: data.onboardingInjuries || [],
       age: data.stats?.age,
       gender: data.stats?.gender,
       weightKg: data.stats?.weightKg,
       heightCm: data.stats?.heightCm,
     }),
-    [data.goal, data.level, data.days, data.assessment, data.sharpen?.cardioEvent, data.sharpen?.strengthFocus, data.onboardingInjuries, data.stats?.age, data.stats?.gender, data.stats?.weightKg, data.stats?.heightCm]
+    [data.goal, data.level, data.days, data.assessment, data.sharpen?.cardioEvent, data.sharpen?.strengthFocus, data.sharpen?.equipment, data.sharpen?.sessionMinutes, data.onboardingInjuries, data.stats?.age, data.stats?.gender, data.stats?.weightKg, data.stats?.heightCm]
   );
 
   // The AI Coach's write-up of that plan. Null until the loading step asks for
@@ -3858,6 +3880,8 @@ export default function Onboarding() {
             assessment: data.assessment || null,
             cardioEvent: data.sharpen?.cardioEvent,
             strengthFocus: data.sharpen?.strengthFocus,
+            equipment: data.sharpen?.equipment,
+            sessionMinutes: data.sharpen?.sessionMinutes,
             injuries: data.onboardingInjuries || [],
             age: data.stats?.age,
                   gender: data.stats?.gender,

@@ -109,5 +109,16 @@ describe('sharpen step', () => {
     expect(suggested.length).toBe(5);
     for (const n of suggested) expect(names, n).toContain(n);
   });
+
+  // Every plan carries strength work, so these two are asked of everyone,
+  // not behind a goal gate, and both reach the plan and the profile.
+  it('asks where and how long for every goal, and passes both on', () => {
+    const step = sharpenStep();
+    expect(step).toContain('onboarding.sharpen.equipmentPrompt');
+    expect(step).toContain('onboarding.sharpen.minutesPrompt');
+    expect(step).not.toContain('nothingToAsk');
+    expect(SOURCE.match(/equipment: data\.sharpen\?\.equipment/g)?.length).toBe(2);
+    expect(SOURCE.match(/sessionMinutes: data\.sharpen\?\.sessionMinutes/g)?.length).toBe(2);
+  });
 });
 

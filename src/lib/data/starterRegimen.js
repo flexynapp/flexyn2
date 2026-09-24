@@ -16,6 +16,7 @@
 import { db } from '@/api/db';
 import { EXERCISE_LIBRARY } from '@/components/regimens/ExerciseAutocomplete';
 import { runningTargets, formatPace, formatClock, repTime } from '@/lib/running/paces';
+import { classifyEquipment } from '@/lib/exerciseEquipment';
 
 // Throw-on-typo lookup. Called at module init below for every exercise
 // the generator can ever pick.
@@ -77,6 +78,64 @@ const GOAL_ACCESSORY = {
   mobility:  'Side Plank',
 };
 Object.values(GOAL_ACCESSORY).forEach(EX); // pre-flight validate
+
+// ── Equipment. Onboarding asks "Where do you train?" with the SAME four ids
+// the Coach's quick generator uses (gym / dumbbells / minimal / bodyweight),
+// so the answer can seed that picker later without a translation table.
+// Unset means a full gym, which is what every plan assumed before the
+// question existed.
+export const TRAINING_EQUIPMENT = ['gym', 'dumbbells', 'minimal', 'bodyweight'];
+
+// Every name in the curated pools that needs more than the user has, with
+// what replaces it at each level. `minimal` is a bench, a band and a pull-up
+// bar, which is what the Coach's "Minimal (band, bench)" means. A null drops
+// the exercise; the goal's pool is deep enough to fill the gap.
+//
+// An explicit table rather than classifyEquipment: that classifier is a
+// coarse name regex (it reads "Goblet Squat" as barbell, because of the word
+// squat) and it only says what an exercise NEEDS, not what to do instead.
+const EQUIPMENT_SWAPS = {
+  //                        dumbbells                     minimal                          bodyweight
+  'Squat':                  ['Goblet Squat',               'Bulgarian Split Squat',         'Air Squat'],
+  'Bench Press':            ['Dumbbell Chest Press',       'Push-Up',                       'Push-Up'],
+  'Deadlift':               ['Dumbbell Deadlift',          'Single Leg Romanian Deadlift',  'Glute Bridge'],
+  'Overhead Press':         ['Dumbbell Shoulder Press',    'Decline Push-Up',               'Decline Push-Up'],
+  'Barbell Row':            ['Dumbbell Row',               'Inverted Row',                  'Towel Row'],
+  'Pull-Up':                ['Dumbbell Pullover',          'Pull-Up',                       'Superman Raise'],
+  'Romanian Deadlift':      ['Dumbbell Romanian Deadlift', 'Single Leg Romanian Deadlift',  'Single Leg Romanian Deadlift'],
+  'Incline Dumbbell Press': ['Incline Dumbbell Press',     'Decline Push-Up',               'Decline Push-Up'],
+  'Dumbbell Curl':          ['Dumbbell Curl',              'Chin-Up',                       null],
+  'Goblet Squat':           ['Goblet Squat',               'Bulgarian Split Squat',         'Air Squat'],
+  'Dumbbell Row':           ['Dumbbell Row',               'Inverted Row',                  'Towel Row'],
+  'Dumbbell Lunge':         ['Dumbbell Lunge',             'Body Weight Lunge',             'Body Weight Lunge'],
+};
+Object.values(EQUIPMENT_SWAPS).flat().filter(Boolean).forEach(EX); // pre-flight validate
+Object.keys(EQUIPMENT_SWAPS).forEach(EX);
+
+/** What `name` becomes for someone training with `equipment`; null drops it. */
+export function swapForEquipment(name, equipment) {
+  const col = { dumbbells: 0, minimal: 1, bodyweight: 2 }[equipment];
+  if (col === undefined || !(name in EQUIPMENT_SWAPS)) return name;
+  return EQUIPMENT_SWAPS[name][col];
+}
+
+// For the last-resort library search, where there is no table: which
+// classifyEquipment kinds each setting can do. Crude, and only reached when
+// injuries have excluded every curated pool.
+const EQUIPMENT_KINDS = {
+  dumbbells:  new Set(['dumbbell', 'bodyweight', 'cardio', 'other']),
+  minimal:    new Set(['bodyweight', 'band', 'cardio', 'other']),
+  bodyweight: new Set(['bodyweight', 'cardio', 'other']),
+};
+
+// ── Session length. Same ids as the Coach's duration picker, and the same
+// exercise counts its generator uses for them, so a 30 minute starter plan
+// and a 30 minute Coach session are the same size. Unset changes nothing.
+export const SESSION_MINUTES = [30, 45, 60, 90];
+function sessionExerciseCap(minutes) {
+  if (!Number.isFinite(minutes) || minutes <= 0) return Infinity;
+  return minutes <= 30 ? 4 : minutes <= 45 ? 5 : minutes <= 60 ? 6 : 8;
+}
 
 // Training days → how many exercises the plan carries. Low frequency = a
 // compact full-body session hit each training day; high frequency = broader
@@ -297,6 +356,9 @@ function buildCardioSessions({ event, speed, distance, level, targets } = {}) {
  *                                       is excluded, mild included, so the plan
  *                                       agrees with what the generator does from
  *                                       the second session onwards.
+ * @param {string} [input.equipment]   - gym|dumbbells|minimal|bodyweight; swaps
+ *                                       what the user can't do for what they can.
+ * @param {number} [input.sessionMinutes] - 30|45|60|90; caps exercises per session.
  * @param {number} [input.age]         - Caps volume for older lifters (55+ / 65+).
  * @param {number} [input.bodyFatPct]  - High BF on a strength/muscle goal adds
  *                                       a conditioning exercise.
@@ -306,7 +368,7 @@ function buildCardioSessions({ event, speed, distance, level, targets } = {}) {
  * @param {number} [input.heightCm]    - With weight → BMI (conditioning + reps).
  * @returns {Object} regimen payload
  */
-export function buildStarterRegimen({ goals, level, daysCount, assessment, cardioEvent, strengthFocus, injuries, age, bodyFatPct, gender, weightKg, heightCm, current5kSec } = {}) {
+export function buildStarterRegimen({ goals, level, daysCount, assessment, cardioEvent, strengthFocus, injuries, age, bodyFatPct, gender, weightKg, heightCm, current5kSec, equipment, sessionMinutes } = {}) {
   const goalList = Array.isArray(goals) ? goals.filter(Boolean) : (goals ? [goals] : []);
   const primary = goalList[0] || 'strength';
   const goalTitle = GOAL_TITLES[primary] || GOAL_TITLES.strength;
@@ -328,6 +390,14 @@ export function buildStarterRegimen({ goals, level, daysCount, assessment, cardi
     ? strengthFocus.filter(n => EXERCISE_LIBRARY.some(e => e.name === n))
     : [];
   if (focus.length) exerciseNames = [...focus, ...exerciseNames.filter(n => !focus.includes(n))];
+
+  // ── Equipment. Swap before the injury filter so the substitutes are what
+  // gets checked against injured regions. A lift the user searched for by
+  // name has no row in the table and is kept: they asked for it.
+  const kit = TRAINING_EQUIPMENT.includes(equipment) ? equipment : 'gym';
+  const fits = (name) => swapForEquipment(name, kit);
+  const dedupe = (names) => [...new Set(names.filter(Boolean))];
+  exerciseNames = dedupe(exerciseNames.map(fits));
 
   // ── Injuries. EVERY severity is excluded, mild included.
   //
@@ -421,7 +491,7 @@ export function buildStarterRegimen({ goals, level, daysCount, assessment, cardi
       const safe = (n) => !taken.has(n) && !trains(n, excludeSet);
 
       // 2 — the other curated pools, in declaration order.
-      const curated = Object.values(GOAL_EXERCISES).flat().filter(safe);
+      const curated = dedupe(Object.values(GOAL_EXERCISES).flat().map(fits)).filter(safe);
       const widened = [...clean];
       for (const n of curated) {
         if (widened.length >= 3) break;
@@ -433,6 +503,7 @@ export function buildStarterRegimen({ goals, level, daysCount, assessment, cardi
       if (widened.length < 2) {
         const rest = EXERCISE_LIBRARY
           .filter(e => safe(e.name))
+          .filter(e => kit === 'gym' || EQUIPMENT_KINDS[kit].has(classifyEquipment(e.name)))
           .sort((a, b) => (a.muscles.length - b.muscles.length) || a.name.localeCompare(b.name));
         for (const e of rest) {
           if (widened.length >= 3) break;
@@ -455,7 +526,8 @@ export function buildStarterRegimen({ goals, level, daysCount, assessment, cardi
   // ordering of each pool.
   const safeDays = Number.isFinite(daysCount) && daysCount > 0 ? daysCount : 3;
   // Keep the strength block leaner when cardio sessions also fill the week.
-  const strengthCap = cardioWanted ? Math.min(4, targetExerciseCount(safeDays)) : targetExerciseCount(safeDays);
+  const sessionCap = sessionExerciseCap(sessionMinutes);
+  const strengthCap = Math.min(sessionCap, cardioWanted ? Math.min(4, targetExerciseCount(safeDays)) : targetExerciseCount(safeDays));
   exerciseNames = exerciseNames.slice(0, strengthCap);
 
   // ── Extras: one accessory per SECONDARY goal (so a strength+mobility plan
@@ -467,8 +539,9 @@ export function buildStarterRegimen({ goals, level, daysCount, assessment, cardi
     (Number.isFinite(bmi) && bmi >= 30);
   // Keep the strength block small when cardio sessions also fill the week, so
   // the combined plan never blows past 8 items.
-  const maxStrength = cardioWanted ? 4 : 8;
-  const addExtra = (name) => {
+  const maxStrength = Math.min(sessionCap, cardioWanted ? 4 : 8);
+  const addExtra = (raw) => {
+    const name = raw && fits(raw);
     if (!name || exerciseNames.includes(name) || trains(name, excludeSet) || exerciseNames.length >= maxStrength) return;
     exerciseNames = [...exerciseNames, name];
   };
@@ -488,6 +561,8 @@ export function buildStarterRegimen({ goals, level, daysCount, assessment, cardi
   const setsReps = LEVEL_SETS_REPS[effLevel] || LEVEL_SETS_REPS.newbie;
   let sets = setsReps.sets + daysVolumeAdjust(safeDays);
   sets = Math.min(sets, ageSetsCap(age));
+  // Half an hour does not fit four sets of four exercises with rest.
+  if (Number.isFinite(sessionMinutes) && sessionMinutes <= 30) sets = Math.min(sets, 3);
   sets = Math.max(2, sets);
   const reps = setsReps.reps;
   const female = gender === 'female';
@@ -546,9 +621,11 @@ export function buildStarterRegimen({ goals, level, daysCount, assessment, cardi
 
   const recoveryNote = Number.isFinite(age) && age >= 55 ? ' · recovery-adjusted' : '';
   const scopeNote = cardioWanted && strengthGoals.length ? ' · strength + cardio' : cardioWanted ? ' · cardio-led' : '';
+  const minutesNote = Number.isFinite(sessionMinutes) && sessionMinutes > 0 ? ` · ${sessionMinutes} min` : '';
+  const kitNote = kit === 'gym' ? '' : ` · ${kit}`;
   return {
     name: `Your Starter Plan — ${goalTitle}`,
-    description: `${effLevel} · ${safeDays}×/week${recoveryNote}${scopeNote} · auto-generated from onboarding`,
+    description: `${effLevel} · ${safeDays}×/week${minutesNote}${kitNote}${recoveryNote}${scopeNote} · auto-generated from onboarding`,
     exercises,
     is_public: false,
   };
