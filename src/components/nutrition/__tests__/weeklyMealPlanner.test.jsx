@@ -220,7 +220,10 @@ describe('the slot cap — a refusal that offers a way through', () => {
     await mountLoaded();
     // Open that day first, then the sheet.
     const dayNum = String(Number(future.slice(8, 10)));
-    fireEvent.click(screen.getAllByRole('button').find(b => b.textContent.endsWith(dayNum)));
+    // Match the WHOLE trailing number. `endsWith('1')` also matches a chip
+    // ending in 11, 21 or 31, and on a Monday the 31st (today) is the chip
+    // found first, so the test opened today and failed on Aug 31.
+    fireEvent.click(screen.getAllByRole('button').find(b => b.textContent.match(/\d+$/)?.[0] === dayNum));
     fireEvent.click(await screen.findByRole('button', { name: /Dinner is full/i }));
 
     expect(screen.getByText(/Replace one of them/i)).toBeTruthy();
