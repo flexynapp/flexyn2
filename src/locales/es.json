@@ -4338,7 +4338,7 @@
   "onboarding.sharpen.kicker": "Afinar",
   "onboarding.sharpen.liftNoMatch": "Aún no hay un levantamiento con ese nombre. Prueba con una palabra más corta.",
   "onboarding.sharpen.liftSearch": "Añade otro levantamiento",
-  "onboarding.sharpen.liftsFull": "Ya tienes cinco. Toca uno para cambiarlo.",
+  "onboarding.sharpen.liftsFull": "Ya tienes cinco. Toca uno para quitarlo, o añade otro para reemplazar el último.",
   "onboarding.sharpen.liftsHint": "Encabezaremos tu plan con los levantamientos que elijas.",
   "onboarding.sharpen.liftsPrompt": "¿Qué levantamientos te importan más?",
   "onboarding.sharpen.minPlaceholder": "min",
