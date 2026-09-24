@@ -354,7 +354,7 @@ export default function SignInToContinue({
                 collection, and both stores check that it is reachable
                 before sign-up — so these are plain <a> tags to the public
                 routes, not in-app links behind the auth gate. */}
-            <p className="text-[10px] text-muted-foreground/70 text-center leading-relaxed">
+            <p className="text-micro text-muted-foreground/70 text-center leading-relaxed">
               By continuing you agree to our{' '}
               <a href="/terms" className="underline hover:text-foreground">{tFallback("signInToContinue.terms", "Terms")}</a>
               {' '}and{' '}

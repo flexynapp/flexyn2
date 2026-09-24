@@ -509,7 +509,7 @@ export default function Layout() {
         // Wave 73: nav bar shrunk to a tighter pill. pt-2 → pt-1 and
         // paddingBottom 0.5rem → 0.25rem (safe-area inset still
         // respected so it clears the iOS home indicator).
-        className="lg:hidden fixed bottom-0 left-0 right-0 bg-card/90 backdrop-blur-md border-t border-border z-30 px-4 pt-1 select-none-ui transition-transform duration-[220ms] ease-in-out"
+        className="lg:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border z-30 px-4 pt-1 select-none-ui transition-transform duration-[220ms] ease-in-out"
         style={{
           paddingBottom: 'calc(0.25rem + env(safe-area-inset-bottom))',
           transform: navHidden ? 'translateY(100%)' : 'translateY(0)',
