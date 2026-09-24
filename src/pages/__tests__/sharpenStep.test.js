@@ -120,5 +120,15 @@ describe('sharpen step', () => {
     expect(SOURCE.match(/equipment: data\.sharpen\?\.equipment/g)?.length).toBe(2);
     expect(SOURCE.match(/sessionMinutes: data\.sharpen\?\.sessionMinutes/g)?.length).toBe(2);
   });
+
+  it('keeps the lift search on screen once five are picked', () => {
+    // Kegan, 2026-09-24: the search box vanished at five, which read as the
+    // step running out of lifts. It stays, and a pick when full replaces
+    // the most recent one.
+    const step = sharpenStep();
+    expect(step).not.toMatch(/\{!focusFull && \(/);
+    expect(step).toMatch(/addFromSearch\(e\.name\)/);
+    expect(step).toMatch(/focusFull \? \[\.\.\.focus\.slice\(0, MAX_FOCUS_LIFTS - 1\), name\]/);
+  });
 });
 

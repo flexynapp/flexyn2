@@ -4369,7 +4369,7 @@
   "onboarding.sharpen.kicker": "Sharpen",
   "onboarding.sharpen.liftNoMatch": "No lift by that name yet. Try a shorter word.",
   "onboarding.sharpen.liftSearch": "Add another lift",
-  "onboarding.sharpen.liftsFull": "That is five. Tap one to swap it out.",
+  "onboarding.sharpen.liftsFull": "That is five. Tap one to remove it, or add another to replace your last pick.",
   "onboarding.sharpen.liftsHint": "We'll lead your plan with the lifts you pick.",
   "onboarding.sharpen.liftsPrompt": "Which lifts matter most?",
   "onboarding.sharpen.minPlaceholder": "min",

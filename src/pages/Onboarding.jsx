@@ -1051,6 +1051,13 @@ function SharpenStep({ goals, value, onChange, onNext, onBack, step, total }) {
     if (focus.includes(name)) set({ strengthFocus: focus.filter(n => n !== name) });
     else if (!focusFull) set({ strengthFocus: [...focus, name] });
   };
+  // Search stays on screen at five (Kegan, 2026-09-24): hiding it made the
+  // step look like it had run out of lifts. A pick from search when full
+  // replaces the most recent pick, so the newest choice always lands.
+  const addFromSearch = (name) => {
+    if (focus.includes(name)) return;
+    set({ strengthFocus: focusFull ? [...focus.slice(0, MAX_FOCUS_LIFTS - 1), name] : [...focus, name] });
+  };
   // A lift picked from search stays on the chip row, so it can be un-picked
   // the same way as a suggestion.
   const liftChips = [...FOCUS_LIFTS, ...focus.filter(n => !FOCUS_LIFTS.includes(n))];
@@ -1162,8 +1169,7 @@ function SharpenStep({ goals, value, onChange, onNext, onBack, step, total }) {
                 <Chip key={n} active={focus.includes(n)} accent="hsl(26 95% 56%)" onClick={() => toggleFocus(n)}>{n}</Chip>
               ))}
             </div>
-            {!focusFull && (
-              <div>
+            <div>
                 <input type="search" value={liftQuery} onChange={e => setLiftQuery(e.target.value)}
                   placeholder={tFallback('onboarding.sharpen.liftSearch', 'Add another lift')}
                   aria-label={tFallback('onboarding.sharpen.liftSearch', 'Add another lift')}
@@ -1174,7 +1180,7 @@ function SharpenStep({ goals, value, onChange, onNext, onBack, step, total }) {
                     {liftMatches.map(e => (
                       <li key={e.name}>
                         <button type="button" className="w-full min-h-11 px-3 text-start text-body"
-                          onClick={() => { toggleFocus(e.name); setLiftQuery(''); }}>
+                          onClick={() => { addFromSearch(e.name); setLiftQuery(''); }}>
                           {e.name}
                           <span className="ms-2 text-micro text-muted-foreground">{e.muscles.join(', ')}</span>
                         </button>
@@ -1187,15 +1193,14 @@ function SharpenStep({ goals, value, onChange, onNext, onBack, step, total }) {
                     )}
                   </ul>
                 )}
-              </div>
-            )}
+            </div>
             {/* FOCUS_LIFTS are deliberately NOT translated: the picked names
                 are persisted and matched by string downstream in
                 buildStarterRegimen, so they have to stay stable until the
                 exercise catalog itself is translated. */}
             <p className="text-micro text-muted-foreground">
               {focusFull
-                ? tFallback('onboarding.sharpen.liftsFull', 'That is five. Tap one to swap it out.')
+                ? tFallback('onboarding.sharpen.liftsFull', 'That is five. Tap one to remove it, or add another to replace your last pick.')
                 : tFallback('onboarding.sharpen.liftsHint', "We'll lead your plan with the lifts you pick.")}
             </p>
           </div>
