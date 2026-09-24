@@ -75,7 +75,7 @@ export default defineConfig({
       manifest: {
         name: 'Flexyn',
         short_name: 'Flexyn',
-        description: 'Your personal fitness companion — workouts, nutrition, and progress.',
+        description: 'Log every set, meal and run, and get a coach that plans your next session from what you actually did.',
         theme_color: '#f97316',
         background_color: '#f8fafc',
         display: 'standalone',

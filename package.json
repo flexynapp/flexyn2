@@ -20,6 +20,7 @@
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
     "i18n:orphans": "node scripts/i18n-orphans.mjs",
+    "ui:ratchet": "node scripts/ui-ratchet.mjs",
     "schema:columns": "node scripts/schema-columns.mjs"
   },
   "dependencies": {

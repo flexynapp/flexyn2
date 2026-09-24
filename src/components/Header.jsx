@@ -77,12 +77,12 @@ export default function Header() {
   };
 
   return (
-    // bg-card/95, not /80: the profile's tier banner is a full-bleed
-    // saturated gradient, and at 80% opacity enough of it bled through while
-    // scrolling to tint the whole bar peach and drop the wordmark's contrast.
-    // Nothing else in the app was colourful enough to expose it. Still
-    // translucent + blurred, just no longer a colour cast.
-    <header className="lg:hidden fixed top-0 left-0 right-0 z-40 bg-card/95 backdrop-blur-md border-b border-border select-none-ui"
+    // Solid bg-card, no blur (2026-09-24). It was bg-card/95 + backdrop-blur,
+    // and before that /80, which let the profile's tier banner tint the whole
+    // bar peach while scrolling. A translucent bar over moving content is
+    // the glassmorphism CLAUDE.md bans; the hairline border already separates
+    // it from the page, so the blur bought nothing but that tell.
+    <header className="lg:hidden fixed top-0 left-0 right-0 z-40 bg-card border-b border-border select-none-ui"
       style={{ paddingTop: 'env(safe-area-inset-top)' }}
     >
       <div className="flex items-center h-14 px-3">

@@ -1397,7 +1397,7 @@ function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
               >
                 <StickerDisplay emoji={g.emoji} variant={g.variant} size={22} />
                 {g.count > 1 && (
-                  <span className="absolute -bottom-1 -end-1 min-w-[15px] h-[15px] px-0.5 rounded-[4px] bg-secondary border border-background text-[9px] font-bold leading-none flex items-center justify-center tabular-nums">
+                  <span className="absolute -bottom-1 -end-1 min-w-4 h-4 px-0.5 rounded-sm bg-secondary border border-background text-micro font-bold leading-none flex items-center justify-center tabular-nums">
                     {g.count}×
                   </span>
                 )}

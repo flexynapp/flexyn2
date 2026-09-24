@@ -29,7 +29,7 @@ export default function ComingSoon({
         <Lock className="w-6 h-6 text-primary/70" aria-hidden="true" />
       </div>
 
-      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 mb-3 rounded-full bg-violet-500/15 border border-violet-400/25 text-[10px] font-bold uppercase tracking-wider text-violet-500">
+      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 mb-3 rounded-full bg-primary/10 border border-primary/20 text-micro font-bold uppercase tracking-wider text-primary">
         {tFallback("comingSoon.comingSoon", "Coming soon")}
       </span>
 
