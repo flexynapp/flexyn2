@@ -61,6 +61,7 @@ import { useEffect, useRef } from 'react';
 // only by whichever is on top. Module scope is right for this: it is one
 // browser history and one back button, so there is exactly one stack.
 const stack = [];
+let seq = 0;
 
 export function useOverlayBackButton(active, onClose) {
   const onCloseRef = useRef(onClose);
@@ -72,8 +73,14 @@ export function useOverlayBackButton(active, onClose) {
 
     let popped = false;
     const entry = {};
+    const token = `ov-${++seq}`;
     try {
-      window.history.pushState({ __flexynOverlay: true }, '');
+      // Keep the router's own state (key, idx, usr) on our entry. A bare
+      // object here made the entry look like a page with no router state,
+      // which goBack() and anything else reading history.state would
+      // misread while an overlay is open.
+      const base = (window.history.state && typeof window.history.state === 'object') ? window.history.state : {};
+      window.history.pushState({ ...base, __flexynOverlay: token }, '');
     } catch {
       // History is unavailable (rare, but a sandboxed webview will do
       // this). Degrade to no back handling rather than breaking the
@@ -95,7 +102,16 @@ export function useOverlayBackButton(active, onClose) {
       window.removeEventListener('popstate', onPop);
       const i = stack.indexOf(entry);
       if (i !== -1) stack.splice(i, 1);
-      if (!popped) {
+      // Only undo our entry if it is still the current one. When a sheet
+      // closes BECAUSE something inside it navigated (tap a row, go to a
+      // page), the router has pushed a new entry on top of ours by the time
+      // this runs, and history.back() would undo that navigation. Every
+      // sheet in the app uses this hook now, so that case is common, not
+      // hypothetical. Leaving the stale entry costs one extra Back press
+      // later on the same URL, which the router treats as a no-op.
+      let ours = false;
+      try { ours = window.history.state?.__flexynOverlay === token; } catch { /* treat as not ours */ }
+      if (!popped && ours) {
         try { window.history.back(); } catch { /* nothing to undo */ }
       }
     };

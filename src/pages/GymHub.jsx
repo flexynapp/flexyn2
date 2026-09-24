@@ -10,6 +10,7 @@
 // why that is not owner-only.
 
 import React, { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import { routerStateWithoutPayload } from '@/lib/goBack';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -154,7 +155,7 @@ export default function GymHub() {
     // re-announces a check-in that happened once, hours ago.
     params.delete('checkin');
     const qs = params.toString();
-    window.history.replaceState({}, '', `${window.location.pathname}${qs ? `?${qs}` : ''}`);
+    window.history.replaceState(routerStateWithoutPayload(), '', `${window.location.pathname}${qs ? `?${qs}` : ''}`);
   }, [id]);
 
   const [joining, setJoining] = useState(false);

@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import { routerStateWithoutPayload } from '@/lib/goBack';
 import { filterAfterReset } from '@/lib/accountReset';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { db } from '@/api/db';
@@ -294,9 +295,9 @@ export default function Nutrition() {
     if (fromQuery) {
       params.delete('openLogMeal');
       const search = params.toString();
-      window.history.replaceState({}, document.title, '/nutrition' + (search ? '?' + search : ''));
+      window.history.replaceState(routerStateWithoutPayload(), document.title, '/nutrition' + (search ? '?' + search : ''));
     } else {
-      window.history.replaceState({}, document.title);
+      window.history.replaceState(routerStateWithoutPayload(), document.title);
     }
     // Scroll to the form after a tick so the animation has started
     setTimeout(() => {
@@ -313,7 +314,7 @@ export default function Nutrition() {
     setShowNutritionPlans(true);
     params.delete('plans');
     const search = params.toString();
-    window.history.replaceState({}, document.title, '/nutrition' + (search ? '?' + search : ''));
+    window.history.replaceState(routerStateWithoutPayload(), document.title, '/nutrition' + (search ? '?' + search : ''));
   }, [location.search]);
   // Date is always today's local date — Nutrition no longer supports
   // past-day viewing. Held in state with a minute tick (same pattern

@@ -76,7 +76,10 @@ export default function WorkoutMemoryCard({ logs = [] }) {
     // delivered a blank Workout screen with no link to the log it
     // referenced. (Audit 08 #M-5.)
     if (memory?.log) {
-      navigate('/workout', { state: { repeatLog: memory.log } });
+      // Workout reads `repeatFromLog` (the same key WorkoutSavedList sends).
+      // This sent `repeatLog`, which nothing read, so the button opened an
+      // empty Workout page instead of the session it promised to repeat.
+      navigate('/workout', { state: { repeatFromLog: memory.log } });
     } else {
       navigate('/workout');
     }

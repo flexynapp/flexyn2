@@ -13,6 +13,7 @@ import NotificationBell from './NotificationBell';
 import NetworkStatusChip from './NetworkStatusChip';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useUnreadDMCount } from '@/lib/hubMessaging';
+import { goBack } from '@/lib/goBack';
 
 // Routes that show a back arrow + page title (instead of the logo).
 // Only the hoisted-from-Hub sub-destinations behave as child routes — the
@@ -94,11 +95,11 @@ export default function Header() {
             className="shrink-0"
             onClick={() => {
               // Give the current page a chance to intercept back navigation
-              // (e.g. an active workout should reset state instead of routing
-              // away). If nothing calls preventDefault, fall through to /dashboard.
+              // (e.g. an active workout persists its draft). If nothing calls
+              // preventDefault, go back to where the user came from.
               const event = new CustomEvent('flexyn-back', { cancelable: true });
               window.dispatchEvent(event);
-              if (!event.defaultPrevented) navigate('/dashboard');
+              if (!event.defaultPrevented) goBack(navigate);
             }}
           >
             <ChevronLeft className="w-5 h-5" />

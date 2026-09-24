@@ -166,7 +166,7 @@ export default function TodaysPlanCard({ regimens = [], logs = [], hasWorkedOutT
     >
       <Card className="overflow-hidden border-border/60">
         <button
-          onClick={() => navigate('/workout', { state: { selectedRegimenId: regimen.id } })}
+          onClick={() => navigate('/workout', { state: { startRegimen: regimen } })}
           className="w-full text-start px-3 py-2 flex items-center gap-2.5 hover:bg-secondary/40 active:bg-secondary/60 transition-colors"
         >
           <div className={`shrink-0 w-7 h-7 rounded-full ${info.bg} flex items-center justify-center`}>

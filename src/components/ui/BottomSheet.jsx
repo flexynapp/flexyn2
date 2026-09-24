@@ -26,6 +26,7 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence, useMotionValue, useTransform, useDragControls } from 'framer-motion';
 import { X } from 'lucide-react';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { useOverlayBackButton } from '@/hooks/useOverlayBackButton';
 import prefersReducedMotion from '@/lib/reducedMotion';
 import { useLanguage } from '@/lib/LanguageContext';
 
@@ -67,6 +68,10 @@ export default function BottomSheet({
 
   // Prevent body scroll when sheet is open
   useBodyScrollLock(open);
+
+  // The phone's Back gesture closes the sheet instead of leaving the page
+  // underneath it. Every BottomSheet gets this from here.
+  useOverlayBackButton(open, onClose);
 
   const handleDragEnd = (_e, info) => {
     if (info.velocity.y >= VELOCITY_THRESHOLD || info.offset.y >= DISTANCE_THRESHOLD) {
