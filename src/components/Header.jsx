@@ -1,7 +1,6 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import FlexynLogo from './FlexynLogo';
-import { ChevronLeft, MessageCircle, Sparkles } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { ChevronLeft, Sparkles } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { fireLogoTapEgg } from '@/lib/logoTapEgg';
 import { Button } from '@/components/ui/button';
@@ -12,15 +11,14 @@ import ProfileMenu from './ProfileMenu';
 import NotificationBell from './NotificationBell';
 import NetworkStatusChip from './NetworkStatusChip';
 import { useLanguage } from '@/lib/LanguageContext';
-import { useUnreadDMCount } from '@/lib/hubMessaging';
 import { goBack } from '@/lib/goBack';
 
 // Routes that show a back arrow + page title (instead of the logo).
-// Only the hoisted-from-Hub sub-destinations behave as child routes — the
-// five primary bottom-nav tabs (dashboard, workout, hub, progress,
-// nutrition) all show the logo, since they're top-level (nowhere to go
-// "back" to) and each renders its own in-page title.
-const CHILD_ROUTES = ['/messages', '/market', '/coach'];
+// The four tabs (dashboard, workout, hub, you) show the logo: they are
+// top level, with nowhere to go back to. Progress and Nutrition stopped
+// being tabs in the navigation redesign and now open from You, so they
+// are children like Messages, Market and Coach.
+const CHILD_ROUTES = ['/messages', '/market', '/coach', '/progress', '/nutrition'];
 
 export default function Header() {
   const navigate = useNavigate();
@@ -52,10 +50,9 @@ export default function Header() {
     '/messages': tFallback('hub.messages.title', 'Direct messages'),
     '/market':   tFallback('hub.market.title',   'Marketplace'),
     '/coach':    tFallback('hub.coach.title',    'AI Coach'),
+    '/you':      tFallback('you.title',          'You'),
   };
 
-  const unreadDM = useUnreadDMCount();
-  const onMessages = location.pathname === '/messages';
   const onCoach = location.pathname === '/coach';
 
 
@@ -194,71 +191,18 @@ export default function Header() {
             <span className={`absolute inset-y-1.5 inset-x-2.5 rounded-lg transition-colors ${onCoach ? 'bg-primary/10' : 'group-hover:bg-secondary'}`} />
             <Sparkles className="relative w-5 h-5" />
           </button>
-          <button
-            type="button"
-            onClick={() => navigate('/messages')}
-            aria-label={tFallback('hub.messages.title', 'Direct messages')}
-            className={`group relative z-10 h-11 w-11 inline-flex items-center justify-center transition-colors ${
-              onMessages ? 'text-primary' : 'text-muted-foreground'
-            }`}
-          >
-            {/* Highlight is an inner pill (not the full w-11 tap box) so it
-                fits the tight icon spacing without overlapping the bell. */}
-            {/* `z-10` is load-bearing, not decoration. The bell's wrapper
-                carries -ms-4, so the two 44px tap boxes genuinely OVERLAP by
-                14px (Messages 259–303, bell 289–333 at 375pt). The bell is
-                the later sibling, so without this it won the whole overlap
-                and took 10 of the 16px of the unread badge below with it —
-                measured with elementFromPoint: the badge's centre and right
-                edge both opened Notifications. Raising Messages hands that
-                strip back; the bell keeps everything from its own icon's
-                left edge (301) rightward, losing 2px it never drew on.
-                The real fix is for the boxes not to overlap at all, which
-                needs 44px between centres — they are 30px apart today, so
-                that is a header layout change, not a z-index one. */}
-            <span className={`absolute inset-y-1.5 inset-x-2.5 rounded-lg transition-colors ${onMessages ? 'bg-primary/10' : 'group-hover:bg-secondary'}`} />
-            <MessageCircle className="relative w-5 h-5" />
-            {unreadDM > 0 && (
-              <motion.span
-                key={unreadDM}
-                initial={{ scale: 0.5, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                // Primary, not destructive. This badge and the bell's sat 40px
-                // apart, both red, both usually showing "1" — so they read as
-                // the same number reported twice rather than two different
-                // inboxes. They count unrelated things (a person messaged you
-                // vs. the app has news), and neither is an error, which is
-                // what the destructive token is for. Colour now carries that
-                // distinction instead of position alone.
-                // Size is text-micro per the app-wide 11px type floor.
-                className="absolute top-1 end-1 min-w-[16px] h-4 px-0.5 rounded-full bg-primary text-primary-foreground text-micro font-bold flex items-center justify-center"
-              >
-                {unreadDM > 9 ? '9+' : unreadDM}
-              </motion.span>
-            )}
-          </button>
-          {/* Negative inline-start margins pull the bell + profile toward
-              the messages icon. The bell gets a larger pull (-ms-2.5) than
-              the profile (-ms-0.5) because the profile's avatar glyph is
-              36px vs the 20px icons — matching the *center* spacing would
-              leave the DMs↔bell whitespace visibly wider than bell↔profile.
-              Both come out of the one formula documented above the cluster;
-              they were -ms-4 / -ms-2, which equalised the gap at 10px and
-              overlapped the tap boxes by 14px in the process. */}
-          <div className="-ms-2.5">
+          {/* Messages moved into Social (navigation redesign, phase 2), so
+              the bell now sits next to Coach. Coach's -me-2.5 alone gives
+              the 36px centre-to-centre the formula above asks for between
+              two 20px glyphs, which is why the bell carries no pull. */}
+          <div>
             <NotificationBell />
           </div>
-          {/* Profile menu — the LevelBar pill that used to hang below
-              this was removed in Wave 72. Even after the Wave 71 nudge
-              (end-1 → end-2, -mt-1 → -mt-2) it still clipped at the
-              viewport's right edge on narrow screens. Per user
-              request, the Lv is now only visible from:
-                • the ProfileMenu dropdown
-                • the /profile page (LevelBar shown full size)
-                • the Hub profile sub-view (existing card) */}
-          <div className="relative -ms-0.5">
-            <ProfileMenu compact />
-          </div>
+          {/* The profile menu's trigger is hidden: the You tab replaced it
+              (navigation redesign, phase 2). It stays mounted because it
+              still owns the Weekly Reviews, Injuries, Achievements and
+              account dialogs, which You opens through profilePanels.js. */}
+          <ProfileMenu compact hideTrigger />
         </div>
       </div>
 

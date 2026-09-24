@@ -17,6 +17,7 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import AccountDeletedScreen from './AccountDeletedScreen';
 import { OPEN_ACHIEVEMENTS_EVENT } from '@/lib/achievementsFlow';
+import { OPEN_PROFILE_PANEL_EVENT } from '@/lib/profilePanels';
 import { isVerified } from '@/lib/verifiedUsers';
 import { initialsFor } from '@/lib/initials';
 import { isEnabled } from '@/lib/featureFlags';
@@ -114,7 +115,7 @@ function wipeLocalClientState({ preserveKeys = false } = {}) {
   } catch {}
 }
 
-export default function ProfileMenu({ compact = false } = {}) {
+export default function ProfileMenu({ compact = false, hideTrigger = false } = {}) {
   const { t, tFallback } = useLanguage();
   const location = useLocation();
   const navigate = useNavigate();
@@ -292,6 +293,20 @@ export default function ProfileMenu({ compact = false } = {}) {
     return () => window.removeEventListener(OPEN_ACHIEVEMENTS_EVENT, handler);
   }, []);
 
+  // The You tab opens the rest of this menu's overlays the same way.
+  // See src/lib/profilePanels.js.
+  useEffect(() => {
+    const handler = (e) => {
+      const panel = e.detail?.panel;
+      if (panel === 'reviews') setDebriefVaultOpen(true);
+      else if (panel === 'injuries') setInjuryFormOpen(true);
+      else if (panel === 'signOut') setSignOutOpen(true);
+      else if (panel === 'deleteAccount') { setDeleteConfirmText(''); setDeleteOpen(true); }
+    };
+    window.addEventListener(OPEN_PROFILE_PANEL_EVENT, handler);
+    return () => window.removeEventListener(OPEN_PROFILE_PANEL_EVENT, handler);
+  }, []);
+
   // Username-first, via the shared helper — this used to read full_name only,
   // which meant the header avatar and the profile avatar 850px below it
   // disagreed about the same user (AR here, RE there) and rendered the empty
@@ -303,8 +318,12 @@ export default function ProfileMenu({ compact = false } = {}) {
 
   return (
     <div className="relative" ref={ref}>
+      {/* hideTrigger: the You tab replaced this menu (navigation redesign,
+          phase 2). The component stays mounted because it owns the
+          overlays the You page opens through profilePanels.js. */}
       <button
         onClick={() => setOpen(v => !v)}
+        hidden={hideTrigger}
         className={compact
           // Header: a plain h-11 w-11 icon button so it lines up with the
           // messages + bell buttons (no extra padding/margin/name).

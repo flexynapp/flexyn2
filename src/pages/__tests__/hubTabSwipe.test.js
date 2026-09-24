@@ -63,7 +63,7 @@ describe('the ends of the strip', () => {
   });
 
   it('does not wrap off the last tab', () => {
-    expect(resolveSwipeTarget('crews', drag(-150), false)).toBe(null);
+    expect(resolveSwipeTarget('compete', drag(-150), false)).toBe(null);
   });
 
   it('returns null for a tab that is not on the strip', () => {
@@ -75,7 +75,7 @@ describe('the ends of the strip', () => {
 });
 
 describe('the strip itself', () => {
-  it('is the three feed tabs in visual order', () => {
-    expect(SWIPE_TABS).toEqual(['pump', 'squad', 'crews']);
+  it('is the four feed tabs in visual order', () => {
+    expect(SWIPE_TABS).toEqual(['pump', 'squad', 'crews', 'compete']);
   });
 });

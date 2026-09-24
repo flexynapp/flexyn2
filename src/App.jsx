@@ -116,6 +116,7 @@ const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Nutrition = lazy(() => import('./pages/Nutrition'));
 const Workout   = lazy(() => import('./pages/Workout'));
 const Progress  = lazy(() => import('./pages/Progress'));
+const You       = lazy(() => import('./pages/You'));
 const Hub       = lazy(() => import('./pages/Hub'));
 const Duels     = lazy(() => import('./pages/Duels'));
 const Bounties  = lazy(() => import('./pages/Bounties'));
@@ -420,6 +421,7 @@ const AuthenticatedApp = () => {
           <Route path="/market"    element={<ErrorBoundary label="Market"><Suspense fallback={<PageLoader />}><Market /></Suspense></ErrorBoundary>} />
           <Route path="/coach"     element={<ErrorBoundary label="Coach"><Suspense fallback={<PageLoader />}><Coach /></Suspense></ErrorBoundary>} />
           <Route path="/progress"  element={<ErrorBoundary label="Progress"><Suspense fallback={<PageLoader />}><Progress /></Suspense></ErrorBoundary>} />
+          <Route path="/you"       element={<ErrorBoundary label="You"><Suspense fallback={<PageLoader />}><You /></Suspense></ErrorBoundary>} />
           <Route path="/duels"     element={<ErrorBoundary label="Duels"><Suspense fallback={<PageLoader />}><Duels /></Suspense></ErrorBoundary>} />
           <Route path="/bounties"  element={<ErrorBoundary label="Bounties"><Suspense fallback={<PageLoader />}><Bounties /></Suspense></ErrorBoundary>} />
           <Route path="/gauntlet"  element={<ErrorBoundary label="Gauntlet"><Suspense fallback={<PageLoader />}><Gauntlet /></Suspense></ErrorBoundary>} />

@@ -91,6 +91,7 @@ const ALLOW_IDENTICAL = new Set([
   'trophy.ladder.level',    // "Level"     — doNotTranslate, the user's Level stat
   'trophy.ladder.capsule',  // "Capsules"  — doNotTranslate
   'trophy.ladder.gauntlet', // "Gauntlet"  — the feature's name
+  'compete.gauntlet',       // "Gauntlet"  — the feature's name, same as above
   'trophy.unit.lb',         // "lb"        — unit symbol
   'trophy.unit.m',          // "m"         — SI symbol
   'trophy.tail.desc',       // "{n} {unit}" — placeholders and a space
@@ -143,6 +144,8 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'nutrient.zinc',
     // "Social." is the same word in Spanish.
     'legal.dataSocialLabel',
+    // The Social tab (navigation redesign). Same word, same sense.
+    'nav.social',
     // Sticker is the word Spanish uses for these.
     'collectionModal.tab.stickers',
     // Trophy catalog, added 2026-08-16. Every one is a word this
@@ -192,6 +195,8 @@ const ALLOW_IDENTICAL_BY_LANG = {
   fr: new Set([
     // "Zinc" is the same word in French.
     'nutrient.zinc',
+    // The Social tab (navigation redesign). Same word, same sense.
+    'nav.social',
     // "Points" is the same word in French.
     'crew.top.metric.points',
     // "Machine" is the same word in French.

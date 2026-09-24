@@ -1,8 +1,10 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { rememberTabLocation, tabHref, saveTabScroll, restoreTabScroll } from '@/lib/tabMemory';
+import { NAV_PATHS, tabForPath } from '@/lib/navTabs';
 import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import FlexynLogo from './FlexynLogo';
-import { Apple, LayoutDashboard, MessageCircle, Play, Plus, Sparkles, ScanLine, Droplet, TrendingUp, Users, Camera, Scale, ShoppingBag } from 'lucide-react';
+import { LayoutDashboard, MessageCircle, Play, Plus, Sparkles, Users, UserCircle, ShoppingBag } from 'lucide-react';
+import QuickLogSheet from './QuickLogSheet';
 import Header from './Header';
 import LanguagePicker from './LanguagePicker';
 import AnimatedRoutes from './AnimatedRoutes';
@@ -35,11 +37,9 @@ import { TOOLTIP } from '@/lib/tooltipRegistry';
 //   • Tap behavior (consumed by parent via onTap)
 //   • Long-press detection (consumed via onLongPress with the DOM ref
 //     so the menu popover can anchor above this exact tab)
-//   • Hub-tab special-case styling + the unread dot
-// The bottom-bar tabs. Only these remember their last view (tabMemory).
-const NAV_PATHS = ['/dashboard', '/workout', '/hub', '/progress', '/nutrition'];
+//   • Social's unread-message badge and new-post dot
 
-function NavTab({ item, to, isActive, isHubItem, hubBlue, hubPurple, hubHasNewFollowingPost, hasQuickActions, onLongPress, onTap, showLongPressHint }) {
+function NavTab({ item, to, isActive, badge = 0, showDot = false, hasQuickActions, onLongPress, onTap, showLongPressHint }) {
   const { tFallback } = useLanguage();
   const ref = useRef(null);
   const longPress = useLongPress(() => onLongPress(ref.current), { ms: 400 });
@@ -48,12 +48,6 @@ function NavTab({ item, to, isActive, isHubItem, hubBlue, hubPurple, hubHasNewFo
     <motion.div
       whileTap={{ scale: 0.88 }}
       transition={{ type: 'spring', stiffness: 500, damping: 22 }}
-      // Hub is the center "FAB" of the nav. It's distinguished by its
-      // filled colored ring; it must NOT carry a negative top margin —
-      // that pushed its taller (36 px) icon slot down relative to the
-      // 20 px icons, dropping the "Hub" label ~8 px below the others and
-      // breaking the label row. Every tab now uses an equal-height icon
-      // slot (below), so all labels align on one baseline.
     >
       {showLongPressHint && hasQuickActions && (
         <OneShotTooltip id={TOOLTIP.LONG_PRESS_TABS} anchorRef={ref} placement="top">
@@ -63,6 +57,7 @@ function NavTab({ item, to, isActive, isHubItem, hubBlue, hubPurple, hubHasNewFo
       <Link
         ref={ref}
         to={to}
+        aria-current={isActive ? 'page' : undefined}
         onClick={(e) => {
           // If a long-press just fired, the consumed click suppresses
           // the navigation (the menu is now open instead).
@@ -73,70 +68,34 @@ function NavTab({ item, to, isActive, isHubItem, hubBlue, hubPurple, hubHasNewFo
           onTap();
         }}
         {...longPress.bind}
-        // Wave 73: gap-1 → gap-0.5, py-1.5 → py-0.5 to tighten each tab's
-        // vertical footprint (icon ↕ label ↕ dots). Saves ~12 px overall.
         className={`flex flex-col items-center text-center gap-0.5 px-2 py-0.5 rounded-lg text-xs font-medium transition-colors
           ${isActive ? 'text-primary' : 'text-muted-foreground'}`}
       >
         <motion.div
-          // The Hub tab is a ringed/filled pill; giving it the active
-          // scale-up + upward nudge that the bare-icon tabs get made it
-          // pop above the nav row and read as "higher" than the others.
-          // Keep it flat (no lift/scale) so it lines up with the rest.
-          animate={isActive && !isHubItem ? { scale: 1.2, y: -2 } : { scale: 1, y: 0 }}
+          animate={isActive ? { scale: 1.2, y: -2 } : { scale: 1, y: 0 }}
           transition={{ type: 'spring', stiffness: 400, damping: 18 }}
-          className={[
-            'relative',
-            isHubItem
-              // Wave 74: ring 40 → 36 px (w-10 → w-9) so the elevated
-              // FAB doesn't punch through the nav's top border now
-              // that the nav is tighter.
-              ? `flex items-center justify-center w-9 h-9 rounded-full transition-colors ${
-                  hubPurple
-                    // Kegan's purple tier — sits alongside sean's blue
-                    // tier as a per-user nav-color override.
-                    // The per-user tiers follow the same rule as the default
-                    // below: the tier colour marks SELECTED, never resting.
-                    ? (isActive
-                        ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/40'
-                        : 'border-2 border-border text-muted-foreground bg-muted/40')
-                    : hubBlue
-                      ? (isActive
-                          ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/40'
-                          : 'border-2 border-border text-muted-foreground bg-muted/40')
-                      : (isActive
-                          ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/40'
-                          // Inactive Hub keeps a NEUTRAL RING but a COLOURED
-                          // ICON. Two constraints meet here and both are real:
-                          //
-                          //  • Hub is the social centre slot and should look
-                          //    inviting even when you're elsewhere — a fully
-                          //    grey Hub reads as disabled (kegan, walkthrough
-                          //    2026-08-05).
-                          //  • It used to be border-primary + bg-primary/5,
-                          //    which put an orange RING on every screen in the
-                          //    app, so on Workout two tabs read as selected at
-                          //    once.
-                          //
-                          // Colouring the glyph and leaving the ring neutral
-                          // satisfies both: the ring is what says "selected"
-                          // and stays stateful, the icon is what says "this is
-                          // Hub" and can be branded. Do not put the accent back
-                          // on the border or the bg.
-                          : 'border-2 border-border text-primary bg-muted/40')
-                }`
-              // Non-Hub tabs: an equal-height (h-9) centered icon slot so
-              // every tab's label sits on the same baseline as Hub's.
-              : 'flex items-center justify-center w-9 h-9',
-          ].join(' ')}
+          // Every tab uses an equal-height (h-9) centred icon slot so the
+          // labels sit on one baseline beside the taller + button.
+          className="relative flex items-center justify-center w-9 h-9"
         >
-          <item.icon className={`${isHubItem ? 'w-5 h-5' : 'w-5 h-5'} ${isActive ? 'stroke-[2.5]' : ''}`} />
-          {/* Unread dot for the Hub tab — appears when a followed user
-              has posted something new since the viewer last visited Hub.
-              Hidden when they're on the Hub route (being there clears it). */}
-          {isHubItem && hubHasNewFollowingPost && !isActive && (
+          <item.icon className={`w-5 h-5 ${isActive ? 'stroke-[2.5]' : ''}`} />
+          {/* Unread direct messages. Messages moved into Social, so the
+              count moved with it: a badge on a header icon for a page the
+              header no longer links to would point nowhere. Primary, not
+              destructive, for the reason given in Header.jsx: a message
+              is not an error. */}
+          {badge > 0 ? (
             <span
-              className="absolute -top-0.5 -end-0.5 w-2.5 h-2.5 rounded-full bg-primary border-2 border-card pointer-events-none"
+              className="absolute top-0 -end-1 min-w-[16px] h-4 px-0.5 rounded-full bg-primary text-primary-foreground text-micro font-bold flex items-center justify-center pointer-events-none"
+              aria-label={tFallback('layout.unreadMessages', 'Unread messages')}
+            >
+              {badge > 9 ? '9+' : badge}
+            </span>
+          ) : showDot && !isActive && (
+            // New posts from people you follow. A dot, not a count: counts
+            // on a feed read as demanding. Being on Social clears it.
+            <span
+              className="absolute top-0.5 end-0.5 w-2.5 h-2.5 rounded-full bg-primary border-2 border-card pointer-events-none"
               aria-label={tFallback("layout.newPostsInHub", "New posts in Hub")}
             />
           )}
@@ -144,15 +103,32 @@ function NavTab({ item, to, isActive, isHubItem, hubBlue, hubPurple, hubHasNewFo
         <motion.span animate={isActive ? { fontWeight: 700 } : { fontWeight: 500 }}>
           {item.label}
         </motion.span>
-        {/* The 5px "···" long-press hint that used to sit here is gone.
-            At text-[5px] and opacity-50 it was below the threshold of
-            being seen at all — a review read it as a clipped second line
-            of the label rather than an affordance, which is the worst of
-            both outcomes: invisible as a hint, visible as a defect.
-            The affordance is already taught properly by the OneShotTooltip
-            above ("Hold any tab for shortcuts"), which fires once and is
-            legible. One good teaching moment beats permanent noise. */}
       </Link>
+    </motion.div>
+  );
+}
+
+// The + in the centre of the tab bar. It is not a tab: it opens the quick
+// log sheet over whatever page you are on and never changes the route.
+// It takes the filled circle the Hub tab used to wear, because the centre
+// slot is where the eye goes and logging is the action the app exists for.
+function QuickLogButton({ onOpen }) {
+  const { tFallback } = useLanguage();
+  const label = tFallback('nav.log', 'Log');
+  return (
+    <motion.div whileTap={{ scale: 0.88 }} transition={{ type: 'spring', stiffness: 500, damping: 22 }}>
+      <button
+        type="button"
+        onClick={() => { triggerHaptic('light'); onOpen(); }}
+        aria-label={tFallback('quickLog.title', 'Log something')}
+        aria-haspopup="dialog"
+        className="flex flex-col items-center text-center gap-0.5 px-2 py-0.5 rounded-lg text-xs font-medium text-muted-foreground"
+      >
+        <span className="flex items-center justify-center w-9 h-9 rounded-full bg-primary text-primary-foreground">
+          <Plus className="w-5 h-5 stroke-[2.5]" aria-hidden="true" />
+        </span>
+        <span>{label}</span>
+      </button>
     </motion.div>
   );
 }
@@ -303,12 +279,13 @@ export default function Layout() {
   }, [location.pathname, location.search]);
 
   const navItems = [
-    { path: '/dashboard', label: t('nav.dashboard'), icon: LayoutDashboard },
-    { path: '/workout',   label: t('nav.workout'),   icon: Play },
-    { path: '/hub',       label: t('nav.hub'),       icon: Users, isHub: true },
-    { path: '/progress',  label: t('nav.progress'),  icon: TrendingUp },
-    { path: '/nutrition', label: t('nav.nutrition'), icon: Apple },
+    { path: '/dashboard', label: tFallback('nav.today', 'Today'),   icon: LayoutDashboard },
+    { path: '/workout',   label: tFallback('nav.train', 'Train'),   icon: Play },
+    { path: '/hub',       label: tFallback('nav.social', 'Social'), icon: Users, isSocial: true },
+    { path: '/you',       label: tFallback('nav.you', 'You'),       icon: UserCircle },
   ];
+  const activeTab = tabForPath(location.pathname);
+  const [quickLogOpen, setQuickLogOpen] = useState(false);
 
   // Long-press quick-action menus per tab. Each entry is a list of
   // 1-3 actions surfaced when the user holds the tab for 400ms.
@@ -329,15 +306,6 @@ export default function Layout() {
     '/hub': [
       { id: 'newpost', label: 'New post',  icon: Plus, onClick: () => navigate('/hub?compose=1') },
       { id: 'search',  label: 'Search users', icon: Users, onClick: () => navigate('/hub?search=open') },
-    ],
-    '/progress': [
-      { id: 'logweight', label: 'Log weight', icon: Scale, onClick: () => navigate('/dashboard?logWeight=1') },
-      { id: 'addphoto',  label: 'Add photo',  icon: Camera, onClick: () => navigate('/dashboard?addPhoto=1') },
-    ],
-    '/nutrition': [
-      { id: 'logmeal', label: 'Log meal',     icon: Plus, onClick: () => navigate('/nutrition?openLogMeal=1') },
-      { id: 'barcode', label: 'Scan barcode', icon: ScanLine, onClick: () => navigate('/nutrition?openLogMeal=1') },
-      { id: 'water',   label: 'Add water',    icon: Droplet, onClick: () => navigate('/nutrition') },
     ],
   };
 
@@ -434,8 +402,7 @@ export default function Layout() {
         </div>
         <nav className="flex-1 px-3 space-y-1">
           {navItems.map((item, i) => {
-            const isActive = location.pathname === item.path;
-            const isHubItem = item.isHub;
+            const isActive = activeTab === item.path;
             return (
               <motion.div
                 key={item.path}
@@ -448,7 +415,7 @@ export default function Layout() {
                 <Link
                   to={isActive ? item.path : tabHref(item.path)}
                   onClick={() => {
-                    if (isActive) {
+                    if (location.pathname === item.path) {
                       window.scrollTo({ top: 0, behavior: 'smooth' });
                       resetActiveTab();
                     } else {
@@ -459,9 +426,7 @@ export default function Layout() {
                   className={`flex items-center justify-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors duration-200 select-none-ui
                     ${isActive
                       ? 'bg-primary text-primary-foreground shadow-md'
-                      : isHubItem
-                        ? 'text-primary border-2 border-primary/40 hover:bg-primary/5 active:bg-primary/5 hover:border-primary'
-                        : 'text-muted-foreground hover:bg-secondary active:bg-secondary hover:text-foreground active:text-foreground'
+                      : 'text-muted-foreground hover:bg-secondary active:bg-secondary hover:text-foreground active:text-foreground'
                     }`}
                 >
                   <motion.div animate={isActive ? { scale: 1.15 } : { scale: 1 }} transition={{ type: 'spring', stiffness: 400, damping: 20 }}>
@@ -532,21 +497,22 @@ export default function Layout() {
         }}
       >
         <div className="flex justify-evenly items-start">
-          {navItems.map((item, idx) => {
-            const isActive = location.pathname === item.path;
-            const isHubItem = item.isHub;
+          {navItems.flatMap((item, idx) => {
+            // "Lit" follows the section, so Progress lights You. A tap only
+            // counts as a re-tap on the tab's own root: from Progress, You
+            // goes back to You rather than scrolling Progress to the top.
+            const isActive = activeTab === item.path;
+            const onRoot = location.pathname === item.path;
             const hasQuickActions = (TAB_ACTIONS[item.path] || []).length > 0;
 
-            return (
+            const tab = (
               <NavTab
                 key={item.path}
                 item={item}
-                to={isActive ? item.path : tabHref(item.path)}
+                to={onRoot ? item.path : tabHref(item.path)}
                 isActive={isActive}
-                isHubItem={isHubItem}
-                hubBlue={isHubItem && user?.username === 'sean'}
-                hubPurple={isHubItem && (user?.username === 'keganbergeron' || user?.username === 'kegan')}
-                hubHasNewFollowingPost={hubHasNewFollowingPost}
+                badge={item.isSocial ? hubUnreadCount : 0}
+                showDot={item.isSocial && hubHasNewFollowingPost}
                 hasQuickActions={hasQuickActions}
                 showLongPressHint={idx === 0}
                 onLongPress={(el) => openQuickMenu(item.path, el)}
@@ -556,7 +522,7 @@ export default function Layout() {
                   triggerHaptic('light');
                   // A different tab reopens where you left it; the tab you
                   // are on goes back to its top.
-                  if (isActive) {
+                  if (onRoot) {
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                   } else {
                     if (NAV_PATHS.includes(location.pathname)) saveTabScroll(location.pathname, window.scrollY);
@@ -567,7 +533,7 @@ export default function Layout() {
                   // sub-view query params, and resetActiveTab() remounts the
                   // page so open panels (Cardio, tabs, modals) close and it
                   // lands at the top. (A different tab already mounts fresh.)
-                  if (isActive) {
+                  if (onRoot) {
                     resetActiveTab();
                     // Feeds (e.g. Hub) can also treat a re-tap as a refresh.
                     try {
@@ -579,12 +545,18 @@ export default function Layout() {
                 }}
               />
             );
+            // The + sits between Train and Social.
+            return idx === 2
+              ? [<QuickLogButton key="quick-log" onOpen={() => setQuickLogOpen(true)} />, tab]
+              : [tab];
           })}
         </div>
       </nav>
 
       {/* Long-press tab quick-action menu. Mounts globally; the tab
           that fired the gesture sets menuOpen.path + anchorRect. */}
+      <QuickLogSheet open={quickLogOpen} onClose={() => setQuickLogOpen(false)} />
+
       <TabQuickActionMenu
         open={!!menuOpen}
         anchorRect={menuOpen?.rect}

@@ -8,7 +8,9 @@ import { useUrlState } from '@/hooks/useUrlState';
 import { routerStateWithoutPayload } from '@/lib/goBack';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence, useDragControls } from 'framer-motion';
-import { Flame, Users as UsersIcon, User as UserIcon, Plus, ArrowLeft, Search, Shield, Store, Activity } from 'lucide-react';
+import { Flame, Users as UsersIcon, User as UserIcon, Plus, ArrowLeft, Search, Shield, Store, Activity, Trophy, MessageCircle } from 'lucide-react';
+import { useUnreadDMCount } from '@/lib/hubMessaging';
+import CompetePanel from '@/components/hub/CompetePanel';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useAuth } from '@/lib/AuthContext';
 import HubFeed from '@/components/hub/HubFeed';
@@ -41,7 +43,7 @@ const EMBERS = [
 // is reached from the header, not the strip, so including it would let a swipe
 // land somewhere the strip gives no way back from. Module scope so the swipe
 // callbacks don't close over a fresh array on every render.
-export const SWIPE_TABS = ['pump', 'squad', 'crews'];
+export const SWIPE_TABS = ['pump', 'squad', 'crews', 'compete'];
 
 /**
  * Which tab a drag should land on, or null for "not a swipe".
@@ -105,7 +107,8 @@ export default function Hub() {
   );
   // In the URL (?feed=) so a refresh, or coming back to Hub from the tab bar,
   // keeps the feed you were on. See useUrlState.
-  const [feedTab, setFeedTab] = useUrlState('feed', 'pump', ['pump', 'squad', 'crews', 'activity']);
+  const [feedTab, setFeedTab] = useUrlState('feed', 'pump', ['pump', 'squad', 'crews', 'compete', 'activity']);
+  const unreadDM = useUnreadDMCount();
 
   // ── Swipe + directional transition between the feed tabs ─────────────────
   const [tabDirection, setTabDirection] = useState(0);
@@ -370,6 +373,23 @@ export default function Hub() {
 
             <div className="flex items-center gap-1 lg:col-start-3 lg:justify-self-end">
 
+              {/* Messages. They moved here from the app header in the
+                  navigation redesign: talking to people is social, and the
+                  unread count now also rides on the Social tab. */}
+              <button
+                type="button"
+                onClick={() => navigate('/messages')}
+                aria-label={tFallback('hub.messages.title', 'Direct messages')}
+                className="relative h-11 w-11 inline-flex items-center justify-center rounded-lg text-muted-foreground hover:bg-secondary active:bg-secondary transition-colors"
+              >
+                <MessageCircle className="w-5 h-5" />
+                {unreadDM > 0 && (
+                  <span className="absolute top-1 end-1 min-w-[16px] h-4 px-0.5 rounded-full bg-primary text-primary-foreground text-micro font-bold flex items-center justify-center pointer-events-none">
+                    {unreadDM > 9 ? '9+' : unreadDM}
+                  </span>
+                )}
+              </button>
+
               {/* Search */}
               <button
                 type="button"
@@ -418,7 +438,7 @@ export default function Hub() {
             </div>
           </div>
 
-          {/* Feed sub-tabs — Pump | Squad | Crews */}
+          {/* Feed sub-tabs — Pump | Squad | Crews | Compete */}
           {section === 'feed' && (
             <div className="flex gap-1 p-1 bg-secondary rounded-lg border border-border">
               <button
@@ -457,6 +477,18 @@ export default function Hub() {
                 <Shield className="w-3.5 h-3.5" />
                 {tFallback('hub.feed.crews', 'Crews')}
               </button>
+              <button
+                type="button"
+                onClick={() => goToTab('compete')}
+                className={`flex-1 flex items-center justify-center gap-1 py-2 text-xs font-medium rounded-md transition-colors ${
+                  feedTab === 'compete'
+                    ? 'bg-card text-foreground shadow-sm'
+                    : 'text-secondary-foreground/70 hover:text-secondary-foreground active:text-secondary-foreground'
+                }`}
+              >
+                <Trophy className="w-3.5 h-3.5" />
+                {tFallback('hub.feed.compete', 'Compete')}
+              </button>
             </div>
           )}
         </div>
@@ -473,7 +505,7 @@ export default function Hub() {
           nobody's training. Drives FOMO + copy-cat workouts — a strong
           social mechanic that compounds with the crew wars / nemesis
           stack. */}
-      {section === 'feed' && feedTab !== 'crews' && feedTab !== 'activity' && <LiveActivityRail />}
+      {section === 'feed' && feedTab !== 'crews' && feedTab !== 'compete' && feedTab !== 'activity' && <LiveActivityRail />}
 
       {/* Stories tray — hidden on Crews tab. "Stories stay on top": people
           you already follow come BEFORE strangers to add. The follow
@@ -482,7 +514,7 @@ export default function Hub() {
           sat below the fold — and it pushed the "add a note" affordance off
           the top of your own avatar. Kegan flagged both on 2026-08-05.
           The rule was already written here; the order just didn't match it. */}
-      {section === 'feed' && feedTab !== 'crews' && feedTab !== 'activity' && (
+      {section === 'feed' && feedTab !== 'crews' && feedTab !== 'compete' && feedTab !== 'activity' && (
         <StoriesRow
           onViewProfile={(u) => {
             setProfileTarget(u);
@@ -495,7 +527,7 @@ export default function Hub() {
           Each card is one-tap follow. The biggest single-feature lift
           to first-week retention because an empty feed = bounce.
           Sits BELOW stories — see the note above. */}
-      {section === 'feed' && feedTab !== 'crews' && feedTab !== 'activity' && <FollowSuggestionRail />}
+      {section === 'feed' && feedTab !== 'crews' && feedTab !== 'compete' && feedTab !== 'activity' && <FollowSuggestionRail />}
 
       {/* Friends-only weekly leaderboard (migration 093) moved to the
           Dashboard ("Friends this week" section) so it's a quick stats
@@ -508,7 +540,7 @@ export default function Hub() {
           pill shape, same vertical rhythm. (Screenshot feedback —
           "make the new post and marketplace button lineup on the same
           horizontal button".) */}
-      {section === 'feed' && feedTab !== 'crews' && feedTab !== 'activity' && (
+      {section === 'feed' && feedTab !== 'crews' && feedTab !== 'compete' && feedTab !== 'activity' && (
         <div className="flex gap-2.5 mb-4 items-stretch">
           {/* Marketplace — 3/4 width, ember animation */}
           <div className="flex-[3] relative overflow-hidden rounded-2xl min-h-[68px]">
@@ -609,6 +641,10 @@ export default function Hub() {
                 setSection('profile');
               }}
             />
+          )}
+
+          {section === 'feed' && feedTab === 'compete' && (
+            <CompetePanel onOpenCrews={() => goToTab('crews')} />
           )}
 
           {section === 'profile' && (
