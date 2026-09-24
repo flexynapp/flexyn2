@@ -20,6 +20,7 @@ import { markReturningUser } from '@/lib/firstLaunch';
 import { containsProfanity } from '@/lib/profanityFilter';
 import { grantWelcomeCapsule } from '@/lib/data/capsules';
 import { buildStarterRegimen, ensureStarterRegimen } from '@/lib/data/starterRegimen';
+import { EXERCISE_LIBRARY } from '@/components/regimens/ExerciseAutocomplete';
 import { ensureOnboardingCardioGoal } from '@/lib/data/onboardingCardioGoal';
 import StarterPlanCoachCard from '@/components/onboarding/StarterPlanCoachCard';
 import { askStarterPlanCoach } from '@/lib/aiCoach/starterPlanCoach';
@@ -955,6 +956,24 @@ const CARDIO_EVENTS = [
   { id: 'general', label: 'General' },
 ];
 const FOCUS_LIFTS = ['Bench Press', 'Squat', 'Deadlift', 'Overhead Press', 'Pull-Up'];
+// Five suggestions are a shortcut, not the menu. Anything in
+// EXERCISE_LIBRARY can be picked through the search under them, because
+// buildStarterRegimen matches picks by library name and drops anything else.
+// Capped so the picks lead the plan without crowding out the goal's own pool.
+const MAX_FOCUS_LIFTS = 5;
+
+function searchLifts(query, exclude) {
+  const q = query.trim().toLowerCase();
+  if (!q) return [];
+  return EXERCISE_LIBRARY
+    .filter(e => e.name.toLowerCase().includes(q) && !exclude.includes(e.name))
+    .sort((a, b) => {
+      const ap = a.name.toLowerCase().startsWith(q) ? 0 : 1;
+      const bp = b.name.toLowerCase().startsWith(q) ? 0 : 1;
+      return ap - bp || a.name.length - b.name.length || a.name.localeCompare(b.name);
+    })
+    .slice(0, 6);
+}
 const TIME_DISTANCES = [{ id: '1mi', label: '1 mi' }, { id: '5k', label: '5K' }, { id: '10k', label: '10K' }];
 
 // Which distance the "recent time" is asked at, per event.
@@ -1023,7 +1042,16 @@ function SharpenStep({ goals, value, onChange, onNext, onBack, step, total }) {
   const set = (patch) => onChange({ ...s, ...patch });
 
   const focus = Array.isArray(s.strengthFocus) ? s.strengthFocus : [];
-  const toggleFocus = (name) => set({ strengthFocus: focus.includes(name) ? focus.filter(n => n !== name) : [...focus, name] });
+  const focusFull = focus.length >= MAX_FOCUS_LIFTS;
+  const toggleFocus = (name) => {
+    if (focus.includes(name)) set({ strengthFocus: focus.filter(n => n !== name) });
+    else if (!focusFull) set({ strengthFocus: [...focus, name] });
+  };
+  // A lift picked from search stays on the chip row, so it can be un-picked
+  // the same way as a suggestion.
+  const liftChips = [...FOCUS_LIFTS, ...focus.filter(n => !FOCUS_LIFTS.includes(n))];
+  const [liftQuery, setLiftQuery] = useState('');
+  const liftMatches = searchLifts(liftQuery, focus);
 
   const cur = s.cardioCurrent || {};
   const setCurrent = (patch) => {
@@ -1101,16 +1129,45 @@ function SharpenStep({ goals, value, onChange, onNext, onBack, step, total }) {
           <div className="space-y-2" style={{ marginTop: 'var(--fluid-section)' }}>
             <SectionLabel accent="hsl(26 95% 56%)" title={tFallback('onboarding.sharpen.liftsPrompt', 'Which lifts matter most?')} />
             <div className="flex flex-wrap gap-2">
-              {FOCUS_LIFTS.map(n => (
+              {liftChips.map(n => (
                 <Chip key={n} active={focus.includes(n)} accent="hsl(26 95% 56%)" onClick={() => toggleFocus(n)}>{n}</Chip>
               ))}
             </div>
+            {!focusFull && (
+              <div>
+                <input type="search" value={liftQuery} onChange={e => setLiftQuery(e.target.value)}
+                  placeholder={tFallback('onboarding.sharpen.liftSearch', 'Add another lift')}
+                  aria-label={tFallback('onboarding.sharpen.liftSearch', 'Add another lift')}
+                  autoComplete="off"
+                  className="w-full h-11 rounded-lg border border-border bg-card px-3 text-body focus:outline-none focus:ring-2 focus:ring-primary/40" />
+                {liftQuery.trim() && (
+                  <ul className="mt-1 rounded-lg border border-border bg-card divide-y divide-border">
+                    {liftMatches.map(e => (
+                      <li key={e.name}>
+                        <button type="button" className="w-full min-h-11 px-3 text-start text-body"
+                          onClick={() => { toggleFocus(e.name); setLiftQuery(''); }}>
+                          {e.name}
+                          <span className="ms-2 text-micro text-muted-foreground">{e.muscles.join(', ')}</span>
+                        </button>
+                      </li>
+                    ))}
+                    {liftMatches.length === 0 && (
+                      <li className="px-3 py-2 text-label text-muted-foreground">
+                        {tFallback('onboarding.sharpen.liftNoMatch', 'No lift by that name yet. Try a shorter word.')}
+                      </li>
+                    )}
+                  </ul>
+                )}
+              </div>
+            )}
             {/* FOCUS_LIFTS are deliberately NOT translated: the picked names
                 are persisted and matched by string downstream in
                 buildStarterRegimen, so they have to stay stable until the
                 exercise catalog itself is translated. */}
             <p className="text-micro text-muted-foreground">
-              {tFallback('onboarding.sharpen.liftsHint', "We'll lead your plan with the lifts you pick.")}
+              {focusFull
+                ? tFallback('onboarding.sharpen.liftsFull', 'That is five. Tap one to swap it out.')
+                : tFallback('onboarding.sharpen.liftsHint', "We'll lead your plan with the lifts you pick.")}
             </p>
           </div>
         )}
