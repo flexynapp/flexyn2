@@ -21,6 +21,7 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { useNumberFormatter } from '@/lib/intl';
 import { getMyReferralStats } from '@/lib/data/referrals';
 import ReferralSheet from './ReferralSheet';
+import { track, EVENTS } from '@/lib/analytics';
 
 // Per-device dismissal, matching the `flexyn.<feature>.<userId>` convention
 // (see CLAUDE.md and ProfileCompletionMeter). Per-user rather than global so
@@ -80,6 +81,7 @@ export default function ReferralCard() {
     if (!url) return;
     try {
       await navigator.clipboard.writeText(url);
+      track(EVENTS.SHARED, { card: 'referral', method: 'copy' });
       setCopied(true);
       toast.success(tFallback('referral.copied', 'Link copied'));
       setTimeout(() => setCopied(false), 2000);
@@ -102,6 +104,7 @@ export default function ReferralCard() {
     if (typeof navigator.share === 'function') {
       try {
         await navigator.share(shareData);
+        track(EVENTS.SHARED, { card: 'referral', method: 'share' });
         return;
       } catch (err) {
         if (err?.name === 'AbortError') return;

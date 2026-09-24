@@ -3,6 +3,7 @@ import React, { createContext, useState, useContext, useEffect, useCallback, use
 import { supabase } from '@/api/supabaseClient';
 import { markReturningUser } from '@/lib/firstLaunch';
 import { unsubscribePushOnLogout } from '@/lib/pushCleanup';
+import { identify, resetAnalytics, track, EVENTS } from '@/lib/analytics';
 
 const AuthContext = createContext();
 
@@ -13,6 +14,26 @@ async function fetchProfile(authUser) {
     .eq('id', authUser.id)
     .maybeSingle();
   return { id: authUser.id, email: authUser.email, ...(profile ?? {}) };
+}
+
+
+// Analytics for a SIGNED_IN event. supabase-js also emits SIGNED_IN when a
+// tab regains focus, so this counts once per browser session per account.
+// "Signed up" means the account was created in the last ten minutes, which
+// is the magic-link, OAuth and guest paths alike landing here for the first
+// time; everything else is a returning sign-in.
+function trackSignIn(authUser) {
+  if (!authUser?.id) return;
+  identify(authUser.id, { isGuest: authUser.is_anonymous });
+  const flag = `flexyn.analytics.signedIn.${authUser.id}`;
+  try {
+    if (sessionStorage.getItem(flag)) return;
+    sessionStorage.setItem(flag, '1');
+  } catch { /* storage blocked: count it anyway */ }
+  const createdMs = Date.parse(authUser.created_at || '');
+  const isNew = Number.isFinite(createdMs) && Date.now() - createdMs < 10 * 60 * 1000;
+  const method = authUser.is_anonymous ? 'guest' : (authUser.app_metadata?.provider || 'email');
+  track(isNew ? EVENTS.SIGNED_UP : EVENTS.SIGNED_IN, { method });
 }
 
 export function AuthProvider({ children }) {
@@ -95,6 +116,7 @@ export function AuthProvider({ children }) {
     // 1. Bootstrap immediately from stored session (localStorage, no network)
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
+        identify(session.user.id, { isGuest: session.user.is_anonymous });
         loadProfile(session.user).finally(() => clearTimeout(timeout));
       } else {
         clearTimeout(timeout);
@@ -116,6 +138,7 @@ export function AuthProvider({ children }) {
           // The first successful claim writes to the audit table + fires
           // BOTH parties' celebration notifications.
           if (event === 'SIGNED_IN') {
+            trackSignIn(session.user);
             setTimeout(async () => {
               try {
                 const { consumePendingReferralCode } = await import('./data/referrals');
@@ -152,6 +175,7 @@ export function AuthProvider({ children }) {
           } catch { /* non-fatal */ }
         }
       } else if (event === 'SIGNED_OUT') {
+        resetAnalytics();
         setTimeout(() => {
           setUser(null);
           setIsAuthenticated(false);

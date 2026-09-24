@@ -7,6 +7,7 @@ import './index.css'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { capturePendingReferralCode } from './lib/data/referrals'
 import { installStaleDeployGuard } from './lib/staleDeployGuard'
+import { track, EVENTS } from './lib/analytics'
 
 // Recover from stale-deploy chunk fetches (see staleDeployGuard) before
 // the app mounts, so a cached tab that hits a missing chunk self-heals
@@ -32,6 +33,11 @@ try {
 // helper is a no-op when there's no ref param, so it's cheap to run
 // unconditionally.
 capturePendingReferralCode();
+
+// Product analytics (src/lib/analytics.js): a no-op unless VITE_POSTHOG_KEY
+// is set. One open per page load; the Supabase id is attached once auth
+// resolves, and events before that carry this device's random id.
+track(EVENTS.APP_OPENED, { standalone: typeof window !== 'undefined' && window.matchMedia?.('(display-mode: standalone)').matches === true });
 
 // ── Sentry error monitoring ───────────────────────────────────────────────────
 // To activate: replace the dsn placeholder with your real DSN from

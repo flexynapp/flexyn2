@@ -14,6 +14,7 @@
 //     user finishes signup.
 
 import { supabase } from '@/api/supabaseClient';
+import { track, EVENTS } from '@/lib/analytics';
 
 const PENDING_KEY = 'flexyn.pendingReferralCode';
 
@@ -54,6 +55,7 @@ export async function claimReferral(code) {
       console.warn('[referrals] claim_referral failed:', error);
       return { ok: false, reason: 'rpc_error' };
     }
+    if (data?.ok) track(EVENTS.REFERRAL_CLAIMED);
     return data ?? { ok: false, reason: 'unknown' };
   } catch (err) {
     console.warn('[referrals] claimReferral threw:', err?.message || err);

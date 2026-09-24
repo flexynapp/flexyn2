@@ -25,6 +25,7 @@
 // deterministic planBuilder with `goal` rather than trusting prose.
 
 import { supabase } from '@/api/supabaseClient';
+import { track, EVENTS } from '@/lib/analytics';
 
 // Shorter than recognize-meal's 30 s: this sits behind a "Thinking…" bubble
 // in a chat, where 12 s already feels broken. Past that, the rules engine's
@@ -120,6 +121,7 @@ export async function askCoachLLM({
     // (REFUSED, TRUNCATED) so the refund path can run — pass those through.
     if (data.ok !== true) return { ok: false, error: String(data.error || 'UNKNOWN') };
     if (!data.reply) return { ok: false, error: 'EMPTY_REPLY' };
+    track(EVENTS.COACH_MESSAGE, { kind: data.kind === 'plan' ? 'plan' : 'answer' });
 
     return {
       ok: true,

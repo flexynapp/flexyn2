@@ -1,0 +1,90 @@
+name: Ops health
+
+# Every six hours: is the site up, is the database answering, and did any
+# cron job or server-side HTTP call fail in the last 24 hours?
+#
+# Failures open (or comment on) one GitHub issue labelled `ops-alert`, which
+# emails the assignee. Close the issue once the problem is handled; the next
+# failure opens a fresh one.
+#
+# Needs these repo secrets (Settings > Secrets and variables > Actions):
+#   SUPABASE_URL        https://<ref>.supabase.co
+#   SUPABASE_ANON_KEY   the public anon key (same one the app ships)
+#   OPS_HEALTH_SECRET   printed by migration 387's last SELECT
+# Without them only the site check runs, and the job says so in its summary.
+
+on:
+  schedule:
+    - cron: '17 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      APP_URL: ${{ vars.APP_URL || 'https://flexyn.netlify.app' }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+      OPS_HEALTH_SECRET: ${{ secrets.OPS_HEALTH_SECRET }}
+      GH_TOKEN: ${{ github.token }}
+      ASSIGNEE: SeanJoudrie
+    steps:
+      - name: Check site, database and failure log
+        id: check
+        shell: bash
+        run: |
+          problems=""
+
+          # 1. The site serves the app shell.
+          code=$(curl -s -o page.html -w '%{http_code}' --max-time 20 "$APP_URL/" || echo 000)
+          if [ "$code" != "200" ] || ! grep -q '<div id="root"' page.html; then
+            problems+="- Site $APP_URL answered HTTP $code (or without the app shell)."$'\n'
+          fi
+
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ] || [ -z "$OPS_HEALTH_SECRET" ]; then
+            echo "Supabase checks skipped: repo secrets not set yet." >> "$GITHUB_STEP_SUMMARY"
+          else
+            # 2. Auth answers.
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 \
+              -H "apikey: $SUPABASE_ANON_KEY" "$SUPABASE_URL/auth/v1/health" || echo 000)
+            [ "$code" = "200" ] || problems+="- Supabase auth health answered HTTP $code."$'\n'
+
+            # 3. Failed crons / server HTTP calls in the last 24h (migration 387).
+            code=$(curl -s -o health.json -w '%{http_code}' --max-time 20 \
+              -X POST "$SUPABASE_URL/rest/v1/rpc/ops_health" \
+              -H "apikey: $SUPABASE_ANON_KEY" -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+              -H 'Content-Type: application/json' \
+              -d "{\"p_secret\":\"$OPS_HEALTH_SECRET\"}" || echo 000)
+            if [ "$code" != "200" ]; then
+              problems+="- ops_health RPC answered HTTP $code: $(head -c 300 health.json 2>/dev/null)"$'\n'
+            elif [ "$(jq -r '.ok' health.json)" != "true" ]; then
+              problems+="- $(jq -r '.alerts_24h' health.json) failures logged in the last 24h. Collector last ran OK: $(jq -r '.collector_last_ok' health.json)."$'\n'
+              problems+=$(jq -r '.groups[] | "  - \(.source) \(.ref): \(.n)x, last \(.last_seen). Sample: \(.sample | .[0:200])"' health.json)$'\n'
+            fi
+          fi
+
+          if [ -z "$problems" ]; then
+            echo "All checks passed." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          printf '%s\n' "$problems" >> "$GITHUB_STEP_SUMMARY"
+          body=$(printf 'Ops health check found problems (%s UTC):\n\n%s\n\nRun: %s/%s/actions/runs/%s' \
+            "$(date -u '+%Y-%m-%d %H:%M')" "$problems" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID")
+
+          gh label create ops-alert --color B60205 --description 'Automated ops health failure' --force -R "$GITHUB_REPOSITORY" >/dev/null
+          open=$(gh issue list -R "$GITHUB_REPOSITORY" --label ops-alert --state open --json number --jq '.[0].number')
+          if [ -n "$open" ]; then
+            gh issue comment "$open" -R "$GITHUB_REPOSITORY" --body "$body"
+          else
+            gh issue create -R "$GITHUB_REPOSITORY" --title 'Ops health: something is failing' \
+              --label ops-alert --assignee "$ASSIGNEE" --body "$body" \
+            || gh issue create -R "$GITHUB_REPOSITORY" --title 'Ops health: something is failing' \
+              --label ops-alert --body "$body"
+          fi
+          exit 1

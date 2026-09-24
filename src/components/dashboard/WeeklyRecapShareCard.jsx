@@ -26,6 +26,7 @@ import { asT } from '@/lib/translatorArg';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { fromLbs } from '@/lib/weightUnit';
 import { formatNumber } from '@/lib/intl';
+import { track, EVENTS } from '@/lib/analytics';
 
 const CANVAS_W = 1080;
 const CANVAS_H = 1080;
@@ -283,6 +284,7 @@ export default function WeeklyRecapShareCard({ open, onClose, recap, username })
       a.download = `flexyn-recap-${Date.now()}.png`;
       document.body.appendChild(a);
       a.click();
+      track(EVENTS.SHARED, { card: 'weekly_recap', method: 'download' });
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } finally {
@@ -309,6 +311,7 @@ export default function WeeklyRecapShareCard({ open, onClose, recap, username })
             title: tFallback('shareCard.weekTitle', 'My Flexyn week'),
             text: tFallback('shareCard.weekText', 'My week in Flexyn'),
           });
+          track(EVENTS.SHARED, { card: 'weekly_recap', method: 'share' });
           return;
         } catch (err) {
           // User cancelled the share sheet — don't auto-fall-through to

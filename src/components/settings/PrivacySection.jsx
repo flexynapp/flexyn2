@@ -36,6 +36,7 @@ import * as dmRequestBlocksData from '@/lib/data/dmRequestBlocks';
 import * as userMutesData from '@/lib/data/userMutes';
 import { useSettingsProfile } from './useSettingsProfile';
 import { Group, Row, ToggleRow, Switch, SegmentedControl } from './SettingsPrimitives';
+import { ANALYTICS_CONFIGURED, isAnalyticsOptedOut, setAnalyticsOptOut } from '@/lib/analytics';
 
 // A blocked / muted row identifies an account WITHOUT its address.
 //
@@ -96,6 +97,8 @@ export default function PrivacySection() {
   const [storyBlocks,      setStoryBlocks]      = useState([]);
   const [blockEmail,       setBlockEmail]       = useState('');
   const [blockSaving,      setBlockSaving]      = useState(false);
+  const analyticsAvailable = ANALYTICS_CONFIGURED;
+  const [analyticsOn,      setAnalyticsOn]      = useState(() => !isAnalyticsOptedOut());
 
   // Reporter-facing report history — closes the loop that started in
   // ReportDialog.jsx. Status updates also fire a notification (mig 104);
@@ -345,6 +348,20 @@ export default function PrivacySection() {
           checked={gymRivalOptOut}
           onChange={toggleGymRivalOptOut}
         />
+        {/* Per device, not per account: it has to work before sign-in and
+            on a shared device, and it is read synchronously on every event.
+            Hidden on builds with no analytics key, where it would do nothing. */}
+        {analyticsAvailable && (
+          <ToggleRow
+            label={tFallback('settings.analytics.title', 'Share usage analytics')}
+            hint={tFallback('settings.analytics.desc', 'Tells us which features you use, never your health numbers or messages, so we can improve Flexyn. Applies on this device.')}
+            checked={analyticsOn}
+            onChange={(next) => {
+              setAnalyticsOptOut(!next);
+              setAnalyticsOn(!isAnalyticsOptedOut());
+            }}
+          />
+        )}
       </Group>
 
       <Group title={tFallback('settings.group.stories', 'Stories')}>

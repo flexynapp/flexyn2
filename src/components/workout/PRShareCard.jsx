@@ -19,6 +19,7 @@ import { Download, Share2, Loader2 } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
 import { asT } from '@/lib/translatorArg';
 import { formatNumber } from '@/lib/intl';
+import { track, EVENTS } from '@/lib/analytics';
 
 const CANVAS_W = 1080;
 const CANVAS_H = 1080;
@@ -204,6 +205,7 @@ export default function PRShareCard({ open, onClose, pr, unit = 'lb', username }
       a.download = `flexyn-pr-${Date.now()}.png`;
       document.body.appendChild(a);
       a.click();
+      track(EVENTS.SHARED, { card: 'pr', method: 'download' });
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } finally {
@@ -228,6 +230,7 @@ export default function PRShareCard({ open, onClose, pr, unit = 'lb', username }
             title: tFallback('shareCard.prTitle', 'New PR'),
             text: `New PR — ${exName}: ${newPRNum} ${unit}`,
           });
+          track(EVENTS.SHARED, { card: 'pr', method: 'share' });
           return;
         } catch (err) {
           if (err?.name === 'AbortError') return;

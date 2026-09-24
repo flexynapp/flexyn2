@@ -82,6 +82,7 @@ const ALLOW_IDENTICAL = new Set([
   'settings.weightUnit.lbs',   // "lbs" — unit symbol
   'settings.weightUnit.stone', // "st"  — unit symbol (stone)
   'nutrition.photoAi',         // "Photo-AI" — the feature's name, same shape as nav.hub
+  'legal.posthog',             // "PostHog" — a company name in the privacy policy's processor list
   // ── The trophy catalog, added 2026-08-16 ──────────────────────────
   // Product nouns from `_glossary.json` doNotTranslate, plus two unit
   // symbols and one string that is nothing but placeholders.

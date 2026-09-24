@@ -43,6 +43,7 @@ import {
 } from '@/lib/data/homeGym';
 import { OnboardingCoachButton, OnboardingCoachSheet } from '@/components/onboarding/OnboardingCoach';
 import { hasCoachFor } from '@/lib/aiCoach/onboardingCoach';
+import { track, EVENTS } from '@/lib/analytics';
 
 /* ═══════════════════════════════════════════════════════════════
    COACH CONTEXT
@@ -3869,6 +3870,10 @@ export default function Onboarding() {
       // run regardless of which tier landed the profile — a Tier 2/3
       // user still gets their welcome capsule + starter regimen.
       if (saved) {
+        track(EVENTS.ONBOARDING_COMPLETED, {
+          goals: Array.isArray(data.goal) ? data.goal.length : 0,
+          picked_gym: Boolean(data.homeGym),
+        });
         // Welcome capsule — idempotent, fire-and-forget.
         if (user?.id && user?.email) {
           grantWelcomeCapsule(user.id, user.email).catch(sideErr => {

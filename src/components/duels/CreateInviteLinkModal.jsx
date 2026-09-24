@@ -14,6 +14,7 @@ import { toast } from '@/lib/toast';
 import { createInviteLink, buildInviteUrl } from '@/lib/data/duelInvites';
 import { useDateFormatter } from '@/lib/intl';
 import { useLanguage } from '@/lib/LanguageContext';
+import { track, EVENTS } from '@/lib/analytics';
 
 const TYPE_OPTIONS = [
   { id: 'open',     label: 'Open',     desc: 'Most total volume wins' },
@@ -66,6 +67,7 @@ export default function CreateInviteLinkModal({ open, onOpenChange }) {
     if (!url) return;
     try {
       await navigator.clipboard.writeText(url);
+      track(EVENTS.SHARED, { card: 'duel_invite', method: 'copy' });
       setCopied(true);
       toast.success(tFallback("referral.copied", "Link copied"));
       setTimeout(() => setCopied(false), 2000);
@@ -83,6 +85,7 @@ export default function CreateInviteLinkModal({ open, onOpenChange }) {
         text: tFallback('createInviteLinkModal.shareText', 'I am challenging you to a duel on Flexyn:'),
         url,
       });
+      track(EVENTS.SHARED, { card: 'duel_invite', method: 'share' });
     } catch { /* user cancelled */ }
   };
 
