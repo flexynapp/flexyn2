@@ -31,7 +31,7 @@ vi.mock('@/lib/LanguageContext', () => ({
       vars ? Object.entries(vars).reduce((s, [n, v]) => s.replace(`{${n}}`, v), fb) : fb,
   }),
 }));
-vi.mock('@/lib/hubMessaging', () => ({ useStartConversation: () => vi.fn() }));
+vi.mock('@/lib/hubMessaging', () => ({ useStartConversation: () => vi.fn(), useUnreadDMCount: () => 0 }));
 vi.mock('@/hooks/useHubUnreadDot', () => ({ markHubVisited: vi.fn() }));
 
 // The profile surface is the assertion target: whatever target it receives is
