@@ -19,6 +19,7 @@ import { loadTwemoji } from '@/lib/twemoji';
 import { format } from 'date-fns';
 import { useLanguage } from '@/lib/LanguageContext';
 import { asT } from '@/lib/translatorArg';
+import { track, EVENTS } from '@/lib/analytics';
 
 const CANVAS_W = 1080;
 const CANVAS_H = 1080;
@@ -234,6 +235,7 @@ export default function ProfileShareCard({ open, onClose, profile }) {
       a.download = `flexyn-profile-${profile?.username || 'athlete'}-${Date.now()}.png`;
       document.body.appendChild(a);
       a.click();
+      track(EVENTS.SHARED, { card: 'profile', method: 'download' });
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } finally { setBusy(false); }
@@ -253,6 +255,7 @@ export default function ProfileShareCard({ open, onClose, profile }) {
             title: tFallback('shareCard.statsTitle', 'My Flexyn stats'),
             text: `@${profile?.username || 'athlete'} on Flexyn`,
           });
+          track(EVENTS.SHARED, { card: 'profile', method: 'share' });
           return;
         } catch (err) {
           if (err?.name === 'AbortError') return;

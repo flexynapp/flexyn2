@@ -23,6 +23,11 @@
 #                          are what they need — instead of the app's own
 #                          read-only gym view. Unset = keep them in the
 #                          app, which is what works today.)
+#   VITE_POSTHOG_KEY      (optional. PostHog project API key, the public
+#                          "phc_..." one. Unset = analytics stay off and
+#                          nothing is sent. See src/lib/analytics.js.)
+#   VITE_POSTHOG_HOST     (optional. Defaults to https://us.i.posthog.com;
+#                          use https://eu.i.posthog.com for an EU project.)
 # Never hardcode secrets here — this file is committed to version control.
 
 [[redirects]]

@@ -34,7 +34,7 @@ import FlexynLogo from '@/components/FlexynLogo';
 import { useLanguage } from '@/lib/LanguageContext';
 import TransText from '@/components/TransText';
 
-const LAST_UPDATED = '4 August 2026';
+const LAST_UPDATED = '24 September 2026';
 
 // LEGAL_TODO — replace all three with the real values.
 const ENTITY = null;          // e.g. 'Flexyn Ltd.'
@@ -213,9 +213,10 @@ export function PrivacyPolicy() {
 
       <Section heading={tFallback('legal.h.whatWeDoNotDo', 'What we do not do')}>
         <p>We do not sell your personal data. We do not share it with
-        advertisers, we run no third-party advertising or tracking SDKs, and
-        we do not build advertising profiles. We do not use your health data
-        for anything other than the features you are using.</p>
+        advertisers, we run no advertising SDKs, we do not track you across
+        other apps or websites, and we do not build advertising profiles. We
+        do not use your health data for anything other than the features you
+        are using.</p>
       </Section>
 
       <Section heading={tFallback('legal.h.whoProcesses', 'Who processes data for us')}>
@@ -228,6 +229,11 @@ export function PrivacyPolicy() {
           <li><strong className="text-foreground">{tFallback("legal.sentry", "Sentry")}</strong> — error
           monitoring. Receives crash and error diagnostics, which can include
           your user identifier.</li>
+          <li><strong className="text-foreground">{tFallback("legal.posthog", "PostHog")}</strong> — product
+          analytics. Receives which features you use (for example that a
+          workout was logged or a card was shared), the screen you were on, and
+          a random account identifier. Never your email, your health numbers
+          or your messages. You can turn it off in Settings, Privacy.</li>
           <li><strong className="text-foreground">{tFallback("legal.anthropic", "Anthropic")}</strong> — powers
           the AI Coach and meal photo recognition. Receives the training
           context or the food photo needed to answer that one request.</li>

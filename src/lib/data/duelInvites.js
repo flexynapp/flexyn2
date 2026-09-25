@@ -4,6 +4,7 @@
 // migration 072's pending_duel_invites table + three RPCs.
 
 import { supabase } from '@/api/supabaseClient';
+import { track, EVENTS } from '@/lib/analytics';
 
 /**
  * Create a shareable duel-invite token. Returns { token, expires_at, ... }
@@ -28,6 +29,7 @@ export async function createInviteLink({
     p_window_hours:       windowHours,
   });
   if (error) throw error;
+  track(EVENTS.DUEL_INVITE_CREATED, { duel_type: duelType });
   return data; // { id, token, expires_at, duel_type, window_hours }
 }
 
@@ -60,6 +62,7 @@ export async function claimInvite(token) {
     p_token: token,
   });
   if (error) throw error;
+  if (!data?.already_claimed_by_you) track(EVENTS.DUEL_INVITE_ACCEPTED);
   return data;
 }
 

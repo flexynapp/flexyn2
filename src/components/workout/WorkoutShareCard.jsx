@@ -20,6 +20,7 @@ import { fromLbs } from '@/lib/weightUnit';
 import { formatNumber } from '@/lib/intl';
 import { totalVolume as computeTotalVolume } from '@/lib/workoutVolume';
 import { workoutDurationMin } from '@/lib/workoutDuration';
+import { track, EVENTS } from '@/lib/analytics';
 
 const CANVAS_W = 1080;
 const CANVAS_H = 1080;
@@ -278,6 +279,7 @@ export default function WorkoutShareCard({ open, onClose, workout, username, inc
       a.download = `flexyn-workout-${Date.now()}.png`;
       document.body.appendChild(a);
       a.click();
+      track(EVENTS.SHARED, { card: 'workout', method: 'download' });
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } finally {
@@ -299,6 +301,7 @@ export default function WorkoutShareCard({ open, onClose, workout, username, inc
             title: tFallback('shareCard.workoutTitle', 'My Flexyn workout'),
             text: tFallback('shareCard.workoutText', 'Just crushed a workout in Flexyn'),
           });
+          track(EVENTS.SHARED, { card: 'workout', method: 'share' });
           return;
         } catch (err) {
           if (err?.name === 'AbortError') return;

@@ -82,15 +82,20 @@ Deno.serve(async (req: Request) => {
     return json({ ok: false, error: 'UNAUTHORIZED' }, 401);
   }
 
-  // Per-user daily quota (migration 174 / 229 / 280). Fails OPEN on RPC error
-  // so a counter outage can't take the feature down; a clean cap-reached is 429.
+  // Per-user daily quota (migration 174 / 229 / 280) plus an all-users daily
+  // ceiling (migration 385). A clean cap-reached is 429.
+  //
+  // Fails CLOSED on RPC error (migration 385 era). It used to fail open so a
+  // counter outage couldn't take the feature down, but that also meant an
+  // outage removed every limit at once, and this is the most expensive call
+  // in the app. A scan that can't be counted is refused with 503, and the
+  // client already shows a generic "try again" for any code it doesn't know.
   //
   // The consume stays BEFORE the work, because it is the atomic gate that
   // stops someone firing fifty concurrent recognitions at the Anthropic
   // budget. But the user must not pay for a scan we never delivered, so
   // every failure path below refunds via `fail()`. `consumed` tracks whether
-  // we actually took one — on an RPC error we fall through without charging,
-  // and refunding then would mint a free scan.
+  // we actually took one, so a refund never mints a free scan.
   let consumed = false;
   try {
     const { data: allowed, error: rlErr } = await client.rpc('consume_recognize_meal_quota');
@@ -99,8 +104,11 @@ Deno.serve(async (req: Request) => {
       // so there is nothing to give back.
       return json({ ok: false, error: 'RATE_LIMIT' }, 429);
     }
-    if (!rlErr) consumed = true;
-  } catch (_e) { /* fall through — nothing consumed */ }
+    if (rlErr) return json({ ok: false, error: 'QUOTA_UNAVAILABLE' }, 503);
+    consumed = true;
+  } catch (_e) {
+    return json({ ok: false, error: 'QUOTA_UNAVAILABLE' }, 503);
+  }
 
   // Every non-success exit after this point goes through fail(), which
   // returns the scan first. A refund failure is swallowed: we would rather

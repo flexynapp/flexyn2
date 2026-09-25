@@ -435,15 +435,21 @@ Deno.serve(async (req: Request) => {
   // Per-user daily cap (migration 305). Consume BEFORE the work — that is the
   // atomic gate that stops a loop draining the Anthropic budget — then refund
   // on every failure path so the user only pays for a reply they received.
-  // Fails OPEN on RPC error so a counter outage can't take the Coach down.
+  // Fails CLOSED on RPC error (migration 385 era): an outage of the counter
+  // used to lift both the per-user cap and 307's all-users ceiling at once.
+  // The client treats any unknown code as a failed turn and falls back to the
+  // rule-based Coach, so the user still gets an answer.
   let consumed = false;
   try {
     const { data: allowed, error: rlErr } = await client.rpc('consume_coach_chat_quota');
     if (!rlErr && allowed === false) {
       return json({ ok: false, error: 'RATE_LIMIT' }, 429);
     }
-    if (!rlErr) consumed = true;
-  } catch (_e) { /* fall through — nothing consumed */ }
+    if (rlErr) return json({ ok: false, error: 'QUOTA_UNAVAILABLE' }, 503);
+    consumed = true;
+  } catch (_e) {
+    return json({ ok: false, error: 'QUOTA_UNAVAILABLE' }, 503);
+  }
 
   const fail = async (obj: unknown, status = 200) => {
     if (consumed) {
