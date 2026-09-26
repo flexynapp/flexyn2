@@ -15,6 +15,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import * as quests from '@/lib/data/quests';
 import { ACTION_TYPES } from '@/lib/questCatalog';
 import { rewardWaterLog, WATER_DAILY_CAP_OZ } from '@/lib/waterLogging';
+import { track, EVENTS } from '@/lib/analytics';
 import { toast } from '@/lib/toast';
 import { isAppAdmin } from '@/lib/adminRoles';
 import { setLayoutDefault } from '@/lib/data/layoutDefaults';
@@ -736,6 +737,7 @@ export default function Nutrition() {
         // confirmation, and a toast per glass was noise.
         rewardWaterLog({ user, date, oz: waterEntryOz(variables), queryClient });
       } else {
+        track(EVENTS.MEAL_LOGGED, { via: variables._via_barcode ? 'barcode' : 'nutrition' });
         setNewEntry({ food_name: '', calories: '', protein_g: '', carbs_g: '', fat_g: '', sodium_mg: '', fiber_g: '', sugar_g: '', cholesterol_mg: '', iron_mg: '', magnesium_mg: '', calcium_mg: '', potassium_mg: '', vitamin_a_iu: '', vitamin_c_mg: '', vitamin_d_iu: '', vitamin_b12_mcg: '' });
 
         // First-meal milestone — count lifetime non-water entries.

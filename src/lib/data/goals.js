@@ -1,6 +1,7 @@
 // src/lib/data/goals.js
 import { db } from '@/api/db';
 import { containsProfanity } from '@/lib/profanityFilter';
+import { track, EVENTS } from '@/lib/analytics';
 
 export const list = (email) =>
   db.entities.Goal.filter({ created_by: email }, '-created_date');
@@ -19,7 +20,10 @@ export const create = (data) => {
     exercise: data.exercise,
     notes: data.notes,
   });
-  return db.entities.Goal.create(data);
+  return Promise.resolve(db.entities.Goal.create(data)).then((row) => {
+    track(EVENTS.GOAL_CREATED, { type: data.goal_type || data.type || null });
+    return row;
+  });
 };
 export const update = (id, data) => {
   const textFields = {};

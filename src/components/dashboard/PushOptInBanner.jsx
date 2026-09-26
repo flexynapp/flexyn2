@@ -37,6 +37,7 @@ import { toast } from '@/lib/toast';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { usePushSubscription } from '@/lib/usePushSubscription';
+import { track, EVENTS } from '@/lib/analytics';
 
 // Per-user, per-device dismissal flag. Each device needs its own
 // subscription (push subscriptions are bound to the browser instance),
@@ -93,6 +94,7 @@ export default function PushOptInBanner({ hasWorkouts = false }) {
   const handleEnable = async () => {
     const res = await push.subscribe();
     if (res.ok) {
+      track(EVENTS.PUSH_ENABLED, { where: 'today_banner' });
       toast.success(
         tFallback('pushOptIn.success', 'Notifications enabled. See you out there.'),
       );

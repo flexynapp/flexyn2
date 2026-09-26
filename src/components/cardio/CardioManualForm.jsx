@@ -30,6 +30,7 @@ import ProfanityWarningDialog from '@/components/ProfanityWarningDialog';
 import { bestVO2max } from '@/lib/cardioVO2max';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import TransText from '@/components/TransText';
+import { track, EVENTS } from '@/lib/analytics';
 
 function deriveType(mode, env) {
   return `${mode}_${env}`;
@@ -342,6 +343,7 @@ export default function CardioManualForm({
         await db.entities.CardioLog.update(initial.id, payload);
       } else {
         const createdLog = await db.entities.CardioLog.create(payload);
+        track(EVENTS.CARDIO_LOGGED, { mode: 'manual' });
         if (Number(payload.distance_meters) > 0) {
           try {
             const { error: rpcErr } = await supabase.rpc('increment_user_distance', {
