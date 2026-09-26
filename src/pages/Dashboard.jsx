@@ -353,8 +353,17 @@ function HeroCard({
             grows the box (min-height, not height), and nothing changes on
             a Pro Max or anything taller than 700pt. Not measured in a
             browser at the time of writing; re-run the measuring loop at
-            375x667 before tightening further. */}
-        <div className="relative p-4 md:p-6 pb-2 md:pb-2 min-h-[330px] [@media(max-height:700px)]:min-h-[244px] [@media(max-height:700px)]:pt-3 md:min-h-[260px]">
+            375x667 before tightening further.
+
+            Measured 2026-09-26 on a fresh guest at 375x667: the 244px floor
+            never bit, because the slide track is as tall as its TALLEST
+            slide (266px, the weekly-target slide: metric, progress bar and a
+            three-line sub-line). The CTA sat at 614 to 697 against a nav at
+            600. So the slides themselves now tighten on a short screen (see
+            SHORT_* in HeroSlideshow), the floor drops to 200px so it stays a
+            floor rather than a height, and the CTA row, greeting and story
+            strip each give back a step. */}
+        <div className="relative p-4 md:p-6 pb-2 md:pb-2 min-h-[330px] [@media(max-height:700px)]:min-h-[200px] [@media(max-height:700px)]:pt-2 md:min-h-[260px]">
           <HeroSlideshow
             ref={slideshowRef}
             logs={logs}
@@ -395,24 +404,29 @@ function HeroCard({
             --primary-foreground. Recolours with every theme for free.
 
             No whileHover lift: this ships to iOS and Android where there is
-            no hover, and the tap scale is the feedback that matters. */}
+            no hover, and the tap scale is the feedback that matters.
+
+            On a short phone (max-height 700px) the button drops one type step
+            and its padding tightens: at 83px tall it was the single largest
+            item under the fold on an iPhone SE. The label stays, because
+            "Up next" is what tells a planned session from a freestyle one. */}
         <div className="relative z-10 px-4 md:px-6 pb-4 md:pb-5 flex items-stretch gap-2">
           <motion.button
             whileTap={{ scale: 0.98 }}
             transition={{ type: 'spring', stiffness: 400, damping: 25 }}
             // The page's one primary action gets the one medium tick.
             onClick={() => { haptic('medium'); onPrimary(); }}
-            className="group relative flex-[2] rounded-2xl px-3 py-2.5 md:p-3 bg-primary text-primary-foreground shadow-md hover:brightness-105 flex items-center justify-between gap-3 text-start select-none-ui transition-all"
+            className="group relative flex-[2] rounded-2xl px-3 py-2.5 [@media(max-height:700px)]:py-2 md:p-3 bg-primary text-primary-foreground shadow-md hover:brightness-105 flex items-center justify-between gap-3 text-start select-none-ui transition-all"
           >
             <span className="min-w-0">
-              <span className="block text-micro font-semibold tracking-[0.04em] mb-1 text-primary-foreground/80">
+              <span className="block text-micro font-semibold tracking-[0.04em] mb-1 [@media(max-height:700px)]:mb-0.5 text-primary-foreground/80">
                 {hasWorkedOutToday
                   ? t('dashboard.hero.label.again')
                   : plan
                     ? tFallback('dashboard.hero.label.upNext', 'Up next')
                     : t('dashboard.hero.label.today')}
               </span>
-              <span className="block font-heading font-bold text-lg md:text-xl leading-tight break-anywhere">
+              <span className="block font-heading font-bold text-lg [@media(max-height:700px)]:text-base [@media(max-height:700px)]:leading-tight md:text-xl leading-tight break-anywhere">
                 {cta}
               </span>
             </span>
@@ -1867,6 +1881,7 @@ export default function Dashboard() {
            social engagement — the one card kept out of the priority
            tiering below by product decision. */}
       <StoriesRow
+        tightOnShort
         onViewProfile={(u) =>
           navigate('/hub?profile=' + encodeURIComponent(u.id || u.email))
         }
@@ -1881,11 +1896,16 @@ export default function Dashboard() {
         transition={{ duration: 0.26, ease: 'easeOut' }}
         className=""
       >
-        <p className="text-micro font-semibold tracking-[0.04em] text-muted-foreground mb-1.5">
+        {/* Short phones (max-height 700px): the date's gap and the heading
+            each drop one step. A guest's greeting carries a username that
+            wraps to two lines, so 30px type cost 75px of a 667pt screen and
+            pushed the Today CTA under the bottom nav. 24px keeps the heading
+            the largest type on the page. Nothing changes above 700pt. */}
+        <p className="text-micro font-semibold tracking-[0.04em] text-muted-foreground mb-1.5 [@media(max-height:700px)]:mb-1">
           {todayLabel}
         </p>
         <div className="flex items-start justify-between gap-2">
-          <h1 className="font-heading text-3xl md:text-4xl font-bold tracking-tight leading-tight flex-1 min-w-0">
+          <h1 className="font-heading text-3xl [@media(max-height:700px)]:text-2xl [@media(max-height:700px)]:leading-tight md:text-4xl font-bold tracking-tight leading-tight flex-1 min-w-0">
             <span className="text-muted-foreground/80">{greeting}</span>
             {firstName && (
               <>

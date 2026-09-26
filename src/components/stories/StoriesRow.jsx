@@ -508,7 +508,11 @@ function qaIsStale(cache) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export default function StoriesRow({ onViewProfile } = {}) {
+// `tightOnShort` (Dashboard only): on a short phone (max-height 700px, the
+// 375x667 iPhone SE class) the strip's bottom margin and the hairline's gap
+// each drop one step, because the Today CTA below has to clear the bottom nav
+// on first paint. Hub keeps its spacing; the flag is opt-in for that reason.
+export default function StoriesRow({ onViewProfile, tightOnShort = false } = {}) {
   const { user } = useAuth();
   const { tFallback } = useLanguage();
   const queryClient = useQueryClient();
@@ -853,7 +857,7 @@ export default function StoriesRow({ onViewProfile } = {}) {
   return (
     <>
       {/* Horizontal strip — single seamless scroll */}
-      <div className="mb-4 -mx-4 md:-mx-6">
+      <div className={`mb-4 -mx-4 md:-mx-6 ${tightOnShort ? '[@media(max-height:700px)]:mb-2' : ''}`}>
         <div className="flex items-end gap-2 px-4 md:px-6 overflow-x-auto pb-1 pt-1 scrollbar-hide">
 
           {/* Add Story — restored on a direct instruction: "it is imperative
@@ -1011,7 +1015,7 @@ export default function StoriesRow({ onViewProfile } = {}) {
             leaderboard, feed). Screenshot feedback flagged the lack
             of a visual break between sections. Uses border instead of
             full-width hr so it tucks neatly inside the bleed edge. */}
-        <div className="h-px bg-border/60 mx-4 md:mx-6 mt-2" />
+        <div className={`h-px bg-border/60 mx-4 md:mx-6 mt-2 ${tightOnShort ? '[@media(max-height:700px)]:mt-1' : ''}`} />
       </div>
 
       {/* Hidden file input */}

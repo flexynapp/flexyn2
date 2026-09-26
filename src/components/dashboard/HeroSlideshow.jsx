@@ -66,6 +66,33 @@ const ROTATE_MS = 8000;
 // roll than a stat that changes underneath them.
 const HERO_COUNT_MS = 1400;
 
+/* Short phones (max-height 700px, the 375x667 iPhone SE class).
+ *
+ * The pager's track is as tall as its TALLEST slide, not the one on
+ * screen, so the band's min-height never decided anything there: measured
+ * on a fresh guest at 375x667 the weekly-target slide ran 266px (metric,
+ * progress bar, a three-line sub-line) and put the Today CTA at 614 to 697,
+ * under a bottom nav that starts at 600. These tighten every slide kind by
+ * one step on a short screen only, so the tallest one sets a shorter track.
+ *
+ * Literal strings, not built from parts: Tailwind reads source text, and an
+ * interpolated variant emits no CSS. The `!` on the type sizes is needed
+ * because the desktop sizes are inline `clamp()` styles, which a plain class
+ * cannot override. Nothing here applies above 700pt, so a Pro Max is
+ * untouched.
+ *
+ * The sub-line clamps to two lines there. It is supporting copy under a
+ * headline that already says what the slide is, and the whole slide is one
+ * swipe from the next; a clipped second sentence costs less than the page's
+ * one primary action sitting under the nav. `max-w-none` lets those two
+ * lines use the full column so less is cut. */
+const SHORT_SUB = '[@media(max-height:700px)]:mt-1.5 [@media(max-height:700px)]:leading-snug [@media(max-height:700px)]:line-clamp-2 [@media(max-height:700px)]:max-w-none';
+const SHORT_PILL = '[@media(max-height:700px)]:mt-2';
+const SHORT_CHIP = '[@media(max-height:700px)]:w-7 [@media(max-height:700px)]:h-7';
+const SHORT_TITLE = '[@media(max-height:700px)]:!text-[1.5rem]';
+const SHORT_METRIC = '[@media(max-height:700px)]:!text-[2.5rem]';
+const SHORT_STREAK = '[@media(max-height:700px)]:!text-[2.75rem]';
+
 /* The watermark geometry and the chevron gutter that used to be declared
  * here now live in src/lib/heroChrome.js, with the measurements that
  * produced them, because Progress and Nutrition paint the same slide and
@@ -1024,7 +1051,7 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
         <Flame aria-hidden="true" className="absolute pointer-events-none select-none"
           style={heroWatermarkStyle(0.12)} />
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+          <div className={`w-8 h-8 ${SHORT_CHIP} rounded-full bg-primary/10 flex items-center justify-center`}>
             <Flame className="w-4 h-4 text-primary/80" />
           </div>
           <span className="text-micro font-semibold tracking-[0.04em] text-foreground/70">
@@ -1047,7 +1074,7 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
         <div className="min-w-0">
             <div className="flex items-baseline gap-3">
               <span
-                className="font-heading font-bold leading-none tracking-tight tabular-nums"
+                className={`font-heading font-bold leading-none tracking-tight tabular-nums ${SHORT_STREAK}`}
                 style={{ fontSize: 'clamp(3.5rem, 12vw, 6.5rem)' }}
               >
                 <AnimatedNumber from={0} value={streak} duration={HERO_COUNT_MS} />
@@ -1056,7 +1083,7 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
                 {streak === 1 ? t('dashboard.hero.daySingular') : t('dashboard.hero.dayPlural')}
               </span>
             </div>
-            <p className="text-sm text-foreground/60 max-w-[28ch] leading-relaxed mt-3">
+            <p className={`text-sm text-foreground/60 max-w-[28ch] leading-relaxed mt-3 ${SHORT_SUB}`}>
               {hasWorkedOutToday
                 ? t('dashboard.hero.subtitle.done')
                 : streak > 0
@@ -1110,7 +1137,7 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
             the band's own 2px rule, which already paints this slide's
             colour along the top edge. */}
         <div className="relative flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full bg-primary/25 flex items-center justify-center">
+          <div className={`w-8 h-8 ${SHORT_CHIP} rounded-full bg-primary/25 flex items-center justify-center`}>
             <FeatureIcon className="w-4 h-4 text-primary" />
           </div>
           <span className="text-micro font-semibold tracking-[0.04em] text-primary">
@@ -1123,19 +1150,19 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
             <h2
               // pe-20 reserves the watermark's column — see the note on the
               // shared branch's title.
-              className="font-heading font-bold leading-[1.05] tracking-tight text-foreground break-words pe-20"
+              className={`font-heading font-bold leading-[1.05] tracking-tight text-foreground break-words pe-20 ${SHORT_TITLE}`}
               style={{ fontSize: 'clamp(1.6rem, 5vw, 2.5rem)' }}
             >
               {tr(slide.titleKey, slide.title, slide.titleVars)}
             </h2>
-            <p className="text-sm text-foreground/75 max-w-[36ch] leading-relaxed mt-2">
+            <p className={`text-sm text-foreground/75 max-w-[36ch] leading-relaxed mt-2 ${SHORT_SUB}`}>
               {tr(slide.subKey, slide.sub, slide.subVars)}
             </p>
             {slide.cta && (
               <button
                 type="button"
                 onClick={() => handleCta(slide.cta)}
-                className="inline-flex items-center gap-1 mt-3 px-3 py-1.5 rounded-full bg-primary/30 hover:bg-primary/40 active:bg-primary/40 text-caption font-semibold text-foreground transition-colors"
+                className={`inline-flex items-center gap-1 mt-3 ${SHORT_PILL} px-3 py-1.5 rounded-full bg-primary/30 hover:bg-primary/40 active:bg-primary/40 text-caption font-semibold text-foreground transition-colors`}
               >
                 {tr(slide.cta.labelKey, slide.cta.label)}
                 <ChevronRight className="w-3.5 h-3.5" />
@@ -1165,7 +1192,7 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
       {SlideIcon && <SlideIcon aria-hidden="true" className="absolute pointer-events-none select-none"
         style={heroWatermarkStyle()} />}
       <div className="flex items-center gap-2">
-        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${slide.iconBg || 'bg-primary/10'}`}>
+        <div className={`w-8 h-8 ${SHORT_CHIP} rounded-full flex items-center justify-center ${slide.iconBg || 'bg-primary/10'}`}>
           <SlideIcon className="w-4 h-4 text-foreground" />
         </div>
         <span className="text-micro font-semibold tracking-[0.04em] text-foreground/70">
@@ -1191,7 +1218,7 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
             className={
               slide.metricValue != null
                 ? 'font-heading font-semibold text-foreground/85 break-words pe-20'
-                : 'font-heading font-bold leading-[1.05] tracking-tight text-foreground break-words pe-20'
+                : `font-heading font-bold leading-[1.05] tracking-tight text-foreground break-words pe-20 ${SHORT_TITLE}`
             }
             style={
               slide.metricValue != null
@@ -1208,7 +1235,7 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
           {slide.metricValue != null && (
             <div className="flex items-baseline gap-2 mt-1">
               <span
-                className="font-heading font-bold leading-none tracking-tight tabular-nums text-foreground"
+                className={`font-heading font-bold leading-none tracking-tight tabular-nums text-foreground ${SHORT_METRIC}`}
                 style={{ fontSize: 'clamp(3rem, 10vw, 5.25rem)' }}
               >
                 {tr(slide.metricPrefixKey, slide.metricPrefix)}
@@ -1252,7 +1279,7 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
               Draws left-to-right on slide enter so the user sees
               their progression curve emerge. */}
           {slide.history && (
-            <div className="mt-3 max-w-[220px] opacity-90">
+            <div className={`mt-3 ${SHORT_PILL} max-w-[220px] opacity-90`}>
               <Sparkline values={slide.history} color="hsl(var(--primary))" height={32} />
             </div>
           )}
@@ -1279,7 +1306,7 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
           )}
 
           {/* Sub copy — context line. Always present. */}
-          <p className="text-sm text-foreground/60 max-w-[36ch] leading-relaxed mt-3">
+          <p className={`text-sm text-foreground/60 max-w-[36ch] leading-relaxed mt-3 ${SHORT_SUB}`}>
             {tr(slide.subKey, slide.sub, slide.subVars)}
           </p>
 
@@ -1287,7 +1314,7 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
             <button
               type="button"
               onClick={() => handleCta(slide.cta)}
-              className="inline-flex items-center gap-1 mt-3 px-3 py-1.5 rounded-full bg-primary/10 hover:bg-primary/20 active:bg-primary/20 text-caption font-semibold text-foreground transition-colors"
+              className={`inline-flex items-center gap-1 mt-3 ${SHORT_PILL} px-3 py-1.5 rounded-full bg-primary/10 hover:bg-primary/20 active:bg-primary/20 text-caption font-semibold text-foreground transition-colors`}
             >
               {tr(slide.cta.labelKey, slide.cta.label)}
               <ChevronRight className="w-3.5 h-3.5" />
