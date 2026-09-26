@@ -58,6 +58,13 @@ export function restoreTabScroll(path, { maxMs = 1500 } = {}) {
   requestAnimationFrame(tick);
 }
 
+// After a long time away every tab opens at its root again, the same as a
+// cold start. Layout calls this from onLongResume (lib/appResume).
+export function forgetTabs() {
+  lastUrl.clear();
+  lastScroll.clear();
+}
+
 // Tests only.
 export function _resetTabMemory() {
   lastUrl.clear();

@@ -23,9 +23,13 @@
 //   not the user changing view, so the param is written back. Only a POP
 //   (Back / Forward) without the param is taken to mean "the default view".
 // - The setter accepts a value or an updater function, like useState.
+// - Coming back to the app opens the default view: a fresh launch ignores
+//   a restored param, and a long stay in the background resets to it.
+//   A refresh still keeps your place. See src/lib/appResume.js.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate, useNavigationType } from 'react-router-dom';
+import { isRestoredLaunchUrl, onLongResume } from '@/lib/appResume';
 
 function readParam(search, param, allowed) {
   const v = new URLSearchParams(search).get(param);
@@ -38,7 +42,11 @@ export function useUrlState(param, initial, allowed) {
   const navigate = useNavigate();
   const navType = useNavigationType();
 
-  const [value, setValue] = useState(() => readParam(location.search, param, allowed) ?? initial);
+  const [value, setValue] = useState(() => (
+    isRestoredLaunchUrl(location) ? initial : (readParam(location.search, param, allowed) ?? initial)
+  ));
+
+  useEffect(() => onLongResume(() => setValue(initial)), [initial]);
 
   // Latest value for the URL effect, without making it re-run on every set.
   const valueRef = useRef(value);
@@ -61,6 +69,8 @@ export function useUrlState(param, initial, allowed) {
 
   // URL → state: a link or Back/Forward that names a view selects it.
   useEffect(() => {
+    // A relaunch restored this URL; the state→URL effect is clearing it.
+    if (isRestoredLaunchUrl(location)) return;
     const fromUrl = readParam(location.search, param, allowed);
     if (fromUrl != null) {
       if (fromUrl !== valueRef.current) setValue(fromUrl);

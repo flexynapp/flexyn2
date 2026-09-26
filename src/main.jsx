@@ -7,12 +7,17 @@ import './index.css'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { capturePendingReferralCode } from './lib/data/referrals'
 import { installStaleDeployGuard } from './lib/staleDeployGuard'
+import { initAppResume } from './lib/appResume'
 import { track, EVENTS } from './lib/analytics'
 
 // Recover from stale-deploy chunk fetches (see staleDeployGuard) before
 // the app mounts, so a cached tab that hits a missing chunk self-heals
 // with one reload instead of showing a half-rendered screen.
 installStaleDeployGuard()
+
+// Tell a fresh launch from a refresh before the router reads the URL, so a
+// relaunch opens each page on its default view. See lib/appResume.
+initAppResume()
 
 // Signature for anyone who opens DevTools.
 try {

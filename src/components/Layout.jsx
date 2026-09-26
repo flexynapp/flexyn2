@@ -1,5 +1,6 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { rememberTabLocation, tabHref, saveTabScroll, restoreTabScroll } from '@/lib/tabMemory';
+import { rememberTabLocation, tabHref, saveTabScroll, restoreTabScroll, forgetTabs } from '@/lib/tabMemory';
+import { onLongResume } from '@/lib/appResume';
 import { NAV_PATHS, tabForPath } from '@/lib/navTabs';
 import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import FlexynLogo from './FlexynLogo';
@@ -277,6 +278,8 @@ export default function Layout() {
   useEffect(() => {
     if (NAV_PATHS.includes(location.pathname)) rememberTabLocation(location.pathname, location.search);
   }, [location.pathname, location.search]);
+  // ...and forget it after a long time away, like a cold start does.
+  useEffect(() => onLongResume(forgetTabs), []);
 
   const navItems = [
     { path: '/dashboard', label: tFallback('nav.today', 'Today'),   icon: LayoutDashboard },
