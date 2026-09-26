@@ -1017,7 +1017,7 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
         <Flame aria-hidden="true" className="absolute pointer-events-none select-none"
           style={heroWatermarkStyle(0.12)} />
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full bg-primary/10 backdrop-blur-sm flex items-center justify-center">
+          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
             <Flame className="w-4 h-4 text-primary/80" />
           </div>
           <span className="text-micro font-semibold tracking-[0.04em] text-foreground/70">
@@ -1103,7 +1103,7 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
             the band's own 2px rule, which already paints this slide's
             colour along the top edge. */}
         <div className="relative flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full bg-primary/25 backdrop-blur-sm flex items-center justify-center">
+          <div className="w-8 h-8 rounded-full bg-primary/25 flex items-center justify-center">
             <FeatureIcon className="w-4 h-4 text-primary" />
           </div>
           <span className="text-micro font-semibold tracking-[0.04em] text-primary">
@@ -1128,7 +1128,7 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
               <button
                 type="button"
                 onClick={() => handleCta(slide.cta)}
-                className="inline-flex items-center gap-1 mt-3 px-3 py-1.5 rounded-full bg-primary/30 hover:bg-primary/40 active:bg-primary/40 backdrop-blur-sm text-caption font-semibold text-foreground transition-colors"
+                className="inline-flex items-center gap-1 mt-3 px-3 py-1.5 rounded-full bg-primary/30 hover:bg-primary/40 active:bg-primary/40 text-caption font-semibold text-foreground transition-colors"
               >
                 {tr(slide.cta.labelKey, slide.cta.label)}
                 <ChevronRight className="w-3.5 h-3.5" />
@@ -1158,7 +1158,7 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
       {SlideIcon && <SlideIcon aria-hidden="true" className="absolute pointer-events-none select-none"
         style={heroWatermarkStyle()} />}
       <div className="flex items-center gap-2">
-        <div className={`w-8 h-8 rounded-full backdrop-blur-sm flex items-center justify-center ${slide.iconBg || 'bg-primary/10'}`}>
+        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${slide.iconBg || 'bg-primary/10'}`}>
           <SlideIcon className="w-4 h-4 text-foreground" />
         </div>
         <span className="text-micro font-semibold tracking-[0.04em] text-foreground/70">
@@ -1280,7 +1280,7 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
             <button
               type="button"
               onClick={() => handleCta(slide.cta)}
-              className="inline-flex items-center gap-1 mt-3 px-3 py-1.5 rounded-full bg-primary/10 hover:bg-primary/20 active:bg-primary/20 backdrop-blur-sm text-caption font-semibold text-foreground transition-colors"
+              className="inline-flex items-center gap-1 mt-3 px-3 py-1.5 rounded-full bg-primary/10 hover:bg-primary/20 active:bg-primary/20 text-caption font-semibold text-foreground transition-colors"
             >
               {tr(slide.cta.labelKey, slide.cta.label)}
               <ChevronRight className="w-3.5 h-3.5" />
