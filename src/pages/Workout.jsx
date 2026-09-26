@@ -27,6 +27,7 @@ import ProfanityWarningDialog from '@/components/ProfanityWarningDialog';
 import CardioSection from '@/components/cardio/CardioSection';
 import WorkoutShareCard from '@/components/workout/WorkoutShareCard';
 import PostWorkoutPushAsk from '@/components/workout/PostWorkoutPushAsk';
+import TrainHeroSlide from '@/components/workout/TrainHeroSlide';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -2589,103 +2590,25 @@ export default function Workout() {
                 renderSlide={(slide) => (
                   <>
                     {slide.id === 'freestyle' && (
-                      <button type="button" onClick={startFreestyle}
-                        className="group w-full h-full relative overflow-hidden rounded-3xl text-white text-start"
-                        style={{ background: 'linear-gradient(135deg, #0d0d14 0%, #111827 40%, #0a0f1e 100%)', boxShadow: '0 20px 60px -12px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.06) inset' }}>
-                        <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-3xl">
-                          <div className="absolute -top-[40%] -right-[15%] w-[70%] h-[200%] rounded-full blur-[80px] opacity-60"
-                            style={{ background: 'radial-gradient(ellipse, hsl(var(--primary) / 0.55) 0%, transparent 65%)' }} />
-                          <div className="absolute top-[20%] -left-[10%] w-[50%] h-[120%] rounded-full blur-[60px] opacity-30"
-                            style={{ background: 'radial-gradient(ellipse, hsl(265 80% 65% / 0.5) 0%, transparent 65%)' }} />
-                          <motion.div className="absolute inset-y-0 w-[40%] skew-x-[-20deg]"
-                            style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.06) 50%, transparent 100%)' }}
-                            animate={{ x: ['-60%', '220%'] }} transition={{ duration: 3.5, repeat: Infinity, repeatDelay: 2.5, ease: 'easeInOut' }} />
-                        </div>
-                        <div className="absolute top-0 start-8 end-8 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent pointer-events-none" />
-                        <div className="relative flex items-center justify-between gap-4 p-6 md:p-8">
-                          <div className="min-w-0">
-                            <span className="block text-micro font-bold tracking-[0.25em] uppercase text-primary/80 mb-2">{t('workout.startKicker')}</span>
-                            <span className="font-heading font-black text-3xl md:text-4xl leading-none block tracking-tight min-h-[2em]">{t('workout.freestyle')}</span>
-                            <span className="text-label text-white/50 mt-2.5 block max-w-[36ch] leading-relaxed min-h-[3.25em]">{t('workout.freestyleDesc')}</span>
-                            <span className="inline-flex items-center gap-1 mt-3 px-2.5 py-1 rounded-full bg-white/10 border border-white/10 text-micro font-semibold text-white/60 tracking-wide uppercase">
-                              <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />{tFallback("workout.readyToGo", "Ready to go")}
-                            </span>
-                          </div>
-                          <div className="shrink-0">
-                            <div className="w-16 h-16 rounded-2xl flex items-center justify-center relative overflow-hidden"
-                              style={{ background: 'linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary) / 0.75) 100%)', boxShadow: '0 8px 32px -4px hsl(var(--primary) / 0.6), 0 0 0 1px hsl(var(--primary) / 0.3) inset' }}>
-                              <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent" />
-                              <Play className="w-7 h-7 fill-current relative z-10" />
-                            </div>
-                          </div>
-                        </div>
-                      </button>
+                      <TrainHeroSlide onClick={startFreestyle} tone="primary" icon={Play}
+                        kicker={t('workout.startKicker')}
+                        title={t('workout.freestyle')}
+                        blurb={t('workout.freestyleDesc')}
+                        pill={tFallback("workout.readyToGo", "Ready to go")} pulse />
                     )}
                     {slide.id === 'gauntlet' && (
-                      <button type="button" onClick={() => navigate('/gauntlet')}
-                        className="group w-full h-full relative overflow-hidden rounded-3xl text-white text-start"
-                        style={{ background: 'linear-gradient(135deg, #1e0a3c 0%, #2d1257 40%, #1a0a2e 100%)', boxShadow: '0 20px 60px -12px rgba(88,28,135,0.5), 0 0 0 1px rgba(167,139,250,0.1) inset' }}>
-                        <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-3xl">
-                          <div className="absolute -top-[40%] -right-[15%] w-[70%] h-[200%] rounded-full blur-[80px] opacity-60"
-                            style={{ background: 'radial-gradient(ellipse, rgba(139,92,246,0.65) 0%, transparent 65%)' }} />
-                          <div className="absolute top-[20%] -left-[10%] w-[50%] h-[120%] rounded-full blur-[60px] opacity-40"
-                            style={{ background: 'radial-gradient(ellipse, rgba(192,132,252,0.55) 0%, transparent 65%)' }} />
-                          <motion.div className="absolute inset-y-0 w-[40%] skew-x-[-20deg]"
-                            style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(167,139,250,0.08) 50%, transparent 100%)' }}
-                            animate={{ x: ['-60%', '220%'] }} transition={{ duration: 3.5, repeat: Infinity, repeatDelay: 2.5, ease: 'easeInOut', delay: 1.2 }} />
-                        </div>
-                        <div className="absolute top-0 start-8 end-8 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent pointer-events-none" />
-                        <div className="relative flex items-center justify-between gap-4 p-6 md:p-8">
-                          <div className="min-w-0">
-                            <span className="block text-micro font-bold tracking-[0.25em] uppercase text-primary/80 mb-2">{tFallback("workout.challengeYourself", "CHALLENGE YOURSELF")}</span>
-                            <span className="font-heading font-black text-3xl md:text-4xl leading-none block tracking-tight min-h-[2em]">{tFallback("workout.theGauntlet", "The Gauntlet")}</span>
-                            <span className="text-label text-white/50 mt-2.5 block max-w-[36ch] leading-relaxed min-h-[3.25em]">10 challenges. One path. Prove what you are made of.</span>
-                            <span className="inline-flex items-center gap-1 mt-3 px-2.5 py-1 rounded-full bg-primary/15 border border-primary/20 text-micro font-semibold text-primary/80 tracking-wide uppercase">
-                              {gauntletProgress?.path_completed ? 'Completed' : gauntletProgress ? `Challenge #${gauntletProgress.current_challenge_sequence}` : 'Start now'}
-                            </span>
-                          </div>
-                          <div className="shrink-0">
-                            <div className="w-16 h-16 rounded-2xl flex items-center justify-center relative overflow-hidden"
-                              style={{ background: 'linear-gradient(135deg, rgba(139,92,246,0.9) 0%, rgba(109,40,217,0.75) 100%)', boxShadow: '0 8px 32px -4px rgba(139,92,246,0.55), 0 0 0 1px rgba(167,139,250,0.3) inset' }}>
-                              <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent" />
-                              <Trophy className="w-7 h-7 relative z-10 text-white" />
-                            </div>
-                          </div>
-                        </div>
-                      </button>
+                      <TrainHeroSlide onClick={() => navigate('/gauntlet')} tone="soft" icon={Trophy}
+                        kicker={tFallback("workout.challengeYourself", "CHALLENGE YOURSELF")}
+                        title={tFallback("workout.theGauntlet", "The Gauntlet")}
+                        blurb="10 challenges. One path. Prove what you are made of."
+                        pill={gauntletProgress?.path_completed ? 'Completed' : gauntletProgress ? `Challenge #${gauntletProgress.current_challenge_sequence}` : 'Start now'} />
                     )}
                     {slide.id === 'crew-wars' && (
-                      <button type="button" onClick={() => setCrewWarsOpen(true)}
-                        className="group w-full h-full relative overflow-hidden rounded-3xl text-white text-start"
-                        style={{ background: 'linear-gradient(135deg, #0c1a10 0%, #14281c 40%, #091510 100%)', boxShadow: '0 20px 60px -12px rgba(16,185,129,0.3), 0 0 0 1px rgba(52,211,153,0.08) inset' }}>
-                        <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-3xl">
-                          <div className="absolute -top-[40%] -right-[15%] w-[70%] h-[200%] rounded-full blur-[80px] opacity-55"
-                            style={{ background: 'radial-gradient(ellipse, rgba(16,185,129,0.55) 0%, transparent 65%)' }} />
-                          <div className="absolute top-[20%] -left-[10%] w-[50%] h-[120%] rounded-full blur-[60px] opacity-35"
-                            style={{ background: 'radial-gradient(ellipse, rgba(52,211,153,0.45) 0%, transparent 65%)' }} />
-                          <motion.div className="absolute inset-y-0 w-[40%] skew-x-[-20deg]"
-                            style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(52,211,153,0.07) 50%, transparent 100%)' }}
-                            animate={{ x: ['-60%', '220%'] }} transition={{ duration: 3.5, repeat: Infinity, repeatDelay: 2.5, ease: 'easeInOut', delay: 0.6 }} />
-                        </div>
-                        <div className="absolute top-0 start-8 end-8 h-px bg-gradient-to-r from-transparent via-success/25 to-transparent pointer-events-none" />
-                        <div className="relative flex items-center justify-between gap-4 p-6 md:p-8">
-                          <div className="min-w-0">
-                            <span className="block text-micro font-bold tracking-[0.25em] uppercase text-success/80 mb-2">{tFallback("workout.crewBattles", "CREW BATTLES")}</span>
-                            <span className="font-heading font-black text-3xl md:text-4xl leading-none block tracking-tight min-h-[2em]">{tFallback("workout.crewWars", "Crew Wars")}</span>
-                            <span className="text-label text-white/50 mt-2.5 block max-w-[36ch] leading-relaxed min-h-[3.25em]">{tFallback('workout.crewWarsBlurb', 'Rally your crew. Crush rivals. Dominate the leaderboard.')}</span>
-                            <span className="inline-flex items-center gap-1 mt-3 px-2.5 py-1 rounded-full bg-success/15 border border-success/20 text-micro font-semibold text-success/80 tracking-wide uppercase">
-                              <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />{tFallback("workout.joinTheFight", "Join the fight")}
-                            </span>
-                          </div>
-                          <div className="shrink-0">
-                            <div className="w-16 h-16 rounded-2xl flex items-center justify-center relative overflow-hidden"
-                              style={{ background: 'linear-gradient(135deg, rgba(16,185,129,0.85) 0%, rgba(5,150,105,0.70) 100%)', boxShadow: '0 8px 32px -4px rgba(16,185,129,0.5), 0 0 0 1px rgba(52,211,153,0.3) inset' }}>
-                              <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent" />
-                              <Shield className="w-7 h-7 relative z-10 text-white" />
-                            </div>
-                          </div>
-                        </div>
-                      </button>
+                      <TrainHeroSlide onClick={() => setCrewWarsOpen(true)} tone="success" icon={Shield}
+                        kicker={tFallback("workout.crewBattles", "CREW BATTLES")}
+                        title={tFallback("workout.crewWars", "Crew Wars")}
+                        blurb={tFallback('workout.crewWarsBlurb', 'Rally your crew. Crush rivals. Dominate the leaderboard.')}
+                        pill={tFallback("workout.joinTheFight", "Join the fight")} pulse />
                     )}
                   </>
                 )}
@@ -2735,10 +2658,10 @@ export default function Workout() {
                   whileHover={{ y: -1 }}
                   whileTap={{ scale: 0.99 }}
                   onClick={startFromLastWorkout}
-                  className={`group relative w-full mb-4 rounded-2xl border bg-gradient-to-r p-4 md:p-5 text-start transition-colors ${
+                  className={`group relative w-full mb-4 rounded-2xl border bg-card p-4 md:p-5 text-start transition-colors ${
                     isToday
-                      ? 'border-s-4 border-primary border-primary/40 from-primary/10 via-primary/5 to-transparent hover:border-primary/60'
-                      : 'border-primary/25 from-primary/10 via-primary/5 to-transparent hover:border-primary/45'
+                      ? 'border-s-4 border-primary border-primary/40 hover:border-primary/60'
+                      : 'border-primary/25 hover:border-primary/45'
                   }`}
                   aria-label={tFallback('workout.repeatLast', 'Repeat last workout')}
                 >

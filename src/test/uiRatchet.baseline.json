@@ -2,12 +2,12 @@
   "$comment": "Per-file counts of patterns CLAUDE.md bans. They may SHRINK, never grow. See scripts/ui-ratchet.mjs and src/test/__tests__/uiRatchet.test.js. After a cleanup, re-baseline with `npm run ui:ratchet -- --write` so the lower number is the new ceiling.",
   "$totals": {
     "purple": 86,
-    "gradient": 44,
-    "backdropBlur": 89,
+    "gradient": 37,
+    "backdropBlur": 84,
     "sparkles": 85,
     "heavyShadow": 60,
     "colouredShadow": 31,
-    "offScaleRadius": 37,
+    "offScaleRadius": 31,
     "subFloorText": 0,
     "hoverMotion": 61
   },
@@ -70,7 +70,7 @@
       "src/pages/GymHub.jsx": 1,
       "src/pages/Market.jsx": 1,
       "src/pages/PublicGymLanding.jsx": 1,
-      "src/pages/Workout.jsx": 8
+      "src/pages/Workout.jsx": 1
     },
     "backdropBlur": {
       "src/components/BackToTopButton.jsx": 1,
@@ -79,7 +79,6 @@
       "src/components/crews/AvatarCropModal.jsx": 1,
       "src/components/crews/CrewPage.jsx": 2,
       "src/components/dashboard/CustomQuotesModal.jsx": 1,
-      "src/components/dashboard/HeroSlideshow.jsx": 5,
       "src/components/duels/CreateDuelModal.jsx": 1,
       "src/components/duels/DuelDetailSheet.jsx": 1,
       "src/components/formcoach/CameraView.jsx": 3,
@@ -259,8 +258,7 @@
       "src/components/ui/drawer.jsx": 1,
       "src/pages/DuelInviteLanding.jsx": 1,
       "src/pages/Onboarding.jsx": 2,
-      "src/pages/SignInToContinue.jsx": 1,
-      "src/pages/Workout.jsx": 6
+      "src/pages/SignInToContinue.jsx": 1
     },
     "subFloorText": {},
     "hoverMotion": {
