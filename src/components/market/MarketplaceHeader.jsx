@@ -50,6 +50,7 @@ export function DriftParticles({ particles }) {
 // belongs with — which also lets this banner shrink to a single row.
 export default function MarketplaceHeader({
   flexCoins, onRefresh, refreshing = false, onList, listableCount = 0, onOpenTradeHistory,
+  listIsPrimary = true,
 }) {
   const { tFallback } = useLanguage();
   const fmt = useNumberFormatter();
@@ -63,10 +64,14 @@ export default function MarketplaceHeader({
       {/* Row 1: title + balance + bag + list CTA */}
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-2">
-          <ShoppingBag className="w-5 h-5 text-primary" />
+          <ShoppingBag className="hidden lg:block w-5 h-5 text-primary" aria-hidden="true" />
           {/* This is the page's only <h1> — Market.jsx deliberately doesn't
-              render one (see the comment there). */}
-          <h1 className="font-heading font-bold text-lg">{tFallback("layout.marketplace", "Marketplace")}</h1>
+              render one (see the comment there). Below lg the fixed app
+              header already shows "Marketplace" as the child-route title,
+              so here it is sr-only there and the word appears once, the
+              same treatment Progress, Nutrition and MyGym get. From lg up
+              that header is hidden and this is the visible title. */}
+          <h1 className="sr-only lg:not-sr-only font-heading font-bold text-lg">{tFallback("layout.marketplace", "Marketplace")}</h1>
           {/* The icon SPINS while the refetch is in flight, and the button
               disables itself. Without that this control was unfalsifiable:
               the common case is that nothing has changed since the last
@@ -122,7 +127,14 @@ export default function MarketplaceHeader({
             // already listed). Removes the tap-and-discover cycle for users
             // with nothing to sell; doubles as a satisfying tick-up when a
             // capsule opens and inventory grows.
-            className={`px-4 py-2 rounded-full bg-primary text-primary-foreground font-bold text-sm hover:opacity-90 transition-opacity whitespace-nowrap shrink-0 ${listableCount === 0 ? 'opacity-60' : ''}`}
+            // Primary only when the Daily Chest is not waiting to be claimed;
+            // see MarketplaceFeed. Otherwise an outline, so the page keeps
+            // exactly one orange button.
+            className={`px-4 py-2 rounded-full font-bold text-sm transition-colors whitespace-nowrap shrink-0 ${
+              listIsPrimary
+                ? 'bg-primary text-primary-foreground hover:opacity-90'
+                : 'border border-border bg-background text-foreground hover:bg-secondary active:bg-secondary'
+            } ${listableCount === 0 ? 'opacity-60' : ''}`}
           >
             List Item
             {listableCount > 0 && (

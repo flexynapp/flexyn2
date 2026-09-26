@@ -325,22 +325,16 @@ export default function CoachChat({ mode, onSaveRegimen, onStartWorkout }) {
 
   return (
     <ChatViewportFrame className="flex flex-col" minHeight={380}>
-      {/* Header */}
-      <div className="flex items-center justify-between pb-3 border-b border-border mb-3 shrink-0">
-        <div className="flex items-center gap-2">
-          <div className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center shrink-0">
-            <Sparkles className="w-4 h-4 text-foreground" />
-          </div>
-          <div>
-            <p className="font-heading font-bold text-sm">
-              {tFallback('coach.title', 'Coach')}
-            </p>
-            <p className="text-micro text-muted-foreground">
-              {tFallback('coach.subtitle', 'Personalized advice from your data')}
-            </p>
-          </div>
-        </div>
-        {messages.length > 0 && (
+      {/* Header. It used to be a visible row (Sparkles chip, "Coach",
+          "Personalized advice from your data") under the app header's
+          "AI Coach", above the welcome's "Your personal coach": three
+          titles stacked on one phone screen. The page title comes from the
+          app header (and an lg-only h1 in Coach.jsx), the welcome keeps the
+          one subtitle, and this row now exists only to hold Clear chat once
+          there is a chat to clear. The name stays for screen readers. */}
+      <h2 className="sr-only">{tFallback('coach.title', 'Coach')}</h2>
+      {messages.length > 0 && (
+        <div className="flex items-center justify-end pb-2 border-b border-border mb-3 shrink-0">
           <button
             onClick={handleClear}
             aria-label={tFallback("coachChat.clearChat", "Clear chat")}
@@ -348,8 +342,8 @@ export default function CoachChat({ mode, onSaveRegimen, onStartWorkout }) {
           >
             <Trash2 className="w-6 h-6" />
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Messages */}
       <div
@@ -443,7 +437,10 @@ export default function CoachChat({ mode, onSaveRegimen, onStartWorkout }) {
               aria-label={voiceListening ? 'Stop listening' : 'Dictate your question'}
               aria-pressed={voiceListening}
               className={[
-                'p-2 rounded-xl transition-colors shrink-0',
+                // 32px drawn; the before: box makes the tap target 44px tall
+                // and holds the sides to half the gap so the mic and Send
+                // halos do not overlap.
+                "relative p-2 rounded-xl transition-colors shrink-0 before:absolute before:content-[''] before:-inset-y-1.5 before:-inset-x-0.5",
                 voiceListening
                   ? 'bg-rose-500/15 text-rose-500'
                   : 'text-muted-foreground hover:text-foreground active:text-foreground hover:bg-background/60 active:bg-background/60',
@@ -456,7 +453,7 @@ export default function CoachChat({ mode, onSaveRegimen, onStartWorkout }) {
             onClick={() => handleSend()}
             disabled={thinking || !draft.trim()}
             aria-label={tFallback("coachChat.send", "Send")}
-            className="p-2 rounded-xl bg-primary text-primary-foreground disabled:opacity-50 disabled:cursor-not-allowed transition-opacity shrink-0"
+            className="relative p-2 rounded-xl bg-primary text-primary-foreground disabled:opacity-50 disabled:cursor-not-allowed transition-opacity shrink-0 before:absolute before:content-[''] before:-inset-y-1.5 before:-inset-x-0.5"
           >
             <Send className="w-4 h-4" />
           </button>

@@ -315,7 +315,18 @@ export default function NutritionOnboardingModal({ open, userProfile, onComplete
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) handleDismissWithoutCompleting(); }}>
-      <DialogContent className="max-w-md p-0 overflow-hidden" title={tFallback("nutritionOnboardingModal.setYourNutritionTargets", "Set your nutrition targets")}>
+      <DialogContent
+        className="max-w-md p-0 overflow-hidden focus:outline-none"
+        // Radix focuses the first tabbable element on open, which here is
+        // the invisible 48px close overlay, and its focus ring drew a
+        // sharp orange square in the corner before anyone touched it.
+        // Focus the dialog itself instead: the focus trap still holds and
+        // a keyboard user's first Tab lands on the close button.
+        onOpenAutoFocus={(e) => {
+          e.preventDefault();
+          e.currentTarget?.focus?.();
+        }}
+        title={tFallback("nutritionOnboardingModal.setYourNutritionTargets", "Set your nutrition targets")}>
         {/* Progress bar */}
         <div className="w-full h-1 bg-secondary">
           <motion.div
@@ -336,7 +347,7 @@ export default function NutritionOnboardingModal({ open, userProfile, onComplete
           type="button"
           onClick={handleDismissWithoutCompleting}
           aria-label={tFallback("common.close", "Close")}
-          className="absolute end-0 top-0 z-20 w-12 h-12 bg-transparent touch-manipulation"
+          className="absolute end-0 top-0 z-20 w-12 h-12 rounded-full bg-transparent touch-manipulation focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
         />
 
         {/* Coach trigger, tucked in beside the close X. It sits at end-12

@@ -19,7 +19,7 @@ import { track, EVENTS } from '@/lib/analytics';
 import { toast } from '@/lib/toast';
 import { isAppAdmin } from '@/lib/adminRoles';
 import { setLayoutDefault } from '@/lib/data/layoutDefaults';
-import { Trash2, TrendingUp, Loader2, Droplet, X, Beaker, History, ScanLine, ChevronDown, ChevronUp, Plus, Clock, ChevronRight, ChefHat, Calendar, ListChecks, LayoutGrid, RotateCcw, CheckCircle2, Save, Repeat, Eye, EyeOff, Target, Flashlight, FlashlightOff, GlassWater } from 'lucide-react';
+import { Trash2, Loader2, Droplet, X, Beaker, History, ScanLine, ChevronDown, ChevronUp, Plus, Clock, ChevronRight, ChefHat, Calendar, ListChecks, LayoutGrid, RotateCcw, CheckCircle2, Save, Repeat, Eye, EyeOff, Target, Flashlight, FlashlightOff, GlassWater, Camera, UtensilsCrossed } from 'lucide-react';
 import { WaterBottleIcon } from '@/components/nutrition/NutrientIcon';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import { ReorderableRow, DragHandle } from '@/components/dashboard/ReorderableRow';
@@ -67,7 +67,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { useLanguage } from '@/lib/LanguageContext';
 import { enT } from '@/lib/translatorArg';
 import { useSettings } from '@/lib/SettingsContext';
-import { useNumberFormatter } from '@/lib/intl';
+import { useNumberFormatter, useDateFormatter } from '@/lib/intl';
 import { useLocation } from 'react-router-dom';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 // Water-entry helpers live in lib so this page and MealHistoryModal cannot
@@ -276,6 +276,7 @@ export default function Nutrition() {
   const { t, tFallback } = useLanguage();
   const { calorieCyclingEnabled } = useSettings();
   const fmt = useNumberFormatter();
+  const fmtDate = useDateFormatter();
   const location = useLocation();
 
   const [openLogMeal, setOpenLogMeal] = useState(false);
@@ -1490,8 +1491,13 @@ export default function Nutrition() {
 
         {/* Row 1 — date + Scanner History on one line (aligned). */}
         <div className="flex items-center justify-between gap-4">
-          <p className="text-micro font-semibold tracking-[0.2em] uppercase text-muted-foreground">
-            {format(new Date(), 'EEEE, MMMM d')}
+          {/* Intl rather than date-fns format(), which binds no locale and
+              read English under a Spanish screen. Short weekday and month
+              below sm: at 0.2em tracking the long form wrapped on a 375pt
+              SE and left the day number alone on its own line. */}
+          <p className="min-w-0 text-micro font-semibold tracking-[0.2em] uppercase text-muted-foreground whitespace-nowrap">
+            <span className="sm:hidden">{fmtDate(new Date(), { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+            <span className="hidden sm:inline">{fmtDate(new Date(), { weekday: 'long', month: 'long', day: 'numeric' })}</span>
           </p>
           <button
             onClick={() => setShowScanHistory(v => !v)}
@@ -1763,16 +1769,18 @@ export default function Nutrition() {
       />
 
       {/* Quick-access row — icon shortcuts for users who miss the carousel.
-          Scan wears the logo flame gradient; Photo-AI wears its signature
-          purple (replaces the header button). Plans was removed — it now
-          lives as a tab inside the Planner. */}
+          Plans was removed — it now lives as a tab inside the Planner.
+          Scan and Photo-AI used to wear gradients (a four-stop hardcoded
+          flame ramp and a primary ramp), which is decoration the UI rules
+          ban and made two shortcuts compete as the page's primary action.
+          They are flat tiles now, a step up from the neutral three only by
+          sitting on bg-card with the icon in foreground. */}
       <div className="flex gap-2 mb-3">
-        {/* Scan — flame gradient (matches the logo) */}
+        {/* Scan */}
         <button
           type="button"
           onClick={startScanner}
-          className="flex-1 flex flex-col items-center gap-1 py-2.5 rounded-xl text-white shadow-sm active:scale-95 transition-transform"
-          style={{ background: 'linear-gradient(315deg, #ffd27a 0%, #fb9d38 32%, #f2700d 64%, #c2410c 100%)' }}
+          className="flex-1 flex flex-col items-center gap-1 py-2.5 rounded-xl bg-card border border-border text-foreground hover:bg-secondary active:bg-secondary active:scale-95 transition-[transform,background-color]"
         >
           <ScanLine className="w-4 h-4" />
           <span className="text-micro font-semibold">{tFallback('nutrition.scan', 'Scan')}</span>
@@ -1791,17 +1799,16 @@ export default function Nutrition() {
           </button>
         ))}
 
-        {/* Photo-AI — purple gradient (moved out of the header) */}
+        {/* Photo-AI (moved out of the header) */}
         <button
           type="button"
           onClick={openPhotoCapture}
           disabled={photoRecognizing}
-          className="flex-1 flex flex-col items-center gap-1 py-2.5 rounded-xl text-white shadow-sm active:scale-95 transition-transform disabled:opacity-60 disabled:cursor-not-allowed"
-          style={{ background: 'linear-gradient(315deg, hsl(var(--primary) / 0.82) 0%, hsl(var(--primary)) 55%, hsl(var(--primary) / 0.92) 100%)' }}
+          className="flex-1 flex flex-col items-center gap-1 py-2.5 rounded-xl bg-card border border-border text-foreground hover:bg-secondary active:bg-secondary active:scale-95 transition-[transform,background-color] disabled:opacity-60 disabled:cursor-not-allowed"
         >
           {photoRecognizing
             ? <Loader2 className="w-4 h-4 animate-spin" />
-            : <span className="text-base leading-none">📸</span>}
+            : <Camera className="w-4 h-4" aria-hidden="true" />}
           <span className="text-micro font-semibold">
             {photoRecognizing ? tFallback('nutrition.reading', 'Reading…') : tFallback('nutrition.photoAi', 'Photo-AI')}
           </span>
@@ -2191,7 +2198,7 @@ export default function Nutrition() {
         <AnimatePresence>
           {entries.filter(entry => !isWaterEntry(entry)).length === 0 ? (
             <Card className="p-8 text-center border-dashed">
-              <TrendingUp className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+              <UtensilsCrossed className="w-12 h-12 text-muted-foreground mx-auto mb-3" aria-hidden="true" />
               <p className="font-heading font-semibold">{t('nutrition.noMeals')}</p>
               <p className="text-sm text-muted-foreground mt-1">{t('nutrition.noMealsDesc')}</p>
             </Card>

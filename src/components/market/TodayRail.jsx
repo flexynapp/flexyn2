@@ -14,25 +14,23 @@ import { Package } from 'lucide-react';
 import DailyChestBlock from './DailyChestBlock';
 import { useLanguage } from '@/lib/LanguageContext';
 
-export default function TodayRail({ user, onClaimed, onOpenShop }) {
+export default function TodayRail({ user, onClaimed, onClaimedState, onOpenShop }) {
   const { tFallback } = useLanguage();
   return (
     <div className="grid grid-cols-2 gap-3">
-      {user && <DailyChestBlock user={user} onClaimed={onClaimed} />}
+      {user && <DailyChestBlock user={user} onClaimed={onClaimed} onClaimedState={onClaimedState} />}
 
       <motion.button
         whileTap={{ scale: 0.97 }}
         whileHover={{ scale: 1.01 }}
         onClick={onOpenShop}
-        className="rounded-2xl p-3 flex flex-col gap-2 border border-primary/30 bg-card text-start"
-        style={{
-          backgroundImage:
-            'linear-gradient(135deg, hsl(var(--primary) / 0.22) 0%, hsl(var(--primary) / 0.06) 100%)',
-        }}
+        // Flat, hairline border: the primary gradient it wore was decoration,
+        // and it made a secondary entry point look like the page's action.
+        className="rounded-2xl p-3 flex flex-col gap-2 border border-border bg-card text-start"
       >
         <div className="flex items-center gap-2">
           <div className="shrink-0 w-9 h-9 rounded-xl bg-secondary border border-border flex items-center justify-center">
-            <Package className="w-4 h-4 text-primary" />
+            <Package className="w-4 h-4 text-foreground" />
           </div>
           <div className="min-w-0">
             <p className="font-heading font-bold text-sm leading-tight">{tFallback("todayRail.capsules", "Capsules")}</p>

@@ -431,8 +431,9 @@ const HeroPager = forwardRef(function HeroPager({
               // nine dots at a full 44px wide would need 396px on a 375px
               // screen. Horizontal expansion is held to the gap so
               // neighbouring targets don't overlap and steal each other's
-              // taps.
-              className={`relative h-1.5 rounded-full transition-all before:absolute before:content-[''] before:-inset-y-4 before:-inset-x-0.5 ${i === idx ? 'w-6' : 'w-1.5'}`}
+              // taps. 19px each way makes the target 44px tall (6 + 38),
+              // the HIG minimum; it was 38px.
+              className={`relative h-1.5 rounded-full transition-all before:absolute before:content-[''] before:-inset-y-[19px] before:-inset-x-0.5 ${i === idx ? 'w-6' : 'w-1.5'}`}
               style={dotStyle(i === idx)}
             />
           ))}

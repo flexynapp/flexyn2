@@ -93,11 +93,15 @@ function SuggestedFolloweeCard({ user, onFollow, following, followed }) {
       <button
         onClick={onFollow}
         disabled={following || followed}
+        // Outline, not --primary: the rail shows three of these at once, and
+        // three orange buttons beside the composer meant Hub had no single
+        // primary action. The before: box grows the tap target to 44px tall
+        // (it rendered 26px) without changing what is drawn.
         className={[
-          'w-full flex items-center justify-center gap-1 py-1.5 rounded-md text-micro font-bold transition-colors',
+          "relative w-full flex items-center justify-center gap-1 py-1.5 rounded-md border text-micro font-bold transition-colors before:absolute before:content-[''] before:inset-x-0 before:-inset-y-[9px]",
           followed
-            ? 'bg-secondary text-muted-foreground'
-            : 'bg-primary text-primary-foreground hover:bg-primary/90 active:bg-primary/90 disabled:opacity-60',
+            ? 'border-transparent bg-secondary text-muted-foreground'
+            : 'border-border bg-background text-foreground hover:bg-secondary active:bg-secondary disabled:opacity-60',
         ].join(' ')}
       >
         {following ? (

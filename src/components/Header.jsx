@@ -102,7 +102,10 @@ export default function Header() {
             variant="ghost"
             size="icon"
             aria-label={tFallback("achievements.vault.back", "Back")}
-            className="shrink-0"
+            // size="icon" is 36px, under the 44px touch minimum. A ghost
+            // button paints nothing at rest, so growing the box changes the
+            // tap target and not the look; -ms-1 keeps the chevron where it was.
+            className="shrink-0 h-11 w-11 -ms-1"
             onClick={() => headerBack(navigate)}
           >
             <ChevronLeft className="w-5 h-5 rtl:scale-x-[-1]" />

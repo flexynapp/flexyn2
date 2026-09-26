@@ -344,7 +344,17 @@ function HeroCard({
             tall slide grows the box instead of being clipped. NOT measured
             in a browser at the time of writing; re-run the measuring loop
             at 768 and 1280 before tightening it further. */}
-        <div className="relative p-4 md:p-6 pb-2 md:pb-2 min-h-[330px] md:min-h-[260px]">
+        {/* Short phones (max-height 700px, the 375x667 iPhone SE class).
+            At 330px the hero's own CTA row landed at y=656 on a 667pt
+            screen, under the bottom nav that starts at 600, so the page's
+            one acting button was below the fold on first paint. On a short
+            viewport the floor drops to 244px and the top padding, dot row
+            and slide gaps each tighten by one step. A tall slide still
+            grows the box (min-height, not height), and nothing changes on
+            a Pro Max or anything taller than 700pt. Not measured in a
+            browser at the time of writing; re-run the measuring loop at
+            375x667 before tightening further. */}
+        <div className="relative p-4 md:p-6 pb-2 md:pb-2 min-h-[330px] [@media(max-height:700px)]:min-h-[244px] [@media(max-height:700px)]:pt-3 md:min-h-[260px]">
           <HeroSlideshow
             ref={slideshowRef}
             logs={logs}
@@ -1969,7 +1979,7 @@ export default function Dashboard() {
       {/* mt-5 gives the hero breathing room below the greeting when no
           Resume banner sits between them; when the banner IS present its
           own margin collapses with this one, so the gap stays consistent. */}
-      <div className="mt-5 mb-2">
+      <div className="mt-5 [@media(max-height:700px)]:mt-2 mb-2">
         <HeroCard
           streak={streak}
           hasWorkedOutToday={hasWorkedOutToday}

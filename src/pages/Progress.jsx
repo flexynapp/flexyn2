@@ -98,11 +98,15 @@ const FRAME_SHORT_FALLBACK = { week: 'Wk', month: 'Mo', year: 'Yr', all: 'All' }
 // in 15 languages say "Exercise Trends" / "Body Metrics" / "Progress
 // Photos" — written for a list with room, not for four pills in a 2×2
 // grid — so these get their own short keys rather than a relabelled bar.
+// Selected is neutral (foreground on background) for every tab. It used to be
+// each tab's own hue, so Trends selected was a full orange pill beside the
+// orange WK timeframe toggle: two primaries for what is navigation state,
+// on a screen whose one orange control should be an action.
 const TAB_META = [
-  { id: 'trends',    labelKey: 'progress.tab.trends',   label: 'Trends',   Icon: TrendingUp,  iconColor: 'text-primary',    activeBg: 'bg-primary',     activeText: 'text-primary-foreground' },
-  { id: 'body',      labelKey: 'progress.tab.body',     label: 'Body',     Icon: Ruler,       iconColor: 'text-success', activeBg: 'bg-success', activeText: 'text-white' },
-  { id: 'photos',    labelKey: 'progress.tab.photos',   label: 'Photos',   Icon: Camera,      iconColor: 'text-primary', activeBg: 'bg-primary',  activeText: 'text-white' },
-  { id: 'insights',  labelKey: 'progress.tab.insights', label: 'Insights', Icon: Lightbulb,   iconColor: 'text-info',   activeBg: 'bg-info',    activeText: 'text-white' },
+  { id: 'trends',    labelKey: 'progress.tab.trends',   label: 'Trends',   Icon: TrendingUp,  iconColor: 'text-primary',    activeBg: 'bg-foreground', activeText: 'text-background' },
+  { id: 'body',      labelKey: 'progress.tab.body',     label: 'Body',     Icon: Ruler,       iconColor: 'text-success', activeBg: 'bg-foreground', activeText: 'text-background' },
+  { id: 'photos',    labelKey: 'progress.tab.photos',   label: 'Photos',   Icon: Camera,      iconColor: 'text-primary', activeBg: 'bg-foreground', activeText: 'text-background' },
+  { id: 'insights',  labelKey: 'progress.tab.insights', label: 'Insights', Icon: Lightbulb,   iconColor: 'text-info',   activeBg: 'bg-foreground', activeText: 'text-background' },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -448,9 +452,11 @@ function renderProgressSlide(slide, { count = 1 } = {}) {
           disagreeing, and with `mode="wait"` it renders empty for a beat
           mid-slide, in full view of the page beside it. */}
       <div className="min-w-0">
+        {/* An `empty` slide carries a sentence, not a figure, so it takes a
+            heading size rather than the display size a number gets. */}
         <h3
-          className="font-heading font-bold leading-none tracking-tight tabular-nums text-foreground break-words pe-20"
-          style={{ fontSize: 'clamp(2rem, 7vw, 3rem)' }}
+          className={`font-heading font-bold tracking-tight text-foreground break-words pe-20 ${slide.empty ? 'leading-tight text-balance' : 'leading-none tabular-nums'}`}
+          style={{ fontSize: slide.empty ? 'clamp(1.25rem, 5vw, 1.5rem)' : 'clamp(2rem, 7vw, 3rem)' }}
         >
           <SlideFigure slide={slide} />
         </h3>
@@ -732,6 +738,11 @@ export default function Progress() {
   //
   // `--accent` is not the escape hatch either: it is a desaturated
   // slate, so as a full-band tint it reads as dirt rather than colour.
+  // A brand-new account has nothing on either the Workouts or the Volume
+  // slide, and both used to render a display-size bare "0". A zero at that
+  // size reads as a failure the user did not commit (CLAUDE.md, "a section
+  // with no data must not render as zeros"), so both say what comes next.
+  const noTrainingYet = logs.length === 0 && !(totalVolume > 0);
   const carouselSlides = [
     {
       id: 'streak',
@@ -768,8 +779,11 @@ export default function Progress() {
       icon: Dumbbell,
       color: 'var(--info)',
       kicker: tFallback('progress.slide.workouts.kicker', 'Workouts'),
-      value: `${logs.length}`,
-      count: logs.length,
+      value: noTrainingYet
+        ? tFallback('progress.slide.workouts.empty', 'Your first workout starts the chart')
+        : `${logs.length}`,
+      count: noTrainingYet ? null : logs.length,
+      empty: noTrainingYet,
       formatCount: (n) => `${n}`,
       cta: { label: tFallback('progress.slide.cta.logWorkout', 'Log a workout'), onClick: () => navigate('/workout') },
       tip: logs.length === 0
@@ -792,7 +806,10 @@ export default function Progress() {
       kicker: tFallback('progress.slide.volume.kicker', 'Volume'),
       value: totalVolume > 0
         ? `${formatBigNumber(Math.round(fromLbs(totalVolume, weightUnit)))} ${weightUnit}`
-        : '0',
+        : noTrainingYet
+          ? tFallback('progress.slide.volume.empty', 'Nothing lifted yet')
+          : '0',
+      empty: noTrainingYet,
       count: totalVolume > 0 ? Math.round(fromLbs(totalVolume, weightUnit)) : null,
       formatCount: (n) => `${formatBigNumber(n)} ${weightUnit}`,
       cta: { label: tFallback('progress.slide.cta.analytics', 'See analytics'), onClick: () => setAdvancedAnalyticsOpen(true) },
@@ -1064,7 +1081,7 @@ export default function Progress() {
                             onClick={() => setStatsFrame(f)}
                             className={`px-3 py-1 rounded-lg text-micro font-bold uppercase tracking-wider transition-all duration-150 ${
                               statsFrame === f
-                                ? 'bg-primary text-primary-foreground shadow-md scale-[1.04]'
+                                ? 'bg-foreground text-background shadow-md scale-[1.04]'
                                 : 'text-muted-foreground hover:text-foreground active:text-foreground hover:bg-secondary/80 active:bg-secondary/80'
                             }`}
                           >

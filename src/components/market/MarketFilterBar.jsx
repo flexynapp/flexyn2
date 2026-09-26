@@ -88,6 +88,11 @@ function byFeaturedThen(tiebreak) {
   };
 }
 
+// A 22px chip is half the 44px touch minimum. This grows the TAP target
+// vertically without changing what is drawn; horizontally it stays inside the
+// gap so neighbouring chips do not steal each other's taps.
+const CHIP_HIT = "before:absolute before:content-[''] before:inset-x-0 before:-inset-y-[11px]";
+
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function MarketFilterBar({
   filters, onChange, resultCount, totalCount, savedCount = 0, availableRarities,
@@ -136,7 +141,7 @@ export default function MarketFilterBar({
     // 56 and not 0: the header's real height is 56 + env(safe-area-inset-top),
     // so a bare `top-14` re-created the original bug 59px higher up on every
     // notched phone — the bar stuck underneath the header instead of below it.
-    <div className="sticky top-[calc(3.5rem+env(safe-area-inset-top))] lg:top-0 z-30 -mx-4 px-4 py-2 bg-background/95 backdrop-blur-sm border-b border-border">
+    <div className="sticky top-[calc(3.5rem+env(safe-area-inset-top))] lg:top-0 z-30 -mx-4 px-4 py-2 bg-background border-b border-border">
       {/* Row 1 — chips scroll, sort does NOT.
           The sort <select> used to sit inside this scroll container with
           `ms-auto`, which aligns to the SCROLL width rather than the visible
@@ -145,17 +150,12 @@ export default function MarketFilterBar({
           sideways swipe. Sort is a primary control on a mobile-only app, so
           it lives outside the scroller and is always visible. */}
       <div className="flex items-center gap-1.5">
-        <div
-          className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide flex-1 min-w-0"
-          style={{
-            scrollbarWidth: 'none',
-            // Fade the scroll edge. Without it the last visible chip is
-            // sliced mid-word against the sort control ("Can affo…"), which
-            // reads as broken rather than as "there's more this way".
-            maskImage: 'linear-gradient(to right, #000 92%, transparent 100%)',
-            WebkitMaskImage: 'linear-gradient(to right, #000 92%, transparent 100%)',
-          }}
-        >
+        {/* Wraps rather than scrolls. It used to be a horizontal scroller
+            with a faded edge, and on a 375pt iPhone SE the fade landed in
+            the middle of "Can afford", so the chip read as clipped and as
+            running under the sort control. Five short chips fit in two
+            lines; a wrapped chip is always whole and always tappable. */}
+        <div className="flex flex-wrap items-center gap-x-1.5 gap-y-2 flex-1 min-w-0">
         <SlidersHorizontal className="w-3.5 h-3.5 text-muted-foreground shrink-0" aria-hidden="true" />
 
         <div className="flex gap-1 shrink-0" role="group" aria-label={tFallback("marketFilterBar.listingType", "Listing type")}>
@@ -165,9 +165,12 @@ export default function MarketFilterBar({
               type="button"
               onClick={() => set({ type: t.id })}
               aria-pressed={filters.type === t.id}
-              className={`px-2.5 py-1 rounded-full text-micro font-bold transition-colors ${
+              // Selected is neutral, not --primary: a filter is state, and the
+              // Market's one orange control is its acting button. The
+              // before: box grows the 22px chip's tap target to 44px tall.
+              className={`relative px-2.5 py-1 rounded-full text-micro font-bold transition-colors ${CHIP_HIT} ${
                 filters.type === t.id
-                  ? 'bg-primary text-primary-foreground'
+                  ? 'bg-foreground text-background'
                   : 'bg-secondary text-muted-foreground hover:text-foreground active:text-foreground'
               }`}
             >
@@ -182,9 +185,9 @@ export default function MarketFilterBar({
           type="button"
           onClick={() => set({ affordable: !filters.affordable })}
           aria-pressed={filters.affordable}
-          className={`shrink-0 px-2.5 py-1 rounded-full text-micro font-bold transition-colors ${
+          className={`relative shrink-0 whitespace-nowrap px-2.5 py-1 rounded-full text-micro font-bold transition-colors ${CHIP_HIT} ${
             filters.affordable
-              ? 'bg-amber-500/20 text-amber-600 dark:text-amber-300 border border-amber-400/40'
+              ? 'bg-foreground text-background border border-foreground'
               : 'bg-secondary text-muted-foreground hover:text-foreground active:text-foreground border border-transparent'
           }`}
         >
@@ -200,7 +203,7 @@ export default function MarketFilterBar({
           type="button"
           onClick={() => set({ saved: !filters.saved })}
           aria-pressed={filters.saved}
-          className={`shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-full text-micro font-bold transition-colors border ${
+          className={`relative shrink-0 whitespace-nowrap flex items-center gap-1 px-2.5 py-1 rounded-full text-micro font-bold transition-colors border ${CHIP_HIT} ${
             filters.saved
               ? 'bg-red-500/15 text-red-500 border-red-400/40'
               : 'bg-secondary text-muted-foreground hover:text-foreground active:text-foreground border-transparent'
@@ -236,7 +239,10 @@ export default function MarketFilterBar({
           market narrows nothing, it just costs a row. */}
       {rarityKeys.length > 1 && (
       <div
-        className="flex items-center gap-1.5 mt-1.5 overflow-x-auto scrollbar-hide"
+        // The vertical padding (cancelled by the negative margins) is room
+        // for the chips' 44px tap boxes: a scroller clips on both axes, so
+        // without it the halo would be cut back to the 22px chip.
+        className="flex items-center gap-1.5 -mt-[5px] -mb-[11px] py-[11px] overflow-x-auto scrollbar-hide"
         style={{
           scrollbarWidth: 'none',
           maskImage: 'linear-gradient(to right, #000 88%, transparent 100%)',
@@ -252,7 +258,7 @@ export default function MarketFilterBar({
               type="button"
               onClick={() => toggleRarity(r)}
               aria-pressed={on}
-              className="shrink-0 px-2 py-0.5 rounded-full text-micro font-bold border transition-colors"
+              className={`relative shrink-0 px-2 py-0.5 rounded-full text-micro font-bold border transition-colors ${CHIP_HIT}`}
               style={{
                 color: on ? tint.color : undefined,
                 borderColor: on ? tint.color : 'hsl(var(--border))',
