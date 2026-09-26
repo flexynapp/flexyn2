@@ -76,4 +76,30 @@ describe('ExerciseActionsMenu', () => {
     fireEvent.click(await screen.findByRole('menuitem', { name: /remove/i }));
     expect(onRemove).toHaveBeenCalledTimes(1);
   });
+
+  // The owner's review: the rows looked unfinished. Pin what "finished"
+  // means here so a later restyle of the shared primitive cannot undo it.
+  it('draws 44px rows, one icon size, and colours only Remove', async () => {
+    wrap(<ExerciseActionsMenu name="Bench" onPair={() => {}} onPlateCalc={() => {}} onFormCheck={() => {}} onRemove={() => {}} />);
+    await open();
+    const items = await screen.findAllByRole('menuitem');
+    expect(items).toHaveLength(4);
+    for (const item of items) {
+      expect(item.className).toMatch(/\bmin-h-11\b/);
+      expect(item.className).toMatch(/\[&>svg\]:size-4/);
+    }
+    const remove = screen.getByRole('menuitem', { name: /remove exercise/i });
+    expect(remove.className).toMatch(/\btext-destructive\b/);
+    for (const item of items.filter(i => i !== remove)) {
+      expect(item.className).not.toMatch(/destructive|primary/);
+    }
+    expect(screen.getAllByRole('separator')).toHaveLength(1);
+  });
+
+  it('drops the divider when Remove is the only action', async () => {
+    wrap(<ExerciseActionsMenu name="Bench" onRemove={() => {}} />);
+    await open();
+    await screen.findByRole('menuitem', { name: /remove exercise/i });
+    expect(screen.queryByRole('separator')).toBeNull();
+  });
 });
