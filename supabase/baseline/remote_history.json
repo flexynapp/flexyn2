@@ -1,0 +1,62 @@
+[
+  {
+    "name": "restore_increment_copy_count",
+    "version": "20260712155434"
+  },
+  {
+    "name": "public_profiles_email_harvest_fix",
+    "version": "20260712160458"
+  },
+  {
+    "name": "recognize_meal_quota_cap_3",
+    "version": "20260716174222"
+  },
+  {
+    "name": "training_spaces_equipment",
+    "version": "20260730223412"
+  },
+  {
+    "name": "gym_owner_and_demo_dedupe",
+    "version": "20260731004025"
+  },
+  {
+    "name": "training_spaces_membership_gate",
+    "version": "20260731025815"
+  },
+  {
+    "name": "scheduled_workouts_table",
+    "version": "20260802021239"
+  },
+  {
+    "name": "scheduled_workouts_rpcs",
+    "version": "20260802021256"
+  },
+  {
+    "name": "scheduled_workouts_reminder_cron",
+    "version": "20260802021311"
+  },
+  {
+    "name": "scheduled_workouts_lock_down_execute",
+    "version": "20260802021917"
+  },
+  {
+    "name": "welcome_and_first_workout_capsules",
+    "version": "20260804051953"
+  },
+  {
+    "name": "backfill_welcome_and_first_workout_capsules",
+    "version": "20260804062157"
+  },
+  {
+    "name": "crew_assigned_regimens_update_policy",
+    "version": "20260804063024"
+  },
+  {
+    "name": "block_mute_identity_without_email",
+    "version": "20260809031227"
+  },
+  {
+    "name": "harden_grant_action_xp_unknown_types",
+    "version": "20260828012729"
+  }
+]

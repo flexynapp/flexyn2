@@ -1,0 +1,58 @@
+[
+  {
+    "cmd": "DELETE",
+    "policyname": "progress-photos: owner delete",
+    "qual": "((bucket_id = 'progress-photos'::text) AND ((storage.foldername(name))[1] = (auth.uid())::text))",
+    "roles": "{authenticated}",
+    "with_check": null
+  },
+  {
+    "cmd": "INSERT",
+    "policyname": "progress-photos: owner insert",
+    "qual": null,
+    "roles": "{authenticated}",
+    "with_check": "((bucket_id = 'progress-photos'::text) AND ((storage.foldername(name))[1] = (auth.uid())::text))"
+  },
+  {
+    "cmd": "SELECT",
+    "policyname": "progress-photos: owner read",
+    "qual": "((bucket_id = 'progress-photos'::text) AND ((storage.foldername(name))[1] = (auth.uid())::text))",
+    "roles": "{authenticated}",
+    "with_check": null
+  },
+  {
+    "cmd": "UPDATE",
+    "policyname": "progress-photos: owner update",
+    "qual": "((bucket_id = 'progress-photos'::text) AND ((storage.foldername(name))[1] = (auth.uid())::text))",
+    "roles": "{authenticated}",
+    "with_check": null
+  },
+  {
+    "cmd": "INSERT",
+    "policyname": "uploads: authenticated users can upload",
+    "qual": null,
+    "roles": "{anon,authenticated}",
+    "with_check": "((bucket_id = 'uploads'::text) AND ((auth.uid() IS NULL) OR ((storage.foldername(name))[1] = (auth.uid())::text)))"
+  },
+  {
+    "cmd": "SELECT",
+    "policyname": "uploads: read own objects",
+    "qual": "((bucket_id = 'uploads'::text) AND ((storage.foldername(name))[1] = (( SELECT auth.uid() AS uid))::text))",
+    "roles": "{authenticated}",
+    "with_check": null
+  },
+  {
+    "cmd": "DELETE",
+    "policyname": "uploads: users can delete own files",
+    "qual": "((bucket_id = 'uploads'::text) AND ((storage.foldername(name))[1] = (auth.uid())::text))",
+    "roles": "{authenticated}",
+    "with_check": null
+  },
+  {
+    "cmd": "UPDATE",
+    "policyname": "uploads: users can update own files",
+    "qual": "((bucket_id = 'uploads'::text) AND ((storage.foldername(name))[1] = (auth.uid())::text))",
+    "roles": "{authenticated}",
+    "with_check": null
+  }
+]

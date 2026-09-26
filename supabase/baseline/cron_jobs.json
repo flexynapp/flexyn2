@@ -1,0 +1,128 @@
+[
+  {
+    "active": true,
+    "command": "\r\n    UPDATE duels\r\n    SET    status = 'expired'\r\n    WHERE  status IN ('pending', 'active')\r\n      AND  expires_at IS NOT NULL\r\n      AND  expires_at \u003c NOW();\r\n  ",
+    "jobname": "expire-overdue-duels",
+    "schedule": "*/15 * * * *"
+  },
+  {
+    "active": true,
+    "command": " SELECT public.sweep_stale_guest_accounts(7, 200); ",
+    "jobname": "guest_account_sweep",
+    "schedule": "0 4 * * *"
+  },
+  {
+    "active": true,
+    "command": "SELECT public.gym_rival_void_stale_all();",
+    "jobname": "gym-rival-afk-void",
+    "schedule": "0 */6 * * *"
+  },
+  {
+    "active": true,
+    "command": "SELECT public.gym_rival_settle_week();",
+    "jobname": "gym-rival-settle",
+    "schedule": "5 0 * * 1"
+  },
+  {
+    "active": true,
+    "command": " SELECT public.dispatch_memory_reengagement(); ",
+    "jobname": "memory_reengagement_hourly",
+    "schedule": "19 * * * *"
+  },
+  {
+    "active": true,
+    "command": "SELECT public.ops_collect_alerts()",
+    "jobname": "ops-collect-alerts",
+    "schedule": "50 * * * *"
+  },
+  {
+    "active": true,
+    "command": " SELECT public.purge_expired_stories(); ",
+    "jobname": "purge_expired_stories",
+    "schedule": "*/15 * * * *"
+  },
+  {
+    "active": true,
+    "command": " SELECT public.run_quest_expiry_reminders(); ",
+    "jobname": "quest_expiry_15min",
+    "schedule": "*/15 * * * *"
+  },
+  {
+    "active": true,
+    "command": "SELECT public.recompute_active_crew_wars();",
+    "jobname": "recompute-crew-wars",
+    "schedule": "10 * * * *"
+  },
+  {
+    "active": true,
+    "command": " SELECT public.release_scheduled_messages(); ",
+    "jobname": "release-scheduled-messages",
+    "schedule": "* * * * *"
+  },
+  {
+    "active": true,
+    "command": "SELECT public.resolve_due_crew_wars();",
+    "jobname": "resolve-crew-wars",
+    "schedule": "*/15 * * * *"
+  },
+  {
+    "active": true,
+    "command": "SELECT public.roll_crew_seasons();",
+    "jobname": "roll-crew-seasons",
+    "schedule": "20 3 * * *"
+  },
+  {
+    "active": true,
+    "command": "SELECT public.roll_league_seasons();",
+    "jobname": "roll-league-seasons",
+    "schedule": "40 3 * * *"
+  },
+  {
+    "active": true,
+    "command": "SELECT public.roll_weekly_leagues();",
+    "jobname": "roll-weekly-leagues",
+    "schedule": "10 0 * * 1"
+  },
+  {
+    "active": true,
+    "command": " SELECT public.fire_scheduled_workout_reminders(); ",
+    "jobname": "scheduled-workout-reminders",
+    "schedule": "5 * * * *"
+  },
+  {
+    "active": true,
+    "command": " SELECT public.kick_storage_gc(); ",
+    "jobname": "storage_gc_kick",
+    "schedule": "*/5 * * * *"
+  },
+  {
+    "active": true,
+    "command": " SELECT public.run_streak_break_reminders(); ",
+    "jobname": "streak_break_reminders_hourly",
+    "schedule": "0 * * * *"
+  },
+  {
+    "active": true,
+    "command": "SELECT public.sweep_expired_bounties();",
+    "jobname": "sweep-expired-bounties",
+    "schedule": "*/30 * * * *"
+  },
+  {
+    "active": true,
+    "command": " SELECT public.advance_weekly_gauntlet_statuses(); ",
+    "jobname": "weekly_gauntlet_advance_hourly",
+    "schedule": "7 * * * *"
+  },
+  {
+    "active": true,
+    "command": "SELECT public.kick_weekly_reviews();",
+    "jobname": "weekly-reviews-generator",
+    "schedule": "0 20 * * 0"
+  },
+  {
+    "active": true,
+    "command": " SELECT public.run_welcome_back_reminders(); ",
+    "jobname": "welcome_back_hourly",
+    "schedule": "0 * * * *"
+  }
+]

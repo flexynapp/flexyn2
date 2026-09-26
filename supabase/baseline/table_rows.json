@@ -1,0 +1,606 @@
+[
+  {
+    "rows": 0,
+    "table": "_migration_log"
+  },
+  {
+    "rows": 24,
+    "table": "action_xp_ledger"
+  },
+  {
+    "rows": 2,
+    "table": "admin_users"
+  },
+  {
+    "rows": 0,
+    "table": "app_layout_defaults"
+  },
+  {
+    "rows": 4,
+    "table": "body_metrics"
+  },
+  {
+    "rows": 14,
+    "table": "bounties"
+  },
+  {
+    "rows": 2,
+    "table": "bounty_claims"
+  },
+  {
+    "rows": 3,
+    "table": "bug_reports"
+  },
+  {
+    "rows": 5,
+    "table": "cardio_logs"
+  },
+  {
+    "rows": 0,
+    "table": "cardio_templates"
+  },
+  {
+    "rows": 51,
+    "table": "checklist_items"
+  },
+  {
+    "rows": 5,
+    "table": "coach_chat_daily_total"
+  },
+  {
+    "rows": 11,
+    "table": "coach_chat_quota"
+  },
+  {
+    "rows": 6,
+    "table": "coin_gifts"
+  },
+  {
+    "rows": 0,
+    "table": "crew_assigned_regimens"
+  },
+  {
+    "rows": 0,
+    "table": "crew_bans"
+  },
+  {
+    "rows": 0,
+    "table": "crew_challenge_contributions"
+  },
+  {
+    "rows": 4,
+    "table": "crew_challenge_templates"
+  },
+  {
+    "rows": 0,
+    "table": "crew_challenges"
+  },
+  {
+    "rows": 0,
+    "table": "crew_invites"
+  },
+  {
+    "rows": 0,
+    "table": "crew_join_requests"
+  },
+  {
+    "rows": 6,
+    "table": "crew_members"
+  },
+  {
+    "rows": 4,
+    "table": "crew_message_reactions"
+  },
+  {
+    "rows": 30,
+    "table": "crew_messages"
+  },
+  {
+    "rows": 0,
+    "table": "crew_perk_purchases"
+  },
+  {
+    "rows": 2,
+    "table": "crew_perks"
+  },
+  {
+    "rows": 9,
+    "table": "crew_season_stats"
+  },
+  {
+    "rows": 3,
+    "table": "crew_seasons"
+  },
+  {
+    "rows": 2,
+    "table": "crew_treasury_ledger"
+  },
+  {
+    "rows": 0,
+    "table": "crew_trophies"
+  },
+  {
+    "rows": 8,
+    "table": "crew_war_contributions"
+  },
+  {
+    "rows": 1,
+    "table": "crew_wars"
+  },
+  {
+    "rows": 0,
+    "table": "crew_xp_claims"
+  },
+  {
+    "rows": 4,
+    "table": "crews"
+  },
+  {
+    "rows": 1,
+    "table": "custom_quotes"
+  },
+  {
+    "rows": 0,
+    "table": "cycle_logs"
+  },
+  {
+    "rows": 6,
+    "table": "dm_message_reactions"
+  },
+  {
+    "rows": 0,
+    "table": "dm_poll_votes"
+  },
+  {
+    "rows": 0,
+    "table": "dm_polls"
+  },
+  {
+    "rows": 0,
+    "table": "dm_request_blocks"
+  },
+  {
+    "rows": 19,
+    "table": "duels"
+  },
+  {
+    "rows": 0,
+    "table": "equipment_models"
+  },
+  {
+    "rows": 0,
+    "table": "equipment_photos"
+  },
+  {
+    "rows": 0,
+    "table": "exercise_forms"
+  },
+  {
+    "rows": 0,
+    "table": "exercise_groups"
+  },
+  {
+    "rows": 71,
+    "table": "flex_coin_grant_ledger"
+  },
+  {
+    "rows": 236,
+    "table": "flex_coin_ledger"
+  },
+  {
+    "rows": 0,
+    "table": "food_item_requests"
+  },
+  {
+    "rows": 2,
+    "table": "food_items"
+  },
+  {
+    "rows": 10,
+    "table": "gauntlet_challenges"
+  },
+  {
+    "rows": 3,
+    "table": "goals"
+  },
+  {
+    "rows": 50,
+    "table": "guest_sweep_log"
+  },
+  {
+    "rows": 3,
+    "table": "gym_businesses"
+  },
+  {
+    "rows": 0,
+    "table": "gym_checkins"
+  },
+  {
+    "rows": 0,
+    "table": "gym_event_rsvps"
+  },
+  {
+    "rows": 0,
+    "table": "gym_events"
+  },
+  {
+    "rows": 0,
+    "table": "gym_feed_comments"
+  },
+  {
+    "rows": 0,
+    "table": "gym_feed_post_reactions"
+  },
+  {
+    "rows": 0,
+    "table": "gym_feed_posts"
+  },
+  {
+    "rows": 3,
+    "table": "gym_members"
+  },
+  {
+    "rows": 44,
+    "table": "gym_rival_assignments"
+  },
+  {
+    "rows": 0,
+    "table": "gym_verification_queue"
+  },
+  {
+    "rows": 4,
+    "table": "hub_comment_likes"
+  },
+  {
+    "rows": 16,
+    "table": "hub_comments"
+  },
+  {
+    "rows": 15,
+    "table": "hub_conversations"
+  },
+  {
+    "rows": 44,
+    "table": "hub_follows"
+  },
+  {
+    "rows": 3,
+    "table": "hub_live_sessions"
+  },
+  {
+    "rows": 47,
+    "table": "hub_messages"
+  },
+  {
+    "rows": 204,
+    "table": "hub_post_views"
+  },
+  {
+    "rows": 28,
+    "table": "hub_posts"
+  },
+  {
+    "rows": 49,
+    "table": "hub_reactions"
+  },
+  {
+    "rows": 1,
+    "table": "hub_reports"
+  },
+  {
+    "rows": 4,
+    "table": "hub_saved_posts"
+  },
+  {
+    "rows": 6,
+    "table": "injury_logs"
+  },
+  {
+    "rows": 5,
+    "table": "item_sold_counts"
+  },
+  {
+    "rows": 15,
+    "table": "journal_entries"
+  },
+  {
+    "rows": 57,
+    "table": "league_members"
+  },
+  {
+    "rows": 0,
+    "table": "league_season_stats"
+  },
+  {
+    "rows": 1,
+    "table": "league_seasons"
+  },
+  {
+    "rows": 14,
+    "table": "leagues"
+  },
+  {
+    "rows": 75,
+    "table": "loot_catalog"
+  },
+  {
+    "rows": 0,
+    "table": "marketplace_bundles"
+  },
+  {
+    "rows": 10,
+    "table": "marketplace_listings"
+  },
+  {
+    "rows": 0,
+    "table": "marketplace_wishlist"
+  },
+  {
+    "rows": 8,
+    "table": "meal_plans"
+  },
+  {
+    "rows": 0,
+    "table": "memory_reengagement_log"
+  },
+  {
+    "rows": 1,
+    "table": "monthly_league_members"
+  },
+  {
+    "rows": 1,
+    "table": "monthly_leagues"
+  },
+  {
+    "rows": 12,
+    "table": "mood_logs"
+  },
+  {
+    "rows": 443,
+    "table": "notifications"
+  },
+  {
+    "rows": 140,
+    "table": "nutrition_logs"
+  },
+  {
+    "rows": 1,
+    "table": "nutrition_recipes"
+  },
+  {
+    "rows": 0,
+    "table": "ops_alerts"
+  },
+  {
+    "rows": 0,
+    "table": "organization_challenges"
+  },
+  {
+    "rows": 0,
+    "table": "organization_members"
+  },
+  {
+    "rows": 0,
+    "table": "organizations"
+  },
+  {
+    "rows": 3336,
+    "table": "osm_gym_cache"
+  },
+  {
+    "rows": 1225,
+    "table": "osm_gym_tiles"
+  },
+  {
+    "rows": 0,
+    "table": "pending_duel_invites"
+  },
+  {
+    "rows": 9,
+    "table": "poll_votes"
+  },
+  {
+    "rows": 7,
+    "table": "post_sticker_reactions"
+  },
+  {
+    "rows": 0,
+    "table": "push_subscriptions"
+  },
+  {
+    "rows": 0,
+    "table": "recognize_meal_daily_total"
+  },
+  {
+    "rows": 2,
+    "table": "recognize_meal_quota"
+  },
+  {
+    "rows": 0,
+    "table": "referrals"
+  },
+  {
+    "rows": 0,
+    "table": "regimen_reviews"
+  },
+  {
+    "rows": 34,
+    "table": "regimens"
+  },
+  {
+    "rows": 7,
+    "table": "roll_call_responses"
+  },
+  {
+    "rows": 1,
+    "table": "routines"
+  },
+  {
+    "rows": 0,
+    "table": "scheduled_workouts"
+  },
+  {
+    "rows": 9,
+    "table": "sleep_logs"
+  },
+  {
+    "rows": 0,
+    "table": "solo_challenge_claims"
+  },
+  {
+    "rows": 10,
+    "table": "solo_challenges"
+  },
+  {
+    "rows": 0,
+    "table": "space_equipment"
+  },
+  {
+    "rows": 4,
+    "table": "status_note_likes"
+  },
+  {
+    "rows": 8,
+    "table": "status_notes"
+  },
+  {
+    "rows": 5,
+    "table": "step_logs"
+  },
+  {
+    "rows": 41,
+    "table": "storage_cleanup_queue"
+  },
+  {
+    "rows": 0,
+    "table": "stories"
+  },
+  {
+    "rows": 0,
+    "table": "story_blocks"
+  },
+  {
+    "rows": 0,
+    "table": "story_highlight_items"
+  },
+  {
+    "rows": 1,
+    "table": "story_highlights"
+  },
+  {
+    "rows": 0,
+    "table": "story_likes"
+  },
+  {
+    "rows": 0,
+    "table": "story_poll_votes"
+  },
+  {
+    "rows": 0,
+    "table": "story_reactions"
+  },
+  {
+    "rows": 0,
+    "table": "story_views"
+  },
+  {
+    "rows": 0,
+    "table": "streak_rescues"
+  },
+  {
+    "rows": 0,
+    "table": "trade_offers"
+  },
+  {
+    "rows": 0,
+    "table": "trainer_listings"
+  },
+  {
+    "rows": 0,
+    "table": "trainer_purchases"
+  },
+  {
+    "rows": 0,
+    "table": "training_spaces"
+  },
+  {
+    "rows": 0,
+    "table": "user_blocks"
+  },
+  {
+    "rows": 39,
+    "table": "user_branded_items"
+  },
+  {
+    "rows": 202,
+    "table": "user_capsules"
+  },
+  {
+    "rows": 511,
+    "table": "user_daily_quests"
+  },
+  {
+    "rows": 0,
+    "table": "user_gauntlet_completions"
+  },
+  {
+    "rows": 0,
+    "table": "user_gauntlet_progress"
+  },
+  {
+    "rows": 292,
+    "table": "user_inventory"
+  },
+  {
+    "rows": 0,
+    "table": "user_mutes"
+  },
+  {
+    "rows": 45,
+    "table": "user_profiles"
+  },
+  {
+    "rows": 1,
+    "table": "user_quest_stats"
+  },
+  {
+    "rows": 10,
+    "table": "user_stat_grant_ledger"
+  },
+  {
+    "rows": 63,
+    "table": "user_trophies"
+  },
+  {
+    "rows": 11,
+    "table": "weekly_debriefs"
+  },
+  {
+    "rows": 1,
+    "table": "weekly_gauntlet_attempts"
+  },
+  {
+    "rows": 0,
+    "table": "weekly_gauntlet_notifications"
+  },
+  {
+    "rows": 1,
+    "table": "weekly_gauntlets"
+  },
+  {
+    "rows": 9,
+    "table": "workout_logs"
+  },
+  {
+    "rows": 0,
+    "table": "workout_templates"
+  },
+  {
+    "rows": 78,
+    "table": "xp_grant_log"
+  },
+  {
+    "rows": 100,
+    "table": "xp_level_thresholds"
+  }
+]
