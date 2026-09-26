@@ -41,7 +41,7 @@
 
 **Charts/media:** `recharts` (Progress/Body charts — Line/Bar/ResponsiveContainer), hand-rolled SVG (nutrition mini-bars), `html2canvas` (share-card PNG export), `canvas-confetti` (celebrations), `qrcode` (gym signage), `@zxing/browser` (barcode/QR scan), `maplibre-gl` (gym map, cardio routes via OpenFreeMap/MapTiler).
 
-**AI/ML:** `@tensorflow/tfjs` + `@tensorflow/tfjs-backend-webgl` + `@tensorflow-models/pose-detection` (MoveNet, Form Coach); Anthropic Claude API (AI Coach chat + Photo-AI meal recognition, both via Edge Functions holding the key server-side).
+**AI/ML:** `@mediapipe/tasks-vision` Pose Landmarker lite (Form Coach); Anthropic Claude API (AI Coach chat + Photo-AI meal recognition, both via Edge Functions holding the key server-side).
 
 **Dates/i18n:** `date-fns` (+ locale packs), custom i18n splitter (`scripts/split-i18n.mjs`, 15 languages).
 
@@ -107,9 +107,9 @@
 
 ### B4. Form Coach (pose analysis)
 - **Functional summary:** Camera-based real-time form scoring on 4 lifts using on-device pose detection.
-- **Granular mechanics (`formcoach/`, `formCoach/`):** Lazy-imports TF.js + WebGL backend + MoveNet SINGLEPOSE_LIGHTNING (~3 MB, prewarmed on modal open, CPU fallback). `analyzeForm(imageDataUrl, exerciseName)` runs pose estimation → per-exercise geometry rules (`rules.js`) → `{overall_score 0–10, form_rating, good_points[], corrections[], injury_risks[], tip, _bodyDetectionScore, _poseQuality}`.
-- **UI/UX touchpoints:** FormCoachModal, ExercisePicker, CameraView, FeedbackPanel, DemoSection. Wrapped in its own ErrorBoundary so a TF.js failure can't crash Workout.
-- **Data models/deps:** No DB persistence (analysis is ephemeral); vendor-tfjs/pose chunks.
+- **Granular mechanics (`formcoach/`, `formCoach/`):** Lazy-imports MediaPipe Pose Landmarker lite (~9 MB with its WASM runtime, prewarmed on modal open, GPU delegate with CPU fallback). `analyzeForm(imageDataUrl, exerciseName)` runs pose estimation → per-exercise geometry rules (`rules.js`) → `{overall_score 0–10, form_rating, good_points[], corrections[], injury_risks[], tip, _bodyDetectionScore, _poseQuality}`.
+- **UI/UX touchpoints:** FormCoachModal, ExercisePicker, CameraView, FeedbackPanel, DemoSection. Wrapped in its own ErrorBoundary so a model failure can't crash Workout.
+- **Data models/deps:** No DB persistence (analysis is ephemeral); vendor-pose chunk plus WASM and model from CDNs.
 
 ### B5. PR Tracking & Celebration
 - **Functional summary:** Detects estimated-1RM personal records live during logging and post-save, with a distinct gold celebration + shareable card.

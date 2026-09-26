@@ -1,7 +1,7 @@
 // src/components/formcoach/FormCoachModal.jsx
 //
 // Real Form Coach. Wires the four formcoach sub-components into a usable
-// flow backed by TensorFlow.js MoveNet pose detection. The analyzer lives
+// flow backed by MediaPipe Pose Landmarker. The analyzer lives
 // at src/lib/formCoach/analyzeForm.js — see that file for how the rule-based
 // per-exercise checks work.
 
@@ -29,7 +29,7 @@ export default function FormCoachModal({ open, onClose }) {
   const [loadingMessage, setLoadingMessage] = useState('');
 
   // Pre-warm the model in the background as soon as the modal opens, so the
-  // user's first capture isn't blocked on the 3 MB model download.
+  // user's first capture isn't blocked on the ~9 MB model download.
   useEffect(() => {
     if (open) prewarmDetector();
   }, [open]);

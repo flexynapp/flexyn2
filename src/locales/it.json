@@ -1559,7 +1559,7 @@
   "formcoach.howItWorks": "Come funziona",
   "formcoach.howItWorksHeader": "Come funziona:",
   "formcoach.injuryRisks": "Rischi di infortunio",
-  "formcoach.modelLoadingMessage": "Caricamento del modello AI (una sola volta, ~3 MB)…",
+  "formcoach.modelLoadingMessage": "Caricamento del modello AI (una sola volta, ~9 MB)…",
   "formcoach.noBodyCorrection1": "Non sono riuscito a vedere tutto il corpo nell'inquadratura.",
   "formcoach.noBodyCorrection2": "Prova: luce migliore, sfondo semplice, corpo intero visibile dalla testa ai piedi.",
   "formcoach.noBodyDetected": "Nessun corpo rilevato",

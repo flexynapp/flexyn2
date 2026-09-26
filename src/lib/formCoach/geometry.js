@@ -88,11 +88,64 @@ export function bodyDetectionScore(kp) {
   return n > 0 ? total / n : 0;
 }
 
-/** Convert MoveNet's keypoint array into a name → keypoint map. */
-export function keypointsToMap(keypointsArr) {
+/**
+ * MediaPipe Pose Landmarker returns 33 landmarks by index. The analyzers were
+ * written against MoveNet's 17 named keypoints, and MediaPipe's 33 are a
+ * superset of those, so we name exactly the ones MoveNet had and ignore the
+ * rest (mouth, fingers, heels, foot tips). If a rule ever
+ * needs a heel or foot index, add it here under a new name.
+ */
+export const POSE_LANDMARK_INDEX = {
+  nose: 0,
+  left_eye: 2,
+  right_eye: 5,
+  left_ear: 7,
+  right_ear: 8,
+  left_shoulder: 11,
+  right_shoulder: 12,
+  left_elbow: 13,
+  right_elbow: 14,
+  left_wrist: 15,
+  right_wrist: 16,
+  left_hip: 23,
+  right_hip: 24,
+  left_knee: 25,
+  right_knee: 26,
+  left_ankle: 27,
+  right_ankle: 28,
+};
+
+/**
+ * Convert one pose's MediaPipe landmarks into a name → keypoint map.
+ *
+ * MediaPipe coordinates are normalised to [0, 1]; the rules measure some
+ * things in PIXELS (the pull-up chin check allows 20px), so we scale back to
+ * the image size to keep those thresholds meaning what they meant. Its
+ * `visibility` is the per-joint confidence that MoveNet called `score`.
+ *
+ * A landmark placed outside the image gets score 0 whatever its visibility:
+ * MediaPipe extrapolates joints past the edge of a close-up (a knee at
+ * x = -35 with visibility 0.5 was measured) and the rules must not read
+ * a guessed joint as a seen one.
+ */
+const EDGE_MARGIN = 0.02;
+
+function inFrame(l) {
+  return l.x >= -EDGE_MARGIN && l.x <= 1 + EDGE_MARGIN
+    && l.y >= -EDGE_MARGIN && l.y <= 1 + EDGE_MARGIN;
+}
+
+export function landmarksToMap(landmarks, width = 1, height = 1) {
   const out = {};
-  for (const k of keypointsArr || []) {
-    if (k.name) out[k.name] = { x: k.x, y: k.y, score: k.score };
+  if (!Array.isArray(landmarks)) return out;
+  for (const [name, i] of Object.entries(POSE_LANDMARK_INDEX)) {
+    const l = landmarks[i];
+    if (!l) continue;
+    out[name] = {
+      x: l.x * width,
+      y: l.y * height,
+      score: typeof l.visibility === 'number' && inFrame(l) ? l.visibility : 0,
+    };
   }
   return out;
 }

@@ -1092,7 +1092,7 @@
   "formcoach.howItWorks": "Nasıl çalışır",
   "formcoach.howItWorksHeader": "Bu nasıl çalışır:",
   "formcoach.injuryRisks": "Sakatlık riskleri",
-  "formcoach.modelLoadingMessage": "Yapay zekâ modeli yükleniyor (tek seferlik, ~3 MB)…",
+  "formcoach.modelLoadingMessage": "Yapay zekâ modeli yükleniyor (tek seferlik, ~9 MB)…",
   "formcoach.noBodyCorrection1": "Karede vücudunun tamamını göremedim.",
   "formcoach.noBodyCorrection2": "Dene: daha iyi ışık, sade arka plan, baştan ayağa tüm vücut.",
   "formcoach.noBodyDetected": "Vücut algılanmadı",

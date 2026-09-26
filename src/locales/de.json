@@ -1559,7 +1559,7 @@
   "formcoach.howItWorks": "So funktioniert es",
   "formcoach.howItWorksHeader": "So funktioniert es:",
   "formcoach.injuryRisks": "Verletzungsrisiken",
-  "formcoach.modelLoadingMessage": "Lade KI-Modell (einmalig, ~3 MB)…",
+  "formcoach.modelLoadingMessage": "Lade KI-Modell (einmalig, ~9 MB)…",
   "formcoach.noBodyCorrection1": "Konnte deinen Körper nicht vollständig erkennen.",
   "formcoach.noBodyCorrection2": "Versuche: bessere Beleuchtung, einfacher Hintergrund, ganzer Körper sichtbar.",
   "formcoach.noBodyDetected": "Kein Körper erkannt",

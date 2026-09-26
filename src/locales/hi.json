@@ -383,7 +383,7 @@
   "formcoach.howItWorks": "यह कैसे काम करता है",
   "formcoach.howItWorksHeader": "यह ऐसे काम करता है:",
   "formcoach.injuryRisks": "चोट का जोखिम",
-  "formcoach.modelLoadingMessage": "AI मॉडल लोड हो रहा है (एक बार, ~3 MB)…",
+  "formcoach.modelLoadingMessage": "AI मॉडल लोड हो रहा है (एक बार, ~9 MB)…",
   "formcoach.noBodyCorrection1": "मैं फ़्रेम में आपका पूरा शरीर नहीं देख सका।",
   "formcoach.noBodyCorrection2": "आज़माएं: बेहतर रोशनी, सादा बैकग्राउंड, सिर से पैर तक पूरा शरीर।",
   "formcoach.noBodyDetected": "शरीर नहीं दिखा",

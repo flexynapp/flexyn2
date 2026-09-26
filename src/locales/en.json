@@ -1813,7 +1813,7 @@
   "formcoach.howItWorks": "How it works",
   "formcoach.howItWorksHeader": "How this works:",
   "formcoach.injuryRisks": "Injury risks",
-  "formcoach.modelLoadingMessage": "Loading the AI model (one-time, ~3 MB)…",
+  "formcoach.modelLoadingMessage": "Loading the AI model (one-time, ~9 MB)…",
   "formcoach.noBodyCorrection1": "I couldn't see your full body in the frame.",
   "formcoach.noBodyCorrection2": "Try: better lighting, plain background, full body visible from head to feet.",
   "formcoach.noBodyDetected": "No body detected",

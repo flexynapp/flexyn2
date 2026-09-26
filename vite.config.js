@@ -61,14 +61,13 @@ export default defineConfig({
       srcDir: 'src/lib',
       filename: 'push-sw.js',
       injectManifest: {
-        // i18n chunks + tfjs/pose chunks are huge — exclude from precache
-        // so the SW build doesn't choke on the 5 MB default cap.
+        // i18n chunks are large — keep the cap explicit. The Form Coach
+        // pose chunk is excluded from precache: it only matters to someone
+        // who opens Form Coach, and its WASM + model are fetched from CDNs
+        // at that point anyway, so precaching the JS alone buys no offline.
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         globIgnores: [
-          '**/vendor-tfjs-*.js',
           '**/vendor-pose-*.js',
-          '**/graph_model-*.js',
-          '**/pose-detection.esm-*.js',
         ],
       },
       includeAssets: ['favicon.ico', 'robots.txt'],
@@ -254,17 +253,12 @@ export default defineConfig({
           // dependencies. If you dynamic-import something heavy, check what
           // it pulls in — the transitive half is the half that gets missed.
 
-          // Pose-detection / TF.js — already lazy-loaded by analyzeForm, but
-          // pin to its own chunks so it definitely doesn't bleed into entry.
-          if (id.includes('@tensorflow-models/pose-detection')) return 'vendor-pose';
-          if (id.includes('@tensorflow/tfjs')) return 'vendor-tfjs';
-          // Same transitive-dependency trap as jspdf's, one layer down: TF.js
-          // is pinned out of the entry chunk but @mediapipe/pose (47 KB) and
-          // long (40 KB) are its dependencies, not its own files, so the
-          // catch-all was loading them eagerly for a feature that only runs
-          // when someone opens Form Coach.
+          // MediaPipe Pose Landmarker — already lazy-loaded by analyzeForm,
+          // but pin it to its own chunk so it definitely doesn't bleed into
+          // entry. (TF.js and its `long` dependency lived here until
+          // 2026-09-26; the transitive-dependency lesson above is why this
+          // matches the whole @mediapipe scope rather than one package.)
           if (id.includes('@mediapipe')) return 'vendor-pose';
-          if (id.includes('node_modules/long')) return 'vendor-tfjs';
 
           // Supabase — large, used across the app.
           if (id.includes('@supabase')) return 'vendor-supabase';

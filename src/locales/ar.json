@@ -383,7 +383,7 @@
   "formcoach.howItWorks": "كيف يعمل",
   "formcoach.howItWorksHeader": "كيف يعمل هذا:",
   "formcoach.injuryRisks": "مخاطر الإصابة",
-  "formcoach.modelLoadingMessage": "جاري تحميل نموذج الذكاء الاصطناعي (مرة واحدة، ~3 ميغابايت)…",
+  "formcoach.modelLoadingMessage": "جاري تحميل نموذج الذكاء الاصطناعي (مرة واحدة، ~9 ميغابايت)…",
   "formcoach.noBodyCorrection1": "لم أتمكن من رؤية جسمك كاملًا في الإطار.",
   "formcoach.noBodyCorrection2": "جرّب: إضاءة أفضل، خلفية بسيطة، والجسم كامل من الرأس إلى القدمين.",
   "formcoach.noBodyDetected": "لم يتم اكتشاف الجسم",
