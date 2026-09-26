@@ -97,4 +97,37 @@ describe('deleting a set', () => {
     expect(now.map(s => s._key)).toEqual(['a', 'b', 'c']);
     expect(now[1].completed).toBe(true);
   });
+
+  it('drawer: four labelled neutral toggles and a red Delete, all 44px tall', async () => {
+    render(<Host initial={three} />);
+    const more = await screen.findAllByRole('button', { name: /more set options/i });
+    // The ⋯ trigger keeps a 36px look with a 44px hit area.
+    expect(more[0].className).toMatch(/after:-inset-x-1/);
+    expect(more[0].className).toMatch(/\bw-9\b/);
+    fireEvent.click(more[0]);
+
+    const del = await screen.findByRole('button', { name: /delete set/i });
+    const toggles = ['Warmup', 'Failed', 'Feel', 'RPE'].map(n => screen.getByRole('button', { name: n }));
+    for (const b of [...toggles, del]) {
+      expect(b.className).toMatch(/\bmin-h-11\b/);
+      expect(b.className).not.toMatch(/\b(?:h-8|bg-primary|text-primary)\b/);
+    }
+    expect(del.className).toMatch(/\btext-destructive\b/);
+    // Toggles are neutral at rest and use the secondary surface when pressed.
+    const warm = toggles[0];
+    expect(warm).toHaveAttribute('aria-pressed', 'false');
+    expect(warm.className.split(/\s+/)).not.toContain('bg-secondary');
+    fireEvent.click(warm);
+    expect(sets()[0].is_warmup).toBe(true);
+    const warmAfter = screen.getByRole('button', { name: 'Warmup' });
+    expect(warmAfter).toHaveAttribute('aria-pressed', 'true');
+    expect(warmAfter.className.split(/\s+/)).toContain('bg-secondary');
+  });
+
+  it('Delete set in the drawer removes exactly that set', async () => {
+    render(<Host initial={three} />);
+    await deleteSet(2);
+    expect(sets().map(s => s._key)).toEqual(['a', 'b']);
+    expect(toastCalls.filter(c => c[0] === 'success')).toHaveLength(1);
+  });
 });
