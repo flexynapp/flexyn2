@@ -107,13 +107,19 @@ if (!Element.prototype.scrollIntoView) {
   Element.prototype.scrollIntoView = () => {};
 }
 
-// localStorage / sessionStorage — Node 22+ ships an experimental *native*
-// `localStorage` global that is `undefined` unless the process is started with
-// `--localstorage-file`. Under the jsdom test environment that native global
-// shadows jsdom's working implementation, so `localStorage.clear()` throws
-// "Cannot read properties of undefined" on newer Node (seen on Node 26).
-// Install a deterministic in-memory Storage when the existing one is missing
-// or broken — a no-op on older Node where jsdom's localStorage already works.
+// localStorage / sessionStorage are ALWAYS a plain in-memory object in tests.
+//
+// It used to be installed only when the existing one was missing or broken
+// (Node 22+ ships a native `localStorage` that is `undefined` without
+// `--localstorage-file` and can shadow jsdom's). That made the storage a test
+// ran against depend on the Node and vitest versions: with the fallback in
+// place, `vi.spyOn(localStorage, 'setItem')` intercepts; with jsdom's real
+// Storage it does not, because jsdom's Storage is a named-property Proxy and
+// the spy never fires. Four "storage is full / unavailable" tests therefore
+// passed on Node 26 + vitest 4.1.5, failed on Node 22, and failed everywhere
+// once vitest 4.1.11 stopped the native global from shadowing jsdom's.
+// One implementation everywhere makes those tests mean the same thing on
+// every machine.
 function createMemoryStorage() {
   const store = new Map();
   return {
@@ -125,16 +131,15 @@ function createMemoryStorage() {
     clear() { store.clear(); },
   };
 }
+const shared = { localStorage: createMemoryStorage(), sessionStorage: createMemoryStorage() };
 for (const target of [globalThis, typeof window !== 'undefined' ? window : null]) {
   if (!target) continue;
   for (const name of ['localStorage', 'sessionStorage']) {
-    if (!target[name] || typeof target[name].clear !== 'function') {
-      Object.defineProperty(target, name, {
-        value: createMemoryStorage(),
-        writable: true,
-        configurable: true,
-      });
-    }
+    Object.defineProperty(target, name, {
+      value: shared[name],
+      writable: true,
+      configurable: true,
+    });
   }
 }
 
