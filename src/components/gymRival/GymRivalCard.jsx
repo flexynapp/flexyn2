@@ -154,7 +154,7 @@ export default function GymRivalCard({ currentUserId }) {
     return (
       <>
         <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
-          className="rounded-2xl border border-dashed border-primary/20 bg-primary/5 p-5 mb-4 text-center">
+          className="rounded-2xl border border-border bg-card p-5 mb-4 text-center">
           <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
             <Target className="w-5 h-5 text-primary" />
           </div>
@@ -164,16 +164,16 @@ export default function GymRivalCard({ currentUserId }) {
           </p>
           <div className="flex gap-2">
             <button onClick={() => rollMut.mutate('gym')} disabled={rollMut.isPending}
-              className="flex-1 inline-flex flex-col items-center gap-1 px-3 py-3 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 active:bg-primary/90 disabled:opacity-50 transition-colors">
-              <Dumbbell className="w-4 h-4" />
+              className="flex-1 inline-flex flex-col items-center gap-1 px-3 py-3 rounded-xl border border-border bg-card text-foreground text-sm font-bold hover:bg-secondary active:bg-secondary disabled:opacity-50 transition-colors">
+              <Dumbbell className="w-4 h-4 text-primary" />
               {tFallback("gymRivalCard.gymRival", "Gym Rival")}
-              <span className="text-micro font-medium opacity-80">{tFallback("bodyMap.mode.volume", "Volume")}</span>
+              <span className="text-micro font-medium text-muted-foreground">{tFallback("bodyMap.mode.volume", "Volume")}</span>
             </button>
             <button onClick={() => rollMut.mutate('cardio')} disabled={rollMut.isPending}
-              className="flex-1 inline-flex flex-col items-center gap-1 px-3 py-3 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 active:bg-primary/90 disabled:opacity-50 transition-colors">
-              <Footprints className="w-4 h-4" />
+              className="flex-1 inline-flex flex-col items-center gap-1 px-3 py-3 rounded-xl border border-border bg-card text-foreground text-sm font-bold hover:bg-secondary active:bg-secondary disabled:opacity-50 transition-colors">
+              <Footprints className="w-4 h-4 text-primary" />
               {tFallback("gymRivalCard.cardioRival", "Cardio Rival")}
-              <span className="text-micro font-medium opacity-80">{tFallback("cardio.field.distance", "Distance")}</span>
+              <span className="text-micro font-medium text-muted-foreground">{tFallback("cardio.field.distance", "Distance")}</span>
             </button>
           </div>
           {rollMut.isPending && (

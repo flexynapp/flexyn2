@@ -11,6 +11,11 @@
 // Now one solid card surface with a hairline, and the slide's identity
 // carried by a single tone on its icon tile and kicker. Weight and size
 // still make it the page's dominant element; colour no longer has to.
+//
+// `primary` paints the solid orange tile only when this slide IS the
+// page's one action. When a paused session or the starter plan outranks
+// Freestyle, the caller passes tone="soft" instead, so Train never shows
+// two solid orange targets at once.
 
 const TONES = {
   primary: { tile: 'bg-primary text-primary-foreground', kicker: 'text-primary', pill: 'bg-primary/10 text-primary' },
