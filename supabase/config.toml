@@ -6,6 +6,10 @@
 # service settings here apply to local and preview databases only; the
 # integration leaves production's copies alone.
 #
+# The integration only acts on a push to main that changes something under
+# supabase/. A merge that touches nothing here deploys nothing, even when
+# earlier migrations are still waiting to be applied.
+#
 # Everything above the [functions] section is `supabase init` defaults
 # except project_id, site_url, redirect URLs and anonymous sign-ins.
 
