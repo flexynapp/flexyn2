@@ -712,7 +712,7 @@ function buildTelemetrySlides({ logs, cardioLogs, profile }) {
       id: 'tele:level', kind: 'telemetry',
       icon: Award, iconBg: 'bg-primary/20', kicker: 'Your level', kickerKey: 'hero.kicker.yourLevel',
       title: 'Standing', titleKey: 'hero.tele.level.title',
-      metricValue: level, metricPrefix: 'Lv ', metricPrefixKey: 'levelBar.level', metricUnit: '',
+      metricValue: level, metricPrefix: 'Level ', metricPrefixKey: 'hero.metricPrefix.level', metricUnit: '',
       sub: '{xp} XP earned overall',
       subKey: 'hero.level.sub',
       subVars: { xp: xp.toLocaleString() },
@@ -785,7 +785,7 @@ function buildSuggestionSlides({ logs, followsCount, push }) {
     title: 'Try a regimen', titleKey: 'hero.sug.regimen.title',
     sub: 'Pre-built routines for legs, push, pull. No more guessing what to lift.',
     subKey: 'hero.sug.regimen.sub',
-    cta: { label: 'Browse', labelKey: 'hero.cta.browse', to: '/workout' },
+    cta: { label: 'Browse', labelKey: 'hero.cta.browse', to: '/workout?explore=1' },
   });
   if (hasWorkouts) {
     s.push({

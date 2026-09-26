@@ -150,8 +150,6 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'nutrient.zinc',
     // "Social." is the same word in Spanish.
     'legal.dataSocialLabel',
-    // The Social tab (navigation redesign). Same word, same sense.
-    'nav.social',
     // Sticker is the word Spanish uses for these.
     'collectionModal.tab.stickers',
     // Trophy catalog, added 2026-08-16. Every one is a word this
@@ -201,8 +199,6 @@ const ALLOW_IDENTICAL_BY_LANG = {
   fr: new Set([
     // "Zinc" is the same word in French.
     'nutrient.zinc',
-    // The Social tab (navigation redesign). Same word, same sense.
-    'nav.social',
     // "Points" is the same word in French.
     'crew.top.metric.points',
     // "Machine" is the same word in French.

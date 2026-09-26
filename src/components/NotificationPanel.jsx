@@ -25,7 +25,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence, useDragControls } from 'framer-motion';
 import {
-  X, Bell as BellIcon, CheckCheck, Trash2, AlertCircle, RotateCw,
+  X, Bell as BellIcon, MailOpen, Trash2, AlertCircle, RotateCw,
   MoreHorizontal, Settings as SettingsIcon,
 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -360,7 +360,7 @@ export default function NotificationPanel({ open, onClose }) {
                     title={tFallback('notifications.markAllRead', 'Mark all as read')}
                     className="h-11 w-11 inline-flex items-center justify-center rounded-lg text-muted-foreground hover:text-primary active:text-primary hover:bg-secondary active:bg-secondary transition-colors"
                   >
-                    <CheckCheck className="w-5 h-5" aria-hidden="true" />
+                    <MailOpen className="w-5 h-5" aria-hidden="true" />
                   </button>
                 )}
                 <button
@@ -522,7 +522,7 @@ export default function NotificationPanel({ open, onClose }) {
                   className="absolute end-3 z-20 w-52 rounded-lg bg-card border border-border shadow-md overflow-hidden"
                   style={{ top: 'calc(env(safe-area-inset-top) + 3.5rem)' }}
                 >
-                  <MenuItem Icon={CheckCheck} onClick={handleMarkAllRead} disabled={unreadCount === 0}>
+                  <MenuItem Icon={MailOpen} onClick={handleMarkAllRead} disabled={unreadCount === 0}>
                     {tFallback('notifications.markAllRead', 'Mark all as read')}
                   </MenuItem>
                   <MenuItem
@@ -748,7 +748,10 @@ function NotificationRow({ n, rtl, language, onClick, onDelete, deleting, delete
           </div>
           <time
             dateTime={n.created_at || undefined}
-            className="text-micro text-muted-foreground shrink-0 tabular-nums pt-0.5"
+            // Steps aside while the hover delete button sits in its place.
+            // Hover only on a real pointer: a tap on a phone leaves :hover
+            // stuck on the row, which drew the trash can over the time.
+            className="text-micro text-muted-foreground shrink-0 tabular-nums pt-0.5 transition-opacity [@media(hover:hover)]:group-hover:opacity-0"
           >
             {time}
           </time>
@@ -764,7 +767,7 @@ function NotificationRow({ n, rtl, language, onClick, onDelete, deleting, delete
           onClick={(e) => { e.stopPropagation(); onDelete(); }}
           aria-label={deleteLabel}
           disabled={deleting}
-          className="absolute top-1/2 -translate-y-1/2 end-1 h-11 w-11 inline-flex items-center justify-center rounded-lg bg-card text-muted-foreground opacity-0 pointer-events-none transition-opacity group-hover:opacity-100 group-hover:pointer-events-auto focus-visible:opacity-100 focus-visible:pointer-events-auto hover:text-destructive active:text-destructive"
+          className="absolute top-1/2 -translate-y-1/2 end-1 h-11 w-11 inline-flex items-center justify-center rounded-lg bg-card text-muted-foreground opacity-0 pointer-events-none transition-opacity [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:group-hover:pointer-events-auto focus-visible:opacity-100 focus-visible:pointer-events-auto hover:text-destructive active:text-destructive"
         >
           <Trash2 className="w-4 h-4" aria-hidden="true" />
         </button>

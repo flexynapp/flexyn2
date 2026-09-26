@@ -2300,6 +2300,13 @@ export default function Workout() {
       params.delete('openGoals');
       consumed = true;
     }
+    // "Browse" on the Today hero's Try a regimen slide. It used to land on
+    // /workout and leave the user to find Explore Regimens themselves.
+    if (params.get('explore') === '1') {
+      setStoreOpen(true);
+      params.delete('explore');
+      consumed = true;
+    }
     // A "Start" button that lands you on a page with another Start button
     // on it is a step the user already took. This opens the session for
     // them — but NOT over a live one: startFreestyle() blanks the exercise

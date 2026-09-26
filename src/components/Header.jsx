@@ -18,7 +18,18 @@ import { goBack } from '@/lib/goBack';
 // top level, with nowhere to go back to. Progress and Nutrition stopped
 // being tabs in the navigation redesign and now open from You, so they
 // are children like Messages, Market and Coach.
-const CHILD_ROUTES = ['/messages', '/market', '/coach', '/progress', '/nutrition'];
+// My Gym and Profile joined them when they moved under You: they had no
+// Back at all, on a phone or on desktop.
+export const CHILD_ROUTES = ['/messages', '/market', '/coach', '/progress', '/nutrition', '/my-gym', '/profile'];
+
+// The same Back the phone header shows. Any page can intercept it (an
+// active workout persists its draft) by calling preventDefault on
+// `flexyn-back`; otherwise it goes back to where the user came from.
+export function headerBack(navigate) {
+  const event = new CustomEvent('flexyn-back', { cancelable: true });
+  window.dispatchEvent(event);
+  if (!event.defaultPrevented) goBack(navigate);
+}
 
 export default function Header() {
   const navigate = useNavigate();
@@ -51,6 +62,8 @@ export default function Header() {
     '/market':   tFallback('hub.market.title',   'Marketplace'),
     '/coach':    tFallback('hub.coach.title',    'AI Coach'),
     '/you':      tFallback('you.title',          'You'),
+    '/my-gym':   tFallback('profile.myGym',      'My Gym'),
+    '/profile':  tFallback('profile.account',    'Profile'),
   };
 
   const onCoach = location.pathname === '/coach';
@@ -90,16 +103,9 @@ export default function Header() {
             size="icon"
             aria-label={tFallback("achievements.vault.back", "Back")}
             className="shrink-0"
-            onClick={() => {
-              // Give the current page a chance to intercept back navigation
-              // (e.g. an active workout persists its draft). If nothing calls
-              // preventDefault, go back to where the user came from.
-              const event = new CustomEvent('flexyn-back', { cancelable: true });
-              window.dispatchEvent(event);
-              if (!event.defaultPrevented) goBack(navigate);
-            }}
+            onClick={() => headerBack(navigate)}
           >
-            <ChevronLeft className="w-5 h-5" />
+            <ChevronLeft className="w-5 h-5 rtl:scale-x-[-1]" />
           </Button>
         ) : (
           <button

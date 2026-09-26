@@ -1,6 +1,6 @@
 // src/components/__tests__/tabBarRedesign.test.jsx
 //
-// Navigation redesign, phase 2: the tab bar is Today, Train, +, Social,
+// Navigation redesign, phase 2: the tab bar is Today, Train, +, Hub,
 // You. Two things here are easy to break without noticing.
 //
 // 1. Which tab is lit. Progress and Nutrition stopped being tabs and now
@@ -57,7 +57,7 @@ vi.mock('@/hooks/useSaveWeight', () => ({
 }));
 
 describe('which tab is lit', () => {
-  it('has four tabs, with + between Train and Social rather than a route', () => {
+  it('has four tabs, with + between Train and Hub rather than a route', () => {
     expect(NAV_PATHS).toEqual(['/dashboard', '/workout', '/hub', '/you']);
   });
 
