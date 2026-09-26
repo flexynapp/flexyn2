@@ -121,32 +121,31 @@ export default function WinScreen({
 
             <div className="flex flex-col gap-2 flex-1">
               {before && beat >= 2 && (
-                <motion.div {...rise} className="flex flex-col gap-2 p-4 rounded-2xl bg-card border border-border">
-                  <div className="flex items-baseline justify-between">
-                    <span className="font-heading text-base font-bold">
-                      {tFallback('win.xpGained', '+{n} XP', { n: formatNumber(xp.gained, language) })}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      {levelled
-                        ? tFallback('win.levelFromTo', 'Level {from} to {to}', { from: before.level, to: after.level })
-                        : tFallback('win.levelN', 'Level {n}', { n: after.level })}
-                    </span>
-                  </div>
-                  <div className="h-2 rounded-full bg-secondary overflow-hidden">
+                <motion.div {...rise} className="flex flex-col items-center gap-3 px-4 py-5 rounded-2xl bg-card border border-border text-center">
+                  <span className="font-heading text-2xl font-extrabold leading-none tabular-nums">
+                    {tFallback('win.xpGained', '+{n} XP', { n: formatNumber(xp.gained, language) })}
+                  </span>
+                  <div className="w-full h-2 rounded-full bg-secondary overflow-hidden">
                     <div
                       className="h-full rounded-full bg-foreground transition-[width] duration-700 ease-out"
                       style={{ width: `${barPct}%` }}
                     />
                   </div>
-                  {levelled && beat >= 3 && (
+                  {levelled && beat >= 3 ? (
                     <motion.span
                       initial={{ scale: 0.6, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
                       transition={{ type: 'spring', stiffness: 420, damping: 18 }}
-                      className="self-start px-2.5 py-1 rounded-full bg-success text-success-foreground text-xs font-bold"
+                      className="px-2.5 py-1 rounded-full bg-success text-success-foreground text-xs font-bold"
                     >
                       {tFallback('win.levelUnlocked', 'Level {n} unlocked', { n: after.level })}
                     </motion.span>
+                  ) : (
+                    <span className="text-micro font-medium uppercase tracking-wider text-muted-foreground">
+                      {levelled
+                        ? tFallback('win.levelFromTo', 'Level {from} to {to}', { from: before.level, to: after.level })
+                        : tFallback('win.levelN', 'Level {n}', { n: after.level })}
+                    </span>
                   )}
                 </motion.div>
               )}
@@ -154,9 +153,9 @@ export default function WinScreen({
               {stats.length > 0 && beat >= 4 && (
                 <motion.div {...rise} className="flex gap-2">
                   {stats.map((s) => (
-                    <div key={s.key} className="flex-1 min-w-0 flex flex-col gap-0.5 p-4 rounded-2xl bg-card border border-border">
-                      <span className="font-heading text-xl font-extrabold tabular-nums truncate">{s.value}</span>
-                      <span className="text-xs text-muted-foreground">{s.label}</span>
+                    <div key={s.key} className="flex-1 min-w-0 flex flex-col items-center gap-1 px-2 py-4 rounded-2xl bg-card border border-border text-center">
+                      <span className="max-w-full font-heading text-2xl font-extrabold leading-none tabular-nums truncate">{s.value}</span>
+                      <span className="text-micro font-medium uppercase tracking-wider text-muted-foreground">{s.label}</span>
                     </div>
                   ))}
                 </motion.div>
