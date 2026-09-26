@@ -242,10 +242,6 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
     }
   };
 
-  const removeSet = (index) => {
-    onChange({ ...exercise, sets: sets.filter((_, i) => i !== index) });
-  };
-
   // ── Exercise completion ──────────────────────────────────────────────────
   // Sets carry `completed` (the ✓ tap). Checking the last open set closes
   // the exercise: the ring fills, bursts, and a beat later the card folds
@@ -266,6 +262,31 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
   const onChangeRef = useRef(onChange);
   exerciseRef.current = exercise;
   onChangeRef.current = onChange;
+
+  // Deleting a set is one swipe, so taking it back is one tap. Undo reads
+  // the exercise through the refs rather than this render's closure: the
+  // toast outlives the render, and restoring a stale snapshot would also
+  // throw away anything typed into the other sets in the meantime.
+  const removeSet = (index) => {
+    const current = exerciseRef.current;
+    const all = current.sets || [];
+    const removed = all[index];
+    if (!removed) return;
+    onChangeRef.current({ ...current, sets: all.filter((_, i) => i !== index) });
+    triggerHaptic?.('light');
+    toast.success(tFallback('workout.setDeleted', 'Set {n} deleted', { n: index + 1 }), {
+      duration: 5000,
+      action: {
+        label: tFallback('common.undo', 'Undo'),
+        onClick: () => {
+          const now = exerciseRef.current;
+          const restored = [...(now.sets || [])];
+          restored.splice(Math.min(index, restored.length), 0, removed);
+          onChangeRef.current({ ...now, sets: restored });
+        },
+      },
+    });
+  };
   useEffect(() => {
     const was = prevAllDoneRef.current;
     prevAllDoneRef.current = allSetsDone;

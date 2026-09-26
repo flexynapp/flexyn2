@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useMotionValue, useTransform, animate } from 'framer-motion';
 import { Flame, Gauge, MessageCircle, Trash2, MoreHorizontal } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { toast } from '@/lib/toast';
@@ -36,6 +36,10 @@ const RIR_OPTIONS = [
   { v: 4, label: '4' },
   { v: 5, label: '5+' },
 ];
+
+// How far a set row must travel before letting go deletes it. Past a
+// thumb's casual drift, short of the whole row: a deliberate swipe.
+const SWIPE_DELETE_PX = 88;
 
 export default function SetRow({ set, index, onChange, onRemove, exerciseName = '', userProfile = {}, prIndex = {}, isBodyweight = false, prevFeelNote = '', previous = null }) {
   const { weightUnit } = useWeightUnit();
@@ -106,6 +110,32 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
   // note like "watch elbow flare" stays in front of the lifter for the
   // rest of the exercise without retyping.
   const [feelOpen, setFeelOpen] = useState(hasFeelData || !!prevFeelNote);
+
+  // Swipe toward the row's end edge to delete: left in LTR, right in RTL.
+  // It is the gesture every lifting app has taught people, and the only
+  // other door is the trash button inside the ⋯ drawer, which nobody found.
+  // ExerciseLogger's removeSet puts up an Undo, so a swipe that goes too
+  // far costs one tap. The motion value drives the red strip behind the row
+  // so it is exactly as wide as the gap the row has moved out of.
+  const isRtl = typeof document !== 'undefined' && document.documentElement.dir === 'rtl';
+  const swipeSign = isRtl ? 1 : -1;
+  const dragX = useMotionValue(0);
+  const swipedRef = useRef(false);
+  const revealWidth = useTransform(dragX, v => Math.max(0, v * swipeSign));
+  const revealOpacity = useTransform(dragX, v => Math.min(1, Math.max(0, (v * swipeSign) / 32)));
+  const onSwipeEnd = (_e, info) => {
+    // The click (if any) lands after dragEnd; clear the flag once it has had
+    // its chance, so a later plain tap is not swallowed.
+    setTimeout(() => { swipedRef.current = false; }, 0);
+    const dist = info.offset.x * swipeSign;
+    const speed = info.velocity.x * swipeSign;
+    if (dist > SWIPE_DELETE_PX || (dist > 40 && speed > 500)) {
+      triggerHaptic?.('medium');
+      onRemove?.();
+      return;
+    }
+    animate(dragX, 0, { type: 'spring', stiffness: 600, damping: 40 });
+  };
 
   // Secondary tags (warmup / failed / feel / RPE / delete) live behind a single
   // "⋯" disclosure so the row shows one clear action instead of a wall of icons.
@@ -210,7 +240,33 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
         />
       )}
     </AnimatePresence>
-    <div className="relative flex items-center gap-1 p-1">
+    <div className="relative">
+    {/* Revealed behind the row as it is swiped away. */}
+    <motion.div
+      aria-hidden="true"
+      className="absolute inset-y-0 end-0 rounded-lg bg-destructive text-destructive-foreground flex items-center justify-end pe-4 overflow-hidden whitespace-nowrap pointer-events-none"
+      style={{ width: revealWidth, opacity: revealOpacity }}
+    >
+      <span className="flex items-center gap-1.5 text-xs font-bold shrink-0">
+        <Trash2 className="w-4 h-4" />
+        {tFallback('common.delete', 'Delete')}
+      </span>
+    </motion.div>
+    <motion.div
+      className="relative flex items-center gap-1 p-1"
+      drag="x"
+      dragDirectionLock
+      dragMomentum={false}
+      dragElastic={0}
+      dragConstraints={isRtl ? { left: 0, right: 160 } : { left: -160, right: 0 }}
+      style={{ x: dragX }}
+      onDragStart={() => { swipedRef.current = true; }}
+      onDragEnd={onSwipeEnd}
+      onClickCapture={(e) => {
+        // A swipe that ends over ⋯ or ✓ must not also press it.
+        if (swipedRef.current) { e.stopPropagation(); e.preventDefault(); swipedRef.current = false; }
+      }}
+    >
       <span className={['text-xs w-5 shrink-0 text-center font-bold tabular-nums transition-colors', completed ? 'text-success' : 'text-muted-foreground'].join(' ')}>{index + 1}</span>
       <button
         type="button"
@@ -420,6 +476,7 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
           />
         </motion.svg>
       </button>
+    </motion.div>
     </div>
 
     {/* Secondary tag drawer — the relocated warmup/failed/feel/RPE/delete
@@ -433,7 +490,7 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
           transition={{ duration: 0.18 }}
           style={{ overflow: 'hidden' }}
         >
-          <div className="flex items-center gap-1.5 mt-2 ps-8 pe-1">
+          <div className="flex flex-wrap items-center gap-1.5 mt-2 ps-8 pe-1">
             <TagButton active={!!set.is_warmup} onClick={() => onChange({ ...set, is_warmup: !set.is_warmup })} activeCls="bg-primary/15 text-primary" icon={<Flame className="w-3.5 h-3.5" />} label="Warmup" />
             <TagButton active={!!set.is_failed} onClick={() => onChange({ ...set, is_failed: !set.is_failed })} activeCls="bg-destructive/15 text-destructive" icon={<span className="text-xs font-extrabold leading-none">✗</span>} label="Failed" />
             <TagButton active={hasFeelData} onClick={() => setFeelOpen(o => !o)} activeCls="bg-primary/15 text-primary" icon={set.feel_emoji ? <span className="text-sm leading-none">{set.feel_emoji}</span> : <MessageCircle className="w-3.5 h-3.5" />} label="Feel" />
@@ -441,10 +498,10 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
             <button
               type="button"
               onClick={onRemove}
-              aria-label={tFallback("setRow.deleteSet", "Delete set")}
-              className="h-8 w-8 ms-auto rounded-lg flex items-center justify-center text-muted-foreground/60 hover:text-destructive active:text-destructive hover:bg-destructive/10 active:bg-destructive/10 transition-colors shrink-0"
+              className="h-8 px-2.5 ms-auto rounded-lg flex items-center gap-1.5 text-xs font-semibold text-destructive hover:bg-destructive/10 active:bg-destructive/10 transition-colors shrink-0"
             >
-              <Trash2 className="w-4 h-4" />
+              <Trash2 className="w-3.5 h-3.5" />
+              {tFallback('setRow.deleteSet', 'Delete set')}
             </button>
           </div>
         </motion.div>
