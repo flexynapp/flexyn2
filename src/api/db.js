@@ -777,10 +777,6 @@ async function _invokeDeleteAccount() {
 // Requires a public Supabase Storage bucket named "uploads".
 // To create it, run migration 008_storage_bucket.sql in the SQL Editor.
 
-const _notConfigured = (name) => async () => {
-  throw new Error(`[Flexyn] ${name} is not configured.`);
-};
-
 /**
  * Upload a File object to Supabase Storage and return its public URL.
  * Bucket: "uploads" (must exist and be public — see migration 008).
@@ -889,10 +885,7 @@ async function _uploadFile({ file, bucket = 'uploads' }) {
 
 const integrations = {
   Core: {
-    InvokeLLM:     _notConfigured('InvokeLLM'),
-    GenerateImage: _notConfigured('GenerateImage'),
-    UploadFile:    _uploadFile,
-    SendEmail:     _notConfigured('SendEmail'),
+    UploadFile: _uploadFile,
   },
 };
 
