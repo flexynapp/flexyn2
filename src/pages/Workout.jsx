@@ -76,7 +76,8 @@ import FirstWorkoutTutorial, { hasSeenFirstWorkoutTutorial } from '@/components/
 import PageHeader from '@/components/PageHeader';
 import HeroPager from '@/components/HeroPager';
 import { useWorkoutSessions, pauseWorkoutSync } from '@/hooks/useWorkoutSessions';
-import { calculateWorkoutXp } from '@/lib/xpSystem';
+import { calculateWorkoutXp, calculateLevelFromXp } from '@/lib/xpSystem';
+import { holdLevelUps, releaseLevelUps } from '@/lib/levelUpHold';
 import { DURATION_COLUMN } from '@/lib/workoutDuration';
 import { TITLE_COLUMN } from '@/lib/workoutTitle';
 import { hasCheckedInToday, GYM_CHECKIN_XP_MULTIPLIER } from '@/lib/data/gymCheckins';
@@ -356,6 +357,23 @@ export default function Workout() {
   // screen that plays after a save lands.
   const [finishOpen, setFinishOpen] = useState(false);
   const [win, setWin] = useState(null);
+  // Release the level-up hold (see saveWorkout) once the win screen is
+  // gone. If the win levelled you up it already said so, so the parked
+  // overlay is dropped; otherwise it plays now.
+  const winLevelledRef = useRef(false);
+  useEffect(() => {
+    if (!win) return;
+    const before = Number(win.xpBefore) || 0;
+    winLevelledRef.current = win.xpGained > 0
+      && calculateLevelFromXp(before + win.xpGained).level > calculateLevelFromXp(before).level;
+  }, [win]);
+  const winOpen = !!win;
+  useEffect(() => {
+    if (!winOpen) return undefined;
+    return () => releaseLevelUps({ shownByWin: winLevelledRef.current });
+  }, [winOpen]);
+  // Leaving the page mid save must not strand the hold.
+  useEffect(() => () => releaseLevelUps(), []);
   const [cardioPageTitle, setCardioPageTitle] = useState(null);
   // Set by the /workout?scheduled=<id> handler when the reminder is for a
   // cardio session: { mode, env }. CardioSection consumes it as its
@@ -1018,6 +1036,7 @@ export default function Workout() {
       return { previous };
     },
     onError: (err, _data, ctx) => {
+      releaseLevelUps();
       // Clear the in-flight guard so the user can retry. Without this
       // a save failure would leave the synchronous ref stuck true and
       // every subsequent saveWorkout() would silently bail.
@@ -1928,6 +1947,10 @@ export default function Workout() {
     // mutation so a double-tap can't enter again until onSuccess /
     // onError clears it.
     saveInFlightRef.current = true;
+    // The win screen shows the level itself, so hold the global level-up
+    // overlay until it closes. Released below when the win closes, and in
+    // onError when there is no win to show.
+    holdLevelUps();
     saveMutation.mutate(pendingPayload);
   };
 

@@ -9,6 +9,7 @@ import LevelUpOverlay from '@/components/LevelUpOverlay';
 import * as capsules from '@/lib/data/capsules';
 import { reportError } from '@/lib/reportError';
 import { CAPSULE_GLYPH } from '@/lib/lootCatalog';
+import { parkIfHeld, onReleasedLevelUp } from '@/lib/levelUpHold';
 
 // Capsule glyph per type. These land inside toast TITLE strings, so they
 // have to be text — the drawn capsule (CapsuleIcon) can't go here. Single
@@ -110,8 +111,11 @@ export default function LevelUpManager() {
 
     // ── Genuine level-up ──────────────────────────────────────────────────────
     // 1. Show the level-up overlay (if animations enabled)
+    //    A workout win screen shows the level itself, so while one is
+    //    pending the overlay is parked rather than stacked on top of it.
     if (levelAnimationsEnabled) {
-      setEvent({ fromLevel: lastSeenLevel, toLevel: currentLevel, totalXp });
+      const ev = { fromLevel: lastSeenLevel, toLevel: currentLevel, totalXp };
+      if (!parkIfHeld(ev)) setEvent(ev);
     }
 
     // 2. Grant capsule(s) and Flex Coins — gate localStorage on
@@ -194,6 +198,8 @@ export default function LevelUpManager() {
   // on every profile refetch and a fresh callback per render is the kind of
   // thing the next effect to depend on it will trip over too.
   const dismiss = useCallback(() => setEvent(null), []);
+
+  useEffect(() => onReleasedLevelUp(setEvent), []);
 
   return <LevelUpOverlay event={event} onDismiss={dismiss} />;
 }
