@@ -9,7 +9,7 @@
     "colouredShadow": 30,
     "offScaleRadius": 31,
     "subFloorText": 0,
-    "hoverMotion": 61
+    "hoverMotion": 60
   },
   "counts": {
     "purple": {
@@ -289,7 +289,7 @@
       "src/pages/Nutrition.jsx": 2,
       "src/pages/Progress.jsx": 2,
       "src/pages/TrainerMarket.jsx": 1,
-      "src/pages/Workout.jsx": 13
+      "src/pages/Workout.jsx": 12
     }
   }
 }

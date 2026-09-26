@@ -15,12 +15,10 @@ import * as crewsData from '@/lib/data/crews';
 import { format, parseISO, subDays } from 'date-fns';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Input } from '@/components/ui/input';
 import { toast } from '@/lib/toast';
 import { triggerHaptic } from '@/lib/haptic';
 import { playSound, SOUND } from '@/lib/playSound';
-import { Play, Save, Plus, Dumbbell, Target, Pause, AlertTriangle, Activity, ArrowRight, History, Sparkles, Globe, Swords, Zap, Trophy, LayoutGrid, Shield, Search, GripVertical } from 'lucide-react';
+import { Play, Plus, Dumbbell, Target, Pause, AlertTriangle, Activity, ArrowRight, History, Sparkles, Globe, Swords, Zap, Trophy, LayoutGrid, Shield, Search, GripVertical } from 'lucide-react';
 import PlateCalculatorModal from '@/components/workout/PlateCalculatorModal';
 import { useMultiProfanityGuard, hasAnyProfanity } from '@/lib/useProfanityGuard';
 import ProfanityWarningDialog from '@/components/ProfanityWarningDialog';
@@ -38,8 +36,11 @@ import WorkoutSavedList from '@/components/workout/WorkoutSavedList';
 import { Skeleton } from '@/components/ui/skeleton';
 import ExerciseLogger, { isBodyweightExercise } from '@/components/workout/ExerciseLogger';
 import CardioLogger, { CARDIO_ACTIVITIES } from '@/components/workout/CardioLogger';
-import { TagSelector } from '@/components/workout/WorkoutTags';
 import SessionBar from '@/components/workout/SessionBar';
+import FinishSheet from '@/components/workout/FinishSheet';
+import WorkoutWin from '@/components/workout/WorkoutWin';
+import { deriveWorkoutTags } from '@/lib/deriveWorkoutTags';
+import { elapsedSeconds } from '@/lib/elapsedClock';
 import ExerciseActionsMenu from '@/components/workout/ExerciseActionsMenu';
 import { buildPRIndex } from '@/lib/data/personalRecords';
 import { recordWorkoutExercises } from '@/lib/recentExerciseUsage';
@@ -59,7 +60,7 @@ import GauntletStatsModal from '@/components/gauntlet/GauntletStatsModal';
 import { reportError } from '@/lib/reportError';
 import { errorToast } from '@/lib/errorToast';
 import { fireFirstWorkoutCelebration } from '@/lib/firstWorkoutCelebration';
-import { firePRCelebration, OPEN_PR_SHARE_EVENT } from '@/lib/prCelebration';
+import { OPEN_PR_SHARE_EVENT } from '@/lib/prCelebration';
 import { detectPRsInWorkout } from '@/lib/data/personalRecords';
 import { detectDeloadOpportunity } from '@/lib/deloadDetector';
 import { enqueueReveal } from '@/lib/rewardQueue';
@@ -351,7 +352,10 @@ export default function Workout() {
   const [gauntletStatsModal, setGauntletStatsModal] = useState(null);
   const [implausibleWarning, setImplausibleWarning] = useState(null);
   const [missingDataWarning, setMissingDataWarning] = useState(null);
-  const [incompleteWarnOpen, setIncompleteWarnOpen] = useState(false);
+  // The finish sheet (name, tags, notes, photo, then Save) and the win
+  // screen that plays after a save lands.
+  const [finishOpen, setFinishOpen] = useState(false);
+  const [win, setWin] = useState(null);
   const [cardioPageTitle, setCardioPageTitle] = useState(null);
   // Set by the /workout?scheduled=<id> handler when the reminder is for a
   // cardio session: { mode, env }. CardioSection consumes it as its
@@ -1081,8 +1085,19 @@ export default function Workout() {
       // Snapshot the workout for the share card *before* resetting state.
       // Capturing here means the share card preview is built from exactly
       // what was saved (including the date and the user's actual data).
-      setShareCardWorkout({ ...clampedData, date: clampedData.date || format(new Date(), 'yyyy-MM-dd') });
+      const savedWorkout = { ...clampedData, date: clampedData.date || format(new Date(), 'yyyy-MM-dd') };
+      const sessionMinutes = startedAt ? Math.max(1, Math.round(elapsedSeconds(startedAt) / 60)) : 0;
       setFinishSummary({ xpGained, prs: [] });
+      // The win screen replaces the "Workout saved" toast; the share card
+      // is one tap away from it instead of opening on its own.
+      setWin({
+        workout: savedWorkout,
+        xpGained,
+        xpBefore: Number(userProfile?.total_xp) || 0,
+        minutes: sessionMinutes,
+        checkInBonus,
+        prs: [],
+      });
       resetWorkout();
 
       // First-workout milestone — detected via the snapshot onMutate
@@ -1133,38 +1148,9 @@ export default function Workout() {
               reportError(err, { feature: 'workout.first-workout-capsule', userEmail: user?.email });
             });
         }
-      } else {
-        // "Save as template" action — pre-fills WorkoutTemplates with
-        // this session so the user can repeat it later. We snapshot
-        // clampedData up front because resetWorkout() clears the
-        // editor state on the next tick.
-        const sessionSnapshot = clampedData;
-        toast.success(t('workout.saved'), {
-          description: checkInBonus
-            ? `${t('workout.savedXp', { xp: xpGained })} · ⚡ ${GYM_CHECKIN_XP_MULTIPLIER}x gym check-in`
-            : t('workout.savedXp', { xp: xpGained }),
-          duration: 6000,
-          action: {
-            label: tFallback('workout.saveTemplate', 'Save as template'),
-            onClick: async () => {
-              const { saveTemplate } = await import('@/lib/data/templates');
-              const name = (sessionSnapshot?.regimen_name || '').trim()
-                || tFallback('workout.templateDefaultName', 'My workout');
-              const res = await saveTemplate({
-                name: name.slice(0, 80),
-                exercises: sessionSnapshot?.exercises || [],
-              });
-              if (res?.ok) {
-                toast.success(tFallback('workout.templateSaved', 'Template saved. Find it in the regimen list.'));
-              } else if (res?.reason === 'no_exercises') {
-                toast.error(tFallback('workout.templateNeedExercises', 'Session has no exercises to save.'));
-              } else {
-                toast.error(tFallback('workout.templateFailed', 'Could not save template. Try again.'));
-              }
-            },
-          },
-        });
       }
+      // Past the first workout, the win screen is the confirmation: no
+      // "Workout saved" toast, and "Save as template" lives on the screen.
 
       // PR detection — fires the 6th-family 🏋️ celebration when this
       // workout beat the user's historical best 1RM on any exercise.
@@ -1192,17 +1178,10 @@ export default function Workout() {
               delta: fromLbs(p.delta, weightUnit),
             }));
             setFinishSummary((prev) => (prev ? { ...prev, prs } : prev));
-            // Route through rewardQueue (B6). A workout that hits a
-            // PR + crosses a streak milestone + completes a daily
-            // quest would otherwise fire three overlapping toasts
-            // and three colliding confetti bursts. With the queue,
-            // each gets ~700ms to land before the next fires.
-            enqueueReveal(() => firePRCelebration({
-              t: tFallback,
-              prs,
-              unit: unitLabel,
-              userEmail: user?.email,
-            }));
+            // The win screen turns into the PR screen. firePRCelebration's
+            // toast is not fired on top of it: it said the same thing a
+            // second time and its Share action now lives on the screen.
+            setWin((prev) => (prev ? { ...prev, prs, unit: unitLabel } : prev));
           }
 
           // Deload signal — soft suggestion when 3 consecutive weeks
@@ -1693,6 +1672,32 @@ export default function Workout() {
 
   // Count logged-but-unchecked items for the finish nudge. Returns 0 when the
   // lifter hasn't used ✓ Done at all, so people who don't use it never get nagged.
+  // "Save as template" from the win screen. It used to ride on the saved
+  // toast, which the win screen replaces.
+  const saveWinAsTemplate = async (sessionSnapshot) => {
+    const { saveTemplate } = await import('@/lib/data/templates');
+    const name = (sessionSnapshot?.[TITLE_COLUMN] || '').trim()
+      || tFallback('workout.templateDefaultName', 'My workout');
+    const res = await saveTemplate({
+      name: name.slice(0, 80),
+      exercises: sessionSnapshot?.exercises || [],
+    });
+    if (res?.ok) {
+      toast.success(tFallback('workout.templateSaved', 'Template saved. Find it in the regimen list.'));
+    } else if (res?.reason === 'no_exercises') {
+      toast.error(tFallback('workout.templateNeedExercises', 'Session has no exercises to save.'));
+    } else {
+      toast.error(tFallback('workout.templateFailed', 'Could not save template. Try again.'));
+    }
+  };
+
+  // Tags open pre-picked from what was trained, unless the lifter already
+  // chose some (a resumed draft, or a second trip into the sheet).
+  const openFinish = () => {
+    if (workoutTags.length === 0) setWorkoutTags(deriveWorkoutTags(exercises));
+    setFinishOpen(true);
+  };
+
   const uncheckedOnFinish = () => {
     const engaged = exercises.some(ex => ex.completed || (ex.sets || []).some(s => s.completed));
     if (!engaged) return 0;
@@ -3079,7 +3084,7 @@ export default function Workout() {
         exercises={exercises}
         includeBarWeight={!!userProfile?.include_bar_in_volume}
         onCancel={() => setConfirmDiscard(true)}
-        onFinish={() => { if (uncheckedOnFinish() > 0) setIncompleteWarnOpen(true); else saveWorkout(); }}
+        onFinish={openFinish}
         finishing={saveMutation.isPending}
         canFinish={exercises.length > 0}
       />
@@ -3296,70 +3301,38 @@ export default function Workout() {
         </div>
       </section>
 
-      {/* Name this workout */}
-      <div className="mb-4">
-        <label htmlFor="workout-name" className="text-xs font-medium text-muted-foreground mb-1 block">
-          {tFallback('workout.nameLabel', 'Workout name')}
-        </label>
-        <Input
-          id="workout-name"
-          value={workoutName}
-          onChange={(e) => setWorkoutName(e.target.value.slice(0, 60))}
-          placeholder={selectedRegimen?.name || tFallback('workout.namePlaceholder', 'e.g. Push Day A')}
-          maxLength={60}
-        />
-      </div>
+      {/* Finish lives in the pinned bar and here, at the end of the list
+          where the thumb already is. Both open the finish sheet. */}
+      <Button
+        className="w-full h-12 font-heading font-bold text-base mb-8"
+        onClick={openFinish}
+        disabled={exercises.length === 0 || saveMutation.isPending}
+      >
+        {tFallback('workout.finishWorkout', 'Finish workout')}
+      </Button>
 
-      {/* Tags — colored pills for muscle groups / session type */}
-      <div className="mb-4">
-        <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
-          {tFallback('workout.tagsLabel', 'Tags')}
-        </label>
-        <TagSelector value={workoutTags} onChange={setWorkoutTags} />
-      </div>
-
-      <div className="mb-4">
-        <label htmlFor="workout-notes" className="text-xs font-medium text-muted-foreground mb-1 block">{t('workout.notes')}</label>
-        <Textarea id="workout-notes" value={notes} onChange={e => guard.handleChange(e.target.value, setNotes)} placeholder={t('workout.notesPlaceholder')} className="h-20" maxLength={1000} />
-      </div>
-
-      <Suspense fallback={null}>
-        <ProgressPhotoCapture workoutName={selectedRegimen?.name || t('workout.freestyle')} />
-      </Suspense>
-
-      <motion.div whileTap={{ scale: 0.97 }} whileHover={{ scale: 1.01 }} transition={{ type: 'spring', stiffness: 400, damping: 20 }} className="mt-6">
-        <Button
-          className="w-full h-12 font-heading font-bold text-base mb-8"
-          onClick={() => { if (uncheckedOnFinish() > 0) setIncompleteWarnOpen(true); else saveWorkout(); }}
-          disabled={exercises.length === 0 || saveMutation.isPending}
-        >
-          <Save className="w-5 h-5 me-2" />
-          {saveMutation.isPending ? t('workout.saving') : t('workout.saveWorkout')}
-        </Button>
-      </motion.div>
-
-      {/* Finish-workout completeness nudge — only fires once the lifter has
-          started checking sets off (so people who don't use ✓ Done never get
-          nagged), and counts logged-but-unchecked sets + incomplete cardio. */}
-      <AlertDialog open={incompleteWarnOpen} onOpenChange={setIncompleteWarnOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{tFallback("workout.finishYourWorkout", "Finish your workout?")}</AlertDialogTitle>
-            <AlertDialogDescription>
-              You still have {uncheckedOnFinish()} item{uncheckedOnFinish() === 1 ? '' : 's'} that {uncheckedOnFinish() === 1 ? "isn't" : "aren't"} checked off.
-              You can finish now — they just won't be marked done.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{tFallback("workout.keepGoing", "Keep going")}</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { setIncompleteWarnOpen(false); saveWorkout(); }}>
-              {tFallback("workout.finishAnyway", "Finish anyway")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-
+      <FinishSheet
+        open={finishOpen}
+        onClose={() => setFinishOpen(false)}
+        onSave={() => { setFinishOpen(false); saveWorkout(); }}
+        saving={saveMutation.isPending}
+        exercises={exercises}
+        startedAt={startedAt}
+        includeBarWeight={!!userProfile?.include_bar_in_volume}
+        unchecked={finishOpen ? uncheckedOnFinish() : 0}
+        name={workoutName}
+        onNameChange={setWorkoutName}
+        namePlaceholder={selectedRegimen?.name || tFallback('workout.namePlaceholder', 'e.g. Push Day A')}
+        tags={workoutTags}
+        onTagsChange={setWorkoutTags}
+        notes={notes}
+        onNotesChange={(v) => guard.handleChange(v, setNotes)}
+        photoSlot={(
+          <Suspense fallback={null}>
+            <ProgressPhotoCapture workoutName={workoutName.trim() || selectedRegimen?.name || t('workout.freestyle')} />
+          </Suspense>
+        )}
+      />
 
       {/* Anti-cheat warning modal */}
       <Dialog open={!!cheatWarningData} onOpenChange={(open) => { if (!open) setCheatWarningData(null); }}>
@@ -3508,6 +3481,18 @@ export default function Workout() {
         <Suspense fallback={null}>
           <FormCoachModal open={formCoachOpen} onClose={() => setFormCoachOpen(false)} />
         </Suspense>
+      </ErrorBoundary>
+
+      <ErrorBoundary label="WorkoutWin">
+        <WorkoutWin
+          win={win}
+          weightUnit={weightUnit}
+          includeBarWeight={!!userProfile?.include_bar_in_volume}
+          onShareWorkout={() => { setShareCardWorkout(win.workout); setWin(null); }}
+          onSharePr={(detail) => setPrShare(detail)}
+          onSaveTemplate={() => saveWinAsTemplate(win?.workout)}
+          onClose={() => { setWin(null); setFinishSummary(null); setPushAskArmed(true); }}
+        />
       </ErrorBoundary>
 
       <ErrorBoundary label="WorkoutShareCard">
