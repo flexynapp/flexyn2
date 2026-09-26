@@ -94,6 +94,8 @@ const ALLOW_IDENTICAL = new Set([
   'trophy.ladder.capsule',  // "Capsules"  — doNotTranslate
   'trophy.ladder.gauntlet', // "Gauntlet"  — the feature's name
   'compete.gauntlet',       // "Gauntlet"  — the feature's name, same as above
+  'search.crews',           // "Crews"     — the feature's name, same as crew tabs
+  'quickLog.addOz',         // "+{oz} oz"  — a number and a unit symbol
   'trophy.unit.lb',         // "lb"        — unit symbol
   'trophy.unit.m',          // "m"         — SI symbol
   'trophy.tail.desc',       // "{n} {unit}" — placeholders and a space
@@ -317,6 +319,7 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'nutrition.date',
     'nutrition.macros.calories',
     'today.fuel.calories',       // same word, same sense as nutrition.macros.calories
+    'search.messages',           // same word in French
     'nutrition.macros.sodium',
     'nutrition.minerals.calcium',
     'nutrition.minerals.potassium',
