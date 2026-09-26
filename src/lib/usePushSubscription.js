@@ -20,6 +20,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/api/supabaseClient';
+import { isNative } from '@/lib/native';
 
 const VAPID_PUBLIC_KEY =
   (typeof import.meta !== 'undefined' && import.meta.env?.VITE_VAPID_PUBLIC_KEY) || '';
@@ -56,7 +57,14 @@ export function usePushSubscription() {
   // Without the VAPID key the server can't sign push payloads, so we
   // refuse to even prompt for permission — better UX than asking and
   // then doing nothing useful with it.
+  //
+  // Never in the native app: Web Push needs a service worker, which the app
+  // does not register (see AppUpdatePrompt), and store apps get their pushes
+  // through APNs / FCM, which is separate work. Reporting unsupported hides
+  // every web opt-in surface (Settings toggle, banners, the post-workout ask)
+  // because each of them gates on this flag.
   const isSupported = typeof window !== 'undefined'
+    && !isNative()
     && 'serviceWorker' in navigator
     && 'PushManager' in window
     && typeof Notification !== 'undefined'

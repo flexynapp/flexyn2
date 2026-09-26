@@ -13,6 +13,7 @@ import { unsubscribePushOnLogout } from '@/lib/pushCleanup';
 import { selectProfiles } from '@/lib/data/users';
 import { accountEmail } from '@/lib/guestIdentity';
 import { track, EVENTS } from '@/lib/analytics';
+import { isNative, NATIVE_AUTH_CALLBACK } from '@/lib/native';
 
 /* ── Entity name → Postgres table name ─────────────────────────────────── */
 const TABLE = {
@@ -460,6 +461,14 @@ const auth = {
    * AND in the Supabase dashboard before exposing a button for it.
    */
   signInWithProvider(provider, redirectTo) {
+    // Native app: the provider page opens in the system browser and comes
+    // back on the app.flexyn:// deep link (Apple on iOS uses the native
+    // sheet). An OAuth page inside the web view is refused by Google, and
+    // window.location.origin there is capacitor://localhost, which no
+    // provider can redirect to. Dynamic import keeps it off the web path.
+    if (isNative()) {
+      return import('@/lib/nativeAuth').then((m) => m.nativeSignIn(provider));
+    }
     const target = redirectTo
       ? `${window.location.origin}${redirectTo.startsWith('/') ? redirectTo : '/' + redirectTo}`
       : window.location.origin;
@@ -500,9 +509,15 @@ const auth = {
     if (!email || typeof email !== 'string') {
       throw new Error('email required');
     }
-    const target = redirectTo
-      ? `${window.location.origin}${redirectTo.startsWith('/') ? redirectTo : '/' + redirectTo}`
-      : window.location.origin;
+    // Native app: the emailed link must reopen the APP (deep link), not the
+    // web view's capacitor://localhost origin, which a mail client cannot
+    // open. The PKCE verifier for it lives in the app's own storage, so the
+    // link signs in when tapped on the same phone.
+    const target = isNative()
+      ? NATIVE_AUTH_CALLBACK
+      : redirectTo
+        ? `${window.location.origin}${redirectTo.startsWith('/') ? redirectTo : '/' + redirectTo}`
+        : window.location.origin;
     const clean = email.trim().toLowerCase();
 
     // Phase 1 — send only if the account already exists.

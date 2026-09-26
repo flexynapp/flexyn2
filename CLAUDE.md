@@ -1693,6 +1693,57 @@ the bucket keys off, so don't change the path shape casually.
   of the served bundle. **Ask for the device build hash before theorising**
   whenever a device report and the database disagree.
 
+## Native app (Capacitor)
+
+The App Store / Play build is Capacitor 8 around the SAME `dist/`. Full
+build steps and the account checklist: `docs/native-app.md`. Conventions a
+contributor must not break:
+
+- **The web path is the default and must not move.** Every native
+  difference is a runtime branch on `isNative()` / `platform()` from
+  `src/lib/native.js`, and a helper that cannot tell answers "web". Tests
+  pin both directions (`nativeAuthRouting`, `supabaseClientFlow`,
+  `nativeWebSurfaces`). A change that alters web behaviour to suit the app
+  is a regression, however small.
+- **Never set `server.url` in `capacitor.config.json`.** The bundle ships
+  inside the app; a remote wrapper is rejected under App Review 4.2. It also
+  means a Netlify deploy does not reach store users.
+- **No service worker, no Web Push, no install prompts in the app.**
+  `AppUpdatePrompt` returns before importing `virtual:pwa-register`,
+  `usePushSubscription` reports unsupported (which hides every opt-in
+  surface), and both install prompts stay quiet. Native push is APNs/FCM,
+  not built yet.
+- **Auth on native is PKCE through the system browser**, returning on
+  `app.flexyn://auth-callback` (`src/lib/nativeAuth.js`). The web client
+  keeps the implicit flow on purpose: PKCE would break a magic link opened
+  in a different browser. Never start OAuth inside the web view (Google
+  refuses it), and never build a redirect from `window.location.origin` on
+  native: it is `capacitor://localhost` or `https://localhost`.
+- **Links other people open use `shareOrigin()`** (`src/lib/appOrigin.js`),
+  not `window.location.origin`, for the same reason. On the web the two are
+  identical.
+- **Sign in with Apple on iOS is a Swift plugin in the app target**
+  (`ios/App/App/FlexynBridgeViewController.swift`), registered by the root
+  view controller. The community npm plugin pins Capacitor 7 in its Swift
+  package and cannot resolve against 8, so do not "replace it with the
+  standard plugin" without checking that first. App Review 4.8: Google
+  sign-in requires Apple sign-in, so Apple must be enabled in Supabase
+  before any iOS submission.
+- **`ios/` and `android/` are committed; their `public/` copies are not.**
+  Run `npm run cap:sync` after a web change you want on a device.
+  `ios/App/CapApp-SPM/Package.swift` is rewritten by `cap sync`; add native
+  dependencies through npm plugins, not by editing it. Both trees are in
+  ESLint's global ignores because they contain copies of the built bundle.
+- **`@capacitor/assets` is run through npx, never installed** (`npm run
+  cap:assets`). It pins an old `@capacitor/cli` with a vulnerable `tar`,
+  and npm audit is held at zero. For the same reason `package.json`
+  overrides `uuid` under `xcode`, a dependency of `@capacitor/cli`.
+- **A new web capability may need a native declaration.** Camera,
+  microphone, speech and location already have `Info.plist` usage strings
+  and Android permissions; a web view cannot reach anything the app does
+  not declare, and iOS terminates an app that uses the camera without a
+  usage string.
+
 ## Equipment picker (migrations 268–273, July 2026)
 
 Lifters can record the SPECIFIC implement they're using — their gym's

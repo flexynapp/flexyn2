@@ -1,0 +1,145 @@
+name: Native build
+
+# Proves the Capacitor iOS and Android projects still compile. Both builds
+# are UNSIGNED on purpose: no Apple or Google developer account exists yet,
+# so there are no certificates to sign with. A debug APK and a simulator
+# .app are what can be built without them, and a compile is what breaks
+# when a plugin, the Swift in ios/App/App, or the Gradle config drifts.
+#
+# Signed release builds (an .aab for Play, an .ipa for TestFlight) are the
+# commented placeholders at the bottom of each job. docs/native-app.md lists
+# the secrets they need and who has to create them.
+
+on:
+  pull_request:
+    paths:
+      - 'ios/**'
+      - 'android/**'
+      - 'capacitor.config.json'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'src/lib/native*.js'
+      - 'src/api/supabaseClient.js'
+      - 'index.html'
+      - 'vite.config.js'
+      - 'scripts/native-assets.mjs'
+      - '.github/workflows/native-build.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: native-build-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  android:
+    name: Android debug APK (unsigned)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - run: npm ci
+
+      # The web bundle IS the app. Built without VITE_SUPABASE_* here, which
+      # is fine for a compile check; a store build must have them set.
+      - run: npm run build
+
+      - run: npx cap sync android
+
+      # ubuntu-latest ships the Android SDK and sets ANDROID_HOME.
+      - name: Assemble debug APK
+        working-directory: android
+        run: ./gradlew assembleDebug --no-daemon
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: flexyn-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 7
+
+      # ── PLACEHOLDER: signed release (.aab) for Google Play ──────────────
+      # Needs these repository secrets (see docs/native-app.md):
+      #   ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD,
+      #   ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD
+      # - name: Decode keystore
+      #   run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/app/release.keystore
+      # - name: Bundle release
+      #   working-directory: android
+      #   run: ./gradlew bundleRelease --no-daemon
+      #   env:
+      #     FLEXYN_KEYSTORE_PATH: release.keystore
+      #     FLEXYN_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      #     FLEXYN_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      #     FLEXYN_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+
+  ios:
+    name: iOS simulator build (unsigned)
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+
+      # Capacitor 8 is built and tested against Xcode 26; take the newest
+      # stable Xcode the runner image has rather than its default.
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+
+      # Must precede xcodebuild: ios/App/CapApp-SPM/Package.swift points at
+      # the plugins inside node_modules.
+      - run: npm ci
+
+      - run: npm run build
+
+      # Copies dist/ into ios/App/App/public and writes the generated
+      # capacitor.config.json the project expects (both are gitignored).
+      - run: npx cap sync ios
+
+      - name: Build for the simulator
+        run: |
+          xcodebuild \
+            -project ios/App/App.xcodeproj \
+            -scheme App \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath ios/build \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      # ── PLACEHOLDER: signed archive (.ipa) for TestFlight ───────────────
+      # Needs these repository secrets (see docs/native-app.md):
+      #   APPLE_TEAM_ID, IOS_DIST_CERT_P12_BASE64, IOS_DIST_CERT_PASSWORD,
+      #   IOS_PROVISIONING_PROFILE_BASE64, APP_STORE_CONNECT_API_KEY_ID,
+      #   APP_STORE_CONNECT_API_ISSUER_ID, APP_STORE_CONNECT_API_KEY_P8
+      # - name: Import signing certificate and profile
+      #   uses: apple-actions/import-codesign-certs@v3
+      #   with:
+      #     p12-file-base64: ${{ secrets.IOS_DIST_CERT_P12_BASE64 }}
+      #     p12-password: ${{ secrets.IOS_DIST_CERT_PASSWORD }}
+      # - name: Archive
+      #   run: |
+      #     xcodebuild -project ios/App/App.xcodeproj -scheme App \
+      #       -configuration Release -archivePath ios/build/Flexyn.xcarchive \
+      #       DEVELOPMENT_TEAM=${{ secrets.APPLE_TEAM_ID }} archive
+      # - name: Export and upload to TestFlight
+      #   run: xcodebuild -exportArchive ... (ExportOptions.plist, method app-store-connect)

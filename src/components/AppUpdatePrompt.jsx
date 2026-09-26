@@ -20,6 +20,7 @@ import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { RotateCw, X } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
+import { isNative } from '@/lib/native';
 
 const DISMISS_KEY = 'flexyn.appUpdateDismissed';
 
@@ -41,6 +42,13 @@ export default function AppUpdatePrompt() {
   };
 
   useEffect(() => {
+    // Native app (Capacitor): no service worker, on purpose. The bundle is
+    // served from capacitor:// (iOS) or the app's own https://localhost
+    // (Android), neither of which should run one, and the app updates
+    // through the App Store / Play Store rather than a waiting worker, so
+    // "reload to update" would reload the same files. Returning before the
+    // import means the registration module never runs there.
+    if (isNative()) return undefined;
     let cancelled = false;
     let cleanup = () => {};
     (async () => {

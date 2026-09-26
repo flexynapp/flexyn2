@@ -21,9 +21,21 @@
     "test:coverage": "vitest run --coverage",
     "i18n:orphans": "node scripts/i18n-orphans.mjs",
     "ui:ratchet": "node scripts/ui-ratchet.mjs",
-    "schema:columns": "node scripts/schema-columns.mjs"
+    "schema:columns": "node scripts/schema-columns.mjs",
+    "cap:sync": "vite build && cap sync",
+    "cap:copy": "vite build && cap copy",
+    "cap:open:ios": "cap open ios",
+    "cap:open:android": "cap open android",
+    "cap:assets": "node scripts/native-assets.mjs"
   },
   "dependencies": {
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/browser": "^8.0.4",
+    "@capacitor/core": "^8.5.2",
+    "@capacitor/ios": "^8.5.2",
+    "@capacitor/splash-screen": "^8.0.2",
+    "@capacitor/status-bar": "^8.0.3",
     "@radix-ui/react-alert-dialog": "^1.1.6",
     "@radix-ui/react-dialog": "^1.1.6",
     "@radix-ui/react-dropdown-menu": "^2.1.6",
@@ -56,6 +68,7 @@
     "vaul": "^1.1.2"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.5.2",
     "@eslint/js": "^9.19.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
@@ -94,6 +107,9 @@
   "overrides": {
     "dompurify": "3.4.12",
     "fast-uri": "^4.2.1",
-    "postcss": "^8.5.23"
+    "postcss": "^8.5.23",
+    "xcode": {
+      "uuid": "^11.1.1"
+    }
   }
 }

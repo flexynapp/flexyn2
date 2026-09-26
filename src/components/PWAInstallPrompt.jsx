@@ -12,6 +12,7 @@ import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Download, X } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
+import { isNative } from '@/lib/native';
 
 const DISMISS_STORAGE_KEY = 'fn-pwa-install-dismissed-at';
 const DISMISS_COOLDOWN_DAYS = 14;
@@ -24,6 +25,10 @@ export default function PWAInstallPrompt() {
   const [show, setShow] = useState(false);
 
   useEffect(() => {
+    // The store app is already installed. A web view should never fire
+    // beforeinstallprompt, but "install this app" inside the app is exactly
+    // the kind of thing a reviewer screenshots, so do not rely on it.
+    if (isNative()) return undefined;
     // Honor the cooldown — if user dismissed recently, stay quiet.
     try {
       const dismissedAt = localStorage.getItem(DISMISS_STORAGE_KEY);

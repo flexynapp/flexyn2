@@ -40,6 +40,8 @@
 // leave flexyn.netlify.app resolving (or redirect it) rather than
 // retiring it.
 
+import { isNative } from '@/lib/native';
+
 const FALLBACK_ORIGIN = 'https://flexyn.netlify.app';
 
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '0.0.0.0', '::1', '[::1]']);
@@ -120,4 +122,22 @@ export function marketingOrigin() {
 export function publicGymUrl(gymId) {
   const marketing = marketingOrigin();
   return marketing ? `${marketing}/p/gym/${gymId}` : `/p/gym/${gymId}`;
+}
+
+/**
+ * The origin for a link someone ELSE will open: a share sheet, a referral
+ * link, a profile QR.
+ *
+ * In a browser this is exactly `window.location.origin`, as it always was:
+ * whatever host the user is on is the host their friend should get. In the
+ * native app it is not — the web view's origin is capacitor://localhost (iOS)
+ * or https://localhost (Android), which resolves only on the sender's own
+ * phone — so the app shares the public origin instead, by the same rules as
+ * a printed QR (canonicalOrigin above).
+ *
+ * @returns {string} an origin with no trailing slash, or '' with no window
+ */
+export function shareOrigin() {
+  if (typeof window === 'undefined' || !window.location) return '';
+  return isNative() ? canonicalOrigin() : window.location.origin;
 }

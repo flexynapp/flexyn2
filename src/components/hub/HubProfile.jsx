@@ -60,6 +60,7 @@ import * as storiesData from '@/lib/data/stories';
 import { listEarned as listEarnedTrophies } from '@/lib/data/trophies';
 import { safeExternalUrl } from '@/lib/safeUrl';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { shareOrigin } from '@/lib/appOrigin';
 
 const GiftCoinsModal = lazy(() => import('./GiftCoinsModal'));
 const CreateDuelModal = lazy(() => import('@/components/duels/CreateDuelModal'));
@@ -2525,7 +2526,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
       <AnimatePresence>
         {qrOpen && displayUsername && (
           <QRModal
-            url={`${typeof window !== 'undefined' ? window.location.origin : 'https://flexyn.netlify.app'}/@${displayUsername}`}
+            url={`${shareOrigin() || 'https://flexyn.netlify.app'}/@${displayUsername}`}
             username={displayUsername}
             onClose={() => setQrOpen(false)}
           />

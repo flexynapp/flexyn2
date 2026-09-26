@@ -22,6 +22,7 @@ import { useNumberFormatter } from '@/lib/intl';
 import { getMyReferralStats } from '@/lib/data/referrals';
 import ReferralSheet from './ReferralSheet';
 import { track, EVENTS } from '@/lib/analytics';
+import { shareOrigin } from '@/lib/appOrigin';
 
 // Per-device dismissal, matching the `flexyn.<feature>.<userId>` convention
 // (see CLAUDE.md and ProfileCompletionMeter). Per-user rather than global so
@@ -35,7 +36,7 @@ function shareUrlForCode(code) {
   // someone else's device. window.location.origin handles localhost,
   // Netlify previews, and prod alike.
   if (typeof window === 'undefined') return '';
-  return `${window.location.origin}/?ref=${code}`;
+  return `${shareOrigin()}/?ref=${code}`;
 }
 
 export default function ReferralCard() {
