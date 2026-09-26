@@ -110,24 +110,24 @@ Deno.serve(async (req) => {
 
   const r = (body.report ?? {}) as Record<string, unknown>;
   const type   = String(r.reported_type ?? 'content');
-  const id     = String(r.reported_id ?? '—');
-  const reason = String(r.reason ?? '—');
+  const id     = String(r.reported_id ?? '-');
+  const reason = String(r.reason ?? '-');
   const detail = r.detail ? String(r.detail) : '';
-  const by     = String(r.reporter_email ?? '—');
-  const author = r.reported_author_email ? String(r.reported_author_email) : '—';
+  const by     = String(r.reporter_email ?? '-');
+  const author = r.reported_author_email ? String(r.reported_author_email) : '-';
   const at     = String(r.created_at ?? '');
 
-  const subject = `[Flexyn] ${type} reported — ${reason}`;
+  const subject = `[Flexyn] ${type} reported - ${reason}`;
   const text = [
     `A ${type} was reported on Flexyn.`,
     ``,
-    `Reason:    ${reason}`,
-    detail ? `Details:   ${detail}` : ``,
-    `Type:      ${type}`,
-    `Content:   ${id}`,
-    `Author:    ${author}`,
+    `Reason:      ${reason}`,
+    detail ? `Details:     ${detail}` : ``,
+    `Type:        ${type}`,
+    `Content:     ${id}`,
+    `Author:      ${author}`,
     `Reported by: ${by}`,
-    at ? `When:      ${at}` : ``,
+    at ? `When:        ${at}` : ``,
     ``,
     `Review in the admin queue: /admin-reports`,
   ].filter(Boolean).join('\n');
