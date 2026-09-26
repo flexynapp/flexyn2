@@ -21,7 +21,7 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { Moon, Smile, Footprints, Star } from 'lucide-react';
+import { Moon, Smile, Footprints, Star, ChevronRight } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -48,13 +48,17 @@ function Column({ icon: Icon, iconClass, label, value, logged, onClick, ariaLabe
         <span className="text-micro font-semibold tracking-[0.04em] truncate">{label}</span>
       </span>
       <span
-        className={`block font-heading font-bold text-xl leading-none tabular-nums truncate ${
-          logged ? 'text-foreground' : 'text-muted-foreground/50'
+        className={`block leading-none tabular-nums truncate ${
+          logged ? 'font-heading font-bold text-xl text-foreground' : 'text-sm font-semibold text-primary'
         }`}
       >
         {value}
       </span>
-      <span className="mt-2 h-3 flex items-center">{children}</span>
+      {/* The stars, dots and bar only mean something beside a value. Under
+          an empty column they drew five hollow stars and a flat bar, which
+          read as a bad night rather than no entry. The height is kept so
+          the three columns stay aligned. */}
+      <span className="mt-2 h-3 flex items-center">{logged ? children : null}</span>
     </button>
   );
 }
@@ -80,8 +84,45 @@ export default function TonightRow({ readiness, onOpen }) {
   const mood = readiness?.mood?.mood ?? null;
   const steps = stepLog?.steps ?? null;
 
-  const dash = '—';
+  // An unlogged column says what tapping does rather than showing a dash.
+  const add = tFallback('dashboard.tonight.add', 'Add');
   const tapToLog = tFallback('dashboard.tonight.tapToLog', 'Tap to log');
+  const nothingLogged = hours == null && mood == null && steps == null;
+
+  // Nothing logged at all: one prompt instead of three columns of blanks.
+  // It opens the sheet on sleep, the signal that weighs most in readiness.
+  if (nothingLogged) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
+      >
+        <Card>
+          <button
+            type="button"
+            onClick={() => onOpen('sleep')}
+            className="w-full flex items-center gap-3 px-4 py-4 text-start rounded-lg hover:bg-secondary/40 active:bg-secondary/60 transition-colors"
+          >
+            <span className="flex items-center gap-1.5 shrink-0" aria-hidden="true">
+              <Moon className="w-4 h-4 text-info" />
+              <Smile className="w-4 h-4 text-primary" />
+              <Footprints className="w-4 h-4 text-success" />
+            </span>
+            <span className="flex-1 min-w-0">
+              <span className="block text-sm font-semibold text-foreground">
+                {tFallback('dashboard.tonight.emptyTitle', 'Log sleep, mood and steps')}
+              </span>
+              <span className="block text-xs text-muted-foreground">
+                {tFallback('dashboard.tonight.emptySub', 'They make up most of your readiness score.')}
+              </span>
+            </span>
+            <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0 rtl:scale-x-[-1]" aria-hidden="true" />
+          </button>
+        </Card>
+      </motion.div>
+    );
+  }
 
   return (
     <motion.div
@@ -97,12 +138,12 @@ export default function TonightRow({ readiness, onOpen }) {
           icon={Moon}
           iconClass="text-info"
           label={tFallback('dashboard.tonight.sleep', 'SLEEP')}
-          value={hours != null ? `${hours} h` : dash}
+          value={hours != null ? `${hours} h` : add}
           logged={hours != null}
           onClick={() => onOpen('sleep')}
           ariaLabel={hours != null
             ? tFallback('dashboard.tonight.sleepLogged', 'Sleep logged. Open readiness')
-            : `${tapToLog} — ${tFallback('dashboard.tonight.sleep', 'SLEEP')}`}
+            : `${tapToLog}: ${tFallback('dashboard.tonight.sleep', 'SLEEP')}`}
         >
           {[1, 2, 3, 4, 5].map((n) => (
             <Star
@@ -121,12 +162,12 @@ export default function TonightRow({ readiness, onOpen }) {
           icon={Smile}
           iconClass="text-primary"
           label={tFallback('dashboard.tonight.mood', 'MOOD')}
-          value={mood != null ? tFallback(`mood.label.${mood}`, MOOD_LABELS[mood - 1]) : dash}
+          value={mood != null ? tFallback(`mood.label.${mood}`, MOOD_LABELS[mood - 1]) : add}
           logged={mood != null}
           onClick={() => onOpen('mood')}
           ariaLabel={mood != null
             ? tFallback('dashboard.tonight.moodLogged', 'Mood logged. Open readiness')
-            : `${tapToLog} — ${tFallback('dashboard.tonight.mood', 'MOOD')}`}
+            : `${tapToLog}: ${tFallback('dashboard.tonight.mood', 'MOOD')}`}
         >
           {[1, 2, 3, 4, 5].map((n) => (
             <span
@@ -145,12 +186,12 @@ export default function TonightRow({ readiness, onOpen }) {
           icon={Footprints}
           iconClass="text-success"
           label={tFallback('dashboard.tonight.steps', 'STEPS')}
-          value={steps != null ? fmt(steps) : dash}
+          value={steps != null ? fmt(steps) : add}
           logged={steps != null}
           onClick={() => onOpen('steps')}
           ariaLabel={steps != null
             ? tFallback('dashboard.tonight.stepsLogged', 'Steps logged. Open readiness')
-            : `${tapToLog} — ${tFallback('dashboard.tonight.steps', 'STEPS')}`}
+            : `${tapToLog}: ${tFallback('dashboard.tonight.steps', 'STEPS')}`}
         >
           <span className="block w-full h-1 rounded-full bg-foreground/10 overflow-hidden">
             <span

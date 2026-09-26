@@ -467,7 +467,11 @@ function buildPathSlides({ profile, user, logs }) {
     kickerKey: 'hero.path.step1.kicker',
     title: 'Log your first workout',
     titleKey: 'hero.path.step1.title',
-    metricValue: totalLogs,
+    // No metric until there is one: "0 logged" in 5rem type read as a
+    // score the user had failed (CLAUDE.md: a section with no data must
+    // not render as zeros). With the metric null the title becomes the
+    // headline, which is the ask this slide exists to make.
+    metricValue: totalLogs > 0 ? totalLogs : null,
     metricUnit: ' logged',
     metricUnitKey: 'hero.unit.logged',
     metricDecimals: 0,
@@ -654,8 +658,10 @@ function sumVolume(logsSubset) {
  * Personal-telemetry slides — always-on stats derived from data already
  * in the dashboard cache (ZERO extra network calls). These render even
  * when the values are 0, so a fresh account sees the metrics it will
- * grow into ("Workouts logged 0 — log your first"), and they light up
- * automatically as the user records more. Deliberately excludes the
+ * grow into, and they light up automatically as the user records more.
+ * A zero is never drawn as the headline number, though: volume and the
+ * all-time count drop their metric until there is one, so the slide
+ * leads with its title and the sub says how to fill it. Deliberately excludes the
  * streak (which now lives in its own pill under the carousel).
  */
 function buildTelemetrySlides({ logs, cardioLogs, profile }) {
@@ -695,15 +701,16 @@ function buildTelemetrySlides({ logs, cardioLogs, profile }) {
       id: 'tele:volume', kind: 'telemetry',
       icon: TrendingUp, iconBg: 'bg-success/20', kicker: 'This week', kickerKey: 'hero.kicker.thisWeek',
       title: 'Volume lifted', titleKey: 'hero.tele.volume.title',
-      metricValue: weeklyVolume, metricUnit: ' lb', metricUnitKey: 'hero.unit.lbWithSpace',
+      metricValue: weeklyVolume > 0 ? weeklyVolume : null, metricUnit: ' lb', metricUnitKey: 'hero.unit.lbWithSpace',
       sub: weeklyVolume > 0 ? 'Total weight × reps across every set.' : 'Log sets and this fills in automatically.',
       subKey: weeklyVolume > 0 ? 'hero.tele.volume.sub.has' : 'hero.tele.volume.sub.none',
     },
     {
       id: 'tele:total', kind: 'telemetry',
       icon: Dumbbell, iconBg: 'bg-primary/20', kicker: 'All time', kickerKey: 'hero.kicker.allTime',
-      title: 'Workouts logged', titleKey: 'hero.tele.total.title',
-      metricValue: totalLogs, metricUnit: '',
+      title: totalLogs > 0 ? 'Workouts logged' : 'Log your first workout',
+      titleKey: totalLogs > 0 ? 'hero.tele.total.title' : 'hero.path.step1.title',
+      metricValue: totalLogs > 0 ? totalLogs : null, metricUnit: '',
       sub: totalLogs > 0 ? 'Consistency compounds. Keep stacking sessions.' : 'Log your first to start the count.',
       subKey: totalLogs > 0 ? 'hero.tele.total.sub.has' : 'hero.tele.total.sub.none',
       cta: totalLogs > 0 ? null : { label: 'Start a workout', labelKey: 'hero.cta.startAWorkout', to: '/workout?freestyle=1' },

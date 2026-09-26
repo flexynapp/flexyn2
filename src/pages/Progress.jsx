@@ -924,9 +924,16 @@ export default function Progress() {
                   were bare — and a number with nothing to compare against is
                   decoration, not a stat. "vs prev" is said once, on the
                   first column, rather than three times across the row. */}
+              {/* An empty window with an empty previous window has nothing
+                  to compare, so the row is dropped and the line below says
+                  so. It used to draw a blue 0 beside two dashes. When the
+                  previous window had sessions the row stays, because "0,
+                  down 3" is a real stat. The figures are foreground: colour
+                  is for state, and a count is not a state. */}
+              {(frameLogs.length > 0 || frameCardioSessions > 0 || prevFrameWorkouts > 0 || prevFrameCardio > 0) && (
               <div className="grid grid-cols-3 gap-4 mb-4">
                 <div className="text-center">
-                  <p className="font-heading font-black text-2xl text-info">{frameLogs.length}</p>
+                  <p className="font-heading font-black text-2xl text-foreground">{frameLogs.length}</p>
                   <p className="text-micro text-muted-foreground mt-0.5">{tFallback('progress.frame.workouts', 'Workouts')}</p>
                   {(() => {
                     const d = countDelta(frameLogs.length, prevFrameWorkouts, tFallback);
@@ -934,7 +941,7 @@ export default function Progress() {
                   })()}
                 </div>
                 <div className="text-center">
-                  <p className="font-heading font-black text-2xl text-success">
+                  <p className="font-heading font-black text-2xl text-foreground">
                     {frameVolume > 0 ? formatBigNumber(Math.round(fromLbs(frameVolume, weightUnit))) : '—'}
                   </p>
                   <p className="text-micro text-muted-foreground mt-0.5">{tFallback('progress.frame.volumeLifted', '{unit} lifted', { unit: weightUnit })}</p>
@@ -949,9 +956,7 @@ export default function Progress() {
                   )}
                 </div>
                 <div className="text-center">
-                  {/* accent, not primary — Workouts above is already primary
-                      and the two sat side by side reading as one number. */}
-                  <p className="font-heading font-black text-2xl text-accent">{frameCardioSessions || '—'}</p>
+                  <p className="font-heading font-black text-2xl text-foreground">{frameCardioSessions || '—'}</p>
                   <p className="text-micro text-muted-foreground mt-0.5">{tFallback('progress.frame.cardio', 'Cardio')}</p>
                   {(() => {
                     const d = countDelta(frameCardioSessions, prevFrameCardio, tFallback);
@@ -959,6 +964,7 @@ export default function Progress() {
                   })()}
                 </div>
               </div>
+              )}
 
               {/* Muscle group pills — derived from the selected frame's logs */}
               {(() => {
