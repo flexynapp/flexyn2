@@ -3,9 +3,9 @@ import { rememberTabLocation, tabHref, saveTabScroll, restoreTabScroll } from '@
 import { NAV_PATHS, tabForPath } from '@/lib/navTabs';
 import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import FlexynLogo from './FlexynLogo';
-import { LayoutDashboard, MessageCircle, Play, Plus, Sparkles, Users, UserCircle, ShoppingBag } from 'lucide-react';
+import { ChevronLeft, LayoutDashboard, MessageCircle, Play, Plus, Sparkles, Users, UserCircle, ShoppingBag } from 'lucide-react';
 import QuickLogSheet from './QuickLogSheet';
-import Header from './Header';
+import Header, { CHILD_ROUTES, headerBack } from './Header';
 import LanguagePicker from './LanguagePicker';
 import AnimatedRoutes from './AnimatedRoutes';
 import PullToRefresh from './PullToRefresh';
@@ -281,7 +281,7 @@ export default function Layout() {
   const navItems = [
     { path: '/dashboard', label: tFallback('nav.today', 'Today'),   icon: LayoutDashboard },
     { path: '/workout',   label: tFallback('nav.train', 'Train'),   icon: Play },
-    { path: '/hub',       label: tFallback('nav.social', 'Social'), icon: Users, isSocial: true },
+    { path: '/hub',       label: tFallback('nav.hub', 'Hub'), icon: Users, isSocial: true },
     { path: '/you',       label: tFallback('nav.you', 'You'),       icon: UserCircle },
   ];
   const activeTab = tabForPath(location.pathname);
@@ -472,6 +472,22 @@ export default function Layout() {
           than against the whole monitor. */}
       <main className="lg:ps-64 max-w-[var(--shell-max)] mx-auto flex flex-col pt-[calc(56px+env(safe-area-inset-top))] pb-[calc(4rem+env(safe-area-inset-bottom))] lg:pb-0 overscroll-y-none">
         <Header />
+        {/* Desktop Back. The phone header is lg:hidden and the sidebar has
+            no Back, so pages opened from You (My Gym, Progress, Market…)
+            had no way back on a wide screen. It sits in the header's
+            56px of top padding, which the sidebar layout leaves empty. */}
+        {CHILD_ROUTES.includes(location.pathname) && (
+          <div className="hidden lg:flex h-12 -mt-12 items-center px-4">
+            <button
+              type="button"
+              onClick={() => headerBack(navigate)}
+              className="h-11 inline-flex items-center gap-1 -ms-2 px-2 rounded-lg text-label text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+            >
+              <ChevronLeft className="w-5 h-5 rtl:scale-x-[-1]" aria-hidden="true" />
+              {tFallback('achievements.vault.back', 'Back')}
+            </button>
+          </div>
+        )}
         <PullToRefresh>
           {/* AnimatedRoutes owns the <Outlet /> — it keys the routed page
               for its enter transition and has to control that subtree's
