@@ -1139,7 +1139,7 @@ const PATTERNS = [
     ],
     steps: [
       'Unrack and hold the bar over your shoulders with straight arms.',
-      'Lower it to your mid-chest with the elbows about 45° from your ribs — not flared straight out.',
+      'Lower it to your mid-chest with the elbows about 45° from your ribs, not flared straight out.',
       'Touch the chest without bouncing, then press up and slightly back toward the rack.',
       'Keep your feet, hips and shoulder blades in contact throughout.',
     ],
