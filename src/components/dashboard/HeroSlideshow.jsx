@@ -90,7 +90,7 @@ const SHORT_SUB = '[@media(max-height:700px)]:mt-1.5 [@media(max-height:700px)]:
 const SHORT_PILL = '[@media(max-height:700px)]:mt-2';
 const SHORT_CHIP = '[@media(max-height:700px)]:w-7 [@media(max-height:700px)]:h-7';
 const SHORT_TITLE = '[@media(max-height:700px)]:!text-[1.5rem]';
-const SHORT_METRIC = '[@media(max-height:700px)]:!text-[2.5rem]';
+const SHORT_METRIC = '[@media(max-height:700px)]:!text-[2.25rem]';
 const SHORT_STREAK = '[@media(max-height:700px)]:!text-[2.75rem]';
 
 /* The watermark geometry and the chevron gutter that used to be declared
@@ -1339,7 +1339,7 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
       onIndexChange={handleIndexChange}
       // One step tighter on a short phone; see the band's min-height note
       // in Dashboard.jsx for why the SE needs the room.
-      dotsClassName="mt-5 [@media(max-height:700px)]:mt-2"
+      dotsClassName="mt-5 [@media(max-height:700px)]:mt-1.5"
       dotLabel={(i) => tFallback('dashboard.hero.slide', 'Slide {n}', { n: i + 1 })}
     />
   );

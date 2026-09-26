@@ -363,7 +363,7 @@ function HeroCard({
             SHORT_* in HeroSlideshow), the floor drops to 200px so it stays a
             floor rather than a height, and the CTA row, greeting and story
             strip each give back a step. */}
-        <div className="relative p-4 md:p-6 pb-2 md:pb-2 min-h-[330px] [@media(max-height:700px)]:min-h-[200px] [@media(max-height:700px)]:pt-2 md:min-h-[260px]">
+        <div className="relative p-4 md:p-6 pb-2 md:pb-2 min-h-[330px] [@media(max-height:700px)]:min-h-[200px] [@media(max-height:700px)]:pt-2 [@media(max-height:700px)]:pb-1 md:min-h-[260px]">
           <HeroSlideshow
             ref={slideshowRef}
             logs={logs}
@@ -416,10 +416,10 @@ function HeroCard({
             transition={{ type: 'spring', stiffness: 400, damping: 25 }}
             // The page's one primary action gets the one medium tick.
             onClick={() => { haptic('medium'); onPrimary(); }}
-            className="group relative flex-[2] rounded-2xl px-3 py-2.5 [@media(max-height:700px)]:py-2 md:p-3 bg-primary text-primary-foreground shadow-md hover:brightness-105 flex items-center justify-between gap-3 text-start select-none-ui transition-all"
+            className="group relative flex-[2] rounded-2xl px-3 py-2.5 [@media(max-height:700px)]:py-1.5 md:p-3 bg-primary text-primary-foreground shadow-md hover:brightness-105 flex items-center justify-between gap-3 text-start select-none-ui transition-all"
           >
             <span className="min-w-0">
-              <span className="block text-micro font-semibold tracking-[0.04em] mb-1 [@media(max-height:700px)]:mb-0.5 text-primary-foreground/80">
+              <span className="block text-micro font-semibold tracking-[0.04em] mb-1 [@media(max-height:700px)]:mb-0 text-primary-foreground/80">
                 {hasWorkedOutToday
                   ? t('dashboard.hero.label.again')
                   : plan
