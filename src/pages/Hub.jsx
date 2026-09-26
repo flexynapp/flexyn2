@@ -297,7 +297,7 @@ export default function Hub() {
           sidebar and ran to the far right bezel, a full-width band under a
           centred app. Both edges now track the shell. Unchanged below the cap,
           where the vars are 0 and --shell-content-start IS 16rem. */}
-      <div>
+      <>
 
           {/* Title row */}
           <div className="mb-1 flex items-center justify-between gap-2 lg:grid lg:grid-cols-[1fr_auto_1fr]">
@@ -448,7 +448,7 @@ export default function Hub() {
             </div>
             </div>
           )}
-      </div>
+      </>
 
       {/* Live activity banner — ephemeral "X just posted" tickers
           for new posts from followed users. Self-mounted via fixed
