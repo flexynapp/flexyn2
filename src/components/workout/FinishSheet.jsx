@@ -14,7 +14,7 @@ import { TagSelector, getTag } from './WorkoutTags';
 import { sessionProgress } from './SessionBar';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
-import { formatWeight } from '@/lib/weightUnit';
+import { fromLbs } from '@/lib/weightUnit';
 import { totalVolume } from '@/lib/workoutVolume';
 import { elapsedSeconds } from '@/lib/elapsedClock';
 import { formatNumber } from '@/lib/intl';
@@ -36,7 +36,7 @@ export default function FinishSheet({
   const { done, total } = sessionProgress(exercises);
   const stats = [
     minutes > 0 && { key: 'time', value: tFallback('finish.minutes', '{n} min', { n: formatNumber(minutes, language) }), label: tFallback('finish.time', 'Time') },
-    volume > 0 && { key: 'volume', value: formatWeight(volume, weightUnit), label: tFallback('finish.volume', 'Volume') },
+    volume > 0 && { key: 'volume', value: `${formatNumber(Math.round(fromLbs(volume, weightUnit)), language)} ${weightUnit === 'kg' ? 'kg' : weightUnit === 'stone' ? 'st' : 'lb'}`, label: tFallback('finish.volume', 'Volume') },
     total > 0 && { key: 'sets', value: `${formatNumber(done, language)}/${formatNumber(total, language)}`, label: tFallback('finish.sets', 'Sets') },
   ].filter(Boolean);
 
@@ -47,9 +47,9 @@ export default function FinishSheet({
           {stats.length > 0 && (
             <div className="flex gap-2">
               {stats.map((s) => (
-                <div key={s.key} className="flex-1 min-w-0 rounded-lg bg-secondary px-3 py-2">
-                  <span className="block font-heading text-lg font-bold tabular-nums truncate">{s.value}</span>
-                  <span className="block text-micro text-muted-foreground">{s.label}</span>
+                <div key={s.key} className="flex-1 min-w-0 flex flex-col items-center gap-0.5 rounded-lg bg-secondary px-2 py-3 text-center">
+                  <span className="max-w-full font-heading text-xl font-extrabold leading-none tabular-nums truncate">{s.value}</span>
+                  <span className="text-micro font-medium uppercase tracking-wider text-muted-foreground">{s.label}</span>
                 </div>
               ))}
             </div>
