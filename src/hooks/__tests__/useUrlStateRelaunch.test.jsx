@@ -1,13 +1,12 @@
-// Coming back to the app opens each page on its default view (Kegan,
-// 2026-09-26: relaunched and Hub was still on Crews, expected Global).
-// A refresh still keeps your place.
+// Coming back to the app opens on Today, and each page on its default
+// view (Kegan, 2026-09-26). A refresh and a real deep link keep their place.
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import React from 'react';
 import { render, screen, act } from '@testing-library/react';
 import { MemoryRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { useUrlState } from '@/hooks/useUrlState';
-import { initAppResume, _resetAppResume, LONG_AWAY_MS } from '@/lib/appResume';
+import { initAppResume, _resetAppResume, LONG_AWAY_MS, isRestorablePlace } from '@/lib/appResume';
 
 let nav;
 function Hub() {
@@ -45,24 +44,35 @@ const setHidden = (hidden) => {
 beforeEach(() => { vi.useRealTimers(); });
 
 describe('relaunching', () => {
-  it('opens on the default feed when the launch restored another one', () => {
+  it('opens on Today when the launch restored an ordinary page', () => {
     boot('/hub?feed=crews');
-    renderAt('/hub?feed=crews');
-    expect(feed()).toBe('pump');
-    expect(url()).toBe('/hub');
+    expect(window.location.pathname + window.location.search).toBe('/dashboard');
   });
 
-  it('keeps the feed on a refresh', () => {
+  it('keeps a deep link as it arrived', () => {
+    boot('/hub?feed=crews&post=abc');
+    expect(window.location.pathname + window.location.search).toBe('/hub?feed=crews&post=abc');
+    renderAt('/hub?feed=crews&post=abc');
+    expect(feed()).toBe('crews');
+  });
+
+  it('keeps the page and the feed on a refresh', () => {
     boot('/hub?feed=crews', { refresh: true });
+    expect(window.location.pathname).toBe('/hub');
     renderAt('/hub?feed=crews');
     expect(feed()).toBe('crews');
   });
+});
 
-  it('still follows an in-app link to that same view afterwards', () => {
-    boot('/hub?feed=crews');
-    renderAt('/hub?feed=crews');
-    act(() => nav('/hub?feed=crews'));
-    expect(feed()).toBe('crews');
+describe('isRestorablePlace', () => {
+  it('treats tabs and You pages with only view params as places', () => {
+    expect(isRestorablePlace('/workout', '')).toBe(true);
+    expect(isRestorablePlace('/progress', '?tab=records')).toBe(true);
+  });
+  it('treats anything carrying an action or an id as a deep link', () => {
+    expect(isRestorablePlace('/workout', '?scheduled=1')).toBe(false);
+    expect(isRestorablePlace('/u/kegan', '')).toBe(false);
+    expect(isRestorablePlace('/my-gyms', '')).toBe(false);
   });
 });
 

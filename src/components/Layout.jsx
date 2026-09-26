@@ -1,6 +1,6 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { rememberTabLocation, tabHref, saveTabScroll, restoreTabScroll, forgetTabs } from '@/lib/tabMemory';
-import { onLongResume } from '@/lib/appResume';
+import { onLongResume, LAUNCH_HOME } from '@/lib/appResume';
 import { NAV_PATHS, tabForPath } from '@/lib/navTabs';
 import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import FlexynLogo from './FlexynLogo';
@@ -278,8 +278,18 @@ export default function Layout() {
   useEffect(() => {
     if (NAV_PATHS.includes(location.pathname)) rememberTabLocation(location.pathname, location.search);
   }, [location.pathname, location.search]);
-  // ...and forget it after a long time away, like a cold start does.
-  useEffect(() => onLongResume(forgetTabs), []);
+  // ...and forget it after a long time away, like a cold start does. Coming
+  // back after that long counts as a launch, so it opens on Today too,
+  // except inside Train: a run with the screen locked can pass 30 minutes
+  // and must not be pulled out of its session.
+  const pathRef = useRef(location.pathname);
+  pathRef.current = location.pathname;
+  useEffect(() => onLongResume(() => {
+    forgetTabs();
+    if (pathRef.current !== LAUNCH_HOME && pathRef.current !== '/workout') {
+      navigate(LAUNCH_HOME, { replace: true });
+    }
+  }), [navigate]);
 
   const navItems = [
     { path: '/dashboard', label: tFallback('nav.today', 'Today'),   icon: LayoutDashboard },
