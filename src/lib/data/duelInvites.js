@@ -5,6 +5,7 @@
 
 import { supabase } from '@/api/supabaseClient';
 import { track, EVENTS } from '@/lib/analytics';
+import { shareOrigin } from '@/lib/appOrigin';
 
 /**
  * Create a shareable duel-invite token. Returns { token, expires_at, ... }
@@ -73,7 +74,7 @@ export async function claimInvite(token) {
 export function buildInviteUrl(token) {
   if (!token) return '';
   if (typeof window === 'undefined') return `/duel-invite/${token}`;
-  return `${window.location.origin}/duel-invite/${token}`;
+  return `${shareOrigin()}/duel-invite/${token}`;
 }
 
 // localStorage key used to stash a token across the sign-in flow.

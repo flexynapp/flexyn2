@@ -9,6 +9,7 @@ import { capturePendingReferralCode } from './lib/data/referrals'
 import { installStaleDeployGuard } from './lib/staleDeployGuard'
 import { initAppResume } from './lib/appResume'
 import { track, EVENTS } from './lib/analytics'
+import { initNativeShell } from './lib/nativeShell'
 
 // Recover from stale-deploy chunk fetches (see staleDeployGuard) before
 // the app mounts, so a cached tab that hits a missing chunk self-heals
@@ -79,3 +80,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <App />
   </React.StrictMode>,
 )
+
+// Native app only (a no-op in browsers): status-bar colour, and hide the
+// launch splash once React has painted. See lib/nativeShell.
+initNativeShell()

@@ -24,6 +24,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Share, Plus, X } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
+import { isNative } from '@/lib/native';
 
 const DISMISS_KEY = (userId) => `flexyn.iosInstallDismissed.${userId || 'anon'}`;
 
@@ -40,6 +41,8 @@ function writeDismissed(userId) {
 // installed mode). Returns true only when the install hint is actionable.
 function isIosSafariNotInstalled() {
   if (typeof window === 'undefined' || typeof navigator === 'undefined') return false;
+  // Already the App Store app: there is nothing to add to the Home Screen.
+  if (isNative()) return false;
 
   // iOS UA: iPhone | iPad | iPod. Modern iPadOS sometimes reports
   // 'Macintosh' with touchpoints — catch that too.

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Flexyn</string>
+    <string name="title_activity_main">Flexyn</string>
+    <string name="package_name">app.flexyn</string>
+    <string name="custom_url_scheme">app.flexyn</string>
+</resources>

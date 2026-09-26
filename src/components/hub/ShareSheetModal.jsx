@@ -22,6 +22,7 @@ import * as users from '@/lib/data/users';
 import { getMyCrews, sendCrewMessage } from '@/lib/data/crews';
 import { toast } from '@/lib/toast';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { shareOrigin } from '@/lib/appOrigin';
 
 // ── Twitter/X SVG icon ───────────────────────────────────────────────────────
 function XIcon({ size = 16 }) {
@@ -51,7 +52,7 @@ export default function ShareSheetModal({ post, open, onClose }) {
   const [dmSending, setDmSending] = useState(null); // email being sent to
   const [crewSending, setCrewSending] = useState(null); // crew id being sent to
 
-  const origin = (typeof window !== 'undefined' && window.location.origin) || 'https://flexyn.netlify.app';
+  const origin = shareOrigin() || 'https://flexyn.netlify.app';
   // Carry the POST id, not just the author. This link used to drop you on the
   // author's profile with no indication which post was meant — on a prolific
   // account the thing you shared could be twenty rows down. `post` is read by

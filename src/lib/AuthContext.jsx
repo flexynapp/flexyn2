@@ -4,8 +4,29 @@ import { supabase } from '@/api/supabaseClient';
 import { markReturningUser } from '@/lib/firstLaunch';
 import { unsubscribePushOnLogout } from '@/lib/pushCleanup';
 import { identify, resetAnalytics, track, EVENTS } from '@/lib/analytics';
+import { isNative } from '@/lib/native';
+import { getTranslation } from '@/lib/i18n';
+import { toast } from '@/lib/toast';
 
 const AuthContext = createContext();
+
+// The native deep-link failure toast. AuthProvider sits inside
+// LanguageProvider but cannot import it: LanguageContext imports db.js, whose
+// module-scope auth listener would then ride along into every test that
+// renders AuthProvider. getTranslation reads the same loaded catalogs, and
+// <html lang> is what LanguageProvider sets. A key that comes back as itself
+// is a miss (see the NEVER `t(key) || 'English'` rule), so English is used.
+const NATIVE_AUTH_FAILED_KEY = 'nativeAuth.callbackFailed';
+const NATIVE_AUTH_FAILED_EN = 'Sign in did not finish. Try again.';
+function nativeAuthFailedMessage() {
+  try {
+    const lang = document.documentElement.lang || 'en';
+    const v = getTranslation(lang, NATIVE_AUTH_FAILED_KEY);
+    return v && v !== NATIVE_AUTH_FAILED_KEY ? v : NATIVE_AUTH_FAILED_EN;
+  } catch {
+    return NATIVE_AUTH_FAILED_EN;
+  }
+}
 
 async function fetchProfile(authUser) {
   const { data: profile } = await supabase
@@ -255,7 +276,29 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
+  // Native app: OAuth and magic links return on the app.flexyn:// deep link,
+  // which lands here whether or not the sign-in screen is still mounted (the
+  // OS may have killed the app while the user was in the browser). On
+  // success, supabase-js emits SIGNED_IN and the listener above loads the
+  // profile exactly as it does on the web.
+  useEffect(() => {
+    if (!isNative()) return undefined;
+    let cleanup = () => {};
+    let alive = true;
+    import('@/lib/nativeAuth').then(({ initNativeAuthListener }) => {
+      if (!alive) return;
+      cleanup = initNativeAuthListener({
+        onError: () => toast.error(nativeAuthFailedMessage()),
+      });
+    }).catch(() => { /* the listener is best effort; web never gets here */ });
+    return () => { alive = false; cleanup(); };
+  }, []);
+
   const navigateToLogin = useCallback(() => {
+    if (isNative()) {
+      import('@/lib/nativeAuth').then((m) => m.nativeSignIn('google')).catch(() => {});
+      return;
+    }
     supabase.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo: window.location.origin },

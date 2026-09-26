@@ -24,6 +24,12 @@ export default [
       // `npm run lint` fails on main for everyone. Nothing here is bundled
       // or imported by the app.
       "docs/**",
+      // Capacitor native projects. `npx cap sync` copies the BUILT bundle
+      // into ios/App/App/public and android/app/src/main/assets/public, and
+      // Gradle leaves Capacitor's own native-bridge.js in android/**/build.
+      // None of it is source; linting it lints dist/ twice over.
+      "android/**",
+      "ios/**",
     ],
   },
   {

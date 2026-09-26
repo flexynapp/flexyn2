@@ -8,6 +8,7 @@ import { db } from '@/api/db';
 import { useLanguage } from '@/lib/LanguageContext';
 import { cachedProviders, fetchEnabledProviders } from '@/lib/authProviders';
 import TransText from '@/components/TransText';
+import { isNative } from '@/lib/native';
 
 // Inline SVG glyphs for the OAuth buttons — keeps us off of brand-asset
 // CDN fetches and lets the buttons render before any external request.
@@ -94,10 +95,19 @@ export default function SignInToContinue({
     setter(true);
     try {
       await db.auth.signInWithProvider(provider, '/');
-      // OAuth redirects the page; the spinner stays until the redirect.
+      // Web: OAuth redirects the page; the spinner stays until the redirect.
+      // Native app: nothing redirects. The provider opened in the system
+      // browser (or Apple's sheet), and the session arrives through the deep
+      // link listener in AuthContext, which unmounts this screen. Release the
+      // button now, or dismissing the browser leaves it spinning forever.
+      if (isNative()) setter(false);
     } catch (err) {
       setter(false);
-      toast.error(`Couldn't start ${provider} sign-in. Try again.`);
+      if (provider === 'apple' && isNative()) {
+        toast.error(tFallback('signIn.appleFailed', 'Could not sign in with Apple. Try again.'));
+      } else {
+        toast.error(`Couldn't start ${provider} sign-in. Try again.`);
+      }
     }
   };
 

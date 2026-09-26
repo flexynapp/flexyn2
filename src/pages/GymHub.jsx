@@ -37,6 +37,7 @@ import {
   getGym, getLeaderboard, listEvents, createEvent,
 } from '@/lib/data/gymBusinesses';
 import { useLanguage } from '@/lib/LanguageContext';
+import { shareOrigin } from '@/lib/appOrigin';
 
 const TABS = [
   { id: 'feed',       label: 'Feed',        Icon: MessageSquare },
@@ -359,7 +360,7 @@ export default function GymHub() {
               variant="outline"
               size="sm"
               onClick={async () => {
-                const shareUrl = `${window.location.origin}/gym/${gym.id}`;
+                const shareUrl = `${shareOrigin()}/gym/${gym.id}`;
                 const text = `Join me at ${gym.name} on Flexyn — code ${gym.flexyn_code}`;
                 if (navigator.share) {
                   try {
