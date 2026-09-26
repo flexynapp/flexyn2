@@ -6350,6 +6350,7 @@
   "workout.seconds": "s",
   "workout.sessionProgress": "Progression de la séance",
   "workout.set": "Série",
+  "workout.setDeleted": "Série {n} supprimée",
   "workout.setSingular": "série",
   "workout.setsProgress": "{done} séries sur {total}",
   "workout.skipExercise": "Passer l'exercice",

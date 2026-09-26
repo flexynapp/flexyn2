@@ -6389,6 +6389,7 @@
   "workout.seconds": "sec",
   "workout.sessionProgress": "Workout progress",
   "workout.set": "Set",
+  "workout.setDeleted": "Set {n} deleted",
   "workout.setSingular": "set",
   "workout.setsProgress": "{done} of {total} sets",
   "workout.skipExercise": "Skip exercise",
