@@ -72,7 +72,7 @@ export default function PRProximityBar({ exerciseName, weight, reps, prIndex = {
     label = '🔥 New PR pace';
   } else if (pct >= 100) {
     tier = 'pr';
-    label = '🎯 PR territory';
+    label = 'PR territory';
   } else if (pct >= 90) {
     tier = 'close';
     label = `${Math.round(pct)}% of PR`;
@@ -83,9 +83,9 @@ export default function PRProximityBar({ exerciseName, weight, reps, prIndex = {
 
   const styles = {
     warmup:  { bar: 'bg-muted-foreground/40', text: 'text-muted-foreground' },
-    close:   { bar: 'bg-primary',         text: 'text-primary' },
-    pr:      { bar: 'bg-primary',          text: 'text-primary' },
-    newpr:   { bar: 'bg-primary',          text: 'text-primary' },
+    close:   { bar: 'bg-foreground/70',  text: 'text-foreground' },
+    pr:      { bar: 'bg-success',        text: 'text-success' },
+    newpr:   { bar: 'bg-success',        text: 'text-success' },
   }[tier];
 
   return (
@@ -98,13 +98,9 @@ export default function PRProximityBar({ exerciseName, weight, reps, prIndex = {
           transition={{ duration: 0.25, ease: 'easeOut' }}
         />
       </div>
-      <motion.span
-        className={`text-micro font-bold tabular-nums whitespace-nowrap ${styles.text}`}
-        animate={tier === 'pr' || tier === 'newpr' ? { scale: [1, 1.08, 1] } : { scale: 1 }}
-        transition={{ duration: 1.4, repeat: tier === 'pr' || tier === 'newpr' ? Infinity : 0 }}
-      >
+      <span className={`text-micro font-bold tabular-nums whitespace-nowrap ${styles.text}`}>
         {label}
-      </motion.span>
+      </span>
     </div>
   );
 }

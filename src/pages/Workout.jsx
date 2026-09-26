@@ -20,7 +20,7 @@ import { Input } from '@/components/ui/input';
 import { toast } from '@/lib/toast';
 import { triggerHaptic } from '@/lib/haptic';
 import { playSound, SOUND } from '@/lib/playSound';
-import { Play, Save, Plus, Dumbbell, Trash2, Target, Pause, AlertTriangle, Activity, ArrowRight, History, Camera, Sparkles, Globe, Swords, Zap, Trophy, Link2, Calculator, LayoutGrid, Shield, Search, GripVertical } from 'lucide-react';
+import { Play, Save, Plus, Dumbbell, Target, Pause, AlertTriangle, Activity, ArrowRight, History, Sparkles, Globe, Swords, Zap, Trophy, LayoutGrid, Shield, Search, GripVertical } from 'lucide-react';
 import PlateCalculatorModal from '@/components/workout/PlateCalculatorModal';
 import { useMultiProfanityGuard, hasAnyProfanity } from '@/lib/useProfanityGuard';
 import ProfanityWarningDialog from '@/components/ProfanityWarningDialog';
@@ -37,14 +37,14 @@ import { motion, AnimatePresence, Reorder, useDragControls } from 'framer-motion
 import WorkoutSavedList from '@/components/workout/WorkoutSavedList';
 import { Skeleton } from '@/components/ui/skeleton';
 import ExerciseLogger, { isBodyweightExercise } from '@/components/workout/ExerciseLogger';
-import CardioLogger, { CARDIO_ACTIVITIES, activityEmoji } from '@/components/workout/CardioLogger';
+import CardioLogger, { CARDIO_ACTIVITIES } from '@/components/workout/CardioLogger';
 import { TagSelector } from '@/components/workout/WorkoutTags';
-import LiveVolumePill from '@/components/workout/LiveVolumePill';
+import SessionBar from '@/components/workout/SessionBar';
+import ExerciseActionsMenu from '@/components/workout/ExerciseActionsMenu';
 import { buildPRIndex } from '@/lib/data/personalRecords';
 import { recordWorkoutExercises } from '@/lib/recentExerciseUsage';
 import ExerciseAutocomplete, { EXERCISE_LIBRARY } from '@/components/regimens/ExerciseAutocomplete';
 import GroupBlock from '@/components/workout/GroupBlock';
-import WorkoutElapsedChip from '@/components/workout/WorkoutElapsedChip';
 import InjuryBanner from '@/components/workout/InjuryBanner';
 import ComebackScreen from '@/components/workout/ComebackScreen';
 import { useGridReorder } from '@/hooks/useGridReorder';
@@ -360,7 +360,6 @@ export default function Workout() {
   const [cardioDeepLink, setCardioDeepLink] = useState(null);
   const [injuryFormOpen, setInjuryFormOpen] = useState(false);
   const [plateCalcOpen, setPlateCalcOpen] = useState(false);
-  const [cardioMenuOpen, setCardioMenuOpen] = useState(false);
   // Discard-confirmation gate for the "Cancel" button — destroying an
   // in-flight workout is irreversible, so we route it through a Radix
   // AlertDialog instead of firing resetWorkout() on the first tap.
@@ -1684,7 +1683,6 @@ export default function Workout() {
       segments: [{ duration_s: null, distance_m: null }],
       sets: [],
     }]);
-    setCardioMenuOpen(false);
   };
 
   // True if a cardio entry has any duration/distance logged (across splits).
@@ -3075,15 +3073,16 @@ export default function Workout() {
         />
       )}
 
-      <div className="flex items-start justify-between gap-3 mb-2">
-        <div className="min-w-0">
-          <h1 className="font-heading text-2xl md:text-3xl font-bold tracking-tight truncate">
-            {selectedRegimen?.name || t('workout.freestyle')}
-          </h1>
-          <p className="text-muted-foreground text-sm mt-0.5">{t('workout.logSetsReps')}</p>
-        </div>
-        <Button variant="outline" size="sm" className="shrink-0" onClick={() => setConfirmDiscard(true)}>{t('common.cancel')}</Button>
-      </div>
+      <SessionBar
+        title={workoutName.trim() || selectedRegimen?.name || t('workout.freestyle')}
+        startedAt={startedAt}
+        exercises={exercises}
+        includeBarWeight={!!userProfile?.include_bar_in_volume}
+        onCancel={() => setConfirmDiscard(true)}
+        onFinish={() => { if (uncheckedOnFinish() > 0) setIncompleteWarnOpen(true); else saveWorkout(); }}
+        finishing={saveMutation.isPending}
+        canFinish={exercises.length > 0}
+      />
 
       {/* Discard-workout confirmation. Cancel destroys the active session
           (no resume draft), so gate it behind an explicit confirm.
@@ -3107,104 +3106,6 @@ export default function Workout() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      {/* Live session stats — elapsed timer + volume, grouped so the two
-          watch-me numbers sit together cleanly (the timer used to crowd the
-          title next to Cancel). */}
-      <div className="flex items-center gap-2 mb-6">
-        <WorkoutElapsedChip startedAt={startedAt} />
-        <LiveVolumePill exercises={exercises} includeBarWeight={!!userProfile?.include_bar_in_volume} />
-      </div>
-
-      <div className="mb-6">
-        <label className="text-xs font-medium text-muted-foreground mb-1 block">{t('workout.date')}</label>
-        <p className="font-heading text-lg font-semibold tracking-tight">
-          {format(new Date(), 'EEEE, MMMM d')}
-        </p>
-      </div>
-
-      {/* Add exercise — kept above the list so users don't have to scroll
-          past every added exercise to add the next one. */}
-      <Card className="p-4 border-dashed mb-6">
-        <p className="text-sm font-medium mb-3">{t('workout.addExercise')}</p>
-        <div className="flex gap-2">
-          <div className="flex-1">
-            <ExerciseAutocomplete
-              value={newExName}
-              onChange={setNewExName}
-              userEmail={user?.email}
-              onSelect={(exercise) => {
-                setNewExName(exercise.displayName || exercise.name);
-                setNewExCanonical(exercise.name);
-                setNewExMuscles(exercise.muscles || []);
-              }}
-              placeholder={t('workout.searchExercise')}
-            />
-          </div>
-          <Button type="button" onClick={addExercise} disabled={!newExName.trim()}>
-            <Plus className="w-4 h-4" />
-          </Button>
-        </div>
-        {/* + Cardio — log a walk / run / bike inside the workout. Tapping opens
-            a tiny activity picker; choosing one drops a cardio card into the
-            list. */}
-        <div className="relative mt-2">
-          <button
-            type="button"
-            onClick={() => setCardioMenuOpen(o => !o)}
-            aria-expanded={cardioMenuOpen}
-            className="w-full flex items-center justify-center gap-2 py-2 rounded-lg border border-dashed border-info/40 text-sm font-semibold text-info dark:text-info hover:bg-info/10 active:bg-info/10 transition-colors"
-          >
-            <Plus className="w-4 h-4" /> {tFallback('workout.addCardio', 'Cardio')}
-            <span className="text-base leading-none">
-              {activityEmoji('walking', userProfile?.gender)} {activityEmoji('running', userProfile?.gender)} {activityEmoji('cycling', userProfile?.gender)}
-            </span>
-          </button>
-          <AnimatePresence>
-            {cardioMenuOpen && (
-              <motion.div
-                initial={{ opacity: 0, y: -6, scale: 0.98 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -6, scale: 0.98 }}
-                transition={{ duration: 0.14 }}
-                className="absolute z-20 top-full mt-1.5 inset-x-0 grid grid-cols-3 gap-1.5 p-1.5 rounded-xl border border-border bg-card shadow-lg"
-              >
-                {CARDIO_ACTIVITIES.map(a => (
-                  <button
-                    key={a.id}
-                    type="button"
-                    onClick={() => addCardio(a.id)}
-                    className="flex flex-col items-center gap-1 py-2.5 rounded-lg hover:bg-secondary active:bg-secondary transition-colors"
-                  >
-                    <span className="text-2xl leading-none">{activityEmoji(a.id, userProfile?.gender)}</span>
-                    <span className="text-xs font-semibold">{tFallback(`cardio.activity.${a.id}`, a.label)}</span>
-                  </button>
-                ))}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-        {/* In-workout utilities: plate calculator + AI Form Coach. */}
-        <div className="mt-3 flex gap-2">
-          <button
-            type="button"
-            onClick={() => setPlateCalcOpen(true)}
-            className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg border border-border text-sm font-semibold text-muted-foreground hover:bg-secondary active:bg-secondary hover:text-foreground active:text-foreground transition-colors"
-          >
-            <Calculator className="w-4 h-4" />
-            {tFallback('workout.plateCalc', 'Plate calculator')}
-          </button>
-          <button
-            type="button"
-            onClick={() => setFormCoachOpen(true)}
-            aria-label={tFallback('formcoach.title', 'Form Coach')}
-            className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg border border-primary/40 text-sm font-semibold text-primary dark:text-primary hover:bg-primary/10 active:bg-primary/10 transition-colors"
-          >
-            <Camera className="w-4 h-4" />
-            {tFallback('formcoach.title', 'Form Coach')}
-          </button>
-        </div>
-      </Card>
 
       {(() => {
         // Build top-level items + a stable key per item. Keys are used
@@ -3299,40 +3200,24 @@ export default function Workout() {
                       workoutLogs={rawLogs}
                     />
                   )}
-                <div className="absolute top-3 end-3 flex items-center gap-1">
-                  {/* Group with previous as a superset — one-tap pairing
-                      that fills in group_id on both exercises so the
-                      GroupBlock renderer picks them up on next render.
-                      Only meaningful when the previous exercise exists
-                      AND neither is already in a group. Cardio entries
-                      can't superset. */}
-                  {ex.kind !== 'cardio' && i > 0 && !ex.group_id && !exercises[i - 1]?.group_id && (
-                    <button
-                      type="button"
-                      onClick={() => {
+                {/* One menu per exercise: pairing, the plate calculator,
+                    a form check and remove. Remove still skips in one
+                    step with an Undo toast, it is just one tap deeper. */}
+                <div className="absolute top-3 end-2">
+                  <ExerciseActionsMenu
+                    name={ex.displayName || ex.name}
+                    onPair={ex.kind !== 'cardio' && i > 0 && !ex.group_id && !exercises[i - 1]?.group_id && exercises[i - 1]?.kind !== 'cardio'
+                      ? () => {
                         const gid = `group_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-                        const next = exercises.map((e, idx) => {
-                          if (idx === i || idx === i - 1) {
-                            return { ...e, group_id: gid, group_meta: { type: 'superset' } };
-                          }
-                          return e;
-                        });
-                        setExercises(next);
+                        setExercises(exercises.map((e, idx) => (
+                          idx === i || idx === i - 1 ? { ...e, group_id: gid, group_meta: { type: 'superset' } } : e
+                        )));
                         toast.success(tFallback('workout.pairedAsSuperset', 'Paired as superset with the previous exercise.'));
-                      }}
-                      className="p-1.5 rounded-md text-muted-foreground hover:text-primary active:text-primary hover:bg-primary/10 active:bg-primary/10 transition-colors"
-                      aria-label={tFallback("workout.pairWithPreviousExercise", "Pair with previous exercise as superset")}
-                      title={tFallback("workout.pairAsSuperset", "Pair as superset")}
-                    >
-                      <Link2 className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-                  {/* Skip / remove. Always visible during an active
-                      session — if a machine is taken, the user shouldn't
-                      have to dig through a menu to move on. */}
-                  <button
-                    type="button"
-                    onClick={() => {
+                      }
+                      : undefined}
+                    onPlateCalc={ex.kind !== 'cardio' ? () => setPlateCalcOpen(true) : undefined}
+                    onFormCheck={ex.kind !== 'cardio' ? () => setFormCoachOpen(true) : undefined}
+                    onRemove={() => {
                       const removed = exercises[i];
                       // Use a stable identity (group_id || name + reference)
                       // captured at click time, then find the *current* index
@@ -3362,12 +3247,7 @@ export default function Workout() {
                         },
                       );
                     }}
-                    className="p-1.5 rounded-md text-muted-foreground hover:text-destructive active:text-destructive hover:bg-destructive/10 active:bg-destructive/10 transition-colors"
-                    aria-label={tFallback("workout.skipThisExercise", "Skip this exercise")}
-                    title={tFallback("workout.skipExercise", "Skip exercise")}
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+                  />
                 </div>
                 </ReorderItemWithHandle>
               );
@@ -3376,6 +3256,45 @@ export default function Workout() {
           </ErrorBoundary>
         );
       })()}
+
+      {/* Add exercise sits under the list, where the next lift goes. It
+          used to be a dashed card above the list, which pushed the
+          exercise being logged below the fold on every add. */}
+      <section className="mb-6" aria-label={t('workout.addExercise')}>
+        <div className="flex gap-2">
+          <div className="flex-1">
+            <ExerciseAutocomplete
+              value={newExName}
+              onChange={setNewExName}
+              userEmail={user?.email}
+              onSelect={(exercise) => {
+                setNewExName(exercise.displayName || exercise.name);
+                setNewExCanonical(exercise.name);
+                setNewExMuscles(exercise.muscles || []);
+              }}
+              placeholder={exercises.length > 0 ? tFallback('workout.addAnother', 'Add another exercise') : t('workout.searchExercise')}
+            />
+          </div>
+          <Button type="button" onClick={addExercise} disabled={!newExName.trim()} aria-label={t('workout.addExercise')}>
+            <Plus className="w-4 h-4" />
+          </Button>
+        </div>
+        {/* Cardio is one tap: each activity is its own chip. */}
+        <div className="flex flex-wrap items-center gap-2 mt-2">
+          <span className="text-xs font-medium text-muted-foreground">{tFallback('workout.addCardio', 'Cardio')}</span>
+          {CARDIO_ACTIVITIES.map(a => (
+            <button
+              key={a.id}
+              type="button"
+              onClick={() => addCardio(a.id)}
+              className="inline-flex items-center gap-1 h-8 px-3 rounded-full border border-border text-xs font-semibold text-foreground hover:bg-secondary active:bg-secondary transition-colors"
+            >
+              <Plus className="w-3 h-3" aria-hidden="true" />
+              {tFallback(`cardio.activity.${a.id}`, a.label)}
+            </button>
+          ))}
+        </div>
+      </section>
 
       {/* Name this workout */}
       <div className="mb-4">

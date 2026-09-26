@@ -284,8 +284,8 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
   if (isComplete) {
     return (
       <motion.div initial={{ opacity: 0.6 }} animate={{ opacity: 1 }}>
-        <Card className="p-3 border border-success/25 bg-success/[0.06] shadow-none">
-          <div className="flex items-center gap-3">
+        <Card className="p-3 border border-success/25 bg-success/[0.06] shadow-none before:hidden">
+          <div className="flex items-center gap-3 pe-8">
             <ExerciseProgressRing done={sets.length} total={sets.length} />
             <div className="flex-1 min-w-0">
               <p className="font-medium text-sm leading-tight truncate">
@@ -324,8 +324,8 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
   }
 
   return (
-    <Card className="p-4 border-none shadow-sm">
-      <div className="flex items-start gap-3 mb-3">
+    <Card className="p-4 border-none shadow-sm before:hidden">
+      <div className="flex items-start gap-3 mb-3 pe-8">
         <ExerciseProgressRing done={doneCount} total={sets.length} bursting={closing} />
         <div className="flex-1 min-w-0">
           {/* Title + equipment picker share a row. The picker wraps
@@ -394,8 +394,8 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
               regress = muted). */}
           {progressionHint && (
             <p className={`mt-1 text-micro font-medium ${
-              progressionHint.kind === 'bump'    ? 'text-primary' :
-              progressionHint.kind === 'hold'    ? 'text-primary' :
+              progressionHint.kind === 'bump'    ? 'text-foreground' :
+              progressionHint.kind === 'hold'    ? 'text-foreground' :
                                                    'text-muted-foreground'
             }`}>
               {progressionHint.message}
@@ -434,12 +434,12 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
 
       <div className="space-y-2 mb-3">
         {sets.length > 0 && (
-          <div className="flex items-center gap-1.5 px-1 text-micro font-semibold uppercase tracking-wide text-muted-foreground">
-            <span className="w-6 text-center">{t('workout.set')}</span>
-            <span className="flex-1 min-w-0 px-1">{tFallback('setRow.previous', 'Previous')}</span>
-            <span className="w-[4.5rem] shrink-0 text-center">{weightUnit}</span>
-            <span className="w-14 shrink-0 text-center">{t('workout.repsLabel')}</span>
-            <span className="w-8 shrink-0"></span>
+          <div className="flex items-center gap-1 px-1 text-micro font-semibold uppercase tracking-wide text-muted-foreground">
+            <span className="w-5 shrink-0 text-center">{t('workout.set')}</span>
+            <span className="flex-1 min-w-0 px-1 truncate">{tFallback('setRow.previous', 'Last')}</span>
+            <span className="w-16 shrink-0 text-center">{weightUnit}</span>
+            <span className="w-12 shrink-0 text-center">{t('workout.repsLabel')}</span>
+            <span className="w-7 shrink-0"></span>
             <span className="w-11 shrink-0"></span>
           </div>
         )}

@@ -146,6 +146,8 @@ const ALLOW_IDENTICAL = new Set([
  */
 const ALLOW_IDENTICAL_BY_LANG = {
   es: new Set([
+    // "vol" is the short form of volumen, spelled the same.
+    'liveVolumePill.vol',
     // "Zinc" is the same word in Spanish.
     'nutrient.zinc',
     // "Social." is the same word in Spanish.
@@ -197,6 +199,8 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'crew.applicantLevel',
   ]),
   fr: new Set([
+    // "vol" is the short form of volume, spelled the same.
+    'liveVolumePill.vol',
     // "Zinc" is the same word in French.
     'nutrient.zinc',
     // "Points" is the same word in French.

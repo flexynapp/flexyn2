@@ -210,8 +210,8 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
         />
       )}
     </AnimatePresence>
-    <div className="relative flex items-center gap-1.5 p-1">
-      <span className={['text-xs w-6 text-center font-bold tabular-nums transition-colors', completed ? 'text-success' : 'text-muted-foreground'].join(' ')}>{index + 1}</span>
+    <div className="relative flex items-center gap-1 p-1">
+      <span className={['text-xs w-5 shrink-0 text-center font-bold tabular-nums transition-colors', completed ? 'text-success' : 'text-muted-foreground'].join(' ')}>{index + 1}</span>
       <button
         type="button"
         onClick={usePrevious}
@@ -221,7 +221,7 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
       >
         {previousLabel || '·'}
       </button>
-      <div className="relative w-[4.5rem] shrink-0">
+      <div className="relative w-16 shrink-0">
         <Input
           ref={weightInputRef}
           type="number"
@@ -290,7 +290,7 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
           aria-label={isBodyweight ? 'Added weight (bodyweight exercise)' : `Weight in ${weightUnit}`}
         />
       </div>
-      <div className="w-14 shrink-0">
+      <div className="w-12 shrink-0">
         <Input
           type="number"
           inputMode="numeric"
@@ -338,7 +338,7 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
           initial={prFresh ? { scale: 2.2, rotate: -14, opacity: 0 } : false}
           animate={{ scale: 1, rotate: -6, opacity: 1 }}
           transition={{ type: 'spring', stiffness: 520, damping: 18 }}
-          className="absolute top-0 end-[12rem] z-10 px-1.5 py-px rounded-md bg-success text-success-foreground text-micro font-extrabold tracking-wide pointer-events-none"
+          className="absolute top-0 end-[11rem] z-10 px-1.5 py-px rounded-md bg-success text-success-foreground text-micro font-extrabold tracking-wide pointer-events-none"
           aria-label={tFallback('setRow.newPr', 'New personal record')}
           role="status"
         >
@@ -379,7 +379,7 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
         aria-label={tFallback("setRow.moreSetOptions", "More set options")}
         aria-expanded={moreOpen}
         className={[
-          'h-11 w-8 rounded-lg flex items-center justify-center shrink-0 transition-colors',
+          'h-11 w-7 rounded-lg flex items-center justify-center shrink-0 transition-colors',
           moreOpen ? 'bg-secondary text-foreground' : 'text-muted-foreground/50 hover:text-foreground active:text-foreground hover:bg-secondary active:bg-secondary',
         ].join(' ')}
       >
