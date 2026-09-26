@@ -1,0 +1,46 @@
+name: Edge Functions bundle
+
+# Bundles every Edge Function declared in supabase/config.toml with the same
+# edge-runtime the Supabase CLI uses, one function per job, so a failure names
+# the function. It deploys nothing and needs no secrets.
+#
+# Why it exists: the first deploy through the Supabase GitHub integration
+# (2026-09-26, the merge of #81) redeployed three functions and then reported
+# only "failed to bundle function: exit status 1", without saying which one.
+# The integration's own log is not visible from GitHub.
+
+on:
+  pull_request:
+    paths:
+      - 'supabase/functions/**'
+      - 'supabase/config.toml'
+      - '.github/workflows/functions-bundle.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        fn:
+          - send-push
+          - recognize-meal
+          - coach-chat
+          - storage-gc
+          - generateWeeklyDebriefs
+          - report-notify
+          - delete-account
+          - osm-gyms-fill
+    steps:
+      - uses: actions/checkout@v4
+      - name: Bundle ${{ matrix.fn }}
+        run: |
+          docker run --rm -v "$PWD":/app -w /app \
+            public.ecr.aws/supabase/edge-runtime:v1.76.2 \
+            bundle --entrypoint /app/supabase/functions/${{ matrix.fn }}/index.ts \
+                   --output /tmp/${{ matrix.fn }}.eszip
