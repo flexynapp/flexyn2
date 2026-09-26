@@ -307,6 +307,9 @@ export default function Workout() {
   const [shareCardWorkout, setShareCardWorkout] = useState(null);
   // Armed when the post-save share card closes; see PostWorkoutPushAsk.
   const [pushAskArmed, setPushAskArmed] = useState(false);
+  // What the finish screen shows above the share image: XP from the
+  // server-clamped result, and any PRs this session set.
+  const [finishSummary, setFinishSummary] = useState(null);
   const [savedWorkoutsOpen, setSavedWorkoutsOpen] = useState(false);
   // In the URL (?history=) so the tab bar and a refresh keep your place.
   const [historyTab, setHistoryTab] = useUrlState('history', 'gym', ['gym', 'cardio']);
@@ -1079,6 +1082,7 @@ export default function Workout() {
       // Capturing here means the share card preview is built from exactly
       // what was saved (including the date and the user's actual data).
       setShareCardWorkout({ ...clampedData, date: clampedData.date || format(new Date(), 'yyyy-MM-dd') });
+      setFinishSummary({ xpGained, prs: [] });
       resetWorkout();
 
       // First-workout milestone — detected via the snapshot onMutate
@@ -1186,6 +1190,7 @@ export default function Workout() {
               newPR: fromLbs(p.newPR, weightUnit),
               delta: fromLbs(p.delta, weightUnit),
             }));
+            setFinishSummary((prev) => (prev ? { ...prev, prs } : prev));
             // Route through rewardQueue (B6). A workout that hits a
             // PR + crosses a streak milestone + completes a daily
             // quest would otherwise fire three overlapping toasts
@@ -3580,8 +3585,9 @@ export default function Workout() {
       <ErrorBoundary label="WorkoutShareCard">
         <WorkoutShareCard
           open={!!shareCardWorkout}
-          onClose={() => { setShareCardWorkout(null); setPushAskArmed(true); }}
+          onClose={() => { setShareCardWorkout(null); setFinishSummary(null); setPushAskArmed(true); }}
           workout={shareCardWorkout}
+          summary={finishSummary}
           username={user?.username ? `@${user.username}` : 'Athlete'}
           includeBarWeight={!!userProfile?.include_bar_in_volume}
         />

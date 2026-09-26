@@ -96,6 +96,8 @@ const ALLOW_IDENTICAL = new Set([
   'compete.gauntlet',       // "Gauntlet"  — the feature's name, same as above
   'search.crews',           // "Crews"     — the feature's name, same as crew tabs
   'quickLog.addOz',         // "+{oz} oz"  — a number and a unit symbol
+  'finish.xp',              // "+{xp} XP"  — a number and the XP symbol
+  'finish.min',             // "min"       — the unit abbreviation
   'trophy.unit.lb',         // "lb"        — unit symbol
   'trophy.unit.m',          // "m"         — SI symbol
   'trophy.tail.desc',       // "{n} {unit}" — placeholders and a space
@@ -320,6 +322,7 @@ const ALLOW_IDENTICAL_BY_LANG = {
     'nutrition.macros.calories',
     'today.fuel.calories',       // same word, same sense as nutrition.macros.calories
     'search.messages',           // same word in French
+    'finish.volume',             // same word in French
     'nutrition.macros.sodium',
     'nutrition.minerals.calcium',
     'nutrition.minerals.potassium',
