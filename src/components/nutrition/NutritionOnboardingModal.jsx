@@ -1,5 +1,5 @@
 // src/components/nutrition/NutritionOnboardingModal.jsx
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -18,6 +18,7 @@ import { DIETARY_RESTRICTIONS, ALLERGENS, ALLERGEN_IDS, parseCustomTerms, persis
 import { nutritionOnboardedKey } from '@/lib/nutritionOnboardingGate';
 import { OnboardingCoachButton, OnboardingCoachSheet } from '@/components/onboarding/OnboardingCoach';
 import { NUTRITION_STEP_IDS } from '@/lib/aiCoach/onboardingCoach';
+import { normalizeGoals } from '@/lib/aiCoach/trainingModifiers';
 
 const GOALS = [
   { id: 'lose',     icon: TrendingDown, color: 'text-info',   bg: 'bg-info/10',   titleKey: 'nutritionOnboarding.goal.lose.title',     descKey: 'nutritionOnboarding.goal.lose.desc' },
@@ -105,6 +106,14 @@ function computePreview({ userProfile, goal, targetLbs, targetDate, activity }) 
   return { calories, protein_g, carbs_g, fat_g, weeklyRate, tdee: Math.round(tdee), warning };
 }
 
+export function initialNutritionGoal(profile) {
+  if (['lose', 'maintain', 'gain'].includes(profile?.nutrition_goal)) return profile.nutrition_goal;
+  const goals = normalizeGoals(profile?.fitness_goals_arr || profile?.fitness_goals);
+  if (goals.includes('lose')) return 'lose';
+  if (goals.includes('muscle')) return 'gain';
+  return null;
+}
+
 export default function NutritionOnboardingModal({ open, userProfile, onComplete, onDismiss }) {
   const { t, tFallback } = useLanguage();
   const { weightUnit } = useWeightUnit();
@@ -116,7 +125,16 @@ export default function NutritionOnboardingModal({ open, userProfile, onComplete
   // modal. Wave 57 caught this.
   const onboardedKey = nutritionOnboardedKey(user?.id);
   const [step, setStep] = useState(0);
-  const [goal, setGoal] = useState(null);
+  // Start from what the user already told us. Onboarding asked what they
+  // are here for, so someone who ticked "Lose fat" should not be asked the
+  // same question with nothing selected. An explicit nutrition goal wins;
+  // otherwise fat loss maps to a cut and muscle to a bulk. Anything else is
+  // left unpicked rather than guessed.
+  const [goal, setGoal] = useState(() => initialNutritionGoal(userProfile));
+  // The profile can arrive after the modal mounts.
+  useEffect(() => {
+    setGoal((g) => g ?? initialNutritionGoal(userProfile));
+  }, [userProfile]);
   const [targetWeight, setTargetWeight] = useState('');
   const [targetDate, setTargetDate] = useState(format(addDays(new Date(), 90), 'yyyy-MM-dd'));
   const [activity, setActivity] = useState('moderate');

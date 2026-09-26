@@ -65,7 +65,7 @@ export default function Market() {
               {tFallback("levelBar.comingSoon", "Coming Soon")}
             </span>
           </div>
-          <p className="text-xs text-muted-foreground/70">Premium regimens from certified creators — launching soon</p>
+          <p className="text-xs text-muted-foreground/70">{tFallback("market.trainerProgramsSub", "Premium regimens from certified creators, launching soon")}</p>
         </div>
       </motion.div>
 
