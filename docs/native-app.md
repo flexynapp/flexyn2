@@ -134,9 +134,12 @@ Nothing below can be done from the repo. In order:
 3. **Create what Supabase's Apple provider needs**:
    - a **Services ID** (Identifiers → Services IDs), for example
      `app.flexyn.web`, with Sign in with Apple enabled, the domain
-     `ebvqxuwfiptcmlkhflfj.supabase.co`, and the return URL
-     `https://ebvqxuwfiptcmlkhflfj.supabase.co/auth/v1/callback`
-     (this is what web and Android use);
+     `<project-ref>.supabase.co`, and the return URL
+     `https://<project-ref>.supabase.co/auth/v1/callback`
+     (this is what web and Android use). The project ref is in the
+     Supabase dashboard URL; the full URL is kept out of the repo because
+     Netlify's secrets scan fails any build whose files contain the value
+     of `VITE_SUPABASE_URL`;
    - a **Key** (Keys → +) with Sign in with Apple enabled. Download the
      `.p8` once and note its **Key ID**;
    - the **Team ID** from step 1.
