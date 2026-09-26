@@ -839,6 +839,13 @@ Supabase on 2026-09-26, the result matched production exactly: 151 tables,
 - `npx supabase db start` gives you a local copy with all migrations applied
   (needs Docker). Test RLS there as `authenticated` with JWT claims, the same
   way as against production.
+- **A merge is not a deploy until you have checked production.** The
+  integration acts only on pushes made after it is connected and linked to
+  `main`: PR #79 and #80 both merged on 2026-09-26 with nothing deployed,
+  because the branch link was only set at 18:49 UTC that day. After merging
+  a migration, confirm it with `select version from
+  supabase_migrations.schema_migrations` rather than trusting the merge.
+  `list_branches` shows the link as `git_branch: "main"`.
 
 The lessons below were learned under the old paste flow and still apply to
 writing SQL:
