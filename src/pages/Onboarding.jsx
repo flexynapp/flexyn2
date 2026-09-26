@@ -3625,6 +3625,11 @@ export default function Onboarding() {
   const back = () => goTo(Math.max(0, stepIdx - 1));
 
   const stepName = STEPS[stepIdx];
+  // One event per step reached, so the onboarding funnel shows where
+  // people stop. The step NAME only: no answers ride along.
+  useEffect(() => {
+    track(EVENTS.ONBOARDING_STEP, { step: stepName, index: stepIdx });
+  }, [stepName, stepIdx]);
   const formStep = FORM_STEP_NAMES.indexOf(stepName) + 1; // 0 if not a form step
 
   /* ── AI Coach ──────────────────────────────────────────────

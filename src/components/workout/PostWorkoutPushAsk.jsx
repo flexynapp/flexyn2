@@ -30,6 +30,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { usePushSubscription } from '@/lib/usePushSubscription';
 import { toast } from '@/lib/toast';
+import { track, EVENTS } from '@/lib/analytics';
 
 const ASKED_KEY = (userId) => `flexyn.pushAskAfterWorkout.${userId || 'anon'}`;
 
@@ -76,6 +77,7 @@ export default function PostWorkoutPushAsk({ armed, onDone }) {
   const enable = async () => {
     const res = await push.subscribe();
     if (res.ok) {
+      track(EVENTS.PUSH_ENABLED, { where: 'after_workout' });
       toast.success(tFallback('pushOptIn.success', 'Notifications enabled. See you out there.'));
     } else if (res.reason === 'denied') {
       toast.error(tFallback('pushOptIn.denied',

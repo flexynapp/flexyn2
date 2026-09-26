@@ -28,6 +28,7 @@ import CardioSection from '@/components/cardio/CardioSection';
 import WorkoutShareCard from '@/components/workout/WorkoutShareCard';
 import PostWorkoutPushAsk from '@/components/workout/PostWorkoutPushAsk';
 import TrainHeroSlide from '@/components/workout/TrainHeroSlide';
+import { track, EVENTS } from '@/lib/analytics';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -1095,6 +1096,7 @@ export default function Workout() {
         (row) => !(typeof row?.id === 'string' && row.id.startsWith('__optimistic__'))
       );
       const isFirstWorkout = realPrev.length === 0;
+      track(EVENTS.WORKOUT_LOGGED, { first: isFirstWorkout, exercises: (clampedData?.exercises || []).length });
       // Sound effect — no-op unless the user has explicitly enabled
       // sounds in Settings. The celebration helper handles its own
       // haptic; the sound is layered for users who want both.

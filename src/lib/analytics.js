@@ -46,6 +46,8 @@ export const EVENTS = Object.freeze({
   DUEL_INVITE_CREATED:  'duel_invite_created',
   DUEL_INVITE_ACCEPTED: 'duel_invite_accepted',
   REFERRAL_CLAIMED:     'referral_claimed',
+  ONBOARDING_STEP:      'onboarding_step',
+  PUSH_ENABLED:         'push_enabled',
 });
 const KNOWN = new Set(Object.values(EVENTS));
 

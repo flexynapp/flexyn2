@@ -140,7 +140,7 @@ function WaterPanel({ userProfile, onBack, onDone }) {
     mutationFn: (oz) => nutritionData.create({ date: today, food_name: waterFoodName(oz), calories: 0 }),
     onSuccess: (_row, oz) => {
       queryClient.invalidateQueries({ queryKey: ['nutritionLogs'] });
-      rewardWaterLog({ user, date: today, oz, queryClient });
+      rewardWaterLog({ user, date: today, oz, queryClient, via: 'quick_log' });
       toast.success(tFallback('quickLog.waterAdded', 'Added {oz} oz of water', { oz: fmt(oz) }));
     },
     onError: (err) => {

@@ -36,6 +36,7 @@ import {
   buildPauseText, buildResumeText, buildFinishText, spokenDuration,
 } from '@/lib/cardioVoiceCoach';
 import { snapshot, readSnapshot, clearSnapshot } from '@/lib/cardioSession';
+import { track, EVENTS } from '@/lib/analytics';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -557,6 +558,7 @@ export default function CardioLiveTrackerOutside({ mode, onCancel, onSaved, user
         gps_track: trackRef.current,
       };
       const createdLog = await db.entities.CardioLog.create(payload);
+      track(EVENTS.CARDIO_LOGGED, { mode: 'outdoor' });
       clearSnapshot(user?.id);
       // Atomic accumulation via increment_user_distance RPC (migration 023).
       if (Number(payload.distance_meters) > 0) {

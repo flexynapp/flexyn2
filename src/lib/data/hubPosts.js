@@ -5,6 +5,7 @@
 import { db } from '@/api/db';
 import { supabase } from '@/api/supabaseClient';
 import { containsProfanity } from '@/lib/profanityFilter';
+import { track, EVENTS } from '@/lib/analytics';
 
 const e = () => db.entities.HubPost;
 
@@ -71,7 +72,10 @@ export const get = (id) =>
 /** Create a new post. */
 export const create = (data) => {
   assertNoTextProfanity({ body: data.body, caption: data.caption });
-  return e().create(data);
+  return Promise.resolve(e().create(data)).then((row) => {
+    track(EVENTS.POST_CREATED, { type: data.post_type || 'status', media: Boolean(data.image_url || data.video_url) });
+    return row;
+  });
 };
 
 /** Update a post (typically only counters or own content). */

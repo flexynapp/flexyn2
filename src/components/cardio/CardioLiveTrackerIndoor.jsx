@@ -32,6 +32,7 @@ import * as leagues from '@/lib/data/leagues';
 import * as workoutStreak from '@/lib/data/workoutStreak';
 import { calculateCardioXp } from '@/lib/xpSystem';
 import { reportError } from '@/lib/reportError';
+import { track, EVENTS } from '@/lib/analytics';
 
 export default function CardioLiveTrackerIndoor({ mode, env, onCancel, onSaved, userProfile = {} }) {
   const { t, tFallback } = useLanguage();
@@ -246,6 +247,7 @@ export default function CardioLiveTrackerIndoor({ mode, env, onCancel, onSaved, 
         gps_track: [],
       };
       const createdLog = await db.entities.CardioLog.create(payload);
+      track(EVENTS.CARDIO_LOGGED, { mode: 'indoor' });
       clearSnapshot(user?.id);
       // Atomic accumulation via increment_user_distance RPC (migration 023).
       // See CardioManualForm for context on the race this fixes.
