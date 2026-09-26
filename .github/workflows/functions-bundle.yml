@@ -1,0 +1,69 @@
+name: Edge Functions bundle
+
+# Bundles every Edge Function declared in supabase/config.toml with the same
+# edge-runtime the Supabase CLI uses, one function at a time, so a failure names
+# the function. It deploys nothing and needs no secrets.
+#
+# Why it exists: the first deploy through the Supabase GitHub integration
+# (2026-09-26, the merge of #81) redeployed three functions and then reported
+# only "failed to bundle function: exit status 1", without saying which one.
+# The integration's own log is not visible from GitHub.
+
+on:
+  pull_request:
+    paths:
+      - 'supabase/functions/**'
+      - 'supabase/config.toml'
+      - '.github/workflows/functions-bundle.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      # One job and one pull: eight parallel jobs each pulling from ECR hit
+      # its anonymous rate limit before any bundle ran.
+      - name: Pull edge-runtime
+        run: |
+          for i in 1 2 3; do
+            docker pull -q "$IMAGE" && exit 0
+            sleep $((i * 20))
+          done
+          exit 1
+        env:
+          IMAGE: public.ecr.aws/supabase/edge-runtime:v1.76.2
+      - name: Bundle each function
+        env:
+          IMAGE: public.ecr.aws/supabase/edge-runtime:v1.76.2
+          FUNCTIONS: >-
+            send-push recognize-meal coach-chat storage-gc
+            generateWeeklyDebriefs report-notify delete-account osm-gyms-fill
+        run: |
+          failed=""
+          for fn in $FUNCTIONS; do
+            echo "::group::$fn"
+            # Mount supabase/ only. With the repo root mounted, the runtime
+            # finds package.json and resolves npm packages from node_modules,
+            # which fails every jsr:@supabase/supabase-js import. The
+            # integration evidently bundles without it: two of those deployed.
+            if docker run --rm -v "$PWD/supabase":/app/supabase -w /app "$IMAGE" \
+                 bundle --entrypoint "/app/supabase/functions/$fn/index.ts" \
+                        --output "/tmp/$fn.eszip"; then
+              echo "| $fn | bundled |" >> /tmp/rows.md
+            else
+              echo "::error title=Bundle failed::$fn"
+              echo "| $fn | FAILED |" >> /tmp/rows.md
+              failed="$failed $fn"
+            fi
+            echo "::endgroup::"
+          done
+          { echo "| Function | Result |"; echo "|---|---|"; cat /tmp/rows.md; } >> "$GITHUB_STEP_SUMMARY"
+          if [ -n "$failed" ]; then
+            echo "Failed to bundle:$failed"
+            exit 1
+          fi
