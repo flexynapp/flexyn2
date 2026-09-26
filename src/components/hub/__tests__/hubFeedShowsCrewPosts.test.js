@@ -24,7 +24,7 @@ import { resolve } from 'node:path';
 const read = (p) => readFileSync(resolve(process.cwd(), p), 'utf8');
 const FEED = read('src/components/hub/HubFeed.jsx');
 const DATA = read('src/lib/data/hubPosts.js');
-const MIG  = read('supabase/migrations/379_crew_posts_reach_the_crew.sql');
+const MIG  = read('supabase/migrations_archive/379_crew_posts_reach_the_crew.sql');
 
 describe('the Squad window includes crew posts', () => {
   it('fetches them, scoped to Squad and to having a crew', () => {

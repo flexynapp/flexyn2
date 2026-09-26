@@ -40,7 +40,7 @@ import { fileURLToPath } from 'url';
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 const RUNBOOK = resolve(REPO, 'docs/migrations-runbook.md');
-const MIGRATIONS = resolve(REPO, 'supabase/migrations');
+const MIGRATIONS = resolve(REPO, 'supabase/migrations_archive');
 
 // A numbered migration. Leading-underscore files (`_deploy_pending.sql`,
 // `_audit_schema_drift.sql`) are deliberately excluded — they are paste
@@ -89,7 +89,7 @@ describe('migration catalog', () => {
     expect(
       ghosts,
       `${ghosts.length} catalog row(s) name a file that is not in ` +
-        'supabase/migrations/. A migration was renamed or deleted and the ' +
+        'supabase/migrations_archive/. A migration was renamed or deleted and the ' +
         'runbook was left behind.',
     ).toEqual([]);
   });

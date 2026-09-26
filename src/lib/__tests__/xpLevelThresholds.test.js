@@ -16,7 +16,7 @@ import { dirname, join } from 'node:path';
 import { getTotalXpForLevel, MAX_LEVEL, TOTAL_XP_FOR_MAX_LEVEL } from '../xpSystem';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const MIGRATION = join(here, '../../../supabase/migrations/261_xp_level_source_of_truth_and_column_guard.sql');
+const MIGRATION = join(here, '../../../supabase/migrations_archive/261_xp_level_source_of_truth_and_column_guard.sql');
 
 /** Parse the `(level,xp)` tuples out of the migration's INSERT. */
 function thresholdsFromMigration() {
