@@ -18,7 +18,6 @@ export * as achievements from './achievements';
 export * as bodyMetrics from './bodyMetrics';
 export * as nutrition from './nutrition';
 export * as templates from './templates';
-export * as exerciseForms from './exerciseForms';
 export * as users from './users';
 export * as me from './me';
 export * as serverFunctions from './serverFunctions';
