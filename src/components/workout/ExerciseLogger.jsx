@@ -1,13 +1,8 @@
 import React, { useRef, useMemo, useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Plus, History, CheckCircle2, Check, Pencil } from 'lucide-react';
+import { Plus, History, Pencil, ChevronDown } from 'lucide-react';
 import { toast } from '@/lib/toast';
-import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 import SetRow from './SetRow';
 import { getRecentSessionsDetailed, getLastImplementForExercise, formatSetsLine } from '@/lib/data/exerciseHistory';
 import { suggestNext as suggestProgression } from '@/lib/progressiveOverload';
@@ -23,6 +18,7 @@ import { BAR_PRESETS, getActiveBarLbs, setActiveBarLbs } from '@/lib/barInventor
 import ImplementPicker from './ImplementPicker';
 import ExerciseFormPanel from '@/components/exercise/ExerciseFormPanel';
 import EquipmentThumb from './EquipmentThumb';
+import ExerciseProgressRing from './ExerciseProgressRing';
 import { IMPLEMENT_TYPE_META } from '@/lib/equipmentCatalog';
 
 // Epley 1RM formula
@@ -85,6 +81,14 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
     && /barbell|squat|deadlift|bench|press|row|clean|snatch|overhead|ohp/i.test(exercise.name || exercise.displayName || '');
   const [barLbs, setBarLbs] = useState(() => getActiveBarLbs());
   const totalVolume = sets.reduce((sum, s) => sum + (s.weight || 0) * (s.reps || 0), 0);
+  // Sets that beat the all-time best, for the folded summary. Same rule
+  // SetRow stamps with: warm-ups and failed sets never count.
+  const priorBestForPr = prIndex[(exercise.name || '').trim().toLowerCase()] || 0;
+  const prSetCount = priorBestForPr > 0
+    ? sets.filter(s => !s.is_warmup && !s.is_failed && epley1RM(s.weight || 0, s.reps || 0) > priorBestForPr).length
+    : 0;
+  // Last session's sets, lined up by position, for each row's Previous.
+  const previousSets = recentSessions[0]?.sets || [];
   const maxSetsPerExercise = getMaxSetsPerExercise(userProfile);
   const atSetLimit = sets.length >= maxSetsPerExercise;
 
@@ -199,7 +203,13 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
     // hydrated from legacy data (regimen template, repeat-from-log)
     // without an _key, mint one on first update so all subsequent
     // edits + the eventual removal track to the right row.
-    newSets[index] = { ...updated, _key: prev._key || updated._key || newSetId() };
+    //
+    // A row with no key renders under `legacy_<index>`, so the key it is
+    // minted must be that same string. A fresh random id here changed the
+    // React key on the row's first edit, which remounted SetRow and threw
+    // away its local state: the completion animation on the very first
+    // check of a regimen-loaded set never played.
+    newSets[index] = { ...updated, _key: prev._key || updated._key || `legacy_${index}` };
     checkPR(newSets);
     onChange({ ...exercise, sets: newSets });
     // Auto-start the rest timer the moment a set transitions to
@@ -237,23 +247,38 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
   };
 
   // ── Exercise completion ──────────────────────────────────────────────────
-  // Sets carry `completed` (the ✓ Done tap). The exercise is "complete" when
-  // the lifter locks it in — which collapses the card to a one-line summary so
-  // a long workout stops being a wall of open cards.
+  // Sets carry `completed` (the ✓ tap). Checking the last open set closes
+  // the exercise: the ring fills, bursts, and a beat later the card folds
+  // to a one-line summary so a long workout stops being a wall of open
+  // cards. There is no separate "Complete exercise" button any more; it
+  // asked for a second tap to confirm something the checks already said.
+  //
+  // Only the false→true EDGE folds it. Reopening a finished exercise to
+  // fix a number must not snap shut again while every set is still ticked.
   const doneCount = sets.filter(s => s.completed).length;
   const allSetsDone = sets.length > 0 && doneCount === sets.length;
   const isComplete = !!exercise.completed;
-  const [confirmOpen, setConfirmOpen] = useState(false);
-
-  const markComplete = () => {
+  const prevAllDoneRef = useRef(allSetsDone);
+  const [closing, setClosing] = useState(false);
+  // Refs, not deps: the parent passes a fresh onChange on every render,
+  // and re-running this effect would cancel the pending fold.
+  const exerciseRef = useRef(exercise);
+  const onChangeRef = useRef(onChange);
+  exerciseRef.current = exercise;
+  onChangeRef.current = onChange;
+  useEffect(() => {
+    const was = prevAllDoneRef.current;
+    prevAllDoneRef.current = allSetsDone;
+    if (was || !allSetsDone || isComplete) return undefined;
+    setClosing(true);
     triggerHaptic?.('success');
-    onChange({ ...exercise, completed: true });
-  };
+    const id = setTimeout(() => {
+      setClosing(false);
+      onChangeRef.current({ ...exerciseRef.current, completed: true });
+    }, 950);
+    return () => { clearTimeout(id); setClosing(false); };
+  }, [allSetsDone, isComplete]);
   const reopen = () => onChange({ ...exercise, completed: false });
-  const handleCompleteClick = () => {
-    if (allSetsDone) markComplete();
-    else setConfirmOpen(true); // gate: warn before finishing with unchecked sets
-  };
 
   // Collapsed summary — shown once the exercise is complete.
   if (isComplete) {
@@ -261,9 +286,7 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
       <motion.div initial={{ opacity: 0.6 }} animate={{ opacity: 1 }}>
         <Card className="p-3 border border-success/25 bg-success/[0.06] shadow-none">
           <div className="flex items-center gap-3">
-            <span className="w-8 h-8 rounded-full bg-success text-white flex items-center justify-center shrink-0">
-              <Check className="w-4 h-4" strokeWidth={3} />
-            </span>
+            <ExerciseProgressRing done={sets.length} total={sets.length} />
             <div className="flex-1 min-w-0">
               <p className="font-medium text-sm leading-tight truncate">
                 {exercise.displayName || translateExerciseName(exercise.name, language)}
@@ -271,7 +294,8 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
               <p className="text-micro text-muted-foreground mt-0.5 flex items-center gap-1">
                 <span>
                   {sets.length} set{sets.length === 1 ? '' : 's'}
-                  {totalVolume > 0 && <> · {formatWeight(totalVolume, weightUnit)} vol</>}
+                  {totalVolume > 0 && <> · {formatWeight(totalVolume, weightUnit)}</>}
+                  {prSetCount > 0 && <span className="text-success font-bold"> · PR</span>}
                 </span>
                 {/* Carry the chosen machine into the collapsed view —
                     a completed exercise silently dropping its label
@@ -291,6 +315,7 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
               className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground active:text-foreground px-2 py-1.5 rounded-lg hover:bg-secondary active:bg-secondary transition-colors shrink-0"
             >
               <Pencil className="w-3.5 h-3.5" /> {tFallback("coach.plan.edit", "Edit")}
+              <ChevronDown className="w-3.5 h-3.5" aria-hidden="true" />
             </button>
           </div>
         </Card>
@@ -300,8 +325,9 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
 
   return (
     <Card className="p-4 border-none shadow-sm">
-      <div className="flex items-center justify-between mb-3">
-        <div>
+      <div className="flex items-start gap-3 mb-3">
+        <ExerciseProgressRing done={doneCount} total={sets.length} bursting={closing} />
+        <div className="flex-1 min-w-0">
           {/* Title + equipment picker share a row. The picker wraps
               underneath on narrow screens rather than squeezing the
               exercise name, which is the more important of the two. */}
@@ -315,11 +341,9 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
             />
           </div>
           {muscles.length > 0 && (
-            <div className="flex flex-wrap gap-1 mt-1">
-              {muscles.map(m => (
-                <Badge key={m} variant="secondary" className="text-xs">{t(`muscleGroups.${muscleKey(m)}`)}</Badge>
-              ))}
-            </div>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {muscles.map(m => t(`muscleGroups.${muscleKey(m)}`)).join(', ')}
+            </p>
           )}
           {isBarbell && (
             <div className="flex items-center gap-1.5 mt-1.5">
@@ -374,7 +398,7 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
               progressionHint.kind === 'hold'    ? 'text-primary' :
                                                    'text-muted-foreground'
             }`}>
-              💡 {progressionHint.message}
+              {progressionHint.message}
             </p>
           )}
         </div>
@@ -410,12 +434,13 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
 
       <div className="space-y-2 mb-3">
         {sets.length > 0 && (
-          <div className="flex items-center gap-2 text-xs text-muted-foreground px-1">
+          <div className="flex items-center gap-1.5 px-1 text-micro font-semibold uppercase tracking-wide text-muted-foreground">
             <span className="w-6 text-center">{t('workout.set')}</span>
-            <span className="flex-1 text-center">{t('workout.weightWithUnit', { unit: weightUnit })}</span>
-            <span className="w-4"></span>
-            <span className="flex-1 text-center">{t('workout.repsLabel')}</span>
-            <span className="w-8"></span>
+            <span className="flex-1 min-w-0 px-1">{tFallback('setRow.previous', 'Previous')}</span>
+            <span className="w-[4.5rem] shrink-0 text-center">{weightUnit}</span>
+            <span className="w-14 shrink-0 text-center">{t('workout.repsLabel')}</span>
+            <span className="w-8 shrink-0"></span>
+            <span className="w-11 shrink-0"></span>
           </div>
         )}
         <AnimatePresence initial={false}>
@@ -432,7 +457,7 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
               transition={{ duration: 0.2, ease: 'easeOut' }}
               style={{ overflow: 'hidden' }}
             >
-              <SetRow set={set} index={i} onChange={(s) => updateSet(i, s)} onRemove={() => removeSet(i)} exerciseName={exercise.name} userProfile={userProfile} prIndex={prIndex} isBodyweight={isBodyweight} prevFeelNote={i > 0 ? (sets[i - 1]?.feel_note || '') : ''} />
+              <SetRow set={set} index={i} onChange={(s) => updateSet(i, s)} onRemove={() => removeSet(i)} exerciseName={exercise.name} userProfile={userProfile} prIndex={prIndex} isBodyweight={isBodyweight} prevFeelNote={i > 0 ? (sets[i - 1]?.feel_note || '') : ''} previous={previousSets[i] || null} />
             </motion.div>
           ))}
         </AnimatePresence>
@@ -452,28 +477,6 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
         </Button>
       </motion.div>
 
-      {/* Complete exercise — the gate. Turns solid green once every set is
-          checked; tapping with sets still open warns before finishing. */}
-      {sets.length > 0 && (
-        <motion.button
-          type="button"
-          whileTap={{ scale: 0.98 }}
-          onClick={handleCompleteClick}
-          className={[
-            'mt-2 w-full inline-flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition-colors',
-            allSetsDone
-              ? 'bg-success text-white hover:bg-success/90 active:bg-success/90'
-              : 'border border-border text-foreground hover:bg-secondary active:bg-secondary',
-          ].join(' ')}
-        >
-          <CheckCircle2 className="w-4 h-4" />
-          {tFallback('workout.completeExercise', 'Complete exercise')}
-          <span className={['text-xs font-bold tabular-nums rounded-full px-1.5 py-0.5', allSetsDone ? 'bg-white/20' : 'bg-secondary'].join(' ')}>
-            {doneCount}/{sets.length}
-          </span>
-        </motion.button>
-      )}
-
       {/* Per-exercise tempo + notes — both optional, both hidden behind
           a single collapsed chevron so the default ExerciseLogger
           stays compact. Each persists onto the exercise object via
@@ -481,24 +484,6 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
           column on save. */}
       <ExerciseExtras exercise={exercise} onChange={onChange} />
 
-      {/* Override warning — finish the exercise with sets still unchecked. */}
-      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{tFallback("exerciseLogger.finishThisExercise", "Finish this exercise?")}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {sets.length - doneCount} of {sets.length} set{sets.length - doneCount === 1 ? " isn't" : "s aren't"} checked off yet.
-              You can still complete the exercise — those sets just won't be marked done.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{tFallback("exerciseLogger.keepGoing", "Keep going")}</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { setConfirmOpen(false); markComplete(); }}>
-              {tFallback("exerciseLogger.completeAnyway", "Complete anyway")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </Card>
   );
 }
