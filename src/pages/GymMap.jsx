@@ -4,7 +4,7 @@
 // loop; static import eliminates that failure mode entirely.
 
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
-import maplibregl from 'maplibre-gl';
+import maplibregl, { silenceMissingSpriteIcons } from '@/lib/maplibre';
 // CSS is imported globally in main.jsx (same as RouteMap.jsx)
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -519,10 +519,7 @@ export default function GymMap({ onClose, onContinue }) {
       console.warn('[GymMap] map error:', e?.error || e);
     });
 
-    map.on('styleimagemissing', ({ id }) => {
-      if (map.hasImage(id)) return;
-      map.addImage(id, { width: 1, height: 1, data: new Uint8ClampedArray(4) });
-    });
+    silenceMissingSpriteIcons(map);
 
     const scheduleRefresh = () => {
       clearTimeout(debounceRef.current);

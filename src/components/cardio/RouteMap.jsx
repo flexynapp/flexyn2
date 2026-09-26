@@ -29,7 +29,7 @@
 //   interactive?: boolean — when false, disables zoom/drag/rotate (default true)
 
 import { useEffect, useRef, useState } from 'react';
-import maplibregl from 'maplibre-gl';
+import maplibregl, { silenceMissingSpriteIcons } from '@/lib/maplibre';
 import { useLanguage } from '@/lib/LanguageContext';
 // maplibre-gl/dist/maplibre-gl.css is imported globally in main.jsx
 
@@ -186,15 +186,9 @@ export default function RouteMap({ track, height = 240, interactive = true }) {
       console.warn('[RouteMap] map error:', e?.error || e);
     });
 
-    // The OpenFreeMap Liberty sprite sheet omits some POI icons that
-    // the style references (swimming_pool, bollard, gate, office, …).
-    // When MapLibre tries to paint those symbols it fires this event.
-    // Registering a 1×1 transparent image stops the repeated warnings
-    // without changing the visual output — those icons were invisible anyway.
-    map.on('styleimagemissing', ({ id }) => {
-      if (map.hasImage(id)) return;
-      map.addImage(id, { width: 1, height: 1, data: new Uint8ClampedArray(4) });
-    });
+    // OpenFreeMap Liberty's sprite sheet lacks some POI icons the style
+    // references; see silenceMissingSpriteIcons.
+    silenceMissingSpriteIcons(map);
 
     mapRef.current = map;
 
