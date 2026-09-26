@@ -1,11 +1,11 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Trophy, Flame, Gauge, MessageCircle, Minus, Plus, Check, Trash2, MoreHorizontal } from 'lucide-react';
+import { Flame, Gauge, MessageCircle, Trash2, MoreHorizontal } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { toast } from '@/lib/toast';
 import { getMaxRealisticWeight, getMaxRealisticReps } from '@/lib/realisticLimits';
 import { useWeightUnit } from '../../lib/WeightUnitContext';
-import { toLbs, formatWeightNumber } from '../../lib/weightUnit';
+import { toLbs, formatWeightNumber, formatWeight } from '../../lib/weightUnit';
 import { useLanguage } from '@/lib/LanguageContext';
 import { parseSetInput } from '@/lib/parseSetInput';
 import { epleyOneRepMax } from '@/lib/oneRepMax';
@@ -37,7 +37,7 @@ const RIR_OPTIONS = [
   { v: 5, label: '5+' },
 ];
 
-export default function SetRow({ set, index, onChange, onRemove, exerciseName = '', userProfile = {}, prIndex = {}, isBodyweight = false, prevFeelNote = '' }) {
+export default function SetRow({ set, index, onChange, onRemove, exerciseName = '', userProfile = {}, prIndex = {}, isBodyweight = false, prevFeelNote = '', previous = null }) {
   const { weightUnit } = useWeightUnit();
   const { t, tFallback } = useLanguage();
   const maxWeight = getMaxRealisticWeight(exerciseName, userProfile);
@@ -114,11 +114,39 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
   // Completion — the lifter taps ✓ Done when a set is actually finished. This
   // is the primary per-set action; it drives the exercise-completion gate.
   const completed = !!set.completed;
+  // `justDone` drives the one-second moment after a check: a green sweep
+  // across the row, the check drawing itself, and what the set added to
+  // the session floating up. It is keyed so a quick undo and redo replays
+  // it rather than resuming a half-finished animation.
+  const [justDone, setJustDone] = useState(0);
+  useEffect(() => {
+    if (!justDone) return undefined;
+    const id = setTimeout(() => setJustDone(0), 1100);
+    return () => clearTimeout(id);
+  }, [justDone]);
   const toggleComplete = () => {
     triggerHaptic?.(completed ? 'light' : 'success');
     onChange({ ...set, completed: !completed });
-    if (completed) return;
+    if (completed) { setJustDone(0); return; }
+    setJustDone(Date.now());
     setMoreOpen(false); // collapse the tag drawer once a set is locked in
+  };
+  const setVolumeLbs = (Number(set.weight) || 0) * (Number(set.reps) || 0);
+  const gainLabel = setVolumeLbs > 0
+    ? `+${formatWeight(setVolumeLbs, weightUnit)}`
+    : (Number(set.reps) > 0 ? `+${set.reps} ${t('common.reps')}` : null);
+
+  // "Previous": what this set was last session. Tapping it copies both
+  // numbers into the row, which is how most sets get logged.
+  const previousLabel = previous && (previous.weight != null || previous.reps != null)
+    ? `${previous.weight != null && Number(previous.weight) > 0 ? formatWeightNumber(previous.weight, weightUnit) : (isBodyweight ? 'BW' : '0')} × ${previous.reps ?? 0}`
+    : null;
+  const usePrevious = () => {
+    if (!previous || completed) return;
+    const w = previous.weight != null ? Math.min(maxWeight, Math.max(0, Number(previous.weight) || 0)) : set.weight;
+    const r = previous.reps != null ? Math.max(0, Number(previous.reps) || 0) : set.reps;
+    triggerHaptic?.('light');
+    onChange({ ...set, weight: w, reps: r });
   };
 
   // Auto-advance: confirming the weight (Enter / keyboard "next") jumps
@@ -147,52 +175,53 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
   // Flash a prominent "NEW PR 🎉" pill on the false→true edge so the
   // user sees the win in real time. We keep the small inline trophy
   // too for the at-a-glance read once the flash fades.
+  // The stamp springs in on the false→true edge and then stays put, so
+  // the row keeps saying PR for the rest of the session.
   const wasPRRef = React.useRef(isPRSet);
-  const [showPRFlash, setShowPRFlash] = useState(false);
+  const [prFresh, setPrFresh] = useState(false);
   React.useEffect(() => {
     if (!wasPRRef.current && isPRSet) {
-      setShowPRFlash(true);
-      const id = setTimeout(() => setShowPRFlash(false), 2500);
+      setPrFresh(true);
+      triggerHaptic?.('success');
       wasPRRef.current = true;
+      const id = setTimeout(() => setPrFresh(false), 600);
       return () => clearTimeout(id);
     }
     if (!isPRSet) wasPRRef.current = false;
     return undefined;
   }, [isPRSet]);
 
+  const doneInput = completed ? 'bg-transparent border-transparent text-success font-semibold' : '';
+
   return (
-    <div className={['relative rounded-lg transition-colors', completed ? 'bg-success/[0.06]' : ''].join(' ')}>
-    <div className={['flex items-center gap-2 transition-opacity', completed ? 'opacity-95' : ''].join(' ')}>
-      <span className="text-xs text-muted-foreground w-6 text-center font-medium">{index + 1}</span>
-      {/* Weight column gets extra flex weight — it houses the −/+ steppers plus
-          the field, so an equal split with reps left the number cramped. */}
-      <div className="flex-[1.6] flex items-center gap-0.5">
-        {/* Stepper buttons for progressive overload — one-tap bumps
-            of the unit-appropriate small plate (5 lb / 2.5 kg). The
-            kg increment matches the smallest standard plate pair.
-            Tap +/- repeatedly to nudge; the value is clamped to the
-            same maxWeight that direct typing respects. */}
-        {(() => {
-          const stepLbs = weightUnit === 'kg' ? 2.5 / 0.453592 : 5;
-          const currentLbs = Number(set.weight) || 0;
-          const bump = (delta) => {
-            const next = Math.max(0, Math.min(maxWeight, currentLbs + delta));
-            onChange({ ...set, weight: next });
-          };
-          return (
-            <>
-              <button
-                type="button"
-                tabIndex={-1}
-                aria-label={tFallback("setRow.decreaseWeight", "Decrease weight")}
-                onClick={() => bump(-stepLbs)}
-                className="w-6 h-11 flex items-center justify-center rounded-md text-muted-foreground hover:bg-secondary/60 active:bg-secondary/60 hover:text-foreground active:text-foreground transition-colors shrink-0"
-              >
-                <Minus className="w-3 h-3" />
-              </button>
-            </>
-          );
-        })()}
+    <div className={['relative rounded-lg transition-colors duration-300', completed ? 'bg-success/[0.12]' : ''].join(' ')}>
+    {/* The sweep: a green fill that runs across the row once, then fades,
+        leaving the settled tint behind it. */}
+    <AnimatePresence>
+      {justDone > 0 && (
+        <motion.span
+          key={justDone}
+          aria-hidden="true"
+          className="absolute inset-0 rounded-lg bg-success pointer-events-none origin-left rtl:origin-right"
+          initial={{ scaleX: 0, opacity: 0.5 }}
+          animate={{ scaleX: 1, opacity: [0.5, 0.5, 0] }}
+          exit={{ opacity: 0 }}
+          transition={{ scaleX: { duration: 0.45, ease: [0.2, 0.8, 0.2, 1] }, opacity: { duration: 0.75, times: [0, 0.6, 1] } }}
+        />
+      )}
+    </AnimatePresence>
+    <div className="relative flex items-center gap-1.5 p-1">
+      <span className={['text-xs w-6 text-center font-bold tabular-nums transition-colors', completed ? 'text-success' : 'text-muted-foreground'].join(' ')}>{index + 1}</span>
+      <button
+        type="button"
+        onClick={usePrevious}
+        disabled={!previousLabel || completed}
+        aria-label={previousLabel ? `${tFallback('setRow.usePrevious', 'Use last time')}: ${previousLabel}` : undefined}
+        className="flex-1 min-w-0 h-11 text-start text-xs tabular-nums text-muted-foreground truncate rounded-md px-1 enabled:hover:text-foreground enabled:active:text-foreground transition-colors"
+      >
+        {previousLabel || '·'}
+      </button>
+      <div className="relative w-[4.5rem] shrink-0">
         <Input
           ref={weightInputRef}
           type="number"
@@ -257,31 +286,11 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
           }}
           enterKeyHint="next"
           placeholder={isBodyweight ? `+ ${weightUnit}` : weightUnit}
-          className={`flex-1 min-w-0 h-11 text-center transition-shadow ${isPRSet ? 'ring-2 ring-primary/60 shadow-[0_0_12px_hsl(var(--primary)/0.4)]' : ''}`}
+          className={`w-full h-11 px-1 text-center tabular-nums transition-colors ${doneInput}`}
           aria-label={isBodyweight ? 'Added weight (bodyweight exercise)' : `Weight in ${weightUnit}`}
         />
-        {(() => {
-          const stepLbs = weightUnit === 'kg' ? 2.5 / 0.453592 : 5;
-          const currentLbs = Number(set.weight) || 0;
-          const bumpUp = () => {
-            const next = Math.max(0, Math.min(maxWeight, currentLbs + stepLbs));
-            onChange({ ...set, weight: next });
-          };
-          return (
-            <button
-              type="button"
-              tabIndex={-1}
-              aria-label={tFallback("setRow.increaseWeight", "Increase weight")}
-              onClick={bumpUp}
-              className="w-6 h-11 flex items-center justify-center rounded-md text-muted-foreground hover:bg-secondary/60 active:bg-secondary/60 hover:text-foreground active:text-foreground transition-colors shrink-0"
-            >
-              <Plus className="w-3 h-3" />
-            </button>
-          );
-        })()}
       </div>
-      <span className="text-muted-foreground text-xs">×</span>
-      <div className="flex-1">
+      <div className="w-14 shrink-0">
         <Input
           type="number"
           inputMode="numeric"
@@ -319,40 +328,40 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
           ref={repsRef}
           enterKeyHint="done"
           placeholder={t('common.reps')}
-          className={`h-11 text-center transition-shadow ${isPRSet ? 'ring-2 ring-primary/60 shadow-[0_0_12px_hsl(var(--primary)/0.4)]' : ''}`}
+          className={`h-11 px-1 text-center tabular-nums transition-colors ${doneInput}`}
         />
       </div>
-      {/* Prominent "NEW PR" flash — slides in for ~2.5s on the
-          false→true PR edge, then fades back to the tiny inline
-          trophy below for at-a-glance reads. The two are layered:
-          flash is absolute-positioned above the row, the trophy
-          stays inline so the post-flash state still reads as PR. */}
-      {showPRFlash && (
-        <motion.span
-          initial={{ x: -10, opacity: 0, scale: 0.9 }}
-          animate={{ x: 0, opacity: 1, scale: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ type: 'spring', stiffness: 380, damping: 18 }}
-          className="absolute -top-3 end-0 z-10 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gradient-to-r from-primary to-primary text-primary-foreground text-micro font-extrabold uppercase tracking-[0.15em] shadow-lg shadow-primary/30 pointer-events-none"
-          aria-live="polite"
-        >
-          🎉 New PR
-        </motion.span>
-      )}
-      {/* PR auto-tag — inline trophy between reps and delete. Springs
-          in when the set crosses the all-time PR threshold. */}
+      {/* PR stamp. Pinned over the weight field's corner so it never
+          takes a column; springs in on the edge, then stays. */}
       {isPRSet && (
         <motion.span
-          initial={{ scale: 0.4, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ type: 'spring', stiffness: 480, damping: 20 }}
-          className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary/15 text-primary shrink-0"
-          aria-label={tFallback("setRow.newPrPace", "New PR pace")}
-          title={tFallback("setRow.newPrPace", "New PR pace")}
+          initial={prFresh ? { scale: 2.2, rotate: -14, opacity: 0 } : false}
+          animate={{ scale: 1, rotate: -6, opacity: 1 }}
+          transition={{ type: 'spring', stiffness: 520, damping: 18 }}
+          className="absolute top-0 end-[12rem] z-10 px-1.5 py-px rounded-md bg-success text-success-foreground text-micro font-extrabold tracking-wide pointer-events-none"
+          aria-label={tFallback('setRow.newPr', 'New personal record')}
+          role="status"
         >
-          <Trophy className="w-3.5 h-3.5" />
+          PR
         </motion.span>
       )}
+      {/* What this set just added to the session, floating up and away.
+          It rises only a little: the row sits in an overflow-hidden
+          wrapper (for its height animation), so a longer flight clips. */}
+      <AnimatePresence>
+        {justDone > 0 && gainLabel && (
+          <motion.span
+            key={justDone}
+            aria-hidden="true"
+            className="absolute top-3 end-12 z-10 px-2 py-0.5 rounded-full bg-success text-success-foreground text-xs font-extrabold tabular-nums pointer-events-none"
+            initial={{ opacity: 0, y: 6, scale: 0.9 }}
+            animate={{ opacity: [0, 1, 1, 0], y: [6, 0, -6, -14], scale: [0.9, 1.1, 1, 1] }}
+            transition={{ duration: 1.1, times: [0, 0.2, 0.55, 1], ease: 'easeOut' }}
+          >
+            {gainLabel}
+          </motion.span>
+        )}
+      </AnimatePresence>
       {/* Active-tag chips — keep set state readable at a glance while the
           warmup/failed/feel/RPE controls live behind the ⋯ drawer. */}
       {!moreOpen && (set.is_warmup || set.is_failed || hasFeelData || hasEffortData) && (
@@ -383,15 +392,33 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
         aria-label={completed ? 'Mark set not done' : 'Complete set'}
         aria-pressed={completed}
         className={[
-          'h-11 w-11 rounded-xl flex items-center justify-center shrink-0 transition-all',
+          'h-11 w-11 rounded-lg flex items-center justify-center shrink-0 transition-colors',
           completed
-            ? 'bg-success text-white shadow-sm shadow-success/30'
-            : 'border-2 border-border text-muted-foreground/40 hover:border-success/50 hover:text-success active:text-success',
+            ? 'bg-success text-success-foreground'
+            : 'bg-secondary text-muted-foreground hover:text-success active:text-success',
         ].join(' ')}
       >
-        <motion.span key={completed ? 'on' : 'off'} initial={{ scale: 0.4, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 500, damping: 17 }}>
-          <Check className="w-4 h-4" strokeWidth={3} />
-        </motion.span>
+        <motion.svg
+          key={completed ? 'on' : 'off'}
+          viewBox="0 0 24 24"
+          className="w-5 h-5"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={3}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+          initial={completed ? { scale: 0.7 } : false}
+          animate={{ scale: 1 }}
+          transition={{ type: 'spring', stiffness: 520, damping: 16 }}
+        >
+          <motion.path
+            d="M5 12l5 5L20 7"
+            initial={completed ? { pathLength: 0 } : false}
+            animate={{ pathLength: 1 }}
+            transition={{ duration: 0.28, delay: 0.05, ease: 'easeOut' }}
+          />
+        </motion.svg>
       </button>
     </div>
 
