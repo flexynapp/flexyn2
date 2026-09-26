@@ -47,7 +47,11 @@ jobs:
           failed=""
           for fn in $FUNCTIONS; do
             echo "::group::$fn"
-            if docker run --rm -v "$PWD":/app -w /app "$IMAGE" \
+            # Mount supabase/ only. With the repo root mounted, the runtime
+            # finds package.json and resolves npm packages from node_modules,
+            # which fails every jsr:@supabase/supabase-js import. The
+            # integration evidently bundles without it: two of those deployed.
+            if docker run --rm -v "$PWD/supabase":/app/supabase -w /app "$IMAGE" \
                  bundle --entrypoint "/app/supabase/functions/$fn/index.ts" \
                         --output "/tmp/$fn.eszip"; then
               echo "| $fn | bundled |" >> /tmp/rows.md
