@@ -10,8 +10,7 @@
 // dopamine hit.
 //
 // Animated number tween via Framer Motion's useMotionValue + animate
-// — counts up smoothly rather than snapping. Colors shift at volume
-// thresholds (orange tint past 5k, gold pulse past 15k).
+// — counts up smoothly rather than snapping.
 
 import { useEffect, useState } from 'react';
 import { motion, useMotionValue, animate } from 'framer-motion';
@@ -41,20 +40,11 @@ export default function LiveVolumePill({ exercises = [], includeBarWeight = fals
     return () => controls.stop();
   }, [totalLbs, motionValue]);
 
-  // Color thresholds: muted at zero, primary above zero, accent past
-  // the "serious volume" line. The pulse on the heavy threshold is
-  // the small dopamine moment.
+  // Muted at zero, plain foreground once there is volume. The count up
+  // is the moment; it does not need an accent colour or a pulse on top.
   const isZero  = totalLbs === 0;
-  const isHeavy = totalLbs >= 15_000;
-  const isMid   = totalLbs >= 5_000;
 
-  const colorClass = isZero
-    ? 'text-muted-foreground/60'
-    : isHeavy
-      ? 'text-primary'
-      : isMid
-        ? 'text-primary'
-        : 'text-primary';
+  const colorClass = isZero ? 'text-muted-foreground/60' : 'text-foreground';
 
   return (
     <motion.div
@@ -65,15 +55,12 @@ export default function LiveVolumePill({ exercises = [], includeBarWeight = fals
       aria-live="polite"
       aria-label={tFallback("liveVolumePill.totalVolumeThisSession", "Total volume this session")}
     >
-      <motion.span
-        className={colorClass}
-        animate={isHeavy ? { scale: [1, 1.08, 1] } : { scale: 1 }}
-        transition={{ duration: 1.6, repeat: isHeavy ? Infinity : 0, ease: 'easeInOut' }}
-      >
+      <span className={colorClass}>
         <MotionValueCounter motionValue={motionValue} unit={weightUnit} />
-      </motion.span>
+      </span>
       <span className="text-micro text-muted-foreground uppercase tracking-wider">
-        {weightUnit === 'kg' ? 'kg' : 'lb'} vol
+        {/* formatWeight already prints the unit, so the label is only "vol". */}
+        {tFallback('liveVolumePill.vol', 'vol')}
       </span>
     </motion.div>
   );

@@ -25,7 +25,7 @@ export default function WorkoutElapsedChip({ startedAt }) {
   const sec = elapsedSeconds(startedAt);
   return (
     <span
-      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-bold tabular-nums"
+      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-secondary text-foreground text-xs font-bold tabular-nums"
       role="timer"
       aria-label={tFallback("workoutElapsedChip.workoutElapsedTime", "Workout elapsed time")}
     >

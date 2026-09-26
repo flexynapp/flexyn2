@@ -14,7 +14,7 @@ const CIRC = 2 * Math.PI * R;
 const PARTICLES = Array.from({ length: 10 }, (_, i) => {
   const a = (i / 10) * Math.PI * 2;
   const d = 30 + (i % 3) * 8;
-  return { x: Math.round(Math.cos(a) * d), y: Math.round(Math.sin(a) * d), tone: i % 2 ? 'bg-success' : 'bg-primary', delay: (i % 2) * 0.04 };
+  return { x: Math.round(Math.cos(a) * d), y: Math.round(Math.sin(a) * d), tone: i % 2 ? 'bg-success' : 'bg-foreground', delay: (i % 2) * 0.04 };
 });
 
 export default function ExerciseProgressRing({ done = 0, total = 0, bursting = false }) {
@@ -32,7 +32,7 @@ export default function ExerciseProgressRing({ done = 0, total = 0, bursting = f
         <circle cx="18" cy="18" r={R} fill="none" strokeWidth="3" className="stroke-border" />
         <motion.circle
           cx="18" cy="18" r={R} fill="none" strokeWidth="3" strokeLinecap="round"
-          className={complete ? 'stroke-success' : 'stroke-primary'}
+          className={complete ? 'stroke-success' : 'stroke-foreground'}
           strokeDasharray={CIRC}
           initial={false}
           animate={{ strokeDashoffset: CIRC * (1 - frac) }}
