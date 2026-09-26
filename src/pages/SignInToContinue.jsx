@@ -358,7 +358,7 @@ export default function SignInToContinue({
               Continue as guest
             </Button>
             <p className="text-micro text-muted-foreground/70 text-center leading-relaxed">
-              Beta access — your data lives on this device until you link an email. Accounts may be reset at launch.
+              {tFallback('signInToContinue.betaNote', 'Beta access. Your data lives on this device until you link an email. Accounts may be reset at launch.')}
             </p>
             {/* GDPR Art. 13 wants the notice available at the point of
                 collection, and both stores check that it is reachable

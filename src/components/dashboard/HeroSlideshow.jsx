@@ -1019,7 +1019,7 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
   // shared so the user can swipe between streak and milestones.
   if (slide.kind === 'streak') {
     return (
-      <div className={`relative flex flex-col justify-between gap-5 min-w-0 ${count > 1 ? HERO_SLIDE_GUTTER : ''}`}>
+      <div className={`relative flex flex-col justify-between gap-5 [@media(max-height:700px)]:gap-2 min-w-0 ${count > 1 ? HERO_SLIDE_GUTTER : ''}`}>
         {/* Decorative icon — right-centre, translucent */}
         <Flame aria-hidden="true" className="absolute pointer-events-none select-none"
           style={heroWatermarkStyle(0.12)} />
@@ -1072,7 +1072,7 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
   if (slide.kind === 'feature') {
     const FeatureIcon = slide.icon || Sparkles;
     return (
-      <div className={`relative flex flex-col justify-between gap-4 min-w-0 ${count > 1 ? HERO_SLIDE_GUTTER : ''}`}>
+      <div className={`relative flex flex-col justify-between gap-4 [@media(max-height:700px)]:gap-2 min-w-0 ${count > 1 ? HERO_SLIDE_GUTTER : ''}`}>
         <FeatureIcon aria-hidden="true" className="absolute pointer-events-none select-none"
           style={heroWatermarkStyle()} />
         {/* The tint overlay that used to sit here is GONE, not softened.
@@ -1154,7 +1154,7 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
     : null;
 
   return (
-    <div className={`relative flex flex-col justify-between gap-5 min-w-0 ${count > 1 ? HERO_SLIDE_GUTTER : ''}`}>
+    <div className={`relative flex flex-col justify-between gap-5 [@media(max-height:700px)]:gap-2 min-w-0 ${count > 1 ? HERO_SLIDE_GUTTER : ''}`}>
       {/* Contextual watermark. The old comment here described a right-CENTRE
           position with a special case pinning it to the top-right on slides
           carrying a full-width ProgressBar — but both branches of that
@@ -1310,6 +1310,9 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
       rotateMs={ROTATE_MS}
       renderSlide={renderBody}
       onIndexChange={handleIndexChange}
+      // One step tighter on a short phone; see the band's min-height note
+      // in Dashboard.jsx for why the SE needs the room.
+      dotsClassName="mt-5 [@media(max-height:700px)]:mt-2"
       dotLabel={(i) => tFallback('dashboard.hero.slide', 'Slide {n}', { n: i + 1 })}
     />
   );

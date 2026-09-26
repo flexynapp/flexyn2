@@ -543,16 +543,18 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
   // and either way they are stuck.
   const sortToolbar = (
     <div className="flex items-center gap-2 flex-wrap">
-      {/* New | Hot toggle */}
+      {/* New | Hot toggle. The selected half is neutral (foreground on
+          background), not --primary: orange is reserved for the one acting
+          control on a screen, and a sort order is state, not an action. */}
       <div className="flex items-center rounded-lg border border-border overflow-hidden text-micro font-bold shrink-0">
         <button type="button"
           onClick={() => { setSort('newest'); setVisibleCount(PAGE_SIZE); }}
-          className={`flex items-center gap-1 px-2.5 py-1.5 transition-colors ${sort === 'newest' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:text-foreground active:text-foreground'}`}>
+          className={`flex items-center gap-1 px-2.5 py-1.5 transition-colors ${sort === 'newest' ? 'bg-foreground text-background' : 'bg-background text-muted-foreground hover:text-foreground active:text-foreground'}`}>
           <Clock className="w-3 h-3" />{tFallback("coach.onboarding.levelLabel.newbie", "New")}
         </button>
         <button type="button"
           onClick={() => { setSort('popular'); setVisibleCount(PAGE_SIZE); }}
-          className={`flex items-center gap-1 px-2.5 py-1.5 border-s border-border transition-colors ${sort === 'popular' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:text-foreground active:text-foreground'}`}>
+          className={`flex items-center gap-1 px-2.5 py-1.5 border-s border-border transition-colors ${sort === 'popular' ? 'bg-foreground text-background' : 'bg-background text-muted-foreground hover:text-foreground active:text-foreground'}`}>
           <Flame className="w-3 h-3" />{tFallback("hubFeed.hot", "Hot")}
         </button>
       </div>

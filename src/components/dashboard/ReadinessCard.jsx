@@ -16,6 +16,7 @@ import { Card } from '@/components/ui/card';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useReadiness } from '@/hooks/useReadiness';
+import useCountUp from '@/hooks/useCountUp';
 import ReadinessRing, { readinessColors } from '@/components/dashboard/ReadinessRing';
 
 // The palette moved to ReadinessRing, which is now its only renderer and
@@ -42,6 +43,11 @@ export default function ReadinessCard({ logs = [], compact = false, onClick }) {
   // Shared score source — the same hook feeds the Dashboard readiness
   // explainer, so the number here and the breakdown there never drift.
   const { score, label } = useReadiness(logs);
+  // The ring already sweeps from empty (ReadinessRing); the number inside it
+  // now counts up alongside so the two arrive together. 800ms matches the
+  // ring's own sweep. Reduced motion returns the score as is.
+  const counted = useCountUp(score, { duration: 800 });
+  const shownScore = typeof counted === 'number' ? Math.round(counted) : counted;
 
   // readinessColors() carries the unmapped-label fallback that used to
   // live here; safeLabel is still needed for ACTION_BY_LABEL below.
@@ -94,7 +100,7 @@ export default function ReadinessCard({ logs = [], compact = false, onClick }) {
           {...(onClick ? { role: 'button', tabIndex: 0, onClick, onKeyDown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } } } : {})}
         >
           <ReadinessRing score={score} color={colors.ring} size={SIZE} stroke={STROKE}>
-            <span className="font-heading font-black text-xs tabular-nums">{score}</span>
+            <span className="font-heading font-black text-xs tabular-nums">{shownScore}</span>
           </ReadinessRing>
           <span className={`text-micro font-bold tracking-[0.04em] ${colors.text} leading-none`}>
             {tFallback('readiness.kicker', 'READINESS')}
@@ -117,7 +123,7 @@ export default function ReadinessCard({ logs = [], compact = false, onClick }) {
       <Card style={{ '--card-accent': `${colors.ring}73` }} className={`px-4 py-3 border ${colors.border} ${colors.bg}`}>
         <div className="flex items-center gap-3">
           <ReadinessRing score={score} color={colors.ring} size={SIZE} stroke={STROKE}>
-            <span className="font-heading font-black text-base tabular-nums">{score}</span>
+            <span className="font-heading font-black text-base tabular-nums">{shownScore}</span>
           </ReadinessRing>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5">

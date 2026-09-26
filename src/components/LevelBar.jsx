@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
+import useCountUp from '@/hooks/useCountUp';
 import { calculateLevelFromXp } from '@/lib/xpSystem';
 import { getTier } from '@/lib/xpTier';
 import Particles from '@/components/Particles';
@@ -36,6 +37,10 @@ export default function LevelBar({ totalXp = 0, compact = false }) {
   // Only fetched for the compact badge — the full-size bar already sits on
   // pages that show rank in their own right.
   const { rank } = useGlobalRank({ enabled: compact });
+  // The full bar already fills from empty; the "x / y XP" figure now counts
+  // up with it. The compact badge shows no XP figure, so it passes null and
+  // schedules no frames.
+  const countedXp = useCountUp(compact ? null : Math.round(xpInLevel), { duration: 600 });
 
   if (compact) {
     return (
@@ -101,7 +106,7 @@ export default function LevelBar({ totalXp = 0, compact = false }) {
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between mb-1">
           <span className={`text-xs font-semibold ${tier.text}`}>{tier.name}</span>
-          <span className="text-xs text-muted-foreground">{Math.round(xpInLevel)} / {xpNeeded} XP</span>
+          <span className="text-xs text-muted-foreground">{Math.round(countedXp ?? xpInLevel)} / {xpNeeded} XP</span>
         </div>
         <div className="w-full h-2 bg-black/10 rounded-full overflow-hidden">
           <motion.div

@@ -83,3 +83,23 @@ export function setHapticsDisabled(disabled) {
 export function getHapticsDisabled() {
   return isDisabled();
 }
+
+// Short names for the same hierarchy, so a call site reads as intent:
+// `haptic('light')` on a tap that commits something small, `haptic('medium')`
+// on the one primary action of a screen. They map onto the patterns above
+// rather than adding new ones, so there is still exactly one vocabulary.
+const ALIASES = {
+  light: 'subtle',
+  medium: 'primary',
+  heavy: 'warning',
+};
+
+/**
+ * Alias of triggerHaptic that also accepts light / medium / heavy.
+ * Same settings, reduced motion and rate limit rules apply.
+ *
+ * @param {'light'|'medium'|'heavy'|'primary'|'success'|'warning'|'subtle'} [intensity]
+ */
+export function haptic(intensity = 'light') {
+  triggerHaptic(ALIASES[intensity] || intensity);
+}

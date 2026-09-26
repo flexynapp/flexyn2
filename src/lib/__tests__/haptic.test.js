@@ -94,4 +94,16 @@ describe('haptic', () => {
     setHapticsDisabled(false);
     expect(getHapticsDisabled()).toBe(false);
   });
+
+  it('haptic() maps light / medium to the existing patterns', async () => {
+    const { haptic } = await import('../haptic');
+    haptic('light');
+    expect(navigator.vibrate).toHaveBeenLastCalledWith([6]);
+    vi.advanceTimersByTime(200);
+    haptic('medium');
+    expect(navigator.vibrate).toHaveBeenLastCalledWith([10]);
+    vi.advanceTimersByTime(200);
+    haptic('success');
+    expect(navigator.vibrate).toHaveBeenLastCalledWith([18, 60, 18]);
+  });
 });

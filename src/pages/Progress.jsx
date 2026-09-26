@@ -18,6 +18,9 @@ import { workoutTitle } from '@/lib/workoutTitle';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { motion, AnimatePresence } from 'framer-motion';
+import AnimatedNumber from '@/components/AnimatedNumber';
+import { fadeUp } from '@/lib/motion';
+import useCountUp from '@/hooks/useCountUp';
 import {
   TrendingUp, BarChart2,
   Flame, Dumbbell, Camera, Ruler, ChevronRight, Zap, RefreshCw, Lightbulb,
@@ -95,11 +98,15 @@ const FRAME_SHORT_FALLBACK = { week: 'Wk', month: 'Mo', year: 'Yr', all: 'All' }
 // in 15 languages say "Exercise Trends" / "Body Metrics" / "Progress
 // Photos" — written for a list with room, not for four pills in a 2×2
 // grid — so these get their own short keys rather than a relabelled bar.
+// Selected is neutral (foreground on background) for every tab. It used to be
+// each tab's own hue, so Trends selected was a full orange pill beside the
+// orange WK timeframe toggle: two primaries for what is navigation state,
+// on a screen whose one orange control should be an action.
 const TAB_META = [
-  { id: 'trends',    labelKey: 'progress.tab.trends',   label: 'Trends',   Icon: TrendingUp,  iconColor: 'text-primary',    activeBg: 'bg-primary',     activeText: 'text-primary-foreground' },
-  { id: 'body',      labelKey: 'progress.tab.body',     label: 'Body',     Icon: Ruler,       iconColor: 'text-success', activeBg: 'bg-success', activeText: 'text-white' },
-  { id: 'photos',    labelKey: 'progress.tab.photos',   label: 'Photos',   Icon: Camera,      iconColor: 'text-primary', activeBg: 'bg-primary',  activeText: 'text-white' },
-  { id: 'insights',  labelKey: 'progress.tab.insights', label: 'Insights', Icon: Lightbulb,   iconColor: 'text-info',   activeBg: 'bg-info',    activeText: 'text-white' },
+  { id: 'trends',    labelKey: 'progress.tab.trends',   label: 'Trends',   Icon: TrendingUp,  iconColor: 'text-primary',    activeBg: 'bg-foreground', activeText: 'text-background' },
+  { id: 'body',      labelKey: 'progress.tab.body',     label: 'Body',     Icon: Ruler,       iconColor: 'text-success', activeBg: 'bg-foreground', activeText: 'text-background' },
+  { id: 'photos',    labelKey: 'progress.tab.photos',   label: 'Photos',   Icon: Camera,      iconColor: 'text-primary', activeBg: 'bg-foreground', activeText: 'text-background' },
+  { id: 'insights',  labelKey: 'progress.tab.insights', label: 'Insights', Icon: Lightbulb,   iconColor: 'text-info',   activeBg: 'bg-foreground', activeText: 'text-background' },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -238,9 +245,16 @@ function AnalyticsTab({ logs }) {
           { value: trainedDays, label: t('progress.daysTrained30d'), color: 'text-primary' },
           { value: volumeByMuscle[0]?.displayGroup || '—', label: t('progress.topMuscleGroup'), color: 'text-success', span: 'col-span-2 md:col-span-1' },
         ].map((stat, i) => (
-          <motion.div key={stat.label} initial={{ opacity: 0, y: 16, scale: 0.9 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ type: 'spring', stiffness: 280, damping: 20, delay: i * 0.08 }} whileHover={{ scale: 1.04, y: -2 }} className={stat.span || ''}>
+          <motion.div key={stat.label} {...fadeUp(i)} className={stat.span || ''}>
             <Card className="p-4 border border-border shadow-none text-center h-full">
-              <motion.p className={`font-heading text-2xl font-bold ${stat.color}`} initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 300, damping: 18, delay: i * 0.08 + 0.1 }}>{stat.value}</motion.p>
+              {/* Numbers count up from zero rather than popping in at scale 0.5:
+                the tile's own entrance already moves it, and a count is the
+                motion that says something about the number. */}
+              <p className={`font-heading text-2xl font-bold tabular-nums ${stat.color}`}>
+                {typeof stat.value === 'number'
+                  ? <AnimatedNumber value={stat.value} animateOnMount duration={700} />
+                  : stat.value}
+              </p>
               <p className="text-xs text-muted-foreground mt-0.5">{stat.label}</p>
             </Card>
           </motion.div>
@@ -399,6 +413,18 @@ function ProgressCarousel({ slides }) {
   );
 }
 
+/* The slide's figure. A slide that carries a numeric `count` and a
+   `formatCount` counts up to it (useCountUp) and formats each frame;
+   anything else renders its `value` string as before. A component rather
+   than inline because renderProgressSlide is a plain function and cannot
+   hold a hook. */
+function SlideFigure({ slide }) {
+  const hasCount = typeof slide.count === 'number' && typeof slide.formatCount === 'function';
+  const counted = useCountUp(hasCount ? slide.count : null, { duration: 700 });
+  if (!hasCount) return slide.value;
+  return slide.formatCount(Math.round(counted ?? slide.count));
+}
+
 /* One slide of the Progress carousel, in the hero's shared layout:
    corner watermark, icon chip + kicker, the figure, the line of context.
    The watermark is heroWatermarkStyle — 72px hard in the corner — rather
@@ -426,11 +452,13 @@ function renderProgressSlide(slide, { count = 1 } = {}) {
           disagreeing, and with `mode="wait"` it renders empty for a beat
           mid-slide, in full view of the page beside it. */}
       <div className="min-w-0">
+        {/* An `empty` slide carries a sentence, not a figure, so it takes a
+            heading size rather than the display size a number gets. */}
         <h3
-          className="font-heading font-bold leading-none tracking-tight tabular-nums text-foreground break-words pe-20"
-          style={{ fontSize: 'clamp(2rem, 7vw, 3rem)' }}
+          className={`font-heading font-bold tracking-tight text-foreground break-words pe-20 ${slide.empty ? 'leading-tight text-balance' : 'leading-none tabular-nums'}`}
+          style={{ fontSize: slide.empty ? 'clamp(1.25rem, 5vw, 1.5rem)' : 'clamp(2rem, 7vw, 3rem)' }}
         >
-          {slide.value}
+          <SlideFigure slide={slide} />
         </h3>
         <p className="text-sm text-foreground/60 max-w-[36ch] leading-relaxed mt-3">
           {slide.tip}
@@ -710,12 +738,23 @@ export default function Progress() {
   //
   // `--accent` is not the escape hatch either: it is a desaturated
   // slate, so as a full-band tint it reads as dirt rather than colour.
+  // A brand-new account has nothing on either the Workouts or the Volume
+  // slide, and both used to render a display-size bare "0". A zero at that
+  // size reads as a failure the user did not commit (CLAUDE.md, "a section
+  // with no data must not render as zeros"), so both say what comes next.
+  const noTrainingYet = logs.length === 0 && !(totalVolume > 0);
   const carouselSlides = [
     {
       id: 'streak',
       icon: Flame,
       color: 'var(--primary)',
       kicker: tFallback('progress.slide.streak.kicker', 'Streak'),
+      count: streak || null,
+      formatCount: (n) => tFallback(
+        n === 1 ? 'progress.slide.streak.days_one' : 'progress.slide.streak.days_other',
+        n === 1 ? '{n} day' : '{n} days',
+        { n },
+      ),
       value: streak
         ? tFallback(
             streak === 1 ? 'progress.slide.streak.days_one' : 'progress.slide.streak.days_other',
@@ -740,7 +779,12 @@ export default function Progress() {
       icon: Dumbbell,
       color: 'var(--info)',
       kicker: tFallback('progress.slide.workouts.kicker', 'Workouts'),
-      value: `${logs.length}`,
+      value: noTrainingYet
+        ? tFallback('progress.slide.workouts.empty', 'Your first workout starts the chart')
+        : `${logs.length}`,
+      count: noTrainingYet ? null : logs.length,
+      empty: noTrainingYet,
+      formatCount: (n) => `${n}`,
       cta: { label: tFallback('progress.slide.cta.logWorkout', 'Log a workout'), onClick: () => navigate('/workout') },
       tip: logs.length === 0
         ? tFallback(
@@ -762,7 +806,12 @@ export default function Progress() {
       kicker: tFallback('progress.slide.volume.kicker', 'Volume'),
       value: totalVolume > 0
         ? `${formatBigNumber(Math.round(fromLbs(totalVolume, weightUnit)))} ${weightUnit}`
-        : '0',
+        : noTrainingYet
+          ? tFallback('progress.slide.volume.empty', 'Nothing lifted yet')
+          : '0',
+      empty: noTrainingYet,
+      count: totalVolume > 0 ? Math.round(fromLbs(totalVolume, weightUnit)) : null,
+      formatCount: (n) => `${formatBigNumber(n)} ${weightUnit}`,
       cta: { label: tFallback('progress.slide.cta.analytics', 'See analytics'), onClick: () => setAdvancedAnalyticsOpen(true) },
       tip: thisWeekVolume > 0 && lastWeekVolume > 0
         ? tFallback(
@@ -860,9 +909,9 @@ export default function Progress() {
                 The carousel was KEPT there by kegan (2026-08-10) against a
                 proposal to replace it with the activity grid; see the
                 ledger on board C. ─────────────────────────────────────── */}
-          <div className="-mx-4 md:-mx-6 mb-2 [&_.rounded-2xl]:rounded-none [&_.border]:border-x-0">
+          <motion.div {...fadeUp(0)} className="-mx-4 md:-mx-6 mb-2 [&_.rounded-2xl]:rounded-none [&_.border]:border-x-0">
             <ProgressCarousel slides={carouselSlides} />
-          </div>
+          </motion.div>
 
           {/* The 4 stat tiles (Streak / Workouts / Volume / Level) that
               used to sit here now live inside the "Advanced Analytics"
@@ -871,9 +920,9 @@ export default function Progress() {
           {/* "You usually train Mon · Wed · Fri at 6:30 PM" — a soft
               pattern-recognition insight. Renders nothing if there
               isn't enough data to call a pattern (see trainingPatterns.js). */}
-          <div className="mb-2 empty:hidden empty:mb-0">
+          <motion.div {...fadeUp(1)} className="mb-2 empty:hidden empty:mb-0">
             <TrainingPatternCard workoutLogs={logs} />
-          </div>
+          </motion.div>
 
           {/* ── The one 32px seam on this page. Above it is who you are
                 right now; below it is what you did and when. "Exactly one
@@ -889,20 +938,18 @@ export default function Progress() {
 
               Sits directly under the seam, above the period stats: it is
               the history the period below summarises. */}
-          <div className="mb-2 empty:hidden empty:mb-0">
+          <motion.div {...fadeUp(2)} className="mb-2 empty:hidden empty:mb-0">
             <WorkoutCalendarGrid
               logs={logs}
               onSelectDay={(log) => {
                 navigate('/workout', { state: { repeatFromLog: log } });
               }}
             />
-          </div>
+          </motion.div>
 
           {/* ── Frame Stats (rolling 7 / 30 / 365 days, or all time) ───── */}
           <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.18, type: 'spring', stiffness: 260, damping: 22 }}
+            {...fadeUp(3)}
             style={{ marginBottom: 'var(--fluid-section)' }}
           >
             {/* No shadow and no blur blob. "Resting = hairline border, no
@@ -931,7 +978,12 @@ export default function Progress() {
               {(frameLogs.length > 0 || frameCardioSessions > 0 || prevFrameWorkouts > 0 || prevFrameCardio > 0) && (
               <div className="grid grid-cols-3 gap-4 mb-4">
                 <div className="text-center">
-                  <p className="font-heading font-black text-2xl text-foreground">{frameLogs.length}</p>
+                  <p className="font-heading font-black text-2xl text-foreground tabular-nums">
+                    {/* Counts up on first paint and rolls between values when
+                        the timeframe toggle below changes, so switching
+                        week to month reads as the number moving. */}
+                    <AnimatedNumber value={frameLogs.length} animateOnMount duration={500} />
+                  </p>
                   <p className="text-micro text-muted-foreground mt-0.5">{tFallback('progress.frame.workouts', 'Workouts')}</p>
                   {(() => {
                     const d = countDelta(frameLogs.length, prevFrameWorkouts, tFallback);
@@ -940,7 +992,9 @@ export default function Progress() {
                 </div>
                 <div className="text-center">
                   <p className="font-heading font-black text-2xl text-foreground">
-                    {frameVolume > 0 ? formatBigNumber(Math.round(fromLbs(frameVolume, weightUnit))) : '—'}
+                    {frameVolume > 0
+                      ? <AnimatedNumber value={Math.round(fromLbs(frameVolume, weightUnit))} animateOnMount duration={500} format={(n) => formatBigNumber(Math.round(n))} />
+                      : '—'}
                   </p>
                   <p className="text-micro text-muted-foreground mt-0.5">{tFallback('progress.frame.volumeLifted', '{unit} lifted', { unit: weightUnit })}</p>
                   {volumeDelta !== null && (
@@ -954,7 +1008,11 @@ export default function Progress() {
                   )}
                 </div>
                 <div className="text-center">
-                  <p className="font-heading font-black text-2xl text-foreground">{frameCardioSessions || '—'}</p>
+                  <p className="font-heading font-black text-2xl text-foreground tabular-nums">
+                    {frameCardioSessions
+                      ? <AnimatedNumber value={frameCardioSessions} animateOnMount duration={500} />
+                      : '—'}
+                  </p>
                   <p className="text-micro text-muted-foreground mt-0.5">{tFallback('progress.frame.cardio', 'Cardio')}</p>
                   {(() => {
                     const d = countDelta(frameCardioSessions, prevFrameCardio, tFallback);
@@ -1023,7 +1081,7 @@ export default function Progress() {
                             onClick={() => setStatsFrame(f)}
                             className={`px-3 py-1 rounded-lg text-micro font-bold uppercase tracking-wider transition-all duration-150 ${
                               statsFrame === f
-                                ? 'bg-primary text-primary-foreground shadow-md scale-[1.04]'
+                                ? 'bg-foreground text-background shadow-md scale-[1.04]'
                                 : 'text-muted-foreground hover:text-foreground active:text-foreground hover:bg-secondary/80 active:bg-secondary/80'
                             }`}
                           >

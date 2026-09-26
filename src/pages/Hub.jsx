@@ -3,7 +3,7 @@
 // sub-view (own or someone else's). Marketplace, DMs, AI Coach, and the
 // Bag/Capsule flow were hoisted out to /market, /messages, /coach, and
 // the global ProfileMenu respectively.
-import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useUrlState } from '@/hooks/useUrlState';
 import { routerStateWithoutPayload } from '@/lib/goBack';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -280,64 +280,27 @@ export default function Hub() {
     window.history.replaceState(routerStateWithoutPayload(), document.title);
   }, [location.state]);
 
-  // The sub-header below is `fixed`, so it's out of flow and the page
-  // content has to reserve its height by hand. That used to be a hardcoded
-  // `pt-[120px]`, which was ~7px short of the header's real 127px on the
-  // feed section — enough to slice the top off the first row of content
-  // ("BUILD YOUR FEED" was bisected by the header's bottom border). And the
-  // header isn't even a fixed height: the sub-tabs only render on the feed
-  // section, and the title row swaps a 2xl heading for a small back button
-  // on profile, so no single constant can be right everywhere.
-  //
-  // Measure it instead. The header is `fixed`, so its bottom is already in
-  // viewport coordinates and constant; the wrapper's rect is viewport-
-  // relative too, so we add scrollY to pin it to the document and keep the
-  // result scroll-invariant. The wrapper's own top edge doesn't move when
-  // its padding-top changes, so this settles in one pass.
-  const contentRef   = useRef(null);
-  const subHeaderRef = useRef(null);
-  const [contentPadTop, setContentPadTop] = useState(120);
-  useLayoutEffect(() => {
-    const measure = () => {
-      const header = subHeaderRef.current;
-      const content = contentRef.current;
-      if (!header || !content) return;
-      const GAP = 12; // breathing room so text never kisses the border
-      const contentTopInDoc = content.getBoundingClientRect().top + window.scrollY;
-      const next = Math.round(
-        header.getBoundingClientRect().bottom - contentTopInDoc + GAP
-      );
-      // Guard against a transient 0-height measurement during mount.
-      if (next > 0) setContentPadTop((prev) => (prev === next ? prev : next));
-    };
-    measure();
-    const ro = new ResizeObserver(measure);
-    if (subHeaderRef.current) ro.observe(subHeaderRef.current);
-    window.addEventListener('resize', measure);
-    return () => {
-      ro.disconnect();
-      window.removeEventListener('resize', measure);
-    };
-  }, [section, feedTab]);
+  // The sub-header used to be `fixed`, which meant the content had to
+  // reserve its height by measuring it (a hardcoded pt-[120px] sliced the
+  // first row). It measured 123px under a 57px app header, 180px pinned in
+  // all, and on a 375x667 iPhone SE not one feed post was visible on first
+  // paint. Now only the tab row is pinned (`sticky`, about 60px); the title
+  // row sits in flow and scrolls away with the page, so there is nothing to
+  // measure and no padding to keep in sync.
 
   return (
     <ErrorBoundary label="Hub">
-    <div
-      ref={contentRef}
-      style={{ paddingTop: contentPadTop }}
-      className="px-4 md:px-6 lg:pb-6 max-w-3xl mx-auto"
-    >
+    <div className="px-4 md:px-6 pt-1 lg:pb-6 max-w-3xl mx-auto">
       {/* Fixed Hub sub-header */}
       {/* `lg:start-64` pinned this 256px from the MONITOR's edge, not from the
           shell's — so past --shell-max the bar started ~270px left of the
           sidebar and ran to the far right bezel, a full-width band under a
           centred app. Both edges now track the shell. Unchanged below the cap,
           where the vars are 0 and --shell-content-start IS 16rem. */}
-      <div ref={subHeaderRef} className="fixed start-0 end-0 z-20 bg-background/95 backdrop-blur-md border-b border-border top-[calc(56px+env(safe-area-inset-top))] lg:top-[env(safe-area-inset-top)] lg:start-[var(--shell-content-start)] lg:end-[var(--shell-inset)]">
-        <div className="max-w-3xl mx-auto px-4 md:px-6 pt-3 pb-3">
+      <div>
 
           {/* Title row */}
-          <div className="mb-3 flex items-center justify-between gap-2 lg:grid lg:grid-cols-[1fr_auto_1fr]">
+          <div className="mb-1 flex items-center justify-between gap-2 lg:grid lg:grid-cols-[1fr_auto_1fr]">
             <div className="lg:col-start-2 lg:justify-self-center">
               {section === 'feed' ? (
                 <button
@@ -427,12 +390,17 @@ export default function Hub() {
           </div>
 
           {/* Feed sub-tabs — Pump | Squad | Crews | Compete */}
+          {/* The only pinned row. Solid bg-background, no backdrop-blur:
+              blur is one of the generated-UI tells CLAUDE.md bans, and a
+              solid bar reads the same over a scrolling feed. -mx/px bleed
+              the bar to the column edges so posts do not show beside it. */}
           {section === 'feed' && (
+            <div className="sticky top-[calc(56px+env(safe-area-inset-top))] lg:top-[env(safe-area-inset-top)] z-20 -mx-4 md:-mx-6 px-4 md:px-6 py-1.5 mb-3 bg-background border-b border-border">
             <div className="flex gap-1 p-1 bg-secondary rounded-lg border border-border">
               <button
                 type="button"
                 onClick={() => goToTab('pump')}
-                className={`flex-1 flex items-center justify-center gap-1 py-2 text-xs font-medium rounded-md transition-colors ${
+                className={`flex-1 min-h-11 flex items-center justify-center gap-1 py-2 text-xs font-medium rounded-md transition-colors ${
                   feedTab === 'pump'
                     ? 'bg-card text-foreground shadow-sm'
                     : 'text-secondary-foreground/70 hover:text-secondary-foreground active:text-secondary-foreground'
@@ -444,7 +412,7 @@ export default function Hub() {
               <button
                 type="button"
                 onClick={() => goToTab('squad')}
-                className={`flex-1 flex items-center justify-center gap-1 py-2 text-xs font-medium rounded-md transition-colors ${
+                className={`flex-1 min-h-11 flex items-center justify-center gap-1 py-2 text-xs font-medium rounded-md transition-colors ${
                   feedTab === 'squad'
                     ? 'bg-card text-foreground shadow-sm'
                     : 'text-secondary-foreground/70 hover:text-secondary-foreground active:text-secondary-foreground'
@@ -456,7 +424,7 @@ export default function Hub() {
               <button
                 type="button"
                 onClick={() => goToTab('crews')}
-                className={`flex-1 flex items-center justify-center gap-1 py-2 text-xs font-medium rounded-md transition-colors ${
+                className={`flex-1 min-h-11 flex items-center justify-center gap-1 py-2 text-xs font-medium rounded-md transition-colors ${
                   feedTab === 'crews'
                     ? 'bg-card text-foreground shadow-sm'
                     : 'text-secondary-foreground/70 hover:text-secondary-foreground active:text-secondary-foreground'
@@ -468,7 +436,7 @@ export default function Hub() {
               <button
                 type="button"
                 onClick={() => goToTab('compete')}
-                className={`flex-1 flex items-center justify-center gap-1 py-2 text-xs font-medium rounded-md transition-colors ${
+                className={`flex-1 min-h-11 flex items-center justify-center gap-1 py-2 text-xs font-medium rounded-md transition-colors ${
                   feedTab === 'compete'
                     ? 'bg-card text-foreground shadow-sm'
                     : 'text-secondary-foreground/70 hover:text-secondary-foreground active:text-secondary-foreground'
@@ -478,8 +446,8 @@ export default function Hub() {
                 {tFallback('hub.feed.compete', 'Compete')}
               </button>
             </div>
+            </div>
           )}
-        </div>
       </div>
 
       {/* Live activity banner — ephemeral "X just posted" tickers

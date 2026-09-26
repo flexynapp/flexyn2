@@ -223,11 +223,34 @@ export default function NearbyGymPicker({
     if (knownFix) {
       runAt(knownFix.lat, knownFix.lng);
     } else {
-      navigator.geolocation.getCurrentPosition(
+      const ask = () => navigator.geolocation.getCurrentPosition(
         (pos) => runAt(pos.coords.latitude, pos.coords.longitude),
         () => setStatus('denied'),
         { timeout: 8_000, maximumAge: 600_000 },
       );
+      // A permission the user already refused is known up front, so say
+      // "Location is off" now instead of spinning "Finding gyms" until the
+      // request gives up. The Permissions API is missing on older Safari and
+      // can reject; either way fall through to asking, whose error callback
+      // is the same answer, just later.
+      let query = null;
+      try {
+        query = navigator.permissions?.query?.({ name: 'geolocation' }) ?? null;
+      } catch {
+        query = null;
+      }
+      if (query && typeof query.then === 'function') {
+        query.then(
+          (perm) => {
+            if (ac.signal.aborted) return;
+            if (perm?.state === 'denied') setStatus('denied');
+            else ask();
+          },
+          () => { if (!ac.signal.aborted) ask(); },
+        );
+      } else {
+        ask();
+      }
     }
     return () => ac.abort();
   }, []);
@@ -268,7 +291,7 @@ export default function NearbyGymPicker({
     return (
       <div className="flex flex-col items-center justify-center gap-3 py-12 text-center">
         <div className="w-6 h-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-        <p className="text-sm text-muted-foreground">Finding gyms near you…</p>
+        <p className="text-sm text-muted-foreground">{tFallback('nearbyGymPicker.finding', 'Finding gyms near you…')}</p>
       </div>
     );
   }
@@ -283,12 +306,14 @@ export default function NearbyGymPicker({
     return (
       <div className="py-4 text-center">
         <p className="text-sm font-semibold mb-1">
-          {status === 'denied' ? 'Location is off' : "Couldn't load gyms"}
+          {status === 'denied'
+            ? tFallback('nearbyGymPicker.locationOff', 'Location is off')
+            : tFallback('nearbyGymPicker.loadFailed', "Couldn't load gyms")}
         </p>
         <p className="text-xs text-muted-foreground mb-3">
           {status === 'denied'
-            ? 'We need your location to find gyms near you. Turn it on and retry, or pick your gym from the map instead.'
-            : 'The gym directory did not respond. Retry, or pick your gym from the map instead.'}
+            ? tFallback('nearbyGymPicker.locationOffBody', 'We need your location to find gyms near you. Turn it on and retry, or pick your gym from the map instead.')
+            : tFallback('nearbyGymPicker.loadFailedBody', 'The gym directory did not respond. Retry, or pick your gym from the map instead.')}
         </p>
         {/* `onClick={load}` handed React's click event straight to the
             radius argument. `lat - <SyntheticEvent>` is NaN, so Retry

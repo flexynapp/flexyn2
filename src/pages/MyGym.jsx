@@ -699,8 +699,9 @@ export default function MyGym() {
         className="mt-6 w-full rounded-2xl border border-dashed border-border bg-card hover:bg-secondary/30 active:bg-secondary/30 transition-colors p-4 text-start"
       >
         <div className="flex items-center gap-2">
-          <div className="w-10 h-10 rounded-lg bg-violet-500/10 flex items-center justify-center shrink-0">
-            <Building2 className="w-5 h-5 text-violet-500" />
+          {/* Neutral tile: it was violet, and purple is reserved for rarity. */}
+          <div className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center shrink-0">
+            <Building2 className="w-5 h-5 text-foreground" aria-hidden="true" />
           </div>
           <div className="flex-1 min-w-0 ms-2">
             <p className="font-heading font-bold text-sm">{tFallback("myGym.ownAGym", "Own a gym?")}</p>

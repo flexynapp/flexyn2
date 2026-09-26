@@ -12,7 +12,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Sparkles, Loader2, Check } from 'lucide-react';
+import { Gift, Loader2, Check } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { BRANDED_ITEMS, getDailyDrop } from '@/lib/lootCatalog';
 import { rarityTint, COIN } from '@/components/loot/RarityVisuals';
@@ -115,12 +115,15 @@ export default function DailyFlexynDrop() {
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-      className="mb-4 rounded-2xl border border-primary/25 bg-gradient-to-br from-primary/10 via-orange-500/5 to-amber-500/5 p-3 md:p-4 relative overflow-hidden"
+      // Flat card, hairline border. It wore a primary to amber gradient, which
+      // is decoration, and its Sparkles icon is reserved for the AI Coach.
+      // Rarity still reads, from each tile's ring and tier label.
+      className="mb-4 rounded-2xl border border-border bg-card p-3 md:p-4 relative overflow-hidden"
     >
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-primary/15 flex items-center justify-center">
-            <Sparkles className="w-3.5 h-3.5 text-primary" />
+          <div className="w-7 h-7 rounded-lg bg-secondary flex items-center justify-center">
+            <Gift className="w-3.5 h-3.5 text-foreground" aria-hidden="true" />
           </div>
           <div>
             <p className="font-heading font-bold text-sm leading-none">{tFallback("dailyFlexynDrop.todaySFlexynDrop", "Today's Flexyn Drop")}</p>
@@ -138,10 +141,9 @@ export default function DailyFlexynDrop() {
             <div
               key={item.id}
               className="relative rounded-xl bg-card ring-1 p-2.5 flex flex-col items-center text-center"
-              style={{
-                backgroundImage: `linear-gradient(to bottom right, ${tint.surface}, transparent)`,
-                '--tw-ring-color': tint.ring,
-              }}
+              // The ring is the rarity tier, which is what purple is for. The
+              // tinted gradient that used to fill the tile was decoration.
+              style={{ '--tw-ring-color': tint.ring }}
             >
               <span className="text-3xl leading-none mb-1.5" aria-hidden="true">{item.emoji}</span>
               <p className="font-heading font-bold text-micro leading-tight line-clamp-2 h-7">
@@ -157,10 +159,12 @@ export default function DailyFlexynDrop() {
                 type="button"
                 onClick={() => buy(item)}
                 disabled={busy || owned}
-                className={`mt-2 w-full inline-flex items-center justify-center gap-1 px-2 py-1 rounded-md text-micro font-bold transition-colors ${
+                // Outline, not --primary: three price buttons side by side
+                // were three orange controls on a page that gets one.
+                className={`mt-2 w-full inline-flex items-center justify-center gap-1 px-2 py-1 rounded-md border text-micro font-bold transition-colors ${
                   owned
-                    ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 cursor-default'
-                    : 'bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50'
+                    ? 'border-transparent bg-success/15 text-success cursor-default'
+                    : 'border-border bg-background text-foreground hover:bg-secondary active:bg-secondary disabled:opacity-50'
                 }`}
               >
                 {owned

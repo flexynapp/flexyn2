@@ -25,6 +25,7 @@ import CoinShopModal from '@/components/hub/CoinShopModal';
 import RecentlyViewedRail from '@/components/hub/RecentlyViewedRail';
 import MarketplaceHeader from './MarketplaceHeader';
 import TodayRail from './TodayRail';
+import { isDailyChestClaimedLocally } from './dailyChest';
 import MarketFilterBar, { DEFAULT_FILTERS, applyFilters, activeFilterCount } from './MarketFilterBar';
 import ListingCard from './ListingCard';
 import BundleCard, { bundlePrice } from './BundleCard';
@@ -77,6 +78,14 @@ const SORT_TO_QUERY = {
 export default function MarketplaceFeed() {
   const { tFallback } = useLanguage();
   const { user } = useAuth();
+  // One orange control per screen. While today's Daily Chest is unclaimed,
+  // Claim is the Market's acting button and List Item steps down to an
+  // outline; once it is claimed (or there is no chest to claim) List Item
+  // takes the primary back. The local hint is the same one the chest itself
+  // reads on cold load, and the chest reports when a claim settles.
+  const [chestClaimed, setChestClaimed] = useState(() => {
+    try { return isDailyChestClaimedLocally(user?.id); } catch { return false; }
+  });
   const qc       = useQueryClient();
   const navigate = useNavigate();
 
@@ -798,10 +807,12 @@ export default function MarketplaceFeed() {
         onList={() => setShowListDialog(true)}
         onOpenTradeHistory={() => navigate('/market/trades')}
         listableCount={listableCount}
+        listIsPrimary={!user || chestClaimed}
       />
 
       <TodayRail
         user={user}
+        onClaimedState={() => setChestClaimed(true)}
         onClaimed={() => {
           // The chest pays coins, so the balance has to move — this used to
           // invalidate only ['userProfile'], which nothing on this screen

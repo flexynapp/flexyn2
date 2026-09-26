@@ -20,6 +20,7 @@
 
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
+import useCountUp from '@/hooks/useCountUp';
 import { motion } from 'framer-motion';
 import { Moon, Smile, Footprints, Star, ChevronRight } from 'lucide-react';
 import { Card } from '@/components/ui/card';
@@ -41,7 +42,7 @@ function Column({ icon: Icon, iconClass, label, value, logged, onClick, ariaLabe
       type="button"
       onClick={onClick}
       aria-label={ariaLabel}
-      className="flex-1 min-w-0 px-3 py-1 text-start rounded-sm hover:bg-secondary/40 active:bg-secondary/60 transition-colors"
+      className="flex-1 min-w-0 px-3 py-1 text-start rounded-sm hover:bg-secondary/40 active:bg-secondary/60 active:scale-[0.98] motion-reduce:active:scale-100 transition-[background-color,transform] duration-150"
     >
       <span className="flex items-center gap-1.5 mb-1.5 text-muted-foreground">
         <Icon className={`w-3 h-3 shrink-0 ${iconClass}`} aria-hidden="true" />
@@ -83,6 +84,11 @@ export default function TonightRow({ readiness, onOpen }) {
   const quality = readiness?.sleep?.quality ?? null;
   const mood = readiness?.mood?.mood ?? null;
   const steps = stepLog?.steps ?? null;
+  // Count the steps up and drive the bar from the SAME tweened value, so the
+  // figure and the fill arrive together rather than the bar snapping while
+  // the number is still rolling. null passes through untouched, which keeps
+  // "no entry" distinct from zero. Reduced motion returns `steps` as is.
+  const countedSteps = useCountUp(steps, { duration: 700 });
 
   // An unlogged column says what tapping does rather than showing a dash.
   const add = tFallback('dashboard.tonight.add', 'Add');
@@ -186,7 +192,7 @@ export default function TonightRow({ readiness, onOpen }) {
           icon={Footprints}
           iconClass="text-success"
           label={tFallback('dashboard.tonight.steps', 'STEPS')}
-          value={steps != null ? fmt(steps) : add}
+          value={steps != null ? fmt(Math.round(countedSteps ?? steps)) : add}
           logged={steps != null}
           onClick={() => onOpen('steps')}
           ariaLabel={steps != null
@@ -196,7 +202,7 @@ export default function TonightRow({ readiness, onOpen }) {
           <span className="block w-full h-1 rounded-full bg-foreground/10 overflow-hidden">
             <span
               className="block h-full rounded-full bg-success"
-              style={{ width: `${Math.min(100, ((steps || 0) / STEP_REFERENCE) * 100)}%` }}
+              style={{ width: `${Math.min(100, ((countedSteps || 0) / STEP_REFERENCE) * 100)}%` }}
             />
           </span>
         </Column>

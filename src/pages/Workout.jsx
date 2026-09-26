@@ -111,8 +111,10 @@ const CrewWarsMenu         = lazy(() => import('@/components/crews/CrewWarsMenu'
 
 // The Workout hero's destinations. HeroPager keys its pages off `id`
 // and paints its dots from `color`, so both live here rather than inside the
-// slide bodies. `color` is an HSL triple the pager drops into `hsl(...)` —
-// the gauntlet's purple is the same 139,92,246 its gradient uses, converted.
+// slide bodies. `color` is an HSL triple the pager drops into `hsl(...)`.
+// The gauntlet was purple (258 90% 66%), a leftover from the gradient its
+// slide used to wear; purple is reserved for rarity tiers, so it takes the
+// primary like the freestyle slide.
 //
 // Crew Wars is CONDITIONAL: a user who is not in a crew cannot be in a crew
 // war, so the slide is not rendered for them and the dots count two. The
@@ -121,7 +123,7 @@ const CrewWarsMenu         = lazy(() => import('@/components/crews/CrewWarsMenu'
 // third page would leave a blank slide in the rotation.
 const HERO_SLIDES_BASE = [
   { id: 'freestyle', color: 'var(--primary)' },
-  { id: 'gauntlet',  color: '258 90% 66%' },
+  { id: 'gauntlet',  color: 'var(--primary)' },
 ];
 const HERO_SLIDE_CREW = { id: 'crew-wars', color: 'var(--success)' };
 

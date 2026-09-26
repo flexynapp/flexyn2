@@ -33,7 +33,7 @@ import * as storiesData from '@/lib/data/stories';
 import * as statusNotesData from '@/lib/data/statusNotes';
 import * as crewsData from '@/lib/data/crews';
 import { isVerified } from '@/lib/verifiedUsers';
-import { orderStoryGroups } from '@/lib/storiesRowVisibility';
+import { rowStoryGroups } from '@/lib/storiesRowVisibility';
 import StoryViewer from './StoryViewer';
 import StoryPreviewSheet from './StoryPreviewSheet';
 import StatusNoteEditor from './StatusNoteEditor';
@@ -664,7 +664,9 @@ export default function StoriesRow({ onViewProfile } = {}) {
   // visible, so the two lists stay in agreement.
   // Every followed friend stays in the row; ordering, not hiding, keeps the
   // posters at the front. See orderStoryGroups for why this reversed.
-  const visibleGroups = orderStoryGroups(groups);
+  // Anonymous placeholders (no name, no picture, nothing posted) are the one
+  // exception; see rowStoryGroups.
+  const visibleGroups = rowStoryGroups(groups);
 
   const showQuickAdd = !qaDismissed && qaHadItems;
 
