@@ -3,7 +3,7 @@
 // carousel, multi-select goals, experience level, stat scrubbers,
 // schedule picker, loading animation, and personalised reveal.
 
-import { createContext, useContext, useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo, lazy, Suspense } from 'react';
+import { Fragment, createContext, useContext, useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import SignInToContinue from './SignInToContinue';
 import FlexynLogo from '@/components/FlexynLogo';
@@ -480,13 +480,19 @@ function KineticHeading({ text, accentWord }) {
     <div className="mb-2">
       <h1 className="font-heading font-bold leading-[1.05] tracking-tight text-foreground m-0"
         style={{ fontSize: 'var(--fluid-heading)' }}>
+        {/* A real space between the word spans, not a margin: with only a
+            margin the heading's text was "Whatareyouherefor?", which is what
+            screen readers and copy and paste got. */}
         {words.map((w, i) => (
-          <motion.span key={i} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.08 + i * 0.06, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-            className="inline-block me-2"
-            style={{ color: isAccent(w, accentWord) ? 'hsl(var(--primary))' : undefined }}>
-            {w}
-          </motion.span>
+          <Fragment key={i}>
+            {i > 0 && ' '}
+            <motion.span initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.08 + i * 0.06, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+              className="inline-block"
+              style={{ color: isAccent(w, accentWord) ? 'hsl(var(--primary))' : undefined }}>
+              {w}
+            </motion.span>
+          </Fragment>
         ))}
       </h1>
     </div>
@@ -796,15 +802,21 @@ function WelcomeStep({ onNext, onSignIn }) {
       <div className="shrink-0">
         <h1 className="font-heading font-bold text-[44px] leading-[0.97] tracking-[-0.045em] text-foreground m-0">
           {line1.map((w, i) => (
-            <motion.span key={`l1-${i}`} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: (delay += 0.1) - 0.1, duration: 0.55, ease: [0.16,1,0.3,1] }}
-              className="inline-block me-3">{w}</motion.span>
+            <Fragment key={`l1-${i}`}>
+              {i > 0 && ' '}
+              <motion.span initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: (delay += 0.1) - 0.1, duration: 0.55, ease: [0.16,1,0.3,1] }}
+                className="inline-block">{w}</motion.span>
+            </Fragment>
           ))}
-          <br />
+          {' '}<br />
           {line2.map((w, i) => (
-            <motion.span key={`l2-${i}`} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: (delay += 0.1) - 0.1, duration: 0.55, ease: [0.16,1,0.3,1] }}
-              className={`inline-block me-3 ${isAccent(w, accent) ? 'text-primary' : ''}`}>{w}</motion.span>
+            <Fragment key={`l2-${i}`}>
+              {i > 0 && ' '}
+              <motion.span initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: (delay += 0.1) - 0.1, duration: 0.55, ease: [0.16,1,0.3,1] }}
+                className={`inline-block ${isAccent(w, accent) ? 'text-primary' : ''}`}>{w}</motion.span>
+            </Fragment>
           ))}
         </h1>
       </div>
@@ -3203,8 +3215,10 @@ function RevealStep({ data, onNext, saving = false, previewRegimen = null, coach
               'onboarding.reveal.summary',
               // Plural — "for a {level} lifter" rendered "for a advanced
               // lifter" on the payoff screen. See the key in
-              // `src/locales/*.json`. (Onboarding polish #2)
-              'A {weeks}-week {goal}{extra} block, dialled in for {level} lifters on {days} days.',
+              // `src/locales/*.json`. (Onboarding polish #2) "Your" rather
+              // than "A" because the article depends on the number: it read
+              // "A 8-week" for the eight week block.
+              'Your {weeks}-week {goal}{extra} block, dialled in for {level} lifters on {days} days.',
             ),
             {
               weeks: <span className="text-primary">{weeks}</span>,
@@ -4026,7 +4040,7 @@ export default function Onboarding() {
       <SignInToContinue
         onBack={() => setShowSignIn(false)}
         heading="Let's get you set up"
-        subtext="Create an account or sign in — it saves your plan and syncs your progress across devices."
+        subtext="Create an account or sign in. It saves your plan and syncs your progress across devices."
       />
     );
   }

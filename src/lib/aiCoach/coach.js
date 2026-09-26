@@ -156,7 +156,7 @@ export const SUGGESTED_PROMPTS = [
   { id: 'what_to_train',  text: 'What should I train today?' },
   { id: 'progress',       text: 'How am I doing this week?' },
   { id: 'should_inc',     text: 'Should I increase my squat weight?' },
-  { id: 'sore',           text: "I'm sore — what now?" },
+  { id: 'sore',           text: "I'm sore. What now?" },
   { id: 'weak',           text: 'What muscles am I neglecting?' },
   { id: 'prs',            text: 'What are my PRs?' },
 ];

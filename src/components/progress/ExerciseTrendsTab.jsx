@@ -258,10 +258,10 @@ export default function ExerciseTrendsTab({ logs, frame }) {
             <p className="text-sm text-muted-foreground mt-2 max-w-xs mx-auto">{t('progress.noExerciseDataDesc')}</p>
             <div className="mt-4 p-4 bg-secondary rounded-xl text-start text-sm text-muted-foreground max-w-xs mx-auto space-y-1.5">
               <p className="font-medium text-foreground mb-2">{t('progress.howToLog')}</p>
-              <p>1. {t('progress.howToLog.step1').split('{workout}')[0]}<span className="text-primary font-medium">{t('nav.workout')}</span>{t('progress.howToLog.step1').split('{workout}')[1]}</p>
+              <p>1. {t('progress.howToLog.step1').split('{workout}')[0]}<span className="text-primary font-medium">{t('nav.train')}</span>{t('progress.howToLog.step1').split('{workout}')[1]}</p>
               <p>2. {t('progress.howToLog.step2')}</p>
               <p>3. {t('progress.howToLog.step3')}</p>
-              <p>4. {t('progress.howToLog.step4').split('{save}')[0]}<span className="text-primary font-medium">{t('workout.saveWorkout')}</span>{t('progress.howToLog.step4').split('{save}')[1]}</p>
+              <p>4. {t('progress.howToLog.step4').split('{save}')[0]}<span className="text-primary font-medium">{t('workout.finish')}</span>{t('progress.howToLog.step4').split('{save}')[1]}</p>
             </div>
           </Card>
         )

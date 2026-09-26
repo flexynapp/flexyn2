@@ -267,11 +267,14 @@ function WorkoutBlock({ snap }) {
       <h4 className="font-heading font-bold text-base mb-2">
         {snap.regimen_name || t('hub.share.freestyle')}
       </h4>
-      <div className="grid grid-cols-3 gap-2 mb-3">
+      {/* A bodyweight session has no volume; "0 lbs" read as a failure. */}
+      <div className={`grid ${volumeLbs > 0 ? 'grid-cols-3' : 'grid-cols-2'} gap-2 mb-3`}>
         <Stat icon={ListChecks} label={t('hub.activity.exercises')} value={exCount} />
         <Stat icon={Zap}        label={t('hub.activity.sets')}      value={setCount} />
-        <Stat icon={Dumbbell}   label={t('hub.activity.volume')}
-              value={`${fmt(Math.round(fromLbs(volumeLbs, weightUnit)))} ${weightUnit}`} />
+        {volumeLbs > 0 && (
+          <Stat icon={Dumbbell}   label={t('hub.activity.volume')}
+                value={`${fmt(Math.round(fromLbs(volumeLbs, weightUnit)))} ${weightUnit}`} />
+        )}
       </div>
       {exCount > 0 && (
         <ul className="space-y-1">
@@ -518,7 +521,10 @@ function Stat({ icon: Icon, label, value, bgColor, textColor }) {
     <div className={`${bgColor || 'bg-card'} rounded-lg p-2 border ${bgColor ? 'border-current/20' : 'border-border/50'}`}>
       <div className="flex items-center gap-1 mb-0.5">
         {Icon && <Icon className="w-3 h-3 text-muted-foreground" />}
-        <span className="text-micro text-muted-foreground uppercase tracking-wider truncate">{label}</span>
+        {/* Sentence case, not spaced capitals: in the four-up meal row and
+            the three-up workout row at 390px, "CALORIES" and "EXERCISES"
+            truncated to "CALORI…" and "EXERCIS…". */}
+        <span className="min-w-0 text-micro text-muted-foreground truncate">{label}</span>
       </div>
       <p className={`font-heading font-bold text-sm leading-tight ${textColor || ''}`}>{value}</p>
     </div>

@@ -901,7 +901,10 @@ export default function StoriesRow({ onViewProfile } = {}) {
               </span>
             </span>
             <span className="text-micro font-semibold text-muted-foreground max-w-[64px] truncate">
-              {tFallback('stories.addShort', 'Your story')}
+              {/* "Add", not "Your story": your own circle sits right beside
+                  this one with that label, so the row read "Your story
+                  Your story". */}
+              {tFallback('stories.addShort', 'Add')}
             </span>
           </button>
 
