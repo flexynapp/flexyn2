@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform, animate } from 'framer-motion';
-import { Flame, Gauge, MessageCircle, Trash2, MoreHorizontal } from 'lucide-react';
+import { Flame, Gauge, MessageCircle, Trash2, MoreHorizontal, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { toast } from '@/lib/toast';
 import { getMaxRealisticWeight, getMaxRealisticReps } from '@/lib/realisticLimits';
@@ -422,9 +422,9 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
           warmup/failed/feel/RPE controls live behind the ⋯ drawer. */}
       {!moreOpen && (set.is_warmup || set.is_failed || hasFeelData || hasEffortData) && (
         <div className="flex items-center gap-1 shrink-0">
-          {set.is_warmup && <TagDot className="bg-primary/15 text-primary"><Flame className="w-3 h-3" /></TagDot>}
+          {set.is_warmup && <TagDot className="bg-secondary text-foreground"><Flame className="w-3 h-3" /></TagDot>}
           {set.is_failed && <TagDot className="bg-destructive/15 text-destructive text-micro font-extrabold">✗</TagDot>}
-          {hasFeelData && <TagDot className="bg-primary/15 text-primary text-xs">{set.feel_emoji || <MessageCircle className="w-3 h-3" />}</TagDot>}
+          {hasFeelData && <TagDot className="bg-secondary text-foreground text-xs">{set.feel_emoji || <MessageCircle className="w-3 h-3" />}</TagDot>}
           {hasEffortData && <TagDot className="bg-info/15 text-info text-micro font-bold">{set.rpe != null ? set.rpe : set.rir}</TagDot>}
         </div>
       )}
@@ -435,7 +435,9 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
         aria-label={tFallback("setRow.moreSetOptions", "More set options")}
         aria-expanded={moreOpen}
         className={[
-          'h-11 w-7 rounded-lg flex items-center justify-center shrink-0 transition-colors',
+          // 36px to look at, 44px to hit: the ::after reaches 4px either
+          // side, exactly the row's gap-1, so it never covers ✓ or reps.
+          "relative h-11 w-9 rounded-lg flex items-center justify-center shrink-0 transition-colors after:absolute after:inset-y-0 after:-inset-x-1 after:content-['']",
           moreOpen ? 'bg-secondary text-foreground' : 'text-muted-foreground/50 hover:text-foreground active:text-foreground hover:bg-secondary active:bg-secondary',
         ].join(' ')}
       >
@@ -479,8 +481,7 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
     </motion.div>
     </div>
 
-    {/* Secondary tag drawer — the relocated warmup/failed/feel/RPE/delete
-        controls, now labeled so the standalone icon legend isn't needed. */}
+    {/* Secondary tag drawer: warmup / failed / feel / RPE toggles and Delete. */}
     <AnimatePresence initial={false}>
       {moreOpen && (
         <motion.div
@@ -490,19 +491,28 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
           transition={{ duration: 0.18 }}
           style={{ overflow: 'hidden' }}
         >
-          <div className="flex flex-wrap items-center gap-1.5 mt-2 ps-8 pe-1">
-            <TagButton active={!!set.is_warmup} onClick={() => onChange({ ...set, is_warmup: !set.is_warmup })} activeCls="bg-primary/15 text-primary" icon={<Flame className="w-3.5 h-3.5" />} label="Warmup" />
-            <TagButton active={!!set.is_failed} onClick={() => onChange({ ...set, is_failed: !set.is_failed })} activeCls="bg-destructive/15 text-destructive" icon={<span className="text-xs font-extrabold leading-none">✗</span>} label="Failed" />
-            <TagButton active={hasFeelData} onClick={() => setFeelOpen(o => !o)} activeCls="bg-primary/15 text-primary" icon={set.feel_emoji ? <span className="text-sm leading-none">{set.feel_emoji}</span> : <MessageCircle className="w-3.5 h-3.5" />} label="Feel" />
-            <TagButton active={hasEffortData} onClick={() => setEffortOpen(o => !o)} activeCls="bg-info/15 text-info" icon={<Gauge className="w-3.5 h-3.5" />} label="RPE" />
-            <button
-              type="button"
-              onClick={onRemove}
-              className="h-8 px-2.5 ms-auto rounded-lg flex items-center gap-1.5 text-xs font-semibold text-destructive hover:bg-destructive/10 active:bg-destructive/10 transition-colors shrink-0"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              {tFallback('setRow.deleteSet', 'Delete set')}
-            </button>
+          {/* Two columns of labelled toggles, then Delete on its own row.
+              A single row of five did not fit a phone: at 375px RPE was
+              clipped and the delete sat off screen. Every control is 44px
+              tall, icons are one muted 16px column, and only Delete takes
+              a colour, the destructive one, as in ExerciseActionsMenu. */}
+          <div className="mt-1 px-1 pb-1">
+            <div className="grid grid-cols-2 gap-1">
+              <TagButton active={!!set.is_warmup} onClick={() => onChange({ ...set, is_warmup: !set.is_warmup })} icon={<Flame />} label={tFallback('setRow.warmup', 'Warmup')} />
+              <TagButton active={!!set.is_failed} onClick={() => onChange({ ...set, is_failed: !set.is_failed })} icon={<X />} label={tFallback('setRow.failed', 'Failed')} />
+              <TagButton active={feelOpen || hasFeelData} onClick={() => setFeelOpen(o => !o)} icon={set.feel_emoji ? <span className="text-base leading-none">{set.feel_emoji}</span> : <MessageCircle />} label={tFallback('setRow.feel', 'Feel')} />
+              <TagButton active={effortOpen || hasEffortData} onClick={() => setEffortOpen(o => !o)} icon={<Gauge />} label="RPE" />
+            </div>
+            <div className="mt-1 pt-1 border-t border-border">
+              <button
+                type="button"
+                onClick={onRemove}
+                className="w-full min-h-11 gap-3 px-3 rounded-lg flex items-center text-sm font-medium text-destructive hover:bg-destructive/10 active:bg-destructive/10 transition-colors [&>svg]:size-4 [&>svg]:shrink-0"
+              >
+                <Trash2 aria-hidden="true" />
+                {tFallback('setRow.deleteSet', 'Delete set')}
+              </button>
+            </div>
           </div>
         </motion.div>
       )}
@@ -580,7 +590,7 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
                 onChange({ ...set, feel_emoji: set.feel_emoji === em ? null : em })
               }
               className={`text-base px-1 py-0.5 rounded transition-colors ${
-                set.feel_emoji === em ? 'bg-primary/20' : 'opacity-60 hover:opacity-100'
+                set.feel_emoji === em ? 'bg-secondary' : 'opacity-60 hover:opacity-100'
               }`}
               aria-label={`Feel ${em}`}
               aria-pressed={set.feel_emoji === em}
@@ -645,21 +655,25 @@ function TagDot({ className = '', children }) {
   );
 }
 
-// Labeled toggle inside the ⋯ drawer — the label removes the need for a
-// separate icon legend.
-function TagButton({ active, onClick, activeCls, icon, label }) {
+// Labelled toggle inside the ⋯ drawer. Neutral at rest (hairline, label in
+// the foreground, icon muted); pressed fills with the secondary surface and
+// lifts the icon to the foreground. No hue: orange belongs to the one acting
+// button on the screen, and a tag is not that.
+function TagButton({ active, onClick, icon, label }) {
   return (
     <button
       type="button"
       onClick={onClick}
       aria-pressed={active}
       className={[
-        'h-8 px-2.5 rounded-lg flex items-center gap-1.5 text-xs font-semibold transition-colors shrink-0',
-        active ? activeCls : 'text-muted-foreground hover:text-foreground active:text-foreground hover:bg-secondary active:bg-secondary',
+        'min-h-11 min-w-0 gap-3 px-3 rounded-lg border flex items-center text-start text-sm leading-tight transition-colors',
+        active
+          ? 'bg-secondary border-foreground/25 text-foreground font-semibold [&_svg]:text-foreground'
+          : 'border-border text-foreground font-medium hover:bg-secondary active:bg-secondary [&_svg]:text-muted-foreground',
       ].join(' ')}
     >
-      <span className="flex items-center justify-center w-4 h-4">{icon}</span>
-      {label}
+      <span aria-hidden="true" className="flex items-center justify-center size-4 shrink-0 [&_svg]:size-4">{icon}</span>
+      <span className="min-w-0 break-words">{label}</span>
     </button>
   );
 }
