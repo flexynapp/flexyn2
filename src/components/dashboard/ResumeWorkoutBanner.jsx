@@ -24,6 +24,7 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { useWorkoutSessions } from '@/hooks/useWorkoutSessions';
 import { getDateLocale } from '@/lib/dateLocales';
 import { useAuth } from '@/lib/AuthContext';
+import { haptic } from '@/lib/haptic';
 
 const STALE_MS = 24 * 60 * 60 * 1000; // 24h
 
@@ -91,7 +92,9 @@ export default function ResumeWorkoutBanner() {
   const relative = formatDistanceToNow(new Date(session.pausedAt), { addSuffix: true, locale: dateLocale });
 
   const handleResume = () => {
-    try { navigator.vibrate?.(10); } catch { /* ignore */ }
+    // Through the shared helper so the Settings toggle and reduced motion
+    // are honoured; the raw navigator.vibrate call ignored both.
+    haptic('medium');
     // Workout.jsx detects the resumable session on mount by matching
     // activeSessionId — we pass the id via router state so it knows
     // which paused session to hydrate.
@@ -138,14 +141,23 @@ export default function ResumeWorkoutBanner() {
           if (e.target !== e.currentTarget) return;
           if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleResume(); }
         }}
-        className="flex items-center gap-3 p-3 mt-5 mb-3 rounded-lg border border-primary/30 bg-primary/10 cursor-pointer hover:border-primary/50 transition-colors"
+        // Neutral surface, not orange (2026-09-26). The hero's "Today" button
+        // directly below is the screen's one primary action, and an orange
+        // tinted resume card above it made two orange calls to act that
+        // competed for the same thumb. The card keeps every behaviour
+        // (tap to resume, x to discard) and says "Resume" in words; the
+        // colour belongs to the single action the page is built around.
+        // Rerouting the hero button to resume instead was the alternative,
+        // and it was rejected as the riskier change: it would hide the
+        // plan and freestyle starts behind a paused draft.
+        className="flex items-center gap-3 p-3 mt-5 mb-3 rounded-lg border border-border bg-card cursor-pointer hover:bg-secondary/40 active:bg-secondary/60 active:scale-[0.99] motion-reduce:active:scale-100 transition-[background-color,transform] duration-150"
         aria-label={`${tFallback('workout.resumeKicker', 'Resume')} ${title}`}
       >
-        <div className="w-9 h-9 rounded-lg bg-primary/15 flex items-center justify-center shrink-0">
-          <History className="w-4 h-4 text-primary" />
+        <div className="w-9 h-9 rounded-lg bg-secondary flex items-center justify-center shrink-0">
+          <History className="w-4 h-4 text-foreground" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-micro font-bold tracking-[0.04em] text-primary">
+          <p className="text-micro font-bold tracking-[0.04em] text-muted-foreground">
             {tFallback('workout.resumeKicker', 'Resume')}
           </p>
           <p className="text-sm font-heading font-bold truncate">{title}</p>
@@ -173,7 +185,7 @@ export default function ResumeWorkoutBanner() {
             <X className="w-4 h-4" />
           )}
         </button>
-        <ArrowRight className="w-4 h-4 text-primary shrink-0 rtl:scale-x-[-1]" aria-hidden="true" />
+        <ArrowRight className="w-4 h-4 text-muted-foreground shrink-0 rtl:scale-x-[-1]" aria-hidden="true" />
       </motion.div>
     </AnimatePresence>
   );

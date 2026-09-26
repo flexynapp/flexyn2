@@ -11,6 +11,8 @@
 
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { popIn } from '@/lib/motion';
+import useCountUp from '@/hooks/useCountUp';
 import {
   Sparkles,
   UtensilsCrossed, Droplet, Dumbbell, HeartPulse, Megaphone, Bike,
@@ -70,9 +72,9 @@ export function QuestTile({ icon, completed, claimed }) {
         {done ? (
           <motion.span
             key="done"
-            initial={{ scale: 0.3, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ type: 'spring', stiffness: 520, damping: 22 }}
+            // The shared completion pop (src/lib/motion.js): one overshoot
+            // and settle, so a quest ticking done reads as a moment.
+            {...popIn}
           >
             <Check className="w-4 h-4" strokeWidth={3.5} />
           </motion.span>
@@ -99,9 +101,14 @@ export function QuestTile({ icon, completed, claimed }) {
 export function QuestRewardLine({ quest, tFallback, className = '' }) {
   const crewXp = quest.definition?.crewXpReward ?? 0;
   const xp = quest.xp_reward ?? quest.definition?.xpReward ?? 0;
+  // Progress rolls up to its value on first paint and between polls, so a
+  // quest that moved while you were away visibly moves. Non numeric values
+  // pass through untouched (useCountUp returns them as is).
+  const counted = useCountUp(quest.progress, { duration: 500 });
+  const progress = typeof counted === 'number' ? Math.round(counted) : counted;
   return (
     <span className={`tabular-nums ${className}`}>
-      {quest.progress} / {quest.target}
+      {progress} / {quest.target}
       {' · '}{quest.coin_reward} {tFallback('hub.coins', 'coins')}
       {xp > 0 && <> · {xp} XP</>}
       {crewXp > 0 && (

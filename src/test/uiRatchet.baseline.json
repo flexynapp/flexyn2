@@ -9,7 +9,7 @@
     "colouredShadow": 28,
     "offScaleRadius": 31,
     "subFloorText": 0,
-    "hoverMotion": 60
+    "hoverMotion": 59
   },
   "counts": {
     "purple": {
@@ -278,7 +278,7 @@
       "src/components/workout/RegimensSection.jsx": 11,
       "src/pages/Dashboard.jsx": 1,
       "src/pages/Nutrition.jsx": 2,
-      "src/pages/Progress.jsx": 2,
+      "src/pages/Progress.jsx": 1,
       "src/pages/TrainerMarket.jsx": 1,
       "src/pages/Workout.jsx": 12
     }

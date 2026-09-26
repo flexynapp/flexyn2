@@ -170,6 +170,12 @@ export async function getStoriesFeedData(user, followingIds = []) {
         // Null for no-story groups — you can't reply to those anyway.
         email:              userStories[0]?.user_email ?? null,
         username:           profile.username || 'Athlete',
+        // No name AND no picture: the row can only draw this as "AT" over
+        // "Athlete", and a strip of identical anonymous circles reads as
+        // broken rather than social (owner screenshot, 2026-09-26). The row
+        // drops these unless they carry a story or a note. See
+        // storiesRowVisibility.js, rowStoryGroups.
+        isPlaceholder:      !profile.username && !profile.avatar_url,
         avatarUrl:          profile.avatar_url ?? null,
         storyDmsDisabled:   profile.story_dms_disabled ?? false,
         isOwn:              id === user.id,

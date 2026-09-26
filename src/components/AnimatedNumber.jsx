@@ -38,69 +38,37 @@
 // solving a different problem, and it has been renamed so the name no
 // longer implies it's a fork of this.
 
-import React, { useEffect, useRef, useState } from 'react';
-import { prefersReducedMotion } from '@/lib/reducedMotion';
+// The tween itself now lives in `useCountUp` (src/hooks/useCountUp.js) so
+// rings, bars and labels can share it; this component is the span wrapper
+// with the finite guard and the snap on mount default.
 
-const DEFAULT_DURATION_MS = 800;
+import React from 'react';
+import useCountUp, { DEFAULT_COUNT_UP_MS } from '@/hooks/useCountUp';
 
 // A non-finite value renders as "NaN" if it reaches format(). Callers pass
 // values straight out of aggregate queries, which are null on an empty
 // account, so this is a live path rather than a defensive nicety.
 const finite = (n, fallback = 0) => (Number.isFinite(Number(n)) ? Number(n) : fallback);
 
-// Ease-out cubic — feels like the number "settles" toward the final
-// value rather than crawling linearly.
-const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
-
 export default function AnimatedNumber({
   value,
   from,
   format = (n) => String(Math.round(n)),
-  duration = DEFAULT_DURATION_MS,
+  duration = DEFAULT_COUNT_UP_MS,
+  animateOnMount = false,
   className = '',
 }) {
-  const to = finite(value);
   const hasFrom = from !== undefined && from !== null;
-
-  const [display, setDisplay] = useState(hasFrom ? finite(from) : to);
-  const prevRef = useRef(hasFrom ? finite(from) : to);
-  const rafRef = useRef(null);
-
-  useEffect(() => {
-    const start = hasFrom ? finite(from) : finite(prevRef.current);
-
-    // Reduced motion, or nothing to tween. The equality check isn't just an
-    // optimization: a 0 → 0 tween schedules ~50 frames of re-renders to
-    // arrive back where it started, and the hero slides hit that on every
-    // brand-new account.
-    if (start === to || prefersReducedMotion()) {
-      setDisplay(to);
-      prevRef.current = to;
-      return undefined;
-    }
-
-    const t0 = performance.now();
-    const tick = (now) => {
-      const elapsed = Math.min(duration, now - t0);
-      const t = easeOutCubic(elapsed / duration);
-      const cur = start + (to - start) * t;
-      // Track the tween as it runs, so a value that changes mid-flight
-      // continues from where the number visibly is rather than snapping
-      // back to the last completed target.
-      prevRef.current = cur;
-      setDisplay(cur);
-      if (elapsed < duration) {
-        rafRef.current = requestAnimationFrame(tick);
-      } else {
-        setDisplay(to);
-        prevRef.current = to;
-      }
-    };
-    rafRef.current = requestAnimationFrame(tick);
-    return () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    };
-  }, [to, from, hasFrom, duration]);
+  const display = useCountUp(finite(value), {
+    duration,
+    from: hasFrom ? finite(from) : undefined,
+    // Without `from` the first render snaps by default: the number was
+    // already true when the component mounted. With it, every appearance
+    // counts up. `animateOnMount` is the third option: count up from zero
+    // on first paint, then roll from the previous value on later changes
+    // (a stat tile whose timeframe the user switches).
+    animateOnMount: hasFrom || animateOnMount,
+  });
 
   return <span className={`tabular-nums ${className}`}>{format(display)}</span>;
 }

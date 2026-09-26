@@ -72,9 +72,11 @@ describe('QuestRewardLine', () => {
     ...over,
   });
 
-  it('states progress, coins and XP', () => {
+  it('states progress, coins and XP', async () => {
     render(<QuestRewardLine quest={quest()} tFallback={tFallback} />);
-    expect(screen.getByText(/2 \/ 8/)).toBeTruthy();
+    // Progress counts up from 0 on mount (useCountUp), so wait for it to
+    // land rather than reading the first frame.
+    expect(await screen.findByText(/2 \/ 8/)).toBeTruthy();
     expect(screen.getByText(/20 coins/)).toBeTruthy();
     expect(screen.getByText(/50 XP/)).toBeTruthy();
   });

@@ -171,3 +171,34 @@ describe('orderStoryGroups', () => {
     expect(orderStoryGroups([])).toEqual([]);
   });
 });
+
+describe('rowStoryGroups (placeholder circles, 2026-09-26)', () => {
+  // Imported lazily so this block does not disturb the import list above.
+  const load = () => import('@/lib/storiesRowVisibility');
+
+  it('drops a followed account with no name, no picture and nothing posted', async () => {
+    const { rowStoryGroups } = await load();
+    const own = group({ user_id: 'me', isOwn: true, isPlaceholder: true });
+    const ghost = group({ user_id: 'g1', isPlaceholder: true });
+    expect(rowStoryGroups([ghost, own]).map((g) => g.user_id)).toEqual(['me']);
+  });
+
+  it('keeps named friends with nothing posted (Sean\'s rule)', async () => {
+    const { rowStoryGroups } = await load();
+    const friend = group({ user_id: 'f1', isPlaceholder: false });
+    expect(rowStoryGroups([friend]).map((g) => g.user_id)).toEqual(['f1']);
+  });
+
+  it('keeps a placeholder that has a story or a note', async () => {
+    const { rowStoryGroups } = await load();
+    const withStory = group({ user_id: 's1', isPlaceholder: true, stories: [{ id: 'x' }] });
+    const withNote = group({ user_id: 'n1', isPlaceholder: true, note: { id: 'n' } });
+    expect(rowStoryGroups([withNote, withStory]).map((g) => g.user_id)).toEqual(['s1', 'n1']);
+  });
+
+  it('treats a group without the flag as real', async () => {
+    const { isPlaceholderGroup } = await load();
+    expect(isPlaceholderGroup(group())).toBe(false);
+    expect(isPlaceholderGroup(null)).toBe(false);
+  });
+});

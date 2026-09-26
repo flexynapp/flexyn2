@@ -512,8 +512,13 @@ export function QuestRow({ quest, onClaim, onGo, onOpenSheet, t, tFallback }) {
             key="claim"
             initial={{ scale: 0.85, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
+            whileTap={{ scale: 0.94 }}
             onClick={(e) => { e.stopPropagation(); onClaim(); }}
-            className="px-3 py-1 rounded-sm bg-primary text-primary-foreground text-xs font-bold hover:opacity-90 transition-opacity"
+            // hover:brightness, not hover:opacity with transition-opacity:
+            // framer writes this button's opacity inline for its entrance,
+            // and a CSS transition on the same property smears it (see
+            // lib/listMotion.js). The press is framer's whileTap.
+            className="px-3 py-1 rounded-sm bg-primary text-primary-foreground text-xs font-bold hover:brightness-110"
           >
             {t('dashboard.claim')}
           </motion.button>

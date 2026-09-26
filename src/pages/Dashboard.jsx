@@ -17,6 +17,9 @@ import { subDays, isAfter, differenceInDays, startOfDay, format } from 'date-fns
 import { Dumbbell, TrendingUp, Play, ArrowRight, Zap, Activity, Target, Apple, Camera, Scale, TrendingDown, Minus, CheckCircle2, LayoutGrid, GripVertical, CalendarDays, ChevronRight, ChevronDown, Rows3, Columns2, RotateCcw, Plus, X } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
+import { fadeUp } from '@/lib/motion';
+import { haptic } from '@/lib/haptic';
+import useCountUp from '@/hooks/useCountUp';
 import { ReorderableRow, DragHandle } from '@/components/dashboard/ReorderableRow';
 import { buildDashboardRows, reorderFrozen, flattenRows } from '@/lib/dashboardRows';
 import GoalsModal from '@/components/goals/GoalsModal';
@@ -332,7 +335,16 @@ function HeroCard({
             the watermark, because an absolutely positioned child resolves
             `right: 0` against its containing block's PADDING box. Same
             clearance for the chevron, symmetric corner for the icon. */}
-        <div className="relative p-4 md:p-6 pb-2 md:pb-2 min-h-[330px]">
+        {/* md:min-h-[260px] (2026-09-26, owner screenshot of the Duels
+            slide). The 330px floor above was measured at 375pt, where text
+            wraps into its tallest shape. From md up the column is roughly
+            twice as wide, every slide is shorter, and a 330px floor left the
+            short feature slides (Duels) floating over an empty lower half.
+            Still a min-height, for the same reason as above: a genuinely
+            tall slide grows the box instead of being clipped. NOT measured
+            in a browser at the time of writing; re-run the measuring loop
+            at 768 and 1280 before tightening it further. */}
+        <div className="relative p-4 md:p-6 pb-2 md:pb-2 min-h-[330px] md:min-h-[260px]">
           <HeroSlideshow
             ref={slideshowRef}
             logs={logs}
@@ -378,7 +390,8 @@ function HeroCard({
           <motion.button
             whileTap={{ scale: 0.98 }}
             transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-            onClick={onPrimary}
+            // The page's one primary action gets the one medium tick.
+            onClick={() => { haptic('medium'); onPrimary(); }}
             className="group relative flex-[2] rounded-2xl px-3 py-2.5 md:p-3 bg-primary text-primary-foreground shadow-md hover:brightness-105 flex items-center justify-between gap-3 text-start select-none-ui transition-all"
           >
             <span className="min-w-0">
@@ -417,8 +430,14 @@ function HeroCard({
    CLAUDE.md reserves card surfaces for the latter: "read-only data that is
    NOT a widget gets no surface: hairline dividers instead". Three surfaces
    for three related figures also spent three focal points on one idea. */
-function StatColumn({ icon: Icon, value, label, suffix, accent = false, trend = null }) {
+function StatColumn({ icon: Icon, value, format, label, suffix, accent = false, trend = null }) {
   const { tFallback } = useLanguage();
+  // Numbers count up from zero on first paint and roll between values after
+  // that (useCountUp). Reduced motion gets the value straight away.
+  const counted = useCountUp(typeof value === 'number' ? value : null, { duration: 700 });
+  const shown = typeof value === 'number'
+    ? (format ? format(counted) : Math.round(counted))
+    : value;
   // trend: positive number = up, negative = down, 0 = flat, null = no data
   const showTrend = trend !== null && trend !== 0;
   const isUp = trend > 0;
@@ -431,7 +450,7 @@ function StatColumn({ icon: Icon, value, label, suffix, accent = false, trend = 
         <span className="text-micro font-semibold tracking-[0.04em] truncate">{label}</span>
       </div>
       <div className="font-heading font-bold text-2xl md:text-3xl leading-none tabular-nums tracking-tight truncate">
-        {value}
+        {shown}
       </div>
       <div className="mt-1.5 h-4 flex items-center gap-0.5">
         {showTrend && (
@@ -1570,11 +1589,10 @@ export default function Dashboard() {
       // row under the hero. One card with hairline dividers, not three cards.
       case 'stats': return (
         <React.Fragment key="stats">
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
-          >
+          {/* The entrance is the row's (fadeUp on the row wrapper below), so
+              this card no longer runs a second, differently timed fade of
+              its own inside it. */}
+          <div>
             <Card className="py-4 px-1 divide-x divide-border flex items-stretch cq-stack-y">
               <StatColumn
                 icon={Activity}
@@ -1586,7 +1604,8 @@ export default function Dashboard() {
               />
               <StatColumn
                 icon={Zap}
-                value={formatVolume(weeklyVolume)}
+                value={Number.isFinite(weeklyVolume) ? weeklyVolume : 0}
+                format={(n) => formatVolume(Math.round(n))}
                 label={t('dashboard.stats.volume')}
                 suffix={weightUnit}
               />
@@ -1598,14 +1617,14 @@ export default function Dashboard() {
                 trend={muscleTrend}
               />
             </Card>
-          </motion.div>
+          </div>
         </React.Fragment>
       );
       case 'challenges': return (
         <React.Fragment key="challenges">
-          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.22, delay: 0.15 }}>
+          <div>
             <ErrorBoundary label="DailyQuestsCard"><DailyQuestsCard /></ErrorBoundary>
-          </motion.div>
+          </div>
         </React.Fragment>
       );
       // Streak rescue is its own row, below the friend leaderboard, per board
@@ -1653,9 +1672,9 @@ export default function Dashboard() {
       );
       case 'friends': return (
         <React.Fragment key="friends">
-          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.22, delay: 0.12 }}>
+          <div>
             <ErrorBoundary label="FriendLeaderboard"><FriendLeaderboardPanel /></ErrorBoundary>
-          </motion.div>
+          </div>
         </React.Fragment>
       );
       // Every card in this section needs data: goals for the two goal cards,
@@ -1815,14 +1834,9 @@ export default function Dashboard() {
               about. The button is the affordance, so the label stays bare. */}
           <SectionLabel label={tFallback('dashboard.section.customize', 'Widget library')} />
           {/* id is the scroll target for the Widgets action tile. */}
-          <motion.div
-            id="dash-widget-library"
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.26, delay: 0.25 }}
-          >
+          <div id="dash-widget-library">
             <DashboardWidgets logs={logs} goals={goals} isLoading={isLoading} userProfile={userProfile} />
-          </motion.div>
+          </div>
         </React.Fragment>
       );
       default: return null;
@@ -2154,7 +2168,15 @@ export default function Dashboard() {
                 each one — margin on a wrapper that was still in the layout.
                 Now an empty section costs zero pixels, while edit mode still
                 shows its control strip so it can be found and reordered. */}
-            <div className={`mb-6 empty:hidden ${row.sections.length === 2 ? 'flex items-stretch gap-2' : ''}`}>
+            {/* The entrance cascade (src/lib/motion.js) lives on this inner
+                wrapper and animates opacity and y only. It never touches
+                layout, so it cannot bring back the projection bug the
+                comment on ReorderableRow describes: a row that mounts late,
+                once its query resolves, simply fades up where it lands. */}
+            <motion.div
+              {...fadeUp(rowIndex)}
+              className={`mb-6 empty:hidden ${row.sections.length === 2 ? 'flex items-stretch gap-2' : ''}`}
+            >
               {row.sections.map(id => {
                 // Default hotdog = 50/50. empty:hidden so a half that renders
                 // nothing gives its width back to its partner instead of
@@ -2183,7 +2205,7 @@ export default function Dashboard() {
                   </div>
                 );
               })}
-            </div>
+            </motion.div>
             </>)}
           </ReorderableRow>
           );

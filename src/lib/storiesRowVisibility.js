@@ -93,3 +93,30 @@ export function orderStoryGroups(groups) {
   };
   return [...groups].sort((a, b) => rank(a) - rank(b));
 }
+
+/**
+ * A group the row can only draw as an anonymous placeholder: not you, no
+ * username, no avatar, and nothing posted. `isPlaceholder` is set by
+ * fetchStoriesFeed when the profile did not resolve to a name or picture.
+ */
+export function isPlaceholderGroup(group) {
+  if (!group || group.isOwn) return false;
+  if (hasActiveStory(group) || hasActiveNote(group)) return false;
+  return Boolean(group.isPlaceholder);
+}
+
+/**
+ * What the stories row actually renders: `orderStoryGroups`, minus the
+ * anonymous placeholders.
+ *
+ * This keeps Sean's rule (named friends stay in the row even with nothing
+ * posted) and removes only what the owner flagged on 2026-09-26: nine
+ * identical "AT / Athlete" circles, which were followed accounts whose
+ * profile carried no username and no picture. A circle that cannot say who
+ * it is gives the row nothing to show and makes it look unfinished, so it
+ * is dropped. If that person posts a story or a note they come back, because
+ * then there is something to tap.
+ */
+export function rowStoryGroups(groups) {
+  return orderStoryGroups(groups).filter((g) => !isPlaceholderGroup(g));
+}
