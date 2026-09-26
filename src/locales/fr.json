@@ -933,6 +933,7 @@
   "collectionModal.tapAnySlotForDetails": "Touchez un emplacement pour les détails",
   "collectionModal.tileAria": "{name}. {state}, {rarity}",
   "collectionModal.variantsOwned": "Variantes obtenues : {list}",
+  "comeback.toDashboard": "Aller à mon tableau de bord",
   "comingSoon.backToDashboard": "Retour au tableau de bord",
   "comingSoon.comingSoon": "Bientôt disponible",
   "common.back": "Retour",
