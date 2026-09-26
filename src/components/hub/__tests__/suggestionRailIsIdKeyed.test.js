@@ -24,7 +24,7 @@ import { resolve } from 'node:path';
 
 const read = (p) => readFileSync(resolve(process.cwd(), p), 'utf8');
 const RAIL = read('src/components/hub/FollowSuggestionRail.jsx');
-const MIG  = read('supabase/migrations/380_suggested_followees_drops_email.sql');
+const MIG  = read('supabase/migrations_archive/380_suggested_followees_drops_email.sql');
 const code = (t) => t.split('\n').filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).join('\n');
 
 describe('FollowSuggestionRail identifies by id', () => {

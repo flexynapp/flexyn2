@@ -1,0 +1,94 @@
+name: DB mark baseline applied
+
+# Step 4 of the migration pipeline. Run ONCE, by hand, after the baseline PR
+# is merged and BEFORE the Supabase GitHub integration is switched on.
+#
+# Production already contains everything in the three baseline migrations
+# (they were dumped from it). This tells production's migration history so,
+# without running them:
+#
+#   1. Re-dumps production's schema and stops if it no longer matches the
+#      baseline file byte for byte. Nothing is written in that case.
+#   2. Removes the 15 old history rows, which name files that now live in
+#      supabase/migrations_archive/ and would otherwise read as "applied in
+#      production but missing from the repo".
+#   3. Marks the three baseline migrations as applied.
+#
+# It writes only to supabase_migrations.schema_migrations, Supabase's
+# bookkeeping table. No application table, function or policy changes.
+# Safe to re-run: every step is idempotent.
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type mark-applied to confirm'
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: db-migration-history
+  cancel-in-progress: false
+
+jobs:
+  mark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      PROJECT_REF: ebvqxuwfiptcmlkhflfj
+      BASELINE: supabase/migrations/20260926150000_baseline_schema.sql
+    steps:
+      - name: Check confirmation
+        if: ${{ github.event.inputs.confirm != 'mark-applied' }}
+        run: |
+          echo "::error::Type mark-applied in the confirm box to run this."
+          exit 1
+
+      - uses: actions/checkout@v7
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Link the production project
+        run: supabase link --project-ref "$PROJECT_REF" --password "$SUPABASE_DB_PASSWORD"
+
+      - name: Stop unless production still matches the baseline
+        run: |
+          supabase db dump --linked --file /tmp/now.sql
+          # The baseline file is a comment header, one blank line, then the
+          # dump exactly as captured. Strip the header and compare.
+          sed '1,/^$/d' "$BASELINE" > /tmp/baseline.sql
+          if ! diff -q /tmp/baseline.sql /tmp/now.sql > /dev/null; then
+            echo "::error::Production's schema has changed since the baseline was captured. Nothing was written. Re-run DB baseline capture and update the baseline first."
+            diff /tmp/baseline.sql /tmp/now.sql | head -80
+            exit 1
+          fi
+          echo "Production matches the baseline."
+
+      - name: Rewrite the migration history
+        run: |
+          # The 15 versions production recorded before the baseline, as
+          # captured on 2026-09-26 (supabase/baseline/remote_history.json on
+          # the db-baseline-capture branch).
+          supabase migration repair --linked --status reverted \
+            20260712155434 20260712160458 20260716174222 20260730223412 \
+            20260731004025 20260731025815 20260802021239 20260802021256 \
+            20260802021311 20260802021917 20260804051953 20260804062157 \
+            20260804063024 20260809031227 20260828012729
+          supabase migration repair --linked --status applied \
+            20260926150000 20260926150100 20260926150200
+
+      - name: Show the result
+        run: |
+          supabase migration list --linked | tee /tmp/list.txt
+          {
+            echo "Migration history after this run:"
+            echo '```'
+            cat /tmp/list.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

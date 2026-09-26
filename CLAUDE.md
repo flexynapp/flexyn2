@@ -233,45 +233,37 @@ Across `src/lib/data/` alone: `user_id` 231 uses, `created_by` 71,
    logic changed).
 3. Commit with a multi-paragraph message that explains the why, not just
    the what. Use HEREDOC so quotes survive.
-4. `git push origin <branch>` — push the feature branch first.
-5. `git push origin <branch>:main` — fast-forward main. Only after the
-   branch push succeeds.
-6. **ALWAYS, after every push, send the user the SQL to run.** This is a
-   standing instruction (kegan, 2026-05). Frontend ships via Netlify
-   auto-deploy from `main`, but the DB is deployed by the user manually
-   pasting SQL into the Supabase SQL editor — so a push is only "done"
-   once they have the matching SQL. After each push, report EITHER:
-     • the pending migration(s) as a copy-paste block, OR
-     • "No SQL needed — frontend only" when the change touched no
-       migrations / DB objects.
-   Don't wait to be asked. See the paste-safety rule below — the SQL
-   you hand over must survive the user's clipboard pipeline.
-   **MANDATORY, NO EXCEPTIONS (kegan, 2026-05, mobile):** ALWAYS paste the
-   actual SQL inline in chat inside a fenced ```sql code block so it has a
-   one-tap copy button. NEVER tell the user to open / copy a file from the
-   repo or GitHub — they are on mobile and cannot open files. This applies
-   no matter how long the SQL is; if a bundle is huge, split it across
-   several ```sql blocks in the SAME reply (each its own copy button) and
-   tell them the run order — but it must all be in chat. A file path is
-   NEVER an acceptable substitute for the inline SQL.
-7. **Paste-safe SQL is mandatory.** The user's paste pipeline mangles
-   short `alias.column` tokens AND record-field `.id` tokens (e.g.
-   `up.id`, `v_verif.id`, `v_capsule.id`) → `42601 syntax error at "<"`.
-   Only emit: `public.<table>`, `auth.<fn>()`, `NEW.`/`OLD.`, bare
-   columns in single-table statements, CTE-renamed join keys, and
-   `#variable_conflict use_column` for RETURNS TABLE OUT-param shadowing.
-   Prefer scalar `SELECT ... INTO v_a, v_b` over `%ROWTYPE` + dotted
-   record access. A migration that's fine for a CLI runner can still
-   mangle on paste — rewrite the bundle you hand the user accordingly.
+4. Push the feature branch and open a pull request against `main`. CI
+   (lint, build, tests) must be green before merge. Netlify deploys the
+   frontend from `main`.
+5. **Database changes ship as migration files, never as SQL pasted into
+   the Supabase editor** (since 2026-09-26). A change is a new file in
+   `supabase/migrations/` named `<UTC timestamp>_<what>.sql`
+   (`npx supabase migration new <what>` makes one). The Supabase GitHub
+   integration builds a preview database for the PR and runs every
+   migration on it; merging to `main` applies the new file to production
+   and records it in production's history. See "Database migrations"
+   below.
+6. **Kegan merges every PR that touches `supabase/`** (his call,
+   2026-09-26): merging one is the same act as running SQL on production.
+   Claude merges its own green code-only PRs. In the PR description, say
+   in plain words what the migration changes for users and data.
+7. Never run SQL that writes to production yourself, and never hand the
+   user SQL to paste as a substitute for a migration. Read-only queries to
+   check state are fine.
+
+   The old flow (hand the user paste-safe SQL after every push, with the
+   `alias.column` restrictions for their clipboard) is retired along with
+   the paste. Its history is in `supabase/migrations_archive/`.
 8. Update tasks via `TaskUpdate` (this session uses TaskCreate /
    TaskUpdate / TaskList — `TodoWrite` was deprecated mid-session).
 
 ## Two engineers, parallel sessions
 
 Two Claude sessions edit this repo concurrently — yours and a teammate's.
-**Before any non-trivial edit, fetch origin and rebase.** Direct pushes
-to `main` are the convention here (no PR workflow). Push your feature
-branch first, then fast-forward `main`. Never force-push `main`.
+**Before any non-trivial edit, fetch origin and rebase.** Work lands
+through pull requests (the direct-push-to-`main` convention ended
+2026-09-26). Never force-push `main`.
 
 See: `~/.claude/projects/C--Flexyn/memory/feedback_parallel_sync.md`.
 
@@ -764,7 +756,13 @@ stat: it sits one tap from the gym and crew boards, and a personal number that
 silently disagrees with the comparative number beside it is worse than one that
 is merely raw.
 
-## Deploying an Edge Function — the CLI does not work in this repo
+## Deploying an Edge Function
+
+**Update 2026-09-26: `supabase/config.toml` now exists** and declares every
+deployed function. Once the Supabase GitHub integration is on, merging to
+`main` deploys them, and the manual paths below are for emergencies only.
+The history is kept because the failure mode (a deploy that silently
+uploads nothing) is still how a missing `config.toml` entry behaves.
 
 **`supabase functions deploy <name>` fails here, and it fails in a way that
 reads like success if you aren't watching.** There is no
@@ -809,10 +807,42 @@ writes — an anonymous user still increments quota tables.
 
 ## Database migrations
 
-- All migrations live in `supabase/migrations/NNN_*.sql` in execution order.
-- The runbook is [docs/migrations-runbook.md](docs/migrations-runbook.md)
-  with a state-check query at the bottom — paste it into Supabase SQL
-  Editor to see what's deployed.
+**How it works (since 2026-09-26).** `supabase/migrations/` holds
+timestamped migrations the Supabase CLI and GitHub integration run in
+order. It starts from a three-part baseline dumped from production:
+
+| File | What |
+|---|---|
+| `20260926150000_baseline_schema.sql` | `supabase db dump` of production, unedited |
+| `20260926150100_baseline_platform.sql` | what a dump misses: the `auth.users` sign-up trigger, storage buckets and policies, the 21 cron jobs |
+| `20260926150200_baseline_reference_data.sql` | catalog rows the app needs: XP levels, loot, crew challenges and perks, gauntlet |
+
+Production is recorded as having applied all three; they only ever run on
+fresh databases (local, preview branches). Replayed on a fresh local
+Supabase on 2026-09-26, the result matched production exactly: 151 tables,
+275 policies, 405 functions, 85 triggers, 3 views, 21 cron jobs.
+
+- **The 414 numbered files (`001`–`387`) are in
+  `supabase/migrations_archive/`.** They are history, not instructions:
+  production's history had recorded 15 of them, and several later files
+  redefined functions from stale copies. Read them for the reasoning behind
+  a table; read `pg_get_functiondef()` or the baseline for what exists.
+  `docs/migrations-runbook.md` catalogues them.
+- **Never edit a migration that has merged.** Fix forward with a new one.
+- **`config.toml` declares every deployed Edge Function** with the
+  `verify_jwt` it has in production; merging to `main` deploys them. A new
+  function needs an entry, or it is never deployed.
+- **Refreshing the baseline** is the "DB baseline capture" Action (read-only;
+  pushes to the `db-baseline-capture` branch). The one-time history rewrite
+  is "DB mark baseline applied", which stops if production has drifted from
+  the baseline.
+- `npx supabase db start` gives you a local copy with all migrations applied
+  (needs Docker). Test RLS there as `authenticated` with JWT claims, the same
+  way as against production.
+
+The lessons below were learned under the old paste flow and still apply to
+writing SQL:
+
 - **Every `CREATE POLICY` must be guarded with `DROP POLICY IF EXISTS`** —
   Postgres doesn't support `CREATE POLICY IF NOT EXISTS`, so a retry of a
   partially-applied migration fails with `42710` otherwise. Migrations
@@ -838,46 +868,9 @@ writes — an anonymous user still increments quota tables.
   guard that rejects everything passes all the "is it blocked?" checks. And
   never write a literal `TRUE AS function_installed`: it proves nothing and
   reads as evidence.
-- **Numbering with parallel engineers**: pick the next free `NNN` when
-  you start. If two branches independently pick the same number, the
-  branch that lands second renames its file to `NNN+1_*.sql` before
-  pushing. Files at the same `NNN` are tolerated if their bodies are
-  independent (current examples: `054_bio_profanity_check.sql` +
-  `054_duels.sql`, and `055_crew_wars.sql` +
-  `055_first_workout_capsule_flag.sql` — both pairs touch disjoint
-  tables, so the alphabetical execution order is harmless). Don't add
-  a third file at the same number — renumber instead.
-- **"Free" has TWO answers and you need the pessimistic one.** Neither
-  place you'd naturally look is complete on a shared checkout:
-  `ls supabase/migrations` **overstates** what's taken (it shows files
-  that are untracked or committed-but-unpushed, which nobody else can
-  see) and `git ls-tree origin/main` **understates** it (it misses
-  exactly those). The safe number is one past the max across **both**:
-
-  ```bash
-  { ls supabase/migrations; git ls-tree --name-only origin/main supabase/migrations/ | sed 's#.*/##'; } | grep -oE '^[0-9]{3}' | sort -n | tail -1
-  ```
-
-  This is not hypothetical and it recurs. On 2026-08-09 one session
-  broadcast "the next genuinely free number is 329, not 328 — 328 exists
-  locally unpushed, so `ls` shows it and origin/main does not." Within
-  the hour 328 and 329 had both landed on `origin/main` and 330 existed
-  as an untracked local file, so the answer was 331 and the advice would
-  have collided with a *pushed* migration. The session that wrote it had
-  correctly identified the trap one number earlier and still got caught
-  by it, because a number that is free is only free until someone else
-  takes it. (330 was then pushed in the minutes it took to write this
-  paragraph, which is the point made twice: the answer moves under you,
-  and only the pessimistic view is ever safe to act on.)
-  **Re-derive it at the moment you create the file, not when
-  you start the task**, and prefer colliding with your own unpushed work
-  over someone else's pushed work — the first is a rename, the second is
-  a rename plus a conversation.
-- **Never quote a free number to another session.** All three sessions
-  above sent each other a number that had expired by the time it was
-  read, which is not three mistakes but one: a broadcast number is stale
-  on arrival, because "free" decays the instant anybody pushes. Send the
-  command, or send what you took — never send what you think is next.
+- **Numbering is no longer a coordination problem.** Migration versions
+  are UTC timestamps, so two sessions cannot pick the same one by accident.
+  The old three-digit scheme collided 27 times; see the archive.
 
 ## Profile cache — invalidating `['userProfile']` does NOT refresh it
 

@@ -24,7 +24,7 @@ import { LOOT_FRAMES } from '../lootFrames';
 import { hydrateItemById } from '../lootRoll';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const MIGRATION = join(here, '../../../supabase/migrations/267_loot_catalog_server_authority.sql');
+const MIGRATION = join(here, '../../../supabase/migrations_archive/267_loot_catalog_server_authority.sql');
 
 /**
  * The capsule DROP POOL, flattened to the shape SQL stores.

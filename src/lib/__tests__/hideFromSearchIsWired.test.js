@@ -81,7 +81,7 @@ describe('the surfaces that name the setting actually read it', () => {
     // Migration 377 restates both discovery functions. If a later migration
     // replaces either from an older template — the trap CLAUDE.md opens with —
     // this catches the one that dropped the filter.
-    const sql = read('supabase/migrations/377_hide_from_search_is_enforced.sql');
+    const sql = read('supabase/migrations_archive/377_hide_from_search_is_enforced.sql');
     expect(sql).toContain('get_suggested_followees');
     expect(sql).toContain('get_people_you_may_know');
     expect(sql.match(/hide_from_search IS (NOT )?TRUE/g)?.length).toBe(2);
