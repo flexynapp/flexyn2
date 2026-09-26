@@ -2021,20 +2021,13 @@ export default function Workout() {
           onClick={() => navigate('/coach?generate=1')}
           onKeyDown={(e) => { if (e.key==='Enter'||e.key===' '){e.preventDefault();navigate('/coach?generate=1');} }}>
           <div className="flex flex-col items-center text-center gap-1.5">
-            {/* The AI Coach's mark, not a highlight (kegan, 2026-08-11).
-                Same `from-primary via-fuchsia-500 to-violet-500` + white
-                Sparkles as the coach avatar in CoachChat, so the tile that
-                opens the Coach is recognisably the same object as the Coach
-                itself. Keep the three in step if any one of them changes.
-
-                This tile was deliberately flattened to match its neighbours
-                once before, because a solid bg-primary square read as a
-                priority the layout never explained. The gradient is not that
-                — it carries an identity rather than an emphasis, which is
-                also why it is not the "gradient as decoration" the UI rules
-                ban. Don't flatten it again on a grep. */}
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary via-fuchsia-500 to-violet-500 flex items-center justify-center shrink-0">
-              <Sparkles className="w-5 h-5 text-white" />
+            {/* The AI Coach's mark, the same object as the avatar in
+                CoachChat: Sparkles in foreground on a secondary tile. It was
+                a primary to fuchsia to violet gradient (approved 2026-08-11);
+                kegan chose to flatten it on 2026-09-26 because purple is kept
+                for rarity. Keep the two in step. */}
+            <div className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center shrink-0">
+              <Sparkles className="w-5 h-5 text-foreground" />
             </div>
             <div>
               <p className="font-heading font-bold text-sm leading-tight">{tFallback('generator.title','Generate Workout')}</p>

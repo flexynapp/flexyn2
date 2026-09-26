@@ -363,7 +363,8 @@ export default function MyGym() {
       {/* ── Header ──────────────────────────────────────────────── */}
       <div className="flex items-start justify-between gap-2 mb-6">
         <div className="min-w-0">
-          <h1 className="font-heading text-2xl font-bold tracking-tight truncate">
+          {/* Visually hidden: the top bar already says "My Gym". */}
+          <h1 className="sr-only">
             {tFallback('myGym.title', 'My Gym')}
           </h1>
           <p className="text-sm text-muted-foreground truncate">

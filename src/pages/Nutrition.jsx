@@ -1511,7 +1511,8 @@ export default function Nutrition() {
         {/* Row 2 — title (+ container-mover) + Edit Goals on one line (aligned). */}
         <div className="flex items-center justify-between gap-4 mt-1">
           <div className="flex items-center gap-2 flex-wrap min-w-0">
-            <h1 className="font-heading text-3xl md:text-4xl font-bold tracking-tight leading-tight">{t('nutrition.title')}</h1>
+            {/* Visually hidden: the top bar already says "Nutrition". */}
+            <h1 className="sr-only">{t('nutrition.title')}</h1>
             <div className="flex items-center gap-1.5">
               <button
                 onClick={() => setEditMode(e => !e)}
