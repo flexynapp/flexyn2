@@ -14,9 +14,35 @@
 //    LONG_AWAY_MS hidden, onLongResume listeners fire so pages can reset.
 //
 // Anything shorter (checking a message between sets) keeps your place.
+//
+// Kegan, 2026-09-26: "app should always launch on the today screen". So a
+// fresh launch that restored an ordinary page (a tab, or a page opened from
+// You) is sent to Today before the router reads the URL. A launch that
+// carries anything else, like a notification's ?scheduled= or a shared
+// /u/ link, is a real deep link and is kept.
 
 export const LONG_AWAY_MS = 30 * 60 * 1000;
 const SESSION_KEY = 'flexyn.appSession';
+
+export const LAUNCH_HOME = '/dashboard';
+
+// Kept in sync with Layout's tab paths and Header's CHILD_ROUTES by hand:
+// importing either here would pull React components into main.jsx.
+const PLACES = [
+  '/dashboard', '/workout', '/hub', '/you',
+  '/messages', '/market', '/coach', '/progress', '/nutrition', '/my-gym', '/profile',
+];
+// The params useUrlState writes (tabMemory's VIEW_PARAMS). Anything else in
+// the query is an action or a deep link.
+const VIEW_ONLY = ['tab', 'feed', 'history', 'nutrients'];
+
+export function isRestorablePlace(pathname, search) {
+  if (!PLACES.includes(pathname)) return false;
+  for (const key of new URLSearchParams(search || '').keys()) {
+    if (!VIEW_ONLY.includes(key)) return false;
+  }
+  return true;
+}
 
 let launchUrl;
 
@@ -27,7 +53,12 @@ export function initAppResume() {
   launchUrl = null;
   try {
     if (window.sessionStorage.getItem(SESSION_KEY) == null) {
-      launchUrl = window.location.pathname + window.location.search;
+      const { pathname, search, hash } = window.location;
+      // A deep link is left exactly as it arrived, view params included.
+      if (isRestorablePlace(pathname, search)) {
+        if (pathname !== LAUNCH_HOME) window.history.replaceState(null, '', LAUNCH_HOME + hash);
+        launchUrl = window.location.pathname + window.location.search;
+      }
     }
     window.sessionStorage.setItem(SESSION_KEY, '1');
   } catch {
