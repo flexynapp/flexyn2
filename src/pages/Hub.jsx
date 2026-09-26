@@ -8,7 +8,7 @@ import { useUrlState } from '@/hooks/useUrlState';
 import { routerStateWithoutPayload } from '@/lib/goBack';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence, useDragControls } from 'framer-motion';
-import { Flame, Users as UsersIcon, User as UserIcon, Plus, ArrowLeft, Search, Shield, Store, Activity, Trophy, MessageCircle } from 'lucide-react';
+import { Flame, Users as UsersIcon, User as UserIcon, Plus, ArrowLeft, Search, Shield, Activity, Trophy, MessageCircle } from 'lucide-react';
 import { useUnreadDMCount } from '@/lib/hubMessaging';
 import CompetePanel from '@/components/hub/CompetePanel';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -25,18 +25,6 @@ import CrewsSection from '@/components/crews/CrewsSection';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { useStartConversation } from '@/lib/hubMessaging';
 import { markHubVisited } from '@/hooks/useHubUnreadDot';
-
-// ─── Ember particle data for the marketplace button ───────────────────────────
-const EMBERS = [
-  { x: 15, size: 3, duration: 1.8, delay: 0,   travel: 30 },
-  { x: 30, size: 2, duration: 2.2, delay: 0.4, travel: 25 },
-  { x: 50, size: 4, duration: 1.6, delay: 0.8, travel: 35 },
-  { x: 65, size: 2, duration: 2.0, delay: 0.2, travel: 28 },
-  { x: 80, size: 3, duration: 1.9, delay: 1.0, travel: 32 },
-  { x: 22, size: 2, duration: 2.4, delay: 1.4, travel: 22 },
-  { x: 55, size: 3, duration: 1.7, delay: 0.6, travel: 38 },
-  { x: 70, size: 2, duration: 2.1, delay: 1.8, travel: 26 },
-];
 
 // Visual left-to-right order of the feed tab strip, which is what both the
 // tab bar and the swipe gesture follow. 'activity' is deliberately absent: it
@@ -533,63 +521,26 @@ export default function Hub() {
           Dashboard ("Friends this week" section) so it's a quick stats
           check on the home screen. */}
 
-      {/* Marketplace + New Post row — shown on feed tabs, not crews.
-          Both buttons match in height via min-h-[68px] so the row stays
-          visually balanced regardless of internal content (Marketplace
-          has 2 lines of text, New Post had a stacked icon+label). Same
-          pill shape, same vertical rhythm. (Screenshot feedback —
-          "make the new post and marketplace button lineup on the same
-          horizontal button".) */}
+      {/* Compose prompt. This row used to pair a red to orange gradient
+          Marketplace banner (animated embers, a hue-rotate loop) with an
+          orange outlined New Post button: two loud targets between the
+          stories and the first post, one of them for a page that has
+          nothing to do with the feed. Marketplace is reachable from You >
+          Rewards and the Log sheet, so the row is now the one thing Hub is
+          for: posting. It reads as the composer's own field, the pattern
+          people already know from every social app. */}
       {section === 'feed' && feedTab !== 'crews' && feedTab !== 'compete' && feedTab !== 'activity' && (
-        <div className="flex gap-2.5 mb-4 items-stretch">
-          {/* Marketplace — 3/4 width, ember animation */}
-          <div className="flex-[3] relative overflow-hidden rounded-2xl min-h-[68px]">
-            {/* Floating ember particles */}
-            {EMBERS.map((e, i) => (
-              <motion.div
-                key={i}
-                className="absolute pointer-events-none rounded-full"
-                style={{
-                  width: e.size,
-                  height: e.size,
-                  left: `${e.x}%`,
-                  bottom: 2,
-                  background: i % 2 === 0 ? '#FED7AA' : '#FCA5A5',
-                  filter: 'blur(0.5px)',
-                }}
-                animate={{ y: [0, -e.travel], opacity: [0, 0.65, 0] }}
-                transition={{ duration: e.duration, delay: e.delay, repeat: Infinity, ease: 'easeOut' }}
-              />
-            ))}
-            <motion.button
-              whileTap={{ scale: 0.97 }}
-              onClick={() => navigate('/market')}
-              className="w-full h-full flex items-center gap-3 px-4 py-3 rounded-2xl text-white"
-              animate={{ filter: ['hue-rotate(0deg)', 'hue-rotate(-25deg)', 'hue-rotate(0deg)'] }}
-              transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-              style={{ background: 'linear-gradient(135deg, #FB923C, #EA580C)' }}
-            >
-              <Store className="w-5 h-5 shrink-0" />
-              <div className="flex-1 text-start min-w-0">
-                <p className="text-sm font-bold leading-tight">{tFallback("layout.marketplace", "Marketplace")}</p>
-                <p className="text-micro opacity-80 leading-tight truncate">{t('layout.marketplaceSub')}</p>
-              </div>
-            </motion.button>
-          </div>
-
-          {/* New Post — 1/4 width, orange outline + gray fill. Matches
-              Marketplace's height via min-h-[68px] and centers the
-              icon+label so both buttons read as the same shape. */}
-          <motion.button
-            whileTap={{ scale: 0.97 }}
-            onClick={() => setComposerOpen(true)}
-            className="flex-1 min-h-[68px] flex flex-col items-center justify-center gap-1 px-2 py-3 rounded-2xl border-2 bg-secondary/60"
-            style={{ borderColor: 'hsl(var(--primary))' }}
-          >
-            <Plus className="w-4 h-4 stroke-[2.5]" style={{ color: 'hsl(var(--primary))' }} />
-            <span className="text-xs font-bold leading-tight" style={{ color: 'hsl(var(--primary))' }}>{tFallback("hub.newPost", "New Post")}</span>
-          </motion.button>
-        </div>
+        <button
+          type="button"
+          onClick={() => setComposerOpen(true)}
+          className="w-full mb-4 flex items-center gap-3 px-4 min-h-[48px] rounded-2xl border border-border bg-card text-start hover:bg-secondary active:bg-secondary transition-colors"
+        >
+          <Plus className="w-4 h-4 shrink-0 text-primary" aria-hidden="true" />
+          <span className="flex-1 min-w-0 truncate text-sm text-muted-foreground">
+            {tFallback('hub.composer.placeholder', "What's your training looking like?")}
+          </span>
+          <span className="text-xs font-semibold text-foreground">{tFallback('hub.newPost', 'New Post')}</span>
+        </button>
       )}
 
       {/* Sections */}
@@ -661,15 +612,14 @@ export default function Hub() {
 
       {/* The orange "+" FAB that used to float here is gone.
           It called setComposerOpen(true) — the exact same action as the
-          "New Post" button ~230px above it, so Hub shipped two create
+          "New Post" button above it, so Hub shipped two create
           affordances in different styles for one action. It also floated
           over the first post card, covering its top-right corner and one of
           that post's own controls, and it was one of eleven orange elements
           competing for attention in a single Hub viewport.
           Removing it settles all three at once. "New Post" keeps the job:
-          it is already balanced against Marketplace in the row above, it is
-          labelled rather than relying on a "+" glyph, and it never covers
-          content. */}
+          it is labelled rather than relying on a "+" glyph, and it never
+          covers content. */}
 
       {/* Composer */}
       {composerOpen && <HubComposer onClose={() => setComposerOpen(false)} />}

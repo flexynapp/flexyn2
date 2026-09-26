@@ -318,7 +318,6 @@ export default function Workout() {
   const [historyTab, setHistoryTab] = useUrlState('history', 'gym', ['gym', 'cardio']);
   const [historySearch, setHistorySearch] = useState('');
   const [cardioDetailLog, setCardioDetailLog] = useState(null);
-  const [activeInfo, setActiveInfo] = useState(null); // which card's ⓘ tooltip is open
   // Gauntlet + Crew Wars: reachable from the hero slideshow.
   // Form Coach: now a button inside the active workout (Freestyle/Regimen).
   // None need a grid tile. Order per user request; the full-width Rival
@@ -1982,27 +1981,17 @@ export default function Workout() {
     borderClass: 'border-border/60 hover:border-primary/40',
   });
 
+  // Train gets one orange action (CLAUDE.md UI rules). In order: resume a
+  // paused session, start the starter plan, else Freestyle. The review found
+  // five solid orange buttons here at once.
+  const starterRegimen = logs.length === 0 && !starterDismissed
+    ? regimens.find(r => typeof r?.name === 'string' && r.name.startsWith('Your Starter Plan')) || null
+    : null;
+  const trainPrimary = sessions.length > 0 ? 'resume' : starterRegimen ? 'starter' : 'freestyle';
+
   // Renders a single grid card by ID. idx = position among non-nemesis cards
   // (drives colour palette so red stays at top, yellow at bottom).
   const renderCard = (id, idx) => {
-    const InfoBtn = ({ bid }) => (
-      <button type="button"
-        onClick={(e) => { e.stopPropagation(); setActiveInfo(activeInfo === bid ? null : bid); }}
-        aria-label={tFallback("workout.whatIsThisCard", "What is this card?")}
-        aria-expanded={activeInfo === bid}
-        // The badge keeps its rendered size; `before:` grows the TAP box to
-        // ~44px. Four of these render in a single viewport and every one was
-        // a 16px target sitting 8px from the card's own click handler, so a
-        // miss didn't just fail — it navigated somewhere instead.
-        // active:text-foreground is the app-wide press state; the glyph is
-        // text-micro per the 11px type floor.
-        className="absolute top-2 end-2 w-4 h-4 rounded-full border border-border/60 bg-background/80 flex items-center justify-center text-muted-foreground/60 hover:text-foreground active:text-foreground hover:border-border transition-colors z-10 before:absolute before:content-[''] before:-inset-3.5">
-        <span className="text-micro font-bold leading-none italic">i</span>
-      </button>
-    );
-    const InfoText = ({ bid, text }) => activeInfo === bid
-      ? <p className="text-micro text-foreground/70 mt-1 leading-tight">{text}</p>
-      : null;
 
     const pal = getCardPalette(idx);
     const cardBase = `group relative cursor-pointer h-full transition-colors p-3 ${pal.borderClass}`;
@@ -2031,7 +2020,6 @@ export default function Workout() {
           className={cardBase} style={{ background: pal.background }}
           onClick={() => navigate('/coach?generate=1')}
           onKeyDown={(e) => { if (e.key==='Enter'||e.key===' '){e.preventDefault();navigate('/coach?generate=1');} }}>
-          <InfoBtn bid="generate" />
           <div className="flex flex-col items-center text-center gap-1.5">
             {/* The AI Coach's mark, not a highlight (kegan, 2026-08-11).
                 Same `from-primary via-fuchsia-500 to-violet-500` + white
@@ -2050,7 +2038,7 @@ export default function Workout() {
             </div>
             <div>
               <p className="font-heading font-bold text-sm leading-tight">{tFallback('generator.title','Generate Workout')}</p>
-              <InfoText bid="generate" text="Tell the AI Coach your goal — or tap Quick pick — and it builds a session or plan." />
+              <p className="text-micro text-muted-foreground mt-0.5 leading-tight">{tFallback('workout.tileSub.generate', 'Your coach builds the session')}</p>
             </div>
           </div>
         </Card>
@@ -2063,7 +2051,6 @@ export default function Workout() {
           className={`${cardBase} overflow-hidden`} style={{ background: pal.background }}
           onClick={() => setStoreOpen(true)}
           onKeyDown={(e) => { if (e.key==='Enter'||e.key===' '){e.preventDefault();setStoreOpen(true);} }}>
-          <InfoBtn bid="explore" />
           <div className="flex flex-col items-center text-center gap-1.5">
             {/* This tile and Duels were the two that used to render orange,
                 and losing that fill is the change kegan approved on
@@ -2074,7 +2061,7 @@ export default function Workout() {
             </div>
             <div>
               <p className="font-heading font-bold text-sm leading-tight">{tFallback("workout.exploreRegimens", "Explore Regimens")}</p>
-              <InfoText bid="explore" text="Browse top-rated community training programs and adopt one." />
+              <p className="text-micro text-muted-foreground mt-0.5 leading-tight">{tFallback('workout.tileSub.explore', 'Programs from the community')}</p>
             </div>
           </div>
         </Card>
@@ -2087,7 +2074,6 @@ export default function Workout() {
           className={cardBase} style={{ background: pal.background }}
           onClick={() => navigate('/duels')}
           onKeyDown={(e) => { if (e.key==='Enter'||e.key===' '){e.preventDefault();navigate('/duels');} }}>
-          <InfoBtn bid="duels" />
           <div className="flex flex-col items-center text-center gap-1.5">
             {/* Plain square — same as Explore Regimens above, same reason. */}
             <div className={iconTile}>
@@ -2098,7 +2084,7 @@ export default function Workout() {
                 <p className="font-heading font-bold text-sm leading-tight">{tFallback("workout.duels", "Duels")}</p>
                 {activeDuel && <span className="text-micro font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-success/15 text-success">{tFallback("duels.status.active", "Active")}</span>}
               </div>
-              <InfoText bid="duels" text="Challenge someone to a head-to-head workout battle." />
+              <p className="text-micro text-muted-foreground mt-0.5 leading-tight">{tFallback('workout.tileSub.duels', 'Head to head battles')}</p>
             </div>
           </div>
         </Card>
@@ -2111,7 +2097,6 @@ export default function Workout() {
           className={cardBase} style={{ background: pal.background }}
           onClick={() => navigate('/bounties')}
           onKeyDown={(e) => { if (e.key==='Enter'||e.key===' '){e.preventDefault();navigate('/bounties');} }}>
-          <InfoBtn bid="bounties" />
           <div className="flex flex-col items-center text-center gap-1.5">
             <div className={iconTile}>
               <Zap className="w-5 h-5 text-primary" />
@@ -2122,7 +2107,7 @@ export default function Workout() {
                 {activeBountyClaim && <span className="text-micro font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-primary/15 text-primary">{tFallback("duels.status.active", "Active")}</span>}
                 {!activeBountyClaim && activeBounties.length>0 && <span className="text-micro font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-primary/15 text-primary">{activeBounties.length} open</span>}
               </div>
-              <InfoText bid="bounties" text="Daily fitness challenges — complete them to earn Flex Coins." />
+              <p className="text-micro text-muted-foreground mt-0.5 leading-tight">{tFallback('workout.tileSub.bounties', 'Daily challenges for coins')}</p>
             </div>
           </div>
         </Card>
@@ -2132,14 +2117,13 @@ export default function Workout() {
     if (id === 'regimens') return (
       <motion.div whileHover={{ y:-2 }} whileTap={{ scale:0.98 }} transition={{ type:'spring', stiffness:380, damping:22 }}>
         <Card className={cardBase} style={{ background: pal.background }} onClick={() => setRegimensOpen(true)}>
-          <InfoBtn bid="regimens" />
           <div className="flex flex-col items-center text-center gap-1.5">
             <div className={iconTile}>
               <Dumbbell className="w-5 h-5 text-primary" />
             </div>
             <div>
               <p className="font-heading font-bold text-sm leading-tight">{t('workout.regimens')}</p>
-              <InfoText bid="regimens" text="View and manage your saved training programs." />
+              <p className="text-micro text-muted-foreground mt-0.5 leading-tight">{tFallback('workout.tileSub.regimens', 'Your saved programs')}</p>
             </div>
           </div>
         </Card>
@@ -2149,14 +2133,13 @@ export default function Workout() {
     if (id === 'saved') return (
       <motion.div whileHover={{ y:-2 }} whileTap={{ scale:0.98 }} transition={{ type:'spring', stiffness:380, damping:22 }}>
         <Card className={cardBase} style={{ background: pal.background }} onClick={() => setSavedWorkoutsOpen(true)}>
-          <InfoBtn bid="saved" />
           <div className="flex flex-col items-center text-center gap-1.5">
             <div className={iconTile}>
               <History className="w-5 h-5 text-primary" />
             </div>
             <div>
               <p className="font-heading font-bold text-sm leading-tight">{tFallback('workout.allWorkouts','All Workouts')}</p>
-              <InfoText bid="saved" text="Browse, search, and replay every workout — gym and cardio." />
+              <p className="text-micro text-muted-foreground mt-0.5 leading-tight">{tFallback('workout.tileSub.saved', 'Every session you logged')}</p>
             </div>
           </div>
         </Card>
@@ -2166,14 +2149,13 @@ export default function Workout() {
     if (id === 'cardio') return (
       <motion.div whileHover={{ y:-2 }} whileTap={{ scale:0.98 }} transition={{ type:'spring', stiffness:380, damping:22 }}>
         <Card className={cardBase} style={{ background: pal.background }} onClick={() => setCardioOpen(true)}>
-          <InfoBtn bid="cardio" />
           <div className="flex flex-col items-center text-center gap-1.5">
             <div className={iconTile}>
               <Activity className="w-5 h-5 text-primary" />
             </div>
             <div>
               <p className="font-heading font-bold text-sm leading-tight">{t('cardio.title')}</p>
-              <InfoText bid="cardio" text="Log runs, rides, and cardio sessions separately from your lifting." />
+              <p className="text-micro text-muted-foreground mt-0.5 leading-tight">{tFallback('workout.tileSub.cardio', 'Runs, rides and more')}</p>
             </div>
           </div>
         </Card>
@@ -2183,14 +2165,13 @@ export default function Workout() {
     if (id === 'goals') return (
       <motion.div whileHover={{ y:-2 }} whileTap={{ scale:0.98 }} transition={{ type:'spring', stiffness:380, damping:22 }}>
         <Card className={cardBase} style={{ background: pal.background }} onClick={() => setGoalsModalOpen(true)}>
-          <InfoBtn bid="goals" />
           <div className="flex flex-col items-center text-center gap-1.5">
             <div className={iconTile}>
               <Target className="w-5 h-5 text-primary" />
             </div>
             <div>
               <p className="font-heading font-bold text-sm leading-tight">{t('workout.goals')}</p>
-              <InfoText bid="goals" text="Set and track your fitness targets — strength, weight, endurance." />
+              <p className="text-micro text-muted-foreground mt-0.5 leading-tight">{tFallback('workout.tileSub.goals', 'Targets you are chasing')}</p>
             </div>
           </div>
         </Card>
@@ -2199,22 +2180,13 @@ export default function Workout() {
 
     if (id === 'nemesis') return (
       // GymRivalCard renders its own bordered card per state, so this
-      // wrapper is just a positioning context for the info button — no
-      // border/bg of its own (that produced a double rose outline).
+      // wrapper carries no border or bg of its own (that produced a double
+      // rose outline). Its info button went with the tiles' ones: the card
+      // already explains itself in its own copy.
       // data-gym-rival is the scroll target for the ?rival=1 deep link —
       // the card itself is a switch branch, so the wrapper is what a
       // querySelector can reach.
       <div className="relative" data-gym-rival>
-        <button type="button"
-          onClick={(ev) => { ev.stopPropagation(); setActiveInfo(activeInfo==='nemesis'?null:'nemesis'); }}
-          className="absolute top-3 end-3 w-4 h-4 rounded-full border border-border/60 bg-background/80 flex items-center justify-center text-muted-foreground/60 hover:text-foreground active:text-foreground hover:border-border transition-colors z-20">
-          <span className="text-micro font-bold leading-none italic">i</span>
-        </button>
-        {activeInfo==='nemesis' && (
-          <p className="absolute top-9 end-3 z-20 text-micro text-muted-foreground bg-background/95 border border-border/60 rounded-lg px-2 py-1.5 max-w-[190px] leading-tight shadow-sm">
-            Weekly Rivals — you're matched with someone at your level. Out-train them to win rewards.
-          </p>
-        )}
         <ErrorBoundary label="GymRivalCard">
           <GymRivalCard currentUserId={user?.id} />
         </ErrorBoundary>
@@ -2227,7 +2199,6 @@ export default function Workout() {
           className={cardBase} style={{ background: pal.background }}
           onClick={() => navigate('/gauntlet')}
           onKeyDown={(e) => { if (e.key==='Enter'||e.key===' '){e.preventDefault();navigate('/gauntlet');} }}>
-          <InfoBtn bid="gauntlet" />
           <div className="flex flex-col items-center text-center gap-1.5">
             <div className={iconTile}>
               <Trophy className="w-5 h-5 text-primary" />
@@ -2238,7 +2209,7 @@ export default function Workout() {
                 {gauntletProgress?.path_completed && <span className="text-micro font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-primary/15 text-primary">{tFallback("coach.plan.done", "Done")}</span>}
                 {!gauntletProgress?.path_completed && gauntletProgress && <span className="text-micro font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-primary/15 text-primary">#{gauntletProgress.current_challenge_sequence}</span>}
               </div>
-              <InfoText bid="gauntlet" text="Complete 10 epic challenges to earn prizes and climb the leaderboard." />
+              <p className="text-micro text-muted-foreground mt-0.5 leading-tight">{tFallback('workout.tileSub.gauntlet', 'Ten challenges, real prizes')}</p>
             </div>
           </div>
         </Card>
@@ -2550,6 +2521,65 @@ export default function Workout() {
         </div>
         )}
 
+        {/* Paused workouts. First on the page: an unfinished session is the
+            most urgent thing Train can offer, and when one exists its Resume
+            is the tab's one orange action (the starter plan and Freestyle
+            step down to outline). It used to sit under the tile grid, below
+            four other solid orange buttons. */}
+        {sessions.length > 0 && (
+          <div className="space-y-2 mb-6">
+            <AnimatePresence>
+              {sessions.map(session => (
+                <motion.div
+                  key={session.id}
+                  initial={{ opacity: 1, x: 0, height: 'auto' }}
+                  exit={{ opacity: 0, x: '110%', height: 0, marginBottom: 0 }}
+                  transition={{ duration: 0.35, ease: 'easeInOut' }}
+                  style={{ overflow: 'hidden' }}
+                >
+                  <motion.div
+                    whileHover={{ y: -1 }}
+                    whileTap={{ scale: 0.97 }}
+                    transition={{ type: 'spring', stiffness: 380, damping: 20 }}
+                  >
+                    <Card
+                      className="p-4 cursor-pointer hover:bg-secondary active:bg-secondary transition-colors"
+                      onClick={() => handleResumeSession(session.id)}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-xl bg-primary/20 flex items-center justify-center shrink-0">
+                            <Pause className="w-4 h-4 text-primary" />
+                          </div>
+                          <div>
+                            <p className="font-heading font-bold text-sm">
+                              {t('workout.resume')} {session.selectedRegimen ? session.selectedRegimen.name : t('workout.freestyle')}
+                            </p>
+                            <p className="text-xs text-muted-foreground">{session.exercises?.length || 0} {t('workout.exercises').toLowerCase()} · {t('workout.paused')}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-xs text-muted-foreground hover:text-destructive active:text-destructive"
+                            onClick={(e) => { e.stopPropagation(); removeSession(session.id); }}
+                          >
+                            {t('workout.discard')}
+                          </Button>
+                          <Button size="sm" className="text-xs">
+                            {t('workout.resumeLabel')}
+                          </Button>
+                        </div>
+                      </div>
+                    </Card>
+                  </motion.div>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>
+        )}
+
         {cardioOpen ? (
           <div className="mb-8">
             <CardioSection
@@ -2571,14 +2601,11 @@ export default function Workout() {
                 Goes above the freestyle CTA so the personalized plan is
                 the first thing the user sees, but freestyle stays
                 available right below for users who want to wing it. */}
-            {logs.length === 0 && !starterDismissed && (() => {
-              const starter = regimens.find(r =>
-                typeof r?.name === 'string' &&
-                r.name.startsWith('Your Starter Plan'),
-              );
-              if (!starter) return null;
+            {starterRegimen && (() => {
+              const starter = starterRegimen;
               return (
                 <StarterPlanHeroCard
+                  primary={trainPrimary === 'starter'}
                   regimen={starter}
                   userProfile={userProfile}
                   onStart={startFromRegimen}
@@ -2630,7 +2657,7 @@ export default function Workout() {
                 renderSlide={(slide) => (
                   <>
                     {slide.id === 'freestyle' && (
-                      <TrainHeroSlide onClick={startFreestyle} tone="primary" icon={Play}
+                      <TrainHeroSlide onClick={startFreestyle} tone={trainPrimary === 'freestyle' ? 'primary' : 'soft'} icon={Play}
                         kicker={t('workout.startKicker')}
                         title={t('workout.freestyle')}
                         blurb={t('workout.freestyleDesc')}
@@ -2828,60 +2855,6 @@ export default function Workout() {
           </div>
         )}
 
-        {/* Paused workouts */}
-        {sessions.length > 0 && (
-          <div className="space-y-2 mb-6">
-            <AnimatePresence>
-              {sessions.map(session => (
-                <motion.div
-                  key={session.id}
-                  initial={{ opacity: 1, x: 0, height: 'auto' }}
-                  exit={{ opacity: 0, x: '110%', height: 0, marginBottom: 0 }}
-                  transition={{ duration: 0.35, ease: 'easeInOut' }}
-                  style={{ overflow: 'hidden' }}
-                >
-                  <motion.div
-                    whileHover={{ scale: 1.02, y: -2 }}
-                    whileTap={{ scale: 0.97 }}
-                    transition={{ type: 'spring', stiffness: 380, damping: 20 }}
-                  >
-                    <Card
-                      className="p-4 border-primary/40 bg-primary/5 cursor-pointer hover:bg-primary/10 active:bg-primary/10 transition-colors"
-                      onClick={() => handleResumeSession(session.id)}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-xl bg-primary/20 flex items-center justify-center shrink-0">
-                            <Pause className="w-4 h-4 text-primary" />
-                          </div>
-                          <div>
-                            <p className="font-heading font-bold text-sm">
-                              {t('workout.resume')} {session.selectedRegimen ? session.selectedRegimen.name : t('workout.freestyle')}
-                            </p>
-                            <p className="text-xs text-muted-foreground">{session.exercises?.length || 0} {t('workout.exercises').toLowerCase()} · {t('workout.paused')}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="text-xs text-muted-foreground hover:text-destructive active:text-destructive"
-                            onClick={(e) => { e.stopPropagation(); removeSession(session.id); }}
-                          >
-                            {t('workout.discard')}
-                          </Button>
-                          <Button size="sm" className="bg-primary hover:bg-primary active:bg-primary text-white text-xs">
-                            {t('workout.resumeLabel')}
-                          </Button>
-                        </div>
-                      </div>
-                    </Card>
-                  </motion.div>
-                </motion.div>
-              ))}
-            </AnimatePresence>
-          </div>
-        )}
 
         {isLoading && (
           <div className="space-y-3">

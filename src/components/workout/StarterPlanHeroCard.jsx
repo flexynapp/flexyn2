@@ -48,6 +48,9 @@ export default function StarterPlanHeroCard({
   onStart,
   onCustomize,
   onDismiss,
+  // False when a paused session outranks this card on the page. The Train
+  // tab gets one orange action, so the start button steps down to outline.
+  primary = true,
 }) {
   const { tFallback } = useLanguage();
   if (!regimen) return null;
@@ -73,10 +76,8 @@ export default function StarterPlanHeroCard({
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-      className="relative w-full mb-4 overflow-hidden rounded-2xl bg-gradient-to-br from-primary/15 via-primary/10 to-primary/10 border border-primary/30 p-5 md:p-6 shadow-lg shadow-primary/10"
+      className="relative w-full mb-4 overflow-hidden rounded-2xl bg-card border border-border p-5 md:p-6"
     >
-      <div className="absolute -top-12 -end-12 w-48 h-48 rounded-full blur-3xl bg-primary/30 pointer-events-none" />
-
       {/* Dismiss — removes the card from the Workout page only. The
           regimen itself stays available under Regimens. */}
       {onDismiss && (
@@ -148,7 +149,7 @@ export default function StarterPlanHeroCard({
             type="button"
             whileTap={{ scale: 0.98 }}
             onClick={() => onStart?.(regimen)}
-            className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-primary text-primary-foreground font-bold text-sm shadow-md shadow-primary/30 hover:opacity-95 transition-opacity"
+            className={`flex-1 inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-bold text-sm transition-colors ${primary ? 'bg-primary text-primary-foreground hover:bg-primary/90 active:bg-primary/90' : 'border border-border bg-background/60 text-foreground hover:bg-secondary active:bg-secondary'}`}
           >
             <Play className="w-4 h-4 fill-current" />
             {tFallback('workout.starter.startCta', 'Start your first workout')}
@@ -157,7 +158,7 @@ export default function StarterPlanHeroCard({
             <button
               type="button"
               onClick={() => onCustomize(regimen)}
-              className="inline-flex items-center gap-1.5 px-3 py-3 rounded-xl border border-border bg-background/60 text-xs font-bold uppercase tracking-wider text-foreground hover:bg-secondary/50 active:bg-secondary/50 transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-3 rounded-xl border border-border bg-background/60 text-sm font-semibold text-foreground hover:bg-secondary/50 active:bg-secondary/50 transition-colors"
               aria-label={tFallback('workout.starter.customizeAria', 'Customize starter plan')}
             >
               <Pencil className="w-3.5 h-3.5" />
