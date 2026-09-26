@@ -26,6 +26,7 @@ import { useMultiProfanityGuard, hasAnyProfanity } from '@/lib/useProfanityGuard
 import ProfanityWarningDialog from '@/components/ProfanityWarningDialog';
 import CardioSection from '@/components/cardio/CardioSection';
 import WorkoutShareCard from '@/components/workout/WorkoutShareCard';
+import PostWorkoutPushAsk from '@/components/workout/PostWorkoutPushAsk';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -303,6 +304,8 @@ export default function Workout() {
   const [cardioOpen, setCardioOpen] = useState(false);
   const [formCoachOpen, setFormCoachOpen] = useState(false);
   const [shareCardWorkout, setShareCardWorkout] = useState(null);
+  // Armed when the post-save share card closes; see PostWorkoutPushAsk.
+  const [pushAskArmed, setPushAskArmed] = useState(false);
   const [savedWorkoutsOpen, setSavedWorkoutsOpen] = useState(false);
   // In the URL (?history=) so the tab bar and a refresh keep your place.
   const [historyTab, setHistoryTab] = useUrlState('history', 'gym', ['gym', 'cardio']);
@@ -3654,11 +3657,15 @@ export default function Workout() {
       <ErrorBoundary label="WorkoutShareCard">
         <WorkoutShareCard
           open={!!shareCardWorkout}
-          onClose={() => setShareCardWorkout(null)}
+          onClose={() => { setShareCardWorkout(null); setPushAskArmed(true); }}
           workout={shareCardWorkout}
           username={user?.username ? `@${user.username}` : 'Athlete'}
           includeBarWeight={!!userProfile?.include_bar_in_volume}
         />
+      </ErrorBoundary>
+
+      <ErrorBoundary label="PostWorkoutPushAsk">
+        <PostWorkoutPushAsk armed={pushAskArmed} onDone={() => setPushAskArmed(false)} />
       </ErrorBoundary>
 
       {/* PR share card — opened from the firePRCelebration toast's
