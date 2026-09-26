@@ -11,7 +11,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Download, Share2, Loader2 } from 'lucide-react';
+import { Download, Share2, Loader2, Trophy, Zap } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
 import { formatDate } from '@/lib/intl';
 import { asT } from '@/lib/translatorArg';
@@ -212,7 +212,50 @@ function roundRect(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
-export default function WorkoutShareCard({ open, onClose, workout, username, includeBarWeight = false }) {
+// The finish screen's numbers, above the image. Only what the session
+// actually has: a duration nobody recorded is left out rather than drawn
+// as "0 min" (CLAUDE.md: a section with no data must not render zeros).
+function FinishStats({ workout, includeBarWeight, weightUnit, summary, tFallback, language }) {
+  const raw = computeStats(workout, { includeBarWeight });
+  const fmt = (n) => formatNumber(n, language);
+  const unit = weightUnit === 'kg' ? 'kg' : weightUnit === 'stone' ? 'st' : 'lb';
+  const cells = [
+    raw.duration > 0 && { label: tFallback('finish.time', 'Time'), value: `${fmt(raw.duration)} ${tFallback('finish.min', 'min')}` },
+    raw.totalVolume > 0 && { label: tFallback('finish.volume', 'Volume'), value: `${fmt(Math.round(fromLbs(raw.totalVolume, weightUnit)))} ${unit}` },
+    { label: tFallback('finish.sets', 'Sets'), value: fmt(raw.totalSets) },
+  ].filter(Boolean);
+  const prs = summary?.prs || [];
+  return (
+    <div className="flex flex-col gap-2 mb-6">
+      <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${cells.length}, minmax(0, 1fr))` }}>
+        {cells.map((c) => (
+          <div key={c.label} className="rounded-lg border border-border px-2 py-2 text-center">
+            <span className="block font-heading text-xl font-bold tabular-nums">{c.value}</span>
+            <span className="block text-micro text-muted-foreground uppercase tracking-wide">{c.label}</span>
+          </div>
+        ))}
+      </div>
+      <div className="flex flex-wrap items-center justify-center gap-2">
+        {summary?.xpGained > 0 && (
+          <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 text-primary px-2 py-1 text-caption font-semibold">
+            <Zap className="w-3.5 h-3.5" aria-hidden="true" />
+            {tFallback('finish.xp', '+{xp} XP', { xp: fmt(summary.xpGained) })}
+          </span>
+        )}
+        {prs.length > 0 && (
+          <span className="inline-flex items-center gap-1 rounded-full bg-success/10 text-success px-2 py-1 text-caption font-semibold">
+            <Trophy className="w-3.5 h-3.5" aria-hidden="true" />
+            {prs.length === 1
+              ? tFallback('finish.onePr', 'New PR: {name}', { name: prs[0].displayName || prs[0].name })
+              : tFallback('finish.manyPrs', '{n} new PRs', { n: fmt(prs.length) })}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default function WorkoutShareCard({ open, onClose, workout, username, includeBarWeight = false, summary = null }) {
   const { tFallback, language } = useLanguage();
   const { weightUnit } = useWeightUnit();
   const canvasRef = useRef(null);
@@ -321,9 +364,16 @@ export default function WorkoutShareCard({ open, onClose, workout, username, inc
         <div className="p-5">
           <DialogHeader className="mb-3">
             <DialogTitle>
-              {tFallback('share.title', 'Share your workout')}
+              {summary
+                ? tFallback('finish.title', 'Workout complete')
+                : tFallback('share.title', 'Share your workout')}
             </DialogTitle>
           </DialogHeader>
+
+          {summary && workout && (
+            <FinishStats workout={workout} includeBarWeight={includeBarWeight} weightUnit={weightUnit}
+              summary={summary} tFallback={tFallback} language={language} />
+          )}
 
           {/* Hidden full-resolution canvas */}
           <canvas
@@ -360,9 +410,14 @@ export default function WorkoutShareCard({ open, onClose, workout, username, inc
               {tFallback('share.share', 'Share')}
             </Button>
           </div>
-          <p className="text-micro text-muted-foreground mt-3 text-center">
+          <p className="text-micro text-muted-foreground mt-2 text-center">
             {tFallback('share.hint', 'Posts to Instagram, TikTok, or download for anywhere else.')}
           </p>
+          {summary && (
+            <Button type="button" variant="ghost" onClick={onClose} className="w-full min-h-12 mt-2">
+              {tFallback('finish.done', 'Done')}
+            </Button>
+          )}
         </div>
       </DialogContent>
     </Dialog>
