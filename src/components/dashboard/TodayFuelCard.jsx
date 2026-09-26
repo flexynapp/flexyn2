@@ -9,39 +9,17 @@
 // this card answers one question, "how much is left today", and a second
 // copy of those widgets is what made the old dashboard 26 sections long.
 //
-// The query key extends the Nutrition page's ['nutritionLogs', email, date]
-// rather than reusing it. This card selects four columns; sharing the exact
-// key would hand the Nutrition page these partial rows from cache. The
-// longer key still matches every invalidate that page issues, because react
-// query matches keys by prefix, so logging a meal refreshes this card too.
+// The data comes from useTodayFuel, shared with the + sheet's water panel.
 
-import { useEffect, useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { format } from 'date-fns';
 import { Flame, Droplet, ChevronRight } from 'lucide-react';
 import { Card } from '@/components/ui/card';
-import { supabase } from '@/api/supabaseClient';
-import { db } from '@/api/db';
-import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useNumberFormatter } from '@/lib/intl';
-import { useNutritionTargets } from '@/hooks/useNutritionTargets';
-import { isWaterEntry, waterEntryOz } from '@/lib/waterEntries';
-import { filterAfterReset } from '@/lib/accountReset';
-import { dailyWaterGoalOz } from '@/lib/waterGoal';
+import { useTodayFuel, summariseFuel } from '@/hooks/useTodayFuel';
 
-const todayKey = () => format(new Date(), 'yyyy-MM-dd');
-
-export function summariseFuel(entries = []) {
-  let calories = 0;
-  let waterOz = 0;
-  for (const e of entries) {
-    if (isWaterEntry(e)) waterOz += waterEntryOz(e);
-    else calories += Number(e.calories) || 0;
-  }
-  return { calories: Math.round(calories), waterOz: Math.round(waterOz) };
-}
+// Re-exported for the existing glance tests.
+export { summariseFuel };
 
 function Line({ icon: Icon, label, value, goal, unit, fmt }) {
   const pct = goal > 0 ? Math.min(value / goal, 1) : 0;
@@ -65,48 +43,10 @@ function Line({ icon: Icon, label, value, goal, unit, fmt }) {
 }
 
 export default function TodayFuelCard({ userProfile = {} }) {
-  const { user } = useAuth();
   const { tFallback } = useLanguage();
   const fmt = useNumberFormatter();
   const navigate = useNavigate();
-  const [today, setToday] = useState(todayKey);
-  useEffect(() => {
-    const id = setInterval(() => {
-      const next = todayKey();
-      setToday((prev) => (prev === next ? prev : next));
-    }, 60_000);
-    return () => clearInterval(id);
-  }, []);
-
-  // Meals are written under db.auth.me().email, which for a guest differs
-  // from the auth context's (empty) email. Same resolution as the Nutrition
-  // page and CalorieProgressWidget.
-  const { data: authEmail = null } = useQuery({
-    queryKey: ['authIdentityEmail'],
-    queryFn: async () => { try { return (await db.auth.me())?.email || null; } catch { return null; } },
-    staleTime: 5 * 60_000,
-  });
-  const logEmail = authEmail || user?.email || userProfile?.email || null;
-
-  const { data: rows = [] } = useQuery({
-    queryKey: ['nutritionLogs', logEmail, today, 'todayGlance'],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from('nutrition_logs')
-        .select('calories, food_name, meal_type, created_at')
-        .eq('created_by', logEmail)
-        .eq('date', today);
-      return data || [];
-    },
-    enabled: !!logEmail,
-    staleTime: 60_000,
-  });
-
-  const visible = useMemo(() => filterAfterReset(rows, userProfile), [rows, userProfile]);
-  const { calories, waterOz } = useMemo(() => summariseFuel(visible), [visible]);
-  const targets = useNutritionTargets(userProfile);
-  const calorieGoal = Math.round(Number(targets?.calories) || 2000);
-  const waterGoal = dailyWaterGoalOz(userProfile);
+  const { visible, calories, waterOz, calorieGoal, waterGoal } = useTodayFuel(userProfile);
 
   return (
     <Card className="p-0 overflow-hidden">

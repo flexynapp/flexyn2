@@ -18,7 +18,8 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter, Routes, Route, useLocation, useNavigationType } from 'react-router-dom';
 import { NAV_PATHS, tabForPath } from '@/lib/navTabs';
-import QuickLogSheet, { QUICK_LOG_ITEMS } from '@/components/QuickLogSheet';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import QuickLogSheet, { QUICK_LOG_ITEMS, searchScreens, SEARCH_INDEX } from '@/components/QuickLogSheet';
 
 vi.mock('@/lib/LanguageContext', async () => {
   const { languageMock } = await import('@/lib/__tests__/i18nMock');
@@ -26,6 +27,34 @@ vi.mock('@/lib/LanguageContext', async () => {
 });
 vi.mock('@/hooks/useBodyScrollLock', () => ({ useBodyScrollLock: () => {} }));
 vi.mock('@/lib/haptic', () => ({ triggerHaptic: () => {} }));
+
+const h = vi.hoisted(() => ({
+  createWater: vi.fn(async (row) => ({ id: 'w1', ...row })),
+  rewardWaterLog: vi.fn(),
+  saveWeight: vi.fn(),
+  toastError: vi.fn(),
+  toastSuccess: vi.fn(),
+  fuel: { waterOz: 40 },
+}));
+vi.mock('@/lib/AuthContext', () => ({
+  useAuth: () => ({ user: { id: 'u1', email: 'a@b.c', weight_lbs: 180 } }),
+}));
+vi.mock('@/lib/WeightUnitContext', () => ({
+  useWeightUnit: () => ({ weightUnit: 'lbs', setWeightUnit: () => {} }),
+}));
+vi.mock('@/lib/toast', () => ({ toast: { error: h.toastError, success: h.toastSuccess } }));
+vi.mock('@/lib/reportError', () => ({ reportError: () => {} }));
+vi.mock('@/lib/data/nutrition', () => ({ create: h.createWater }));
+vi.mock('@/lib/waterLogging', () => ({ rewardWaterLog: h.rewardWaterLog, WATER_DAILY_CAP_OZ: 200 }));
+vi.mock('@/hooks/useTodayFuel', () => ({
+  useTodayFuel: () => ({ today: '2026-09-26', waterOz: h.fuel.waterOz, waterGoal: 64 }),
+}));
+vi.mock('@/hooks/useSaveWeight', () => ({
+  useSaveWeight: ({ onSaved }) => ({
+    isPending: false,
+    mutate: (args) => { h.saveWeight(args); onSaved?.(); },
+  }),
+}));
 
 describe('which tab is lit', () => {
   it('has four tabs, with + between Train and Social rather than a route', () => {
@@ -69,12 +98,15 @@ function Harness() {
 }
 
 function renderSheet() {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   return render(
-    <MemoryRouter initialEntries={['/dashboard']}>
-      <Routes>
-        <Route path="*" element={<Harness />} />
-      </Routes>
-    </MemoryRouter>,
+    <QueryClientProvider client={qc}>
+      <MemoryRouter initialEntries={['/dashboard']}>
+        <Routes>
+          <Route path="*" element={<Harness />} />
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>,
   );
 }
 
@@ -83,7 +115,7 @@ describe('the + sheet', () => {
     expect(QUICK_LOG_ITEMS.map((i) => i.id)).toContain('meal');
   });
 
-  it.each(QUICK_LOG_ITEMS.map((i) => [i.en, i.to]))('%s goes to %s, replacing the sheet entry', (label, to) => {
+  it.each(QUICK_LOG_ITEMS.filter((i) => !i.inline).map((i) => [i.en, i.to]))('%s goes to %s, replacing the sheet entry', (label, to) => {
     renderSheet();
     fireEvent.click(screen.getByRole('button', { name: label }));
     expect(screen.getByTestId('where').textContent).toBe(`REPLACE ${to}`);
@@ -93,5 +125,85 @@ describe('the + sheet', () => {
     renderSheet();
     fireEvent.click(screen.getByRole('button', { name: 'Meal' }));
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Weight' })).toBeNull());
+  });
+});
+
+// Phase 4: water and weight log in the sheet itself, so you never leave
+// the page you were on to record one number.
+describe('logging inline', () => {
+  it('logs a glass of water without leaving the page', async () => {
+    h.fuel.waterOz = 40;
+    renderSheet();
+    fireEvent.click(screen.getByRole('button', { name: 'Water' }));
+    expect(screen.getByText('40')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '+8 oz' }));
+    await waitFor(() => expect(h.createWater).toHaveBeenCalledWith(
+      expect.objectContaining({ date: '2026-09-26', calories: 0 }),
+    ));
+    // The same side effects the Nutrition page runs: XP and the quest.
+    await waitFor(() => expect(h.rewardWaterLog).toHaveBeenCalledWith(
+      expect.objectContaining({ date: '2026-09-26', oz: 8 }),
+    ));
+    expect(screen.getByTestId('where').textContent).toBe('POP /dashboard');
+  });
+
+  it('refuses water past the daily cap, like the Nutrition page', () => {
+    h.fuel.waterOz = 190;
+    h.createWater.mockClear();
+    renderSheet();
+    fireEvent.click(screen.getByRole('button', { name: 'Water' }));
+    fireEvent.click(screen.getByRole('button', { name: '+16 oz' }));
+    expect(h.createWater).not.toHaveBeenCalled();
+    expect(h.toastError).toHaveBeenCalled();
+  });
+
+  it('saves a weight prefilled from the profile and closes', async () => {
+    renderSheet();
+    fireEvent.click(screen.getByRole('button', { name: 'Weight' }));
+    const input = screen.getByRole('spinbutton', { name: "Today's weight" });
+    expect(input.value).toBe('180');
+    fireEvent.change(input, { target: { value: '178.4' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save weight' }));
+    expect(h.saveWeight).toHaveBeenCalledWith({ value: '178.4', date: '2026-09-26', weightUnit: 'lbs' });
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Save weight' })).toBeNull());
+    expect(screen.getByTestId('where').textContent).toBe('POP /dashboard');
+  });
+
+  it('goes back to the grid from a panel', () => {
+    renderSheet();
+    fireEvent.click(screen.getByRole('button', { name: 'Weight' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect(screen.getByRole('button', { name: 'Meal' })).toBeTruthy();
+  });
+});
+
+describe('finding a screen', () => {
+  it('matches every word, across the label and extra terms', () => {
+    expect(searchScreens('crew war').map((i) => i.id)).toEqual(['crewwars']);
+    expect(searchScreens('weekly').map((i) => i.id)).toEqual(expect.arrayContaining(['reviews', 'gauntlet']));
+    expect(searchScreens('SHOP').map((i) => i.id)).toEqual(['rewards']);
+    expect(searchScreens('   ')).toEqual([]);
+  });
+
+  it('searches the translated label, ignoring accents', () => {
+    const es = (item) => (item.id === 'nutrition' ? 'Nutrición' : item.en);
+    expect(searchScreens('nutricion', es).map((i) => i.id)).toEqual(['nutrition']);
+  });
+
+  it('every entry either goes somewhere or does something', () => {
+    for (const item of SEARCH_INDEX) expect(Boolean(item.to) || typeof item.run === 'function').toBe(true);
+  });
+
+  it('opens a result, replacing the sheet entry', () => {
+    renderSheet();
+    fireEvent.change(screen.getByPlaceholderText('Find a screen'), { target: { value: 'duel' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Duels' }));
+    expect(screen.getByTestId('where').textContent).toBe('REPLACE /duels');
+  });
+
+  it('says so when nothing matches', () => {
+    renderSheet();
+    fireEvent.change(screen.getByPlaceholderText('Find a screen'), { target: { value: 'zzzz' } });
+    expect(screen.getByText('Nothing matches that. Try another word.')).toBeTruthy();
   });
 });

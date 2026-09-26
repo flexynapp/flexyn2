@@ -14,7 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import * as quests from '@/lib/data/quests';
 import { ACTION_TYPES } from '@/lib/questCatalog';
-import { XP_REWARDS } from '@/lib/xpSystem';
+import { rewardWaterLog, WATER_DAILY_CAP_OZ } from '@/lib/waterLogging';
 import { toast } from '@/lib/toast';
 import { isAppAdmin } from '@/lib/adminRoles';
 import { setLayoutDefault } from '@/lib/data/layoutDefaults';
@@ -375,8 +375,6 @@ export default function Nutrition() {
   const [showNutritionPlans, setShowNutritionPlans] = useState(false);
   const [showMealHistory, setShowMealHistory] = useState(false);
 
-  // Hard daily cap: 200 oz (~5.9L). Beyond this is water-toxicity territory.
-  const WATER_DAILY_CAP_OZ = 200;
   // In the URL (?nutrients=) so the tab bar and a refresh keep your place.
   const [nutritionTab, setNutritionTab] = useUrlState('nutrients', 'macros', ['macros', 'vitamins']);
   const [entries, setEntries] = useState([]);
@@ -732,22 +730,11 @@ export default function Nutrition() {
       }
 
       if (isWaterEntry(variables)) {
-        // XP value comes from XP_REWARDS.waterGlass (single source of truth).
-        // Was hardcoded to 1 inline, drifted from the documented 3.
-        const xpForWater = (XP_REWARDS && XP_REWARDS.waterGlass) || 3;
-        db.functions.invoke('updateUserXpAndAchievements', {
-          xp_gained: xpForWater,
-          action_type: 'water_logged',
-          action_data: { date, oz: waterEntryOz(variables) },
-        }).catch(() => {});
-        queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
-        // No toast on water log — the hydration ring already pulses/fills as
-        // visual confirmation, and a toast on every glass was pure FOV noise
-        // (you log water many times a day). Removed per notification cleanup.
-        // Quest progress — count one quest "tick" per logged glass entry
-        quests.recordAction(user, ACTION_TYPES.WATER_LOGGED, 1)
-          .then(() => queryClient.invalidateQueries({ queryKey: ['dailyQuests'] }))
-          .catch(() => {});
+        // XP, the quest tick and the profile refresh are shared with the +
+        // sheet (lib/waterLogging.js) so both ways of logging water pay out
+        // the same. No toast on water: the hydration ring filling is the
+        // confirmation, and a toast per glass was noise.
+        rewardWaterLog({ user, date, oz: waterEntryOz(variables), queryClient });
       } else {
         setNewEntry({ food_name: '', calories: '', protein_g: '', carbs_g: '', fat_g: '', sodium_mg: '', fiber_g: '', sugar_g: '', cholesterol_mg: '', iron_mg: '', magnesium_mg: '', calcium_mg: '', potassium_mg: '', vitamin_a_iu: '', vitamin_c_mg: '', vitamin_d_iu: '', vitamin_b12_mcg: '' });
 
