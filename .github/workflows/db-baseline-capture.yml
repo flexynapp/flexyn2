@@ -90,7 +90,7 @@ jobs:
             sql="${sql}select '$t' as tbl, format('INSERT INTO public.%I SELECT * FROM jsonb_populate_recordset(NULL::public.%I, %L::jsonb) ON CONFLICT DO NOTHING;', '$t', '$t', (select jsonb_agg(to_jsonb(x) order by to_jsonb(x)::text) from public.$t x)) as stmt"
           done
           supabase db query --linked -o json "$sql" \
-            | jq -r '(.rows // .)[] | "-- " + .tbl + "\n" + .stmt + "\n"' > "$OUT/reference_data.sql"
+            | jq -r '(if type == "array" then . else .rows end)[] | "-- " + .tbl + "\n" + .stmt + "\n"' > "$OUT/reference_data.sql"
           test -s "$OUT/reference_data.sql"
 
       - name: Refuse to publish anything that looks like a secret
