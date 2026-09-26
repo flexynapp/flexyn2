@@ -555,6 +555,13 @@ clearing 20 alerts:
   version. `npm audit fix` patched each line separately (1.1.18, 2.1.4, 5.0.9
   coexisting) and lint stayed green.
 
+**maplibre-gl is on v6** (2026-09-26, for a critical XSS advisory on v5). v6 is
+ESM-only and must be told where its tile worker lives, or the map frame renders
+with no tiles and nothing throws. **Import it only from `@/lib/maplibre`**, which
+makes that `setWorkerUrl()` call; a direct `import … from 'maplibre-gl'` skips
+it. `fast-uri` in `overrides` is now a caret range rather than an exact pin, for
+the ceiling reason above.
+
 **react-router is on v7** (7.18.2, migrated 2026-08-20 — the v6 line had no
 patch for its last 3 advisories). Imports still come from `react-router-dom`,
 which v7 keeps as a re-export, so the 83 call sites were untouched. Do NOT add
