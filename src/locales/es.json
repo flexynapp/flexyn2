@@ -933,6 +933,7 @@
   "collectionModal.tapAnySlotForDetails": "Toca cualquier hueco para ver detalles",
   "collectionModal.tileAria": "{name}. {state}, {rarity}",
   "collectionModal.variantsOwned": "Variantes conseguidas: {list}",
+  "comeback.toDashboard": "Ir a mi panel",
   "comingSoon.backToDashboard": "Volver al panel",
   "comingSoon.comingSoon": "Próximamente",
   "common.back": "Atrás",

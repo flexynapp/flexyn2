@@ -1515,6 +1515,13 @@ export default function Workout() {
     comebackProtocol.dismiss();
   };
 
+  // "Go to my dashboard" on the Welcome back screen. Replace, so Back from
+  // the dashboard does not reopen a Workout page the user chose to leave.
+  const handleComebackHome = () => {
+    comebackProtocol.dismiss();
+    navigate('/dashboard', { replace: true });
+  };
+
   // Start an active workout pre-filled from the AI generator. SHARED between
   // both modal mount points (idle-view and active-view) so we never have to
   // worry about one path drifting from the other. Mirrors startFromRegimen /
@@ -3101,6 +3108,7 @@ export default function Workout() {
               userProfile={userProfile}
               onStartSession={handleComebackStart}
               onSkip={handleComebackSkip}
+              onHome={handleComebackHome}
             />
           )}
         </AnimatePresence>

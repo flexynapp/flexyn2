@@ -44,7 +44,7 @@ const LOGS = [5, 8, 12].map((ago, i) => ({
 
 // Mirrors Workout.jsx: the logs array is memoized, so its reference is
 // stable across renders. That stability is what made the buttons dead.
-function Harness({ logs, onStart }) {
+function Harness({ logs, onStart, onHome = () => {} }) {
   const stableLogs = useMemo(() => logs, [logs]);
   const [started, setStarted] = useState(false);
   const comeback = useComebackProtocol({ workoutLogs: stableLogs, hasActiveSession: false, userId: 'u1' });
@@ -59,6 +59,7 @@ function Harness({ logs, onStart }) {
             userProfile={{}}
             onStartSession={(ex, title) => { comeback.dismiss(); setStarted(true); onStart(ex, title); }}
             onSkip={() => comeback.dismiss()}
+            onHome={() => { comeback.dismiss(); onHome(); }}
           />
         )}
       </AnimatePresence>
@@ -75,10 +76,14 @@ describe('ComebackScreen — both buttons lead somewhere', () => {
     expect(screen.getByText(/It's been 5 days/)).toBeTruthy();
   });
 
-  it('"Skip to my normal workout" takes the overlay down', async () => {
-    render(<Harness logs={LOGS} onStart={vi.fn()} />);
-    fireEvent.click(screen.getByRole('button', { name: /Skip to my normal workout/i }));
+  // Declining goes to the dashboard (kegan, 2026-09-26), not the empty
+  // Workout page behind the overlay.
+  it('"Go to my dashboard" takes the overlay down and heads home', async () => {
+    const onHome = vi.fn();
+    render(<Harness logs={LOGS} onStart={vi.fn()} onHome={onHome} />);
+    fireEvent.click(screen.getByRole('button', { name: /Go to my dashboard/i }));
     await waitFor(() => expect(screen.queryByText('Welcome back.')).toBeNull());
+    expect(onHome).toHaveBeenCalledTimes(1);
     expect(screen.getByText('workout idle')).toBeTruthy();
   });
 
@@ -102,7 +107,7 @@ describe('ComebackScreen — both buttons lead somewhere', () => {
 
   it('stays dismissed when the page remounts in the same session', async () => {
     const { unmount } = render(<Harness logs={LOGS} onStart={vi.fn()} />);
-    fireEvent.click(screen.getByRole('button', { name: /Skip to my normal workout/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Go to my dashboard/i }));
     await waitFor(() => expect(screen.queryByText('Welcome back.')).toBeNull());
     unmount();
     render(<Harness logs={LOGS} onStart={vi.fn()} />);

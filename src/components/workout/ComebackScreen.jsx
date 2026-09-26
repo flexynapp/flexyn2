@@ -8,7 +8,8 @@
 //   workoutLogs   — all of the user's workout logs (for session generation)
 //   userProfile   — for bodyweight estimates
 //   onStartSession(exercises, title) — loads the comeback session into workout flow
-//   onSkip        — user bypasses the protocol, goes to normal workout
+//   onSkip        — no session could be built, falls back to the normal workout
+//   onHome        — user declines; goes to the Today dashboard (kegan, 2026-09-26)
 
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
@@ -104,7 +105,7 @@ function buildComebackSession(workoutLogs, daysSince, userProfile = {}) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export default function ComebackScreen({ daysSince, workoutLogs = [], userProfile = {}, onStartSession, onSkip }) {
+export default function ComebackScreen({ daysSince, workoutLogs = [], userProfile = {}, onStartSession, onSkip, onHome }) {
   // Pin the page behind this overlay — see @/lib/scrollLock.
   useBodyScrollLock();
   const { tFallback } = useLanguage();
@@ -210,11 +211,16 @@ export default function ComebackScreen({ daysSince, workoutLogs = [], userProfil
           }
         </Button>
 
+        {/* Declining the comeback session goes to the dashboard, not the
+            Workout page behind this overlay (kegan, 2026-09-26). Someone
+            back after days away is better served by Today, which shows
+            the one thing to do next, than by an empty workout form. */}
         <button
-          onClick={onSkip}
-          className="w-full text-sm text-muted-foreground hover:text-foreground active:text-foreground transition-colors py-2"
+          type="button"
+          onClick={onHome || onSkip}
+          className="w-full min-h-12 text-sm text-muted-foreground hover:text-foreground active:text-foreground transition-colors py-2"
         >
-          {tFallback('comeback.skip', 'Skip to my normal workout')}
+          {tFallback('comeback.toDashboard', 'Go to my dashboard')}
           <ArrowRight className="inline w-3.5 h-3.5 ms-1" />
         </button>
       </motion.div>
