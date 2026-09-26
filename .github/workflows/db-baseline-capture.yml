@@ -1,0 +1,97 @@
+name: DB baseline capture
+
+# Step 1 of the migration pipeline (see the "Flexyn Migration Pipeline"
+# proposal, 2026-09-26). READ-ONLY against production: it dumps what is
+# actually installed and pushes the files to the `db-baseline-capture`
+# branch for review. It never writes to the database.
+#
+# Why production and not the 424 files in supabase/migrations: production's
+# own history records 15 of them, several were replayed out of order, and
+# some later files redefine functions from stale copies. What is installed
+# is the only reliable source. CLAUDE.md: "Read the installed artefact, not
+# the migration that created it."
+#
+# Needs repo secrets SUPABASE_ACCESS_TOKEN and SUPABASE_DB_PASSWORD.
+# Run by hand: Actions > DB baseline capture > Run workflow.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: db-baseline-capture
+  cancel-in-progress: false
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      PROJECT_REF: ebvqxuwfiptcmlkhflfj
+      OUT: supabase/baseline
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Check secrets are set
+        run: |
+          missing=""
+          [ -n "$SUPABASE_ACCESS_TOKEN" ] || missing+=" SUPABASE_ACCESS_TOKEN"
+          [ -n "$SUPABASE_DB_PASSWORD" ] || missing+=" SUPABASE_DB_PASSWORD"
+          if [ -n "$missing" ]; then
+            echo "::error::Missing repo secrets:$missing"
+            exit 1
+          fi
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Link the production project
+        run: supabase link --project-ref "$PROJECT_REF" --password "$SUPABASE_DB_PASSWORD"
+
+      - name: Dump the installed schema
+        run: |
+          mkdir -p "$OUT"
+          # Schema only: tables, views, functions, triggers, policies, grants.
+          # No rows. Supabase-managed schemas (auth, storage internals) are
+          # left out by the CLI, which is what a baseline wants.
+          supabase db dump --linked --file "$OUT/schema.sql"
+
+      - name: Capture what a schema dump misses
+        run: |
+          q() { supabase db query --linked "$1"; }
+          # Scheduled jobs are rows in cron.job, not schema.
+          q "select jobname, schedule, command, active from cron.job order by jobname" > "$OUT/cron_jobs.json"
+          # Policies on storage.objects live in a Supabase-managed schema.
+          q "select policyname, cmd, roles, qual, with_check from pg_policies where schemaname = 'storage' order by policyname" > "$OUT/storage_policies.json"
+          q "select id, public, file_size_limit, allowed_mime_types from storage.buckets order by id" > "$OUT/storage_buckets.json"
+          # Production's own migration history, for step 4.
+          q "select version, name from supabase_migrations.schema_migrations order by version" > "$OUT/remote_history.json"
+          # Row counts, to decide which tables are reference data worth seeding.
+          q "select relname as table, n_live_tup as rows from pg_stat_user_tables where schemaname = 'public' order by relname" > "$OUT/table_rows.json"
+
+      - name: Refuse to publish anything that looks like a secret
+        run: |
+          # A cron command once carried a service_role JWT inline
+          # (CLAUDE.md, weekly debriefs). Never let one reach git.
+          if grep -rEn 'eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.|sbp_[A-Za-z0-9]{20,}|sk-ant-' "$OUT"; then
+            echo "::error::A token-shaped string is in the capture. Nothing was pushed."
+            exit 1
+          fi
+
+      - name: Push to the review branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898+github-actions[bot]@users.noreply.github.com"
+          git checkout -B db-baseline-capture
+          git add "$OUT"
+          git commit -m "Capture production schema $(date -u '+%Y-%m-%d %H:%M') UTC"
+          git push --force origin db-baseline-capture
+          {
+            echo "Captured to branch \`db-baseline-capture\`:"
+            wc -l "$OUT"/* | sed 's/^/    /'
+          } >> "$GITHUB_STEP_SUMMARY"
