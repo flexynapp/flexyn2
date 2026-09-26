@@ -37,7 +37,6 @@ import PRHistoryModal from '@/components/progress/PRHistoryModal';
 // src/components/achievements/AchievementsVault.jsx.
 import TrainingPatternCard from '@/components/progress/TrainingPatternCard';
 import WorkoutCalendarGrid from '@/components/progress/WorkoutCalendarGrid';
-import PageHeader from '@/components/PageHeader';
 import HeroPager from '@/components/HeroPager';
 import { HERO_SLIDE_GUTTER, HERO_SLIDE_MIN_H, heroTintGradient, heroWatermarkStyle, heroSlideAccent } from '@/lib/heroChrome';
 import { latestDebrief, generateWeeklyDebrief, currentWeekStart } from '@/lib/data/debriefs';
@@ -831,11 +830,10 @@ export default function Progress() {
       className="px-4 md:px-6 lg:pb-6 max-w-5xl mx-auto"
       style={{ paddingTop: 'var(--fluid-pad-y)' }}
     >
-      <PageHeader
-        kicker={t('pageHeader.kicker.progress')}
-        title={t('progress.title')}
-        hidePeriod
-      />
+      {/* The top bar already titles this page "Progress", so a visible
+          kicker and heading here said it twice and cost ~100px before any
+          content. The h1 stays for screen readers and document outline. */}
+      <h1 className="sr-only">{t('progress.title')}</h1>
 
       {isLoading ? (
         <div className="space-y-4">

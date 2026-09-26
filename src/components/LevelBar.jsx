@@ -46,7 +46,7 @@ export default function LevelBar({ totalXp = 0, compact = false }) {
           aria-label={rank != null
             ? `Open Stats Hub — level ${level}, ranked ${rank} globally`
             : `Open Stats Hub — level ${level}`}
-          className={`relative flex items-center gap-2 px-3 py-2 rounded-xl overflow-hidden ${tier.bg} shadow-md ${tier.glow} cursor-pointer`}
+          className={`relative flex items-center gap-2 px-3 py-2 rounded-xl overflow-hidden ${tier.bg} cursor-pointer`}
           whileHover={{ scale: 1.06 }}
           whileTap={{ scale: 0.93 }}
           transition={{ type: 'spring', stiffness: 400, damping: 20 }}
@@ -86,7 +86,10 @@ export default function LevelBar({ totalXp = 0, compact = false }) {
   }
 
   return (
-    <div className={`relative flex items-center gap-3 px-5 py-3 rounded-xl overflow-hidden ${tier.bg} shadow-md ${tier.glow}`}>
+    // No tier glow: a coloured shadow is banned by the UI rules, and the tier
+    // already speaks through its border, badge and bar. The tier hues stay,
+    // because XP tiers are one of the two places purple is allowed.
+    <div className={`relative flex items-center gap-3 px-5 py-3 rounded-xl overflow-hidden ${tier.bg}`}>
       <Particles type={tier.particles} />
 
       {/* Level Badge */}

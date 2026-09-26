@@ -328,8 +328,8 @@ export default function CoachChat({ mode, onSaveRegimen, onStartWorkout }) {
       {/* Header */}
       <div className="flex items-center justify-between pb-3 border-b border-border mb-3 shrink-0">
         <div className="flex items-center gap-2">
-          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary via-fuchsia-500 to-violet-500 flex items-center justify-center shrink-0">
-            <Sparkles className="w-4 h-4 text-white" />
+          <div className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center shrink-0">
+            <Sparkles className="w-4 h-4 text-foreground" />
           </div>
           <div>
             <p className="font-heading font-bold text-sm">
@@ -595,8 +595,8 @@ function CoachWelcome({ onPick, tFallback, generateMode }) {
     : tFallback('coach.welcome.desc', "Ask me anything about your training. I read your actual workout data to give you specific advice.");
   return (
     <div className="flex flex-col items-center justify-center text-center pt-8 pb-4 px-2">
-      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary via-fuchsia-500 to-violet-500 flex items-center justify-center mb-4">
-        <Sparkles className="w-7 h-7 text-white" />
+      <div className="w-16 h-16 rounded-2xl bg-secondary flex items-center justify-center mb-4">
+        <Sparkles className="w-7 h-7 text-foreground" />
       </div>
       <h2 className="font-heading font-bold text-lg mb-1">{title}</h2>
       <p className="text-sm text-muted-foreground mb-5 max-w-xs">{desc}</p>

@@ -5,8 +5,7 @@
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Sparkles, Lock, LibraryBig } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { GraduationCap, Lock, LibraryBig } from 'lucide-react';
 import MarketplaceFeed from '@/components/market/MarketplaceFeed';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import CollectionModal from '@/components/loot/CollectionModal';
@@ -41,37 +40,31 @@ export default function Market() {
         </button>
       </div>
 
-      {/* Trainer Programs — Coming Soon */}
-      <motion.div
-        className="w-full mb-4 rounded-2xl border border-primary/20 bg-gradient-to-r from-primary/10 via-violet-500/10 to-primary/10 p-4 flex items-center gap-3 text-start relative overflow-hidden select-none opacity-75"
-        animate={{ boxShadow: ['0 0 0px rgba(139,92,246,0)', '0 0 18px rgba(139,92,246,0.25)', '0 0 0px rgba(139,92,246,0)'] }}
-        transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-      >
-        {/* Animated shimmer */}
-        <motion.div
-          className="absolute inset-0 pointer-events-none"
-          style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(139,92,246,0.07) 50%, transparent 100%)' }}
-          animate={{ x: ['-100%', '200%'] }}
-          transition={{ duration: 2.5, repeat: Infinity, repeatDelay: 2, ease: 'easeInOut' }}
-        />
-        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-          <Sparkles className="w-5 h-5 text-primary/60" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <p className="font-heading font-bold text-sm text-foreground/70">{tFallback("market.trainerPrograms", "Trainer Programs")}</p>
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-violet-500/15 border border-violet-400/25 text-micro font-bold uppercase tracking-wider text-violet-500">
-              <Lock className="w-2.5 h-2.5" />
-              {tFallback("levelBar.comingSoon", "Coming Soon")}
-            </span>
-          </div>
-          <p className="text-xs text-muted-foreground/70">{tFallback("market.trainerProgramsSub", "Premium regimens from certified creators, launching soon")}</p>
-        </div>
-      </motion.div>
 
       <ErrorBoundary label="Market">
         <MarketplaceFeed onStartConversation={startConversation} />
       </ErrorBoundary>
+
+      {/* Trainer Programs, coming soon. It used to open the page, above the
+          listings, with a violet gradient, a pulsing violet glow, a shimmer
+          and a purple pill. Purple is for rarity only, and a feature you
+          cannot use yet should not be the first thing on the page, so it is
+          a quiet flat row under the feed. */}
+      <div className="w-full mt-6 rounded-2xl border border-border bg-card p-4 flex items-center gap-3 text-start select-none">
+        <div className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center shrink-0">
+          <GraduationCap className="w-5 h-5 text-muted-foreground" aria-hidden="true" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <p className="font-heading font-bold text-sm text-foreground">{tFallback("market.trainerPrograms", "Trainer Programs")}</p>
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-secondary text-micro font-semibold text-muted-foreground">
+              <Lock className="w-2.5 h-2.5" aria-hidden="true" />
+              {tFallback("levelBar.comingSoon", "Coming Soon")}
+            </span>
+          </div>
+          <p className="text-xs text-muted-foreground">{tFallback("market.trainerProgramsSub", "Premium regimens from certified creators, launching soon")}</p>
+        </div>
+      </div>
 
       {/* Daily Flexyn Drop — branded items, rotates every 24h.
           Moved BELOW the main marketplace feed per user feedback:
