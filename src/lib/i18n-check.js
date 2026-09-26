@@ -98,6 +98,8 @@ const ALLOW_IDENTICAL = new Set([
   'quickLog.addOz',         // "+{oz} oz"  — a number and a unit symbol
   'finish.xp',              // "+{xp} XP"  — a number and the XP symbol
   'finish.min',             // "min"       — the unit abbreviation
+  'finish.minutes',         // "{n} min"   — a number and the unit abbreviation
+  'win.xpGained',           // "+{n} XP"   — a number and the XP symbol
   'trophy.unit.lb',         // "lb"        — unit symbol
   'trophy.unit.m',          // "m"         — SI symbol
   'trophy.tail.desc',       // "{n} {unit}" — placeholders and a space
