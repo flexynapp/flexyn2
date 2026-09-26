@@ -1,7 +1,7 @@
 name: Edge Functions bundle
 
 # Bundles every Edge Function declared in supabase/config.toml with the same
-# edge-runtime the Supabase CLI uses, one function per job, so a failure names
+# edge-runtime the Supabase CLI uses, one function at a time, so a failure names
 # the function. It deploys nothing and needs no secrets.
 #
 # Why it exists: the first deploy through the Supabase GitHub integration
@@ -23,24 +23,43 @@ permissions:
 jobs:
   bundle:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
-    strategy:
-      fail-fast: false
-      matrix:
-        fn:
-          - send-push
-          - recognize-meal
-          - coach-chat
-          - storage-gc
-          - generateWeeklyDebriefs
-          - report-notify
-          - delete-account
-          - osm-gyms-fill
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-      - name: Bundle ${{ matrix.fn }}
+      # One job and one pull: eight parallel jobs each pulling from ECR hit
+      # its anonymous rate limit before any bundle ran.
+      - name: Pull edge-runtime
         run: |
-          docker run --rm -v "$PWD":/app -w /app \
-            public.ecr.aws/supabase/edge-runtime:v1.76.2 \
-            bundle --entrypoint /app/supabase/functions/${{ matrix.fn }}/index.ts \
-                   --output /tmp/${{ matrix.fn }}.eszip
+          for i in 1 2 3; do
+            docker pull -q "$IMAGE" && exit 0
+            sleep $((i * 20))
+          done
+          exit 1
+        env:
+          IMAGE: public.ecr.aws/supabase/edge-runtime:v1.76.2
+      - name: Bundle each function
+        env:
+          IMAGE: public.ecr.aws/supabase/edge-runtime:v1.76.2
+          FUNCTIONS: >-
+            send-push recognize-meal coach-chat storage-gc
+            generateWeeklyDebriefs report-notify delete-account osm-gyms-fill
+        run: |
+          failed=""
+          for fn in $FUNCTIONS; do
+            echo "::group::$fn"
+            if docker run --rm -v "$PWD":/app -w /app "$IMAGE" \
+                 bundle --entrypoint "/app/supabase/functions/$fn/index.ts" \
+                        --output "/tmp/$fn.eszip"; then
+              echo "| $fn | bundled |" >> /tmp/rows.md
+            else
+              echo "::error title=Bundle failed::$fn"
+              echo "| $fn | FAILED |" >> /tmp/rows.md
+              failed="$failed $fn"
+            fi
+            echo "::endgroup::"
+          done
+          { echo "| Function | Result |"; echo "|---|---|"; cat /tmp/rows.md; } >> "$GITHUB_STEP_SUMMARY"
+          if [ -n "$failed" ]; then
+            echo "Failed to bundle:$failed"
+            exit 1
+          fi
