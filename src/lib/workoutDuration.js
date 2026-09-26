@@ -23,7 +23,7 @@
 // single place that knows its name, so the next reader cannot get it wrong.
 //
 // WHY NOT RENAME THE COLUMN INSTEAD: `duration_minutes` is what the client
-// and BACKEND_CONTRACT.md say, so renaming the column would align more
+// says, so renaming the column would align more
 // names. But `generate_weekly_review_for` reads `duration_min`, and that
 // function was consolidated onto a single body by migration 331 after a
 // period where two implementations disagreed — redefining it to chase a

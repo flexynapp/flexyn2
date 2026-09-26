@@ -719,7 +719,7 @@ export async function getCrewStoriesFeed(userId) {
     .filter(r => r.stories.length > 0);
 }
 
-// ── Image upload helper (reuses Base44 Core uploader) ─────────────────────────
+// ── Image upload helper (db.integrations.Core.UploadFile → Supabase Storage) ─────────────────────────
 
 export async function uploadCrewMedia(file) {
   const compressed = await compressImage(file);

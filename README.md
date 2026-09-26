@@ -167,7 +167,5 @@ After the perf pass in this codebase:
   pre-deploy checklist
 - [`supabase/tests/cron_smoke_tests.sql`](supabase/tests/cron_smoke_tests.sql) —
   paste-and-run grid that verifies cron + helper functions
-- [`src/BACKEND_CONTRACT.md`](src/BACKEND_CONTRACT.md) — column
-  definitions on `user_profiles` and other shared tables
 - [`src/VERIFICATION_CHECKLIST.md`](src/VERIFICATION_CHECKLIST.md) —
   manual QA checklist for major features
