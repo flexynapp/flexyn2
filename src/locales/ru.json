@@ -382,7 +382,7 @@
   "formcoach.howItWorks": "Как это работает",
   "formcoach.howItWorksHeader": "Как это работает:",
   "formcoach.injuryRisks": "Риск травмы",
-  "formcoach.modelLoadingMessage": "Загружаем ИИ-модель (один раз, ~3 МБ)…",
+  "formcoach.modelLoadingMessage": "Загружаем ИИ-модель (один раз, ~9 МБ)…",
   "formcoach.noBodyCorrection1": "Я не увидел тебя целиком в кадре.",
   "formcoach.noBodyCorrection2": "Попробуй: больше света, простой фон, всё тело с головы до ног.",
   "formcoach.noBodyDetected": "Тело не найдено",

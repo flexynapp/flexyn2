@@ -517,7 +517,7 @@ The two shapes that came up:
 - `npm run dev` — Vite dev server.
 - `npm run build` — production build. Vite + manual chunking in
   [vite.config.js](vite.config.js) splits the heaviest deps into their
-  own vendor chunks (`vendor-tfjs`, `vendor-supabase`, `vendor-charts`,
+  own vendor chunks (`vendor-pose`, `vendor-supabase`, `vendor-charts`,
   `vendor-motion`, etc.).
 - `npm run analyze` — build with `ANALYZE=true` so
   rollup-plugin-visualizer writes a treemap to `dist/bundle-stats.html`.

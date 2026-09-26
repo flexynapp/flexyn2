@@ -390,7 +390,7 @@
   "formcoach.howItWorks": "使い方",
   "formcoach.howItWorksHeader": "仕組み：",
   "formcoach.injuryRisks": "怪我のリスク",
-  "formcoach.modelLoadingMessage": "AIモデルをロード中（初回、約3 MB）…",
+  "formcoach.modelLoadingMessage": "AIモデルをロード中（初回、約9 MB）…",
   "formcoach.noBodyCorrection1": "フレームに全身が見えませんでした。",
   "formcoach.noBodyCorrection2": "照明、シンプルな背景、全身が見えるようにしてください。",
   "formcoach.noBodyDetected": "身体が検出されません",

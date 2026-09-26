@@ -6,7 +6,8 @@ import {
   angleFromVertical,
   ifConfident,
   bodyDetectionScore,
-  keypointsToMap,
+  landmarksToMap,
+  POSE_LANDMARK_INDEX,
   bestSide,
 } from '../formCoach/geometry';
 import {
@@ -83,19 +84,53 @@ describe('ifConfident', () => {
   });
 });
 
-describe('keypointsToMap', () => {
-  it('builds a name → keypoint map', () => {
-    const arr = [
-      { name: 'left_hip',   x: 1, y: 2, score: 0.9 },
-      { name: 'right_knee', x: 3, y: 4, score: 0.8 },
-    ];
-    const map = keypointsToMap(arr);
-    expect(map.left_hip).toEqual({ x: 1, y: 2, score: 0.9 });
-    expect(map.right_knee).toEqual({ x: 3, y: 4, score: 0.8 });
+describe('landmarksToMap', () => {
+  // A 33-landmark MediaPipe pose where landmark i sits at (i/100, i/50).
+  const landmarks = Array.from({ length: 33 }, (_, i) => ({
+    x: i / 100, y: i / 50, z: 0, visibility: 0.9,
+  }));
+
+  it('names the 17 MoveNet joints from MediaPipe indices', () => {
+    const map = landmarksToMap(landmarks);
+    expect(Object.keys(map).sort()).toEqual(Object.keys(POSE_LANDMARK_INDEX).sort());
+    expect(Object.keys(map)).toHaveLength(17);
+  });
+
+  it('uses the documented MediaPipe indices for the joints the rules read', () => {
+    expect(POSE_LANDMARK_INDEX).toMatchObject({
+      nose: 0,
+      left_shoulder: 11, right_shoulder: 12,
+      left_elbow: 13, right_elbow: 14,
+      left_wrist: 15, right_wrist: 16,
+      left_hip: 23, right_hip: 24,
+      left_knee: 25, right_knee: 26,
+      left_ankle: 27, right_ankle: 28,
+    });
+  });
+
+  it('scales normalised coordinates to pixels and maps visibility to score', () => {
+    const map = landmarksToMap(landmarks, 200, 100);
+    // left_hip is landmark 23: (0.23, 0.46) → (46, 46)
+    expect(map.left_hip.x).toBeCloseTo(46);
+    expect(map.left_hip.y).toBeCloseTo(46);
+    expect(map.left_hip.score).toBe(0.9);
+  });
+
+  it('treats a missing visibility as zero confidence, not full', () => {
+    const map = landmarksToMap([{ x: 0.5, y: 0.5 }]);
+    expect(map.nose.score).toBe(0);
+  });
+
+  it('zeroes the score of a joint MediaPipe placed outside the image', () => {
+    // Measured on a close-up push-up: a knee at x = -35px with visibility 0.5.
+    const lm = [{ x: -0.055, y: 0.5, visibility: 0.5 }];
+    expect(landmarksToMap(lm, 640, 427).nose.score).toBe(0);
+    // Just inside the 2% margin still counts.
+    expect(landmarksToMap([{ x: 1.01, y: 0.5, visibility: 0.9 }]).nose.score).toBe(0.9);
   });
 
   it('handles undefined input', () => {
-    expect(keypointsToMap()).toEqual({});
+    expect(landmarksToMap()).toEqual({});
   });
 });
 

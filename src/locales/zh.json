@@ -383,7 +383,7 @@
   "formcoach.howItWorks": "工作原理",
   "formcoach.howItWorksHeader": "工作原理：",
   "formcoach.injuryRisks": "受伤风险",
-  "formcoach.modelLoadingMessage": "正在加载 AI 模型（仅一次，约 3 MB）…",
+  "formcoach.modelLoadingMessage": "正在加载 AI 模型（仅一次，约 9 MB）…",
   "formcoach.noBodyCorrection1": "画面中没有看到你的全身。",
   "formcoach.noBodyCorrection2": "试试：更好的光线、简洁的背景、从头到脚完整入镜。",
   "formcoach.noBodyDetected": "未检测到人体",

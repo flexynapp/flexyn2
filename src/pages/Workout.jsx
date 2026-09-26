@@ -97,7 +97,7 @@ import TransText from '@/components/TransText';
 // Lazy-loaded modals — all consolidated AFTER imports so Vite's bundle
 // init doesn't hit a TDZ when consts sit between import statements
 // (the bug that crashed /hub twice in this session). FormCoachModal
-// in particular pulls vendor-pose / vendor-tfjs through its
+// in particular pulls vendor-pose (MediaPipe) through its
 // detectorPrewarm chain; static import would defeat tree-shaking.
 const FormCoachModal       = lazy(() => import('@/components/formcoach/FormCoachModal'));
 const EditWorkoutModal     = lazy(() => import('@/components/workout/EditWorkoutModal'));

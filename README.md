@@ -13,7 +13,7 @@ Netlify.
 - **PWA**: vite-plugin-pwa with a custom service worker
   (`src/lib/push-sw.js`) — Web Push delivery, offline-tolerant shell,
   network-first navigation
-- **Pose detection**: `@tensorflow-models/pose-detection` (lazy-loaded
+- **Pose detection**: `@mediapipe/tasks-vision` Pose Landmarker (lazy-loaded
   for the Form Coach feature only)
 - **Maps**: `maplibre-gl` + OpenFreeMap vector tiles (lazy-loaded for cardio route rendering only)
 - **i18n**: 15 languages with per-language code splitting
@@ -151,7 +151,7 @@ After the perf pass in this codebase:
 - **Code-split routes**: Dashboard, Workout, Hub, Nutrition, Progress
 - **Lazy on-demand chunks**: `vendor-charts` (Dashboard/Progress only),
   `RouteMap` (cardio detail only), `@zxing/browser` (barcode scan
-  only), `canvas-confetti` (level-up only), `vendor-tfjs` + `vendor-pose`
+  only), `canvas-confetti` (level-up only), `vendor-pose`
   (Form Coach only)
 - **Service Worker strategy**: NetworkFirst for navigations (so new
   deploys self-heal), precache for content-hashed assets

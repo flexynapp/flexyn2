@@ -1559,7 +1559,7 @@
   "formcoach.howItWorks": "Hoe het werkt",
   "formcoach.howItWorksHeader": "Hoe dit werkt:",
   "formcoach.injuryRisks": "Blessurerisico",
-  "formcoach.modelLoadingMessage": "Het AI-model wordt geladen (eenmalig, ~3 MB)…",
+  "formcoach.modelLoadingMessage": "Het AI-model wordt geladen (eenmalig, ~9 MB)…",
   "formcoach.noBodyCorrection1": "Ik zag je lichaam niet volledig in beeld.",
   "formcoach.noBodyCorrection2": "Probeer: beter licht, effen achtergrond, hele lichaam van hoofd tot voeten.",
   "formcoach.noBodyDetected": "Geen lichaam herkend",

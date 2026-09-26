@@ -366,7 +366,7 @@
   "formcoach.howItWorks": "작동 방식",
   "formcoach.howItWorksHeader": "작동 방식:",
   "formcoach.injuryRisks": "부상 위험",
-  "formcoach.modelLoadingMessage": "AI 모델을 불러오는 중입니다 (최초 1회, 약 3 MB)…",
+  "formcoach.modelLoadingMessage": "AI 모델을 불러오는 중입니다 (최초 1회, 약 9 MB)…",
   "formcoach.noBodyCorrection1": "화면에서 전신을 확인하지 못했습니다.",
   "formcoach.noBodyCorrection2": "조명을 밝게, 배경을 단순하게, 머리부터 발끝까지 보이게 해보세요.",
   "formcoach.noBodyDetected": "신체가 인식되지 않음",

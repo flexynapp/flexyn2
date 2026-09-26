@@ -1794,7 +1794,7 @@
   "formcoach.howItWorks": "Cómo funciona",
   "formcoach.howItWorksHeader": "Cómo funciona:",
   "formcoach.injuryRisks": "Riesgo de lesión",
-  "formcoach.modelLoadingMessage": "Cargando modelo de IA (una vez, ~3 MB)…",
+  "formcoach.modelLoadingMessage": "Cargando modelo de IA (una vez, ~9 MB)…",
   "formcoach.noBodyCorrection1": "No pude ver tu cuerpo completo en el cuadro.",
   "formcoach.noBodyCorrection2": "Prueba: mejor iluminación, fondo simple, cuerpo completo visible.",
   "formcoach.noBodyDetected": "No se detectó cuerpo",
