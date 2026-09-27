@@ -74,23 +74,26 @@ export default function CalorieProgressWidget({ userProfile = {} }) {
     staleTime: 5 * 60_000,
   });
   const logEmail = authEmail || user?.email || userProfile?.email || null;
+  // Rows are read by owner id: an email can change (a guest linking an
+  // address), and rows written after that carry the new one.
+  const logUserId = user?.id || userProfile?.id || null;
   const { data: todayLogs = [] } = useQuery({
     // Share the SAME query key as src/pages/Nutrition.jsx so that logging a
     // meal on /nutrition invalidates this Dashboard widget too.
     queryKey: ['nutritionLogs', logEmail, today],
     queryFn: async () => {
-      if (!logEmail) return [];
+      if (!logUserId) return [];
       const { data } = await supabase
         .from('nutrition_logs')
         // DB columns are protein/carbs/fat (no _g suffix). Selecting the
         // suffixed names 400'd the whole query, so this widget silently read
         // an empty set and always showed 0 — even after logging a meal.
         .select('calories, protein, carbs, fat, food_name')
-        .eq('created_by', logEmail)
+        .eq('user_id', logUserId)
         .eq('date', today);
       return data || [];
     },
-    enabled: !!logEmail,
+    enabled: !!logEmail && !!logUserId,
     staleTime: 60_000,
     refetchInterval: 120_000,
   });

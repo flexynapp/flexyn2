@@ -3,8 +3,8 @@ import { db } from '@/api/db';
 import { containsProfanity } from '@/lib/profanityFilter';
 import { track, EVENTS } from '@/lib/analytics';
 
-export const list = (email) =>
-  db.entities.Goal.filter({ created_by: email }, '-created_date');
+export const list = (userId) =>
+  db.entities.Goal.filter({ user_id: userId }, '-created_date');
 
 function assertNoTextProfanity(fields) {
   for (const [key, val] of Object.entries(fields)) {
@@ -34,11 +34,3 @@ export const update = (id, data) => {
   return db.entities.Goal.update(id, data);
 };
 export const remove = (id) => db.entities.Goal.delete(id);
-
-export const purgeForUser = async (email) => {
-  if (!email) return;
-  const batch = await db.entities.Goal.filter({ created_by: email }).catch(() => []);
-  await Promise.all((batch || []).map(r =>
-    db.entities.Goal.delete(r.id).catch(() => {})
-  ));
-};

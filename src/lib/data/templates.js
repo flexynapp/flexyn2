@@ -3,8 +3,8 @@ import { db } from '@/api/db';
 import { supabase } from '@/api/supabaseClient';
 import { containsProfanity } from '@/lib/profanityFilter';
 
-export const list = (email) =>
-  db.entities.WorkoutTemplate.filter({ created_by: email }, '-created_date');
+export const list = (userId) =>
+  db.entities.WorkoutTemplate.filter({ user_id: userId }, '-created_date');
 
 function assertNoTextProfanity(fields) {
   for (const [key, val] of Object.entries(fields)) {
@@ -74,10 +74,9 @@ export async function saveTemplate({ name, description = '', exercises = [] }) {
     return { ok: false, reason: 'profanity' };
   }
   try {
-    // db.entities.create injects created_by (email) and user_id (uuid), which
-    // matters because `list` filters on created_by while other readers use
-    // user_id — both must be populated or a saved template goes missing from
-    // one of them.
+    // db.entities.create injects created_by (email) and user_id (uuid). Reads
+    // key on user_id; created_by stays populated because the table's older
+    // policies still accept it and the column is NOT NULL.
     const row = await db.entities.WorkoutTemplate.create({
       name: cleanName,
       description: (description || '').trim(),
@@ -143,12 +142,3 @@ export const copyTemplate = async (original, user) => {
   await supabase.rpc('increment_copy_count', { p_table: 'workout_templates', p_id: original.id }).catch(() => {});
   return copy;
 };
-
-export const purgeForUser = async (email) => {
-  if (!email) return;
-  const batch = await db.entities.WorkoutTemplate.filter({ created_by: email }).catch(() => []);
-  await Promise.all((batch || []).map(r =>
-    db.entities.WorkoutTemplate.delete(r.id).catch(() => {})
-  ));
-};
-

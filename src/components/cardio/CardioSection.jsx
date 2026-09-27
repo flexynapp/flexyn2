@@ -187,7 +187,7 @@ export default function CardioSection({ onBack, deepLink = null, onDeepLinkConsu
   const { data: lastLogs = [] } = useQuery({
     queryKey: cardioLogsKey(user?.email, 'lastLog'),
     queryFn: () => db.entities.CardioLog.filter(
-      { created_by: user.email }, '-date', 1
+      { user_id: user.id }, '-date', 1
     ),
     enabled: !!user?.email,
   });

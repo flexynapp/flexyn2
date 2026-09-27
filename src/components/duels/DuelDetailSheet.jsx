@@ -54,7 +54,7 @@ export default function DuelDetailSheet({ duel, currentUserId, opponentProfile, 
   const { data: latestLog } = useQuery({
     queryKey: ['latestWorkoutLog', user?.id],
     queryFn: async () => {
-      const rows = await db.entities.WorkoutLog.filter({ created_by: user?.email });
+      const rows = await db.entities.WorkoutLog.filter({ user_id: user?.id });
       const withEx = (rows || []).filter((r) => (r.exercises || []).some((e) => (e.sets || []).length));
       withEx.sort((a, b) => new Date(b.date) - new Date(a.date));
       return withEx[0] || null;

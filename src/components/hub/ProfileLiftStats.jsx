@@ -19,21 +19,21 @@ import TapToCopy from '@/components/TapToCopy';
 
 const ProfileShareCard = lazy(() => import('./ProfileShareCard'));
 
-export default function ProfileLiftStats({ userEmail, longestStreak, isOwn, username }) {
+export default function ProfileLiftStats({ userId, longestStreak, isOwn, username }) {
   const [shareOpen, setShareOpen] = useState(false);
   const { tFallback } = useLanguage();
   const { weightUnit } = useWeightUnit();
   const fmt = useNumberFormatter();
 
   const { data: logs = [] } = useQuery({
-    queryKey: ['profileLifts', userEmail],
+    queryKey: ['profileLifts', userId],
     queryFn: async () => {
-      if (!userEmail) return [];
+      if (!userId) return [];
       try {
-        return await db.entities.WorkoutLog.filter({ created_by: userEmail }, '-date', 500);
+        return await db.entities.WorkoutLog.filter({ user_id: userId }, '-date', 500);
       } catch { return []; }
     },
-    enabled: !!userEmail,
+    enabled: !!userId,
     staleTime: 5 * 60_000,
   });
 

@@ -52,7 +52,7 @@ export default function WorkoutSavedList({ onSelectLog, search = '' }) {
   const { data: allLogs = [], isLoading } = useQuery({
     queryKey: workoutLogsKey(user?.email, 'savedList'),
     queryFn: () => db.entities.WorkoutLog.filter(
-      { created_by: user.email }, '-date', 500
+      { user_id: user.id }, '-date', 500
     ),
     enabled: !!user?.email,
   });

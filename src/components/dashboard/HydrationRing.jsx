@@ -71,7 +71,7 @@ export default function HydrationRing({ goalOz = DEFAULT_GOAL_OZ }) {
       if (!user?.email) return [];
       try {
         const all = await db.entities.NutritionLog.filter(
-          { created_by: user.email, date: today }, '-created_date', 100
+          { user_id: user.id, date: today }, '-created_date', 100
         );
         return all || [];
       } catch (err) {

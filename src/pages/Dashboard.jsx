@@ -1189,25 +1189,25 @@ export default function Dashboard() {
 
   const { data: rawLogs = [], isLoading: logsLoading, dataUpdatedAt: logsUpdatedAt } = useQuery({
     queryKey: workoutLogsKey(user?.email, 'dashboard'),
-    queryFn: () => db.entities.WorkoutLog.filter({ created_by: user.email }, '-date', 50),
+    queryFn: () => db.entities.WorkoutLog.filter({ user_id: user.id }, '-date', 50),
     enabled: !!user?.email,
   });
 
   const { data: rawCardioLogs = [] } = useQuery({
     queryKey: cardioLogsKey(user?.email, 'dashboard'),
-    queryFn: () => db.entities.CardioLog.filter({ created_by: user.email }, '-date', 50),
+    queryFn: () => db.entities.CardioLog.filter({ user_id: user.id }, '-date', 50),
     enabled: !!user?.email,
   });
 
   const { data: rawRegimens = [], isLoading: regimensLoading } = useQuery({
     queryKey: ['regimens', user?.email],
-    queryFn: () => db.entities.Regimen.filter({ created_by: user.email }),
+    queryFn: () => db.entities.Regimen.filter({ user_id: user.id }),
     enabled: !!user?.email,
   });
 
   const { data: rawGoals = [], isLoading: goalsLoading } = useQuery({
     queryKey: ['goals', user?.email],
-    queryFn: () => db.entities.Goal.filter({ created_by: user.email }, '-created_date'),
+    queryFn: () => db.entities.Goal.filter({ user_id: user.id }, '-created_date'),
     enabled: !!user?.email,
   });
 
@@ -1218,7 +1218,7 @@ export default function Dashboard() {
   // logged a meal today but not a workout. (Audit 08 #1.)
   const { data: rawNutritionLogs = [] } = useQuery({
     queryKey: ['nutritionLogsRecent', user?.email],
-    queryFn: () => db.entities.NutritionLog.filter({ created_by: user.email }, '-date', 20),
+    queryFn: () => db.entities.NutritionLog.filter({ user_id: user.id }, '-date', 20),
     enabled: !!user?.email,
     staleTime: 5 * 60_000,
   });

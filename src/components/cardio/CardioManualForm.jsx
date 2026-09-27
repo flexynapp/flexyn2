@@ -54,7 +54,7 @@ export default function CardioManualForm({
   const { data: todayWorkoutLogs = [] } = useQuery({
     queryKey: ['workoutLogs.today', user?.email, todayStr],
     queryFn: () => db.entities.WorkoutLog.filter(
-      { created_by: user.email, date: todayStr }, '-date', 50
+      { user_id: user.id, date: todayStr }, '-date', 50
     ).catch(() => []),
     enabled: !!user?.email,
     staleTime: 60_000,
@@ -62,7 +62,7 @@ export default function CardioManualForm({
   const { data: todayCardioLogs = [] } = useQuery({
     queryKey: ['cardioLogs.today', user?.email, todayStr],
     queryFn: () => db.entities.CardioLog.filter(
-      { created_by: user.email, date: todayStr }, '-date', 50
+      { user_id: user.id, date: todayStr }, '-date', 50
     ).catch(() => []),
     enabled: !!user?.email,
     staleTime: 60_000,
@@ -379,7 +379,7 @@ export default function CardioManualForm({
           level: 'warning',
           userEmail: user?.email,
         }));
-        const prior = await cardioData.listForPRs(user.email);
+        const prior = await cardioData.listForPRs(user.id);
         const priorOnly = prior.filter(l => l.id !== createdLog.id);
         const prs = detectNewPRs(createdLog, priorOnly);
         prCount = prs.length;

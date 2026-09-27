@@ -78,17 +78,17 @@ export const findByBarcode = async (barcode) => {
  * `created_by` filter and adding `is_verified`; `foodSearch.js` already
  * carries a `source` per entry and needs no change.
  *
- * @param {string} email
+ * @param {string} userId
  * @param {{ limit?: number }} [opts]
  * @returns {Promise<object[]>} raw rows, unranked
  */
-export const listMineForSearch = async (email, { limit = 200 } = {}) => {
-  if (!email) return [];
+export const listMineForSearch = async (userId, { limit = 200 } = {}) => {
+  if (!userId) return [];
   try {
     const { data, error } = await supabase
       .from('food_items')
       .select('*')
-      .eq('created_by', email)
+      .eq('user_id', userId)
       .order('created_at', { ascending: false })
       .limit(limit);
     if (error) throw error;

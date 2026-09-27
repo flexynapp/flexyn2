@@ -112,22 +112,22 @@ function RollCallComposer({ onSubmit, onCancel }) {
 
 // ── Regimen picker ────────────────────────────────────────────────────────────
 
-function RegimenPicker({ userEmail, onShare, onAssign, canAssign, onCancel }) {
+function RegimenPicker({ userId, onShare, onAssign, canAssign, onCancel }) {
   const { tFallback } = useLanguage();
   const [tab, setTab] = useState('share'); // 'share' | 'assign'
   const { data: regimenList = [] } = useQuery({
-    queryKey: ['regimenPicker', userEmail],
+    queryKey: ['regimenPicker', userId],
     queryFn:  async () => {
       const { supabase } = await import('@/api/supabaseClient');
       const { data } = await supabase
         .from('regimens')
         .select('id, name, exercises')
-        .eq('created_by', userEmail)
+        .eq('user_id', userId)
         .order('created_date', { ascending: false })
         .limit(20);
       return data ?? [];
     },
-    enabled: !!userEmail,
+    enabled: !!userId,
     staleTime: 30_000,
   });
 
@@ -955,7 +955,7 @@ export default function CrewChat({ crew, onBack, onViewProfile, embedded }) {
       <AnimatePresence>
         {regimenOpen && (
           <RegimenPicker
-            userEmail={user?.email}
+            userId={user?.id}
             onShare={handleShareRegimen}
             onAssign={handleAssignRegimen}
             canAssign={isCurrentAdmin}
